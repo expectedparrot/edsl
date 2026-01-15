@@ -2112,11 +2112,20 @@ class Coop(CoopFunctionsMixin):
         include_json_string: Optional[bool] = False,
     ) -> Union[RemoteInferenceResponse, List[RemoteInferenceResponse]]:
         """
-        Get the status and details of a remote inference job or jobs.
+        Get the status and details of one or more remote inference jobs.
 
-        :param job_uuid: The UUID(s) of the remote job(s) to check.
-        :param results_uuid: The UUID of the results associated with the job.
-        :param include_json_string: If True, include the json string for the job in the response.
+        Args:
+            job_uuid: The UUID(s) of the remote job(s) to check. Can be a single string or a list of strings.
+            results_uuid: The UUID of the results associated with the job (if you only have the results UUID).
+            include_json_string: Whether to include the full job JSON string in the response.
+
+        Returns:
+            A dictionary (or list of dictionaries) containing job details like status, results URL, 
+            and execution metadata.
+
+        Examples:
+            >>> coop.new_remote_inference_get("uuid-123")  # Get details for one job
+            >>> coop.new_remote_inference_get(["uuid1", "uuid2"])  # Get details for multiple jobs
         """
         if isinstance(job_uuid, list):
             return [
