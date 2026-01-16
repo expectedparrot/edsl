@@ -1,0 +1,30 @@
+[build-system]
+build-backend = "poetry.core.masonry.api"
+requires = ["poetry-core"]
+
+[tool.poetry]
+name = "two-truths-lie"
+version = "1.0.0"
+description = "Two Truths and a Lie: LLM Storytelling Challenge for studying deception capabilities"
+authors = ["EDSL Research Team"]
+readme = "README.md"
+packages = [{include = "src"}]
+
+[tool.poetry.dependencies]
+python = ">=3.10,<3.14"
+edsl = {path = "../..", develop = true}
+pydantic = "^2.5.0"
+pyyaml = "^6.0"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^7.4.0"
+pytest-asyncio = "^0.23.0"
+
+[tool.poetry.scripts]
+two-truths-lie = "src.__main__:main"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_functions = ["test_*"]
+addopts = "-v"
