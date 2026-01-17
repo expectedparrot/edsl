@@ -1,0 +1,147 @@
+[
+  {
+    "core_claim": "Post-it Notes were invented accidentally when a scientist at 3M was trying to develop a super-strong adhesive but instead created an unusually weak one that could be peeled off surfaces without leaving residue.",
+    "supporting_details": {
+      "date": "1968",
+      "inventor": "Dr. Spencer Silver",
+      "company": "3M (Minnesota Mining and Manufacturing Company)",
+      "original_purpose": "Super-strong aerospace adhesive",
+      "commercialization_date": "1980",
+      "original_name": "Press 'n Peel"
+    },
+    "source_citation": "3M Company Archives; Spencer Silver's patents (US Patent 3,691,140); The Great Idea Finder historical records",
+    "why_strange": "A complete failure at its intended purpose became one of the most successful office products in history.",
+    "category": "unlikely_inventions",
+    "model_generated_by": "claude-3-7-sonnet-20250219"
+  },
+  {
+    "core_claim": "Viagra (sildenafil) was originally developed as a medication for angina and hypertension, but during clinical trials, researchers discovered its unexpected side effect of treating erectile dysfunction.",
+    "supporting_details": {
+      "date": "Early 1990s",
+      "company": "Pfizer",
+      "original_purpose": "Treatment for angina pectoris and hypertension",
+      "researchers": "Nicholas Terrett and Peter Ellis",
+      "approval_date": "March 27, 1998 (FDA approval for ED)",
+      "unexpected_observation": "Male test subjects reported frequent erections during clinical trials"
+    },
+    "source_citation": "British Journal of Clinical Pharmacology, 1996; FDA approval documents; Pfizer company history",
+    "why_strange": "A cardiovascular drug's 'side effect' became its primary purpose, creating a multi-billion dollar market that hadn't previously existed.",
+    "category": "unlikely_inventions",
+    "model_generated_by": "claude-3-7-sonnet-20250219"
+  },
+  {
+    "core_claim": "Bubble Wrap was originally invented in 1957 as a textured wallpaper, then marketed as greenhouse insulation before finally finding success as a packaging material.",
+    "supporting_details": {
+      "date": "1957",
+      "inventors": "Alfred Fielding and Marc Chavannes",
+      "location": "Hawthorne, New Jersey",
+      "original_name": "Air Cap",
+      "company_founded": "Sealed Air Corporation (1960)",
+      "first_commercial_use": "IBM computer packaging (1961)"
+    },
+    "source_citation": "Sealed Air Corporation archives; Patents US2917217 and US3033702; Smithsonian Institution records",
+    "why_strange": "A failed decorative wall covering became one of the most ubiquitous packaging materials in the world.",
+    "category": "unlikely_inventions",
+    "model_generated_by": "claude-3-7-sonnet-20250219"
+  },
+  {
+    "core_claim": "The microwave oven was invented after engineer Percy Spencer noticed a chocolate bar melting in his pocket while working near an active radar set at Raytheon Corporation in 1945.",
+    "supporting_details": {
+      "date": "1945",
+      "inventor": "Percy Spencer",
+      "company": "Raytheon Corporation",
+      "first_food_tested": "Popcorn kernels",
+      "first_commercial_model": "Radarange (1947)",
+      "original_size": "5.5 feet tall, 750 pounds",
+      "original_price": "$5,000 (equivalent to about $60,000 today)"
+    },
+    "source_citation": "Raytheon Company archives; IEEE History Center; US Patent 2,495,429 (filed October 8, 1945)",
+    "why_strange": "A wartime radar engineer's melting candy bar led to a kitchen appliance that revolutionized how people prepare food worldwide.",
+    "category": "unlikely_inventions",
+    "model_generated_by": "claude-3-7-sonnet-20250219"
+  },
+  {
+    "core_claim": "The microwave oven was invented accidentally when engineer Percy Spencer noticed a chocolate bar melted in his pocket while working on a radar system.",
+    "supporting_details": {
+      "date": "1945",
+      "location": "Raytheon Laboratories, Massachusetts, USA",
+      "participants": "Percy Spencer, Raytheon Company",
+      "technology": "Magnetron used in radar systems",
+      "first_product": "Radarange, released in 1947"
+    },
+    "source_citation": "National Museum of American History, Smithsonian Institution; Raytheon Company archives",
+    "why_strange": "A common kitchen appliance was born from a radar-related mishap",
+    "category": "unlikely_inventions",
+    "model_generated_by": "chatgpt-4o-latest"
+  },
+  {
+    "core_claim": "Play-Doh was originally created in the 1930s as a wallpaper cleaner before being repurposed as a children's toy in the 1950s.",
+    "supporting_details": {
+      "date": "1933 (cleaner), rebranded in 1956",
+      "location": "Cincinnati, Ohio, USA",
+      "participants": "Kutol Products Company; Joseph and Noah McVicker",
+      "original_use": "Non-toxic compound to clean coal soot from wallpaper",
+      "rebranding": "Renamed Play-Doh and marketed by Rainbow Crafts"
+    },
+    "source_citation": "Cincinnati Enquirer archives; Smithsonian Magazine, 'The Accidental History of Play-Doh', 2016",
+    "why_strange": "A popular children's toy started as a household cleaning product",
+    "category": "unlikely_inventions",
+    "model_generated_by": "chatgpt-4o-latest"
+  },
+  {
+    "core_claim": "Coca-Cola was invented as a medicinal tonic containing cocaine and alcohol, initially marketed as a cure for morphine addiction and nervous disorders.",
+    "supporting_details": {
+      "date": "1886",
+      "location": "Atlanta, Georgia, USA",
+      "participants": "Dr. John Stith Pemberton, pharmacist and Civil War veteran",
+      "original ingredients": "Coca leaf extract (cocaine), kola nut extract (caffeine), wine",
+      "initial name": "Pemberton's French Wine Coca"
+    },
+    "source_citation": "Coca-Cola Company archives; Mark Pendergrast, 'For God, Country, and Coca-Cola', 2000",
+    "why_strange": "One of the world's most famous soft drinks began as a cocaine-laced medicine",
+    "category": "unlikely_inventions",
+    "model_generated_by": "chatgpt-4o-latest"
+  },
+  {
+    "core_claim": "Play-Doh, the popular modeling compound for children, was originally marketed and sold as a wallpaper cleaner in the 1930s.",
+    "supporting_details": {
+      "date": "1930s (cleaner), mid-1950s (toy)",
+      "location": "Cincinnati, Ohio, USA",
+      "participants": "Kutol Products, Noah McVicker (inventor), Joseph McVicker (marketing), Kay Zufall (teacher who suggested toy use)",
+      "original_purpose": "Cleaning soot from wallpaper",
+      "transition": "A nursery school teacher, Kay Zufall, heard about the product and suggested its use as a modeling material for children, leading to its rebranding in 1956."
+    },
+    "source_citation": "Smithsonian Magazine, 'The Accidental Invention of Play-Doh'; Cincinnati Magazine, 'The Amazing History of Play-Doh'",
+    "why_strange": "A common household cleaning product was repurposed to become one of the most iconic children's toys.",
+    "category": "unlikely_inventions",
+    "model_generated_by": "gemini-2.5-flash"
+  },
+  {
+    "core_claim": "The microwave oven was invented after a Raytheon engineer, Percy Spencer, noticed a radar magnetron melted a chocolate bar in his pocket during an experiment.",
+    "supporting_details": {
+      "date": "1945",
+      "location": "Raytheon Company, Waltham, Massachusetts, USA",
+      "participants": "Percy Spencer (self-taught engineer)",
+      "discovery_event": "While working on an active radar set, Spencer felt a strange sensation and discovered the chocolate bar in his pocket had melted. He then intentionally experimented with popcorn kernels and an egg.",
+      "first_commercial_product": "The 'Radarange' in 1947, which was over 6 feet tall, weighed more than 750 pounds, and cost approximately $5,000."
+    },
+    "source_citation": "Smithsonian National Museum of American History, 'Food History: The Microwave Oven'; Raytheon Company, 'The Invention of the Microwave Oven'",
+    "why_strange": "A fundamental kitchen appliance was discovered by accident due to a melting candy bar.",
+    "category": "unlikely_inventions",
+    "model_generated_by": "gemini-2.5-flash"
+  },
+  {
+    "core_claim": "The Slinky, a classic toy, was accidentally invented by a naval mechanical engineer who was trying to develop springs to stabilize sensitive instruments on ships.",
+    "supporting_details": {
+      "date": "1943 (invention), 1945 (first sale)",
+      "location": "Philadelphia, Pennsylvania, USA",
+      "participants": "Richard James (naval mechanical engineer)",
+      "discovery_event": "James was working with tension springs and accidentally knocked one off a shelf, observing how it 'walked' down a stack of books and onto the floor.",
+      "first_sale": "Gimbels department store, Philadelphia, where 400 Slinkys sold out in 90 minutes during the 1945 Christmas season, priced at $1 each."
+    },
+    "source_citation": "Smithsonian National Museum of American History, 'Slinky'; The Strong National Museum of Play, 'Slinky'",
+    "why_strange": "A serious military engineering project unexpectedly led to the creation of one of the world's most enduring and simple toys.",
+    "category": "unlikely_inventions",
+    "model_generated_by": "gemini-2.5-flash"
+  }
+]

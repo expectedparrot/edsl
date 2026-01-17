@@ -1,0 +1,143 @@
+[
+  {
+    "core_claim": "In 1788, Austria accidentally attacked itself, resulting in over 10,000 casualties during what became known as the Battle of Kar\u00e1nsebes.",
+    "supporting_details": {
+      "date": "September 17, 1788",
+      "location": "Kar\u00e1nsebes (now Caransebe\u0219, Romania)",
+      "participants": "Austrian army under Holy Roman Emperor Joseph II",
+      "casualties": "Estimated 1,200-10,000 Austrian soldiers",
+      "cause": "Argument over schnapps between infantry and cavalry led to confusion, friendly fire, and mass panic"
+    },
+    "source_citation": "Durschmied, Erik. 'The Hinge Factor: How Chance and Stupidity Have Changed History.' Hodder & Stoughton, 1999.",
+    "why_strange": "One of history's most catastrophic friendly-fire incidents occurred without any enemy present.",
+    "category": "historical_oddities",
+    "model_generated_by": "claude-3-7-sonnet-20250219"
+  },
+  {
+    "core_claim": "For 335 years (1651-1986), the Netherlands and the Isles of Scilly were technically at war, though no actual hostilities occurred after the initial declaration.",
+    "supporting_details": {
+      "date": "Declaration: March 30, 1651; Peace treaty: April 17, 1986",
+      "location": "Isles of Scilly, United Kingdom",
+      "participants": "Dutch Republic and the Isles of Scilly",
+      "duration": "335 years (longest war in recorded history)",
+      "casualties": "Zero (after initial conflict)"
+    },
+    "source_citation": "BBC News. \"Peace for the 'Three Hundred and Thirty Five Years' War.\" April 17, 1986; Scilly Isles Museum archives.",
+    "why_strange": "This forgotten conflict became history's longest war simply because no one bothered to sign a peace treaty for over three centuries.",
+    "category": "historical_oddities",
+    "model_generated_by": "claude-3-7-sonnet-20250219"
+  },
+  {
+    "core_claim": "In 1897, the Indiana House of Representatives unanimously passed a bill that would have legally redefined the mathematical value of pi as exactly 3.2.",
+    "supporting_details": {
+      "date": "February 5, 1897",
+      "location": "Indiana State Legislature, USA",
+      "bill_number": "House Bill 246",
+      "author": "Edward J. Goodwin, amateur mathematician",
+      "outcome": "Passed House 67-0, killed in Senate after mathematician C.A. Waldo intervened"
+    },
+    "source_citation": "Hallerberg, Arthur. \"House Bill No. 246 Revisited.\" Proceedings of the Indiana Academy of Science, Vol. 86 (1977): 376-399.",
+    "why_strange": "A state legislature nearly enacted a law that attempted to override mathematical constants established since antiquity.",
+    "category": "historical_oddities",
+    "model_generated_by": "claude-3-7-sonnet-20250219"
+  },
+  {
+    "core_claim": "In 1925, a bizarre medical emergency known as the 'Seattle Windshield Pitting Epidemic' caused thousands to report mysterious damage to their car windshields, but was ultimately determined to be mass hysteria.",
+    "supporting_details": {
+      "date": "April 1954 (not 1925)",
+      "location": "Seattle and Bellingham, Washington, USA",
+      "affected": "Estimated 3,000-5,000 vehicles reported damaged",
+      "duration": "3 weeks",
+      "investigation": "Governor Arthur Langlie called in the National Guard; scientists from University of Washington found no unusual phenomena"
+    },
+    "source_citation": "Medalia, Nahum Z., and Otto N. Larsen. \"Diffusion and Belief in a Collective Delusion: The Seattle Windshield Pitting Epidemic.\" American Sociological Review 23, no. 2 (1958): 180-186.",
+    "why_strange": "An entire region became convinced their cars were being damaged by everything from cosmic rays to sand fleas, when most damage was normal wear they'd never noticed before.",
+    "category": "historical_oddities",
+    "model_generated_by": "claude-3-7-sonnet-20250219"
+  },
+  {
+    "core_claim": "In 1835, the United States officially recognized a man named Joshua Norton as 'Emperor of the United States'\u2014even though he had no political power and was mentally ill.",
+    "supporting_details": {
+      "date": "September 17, 1859",
+      "location": "San Francisco, California",
+      "participants": "Joshua Abraham Norton, citizens of San Francisco",
+      "actions": "Declared himself Emperor; issued proclamations; accepted by locals with mock-official respect",
+      "death": "January 8, 1880; over 10,000 people attended his funeral"
+    },
+    "source_citation": "San Francisco Chronicle archives; Norton I: Emperor of the United States by William Drury (1986)",
+    "why_strange": "An entire city humored a self-proclaimed emperor as a legitimate monarch",
+    "category": "historical_oddities",
+    "model_generated_by": "chatgpt-4o-latest"
+  },
+  {
+    "core_claim": "In 1325, two Italian city-states went to war over a stolen wooden bucket.",
+    "supporting_details": {
+      "date": "1325",
+      "location": "Modena and Bologna, Italy",
+      "participants": "City-states of Modena and Bologna",
+      "event": "Modenese soldiers stole a bucket from a Bologna city well, triggering the War of the Oaken Bucket",
+      "outcome": "Modena won the war and kept the bucket, which is still on display"
+    },
+    "source_citation": "The Oxford Encyclopedia of Medieval Warfare and Military Technology (2010); Museo Civico di Modena",
+    "why_strange": "An entire war was fought over a mundane household item",
+    "category": "historical_oddities",
+    "model_generated_by": "chatgpt-4o-latest"
+  },
+  {
+    "core_claim": "In 1974, a Japanese soldier named Hiroo Onoda emerged from the Philippine jungle\u201429 years after World War II ended\u2014still believing the war was ongoing.",
+    "supporting_details": {
+      "date": "March 9, 1974",
+      "location": "Lubang Island, Philippines",
+      "participants": "Hiroo Onoda, Japanese Imperial Army, Philippine authorities",
+      "details": "Onoda refused to surrender until his former commander personally ordered him to stand down",
+      "duration": "29 years in hiding"
+    },
+    "source_citation": "Onoda, Hiroo. 'No Surrender: My Thirty-Year War' (1974); BBC News archives",
+    "why_strange": "A soldier continued fighting a war decades after it officially ended",
+    "category": "historical_oddities",
+    "model_generated_by": "chatgpt-4o-latest"
+  },
+  {
+    "core_claim": "In 1325, the Italian city-states of Bologna and Modena engaged in a full-scale war, partially sparked by Modena's soldiers stealing a wooden bucket from Bologna's city well.",
+    "supporting_details": {
+      "date": "1325",
+      "location": "Emilia-Romagna, Italy (Bologna vs. Modena)",
+      "participants": "Guelph faction (Bologna) vs. Ghibelline faction (Modena)",
+      "trigger": "Theft of an oaken bucket from Bologna's well by Modenese soldiers",
+      "outcome": "Modena won the Battle of Zappolino, killing thousands. The original bucket is still displayed in Modena's Torre della Ghirlandina."
+    },
+    "source_citation": "William Gibson, 'A History of the War of the Oaken Bucket,' Journal of Medieval History; J. R. Hale, 'Renaissance War Studies' (Hambledon Press, 1983).",
+    "why_strange": "A major medieval war, involving thousands of soldiers and significant casualties, was ignited by the theft of a common wooden bucket.",
+    "category": "historical_oddities",
+    "model_generated_by": "gemini-2.5-flash"
+  },
+  {
+    "core_claim": "In 897 AD, Pope Stephen VI exhumed the nine-month-old corpse of his predecessor, Pope Formosus, dressed it in papal vestments, and subjected it to a formal trial known as the 'Cadaver Synod'.",
+    "supporting_details": {
+      "date": "January 897 AD",
+      "location": "St. John Lateran Basilica, Rome",
+      "participants": "Pope Stephen VI (presiding), the exhumed corpse of Pope Formosus (as defendant), a deacon to speak for the corpse, clergy, and Roman nobility.",
+      "charges": "Transgression of canon law, ambition, violating oaths, and performing episcopal functions while still a bishop of another see.",
+      "outcome": "Formosus's papacy was declared invalid, all his acts and ordinations nullified, his fingers used for blessings were cut off, and his body was thrown into the Tiber River."
+    },
+    "source_citation": "Liutprand of Cremona, 'Antapodosis' (primary source); John N.D. Kelly, 'The Oxford Dictionary of Popes' (Oxford University Press, 1986).",
+    "why_strange": "A pope put a decomposing corpse on trial, complete with legal proceedings, a verdict, and post-mortem mutilation.",
+    "category": "historical_oddities",
+    "model_generated_by": "gemini-2.5-flash"
+  },
+  {
+    "core_claim": "The Anglo-Zanzibar War of August 27, 1896, is officially recognized by Guinness World Records as the shortest war in recorded history, lasting between 38 and 45 minutes.",
+    "supporting_details": {
+      "date": "August 27, 1896",
+      "location": "Zanzibar City, Zanzibar (now part of Tanzania)",
+      "combatants": "United Kingdom vs. the Sultanate of Zanzibar",
+      "cause": "Succession dispute after the death of pro-British Sultan Hamad bin Thuwaini; Sultan Khalid bin Barghash seized power without British approval.",
+      "forces_involved": "British Royal Navy ships (including HMS St George, HMS Philomel, HMS Racoon, HMS Thrush, HMS Sparrow) against Zanzibari palace guards and armed civilians.",
+      "outcome": "Decisive British victory. Sultan Khalid fled, and a pro-British sultan, Hamud bin Mohammed, was installed. Approximately 500 Zanzibari casualties, one British sailor injured."
+    },
+    "source_citation": "Guinness World Records; A. E. Crofton, 'The Anglo-Zanzibar War of 1896,' Journal of the Royal African Society (1935); Frank E. L. Jones, 'The Zanzibar Revolution,' Journal of Modern African Studies (1969).",
+    "why_strange": "An entire war, involving naval bombardment and a change of government, began and ended in less than an hour.",
+    "category": "historical_oddities",
+    "model_generated_by": "gemini-2.5-flash"
+  }
+]

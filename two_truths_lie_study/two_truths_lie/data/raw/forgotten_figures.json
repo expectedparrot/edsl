@@ -1,0 +1,104 @@
+[
+  {
+    "core_claim": "Hedy Lamarr, a glamorous 1940s Hollywood actress, secretly co-invented frequency hopping technology that became the foundation for modern WiFi, Bluetooth, and GPS systems.",
+    "supporting_details": {
+      "date": "August 11, 1942",
+      "birth_name": "Hedwig Eva Maria Kiesler",
+      "patent_number": "US Patent 2,292,387",
+      "co-inventor": "George Antheil",
+      "invention_name": "Secret Communication System",
+      "recognition": "Inducted into National Inventors Hall of Fame in 2014"
+    },
+    "source_citation": "National Inventors Hall of Fame; US Patent and Trademark Office Records; Smithsonian Institution Archives",
+    "why_strange": "A movie star with no formal engineering training invented technology that powers our wireless world decades before its time.",
+    "category": "forgotten_figures",
+    "model_generated_by": "claude-3-7-sonnet-20250219"
+  },
+  {
+    "core_claim": "Ching Shih, a former prostitute, became history's most successful pirate, commanding over 70,000 sailors and 1,800 ships in the early 1800s\u2014a larger fleet than many national navies.",
+    "supporting_details": {
+      "date": "1801-1810",
+      "location": "South China Sea",
+      "birth_name": "Shi Yang",
+      "fleet_size": "1,800+ vessels at peak",
+      "crew_size": "70,000-80,000 pirates",
+      "outcome": "Negotiated amnesty with Chinese government, retired wealthy"
+    },
+    "source_citation": "Murray, Dian H. (1987). 'Pirates of the South China Coast, 1790-1810', Stanford University Press; Royal Navy Museum Archives",
+    "why_strange": "A woman rose from prostitution to command the largest pirate fleet in history, defeated multiple navies, and retired undefeated.",
+    "category": "forgotten_figures",
+    "model_generated_by": "claude-3-7-sonnet-20250219"
+  },
+  {
+    "core_claim": "Nikola Tesla's assistant, Kolman Czito, worked with the inventor for over 50 years yet remains virtually unknown despite helping build some of Tesla's most groundbreaking inventions.",
+    "supporting_details": {
+      "date": "1884-1937",
+      "location": "New York City",
+      "nationality": "Hungarian-American",
+      "role": "Chief machinist and mechanical assistant",
+      "contributions": "Built Tesla's AC motors, wireless transmission devices, and Colorado Springs laboratory",
+      "relationship": "Tesla's longest-serving employee and confidant"
+    },
+    "source_citation": "Tesla Memorial Society Archives; Seifer, Marc J. (1996). 'Wizard: The Life and Times of Nikola Tesla', Citadel Press",
+    "why_strange": "The man who physically built many of history's most revolutionary inventions has been almost completely erased from technological history.",
+    "category": "forgotten_figures",
+    "model_generated_by": "claude-3-7-sonnet-20250219"
+  },
+  {
+    "core_claim": "Henrietta Lacks, who died in 1951, has technically saved millions of lives as her cancer cells (taken without consent) became the first immortal human cell line, enabling countless medical breakthroughs.",
+    "supporting_details": {
+      "date": "February 1, 1951",
+      "location": "Johns Hopkins Hospital, Baltimore",
+      "cell_line_name": "HeLa cells",
+      "contributions": "Enabled polio vaccine development, cancer research, gene mapping, COVID-19 research",
+      "compensation": "None to family for decades",
+      "cell_reproduction": "Over 50 million metric tons of her cells have been grown"
+    },
+    "source_citation": "Skloot, Rebecca (2010). 'The Immortal Life of Henrietta Lacks', Crown Publishing Group; National Institutes of Health HeLa Genome database",
+    "why_strange": "A poor Black tobacco farmer's cells have been living and multiplying continuously for over 70 years, outliving her by decades and traveling to space.",
+    "category": "forgotten_figures",
+    "model_generated_by": "claude-3-7-sonnet-20250219"
+  },
+  {
+    "core_claim": "Mary Anning, a 19th-century fossil hunter with no formal education, discovered the first correctly identified ichthyosaur skeleton at age 12, revolutionizing paleontology.",
+    "supporting_details": {
+      "date": "1811",
+      "location": "Lyme Regis, Dorset, England",
+      "participants": "Mary Anning (age 12), Joseph Anning (brother)",
+      "discovery": "Ichthyosaur skeleton over 5 meters long",
+      "impact": "Her discoveries helped establish extinction as a scientific fact and influenced early evolutionary theory"
+    },
+    "source_citation": "Emling, Shelley. 'The Fossil Hunter: Dinosaurs, Evolution, and the Woman Whose Discoveries Changed the World.' Palgrave Macmillan, 2009",
+    "why_strange": "A working-class girl with no formal training made foundational contributions to science",
+    "category": "forgotten_figures",
+    "model_generated_by": "chatgpt-4o-latest"
+  },
+  {
+    "core_claim": "In 1944, Alice Coachman became the first Black woman of any nationality to win an Olympic gold medal, yet her achievement was largely ignored in segregated America.",
+    "supporting_details": {
+      "date": "August 1948",
+      "location": "London, United Kingdom (1948 Summer Olympics)",
+      "participants": "Alice Coachman, U.S. Olympic Team",
+      "event": "High jump, winning height: 1.68 meters (5 feet 6 inches)",
+      "recognition": "Received no invitation to the White House; honored by Coca-Cola years later"
+    },
+    "source_citation": "Smithsonian National Museum of African American History and Culture; International Olympic Committee archives",
+    "why_strange": "A historic Olympic first was virtually ignored due to racial discrimination",
+    "category": "forgotten_figures",
+    "model_generated_by": "chatgpt-4o-latest"
+  },
+  {
+    "core_claim": "Josephine Cochrane, a 19th-century socialite with no engineering background, invented the first commercially successful automatic dishwasher in 1886 after her servants kept chipping her fine china.",
+    "supporting_details": {
+      "date": "1886",
+      "location": "Shelbyville, Illinois, USA",
+      "participants": "Josephine Cochrane, mechanic George Butters",
+      "invention": "Dishwasher using water pressure instead of scrubbers",
+      "patent": "U.S. Patent No. 355,139 (December 28, 1886)"
+    },
+    "source_citation": "U.S. Patent Office; Lemelson-MIT Program; National Inventors Hall of Fame",
+    "why_strange": "A woman in the 1800s revolutionized kitchen technology with no formal engineering training",
+    "category": "forgotten_figures",
+    "model_generated_by": "chatgpt-4o-latest"
+  }
+]

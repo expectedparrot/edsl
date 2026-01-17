@@ -1,0 +1,98 @@
+[
+  {
+    "core_claim": "Lake Hillier in Australia remains permanently pink due to natural causes, and unlike other pink lakes, it maintains its vibrant color even when water is removed.",
+    "supporting_details": {
+      "date": "First documented in 1802",
+      "location": "Middle Island, Recherche Archipelago, Western Australia",
+      "size": "600 meters long",
+      "cause": "Dunaliella salina microalgae, halobacteria, and high salt concentration",
+      "unique_property": "Retains pink color even in glass containers"
+    },
+    "source_citation": "Parks and Wildlife Service of Western Australia; Research published in PLOS ONE journal by Amatya et al. (2017)",
+    "why_strange": "A naturally occurring bubblegum-pink lake that defies the usual temporary coloration patterns of other saline lakes",
+    "category": "natural_phenomena",
+    "model_generated_by": "claude-3-7-sonnet-20250219"
+  },
+  {
+    "core_claim": "The Catatumbo Lightning in Venezuela is the world's most consistent thunderstorm, occurring 140-160 nights per year, 10 hours per night, with up to 280 strikes per hour, for centuries.",
+    "supporting_details": {
+      "date": "Documented since 1597",
+      "location": "Where Catatumbo River meets Lake Maracaibo, Venezuela",
+      "frequency": "Up to 280 lightning strikes per hour",
+      "duration": "140-160 nights per year, 10 hours per night",
+      "unique_property": "Generates 1.2 million lightning strikes annually and is visible from 400km away"
+    },
+    "source_citation": "Guinness World Records (2013); NASA Earth Observatory; Research by the Center for Scientific Research of Maracaibo Lake",
+    "why_strange": "A perpetual lightning storm that has occurred in the same location for centuries with no seasonal interruption",
+    "category": "natural_phenomena",
+    "model_generated_by": "claude-3-7-sonnet-20250219"
+  },
+  {
+    "core_claim": "The Hessdalen Lights in Norway are unexplained luminous phenomena that have been scientifically monitored since 1984, appearing as floating, pulsating lights that can last for over an hour.",
+    "supporting_details": {
+      "date": "First documented surge in 1981, ongoing observations since",
+      "location": "Hessdalen Valley, Norway",
+      "frequency": "Peak of 20 observations per week in 1980s, now 10-20 per year",
+      "characteristics": "Yellow/white/blue lights floating 3-5 meters above ground",
+      "duration": "Some lasting over 1 hour"
+    },
+    "source_citation": "Project Hessdalen scientific monitoring station; Papers published in Journal of Scientific Exploration; \u00d8stfold University College research",
+    "why_strange": "Despite decades of scientific monitoring with sophisticated equipment, these naturally occurring lights remain unexplained by conventional physics",
+    "category": "natural_phenomena",
+    "model_generated_by": "claude-3-7-sonnet-20250219"
+  },
+  {
+    "core_claim": "Blood Falls in Antarctica is a blood-red waterfall flowing from Taylor Glacier, caused by iron-rich hypersaline water from an ancient subglacial lake that has been isolated for at least 1.5 million years.",
+    "supporting_details": {
+      "date": "Discovered in 1911 by geologist Griffith Taylor",
+      "location": "Taylor Glacier, East Antarctica",
+      "age": "Water source estimated to be 1.5-2 million years old",
+      "composition": "Water with 3x ocean's salinity and high iron content",
+      "unique_property": "Contains ancient microbes that survive without oxygen or sunlight"
+    },
+    "source_citation": "Journal of Glaciology (2017); Nature Communications research by Mikucki et al. (2009); U.S. National Science Foundation Antarctic Program",
+    "why_strange": "A blood-red waterfall flowing from pristine white ice, containing microbes that have evolved in isolation for millions of years",
+    "category": "natural_phenomena",
+    "model_generated_by": "claude-3-7-sonnet-20250219"
+  },
+  {
+    "core_claim": "In Venezuela, a lightning storm known as 'Rel\u00e1mpago del Catatumbo' occurs up to 260 nights a year, producing over a million lightning strikes annually in the same spot.",
+    "supporting_details": {
+      "location": "Mouth of the Catatumbo River, Lake Maracaibo, Venezuela",
+      "frequency": "Up to 260 nights per year",
+      "lightning_strikes": "Over 1.2 million per year",
+      "duration": "Typically 10 hours per night, up to 280 lightning strikes per hour"
+    },
+    "source_citation": "NASA Earth Observatory; Guinness World Records (2014)",
+    "why_strange": "It's the most persistent lightning hotspot on Earth, defying normal weather patterns",
+    "category": "natural_phenomena",
+    "model_generated_by": "chatgpt-4o-latest"
+  },
+  {
+    "core_claim": "In 2001, it rained fish in the small town of Yoro, Honduras\u2014a phenomenon that reportedly occurs almost annually during strong storms.",
+    "supporting_details": {
+      "date": "Most recently documented in May 2001",
+      "location": "Yoro, Honduras",
+      "event_name": "Lluvia de Peces (Rain of Fish)",
+      "fish_type": "Small, silver freshwater fish found flopping on streets after storms"
+    },
+    "source_citation": "National Geographic; BBC News (2001); Smithsonian Magazine",
+    "why_strange": "Fish fall from the sky miles inland, baffling scientists for decades",
+    "category": "natural_phenomena",
+    "model_generated_by": "chatgpt-4o-latest"
+  },
+  {
+    "core_claim": "The Sailing Stones of Death Valley move across the desert floor on their own, leaving long trails behind them\u2014without human or animal intervention.",
+    "supporting_details": {
+      "location": "Racetrack Playa, Death Valley National Park, California, USA",
+      "stone_weight": "Some stones weigh over 300 pounds",
+      "movement_speed": "Up to 15 feet per minute",
+      "scientific_explanation": "Thin ice sheets and light winds cause stones to slide",
+      "first_confirmed": "2014 using GPS and time-lapse cameras"
+    },
+    "source_citation": "NASA Earth Observatory; Science journal (2014 study by Norris et al.)",
+    "why_strange": "Massive rocks appear to move by themselves in a dry desert with no visible force",
+    "category": "natural_phenomena",
+    "model_generated_by": "chatgpt-4o-latest"
+  }
+]

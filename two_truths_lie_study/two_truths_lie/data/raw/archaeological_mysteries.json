@@ -1,0 +1,44 @@
+[
+  {
+    "core_claim": "The Antikythera mechanism, discovered in a 2,000-year-old shipwreck, is an ancient Greek analog computer capable of predicting eclipses and planetary positions.",
+    "supporting_details": {
+      "date": "Discovered in 1901; dated to around 150\u2013100 BCE",
+      "location": "Antikythera shipwreck, off the coast of Antikythera, Greece",
+      "participants": "Greek sponge divers, archaeologist Valerios Stais",
+      "components": "Over 30 bronze gears, dials, and inscriptions",
+      "function": "Modeled celestial cycles, including the Metonic and Saros eclipse cycles"
+    },
+    "source_citation": "Freeth, T., et al. (2006). 'Decoding the ancient Greek astronomical calculator known as the Antikythera Mechanism.' Nature 444, 587\u2013591.",
+    "why_strange": "Its complexity rivals 18th-century clockwork, yet it was made over 2,000 years ago",
+    "category": "archaeological_mysteries",
+    "model_generated_by": "chatgpt-4o-latest"
+  },
+  {
+    "core_claim": "The Baghdad Battery, a 2,000-year-old ceramic jar found in Iraq, may have functioned as a galvanic cell, predating modern batteries by centuries.",
+    "supporting_details": {
+      "date": "Discovered in 1936; estimated to date from 250 BCE to 250 CE",
+      "location": "Khujut Rabu, near Baghdad, Iraq",
+      "participants": "Wilhelm K\u00f6nig, German archaeologist and director of the National Museum of Iraq",
+      "components": "Terracotta pot, copper cylinder, iron rod, possible acidic electrolyte",
+      "theory": "Could produce about 1 volt of electricity"
+    },
+    "source_citation": "K\u00f6nig, Wilhelm (1940). 'Ein galvanisches Element aus der Partherzeit?' Forschungen und Fortschritte 16(7): 239\u2013243.",
+    "why_strange": "Suggests ancient civilizations may have experimented with electricity long before its documented discovery",
+    "category": "archaeological_mysteries",
+    "model_generated_by": "chatgpt-4o-latest"
+  },
+  {
+    "core_claim": "The Piri Reis map, drawn in 1513, depicts parts of South America and Antarctica with surprising accuracy, centuries before Antarctica was officially discovered.",
+    "supporting_details": {
+      "date": "1513",
+      "location": "Topkapi Palace, Istanbul, Turkey (where the map is held)",
+      "participants": "Piri Reis, Ottoman admiral and cartographer",
+      "features": "Detailed coastlines of South America and a landmass resembling ice-free Antarctica",
+      "materials": "Compiled from older maps, possibly including ancient Greek or Phoenician sources"
+    },
+    "source_citation": "McIntosh, Gregory C. (2000). 'The Piri Reis Map of 1513.' University of Georgia Press.",
+    "why_strange": "It appears to show parts of Antarctica centuries before its official discovery in 1820",
+    "category": "archaeological_mysteries",
+    "model_generated_by": "chatgpt-4o-latest"
+  }
+]

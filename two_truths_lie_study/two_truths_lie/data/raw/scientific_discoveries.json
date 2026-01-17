@@ -1,0 +1,98 @@
+[
+  {
+    "core_claim": "When a honey bee stings a mammal, it releases a pheromone that marks the target for attack by other bees, and this alarm pheromone smells exactly like bananas.",
+    "supporting_details": {
+      "date": "First identified in 1962",
+      "chemical_name": "Isoamyl acetate",
+      "concentration": "Released at 1-2 nanograms per bee sting",
+      "detection": "Detectable by other bees from up to 10 meters away",
+      "evolutionary_purpose": "Coordinates colony defense against large predators"
+    },
+    "source_citation": "Free, J.B. (1987). Pheromones of Social Bees. Chapman and Hall; Journal of Chemical Ecology, Vol. 8, No. 10, 1982",
+    "why_strange": "The chemical that triggers bee attacks is identical to the compound that gives bananas their characteristic smell.",
+    "category": "scientific_discoveries",
+    "model_generated_by": "claude-3-7-sonnet-20250219"
+  },
+  {
+    "core_claim": "A species of jellyfish, Turritopsis dohrnii, is biologically immortal, capable of reverting completely to its juvenile polyp stage after reaching sexual maturity through a process called transdifferentiation.",
+    "supporting_details": {
+      "date": "Discovered in 1988, mechanism confirmed in 1996",
+      "location": "First observed in Mediterranean Sea",
+      "size": "Only 4.5mm across",
+      "process": "Can transform fully differentiated cells back into stem cells",
+      "limitation": "Can still die from predation or disease"
+    },
+    "source_citation": "Piraino, S., et al. (1996). Reversing the Life Cycle: Medusae Transforming into Polyps and Cell Transdifferentiation in Turritopsis nutricula. Biological Bulletin, 190(3), 302-312",
+    "why_strange": "This organism can essentially reset its life cycle repeatedly, making it the only known animal with biological immortality.",
+    "category": "scientific_discoveries",
+    "model_generated_by": "claude-3-7-sonnet-20250219"
+  },
+  {
+    "core_claim": "Quantum entanglement allows particles to instantaneously affect each other regardless of distance, a phenomenon Einstein called 'spooky action at a distance,' which was definitively proven in 2015 to occur faster than light speed.",
+    "supporting_details": {
+      "date": "Loophole-free experiment conducted in 2015",
+      "location": "Delft University of Technology, Netherlands",
+      "distance": "Particles separated by 1.3 kilometers",
+      "speed": "At least 10,000 times faster than light",
+      "researchers": "Led by Ronald Hanson"
+    },
+    "source_citation": "Hensen, B., et al. (2015). Loophole-free Bell inequality violation using electron spins separated by 1.3 kilometres. Nature, 526(7575), 682-686",
+    "why_strange": "This phenomenon appears to violate Einstein's theory of relativity by allowing information to travel faster than light.",
+    "category": "scientific_discoveries",
+    "model_generated_by": "claude-3-7-sonnet-20250219"
+  },
+  {
+    "core_claim": "The Mpemba effect is the counter-intuitive observation that hot water can freeze faster than cold water under identical conditions, first noted by Tanzanian student Erasto Mpemba in 1963.",
+    "supporting_details": {
+      "date": "Formally published in 1969",
+      "discoverer": "Erasto Mpemba, high school student making ice cream",
+      "location": "Magamba Secondary School, Tanzania",
+      "temperature_difference": "Hot water at 95\u00b0C can freeze before identical water at 18\u00b0C",
+      "proposed_mechanisms": "Evaporation, dissolved gases, convection currents, supercooling"
+    },
+    "source_citation": "Mpemba, E.B., Osborne, D.G. (1969). Cool? Physics Education, 4(3), 172-175; Royal Society of Chemistry Mpemba Effect competition, 2012",
+    "why_strange": "It defies basic thermodynamic intuition that a hotter substance would reach freezing temperature before an identical colder one.",
+    "category": "scientific_discoveries",
+    "model_generated_by": "claude-3-7-sonnet-20250219"
+  },
+  {
+    "core_claim": "Quantum entanglement has been shown to work over a distance of more than 1,200 kilometers, defying classical concepts of locality.",
+    "supporting_details": {
+      "date": "July 2017",
+      "location": "Between ground stations in Delingha, Lijiang, and Nanshan in China",
+      "participants": "Chinese Academy of Sciences, led by physicist Jian-Wei Pan",
+      "method": "Used the Micius satellite to distribute entangled photon pairs"
+    },
+    "source_citation": "Yin, J. et al. (2017). 'Satellite-based entanglement distribution over 1200 kilometers.' Science, 356(6343), 1140\u20131144. DOI:10.1126/science.aan3211",
+    "why_strange": "It suggests instantaneous quantum correlations over vast distances, seemingly violating the speed of light limit",
+    "category": "scientific_discoveries",
+    "model_generated_by": "chatgpt-4o-latest"
+  },
+  {
+    "core_claim": "Tardigrades can survive in the vacuum of space and deadly radiation by entering a cryptobiotic state.",
+    "supporting_details": {
+      "date": "2007",
+      "location": "Low Earth orbit aboard the ESA's FOTON-M3 mission",
+      "participants": "European Space Agency, researchers from Kristianstad University in Sweden",
+      "organism": "Tardigrades (Milnesium tardigradum and Richtersius coronifer)",
+      "outcome": "Many survived exposure to space vacuum and cosmic radiation"
+    },
+    "source_citation": "J\u00f6nsson, K. I. et al. (2008). 'Tolerance to space conditions in the tardigrade Milnesium tardigradum.' Current Biology, 18(17), R729\u2013R731. DOI:10.1016/j.cub.2008.06.048",
+    "why_strange": "No other known animal can survive direct exposure to outer space without protection",
+    "category": "scientific_discoveries",
+    "model_generated_by": "chatgpt-4o-latest"
+  },
+  {
+    "core_claim": "Bananas are naturally slightly radioactive due to their high potassium content, particularly the isotope potassium-40.",
+    "supporting_details": {
+      "radioactivity_level": "Approximately 0.1 microsieverts per banana",
+      "isotope": "Potassium-40 (K-40), a naturally occurring radioactive isotope",
+      "comparison": "Eating 100 bananas gives the same radiation dose as a single dental X-ray",
+      "concept": "Used to illustrate radiation exposure in terms of the 'Banana Equivalent Dose'"
+    },
+    "source_citation": "U.S. Environmental Protection Agency (EPA); Health Physics Society; Oak Ridge Associated Universities (ORAU)",
+    "why_strange": "A common fruit is used as a unit of radiation measurement due to its natural radioactivity",
+    "category": "scientific_discoveries",
+    "model_generated_by": "chatgpt-4o-latest"
+  }
+]

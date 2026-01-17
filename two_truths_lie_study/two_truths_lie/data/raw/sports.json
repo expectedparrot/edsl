@@ -1,0 +1,150 @@
+[
+  {
+    "core_claim": "The longest tennis match in history lasted an astonishing 11 hours and 5 minutes, spanning three days at Wimbledon in 2010 between John Isner and Nicolas Mahut.",
+    "supporting_details": {
+      "date": "June 22-24, 2010",
+      "location": "Wimbledon, London",
+      "participants": "John Isner (USA) and Nicolas Mahut (France)",
+      "final_score": "6\u20134, 3\u20136, 6\u20137(7\u20139), 7\u20136(7\u20133), 70\u201368",
+      "total_games": "183",
+      "total_points": "980"
+    },
+    "source_citation": "Wimbledon Championships official records; International Tennis Federation (ITF) archives",
+    "why_strange": "The fifth set alone lasted 8 hours and 11 minutes, longer than any other complete match in tennis history.",
+    "category": "sports",
+    "model_generated_by": "claude-3-7-sonnet-20250219"
+  },
+  {
+    "core_claim": "During the 1904 Olympic marathon in St. Louis, winner Thomas Hicks was given strychnine (rat poison) and brandy by his trainers to help him finish the race.",
+    "supporting_details": {
+      "date": "August 30, 1904",
+      "location": "St. Louis, Missouri, USA",
+      "participant": "Thomas Hicks (USA)",
+      "substances": "Strychnine sulfate, egg whites, brandy",
+      "temperature": "90\u00b0F (32\u00b0C)",
+      "outcome": "Gold medal, but nearly died"
+    },
+    "source_citation": "Official Report of the Olympic Games 1904; Journal of Sports History (1980)",
+    "why_strange": "The gold medalist was essentially poisoned by his own support team in what would today be considered extreme doping.",
+    "category": "sports",
+    "model_generated_by": "claude-3-7-sonnet-20250219"
+  },
+  {
+    "core_claim": "In 1951, a baseball game between the St. Louis Browns and Detroit Tigers featured a 3-foot-7-inch player named Eddie Gaedel, who was walked on four straight pitches in his only major league at-bat.",
+    "supporting_details": {
+      "date": "August 19, 1951",
+      "location": "Sportsman's Park, St. Louis, Missouri",
+      "player": "Eddie Gaedel (uniform number 1/8)",
+      "team": "St. Louis Browns",
+      "strike_zone": "Approximately 1.5 inches tall",
+      "outcome": "Walked on four pitches, replaced by pinch-runner"
+    },
+    "source_citation": "Official MLB records; Baseball Hall of Fame archives; Society for American Baseball Research",
+    "why_strange": "MLB had to change its rules after this stunt, requiring all player contracts to be approved by the commissioner.",
+    "category": "sports",
+    "model_generated_by": "claude-3-7-sonnet-20250219"
+  },
+  {
+    "core_claim": "In the sport of Ferret-legging, competitors place live ferrets inside their trousers, which are sealed at the ankles, with no underwear allowed, to see who can endure the longest time.",
+    "supporting_details": {
+      "date": "Competition peaked in 1970s-80s",
+      "location": "Originated in Yorkshire, England",
+      "record_holder": "Reg Mellor",
+      "record_time": "5 hours and 26 minutes (1981)",
+      "rules": "No underwear, trousers tied at ankles, ferrets must have full teeth"
+    },
+    "source_citation": "The Whole Earth Review (1987); Outside Magazine; Yorkshire Post historical archives",
+    "why_strange": "Participants voluntarily endure potentially severe bites in sensitive areas from agitated carnivorous animals as a competitive sport.",
+    "category": "sports",
+    "model_generated_by": "claude-3-7-sonnet-20250219"
+  },
+  {
+    "core_claim": "In 1904, Olympic marathon runner Fred Lorz was disqualified after riding in a car for 11 miles of the race before jogging to the finish line and being declared the winner.",
+    "supporting_details": {
+      "date": "August 30, 1904",
+      "location": "St. Louis, Missouri, USA",
+      "event": "1904 Summer Olympics marathon",
+      "participants": "Fred Lorz (USA), Thomas Hicks (USA)",
+      "distance_cheated": "11 miles by automobile",
+      "outcome": "Disqualified; Thomas Hicks declared winner despite receiving strychnine and brandy as stimulants"
+    },
+    "source_citation": "International Olympic Committee; David Wallechinsky, 'The Complete Book of the Olympics', 2000",
+    "why_strange": "An Olympic athlete tried to cheat by car in a footrace and was almost celebrated as the winner",
+    "category": "sports",
+    "model_generated_by": "chatgpt-4o-latest"
+  },
+  {
+    "core_claim": "In 1979, a Major League Baseball game between the Chicago White Sox and Detroit Tigers featured a promotion called 'Disco Demolition Night' that caused a riot and forced the game to be forfeited.",
+    "supporting_details": {
+      "date": "July 12, 1979",
+      "location": "Comiskey Park, Chicago, Illinois",
+      "event": "MLB doubleheader promotion",
+      "organizers": "Chicago White Sox, DJ Steve Dahl",
+      "incident": "Fans stormed the field after disco records were blown up, damaging the field",
+      "outcome": "Second game forfeited to Detroit Tigers"
+    },
+    "source_citation": "Baseball Hall of Fame; ESPN documentary 'Disco Demolition Night', 2010",
+    "why_strange": "A music-themed promotion led to a sports riot and an official game forfeiture",
+    "category": "sports",
+    "model_generated_by": "chatgpt-4o-latest"
+  },
+  {
+    "core_claim": "In 1990, a soccer match in the Congo ended in a 1\u20131 draw after all 11 goals were scored by the same player\u2014on his own team\u2014deliberately, in protest.",
+    "supporting_details": {
+      "date": "November 1990",
+      "location": "L\u00e9opoldville (now Kinshasa), Zaire (now Democratic Republic of Congo)",
+      "teams": "AS Adema vs. SO l'Emyrne",
+      "player": "SO l'Emyrne players (entire team)",
+      "goals": "149 own goals scored intentionally",
+      "reason": "Protest against refereeing decisions in previous match"
+    },
+    "source_citation": "BBC News, November 2002; FIFA archives",
+    "why_strange": "A team intentionally scored 149 own goals in a protest, creating a world record for most own goals in a match",
+    "category": "sports",
+    "model_generated_by": "chatgpt-4o-latest"
+  },
+  {
+    "core_claim": "Tug-of-war was an official Olympic sport for five Games between 1900 and 1920, with teams often comprising police officers or military personnel.",
+    "supporting_details": {
+      "dates": "1900 (Paris), 1904 (St. Louis), 1908 (London), 1912 (Stockholm), 1920 (Antwerp)",
+      "locations": "Paris, St. Louis, London, Stockholm, Antwerp",
+      "notable_teams": "City of London Police (Great Britain) won gold in 1908; Milwaukee Athletic Club (USA) won gold in 1904.",
+      "rules_note": "Teams typically consisted of 5 to 8 competitors, pulling a rope over a marked line."
+    },
+    "source_citation": "International Olympic Committee (IOC) official records, Olympic.org; 'Tug of War at the Olympics' by David Wallechinsky, The Complete Book of the Olympics.",
+    "why_strange": "A common playground game was once a serious Olympic discipline, contested by professional forces.",
+    "category": "sports",
+    "model_generated_by": "gemini-2.5-flash"
+  },
+  {
+    "core_claim": "During the 1904 St. Louis Olympic Marathon, American runner Fred Lorz famously cheated by riding in a car for 11 miles of the race, crossing the finish line first before being exposed.",
+    "supporting_details": {
+      "date": "August 30, 1904",
+      "location": "St. Louis, Missouri, USA",
+      "participant": "Fred Lorz (USA)",
+      "distance_cheated": "Approximately 11 miles (18 km)",
+      "method_of_cheating": "Rode in a car after collapsing from exhaustion, then re-entered the race near the finish line.",
+      "outcome": "Initially declared the winner, he was disqualified after confessing. He later won the 1905 Boston Marathon."
+    },
+    "source_citation": "David C. Wallechinsky, 'The Complete Book of the Olympics'; Smithsonian Magazine, 'The 1904 St. Louis Olympics: The Strangest Marathon in History'.",
+    "why_strange": "An Olympic 'winner' openly cheated by using a car for a significant portion of the race and was nearly awarded a gold medal.",
+    "category": "sports",
+    "model_generated_by": "gemini-2.5-flash"
+  },
+  {
+    "core_claim": "The longest professional tennis match in history lasted over 11 hours across three days at Wimbledon in 2010, with John Isner finally defeating Nicolas Mahut in a fifth set that alone lasted 8 hours and 11 minutes.",
+    "supporting_details": {
+      "date": "June 22-24, 2010",
+      "location": "Wimbledon, London, England (Court 18)",
+      "participants": "John Isner (USA) vs. Nicolas Mahut (France)",
+      "final_score": "6\u20134, 3\u20136, 6\u20137(7), 7\u20136(3), 70\u201368 (Isner won)",
+      "total_duration": "11 hours, 5 minutes, 23 seconds",
+      "fifth_set_duration": "8 hours, 11 minutes",
+      "records_set": "Most games in a match (183), most aces in a match by a single player (Isner with 113, Mahut with 103)."
+    },
+    "source_citation": "Official Wimbledon archives; Guinness World Records; BBC Sport archives.",
+    "why_strange": "A single tennis match lasted longer than many full Grand Slam tournaments combined, pushing human endurance to its absolute limits.",
+    "category": "sports",
+    "model_generated_by": "gemini-2.5-flash"
+  }
+]

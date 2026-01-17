@@ -1,0 +1,146 @@
+[
+  {
+    "core_claim": "Popsicles were invented in 1905 by an 11-year-old boy named Frank Epperson who accidentally left a mixture of powdered soda and water with a stirring stick outside overnight in freezing temperatures.",
+    "supporting_details": {
+      "date": "1905",
+      "inventor": "Frank Epperson",
+      "age_at_invention": "11 years old",
+      "original_name": "Epsicle",
+      "commercial_debut": "1923",
+      "location": "San Francisco, California"
+    },
+    "source_citation": "Smithsonian Magazine; U.S. Patent #1,505,592 (1924)",
+    "why_strange": "One of America's favorite frozen treats was created entirely by accident by a child.",
+    "category": "food_origins",
+    "model_generated_by": "claude-3-7-sonnet-20250219"
+  },
+  {
+    "core_claim": "Corn chips brand Fritos were invented by Charles Elmer Doolin in 1932 after he purchased a recipe for fried corn dough from a Mexican man at a gas station in San Antonio for $100.",
+    "supporting_details": {
+      "date": "1932",
+      "inventor": "Charles Elmer Doolin",
+      "purchase_price": "$100",
+      "location": "San Antonio, Texas",
+      "original_production": "Doolin's mother's kitchen",
+      "initial_equipment": "Hand-operated potato ricer",
+      "seller": "Mexican cook selling fried masa at gas station"
+    },
+    "source_citation": "Smithsonian National Museum of American History; 'Fritos Pie: Stories, Recipes, and More' by Kaleta Doolin (2011)",
+    "why_strange": "A billion-dollar snack empire began with a chance encounter and a $100 transaction at a gas station.",
+    "category": "food_origins",
+    "model_generated_by": "claude-3-7-sonnet-20250219"
+  },
+  {
+    "core_claim": "Worcestershire sauce was accidentally created in 1837 when English chemists John Lea and William Perrins prepared a fermented fish sauce for Lord Sandys that was deemed too strong, then forgotten in their basement for years where it fermented further and became delicious.",
+    "supporting_details": {
+      "date": "1837",
+      "creators": "John Lea and William Perrins",
+      "location": "Worcester, England",
+      "client": "Lord Marcus Sandys, former governor of Bengal",
+      "original_purpose": "Recreation of an Indian sauce",
+      "storage_period": "Several years in barrel",
+      "commercial_debut": "1838"
+    },
+    "source_citation": "Lea & Perrins company archives; 'A History of Worcestershire' by Worcestershire County Council",
+    "why_strange": "One of the world's most distinctive condiments was essentially a failed recipe that was abandoned and then rediscovered after aging accidentally.",
+    "category": "food_origins",
+    "model_generated_by": "claude-3-7-sonnet-20250219"
+  },
+  {
+    "core_claim": "The chocolate chip cookie was invented in 1938 by Ruth Wakefield at the Toll House Inn when she ran out of baker's chocolate and substituted broken pieces of Nestl\u00e9 semi-sweet chocolate, expecting them to melt completely.",
+    "supporting_details": {
+      "date": "1938",
+      "inventor": "Ruth Wakefield",
+      "location": "Toll House Inn, Whitman, Massachusetts",
+      "original_recipe_name": "Toll House Chocolate Crunch Cookies",
+      "payment_from_nestl\u00e9": "Lifetime supply of chocolate",
+      "original_intention": "To make chocolate cookies, expecting the pieces to melt"
+    },
+    "source_citation": "Nestl\u00e9 archives; 'Great American Cookies' by the Smithsonian Institution; New York Times historical archives",
+    "why_strange": "America's favorite cookie resulted from a cooking miscalculation, not deliberate invention.",
+    "category": "food_origins",
+    "model_generated_by": "claude-3-7-sonnet-20250219"
+  },
+  {
+    "core_claim": "Worcestershire sauce was accidentally created in the 1830s when two chemists abandoned a failed sauce experiment in a barrel\u2014and rediscovered it months later as a flavorful condiment.",
+    "supporting_details": {
+      "date": "1835",
+      "location": "Worcester, England",
+      "participants": "John Wheeley Lea and William Henry Perrins, chemists",
+      "original_intent": "To recreate a sauce from Bengal for Lord Sandys",
+      "accidental_fermentation": "Sauce was too strong and stored in a cellar, where it fermented and mellowed"
+    },
+    "source_citation": "Oxford Companion to Food (Alan Davidson); Lea & Perrins company history",
+    "why_strange": "A global condiment was born from a spoiled experiment left to rot",
+    "category": "food_origins",
+    "model_generated_by": "chatgpt-4o-latest"
+  },
+  {
+    "core_claim": "The croissant, often considered quintessentially French, actually originated in Austria and was inspired by a 17th-century battle with the Ottoman Empire.",
+    "supporting_details": {
+      "date": "1683 (origin story), introduced to France in 1839",
+      "location": "Vienna, Austria",
+      "participants": "Viennese bakers; August Zang, Austrian artillery officer who opened a Viennese bakery in Paris",
+      "historical_event": "Celebration of the defeat of the Ottomans at the Battle of Vienna; croissant shape mimics Islamic crescent"
+    },
+    "source_citation": "The Oxford Companion to Food; Smithsonian Magazine, 'The Croissant\u2019s Crescent-Shaped History'",
+    "why_strange": "France's iconic pastry actually celebrates an Austrian military victory over the Turks",
+    "category": "food_origins",
+    "model_generated_by": "chatgpt-4o-latest"
+  },
+  {
+    "core_claim": "The popsicle was invented by an 11-year-old boy who accidentally left a cup of powdered soda and a stirring stick outside on a freezing night in 1905.",
+    "supporting_details": {
+      "date": "1905",
+      "location": "San Francisco, California",
+      "participants": "Frank Epperson, age 11",
+      "original_invention": "A mixture of powdered soda and water with a wooden stirrer",
+      "commercialization": "Epperson patented it in 1923 as the 'Epsicle', later renamed 'Popsicle'"
+    },
+    "source_citation": "Smithsonian Magazine; U.S. Patent No. 1,470,524 (1923)",
+    "why_strange": "A frozen treat beloved by millions was created by accident by a child",
+    "category": "food_origins",
+    "model_generated_by": "chatgpt-4o-latest"
+  },
+  {
+    "core_claim": "Carrots were not originally orange; they were cultivated in various colors like purple, white, and yellow, and the iconic orange variety was specifically bred in the Netherlands.",
+    "supporting_details": {
+      "date": "16th or 17th century",
+      "location": "The Netherlands",
+      "participants": "Dutch growers/horticulturists",
+      "reason": "Likely developed by Dutch growers, possibly in tribute to the House of Orange, the Dutch royal family, or for improved agricultural traits.",
+      "original_colors": "Purple, white, yellow, red, black"
+    },
+    "source_citation": "Stolarczyk, J. and B. Stolarczyk. 'The History of Carrots.' Horticultural Science (2018); University of Wisconsin-Madison, 'The History of Carrots' (hort.wisc.edu)",
+    "why_strange": "Most people assume carrots have always been orange, making their colorful origins and specific breeding surprising.",
+    "category": "food_origins",
+    "model_generated_by": "gemini-2.5-flash"
+  },
+  {
+    "core_claim": "The famous Caesar salad was not invented in Italy or by someone named Caesar in ancient Rome, but rather in Tijuana, Mexico, by an Italian immigrant restaurateur.",
+    "supporting_details": {
+      "date": "July 4, 1924",
+      "location": "Caesar's Place restaurant, Tijuana, Mexico",
+      "participants": "Caesar Cardini (Italian immigrant chef/owner)",
+      "circumstance": "On a busy holiday weekend, with a depleted kitchen, Cardini improvised a salad from available ingredients.",
+      "original_ingredients": "Romaine lettuce, olive oil, raw egg, croutons, Parmesan cheese, Worcestershire sauce, garlic, and black pepper"
+    },
+    "source_citation": "Rosa, J. (2012). 'The History of Caesar Salad'. San Diego Historical Society; Julia Child's account (she visited the restaurant as a child and knew Cardini).",
+    "why_strange": "The name and common perception suggest a European or Roman origin, not a spontaneous invention in Mexico.",
+    "category": "food_origins",
+    "model_generated_by": "gemini-2.5-flash"
+  },
+  {
+    "core_claim": "Ketchup did not originate as a tomato-based condiment but as a fermented fish sauce from Southeast Asia, arriving in Europe through trade routes.",
+    "supporting_details": {
+      "date": "17th century (first records in English)",
+      "location": "Southeast Asia (specifically Fujian, China, where 'k\u00ea-chiap' or '\u9bad\u6c41' referred to fermented fish brine), then Malaysia/Indonesia, then Europe.",
+      "original_ingredients": "Fermented fish, brine, and spices; notably, no tomatoes.",
+      "evolution": "British sailors brought it to Europe, where recipes evolved to include mushrooms, walnuts, or oysters, before tomatoes were widely adopted in the 19th century."
+    },
+    "source_citation": "Andrew F. Smith, 'Pure Ketchup: A History of America's National Condiment' (2001); Oxford English Dictionary (entry for 'ketchup').",
+    "why_strange": "Modern ketchup is synonymous with tomatoes, making its ancient origin as a fish sauce highly unexpected.",
+    "category": "food_origins",
+    "model_generated_by": "gemini-2.5-flash"
+  }
+]

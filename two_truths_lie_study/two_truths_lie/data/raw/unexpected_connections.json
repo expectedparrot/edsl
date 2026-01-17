@@ -1,0 +1,98 @@
+[
+  {
+    "core_claim": "The actors who played the original Darth Vader (David Prowse) and Chewbacca (Peter Mayhew) in Star Wars lived next door to each other for over a decade in London, completely by coincidence.",
+    "supporting_details": {
+      "date": "1990s-2000s",
+      "location": "Croydon, South London, UK",
+      "actors": "David Prowse and Peter Mayhew",
+      "characters": "Darth Vader and Chewbacca",
+      "height": "Both over 6'7\" tall"
+    },
+    "source_citation": "BBC News, 'Star Wars neighbours: Darth Vader and Chewbacca lived next door', 2015; Confirmed in Peter Mayhew's autobiography 'My Favorite Giant'",
+    "why_strange": "Two iconic opposing characters from a galaxy far, far away coincidentally became real-life neighbors on Earth.",
+    "category": "unexpected_connections",
+    "model_generated_by": "claude-3-7-sonnet-20250219"
+  },
+  {
+    "core_claim": "Mark Twain was born and died during appearances of Halley's Comet, accurately predicting his own death would coincide with the comet's return.",
+    "supporting_details": {
+      "birth_date": "November 30, 1835",
+      "death_date": "April 21, 1910",
+      "comet_appearances": "1835 and 1910",
+      "prediction_quote": "I came in with Halley's Comet in 1835. It is coming again next year, and I expect to go out with it.",
+      "comet_orbital_period": "75-76 years"
+    },
+    "source_citation": "The Autobiography of Mark Twain, University of California Press; NASA's Jet Propulsion Laboratory Halley's Comet historical records",
+    "why_strange": "A famous author's life was perfectly bookended by a celestial event that occurs only once every 76 years.",
+    "category": "unexpected_connections",
+    "model_generated_by": "claude-3-7-sonnet-20250219"
+  },
+  {
+    "core_claim": "Nintendo was founded in 1889 as a playing card company while the Eiffel Tower was being completed, and Jack the Ripper was still active in London.",
+    "supporting_details": {
+      "nintendo_founding": "September 23, 1889",
+      "founder": "Fusajiro Yamauchi",
+      "original_name": "Nintendo Koppai",
+      "original_product": "Hanafuda playing cards",
+      "eiffel_tower_completion": "March 31, 1889",
+      "jack_the_ripper": "Active in 1888-1889 in London"
+    },
+    "source_citation": "Nintendo Company History Archives; The Eiffel Tower Official Records; The Complete History of Jack the Ripper by Philip Sugden, 1994",
+    "why_strange": "A modern video game giant began during the Victorian era, contemporaneous with iconic 19th century events.",
+    "category": "unexpected_connections",
+    "model_generated_by": "claude-3-7-sonnet-20250219"
+  },
+  {
+    "core_claim": "When Fidel Castro visited New York in 1959, his security detail was provided by the Hells Angels motorcycle club, arranged by a Hells Angels leader who admired the Cuban Revolution.",
+    "supporting_details": {
+      "date": "April 1959",
+      "location": "New York City, Statler Hilton Hotel",
+      "hells_angels_leader": "Sandy Alexander",
+      "castro_position": "Prime Minister of Cuba",
+      "reason": "NYPD refused adequate protection",
+      "duration": "3 days"
+    },
+    "source_citation": "Hells Angels: A Strange and Terrible Saga by Hunter S. Thompson, 1966; The New York Times archives, April 1959; Cuban State Archives",
+    "why_strange": "An infamous outlaw motorcycle gang provided security for a communist revolutionary leader in the heart of capitalist America.",
+    "category": "unexpected_connections",
+    "model_generated_by": "claude-3-7-sonnet-20250219"
+  },
+  {
+    "core_claim": "John Adams and Thomas Jefferson, both Founding Fathers and U.S. Presidents, died on the exact same day\u2014July 4, 1826\u2014the 50th anniversary of the Declaration of Independence.",
+    "supporting_details": {
+      "date": "July 4, 1826",
+      "location": "Adams in Quincy, Massachusetts; Jefferson at Monticello, Virginia",
+      "participants": "John Adams (2nd U.S. President), Thomas Jefferson (3rd U.S. President)",
+      "event": "50th anniversary of the Declaration of Independence"
+    },
+    "source_citation": "National Archives; David McCullough, 'John Adams' (2001)",
+    "why_strange": "Two political rivals and co-authors of the Declaration died hours apart on its 50th anniversary",
+    "category": "unexpected_connections",
+    "model_generated_by": "chatgpt-4o-latest"
+  },
+  {
+    "core_claim": "The first person killed by a robot was Robert Williams in 1979, and the first person killed by a self-driving car was Elaine Herzberg in 2018\u2014both occurred in the same U.S. state: Michigan.",
+    "supporting_details": {
+      "date": "January 25, 1979 (Williams); March 18, 2018 (Herzberg)",
+      "location": "Flat Rock, Michigan (Williams); Tempe, Arizona (Herzberg, but Uber was based in Michigan)",
+      "participants": "Robert Williams (Ford Motor Company employee), Elaine Herzberg (pedestrian)",
+      "technology": "Industrial robot arm (1979); Uber autonomous vehicle (2018)"
+    },
+    "source_citation": "The New York Times, July 9, 1981; NTSB Report on Uber Crash, 2019",
+    "why_strange": "Both historic robot-related deaths are linked to Michigan, the heart of the U.S. auto industry",
+    "category": "unexpected_connections",
+    "model_generated_by": "chatgpt-4o-latest"
+  },
+  {
+    "core_claim": "Abraham Lincoln and Charles Darwin were born on the exact same day: February 12, 1809.",
+    "supporting_details": {
+      "date": "February 12, 1809",
+      "location": "Lincoln: Hardin County, Kentucky, USA; Darwin: Shrewsbury, Shropshire, England",
+      "participants": "Abraham Lincoln (16th U.S. President), Charles Darwin (naturalist, author of 'On the Origin of Species')"
+    },
+    "source_citation": "National Park Service; Darwin Correspondence Project, University of Cambridge",
+    "why_strange": "Two of the most influential figures in politics and science were born on the same day, worlds apart",
+    "category": "unexpected_connections",
+    "model_generated_by": "chatgpt-4o-latest"
+  }
+]

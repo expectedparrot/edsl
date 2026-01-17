@@ -1,0 +1,44 @@
+[
+  {
+    "core_claim": "Male seahorses, not females, become pregnant and give birth to live young\u2014sometimes over 1,000 at a time.",
+    "supporting_details": {
+      "species": "Hippocampus abdominalis (pot-bellied seahorse) and others",
+      "reproductive process": "Female deposits eggs into male's brood pouch, where he fertilizes and incubates them",
+      "birth size": "Up to 1,500 offspring per pregnancy",
+      "locations": "Worldwide in shallow tropical and temperate waters",
+      "notable study": "Wilson et al., Journal of Fish Biology, 2001"
+    },
+    "source_citation": "Wilson, A. B., Ahnesj\u00f6, I., Vincent, A. C. J., & Meyer, A. (2001). The dynamics of male pregnancy in seahorses and pipefishes. Journal of Fish Biology, 58(4), 1049\u20131065.",
+    "why_strange": "In most species, females carry offspring\u2014male pregnancy is extremely rare in the animal kingdom",
+    "category": "animal_behaviors",
+    "model_generated_by": "chatgpt-4o-latest"
+  },
+  {
+    "core_claim": "The lyrebird can mimic almost any sound it hears\u2014including chainsaws, camera shutters, and car alarms\u2014with astonishing accuracy.",
+    "supporting_details": {
+      "species": "Superb lyrebird (Menura novaehollandiae)",
+      "location": "Southeastern Australia",
+      "recorded mimicry": "Chainsaws, camera clicks, dogs barking, human voices",
+      "notable documentation": "David Attenborough's BBC series 'The Life of Birds' (1998)",
+      "vocal range": "More than 20 different species and artificial sounds"
+    },
+    "source_citation": "Attenborough, D. (1998). The Life of Birds. BBC; Also: Dalziell, A. H., & Magrath, R. D. (2012). 'Superb lyrebirds mimic complex sounds during sexual display'. Current Biology, 22(6), R231\u2013R232.",
+    "why_strange": "It's bizarre that a bird can imitate man-made mechanical sounds indistinguishable from the real thing",
+    "category": "animal_behaviors",
+    "model_generated_by": "chatgpt-4o-latest"
+  },
+  {
+    "core_claim": "The horned lizard can squirt blood from its eyes as a defense mechanism against predators.",
+    "supporting_details": {
+      "species": "Texas horned lizard (Phrynosoma cornutum)",
+      "defense method": "Ruptures tiny blood vessels around its eyes to shoot a stream of blood up to 5 feet",
+      "purpose": "Deters predators, especially canines, due to foul taste",
+      "location": "Southwestern United States and northern Mexico",
+      "first documented": "19th century naturalists; detailed in Schmidt & Davis, 1941"
+    },
+    "source_citation": "Schmidt, K. P., & Davis, D. D. (1941). Field Book of Snakes of the United States and Canada. G.P. Putnam's Sons.",
+    "why_strange": "Few animals weaponize their own blood, especially by shooting it from their eyes",
+    "category": "animal_behaviors",
+    "model_generated_by": "chatgpt-4o-latest"
+  }
+]

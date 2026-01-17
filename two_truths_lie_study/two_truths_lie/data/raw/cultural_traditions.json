@@ -1,0 +1,103 @@
+[
+  {
+    "core_claim": "In the Finnish town of Sonkaj\u00e4rvi, the annual Wife Carrying World Championship has been held since 1992, where men race through an obstacle course carrying their wives, with the winner receiving the wife's weight in beer.",
+    "supporting_details": {
+      "date": "Annual event since 1992, held in July",
+      "location": "Sonkaj\u00e4rvi, Finland",
+      "participants": "Couples from around the world",
+      "course_length": "253.5 meters",
+      "obstacles": "Sand, water, and fences",
+      "prize": "Wife's weight in beer"
+    },
+    "source_citation": "Official Wife Carrying Competition website (eukonkanto.fi); The Finnish Tourist Board",
+    "why_strange": "A competitive sport centered entirely around men carrying women through obstacles for beer",
+    "category": "cultural_traditions",
+    "model_generated_by": "claude-3-7-sonnet-20250219"
+  },
+  {
+    "core_claim": "During La Tomatina festival in Bu\u00f1ol, Spain, approximately 150,000 tomatoes (over 40 tons) are thrown in the streets during a massive food fight that lasts exactly one hour, with strict rules including crushing tomatoes before throwing them.",
+    "supporting_details": {
+      "date": "Last Wednesday of August annually since 1945",
+      "location": "Bu\u00f1ol, Valencia, Spain",
+      "participants": "20,000 people (limited since 2013)",
+      "duration": "Exactly 1 hour (11am-12pm)",
+      "tomatoes_used": "150,000+ (approximately 40 tons)",
+      "origin": "Began from a spontaneous fight during a parade in 1945"
+    },
+    "source_citation": "Official Tourism Board of Spain; Bu\u00f1ol Town Council; UNESCO Cultural Heritage documentation",
+    "why_strange": "An entire town transforms into a regulated tomato battlefield where 40 tons of food are deliberately wasted in 60 minutes",
+    "category": "cultural_traditions",
+    "model_generated_by": "claude-3-7-sonnet-20250219"
+  },
+  {
+    "core_claim": "In the Tibetan Sky Burial (Jhator), human corpses are cut into pieces and placed on mountaintops to be consumed by vultures, as the ground is too hard for burial and wood too scarce for cremation.",
+    "supporting_details": {
+      "date": "Practice dates back at least 12,000 years",
+      "location": "Tibet, parts of Mongolia, Qinghai, and Sichuan",
+      "practitioners": "Primarily Vajrayana Buddhists",
+      "process": "Body is dismembered by a rogyapa (body-breaker), bones are ground with tsampa (barley flour), then fed to vultures",
+      "spiritual_basis": "Represents the deceased's final act of generosity (dana) by feeding wildlife"
+    },
+    "source_citation": "Journal of the Royal Anthropological Institute; Tibet Museum documentation; 'Sky Burial: An Eyewitness Account' by Blake Kerr, M.D.",
+    "why_strange": "A funeral practice where the body is deliberately fed to wild birds rather than preserved or ceremonially burned",
+    "category": "cultural_traditions",
+    "model_generated_by": "claude-3-7-sonnet-20250219"
+  },
+  {
+    "core_claim": "The Indonesian Toraja people keep their deceased relatives at home for years or even decades after death, treating them as 'sick' rather than dead, dressing, feeding, and talking to them daily until funds are gathered for an elaborate funeral.",
+    "supporting_details": {
+      "date": "Ancient tradition continuing today",
+      "location": "Tana Toraja, South Sulawesi, Indonesia",
+      "preservation_method": "Formaldehyde and other preservatives",
+      "waiting_period": "Often 1-5 years, sometimes decades",
+      "funeral_cost": "Equivalent to tens of thousands of USD",
+      "ceremony": "Ma'nene ritual includes periodically removing, cleaning and redressing corpses"
+    },
+    "source_citation": "National Geographic documentary 'Living with the Dead'; Journal of Southeast Asian Studies; Indonesian Ministry of Tourism documentation",
+    "why_strange": "Dead family members are treated as living household members for years before their actual funeral",
+    "category": "cultural_traditions",
+    "model_generated_by": "claude-3-7-sonnet-20250219"
+  },
+  {
+    "core_claim": "In the Torajan culture of Indonesia, families exhume the bodies of deceased relatives every few years to clean, groom, and dress them in fresh clothes during the Ma'nene ritual.",
+    "supporting_details": {
+      "date": "Ongoing tradition, typically in August",
+      "location": "Tana Toraja, South Sulawesi, Indonesia",
+      "participants": "Torajan families and community members",
+      "ritual_name": "Ma'nene (The Ceremony of Cleaning Corpses)",
+      "activities": "Exhuming corpses, changing clothes, cleaning remains, parading bodies"
+    },
+    "source_citation": "National Geographic, 'The Indonesian Village Where the Dead Live With Their Families', 2016; BBC Travel, 'The Indonesian ritual that celebrates the dead', 2017",
+    "why_strange": "Most cultures avoid contact with corpses, but here they are lovingly maintained and celebrated",
+    "category": "cultural_traditions",
+    "model_generated_by": "chatgpt-4o-latest"
+  },
+  {
+    "core_claim": "Every spring in El Colacho, Spain, men dressed as devils leap over rows of infants lying on mattresses as part of a 400-year-old baby-cleansing ritual.",
+    "supporting_details": {
+      "date": "Annually during the festival of Corpus Christi in late May or June",
+      "location": "Castrillo de Murcia, near Burgos, Spain",
+      "participants": "Local men dressed as 'El Colacho' (the devil), infants born in the previous year",
+      "tradition_origin": "Dates back to 1620",
+      "purpose": "To cleanse babies of original sin and protect them from evil spirits"
+    },
+    "source_citation": "The Guardian, 'Spanish baby-jumping festival El Colacho marks 400 years', 2015; Smithsonian Magazine, 'Spain\u2019s Baby-Jumping Festival Is as Strange as It Sounds', 2012",
+    "why_strange": "It involves literally jumping over live babies to ward off evil",
+    "category": "cultural_traditions",
+    "model_generated_by": "chatgpt-4o-latest"
+  },
+  {
+    "core_claim": "In Denmark, people who are unmarried at age 25 are traditionally pelted with cinnamon by friends and family in a public celebration.",
+    "supporting_details": {
+      "date": "Modern-day tradition, especially observed on birthdays",
+      "location": "Denmark, particularly in urban areas",
+      "participants": "Unmarried individuals turning 25 (called 'kanelsnegle'), friends and family",
+      "materials_used": "Large quantities of ground cinnamon, sometimes water for it to stick",
+      "custom_variation": "At age 30, pepper is used instead"
+    },
+    "source_citation": "The Local Denmark, 'Why Danes pelt their single 25-year-old friends with cinnamon', 2018; BBC Travel, 'The Danish tradition that singles dread', 2019",
+    "why_strange": "It's a cheerful public shaming involving spices for being single",
+    "category": "cultural_traditions",
+    "model_generated_by": "chatgpt-4o-latest"
+  }
+]
