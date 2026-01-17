@@ -94,6 +94,26 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
         _, values = list(self.data[0].items())[0]
         return len(values)
 
+    def __getattr__(self, name: str):
+        """Intercept attribute access to provide service accessor instances.
+
+        This method is called when an attribute isn't found normally on the instance.
+        It checks if the attribute name matches a registered service and returns
+        the appropriate accessor bound to this Dataset instance.
+
+        Examples:
+            >>> d = Dataset([{'a': [1, 2, 3]}])  # doctest: +SKIP
+            >>> _ = d.ggplot  # Returns ggplot accessor bound to this instance  # doctest: +SKIP
+        """
+        # Lazy import to avoid circular dependencies
+        from edsl.services.accessors import get_service_accessor
+
+        accessor = get_service_accessor(name, instance=self)
+        if accessor is not None:
+            return accessor
+
+        raise AttributeError(f"'Dataset' object has no attribute '{name}'")
+
     def drop(self, field_name):
         """
         Returns a new Dataset with the specified field removed.

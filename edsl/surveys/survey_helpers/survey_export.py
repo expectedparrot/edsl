@@ -70,7 +70,7 @@ class SurveyExport:
             for key in d.keys():
                 if key not in all_keys:
                     all_keys.append(key)
-            scenarios.append(Scenario(d))
+            scenarios = scenarios.append(Scenario(d))
 
         for scenario in scenarios:
             for key in all_keys:

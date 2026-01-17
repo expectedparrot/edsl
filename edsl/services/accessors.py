@@ -78,54 +78,6 @@ SERVICE_DEPENDENCIES: Dict[str, List[tuple]] = {
     "embeddings_search": [("openai", "openai", False)],  # for semantic search
 }
 
-# Services that should use replace_with() for versioned results
-# Maps service name to list of class names it extends
-VERSIONED_SERVICES: Dict[str, List[str]] = {
-    "agent_vibes": ["AgentList"],
-    "survey_vibes": ["Survey"],
-    "results_vibes": ["Results"],
-    "scenario_vibes": ["ScenarioList"],
-    "dataset_vibes": ["Dataset"],
-}
-
-_versioned_services_registered = False
-
-
-def _register_versioned_services() -> None:
-    """Register metadata for versioned services.
-
-    This allows services that run remotely to be marked as versioned,
-    so the accessor knows to use replace_with() for results.
-
-    Called lazily to avoid circular imports.
-
-    Note: We only register metadata, not a stub service class.
-    This is because services run remotely and the dispatcher should
-    use result_pattern parsing, not a local parse_result method.
-    """
-    global _versioned_services_registered
-    if _versioned_services_registered:
-        return
-    _versioned_services_registered = True
-
-    from .registry import ServiceRegistry, ServiceMetadata
-
-    for service_name, extends in VERSIONED_SERVICES.items():
-        # Only register metadata if not already present
-        # Don't register a service class - let the remote server handle execution
-        if service_name not in ServiceRegistry._metadata:
-            ServiceRegistry._metadata[service_name] = ServiceMetadata(
-                name=service_name,
-                service_class=None,  # No local class - runs remotely
-                extends=extends,
-                versioned=True,
-            )
-            # Update extends index for accessor lookup
-            for class_name in extends:
-                if class_name not in ServiceRegistry._extends_index:
-                    ServiceRegistry._extends_index[class_name] = []
-                if service_name not in ServiceRegistry._extends_index[class_name]:
-                    ServiceRegistry._extends_index[class_name].append(service_name)
 
 
 def check_dependencies(service_name: str) -> None:
@@ -2506,7 +2458,17 @@ class RemoteServiceAccessor:
             poll_interval = kwargs.pop("poll_interval", None)
 
             params = {"operation": method_name}
-            params.update(kwargs)
+            # Serialize any EDSL objects in kwargs that have to_dict()
+            for key, value in kwargs.items():
+                if hasattr(value, "to_dict"):
+                    params[key] = value.to_dict()
+                elif isinstance(value, list):
+                    # Handle lists of EDSL objects (e.g., results_list=[r1, r2, r3])
+                    params[key] = [
+                        v.to_dict() if hasattr(v, "to_dict") else v for v in value
+                    ]
+                else:
+                    params[key] = value
 
             # Get operation schema if available
             op_schema = self._remote_info.operations.get(method_name, {})
@@ -2522,6 +2484,9 @@ class RemoteServiceAccessor:
             # Handle positional args using input_param from schema
             if args:
                 first_arg = args[0]
+                # Serialize EDSL objects that have to_dict()
+                if hasattr(first_arg, "to_dict"):
+                    first_arg = first_arg.to_dict()
                 if input_param:
                     # Use the schema-defined parameter name
                     params[input_param] = first_arg
@@ -2539,7 +2504,10 @@ class RemoteServiceAccessor:
                         params["input"] = first_arg
 
                 if len(args) > 1:
-                    params["args"] = args[1:]
+                    # Serialize any EDSL objects in additional args
+                    params["args"] = [
+                        a.to_dict() if hasattr(a, "to_dict") else a for a in args[1:]
+                    ]
 
             # Include instance data if available
             if self._instance is not None:
@@ -2558,8 +2526,23 @@ class RemoteServiceAccessor:
 
             raw_result = pending.result(**result_kwargs)
 
-            # If result is already parsed (not a dict), return it directly
+            # Check if this operation is modifying (should use replace_with)
+            is_modifying = op_schema.get("modifying", False)
+
+            # If result is already parsed (not a dict), handle modifying check and return
             if not isinstance(raw_result, dict):
+                if is_modifying and self._instance is not None:
+                    if hasattr(self._instance, "replace_with"):
+                        audit_params = {
+                            k: v
+                            for k, v in kwargs.items()
+                            if not (isinstance(v, (list, dict)) and len(str(v)) > 500)
+                        }
+                        return self._instance.replace_with(
+                            raw_result,
+                            operation=f"{self._service_name}.{method_name}",
+                            params=audit_params,
+                        )
                 return raw_result
 
             # Parse the result using the pattern from remote metadata
@@ -2571,15 +2554,50 @@ class RemoteServiceAccessor:
             else:
                 result_to_parse = raw_result
 
-            # If inner result is also not a dict, return it directly
+            # If inner result is also not a dict, handle modifying check and return
             if not isinstance(result_to_parse, dict):
+                if is_modifying and self._instance is not None:
+                    if hasattr(self._instance, "replace_with"):
+                        audit_params = {
+                            k: v
+                            for k, v in kwargs.items()
+                            if not (isinstance(v, (list, dict)) and len(str(v)) > 500)
+                        }
+                        return self._instance.replace_with(
+                            result_to_parse,
+                            operation=f"{self._service_name}.{method_name}",
+                            params=audit_params,
+                        )
                 return result_to_parse
 
-            return ResultParser.parse(
+            # Check for per-operation result_pattern (takes precedence over service-level)
+            op_result_pattern = op_schema.get("result_pattern")
+            op_result_field = op_schema.get("result_field")
+
+            # Use operation-level pattern if specified, else fall back to service-level
+            result_pattern = op_result_pattern or self._remote_info.result_pattern
+            result_field = op_result_field or self._remote_info.result_field
+
+            parsed_result = ResultParser.parse(
                 result_to_parse,
-                self._remote_info.result_pattern,
-                self._remote_info.result_field,
+                result_pattern,
+                result_field,
             )
+
+            if is_modifying and self._instance is not None:
+                if hasattr(self._instance, "replace_with"):
+                    audit_params = {
+                        k: v
+                        for k, v in kwargs.items()
+                        if not (isinstance(v, (list, dict)) and len(str(v)) > 500)
+                    }
+                    return self._instance.replace_with(
+                        parsed_result,
+                        operation=f"{self._service_name}.{method_name}",
+                        params=audit_params,
+                    )
+
+            return parsed_result
 
         return method_wrapper
 
@@ -2755,39 +2773,32 @@ def get_service_accessor(name: str, instance: Any = None, owner_class: type = No
     if name in _SKIP_NAMES or name.startswith("_"):
         return None
 
-    # Ensure versioned services are registered before checking registry
-    _register_versioned_services()
-
-    from .accessor import get_accessor
-    from .registry import ServiceRegistry
-
-    # Check if service exists in local registry (either as class or metadata-only)
-    service_exists = ServiceRegistry.exists(name) or name in ServiceRegistry._metadata
-    if service_exists:
-        # Use the generic ServiceAccessor which handles everything
-        accessor = get_accessor(name, instance=instance, owner_class=owner_class)
-        if accessor is not None:
-            return accessor
-        # If local registry has the service but it doesn't extend the instance's class,
-        # fall through to check remote cache for a class-appropriate service
-
-    # Check remote metadata cache for server-side services
+    import os
     from .remote_metadata import RemoteMetadataCache
 
-    cache = RemoteMetadataCache.get_instance()
+    # When a remote server is configured, get service info from the server
+    if os.getenv("EXPECTED_PARROT_SERVICE_RUNNER_URL"):
+        cache = RemoteMetadataCache.get_instance()
 
-    # If we have an instance, use context-aware lookup to find a service
-    # that extends the instance's class. This handles cases like "vibe"
-    # resolving to "vibes" for ScenarioList but "results_vibes" for Results.
-    if instance is not None:
-        class_name = instance.__class__.__name__
-        remote_info = cache.get_for_class(name, class_name)
-    else:
-        remote_info = cache.get(name)
+        # Use context-aware lookup to find a service that extends the instance's class
+        # This handles cases like "vibes" -> "dataset_vibes" for Dataset
+        if instance is not None:
+            class_name = instance.__class__.__name__
+            remote_info = cache.get_for_class(name, class_name)
+        else:
+            remote_info = cache.get(name)
 
-    if remote_info is not None:
-        # Service exists on remote server - create a RemoteServiceAccessor
-        return RemoteServiceAccessor(name, remote_info, instance=instance)
+        if remote_info is not None:
+            return RemoteServiceAccessor(name, remote_info, instance=instance)
+
+        return None
+
+    # No remote server - try local accessor
+    from .accessor import get_accessor
+
+    accessor = get_accessor(name, instance=instance, owner_class=owner_class)
+    if accessor is not None:
+        return accessor
 
     return None
 

@@ -27,6 +27,12 @@ class PngMethods(FileMethods):
 
         display(Image(filename=self.path))
 
+    def _repr_html_(self, base64_string: str = None) -> str:
+        """Return inline image HTML for Jupyter notebooks."""
+        if base64_string:
+            return f'<img src="data:image/png;base64,{base64_string}" />'
+        return None
+
     def example(self):
         """Create a simple example PNG using PIL."""
         try:

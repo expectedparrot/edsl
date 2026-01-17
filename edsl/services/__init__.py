@@ -119,7 +119,7 @@ from .accessors import list_available_services, get_service_accessor, service_di
 _builtin_loaded = False
 
 
-def _ensure_builtin_services():
+def _ensure_builtin_services(force: bool = False):
     """Load builtin services and discover entry point plugins.
 
     This function is called lazily when services are first accessed.
@@ -131,14 +131,23 @@ def _ensure_builtin_services():
 
         [project.entry-points."edsl.services"]
         myservice = "mypackage.services:MyService"
+
+    Args:
+        force: If True, load services even when EXPECTED_PARROT_SERVICE_RUNNER_URL
+               is set. Used by the server to ensure services are loaded locally.
     """
     global _builtin_loaded
     if not _builtin_loaded:
         # Load builtin services first (they take precedence)
         from . import builtin  # noqa: F401
 
-        # Discover entry point plugins
-        ServiceRegistry._discover_entry_points()
+        # Only discover entry point plugins when NOT using a remote server,
+        # unless force=True (used by the server itself).
+        # When a remote server is configured, service execution happens server-side
+        # so the client doesn't need (and shouldn't try to load) service classes.
+        import os
+        if force or not os.getenv("EXPECTED_PARROT_SERVICE_RUNNER_URL"):
+            ServiceRegistry._discover_entry_points()
 
         _builtin_loaded = True
 

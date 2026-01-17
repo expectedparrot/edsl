@@ -40,6 +40,12 @@ class OperationSchema:
 
     input_param: Optional[str] = None  # Maps first positional arg to this param name
     defaults: Dict[str, Any] = field(default_factory=dict)  # Default values to merge
+    # Per-operation result parsing (overrides service-level defaults)
+    result_pattern: Optional[str] = None
+    result_field: Optional[str] = None
+    # If True, this operation modifies data and should use replace_with()
+    # to create a new versioned instance instead of returning raw result
+    modifying: bool = False
 
 
 @dataclass
@@ -51,7 +57,9 @@ class ServiceMetadata:
     aliases: List[str] = field(default_factory=list)
     dependencies: List[str] = field(default_factory=list)
     extends: List[str] = field(default_factory=list)
-    versioned: bool = False  # If True, results are applied via replace_with()
+    # Service-level default: if True, all operations use replace_with().
+    # Operations can override this with their own `modifying` flag.
+    versioned: bool = False
     operations: Dict[str, OperationSchema] = field(
         default_factory=dict
     )  # Operation schemas
@@ -171,6 +179,9 @@ class ServiceRegistry:
                     parsed_operations[op_name] = OperationSchema(
                         input_param=op_config.get("input_param"),
                         defaults=op_config.get("defaults", {}),
+                        result_pattern=op_config.get("result_pattern"),
+                        result_field=op_config.get("result_field"),
+                        modifying=op_config.get("modifying", False),
                     )
             else:
                 # Auto-extract operations from class attributes if not provided
@@ -181,6 +192,9 @@ class ServiceRegistry:
                             parsed_operations[op_name] = OperationSchema(
                                 input_param=op_config.get("input_param"),
                                 defaults=op_config.get("defaults", {}),
+                                result_pattern=op_config.get("result_pattern"),
+                                result_field=op_config.get("result_field"),
+                                modifying=op_config.get("modifying", False),
                             )
                         else:
                             parsed_operations[op_name] = OperationSchema()

@@ -55,6 +55,17 @@ class Mp4Methods(FileMethods):
 
         display(HTML(video_html))
 
+    def _repr_html_(self, base64_string: str = None) -> str:
+        """Return inline video HTML for Jupyter notebooks."""
+        if base64_string:
+            return f"""
+            <video width="640" height="360" controls>
+                <source src="data:video/mp4;base64,{base64_string}" type="video/mp4">
+                Your browser does not support the video tag.
+            </video>
+            """
+        return None
+
     def extract_text(self):
         """
         Extract text from the video using subtitle extraction (if available).

@@ -27,6 +27,12 @@ class SvgMethods(FileMethods):
 
         display(SVG(filename=self.path))
 
+    def _repr_html_(self, base64_string: str = None) -> str:
+        """Return inline SVG HTML for Jupyter notebooks."""
+        if base64_string:
+            return f'<img src="data:image/svg+xml;base64,{base64_string}" />'
+        return None
+
     def example(self):
         svg_content = """<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100">
   <circle cx="50" cy="50" r="40" stroke="black" stroke-width="3" fill="red" />

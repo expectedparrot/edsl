@@ -213,6 +213,120 @@ class DataOperationsBase:
 
         return self.ggplot2(r_code, height=height, width=width)
 
+    def ggplot2(
+        self,
+        ggplot_code: str,
+        sql: str = None,
+        height: float = 4,
+        width: float = 6,
+        remove_prefix: bool = True,
+        factor_orders: dict = None,
+        format: str = "png",
+    ):
+        """
+        Render a ggplot2 visualization using R code.
+
+        This method takes ggplot2 R code and executes it on the remote server,
+        returning the rendered plot as an image that displays in Jupyter notebooks.
+
+        Parameters:
+            ggplot_code: R/ggplot2 code string. The data is available as 'df'.
+                Example: "ggplot(df, aes(x=col1, y=col2)) + geom_point()"
+            sql: Optional SQL query to transform the data before plotting.
+                The query should use 'self' as the table name.
+                Example: "SELECT key, COUNT(*) as n FROM self GROUP BY key"
+            height: Plot height in inches (default: 4)
+            width: Plot width in inches (default: 6)
+            remove_prefix: Whether to remove type prefixes from column names (default: True)
+            factor_orders: Dict mapping column names to ordered lists of factor levels.
+                Example: {"category": ["low", "medium", "high"]}
+            format: Output format, either "png" or "svg" (default: "png")
+
+        Returns:
+            A FileStore object containing the rendered image that displays in Jupyter.
+
+        Examples:
+            >>> from edsl.dataset import Dataset
+            >>> d = Dataset([{'x': [1, 2, 3, 4, 5]}, {'y': [2, 4, 1, 5, 3]}])
+            >>> # Basic scatter plot:
+            >>> # plot = d.ggplot2("ggplot(df, aes(x=x, y=y)) + geom_point()")
+            >>> # With SQL transformation:
+            >>> # plot = d.ggplot2(
+            >>> #     "ggplot(df, aes(x=category, y=count)) + geom_bar(stat='identity')",
+            >>> #     sql="SELECT category, COUNT(*) as count FROM self GROUP BY category"
+            >>> # )
+        """
+        from edsl.services import dispatch
+        from edsl import FileStore
+
+        # Prepare the data
+        if sql:
+            # Apply SQL transformation first
+            transformed = self.sql(sql, shape="wide", remove_prefix=remove_prefix)
+            df = transformed.to_pandas(remove_prefix=remove_prefix)
+        else:
+            df = self.to_pandas(remove_prefix=remove_prefix)
+
+        # Convert DataFrame to the format expected by the service
+        data = {col: df[col].tolist() for col in df.columns}
+
+        # Support 'self' as alias for 'df' in the R code for convenience
+        # This allows users to write ggplot(data = self, ...) instead of ggplot(df, ...)
+        ggplot_code = ggplot_code.replace("data = self", "data = df")
+        ggplot_code = ggplot_code.replace("data=self", "data=df")
+
+        # Build params for the service
+        operation = "render" if format == "png" else "render_svg"
+        params = {
+            "operation": operation,
+            "ggplot_code": ggplot_code,
+            "data": data,
+            "width": width,
+            "height": height,
+        }
+        if factor_orders:
+            params["factor_orders"] = factor_orders
+
+        # Dispatch to remote server and wait for result
+        pending = dispatch("ggplot", params)
+        result = pending.result()
+
+        # Handle None result
+        if result is None:
+            raise RuntimeError(
+                f"ggplot2 service returned no result. "
+                f"Check that the ggplot service is running on the server. "
+                f"Task status: {pending.status}"
+            )
+
+        # Handle errors
+        if isinstance(result, dict) and "error" in result:
+            raise RuntimeError(f"ggplot2 rendering failed: {result['error']}")
+
+        # If result is already a FileStore (parsed by result parser), return it directly
+        if hasattr(result, 'base64_string'):
+            return result
+
+        # Otherwise, convert result dict to FileStore for display
+        # Service returns filestore_image format: image_base64, suffix, mime_type
+        if not isinstance(result, dict):
+            raise RuntimeError(f"ggplot2 service returned unexpected result type: {type(result)}")
+
+        suffix = result.get("suffix", "png").lstrip(".")  # Ensure no leading dot
+        mime_type = result.get("mime_type", "image/png" if suffix == "png" else "image/svg+xml")
+
+        return FileStore(
+            path=f"ggplot_output.{suffix}",
+            base64_string=result.get("image_base64"),
+            suffix=suffix,
+            mime_type=mime_type,
+            binary=True,
+        )
+
+    # Alias for backwards compatibility
+    ggplot = ggplot2
+    r_plot = ggplot2
+
     def vibe_sql(
         self,
         description: str,

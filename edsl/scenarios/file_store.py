@@ -663,9 +663,22 @@ class FileStore(Scenario):
         return f"{self.__class__.__name__}({params})"
 
     def _repr_html_(self):
-        parent_html = super()._repr_html_()
+        from .file_store_helpers.file_methods import FileMethods
         from .file_store_helpers.construct_download_link import ConstructDownloadLink
 
+        # Check if there's a handler with a custom _repr_html_
+        handler_class = FileMethods.get_handler(self.suffix)
+        if handler_class:
+            handler = handler_class(self.path)
+            if hasattr(handler, "_repr_html_"):
+                handler_html = handler._repr_html_(self.base64_string)
+                if handler_html:
+                    # Return handler HTML with download link
+                    link = ConstructDownloadLink(self).html_create_link(self.path, style=None)
+                    return f"{handler_html}<br>{link}"
+
+        # Fall back to default behavior: parent HTML + download link
+        parent_html = super()._repr_html_()
         link = ConstructDownloadLink(self).html_create_link(self.path, style=None)
         return f"{parent_html}<br>{link}"
 
@@ -809,7 +822,9 @@ class FileStore(Scenario):
         if handler:
             handler(self.path).view()
         else:
-            print(f"Viewing of {self.suffix} files is not supported.")
+            supported = FileMethods.supported_file_types()
+            print(f"Viewing of .{self.suffix} files is not supported.")
+            print(f"Supported formats: {', '.join('.' + s for s in sorted(supported))}")
 
     def extract_text(self) -> str:
         handler = FileMethods.get_handler(self.suffix)

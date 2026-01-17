@@ -34,6 +34,9 @@ from .is_valid_variable_name import is_valid_variable_name
 from .naming_utilities import sanitize_string
 from .list_split import list_split
 
+# Response types
+from .markdown_response import MarkdownResponse
+
 # Interface module - note: print_results_long is imported directly in results.py
 
 __all__ = [
@@ -61,4 +64,5 @@ __all__ = [
     "object_disk_cache",
     "edsl_load",
     "list_split",
+    "MarkdownResponse",
 ]

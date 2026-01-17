@@ -114,9 +114,9 @@ class ResultPairComparison:
         from ...prompts.prompt import Prompt
 
         try:
-            d = self.result_A.scenario_dict
+            d = dict(self.result_A.scenario)
             answers_dict = {
-                k: {"answer": v} for k, v in self.result_A.sub_dicts["answers"].items()
+                k: {"answer": v} for k, v in self.result_A.sub_dicts["answer"].items()
             }
             combined_dict = {**d, **answers_dict}
             question_text = (

@@ -247,3 +247,23 @@ def parse_agent_list(result: Dict[str, Any], field: Optional[str] = None) -> Any
     # Convert each dict to an Agent object, then create AgentList
     agents = [Agent.from_dict(d) for d in agent_dicts]
     return AgentList(agents)
+
+
+@ResultParser.register_parser("markdown_response")
+def parse_markdown_response(result: Dict[str, Any], field: Optional[str] = None) -> Any:
+    """
+    Parse result as a MarkdownResponse object.
+
+    Expected format: {
+        "answer": "The answer in **markdown**",
+        "question": "Original question",
+        "code_executed": [...],
+        "reasoning": "...",
+        "data_summary": {...}
+    }
+
+    Displays as rendered Markdown in Jupyter, Rich-styled in terminal.
+    """
+    from edsl.utilities.markdown_response import MarkdownResponse
+
+    return MarkdownResponse.from_dict(result)

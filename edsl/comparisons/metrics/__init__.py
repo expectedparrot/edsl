@@ -10,6 +10,7 @@ from .metric_definitions import (
     SquaredDistance,
     ExactMatch,
     CosineSimilarity,
+    OpenAICosineSimilarity,
     LLMSimilarity,
     SENTENCE_TRANSFORMERS_AVAILABLE,
 )
@@ -25,6 +26,7 @@ __all__ = [
     "SquaredDistance",
     "ExactMatch",
     "CosineSimilarity",
+    "OpenAICosineSimilarity",
     "LLMSimilarity",
     # Collection class
     "MetricsCollection",

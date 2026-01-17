@@ -356,7 +356,7 @@ async def list_services():
     from edsl.services import _ensure_builtin_services
 
     # Ensure services are loaded (triggers entry point discovery)
-    _ensure_builtin_services()
+    _ensure_builtin_services(force=True)
 
     services = {}
     for name in ServiceRegistry.list():
@@ -376,6 +376,9 @@ async def list_services():
                     op_name: {
                         "input_param": op_schema.input_param,
                         "defaults": op_schema.defaults,
+                        "result_pattern": op_schema.result_pattern,
+                        "result_field": op_schema.result_field,
+                        "modifying": op_schema.modifying,
                     }
                     for op_name, op_schema in meta.operations.items()
                 },
@@ -397,7 +400,7 @@ async def get_service(service_name: str):
     from edsl.services import ServiceRegistry
     from edsl.services import _ensure_builtin_services
 
-    _ensure_builtin_services()
+    _ensure_builtin_services(force=True)
 
     meta = ServiceRegistry.get_metadata(service_name)
     service_class = ServiceRegistry.get(service_name)
@@ -417,6 +420,9 @@ async def get_service(service_name: str):
             op_name: {
                 "input_param": op_schema.input_param,
                 "defaults": op_schema.defaults,
+                "result_pattern": op_schema.result_pattern,
+                "result_field": op_schema.result_field,
+                "modifying": op_schema.modifying,
             }
             for op_name, op_schema in meta.operations.items()
         },
@@ -437,7 +443,7 @@ async def startup_event():
     # This triggers entry point discovery so workers can find task types
     from edsl.services import _ensure_builtin_services, ServiceRegistry, KEYS
 
-    _ensure_builtin_services()
+    _ensure_builtin_services(force=True)
     service_count = len(ServiceRegistry.list())
     print(f"[EDSL Service Runner] Loaded {service_count} services")
 

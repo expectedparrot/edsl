@@ -334,10 +334,18 @@ class ServiceAccessor:
             timeout = kwargs.pop("timeout", None)
             poll_interval = kwargs.pop("poll_interval", None)
 
-            # Get operation schema if defined
+            # Get operation schema if defined (check local first, then remote)
             op_schema = ServiceRegistry.get_operation_schema(
                 self._service_name, method_name
             )
+            remote_op_info = None  # For remote services, store raw dict
+
+            if op_schema is None:
+                # Check remote metadata for operation schema
+                from .remote_metadata import RemoteMetadataCache
+                remote_info = RemoteMetadataCache.get_instance().get(self._service_name)
+                if remote_info and remote_info.operations:
+                    remote_op_info = remote_info.operations.get(method_name)
 
             # Start with operation name (many services use this)
             params = {"operation": method_name}
@@ -488,10 +496,17 @@ class ServiceAccessor:
                 pending = dispatch(self._service_name, params)
                 result = pending.result(**result_kwargs)
 
-            # Check if this is a versioned service
+            # Check if this operation is modifying (should use replace_with)
+            # Check local op_schema, remote op_info, then service-level versioned as fallback
             meta = ServiceRegistry.get_metadata(self._service_name)
-            if meta and meta.versioned and self._instance is not None:
-                # Versioned service: use replace_with() to create new instance with staged change
+            is_modifying = False
+            if op_schema and op_schema.modifying:
+                is_modifying = True
+            elif remote_op_info and remote_op_info.get("modifying"):
+                is_modifying = True
+            elif meta and meta.versioned:
+                is_modifying = True
+            if is_modifying and self._instance is not None:
                 if hasattr(self._instance, "replace_with"):
                     # Build audit params (filter out large data)
                     audit_params = {
@@ -506,11 +521,11 @@ class ServiceAccessor:
                         params=audit_params,
                     )
                 else:
-                    # Service is versioned but instance doesn't support it
+                    # Operation is modifying but instance doesn't support versioning
                     import warnings
 
                     warnings.warn(
-                        f"Service '{self._service_name}' is versioned but "
+                        f"Operation '{self._service_name}.{method_name}' is modifying but "
                         f"{type(self._instance).__name__} doesn't have replace_with(). "
                         "Returning raw result."
                     )

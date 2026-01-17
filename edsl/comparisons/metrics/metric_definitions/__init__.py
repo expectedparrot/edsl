@@ -9,6 +9,7 @@ from .jaccard_similarity import JaccardSimilarity
 from .squared_distance import SquaredDistance
 from .exact_match import ExactMatch
 from .cosine_similarity import CosineSimilarity, SENTENCE_TRANSFORMERS_AVAILABLE
+from .openai_cosine_similarity import OpenAICosineSimilarity
 from .llm_similarity import LLMSimilarity
 
 __all__ = [
@@ -17,6 +18,7 @@ __all__ = [
     "SquaredDistance",
     "ExactMatch",
     "CosineSimilarity",
+    "OpenAICosineSimilarity",
     "LLMSimilarity",
     "SENTENCE_TRANSFORMERS_AVAILABLE",
 ]

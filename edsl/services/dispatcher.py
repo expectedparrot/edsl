@@ -79,6 +79,78 @@ class TaskDispatcher:
         return require_client(purpose="service dispatch")
 
     @classmethod
+    def _get_service_metadata(
+        cls, service: str, params: Dict[str, Any]
+    ) -> tuple:
+        """
+        Get service metadata for result parsing.
+
+        Tries local registry first, falls back to remote metadata cache.
+        Validation is handled server-side where execution occurs.
+
+        Args:
+            service: Service name or alias
+            params: Task parameters (used to check for per-operation overrides)
+
+        Returns:
+            tuple of (canonical_name, result_pattern, result_field)
+
+        Raises:
+            ValueError: If service not found locally or remotely
+        """
+        # Try local registry first
+        service_class = ServiceRegistry.get(service)
+        service_meta = ServiceRegistry._metadata.get(service)
+
+        if service_class is not None:
+            canonical_name = service_class.name
+            result_pattern = None
+            result_field = None
+
+            if service_meta:
+                result_pattern = service_meta.result_pattern
+                result_field = service_meta.result_field
+
+                # Check for per-operation overrides
+                operation_name = params.get("operation")
+                if operation_name and service_meta.operations:
+                    op_schema = service_meta.operations.get(operation_name)
+                    if op_schema:
+                        if op_schema.result_pattern:
+                            result_pattern = op_schema.result_pattern
+                        if op_schema.result_field:
+                            result_field = op_schema.result_field
+
+            return canonical_name, result_pattern, result_field
+
+        # Fall back to remote metadata
+        from .remote_metadata import RemoteMetadataCache
+
+        remote_info = RemoteMetadataCache.get_instance().get(service)
+        if remote_info is None:
+            available = ", ".join(ServiceRegistry.list())
+            raise ValueError(
+                f"Service '{service}' not found locally or on remote server. "
+                f"Available locally: {available}"
+            )
+
+        canonical_name = remote_info.name
+        result_pattern = remote_info.result_pattern
+        result_field = remote_info.result_field
+
+        # Check for per-operation overrides
+        operation_name = params.get("operation")
+        if operation_name and remote_info.operations:
+            op_schema = remote_info.operations.get(operation_name)
+            if op_schema and isinstance(op_schema, dict):
+                if op_schema.get("result_pattern"):
+                    result_pattern = op_schema.get("result_pattern")
+                if op_schema.get("result_field"):
+                    result_field = op_schema.get("result_field")
+
+        return canonical_name, result_pattern, result_field
+
+    @classmethod
     def dispatch(
         cls,
         service: str,
@@ -110,39 +182,12 @@ class TaskDispatcher:
             PendingResult that can be used to wait for/retrieve results
 
         Raises:
-            ValueError: If service not found, validation fails, or no server configured
+            ValueError: If service not found or no server configured
         """
-        # Try to get local service class
-        service_class = ServiceRegistry.get(service)
-
-        # Variables for remote fallback
-        result_pattern = None
-        result_field = None
-        canonical_name = service
-
-        if service_class is not None:
-            # Use local service class
-            canonical_name = service_class.name
-
-            # Validate parameters
-            if not service_class.validate_params(params):
-                raise ValueError(f"Invalid parameters for service '{service}'")
-        else:
-            # No local service class - try remote metadata
-            from .remote_metadata import RemoteMetadataCache
-
-            remote_info = RemoteMetadataCache.get_instance().get(service)
-            if remote_info is None:
-                available = ", ".join(ServiceRegistry.list())
-                raise ValueError(
-                    f"Service '{service}' not found locally or on remote server. "
-                    f"Available locally: {available}"
-                )
-
-            canonical_name = remote_info.name
-            result_pattern = remote_info.result_pattern
-            result_field = remote_info.result_field
-            # Skip local validation - server will validate
+        # Get metadata for result parsing (local or remote)
+        canonical_name, result_pattern, result_field = cls._get_service_metadata(
+            service, params
+        )
 
         # Get server - if none configured, auto-start local server
         use_server = server or cls._default_server
@@ -170,12 +215,13 @@ class TaskDispatcher:
         )
 
         # Return PendingResult connected to server
+        # Don't pass service_class - execution happens on server, parsing uses result_pattern
         return PendingResult(
             task_id=task_id,
             service=service,
             params=params,
             server=use_server,
-            service_class=service_class,
+            service_class=None,  # Use result_pattern for client-side parsing
             result_pattern=result_pattern,
             result_field=result_field,
         )

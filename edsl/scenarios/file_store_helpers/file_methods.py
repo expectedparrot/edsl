@@ -28,7 +28,9 @@ class FileMethods(ABC):
         # Load plugins if they haven't been loaded yet
         if not cls._handlers:
             cls.load_plugins()
-        return cls._handlers.get(suffix.lower())
+        # Strip leading dot if present for flexibility
+        normalized = suffix.lower().lstrip(".")
+        return cls._handlers.get(normalized)
 
     @classmethod
     def load_plugins(cls):
@@ -84,3 +86,18 @@ class FileMethods(ABC):
 
     @abstractmethod
     def example(self): ...
+
+    def _repr_html_(self, base64_string: str = None) -> Optional[str]:
+        """
+        Return HTML representation for Jupyter notebooks.
+
+        Override in subclasses to provide rich HTML display.
+        Return None to fall back to default FileStore behavior.
+
+        Args:
+            base64_string: The base64-encoded file content
+
+        Returns:
+            HTML string or None for default behavior
+        """
+        return None
