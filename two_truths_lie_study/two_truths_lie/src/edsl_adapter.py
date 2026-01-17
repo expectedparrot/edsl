@@ -143,9 +143,17 @@ class EDSLAdapter:
 
         if agent_traits:
             agent = self._create_agent(agent_traits)
-            results = question.by(agent).by(model).run()
+            results = question.by(agent).by(model).run(
+                use_api_proxy=True,
+                offload_execution=False,
+                progress_bar=False
+            )
         else:
-            results = question.by(model).run()
+            results = question.by(model).run(
+                use_api_proxy=True,
+                offload_execution=False,
+                progress_bar=False
+            )
 
         end_time = time.time()
 
