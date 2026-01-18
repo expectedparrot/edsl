@@ -431,7 +431,7 @@ class EDSLAdapter:
         # Check for frame-breaking (judge refuses to accuse)
         frame_break_patterns = [
             r"cannot (?:determine|identify|accuse)",
-            r"all (?:seem|appear) (?:true|genuine)",
+            r"all (?:of the )?(?:stories )?(?:seem|appear)(?: to be)? (?:true|genuine)",
             r"none of them (?:seem|appear)",
             r"refuse to (?:accuse|identify)",
         ]
