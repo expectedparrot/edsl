@@ -97,6 +97,9 @@ from .scenario_helpers.scenario_list_joins import ScenarioListJoin
 from edsl.versioning import GitMixin
 from edsl.versioning import event
 
+# Import service infrastructure for remote service access
+from edsl.services.service_connector import ServiceEnabledMeta
+
 # Import event-sourcing infrastructure from edsl.store
 from edsl.store import (
     Store,
@@ -142,31 +145,12 @@ class ScenarioCodec:
         return Scenario.from_dict(data)
 
 
-class ScenarioListMeta(Base.__class__):
-    """Metaclass for ScenarioList that enables dynamic service accessor access.
-
-    Inherits from Base's metaclass (RegisterSubclassesMeta) to avoid metaclass conflicts.
-
-    This metaclass intercepts class-level attribute access (e.g., ScenarioList.firecrawl)
-    and returns service accessor instances from the edsl.services registry.
-
-    Examples:
-        >>> accessor = ScenarioList.firecrawl  # Returns FirecrawlAccessor  # doctest: +SKIP
-        >>> 'FirecrawlAccessor' in repr(accessor)  # doctest: +SKIP
-        True  # doctest: +SKIP
-    """
-
-    def __getattr__(cls, name: str):
-        """Called when ScenarioList.{name} is accessed and {name} isn't found normally."""
-        # Lazy import to avoid circular dependencies
-        from edsl.services.accessors import get_service_accessor
-
-        accessor = get_service_accessor(name)
-        if accessor is not None:
-            return accessor
-
-        # Standard AttributeError - don't include service list to avoid noise
-        raise AttributeError(f"type object 'ScenarioList' has no attribute '{name}'")
+# ScenarioListMeta is now ServiceEnabledMeta from edsl.services.service_connector
+# It provides:
+# - Automatic registration with EDSL's class registry (inherits from RegisterSubclassesMeta)
+# - Dynamic service discovery via discover_services() method
+# - Automatic service proxy access via attribute access (e.g., sl.firecrawl.scrape())
+ScenarioListMeta = ServiceEnabledMeta
 
 
 class ScenarioList(
@@ -489,27 +473,27 @@ class ScenarioList(
                 return False
         return True
 
-    def __getattr__(self, name: str):
-        """Intercept attribute access to provide service accessor instances.
+    # def __getattr__(self, name: str):
+    #     """Intercept attribute access to provide service accessor instances.
 
-        This method is called when an attribute isn't found normally on the instance.
-        It checks if the attribute name matches a registered service and returns
-        the appropriate accessor bound to this ScenarioList instance.
+    #     This method is called when an attribute isn't found normally on the instance.
+    #     It checks if the attribute name matches a registered service and returns
+    #     the appropriate accessor bound to this ScenarioList instance.
 
-        Examples:
-            >>> sl = ScenarioList([Scenario({'text': 'hello'})])  # doctest: +SKIP
-            >>> accessor = sl.embeddings  # Returns EmbeddingsAccessor bound to this instance  # doctest: +SKIP
-            >>> 'EmbeddingsAccessor' in repr(accessor)  # doctest: +SKIP
-            True  # doctest: +SKIP
-        """
-        # Lazy import to avoid circular dependencies
-        from edsl.services.accessors import get_service_accessor
+    #     Examples:
+    #         >>> sl = ScenarioList([Scenario({'text': 'hello'})])  # doctest: +SKIP
+    #         >>> accessor = sl.embeddings  # Returns EmbeddingsAccessor bound to this instance  # doctest: +SKIP
+    #         >>> 'EmbeddingsAccessor' in repr(accessor)  # doctest: +SKIP
+    #         True  # doctest: +SKIP
+    #     """
+    #     # Lazy import to avoid circular dependencies
+    #     from edsl.services.accessors import get_service_accessor
 
-        accessor = get_service_accessor(name, instance=self)
-        if accessor is not None:
-            return accessor
+    #     accessor = get_service_accessor(name, instance=self)
+    #     if accessor is not None:
+    #         return accessor
 
-        raise AttributeError(f"'ScenarioList' object has no attribute '{name}'")
+    #     raise AttributeError(f"'ScenarioList' object has no attribute '{name}'")
 
     # Required MutableSequence abstract methods
     def __getitem__(self, index):

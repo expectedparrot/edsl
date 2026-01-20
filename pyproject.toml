@@ -269,6 +269,7 @@ toml-sort = "^0.23.1"
 
 [tool.poetry.scripts]
 edsl = "edsl.__main__:main"
+edsl-services = "edsl.services_runner.__main__:main"
 
 [tool.tomlsort.overrides."tool.poetry.dependencies"]
 table_keys = false

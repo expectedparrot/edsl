@@ -225,22 +225,6 @@ class TestGroupNavigation(unittest.TestCase):
         self.assertIsInstance(suggestions, dict)
         self.assertTrue(len(suggestions) >= 2)  # At least 2 groups due to dependency
 
-    def test_group_visualization_integration(self):
-        """Test that groups work with flow visualization."""
-        survey = Survey([self.q1, self.q2, self.q3, self.q4])
-        survey = survey.create_allowable_groups("demo", max_group_size=2)
-
-        # This should not raise an error
-        try:
-            # We can't test the actual visualization without graphviz, but we can test
-            # that the method exists and the groups are properly set up
-            self.assertTrue(hasattr(survey, "show_flow"))
-            self.assertTrue(len(survey.question_groups) > 0)
-        except Exception as e:
-            # If graphviz is not installed, that's okay for this test
-            if "graphviz" not in str(e).lower():
-                raise
-
     def test_complex_skip_scenario(self):
         """Test complex scenario with multiple skip paths and groups."""
         # Create a complex survey with branching logic

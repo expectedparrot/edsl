@@ -92,35 +92,15 @@ from .exceptions import (
 )
 
 
-class SurveyMeta(Base.__class__):
-    """Metaclass for Survey that enables dynamic service accessor access.
+# Import service infrastructure for remote service access
+from edsl.services.service_connector import ServiceEnabledMeta
 
-    Inherits from Base's metaclass (RegisterSubclassesMeta) to avoid metaclass conflicts.
-
-    This metaclass intercepts class-level attribute access (e.g., Survey.vibes)
-    and returns service accessor instances from the edsl.services registry.
-
-    Examples:
-        >>> accessor = Survey.vibes  # Returns survey_vibes accessor  # doctest: +SKIP
-    """
-
-    def __getattr__(cls, name: str):
-        """Called when Survey.{name} is accessed and {name} isn't found normally."""
-        # Lazy import to avoid circular dependencies
-        from edsl.services.accessors import get_service_accessor
-
-        # Map 'vibes' or 'vibe' to 'survey_vibes' service
-        if name in ("vibes", "vibe"):
-            service_name = "survey_vibes"
-        else:
-            service_name = name
-
-        accessor = get_service_accessor(service_name, owner_class=cls)
-        if accessor is not None:
-            return accessor
-
-        # Standard AttributeError
-        raise AttributeError(f"type object 'Survey' has no attribute '{name}'")
+# SurveyMeta is now ServiceEnabledMeta from edsl.services.service_connector
+# It provides:
+# - Automatic registration with EDSL's class registry (inherits from RegisterSubclassesMeta)
+# - Dynamic service discovery via discover_services() method
+# - Automatic service proxy access via attribute access (e.g., s.survey_vibes.some_method())
+SurveyMeta = ServiceEnabledMeta
 
 
 class Survey(GitMixin, Base, metaclass=SurveyMeta):
@@ -599,38 +579,6 @@ class Survey(GitMixin, Base, metaclass=SurveyMeta):
     def _relevant_instructions(self, question: QuestionBase) -> dict:
         """Return instructions that are relevant to the question."""
         return self._relevant_instructions_dict[question]
-
-    def show_flow(self, filename: Optional[str] = None, verbose: bool = True):
-        """Show the flow of the survey.
-
-        Creates a flowchart visualization showing question flow, skip logic,
-        and parameter dependencies.
-
-        Args:
-            filename: Optional path to save the PNG. If None, displays inline.
-            verbose: Whether to show progress messages.
-
-        Returns:
-            FileStore containing the PNG image, or displays inline.
-        """
-        from edsl.services import dispatch
-
-        params = {
-            "operation": "flow",
-            "data": self.to_dict(),
-            "filename": filename,
-        }
-
-        pending = dispatch("flow_visualization", params)
-        fs = pending.result(verbose=verbose)
-
-        # If no filename, display the result
-        if filename is None and hasattr(fs, "view"):
-            fs.view()
-        elif filename:
-            print(f"Flowchart saved to {filename}")
-
-        return fs
 
     def add_instruction(
         self, instruction: Union["Instruction", "ChangeInstruction"]
@@ -4013,116 +3961,8 @@ class Survey(GitMixin, Base, metaclass=SurveyMeta):
 
     #     return SurveyInspectorWidget(self)
 
-    def __getattr__(self, name: str):
-        """Intercept attribute access to provide service accessor instances.
-
-        This method is called when an attribute isn't found normally on the instance.
-        It checks if the attribute name matches a registered service and returns
-        the appropriate accessor bound to this Survey instance.
-
-        Examples:
-            >>> s = Survey.example()
-            >>> s.vibe  # Returns survey_vibes accessor bound to this instance  # doctest: +SKIP
-        """
-        # Lazy import to avoid circular dependencies
-        from edsl.services.accessors import get_service_accessor
-
-        # Map 'vibes' or 'vibe' to 'survey_vibes' service
-        if name in ("vibes", "vibe"):
-            service_name = "survey_vibes"
-        else:
-            service_name = name
-
-        accessor = get_service_accessor(service_name, instance=self)
-        if accessor is not None:
-            return accessor
-
-        raise AttributeError(f"'Survey' object has no attribute '{name}'")
-
-    @classmethod
-    @with_spinner("Generating survey from description...")
-    def from_vibes(
-        cls,
-        description: str,
-        *,
-        num_questions: Optional[int] = None,
-        model: str = "gpt-4o",
-        temperature: float = 0.7,
-        remote: bool = False,
-    ) -> "Survey":
-        """Generate a survey from a natural language description.
-
-        This method uses an LLM to generate a complete survey based on a description
-        of what the survey should cover. It can execute in two modes:
-        - Local: Uses your OPENAI_API_KEY to generate surveys locally
-        - Remote: Delegates to a FastAPI server (used when no key or remote=True)
-
-        The method automatically determines which mode to use:
-        1. If remote=True, always use remote generation
-        2. If OPENAI_API_KEY is not set, automatically use remote generation
-        3. Otherwise, use local generation
-
-        Args:
-            description: Natural language description of the survey topic.
-                Examples:
-                - "Survey about a new consumer brand of vitamin water"
-                - "Customer satisfaction survey for a restaurant"
-                - "Employee engagement survey"
-            num_questions: Optional number of questions to generate. If not provided,
-                the LLM will decide based on the topic (typically 5-10).
-            model: OpenAI model to use for generation (default: "gpt-4o")
-            temperature: Temperature for generation (default: 0.7)
-            remote: Force remote generation even if OPENAI_API_KEY is available
-                (default: False)
-
-        Returns:
-            Survey: A new Survey instance with the generated questions
-
-        Examples:
-            Basic usage (automatically chooses local/remote based on API key):
-
-            >>> survey = Survey.from_vibes("Survey about a new consumer brand of vitamin water")  # doctest: +SKIP
-
-            Force remote generation:
-
-            >>> survey = Survey.from_vibes("Employee engagement survey", remote=True)  # doctest: +SKIP
-
-            With specific number of questions:
-
-            >>> survey = Survey.from_vibes("Employee engagement survey", num_questions=8)  # doctest: +SKIP
-
-            Using a different model:
-
-            >>> survey = Survey.from_vibes(
-            ...     "Customer satisfaction for a restaurant",
-            ...     model="gpt-4",
-            ...     temperature=0.5
-            ... )  # doctest: +SKIP
-
-        Notes:
-            - Requires OPENAI_API_KEY environment variable to be set
-            - The generator will select from available question types: free_text,
-              multiple_choice, checkbox, numerical, likert_five, linear_scale,
-              yes_no, rank, budget, list, matrix
-            - Questions are automatically given appropriate names and options
-        """
-        from edsl.services import dispatch
-
-        # Dispatch to survey_vibes service with 'from_vibes' operation
-        pending = dispatch(
-            "survey_vibes",
-            {
-                "operation": "from_vibes",
-                "description": description,
-                "num_questions": num_questions,
-                "model": model,
-                "temperature": temperature,
-            },
-        )
-
-        # Get result (which is already a Survey)
-        return pending.result()
-
+    # Note: __getattr__ for service access is now injected by the ServiceEnabledMeta metaclass.
+    # Services can be accessed via attribute access (e.g., s.survey_vibes.some_method())
 
 def main():
     """Run the example survey."""

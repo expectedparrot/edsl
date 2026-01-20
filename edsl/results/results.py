@@ -123,29 +123,15 @@ class AgentListSplit:
 from .results_likely_remove import ResultsLikelyRemoveMixin
 
 
-class ResultsMeta(Base.__class__):
-    """Metaclass for Results that enables dynamic service accessor access.
+# Import service infrastructure for remote service access
+from edsl.services.service_connector import ServiceEnabledMeta
 
-    Inherits from Base's metaclass (RegisterSubclassesMeta) to avoid metaclass conflicts.
-
-    This metaclass intercepts class-level attribute access (e.g., Results.charts)
-    and returns service accessor instances from the edsl.services registry.
-
-    Examples:
-        >>> accessor = Results.charts  # Returns charts accessor  # doctest: +SKIP
-    """
-
-    def __getattr__(cls, name: str):
-        """Called when Results.{name} is accessed and {name} isn't found normally."""
-        # Lazy import to avoid circular dependencies
-        from edsl.services.accessors import get_service_accessor
-
-        accessor = get_service_accessor(name, owner_class=cls)
-        if accessor is not None:
-            return accessor
-
-        # Standard AttributeError
-        raise AttributeError(f"type object 'Results' has no attribute '{name}'")
+# ResultsMeta is now ServiceEnabledMeta from edsl.services.service_connector
+# It provides:
+# - Automatic registration with EDSL's class registry (inherits from RegisterSubclassesMeta)
+# - Dynamic service discovery via discover_services() method
+# - Automatic service proxy access via attribute access (e.g., r.charts.some_method())
+ResultsMeta = ServiceEnabledMeta
 
 
 class Results(
@@ -485,25 +471,8 @@ class Results(
                 f"Results is immutable - use event-based methods to modify data."
             )
 
-    def __getattr__(self, name: str):
-        """Intercept attribute access to provide service accessor instances.
-
-        This method is called when an attribute isn't found normally on the instance.
-        It checks if the attribute name matches a registered service and returns
-        the appropriate accessor bound to this Results instance.
-
-        Examples:
-            >>> r = Results.example()  # doctest: +SKIP
-            >>> _ = r.charts  # Returns charts accessor bound to this instance  # doctest: +SKIP
-        """
-        # Lazy import to avoid circular dependencies
-        from edsl.services.accessors import get_service_accessor
-
-        accessor = get_service_accessor(name, instance=self)
-        if accessor is not None:
-            return accessor
-
-        raise AttributeError(f"'Results' object has no attribute '{name}'")
+    # Note: __getattr__ for service access is now injected by the ServiceEnabledMeta metaclass.
+    # Services can be accessed via attribute access (e.g., r.charts.some_method())
 
     def __init__(
         self,
@@ -747,54 +716,6 @@ class Results(
     def set_created_columns(self, created_columns: list[str]) -> SetMetaEvent:
         """Set the created_columns for these results (returns new Results via event)."""
         return SetMetaEvent(key="created_columns", value=created_columns)
-
-    def analyze(self, *question_names: str, verbose: bool = False):
-        """Analyze answer distributions for specified questions.
-
-        Provides statistical summaries and visualizations for questions in
-        the Results. Uses the answer_analysis service for computation.
-
-        Args:
-            *question_names: Question names to analyze. If none provided,
-                            analyzes all questions.
-            verbose: Show progress messages. Default False.
-
-        Returns:
-            AnalysisResult: Rich analysis with summaries and visualizations.
-
-        Example:
-            r = Results.example()
-            analysis = r.analyze('how_feeling')   # One question
-            analysis = r.analyze('q1', 'q2')      # Multiple questions
-            analysis = r.analyze()                # All questions
-        """
-        from .analysis_result import AnalysisResult
-        from edsl.services import dispatch
-
-        # Default to all questions if none specified
-        if not question_names:
-            question_names = tuple(self.question_names)
-
-        # Serialize results for service
-        results_data = self.to_dict()
-
-        # Call service for each question
-        analysis_results = {}
-        for q_name in question_names:
-            try:
-                pending = dispatch(
-                    "answer_analysis",
-                    {
-                        "operation": "show",
-                        "results_data": results_data,
-                        "question": q_name,
-                    },
-                )
-                analysis_results[q_name] = pending.result(verbose=verbose)
-            except Exception as e:
-                analysis_results[q_name] = {"status": "error", "error": str(e)}
-
-        return AnalysisResult(analysis_results, self)
 
     def agent_answers_by_question(
         self, agent_key_fields: Optional[List[str]] = None, separator: str = ","

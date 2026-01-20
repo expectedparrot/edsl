@@ -91,35 +91,15 @@ class AgentCodec:
         return Agent.from_dict(data)
 
 
-class AgentListMeta(Base.__class__):
-    """Metaclass for AgentList that enables dynamic service accessor access.
+# Import service infrastructure for remote service access
+from edsl.services.service_connector import ServiceEnabledMeta
 
-    Inherits from Base's metaclass (RegisterSubclassesMeta) to avoid metaclass conflicts.
-
-    This metaclass intercepts class-level attribute access (e.g., AgentList.vibes)
-    and returns service accessor instances from the edsl.services registry.
-
-    Examples:
-        >>> accessor = AgentList.vibes  # Returns agent_vibes accessor  # doctest: +SKIP
-    """
-
-    def __getattr__(cls, name: str):
-        """Called when AgentList.{name} is accessed and {name} isn't found normally."""
-        # Lazy import to avoid circular dependencies
-        from edsl.services.accessors import get_service_accessor
-
-        # Map 'vibes' or 'vibe' to 'agent_vibes' service
-        if name in ("vibes", "vibe"):
-            service_name = "agent_vibes"
-        else:
-            service_name = name
-
-        accessor = get_service_accessor(service_name, owner_class=cls)
-        if accessor is not None:
-            return accessor
-
-        # Standard AttributeError
-        raise AttributeError(f"type object 'AgentList' has no attribute '{name}'")
+# AgentListMeta is now ServiceEnabledMeta from edsl.services.service_connector
+# It provides:
+# - Automatic registration with EDSL's class registry (inherits from RegisterSubclassesMeta)
+# - Dynamic service discovery via discover_services() method
+# - Automatic service proxy access via attribute access (e.g., al.agent_vibes.some_method())
+AgentListMeta = ServiceEnabledMeta
 
 
 class AgentList(
@@ -169,31 +149,8 @@ class AgentList(
         }
     )
 
-    def __getattr__(self, name: str):
-        """Intercept attribute access to provide service accessor instances.
-
-        This method is called when an attribute isn't found normally on the instance.
-        It checks if the attribute name matches a registered service and returns
-        the appropriate accessor bound to this AgentList instance.
-
-        Examples:
-            >>> al = AgentList.example()  # doctest: +SKIP
-            >>> _ = al.vibes  # Returns agent_vibes accessor bound to this instance  # doctest: +SKIP
-        """
-        # Lazy import to avoid circular dependencies
-        from edsl.services.accessors import get_service_accessor
-
-        # Map 'vibes' or 'vibe' to 'agent_vibes' service
-        if name in ("vibes", "vibe"):
-            service_name = "agent_vibes"
-        else:
-            service_name = name
-
-        accessor = get_service_accessor(service_name, instance=self)
-        if accessor is not None:
-            return accessor
-
-        raise AttributeError(f"'AgentList' object has no attribute '{name}'")
+    # Note: __getattr__ for service access is now injected by the ServiceEnabledMeta metaclass.
+    # Services can be accessed via attribute access (e.g., al.agent_vibes.some_method())
 
     def __setattr__(self, name: str, value: Any) -> None:
         """Restrict attribute setting to allowed attributes only.
@@ -1337,70 +1294,6 @@ class AgentList(
 
         return RemoveRowsEvent(indices=tuple(indices_to_remove))
 
-    def vibe_filter(
-        self,
-        criteria: str,
-        *,
-        model: str = "gpt-4o",
-        temperature: float = 0.1,
-        show_expression: bool = False,
-    ) -> "AgentList":
-        """
-        Filter the agent list using natural language criteria.
-
-        This method uses an LLM to generate a filter expression based on
-        natural language criteria, then applies it using the agent list's filter method.
-
-        Parameters:
-            criteria: Natural language description of the filtering criteria.
-                Examples:
-                - "Keep only people over 30"
-                - "Only engineers"
-                - "Agents in Boston"
-                - "Remove anyone under 25"
-            model: OpenAI model to use for generating the filter (default: "gpt-4o")
-            temperature: Temperature for generation (default: 0.1 for consistent logic)
-            show_expression: If True, prints the generated filter expression
-
-        Returns:
-            AgentList: A new AgentList containing only agents that match the criteria
-
-        Examples:
-            >>> from edsl import Agent, AgentList
-            >>> agents = AgentList([
-            ...     Agent(name='Alice', traits={'age': 25, 'occupation': 'engineer'}),
-            ...     Agent(name='Bob', traits={'age': 35, 'occupation': 'teacher'}),
-            ... ])
-            >>> filtered = agents.vibe_filter("Only people over 30")  # doctest: +SKIP
-
-        Notes:
-            - Requires OPENAI_API_KEY environment variable to be set
-            - The LLM generates a filter expression using trait names directly
-            - Uses the agent list's built-in filter() method for safe evaluation
-            - Use show_expression=True to see the generated filter logic
-        """
-        from edsl_services.dataset_vibes.filter import VibeFilter
-
-        # Get trait names and sample data
-        trait_names = self.all_traits
-
-        # Get a few sample agents' traits to help the LLM understand the data structure
-        sample_dicts = []
-        for agent in self[:5]:  # First 5 agents
-            sample_dicts.append(dict(agent.traits))
-
-        # Create the filter generator
-        filter_gen = VibeFilter(model=model, temperature=temperature)
-
-        # Generate the filter expression
-        filter_expr = filter_gen.create_filter(trait_names, sample_dicts, criteria)
-
-        if show_expression:
-            print(f"Generated filter expression: {filter_expr}")
-
-        # Use the agent list's built-in filter method which returns AgentList
-        return self.filter(filter_expr)
-
     @property
     def all_traits(self) -> list[str]:
         """Return all traits in the AgentList.
@@ -2278,94 +2171,6 @@ class AgentList(
         from .agent_list_helpers.agent_list_factories import AgentListFactories
 
         return AgentListFactories.from_scenario_list(scenario_list)
-
-    @classmethod
-    def from_vibes(
-        cls,
-        description: str,
-        *,
-        num_agents: Optional[int] = None,
-        traits: Optional[List[str]] = None,
-        model: str = "gpt-4o",
-        temperature: float = 0.8,
-    ) -> "AgentList":
-        """Generate an AgentList from a natural language description of a population.
-
-        This method uses an LLM to generate a diverse population of agents with
-        appropriate traits based on a description. It automatically creates realistic,
-        varied individuals that represent the described population.
-
-        Args:
-            description: Natural language description of the population.
-                Examples:
-                - "College students studying computer science"
-                - "Small business owners in the Midwest"
-                - "Retired professionals interested in travel"
-                - "Healthcare workers during the pandemic"
-            num_agents: Optional number of agents to generate. If not provided,
-                the LLM will decide based on the population (typically 5-10).
-            traits: Optional list of specific trait names to include for each agent.
-                If not provided, appropriate traits will be inferred from the description.
-                Examples: ["age", "occupation", "education_level", "income_bracket"]
-            model: OpenAI model to use for generation (default: "gpt-4o")
-            temperature: Temperature for generation (default: 0.8 for diversity)
-
-        Returns:
-            AgentList: A new AgentList with generated agents
-
-        Examples:
-            Basic usage:
-
-            >>> agents = AgentList.from_vibes("College students studying computer science")  # doctest: +SKIP
-
-            With specific number of agents:
-
-            >>> agents = AgentList.from_vibes(
-            ...     "Small business owners in the Midwest",
-            ...     num_agents=8
-            ... )  # doctest: +SKIP
-
-            With specific traits:
-
-            >>> agents = AgentList.from_vibes(
-            ...     "Voters in a swing state",
-            ...     traits=["age", "political_affiliation", "education_level", "key_issue"],
-            ...     num_agents=10
-            ... )  # doctest: +SKIP
-
-            Using a different model:
-
-            >>> agents = AgentList.from_vibes(
-            ...     "Retired professionals interested in travel",
-            ...     model="gpt-4",
-            ...     temperature=0.7
-            ... )  # doctest: +SKIP
-
-        Notes:
-            - Requires OPENAI_API_KEY environment variable to be set
-            - The generator creates diverse agents with realistic trait values
-            - All agents will have the same set of trait names for consistency
-            - Higher temperature (0.7-0.9) creates more diverse populations
-            - The generator avoids stereotypes and creates nuanced individuals
-        """
-        from edsl.services import dispatch
-
-        # Dispatch to agent_vibes service with 'generate' operation
-        pending = dispatch(
-            "agent_vibes",
-            {
-                "operation": "generate",
-                "description": description,
-                "num_agents": num_agents,
-                "traits": traits,
-                "model": model,
-                "temperature": temperature,
-            },
-        )
-
-        # Get result (which is already an AgentList)
-        return pending.result()
-
 
 if __name__ == "__main__":
     import doctest
