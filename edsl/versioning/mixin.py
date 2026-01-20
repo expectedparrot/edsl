@@ -641,13 +641,13 @@ class GitMixin:
 
         Args:
             name: Remote name (default: "origin")
-            url: URL string or Remote object. Defaults to EDSL_GIT_SERVER from config.
+            url: URL string or Remote object. Defaults to EXPECTED_PARROT_URL from config.
         """
         self._ensure_git_init()
         if url is None:
             from edsl.config import CONFIG
 
-            url = CONFIG.get("EDSL_GIT_SERVER")
+            url = CONFIG.get("EXPECTED_PARROT_URL")
         new_git = self._git.add_remote(name, url)
         return self._mutate(new_git)
 
@@ -670,7 +670,7 @@ class GitMixin:
         """Push to remote. Handles remote creation and _info automatically.
 
         On first push:
-        - If no remote exists, creates "origin" using EDSL_GIT_SERVER from config
+        - If no remote exists, creates "origin" using EXPECTED_PARROT_URL from config
         - If _info empty, populates from kwargs and commits
         - Creates repo on server, then pushes
 
@@ -740,7 +740,7 @@ class GitMixin:
         if remote is None:
             from edsl.config import CONFIG
 
-            server_url = CONFIG.get("EDSL_GIT_SERVER")
+            server_url = CONFIG.get("EXPECTED_PARROT_URL")
             self._git = self._git.add_remote(remote_name, server_url)
             remote = server_url
 
@@ -779,10 +779,11 @@ class GitMixin:
         # Create repo on server if remote is URL string
         if isinstance(remote, str):
             server_url = remote  # Track before conversion
-            from edsl.versioning.http_remote import HTTPRemote
+            from edsl.versioning.http_remote import HTTPRemote, _get_api_key
 
             real_remote = HTTPRemote.create_repo(
-                url=remote, alias=resolved_alias, description=resolved_description
+                url=remote, alias=resolved_alias, description=resolved_description,
+                api_key=_get_api_key()
             )
             self._git = self._git.remove_remote(remote_name).add_remote(
                 remote_name, real_remote
@@ -858,7 +859,7 @@ class GitMixin:
             alias: Repository alias. Can be:
                 - Short: "my-survey" → resolves to "<username>/my-survey"
                 - Fully qualified: "john/my-survey" → uses as-is
-            url: Server URL. Defaults to EDSL_GIT_SERVER from config.
+            url: Server URL. Defaults to EXPECTED_PARROT_URL from config.
             ref_name: Branch to clone (default: "main")
             username: Username namespace for short aliases. If not provided and alias
                      doesn't contain "/", will try to get from Coop profile.
@@ -870,7 +871,7 @@ class GitMixin:
         if url is None:
             from edsl.config import CONFIG
 
-            url = CONFIG.get("EDSL_GIT_SERVER")
+            url = CONFIG.get("EXPECTED_PARROT_URL")
 
         # Resolve short alias to fully qualified
         resolved_alias = alias
@@ -890,9 +891,9 @@ class GitMixin:
                     )
 
         # Create remote from URL and alias
-        from edsl.versioning.http_remote import HTTPRemote
+        from edsl.versioning.http_remote import HTTPRemote, _get_api_key
 
-        remote = HTTPRemote.from_alias(url=url, alias=resolved_alias)
+        remote = HTTPRemote.from_alias(url=url, alias=resolved_alias, api_key=_get_api_key())
 
         view = clone_from_remote(remote, ref_name)
         git = ExpectedParrotGit(view)

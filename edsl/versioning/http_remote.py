@@ -144,6 +144,44 @@ class DryRunModel(BaseModel):
 # ----------------------------
 
 
+# Default base path for coopr integration
+DEFAULT_BASE_PATH = "/api/v0/versioning"
+
+
+def _get_api_key() -> Optional[str]:
+    """Get API key from EDSL config/environment.
+
+    Checks in order:
+    1. EXPECTED_PARROT_API_KEY environment variable
+    2. Stored key in ~/.edsl/ep_api_key.txt
+    """
+    import os
+    from pathlib import Path
+
+    # First check environment variable
+    api_key = os.getenv("EXPECTED_PARROT_API_KEY")
+    if api_key:
+        return api_key
+
+    # Then check stored key file
+    key_file = Path.home() / ".edsl" / "ep_api_key.txt"
+    if key_file.exists():
+        try:
+            return key_file.read_text().strip()
+        except Exception:
+            pass
+
+    return None
+
+
+def _auth_headers(api_key: Optional[str] = None) -> Dict[str, str]:
+    """Build authorization headers."""
+    key = api_key or _get_api_key()
+    if key:
+        return {"Authorization": f"Bearer {key}"}
+    return {}
+
+
 @dataclass
 class HTTPRemote:
     """
@@ -155,21 +193,31 @@ class HTTPRemote:
     repo_id: str
     name: str = "origin"
     timeout: int = 30
+    base_path: str = DEFAULT_BASE_PATH
+    api_key: Optional[str] = field(default=None, repr=False)
 
     @classmethod
     def from_alias(
-        cls, url: str, alias: str, name: str = "origin", timeout: int = 30
+        cls,
+        url: str,
+        alias: str,
+        name: str = "origin",
+        timeout: int = 30,
+        base_path: str = DEFAULT_BASE_PATH,
+        api_key: Optional[str] = None,
     ) -> "HTTPRemote":
         """
         Create HTTPRemote by resolving an alias (e.g., "john/my-list").
         """
         # Resolve alias to repo_id
         resp = _get_requests().get(
-            f"{url.rstrip('/')}/api/aliases/{alias}", timeout=timeout
+            f"{url.rstrip('/')}{base_path}/aliases/{alias}",
+            timeout=timeout,
+            headers=_auth_headers(api_key),
         )
         resp.raise_for_status()
         repo_id = resp.json()["repo_id"]
-        return cls(url=url, repo_id=repo_id, name=name, timeout=timeout)
+        return cls(url=url, repo_id=repo_id, name=name, timeout=timeout, base_path=base_path, api_key=api_key)
 
     @classmethod
     def create_repo(
@@ -179,24 +227,31 @@ class HTTPRemote:
         description: Optional[str] = None,
         name: str = "origin",
         timeout: int = 30,
+        base_path: str = DEFAULT_BASE_PATH,
+        api_key: Optional[str] = None,
     ) -> "HTTPRemote":
         """
         Create a new repository on the server.
         Returns an HTTPRemote connected to the new repo.
         """
         resp = _get_requests().post(
-            f"{url.rstrip('/')}/api/repos",
+            f"{url.rstrip('/')}{base_path}/repos",
             json={"alias": alias, "description": description},
             timeout=timeout,
+            headers=_auth_headers(api_key),
         )
         resp.raise_for_status()
         repo_id = resp.json()["repo_id"]
-        return cls(url=url, repo_id=repo_id, name=name, timeout=timeout)
+        return cls(url=url, repo_id=repo_id, name=name, timeout=timeout, base_path=base_path, api_key=api_key)
 
     def _request(self, method: str, path: str, **kwargs):
         """Make HTTP request to server."""
-        url = f"{self.url.rstrip('/')}/api/repos/{self.repo_id}{path}"
+        url = f"{self.url.rstrip('/')}{self.base_path}/repos/{self.repo_id}{path}"
         kwargs.setdefault("timeout", self.timeout)
+        # Merge auth headers with any provided headers
+        headers = kwargs.pop("headers", {})
+        headers.update(_auth_headers(self.api_key))
+        kwargs["headers"] = headers
         response = _get_requests().request(method, url, **kwargs)
         response.raise_for_status()
         return response
@@ -337,7 +392,11 @@ class ObjectVersionsServer:
     High-level interface for connecting to an Object Versions server.
 
     Usage:
-        server = ObjectVersionsServer("http://localhost:8766")
+        # For coopr (default):
+        server = ObjectVersionsServer("http://localhost:8000")
+
+        # For standalone server with different base path:
+        server = ObjectVersionsServer("http://localhost:8765", base_path="/api")
 
         # List available repos
         repos = server.list_repos()
@@ -352,13 +411,14 @@ class ObjectVersionsServer:
 
     url: str
     timeout: int = 30
+    base_path: str = DEFAULT_BASE_PATH
 
     def _resolve_repo(self, repo: str) -> str:
         """Resolve alias or repo_id to repo_id."""
         # First, try as alias
         try:
             resp = _get_requests().get(
-                f"{self.url.rstrip('/')}/api/aliases/{repo}", timeout=self.timeout
+                f"{self.url.rstrip('/')}{self.base_path}/aliases/{repo}", timeout=self.timeout
             )
             if resp.status_code == 200:
                 return resp.json()["repo_id"]
@@ -371,7 +431,7 @@ class ObjectVersionsServer:
     def list_repos(self) -> List[Dict[str, Any]]:
         """List all repositories on the server."""
         resp = _get_requests().get(
-            f"{self.url.rstrip('/')}/api/repos", timeout=self.timeout
+            f"{self.url.rstrip('/')}{self.base_path}/repos", timeout=self.timeout
         )
         resp.raise_for_status()
         return resp.json()
@@ -386,7 +446,7 @@ class ObjectVersionsServer:
         """
         repo_id = self._resolve_repo(repo)
         return HTTPRemote(
-            url=self.url, repo_id=repo_id, name=name, timeout=self.timeout
+            url=self.url, repo_id=repo_id, name=name, timeout=self.timeout, base_path=self.base_path
         )
 
     def clone(self, repo: str, ref_name: str = "main") -> Dict[str, Any]:
@@ -405,7 +465,7 @@ class ObjectVersionsServer:
 
         # Fetch current data
         resp = _get_requests().get(
-            f"{self.url.rstrip('/')}/api/repos/{repo_id}/data",
+            f"{self.url.rstrip('/')}{self.base_path}/repos/{repo_id}/data",
             params={"branch": ref_name},
             timeout=self.timeout,
         )
@@ -439,14 +499,14 @@ class ObjectVersionsServer:
             Dict with 'entries', 'meta', 'remote', 'repo_id'
         """
         remote = HTTPRemote.create_repo(
-            url=self.url, alias=alias, description=description, timeout=self.timeout
+            url=self.url, alias=alias, description=description, timeout=self.timeout, base_path=self.base_path
         )
 
         # If initial data provided, push it via events
         if initial_data:
             # Create initial commit with all data
             resp = _get_requests().post(
-                f"{self.url.rstrip('/')}/api/repos/{remote.repo_id}/events",
+                f"{self.url.rstrip('/')}{self.base_path}/repos/{remote.repo_id}/events",
                 json={
                     "event_name": "replace_all_entries",
                     "event_payload": {"entries": initial_data},
