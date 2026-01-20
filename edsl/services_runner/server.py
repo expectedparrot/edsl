@@ -138,6 +138,9 @@ def run_server(
     print("=" * 60)
 
     # Run with uvicorn
+    # Note: We use uvicorn.Server directly instead of uvicorn.run() to avoid
+    # compatibility issues with nest_asyncio, which patches asyncio.run() but
+    # doesn't support the loop_factory argument that newer uvicorn versions use.
     if reload:
         # For reload mode, we need to pass the app as a string reference
         # This requires the app to be importable
@@ -148,7 +151,15 @@ def run_server(
             reload=reload,
         )
     else:
-        uvicorn.run(app, host=host, port=port)
+        import asyncio
+        config = uvicorn.Config(app, host=host, port=port)
+        server = uvicorn.Server(config)
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            loop.run_until_complete(server.serve())
+        finally:
+            loop.close()
 
 
 # Module-level app for reload mode and direct uvicorn usage

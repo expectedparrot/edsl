@@ -1118,7 +1118,7 @@ class Jobs(GitMixin, Base):
 
         >>> from edsl.jobs import Jobs
         >>> hash(Jobs.example())
-        623463410592124536
+        811125667169176429
 
         """
         from ..utilities import dict_hash

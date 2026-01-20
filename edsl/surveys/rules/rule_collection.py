@@ -64,30 +64,59 @@ class RuleCollection(UserList):
 
     def to_dict(self, add_edsl_version=True):
         """Create a dictionary representation of the RuleCollection object.
+
+        The question_name_to_index mapping is stored once at the collection level
+        rather than duplicated in each rule, avoiding O(n²) memory growth.
+
         >>> rule_collection = RuleCollection.example()
         >>> rule_collection_dict = rule_collection.to_dict()
         >>> new_rule_collection = RuleCollection.from_dict(rule_collection_dict)
         >>> repr(new_rule_collection) == repr(rule_collection)
         True
         """
+        # Merge all question_name_to_index mappings from rules to create a complete mapping.
+        # This handles cases where rules were loaded from old serialized data where each
+        # rule may have had a different (partial) mapping.
+        shared_mapping = {}
+        for rule in self.data:
+            shared_mapping.update(rule.question_name_to_index)
+
         return {
-            "rules": [rule.to_dict() for rule in self],
+            "rules": [rule.to_dict(include_question_name_to_index=False) for rule in self],
             "num_questions": self.num_questions,
+            "question_name_to_index": shared_mapping,
         }
 
     @classmethod
     def from_dict(cls, rule_collection_dict):
         """Create a RuleCollection object from a dictionary.
 
+        Handles both new format (question_name_to_index at collection level) and
+        old format (question_name_to_index in each rule) for backward compatibility.
+
         >>> rule_collection = RuleCollection.example()
         >>> rule_collection_dict = rule_collection.to_dict()
         >>> new_rule_collection = RuleCollection.from_dict(rule_collection_dict)
         >>> repr(new_rule_collection) == repr(rule_collection)
         True
         """
-        rules = [
-            Rule.from_dict(rule_dict) for rule_dict in rule_collection_dict["rules"]
-        ]
+        rule_dicts = rule_collection_dict["rules"]
+
+        # Detect format: if rules have their own question_name_to_index, use old format
+        # (each rule may have a different mapping in old serialized data)
+        has_per_rule_mapping = rule_dicts and "question_name_to_index" in rule_dicts[0]
+
+        if has_per_rule_mapping:
+            # Old format: each rule has its own mapping, let Rule.from_dict use it
+            rules = [Rule.from_dict(rule_dict) for rule_dict in rule_dicts]
+        else:
+            # New format: use shared mapping from collection level
+            shared_mapping = rule_collection_dict.get("question_name_to_index", {})
+            rules = [
+                Rule.from_dict(rule_dict, question_name_to_index=shared_mapping)
+                for rule_dict in rule_dicts
+            ]
+
         num_questions = rule_collection_dict["num_questions"]
         new_rc = cls(rules=rules)
         new_rc.num_questions = num_questions

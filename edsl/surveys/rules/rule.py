@@ -173,38 +173,54 @@ class Rule:
     def _checks(self):
         pass
 
-    def to_dict(self, add_edsl_version=True):
+    def to_dict(self, add_edsl_version=True, include_question_name_to_index=True):
         """Convert the rule to a dictionary for serialization.
+
+        :param add_edsl_version: Whether to add EDSL version info (unused, for API compatibility).
+        :param include_question_name_to_index: Whether to include question_name_to_index in the output.
+            Set to False when serializing as part of a RuleCollection to avoid O(n²) storage.
 
         >>> r = Rule.example()
         >>> r.to_dict()
-        {'current_q': 1, 'expression': "{{ q1.answer }} == 'yes'", 'next_q': 2, 'priority': 0, 'question_name_to_index': {'q1': 1}, 'before_rule': False}
+        {'current_q': 1, 'expression': "{{ q1.answer }} == 'yes'", 'next_q': 2, 'priority': 0, 'before_rule': False, 'question_name_to_index': {'q1': 1}}
+        >>> r.to_dict(include_question_name_to_index=False)
+        {'current_q': 1, 'expression': "{{ q1.answer }} == 'yes'", 'next_q': 2, 'priority': 0, 'before_rule': False}
         """
-        return {
+        result = {
             "current_q": self.current_q,
             "expression": self.expression,
             "next_q": "EndOfSurvey" if self.next_q == EndOfSurvey else self.next_q,
             "priority": self.priority,
-            "question_name_to_index": self.question_name_to_index,
             "before_rule": self.before_rule,
         }
+        if include_question_name_to_index:
+            result["question_name_to_index"] = self.question_name_to_index
+        return result
 
     @classmethod
     @remove_edsl_version
-    def from_dict(self, rule_dict):
-        """Create a rule from a dictionary."""
+    def from_dict(cls, rule_dict, question_name_to_index=None):
+        """Create a rule from a dictionary.
+
+        :param rule_dict: Dictionary containing rule data.
+        :param question_name_to_index: Optional shared mapping to use instead of the one in rule_dict.
+            This enables memory-efficient deserialization where all rules share one mapping.
+        """
         if rule_dict["next_q"] == "EndOfSurvey":
             rule_dict["next_q"] = EndOfSurvey
 
         if "before_rule" not in rule_dict:
             rule_dict["before_rule"] = False
 
+        # Use provided shared mapping, or fall back to the one in rule_dict (backward compatibility)
+        mapping = question_name_to_index if question_name_to_index is not None else rule_dict.get("question_name_to_index", {})
+
         return Rule(
             current_q=rule_dict["current_q"],
             expression=rule_dict["expression"],
             next_q=rule_dict["next_q"],
             priority=rule_dict["priority"],
-            question_name_to_index=rule_dict["question_name_to_index"],
+            question_name_to_index=mapping,
             before_rule=rule_dict["before_rule"],
         )
 
