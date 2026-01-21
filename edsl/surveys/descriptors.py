@@ -62,11 +62,23 @@ class QuestionsDescriptor(BaseDescriptor):
             )
 
     def __set__(self, instance, value: Any) -> None:
-        """Set the value of the attribute."""
+        """Set the value of the attribute.
+
+        Optimized to set all questions at once in O(n) instead of
+        calling add_question() for each question which was O(n²).
+        The validate() method already checks for duplicates.
+        """
+        from .pseudo_indices import PseudoIndices
+
         self.validate(value, instance)
-        instance.__dict__[self.name] = []
-        for question in value:
-            instance.add_question(question)
+
+        # Set all questions at once - O(n)
+        instance.__dict__[self.name] = list(value) if value else []
+
+        # Build pseudo_indices in one pass - O(n)
+        instance._pseudo_indices = PseudoIndices(
+            {q.question_name: i for i, q in enumerate(value or [])}
+        )
 
     def __set_name__(self, owner, name: str) -> None:
         """Set the name of the attribute."""
