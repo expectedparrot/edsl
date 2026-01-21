@@ -188,10 +188,10 @@ class Rule:
             "expression": self.expression,
             "next_q": "EndOfSurvey" if self.next_q == EndOfSurvey else self.next_q,
             "priority": self.priority,
-            "before_rule": self.before_rule,
         }
         if include_question_name_to_index:
             result["question_name_to_index"] = self.question_name_to_index
+        result["before_rule"] = self.before_rule
         return result
 
     @classmethod
