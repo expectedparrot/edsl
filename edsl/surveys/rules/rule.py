@@ -173,21 +173,26 @@ class Rule:
     def _checks(self):
         pass
 
-    def to_dict(self, add_edsl_version=True):
+    def to_dict(self, add_edsl_version=True, include_question_name_to_index=True):
         """Convert the rule to a dictionary for serialization.
 
         >>> r = Rule.example()
         >>> r.to_dict()
         {'current_q': 1, 'expression': "{{ q1.answer }} == 'yes'", 'next_q': 2, 'priority': 0, 'question_name_to_index': {'q1': 1}, 'before_rule': False}
+
+        >>> r.to_dict(include_question_name_to_index=False)
+        {'current_q': 1, 'expression': "{{ q1.answer }} == 'yes'", 'next_q': 2, 'priority': 0, 'before_rule': False}
         """
-        return {
+        result = {
             "current_q": self.current_q,
             "expression": self.expression,
             "next_q": "EndOfSurvey" if self.next_q == EndOfSurvey else self.next_q,
             "priority": self.priority,
-            "question_name_to_index": self.question_name_to_index,
             "before_rule": self.before_rule,
         }
+        if include_question_name_to_index:
+            result["question_name_to_index"] = self.question_name_to_index
+        return result
 
     @classmethod
     @remove_edsl_version
