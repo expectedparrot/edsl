@@ -594,6 +594,161 @@ class Store:
         return self
 
     # =========================================================================
+    # File Registry Operations
+    # =========================================================================
+
+    def _ensure_file_registry(self) -> None:
+        """Ensure file_registry structure exists in meta."""
+        if "file_registry" not in self.meta:
+            self.meta["file_registry"] = {}
+
+    def register_file(
+        self,
+        local_path: str,
+        suffix: str,
+        mime_type: str,
+        content_hash: str,
+        original_path: str | None = None,
+        external_locations: dict[str, Any] | None = None,
+    ) -> str:
+        """Register a file in the registry.
+        
+        If a file with the same content_hash already exists, returns its UUID
+        (deduplication). Otherwise creates a new entry.
+        
+        NOTE: base64_string is NOT stored in the registry to avoid large blobs.
+        The file content lives on disk at local_path.
+        
+        Args:
+            local_path: Current path to the file.
+            suffix: File extension.
+            mime_type: MIME type of the file.
+            content_hash: SHA256 hash of the file content (format: "sha256:...").
+            original_path: Original path the file came from (optional).
+            external_locations: Dict of external locations like GCS info.
+            
+        Returns:
+            UUID string for the file (existing or newly created).
+        """
+        import uuid
+        
+        self._ensure_file_registry()
+        
+        # Check for deduplication by content hash
+        existing_uuid = self.get_file_by_hash(content_hash)
+        if existing_uuid:
+            return existing_uuid
+        
+        # Create new entry - NO base64_string stored here!
+        file_uuid = str(uuid.uuid4())
+        self.meta["file_registry"][file_uuid] = {
+            "local_path": local_path,
+            "suffix": suffix,
+            "mime_type": mime_type,
+            "content_hash": content_hash,
+            "original_path": original_path,
+            "external_locations": external_locations or {},
+        }
+        return file_uuid
+
+    def get_file(self, file_uuid: str) -> dict[str, Any] | None:
+        """Get file info by UUID.
+        
+        Args:
+            file_uuid: The UUID of the file.
+            
+        Returns:
+            Dictionary with file info, or None if not found.
+        """
+        self._ensure_file_registry()
+        return self.meta["file_registry"].get(file_uuid)
+
+    def get_file_by_hash(self, content_hash: str) -> str | None:
+        """Find UUID by content hash (for deduplication).
+        
+        Args:
+            content_hash: SHA256 hash of the file content.
+            
+        Returns:
+            UUID string if found, None otherwise.
+        """
+        self._ensure_file_registry()
+        for file_uuid, info in self.meta["file_registry"].items():
+            if info.get("content_hash") == content_hash:
+                return file_uuid
+        return None
+
+    def files_needing_upload(self) -> list[str]:
+        """Get UUIDs of files that need to be uploaded to GCS.
+        
+        Returns:
+            List of UUID strings for files without GCS locations.
+        """
+        self._ensure_file_registry()
+        needing_upload = []
+        for file_uuid, info in self.meta["file_registry"].items():
+            gcs_info = info.get("external_locations", {}).get("gcs", {})
+            # Needs upload if no GCS info or not offloaded
+            if not gcs_info or not gcs_info.get("file_uuid"):
+                needing_upload.append(file_uuid)
+        return needing_upload
+
+    def mark_file_offloaded(self, file_uuid: str, gcs_info: dict[str, Any]) -> "Store":
+        """Mark a file as uploaded to GCS.
+        
+        Args:
+            file_uuid: UUID of the file in the registry.
+            gcs_info: GCS information dict (should include 'file_uuid', 'offloaded').
+            
+        Returns:
+            self for chaining.
+        """
+        self._ensure_file_registry()
+        if file_uuid in self.meta["file_registry"]:
+            file_info = self.meta["file_registry"][file_uuid]
+            if "external_locations" not in file_info:
+                file_info["external_locations"] = {}
+            file_info["external_locations"]["gcs"] = gcs_info
+        return self
+
+    def update_file_local_path(self, file_uuid: str, new_path: str) -> "Store":
+        """Update the local path for a file.
+        
+        Args:
+            file_uuid: UUID of the file in the registry.
+            new_path: New local path.
+            
+        Returns:
+            self for chaining.
+        """
+        self._ensure_file_registry()
+        if file_uuid in self.meta["file_registry"]:
+            self.meta["file_registry"][file_uuid]["local_path"] = new_path
+        return self
+
+    def remove_file_from_registry(self, file_uuid: str) -> "Store":
+        """Remove a file from the registry.
+        
+        Args:
+            file_uuid: UUID of the file to remove.
+            
+        Returns:
+            self for chaining.
+        """
+        self._ensure_file_registry()
+        self.meta["file_registry"].pop(file_uuid, None)
+        return self
+
+    def get_all_file_uuids(self) -> list[str]:
+        """Get all file UUIDs in the registry.
+        
+        Returns:
+            List of all file UUID strings.
+        """
+        self._ensure_file_registry()
+        return list(self.meta["file_registry"].keys())
+
+    # =========================================================================
     # Serialization
     # =========================================================================
 

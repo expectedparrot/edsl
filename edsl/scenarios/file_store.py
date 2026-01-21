@@ -343,102 +343,102 @@ class FileStore(Scenario):
         else:
             print(f"Example for {example_type} is not supported.")
 
-    @classmethod
-    async def _async_screenshot(
-        cls,
-        url: str,
-        full_page: bool = True,
-        wait_until: Literal[
-            "load", "domcontentloaded", "networkidle", "commit"
-        ] = "networkidle",
-        download_path: Optional[str] = None,
-    ) -> "FileStore":
-        """Async version of screenshot functionality"""
-        try:
-            from playwright.async_api import async_playwright
-        except ImportError:
-            raise ImportError(
-                "Screenshot functionality requires additional dependencies.\n"
-                "Install them with: pip install 'edsl[screenshot]'"
-            )
+    # @classmethod
+    # async def _async_screenshot(
+    #     cls,
+    #     url: str,
+    #     full_page: bool = True,
+    #     wait_until: Literal[
+    #         "load", "domcontentloaded", "networkidle", "commit"
+    #     ] = "networkidle",
+    #     download_path: Optional[str] = None,
+    # ) -> "FileStore":
+    #     """Async version of screenshot functionality"""
+    #     try:
+    #         from playwright.async_api import async_playwright
+    #     except ImportError:
+    #         raise ImportError(
+    #             "Screenshot functionality requires additional dependencies.\n"
+    #             "Install them with: pip install 'edsl[screenshot]'"
+    #         )
 
-        if download_path is None:
-            download_path = os.path.join(
-                os.getcwd(), f"screenshot_{int(time.time())}.png"
-            )
+    #     if download_path is None:
+    #         download_path = os.path.join(
+    #             os.getcwd(), f"screenshot_{int(time.time())}.png"
+    #         )
 
-        async with async_playwright() as p:
-            browser = await p.chromium.launch()
-            page = await browser.new_page()
-            await page.goto(url, wait_until=wait_until)
-            await page.screenshot(path=download_path, full_page=full_page)
-            await browser.close()
+    #     async with async_playwright() as p:
+    #         browser = await p.chromium.launch()
+    #         page = await browser.new_page()
+    #         await page.goto(url, wait_until=wait_until)
+    #         await page.screenshot(path=download_path, full_page=full_page)
+    #         await browser.close()
 
-        return cls(download_path, mime_type="image/png")
+    #     return cls(download_path, mime_type="image/png")
 
-    @classmethod
-    def from_url_screenshot(cls, url: str, **kwargs) -> "FileStore":
-        """Synchronous wrapper for screenshot functionality"""
-        import asyncio
+    # @classmethod
+    # def from_url_screenshot(cls, url: str, **kwargs) -> "FileStore":
+    #     """Synchronous wrapper for screenshot functionality"""
+    #     import asyncio
 
-        try:
-            # Try using get_event_loop first (works in regular Python)
-            loop = asyncio.get_event_loop()
-        except RuntimeError:
-            # If we're in IPython/Jupyter, create a new loop
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
+    #     try:
+    #         # Try using get_event_loop first (works in regular Python)
+    #         loop = asyncio.get_event_loop()
+    #     except RuntimeError:
+    #         # If we're in IPython/Jupyter, create a new loop
+    #         loop = asyncio.new_event_loop()
+    #         asyncio.set_event_loop(loop)
 
-        try:
-            return loop.run_until_complete(cls._async_screenshot(url, **kwargs))
-        finally:
-            if not loop.is_running():
-                loop.close()
+    #     try:
+    #         return loop.run_until_complete(cls._async_screenshot(url, **kwargs))
+    #     finally:
+    #         if not loop.is_running():
+    #             loop.close()
 
-    @classmethod
-    def batch_screenshots(cls, urls: List[str], **kwargs) -> "ScenarioList":
-        """
-        Take screenshots of multiple URLs concurrently.
-        Args:
-            urls: List of URLs to screenshot
-            **kwargs: Additional arguments passed to screenshot function (full_page, wait_until, etc.)
-        Returns:
-            ScenarioList containing FileStore objects with their corresponding URLs
-        """
-        # Import here to avoid circular imports
-        from .scenario_list import ScenarioList
+    # @classmethod
+    # def batch_screenshots(cls, urls: List[str], **kwargs) -> "ScenarioList":
+    #     """
+    #     Take screenshots of multiple URLs concurrently.
+    #     Args:
+    #         urls: List of URLs to screenshot
+    #         **kwargs: Additional arguments passed to screenshot function (full_page, wait_until, etc.)
+    #     Returns:
+    #         ScenarioList containing FileStore objects with their corresponding URLs
+    #     """
+    #     # Import here to avoid circular imports
+    #     from .scenario_list import ScenarioList
 
-        try:
-            # Try using get_event_loop first (works in regular Python)
-            loop = asyncio.get_event_loop()
-        except RuntimeError:
-            # If we're in IPython/Jupyter, create a new loop
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
+    #     try:
+    #         # Try using get_event_loop first (works in regular Python)
+    #         loop = asyncio.get_event_loop()
+    #     except RuntimeError:
+    #         # If we're in IPython/Jupyter, create a new loop
+    #         loop = asyncio.new_event_loop()
+    #         asyncio.set_event_loop(loop)
 
-        # Create tasks for all screenshots
-        tasks = [cls._async_screenshot(url, **kwargs) for url in urls]
+    #     # Create tasks for all screenshots
+    #     tasks = [cls._async_screenshot(url, **kwargs) for url in urls]
 
-        try:
-            # Run all screenshots concurrently
-            results = loop.run_until_complete(
-                asyncio.gather(*tasks, return_exceptions=True)
-            )
+    #     try:
+    #         # Run all screenshots concurrently
+    #         results = loop.run_until_complete(
+    #             asyncio.gather(*tasks, return_exceptions=True)
+    #         )
 
-            # Filter out any errors and log them
-            successful_results = []
-            for url, result in zip(urls, results):
-                if isinstance(result, Exception):
-                    print(f"Failed to screenshot {url}: {result}")
-                else:
-                    successful_results.append(
-                        Scenario({"url": url, "screenshot": result})
-                    )
+    #         # Filter out any errors and log them
+    #         successful_results = []
+    #         for url, result in zip(urls, results):
+    #             if isinstance(result, Exception):
+    #                 print(f"Failed to screenshot {url}: {result}")
+    #             else:
+    #                 successful_results.append(
+    #                     Scenario({"url": url, "screenshot": result})
+    #                 )
 
-            return ScenarioList(successful_results)
-        finally:
-            if not loop.is_running():
-                loop.close()
+    #         return ScenarioList(successful_results)
+    #     finally:
+    #         if not loop.is_running():
+    #             loop.close()
 
     @property
     def size(self) -> int:
@@ -951,152 +951,152 @@ class FileStore(Scenario):
         scenario_version = Scenario.pull(url_or_uuid)
         return cls.from_dict(scenario_version.to_dict())
 
-    @classmethod
-    def from_url(
-        cls,
-        url: str,
-        download_path: Optional[str] = None,
-        mime_type: Optional[str] = None,
-    ) -> "FileStore":
-        """
-        :param url: The URL of the file to download.
-        :param download_path: The path to save the downloaded file.
-        :param mime_type: The MIME type of the file. If None, it will be guessed from the file extension.
-        """
-        import requests
-        from urllib.parse import urlparse
+    # @classmethod
+    # def from_url(
+    #     cls,
+    #     url: str,
+    #     download_path: Optional[str] = None,
+    #     mime_type: Optional[str] = None,
+    # ) -> "FileStore":
+    #     """
+    #     :param url: The URL of the file to download.
+    #     :param download_path: The path to save the downloaded file.
+    #     :param mime_type: The MIME type of the file. If None, it will be guessed from the file extension.
+    #     """
+    #     import requests
+    #     from urllib.parse import urlparse
 
-        response = requests.get(url, stream=True)
-        response.raise_for_status()  # Raises an HTTPError for bad responses
+    #     response = requests.get(url, stream=True)
+    #     response.raise_for_status()  # Raises an HTTPError for bad responses
 
-        # Get the filename from the URL if download_path is not provided
-        if download_path is None:
-            filename = os.path.basename(urlparse(url).path)
-            if not filename:
-                filename = "downloaded_file"
-            # download_path = filename
-            download_path = os.path.join(os.getcwd(), filename)
+    #     # Get the filename from the URL if download_path is not provided
+    #     if download_path is None:
+    #         filename = os.path.basename(urlparse(url).path)
+    #         if not filename:
+    #             filename = "downloaded_file"
+    #         # download_path = filename
+    #         download_path = os.path.join(os.getcwd(), filename)
 
-        # Ensure the directory exists
-        os.makedirs(os.path.dirname(download_path), exist_ok=True)
+    #     # Ensure the directory exists
+    #     os.makedirs(os.path.dirname(download_path), exist_ok=True)
 
-        # Write the file
-        with open(download_path, "wb") as file:
-            for chunk in response.iter_content(chunk_size=8192):
-                file.write(chunk)
+    #     # Write the file
+    #     with open(download_path, "wb") as file:
+    #         for chunk in response.iter_content(chunk_size=8192):
+    #             file.write(chunk)
 
-        # Create and return a new File instance
-        return cls(download_path, mime_type=mime_type)
+    #     # Create and return a new File instance
+    #     return cls(download_path, mime_type=mime_type)
 
     def create_link(self, custom_filename=None, style=None):
         from .file_store_helpers.construct_download_link import ConstructDownloadLink
 
         return ConstructDownloadLink(self).create_link(custom_filename, style)
 
-    def to_pdf(self, output_path: Optional[str] = None, **options) -> "FileStore":
-        """
-        Convert a markdown FileStore to a PDF and return a new FileStore for the PDF.
+    # def to_pdf(self, output_path: Optional[str] = None, **options) -> "FileStore":
+    #     """
+    #     Convert a markdown FileStore to a PDF and return a new FileStore for the PDF.
 
-        Args:
-            output_path: Optional destination path for the generated PDF. If not provided,
-                a temporary file will be created.
-            **options: Additional conversion options forwarded to the converter, e.g.:
-                - margin (str): Page margin (default: "1in")
-                - font_size (str): Font size (default: "12pt")
-                - font (str): Main font name (optional)
-                - toc (bool): Include table of contents (default: False)
-                - number_sections (bool): Number sections (default: False)
-                - highlight_style (str): Code highlighting style (default: "tango")
+    #     Args:
+    #         output_path: Optional destination path for the generated PDF. If not provided,
+    #             a temporary file will be created.
+    #         **options: Additional conversion options forwarded to the converter, e.g.:
+    #             - margin (str): Page margin (default: "1in")
+    #             - font_size (str): Font size (default: "12pt")
+    #             - font (str): Main font name (optional)
+    #             - toc (bool): Include table of contents (default: False)
+    #             - number_sections (bool): Number sections (default: False)
+    #             - highlight_style (str): Code highlighting style (default: "tango")
 
-        Returns:
-            FileStore: A new FileStore referencing the generated PDF file.
+    #     Returns:
+    #         FileStore: A new FileStore referencing the generated PDF file.
 
-        Raises:
-            TypeError: If the current file is not a markdown file.
-            RuntimeError: If conversion fails.
-        """
-        if self.suffix.lower() not in ("md", "markdown"):
-            raise TypeError("to_pdf() is only supported for markdown FileStore objects")
+    #     Raises:
+    #         TypeError: If the current file is not a markdown file.
+    #         RuntimeError: If conversion fails.
+    #     """
+    #     if self.suffix.lower() not in ("md", "markdown"):
+    #         raise TypeError("to_pdf() is only supported for markdown FileStore objects")
 
-        import os
-        import tempfile
-        from edsl.utilities.markdown_to_pdf import MarkdownToPDF
+    #     import os
+    #     import tempfile
+    #     from edsl.utilities.markdown_to_pdf import MarkdownToPDF
 
-        # Determine output path
-        if output_path is None:
-            temp_dir = tempfile.mkdtemp()
-            base_name = os.path.splitext(os.path.basename(self.path))[0] or "document"
-            output_path = os.path.join(temp_dir, f"{base_name}.pdf")
+    #     # Determine output path
+    #     if output_path is None:
+    #         temp_dir = tempfile.mkdtemp()
+    #         base_name = os.path.splitext(os.path.basename(self.path))[0] or "document"
+    #         output_path = os.path.join(temp_dir, f"{base_name}.pdf")
 
-        converter = MarkdownToPDF(
-            self.text, filename=os.path.splitext(os.path.basename(output_path))[0]
-        )
-        success = converter.convert(output_path, **options)
-        if not success:
-            raise RuntimeError("Failed to convert markdown to PDF")
+    #     converter = MarkdownToPDF(
+    #         self.text, filename=os.path.splitext(os.path.basename(output_path))[0]
+    #     )
+    #     success = converter.convert(output_path, **options)
+    #     if not success:
+    #         raise RuntimeError("Failed to convert markdown to PDF")
 
-        return self.__class__(output_path)
+    #     return self.__class__(output_path)
 
-    def to_docx(self, output_path: Optional[str] = None, **options) -> "FileStore":
-        """
-        Convert a markdown FileStore to a DOCX and return a new FileStore for the DOCX.
+    # def to_docx(self, output_path: Optional[str] = None, **options) -> "FileStore":
+    #     """
+    #     Convert a markdown FileStore to a DOCX and return a new FileStore for the DOCX.
 
-        Args:
-            output_path: Optional destination path for the generated DOCX. If not provided,
-                a temporary file will be created.
-            **options: Additional conversion options forwarded to the converter, e.g.:
-                - reference_doc (str): Path to reference docx for styling
-                - toc (bool): Include table of contents (default: False)
-                - number_sections (bool): Number sections (default: False)
-                - highlight_style (str): Code highlighting style (default: "tango")
+    #     Args:
+    #         output_path: Optional destination path for the generated DOCX. If not provided,
+    #             a temporary file will be created.
+    #         **options: Additional conversion options forwarded to the converter, e.g.:
+    #             - reference_doc (str): Path to reference docx for styling
+    #             - toc (bool): Include table of contents (default: False)
+    #             - number_sections (bool): Number sections (default: False)
+    #             - highlight_style (str): Code highlighting style (default: "tango")
 
-        Returns:
-            FileStore: A new FileStore referencing the generated DOCX file.
+    #     Returns:
+    #         FileStore: A new FileStore referencing the generated DOCX file.
 
-        Raises:
-            TypeError: If the current file is not a markdown file.
-            RuntimeError: If conversion fails.
-        """
-        if self.suffix.lower() not in ("md", "markdown"):
-            raise TypeError(
-                "to_docx() is only supported for markdown FileStore objects"
-            )
+    #     Raises:
+    #         TypeError: If the current file is not a markdown file.
+    #         RuntimeError: If conversion fails.
+    #     """
+    #     if self.suffix.lower() not in ("md", "markdown"):
+    #         raise TypeError(
+    #             "to_docx() is only supported for markdown FileStore objects"
+    #         )
 
-        import os
-        import tempfile
-        from edsl.utilities.markdown_to_docx import MarkdownToDocx
+    #     import os
+    #     import tempfile
+    #     from edsl.utilities.markdown_to_docx import MarkdownToDocx
 
-        # Determine output path
-        if output_path is None:
-            temp_dir = tempfile.mkdtemp()
-            base_name = os.path.splitext(os.path.basename(self.path))[0] or "document"
-            output_path = os.path.join(temp_dir, f"{base_name}.docx")
+    #     # Determine output path
+    #     if output_path is None:
+    #         temp_dir = tempfile.mkdtemp()
+    #         base_name = os.path.splitext(os.path.basename(self.path))[0] or "document"
+    #         output_path = os.path.join(temp_dir, f"{base_name}.docx")
 
-        converter = MarkdownToDocx(
-            self.text, filename=os.path.splitext(os.path.basename(output_path))[0]
-        )
-        success = converter.convert(output_path, **options)
-        if not success:
-            raise RuntimeError("Failed to convert markdown to DOCX")
+    #     converter = MarkdownToDocx(
+    #         self.text, filename=os.path.splitext(os.path.basename(output_path))[0]
+    #     )
+    #     success = converter.convert(output_path, **options)
+    #     if not success:
+    #         raise RuntimeError("Failed to convert markdown to DOCX")
 
-        return self.__class__(output_path)
+    #     return self.__class__(output_path)
 
-    def to_pandas(self):
-        """
-        Convert the file content to a pandas DataFrame if supported by the file handler.
+    # def to_pandas(self):
+    #     """
+    #     Convert the file content to a pandas DataFrame if supported by the file handler.
 
-        Returns:
-            pandas.DataFrame: The data from the file as a DataFrame
+    #     Returns:
+    #         pandas.DataFrame: The data from the file as a DataFrame
 
-        Raises:
-            AttributeError: If the file type's handler doesn't support pandas conversion
-        """
-        handler = FileMethods.get_handler(self.suffix)
-        if handler and hasattr(handler, "to_pandas"):
-            return handler(self.path).to_pandas()
-        raise AttributeError(
-            f"Converting {self.suffix} files to pandas DataFrame is not supported"
-        )
+    #     Raises:
+    #         AttributeError: If the file type's handler doesn't support pandas conversion
+    #     """
+    #     handler = FileMethods.get_handler(self.suffix)
+    #     if handler and hasattr(handler, "to_pandas"):
+    #         return handler(self.path).to_pandas()
+    #     raise AttributeError(
+    #         f"Converting {self.suffix} files to pandas DataFrame is not supported"
+    #     )
 
     def is_image(self) -> bool:
         """
@@ -1266,6 +1266,20 @@ class FileStore(Scenario):
 
         with Image.open(self.path) as img:
             return img.size  # Returns (width, height)
+
+    def content_hash(self) -> str:
+        """Compute SHA256 hash of the file content.
+        
+        Returns:
+            str: A string in the format "sha256:<hex_digest>"
+        """
+        import hashlib
+        import base64
+        
+        # Use the base64_string which is always available
+        content = base64.b64decode(self.base64_string)
+        sha256 = hashlib.sha256(content)
+        return f"sha256:{sha256.hexdigest()}"
 
     def _eval_repr_(self) -> str:
         """Return an eval-able string representation of the FileStore.
@@ -1572,10 +1586,10 @@ if __name__ == "__main__":
     import doctest
 
     doctest.testmod()
-
     # formats = FileMethods.supported_file_types()
     # for file_type in formats:
     #     print("Now testinging", file_type)
     #     fs = FileStore.example(file_type)
     #     fs.view()
     #     input("Press Enter to continue...")
+

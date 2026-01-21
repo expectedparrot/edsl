@@ -56,6 +56,7 @@ if TYPE_CHECKING:
     from edsl.jobs import Jobs, Job
     from edsl.surveys import Survey
     from edsl.questions import QuestionBase, Question
+    from edsl.scenarios import FileStore
 
 
 from edsl.base import Base
@@ -132,17 +133,175 @@ from edsl.store import (
 )
 
 
+FILE_REF_PREFIX = "fileref:"
+
+
 class ScenarioCodec:
-    """Codec for Scenario objects."""
+    """Codec for Scenario objects with FileStore support.
+    
+    When bound to a Store, this codec:
+    - Encodes FileStore objects as "fileref:uuid" strings and registers them
+    - Decodes "fileref:uuid" strings back to FileStore objects
+    """
+
+    def __init__(self):
+        self._store: Optional[Store] = None
+
+    def bind(self, store: Store) -> "ScenarioCodec":
+        """Bind this codec to a Store for file registry access.
+        
+        Args:
+            store: The Store to use for file registry operations.
+            
+        Returns:
+            self for chaining.
+        """
+        self._store = store
+        return self
 
     def encode(self, obj: Union["Scenario", dict[str, Any]]) -> dict[str, Any]:
+        """Encode a Scenario to a dict, converting FileStore values to filerefs."""
+        from edsl.scenarios import FileStore
+        
+        # Handle case where obj itself IS a FileStore (e.g., in FileStoreList)
+        if isinstance(obj, FileStore):
+            # Store the entire FileStore as a fileref with marker
+            fileref = self._register_filestore(obj)
+            return {"__filestore__": fileref}
+        
+        # First, collect FileStore values BEFORE to_dict serializes them
+        filestores = {}
+        source = obj if isinstance(obj, dict) else obj
+        for key, value in source.items():
+            if isinstance(value, FileStore):
+                filestores[key] = value
+        
         # Handle both Scenario objects and plain dicts
         if isinstance(obj, dict):
-            return dict(obj)
-        return obj.to_dict(add_edsl_version=False)
+            data = dict(obj)
+        else:
+            data = obj.to_dict(add_edsl_version=False)
+        
+        # Convert FileStore values to filerefs
+        result = {}
+        for key, value in data.items():
+            if key in filestores:
+                # Use the original FileStore (not the serialized dict)
+                result[key] = self._register_filestore(filestores[key])
+            elif isinstance(value, dict) and self._looks_like_filestore(value):
+                # Handle case where FileStore was already serialized
+                # Reconstruct FileStore to register it
+                fs = FileStore(**{k: v for k, v in value.items() 
+                                  if k not in ('edsl_version', 'edsl_class_name')})
+                result[key] = self._register_filestore(fs)
+            else:
+                result[key] = value
+        
+        return result
 
-    def decode(self, data: dict[str, Any]) -> "Scenario":
-        return Scenario.from_dict(data)
+    def _looks_like_filestore(self, d: dict) -> bool:
+        """Check if a dict looks like a serialized FileStore."""
+        # FileStore dicts have specific keys
+        return (
+            isinstance(d, dict) and
+            'suffix' in d and
+            'mime_type' in d and
+            ('path' in d or 'base64_string' in d)
+        )
+
+    def _register_filestore(self, fs: "FileStore") -> str:
+        """Register a FileStore in the bound Store's file_registry.
+        
+        Args:
+            fs: The FileStore to register.
+            
+        Returns:
+            A "fileref:uuid" string.
+        """
+        from edsl.scenarios import FileStore
+        
+        if self._store is None:
+            raise RuntimeError(
+                "ScenarioCodec must be bound to a Store before encoding FileStore objects. "
+                "Use codec.bind(store) first."
+            )
+        
+        # Compute content hash for deduplication
+        content_hash = fs.content_hash()
+        
+        # Register in file_registry (NO base64_string - that stays on disk)
+        file_uuid = self._store.register_file(
+            local_path=fs._path,
+            suffix=fs.suffix,
+            mime_type=fs.mime_type,
+            content_hash=content_hash,
+            original_path=fs._path,
+            external_locations=fs.external_locations,
+        )
+        
+        return f"{FILE_REF_PREFIX}{file_uuid}"
+
+    def decode(self, data: dict[str, Any]) -> Union["Scenario", "FileStore"]:
+        """Decode a dict to a Scenario (or FileStore), resolving filerefs."""
+        from edsl.scenarios import FileStore
+        
+        # Handle case where the entire entry is a FileStore (from FileStoreList)
+        if "__filestore__" in data and len(data) == 1:
+            return self._resolve_fileref(data["__filestore__"])
+        
+        # Resolve filerefs to FileStore objects
+        result = {}
+        for key, value in data.items():
+            if isinstance(value, str) and value.startswith(FILE_REF_PREFIX):
+                result[key] = self._resolve_fileref(value)
+            elif isinstance(value, dict) and self._looks_like_filestore(value):
+                # Reconstruct FileStore from serialized dict
+                result[key] = FileStore.from_dict(value)
+            else:
+                result[key] = value
+        
+        # Create Scenario directly to avoid ScenarioSerializer's FileStore detection
+        # (which would fail since filerefs are already resolved)
+        return Scenario(result)
+
+    def _resolve_fileref(self, fileref: str) -> "FileStore":
+        """Resolve a "fileref:uuid" string to a FileStore object.
+        
+        Args:
+            fileref: A string like "fileref:uuid".
+            
+        Returns:
+            A FileStore object.
+            
+        Note:
+            The file must exist at local_path. For .ep files, files are extracted
+            before this is called. For in-memory ScenarioLists, the original files
+            must still exist.
+        """
+        from edsl.scenarios import FileStore
+        
+        if self._store is None:
+            raise RuntimeError(
+                "ScenarioCodec must be bound to a Store before decoding FileStore references. "
+                "Use codec.bind(store) first."
+            )
+        
+        # Extract UUID
+        file_uuid = fileref[len(FILE_REF_PREFIX):]
+        
+        # Look up in file_registry
+        file_info = self._store.get_file(file_uuid)
+        if file_info is None:
+            raise ValueError(f"File reference not found in registry: {file_uuid}")
+        
+        # Create FileStore from registry info
+        # File must exist at local_path (no base64_string stored in registry)
+        return FileStore(
+            path=file_info["local_path"],
+            suffix=file_info["suffix"],
+            mime_type=file_info["mime_type"],
+            external_locations=file_info.get("external_locations", {}),
+        )
 
 
 # ScenarioListMeta is now ServiceEnabledMeta from edsl.services.service_connector
@@ -180,13 +339,14 @@ class ScenarioList(
     _versioned = "store"
     _store_class = Store
     _event_handler = apply_event
-    _codec = ScenarioCodec()  # Codec for Scenario <-> dict conversion
 
     # Allowed instance attributes - prevents external code from storing temporary data
     _allowed_attrs = frozenset(
         {
             # Core state
             "store",
+            # Codec (per-instance, bound to store)
+            "_codec",
             # Properties with setters (these delegate to store.meta)
             "codebook",
             # Namespace objects (cached)
@@ -225,23 +385,7 @@ class ScenarioList(
     ):
         """Initialize a new ScenarioList with optional data and codebook."""
         super().__init__()
-        data_to_store = []
-        if data is not None and isinstance(data, str):
-            sl = ScenarioList.pull(data)
-            if codebook is not None:
-                raise ValueError(
-                    "Codebook cannot be provided when pulling from a remote source"
-                )
-            codebook = sl.codebook
-            super().__init__()
-            for item in sl.data:
-                # Already decoded Scenario objects from pull - encode for store
-                data_to_store.append(self._codec.encode(item))
-        else:
-            for item in data or []:
-                # Encode Scenario objects to dicts for primitive store
-                data_to_store.append(self._codec.encode(item))
-        # self.codebook = codebook or {}
+        
         # Conditional builder state (ephemeral)
         self._cond_active: bool = False
         self._cond_branch: Optional[str] = None
@@ -250,12 +394,50 @@ class ScenarioList(
             "then": [],
             "else": [],
         }
-
-        self.store = Store(entries=data_to_store, meta={"codebook": codebook or {}})
+        
+        # Create store first, then bind codec to it
+        self.store = Store(entries=[], meta={"codebook": codebook or {}})
+        self._codec = ScenarioCodec().bind(self.store)
+        
+        # Handle remote source
+        if data is not None and isinstance(data, str):
+            sl = ScenarioList.pull(data)
+            if codebook is not None:
+                raise ValueError(
+                    "Codebook cannot be provided when pulling from a remote source"
+                )
+            self.store.meta["codebook"] = sl.codebook
+            # Copy file_registry from pulled ScenarioList
+            if "file_registry" in sl.store.meta:
+                self.store.meta["file_registry"] = sl.store.meta["file_registry"].copy()
+            for item in sl.data:
+                # Already decoded Scenario objects from pull - encode for store
+                self.store.entries.append(self._codec.encode(item))
+        else:
+            # Encode Scenario objects to dicts for primitive store
+            # FileStore objects are now supported via the file registry
+            for item in data or []:
+                self.store.entries.append(self._codec.encode(item))
 
     @event
     def append(self, item: Scenario) -> None:
+        """Append a Scenario to the list. FileStore values are supported."""
         return AppendRowEvent(row=self._codec.encode(item))
+
+    @classmethod
+    def _from_state(cls, state: dict[str, Any]) -> "ScenarioList":
+        """Create a ScenarioList from a state dict, binding the codec to the store."""
+        instance = object.__new__(cls)
+        instance.store = Store.from_dict(state)
+        instance._codec = ScenarioCodec().bind(instance.store)
+        instance._git = None
+        instance._needs_git_init = False
+        # Initialize conditional builder state
+        instance._cond_active = False
+        instance._cond_branch = None
+        instance._cond_condition = None
+        instance._cond_ops = {"then": [], "else": []}
+        return instance
 
     @property
     def data(self) -> List[Scenario]:

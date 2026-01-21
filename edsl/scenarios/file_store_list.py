@@ -238,16 +238,35 @@ class FileStoreList(ScenarioList):
 
         Returns:
             A FileStoreList containing two FileStore objects.
+        
+        Note:
+            Creates files in the current working directory since FileStore
+            requires files to exist on disk.
         """
-        with tempfile.NamedTemporaryFile(suffix=".txt", mode="w") as f1:
-            _ = f1.write("Hello World")
-            _ = f1.flush()
-            fs1 = FileStore(f1.name)
-            with tempfile.NamedTemporaryFile(suffix=".txt", mode="w") as f2:
-                _ = f2.write("Hello Universe")
-                _ = f2.flush()
-                fs2 = FileStore(f2.name)
-                return cls([fs1, fs2])
+        import os
+        import uuid
+        import warnings
+        
+        # Create files in cwd with unique names
+        filename1 = f"filestore_example_{uuid.uuid4().hex[:8]}.txt"
+        filename2 = f"filestore_example_{uuid.uuid4().hex[:8]}.txt"
+        
+        cwd = os.getcwd()
+        warnings.warn(
+            f"FileStoreList.example(): Creating example files in working directory: {cwd}",
+            stacklevel=2
+        )
+        
+        with open(filename1, "w") as f1:
+            f1.write("Hello World")
+        
+        with open(filename2, "w") as f2:
+            f2.write("Hello Universe")
+        
+        fs1 = FileStore(filename1)
+        fs2 = FileStore(filename2)
+        
+        return cls([fs1, fs2])
 
 
 if __name__ == "__main__":

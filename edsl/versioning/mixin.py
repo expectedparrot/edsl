@@ -657,6 +657,87 @@ class GitMixin:
         new_git = self._git.remove_remote(name)
         return self._mutate(new_git)
 
+    def _upload_pending_files(self) -> bool:
+        """Upload files in file_registry that don't have GCS locations.
+        
+        Returns:
+            True if files were uploaded (needs commit), False otherwise.
+        """
+        store = getattr(self, self.__class__._versioned, None)
+        if not store or not hasattr(store, 'files_needing_upload'):
+            return False
+        
+        pending_uuids = store.files_needing_upload()
+        if not pending_uuids:
+            return False
+        
+        # Import Coop for GCS upload
+        try:
+            from edsl.coop import Coop
+            coop = Coop()
+        except Exception as e:
+            warnings.warn(f"Could not initialize Coop for file upload: {e}")
+            return False
+        
+        uploaded_count = 0
+        for file_uuid in pending_uuids:
+            file_info = store.get_file(file_uuid)
+            if not file_info:
+                continue
+            
+            local_path = file_info.get('local_path')
+            if not local_path or not os.path.exists(local_path):
+                continue
+            
+            try:
+                # Request upload URL from backend
+                suffix = file_info.get('suffix', 'bin')
+                mime_type = file_info.get('mime_type', 'application/octet-stream')
+                
+                response = coop._send_server_request(
+                    uri="api/v0/filestore/upload-url",
+                    method="POST",
+                    payload={
+                        "suffix": suffix,
+                        "mime_type": mime_type,
+                    },
+                )
+                response_data = response.json()
+                upload_url = response_data.get("upload_url")
+                gcs_file_uuid = response_data.get("file_uuid")
+                
+                if not upload_url or not gcs_file_uuid:
+                    warnings.warn(f"Failed to get upload URL for file {file_uuid}")
+                    continue
+                
+                # Upload file content
+                import requests
+                with open(local_path, 'rb') as f:
+                    file_content = f.read()
+                
+                headers = {
+                    "Content-Type": mime_type,
+                    "Content-Length": str(len(file_content)),
+                }
+                upload_response = requests.put(upload_url, data=file_content, headers=headers)
+                upload_response.raise_for_status()
+                
+                # Mark as offloaded in registry
+                store.mark_file_offloaded(file_uuid, {
+                    "file_uuid": gcs_file_uuid,
+                    "offloaded": True,
+                })
+                uploaded_count += 1
+                
+            except Exception as e:
+                warnings.warn(f"Failed to upload file {file_uuid}: {e}")
+                continue
+        
+        if uploaded_count > 0:
+            print(f"Uploaded {uploaded_count} file(s) to GCS")
+            return True
+        return False
+
     def git_push(
         self,
         remote_name: str = "origin",
@@ -673,6 +754,7 @@ class GitMixin:
         - If no remote exists, creates "origin" using EXPECTED_PARROT_URL from config
         - If _info empty, populates from kwargs and commits
         - Creates repo on server, then pushes
+        - Uploads any files in file_registry to GCS
 
         _info is source of truth once set (kwargs ignored after first push).
         To change _info, use git_set_info() explicitly.
@@ -692,6 +774,10 @@ class GitMixin:
                      doesn't contain "/", will try to get from Coop profile.
         """
         self._ensure_git_init()
+        
+        # Upload pending files to GCS before push
+        if self._upload_pending_files():
+            self.git_commit("Upload files to GCS")
 
         # Push related objects first (for composite objects like Jobs)
         related_objects = self._get_related_objects()
@@ -1299,9 +1385,13 @@ class GitMixin:
     def to_ep(self, path: str) -> None:
         """Save object with full git history to disk in .ep format.
 
-        Creates a .ep file (compressed JSON) containing the complete git repository,
-        including all commits, branches, and state snapshots. This allows round-trip
-        serialization that preserves full history.
+        Creates a .ep file (zip archive) containing:
+        - manifest.json: git history and file index metadata
+        - store.json: entries with filerefs, meta (no file content)
+        - files/: directory containing actual file bytes for any FileStore objects
+
+        This allows round-trip serialization that preserves full history and
+        includes all referenced files.
 
         Args:
             path: File path (will add .ep extension if not present)
@@ -1314,6 +1404,8 @@ class GitMixin:
             >>> sl.git_commit("initial")
             >>> sl.to_ep("/tmp/mydata")  # Creates /tmp/mydata.ep
         """
+        import zipfile
+        
         self._ensure_git_init()
 
         # Require clean working state
@@ -1327,19 +1419,50 @@ class GitMixin:
         # Import version here to avoid circular imports
         from edsl import __version__
 
-        data = {
+        # Get store for file registry access
+        store = getattr(self, self.__class__._versioned, None)
+        
+        # Build file index from file_registry (strip local_path, keep metadata)
+        file_index = {}
+        if store and hasattr(store, 'meta'):
+            file_registry = store.meta.get('file_registry', {})
+            for file_uuid, info in file_registry.items():
+                file_index[file_uuid] = {
+                    k: v for k, v in info.items() if k != 'local_path'
+                }
+
+        manifest_data = {
             "edsl_class_name": self.__class__.__name__,
             "edsl_version": __version__,
+            "format_version": 2,  # v2 = zip format with files
             "git": {
                 "repo": self._git.view.repo.to_dict(),
                 "head_ref": self._git.view.head_ref,
                 "base_commit": self._git.view.base_commit,
             },
+            "file_index": file_index,
         }
 
-        # Write compressed JSON
-        with gzip.open(path, "wt", encoding="utf-8") as f:
-            json.dump(data, f)
+        # Write zip archive
+        with zipfile.ZipFile(path, 'w', zipfile.ZIP_DEFLATED) as zf:
+            # Write manifest
+            zf.writestr('manifest.json', json.dumps(manifest_data, indent=2))
+            
+            # Write store (without file content - just filerefs)
+            if store:
+                store_data = store.to_dict()
+                zf.writestr('store.json', json.dumps(store_data, indent=2))
+            
+            # Write actual file contents
+            if store and hasattr(store, 'meta'):
+                file_registry = store.meta.get('file_registry', {})
+                for file_uuid, info in file_registry.items():
+                    local_path = info.get('local_path')
+                    if local_path and os.path.exists(local_path):
+                        with open(local_path, 'rb') as f:
+                            file_content = f.read()
+                        suffix = info.get('suffix', 'bin')
+                        zf.writestr(f'files/{file_uuid}.{suffix}', file_content)
 
         print(f"Saved to {path}")
 
@@ -1349,7 +1472,11 @@ class GitMixin:
 
         Loads a .ep file and reconstructs the object at the specified ref (branch,
         tag, or commit). The full git history is preserved, allowing checkout to
-        any point in history.
+        any point in history. Files are extracted to the current working directory.
+
+        Supports both:
+        - v1 format: gzipped JSON (for backward compatibility)
+        - v2 format: zip archive with files/ directory
 
         Args:
             path: File path (.ep extension auto-added if missing)
@@ -1367,17 +1494,51 @@ class GitMixin:
             >>> sl = ScenarioList.from_ep("/tmp/mydata", ref="feature")  # Loads at feature branch
             >>> sl = ScenarioList.from_ep("/tmp/mydata", ref="abc123")  # Loads at specific commit
         """
+        import zipfile
+        
         # Try with .ep extension if not present and file doesn't exist
         if not path.endswith(".ep") and not os.path.exists(path):
             path = path + ".ep"
 
+        # Detect format: zip (v2) or gzip (v1)
+        data = None
+        file_index = {}
+        extracted_files = {}  # uuid -> local_path
+        
         try:
-            with gzip.open(path, "rt", encoding="utf-8") as f:
-                data = json.load(f)
+            # Try zip format first (v2)
+            if zipfile.is_zipfile(path):
+                with zipfile.ZipFile(path, 'r') as zf:
+                    # Read manifest
+                    manifest_content = zf.read('manifest.json').decode('utf-8')
+                    data = json.loads(manifest_content)
+                    file_index = data.get('file_index', {})
+                    
+                    # Extract files to working directory
+                    if file_index:
+                        warnings.warn(
+                            f"from_ep: Extracting {len(file_index)} file(s) to working directory: {os.getcwd()}",
+                            stacklevel=2
+                        )
+                    for file_uuid, info in file_index.items():
+                        suffix = info.get('suffix', 'bin')
+                        archive_path = f'files/{file_uuid}.{suffix}'
+                        if archive_path in zf.namelist():
+                            # Extract to cwd with UUID-based filename
+                            local_filename = f"{file_uuid[:12]}.{suffix}"
+                            local_path = os.path.join(os.getcwd(), local_filename)
+                            with zf.open(archive_path) as src:
+                                with open(local_path, 'wb') as dst:
+                                    dst.write(src.read())
+                            extracted_files[file_uuid] = local_path
+            else:
+                # Fall back to gzip format (v1)
+                with gzip.open(path, "rt", encoding="utf-8") as f:
+                    data = json.load(f)
         except FileNotFoundError:
             raise  # Re-raise FileNotFoundError as-is
-        except gzip.BadGzipFile:
-            raise InvalidEPFileError(path, "not a valid gzip file")
+        except (gzip.BadGzipFile, zipfile.BadZipFile):
+            raise InvalidEPFileError(path, "not a valid .ep file (neither zip nor gzip)")
         except json.JSONDecodeError as e:
             raise InvalidEPFileError(path, f"invalid JSON: {e}")
         except Exception as e:
@@ -1411,8 +1572,25 @@ class GitMixin:
         view = ObjectView(repo=repo, head_ref=head_ref, base_commit=base_commit)
 
         # Create instance from current state
-        state = view.get_base_state()
-        instance = cls._from_state(state[0] if state else {})
+        state_list = view.get_base_state()
+        state = state_list[0] if state_list else {}
+        
+        # Update file_registry with extracted file paths
+        if extracted_files and 'meta' in state:
+            if 'file_registry' not in state['meta']:
+                state['meta']['file_registry'] = {}
+            
+            for file_uuid, local_path in extracted_files.items():
+                if file_uuid in state['meta']['file_registry']:
+                    state['meta']['file_registry'][file_uuid]['local_path'] = local_path
+                elif file_uuid in file_index:
+                    # Create registry entry from file_index
+                    state['meta']['file_registry'][file_uuid] = {
+                        **file_index[file_uuid],
+                        'local_path': local_path,
+                    }
+        
+        instance = cls._from_state(state)
         instance._git = ExpectedParrotGit(view)
         instance._needs_git_init = False
 
