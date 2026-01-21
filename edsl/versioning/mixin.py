@@ -798,7 +798,7 @@ class GitMixin:
         self._last_push_result = self._git.push(remote_name, ref_name, force=force)
 
         # Build view URL
-        view_url = f"{server_url.rstrip('/')}/{resolved_alias}" if server_url else None
+        view_url = f"{server_url.rstrip('/')}/nest/{resolved_alias}" if server_url else None
 
         # Print git-style output
         result = self._last_push_result
