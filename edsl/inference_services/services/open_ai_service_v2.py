@@ -39,7 +39,7 @@ class OpenAIServiceV2(InferenceServiceABC):
     _async_client_instances: Dict[APIToken, openai.AsyncOpenAI] = {}
 
     # sequence to extract text from response.output
-    key_sequence = ["output", 1, "content", 0, "text"]
+    key_sequence = ["output", 0, "content", 0, "text"]
     usage_sequence = ["usage"]
     # sequence to extract reasoning summary from response.output
     reasoning_sequence = ["output", 0, "summary"]
