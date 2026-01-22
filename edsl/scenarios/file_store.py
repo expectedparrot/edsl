@@ -18,7 +18,8 @@ if TYPE_CHECKING:
     from .scenario_list import ScenarioList
 
 
-class FileStore(Scenario):
+#class FileStore(Scenario):
+class FileStore:
     """
     A specialized Scenario subclass for managing file content and metadata.
 
@@ -152,66 +153,167 @@ class FileStore(Scenario):
         # Initialize parent class first to ensure self.data exists.
         # This prevents "'FileStore' object has no attribute 'data'" errors
         # if any initialization code below fails.
-        super().__init__({})
+        #super().__init__({})
 
-        if path is None and "filename" in kwargs:
-            path = kwargs["filename"]
+        # #region agent log
+        import json; open('/Users/johnhorton/tools/ep/edsl-firecrawl/.cursor/debug.log', 'a').write(json.dumps({"hypothesisId": "C", "location": "file_store.py:__init__", "message": "FileStore init called", "data": {"path": path, "base64_string_passed": base64_string is not None, "base64_string_len": len(base64_string) if base64_string else 0, "path_is_file": os.path.isfile(path) if path else False}}) + '\n')
+        # #endregion
 
-        # Check if path looks like a Coop address and handle pull
-        if path and base64_string is None and self._looks_like_coop_address(path):
-            pulled_filestore = self.pull(path)
-            # Copy all attributes from the pulled FileStore
-            self._path = pulled_filestore._path
-            self._temp_path = pulled_filestore._temp_path
-            self.suffix = pulled_filestore.suffix
-            self.binary = pulled_filestore.binary
-            self.mime_type = pulled_filestore.mime_type
-            self.base64_string = pulled_filestore.base64_string
-            self.external_locations = pulled_filestore.external_locations
-            self.extracted_text = pulled_filestore.extracted_text
-            self.data.update(pulled_filestore.data)
-            return
+        # If base64_string is provided, write it to a file
+        if base64_string is not None:
+            # Decode the base64 content
+            file_content = base64.b64decode(base64_string)
+            
+            if path:
+                # Write to the specified path (in CWD if not absolute)
+                if not os.path.isabs(path):
+                    path = os.path.join(os.getcwd(), path)
+                # Ensure directory exists
+                os.makedirs(os.path.dirname(path) if os.path.dirname(path) else '.', exist_ok=True)
+                with open(path, 'wb') as f:
+                    f.write(file_content)
+                self._path = path
+            else:
+                # No path provided - create a temp file
+                file_suffix = "." + suffix if suffix else ""
+                temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=file_suffix, mode='wb')
+                temp_file.write(file_content)
+                temp_file.close()
+                self._path = temp_file.name
+            # #region agent log
+            import json; open('/Users/johnhorton/tools/ep/edsl-firecrawl/.cursor/debug.log', 'a').write(json.dumps({"hypothesisId": "C", "location": "file_store.py:__init__wrote_file", "message": "Wrote base64 content to file", "data": {"_path": self._path, "exists": os.path.isfile(self._path)}}) + '\n')
+            # #endregion
+        else:
+            # Always store absolute path for robustness
+            if path and not os.path.isabs(path):
+                path = os.path.abspath(path)
+            self._path = path
 
-        # Check if path is a URL and handle download
-        if path and (path.startswith("http://") or path.startswith("https://")):
-            temp_filestore = self.from_url(path, mime_type=mime_type)
-            path = temp_filestore._path
-            mime_type = temp_filestore.mime_type
-
-        self._path = path  # Store the original path privately
-        self._temp_path = None  # Track any generated temporary file
-
-        self.suffix = suffix or (path.split(".")[-1] if path else "")
-        self.binary = binary or False
-        self.mime_type = (
-            mime_type
-            or (mimetypes.guess_type(path)[0] if path else None)
-            or "application/octet-stream"
-        )
-        self.base64_string = base64_string or self.encode_file_to_base64_string(path)
         self.external_locations = external_locations or {}
 
-        self.extracted_text = (
-            self.extract_text() if extracted_text is None else extracted_text
-        )
 
-        # Update self.data with the initialized values
-        self.data.update(
-            {
-                "path": path,
-                "base64_string": self.base64_string,
-                "binary": self.binary,
-                "suffix": self.suffix,
-                "mime_type": self.mime_type,
-                "external_locations": self.external_locations,
-                "extracted_text": self.extracted_text,
-            }
-        )
+        # if path is None and "filename" in kwargs:
+        #     path = kwargs["filename"]
+
+        # # Check if path looks like a Coop address and handle pull
+        # if path and base64_string is None and self._looks_like_coop_address(path):
+        #     pulled_filestore = self.pull(path)
+        #     # Copy all attributes from the pulled FileStore
+        #     self._path = pulled_filestore._path
+        #     self._temp_path = pulled_filestore._temp_path
+        #     self.suffix = pulled_filestore.suffix
+        #     self.binary = pulled_filestore.binary
+        #     self.mime_type = pulled_filestore.mime_type
+        #     self.base64_string = pulled_filestore.base64_string
+        #     self.external_locations = pulled_filestore.external_locations
+        #     self.extracted_text = pulled_filestore.extracted_text
+        #     self.data.update(pulled_filestore.data)
+        #     return
+
+        # # Check if path is a URL and handle download
+        # if path and (path.startswith("http://") or path.startswith("https://")):
+        #     temp_filestore = self.from_url(path, mime_type=mime_type)
+        #     path = temp_filestore._path
+        #     mime_type = temp_filestore.mime_type
+
+        # self._path = path  # Store the original path privately
+        # self._temp_path = None  # Track any generated temporary file
+
+        # self.suffix = suffix or (path.split(".")[-1] if path else "")
+        # self.binary = binary or False
+        # self.mime_type = (
+        #     mime_type
+        #     or (mimetypes.guess_type(path)[0] if path else None)
+        #     or "application/octet-stream"
+        # )
+        # self.base64_string = base64_string or self.encode_file_to_base64_string(path)
+        # self.external_locations = external_locations or {}
+
+        # self.extracted_text = (
+        #     self.extract_text() if extracted_text is None else extracted_text
+        # )
+
+        # # # Update self.data with the initialized values
+        # # self.data.update(
+        # #     {
+        # #         "path": path,
+        # #         "base64_string": self.base64_string,
+        # #         "binary": self.binary,
+        # #         "suffix": self.suffix,
+        # #         "mime_type": self.mime_type,
+        # #         "external_locations": self.external_locations,
+        # #         "extracted_text": self.extracted_text,
+        # #     }
+        # # )
 
     def to_scenario(self, key_name: Optional[str] = None):
         if key_name is None:
             key_name = "file_store"
         return Scenario({key_name: self})
+
+    def _write_gcs_to_tempfile_and_return_path(self) -> str:
+        """
+        Download FileStore content from Google Cloud Storage and write to a temporary file.
+
+        This method downloads the file content from GCS using the file_uuid stored in
+        external_locations["gcs"], writes it to a temporary file with the appropriate
+        suffix, and returns the path to that temporary file.
+
+        Returns:
+            str: Path to the temporary file containing the downloaded content.
+
+        Raises:
+            ValueError: If GCS file_uuid is not found in external_locations.
+            Exception: If GCS download fails.
+        """
+        import requests
+
+        # Check if GCS information is available
+        gcs_info = self.external_locations.get("gcs")
+        if not gcs_info or "file_uuid" not in gcs_info:
+            raise ValueError(
+                "Cannot download from GCS: no GCS file_uuid found in external_locations"
+            )
+
+        file_uuid = gcs_info["file_uuid"]
+
+        # Request download URL from backend
+        try:
+            from edsl.coop import Coop
+
+            coop = Coop()
+
+            response = coop._send_server_request(
+                uri="api/v0/filestore/download-url",
+                method="POST",
+                payload={
+                    "file_uuid": file_uuid,
+                    "suffix": self.suffix,
+                },
+            )
+            response_data = response.json()
+            download_url = response_data.get("download_url")
+
+            if not download_url:
+                raise ValueError("Backend did not return a download URL")
+
+            # Download file content from GCS
+            download_response = requests.get(download_url, timeout=60)
+            download_response.raise_for_status()
+            file_content = download_response.content
+
+            # Write content to a temporary file
+            suffix = "." + self.suffix if self.suffix else ""
+            temp_file = tempfile.NamedTemporaryFile(
+                delete=False, suffix=suffix, mode="wb"
+            )
+            temp_file.write(file_content)
+            temp_file.close()
+
+            return temp_file.name
+
+        except Exception as e:
+            raise Exception(f"Failed to download FileStore from GCS to tempfile: {e}")
 
     def _restore_from_gcs(self) -> None:
         """
@@ -273,6 +375,44 @@ class FileStore(Scenario):
             raise Exception(f"Failed to restore FileStore from GCS: {e}")
 
     @property
+    def base64_string(self) -> str:
+        # #region agent log
+        import json; open('/Users/johnhorton/tools/ep/edsl-firecrawl/.cursor/debug.log', 'a').write(json.dumps({"hypothesisId": "C", "location": "file_store.py:base64_string", "message": "base64_string property called", "data": {"_path": self._path, "_path_exists": os.path.isfile(self._path) if self._path else False, "has_gcs": bool(self.external_locations.get("gcs"))}}) + '\n')
+        # #endregion
+        if self.external_locations.get("gcs") and self.external_locations["gcs"].get("offloaded"):
+            # Download from GCS and return as base64
+            temp_path = self._write_gcs_to_tempfile_and_return_path()
+            return base64.b64encode(open(temp_path, "rb").read()).decode("utf-8")
+        if self._path and os.path.isfile(self._path):
+            # #region agent log
+            import json; open('/Users/johnhorton/tools/ep/edsl-firecrawl/.cursor/debug.log', 'a').write(json.dumps({"hypothesisId": "C", "location": "file_store.py:base64_string_from_file", "message": "Reading base64 from file", "data": {"_path": self._path}}) + '\n')
+            # #endregion
+            return base64.b64encode(open(self._path, "rb").read()).decode("utf-8")
+        # #region agent log
+        import json; open('/Users/johnhorton/tools/ep/edsl-firecrawl/.cursor/debug.log', 'a').write(json.dumps({"hypothesisId": "C", "location": "file_store.py:base64_string_return_none", "message": "Returning None - no GCS, no file on disk", "data": {"_path": self._path}}) + '\n')
+        # #endregion
+        return None
+
+    @property 
+    def suffix(self) -> str:
+        if self._path:
+            return self._path.split(".")[-1]
+        return ""
+
+    @property
+    def mime_type(self) -> str:
+        if self._path:
+            return mimetypes.guess_type(self._path)[0] or "application/octet-stream"
+        return "application/octet-stream"
+
+    @property
+    def binary(self) -> bool:
+        mime = self.mime_type
+        if mime:
+            return mime.startswith("image/") or mime.startswith("video/")
+        return False
+
+    @property
     def path(self) -> str:
         """
         Returns a valid path to the file content, creating a temporary file if needed.
@@ -309,28 +449,34 @@ class FileStore(Scenario):
               from GCS, which may take time for large files
         """
         # Check if the FileStore is offloaded and needs to be restored from GCS
-        if self.base64_string == "offloaded":
-            # Check if we have GCS info before attempting restore
-            gcs_info = self.external_locations.get("gcs", {})
-            if not gcs_info or "file_uuid" not in gcs_info:
-                raise ValueError(
-                    f"FileStore content has been offloaded but GCS restoration info is missing. "
-                    f"This FileStore cannot be used without the original file content. "
-                    f"external_locations: {self.external_locations}"
-                )
-            self._restore_from_gcs()
+        # if self.base64_string == "offloaded":
+        #     # Check if we have GCS info before attempting restore
+        #     gcs_info = self.external_locations.get("gcs", {})
+        #     if not gcs_info or "file_uuid" not in gcs_info:
+        #         raise ValueError(
+        #             f"FileStore content has been offloaded but GCS restoration info is missing. "
+        #             f"This FileStore cannot be used without the original file content. "
+        #             f"external_locations: {self.external_locations}"
+        #         )
+        #     self._restore_from_gcs()
 
         # Check if original path exists and is accessible
         if self._path and os.path.isfile(self._path):
             return self._path
 
-        # If we already have a valid temporary file, use it
-        if self._temp_path and os.path.isfile(self._temp_path):
-            return self._temp_path
+        if self.external_locations.get("gcs") and self.external_locations["gcs"].get("offloaded"):
+            return self._write_gcs_to_tempfile_and_return_path()
 
-        # Generate a new temporary file from base64 content
-        self._temp_path = self.to_tempfile(self.suffix)
-        return self._temp_path
+        # Return _path even if file doesn't exist (for metadata purposes)
+        return self._path
+
+        # # If we already have a valid temporary file, use it
+        # if self._temp_path and os.path.isfile(self._temp_path):
+        #     return self._temp_path
+
+        # # Generate a new temporary file from base64 content
+        # self._temp_path = self.to_tempfile(self.suffix)
+        # return self._temp_path
 
     def __str__(self):
         return "FileStore: self.path"
@@ -342,103 +488,6 @@ class FileStore(Scenario):
             return cls(file_methods_class().example())
         else:
             print(f"Example for {example_type} is not supported.")
-
-    # @classmethod
-    # async def _async_screenshot(
-    #     cls,
-    #     url: str,
-    #     full_page: bool = True,
-    #     wait_until: Literal[
-    #         "load", "domcontentloaded", "networkidle", "commit"
-    #     ] = "networkidle",
-    #     download_path: Optional[str] = None,
-    # ) -> "FileStore":
-    #     """Async version of screenshot functionality"""
-    #     try:
-    #         from playwright.async_api import async_playwright
-    #     except ImportError:
-    #         raise ImportError(
-    #             "Screenshot functionality requires additional dependencies.\n"
-    #             "Install them with: pip install 'edsl[screenshot]'"
-    #         )
-
-    #     if download_path is None:
-    #         download_path = os.path.join(
-    #             os.getcwd(), f"screenshot_{int(time.time())}.png"
-    #         )
-
-    #     async with async_playwright() as p:
-    #         browser = await p.chromium.launch()
-    #         page = await browser.new_page()
-    #         await page.goto(url, wait_until=wait_until)
-    #         await page.screenshot(path=download_path, full_page=full_page)
-    #         await browser.close()
-
-    #     return cls(download_path, mime_type="image/png")
-
-    # @classmethod
-    # def from_url_screenshot(cls, url: str, **kwargs) -> "FileStore":
-    #     """Synchronous wrapper for screenshot functionality"""
-    #     import asyncio
-
-    #     try:
-    #         # Try using get_event_loop first (works in regular Python)
-    #         loop = asyncio.get_event_loop()
-    #     except RuntimeError:
-    #         # If we're in IPython/Jupyter, create a new loop
-    #         loop = asyncio.new_event_loop()
-    #         asyncio.set_event_loop(loop)
-
-    #     try:
-    #         return loop.run_until_complete(cls._async_screenshot(url, **kwargs))
-    #     finally:
-    #         if not loop.is_running():
-    #             loop.close()
-
-    # @classmethod
-    # def batch_screenshots(cls, urls: List[str], **kwargs) -> "ScenarioList":
-    #     """
-    #     Take screenshots of multiple URLs concurrently.
-    #     Args:
-    #         urls: List of URLs to screenshot
-    #         **kwargs: Additional arguments passed to screenshot function (full_page, wait_until, etc.)
-    #     Returns:
-    #         ScenarioList containing FileStore objects with their corresponding URLs
-    #     """
-    #     # Import here to avoid circular imports
-    #     from .scenario_list import ScenarioList
-
-    #     try:
-    #         # Try using get_event_loop first (works in regular Python)
-    #         loop = asyncio.get_event_loop()
-    #     except RuntimeError:
-    #         # If we're in IPython/Jupyter, create a new loop
-    #         loop = asyncio.new_event_loop()
-    #         asyncio.set_event_loop(loop)
-
-    #     # Create tasks for all screenshots
-    #     tasks = [cls._async_screenshot(url, **kwargs) for url in urls]
-
-    #     try:
-    #         # Run all screenshots concurrently
-    #         results = loop.run_until_complete(
-    #             asyncio.gather(*tasks, return_exceptions=True)
-    #         )
-
-    #         # Filter out any errors and log them
-    #         successful_results = []
-    #         for url, result in zip(urls, results):
-    #             if isinstance(result, Exception):
-    #                 print(f"Failed to screenshot {url}: {result}")
-    #             else:
-    #                 successful_results.append(
-    #                     Scenario({"url": url, "screenshot": result})
-    #                 )
-
-    #         return ScenarioList(successful_results)
-    #     finally:
-    #         if not loop.is_running():
-    #             loop.close()
 
     @property
     def size(self) -> int:
@@ -652,15 +701,14 @@ class FileStore(Scenario):
         # return cls(d["filename"], d["binary"], d["suffix"], d["base64_string"])
         return cls(**d)
 
+    def to_dict(self, add_edsl_version: bool = True):
+        return {
+            "path": self.path,
+            "external_locations": self.external_locations,
+        }
+
     def __repr__(self):
-        import reprlib
-
-        r = reprlib.Repr()
-        r.maxstring = 20  # Limit strings to 20 chars
-        r.maxother = 30  # Limit other types to 30 chars
-
-        params = ", ".join(f"{key}={r.repr(value)}" for key, value in self.data.items())
-        return f"{self.__class__.__name__}({params})"
+        return f"FileStore(path={self.path!r}, suffix={self.suffix!r})"
 
     def _repr_html_(self):
         from .file_store_helpers.file_methods import FileMethods
@@ -731,6 +779,12 @@ class FileStore(Scenario):
         # Determine the mode based on binary flag
         mode = "wb" if self.binary else "w"
 
+        # Read content BEFORE opening file for writing (to avoid truncating source file)
+        content = self.open().read()
+        # For text mode, ensure we're writing a string
+        if not self.binary and isinstance(content, bytes):
+            content = content.decode("utf-8")
+
         # If no filename provided, create a temporary file
         if filename is None:
             from tempfile import NamedTemporaryFile
@@ -741,10 +795,6 @@ class FileStore(Scenario):
         # Write the content using the appropriate mode
         try:
             with open(filename, mode) as f:
-                content = self.open().read()
-                # For text mode, ensure we're writing a string
-                if not self.binary and isinstance(content, bytes):
-                    content = content.decode("utf-8")
                 f.write(content)
                 # print(f"File written to {filename}")
         except Exception as e:
@@ -951,152 +1001,10 @@ class FileStore(Scenario):
         scenario_version = Scenario.pull(url_or_uuid)
         return cls.from_dict(scenario_version.to_dict())
 
-    # @classmethod
-    # def from_url(
-    #     cls,
-    #     url: str,
-    #     download_path: Optional[str] = None,
-    #     mime_type: Optional[str] = None,
-    # ) -> "FileStore":
-    #     """
-    #     :param url: The URL of the file to download.
-    #     :param download_path: The path to save the downloaded file.
-    #     :param mime_type: The MIME type of the file. If None, it will be guessed from the file extension.
-    #     """
-    #     import requests
-    #     from urllib.parse import urlparse
-
-    #     response = requests.get(url, stream=True)
-    #     response.raise_for_status()  # Raises an HTTPError for bad responses
-
-    #     # Get the filename from the URL if download_path is not provided
-    #     if download_path is None:
-    #         filename = os.path.basename(urlparse(url).path)
-    #         if not filename:
-    #             filename = "downloaded_file"
-    #         # download_path = filename
-    #         download_path = os.path.join(os.getcwd(), filename)
-
-    #     # Ensure the directory exists
-    #     os.makedirs(os.path.dirname(download_path), exist_ok=True)
-
-    #     # Write the file
-    #     with open(download_path, "wb") as file:
-    #         for chunk in response.iter_content(chunk_size=8192):
-    #             file.write(chunk)
-
-    #     # Create and return a new File instance
-    #     return cls(download_path, mime_type=mime_type)
-
     def create_link(self, custom_filename=None, style=None):
         from .file_store_helpers.construct_download_link import ConstructDownloadLink
 
         return ConstructDownloadLink(self).create_link(custom_filename, style)
-
-    # def to_pdf(self, output_path: Optional[str] = None, **options) -> "FileStore":
-    #     """
-    #     Convert a markdown FileStore to a PDF and return a new FileStore for the PDF.
-
-    #     Args:
-    #         output_path: Optional destination path for the generated PDF. If not provided,
-    #             a temporary file will be created.
-    #         **options: Additional conversion options forwarded to the converter, e.g.:
-    #             - margin (str): Page margin (default: "1in")
-    #             - font_size (str): Font size (default: "12pt")
-    #             - font (str): Main font name (optional)
-    #             - toc (bool): Include table of contents (default: False)
-    #             - number_sections (bool): Number sections (default: False)
-    #             - highlight_style (str): Code highlighting style (default: "tango")
-
-    #     Returns:
-    #         FileStore: A new FileStore referencing the generated PDF file.
-
-    #     Raises:
-    #         TypeError: If the current file is not a markdown file.
-    #         RuntimeError: If conversion fails.
-    #     """
-    #     if self.suffix.lower() not in ("md", "markdown"):
-    #         raise TypeError("to_pdf() is only supported for markdown FileStore objects")
-
-    #     import os
-    #     import tempfile
-    #     from edsl.utilities.markdown_to_pdf import MarkdownToPDF
-
-    #     # Determine output path
-    #     if output_path is None:
-    #         temp_dir = tempfile.mkdtemp()
-    #         base_name = os.path.splitext(os.path.basename(self.path))[0] or "document"
-    #         output_path = os.path.join(temp_dir, f"{base_name}.pdf")
-
-    #     converter = MarkdownToPDF(
-    #         self.text, filename=os.path.splitext(os.path.basename(output_path))[0]
-    #     )
-    #     success = converter.convert(output_path, **options)
-    #     if not success:
-    #         raise RuntimeError("Failed to convert markdown to PDF")
-
-    #     return self.__class__(output_path)
-
-    # def to_docx(self, output_path: Optional[str] = None, **options) -> "FileStore":
-    #     """
-    #     Convert a markdown FileStore to a DOCX and return a new FileStore for the DOCX.
-
-    #     Args:
-    #         output_path: Optional destination path for the generated DOCX. If not provided,
-    #             a temporary file will be created.
-    #         **options: Additional conversion options forwarded to the converter, e.g.:
-    #             - reference_doc (str): Path to reference docx for styling
-    #             - toc (bool): Include table of contents (default: False)
-    #             - number_sections (bool): Number sections (default: False)
-    #             - highlight_style (str): Code highlighting style (default: "tango")
-
-    #     Returns:
-    #         FileStore: A new FileStore referencing the generated DOCX file.
-
-    #     Raises:
-    #         TypeError: If the current file is not a markdown file.
-    #         RuntimeError: If conversion fails.
-    #     """
-    #     if self.suffix.lower() not in ("md", "markdown"):
-    #         raise TypeError(
-    #             "to_docx() is only supported for markdown FileStore objects"
-    #         )
-
-    #     import os
-    #     import tempfile
-    #     from edsl.utilities.markdown_to_docx import MarkdownToDocx
-
-    #     # Determine output path
-    #     if output_path is None:
-    #         temp_dir = tempfile.mkdtemp()
-    #         base_name = os.path.splitext(os.path.basename(self.path))[0] or "document"
-    #         output_path = os.path.join(temp_dir, f"{base_name}.docx")
-
-    #     converter = MarkdownToDocx(
-    #         self.text, filename=os.path.splitext(os.path.basename(output_path))[0]
-    #     )
-    #     success = converter.convert(output_path, **options)
-    #     if not success:
-    #         raise RuntimeError("Failed to convert markdown to DOCX")
-
-    #     return self.__class__(output_path)
-
-    # def to_pandas(self):
-    #     """
-    #     Convert the file content to a pandas DataFrame if supported by the file handler.
-
-    #     Returns:
-    #         pandas.DataFrame: The data from the file as a DataFrame
-
-    #     Raises:
-    #         AttributeError: If the file type's handler doesn't support pandas conversion
-    #     """
-    #     handler = FileMethods.get_handler(self.suffix)
-    #     if handler and hasattr(handler, "to_pandas"):
-    #         return handler(self.path).to_pandas()
-    #     raise AttributeError(
-    #         f"Converting {self.suffix} files to pandas DataFrame is not supported"
-    #     )
 
     def is_image(self) -> bool:
         """
@@ -1424,172 +1332,8 @@ class FileStore(Scenario):
         )
 
 
-# class CSVFileStore(FileStore):
-#     @classmethod
-#     def example(cls):
-#         from ..results import Results
-
-#         r = Results.example()
-#         import tempfile
-
-#         with tempfile.NamedTemporaryFile(suffix=".csv", delete=False) as f:
-#             r.to_csv(filename=f.name)
-
-#         return cls(f.name)
-
-#     def view(self):
-#         import pandas as pd
-
-#         return pd.read_csv(self.to_tempfile())
-
-
-# class PDFFileStore(FileStore):
-#     def view(self):
-#         pdf_path = self.to_tempfile()
-#         print(f"PDF path: {pdf_path}")  # Print the path to ensure it exists
-#         import os
-#         import subprocess
-
-#         if os.path.exists(pdf_path):
-#             try:
-#                 if os.name == "posix":
-#                     # for cool kids
-#                     subprocess.run(["open", pdf_path], check=True)  # macOS
-#                 elif os.name == "nt":
-#                     os.startfile(pdf_path)  # Windows
-#                 else:
-#                     subprocess.run(["xdg-open", pdf_path], check=True)  # Linux
-#             except Exception as e:
-#                 print(f"Error opening PDF: {e}")
-#         else:
-#             print("PDF file was not created successfully.")
-
-#     @classmethod
-#     def example(cls):
-#         import textwrap
-
-#         pdf_string = textwrap.dedent(
-#             """\
-#         %PDF-1.4
-#         1 0 obj
-#         << /Type /Catalog /Pages 2 0 R >>
-#         endobj
-#         2 0 obj
-#         << /Type /Pages /Kids [3 0 R] /Count 1 >>
-#         endobj
-#         3 0 obj
-#         << /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R >>
-#         endobj
-#         4 0 obj
-#         << /Length 44 >>
-#         stream
-#         BT
-#         /F1 24 Tf
-#         100 700 Td
-#         (Hello, World!) Tj
-#         ET
-#         endstream
-#         endobj
-#         5 0 obj
-#         << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
-#         endobj
-#         6 0 obj
-#         << /ProcSet [/PDF /Text] /Font << /F1 5 0 R >> >>
-#         endobj
-#         xref
-#         0 7
-#         0000000000 65535 f
-#         0000000010 00000 n
-#         0000000053 00000 n
-#         0000000100 00000 n
-#         0000000173 00000 n
-#         0000000232 00000 n
-#         0000000272 00000 n
-#         trailer
-#         << /Size 7 /Root 1 0 R >>
-#         startxref
-#         318
-#         %%EOF"""
-#         )
-#         import tempfile
-
-#         with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as f:
-#             f.write(pdf_string.encode())
-
-#         return cls(f.name)
-
-
-# class PNGFileStore(FileStore):
-#     @classmethod
-#     def example(cls):
-#         import textwrap
-
-#         png_string = textwrap.dedent(
-#             """\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x01\x00\x00\x00\x01\x00\x08\x06\x00\x00\x00\x1f\x15\xc4\x89\x00\x00\x00\x0cIDAT\x08\xd7c\x00\x01"""
-#         )
-#         import tempfile
-
-#         with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as f:
-#             f.write(png_string.encode())
-
-#         return cls(f.name)
-
-#     def view(self):
-#         import matplotlib.pyplot as plt
-#         import matplotlib.image as mpimg
-
-#         img = mpimg.imread(self.to_tempfile())
-#         plt.imshow(img)
-#         plt.show()
-
-
-# class SQLiteFileStore(FileStore):
-#     @classmethod
-#     def example(cls):
-#         import sqlite3
-#         import tempfile
-
-#         with tempfile.NamedTemporaryFile(suffix=".sqlite", delete=False) as f:
-#             conn = sqlite3.connect(f.name)
-#             c = conn.cursor()
-#             c.execute("""CREATE TABLE stocks (date text)""")
-#             conn.commit()
-
-#             return cls(f.name)
-
-#     def view(self):
-#         import subprocess
-#         import os
-
-#         sqlite_path = self.to_tempfile()
-#         os.system(f"sqlite3 {sqlite_path}")
-
-
-# class HTMLFileStore(FileStore):
-#     @classmethod
-#     def example(cls):
-#         import tempfile
-
-#         with tempfile.NamedTemporaryFile(suffix=".html", delete=False) as f:
-#             f.write("<html><body><h1>Test</h1></body></html>".encode())
-
-#         return cls(f.name)
-
-#     def view(self):
-#         import webbrowser
-
-#         html_path = self.to_tempfile()
-#         webbrowser.open("file://" + html_path)
-
 
 if __name__ == "__main__":
     import doctest
-
     doctest.testmod()
-    # formats = FileMethods.supported_file_types()
-    # for file_type in formats:
-    #     print("Now testinging", file_type)
-    #     fs = FileStore.example(file_type)
-    #     fs.view()
-    #     input("Press Enter to continue...")
 

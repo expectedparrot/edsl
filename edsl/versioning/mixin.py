@@ -659,18 +659,18 @@ class GitMixin:
 
     def _upload_pending_files(self) -> bool:
         """Upload files in file_registry that don't have GCS locations.
-        
+
         Returns:
             True if files were uploaded (needs commit), False otherwise.
         """
         store = getattr(self, self.__class__._versioned, None)
         if not store or not hasattr(store, 'files_needing_upload'):
             return False
-        
+
         pending_uuids = store.files_needing_upload()
         if not pending_uuids:
             return False
-        
+
         # Import Coop for GCS upload
         try:
             from edsl.coop import Coop
@@ -678,22 +678,22 @@ class GitMixin:
         except Exception as e:
             warnings.warn(f"Could not initialize Coop for file upload: {e}")
             return False
-        
-        uploaded_count = 0
+
+        uploaded_files = {}  # file_uuid -> gcs_info
         for file_uuid in pending_uuids:
             file_info = store.get_file(file_uuid)
             if not file_info:
                 continue
-            
+
             local_path = file_info.get('local_path')
             if not local_path or not os.path.exists(local_path):
                 continue
-            
+
             try:
                 # Request upload URL from backend
                 suffix = file_info.get('suffix', 'bin')
                 mime_type = file_info.get('mime_type', 'application/octet-stream')
-                
+
                 response = coop._send_server_request(
                     uri="api/v0/filestore/upload-url",
                     method="POST",
@@ -705,36 +705,47 @@ class GitMixin:
                 response_data = response.json()
                 upload_url = response_data.get("upload_url")
                 gcs_file_uuid = response_data.get("file_uuid")
-                
+
                 if not upload_url or not gcs_file_uuid:
                     warnings.warn(f"Failed to get upload URL for file {file_uuid}")
                     continue
-                
+
                 # Upload file content
                 import requests
                 with open(local_path, 'rb') as f:
                     file_content = f.read()
-                
+
                 headers = {
                     "Content-Type": mime_type,
                     "Content-Length": str(len(file_content)),
                 }
                 upload_response = requests.put(upload_url, data=file_content, headers=headers)
                 upload_response.raise_for_status()
-                
-                # Mark as offloaded in registry
-                store.mark_file_offloaded(file_uuid, {
+
+                # Track uploaded file (don't mutate store yet)
+                uploaded_files[file_uuid] = {
                     "file_uuid": gcs_file_uuid,
                     "offloaded": True,
-                })
-                uploaded_count += 1
-                
+                }
+
             except Exception as e:
                 warnings.warn(f"Failed to upload file {file_uuid}: {e}")
                 continue
-        
-        if uploaded_count > 0:
-            print(f"Uploaded {uploaded_count} file(s) to GCS")
+
+        if uploaded_files:
+            # Update store AND stage the change as an event
+            # First mutate the store
+            for file_uuid, gcs_info in uploaded_files.items():
+                store.mark_file_offloaded(file_uuid, gcs_info)
+
+            # Now stage the change as an event so git_commit sees it
+            # We use "update_meta" event with the updated file_registry
+            self._git = self._git.apply_event(
+                "update_meta",
+                {"updates": {"file_registry": store.meta.get("file_registry", {})}}
+            )
+
+            print(f"Uploaded {len(uploaded_files)} file(s) to GCS")
             return True
         return False
 
