@@ -380,6 +380,32 @@ class HTTPRemote:
     def delete_ref(self, name: str) -> None:
         self._request("DELETE", f"/refs/{name}")
 
+    # --- EDSL Snapshot sync ---
+
+    def sync_snapshot(self, json_string: str, edsl_class_name: str) -> dict:
+        """Sync EDSL snapshot to objects table after push.
+
+        This creates or updates a linked object in the objects table,
+        allowing Polly and legacy consumers to access versioned data
+        without knowing about the Store format.
+
+        Args:
+            json_string: EDSL-serialized JSON string (from obj.to_dict())
+            edsl_class_name: EDSL class name (e.g., 'ScenarioList')
+
+        Returns:
+            dict with 'object_uuid', 'created', and 'message' keys
+        """
+        resp = self._request(
+            "POST",
+            "/sync-snapshot",
+            json={
+                "json_string": json_string,
+                "edsl_class_name": edsl_class_name,
+            },
+        )
+        return resp.json()
+
 
 # ----------------------------
 # Server Connection Helper

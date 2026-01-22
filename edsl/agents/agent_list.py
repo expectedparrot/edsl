@@ -260,7 +260,28 @@ class AgentList(
         canonical_instruction = instruction
 
         if data is not None and isinstance(data, str):
-            al = AgentList.pull(data)
+            # Try git_clone first for fully qualified strings (e.g., "username/repo-name")
+            # Fall back to legacy pull system if git_clone fails
+            import warnings
+            al = None
+            used_legacy = False
+            if "/" in data:
+                try:
+                    al = AgentList.git_clone(data)
+                except Exception:
+                    pass  # Fall back to pull
+
+            if al is None:
+                al = AgentList.pull(data)
+                used_legacy = True
+
+            if used_legacy:
+                warnings.warn(
+                    f"Loaded AgentList from legacy system (Coop). "
+                    f"Consider using git_push to migrate to the new versioning system.",
+                    UserWarning,
+                    stacklevel=2,
+                )
             if codebook is not None:
                 raise ValueError(
                     "Codebook cannot be provided when pulling from a remote source"

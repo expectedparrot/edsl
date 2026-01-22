@@ -894,6 +894,25 @@ class GitMixin:
 
         self._last_push_result = self._git.push(remote_name, ref_name, force=force)
 
+        # Sync EDSL snapshot to objects table (non-blocking)
+        try:
+            remote = self._git._remotes.get(remote_name)
+            if remote and hasattr(remote, "sync_snapshot"):
+                import json
+
+                edsl_json = json.dumps(self.to_dict())
+                result = remote.sync_snapshot(edsl_json, self.__class__.__name__)
+                if result.get("created"):
+                    print(
+                        f"Created linked object (uuid: {str(result.get('object_uuid', ''))[:8]}...)"
+                    )
+                else:
+                    print(
+                        f"Updated linked object (uuid: {str(result.get('object_uuid', ''))[:8]}...)"
+                    )
+        except Exception as e:
+            warnings.warn(f"Could not sync EDSL snapshot: {e}")
+
         # Build view URL
         view_url = f"{server_url.rstrip('/')}/nest/{resolved_alias}" if server_url else None
 

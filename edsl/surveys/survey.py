@@ -303,7 +303,29 @@ class Survey(GitMixin, Base, metaclass=SurveyMeta):
             >>> s = Survey([q1, q2, q3], question_groups={"demographics": (0, 1), "food_questions": (2, 2)})
         """
         if questions is not None and isinstance(questions, str):
-            pulled_survey = Survey.pull(questions)
+            # Try git_clone first for fully qualified strings (e.g., "username/repo-name")
+            # Fall back to legacy pull system if git_clone fails
+            import warnings
+            pulled_survey = None
+            used_legacy = False
+            if "/" in questions:
+                try:
+                    pulled_survey = Survey.git_clone(questions)
+                except Exception:
+                    pass  # Fall back to pull
+
+            if pulled_survey is None:
+                pulled_survey = Survey.pull(questions)
+                used_legacy = True
+
+            if used_legacy:
+                warnings.warn(
+                    f"Loaded Survey from legacy system (Coop). "
+                    f"Consider using git_push to migrate to the new versioning system.",
+                    UserWarning,
+                    stacklevel=2,
+                )
+
             self.__dict__.update(pulled_survey.__dict__)
             return
 

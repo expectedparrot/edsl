@@ -401,7 +401,29 @@ class ScenarioList(
         
         # Handle remote source
         if data is not None and isinstance(data, str):
-            sl = ScenarioList.pull(data)
+            # Try git_clone first for fully qualified strings (e.g., "username/repo-name")
+            # Fall back to legacy pull system if git_clone fails
+            import warnings
+            sl = None
+            used_legacy = False
+            if "/" in data:
+                try:
+                    sl = ScenarioList.git_clone(data)
+                except Exception:
+                    pass  # Fall back to pull
+
+            if sl is None:
+                sl = ScenarioList.pull(data)
+                used_legacy = True
+
+            if used_legacy:
+                warnings.warn(
+                    f"Loaded ScenarioList from legacy system (Coop). "
+                    f"Consider using git_push to migrate to the new versioning system.",
+                    UserWarning,
+                    stacklevel=2,
+                )
+
             if codebook is not None:
                 raise ValueError(
                     "Codebook cannot be provided when pulling from a remote source"

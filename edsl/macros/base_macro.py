@@ -163,7 +163,7 @@ class BaseMacro(Base, MacroMixin, ABC):
 
     @classmethod
     def _load_from_server(cls, identifier: str) -> "BaseMacro":
-        """Load macro from server - tries deployed then owned.
+        """Load macro from server - tries git_clone, then deployed, then pull.
 
         Args:
             identifier: Either "owner/alias" or a UUID string
@@ -171,14 +171,33 @@ class BaseMacro(Base, MacroMixin, ABC):
         Returns:
             Loaded macro instance (Macro or CompositeMacro)
         """
-        # Try deployed public macro first if it looks like "owner/alias"
+        import warnings
+
+        def _warn_legacy():
+            warnings.warn(
+                f"Loaded Macro from legacy system (Coop). "
+                f"Consider using git_push to migrate to the new versioning system.",
+                UserWarning,
+                stacklevel=4,
+            )
+
+        # Try git_clone first for fully qualified strings (e.g., "username/repo-name")
+        if "/" in identifier:
+            try:
+                return cls.git_clone(identifier)
+            except Exception:
+                pass  # Fall back to deployed/pull
+
+        # Try deployed public macro if it looks like "owner/alias"
         if "/" in identifier:
             try:
                 return cls._instantiate_deployed(identifier)
             except Exception as e:
                 # Fall back to pulling user's own macro
                 try:
-                    return cls.pull(identifier)
+                    result = cls.pull(identifier)
+                    _warn_legacy()
+                    return result
                 except Exception as e2:
                     raise ValueError(
                         f"Could not load macro '{identifier}'. "
@@ -188,7 +207,9 @@ class BaseMacro(Base, MacroMixin, ABC):
 
         # Looks like UUID - try pull first, then deployed
         try:
-            return cls.pull(identifier)
+            result = cls.pull(identifier)
+            _warn_legacy()
+            return result
         except Exception as pull_error:
             try:
                 return cls._instantiate_deployed(identifier)

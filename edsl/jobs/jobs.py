@@ -125,7 +125,7 @@ class Jobs(GitMixin, Base):
 
     def __init__(
         self,
-        survey: "Survey",
+        survey: Union["Survey", str],
         agents: Optional[Union[list["Agent"], "AgentList"]] = None,
         models: Optional[Union["ModelList", list["LanguageModel"]]] = None,
         scenarios: Optional[Union["ScenarioList", list["Scenario"]]] = None,
@@ -139,8 +139,9 @@ class Jobs(GitMixin, Base):
 
         Parameters
         ----------
-        survey : Survey
-            The survey containing questions to be used in the job
+        survey : Union[Survey, str]
+            The survey containing questions to be used in the job, or a string
+            identifier (e.g., "username/repo-name") to load a Jobs object remotely.
         agents : Union[list[Agent], AgentList], optional
             The agents that will take the survey
         models : Union[ModelList, list[LanguageModel]], optional
@@ -170,6 +171,34 @@ class Jobs(GitMixin, Base):
             - Upon initialization, a RunConfig is created with default environment and parameters
 
         """
+        # Handle pull from string UUID or alias
+        if isinstance(survey, str):
+            # Try git_clone first for fully qualified strings (e.g., "username/repo-name")
+            # Fall back to legacy pull system if git_clone fails
+            import warnings
+            pulled_jobs = None
+            used_legacy = False
+            if "/" in survey:
+                try:
+                    pulled_jobs = Jobs.git_clone(survey)
+                except Exception:
+                    pass  # Fall back to pull
+
+            if pulled_jobs is None:
+                pulled_jobs = Jobs.pull(survey)
+                used_legacy = True
+
+            if used_legacy:
+                warnings.warn(
+                    f"Loaded Jobs from legacy system (Coop). "
+                    f"Consider using git_push to migrate to the new versioning system.",
+                    UserWarning,
+                    stacklevel=2,
+                )
+
+            self.__dict__.update(pulled_jobs.__dict__)
+            return
+
         # Initialize GitMixin
         super().__init__()
 

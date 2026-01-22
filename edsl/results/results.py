@@ -498,9 +498,31 @@ class Results(
             task_history: A TaskHistory object containing information about the tasks.
             sort_by_iteration: Whether to sort data by iteration before initializing.
         """
-        # Handle pull from string UUID
+        # Handle pull from string UUID or alias
         if survey is not None and isinstance(survey, str):
-            pulled_results = Results.pull(survey)
+            # Try git_clone first for fully qualified strings (e.g., "username/repo-name")
+            # Fall back to legacy pull system if git_clone fails
+            import warnings
+            pulled_results = None
+            used_legacy = False
+            if "/" in survey:
+                try:
+                    pulled_results = Results.git_clone(survey)
+                except Exception:
+                    pass  # Fall back to pull
+
+            if pulled_results is None:
+                pulled_results = Results.pull(survey)
+                used_legacy = True
+
+            if used_legacy:
+                warnings.warn(
+                    f"Loaded Results from legacy system (Coop). "
+                    f"Consider using git_push to migrate to the new versioning system.",
+                    UserWarning,
+                    stacklevel=2,
+                )
+
             self.__dict__.update(pulled_results.__dict__)
             return
 
