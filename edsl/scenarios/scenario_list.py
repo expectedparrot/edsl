@@ -693,10 +693,12 @@ class ScenarioList(
             return self.__class__(list(self.data[index]), self.codebook.copy())
         return self.data[index]
 
-    @event
     def __setitem__(self, index, value):
-        """Set item at index."""
-        return UpdateRowEvent(index, self._codec.encode(value))
+        """Item assignment is not supported - use replace() instead."""
+        raise TypeError(
+            "Direct item assignment (sl[i] = x) is not supported. "
+            "Use sl = sl.replace(index, value) instead."
+        )
 
     @event
     def __delitem__(self, index):
@@ -711,6 +713,20 @@ class ScenarioList(
     def insert(self, index, value):
         """Insert value at index."""
         return InsertRowEvent(index=index, row=self._codec.encode(value))
+
+    @event
+    def replace(self, index: int, value: Scenario) -> "ScenarioList":
+        """Replace scenario at index with a new value.
+
+        Since ScenarioList uses event-sourcing, this returns a new ScenarioList.
+
+        Example:
+            >>> sl = ScenarioList.from_list("a", [1, 2, 3])
+            >>> sl = sl.replace(0, Scenario(a=99))
+            >>> sl[0]
+            Scenario({'a': 99})
+        """
+        return UpdateRowEvent(index, self._codec.encode(value))
 
     @event
     def clear(self) -> ClearEntriesEvent:
