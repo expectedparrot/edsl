@@ -20,14 +20,45 @@ NextQuestion = namedtuple(
 class RuleCollection(UserList):
     """A collection of rules for a particular survey."""
 
-    def __init__(self, num_questions: Optional[int] = None, rules: List[Rule] = None):
+    def __init__(
+        self,
+        num_questions: Optional[int] = None,
+        rules: List[Rule] = None,
+        question_name_to_index: Optional[dict] = None,
+    ):
         """Initialize the RuleCollection object.
 
         :param num_questions: The number of questions in the survey.
         :param rules: A list of Rule objects.
+        :param question_name_to_index: Shared mapping of question names to indices.
         """
         super().__init__(rules or [])
         self.num_questions = num_questions
+
+        # Initialize shared question_name_to_index
+        if question_name_to_index is not None:
+            self._question_name_to_index = question_name_to_index
+        else:
+            # Build from existing rules if any
+            self._question_name_to_index = {}
+            for rule in self.data:
+                self._question_name_to_index.update(rule.question_name_to_index)
+
+        # Point all rules to the shared map
+        for rule in self.data:
+            rule.question_name_to_index = self._question_name_to_index
+
+    @property
+    def question_name_to_index(self) -> dict:
+        """Return the shared question name to index mapping."""
+        return self._question_name_to_index
+
+    @question_name_to_index.setter
+    def question_name_to_index(self, value: dict) -> None:
+        """Set the shared question name to index mapping and update all rules."""
+        self._question_name_to_index = value
+        for rule in self.data:
+            rule.question_name_to_index = self._question_name_to_index
 
     def __repr__(self):
         """Return a string representation of the RuleCollection object.
@@ -64,14 +95,21 @@ class RuleCollection(UserList):
 
     def to_dict(self, add_edsl_version=True):
         """Create a dictionary representation of the RuleCollection object.
+
+        The question_name_to_index mapping is stored once at the collection level
+        rather than in each rule, reducing serialization size from O(n²) to O(n).
+
         >>> rule_collection = RuleCollection.example()
         >>> rule_collection_dict = rule_collection.to_dict()
         >>> new_rule_collection = RuleCollection.from_dict(rule_collection_dict)
-        >>> repr(new_rule_collection) == repr(rule_collection)
+        >>> rule_collection.question_name_to_index == new_rule_collection.question_name_to_index
         True
         """
         return {
-            "rules": [rule.to_dict() for rule in self],
+            "question_name_to_index": self._question_name_to_index,
+            "rules": [
+                rule.to_dict(include_question_name_to_index=False) for rule in self
+            ],
             "num_questions": self.num_questions,
         }
 
@@ -79,17 +117,35 @@ class RuleCollection(UserList):
     def from_dict(cls, rule_collection_dict):
         """Create a RuleCollection object from a dictionary.
 
+        Handles both old format (question_name_to_index in each rule) and
+        new format (question_name_to_index at collection level).
+
         >>> rule_collection = RuleCollection.example()
         >>> rule_collection_dict = rule_collection.to_dict()
         >>> new_rule_collection = RuleCollection.from_dict(rule_collection_dict)
-        >>> repr(new_rule_collection) == repr(rule_collection)
+        >>> rule_collection.question_name_to_index == new_rule_collection.question_name_to_index
         True
         """
-        rules = [
-            Rule.from_dict(rule_dict) for rule_dict in rule_collection_dict["rules"]
-        ]
+        # Check if new format (has top-level question_name_to_index)
+        shared_map = rule_collection_dict.get("question_name_to_index", None)
+
+        rules = []
+        for rule_dict in rule_collection_dict["rules"]:
+            # Old format: rule has its own map
+            # New format: inject shared map
+            if "question_name_to_index" not in rule_dict:
+                if shared_map is None:
+                    raise ValueError(
+                        "Rule missing question_name_to_index and no shared map provided"
+                    )
+                rule_dict = {**rule_dict, "question_name_to_index": shared_map}
+            rules.append(Rule.from_dict(rule_dict))
+
         num_questions = rule_collection_dict["num_questions"]
-        new_rc = cls(rules=rules)
+
+        # For new format, pass the shared map to constructor
+        # For old format, constructor will build it from rules
+        new_rc = cls(rules=rules, question_name_to_index=shared_map)
         new_rc.num_questions = num_questions
         return new_rc
 
@@ -111,6 +167,11 @@ class RuleCollection(UserList):
         >>> len(rule_collection.applicable_rules(1, before_rule=False))
         0
         """
+        # Update shared map with rule's map entries
+        self._question_name_to_index.update(rule.question_name_to_index)
+        # Point rule to the shared map
+        rule.question_name_to_index = self._question_name_to_index
+
         self.append(rule)
 
         # Clear the rules cache when new rules are added

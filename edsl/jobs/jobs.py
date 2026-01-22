@@ -882,7 +882,7 @@ class Jobs(Base):
 
         >>> from edsl.jobs import Jobs
         >>> hash(Jobs.example())
-        846655441787442972
+        811125667169176429
 
         """
         from ..utilities import dict_hash

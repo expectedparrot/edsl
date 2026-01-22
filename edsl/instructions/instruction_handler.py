@@ -38,7 +38,7 @@ class InstructionHandler:
         >>> len(s._instruction_names_to_instructions)
         2
         >>> s._pseudo_indices
-        {'how_are_you': 0, 'intro': 0.5, 'followon_intro': 0.75, 'how_feeling': 1}
+        {'how_are_you': 0, 'how_feeling': 1, 'intro': 0.5, 'followon_intro': 0.75}
 
         >>> from edsl import ChangeInstruction
         >>> q3 = QuestionFreeText(question_text = "What is your favorite color?", question_name = "color")
