@@ -21,7 +21,7 @@ class TestInvigilatorInterviewerThinkingPrompts:
 
     def test_get_prompts_basic(self):
         """Test that get_prompts returns user and system prompts."""
-        model = Model("gpt-4o-mini")
+        model = Model("test")
         question = QuestionInterviewerThinking(
             question_name="test",
             question_text="Generate a follow-up question.",
@@ -53,13 +53,13 @@ class TestInvigilatorInterviewerThinkingPrompts:
     def test_render_template_with_prior_answers(self):
         """Test that Jinja2 templates in prompts are rendered with prior answers."""
         from edsl.questions import QuestionFreeText
-        
+
         q1 = QuestionFreeText(
             question_name="q1",
             question_text="What is your favorite food?"
         )
-        
-        model = Model("gpt-4o-mini")
+
+        model = Model("test")
         question = QuestionInterviewerThinking(
             question_name="follow_up",
             question_text="The subject said {{ q1.answer }}. What's a follow-up?",
@@ -87,7 +87,7 @@ class TestInvigilatorInterviewerThinkingPrompts:
 
     def test_render_template_with_scenario(self):
         """Test that Jinja2 templates are rendered with scenario variables."""
-        model = Model("gpt-4o-mini")
+        model = Model("test")
         question = QuestionInterviewerThinking(
             question_name="analyze",
             question_text="Analyze the topic: {{ topic }}",
@@ -115,7 +115,7 @@ class TestInvigilatorInterviewerThinkingPrompts:
 
     def test_render_empty_template(self):
         """Test that empty system prompt is handled correctly."""
-        model = Model("gpt-4o-mini")
+        model = Model("test")
         question = QuestionInterviewerThinking(
             question_name="test",
             question_text="Test question.",
@@ -147,7 +147,7 @@ class TestInvigilatorInterviewerThinkingConstruction:
 
     def test_basic_construction(self):
         """Test basic construction of the invigilator."""
-        model = Model("gpt-4o-mini")
+        model = Model("test")
         question = QuestionInterviewerThinking.example()
         agent = Agent()
         scenario = Scenario()
@@ -255,8 +255,8 @@ class TestInvigilatorInterviewerThinkingStructuredOutput:
         class FollowUp(BaseModel):
             question: str
             reasoning: str
-        
-        model = Model("gpt-4o-mini")
+
+        model = Model("test")
         
         question = QuestionInterviewerThinking(
             question_name="test",
