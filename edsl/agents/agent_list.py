@@ -263,6 +263,7 @@ class AgentList(
             # Try git_clone first for fully qualified strings (e.g., "username/repo-name")
             # Fall back to legacy pull system if git_clone fails
             import warnings
+
             al = None
             used_legacy = False
             if "/" in data:
@@ -277,8 +278,8 @@ class AgentList(
 
             if used_legacy:
                 warnings.warn(
-                    f"Loaded AgentList from legacy system (Coop). "
-                    f"Consider using git_push to migrate to the new versioning system.",
+                    "Loaded AgentList from legacy system (Coop). "
+                    "Consider using git_push to migrate to the new versioning system.",
                     UserWarning,
                     stacklevel=2,
                 )
@@ -2192,6 +2193,7 @@ class AgentList(
         from .agent_list_helpers.agent_list_factories import AgentListFactories
 
         return AgentListFactories.from_scenario_list(scenario_list)
+
 
 if __name__ == "__main__":
     import doctest

@@ -42,6 +42,7 @@ class MethodType(Enum):
     - CLASSMETHOD: Methods that create new data (no instance required)
     - STATIC: Pure utility methods with no state
     """
+
     INSTANCE = "instance"
     CLASSMETHOD = "classmethod"
     STATIC = "static"
@@ -69,9 +70,11 @@ def method_type(method_type: MethodType) -> Callable:
         def transform(self, instance: ScenarioList) -> ScenarioList:
             ...
     """
+
     def decorator(func: Callable) -> Callable:
         func.method_type = method_type
         return func
+
     return decorator
 
 
@@ -105,7 +108,7 @@ class ExternalService(ABC):
         super().__init_subclass__(**kwargs)
 
         # Check for service_name
-        if not hasattr(cls, 'service_name') or cls.service_name is None:
+        if not hasattr(cls, "service_name") or cls.service_name is None:
             raise TypeError(
                 f"ExternalService subclass '{cls.__name__}' must define 'service_name' class variable"
             )
@@ -117,7 +120,7 @@ class ExternalService(ABC):
             )
 
         # Check for extends
-        if not hasattr(cls, 'extends') or cls.extends is None:
+        if not hasattr(cls, "extends") or cls.extends is None:
             raise TypeError(
                 f"ExternalService subclass '{cls.__name__}' must define 'extends' class variable"
             )
@@ -142,12 +145,14 @@ class ExternalService(ABC):
         cls = self.__class__
 
         # Get service name and description from class
-        service_name = getattr(cls, 'service_name', cls.__name__)
-        description = cls.__doc__.strip() if cls.__doc__ else ''
+        service_name = getattr(cls, "service_name", cls.__name__)
+        description = cls.__doc__.strip() if cls.__doc__ else ""
 
         # Get extends - required field
-        if not hasattr(cls, 'extends'):
-            raise AttributeError(f"Class {cls.__name__} is missing required 'extends' attribute")
+        if not hasattr(cls, "extends"):
+            raise AttributeError(
+                f"Class {cls.__name__} is missing required 'extends' attribute"
+            )
         extends = [self._get_type_name(t) for t in cls.extends]
 
         methods = []
@@ -155,18 +160,18 @@ class ExternalService(ABC):
         # Get all methods defined in this class (not inherited from ExternalService)
         for name, method in inspect.getmembers(cls, predicate=inspect.isfunction):
             # Skip private/dunder methods
-            if name.startswith('_'):
+            if name.startswith("_"):
                 continue
 
             # Skip methods without the method_type decorator
-            if not hasattr(method, 'method_type'):
+            if not hasattr(method, "method_type"):
                 continue
 
             # Get method type from our custom decorator
             method_type_value = method.method_type.value
 
             # Check if method is decorated with @event
-            is_event = getattr(method, '_returns_event', False)
+            is_event = getattr(method, "_returns_event", False)
 
             # Parse the docstring
             docstring_info = self._parse_docstring(method.__doc__)
@@ -178,103 +183,109 @@ class ExternalService(ABC):
                 hints = {}
 
             # Get return type
-            return_type = self._get_type_name(hints.get('return', inspect.Parameter.empty))
+            return_type = self._get_type_name(
+                hints.get("return", inspect.Parameter.empty)
+            )
 
             # Get parameters
             sig = inspect.signature(method)
             parameters = {}
 
             for param_name, param in sig.parameters.items():
-                if param_name in ('self', 'cls'):
+                if param_name in ("self", "cls"):
                     continue
                 if param.kind == inspect.Parameter.VAR_KEYWORD:
                     continue
 
-                param_type = self._get_type_name(hints.get(param_name, param.annotation))
-                param_desc = docstring_info['args'].get(param_name, {}).get('description', '')
+                param_type = self._get_type_name(
+                    hints.get(param_name, param.annotation)
+                )
+                param_desc = (
+                    docstring_info["args"].get(param_name, {}).get("description", "")
+                )
                 has_default = param.default is not inspect.Parameter.empty
 
                 parameters[param_name] = {
-                    'type': param_type,
-                    'description': param_desc,
-                    'required': not has_default,
-                    'default': param.default if has_default else None
+                    "type": param_type,
+                    "description": param_desc,
+                    "required": not has_default,
+                    "default": param.default if has_default else None,
                 }
 
             method_info = {
-                'method_name': name,
-                'method_type': method_type_value,
-                'description': docstring_info['description'],
-                'returns': return_type,
-                'parameters': parameters,
-                'is_event': is_event
+                "method_name": name,
+                "method_type": method_type_value,
+                "description": docstring_info["description"],
+                "returns": return_type,
+                "parameters": parameters,
+                "is_event": is_event,
             }
 
             methods.append(method_info)
 
         return {
-            'service_name': service_name,
-            'description': description,
-            'extends': extends,
-            'methods': methods
+            "service_name": service_name,
+            "description": description,
+            "extends": extends,
+            "methods": methods,
         }
 
     def _parse_docstring(self, docstring: str) -> dict:
         """Parse a docstring to extract description, args, and returns."""
         if not docstring:
-            return {'description': '', 'args': {}, 'returns': None}
+            return {"description": "", "args": {}, "returns": None}
 
-        lines = docstring.strip().split('\n')
+        lines = docstring.strip().split("\n")
         description_lines = []
         args = {}
         returns = None
 
-        current_section = 'description'
+        current_section = "description"
         current_arg = None
 
         for line in lines:
             stripped = line.strip()
 
-            if stripped.lower().startswith('args:'):
-                current_section = 'args'
+            if stripped.lower().startswith("args:"):
+                current_section = "args"
                 continue
-            elif stripped.lower().startswith('returns:'):
-                current_section = 'returns'
+            elif stripped.lower().startswith("returns:"):
+                current_section = "returns"
                 continue
 
-            if current_section == 'description':
+            if current_section == "description":
                 if stripped:
                     description_lines.append(stripped)
-            elif current_section == 'args':
+            elif current_section == "args":
                 # Match "param_name: description" or "param_name (type): description"
-                arg_match = re.match(r'^(\w+)(?:\s*\(([^)]+)\))?:\s*(.*)$', stripped)
+                arg_match = re.match(r"^(\w+)(?:\s*\(([^)]+)\))?:\s*(.*)$", stripped)
                 if arg_match:
                     current_arg = arg_match.group(1)
-                    args[current_arg] = {'description': arg_match.group(3).strip()}
+                    args[current_arg] = {"description": arg_match.group(3).strip()}
                 elif current_arg and stripped:
                     # Continuation of previous arg description
-                    args[current_arg]['description'] += ' ' + stripped
-            elif current_section == 'returns':
+                    args[current_arg]["description"] += " " + stripped
+            elif current_section == "returns":
                 # Match "Type: description" or just description
-                return_match = re.match(r'^(\w+):\s*(.*)$', stripped)
+                return_match = re.match(r"^(\w+):\s*(.*)$", stripped)
                 if return_match:
                     returns = return_match.group(2).strip()
                 elif stripped:
                     returns = stripped
 
         return {
-            'description': ' '.join(description_lines),
-            'args': args,
-            'returns': returns
+            "description": " ".join(description_lines),
+            "args": args,
+            "returns": returns,
         }
 
     def _get_type_name(self, annotation) -> str:
         """Get a string representation of a type annotation."""
         if annotation is inspect.Parameter.empty:
-            return 'Any'
-        if hasattr(annotation, '__name__'):
+            return "Any"
+        if hasattr(annotation, "__name__"):
             return annotation.__name__
-        return str(annotation).replace('typing.', '')
+        return str(annotation).replace("typing.", "")
 
     def _to_serializable(self, obj: Any) -> Any:
         """Recursively convert an object to JSON-serializable types."""

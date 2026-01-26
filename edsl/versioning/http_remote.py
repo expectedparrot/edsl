@@ -217,7 +217,14 @@ class HTTPRemote:
         )
         resp.raise_for_status()
         repo_id = resp.json()["repo_id"]
-        return cls(url=url, repo_id=repo_id, name=name, timeout=timeout, base_path=base_path, api_key=api_key)
+        return cls(
+            url=url,
+            repo_id=repo_id,
+            name=name,
+            timeout=timeout,
+            base_path=base_path,
+            api_key=api_key,
+        )
 
     @classmethod
     def create_repo(
@@ -242,7 +249,14 @@ class HTTPRemote:
         )
         resp.raise_for_status()
         repo_id = resp.json()["repo_id"]
-        return cls(url=url, repo_id=repo_id, name=name, timeout=timeout, base_path=base_path, api_key=api_key)
+        return cls(
+            url=url,
+            repo_id=repo_id,
+            name=name,
+            timeout=timeout,
+            base_path=base_path,
+            api_key=api_key,
+        )
 
     def _request(self, method: str, path: str, **kwargs):
         """Make HTTP request to server."""
@@ -444,7 +458,8 @@ class ObjectVersionsServer:
         # First, try as alias
         try:
             resp = _get_requests().get(
-                f"{self.url.rstrip('/')}{self.base_path}/aliases/{repo}", timeout=self.timeout
+                f"{self.url.rstrip('/')}{self.base_path}/aliases/{repo}",
+                timeout=self.timeout,
             )
             if resp.status_code == 200:
                 return resp.json()["repo_id"]
@@ -472,7 +487,11 @@ class ObjectVersionsServer:
         """
         repo_id = self._resolve_repo(repo)
         return HTTPRemote(
-            url=self.url, repo_id=repo_id, name=name, timeout=self.timeout, base_path=self.base_path
+            url=self.url,
+            repo_id=repo_id,
+            name=name,
+            timeout=self.timeout,
+            base_path=self.base_path,
         )
 
     def clone(self, repo: str, ref_name: str = "main") -> Dict[str, Any]:
@@ -525,7 +544,11 @@ class ObjectVersionsServer:
             Dict with 'entries', 'meta', 'remote', 'repo_id'
         """
         remote = HTTPRemote.create_repo(
-            url=self.url, alias=alias, description=description, timeout=self.timeout, base_path=self.base_path
+            url=self.url,
+            alias=alias,
+            description=description,
+            timeout=self.timeout,
+            base_path=self.base_path,
         )
 
         # If initial data provided, push it via events

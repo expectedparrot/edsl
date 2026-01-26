@@ -167,9 +167,7 @@ def _resolve_commit_prefix(repo: Repo, prefix: str) -> str:
 _ANCESTOR_PATTERN = re.compile(r"^(.+)~(\d+)$")
 
 
-def _resolve_ancestor_ref(
-    repo: Repo, rev: str, current_commit: str
-) -> Optional[str]:
+def _resolve_ancestor_ref(repo: Repo, rev: str, current_commit: str) -> Optional[str]:
     """Resolve ancestor references like HEAD~1, HEAD~2, main~3, etc.
 
     Args:

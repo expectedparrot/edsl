@@ -76,11 +76,13 @@ class MarkdownResponse:
         """Check if running in a Jupyter notebook."""
         try:
             from edsl.utilities.is_notebook import is_notebook
+
             return is_notebook()
         except ImportError:
             # Fallback detection
             try:
                 from IPython import get_ipython
+
                 shell = get_ipython().__class__.__name__
                 return shell == "ZMQInteractiveShell"
             except (ImportError, AttributeError):
@@ -135,17 +137,16 @@ class MarkdownResponse:
         """
         if self._is_notebook():
             from IPython.display import display, Markdown
+
             display(Markdown(self._repr_markdown_()))
         else:
             print(self._rich_repr() if self._has_rich() else self._plain_repr())
 
     def _has_rich(self) -> bool:
         """Check if Rich library is available."""
-        try:
-            import rich
-            return True
-        except ImportError:
-            return False
+        import importlib.util
+
+        return importlib.util.find_spec("rich") is not None
 
     @property
     def text(self) -> str:

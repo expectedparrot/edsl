@@ -2,23 +2,21 @@ import base64
 import io
 import tempfile
 import mimetypes
-import asyncio
 import os
 from typing import Dict, IO, Optional
 from typing import Union
 from uuid import UUID
-import time
-from typing import List, Literal, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 from .scenario import Scenario
 from edsl.utilities import remove_edsl_version
 from .file_store_helpers.file_methods import FileMethods
 
 if TYPE_CHECKING:
-    from .scenario_list import ScenarioList
+    pass
 
 
-#class FileStore(Scenario):
+# class FileStore(Scenario):
 class FileStore:
     """
     A specialized Scenario subclass for managing file content and metadata.
@@ -153,35 +151,74 @@ class FileStore:
         # Initialize parent class first to ensure self.data exists.
         # This prevents "'FileStore' object has no attribute 'data'" errors
         # if any initialization code below fails.
-        #super().__init__({})
+        # super().__init__({})
 
         # #region agent log
-        import json; open('/Users/johnhorton/tools/ep/edsl-firecrawl/.cursor/debug.log', 'a').write(json.dumps({"hypothesisId": "C", "location": "file_store.py:__init__", "message": "FileStore init called", "data": {"path": path, "base64_string_passed": base64_string is not None, "base64_string_len": len(base64_string) if base64_string else 0, "path_is_file": os.path.isfile(path) if path else False}}) + '\n')
+        import json
+
+        open("/Users/johnhorton/tools/ep/edsl-firecrawl/.cursor/debug.log", "a").write(
+            json.dumps(
+                {
+                    "hypothesisId": "C",
+                    "location": "file_store.py:__init__",
+                    "message": "FileStore init called",
+                    "data": {
+                        "path": path,
+                        "base64_string_passed": base64_string is not None,
+                        "base64_string_len": len(base64_string) if base64_string else 0,
+                        "path_is_file": os.path.isfile(path) if path else False,
+                    },
+                }
+            )
+            + "\n"
+        )
         # #endregion
 
         # If base64_string is provided, write it to a file
         if base64_string is not None:
             # Decode the base64 content
             file_content = base64.b64decode(base64_string)
-            
+
             if path:
                 # Write to the specified path (in CWD if not absolute)
                 if not os.path.isabs(path):
                     path = os.path.join(os.getcwd(), path)
                 # Ensure directory exists
-                os.makedirs(os.path.dirname(path) if os.path.dirname(path) else '.', exist_ok=True)
-                with open(path, 'wb') as f:
+                os.makedirs(
+                    os.path.dirname(path) if os.path.dirname(path) else ".",
+                    exist_ok=True,
+                )
+                with open(path, "wb") as f:
                     f.write(file_content)
                 self._path = path
             else:
                 # No path provided - create a temp file
                 file_suffix = "." + suffix if suffix else ""
-                temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=file_suffix, mode='wb')
+                temp_file = tempfile.NamedTemporaryFile(
+                    delete=False, suffix=file_suffix, mode="wb"
+                )
                 temp_file.write(file_content)
                 temp_file.close()
                 self._path = temp_file.name
             # #region agent log
-            import json; open('/Users/johnhorton/tools/ep/edsl-firecrawl/.cursor/debug.log', 'a').write(json.dumps({"hypothesisId": "C", "location": "file_store.py:__init__wrote_file", "message": "Wrote base64 content to file", "data": {"_path": self._path, "exists": os.path.isfile(self._path)}}) + '\n')
+            import json
+
+            open(
+                "/Users/johnhorton/tools/ep/edsl-firecrawl/.cursor/debug.log", "a"
+            ).write(
+                json.dumps(
+                    {
+                        "hypothesisId": "C",
+                        "location": "file_store.py:__init__wrote_file",
+                        "message": "Wrote base64 content to file",
+                        "data": {
+                            "_path": self._path,
+                            "exists": os.path.isfile(self._path),
+                        },
+                    }
+                )
+                + "\n"
+            )
             # #endregion
         else:
             # Always store absolute path for robustness
@@ -190,7 +227,6 @@ class FileStore:
             self._path = path
 
         self.external_locations = external_locations or {}
-
 
         # if path is None and "filename" in kwargs:
         #     path = kwargs["filename"]
@@ -377,23 +413,69 @@ class FileStore:
     @property
     def base64_string(self) -> str:
         # #region agent log
-        import json; open('/Users/johnhorton/tools/ep/edsl-firecrawl/.cursor/debug.log', 'a').write(json.dumps({"hypothesisId": "C", "location": "file_store.py:base64_string", "message": "base64_string property called", "data": {"_path": self._path, "_path_exists": os.path.isfile(self._path) if self._path else False, "has_gcs": bool(self.external_locations.get("gcs"))}}) + '\n')
+        import json
+
+        open("/Users/johnhorton/tools/ep/edsl-firecrawl/.cursor/debug.log", "a").write(
+            json.dumps(
+                {
+                    "hypothesisId": "C",
+                    "location": "file_store.py:base64_string",
+                    "message": "base64_string property called",
+                    "data": {
+                        "_path": self._path,
+                        "_path_exists": (
+                            os.path.isfile(self._path) if self._path else False
+                        ),
+                        "has_gcs": bool(self.external_locations.get("gcs")),
+                    },
+                }
+            )
+            + "\n"
+        )
         # #endregion
-        if self.external_locations.get("gcs") and self.external_locations["gcs"].get("offloaded"):
+        if self.external_locations.get("gcs") and self.external_locations["gcs"].get(
+            "offloaded"
+        ):
             # Download from GCS and return as base64
             temp_path = self._write_gcs_to_tempfile_and_return_path()
             return base64.b64encode(open(temp_path, "rb").read()).decode("utf-8")
         if self._path and os.path.isfile(self._path):
             # #region agent log
-            import json; open('/Users/johnhorton/tools/ep/edsl-firecrawl/.cursor/debug.log', 'a').write(json.dumps({"hypothesisId": "C", "location": "file_store.py:base64_string_from_file", "message": "Reading base64 from file", "data": {"_path": self._path}}) + '\n')
+            import json
+
+            open(
+                "/Users/johnhorton/tools/ep/edsl-firecrawl/.cursor/debug.log", "a"
+            ).write(
+                json.dumps(
+                    {
+                        "hypothesisId": "C",
+                        "location": "file_store.py:base64_string_from_file",
+                        "message": "Reading base64 from file",
+                        "data": {"_path": self._path},
+                    }
+                )
+                + "\n"
+            )
             # #endregion
             return base64.b64encode(open(self._path, "rb").read()).decode("utf-8")
         # #region agent log
-        import json; open('/Users/johnhorton/tools/ep/edsl-firecrawl/.cursor/debug.log', 'a').write(json.dumps({"hypothesisId": "C", "location": "file_store.py:base64_string_return_none", "message": "Returning None - no GCS, no file on disk", "data": {"_path": self._path}}) + '\n')
+        import json
+
+        open("/Users/johnhorton/tools/ep/edsl-firecrawl/.cursor/debug.log", "a").write(
+            json.dumps(
+                {
+                    "hypothesisId": "C",
+                    "location": "file_store.py:base64_string_return_none",
+                    "message": "Returning None - no GCS, no file on disk",
+                    "data": {"_path": self._path},
+                }
+            )
+            + "\n"
+        )
         # #endregion
         return None
 
-    @property 
+    @property
     def suffix(self) -> str:
         if self._path:
             return self._path.split(".")[-1]
@@ -464,7 +546,9 @@ class FileStore:
         if self._path and os.path.isfile(self._path):
             return self._path
 
-        if self.external_locations.get("gcs") and self.external_locations["gcs"].get("offloaded"):
+        if self.external_locations.get("gcs") and self.external_locations["gcs"].get(
+            "offloaded"
+        ):
             return self._write_gcs_to_tempfile_and_return_path()
 
         # Return _path even if file doesn't exist (for metadata purposes)
@@ -696,15 +780,57 @@ class FileStore:
             raise
 
     @classmethod
+    @classmethod
+    def from_base64_string(cls, base64_string: str, suffix: str = "", filename: Optional[str] = None) -> "FileStore":
+        """
+        Create a FileStore from base64-encoded content.
+
+        This is the primary method for deserializing FileStore objects received
+        over the network (e.g., from a service). It writes the decoded content
+        to a local file and returns a FileStore pointing to that file.
+
+        Args:
+            base64_string: Base64-encoded file content
+            suffix: File extension (e.g., "png", "pdf") for the temp file
+            filename: Optional filename to write to. If None, creates a temp file.
+
+        Returns:
+            FileStore pointing to the local file
+        """
+        return cls(base64_string=base64_string, suffix=suffix, path=filename)
+
+    @classmethod
     @remove_edsl_version
     def from_dict(cls, d):
-        # return cls(d["filename"], d["binary"], d["suffix"], d["base64_string"])
+        """Create a FileStore from a serialized dictionary."""
+        d = dict(d)
+        d.pop("edsl_class_name", None)
         return cls(**d)
 
     def to_dict(self, add_edsl_version: bool = True):
+        """Serialize FileStore metadata. Does NOT include file contents."""
         return {
+            "edsl_class_name": "FileStore",
             "path": self.path,
+            "suffix": self.suffix,
+            "binary": self.binary,
+            "mime_type": self.mime_type,
             "external_locations": self.external_locations,
+        }
+
+    def to_transport_dict(self) -> dict:
+        """
+        Serialize FileStore for network transport, including file contents.
+
+        Used by the services infrastructure to send FileStore objects
+        from server to client. Includes base64-encoded file contents.
+        """
+        return {
+            "edsl_class_name": "FileStore",
+            "suffix": self.suffix,
+            "binary": self.binary,
+            "mime_type": self.mime_type,
+            "base64_string": self.base64_string,
         }
 
     def __repr__(self):
@@ -722,7 +848,9 @@ class FileStore:
                 handler_html = handler._repr_html_(self.base64_string)
                 if handler_html:
                     # Return handler HTML with download link
-                    link = ConstructDownloadLink(self).html_create_link(self.path, style=None)
+                    link = ConstructDownloadLink(self).html_create_link(
+                        self.path, style=None
+                    )
                     return f"{handler_html}<br>{link}"
 
         # Fall back to default behavior: parent HTML + download link
@@ -1177,13 +1305,13 @@ class FileStore:
 
     def content_hash(self) -> str:
         """Compute SHA256 hash of the file content.
-        
+
         Returns:
             str: A string in the format "sha256:<hex_digest>"
         """
         import hashlib
         import base64
-        
+
         # Use the base64_string which is always available
         content = base64.b64decode(self.base64_string)
         sha256 = hashlib.sha256(content)
@@ -1332,8 +1460,7 @@ class FileStore:
         )
 
 
-
 if __name__ == "__main__":
     import doctest
-    doctest.testmod()
 
+    doctest.testmod()

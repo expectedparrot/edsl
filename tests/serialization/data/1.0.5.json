@@ -2902,6 +2902,27 @@
     }
   },
   {
+    "class_name": "QuestionCheckboxWithOther",
+    "dict": {
+      "question_name": "favorite_foods",
+      "question_text": "Which of the following foods do you enjoy? Select all that apply.",
+      "min_selections": 1,
+      "max_selections": 3,
+      "question_options": [
+        "Pizza",
+        "Sushi",
+        "Tacos",
+        "Pasta",
+        "Salad"
+      ],
+      "other_option_text": "Other (please specify)",
+      "include_comment": false,
+      "question_type": "checkbox_with_other",
+      "edsl_version": "1.0.5.dev1",
+      "edsl_class_name": "QuestionBase"
+    }
+  },
+  {
     "class_name": "QuestionFileUpload",
     "dict": {
       "question_name": "file_path",

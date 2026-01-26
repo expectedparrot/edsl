@@ -139,7 +139,7 @@ class Status:
         if self.is_detached:
             lines.append(f"HEAD detached at {self.head_commit[:8]}")
             lines.append('  (use "git_checkout()" to see available branches)')
-            lines.append('  (use "git_branch(\'name\')" to create a new branch here)')
+            lines.append("  (use \"git_branch('name')\" to create a new branch here)")
         else:
             lines.append(f"On branch {self.head_ref}")
 
@@ -148,15 +148,19 @@ class Status:
             lines.append(
                 f"Your view is behind '{self.head_ref}' (branch has new commits)."
             )
-            lines.append(f'  (use "git_checkout(\'{self.head_ref}\')" to update)')
-            lines.append(f'  (use "git_branch(\'name\')" to branch from here)')
+            lines.append(f"  (use \"git_checkout('{self.head_ref}')\" to update)")
+            lines.append(f"  (use \"git_branch('name')\" to branch from here)")
 
         # Stale status (data diverged from git state due to shared mutation)
         if self.is_stale:
             lines.append("")
-            lines.append(f"{YELLOW}warning:{RESET} object data has diverged from git state")
+            lines.append(
+                f"{YELLOW}warning:{RESET} object data has diverged from git state"
+            )
             lines.append("  (another reference modified the shared data)")
-            lines.append(f'  (use "git_checkout(\'{self.head_ref or "HEAD"}\')" to refresh)')
+            lines.append(
+                f'  (use "git_checkout(\'{self.head_ref or "HEAD"}\')" to refresh)'
+            )
 
         # Staged changes
         if self.has_staged:

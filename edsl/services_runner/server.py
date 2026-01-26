@@ -17,10 +17,17 @@ Usage:
     uvicorn.run(app, host="0.0.0.0", port=8000)
 """
 
+import logging
+import time
+import uuid
 from typing import List, Optional, Type
+
+# Configure logging
+logger = logging.getLogger("edsl.services")
 
 from edsl.services_runner.registry import (
     get_all_services,
+    get_all_services_with_types,
     discover_services,
     register_service,
 )
@@ -61,6 +68,8 @@ def create_app(
         uvicorn.run(app, host="0.0.0.0", port=8000)
     """
     # Import here to make FastAPI optional until actually needed
+    from fastapi import Request
+    from starlette.middleware.base import BaseHTTPMiddleware
     from edsl.services.service_hosting import ServiceAPI
 
     # Discover services from entry points
@@ -75,24 +84,75 @@ def create_app(
             register_service(service_cls)
             print(f"Registered additional service: {service_cls.service_name}")
 
-    # Get all registered services
-    all_services = get_all_services()
+    # Get all registered services with type info
+    all_services_with_types = get_all_services_with_types()
 
-    if not all_services:
+    if not all_services_with_types:
         print("Warning: No services registered. The API will be empty.")
 
     # Create the ServiceAPI and register all services
     api = ServiceAPI()
 
-    for name, service_cls in all_services.items():
+    # Track which services we've printed to avoid duplicates
+    printed_services = set()
+
+    for name, extends_type, service_cls in all_services_with_types:
         try:
             api.register_service(service_cls)
-            print(f"  - {name}: {service_cls.__doc__.split(chr(10))[0] if service_cls.__doc__ else 'No description'}")
+
+            # Only print once per service class
+            if service_cls not in printed_services:
+                extends = getattr(service_cls, "extends", [])
+                extends_names = [t.__name__ if hasattr(t, "__name__") else str(t) for t in extends]
+                desc = service_cls.__doc__.split(chr(10))[0] if service_cls.__doc__ else "No description"
+                print(f"  - {name} (extends: {extends_names}): {desc}")
+                printed_services.add(service_cls)
         except Exception as e:
-            print(f"Warning: Failed to register service '{name}': {e}")
+            print(f"Warning: Failed to register service '{name}' for {extends_type}: {e}")
 
     # Create and return the FastAPI app
     app = api.create_app(title=title, version=version)
+
+    # Add request logging middleware
+    class RequestLoggingMiddleware(BaseHTTPMiddleware):
+        async def dispatch(self, request: Request, call_next):
+            request_id = str(uuid.uuid4())[:8]
+            start_time = time.time()
+
+            # Log incoming request
+            logger.info(
+                f"[{request_id}] --> {request.method} {request.url.path} "
+                f"(client: {request.client.host if request.client else 'unknown'})"
+            )
+
+            try:
+                response = await call_next(request)
+                duration_ms = (time.time() - start_time) * 1000
+
+                # Log response
+                logger.info(
+                    f"[{request_id}] <-- {response.status_code} "
+                    f"({duration_ms:.1f}ms)"
+                )
+                return response
+            except Exception as e:
+                duration_ms = (time.time() - start_time) * 1000
+                logger.error(
+                    f"[{request_id}] <-- ERROR: {type(e).__name__}: {e} "
+                    f"({duration_ms:.1f}ms)"
+                )
+                raise
+
+    app.add_middleware(RequestLoggingMiddleware)
+
+    # Add task dashboard
+    try:
+        from edsl.services_runner.dashboard import add_dashboard_routes
+
+        add_dashboard_routes(app)
+        print("  Dashboard available at: /dashboard")
+    except Exception as e:
+        print(f"  Dashboard not available: {e}")
 
     return app
 
@@ -103,6 +163,7 @@ def run_server(
     reload: bool = False,
     title: str = "EDSL Services API",
     additional_services: Optional[List[Type]] = None,
+    log_level: str = "INFO",
 ) -> None:
     """
     Run the EDSL services server.
@@ -113,6 +174,7 @@ def run_server(
         reload: Enable auto-reload for development
         title: API title
         additional_services: Optional additional services to register
+        log_level: Logging level (DEBUG, INFO, WARNING, ERROR)
 
     Example:
         from edsl.services_runner import run_server
@@ -120,12 +182,20 @@ def run_server(
     """
     import uvicorn
 
+    # Configure logging
+    logging.basicConfig(
+        level=getattr(logging, log_level.upper(), logging.INFO),
+        format="%(asctime)s | %(levelname)-7s | %(name)s | %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
+
     print("=" * 60)
     print(f"EDSL Services Server")
     print("=" * 60)
     print(f"Host: {host}")
     print(f"Port: {port}")
     print(f"Reload: {reload}")
+    print(f"Log level: {log_level}")
     print()
     print("Discovering services...")
 
@@ -133,8 +203,12 @@ def run_server(
     app = create_app(title=title, additional_services=additional_services)
 
     print()
-    print(f"API Documentation: http://{host if host != '0.0.0.0' else 'localhost'}:{port}/docs")
-    print(f"OpenAPI Schema:    http://{host if host != '0.0.0.0' else 'localhost'}:{port}/openapi.json")
+    print(
+        f"API Documentation: http://{host if host != '0.0.0.0' else 'localhost'}:{port}/docs"
+    )
+    print(
+        f"OpenAPI Schema:    http://{host if host != '0.0.0.0' else 'localhost'}:{port}/openapi.json"
+    )
     print("=" * 60)
 
     # Run with uvicorn
@@ -152,6 +226,7 @@ def run_server(
         )
     else:
         import asyncio
+
         config = uvicorn.Config(app, host=host, port=port)
         server = uvicorn.Server(config)
         loop = asyncio.new_event_loop()

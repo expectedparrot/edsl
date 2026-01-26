@@ -8,6 +8,16 @@ remote EDSL services. It supports multiple usage patterns:
 2. ServiceClient - Direct HTTP client for manual control
 3. with_services() - Wrap existing instances to add service access
 
+Configuration:
+    The service URL is configured via the EDSL_SERVICES_URL environment variable
+    or in your .env file. Default is http://localhost:8008.
+
+    # In .env file:
+    EDSL_SERVICES_URL=http://localhost:8018
+
+    # Or configure programmatically:
+    ServiceEnabledMeta.configure(base_url="http://localhost:8018")
+
 Usage:
     from edsl.services import ServiceEnabledMeta
     from edsl.scenarios import ScenarioList as EDSLScenarioList
@@ -16,10 +26,7 @@ Usage:
     class ScenarioList(EDSLScenarioList, metaclass=ServiceEnabledMeta):
         pass
 
-    # Configure endpoint (optional)
-    ServiceEnabledMeta.configure(base_url="http://localhost:8008")
-
-    # Use services
+    # Use services (uses EDSL_SERVICES_URL from config)
     sl = ScenarioList([...])
     result = sl.my_service.some_method(arg="value")
 """
@@ -29,6 +36,14 @@ import requests
 
 # Import EDSL's base metaclass for compatibility with Base-derived classes
 from edsl.base.base_class import RegisterSubclassesMeta
+
+# Import config to get EDSL_SERVICES_URL
+from edsl.config.config_class import CONFIG
+
+
+def _get_default_services_url() -> str:
+    """Get the default services URL from config."""
+    return getattr(CONFIG, "EDSL_SERVICES_URL", "http://localhost:8008")
 
 
 # Module-level flag to suppress status output (useful for server/internal operations)
@@ -87,7 +102,9 @@ class ServiceClient:
     and calling remote services.
     """
 
-    def __init__(self, base_url: str = "http://localhost:8008"):
+    def __init__(self, base_url: Optional[str] = None):
+        if base_url is None:
+            base_url = _get_default_services_url()
         self.base_url = base_url.rstrip("/")
         self._services_cache: Optional[Dict[str, dict]] = None
 
@@ -118,22 +135,37 @@ class ServiceClient:
         response.raise_for_status()
         return response.json().get("service_names", [])
 
-    def get_service_info(self, service_name: str) -> dict:
+    def get_service_info(self, service_name: str, extends_type: Optional[str] = None) -> dict:
         """
         Fetch detailed information about a specific service.
 
         Args:
             service_name: Name of the service to query
+            extends_type: If provided, fetch info for this specific extends type.
+                         Otherwise returns merged info for all types.
 
         Returns:
             Dict containing service_name, description, extends, and methods
         """
-        url = f"{self.base_url}/{service_name}"
+        if extends_type:
+            url = f"{self.base_url}/{extends_type}/{service_name}"
+        else:
+            url = f"{self.base_url}/{service_name}"
         response = _make_request_with_status("get", url)
         response.raise_for_status()
         return response.json()
 
-    def call_method(self, service_name: str, method_name: str, params: dict) -> dict:
+    def call_method(
+        self,
+        service_name: str,
+        method_name: str,
+        params: dict,
+        background: bool = False,
+        api_key: Optional[str] = None,
+        timeout: float = 3600.0,
+        poll: bool = True,
+        extends_type: Optional[str] = None,
+    ) -> dict:
         """
         Call a method on a remote service.
 
@@ -141,11 +173,29 @@ class ServiceClient:
             service_name: Name of the service
             method_name: Name of the method to call
             params: Parameters to pass to the method
+            background: If True, submit as background task
+            api_key: Optional API key for external services
+            timeout: Timeout for polling (only used if background=True and poll=True)
+            poll: If True and background=True, poll until complete
+            extends_type: The EDSL class this service extends (e.g., "Survey", "ScenarioList")
+                         Used to route to the correct service when multiple services share a name.
 
         Returns:
             Response dict with success, service, method, and result fields
         """
-        url = f"{self.base_url}/{service_name}/{method_name}"
+        # Add background task params if requested
+        if background:
+            params = dict(params)  # Copy to avoid mutating original
+            params["background"] = True
+            if api_key:
+                params["api_key"] = api_key
+
+        # Build URL with extends_type prefix for proper routing
+        if extends_type:
+            url = f"{self.base_url}/{extends_type}/{service_name}/{method_name}"
+        else:
+            # Fallback to old URL format for backwards compatibility
+            url = f"{self.base_url}/{service_name}/{method_name}"
         response = _make_request_with_status("post", url, json=params)
 
         # Handle errors with more detail
@@ -166,7 +216,107 @@ class ServiceClient:
                 pass
             response.raise_for_status()
 
-        return response.json()
+        result = response.json()
+
+        # If background task was submitted and polling is requested
+        if background and poll and result.get("background"):
+            task_id = result.get("task_id")
+            return self._poll_for_result(task_id, timeout=timeout)
+
+        return result
+
+    def get_task_status(self, task_id: str) -> Optional[dict]:
+        """
+        Get the status of a background task.
+
+        Args:
+            task_id: The task ID
+
+        Returns:
+            Status dict or None if not found
+        """
+        url = f"{self.base_url}/tasks/{task_id}"
+        try:
+            response = _make_request_with_status("get", url)
+            if response.status_code == 404:
+                return None
+            response.raise_for_status()
+            return response.json()
+        except Exception:
+            return None
+
+    def get_task_result(self, task_id: str) -> Optional[dict]:
+        """
+        Get the result of a completed background task.
+
+        Args:
+            task_id: The task ID
+
+        Returns:
+            Result dict or None if not found/not completed
+        """
+        url = f"{self.base_url}/tasks/{task_id}/result"
+        try:
+            response = _make_request_with_status("get", url)
+            if response.status_code in (404, 202):
+                return None
+            response.raise_for_status()
+            return response.json()
+        except Exception:
+            return None
+
+    def cancel_task(self, task_id: str) -> bool:
+        """
+        Cancel a background task.
+
+        Args:
+            task_id: The task ID
+
+        Returns:
+            True if cancelled successfully
+        """
+        url = f"{self.base_url}/tasks/{task_id}/cancel"
+        try:
+            response = _make_request_with_status("post", url)
+            return response.status_code == 200
+        except Exception:
+            return False
+
+    def _poll_for_result(self, task_id: str, timeout: float = 3600.0) -> dict:
+        """
+        Poll for a background task result.
+
+        Args:
+            task_id: The task ID to poll
+            timeout: Maximum time to wait
+
+        Returns:
+            The task result
+
+        Raises:
+            TimeoutError: If task doesn't complete within timeout
+            RuntimeError: If task fails
+        """
+        from edsl.services.task_polling import poll_until_complete
+
+        def get_status(tid: str) -> Optional[dict]:
+            return self.get_task_status(tid)
+
+        final_status = poll_until_complete(
+            get_status_fn=get_status,
+            task_id=task_id,
+            timeout=timeout,
+        )
+
+        # Get the actual result
+        result = self.get_task_result(task_id)
+        if result and "result" in result:
+            return {
+                "success": True,
+                "result": result["result"],
+                "task_id": task_id,
+            }
+        return result or {"success": True, "task_id": task_id}
 
 
 def serialize_param(value: Any) -> Any:
@@ -205,8 +355,9 @@ def deserialize_result(result: Any, return_type: str) -> Any:
     """
     Deserialize an API result based on its return type.
 
-    Checks for edsl_class_name in the result and uses the appropriate
-    from_dict method to reconstruct the EDSL object.
+    Uses edsl_class_name from the result dict to determine the correct
+    EDSL class for deserialization. Falls back to return_type if no
+    edsl_class_name is present.
 
     Args:
         result: The raw result from the API
@@ -221,42 +372,47 @@ def deserialize_result(result: Any, return_type: str) -> Any:
     if not isinstance(result, dict):
         return result
 
-    # Check for EDSL class marker
+    # Check for EDSL class marker - this is the authoritative source
     edsl_class_name = result.get("edsl_class_name")
 
-    # Try to deserialize based on class name or return type
+    # Use edsl_class_name if present, otherwise fall back to return_type
     target_class = edsl_class_name or return_type
 
-    if target_class == "ScenarioList" or "ScenarioList" in str(target_class):
-        from edsl.scenarios import ScenarioList
-        # Check if it has the expected structure
-        if "scenarios" in result:
-            return ScenarioList.from_dict(result)
-        # If it's a list of dicts (raw data), use from_list_of_dicts
-        elif isinstance(result, list):
-            return ScenarioList.from_list_of_dicts(result)
-
-    # FileStore must come before Scenario since FileStore is a subclass of Scenario
-    # Detect FileStore by its characteristic fields since it returns edsl_class_name: Scenario
-    elif target_class == "FileStore" or "FileStore" in str(target_class):
+    # Dispatch based on target class
+    if target_class == "FileStore":
         from edsl.scenarios import FileStore
+        # Transport format includes base64_string - use from_base64_string
+        if "base64_string" in result:
+            return FileStore.from_base64_string(
+                base64_string=result["base64_string"],
+                suffix=result.get("suffix", ""),
+            )
         return FileStore.from_dict(result)
 
-    elif target_class == "Scenario" or "Scenario" in str(target_class):
+    elif target_class == "ScenarioList":
+        from edsl.scenarios import ScenarioList
+        if "scenarios" in result:
+            return ScenarioList.from_dict(result)
+
+    elif target_class == "Scenario":
         from edsl.scenarios import Scenario
-        # Check if this is actually a FileStore (has characteristic fields)
-        if all(k in result for k in ("base64_string", "binary", "suffix", "mime_type")):
-            from edsl.scenarios import FileStore
-            return FileStore.from_dict(result)
         return Scenario.from_dict(result)
 
-    elif target_class == "AgentList" or "AgentList" in str(target_class):
+    elif target_class == "AgentList":
         from edsl.agents import AgentList
         return AgentList.from_dict(result)
 
-    elif target_class == "Agent" or "Agent" in str(target_class):
+    elif target_class == "Agent":
         from edsl.agents import Agent
         return Agent.from_dict(result)
+
+    elif target_class == "Survey":
+        from edsl.surveys import Survey
+        return Survey.from_dict(result)
+
+    elif target_class == "Results":
+        from edsl.results import Results
+        return Results.from_dict(result)
 
     # Return raw result if no deserializer matches
     return result
@@ -274,7 +430,8 @@ class MethodProxy:
         self,
         client: ServiceClient,
         service_name: str,
-        method_info: dict
+        method_info: dict,
+        extends_type: Optional[str] = None,
     ):
         self.client = client
         self.service_name = service_name
@@ -283,6 +440,7 @@ class MethodProxy:
         self.parameters = method_info.get("parameters", {})
         self.return_type = method_info.get("returns", "Any")
         self.description = method_info.get("description", "")
+        self.extends_type = extends_type  # The class name this proxy is for
 
         # Set docstring for help()
         self.__doc__ = self._build_docstring()
@@ -302,12 +460,14 @@ class MethodProxy:
 
         return "\n".join(lines)
 
-    def __call__(self, *args, **kwargs) -> Any:
+    def __call__(self, *args, background: bool = False, api_key: str = None, **kwargs) -> Any:
         """
         Call the remote method with the given parameters.
 
         Args:
             *args: Positional arguments (mapped to parameters in order)
+            background: If True, submit as background task and poll for result
+            api_key: Optional API key for external services
             **kwargs: Keyword arguments
 
         Returns:
@@ -332,11 +492,29 @@ class MethodProxy:
         # Serialize all parameters for JSON transmission
         serialized_kwargs = {k: serialize_param(v) for k, v in kwargs.items()}
 
-        # Call the API
+        # Add extends_type to help server select correct service when multiple
+        # services share the same name but extend different types
+        # Note: Cannot use underscore prefix (_extends_type) - Pydantic treats those as
+        # private attributes and excludes them from model_dump()
+        if self.extends_type:
+            serialized_kwargs["extends_type"] = self.extends_type
+
+        # Log what we're sending (always visible to help debug service resolution)
+        import logging
+        logger = logging.getLogger("edsl.services.client")
+        logger.info(
+            f"CLIENT CALL {self.service_name}.{self.method_name}: "
+            f"extends_type={serialized_kwargs.get('extends_type')!r}"
+        )
+
+        # Call the API with extends_type for proper routing
         response = self.client.call_method(
             self.service_name,
             self.method_name,
-            serialized_kwargs
+            serialized_kwargs,
+            background=background,
+            api_key=api_key,
+            extends_type=self.extends_type,
         )
 
         # Check for success
@@ -364,9 +542,10 @@ class ServiceProxy:
     Provides attribute access to methods on the service.
     """
 
-    def __init__(self, client: ServiceClient, service_name: str):
+    def __init__(self, client: ServiceClient, service_name: str, extends_type: Optional[str] = None):
         self.client = client
         self.service_name = service_name
+        self.extends_type = extends_type  # The class name this proxy is for
         self._service_info: Optional[dict] = None
         self._method_proxies: Dict[str, MethodProxy] = {}
 
@@ -374,7 +553,10 @@ class ServiceProxy:
     def service_info(self) -> dict:
         """Lazy-load service info from API."""
         if self._service_info is None:
-            self._service_info = self.client.get_service_info(self.service_name)
+            # Fetch type-specific service info when extends_type is known
+            self._service_info = self.client.get_service_info(
+                self.service_name, extends_type=self.extends_type
+            )
         return self._service_info
 
     @property
@@ -391,7 +573,9 @@ class ServiceProxy:
         # Find method info
         for method_info in self.service_info.get("methods", []):
             if method_info["method_name"] == name:
-                proxy = MethodProxy(self.client, self.service_name, method_info)
+                proxy = MethodProxy(
+                    self.client, self.service_name, method_info, self.extends_type
+                )
                 self._method_proxies[name] = proxy
                 return proxy
 
@@ -401,6 +585,8 @@ class ServiceProxy:
         )
 
     def __repr__(self) -> str:
+        if self.extends_type:
+            return f"<ServiceProxy '{self.service_name}' for {self.extends_type} methods={self.methods}>"
         return f"<ServiceProxy '{self.service_name}' methods={self.methods}>"
 
     def __dir__(self) -> List[str]:
@@ -421,7 +607,7 @@ class InstanceMethodProxy:
         client: ServiceClient,
         service_name: str,
         method_info: dict,
-        bound_instance: Any
+        bound_instance: Any,
     ):
         self.client = client
         self.service_name = service_name
@@ -469,7 +655,7 @@ class InstanceMethodProxy:
                 "Instance must have a to_dict(), model_dump(), or dict() method."
             )
 
-    def __call__(self, *args, **kwargs) -> Any:
+    def __call__(self, *args, background: bool = False, api_key: str = None, **kwargs) -> Any:
         """
         Call the remote method with the given parameters.
 
@@ -478,6 +664,8 @@ class InstanceMethodProxy:
 
         Args:
             *args: Positional arguments (mapped to non-instance parameters)
+            background: If True, submit as background task and poll for result
+            api_key: Optional API key for external services
             **kwargs: Keyword arguments
 
         Returns:
@@ -506,11 +694,29 @@ class InstanceMethodProxy:
         # Serialize all parameters for JSON transmission
         serialized_kwargs = {k: serialize_param(v) for k, v in kwargs.items()}
 
-        # Call the API
+        # Add extends_type to help server select correct service when multiple
+        # services share the same name but extend different types
+        # Note: Cannot use underscore prefix (_extends_type) - Pydantic treats those as
+        # private attributes and excludes them from model_dump()
+        extends_type = type(self.bound_instance).__name__
+        serialized_kwargs["extends_type"] = extends_type
+
+        # Log what we're sending (always visible to help debug service resolution)
+        import logging
+        logger = logging.getLogger("edsl.services.client")
+        logger.info(
+            f"CLIENT CALL (instance) {self.service_name}.{self.method_name}: "
+            f"extends_type={extends_type!r}, instance_type={type(self.bound_instance)}"
+        )
+
+        # Call the API with extends_type for proper routing
         response = self.client.call_method(
             self.service_name,
             self.method_name,
-            serialized_kwargs
+            serialized_kwargs,
+            background=background,
+            api_key=api_key,
+            extends_type=extends_type,
         )
 
         # Check for success
@@ -541,14 +747,14 @@ class InstanceMethodProxy:
         bound = self.bound_instance
 
         # Use existing GitMixin event machinery if available
-        if hasattr(bound, '_wrap_event_method'):
+        if hasattr(bound, "_wrap_event_method"):
             wrapped = bound._wrap_event_method(lambda: event)
             return wrapped()
 
         # Fallback for non-GitMixin classes: mutate in place
-        if hasattr(bound.__class__, '_versioned'):
+        if hasattr(bound.__class__, "_versioned"):
             store = getattr(bound, bound.__class__._versioned, None)
-        elif hasattr(bound, 'store'):
+        elif hasattr(bound, "store"):
             store = bound.store
         else:
             store = None
@@ -587,10 +793,18 @@ class InstanceServiceProxy:
         self._method_proxies: Dict[str, InstanceMethodProxy] = {}
 
     @property
+    def extends_type(self) -> str:
+        """Get the extends_type from the bound instance's class name."""
+        return type(self.bound_instance).__name__
+
+    @property
     def service_info(self) -> dict:
         """Lazy-load service info from API."""
         if self._service_info is None:
-            self._service_info = self.client.get_service_info(self.service_name)
+            # Fetch type-specific service info based on bound instance type
+            self._service_info = self.client.get_service_info(
+                self.service_name, extends_type=self.extends_type
+            )
         return self._service_info
 
     @property
@@ -608,10 +822,7 @@ class InstanceServiceProxy:
         for method_info in self.service_info.get("methods", []):
             if method_info["method_name"] == name:
                 proxy = InstanceMethodProxy(
-                    self.client,
-                    self.service_name,
-                    method_info,
-                    self.bound_instance
+                    self.client, self.service_name, method_info, self.bound_instance
                 )
                 self._method_proxies[name] = proxy
                 return proxy
@@ -647,8 +858,9 @@ class ServiceEnabledMeta(RegisterSubclassesMeta):
         # ScenarioList already uses this metaclass, so services are auto-discovered:
         from edsl.scenarios import ScenarioList
 
-        # Configure the service endpoint
-        ServiceEnabledMeta.configure(base_url="http://localhost:8008")
+        # Service endpoint is configured via EDSL_SERVICES_URL env var (default: http://localhost:8008)
+        # Or configure programmatically:
+        ServiceEnabledMeta.configure(base_url="http://localhost:8018")
 
         # Discover available services
         services = ScenarioList.discover_services()
@@ -660,13 +872,13 @@ class ServiceEnabledMeta(RegisterSubclassesMeta):
     """
 
     _client: Optional[ServiceClient] = None
-    _base_url: str = "http://localhost:8008"
+    _base_url: Optional[str] = None  # None means use config default
     _service_cache: Dict[str, dict] = {}  # service_name -> service_info
     _all_services_cache: Optional[List[dict]] = None  # Cache for all services
     _valid_service_names: Optional[set] = None  # Cache for valid service names
 
     @classmethod
-    def configure(mcs, base_url: str = "http://localhost:8008"):
+    def configure(mcs, base_url: Optional[str] = None):
         """
         Configure the API endpoint for all service-enabled classes.
 
@@ -714,7 +926,9 @@ class ServiceEnabledMeta(RegisterSubclassesMeta):
         return mcs._client
 
     @classmethod
-    def _get_service_if_extends(mcs, service_name: str, class_name: str) -> Optional[dict]:
+    def _get_service_if_extends(
+        mcs, service_name: str, class_name: str
+    ) -> Optional[dict]:
         """
         Get service info if the service extends the given class.
 
@@ -770,12 +984,12 @@ class ServiceEnabledMeta(RegisterSubclassesMeta):
         that extends this class, and returns an InstanceServiceProxy if so.
         """
         # Capture any existing __getattr__ from the class or its bases
-        original_getattr = namespace.get('__getattr__')
+        original_getattr = namespace.get("__getattr__")
 
         # Also check bases for __getattr__ if not in namespace
         if original_getattr is None:
             for base in bases:
-                if hasattr(base, '__getattr__'):
+                if hasattr(base, "__getattr__"):
                     original_getattr = base.__getattr__
                     break
 
@@ -788,10 +1002,12 @@ class ServiceEnabledMeta(RegisterSubclassesMeta):
             __getattr__ or raises AttributeError.
             """
             # Skip private attributes to avoid recursion
-            if attr_name.startswith('_'):
+            if attr_name.startswith("_"):
                 if original_getattr:
                     return original_getattr(self, attr_name)
-                raise AttributeError(f"'{type(self).__name__}' object has no attribute '{attr_name}'")
+                raise AttributeError(
+                    f"'{type(self).__name__}' object has no attribute '{attr_name}'"
+                )
 
             # Check if attr_name is a service that extends this class
             class_name = type(self).__name__
@@ -804,9 +1020,11 @@ class ServiceEnabledMeta(RegisterSubclassesMeta):
             # Fall back to original __getattr__ or raise AttributeError
             if original_getattr:
                 return original_getattr(self, attr_name)
-            raise AttributeError(f"'{type(self).__name__}' object has no attribute '{attr_name}'")
+            raise AttributeError(
+                f"'{type(self).__name__}' object has no attribute '{attr_name}'"
+            )
 
-        namespace['__getattr__'] = service_getattr
+        namespace["__getattr__"] = service_getattr
 
         return super().__new__(mcs, name, bases, namespace, **kwargs)
 
@@ -890,24 +1108,6 @@ class ServiceEnabledMeta(RegisterSubclassesMeta):
                 f"Make sure the server is running."
             ) from e
 
-    def discover_services(cls, refresh: bool = False) -> List[dict]:
-        """
-        Discover all available services from the configured server.
-
-        This is the instance/class method version that delegates to the metaclass.
-
-        Args:
-            refresh: If True, bypass cache and fetch fresh data from server
-
-        Returns:
-            List of service info dictionaries
-
-        Example:
-            >>> from edsl.scenarios import ScenarioList
-            >>> services = ScenarioList.discover_services()  # doctest: +SKIP
-        """
-        return ServiceEnabledMeta.discover_services(refresh=refresh)
-
     def __getattr__(cls, name: str) -> ServiceProxy:
         """
         Class-level attribute access for services.
@@ -919,12 +1119,17 @@ class ServiceEnabledMeta(RegisterSubclassesMeta):
         if name.startswith("_"):
             raise AttributeError(name)
 
+        # Handle discover_services() specially
+        if name == "discover_services":
+            return lambda refresh=False: ServiceEnabledMeta.discover_services(refresh=refresh)
+
         # Check if this is a service that extends this class
         class_name = cls.__name__
         service_info = ServiceEnabledMeta._get_service_if_extends(name, class_name)
 
         if service_info is not None:
-            return ServiceProxy(ServiceEnabledMeta.get_client(), name)
+            # Pass class_name so server knows which service variant to use
+            return ServiceProxy(ServiceEnabledMeta.get_client(), name, extends_type=class_name)
 
         raise AttributeError(f"type object '{class_name}' has no attribute '{name}'")
 
@@ -948,14 +1153,14 @@ class ServiceWrapper:
 
     def __init__(self, wrapped_instance: Any, client: ServiceClient):
         # Store in __dict__ to avoid triggering __getattr__
-        object.__setattr__(self, '_wrapped', wrapped_instance)
-        object.__setattr__(self, '_client', client)
-        object.__setattr__(self, '_service_proxies', {})
+        object.__setattr__(self, "_wrapped", wrapped_instance)
+        object.__setattr__(self, "_client", client)
+        object.__setattr__(self, "_service_proxies", {})
 
     def __getattr__(self, name: str) -> Any:
-        wrapped = object.__getattribute__(self, '_wrapped')
-        client = object.__getattribute__(self, '_client')
-        proxies = object.__getattribute__(self, '_service_proxies')
+        wrapped = object.__getattribute__(self, "_wrapped")
+        client = object.__getattribute__(self, "_client")
+        proxies = object.__getattribute__(self, "_service_proxies")
 
         # Check if this is a service name
         try:
@@ -973,21 +1178,20 @@ class ServiceWrapper:
         return getattr(wrapped, name)
 
     def __setattr__(self, name: str, value: Any):
-        wrapped = object.__getattribute__(self, '_wrapped')
+        wrapped = object.__getattribute__(self, "_wrapped")
         setattr(wrapped, name, value)
 
     def __repr__(self) -> str:
-        wrapped = object.__getattribute__(self, '_wrapped')
+        wrapped = object.__getattribute__(self, "_wrapped")
         return f"<ServiceWrapper wrapping {wrapped!r}>"
 
     def unwrap(self) -> Any:
         """Return the original wrapped instance."""
-        return object.__getattribute__(self, '_wrapped')
+        return object.__getattribute__(self, "_wrapped")
 
 
 def with_services(
-    instance: Any,
-    base_url: str = "http://localhost:8008"
+    instance: Any, base_url: Optional[str] = None
 ) -> ServiceWrapper:
     """
     Wrap an EDSL instance to enable service access.
@@ -1018,6 +1222,8 @@ def with_services(
         # Get the original instance back
         original = wrapped.unwrap()
     """
+    if base_url is None:
+        base_url = _get_default_services_url()
     client = ServiceClient(base_url)
     return ServiceWrapper(instance, client)
 
@@ -1043,13 +1249,13 @@ class ServiceAccessor:
     """
 
     _client: Optional[ServiceClient] = None
-    _base_url: str = "http://localhost:8008"
+    _base_url: Optional[str] = None  # None means use config default
 
     def __init__(self, service_name: str):
         self.service_name = service_name
 
     @classmethod
-    def configure(cls, base_url: str = "http://localhost:8008"):
+    def configure(cls, base_url: Optional[str] = None):
         """Configure the API endpoint for all service accessors."""
         cls._base_url = base_url
         cls._client = None  # Reset client to use new URL
@@ -1058,7 +1264,8 @@ class ServiceAccessor:
     def get_client(cls) -> ServiceClient:
         """Get or create the shared service client."""
         if cls._client is None:
-            cls._client = ServiceClient(cls._base_url)
+            base_url = cls._base_url if cls._base_url else _get_default_services_url()
+            cls._client = ServiceClient(base_url)
         return cls._client
 
     def __get__(self, obj, objtype=None) -> InstanceServiceProxy:
@@ -1066,20 +1273,14 @@ class ServiceAccessor:
             raise AttributeError(
                 f"Service '{self.service_name}' can only be accessed from instances, not the class"
             )
-        return InstanceServiceProxy(
-            self.get_client(),
-            self.service_name,
-            obj
-        )
+        return InstanceServiceProxy(self.get_client(), self.service_name, obj)
 
     def __repr__(self) -> str:
         return f"<ServiceAccessor '{self.service_name}'>"
 
 
 def enable_services(
-    cls: Type,
-    service_names: List[str],
-    base_url: str = "http://localhost:8008"
+    cls: Type, service_names: List[str], base_url: Optional[str] = None
 ) -> Type:
     """
     Add service accessors to a class dynamically.

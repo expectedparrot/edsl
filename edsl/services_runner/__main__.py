@@ -13,10 +13,12 @@ To register a service, add an entry point in your package's pyproject.toml:
     my_service = "my_package.services:MyService"
 
 Options:
-    --host HOST     Host to bind to (default: 0.0.0.0)
-    --port PORT     Port to bind to (default: 8000)
-    --reload        Enable auto-reload for development
-    --list          List available services and exit
+    --host HOST       Host to bind to (default: 0.0.0.0)
+    --port PORT       Port to bind to (default: 8000)
+    --reload          Enable auto-reload for development
+    --list            List available services and exit
+    --worker          Start as a background task worker instead of API server
+    --log-level LEVEL Logging level: DEBUG, INFO, WARNING, ERROR (default: INFO)
 """
 
 import argparse
@@ -61,6 +63,38 @@ def main():
         help="API title for documentation",
     )
 
+    # Worker mode arguments
+    parser.add_argument(
+        "--worker",
+        action="store_true",
+        help="Start as a background task worker instead of API server",
+    )
+
+    parser.add_argument(
+        "--redis-url",
+        default=None,
+        help="Redis URL for task queue (overrides EDSL_SERVICES_REDIS_URL)",
+    )
+
+    parser.add_argument(
+        "--queue-name",
+        default="edsl_services",
+        help="Task queue name (default: edsl_services)",
+    )
+
+    parser.add_argument(
+        "--burst",
+        action="store_true",
+        help="Worker burst mode: exit after processing all queued jobs",
+    )
+
+    parser.add_argument(
+        "--log-level",
+        default="INFO",
+        choices=["DEBUG", "INFO", "WARNING", "ERROR"],
+        help="Logging level (default: INFO)",
+    )
+
     args = parser.parse_args()
 
     # Import here to defer heavy imports
@@ -89,9 +123,11 @@ def main():
         print()
 
         for name, cls in services.items():
-            extends = getattr(cls, 'extends', [])
+            extends = getattr(cls, "extends", [])
             extends_str = ", ".join(t.__name__ for t in extends) if extends else "None"
-            desc = cls.__doc__.split('\n')[0].strip() if cls.__doc__ else "No description"
+            desc = (
+                cls.__doc__.split("\n")[0].strip() if cls.__doc__ else "No description"
+            )
 
             print(f"  {name}")
             print(f"    Extends: {extends_str}")
@@ -101,7 +137,7 @@ def main():
             try:
                 instance = cls()
                 info = instance.get_info()
-                methods = [m['method_name'] for m in info.get('methods', [])]
+                methods = [m["method_name"] for m in info.get("methods", [])]
                 if methods:
                     print(f"    Methods: {', '.join(methods)}")
             except Exception:
@@ -109,6 +145,21 @@ def main():
 
             print()
 
+        sys.exit(0)
+
+    # Worker mode
+    if args.worker:
+        from edsl.services_runner.task_queue.worker import run_worker
+
+        # Discover services first so worker can execute them
+        _ = discover_services()
+
+        run_worker(
+            redis_url=args.redis_url,
+            queue_name=args.queue_name,
+            burst=args.burst,
+            log_level=args.log_level,
+        )
         sys.exit(0)
 
     # Run the server
@@ -119,6 +170,7 @@ def main():
         port=args.port,
         reload=args.reload,
         title=args.title,
+        log_level=args.log_level,
     )
 
 

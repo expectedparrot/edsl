@@ -66,6 +66,12 @@ from edsl.services.service_connector import (
     deserialize_result,
 )
 
+# Client-side task polling (for background tasks)
+from edsl.services.task_polling import (
+    AdaptivePoller,
+    poll_until_complete,
+)
+
 # Server-side hosting infrastructure (optional, requires fastapi)
 # These are imported lazily to avoid requiring fastapi for client-only usage
 _server_imports_available = False
@@ -77,6 +83,7 @@ try:
         to_serializable,
         deserialize_instance,
     )
+
     _server_imports_available = True
 except ImportError:
     # FastAPI not installed - server-side hosting not available
@@ -119,4 +126,7 @@ __all__ = [
     "enable_services",
     "serialize_param",
     "deserialize_result",
+    # Task polling (for background tasks)
+    "AdaptivePoller",
+    "poll_until_complete",
 ]

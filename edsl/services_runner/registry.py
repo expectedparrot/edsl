@@ -4,6 +4,10 @@ Service Registry - Discovers and manages installed EDSL services.
 This module provides a registry for ExternalService classes that can be
 discovered via Python entry points or registered manually.
 
+Services are keyed by (service_name, extends_type) allowing multiple services
+with the same name as long as they extend different EDSL types. For example,
+both ScenarioList and Results can have a "vibes" service.
+
 Entry Point Discovery:
     Extensions can register services by adding an entry point in their
     pyproject.toml or setup.py:
@@ -27,102 +31,255 @@ Manual Registration:
     register_service(MyService)
 """
 
-from typing import Dict, List, Type, Optional
+from typing import Dict, List, Type, Optional, Tuple
 import sys
+import logging
+
+logger = logging.getLogger("edsl.services")
 
 # Entry point group name for EDSL services
 ENTRY_POINT_GROUP = "edsl.services"
+
+
+def _get_type_name(t) -> str:
+    """Get the string name of a type."""
+    if hasattr(t, "__name__"):
+        return t.__name__
+    return str(t)
 
 
 class ServiceRegistry:
     """
     Registry for ExternalService classes.
 
-    Maintains a mapping of service names to service classes, with support
-    for automatic discovery via entry points.
+    Maintains a mapping of (service_name, extends_type) to service classes,
+    allowing multiple services with the same name as long as they extend
+    different types.
     """
 
     def __init__(self):
-        self._services: Dict[str, Type] = {}
+        # Nested dict: service_name -> {extends_type -> service_class}
+        self._services: Dict[str, Dict[str, Type]] = {}
         self._discovered: bool = False
 
     def register(self, service_cls: Type) -> None:
         """
         Register a service class.
 
+        A service is registered for each type it extends. Multiple services
+        can share the same name if they extend different types.
+
         Args:
             service_cls: An ExternalService subclass to register
 
         Raises:
-            ValueError: If service_cls doesn't have a service_name attribute
-            ValueError: If a service with the same name is already registered
+            ValueError: If service_cls doesn't have service_name or extends
+            ValueError: If a service with the same (name, extends) is already registered
         """
-        if not hasattr(service_cls, 'service_name'):
+        if not hasattr(service_cls, "service_name"):
             raise ValueError(
                 f"Service class {service_cls.__name__} must have a 'service_name' attribute"
             )
 
+        if not hasattr(service_cls, "extends"):
+            raise ValueError(
+                f"Service class {service_cls.__name__} must have an 'extends' attribute"
+            )
+
         name = service_cls.service_name
+        extends_types = service_cls.extends
 
-        if name in self._services:
-            existing = self._services[name]
-            if existing is not service_cls:
-                raise ValueError(
-                    f"Service '{name}' is already registered by {existing.__name__}. "
-                    f"Cannot register {service_cls.__name__} with the same name."
-                )
-            # Already registered with same class, no-op
-            return
+        if not extends_types:
+            raise ValueError(
+                f"Service class {service_cls.__name__} must extend at least one type"
+            )
 
-        self._services[name] = service_cls
+        # Initialize nested dict for this service name if needed
+        if name not in self._services:
+            self._services[name] = {}
 
-    def unregister(self, service_name: str) -> bool:
+        # Register for each type it extends
+        for extends_type in extends_types:
+            type_name = _get_type_name(extends_type)
+
+            if type_name in self._services[name]:
+                existing = self._services[name][type_name]
+                if existing is not service_cls:
+                    raise ValueError(
+                        f"Service '{name}' for type '{type_name}' is already registered "
+                        f"by {existing.__name__}. Cannot register {service_cls.__name__}."
+                    )
+                # Already registered with same class, no-op
+                continue
+
+            self._services[name][type_name] = service_cls
+
+    def unregister(self, service_name: str, extends_type: Optional[str] = None) -> bool:
         """
-        Unregister a service by name.
+        Unregister a service.
 
         Args:
             service_name: The name of the service to unregister
+            extends_type: If specified, only unregister for this type.
+                         If None, unregister all services with this name.
 
         Returns:
-            True if the service was unregistered, False if it wasn't registered
+            True if any service was unregistered, False otherwise
         """
-        if service_name in self._services:
-            del self._services[service_name]
-            return True
-        return False
+        if service_name not in self._services:
+            return False
 
-    def get(self, service_name: str) -> Optional[Type]:
+        if extends_type is not None:
+            if extends_type in self._services[service_name]:
+                del self._services[service_name][extends_type]
+                # Clean up empty service name entry
+                if not self._services[service_name]:
+                    del self._services[service_name]
+                return True
+            return False
+
+        # Unregister all services with this name
+        del self._services[service_name]
+        return True
+
+    def get(self, service_name: str, extends_type: Optional[str] = None) -> Optional[Type]:
         """
-        Get a service class by name.
+        Get a service class by name and optionally by extends type.
 
         Args:
             service_name: The name of the service to retrieve
+            extends_type: If specified, get service for this specific type.
+                         If None, returns the first registered service with this name.
+
+        Returns:
+            The service class, or None if not found
+
+        Raises:
+            ValueError: If extends_type is provided but not found in registered services
+        """
+        self._ensure_discovered()
+
+        if service_name not in self._services:
+            logger.debug(f"REGISTRY GET: Service '{service_name}' not found in registry")
+            return None
+
+        type_map = self._services[service_name]
+        available_types = list(type_map.keys())
+
+        logger.info(
+            f"REGISTRY GET: service='{service_name}', extends_type={extends_type!r}, "
+            f"available_types={available_types}"
+        )
+
+        if extends_type is not None:
+            service_cls = type_map.get(extends_type)
+            if service_cls is not None:
+                logger.info(
+                    f"REGISTRY GET: Found exact match {service_cls.__name__} "
+                    f"for type '{extends_type}'"
+                )
+                return service_cls
+            else:
+                # extends_type was explicitly provided but not found - this is an error
+                # Don't silently fall back to first available as this leads to
+                # hard-to-debug bugs when multiple services share the same name
+                error_msg = (
+                    f"Service '{service_name}' does not extend type '{extends_type}'. "
+                    f"Available types: {available_types}"
+                )
+                logger.error(f"REGISTRY GET: {error_msg}")
+                raise ValueError(error_msg)
+
+        # No extends_type specified - return first available (for backwards compatibility)
+        if type_map:
+            if len(type_map) > 1:
+                logger.warning(
+                    f"REGISTRY GET: Service '{service_name}' has multiple type variants "
+                    f"{available_types} but no extends_type specified - using first available. "
+                    f"This may cause incorrect behavior."
+                )
+            first_cls = next(iter(type_map.values()))
+            logger.info(f"REGISTRY GET: Returning first available: {first_cls.__name__}")
+            return first_cls
+        return None
+
+    def get_for_type(self, service_name: str, extends_type: str) -> Optional[Type]:
+        """
+        Get a service class that extends a specific type.
+
+        Args:
+            service_name: The name of the service
+            extends_type: The type name the service should extend
 
         Returns:
             The service class, or None if not found
         """
-        self._ensure_discovered()
-        return self._services.get(service_name)
+        return self.get(service_name, extends_type)
 
     def get_all(self) -> Dict[str, Type]:
         """
         Get all registered services.
 
+        For services with the same name extending multiple types, returns
+        one entry per service class (deduplicated).
+
         Returns:
             Dict mapping service names to service classes
         """
         self._ensure_discovered()
-        return dict(self._services)
+        result = {}
+        seen_classes = set()
+
+        for name, type_map in self._services.items():
+            for service_cls in type_map.values():
+                if service_cls not in seen_classes:
+                    result[name] = service_cls
+                    seen_classes.add(service_cls)
+
+        return result
+
+    def get_all_with_types(self) -> List[Tuple[str, str, Type]]:
+        """
+        Get all registered services with their type information.
+
+        Returns:
+            List of (service_name, extends_type, service_class) tuples
+        """
+        self._ensure_discovered()
+        result = []
+
+        for name, type_map in self._services.items():
+            for type_name, service_cls in type_map.items():
+                result.append((name, type_name, service_cls))
+
+        return result
 
     def list_names(self) -> List[str]:
         """
-        List all registered service names.
+        List all registered service names (unique).
 
         Returns:
             List of service names
         """
         self._ensure_discovered()
         return list(self._services.keys())
+
+    def list_for_type(self, extends_type: str) -> List[str]:
+        """
+        List service names that extend a specific type.
+
+        Args:
+            extends_type: The type name to filter by
+
+        Returns:
+            List of service names that extend the given type
+        """
+        self._ensure_discovered()
+        return [
+            name
+            for name, type_map in self._services.items()
+            if extends_type in type_map
+        ]
 
     def _ensure_discovered(self) -> None:
         """Ensure entry points have been discovered."""
@@ -144,10 +301,12 @@ class ServiceRegistry:
         # Use importlib.metadata for entry point discovery (Python 3.9+)
         if sys.version_info >= (3, 10):
             from importlib.metadata import entry_points
+
             eps = entry_points(group=ENTRY_POINT_GROUP)
         else:
             # Python 3.9 compatibility
             from importlib.metadata import entry_points as get_entry_points
+
             all_eps = get_entry_points()
             eps = all_eps.get(ENTRY_POINT_GROUP, [])
 
@@ -156,18 +315,27 @@ class ServiceRegistry:
                 service_cls = ep.load()
 
                 # Validate it's a proper service
-                if not hasattr(service_cls, 'service_name'):
-                    print(f"Warning: Entry point '{ep.name}' does not have service_name, skipping")
+                if not hasattr(service_cls, "service_name"):
+                    print(
+                        f"Warning: Entry point '{ep.name}' does not have service_name, skipping"
+                    )
                     continue
 
-                if not hasattr(service_cls, 'extends'):
-                    print(f"Warning: Entry point '{ep.name}' does not have extends, skipping")
+                if not hasattr(service_cls, "extends"):
+                    print(
+                        f"Warning: Entry point '{ep.name}' does not have extends, skipping"
+                    )
                     continue
 
-                # Register if not already registered
-                if service_cls.service_name not in self._services:
+                service_name = service_cls.service_name
+                was_new = service_name not in self._services
+
+                try:
                     self.register(service_cls)
-                    discovered.append(service_cls.service_name)
+                    if was_new:
+                        discovered.append(service_name)
+                except ValueError as e:
+                    print(f"Warning: Could not register '{ep.name}': {e}")
 
             except Exception as e:
                 print(f"Warning: Failed to load service entry point '{ep.name}': {e}")
@@ -201,30 +369,46 @@ def register_service(service_cls: Type) -> None:
     _registry.register(service_cls)
 
 
-def unregister_service(service_name: str) -> bool:
+def unregister_service(service_name: str, extends_type: Optional[str] = None) -> bool:
     """
     Unregister a service from the global registry.
 
     Args:
         service_name: The name of the service to unregister
+        extends_type: If specified, only unregister for this type
 
     Returns:
         True if unregistered, False if not found
     """
-    return _registry.unregister(service_name)
+    return _registry.unregister(service_name, extends_type)
 
 
-def get_service(service_name: str) -> Optional[Type]:
+def get_service(service_name: str, extends_type: Optional[str] = None) -> Optional[Type]:
     """
     Get a service class from the global registry.
 
     Args:
         service_name: The name of the service
+        extends_type: If specified, get service for this specific type
 
     Returns:
         The service class, or None if not found
     """
-    return _registry.get(service_name)
+    return _registry.get(service_name, extends_type)
+
+
+def get_service_for_type(service_name: str, extends_type: str) -> Optional[Type]:
+    """
+    Get a service class that extends a specific type.
+
+    Args:
+        service_name: The name of the service
+        extends_type: The type name the service should extend
+
+    Returns:
+        The service class, or None if not found
+    """
+    return _registry.get_for_type(service_name, extends_type)
 
 
 def get_all_services() -> Dict[str, Type]:
@@ -237,6 +421,16 @@ def get_all_services() -> Dict[str, Type]:
     return _registry.get_all()
 
 
+def get_all_services_with_types() -> List[Tuple[str, str, Type]]:
+    """
+    Get all registered services with their type information.
+
+    Returns:
+        List of (service_name, extends_type, service_class) tuples
+    """
+    return _registry.get_all_with_types()
+
+
 def list_service_names() -> List[str]:
     """
     List all registered service names.
@@ -245,6 +439,19 @@ def list_service_names() -> List[str]:
         List of service names
     """
     return _registry.list_names()
+
+
+def list_services_for_type(extends_type: str) -> List[str]:
+    """
+    List service names that extend a specific type.
+
+    Args:
+        extends_type: The type name to filter by
+
+    Returns:
+        List of service names that extend the given type
+    """
+    return _registry.list_for_type(extends_type)
 
 
 def discover_services() -> List[str]:

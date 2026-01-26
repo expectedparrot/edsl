@@ -1,7 +1,6 @@
 """FileStoreList module for managing collections of FileStore objects."""
 
 from typing import Optional, TYPE_CHECKING
-import tempfile
 
 from .scenario_list import ScenarioList
 from .file_store import FileStore
@@ -238,7 +237,7 @@ class FileStoreList(ScenarioList):
 
         Returns:
             A FileStoreList containing two FileStore objects.
-        
+
         Note:
             Creates files in the current working directory since FileStore
             requires files to exist on disk.
@@ -246,26 +245,26 @@ class FileStoreList(ScenarioList):
         import os
         import uuid
         import warnings
-        
+
         # Create files in cwd with unique names
         filename1 = f"filestore_example_{uuid.uuid4().hex[:8]}.txt"
         filename2 = f"filestore_example_{uuid.uuid4().hex[:8]}.txt"
-        
+
         cwd = os.getcwd()
         warnings.warn(
             f"FileStoreList.example(): Creating example files in working directory: {cwd}",
-            stacklevel=2
+            stacklevel=2,
         )
-        
+
         with open(filename1, "w") as f1:
             f1.write("Hello World")
-        
+
         with open(filename2, "w") as f2:
             f2.write("Hello Universe")
-        
+
         fs1 = FileStore(filename1)
         fs2 = FileStore(filename2)
-        
+
         return cls([fs1, fs2])
 
 

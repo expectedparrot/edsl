@@ -304,16 +304,20 @@ class DataOperationsBase:
             raise RuntimeError(f"ggplot2 rendering failed: {result['error']}")
 
         # If result is already a FileStore (parsed by result parser), return it directly
-        if hasattr(result, 'base64_string'):
+        if hasattr(result, "base64_string"):
             return result
 
         # Otherwise, convert result dict to FileStore for display
         # Service returns filestore_image format: image_base64, suffix, mime_type
         if not isinstance(result, dict):
-            raise RuntimeError(f"ggplot2 service returned unexpected result type: {type(result)}")
+            raise RuntimeError(
+                f"ggplot2 service returned unexpected result type: {type(result)}"
+            )
 
         suffix = result.get("suffix", "png").lstrip(".")  # Ensure no leading dot
-        mime_type = result.get("mime_type", "image/png" if suffix == "png" else "image/svg+xml")
+        mime_type = result.get(
+            "mime_type", "image/png" if suffix == "png" else "image/svg+xml"
+        )
 
         return FileStore(
             path=f"ggplot_output.{suffix}",

@@ -82,7 +82,9 @@ class RuleCollection(UserList):
             shared_mapping.update(rule.question_name_to_index)
 
         return {
-            "rules": [rule.to_dict(include_question_name_to_index=False) for rule in self],
+            "rules": [
+                rule.to_dict(include_question_name_to_index=False) for rule in self
+            ],
             "num_questions": self.num_questions,
             "question_name_to_index": shared_mapping,
         }

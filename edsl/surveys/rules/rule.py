@@ -213,7 +213,11 @@ class Rule:
             rule_dict["before_rule"] = False
 
         # Use provided shared mapping, or fall back to the one in rule_dict (backward compatibility)
-        mapping = question_name_to_index if question_name_to_index is not None else rule_dict.get("question_name_to_index", {})
+        mapping = (
+            question_name_to_index
+            if question_name_to_index is not None
+            else rule_dict.get("question_name_to_index", {})
+        )
 
         return Rule(
             current_q=rule_dict["current_q"],

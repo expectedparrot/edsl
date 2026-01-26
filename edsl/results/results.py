@@ -503,6 +503,7 @@ class Results(
             # Try git_clone first for fully qualified strings (e.g., "username/repo-name")
             # Fall back to legacy pull system if git_clone fails
             import warnings
+
             pulled_results = None
             used_legacy = False
             if "/" in survey:
@@ -517,8 +518,8 @@ class Results(
 
             if used_legacy:
                 warnings.warn(
-                    f"Loaded Results from legacy system (Coop). "
-                    f"Consider using git_push to migrate to the new versioning system.",
+                    "Loaded Results from legacy system (Coop). "
+                    "Consider using git_push to migrate to the new versioning system.",
                     UserWarning,
                     stacklevel=2,
                 )

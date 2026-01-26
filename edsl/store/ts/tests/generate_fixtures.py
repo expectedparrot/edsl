@@ -133,7 +133,9 @@ def generate_fixtures() -> list[dict]:
     fixtures.append(
         create_fixture(
             "update_row",
-            Store(entries=[{"id": 1, "name": "Alice"}, {"id": 2, "name": "Bob"}], meta={}),
+            Store(
+                entries=[{"id": 1, "name": "Alice"}, {"id": 2, "name": "Bob"}], meta={}
+            ),
             UpdateRowEvent(index=0, row={"id": 1, "name": "Alicia"}),
             "Update a row at a specific index",
         )
@@ -186,7 +188,10 @@ def generate_fixtures() -> list[dict]:
     fixtures.append(
         create_fixture(
             "insert_row_in_middle",
-            Store(entries=[{"id": 1, "name": "Alice"}, {"id": 3, "name": "Charlie"}], meta={}),
+            Store(
+                entries=[{"id": 1, "name": "Alice"}, {"id": 3, "name": "Charlie"}],
+                meta={},
+            ),
             InsertRowEvent(index=1, row={"id": 2, "name": "Bob"}),
             "Insert a row in the middle",
         )
@@ -227,7 +232,11 @@ def generate_fixtures() -> list[dict]:
         create_fixture(
             "reorder_entries",
             Store(
-                entries=[{"id": 1, "name": "A"}, {"id": 2, "name": "B"}, {"id": 3, "name": "C"}],
+                entries=[
+                    {"id": 1, "name": "A"},
+                    {"id": 2, "name": "B"},
+                    {"id": 3, "name": "C"},
+                ],
                 meta={},
             ),
             ReorderEntriesEvent(new_order=(2, 0, 1)),
@@ -344,7 +353,9 @@ def generate_fixtures() -> list[dict]:
     fixtures.append(
         create_fixture(
             "uniquify_field",
-            Store(entries=[{"name": "Alice"}, {"name": "Alice"}, {"name": "Bob"}], meta={}),
+            Store(
+                entries=[{"name": "Alice"}, {"name": "Alice"}, {"name": "Bob"}], meta={}
+            ),
             UniquifyFieldEvent(field="name", new_values=("Alice_1", "Alice_2", "Bob")),
             "Make field values unique",
         )
@@ -388,7 +399,10 @@ def generate_fixtures() -> list[dict]:
     fixtures.append(
         create_fixture(
             "replace_values",
-            Store(entries=[{"status": "yes"}, {"status": "no"}, {"status": "yes"}], meta={}),
+            Store(
+                entries=[{"status": "yes"}, {"status": "no"}, {"status": "yes"}],
+                meta={},
+            ),
             ReplaceValuesEvent(replacements=(("yes", True), ("no", False))),
             "Replace values based on mapping",
         )
@@ -399,7 +413,9 @@ def generate_fixtures() -> list[dict]:
         create_fixture(
             "numberify",
             Store(entries=[{"val": "10"}, {"val": "20"}, {"val": "30"}], meta={}),
-            NumberifyEvent(conversions=((0, "val", 10), (1, "val", 20), (2, "val", 30))),
+            NumberifyEvent(
+                conversions=((0, "val", 10), (1, "val", 20), (2, "val", 30))
+            ),
             "Convert string values to numbers",
         )
     )
@@ -499,7 +515,9 @@ def generate_fixtures() -> list[dict]:
                 entries=[{"traits": {"old_key": "value"}}],
                 meta={},
             ),
-            RenameNestedFieldEvent(parent_field="traits", old_name="old_key", new_name="new_key"),
+            RenameNestedFieldEvent(
+                parent_field="traits", old_name="old_key", new_name="new_key"
+            ),
             "Rename a field within a nested dict",
         )
     )
@@ -512,7 +530,9 @@ def generate_fixtures() -> list[dict]:
                 entries=[{"traits": {"a": 1}}, {"traits": {"a": 2}}],
                 meta={},
             ),
-            AddNestedFieldByIndexEvent(parent_field="traits", field="b", values=(10, 20)),
+            AddNestedFieldByIndexEvent(
+                parent_field="traits", field="b", values=(10, 20)
+            ),
             "Add a field to a nested dict with per-entry values",
         )
     )
@@ -652,7 +672,9 @@ def generate_fixtures() -> list[dict]:
         create_fixture(
             "set_memory_plan",
             Store(entries=[], meta={}),
-            SetMemoryPlanEvent(memory_plan_dict={"data": {"q1": {"prior_questions": []}}}),
+            SetMemoryPlanEvent(
+                memory_plan_dict={"data": {"q1": {"prior_questions": []}}}
+            ),
             "Set the memory plan for the survey",
         )
     )
@@ -662,7 +684,9 @@ def generate_fixtures() -> list[dict]:
         create_fixture(
             "add_memory_for_question",
             Store(entries=[], meta={"memory_plan": {"data": {}}}),
-            AddMemoryForQuestionEvent(focal_question="q2", prior_questions=("q0", "q1")),
+            AddMemoryForQuestionEvent(
+                focal_question="q2", prior_questions=("q0", "q1")
+            ),
             "Add memory entries for a question",
         )
     )
@@ -672,7 +696,9 @@ def generate_fixtures() -> list[dict]:
         create_fixture(
             "add_question_group",
             Store(entries=[], meta={}),
-            AddQuestionGroupEvent(group_name="demographics", start_index=0, end_index=5),
+            AddQuestionGroupEvent(
+                group_name="demographics", start_index=0, end_index=5
+            ),
             "Add a question group to the survey",
         )
     )
@@ -715,7 +741,9 @@ def generate_fixtures() -> list[dict]:
     fixtures.append(
         create_fixture(
             "add_survey_question_append",
-            Store(entries=[{"question_name": "q0"}], meta={"pseudo_indices": {"q0": 0}}),
+            Store(
+                entries=[{"question_name": "q0"}], meta={"pseudo_indices": {"q0": 0}}
+            ),
             AddSurveyQuestionEvent(
                 question_row={"question_name": "q1"},
                 index=-1,
@@ -736,7 +764,10 @@ def generate_fixtures() -> list[dict]:
                 meta={
                     "pseudo_indices": {"q0": 0, "q2": 1},
                     "rule_collection": {
-                        "rules": [{"current_q": 0, "next_q": 1}, {"current_q": 1, "next_q": 2}],
+                        "rules": [
+                            {"current_q": 0, "next_q": 1},
+                            {"current_q": 1, "next_q": 2},
+                        ],
                         "num_questions": 2,
                     },
                 },
@@ -758,7 +789,11 @@ def generate_fixtures() -> list[dict]:
         create_fixture(
             "delete_survey_question",
             Store(
-                entries=[{"question_name": "q0"}, {"question_name": "q1"}, {"question_name": "q2"}],
+                entries=[
+                    {"question_name": "q0"},
+                    {"question_name": "q1"},
+                    {"question_name": "q2"},
+                ],
                 meta={
                     "pseudo_indices": {"q0": 0, "q1": 1, "q2": 2},
                     "rule_collection": {
@@ -781,7 +816,11 @@ def generate_fixtures() -> list[dict]:
         create_fixture(
             "move_survey_question",
             Store(
-                entries=[{"question_name": "q0"}, {"question_name": "q1"}, {"question_name": "q2"}],
+                entries=[
+                    {"question_name": "q0"},
+                    {"question_name": "q1"},
+                    {"question_name": "q2"},
+                ],
                 meta={
                     "pseudo_indices": {"q0": 0, "q1": 1, "q2": 2},
                     "rule_collection": {

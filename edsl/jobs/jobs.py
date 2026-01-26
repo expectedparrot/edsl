@@ -176,6 +176,7 @@ class Jobs(GitMixin, Base):
             # Try git_clone first for fully qualified strings (e.g., "username/repo-name")
             # Fall back to legacy pull system if git_clone fails
             import warnings
+
             pulled_jobs = None
             used_legacy = False
             if "/" in survey:
@@ -190,8 +191,8 @@ class Jobs(GitMixin, Base):
 
             if used_legacy:
                 warnings.warn(
-                    f"Loaded Jobs from legacy system (Coop). "
-                    f"Consider using git_push to migrate to the new versioning system.",
+                    "Loaded Jobs from legacy system (Coop). "
+                    "Consider using git_push to migrate to the new versioning system.",
                     UserWarning,
                     stacklevel=2,
                 )

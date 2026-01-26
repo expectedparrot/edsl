@@ -2,7 +2,8 @@
 EDSL Services Runner - Discover and serve EDSL external services.
 
 This module provides a server that automatically discovers and exposes
-all installed EDSL services via REST APIs.
+all installed EDSL services via REST APIs, with optional background task
+execution support.
 
 Quick Start - Run the server:
     python -m edsl.services_runner
@@ -12,6 +13,9 @@ Quick Start - Run the server:
 
     # List available services
     python -m edsl.services_runner --list
+
+    # Run as a background task worker
+    python -m edsl.services_runner --worker
 
 Quick Start - Programmatic usage:
     from edsl.services_runner import create_app, run_server
@@ -35,6 +39,17 @@ Registering Services:
     from my_package import MyService
 
     register_service(MyService)
+
+Background Tasks:
+    Configure via environment variables or .env in services_runner/:
+        EDSL_SERVICES_REDIS_URL=redis://localhost:6379/0
+        EDSL_SERVICES_DATABASE_URL=postgresql://localhost/edsl
+
+    Start infrastructure:
+        docker-compose up -d  # From services_runner directory
+
+    Run worker:
+        python -m edsl.services_runner --worker
 """
 
 # Registry functions
@@ -49,17 +64,34 @@ from edsl.services_runner.registry import (
     ServiceRegistry,
 )
 
+
 # Server functions (import lazily to avoid requiring fastapi)
 def create_app(*args, **kwargs):
     """Create a FastAPI app exposing all registered services."""
     from edsl.services_runner.server import create_app as _create_app
+
     return _create_app(*args, **kwargs)
 
 
 def run_server(*args, **kwargs):
     """Run the EDSL services server."""
     from edsl.services_runner.server import run_server as _run_server
+
     return _run_server(*args, **kwargs)
+
+
+def run_worker(*args, **kwargs):
+    """Run a background task worker."""
+    from edsl.services_runner.task_queue.worker import run_worker as _run_worker
+
+    return _run_worker(*args, **kwargs)
+
+
+def get_config():
+    """Get the services runner configuration."""
+    from edsl.services_runner.config import get_config as _get_config
+
+    return _get_config()
 
 
 __all__ = [
@@ -75,4 +107,8 @@ __all__ = [
     # Server
     "create_app",
     "run_server",
+    # Worker
+    "run_worker",
+    # Config
+    "get_config",
 ]

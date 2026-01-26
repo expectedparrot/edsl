@@ -145,6 +145,10 @@ CONFIG_MAP = {
         "default": "http://localhost:8765",
         "info": "Default server URL for git operations (push/clone).",
     },
+    "EDSL_SERVICES_URL": {
+        "default": "http://localhost:8008",
+        "info": "URL of the EDSL services server for remote service calls (e.g., firecrawl).",
+    },
 }
 
 

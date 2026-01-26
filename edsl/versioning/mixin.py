@@ -664,7 +664,7 @@ class GitMixin:
             True if files were uploaded (needs commit), False otherwise.
         """
         store = getattr(self, self.__class__._versioned, None)
-        if not store or not hasattr(store, 'files_needing_upload'):
+        if not store or not hasattr(store, "files_needing_upload"):
             return False
 
         pending_uuids = store.files_needing_upload()
@@ -674,6 +674,7 @@ class GitMixin:
         # Import Coop for GCS upload
         try:
             from edsl.coop import Coop
+
             coop = Coop()
         except Exception as e:
             warnings.warn(f"Could not initialize Coop for file upload: {e}")
@@ -685,14 +686,14 @@ class GitMixin:
             if not file_info:
                 continue
 
-            local_path = file_info.get('local_path')
+            local_path = file_info.get("local_path")
             if not local_path or not os.path.exists(local_path):
                 continue
 
             try:
                 # Request upload URL from backend
-                suffix = file_info.get('suffix', 'bin')
-                mime_type = file_info.get('mime_type', 'application/octet-stream')
+                suffix = file_info.get("suffix", "bin")
+                mime_type = file_info.get("mime_type", "application/octet-stream")
 
                 response = coop._send_server_request(
                     uri="api/v0/filestore/upload-url",
@@ -712,14 +713,17 @@ class GitMixin:
 
                 # Upload file content
                 import requests
-                with open(local_path, 'rb') as f:
+
+                with open(local_path, "rb") as f:
                     file_content = f.read()
 
                 headers = {
                     "Content-Type": mime_type,
                     "Content-Length": str(len(file_content)),
                 }
-                upload_response = requests.put(upload_url, data=file_content, headers=headers)
+                upload_response = requests.put(
+                    upload_url, data=file_content, headers=headers
+                )
                 upload_response.raise_for_status()
 
                 # Track uploaded file (don't mutate store yet)
@@ -742,7 +746,7 @@ class GitMixin:
             # We use "update_meta" event with the updated file_registry
             self._git = self._git.apply_event(
                 "update_meta",
-                {"updates": {"file_registry": store.meta.get("file_registry", {})}}
+                {"updates": {"file_registry": store.meta.get("file_registry", {})}},
             )
 
             print(f"Uploaded {len(uploaded_files)} file(s) to GCS")
@@ -785,7 +789,7 @@ class GitMixin:
                      doesn't contain "/", will try to get from Coop profile.
         """
         self._ensure_git_init()
-        
+
         # Upload pending files to GCS before push
         if self._upload_pending_files():
             self.git_commit("Upload files to GCS")
@@ -879,8 +883,10 @@ class GitMixin:
             from edsl.versioning.http_remote import HTTPRemote, _get_api_key
 
             real_remote = HTTPRemote.create_repo(
-                url=remote, alias=resolved_alias, description=resolved_description,
-                api_key=_get_api_key()
+                url=remote,
+                alias=resolved_alias,
+                description=resolved_description,
+                api_key=_get_api_key(),
             )
             self._git = self._git.remove_remote(remote_name).add_remote(
                 remote_name, real_remote
@@ -914,7 +920,9 @@ class GitMixin:
             warnings.warn(f"Could not sync EDSL snapshot: {e}")
 
         # Build view URL
-        view_url = f"{server_url.rstrip('/')}/nest/{resolved_alias}" if server_url else None
+        view_url = (
+            f"{server_url.rstrip('/')}/nest/{resolved_alias}" if server_url else None
+        )
 
         # Print git-style output
         result = self._last_push_result
@@ -1009,7 +1017,9 @@ class GitMixin:
         # Create remote from URL and alias
         from edsl.versioning.http_remote import HTTPRemote, _get_api_key
 
-        remote = HTTPRemote.from_alias(url=url, alias=resolved_alias, api_key=_get_api_key())
+        remote = HTTPRemote.from_alias(
+            url=url, alias=resolved_alias, api_key=_get_api_key()
+        )
 
         view = clone_from_remote(remote, ref_name)
         git = ExpectedParrotGit(view)
@@ -1070,7 +1080,9 @@ class GitMixin:
                 decorations.append(f"{BOLD}{CYAN}HEAD -> {GREEN}{head_ref}{RESET}")
             elif commit.commit_id in commit_to_refs:
                 for ref_name in sorted(commit_to_refs[commit.commit_id]):
-                    if ref_name != head_ref:  # Don't duplicate if already shown with HEAD
+                    if (
+                        ref_name != head_ref
+                    ):  # Don't duplicate if already shown with HEAD
                         decorations.append(f"{GREEN}{ref_name}{RESET}")
                     elif commit.commit_id != head_commit:
                         # Show branch name without HEAD -> prefix
@@ -1081,13 +1093,19 @@ class GitMixin:
                 for ref_name in sorted(commit_to_refs[commit.commit_id]):
                     ref_str = f"{GREEN}{ref_name}{RESET}"
                     # Avoid duplicates
-                    if ref_str not in decorations and f"{BOLD}{CYAN}HEAD -> {GREEN}{ref_name}{RESET}" not in decorations:
+                    if (
+                        ref_str not in decorations
+                        and f"{BOLD}{CYAN}HEAD -> {GREEN}{ref_name}{RESET}"
+                        not in decorations
+                    ):
                         decorations.append(ref_str)
 
             # Format commit line
             decoration_str = ""
             if decorations:
-                decoration_str = f" {CYAN}({RESET}{', '.join(decorations)}{CYAN}){RESET}"
+                decoration_str = (
+                    f" {CYAN}({RESET}{', '.join(decorations)}{CYAN}){RESET}"
+                )
 
             print(f"{YELLOW}commit {commit.commit_id}{RESET}{decoration_str}")
             print(f"Author: {commit.author}")
@@ -1435,7 +1453,7 @@ class GitMixin:
             >>> sl.to_ep("/tmp/mydata")  # Creates /tmp/mydata.ep
         """
         import zipfile
-        
+
         self._ensure_git_init()
 
         # Require clean working state
@@ -1451,14 +1469,14 @@ class GitMixin:
 
         # Get store for file registry access
         store = getattr(self, self.__class__._versioned, None)
-        
+
         # Build file index from file_registry (strip local_path, keep metadata)
         file_index = {}
-        if store and hasattr(store, 'meta'):
-            file_registry = store.meta.get('file_registry', {})
+        if store and hasattr(store, "meta"):
+            file_registry = store.meta.get("file_registry", {})
             for file_uuid, info in file_registry.items():
                 file_index[file_uuid] = {
-                    k: v for k, v in info.items() if k != 'local_path'
+                    k: v for k, v in info.items() if k != "local_path"
                 }
 
         manifest_data = {
@@ -1474,25 +1492,25 @@ class GitMixin:
         }
 
         # Write zip archive
-        with zipfile.ZipFile(path, 'w', zipfile.ZIP_DEFLATED) as zf:
+        with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as zf:
             # Write manifest
-            zf.writestr('manifest.json', json.dumps(manifest_data, indent=2))
-            
+            zf.writestr("manifest.json", json.dumps(manifest_data, indent=2))
+
             # Write store (without file content - just filerefs)
             if store:
                 store_data = store.to_dict()
-                zf.writestr('store.json', json.dumps(store_data, indent=2))
-            
+                zf.writestr("store.json", json.dumps(store_data, indent=2))
+
             # Write actual file contents
-            if store and hasattr(store, 'meta'):
-                file_registry = store.meta.get('file_registry', {})
+            if store and hasattr(store, "meta"):
+                file_registry = store.meta.get("file_registry", {})
                 for file_uuid, info in file_registry.items():
-                    local_path = info.get('local_path')
+                    local_path = info.get("local_path")
                     if local_path and os.path.exists(local_path):
-                        with open(local_path, 'rb') as f:
+                        with open(local_path, "rb") as f:
                             file_content = f.read()
-                        suffix = info.get('suffix', 'bin')
-                        zf.writestr(f'files/{file_uuid}.{suffix}', file_content)
+                        suffix = info.get("suffix", "bin")
+                        zf.writestr(f"files/{file_uuid}.{suffix}", file_content)
 
         print(f"Saved to {path}")
 
@@ -1525,7 +1543,7 @@ class GitMixin:
             >>> sl = ScenarioList.from_ep("/tmp/mydata", ref="abc123")  # Loads at specific commit
         """
         import zipfile
-        
+
         # Try with .ep extension if not present and file doesn't exist
         if not path.endswith(".ep") and not os.path.exists(path):
             path = path + ".ep"
@@ -1534,31 +1552,31 @@ class GitMixin:
         data = None
         file_index = {}
         extracted_files = {}  # uuid -> local_path
-        
+
         try:
             # Try zip format first (v2)
             if zipfile.is_zipfile(path):
-                with zipfile.ZipFile(path, 'r') as zf:
+                with zipfile.ZipFile(path, "r") as zf:
                     # Read manifest
-                    manifest_content = zf.read('manifest.json').decode('utf-8')
+                    manifest_content = zf.read("manifest.json").decode("utf-8")
                     data = json.loads(manifest_content)
-                    file_index = data.get('file_index', {})
-                    
+                    file_index = data.get("file_index", {})
+
                     # Extract files to working directory
                     if file_index:
                         warnings.warn(
                             f"from_ep: Extracting {len(file_index)} file(s) to working directory: {os.getcwd()}",
-                            stacklevel=2
+                            stacklevel=2,
                         )
                     for file_uuid, info in file_index.items():
-                        suffix = info.get('suffix', 'bin')
-                        archive_path = f'files/{file_uuid}.{suffix}'
+                        suffix = info.get("suffix", "bin")
+                        archive_path = f"files/{file_uuid}.{suffix}"
                         if archive_path in zf.namelist():
                             # Extract to cwd with UUID-based filename
                             local_filename = f"{file_uuid[:12]}.{suffix}"
                             local_path = os.path.join(os.getcwd(), local_filename)
                             with zf.open(archive_path) as src:
-                                with open(local_path, 'wb') as dst:
+                                with open(local_path, "wb") as dst:
                                     dst.write(src.read())
                             extracted_files[file_uuid] = local_path
             else:
@@ -1568,7 +1586,9 @@ class GitMixin:
         except FileNotFoundError:
             raise  # Re-raise FileNotFoundError as-is
         except (gzip.BadGzipFile, zipfile.BadZipFile):
-            raise InvalidEPFileError(path, "not a valid .ep file (neither zip nor gzip)")
+            raise InvalidEPFileError(
+                path, "not a valid .ep file (neither zip nor gzip)"
+            )
         except json.JSONDecodeError as e:
             raise InvalidEPFileError(path, f"invalid JSON: {e}")
         except Exception as e:
@@ -1604,22 +1624,22 @@ class GitMixin:
         # Create instance from current state
         state_list = view.get_base_state()
         state = state_list[0] if state_list else {}
-        
+
         # Update file_registry with extracted file paths
-        if extracted_files and 'meta' in state:
-            if 'file_registry' not in state['meta']:
-                state['meta']['file_registry'] = {}
-            
+        if extracted_files and "meta" in state:
+            if "file_registry" not in state["meta"]:
+                state["meta"]["file_registry"] = {}
+
             for file_uuid, local_path in extracted_files.items():
-                if file_uuid in state['meta']['file_registry']:
-                    state['meta']['file_registry'][file_uuid]['local_path'] = local_path
+                if file_uuid in state["meta"]["file_registry"]:
+                    state["meta"]["file_registry"][file_uuid]["local_path"] = local_path
                 elif file_uuid in file_index:
                     # Create registry entry from file_index
-                    state['meta']['file_registry'][file_uuid] = {
+                    state["meta"]["file_registry"][file_uuid] = {
                         **file_index[file_uuid],
-                        'local_path': local_path,
+                        "local_path": local_path,
                     }
-        
+
         instance = cls._from_state(state)
         instance._git = ExpectedParrotGit(view)
         instance._needs_git_init = False

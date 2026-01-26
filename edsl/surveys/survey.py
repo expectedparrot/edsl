@@ -31,7 +31,7 @@ from typing_extensions import Literal
 
 from edsl.base import Base
 from edsl.scenarios import Scenario
-from edsl.utilities import remove_edsl_version, with_spinner
+from edsl.utilities import remove_edsl_version
 from edsl.versioning import GitMixin, event
 from edsl.store import (
     Store,
@@ -306,6 +306,7 @@ class Survey(GitMixin, Base, metaclass=SurveyMeta):
             # Try git_clone first for fully qualified strings (e.g., "username/repo-name")
             # Fall back to legacy pull system if git_clone fails
             import warnings
+
             pulled_survey = None
             used_legacy = False
             if "/" in questions:
@@ -320,8 +321,8 @@ class Survey(GitMixin, Base, metaclass=SurveyMeta):
 
             if used_legacy:
                 warnings.warn(
-                    f"Loaded Survey from legacy system (Coop). "
-                    f"Consider using git_push to migrate to the new versioning system.",
+                    "Loaded Survey from legacy system (Coop). "
+                    "Consider using git_push to migrate to the new versioning system.",
                     UserWarning,
                     stacklevel=2,
                 )
@@ -3985,6 +3986,7 @@ class Survey(GitMixin, Base, metaclass=SurveyMeta):
 
     # Note: __getattr__ for service access is now injected by the ServiceEnabledMeta metaclass.
     # Services can be accessed via attribute access (e.g., s.survey_vibes.some_method())
+
 
 def main():
     """Run the example survey."""

@@ -1,0 +1,14 @@
+{# Answering Instructions #}
+{% if use_code %}
+Please respond only with a comma-separated list of the code of the options that apply, with square brackets. E.g., [0, 1, 3]
+{% else %}
+Please respond only with a comma-separated list of the options that apply, with square brackets. E.g., ['Good', 'Bad', 'Ugly']
+{% endif %}
+
+If none of the listed options apply or you want to add an additional option, include '{{other_option_text}}: [your specific response]' in your list.
+
+For example: ['Pizza', '{{other_option_text}}: Ramen'] if you want to select Pizza and add Ramen as a custom option.
+
+{% if include_comment %}
+After the answer, you can put a comment explaining your choices on the next line.
+{% endif %}

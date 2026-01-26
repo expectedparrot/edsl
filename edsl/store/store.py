@@ -612,13 +612,13 @@ class Store:
         external_locations: dict[str, Any] | None = None,
     ) -> str:
         """Register a file in the registry.
-        
+
         If a file with the same content_hash already exists, returns its UUID
         (deduplication). Otherwise creates a new entry.
-        
+
         NOTE: base64_string is NOT stored in the registry to avoid large blobs.
         The file content lives on disk at local_path.
-        
+
         Args:
             local_path: Current path to the file.
             suffix: File extension.
@@ -626,19 +626,19 @@ class Store:
             content_hash: SHA256 hash of the file content (format: "sha256:...").
             original_path: Original path the file came from (optional).
             external_locations: Dict of external locations like GCS info.
-            
+
         Returns:
             UUID string for the file (existing or newly created).
         """
         import uuid
-        
+
         self._ensure_file_registry()
-        
+
         # Check for deduplication by content hash
         existing_uuid = self.get_file_by_hash(content_hash)
         if existing_uuid:
             return existing_uuid
-        
+
         # Create new entry - NO base64_string stored here!
         file_uuid = str(uuid.uuid4())
         self.meta["file_registry"][file_uuid] = {
@@ -653,10 +653,10 @@ class Store:
 
     def get_file(self, file_uuid: str) -> dict[str, Any] | None:
         """Get file info by UUID.
-        
+
         Args:
             file_uuid: The UUID of the file.
-            
+
         Returns:
             Dictionary with file info, or None if not found.
         """
@@ -665,10 +665,10 @@ class Store:
 
     def get_file_by_hash(self, content_hash: str) -> str | None:
         """Find UUID by content hash (for deduplication).
-        
+
         Args:
             content_hash: SHA256 hash of the file content.
-            
+
         Returns:
             UUID string if found, None otherwise.
         """
@@ -680,7 +680,7 @@ class Store:
 
     def files_needing_upload(self) -> list[str]:
         """Get UUIDs of files that need to be uploaded to GCS.
-        
+
         Returns:
             List of UUID strings for files without GCS locations.
         """
@@ -695,11 +695,11 @@ class Store:
 
     def mark_file_offloaded(self, file_uuid: str, gcs_info: dict[str, Any]) -> "Store":
         """Mark a file as uploaded to GCS.
-        
+
         Args:
             file_uuid: UUID of the file in the registry.
             gcs_info: GCS information dict (should include 'file_uuid', 'offloaded').
-            
+
         Returns:
             self for chaining.
         """
@@ -713,11 +713,11 @@ class Store:
 
     def update_file_local_path(self, file_uuid: str, new_path: str) -> "Store":
         """Update the local path for a file.
-        
+
         Args:
             file_uuid: UUID of the file in the registry.
             new_path: New local path.
-            
+
         Returns:
             self for chaining.
         """
@@ -728,10 +728,10 @@ class Store:
 
     def remove_file_from_registry(self, file_uuid: str) -> "Store":
         """Remove a file from the registry.
-        
+
         Args:
             file_uuid: UUID of the file to remove.
-            
+
         Returns:
             self for chaining.
         """
@@ -741,7 +741,7 @@ class Store:
 
     def get_all_file_uuids(self) -> list[str]:
         """Get all file UUIDs in the registry.
-        
+
         Returns:
             List of all file UUID strings.
         """
