@@ -909,7 +909,7 @@ class Jobs(Base):
 
         Example:
             >>> job = Jobs.example()
-            >>> job.offload_files()  # Uploads FileStores to GCS in parallel
+            >>> _ = job.offload_files()  # Uploads FileStores to GCS in parallel
             >>> job_dict = job.to_dict()  # FileStores auto-offloaded in dict
         """
         from concurrent.futures import ThreadPoolExecutor, as_completed
