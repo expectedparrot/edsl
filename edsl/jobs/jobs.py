@@ -889,6 +889,52 @@ class Jobs(Base):
 
         return dict_hash(self.to_dict(add_edsl_version=False))
 
+    def offload_files(self, coop=None) -> "Jobs":
+        """Upload all FileStore objects in scenarios to GCS.
+
+        This method finds all FileStore objects in the job's scenarios and uploads
+        them to Google Cloud Storage. After uploading, each FileStore will have its
+        `external_locations.gcs` set with `file_uuid` and `user_uuid`.
+
+        When `to_dict()` is called after offloading, FileStores that have been
+        uploaded will automatically have their `base64_string` set to "offloaded"
+        instead of the full content.
+
+        Args:
+            coop: Optional Coop instance. If not provided, creates a new one.
+
+        Returns:
+            Jobs: Returns self for method chaining.
+
+        Example:
+            >>> job = Jobs.example()
+            >>> job.offload_files()  # Uploads FileStores to GCS
+            >>> job_dict = job.to_dict()  # FileStores auto-offloaded in dict
+        """
+        if coop is None:
+            from ..coop import Coop
+
+            coop = Coop()
+
+        from ..scenarios import FileStore
+
+        for scenario in self.scenarios:
+            for key, value in scenario.items():
+                if isinstance(value, FileStore):
+                    # Skip if already uploaded
+                    gcs_info = getattr(value, "external_locations", {}).get("gcs", {})
+                    if gcs_info.get("uploaded") and gcs_info.get("file_uuid"):
+                        continue
+
+                    # Skip if already offloaded (no content to upload)
+                    if value.base64_string == "offloaded":
+                        continue
+
+                    # Upload the FileStore
+                    coop._upload_filestore(value)
+
+        return self
+
     def _output(self, message) -> None:
         """Check if a Job is verbose. If so, print the message."""
         if self.run_config.parameters.verbose:
