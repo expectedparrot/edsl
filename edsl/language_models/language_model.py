@@ -1110,12 +1110,11 @@ class LanguageModel(
         Returns:
             LanguageModel: A new model instance of the appropriate type
         """
-        from ..inference_services.inference_service_registry import (
-            InferenceServiceRegistry,
-        )
+        from .model import Model
 
-        # Create and use the inference service registry to create the language model
-        registry = InferenceServiceRegistry()
+        # Use the shared registry from Model class to avoid creating new instances
+        # and unnecessary network calls during deserialization
+        registry = Model.get_inference_service_registry()
         model_name = data["model"]
         service_name = data.get("inference_service", None)
 
