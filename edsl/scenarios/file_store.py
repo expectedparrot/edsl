@@ -153,27 +153,6 @@ class FileStore:
         # if any initialization code below fails.
         # super().__init__({})
 
-        # #region agent log
-        import json
-
-        open("/Users/johnhorton/tools/ep/edsl-firecrawl/.cursor/debug.log", "a").write(
-            json.dumps(
-                {
-                    "hypothesisId": "C",
-                    "location": "file_store.py:__init__",
-                    "message": "FileStore init called",
-                    "data": {
-                        "path": path,
-                        "base64_string_passed": base64_string is not None,
-                        "base64_string_len": len(base64_string) if base64_string else 0,
-                        "path_is_file": os.path.isfile(path) if path else False,
-                    },
-                }
-            )
-            + "\n"
-        )
-        # #endregion
-
         # If base64_string is provided, write it to a file
         if base64_string is not None:
             # Decode the base64 content
@@ -200,26 +179,6 @@ class FileStore:
                 temp_file.write(file_content)
                 temp_file.close()
                 self._path = temp_file.name
-            # #region agent log
-            import json
-
-            open(
-                "/Users/johnhorton/tools/ep/edsl-firecrawl/.cursor/debug.log", "a"
-            ).write(
-                json.dumps(
-                    {
-                        "hypothesisId": "C",
-                        "location": "file_store.py:__init__wrote_file",
-                        "message": "Wrote base64 content to file",
-                        "data": {
-                            "_path": self._path,
-                            "exists": os.path.isfile(self._path),
-                        },
-                    }
-                )
-                + "\n"
-            )
-            # #endregion
         else:
             # Always store absolute path for robustness
             if path and not os.path.isabs(path):
@@ -412,27 +371,6 @@ class FileStore:
 
     @property
     def base64_string(self) -> str:
-        # #region agent log
-        import json
-
-        open("/Users/johnhorton/tools/ep/edsl-firecrawl/.cursor/debug.log", "a").write(
-            json.dumps(
-                {
-                    "hypothesisId": "C",
-                    "location": "file_store.py:base64_string",
-                    "message": "base64_string property called",
-                    "data": {
-                        "_path": self._path,
-                        "_path_exists": (
-                            os.path.isfile(self._path) if self._path else False
-                        ),
-                        "has_gcs": bool(self.external_locations.get("gcs")),
-                    },
-                }
-            )
-            + "\n"
-        )
-        # #endregion
         if self.external_locations.get("gcs") and self.external_locations["gcs"].get(
             "offloaded"
         ):
@@ -440,39 +378,7 @@ class FileStore:
             temp_path = self._write_gcs_to_tempfile_and_return_path()
             return base64.b64encode(open(temp_path, "rb").read()).decode("utf-8")
         if self._path and os.path.isfile(self._path):
-            # #region agent log
-            import json
-
-            open(
-                "/Users/johnhorton/tools/ep/edsl-firecrawl/.cursor/debug.log", "a"
-            ).write(
-                json.dumps(
-                    {
-                        "hypothesisId": "C",
-                        "location": "file_store.py:base64_string_from_file",
-                        "message": "Reading base64 from file",
-                        "data": {"_path": self._path},
-                    }
-                )
-                + "\n"
-            )
-            # #endregion
             return base64.b64encode(open(self._path, "rb").read()).decode("utf-8")
-        # #region agent log
-        import json
-
-        open("/Users/johnhorton/tools/ep/edsl-firecrawl/.cursor/debug.log", "a").write(
-            json.dumps(
-                {
-                    "hypothesisId": "C",
-                    "location": "file_store.py:base64_string_return_none",
-                    "message": "Returning None - no GCS, no file on disk",
-                    "data": {"_path": self._path},
-                }
-            )
-            + "\n"
-        )
-        # #endregion
         return None
 
     @property
