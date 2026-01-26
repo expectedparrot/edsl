@@ -889,6 +889,66 @@ class Jobs(Base):
 
         return dict_hash(self.to_dict(add_edsl_version=False))
 
+    def offload_files(self, coop=None, max_workers: int = 20) -> "Jobs":
+        """Upload all FileStore objects in scenarios to GCS in parallel.
+
+        This method finds all FileStore objects in the job's scenarios and uploads
+        them to Google Cloud Storage. After uploading, each FileStore will have its
+        `external_locations.gcs` set with `file_uuid` and `user_uuid`.
+
+        When `to_dict()` is called after offloading, FileStores that have been
+        uploaded will automatically have their `base64_string` set to "offloaded"
+        instead of the full content.
+
+        Args:
+            coop: Optional Coop instance. If not provided, creates a new one.
+            max_workers: Maximum number of parallel upload threads (default: 10).
+
+        Returns:
+            Jobs: Returns self for method chaining.
+
+        Example:
+            >>> job = Jobs.example()
+            >>> _ = job.offload_files()  # Uploads FileStores to GCS in parallel
+            >>> job_dict = job.to_dict()  # FileStores auto-offloaded in dict
+        """
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+
+        if coop is None:
+            from ..coop import Coop
+
+            coop = Coop()
+
+        from ..scenarios import FileStore
+
+        # Collect all FileStores that need uploading
+        filestores_to_upload = []
+        for scenario in self.scenarios:
+            for key, value in scenario.items():
+                if isinstance(value, FileStore):
+                    # Skip if already uploaded
+                    gcs_info = getattr(value, "external_locations", {}).get("gcs", {})
+                    if gcs_info.get("uploaded") and gcs_info.get("file_uuid"):
+                        continue
+
+                    # Skip if already offloaded (no content to upload)
+                    if value.base64_string == "offloaded":
+                        continue
+
+                    filestores_to_upload.append(value)
+
+        # Upload in parallel
+        if filestores_to_upload:
+            with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                futures = {
+                    executor.submit(coop._upload_filestore, fs): fs
+                    for fs in filestores_to_upload
+                }
+                for future in as_completed(futures):
+                    future.result()  # Raises exception if upload failed
+
+        return self
+
     def _output(self, message) -> None:
         """Check if a Job is verbose. If so, print the message."""
         if self.run_config.parameters.verbose:

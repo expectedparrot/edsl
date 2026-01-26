@@ -258,9 +258,9 @@ class Coop(CoopFunctionsMixin):
             if "json_string" in log_payload and log_payload["json_string"]:
                 json_str = log_payload["json_string"]
                 if len(json_str) > 200:
-                    log_payload["json_string"] = (
-                        f"{json_str[:200]}... (truncated, total length: {len(json_str)})"
-                    )
+                    log_payload[
+                        "json_string"
+                    ] = f"{json_str[:200]}... (truncated, total length: {len(json_str)})"
             self._logger.info(f"Request payload: {log_payload}")
 
         try:
@@ -1865,10 +1865,14 @@ class Coop(CoopFunctionsMixin):
 
             raise CoopResponseError("No signed url was provided.")
 
+        # Serialize job and offload any FileStores to GCS
+        job_dict = job.to_dict()
+        job_dict = self._process_filestores_for_push(job_dict, original_object=job)
+
         response = requests.put(
             upload_signed_url,
             data=json.dumps(
-                job.to_dict(),
+                job_dict,
                 default=self._json_handle_none,
             ).encode(),
             headers={"Content-Type": "application/json"},
@@ -3649,6 +3653,96 @@ class Coop(CoopFunctionsMixin):
 
         return process_dict_recursive(modified_dict)
 
+    def _upload_filestore(self, filestore: "FileStore") -> None:
+        """
+        Upload a FileStore object to GCS and update its external_locations.
+
+        This method:
+        1. Requests an upload URL from the backend
+        2. Uploads the file content to GCS
+        3. Updates the FileStore's external_locations with file_uuid
+        4. Sets base64_string to "offloaded"
+
+        Args:
+            filestore: The FileStore object to upload
+
+        Raises:
+            Exception: If upload fails
+        """
+        import base64
+
+        # Skip if already offloaded
+        if filestore.base64_string == "offloaded":
+            gcs_info = getattr(filestore, "external_locations", {}).get("gcs", {})
+            if gcs_info.get("uploaded") and gcs_info.get("file_uuid"):
+                return
+
+        # Skip if no content to upload
+        if not filestore.base64_string or not isinstance(filestore.base64_string, str):
+            return
+
+        # Get FileStore metadata
+        file_name = filestore.path if hasattr(filestore, "path") else "unknown"
+        mime_type = (
+            filestore.mime_type
+            if hasattr(filestore, "mime_type")
+            else "application/octet-stream"
+        )
+        suffix = filestore.suffix if hasattr(filestore, "suffix") else "bin"
+
+        # Request upload URL from backend
+        response = self._send_server_request(
+            uri="api/v0/filestore/upload-url",
+            method="POST",
+            payload={
+                "file_name": file_name,
+                "mime_type": mime_type,
+                "suffix": suffix,
+            },
+        )
+        response_data = response.json()
+        file_uuid = response_data.get("file_uuid")
+        upload_url = response_data.get("upload_url")
+
+        if not file_uuid or not upload_url:
+            raise Exception("Backend did not return file_uuid or upload_url")
+
+        # Decode base64 content and upload to GCS
+        file_content = base64.b64decode(filestore.base64_string)
+
+        upload_response = requests.put(
+            upload_url,
+            data=file_content,
+            headers={
+                "Content-Type": mime_type,
+                "Content-Length": str(len(file_content)),
+            },
+        )
+
+        if upload_response.status_code not in (200, 201):
+            raise Exception(
+                f"GCS upload failed with status {upload_response.status_code}"
+            )
+
+        # Upload successful, update the FileStore object
+        filestore.base64_string = "offloaded"
+
+        if (
+            not hasattr(filestore, "external_locations")
+            or filestore.external_locations is None
+        ):
+            filestore.external_locations = {}
+
+        filestore.external_locations["gcs"] = {
+            "file_uuid": file_uuid,
+            "uploaded": True,
+            "offloaded": True,
+        }
+
+        if hasattr(filestore, "__setitem__"):
+            filestore["base64_string"] = "offloaded"
+            filestore["external_locations"] = filestore.external_locations
+
     def push(
         self,
         object: EDSLObject,
@@ -3773,7 +3867,9 @@ class Coop(CoopFunctionsMixin):
                     value_type = (
                         "inf"
                         if math.isinf(value)
-                        else "nan" if math.isnan(value) else "invalid"
+                        else "nan"
+                        if math.isnan(value)
+                        else "invalid"
                     )
                     error_msg += f"  • {path}: {value} ({value_type})\n"
 
