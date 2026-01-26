@@ -99,6 +99,7 @@ def poll_until_complete(
     if show_progress:
         try:
             from rich.console import Console
+
             console = Console()
         except ImportError:
             console = None

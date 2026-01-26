@@ -43,7 +43,9 @@ def get_task_manager():
             if _task_manager is not None:
                 logger.info(f"Task manager initialized: {type(_task_manager).__name__}")
             else:
-                logger.warning("Task manager not configured (config.get_task_manager() returned None)")
+                logger.warning(
+                    "Task manager not configured (config.get_task_manager() returned None)"
+                )
         except Exception as e:
             # Task queue not configured - background mode unavailable
             logger.warning(f"Task manager not available: {type(e).__name__}: {e}")
@@ -377,13 +379,18 @@ class ServiceAPI:
             self.service_info[service_name]["extends"] = list(existing_extends)
 
             # Merge methods (avoid duplicates by method name)
-            existing_methods = {m["method_name"]: m for m in self.service_info[service_name].get("methods", [])}
+            existing_methods = {
+                m["method_name"]: m
+                for m in self.service_info[service_name].get("methods", [])
+            }
             for method in info.get("methods", []):
                 if method["method_name"] not in existing_methods:
                     existing_methods[method["method_name"]] = method
             self.service_info[service_name]["methods"] = list(existing_methods.values())
 
-    def _get_instance(self, service_name: str, extends_type: Optional[str] = None) -> Any:
+    def _get_instance(
+        self, service_name: str, extends_type: Optional[str] = None
+    ) -> Any:
         """
         Get or create a service instance.
 
@@ -405,7 +412,9 @@ class ServiceAPI:
             return next(iter(type_map.values()))
         return None
 
-    def _get_service_cls(self, service_name: str, extends_type: Optional[str] = None) -> Optional[Type]:
+    def _get_service_cls(
+        self, service_name: str, extends_type: Optional[str] = None
+    ) -> Optional[Type]:
         """
         Get a service class by name and optionally by extends type.
 
@@ -459,11 +468,15 @@ class ServiceAPI:
                     f"This may cause incorrect behavior."
                 )
             first_cls = next(iter(type_map.values()))
-            logger.info(f"SERVICE LOOKUP: Returning first available: {first_cls.__name__}")
+            logger.info(
+                f"SERVICE LOOKUP: Returning first available: {first_cls.__name__}"
+            )
             return first_cls
         return None
 
-    def _resolve_service_for_instance(self, service_name: str, instance_data: Optional[dict]) -> Optional[str]:
+    def _resolve_service_for_instance(
+        self, service_name: str, instance_data: Optional[dict]
+    ) -> Optional[str]:
         """
         Determine which extends_type to use based on instance data.
 
@@ -642,19 +655,30 @@ class ServiceAPI:
 
         # Create per-extends_type endpoints
         # This allows proper routing when multiple services share the same name
-        for extends_type, type_info in self.service_info_by_type.get(service_name, {}).items():
+        for extends_type, type_info in self.service_info_by_type.get(
+            service_name, {}
+        ).items():
             # Service info endpoint per type
-            @app.get(f"/{extends_type}/{service_name}", tags=[f"{extends_type}.{service_name}"])
+            @app.get(
+                f"/{extends_type}/{service_name}",
+                tags=[f"{extends_type}.{service_name}"],
+            )
             async def get_typed_service_info(et=extends_type, sn=service_name):
                 """Get information about this service for a specific type."""
                 return self.service_info_by_type[sn][et]
 
             # Create method endpoints with type prefix
             for method_info in type_info["methods"]:
-                self._create_method_endpoint(app, service_name, method_info, extends_type=extends_type)
+                self._create_method_endpoint(
+                    app, service_name, method_info, extends_type=extends_type
+                )
 
     def _create_method_endpoint(
-        self, app: FastAPI, service_name: str, method_info: dict, extends_type: Optional[str] = None
+        self,
+        app: FastAPI,
+        service_name: str,
+        method_info: dict,
+        extends_type: Optional[str] = None,
     ):
         """Create an endpoint for a single method.
 
@@ -702,7 +726,9 @@ class ServiceAPI:
             tag = service_name
 
         # Use factory functions to create proper closures
-        def make_endpoint_with_body(svc_name, meth_name, meth_info, model, ext_type=None):
+        def make_endpoint_with_body(
+            svc_name, meth_name, meth_info, model, ext_type=None
+        ):
             async def endpoint(request_body: model):  # type: ignore
                 params = request_body.model_dump()
                 # If extends_type is in the URL, use it (overrides body param)
@@ -727,7 +753,9 @@ class ServiceAPI:
                     )
                 else:
                     # Fallback to direct execution if no task queue configured
-                    logger.debug(f"No task queue - executing {svc_name}.{meth_name} directly")
+                    logger.debug(
+                        f"No task queue - executing {svc_name}.{meth_name} directly"
+                    )
                     return await self._execute_method(
                         svc_name, meth_name, meth_info, params
                     )
@@ -747,8 +775,12 @@ class ServiceAPI:
                         svc_name, meth_name, meth_info, params, None, background=False
                     )
                 else:
-                    logger.debug(f"No task queue - executing {svc_name}.{meth_name} directly")
-                    return await self._execute_method(svc_name, meth_name, meth_info, params)
+                    logger.debug(
+                        f"No task queue - executing {svc_name}.{meth_name} directly"
+                    )
+                    return await self._execute_method(
+                        svc_name, meth_name, meth_info, params
+                    )
 
             return endpoint
 
@@ -795,8 +827,12 @@ class ServiceAPI:
             if extends_type is None:
                 instance_data = params.get("instance")
                 if instance_data and isinstance(instance_data, dict):
-                    extends_type = self._resolve_service_for_instance(service_name, instance_data)
-                    logger.debug(f"Resolved extends_type from instance data: {extends_type!r}")
+                    extends_type = self._resolve_service_for_instance(
+                        service_name, instance_data
+                    )
+                    logger.debug(
+                        f"Resolved extends_type from instance data: {extends_type!r}"
+                    )
 
             # Note: _get_service_cls raises ValueError if extends_type is provided but not found
             try:
@@ -806,7 +842,9 @@ class ServiceAPI:
                 raise
 
             if service_cls is None:
-                raise ValueError(f"No service found for '{service_name}' (extends_type={extends_type})")
+                raise ValueError(
+                    f"No service found for '{service_name}' (extends_type={extends_type})"
+                )
 
             method = getattr(service_cls, method_name)
             method_type = method_info["method_type"]
@@ -859,7 +897,9 @@ class ServiceAPI:
             serialized = to_serializable(result)
 
             duration_ms = (time.time() - start_time) * 1000
-            logger.debug(f"Completed {service_name}.{method_name} ({duration_ms:.1f}ms)")
+            logger.debug(
+                f"Completed {service_name}.{method_name} ({duration_ms:.1f}ms)"
+            )
 
             return {
                 "success": True,
@@ -1011,9 +1051,7 @@ class ServiceAPI:
         except HTTPException:
             raise
         except Exception as e:
-            logger.error(
-                f"Failed to submit task for {service_name}.{method_name}: {e}"
-            )
+            logger.error(f"Failed to submit task for {service_name}.{method_name}: {e}")
             raise HTTPException(
                 status_code=500,
                 detail={

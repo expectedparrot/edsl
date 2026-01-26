@@ -781,7 +781,9 @@ class FileStore:
 
     @classmethod
     @classmethod
-    def from_base64_string(cls, base64_string: str, suffix: str = "", filename: Optional[str] = None) -> "FileStore":
+    def from_base64_string(
+        cls, base64_string: str, suffix: str = "", filename: Optional[str] = None
+    ) -> "FileStore":
         """
         Create a FileStore from base64-encoded content.
 

@@ -306,17 +306,24 @@ class CheckboxWithOtherResponseValidator(CheckBoxResponseValidator):
                 # Check if all items are valid (either in options or match Other pattern)
                 all_valid = True
                 for item in answer:
-                    if item not in self.question_options and not self._is_other_pattern(
-                        item
+                    if (
+                        item not in self.question_options
+                        and not self._is_other_pattern(item)
                     ):
                         all_valid = False
                         break
 
                 # Also check min/max constraints
                 if all_valid:
-                    if self.min_selections is not None and len(answer) < self.min_selections:
+                    if (
+                        self.min_selections is not None
+                        and len(answer) < self.min_selections
+                    ):
                         all_valid = False
-                    if self.max_selections is not None and len(answer) > self.max_selections:
+                    if (
+                        self.max_selections is not None
+                        and len(answer) > self.max_selections
+                    ):
                         all_valid = False
 
                 if all_valid:

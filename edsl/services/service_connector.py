@@ -135,7 +135,9 @@ class ServiceClient:
         response.raise_for_status()
         return response.json().get("service_names", [])
 
-    def get_service_info(self, service_name: str, extends_type: Optional[str] = None) -> dict:
+    def get_service_info(
+        self, service_name: str, extends_type: Optional[str] = None
+    ) -> dict:
         """
         Fetch detailed information about a specific service.
 
@@ -381,6 +383,7 @@ def deserialize_result(result: Any, return_type: str) -> Any:
     # Dispatch based on target class
     if target_class == "FileStore":
         from edsl.scenarios import FileStore
+
         # Transport format includes base64_string - use from_base64_string
         if "base64_string" in result:
             return FileStore.from_base64_string(
@@ -391,27 +394,33 @@ def deserialize_result(result: Any, return_type: str) -> Any:
 
     elif target_class == "ScenarioList":
         from edsl.scenarios import ScenarioList
+
         if "scenarios" in result:
             return ScenarioList.from_dict(result)
 
     elif target_class == "Scenario":
         from edsl.scenarios import Scenario
+
         return Scenario.from_dict(result)
 
     elif target_class == "AgentList":
         from edsl.agents import AgentList
+
         return AgentList.from_dict(result)
 
     elif target_class == "Agent":
         from edsl.agents import Agent
+
         return Agent.from_dict(result)
 
     elif target_class == "Survey":
         from edsl.surveys import Survey
+
         return Survey.from_dict(result)
 
     elif target_class == "Results":
         from edsl.results import Results
+
         return Results.from_dict(result)
 
     # Return raw result if no deserializer matches
@@ -460,7 +469,9 @@ class MethodProxy:
 
         return "\n".join(lines)
 
-    def __call__(self, *args, background: bool = False, api_key: str = None, **kwargs) -> Any:
+    def __call__(
+        self, *args, background: bool = False, api_key: str = None, **kwargs
+    ) -> Any:
         """
         Call the remote method with the given parameters.
 
@@ -501,6 +512,7 @@ class MethodProxy:
 
         # Log what we're sending (always visible to help debug service resolution)
         import logging
+
         logger = logging.getLogger("edsl.services.client")
         logger.info(
             f"CLIENT CALL {self.service_name}.{self.method_name}: "
@@ -542,7 +554,12 @@ class ServiceProxy:
     Provides attribute access to methods on the service.
     """
 
-    def __init__(self, client: ServiceClient, service_name: str, extends_type: Optional[str] = None):
+    def __init__(
+        self,
+        client: ServiceClient,
+        service_name: str,
+        extends_type: Optional[str] = None,
+    ):
         self.client = client
         self.service_name = service_name
         self.extends_type = extends_type  # The class name this proxy is for
@@ -655,7 +672,9 @@ class InstanceMethodProxy:
                 "Instance must have a to_dict(), model_dump(), or dict() method."
             )
 
-    def __call__(self, *args, background: bool = False, api_key: str = None, **kwargs) -> Any:
+    def __call__(
+        self, *args, background: bool = False, api_key: str = None, **kwargs
+    ) -> Any:
         """
         Call the remote method with the given parameters.
 
@@ -703,6 +722,7 @@ class InstanceMethodProxy:
 
         # Log what we're sending (always visible to help debug service resolution)
         import logging
+
         logger = logging.getLogger("edsl.services.client")
         logger.info(
             f"CLIENT CALL (instance) {self.service_name}.{self.method_name}: "
@@ -1121,7 +1141,9 @@ class ServiceEnabledMeta(RegisterSubclassesMeta):
 
         # Handle discover_services() specially
         if name == "discover_services":
-            return lambda refresh=False: ServiceEnabledMeta.discover_services(refresh=refresh)
+            return lambda refresh=False: ServiceEnabledMeta.discover_services(
+                refresh=refresh
+            )
 
         # Check if this is a service that extends this class
         class_name = cls.__name__
@@ -1129,7 +1151,9 @@ class ServiceEnabledMeta(RegisterSubclassesMeta):
 
         if service_info is not None:
             # Pass class_name so server knows which service variant to use
-            return ServiceProxy(ServiceEnabledMeta.get_client(), name, extends_type=class_name)
+            return ServiceProxy(
+                ServiceEnabledMeta.get_client(), name, extends_type=class_name
+            )
 
         raise AttributeError(f"type object '{class_name}' has no attribute '{name}'")
 
@@ -1190,9 +1214,7 @@ class ServiceWrapper:
         return object.__getattribute__(self, "_wrapped")
 
 
-def with_services(
-    instance: Any, base_url: Optional[str] = None
-) -> ServiceWrapper:
+def with_services(instance: Any, base_url: Optional[str] = None) -> ServiceWrapper:
     """
     Wrap an EDSL instance to enable service access.
 

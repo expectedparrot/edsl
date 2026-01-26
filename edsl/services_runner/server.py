@@ -103,12 +103,20 @@ def create_app(
             # Only print once per service class
             if service_cls not in printed_services:
                 extends = getattr(service_cls, "extends", [])
-                extends_names = [t.__name__ if hasattr(t, "__name__") else str(t) for t in extends]
-                desc = service_cls.__doc__.split(chr(10))[0] if service_cls.__doc__ else "No description"
+                extends_names = [
+                    t.__name__ if hasattr(t, "__name__") else str(t) for t in extends
+                ]
+                desc = (
+                    service_cls.__doc__.split(chr(10))[0]
+                    if service_cls.__doc__
+                    else "No description"
+                )
                 print(f"  - {name} (extends: {extends_names}): {desc}")
                 printed_services.add(service_cls)
         except Exception as e:
-            print(f"Warning: Failed to register service '{name}' for {extends_type}: {e}")
+            print(
+                f"Warning: Failed to register service '{name}' for {extends_type}: {e}"
+            )
 
     # Create and return the FastAPI app
     app = api.create_app(title=title, version=version)

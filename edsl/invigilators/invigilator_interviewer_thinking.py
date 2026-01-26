@@ -138,7 +138,10 @@ class InvigilatorInterviewerThinking(InvigilatorBase):
         }
 
         # Add structured output schema if specified
-        if hasattr(self.question, "user_response_model") and self.question.user_response_model is not None:
+        if (
+            hasattr(self.question, "user_response_model")
+            and self.question.user_response_model is not None
+        ):
             params["response_schema"] = self.question.get_response_schema()
             params["response_schema_name"] = self.question.user_response_model.__name__
 
@@ -162,9 +165,13 @@ class InvigilatorInterviewerThinking(InvigilatorBase):
             comment = agent_response_dict.edsl_dict.comment or ""
 
             # For structured output, try to parse the JSON
-            if hasattr(self.question, "user_response_model") and self.question.user_response_model is not None:
+            if (
+                hasattr(self.question, "user_response_model")
+                and self.question.user_response_model is not None
+            ):
                 if isinstance(answer, str):
                     import json
+
                     try:
                         answer = json.loads(answer)
                     except json.JSONDecodeError:

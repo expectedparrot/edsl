@@ -142,7 +142,9 @@ class ServiceRegistry:
         del self._services[service_name]
         return True
 
-    def get(self, service_name: str, extends_type: Optional[str] = None) -> Optional[Type]:
+    def get(
+        self, service_name: str, extends_type: Optional[str] = None
+    ) -> Optional[Type]:
         """
         Get a service class by name and optionally by extends type.
 
@@ -160,7 +162,9 @@ class ServiceRegistry:
         self._ensure_discovered()
 
         if service_name not in self._services:
-            logger.debug(f"REGISTRY GET: Service '{service_name}' not found in registry")
+            logger.debug(
+                f"REGISTRY GET: Service '{service_name}' not found in registry"
+            )
             return None
 
         type_map = self._services[service_name]
@@ -199,7 +203,9 @@ class ServiceRegistry:
                     f"This may cause incorrect behavior."
                 )
             first_cls = next(iter(type_map.values()))
-            logger.info(f"REGISTRY GET: Returning first available: {first_cls.__name__}")
+            logger.info(
+                f"REGISTRY GET: Returning first available: {first_cls.__name__}"
+            )
             return first_cls
         return None
 
@@ -383,7 +389,9 @@ def unregister_service(service_name: str, extends_type: Optional[str] = None) ->
     return _registry.unregister(service_name, extends_type)
 
 
-def get_service(service_name: str, extends_type: Optional[str] = None) -> Optional[Type]:
+def get_service(
+    service_name: str, extends_type: Optional[str] = None
+) -> Optional[Type]:
     """
     Get a service class from the global registry.
 
