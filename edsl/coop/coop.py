@@ -3675,7 +3675,7 @@ class Coop(CoopFunctionsMixin):
         if filestore.base64_string == "offloaded":
             gcs_info = getattr(filestore, "external_locations", {}).get("gcs", {})
             if gcs_info.get("uploaded") and gcs_info.get("file_uuid"):
-                return  # Already uploaded
+                return
 
         # Skip if no content to upload
         if not filestore.base64_string or not isinstance(filestore.base64_string, str):
@@ -3707,10 +3707,9 @@ class Coop(CoopFunctionsMixin):
         if not file_uuid or not upload_url:
             raise Exception("Backend did not return file_uuid or upload_url")
 
-        # Decode base64 content
+        # Decode base64 content and upload to GCS
         file_content = base64.b64decode(filestore.base64_string)
 
-        # Upload to GCS
         upload_response = requests.put(
             upload_url,
             data=file_content,
@@ -3720,7 +3719,6 @@ class Coop(CoopFunctionsMixin):
             },
         )
 
-        # Check if upload was successful
         if upload_response.status_code not in (200, 201):
             raise Exception(
                 f"GCS upload failed with status {upload_response.status_code}"
@@ -3729,7 +3727,6 @@ class Coop(CoopFunctionsMixin):
         # Upload successful, update the FileStore object
         filestore.base64_string = "offloaded"
 
-        # Update external_locations
         if (
             not hasattr(filestore, "external_locations")
             or filestore.external_locations is None
@@ -3742,7 +3739,6 @@ class Coop(CoopFunctionsMixin):
             "offloaded": True,
         }
 
-        # Also update the dict representation if FileStore supports it
         if hasattr(filestore, "__setitem__"):
             filestore["base64_string"] = "offloaded"
             filestore["external_locations"] = filestore.external_locations

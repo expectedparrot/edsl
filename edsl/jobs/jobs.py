@@ -889,8 +889,8 @@ class Jobs(Base):
 
         return dict_hash(self.to_dict(add_edsl_version=False))
 
-    def offload_files(self, coop=None) -> "Jobs":
-        """Upload all FileStore objects in scenarios to GCS.
+    def offload_files(self, coop=None, max_workers: int = 20) -> "Jobs":
+        """Upload all FileStore objects in scenarios to GCS in parallel.
 
         This method finds all FileStore objects in the job's scenarios and uploads
         them to Google Cloud Storage. After uploading, each FileStore will have its
@@ -902,15 +902,18 @@ class Jobs(Base):
 
         Args:
             coop: Optional Coop instance. If not provided, creates a new one.
+            max_workers: Maximum number of parallel upload threads (default: 10).
 
         Returns:
             Jobs: Returns self for method chaining.
 
         Example:
             >>> job = Jobs.example()
-            >>> job.offload_files()  # Uploads FileStores to GCS
+            >>> job.offload_files()  # Uploads FileStores to GCS in parallel
             >>> job_dict = job.to_dict()  # FileStores auto-offloaded in dict
         """
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+
         if coop is None:
             from ..coop import Coop
 
@@ -918,6 +921,8 @@ class Jobs(Base):
 
         from ..scenarios import FileStore
 
+        # Collect all FileStores that need uploading
+        filestores_to_upload = []
         for scenario in self.scenarios:
             for key, value in scenario.items():
                 if isinstance(value, FileStore):
@@ -930,8 +935,17 @@ class Jobs(Base):
                     if value.base64_string == "offloaded":
                         continue
 
-                    # Upload the FileStore
-                    coop._upload_filestore(value)
+                    filestores_to_upload.append(value)
+
+        # Upload in parallel
+        if filestores_to_upload:
+            with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                futures = {
+                    executor.submit(coop._upload_filestore, fs): fs
+                    for fs in filestores_to_upload
+                }
+                for future in as_completed(futures):
+                    future.result()  # Raises exception if upload failed
 
         return self
 
