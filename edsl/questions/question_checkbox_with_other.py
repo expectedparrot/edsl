@@ -3,8 +3,7 @@ from typing import Any, Optional, List, Union, TYPE_CHECKING
 
 import random
 from jinja2 import Template
-from pydantic import BaseModel, Field, model_validator, ValidationError
-from typing import Literal, Annotated
+from pydantic import BaseModel, model_validator, ValidationError
 
 from .exceptions import QuestionAnswerValidationError
 from ..scenarios import Scenario
@@ -16,10 +15,7 @@ from .descriptors import (
     OtherOptionTextDescriptor,
 )
 from .decorators import inject_exception
-from .question_check_box import (
-    CheckboxResponse,
-    CheckBoxResponseValidator,
-)
+from .question_check_box import CheckBoxResponseValidator
 
 if TYPE_CHECKING:
     pass
@@ -299,7 +295,7 @@ class CheckboxWithOtherResponseValidator(CheckBoxResponseValidator):
         try:
             validated_response = super().validate(response_dict, verbose)
             return validated_response
-        except Exception as e:
+        except Exception:
             # Only accept special handling if there's an "Other: X" pattern
             # AND the only validation failure is that "Other: X" isn't in the options list
             if isinstance(answer, list) and has_other_pattern:
