@@ -713,6 +713,15 @@ class FileStore:
         """Create a FileStore from a serialized dictionary."""
         d = dict(d)
         d.pop("edsl_class_name", None)
+
+        # If we have base64_string (the actual content), don't try to recreate
+        # an absolute path from a different system - let it create a new temp file
+        if d.get("base64_string") and d.get("path"):
+            path = d["path"]
+            # If path is absolute and doesn't exist, use a temp file instead
+            if os.path.isabs(path) and not os.path.exists(path):
+                d["path"] = None
+
         return cls(**d)
 
     def to_dict(self, add_edsl_version: bool = True):
