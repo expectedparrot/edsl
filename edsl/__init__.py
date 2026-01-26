@@ -80,6 +80,7 @@ _EXPORT_MAP = {
     "QuestionDict": "questions",
     "QuestionDropdown": "questions",
     "QuestionTopK": "questions",
+    "QuestionInterviewerThinking": "questions",
     # coop
     "Coop": "coop",
     # notebooks

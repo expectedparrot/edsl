@@ -129,6 +129,7 @@ from .question_rank import QuestionRank
 from .question_random import QuestionRandom
 from .question_dropdown import QuestionDropdown
 from .question_interview import QuestionInterview
+from .question_interviewer_thinking import QuestionInterviewerThinking
 
 # Questions derived from core questions
 from .question_likert_five import QuestionLikertFive
@@ -171,6 +172,7 @@ __all__ = [
     "QuestionRandom",
     "QuestionDropdown",
     "QuestionInterview",
+    "QuestionInterviewerThinking",
     # Derived question types
     "QuestionLinearScale",
     "QuestionTopK",

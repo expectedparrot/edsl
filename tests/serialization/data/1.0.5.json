@@ -11650,5 +11650,29 @@
       "edsl_version": "1.0.5.dev1",
       "edsl_class_name": "QuestionBase"
     }
+  },
+  {
+    "class_name": "QuestionInterviewerThinking",
+    "dict": {
+      "question_name": "generate_follow_up",
+      "question_text": "The respondent said they enjoy outdoor activities. What is a good follow-up question to learn more about their preferences?",
+      "system_prompt": "You are a helpful survey researcher. Generate insightful follow-up questions.",
+      "model": {
+        "model": "gpt-4o-mini",
+        "parameters": {
+          "temperature": 0.5,
+          "max_tokens": 1000,
+          "top_p": 1,
+          "frequency_penalty": 0,
+          "presence_penalty": 0,
+          "logprobs": false,
+          "top_logprobs": 3
+        },
+        "inference_service": "openai"
+      },
+      "question_type": "interviewer_thinking",
+      "edsl_version": "1.0.5.dev1",
+      "edsl_class_name": "QuestionBase"
+    }
   }
 ]

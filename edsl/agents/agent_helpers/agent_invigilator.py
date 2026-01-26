@@ -74,9 +74,13 @@ class AgentInvigilator:
             InvigilatorHuman,
             InvigilatorFunctional,
             InvigilatorAI,
+            InvigilatorInterviewerThinking,
         )
 
-        if hasattr(question, "answer_question_directly"):
+        # Check for interviewer_thinking question type first
+        if hasattr(question, "question_type") and question.question_type == "interviewer_thinking":
+            return InvigilatorInterviewerThinking
+        elif hasattr(question, "answer_question_directly"):
             return InvigilatorFunctional
         elif hasattr(self.agent, "answer_question_directly"):
             return InvigilatorHuman
