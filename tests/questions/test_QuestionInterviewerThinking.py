@@ -95,7 +95,7 @@ class TestQuestionInterviewerThinkingConstruction:
 
     def test_basic_construction(self):
         """Test basic construction with required parameters."""
-        model = Model("gpt-4o-mini")
+        model = Model("test")
         q = QuestionInterviewerThinking(
             question_name="follow_up",
             question_text="Generate a follow-up question.",
@@ -108,7 +108,7 @@ class TestQuestionInterviewerThinkingConstruction:
 
     def test_construction_with_system_prompt(self):
         """Test construction with system prompt."""
-        model = Model("gpt-4o-mini")
+        model = Model("test")
         q = QuestionInterviewerThinking(
             question_name="analyze",
             question_text="Analyze this response.",
@@ -124,7 +124,7 @@ class TestQuestionInterviewerThinkingConstruction:
             reasoning: str
             category: Optional[str] = None
 
-        model = Model("gpt-4o-mini")
+        model = Model("test")
         q = QuestionInterviewerThinking(
             question_name="structured",
             question_text="Generate a structured follow-up.",
@@ -161,7 +161,7 @@ class TestQuestionInterviewerThinkingSerialization:
 
     def test_to_dict_basic(self):
         """Test basic serialization to dict."""
-        model = Model("gpt-4o-mini")
+        model = Model("test")
         q = QuestionInterviewerThinking(
             question_name="test",
             question_text="Test question.",
@@ -181,7 +181,7 @@ class TestQuestionInterviewerThinkingSerialization:
             question: str
             reasoning: str
 
-        model = Model("gpt-4o-mini")
+        model = Model("test")
         q = QuestionInterviewerThinking(
             question_name="test",
             question_text="Test question.",
@@ -196,7 +196,7 @@ class TestQuestionInterviewerThinkingSerialization:
 
     def test_from_dict_basic(self):
         """Test deserialization from dict."""
-        model = Model("gpt-4o-mini")
+        model = Model("test")
         q = QuestionInterviewerThinking(
             question_name="test",
             question_text="Test question.",
@@ -218,7 +218,7 @@ class TestQuestionInterviewerThinkingSerialization:
             question: str
             reasoning: str
 
-        model = Model("gpt-4o-mini")
+        model = Model("test")
         q = QuestionInterviewerThinking(
             question_name="test",
             question_text="Test question.",
@@ -237,7 +237,7 @@ class TestQuestionInterviewerThinkingSerialization:
 
     def test_round_trip_via_question_base(self):
         """Test round-trip serialization via QuestionBase.from_dict."""
-        model = Model("gpt-4o-mini")
+        model = Model("test")
         q = QuestionInterviewerThinking(
             question_name="test",
             question_text="Test question.",
@@ -258,7 +258,7 @@ class TestQuestionInterviewerThinkingMethods:
 
     def test_get_model(self):
         """Test that get_model returns a working Model instance."""
-        model = Model("gpt-4o-mini")
+        model = Model("test")
         q = QuestionInterviewerThinking(
             question_name="test",
             question_text="Test question.",
@@ -266,11 +266,11 @@ class TestQuestionInterviewerThinkingMethods:
         )
         
         retrieved_model = q.get_model()
-        assert retrieved_model.model == "gpt-4o-mini"
+        assert retrieved_model.model == "test"
 
     def test_get_response_schema_without_model(self):
         """Test get_response_schema returns None when no response_model."""
-        model = Model("gpt-4o-mini")
+        model = Model("test")
         q = QuestionInterviewerThinking(
             question_name="test",
             question_text="Test question.",
@@ -280,7 +280,7 @@ class TestQuestionInterviewerThinkingMethods:
 
     def test_simulate_answer_free_text(self):
         """Test _simulate_answer for free text mode."""
-        model = Model("gpt-4o-mini")
+        model = Model("test")
         q = QuestionInterviewerThinking(
             question_name="test",
             question_text="Test question.",
@@ -298,7 +298,7 @@ class TestQuestionInterviewerThinkingMethods:
             question: str
             reasoning: str
 
-        model = Model("gpt-4o-mini")
+        model = Model("test")
         q = QuestionInterviewerThinking(
             question_name="test",
             question_text="Test question.",
@@ -314,7 +314,7 @@ class TestQuestionInterviewerThinkingMethods:
 
     def test_question_html_content(self):
         """Test HTML content generation."""
-        model = Model("gpt-4o-mini")
+        model = Model("test")
         q = QuestionInterviewerThinking(
             question_name="test",
             question_text="Test question.",
@@ -325,11 +325,11 @@ class TestQuestionInterviewerThinkingMethods:
         html = q.question_html_content
         assert "Test question." in html
         assert "Be helpful." in html
-        assert "gpt-4o-mini" in html
+        assert "test" in html
 
     def test_data_property(self):
         """Test the data property returns expected fields."""
-        model = Model("gpt-4o-mini")
+        model = Model("test")
         q = QuestionInterviewerThinking(
             question_name="test",
             question_text="Test question.",
@@ -381,7 +381,7 @@ class TestQuestionInterviewerThinkingInSurvey:
 
     def test_question_with_jinja_template(self):
         """Test that question text can contain Jinja2 templates."""
-        model = Model("gpt-4o-mini")
+        model = Model("test")
         q = QuestionInterviewerThinking(
             question_name="follow_up",
             question_text="The subject said {{ q1.answer }}. What's a follow-up?",
