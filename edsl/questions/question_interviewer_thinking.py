@@ -405,7 +405,7 @@ class QuestionInterviewerThinking(QuestionBase):
             question_name="generate_follow_up",
             question_text=f"The respondent said they enjoy outdoor activities. What's a good follow-up question to learn more about their preferences?{addition}",
             system_prompt="You are a helpful survey researcher. Generate insightful follow-up questions.",
-            model=Model("gpt-4o-mini"),
+            model=Model("test"),
         )
 
     def _simulate_answer(self, human_readable: bool = False) -> dict:
