@@ -105,9 +105,9 @@ class ConditionConfig(BaseModel):
         default="curious",
         description="Question style for judge"
     )
-    fact_category: str = Field(
+    fact_category: Optional[str] = Field(
         default="science",
-        description="Category of facts to use"
+        description="Category of facts to use (None for random selection across all categories)"
     )
 
 

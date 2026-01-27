@@ -44,8 +44,9 @@ python -m src show-facts --category science
 
 ### Environment Variables (.env file)
 ```bash
-EXPECTED_PARROT_API_KEY='7WyAQqSIP9MUlyq62FHs7Gefzh_NuWzWukGmT7xgMXU'
+EXPECTED_PARROT_API_KEY='your_expected_parrot_api_key_here'
 EXPECTED_PARROT_URL='https://www.expectedparrot.com'
+ANTHROPIC_API_KEY='your_anthropic_api_key_here'  # For direct API access
 ```
 
 ### Code Changes (edsl_adapter.py)

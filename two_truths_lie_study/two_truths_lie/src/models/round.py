@@ -10,6 +10,7 @@ from .storyteller import Storyteller, Judge
 from .story import Story
 from .qa import QAExchange
 from .verdict import Verdict
+from .intermediate_guess import IntermediateGuess
 
 
 @dataclass
@@ -144,6 +145,7 @@ class Round:
         setup: The round configuration
         stories: Generated stories
         qa_exchanges: All Q&A exchanges
+        intermediate_guesses: Judge's guesses after each Q&A (for n-shot analysis)
         verdict: Judge's final verdict
         outcome: Calculated outcome
         timestamp: When the round was completed
@@ -153,6 +155,7 @@ class Round:
     setup: RoundSetup
     stories: List[Story]
     qa_exchanges: List[QAExchange]
+    intermediate_guesses: List[IntermediateGuess]
     verdict: Verdict
     outcome: RoundOutcome
     timestamp: str = field(default_factory=lambda: datetime.utcnow().isoformat())
@@ -183,6 +186,7 @@ class Round:
             "setup": self.setup.to_dict(),
             "stories": [s.to_dict() for s in self.stories],
             "qa_exchanges": [qa.to_dict() for qa in self.qa_exchanges],
+            "intermediate_guesses": [ig.to_dict() for ig in self.intermediate_guesses],
             "verdict": self.verdict.to_dict(),
             "outcome": self.outcome.to_dict(),
             "timestamp": self.timestamp,
@@ -208,6 +212,7 @@ class Round:
 
         stories = [Story.from_dict(s) for s in data["stories"]]
         qa_exchanges = [QAExchange.from_dict(qa) for qa in data["qa_exchanges"]]
+        intermediate_guesses = [IntermediateGuess.from_dict(ig) for ig in data.get("intermediate_guesses", [])]
         verdict = Verdict.from_dict(data["verdict"])
         outcome = RoundOutcome(**data["outcome"])
 
@@ -215,6 +220,7 @@ class Round:
             setup=setup,
             stories=stories,
             qa_exchanges=qa_exchanges,
+            intermediate_guesses=intermediate_guesses,
             verdict=verdict,
             outcome=outcome,
             timestamp=data.get("timestamp", datetime.utcnow().isoformat()),

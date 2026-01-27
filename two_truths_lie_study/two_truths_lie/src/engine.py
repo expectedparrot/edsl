@@ -5,17 +5,17 @@ This module orchestrates the execution of a single game round.
 
 import time
 import random
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Tuple
 
 from .config.schema import GameConfig, ConditionConfig, ModelConfig
 from .models import (
     Storyteller, Judge, Story, Question, Answer,
-    QAExchange, Verdict, Round, RoundSetup, RoundOutcome
+    QAExchange, Verdict, IntermediateGuess, Round, RoundSetup, RoundOutcome
 )
 from .facts.database import Fact, FactDatabase, get_default_facts
 from .prompts import (
     TruthTellerPrompt, FibberPrompt, StorytellerAnswerPrompt,
-    JudgeReviewPrompt, JudgeQuestionPrompt, JudgeVerdictPrompt
+    JudgeReviewPrompt, JudgeQuestionPrompt, JudgeVerdictPrompt, JudgeIntermediateGuessPrompt
 )
 from .edsl_adapter import EDSLAdapter
 from .logging_config import get_logger, RoundLoggerAdapter
@@ -58,7 +58,9 @@ class GameEngine:
         Returns:
             RoundSetup with all assignments made
         """
-        category = fact_category or condition.fact_category
+        # Use explicit fact_category if provided, otherwise use condition's setting
+        # Note: None is a valid value meaning "random selection across all categories"
+        category = fact_category if fact_category is not None else condition.fact_category
 
         # Get facts for truth-tellers
         num_truth_tellers = condition.game.num_truth_tellers
@@ -188,8 +190,8 @@ class GameEngine:
         setup: RoundSetup,
         stories: List[Story],
         condition: ConditionConfig
-    ) -> List[QAExchange]:
-        """Execute the Q&A phase.
+    ) -> Tuple[List[QAExchange], List[IntermediateGuess]]:
+        """Execute the Q&A phase with intermediate guesses.
 
         Args:
             setup: Round setup
@@ -197,9 +199,9 @@ class GameEngine:
             condition: Experimental condition
 
         Returns:
-            List of Q&A exchanges
+            Tuple of (Q&A exchanges, intermediate guesses after each exchange)
         """
-        logger.info(f"Round {setup.round_id}: Starting Q&A phase")
+        logger.info(f"Round {setup.round_id}: Starting Q&A phase with intermediate guesses")
 
         # Build story lookup
         story_by_id = {s.storyteller_id: s for s in stories}
@@ -211,6 +213,13 @@ class GameEngine:
         }
 
         qa_exchanges: List[QAExchange] = []
+        intermediate_guesses: List[IntermediateGuess] = []
+
+        # Track Q&A by storyteller for intermediate guess prompts
+        qa_by_storyteller: Dict[str, List[Dict[str, str]]] = {sid: [] for sid in setup.story_order}
+
+        # Cumulative Q&A counter for intermediate guesses
+        qa_count = 0
 
         # For each storyteller, ask questions
         for storyteller_id in setup.story_order:
@@ -276,6 +285,10 @@ class GameEngine:
                 )
 
                 qa_exchanges.append(QAExchange(question=question, answer=answer))
+                qa_by_storyteller[storyteller_id].append({
+                    "question": question.content,
+                    "answer": answer.content
+                })
                 previous_qa.append({
                     "question": question.content,
                     "answer": answer.content
@@ -286,7 +299,37 @@ class GameEngine:
                     f"Q={len(question.content.split())}w, A={answer.word_count}w"
                 )
 
-        return qa_exchanges
+                # Generate intermediate guess after this Q&A exchange
+                qa_count += 1
+                guess_prompt = JudgeIntermediateGuessPrompt(
+                    num_qa=qa_count,
+                    stories=stories_for_judge,
+                    qa_so_far=qa_by_storyteller
+                )
+
+                ig_result = self.edsl.generate_intermediate_guess(
+                    prompt_text=guess_prompt.render(),
+                    model_name=setup.judge.model,
+                    temperature=setup.judge.temperature,
+                    after_qa_number=qa_count
+                )
+
+                intermediate_guess = IntermediateGuess(
+                    judge_model=setup.judge.model,
+                    after_qa_number=qa_count,
+                    accused_id=ig_result["accused_id"],
+                    confidence=ig_result["confidence"],
+                    reasoning=ig_result.get("reasoning", ""),
+                    raw_response=ig_result["raw_response"]
+                )
+
+                intermediate_guesses.append(intermediate_guess)
+                logger.info(
+                    f"  Intermediate guess #{qa_count}: Accused {intermediate_guess.accused_id} "
+                    f"(confidence: {intermediate_guess.confidence}/10)"
+                )
+
+        return qa_exchanges, intermediate_guesses
 
     def execute_verdict_phase(
         self,
@@ -397,8 +440,8 @@ class GameEngine:
         # Story phase
         stories = self.execute_story_phase(setup, condition)
 
-        # Q&A phase
-        qa_exchanges = self.execute_qa_phase(setup, stories, condition)
+        # Q&A phase (now returns intermediate guesses too)
+        qa_exchanges, intermediate_guesses = self.execute_qa_phase(setup, stories, condition)
 
         # Verdict phase
         verdict = self.execute_verdict_phase(setup, stories, qa_exchanges)
@@ -414,11 +457,13 @@ class GameEngine:
             setup=setup,
             stories=stories,
             qa_exchanges=qa_exchanges,
+            intermediate_guesses=intermediate_guesses,
             verdict=verdict,
             outcome=outcome,
             duration_seconds=duration
         )
 
         logger.info(f"Round {setup.round_id} complete in {duration:.1f}s")
+        logger.info(f"  Collected {len(intermediate_guesses)} intermediate guesses")
 
         return round_data

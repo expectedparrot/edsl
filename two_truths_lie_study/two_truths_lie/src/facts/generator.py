@@ -13,13 +13,76 @@ from ..logging_config import get_logger
 logger = get_logger("fact_generator")
 
 
-# Best models for fact generation
-# Using proven models that work with EDSL API proxy
-BEST_MODELS = [
+# Fallback models for fact generation if EDSL API unavailable
+BEST_MODELS_FALLBACK = [
     "claude-3-7-sonnet-20250219",  # Sonnet 3.7 - latest stable Claude model
     "chatgpt-4o-latest",           # GPT-4o - strong factual recall
     "gemini-2.5-flash"             # Gemini 2.5 Flash - fast and capable
 ]
+
+# Quality rankings for known models (higher = better for fact generation)
+MODEL_QUALITY_SCORES = {
+    "claude-opus-4-5-20251101": 10,
+    "claude-sonnet-4-5-20250929": 9,
+    "claude-3-7-sonnet-20250219": 8,
+    "gpt-4-turbo": 8,
+    "chatgpt-4o-latest": 7,
+    "gemini-2.5-flash": 6,
+    "gemini-2.0-flash-exp": 5,
+}
+
+
+def get_best_models(count: int = 3, local_only: bool = True) -> List[str]:
+    """Get best available models from EDSL dynamically.
+
+    Ranks by:
+    1. Local availability (has API key configured) if local_only=True
+    2. Known quality/reliability from MODEL_QUALITY_SCORES
+    3. Alphabetical order for tie-breaking
+
+    Args:
+        count: Number of models to return (default 3)
+        local_only: Only return models with configured API keys (default True)
+
+    Returns:
+        List of model names, best first
+    """
+    try:
+        # Query EDSL for available models
+        available = Model.available(local_only=local_only)
+
+        # Extract model names
+        model_names = []
+        for item in available:
+            if isinstance(item, dict):
+                name = item.get("model", item.get("model_name", ""))
+            else:
+                name = getattr(item, "model", getattr(item, "model_name", ""))
+
+            if name:
+                model_names.append(name)
+
+        # Rank by quality score (higher is better)
+        def rank_model(name: str) -> tuple:
+            score = MODEL_QUALITY_SCORES.get(name, 0)
+            return (-score, name)  # Negative score for descending order
+
+        ranked = sorted(model_names, key=rank_model)
+
+        # Return top N models
+        result = ranked[:count] if ranked else BEST_MODELS_FALLBACK[:count]
+
+        logger.info(f"Selected {len(result)} best models: {', '.join(result)}")
+        return result
+
+    except Exception as e:
+        logger.warning(f"Could not fetch dynamic models from EDSL: {e}")
+        logger.info(f"Falling back to default models: {', '.join(BEST_MODELS_FALLBACK[:count])}")
+        return BEST_MODELS_FALLBACK[:count]
+
+
+# Backward compatibility: BEST_MODELS defaults to dynamic lookup
+BEST_MODELS = get_best_models()
 
 
 class FactGenerator:
@@ -213,9 +276,9 @@ class MultiModelFactGenerator:
         """Initialize with list of models.
 
         Args:
-            models: List of model names (default: BEST_MODELS)
+            models: List of model names (default: best available from EDSL)
         """
-        self.models = models or BEST_MODELS
+        self.models = models or get_best_models(count=3)
         logger.info(f"Initialized MultiModelFactGenerator with models: {', '.join(self.models)}")
 
     def generate_facts(

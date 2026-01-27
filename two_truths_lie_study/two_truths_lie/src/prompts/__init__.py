@@ -2,7 +2,7 @@
 
 from .base import BasePrompt
 from .storyteller import TruthTellerPrompt, FibberPrompt, StorytellerAnswerPrompt
-from .judge import JudgeReviewPrompt, JudgeQuestionPrompt, JudgeVerdictPrompt
+from .judge import JudgeReviewPrompt, JudgeQuestionPrompt, JudgeVerdictPrompt, JudgeIntermediateGuessPrompt
 from .strategies import STRATEGIES, get_strategy_instructions
 
 __all__ = [
@@ -13,6 +13,7 @@ __all__ = [
     "JudgeReviewPrompt",
     "JudgeQuestionPrompt",
     "JudgeVerdictPrompt",
+    "JudgeIntermediateGuessPrompt",
     "STRATEGIES",
     "get_strategy_instructions",
 ]

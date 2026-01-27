@@ -4,6 +4,7 @@ from .storyteller import Storyteller, Judge
 from .story import Story
 from .qa import Question, Answer, QAExchange
 from .verdict import Verdict
+from .intermediate_guess import IntermediateGuess
 from .round import Round, RoundSetup, RoundOutcome
 
 __all__ = [
@@ -14,6 +15,7 @@ __all__ = [
     "Answer",
     "QAExchange",
     "Verdict",
+    "IntermediateGuess",
     "Round",
     "RoundSetup",
     "RoundOutcome",

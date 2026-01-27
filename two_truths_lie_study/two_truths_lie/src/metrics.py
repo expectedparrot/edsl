@@ -79,6 +79,25 @@ class CalibrationMetrics:
 
 
 @dataclass
+class NShotMetrics:
+    """N-shot performance analysis (one-shot, two-shot, etc).
+
+    Tracks how judge accuracy evolves with more information.
+
+    Attributes:
+        shot_number: Number of Q&A exchanges seen (1 = one-shot, 2 = two-shot, etc)
+        total_guesses: Total number of intermediate guesses at this shot
+        accuracy: Accuracy at this shot level
+        avg_confidence: Average confidence at this shot level
+    """
+
+    shot_number: int
+    total_guesses: int
+    accuracy: float
+    avg_confidence: float
+
+
+@dataclass
 class ExperimentMetrics:
     """Comprehensive metrics for an entire experiment.
 
@@ -93,6 +112,7 @@ class ExperimentMetrics:
         by_question_style: Metrics broken down by question style
         by_temperature: Metrics broken down by judge temperature
         calibration: Confidence calibration metrics
+        n_shot_performance: Performance at each Q&A level (one-shot, two-shot, etc)
     """
 
     total_rounds: int
@@ -105,6 +125,7 @@ class ExperimentMetrics:
     by_question_style: Dict[str, float]  # question_style -> accuracy
     by_temperature: Dict[float, float]  # temperature -> accuracy
     calibration: CalibrationMetrics
+    n_shot_performance: List[NShotMetrics]
 
 
 class MetricsCalculator:
@@ -151,6 +172,9 @@ class MetricsCalculator:
         # Calculate calibration
         calibration = self._calculate_calibration(all_rounds)
 
+        # Calculate n-shot performance
+        n_shot_performance = self._calculate_n_shot_performance(all_rounds)
+
         return ExperimentMetrics(
             total_rounds=total_rounds,
             overall_judge_accuracy=overall_accuracy,
@@ -161,7 +185,8 @@ class MetricsCalculator:
             by_category=by_category,
             by_question_style=by_question_style,
             by_temperature=by_temperature,
-            calibration=calibration
+            calibration=calibration,
+            n_shot_performance=n_shot_performance
         )
 
     def calculate_condition_metrics(self, condition_id: str) -> Optional[ConditionMetrics]:
@@ -420,6 +445,47 @@ class MetricsCalculator:
             brier_score=brier_score
         )
 
+    def _calculate_n_shot_performance(self, rounds: List[Round]) -> List[NShotMetrics]:
+        """Calculate performance at each Q&A level (one-shot, two-shot, etc).
+
+        Args:
+            rounds: List of all rounds
+
+        Returns:
+            List of n-shot metrics, one per Q&A level
+        """
+        # Group guesses by shot number
+        guesses_by_shot: Dict[int, List[tuple]] = defaultdict(list)
+
+        for round_obj in rounds:
+            # Get the true fibber ID
+            fibber_id = round_obj.outcome.fibber_id
+
+            # Process each intermediate guess
+            for guess in round_obj.intermediate_guesses:
+                is_correct = (guess.accused_id == fibber_id) if fibber_id else False
+                guesses_by_shot[guess.after_qa_number].append(
+                    (is_correct, guess.confidence)
+                )
+
+        # Calculate metrics for each shot level
+        n_shot_metrics = []
+        for shot_number in sorted(guesses_by_shot.keys()):
+            guesses = guesses_by_shot[shot_number]
+            total = len(guesses)
+            correct = sum(1 for is_correct, _ in guesses if is_correct)
+            accuracy = correct / total if total > 0 else 0.0
+            avg_confidence = sum(conf for _, conf in guesses) / total if total > 0 else 0.0
+
+            n_shot_metrics.append(NShotMetrics(
+                shot_number=shot_number,
+                total_guesses=total,
+                accuracy=accuracy,
+                avg_confidence=avg_confidence
+            ))
+
+        return n_shot_metrics
+
     def _empty_metrics(self) -> ExperimentMetrics:
         """Return empty metrics when no rounds are available."""
         return ExperimentMetrics(
@@ -432,5 +498,6 @@ class MetricsCalculator:
             by_category={},
             by_question_style={},
             by_temperature={},
-            calibration=CalibrationMetrics(buckets=[], calibration_error=0.0, brier_score=0.0)
+            calibration=CalibrationMetrics(buckets=[], calibration_error=0.0, brier_score=0.0),
+            n_shot_performance=[]
         )

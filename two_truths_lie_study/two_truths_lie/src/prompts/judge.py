@@ -204,3 +204,70 @@ Your verdict:'''
                     full_transcript += f"A{i}: {qa['answer']}\n\n"
 
         return self.TEMPLATE.format(full_transcript=full_transcript)
+
+
+class JudgeIntermediateGuessPrompt(BasePrompt):
+    """Prompt for judge to make an intermediate guess after Q&A exchanges.
+
+    This allows tracking one-shot, two-shot, n-shot performance.
+    """
+
+    TEMPLATE = '''You are the JUDGE in "Why Would I Lie?"
+
+REMINDER: Two storytellers told TRUE stories. One told a FABRICATED story.
+
+You have now completed {num_qa} question(s) and answer(s). Based on what you've learned SO FAR:
+
+EVIDENCE SO FAR:
+
+{evidence_text}
+
+---
+
+INTERMEDIATE ASSESSMENT:
+
+Before continuing, make your best guess RIGHT NOW about who is lying.
+
+Provide in this format:
+CURRENT_GUESS: [A, B, or C]
+CONFIDENCE: [1-10]
+
+Your current assessment:'''
+
+    def __init__(
+        self,
+        num_qa: int,
+        stories: Dict[str, str],
+        qa_so_far: Dict[str, List[Dict[str, str]]]
+    ):
+        """Initialize with evidence gathered so far.
+
+        Args:
+            num_qa: Number of Q&A exchanges completed so far
+            stories: Dict mapping storyteller ID to story content
+            qa_so_far: Dict mapping storyteller ID to Q&A exchanges so far
+        """
+        self.num_qa = num_qa
+        self.stories = stories
+        self.qa_so_far = qa_so_far
+
+    def render(self) -> str:
+        """Render the intermediate guess prompt."""
+        evidence_text = ""
+
+        for storyteller_id in sorted(self.stories.keys()):
+            evidence_text += f"\n--- STORYTELLER {storyteller_id} ---\n"
+            evidence_text += f"STORY: {self.stories[storyteller_id]}\n"
+
+            qa_list = self.qa_so_far.get(storyteller_id, [])
+            if qa_list:
+                evidence_text += "\nQ&A:\n"
+                for i, qa in enumerate(qa_list, 1):
+                    evidence_text += f"Q{i}: {qa['question']}\n"
+                    evidence_text += f"A{i}: {qa['answer']}\n"
+            evidence_text += "\n"
+
+        return self.TEMPLATE.format(
+            num_qa=self.num_qa,
+            evidence_text=evidence_text
+        )
