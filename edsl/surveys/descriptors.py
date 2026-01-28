@@ -62,11 +62,62 @@ class QuestionsDescriptor(BaseDescriptor):
             )
 
     def __set__(self, instance, value: Any) -> None:
-        """Set the value of the attribute."""
+        """Set the value of the attribute.
+
+        Optimized to set all questions at once in O(n) instead of
+        calling add_question() for each question which was O(n²).
+        The validate() method already checks for duplicates.
+        """
+        from .pseudo_indices import PseudoIndices
+        from .rules import Rule, RuleCollection
+        from .base import RulePriority
+
         self.validate(value, instance)
-        instance.__dict__[self.name] = []
-        for question in value:
-            instance.add_question(question)
+
+        # Set all questions at once - O(n)
+        instance.__dict__[self.name] = list(value) if value else []
+
+        # Build pseudo_indices - preserve existing instruction indices (floats)
+        # but update question indices (integers)
+        question_indices = {q.question_name: i for i, q in enumerate(value or [])}
+
+        if hasattr(instance, "_pseudo_indices") and instance._pseudo_indices:
+            # Preserve instruction indices (float values) from existing pseudo_indices
+            existing_instructions = {
+                k: v
+                for k, v in instance._pseudo_indices.items()
+                if isinstance(v, float)
+            }
+            # Merge: questions + existing instructions
+            instance._pseudo_indices = PseudoIndices(
+                {**question_indices, **existing_instructions}
+            )
+        else:
+            instance._pseudo_indices = PseudoIndices(question_indices)
+
+        # Build question_name_to_index map once - O(n)
+        question_name_to_index = question_indices.copy()
+
+        # Create default rules for all questions in one pass - O(n)
+        # Each question gets a default rule: "after this question, go to next"
+        rules = []
+        for i, question in enumerate(value or []):
+            rule = Rule(
+                current_q=i,
+                expression="True",
+                next_q=i
+                + 1,  # Will be EndOfSurvey+1 for last question, handled by rule_collection
+                question_name_to_index=question_name_to_index,
+                priority=RulePriority.DEFAULT.value,
+            )
+            rules.append(rule)
+
+        # Update the rule collection with the new rules and shared map
+        instance.rule_collection = RuleCollection(
+            num_questions=len(value) if value else None,
+            rules=rules,
+            question_name_to_index=question_name_to_index,
+        )
 
     def __set_name__(self, owner, name: str) -> None:
         """Set the name of the attribute."""

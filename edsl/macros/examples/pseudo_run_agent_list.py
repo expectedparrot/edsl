@@ -29,10 +29,11 @@ agent_list = AgentList(
     ]
 )
 
-# Create a simple survey question
+# Create a simple survey question that references scenario fields
+# This is required to pass the scenario compatibility check
 q = QuestionFreeText(
     question_name="sample_question",
-    question_text="This is a sample question for the agents.",
+    question_text="This is a sample question for {{ scenario.num_agents }} agents with minimum age {{ scenario.min_age }}.",
 )
 
 # Create jobs object with the agent list
@@ -49,7 +50,7 @@ initial_survey = Survey(
         ),
         QuestionNumerical(
             question_name="min_age",
-            question_text="What is the minimum age of the agents you would like to sample?",
+            question_text="What is the minimum age of the agents you would like to sample? ",
         ),
     ]
 )
@@ -67,8 +68,8 @@ agent_formatter = (
 
 # Create the macro with pseudo_run=True
 macro = Macro(
-    application_name="pseudo_run_agent_list",
-    display_name="Pseudo Run Agent List Demo",
+    application_name="pseudo_run_agent_list2",
+    display_name="Pseudo Run Agent List Demo2",
     short_description="Demo of pseudo_run feature with agent sampling.",
     long_description="This macro demonstrates how to use the pseudo_run feature to create a Results object with a survey and agent_list attached (but without running actual interviews). The user specifies how many agents to sample from the full list of 10 agents.",
     initial_survey=initial_survey,

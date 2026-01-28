@@ -169,7 +169,7 @@ def _display_notebook_login(login_url: str):
     html_content = f"""
     <div id="edsl-login-container" style="border: 2px solid #38bdf8; border-radius: 8px; padding: 20px; margin: 10px 0; background-color: #f8fafc;">
         <h3 style="color: #38bdf8; margin-top: 0;">E[🦜] Expected Parrot Login</h3>
-        <p>Click the button below to log in and automatically store your API key:</p>
+        <p style="color: #64748b;">Click the button below to log in and automatically store your API key:</p>
         <a href="{login_url}" target="_blank"
            style="display: inline-block; background-color: #38bdf8; color: white; padding: 12px 24px;
                   text-decoration: none; border-radius: 6px; font-weight: bold; margin: 10px 0;">

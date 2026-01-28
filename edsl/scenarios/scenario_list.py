@@ -91,6 +91,7 @@ from ..utilities import (
     memory_profile,
     list_split,
 )
+from ..display.utils import smart_truncate
 from ..dataset import ScenarioListOperationsMixin
 
 from ..db_list.sqlite_list import SQLiteList
@@ -1243,11 +1244,11 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
 
             # Show fields
             for key, value in scenario_data.items():
-                # Format the value with truncation if needed
+                # Format the value with smart truncation if needed
                 max_value_length = max(terminal_width - 30, 50)
                 value_repr = repr(value)
                 if len(value_repr) > max_value_length:
-                    value_repr = value_repr[: max_value_length - 3] + "..."
+                    value_repr = smart_truncate(value_repr, max_value_length)
 
                 output.append("                ", style=RICH_STYLES["default"])
                 output.append(f"'{key}'", style=RICH_STYLES["key"])
