@@ -613,8 +613,16 @@ class Survey(Base):
         else:
             name = None
 
+        # Inject question_name_to_index into rule_collection dict if missing
+        # This provides backwards compatibility for older serialized formats
+        rule_collection_data = data["rule_collection"]
+        if "question_name_to_index" not in rule_collection_data:
+            rule_collection_data["question_name_to_index"] = {
+                q.question_name: i for i, q in enumerate(questions)
+            }
+
         # Create and return the reconstructed survey
-        rule_collection = RuleCollection.from_dict(data["rule_collection"])
+        rule_collection = RuleCollection.from_dict(rule_collection_data)
 
         survey = cls(
             questions=questions,
