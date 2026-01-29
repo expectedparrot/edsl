@@ -1,2 +1,0 @@
-from .score_comparison import ScoreComparison
-from .result_pair_comparison import ResultPairComparison

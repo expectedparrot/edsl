@@ -423,6 +423,11 @@ def deserialize_result(result: Any, return_type: str) -> Any:
 
         return Results.from_dict(result)
 
+    elif target_class == "MarkdownResponse":
+        from edsl.utilities.markdown_response import MarkdownResponse
+
+        return MarkdownResponse.from_dict(result)
+
     # Return raw result if no deserializer matches
     return result
 

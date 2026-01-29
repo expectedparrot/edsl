@@ -197,6 +197,11 @@ def deserialize_result(result: Any, return_type: str) -> Any:
 
         return Agent.from_dict(result)
 
+    elif target_class == "MarkdownResponse" or "MarkdownResponse" in str(target_class):
+        from edsl.utilities.markdown_response import MarkdownResponse
+
+        return MarkdownResponse.from_dict(result)
+
     # Return raw result if no deserializer matches
     return result
 

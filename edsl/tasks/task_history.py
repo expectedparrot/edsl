@@ -448,14 +448,14 @@ class TaskHistory(RepresentationMixin):
     def css(self):
         from importlib import resources
 
-        env = resources.files("edsl").joinpath("templates/error_reporting")
+        env = resources.files("edsl.tasks").joinpath("templates/error_reporting")
         css = env.joinpath("report.css").read_text()
         return css
 
     def javascript(self):
         from importlib import resources
 
-        env = resources.files("edsl").joinpath("templates/error_reporting")
+        env = resources.files("edsl.tasks").joinpath("templates/error_reporting")
         js = env.joinpath("report.js").read_text()
         return js
 
@@ -610,7 +610,7 @@ class TaskHistory(RepresentationMixin):
         from jinja2 import Environment
         from ..utilities import TemplateLoader
 
-        env = Environment(loader=TemplateLoader("edsl", "templates/error_reporting"))
+        env = Environment(loader=TemplateLoader("edsl.tasks", "templates/error_reporting"))
 
         # Get current memory usage at this point
 
