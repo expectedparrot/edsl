@@ -108,7 +108,10 @@ class RuleCollection(UserList):
         return {
             "question_name_to_index": self._question_name_to_index,
             "rules": [
-                rule.to_dict(include_question_name_to_index=False) for rule in self
+                # Include question_name_to_index in each rule for backwards compatibility
+                # with older EDSL versions that expect it in each rule
+                rule.to_dict(include_question_name_to_index=True)
+                for rule in self
             ],
             "num_questions": self.num_questions,
         }
