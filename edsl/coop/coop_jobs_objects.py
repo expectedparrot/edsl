@@ -25,10 +25,9 @@ class CoopJobsObjects(CoopObjects):
         from ..jobs import Jobs
 
         c = Coop()
-        job_details = [
-            c.new_remote_inference_get(obj["uuid"], include_json_string=True)
-            for obj in self
-        ]
+        job_details = c.new_remote_inference_get(
+            [obj["uuid"] for obj in self], include_json_string=True
+        )
 
         # Deserialize each job from its JSON string
         return [
