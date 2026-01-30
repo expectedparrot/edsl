@@ -31,6 +31,7 @@ from __future__ import annotations
 import json
 import os
 import warnings
+import hashlib
 from typing import Optional, Union, TYPE_CHECKING
 
 from ..base import Base
@@ -210,6 +211,13 @@ class Cache(Base):
         if self.method is not None:
             warnings.warn("Argument `method` is deprecated", DeprecationWarning)
 
+    def _get_salt(self) -> Optional[str]:
+        """Get a salt for the cache key based on the user's API key."""
+        if self.coop is not None and self.coop.api_key:
+            # Hash the API key to use as a salt for privacy
+            return hashlib.sha256(self.coop.api_key.encode()).hexdigest()
+        return None
+
     ####################
     # READ/WRITE
     ####################
@@ -342,17 +350,37 @@ class Cache(Base):
 
             # Try to fetch from remote cache on local miss only if coop is available
             if self.coop is not None and remote_fetch:
+                # Use a salted key for the remote cache to prevent information leakage
+                salt = self._get_salt()
+                remote_key = CacheEntry.gen_key(
+                    model=model,
+                    parameters=parameters,
+                    system_prompt=system_prompt,
+                    user_prompt=user_prompt,
+                    iteration=iteration,
+                    salt=salt,
+                )
                 if self.verbose:
-                    print(f"Attempting to fetch from remote cache for key: {key}")
-                entry = self._fetch_from_remote_cache(key)
+                    print(
+                        f"Attempting to fetch from remote cache for key: {remote_key} (salted from {key})"
+                    )
+                entry = self._fetch_from_remote_cache(remote_key)
                 if self.verbose:
                     if entry is not None:
-                        print(f"Remote cache hit for key: {key}")
+                        print(f"Remote cache hit for key: {remote_key}")
                     else:
-                        print(f"Remote cache miss for key: {key}")
+                        print(f"Remote cache miss for key: {remote_key}")
 
                 if entry is not None:
-                    self.fetched_data[key] = entry
+                    # When storing the entry locally, we keep the original local key
+                    # so that future local lookups don't depend on having an API key/salt.
+                    # We store the salt in the entry however for provenance.
+                    entry.salt = salt
+                    if self.immediate_write:
+                        self.data[key] = entry
+                    else:
+                        self.new_entries_to_write_later[key] = entry
+                    return entry.output, key
 
         return None if entry is None else entry.output, key
 
@@ -410,6 +438,8 @@ class Cache(Base):
         """
         from .cache_entry import CacheEntry
 
+        # Include salt if available to ensure cache partitioning
+        salt = self._get_salt()
         entry = CacheEntry(
             model=model,
             parameters=parameters,
@@ -419,14 +449,23 @@ class Cache(Base):
             iteration=iteration,
             service=service,
             validated=validated,
+            salt=salt,
         )
-        key = entry.key
-        self.new_entries[key] = entry
+        # Locally we still use the unsalted key for backward compatibility and performance
+        local_key = CacheEntry.gen_key(
+            model=model,
+            parameters=parameters,
+            system_prompt=system_prompt,
+            user_prompt=user_prompt,
+            iteration=iteration,
+            salt=None,
+        )
+        self.new_entries[local_key] = entry
         if self.immediate_write:
-            self.data[key] = entry
+            self.data[local_key] = entry
         else:
-            self.new_entries_to_write_later[key] = entry
-        return key
+            self.new_entries_to_write_later[local_key] = entry
+        return local_key
 
     def add_from_dict(
         self, new_data: dict[str, "CacheEntry"], write_now: Optional[bool] = True
