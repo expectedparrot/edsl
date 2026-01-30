@@ -105,14 +105,16 @@ class RuleCollection(UserList):
         >>> rule_collection.question_name_to_index == new_rule_collection.question_name_to_index
         True
         """
+        rules = []
+        for rule in self:
+            rule_dict = rule.to_dict(include_question_name_to_index=False)
+            # Add empty stub for backwards compatibility with older EDSL versions
+            # that expect this key to exist (but don't need the actual data for Results)
+            rule_dict["question_name_to_index"] = {}
+            rules.append(rule_dict)
         return {
             "question_name_to_index": self._question_name_to_index,
-            "rules": [
-                # Include question_name_to_index in each rule for backwards compatibility
-                # with older EDSL versions that expect it in each rule
-                rule.to_dict(include_question_name_to_index=True)
-                for rule in self
-            ],
+            "rules": rules,
             "num_questions": self.num_questions,
         }
 
