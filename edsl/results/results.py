@@ -2176,6 +2176,69 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
             **kwargs,
         )
 
+    def calibrate(
+        self,
+        question_name: str,
+        oracle_labels: list,
+        policy_column: str = "model",
+        score_transform: Optional[Callable] = None,
+        verbose: bool = False,
+    ):
+        """Calibrate AI responses against human oracle labels using CJE.
+
+        Uses CJE (Causal Judge Evaluation) to calibrate judge scores against
+        sparse oracle labels, providing valid point estimates with proper
+        uncertainty quantification.
+
+        This method requires the cje-eval package to be installed:
+            pip install edsl[cje]
+
+        Args:
+            question_name: Name of the question containing judge scores.
+                The answer to this question will be used as the judge_score.
+            oracle_labels: List of oracle (human) labels, same length as results.
+                Use None for samples without labels.
+            policy_column: How to identify policies. Options:
+                - "model": Use the model name (default)
+                - "agent": Use agent persona
+                - Any column name in the results
+            score_transform: Optional function to transform scores to [0,1].
+                Example: For 1-5 scale, use lambda x: (x - 1) / 4
+            verbose: Whether to print progress messages
+
+        Returns:
+            CalibrationResult with estimates, confidence intervals, and comparison methods.
+
+        Raises:
+            ImportError: If cje-eval is not installed
+            ValueError: If no oracle labels found or insufficient coverage
+
+        Examples:
+            >>> from edsl.results import Results
+            >>> r = Results.example()
+            >>> # Collect human labels (None = no label for that sample)
+            >>> human_labels = [5, None, 3, None, 4, ...]
+            >>> # Calibrate
+            >>> cal = r.calibrate("sentiment_score", human_labels)
+            >>> print(cal.estimates)
+            {'gpt-4o': 0.72, 'claude-3-5-sonnet': 0.68}
+            >>> print(cal.confidence_intervals)
+            {'gpt-4o': (0.68, 0.76), 'claude-3-5-sonnet': (0.64, 0.72)}
+            >>> # Compare policies
+            >>> comparison = cal.compare("gpt-4o", "claude-3-5-sonnet")
+            >>> print(f"p-value: {comparison.p_value:.3f}")
+        """
+        from ..cje_integration import calibrate as cje_calibrate
+
+        return cje_calibrate(
+            self,
+            question_name=question_name,
+            oracle_labels=oracle_labels,
+            policy_column=policy_column,
+            score_transform=score_transform,
+            verbose=verbose,
+        )
+
     def fetch_remote(self, job_info: Any) -> bool:
         """Fetch remote Results object and update this instance with the data.
 
