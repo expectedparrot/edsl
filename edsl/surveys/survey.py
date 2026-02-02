@@ -1837,6 +1837,15 @@ class Survey(Base):
         # Get the complete dependency DAG
         dag = self.dag()
 
+        # Pre-compute inverted DAG: inverted_dag[j] = set of questions that depend on j
+        # This allows O(1) lookup instead of O(n) iteration to check reverse dependencies
+        inverted_dag: dict[int, set[int]] = {}
+        for q_idx, deps in dag.items():
+            for dep in deps:
+                if dep not in inverted_dag:
+                    inverted_dag[dep] = set()
+                inverted_dag[dep].add(q_idx)
+
         # Track which questions have been grouped
         grouped_questions = set()
         suggested_groups = {}
@@ -1849,6 +1858,7 @@ class Survey(Base):
 
             # Start a new group with the current question
             current_group = [i]  # Use list to maintain order
+            current_group_set = {i}  # Maintain set incrementally
             grouped_questions.add(i)
 
             # Try to add more questions to this group (only look forward to maintain contiguous groups)
@@ -1860,17 +1870,18 @@ class Survey(Base):
 
                 # Check if this question depends on any question already in the current group
                 candidate_deps = dag.get(j, set())
-                current_group_set = set(current_group)
 
                 if not candidate_deps.intersection(current_group_set):
                     # Also check if any question in current group depends on candidate
-                    group_depends_on_candidate = any(
-                        j in dag.get(group_member, set())
-                        for group_member in current_group_set
+                    # Using inverted_dag for O(min(|dependents|, |group|)) instead of O(|group|)
+                    dependents_of_candidate = inverted_dag.get(j, set())
+                    group_depends_on_candidate = bool(
+                        dependents_of_candidate.intersection(current_group_set)
                     )
                     if not group_depends_on_candidate:
                         # No dependencies either way, add it to the group
                         current_group.append(j)
+                        current_group_set.add(j)
                         grouped_questions.add(j)
                         j += 1
                     else:
@@ -1936,6 +1947,15 @@ class Survey(Base):
         # Get the complete dependency DAG
         dag = self.dag()
 
+        # Pre-compute inverted DAG: inverted_dag[j] = set of questions that depend on j
+        # This allows O(1) lookup instead of O(n) iteration to check reverse dependencies
+        inverted_dag: dict[int, set[int]] = {}
+        for q_idx, deps in dag.items():
+            for dep in deps:
+                if dep not in inverted_dag:
+                    inverted_dag[dep] = set()
+                inverted_dag[dep].add(q_idx)
+
         # Track which questions have been grouped
         grouped_questions = set()
         group_counter = 0
@@ -1947,6 +1967,7 @@ class Survey(Base):
 
             # Start a new group with the current question
             current_group = [i]
+            current_group_set = {i}  # Maintain set incrementally
             grouped_questions.add(i)
 
             # Try to add more questions to this group (respecting max_group_size)
@@ -1962,17 +1983,18 @@ class Survey(Base):
 
                 # Check if this question depends on any question already in the current group
                 candidate_deps = dag.get(j, set())
-                current_group_set = set(current_group)
 
                 if not candidate_deps.intersection(current_group_set):
                     # Also check if any question in current group depends on candidate
-                    group_depends_on_candidate = any(
-                        j in dag.get(group_member, set())
-                        for group_member in current_group_set
+                    # Using inverted_dag for O(min(|dependents|, |group|)) instead of O(|group|)
+                    dependents_of_candidate = inverted_dag.get(j, set())
+                    group_depends_on_candidate = bool(
+                        dependents_of_candidate.intersection(current_group_set)
                     )
                     if not group_depends_on_candidate:
                         # No dependencies either way, add it to the group
                         current_group.append(j)
+                        current_group_set.add(j)
                         grouped_questions.add(j)
                         j += 1
                     else:
