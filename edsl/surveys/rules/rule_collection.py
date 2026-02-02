@@ -136,9 +136,10 @@ class RuleCollection(UserList):
 
         rules = []
         for rule_dict in rule_collection_dict["rules"]:
-            # Old format: rule has its own map
-            # New format: inject shared map
-            if "question_name_to_index" not in rule_dict:
+            # Old format: rule has its own non-empty map
+            # New format: shared map at collection level, rules have empty or no map
+            rule_map = rule_dict.get("question_name_to_index")
+            if not rule_map:  # None, missing, or empty dict
                 if shared_map is None:
                     raise ValueError(
                         "Rule missing question_name_to_index and no shared map provided"
