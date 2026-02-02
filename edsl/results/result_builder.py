@@ -112,9 +112,8 @@ class ResultBuilder:
                     import warnings
 
                     warnings.warn(
-                        f"Key '{key}' of data type '{data_type}' is already in use. "
-                        f"Renaming to {key}_{data_type}.\n"
-                        f"Conflicting data_type for this key at {key_mappings[key]}"
+                        f"Key '{key}' exists in both '{key_mappings[key]}' and '{data_type}'. "
+                        f"The '{data_type}' key will be renamed to '{key}_{data_type}' to avoid collision."
                     )
                     conflicts.append((key, data_type))
                 else:
@@ -123,7 +122,12 @@ class ResultBuilder:
         return key_mappings, conflicts
 
     def _resolve_conflicts(self, sub_dicts: dict, conflicts: list) -> dict:
-        """Resolve conflicts by renaming keys."""
+        """Resolve conflicts by renaming keys.
+
+        This method renames conflicting keys by appending the data type suffix
+        (e.g., 'age' becomes 'age_agent') and updates the keys_to_data_types
+        mapping so the renamed keys are properly discoverable.
+        """
         resolved_sub_dicts = {k: dict(v) for k, v in sub_dicts.items()}  # deep copy
         for key, data_type in conflicts:
             if key in resolved_sub_dicts[data_type]:
@@ -131,6 +135,8 @@ class ResultBuilder:
                 resolved_sub_dicts[data_type][new_key] = resolved_sub_dicts[
                     data_type
                 ].pop(key)
+                # Update keys_to_data_types so the renamed key is discoverable
+                self.keys_to_data_types[new_key] = data_type
         return resolved_sub_dicts
 
     def _merge_sub_dicts(self, resolved_sub_dicts: dict) -> tuple[dict, list]:
