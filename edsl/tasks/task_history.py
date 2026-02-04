@@ -610,7 +610,9 @@ class TaskHistory(RepresentationMixin):
         from jinja2 import Environment
         from ..utilities import TemplateLoader
 
-        env = Environment(loader=TemplateLoader("edsl.tasks", "templates/error_reporting"))
+        env = Environment(
+            loader=TemplateLoader("edsl.tasks", "templates/error_reporting")
+        )
 
         # Get current memory usage at this point
 

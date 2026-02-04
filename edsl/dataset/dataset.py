@@ -111,6 +111,7 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
         # and any exception here would make IPython think _repr_html_ doesn't exist
         try:
             from edsl.services.accessors import get_service_accessor
+
             accessor = get_service_accessor(name, instance=self)
             if accessor is not None:
                 return accessor

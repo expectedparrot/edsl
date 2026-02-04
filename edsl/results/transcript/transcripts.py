@@ -281,7 +281,9 @@ class Transcripts(TranscriptBase):
         # Generate slides for each result-question combination
         for result_idx, result in enumerate(self.results):
             q_and_a = result.q_and_a()
-            q_and_a_dict = {s.get("question_name"): s for s in q_and_a if s.get("question_name")}
+            q_and_a_dict = {
+                s.get("question_name"): s for s in q_and_a if s.get("question_name")
+            }
 
             for question_idx, question_name in enumerate(question_names):
                 display_style = (
@@ -319,29 +321,33 @@ class Transcripts(TranscriptBase):
                 html_parts.append(card)
 
         # Build navigation controls
-        html_parts.append(self._build_navigation_html(
-            transcripts_id,
-            total_results,
-            total_questions,
-            question_names,
-            indices_data,
-            show_agent_dropdown,
-            show_scenario_dropdown,
-            show_model_dropdown,
-        ))
+        html_parts.append(
+            self._build_navigation_html(
+                transcripts_id,
+                total_results,
+                total_questions,
+                question_names,
+                indices_data,
+                show_agent_dropdown,
+                show_scenario_dropdown,
+                show_model_dropdown,
+            )
+        )
 
         html_parts.append("    </div>")
         html_parts.append("</div>")
 
         # JavaScript
         html_parts.append("<script>")
-        html_parts.append(self._build_navigation_script(
-            transcripts_id,
-            total_results,
-            total_questions,
-            agent_names,
-            indices_data,
-        ))
+        html_parts.append(
+            self._build_navigation_script(
+                transcripts_id,
+                total_results,
+                total_questions,
+                agent_names,
+                indices_data,
+            )
+        )
         html_parts.append(self._build_copy_script(transcripts_id, plain_text))
         html_parts.append("</script>")
 
@@ -371,39 +377,47 @@ class Transcripts(TranscriptBase):
         """
 
         if show_agent:
-            dropdown_parts.append(f"""
+            dropdown_parts.append(
+                f"""
                 <div style="display: flex; align-items: center; gap: 6px;">
                     <label style="font-size: 12px; color: #57606a; font-weight: 600;">Agent:</label>
                     <select id="agent-select-{transcripts_id}" onchange="goToResult_{transcripts_id}(this.value)" style="{dropdown_style}">
                         {self._generate_result_options(total_results, indices_data, 'agent')}
                     </select>
-                </div>""")
+                </div>"""
+            )
 
         if show_scenario:
-            dropdown_parts.append(f"""
+            dropdown_parts.append(
+                f"""
                 <div style="display: flex; align-items: center; gap: 6px;">
                     <label style="font-size: 12px; color: #57606a; font-weight: 600;">Scenario:</label>
                     <select id="scenario-select-{transcripts_id}" onchange="goToResult_{transcripts_id}(this.value)" style="{dropdown_style}">
                         {self._generate_result_options(total_results, indices_data, 'scenario')}
                     </select>
-                </div>""")
+                </div>"""
+            )
 
         if show_model:
-            dropdown_parts.append(f"""
+            dropdown_parts.append(
+                f"""
                 <div style="display: flex; align-items: center; gap: 6px;">
                     <label style="font-size: 12px; color: #57606a; font-weight: 600;">Model:</label>
                     <select id="model-select-{transcripts_id}" onchange="goToResult_{transcripts_id}(this.value)" style="{dropdown_style}">
                         {self._generate_result_options(total_results, indices_data, 'model')}
                     </select>
-                </div>""")
+                </div>"""
+            )
 
-        dropdown_parts.append(f"""
+        dropdown_parts.append(
+            f"""
                 <div style="display: flex; align-items: center; gap: 6px;">
                     <label style="font-size: 12px; color: #57606a; font-weight: 600;">Question:</label>
                     <select id="question-select-{transcripts_id}" onchange="goToQuestion_{transcripts_id}(this.value)" style="{dropdown_style} max-width: 200px;">
                         {self._generate_question_options(question_names)}
                     </select>
-                </div>""")
+                </div>"""
+        )
 
         dropdown_row = ""
         if dropdown_parts:

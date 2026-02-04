@@ -141,7 +141,7 @@ def build_qa_card(
         options_html = f'<div style="margin-top: 6px; font-size: 13px; color: #57606a; font-style: italic;">Options: {" &bull; ".join(opt_list)}</div>'
 
     has_comment = show_comments and item.comment
-    answer_border = 'border-bottom: 1px solid #d4d4d4;' if has_comment else ''
+    answer_border = "border-bottom: 1px solid #d4d4d4;" if has_comment else ""
 
     height_style = "height: 400px; overflow-y: auto;" if fixed_height else ""
     class_attr = f'class="{card_class}"' if card_class else ""
@@ -203,7 +203,9 @@ def build_qa_card(
     return card_html
 
 
-def build_copy_script(transcript_id: str, plain_text: str, func_suffix: str = "") -> str:
+def build_copy_script(
+    transcript_id: str, plain_text: str, func_suffix: str = ""
+) -> str:
     """Build the JavaScript for copy functionality.
 
     Args:
