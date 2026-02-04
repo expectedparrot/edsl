@@ -2539,6 +2539,78 @@ class Survey(GitMixin, Base, metaclass=SurveyMeta):
         """
         return self.rule_collection.show_rules()
 
+    def to_mermaid(
+        self,
+        max_text_length: int = 40,
+        show_options: bool = True,
+        show_piping: bool = True,
+        show_default_flow: bool = True,
+    ) -> str:
+        """Generate a Mermaid flowchart diagram of this survey.
+
+        Creates a flowchart showing questions, skip logic, navigation rules,
+        and piping dependencies.
+
+        :param max_text_length: Maximum characters for question text display.
+        :param show_options: Whether to show question options for multiple choice.
+        :param show_piping: Whether to show piping dependency arrows.
+        :param show_default_flow: Whether to show sequential flow arrows.
+
+        :return: Mermaid markdown string that can be rendered in markdown viewers.
+
+        Example:
+
+        >>> s = Survey.example()
+        >>> mermaid = s.to_mermaid()
+        >>> "flowchart TD" in mermaid
+        True
+        """
+        from .survey_helpers.survey_mermaid import SurveyMermaidVisualization
+
+        return SurveyMermaidVisualization(
+            self,
+            max_text_length=max_text_length,
+            show_options=show_options,
+            show_piping=show_piping,
+            show_default_flow=show_default_flow,
+        ).to_mermaid()
+
+    def mermaid_diagram(
+        self,
+        max_text_length: int = 40,
+        show_options: bool = True,
+        show_piping: bool = True,
+        show_default_flow: bool = True,
+    ) -> "SurveyMermaidVisualization":
+        """Get a visualization object that displays as Mermaid in Jupyter.
+
+        Returns a SurveyMermaidVisualization object with _repr_html_ for
+        interactive Jupyter display.
+
+        :param max_text_length: Maximum characters for question text display.
+        :param show_options: Whether to show question options for multiple choice.
+        :param show_piping: Whether to show piping dependency arrows.
+        :param show_default_flow: Whether to show sequential flow arrows.
+
+        :return: SurveyMermaidVisualization object.
+
+        Example:
+
+        >>> s = Survey.example()
+        >>> diagram = s.mermaid_diagram()
+        >>> type(diagram).__name__
+        'SurveyMermaidVisualization'
+        """
+        from .survey_helpers.survey_mermaid import SurveyMermaidVisualization
+
+        return SurveyMermaidVisualization(
+            self,
+            max_text_length=max_text_length,
+            show_options=show_options,
+            show_piping=show_piping,
+            show_default_flow=show_default_flow,
+        )
+
     @event
     def add_stop_rule(
         self, question: Union[QuestionBase, str], expression: str

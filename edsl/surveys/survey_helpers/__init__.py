@@ -7,6 +7,7 @@ from .survey_simulator import Simulator
 from .survey_export import SurveyExport
 from .survey_css import CSSRule
 from .survey_flow_visualization import SurveyFlowVisualization
+from .survey_mermaid import SurveyMermaidVisualization
 from .pseudo_indices import PseudoIndices
 from .followup_questions import FollowupQuestionAdder
 from .question_renamer import QuestionRenamer
@@ -20,6 +21,7 @@ __all__ = [
     "SurveyExport",
     "CSSRule",
     "SurveyFlowVisualization",
+    "SurveyMermaidVisualization",
     "PseudoIndices",
     "FollowupQuestionAdder",
     "QuestionRenamer",

@@ -106,11 +106,17 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
             >>> _ = d.ggplot  # Returns ggplot accessor bound to this instance  # doctest: +SKIP
         """
         # Lazy import to avoid circular dependencies
-        from edsl.services.accessors import get_service_accessor
-
-        accessor = get_service_accessor(name, instance=self)
-        if accessor is not None:
-            return accessor
+        # Wrap in try/except to handle missing module gracefully - this is important
+        # because IPython checks for a canary attribute to detect proxy objects,
+        # and any exception here would make IPython think _repr_html_ doesn't exist
+        try:
+            from edsl.services.accessors import get_service_accessor
+            accessor = get_service_accessor(name, instance=self)
+            if accessor is not None:
+                return accessor
+        except (ImportError, ModuleNotFoundError):
+            # Module not available, fall through to AttributeError
+            pass
 
         raise AttributeError(f"'Dataset' object has no attribute '{name}'")
 
