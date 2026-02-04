@@ -64,6 +64,7 @@ class QuestionMapping:
     column_indices: List[int]
     is_checkbox: bool
     is_multiple_choice_with_other: bool = False
+    is_matrix: bool = False
 
 
 @dataclass

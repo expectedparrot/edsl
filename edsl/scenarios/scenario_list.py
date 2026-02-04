@@ -80,6 +80,7 @@ if TYPE_CHECKING:
     from ..agents import Agent
     from typing import Sequence
     from .scenarioml.prediction import Prediction
+    from .vibes.vibe_accessor import ScenarioListVibeAccessor
 
 
 from ..base import Base
@@ -1060,18 +1061,88 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         """
         return f"ScenarioList([{', '.join([x._eval_repr_() for x in self.data])}])"
 
+    @property
+    def vibe(self) -> "ScenarioListVibeAccessor":
+        """Access vibe-based scenario list methods.
+
+        Returns a ScenarioListVibeAccessor that provides natural language methods
+        for describing, filtering, and extracting scenario lists.
+
+        Returns:
+            ScenarioListVibeAccessor: Accessor for vibe methods
+
+        Examples:
+            >>> sl = ScenarioList.example()  # doctest: +SKIP
+            >>> sl.vibe.describe()  # doctest: +SKIP
+            >>> filtered = sl.vibe.filter("Keep only people over 30")  # doctest: +SKIP
+            >>> new_sl = ScenarioList.vibe.extract("<table>...</table>")  # doctest: +SKIP
+        """
+        from .vibes.vibe_accessor import ScenarioListVibeAccessor
+
+        return ScenarioListVibeAccessor(self)
+
     @classmethod
-    def from_vibes(cls, description: str) -> ScenarioList:
-        """Create a ScenarioList from a vibe description.
+    def from_vibes(
+        cls,
+        description: str,
+        *,
+        verbose: bool = True,
+        strategy: str = "comprehensive",
+        **kwargs,
+    ) -> ScenarioList:
+        """Create a ScenarioList from a vibe description using intelligent multi-source approach.
+
+        This method uses an intelligent agent that tries multiple approaches in sequence:
+        1. Search for relevant Wikipedia tables (for structured reference data)
+        2. Try Exa web search for real-world data (if available)
+        3. Use AI generation as reliable fallback
+
+        The agent provides progress updates and tries different sources until it finds data.
 
         Args:
-            description: A description of the vibe.
-        """
-        from edsl.dataset.vibes.scenario_generator import ScenarioGenerator
+            description: Natural language description of the data you want
+                        (e.g., "European countries and their capitals", "Fortune 500 companies")
+            verbose: If True, prints progress updates as different approaches are tried
+            strategy: Search strategy to use:
+                     - 'comprehensive': Try all approaches (Wikipedia → Exa → AI)
+                     - 'fast': Try Wikipedia then AI (skip Exa for speed)
+                     - 'web_only': Only try web sources (Wikipedia and Exa)
+                     - 'ai_only': Only use AI generation
+            **kwargs: Additional arguments:
+                     - exa_count: Number of results from Exa (default: 50)
+                     - generator_count: Number of AI-generated scenarios (default: 10)
+                     - model: AI model for generation (default: "gpt-4o")
+                     - temperature: AI temperature (default: 0.7)
+                     - Plus any args for underlying methods
 
-        gen = ScenarioGenerator(model="gpt-4o", temperature=0.7)
-        result = gen.generate_scenarios(description)
-        return cls([Scenario(scenario) for scenario in result["scenarios"]])
+        Returns:
+            ScenarioList: Created from the best available source
+
+        Raises:
+            RuntimeError: If all enabled approaches fail to produce results
+
+        Examples:
+            >>> # Comprehensive search (tries all sources)
+            >>> sl = ScenarioList.from_vibes("European countries and their capitals")  # doctest: +SKIP
+
+            >>> # Fast search (skip web scraping)
+            >>> sl = ScenarioList.from_vibes("Fortune 500 companies", strategy="fast")  # doctest: +SKIP
+
+            >>> # Only web sources
+            >>> sl = ScenarioList.from_vibes("US universities", strategy="web_only")  # doctest: +SKIP
+
+            >>> # Customize result counts
+            >>> sl = ScenarioList.from_vibes(
+            ...     "AI researchers",
+            ...     exa_count=100,
+            ...     generator_count=20
+            ... )  # doctest: +SKIP
+        """
+        from .vibes.scenario_agent import from_vibes_intelligent
+
+        return from_vibes_intelligent(
+            description, verbose=verbose, strategy=strategy, **kwargs
+        )
 
     @classmethod
     def vibe_extract(
@@ -1144,64 +1215,6 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         scenario_list._extraction_metadata = metadata
 
         return scenario_list
-
-    def vibe_describe(
-        self,
-        *,
-        model: str = "gpt-4o",
-        temperature: float = 0.7,
-        max_sample_values: int = 5,
-    ) -> dict:
-        """Generate a title and description for the scenario list.
-
-        This method uses an LLM to analyze the scenario list and generate
-        a descriptive title and detailed description of what the scenario list represents.
-
-        Args:
-            model: OpenAI model to use for generation (default: "gpt-4o")
-            temperature: Temperature for generation (default: 0.7)
-            max_sample_values: Maximum number of sample values to include per key (default: 5)
-
-        Returns:
-            dict: Dictionary with keys:
-                - "proposed_title": A single sentence title for the scenario list
-                - "description": A paragraph-length description of the scenario list
-
-        Examples:
-            Basic usage:
-
-            >>> from edsl.scenarios import Scenario, ScenarioList
-            >>> sl = ScenarioList([  # doctest: +SKIP
-            ...     Scenario({"name": "Alice", "age": 30, "city": "NYC"}),  # doctest: +SKIP
-            ...     Scenario({"name": "Bob", "age": 25, "city": "SF"})  # doctest: +SKIP
-            ... ])  # doctest: +SKIP
-            >>> description = sl.vibe_describe()  # doctest: +SKIP
-            >>> print(description["proposed_title"])  # doctest: +SKIP
-            >>> print(description["description"])  # doctest: +SKIP
-
-            Using a different model:
-
-            >>> sl = ScenarioList.from_vibes("Customer demographics")  # doctest: +SKIP
-            >>> description = sl.vibe_describe(model="gpt-4o-mini")  # doctest: +SKIP
-
-        Notes:
-            - Requires OPENAI_API_KEY environment variable to be set
-            - The title will be a single sentence that captures the scenario list's essence
-            - The description will be a paragraph explaining what the data represents
-            - Analyzes all unique keys and samples values to understand the data theme
-            - If a codebook is present, it will be included in the analysis
-        """
-        from .vibes import describe_scenario_list_with_vibes
-
-        d = describe_scenario_list_with_vibes(
-            self,
-            model=model,
-            temperature=temperature,
-            max_sample_values=max_sample_values,
-        )
-        from ..scenarios import Scenario
-
-        return Scenario(**d)
 
     def _summary_repr(self, MAX_SCENARIOS: int = 10, MAX_FIELDS: int = 500) -> str:
         """Generate a summary representation of the ScenarioList with Rich formatting.
@@ -1947,75 +1960,6 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
 
         return ScenarioListTransformer.filter(self, expression)
 
-    def vibe_filter(
-        self,
-        criteria: str,
-        *,
-        model: str = "gpt-4o",
-        temperature: float = 0.1,
-        show_expression: bool = False,
-    ) -> ScenarioList:
-        """
-        Filter the scenario list using natural language criteria.
-
-        This method uses an LLM to generate a filter expression based on
-        natural language criteria, then applies it using the scenario list's filter method.
-
-        Args:
-            criteria: Natural language description of the filtering criteria.
-                Examples:
-                - "Keep only people over 30"
-                - "Remove scenarios with missing data"
-                - "Only include scenarios from the US"
-                - "Filter out any scenarios where age is less than 18"
-            model: OpenAI model to use for generating the filter (default: "gpt-4o")
-            temperature: Temperature for generation (default: 0.1 for consistent logic)
-            show_expression: If True, prints the generated filter expression
-
-        Returns:
-            ScenarioList: A new ScenarioList containing only the scenarios that match the criteria
-
-        Examples:
-            >>> from edsl.scenarios import Scenario, ScenarioList
-            >>> sl = ScenarioList([
-            ...     Scenario({'age': 25, 'occupation': 'student'}),
-            ...     Scenario({'age': 35, 'occupation': 'engineer'}),
-            ...     Scenario({'age': 42, 'occupation': 'teacher'})
-            ... ])
-            >>> filtered = sl.vibe_filter("Keep only people over 30")  # doctest: +SKIP
-
-        Notes:
-            - Requires OPENAI_API_KEY environment variable to be set
-            - The LLM generates a filter expression using scenario keys directly
-            - Uses the scenario list's built-in filter() method for safe evaluation
-            - Use show_expression=True to see the generated filter logic
-        """
-        from .vibes.vibe_filter import VibeFilter
-
-        # Collect all unique keys across all scenarios
-        all_keys = set()
-        for scenario in self.data:
-            all_keys.update(scenario.keys())
-
-        # Get sample scenarios to help the LLM understand the data structure
-        sample_scenarios = []
-        for scenario in self.data[:5]:  # Get up to 5 sample scenarios
-            sample_scenarios.append(dict(scenario))
-
-        # Create the filter generator
-        filter_gen = VibeFilter(model=model, temperature=temperature)
-
-        # Generate the filter expression
-        filter_expr = filter_gen.create_filter(
-            sorted(list(all_keys)), sample_scenarios, criteria
-        )
-
-        if show_expression:
-            print(f"Generated filter expression: {filter_expr}")
-
-        # Use the scenario list's built-in filter method which returns ScenarioList
-        return self.filter(filter_expr)
-
     @classmethod
     def from_urls(
         cls, urls: list[str], field_name: Optional[str] = "text"
@@ -2299,9 +2243,16 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
 
         return ScenarioListTransformer.reorder_keys(self, new_order)
 
-    def to_survey(self) -> "Survey":
+    def to_survey(self, questions_to_randomize: str = None) -> "Survey":
         from ..questions import QuestionBase
         from ..surveys import Survey
+
+        # Parse the comma-separated string into a list if provided
+        randomize_list = None
+        if questions_to_randomize:
+            randomize_list = [
+                name.strip() for name in questions_to_randomize.split(",")
+            ]
 
         s = Survey()
         for index, scenario in enumerate(self):
@@ -2322,6 +2273,11 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             new_d = d
             question = QuestionBase.from_dict(new_d)
             s.add_question(question)
+
+        # Set questions_to_randomize after all questions are added
+        # This will trigger validation and raise exception if question names don't exist
+        if randomize_list:
+            s.questions_to_randomize = randomize_list
 
         return s
 
@@ -2888,6 +2844,127 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         for key, list_of_values in data.items():
             s = s.add_list(key, list_of_values)
         return s
+
+    @classmethod
+    def from_hugging_face(
+        cls,
+        dataset_name: str,
+        config_name: Optional[str] = None,
+        split: Optional[str] = None,
+    ) -> "ScenarioList":
+        """Create a ScenarioList from a Hugging Face dataset.
+
+        Args:
+            dataset_name (str): The fully qualified name of the Hugging Face dataset
+            config_name (str, optional): Specific configuration to load if the dataset has multiple configs
+            split (str, optional): Specific split to load (e.g., 'train', 'test', 'validation')
+
+        Returns:
+            ScenarioList: A ScenarioList created from the dataset
+
+        Raises:
+            ValueError: If the dataset has multiple configurations and config_name is not specified,
+                       or if the specified split doesn't exist
+            ImportError: If the datasets library is not available
+
+        Example:
+            >>> # Load a dataset with a single configuration
+            >>> sl = ScenarioList.from_hugging_face("squad")
+
+            >>> # Load a specific configuration from a dataset with multiple configs
+            >>> sl = ScenarioList.from_hugging_face("glue", config_name="cola")
+
+            >>> # Load a specific split
+            >>> sl = ScenarioList.from_hugging_face("Anthropic/AnthropicInterviewer", split="creatives")
+        """
+        from .hugging_face import from_hugging_face
+
+        return from_hugging_face(dataset_name, config_name, split)
+
+    @classmethod
+    def from_exa(
+        cls,
+        query: str,
+        criteria: Optional[List[str]] = None,
+        count: int = 100,
+        enrichments: Optional[List[dict]] = None,
+        api_key: Optional[str] = None,
+        wait_for_completion: bool = True,
+        max_wait_time: int = 120,
+        **kwargs,
+    ) -> "ScenarioList":
+        """Create a ScenarioList from EXA API web search and enrichment.
+
+        Args:
+            query (str): The search query string (e.g., "Sales leaders at US fintech companies")
+            criteria (list[str], optional): List of search criteria to refine the search
+            count (int): Number of results to return (default: 100)
+            enrichments (list[dict], optional): List of enrichment parameters, each with 'description' and 'format' keys
+            api_key (str, optional): EXA API key (defaults to EXA_API_KEY environment variable)
+            wait_for_completion (bool): Whether to wait for webset completion (default: True)
+            max_wait_time (int): Maximum time to wait for completion in seconds (default: 120)
+            **kwargs: Additional parameters to pass to EXA webset creation
+
+        Returns:
+            ScenarioList: A ScenarioList created from the EXA search results
+
+        Raises:
+            ValueError: If the EXA API key is not provided or enrichments are malformed
+            ImportError: If the exa-py library is not available
+            RuntimeError: If the EXA API call fails
+
+        Example:
+            >>> # Simple search
+            >>> sl = ScenarioList.from_exa("Sales leaders at US fintech companies", count=50)  # doctest: +SKIP
+
+            >>> # Search with criteria and enrichments
+            >>> sl = ScenarioList.from_exa(
+            ...     query="AI startup CTOs",
+            ...     criteria=["holds CTO position", "works at AI startup"],
+            ...     enrichments=[
+            ...         {"description": "Years of experience", "format": "number"},
+            ...         {"description": "University", "format": "text"}
+            ...     ],
+            ...     count=100
+            ... )  # doctest: +SKIP
+        """
+        from .exa import from_exa
+
+        return from_exa(
+            query,
+            criteria,
+            count,
+            enrichments,
+            api_key,
+            wait_for_completion,
+            max_wait_time,
+            **kwargs,
+        )
+
+    @classmethod
+    def from_exa_webset(
+        cls, webset_id: str, api_key: Optional[str] = None
+    ) -> "ScenarioList":
+        """Create a ScenarioList from an existing EXA webset ID.
+
+        Args:
+            webset_id (str): The ID of an existing EXA webset
+            api_key (str, optional): EXA API key (defaults to EXA_API_KEY environment variable)
+
+        Returns:
+            ScenarioList: A ScenarioList created from the webset results
+
+        Raises:
+            ValueError: If the EXA API key is not provided
+            ImportError: If the exa-py library is not available
+            RuntimeError: If the webset cannot be retrieved
+
+        Example:
+            >>> sl = ScenarioList.from_exa_webset("01k6m4wn1aykv03jq3p4hxs2m9")  # doctest: +SKIP
+        """
+        from .exa import from_exa_webset
+
+        return from_exa_webset(webset_id, api_key)
 
     def code(self) -> str:
         """Create the Python code representation of a survey."""
@@ -3505,7 +3582,7 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         # Generate the requested number of profiles
         return generator.generate_batch(count)
 
-    def predict(self, y: str, **kwargs) -> "Prediction":
+    def predict(self, y: str, list_encoding: str = "dummy", **kwargs) -> "Prediction":
         """
         Build a predictive model using AutoML with automatic feature engineering.
 
@@ -3515,6 +3592,9 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
 
         Args:
             y: Name of the target column to predict
+            list_encoding: Method for encoding list features. Options:
+                          'dummy' for dummy/binary variables (default)
+                          'tfidf' for TF-IDF encoding
             **kwargs: Additional arguments (reserved for future extensions)
 
         Returns:
@@ -3596,7 +3676,7 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
 
         try:
             # Initialize processors
-            feature_processor = FeatureProcessor()
+            feature_processor = FeatureProcessor(list_encoding=list_encoding)
             model_selector = ModelSelector()
 
             # Process features

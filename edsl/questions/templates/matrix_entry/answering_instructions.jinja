@@ -1,0 +1,12 @@
+Please respond with a nested dictionary where each item (row) maps to ratings for each column scenario.
+Provide numeric values{% if min_value is not none and max_value is not none %} between {{min_value}} and {{max_value}}{% elif min_value is not none %} >= {{min_value}}{% elif max_value is not none %} <= {{max_value}}{% endif %}.
+
+Example format:
+{
+    "Item1": {"Column1": 7.5, "Column2": 8.2, "Column3": 6.1},
+    "Item2": {"Column1": 6.8, "Column2": 9.1, "Column3": 7.3}
+}
+
+{% if include_comment %}
+After the answer, you can put a comment explaining your ratings on the next line.
+{% endif %}

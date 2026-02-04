@@ -36,6 +36,7 @@ if TYPE_CHECKING:
     from ..scenarios import ScenarioList
     from ..results import Results
     from .agent_list_deltas import AgentListDeltas
+    from .vibes.vibe_accessor import AgentListVibeAccessor
 
 
 # is_iterable function moved to agent_list_trait_operations.py
@@ -784,69 +785,25 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
 
         return AgentListFilter.filter(self, expression)
 
-    def vibe_filter(
-        self,
-        criteria: str,
-        *,
-        model: str = "gpt-4o",
-        temperature: float = 0.1,
-        show_expression: bool = False,
-    ) -> "AgentList":
-        """
-        Filter the agent list using natural language criteria.
+    @property
+    def vibe(self) -> "AgentListVibeAccessor":
+        """Access vibe-based agent list methods.
 
-        This method uses an LLM to generate a filter expression based on
-        natural language criteria, then applies it using the agent list's filter method.
-
-        Parameters:
-            criteria: Natural language description of the filtering criteria.
-                Examples:
-                - "Keep only people over 30"
-                - "Only engineers"
-                - "Agents in Boston"
-                - "Remove anyone under 25"
-            model: OpenAI model to use for generating the filter (default: "gpt-4o")
-            temperature: Temperature for generation (default: 0.1 for consistent logic)
-            show_expression: If True, prints the generated filter expression
+        Returns an AgentListVibeAccessor that provides natural language methods
+        for filtering, editing, and generating agent lists.
 
         Returns:
-            AgentList: A new AgentList containing only agents that match the criteria
+            AgentListVibeAccessor: Accessor for vibe methods
 
         Examples:
-            >>> from edsl import Agent, AgentList
-            >>> agents = AgentList([
-            ...     Agent(name='Alice', traits={'age': 25, 'occupation': 'engineer'}),
-            ...     Agent(name='Bob', traits={'age': 35, 'occupation': 'teacher'}),
-            ... ])
-            >>> filtered = agents.vibe_filter("Only people over 30")  # doctest: +SKIP
-
-        Notes:
-            - Requires OPENAI_API_KEY environment variable to be set
-            - The LLM generates a filter expression using trait names directly
-            - Uses the agent list's built-in filter() method for safe evaluation
-            - Use show_expression=True to see the generated filter logic
+            >>> agents = AgentList.example()  # doctest: +SKIP
+            >>> agents.vibe.filter("Keep only people over 30")  # doctest: +SKIP
+            >>> agents.vibe.edit("Make all agents 10 years older")  # doctest: +SKIP
+            >>> new_agents = AgentList.from_vibes("College students")  # doctest: +SKIP
         """
-        from edsl.dataset.vibes.vibe_filter import VibeFilter
+        from .vibes.vibe_accessor import AgentListVibeAccessor
 
-        # Get trait names and sample data
-        trait_names = self.all_traits
-
-        # Get a few sample agents' traits to help the LLM understand the data structure
-        sample_dicts = []
-        for agent in self[:5]:  # First 5 agents
-            sample_dicts.append(dict(agent.traits))
-
-        # Create the filter generator
-        filter_gen = VibeFilter(model=model, temperature=temperature)
-
-        # Generate the filter expression
-        filter_expr = filter_gen.create_filter(trait_names, sample_dicts, criteria)
-
-        if show_expression:
-            print(f"Generated filter expression: {filter_expr}")
-
-        # Use the agent list's built-in filter method which returns AgentList
-        return self.filter(filter_expr)
+        return AgentListVibeAccessor(self)
 
     @property
     def all_traits(self) -> list[str]:
@@ -1710,89 +1667,6 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
             agents.append(agent)
 
         return cls(agents)
-
-    def vibe_edit(
-        self,
-        edit_instructions: str,
-        *,
-        model: str = "gpt-4o",
-        temperature: float = 0.7,
-    ) -> "AgentList":
-        """Edit the agent list using natural language instructions.
-
-        This method uses an LLM to modify an existing agent list based on natural language
-        instructions. It can modify agent traits, add or remove traits, change trait values,
-        filter agents, or make other modifications as requested.
-
-        Args:
-            edit_instructions: Natural language description of the edits to apply.
-                Examples:
-                - "Make all agents 10 years older"
-                - "Add an 'education' trait to all agents"
-                - "Remove agents under age 25"
-                - "Translate all text traits to Spanish"
-                - "Make the agents more diverse in background"
-            model: OpenAI model to use for editing (default: "gpt-4o")
-            temperature: Temperature for generation (default: 0.7)
-
-        Returns:
-            AgentList: A new AgentList instance with the edited agents
-
-        Examples:
-            Basic usage:
-
-            >>> agents = AgentList.from_vibes("College students")  # doctest: +SKIP
-            >>> edited_agents = agents.vibe_edit("Make all agents 5 years older")  # doctest: +SKIP
-
-            Add a new trait:
-
-            >>> agents = AgentList.from_vibes("Software engineers")  # doctest: +SKIP
-            >>> edited_agents = agents.vibe_edit("Add a 'programming_language' trait to all agents")  # doctest: +SKIP
-
-            Filter agents:
-
-            >>> agents = AgentList.from_vibes("Various professionals")  # doctest: +SKIP
-            >>> edited_agents = agents.vibe_edit("Keep only agents with technical backgrounds")  # doctest: +SKIP
-
-            Translate traits:
-
-            >>> agents = AgentList.from_vibes("Restaurant customers")  # doctest: +SKIP
-            >>> edited_agents = agents.vibe_edit("Translate all text traits to French")  # doctest: +SKIP
-
-        Notes:
-            - Requires OPENAI_API_KEY environment variable to be set
-            - The editor will maintain agent structure and traits unless explicitly asked to change them
-            - Agents can be filtered by asking to remove or keep certain agents
-            - New traits can be added with appropriate values inferred from existing traits
-            - Trait values will be modified appropriately based on instructions
-        """
-        from .vibes import AgentVibeEdit
-
-        # Convert current agents to dict format
-        current_agents = []
-        for agent in self.data:
-            agent_dict = {"traits": dict(agent.traits)}
-            if hasattr(agent, "name") and agent.name:
-                agent_dict["name"] = agent.name
-            current_agents.append(agent_dict)
-
-        # Create the editor
-        editor = AgentVibeEdit(model=model, temperature=temperature)
-
-        # Edit the agent list
-        edited_data = editor.edit_agent_list(current_agents, edit_instructions)
-
-        # Convert each edited agent definition to an Agent object
-        agents = []
-        for agent_def in edited_data["agents"]:
-            agent_traits = agent_def["traits"]
-            agent_name = agent_def.get("name")
-
-            # Create the agent with traits and optional name
-            agent = Agent(traits=agent_traits, name=agent_name)
-            agents.append(agent)
-
-        return self.__class__(agents)
 
 
 if __name__ == "__main__":

@@ -11629,5 +11629,26 @@
       "edsl_version": "1.0.5.dev1",
       "edsl_class_name": "QuestionBase"
     }
+  },
+  {
+    "class_name": "QuestionMatrixEntry",
+    "dict": {
+      "question_name": "ai_trust_satisfaction",
+      "question_text": "Rate your trust and satisfaction levels (0-10) for different AI usage scenarios:",
+      "question_items": [
+        "Trust level",
+        "Satisfaction level"
+      ],
+      "question_columns": [
+        "No AI Tools",
+        "With AI Help",
+        "AI Only"
+      ],
+      "min_value": 0,
+      "max_value": 10,
+      "question_type": "matrix_entry",
+      "edsl_version": "1.0.5.dev1",
+      "edsl_class_name": "QuestionBase"
+    }
   }
 ]

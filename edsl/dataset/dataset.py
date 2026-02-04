@@ -20,6 +20,7 @@ if TYPE_CHECKING:
     from ..surveys import Survey
     from ..questions import QuestionBase
     from ..jobs import Job  # noqa: F401
+    from .vibes.vibe_accessor import DatasetVibeAccessor
 
 
 class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
@@ -186,64 +187,25 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
         """
         return self.to_scenario_list().filter(expression).to_dataset()
 
-    def vibe_filter(
-        self,
-        criteria: str,
-        *,
-        model: str = "gpt-4o",
-        temperature: float = 0.1,
-        show_expression: bool = False,
-    ) -> "Dataset":
-        """
-        Filter the dataset using natural language criteria.
+    @property
+    def vibe(self) -> "DatasetVibeAccessor":
+        """Access vibe-based dataset methods.
 
-        This method uses an LLM to generate a filter expression based on
-        natural language criteria, then applies it using the dataset's filter method.
-
-        Parameters:
-            criteria: Natural language description of the filtering criteria.
-                Examples:
-                - "Keep only people over 30"
-                - "Remove outliers in the satisfaction scores"
-                - "Only include responses from the last month"
-                - "Filter out any rows with missing data"
-            model: OpenAI model to use for generating the filter (default: "gpt-4o")
-            temperature: Temperature for generation (default: 0.1 for consistent logic)
-            show_expression: If True, prints the generated filter expression
+        Returns a DatasetVibeAccessor that provides natural language methods
+        for filtering, plotting, and querying dataset data.
 
         Returns:
-            Dataset: A new Dataset containing only the rows that match the criteria
+            DatasetVibeAccessor: Accessor for vibe methods
 
         Examples:
-            >>> from edsl.dataset import Dataset
-            >>> d = Dataset([{'age': [25, 35, 42]}, {'occupation': ['student', 'engineer', 'teacher']}])
-            >>> # filtered = d.vibe_filter("Keep only people over 30")
-
-        Notes:
-            - Requires OPENAI_API_KEY environment variable to be set
-            - The LLM generates a filter expression using column names directly
-            - Uses the dataset's built-in filter() method for safe evaluation
-            - Use show_expression=True to see the generated filter logic
+            >>> data = Dataset.example()  # doctest: +SKIP
+            >>> data.vibe.filter("Keep only people over 30")  # doctest: +SKIP
+            >>> data.vibe.plot("bar chart of satisfaction scores")  # doctest: +SKIP
+            >>> data.vibe.sql("Show average satisfaction by age group")  # doctest: +SKIP
         """
-        from .vibes.vibe_filter import VibeFilter
+        from .vibes.vibe_accessor import DatasetVibeAccessor
 
-        # Get column names and sample data
-        columns = self.relevant_columns()
-
-        # Get a few sample rows to help the LLM understand the data structure
-        sample_dicts = self.to_dicts(remove_prefix=False)[:5]
-
-        # Create the filter generator
-        filter_gen = VibeFilter(model=model, temperature=temperature)
-
-        # Generate the filter expression
-        filter_expr = filter_gen.create_filter(columns, sample_dicts, criteria)
-
-        if show_expression:
-            print(f"Generated filter expression: {filter_expr}")
-
-        # Use the dataset's built-in filter method which returns Dataset
-        return self.filter(filter_expr)
+        return DatasetVibeAccessor(self)
 
     def mutate(
         self, new_var_string: str, functions_dict: Optional[dict[str, Callable]] = None
