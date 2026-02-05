@@ -613,10 +613,10 @@ class Survey(Base):
         else:
             name = None
 
-        # Inject question_name_to_index into rule_collection dict if missing
+        # Inject question_name_to_index into rule_collection dict if missing or empty
         # This provides backwards compatibility for older serialized formats
         rule_collection_data = data["rule_collection"]
-        if "question_name_to_index" not in rule_collection_data:
+        if not rule_collection_data.get("question_name_to_index"):
             rule_collection_data["question_name_to_index"] = {
                 q.question_name: i for i, q in enumerate(questions)
             }
