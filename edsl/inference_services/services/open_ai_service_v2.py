@@ -286,7 +286,7 @@ class OpenAIServiceV2(InferenceServiceABC):
                                     )
                 # build input sequence
                 messages: Any
-                if system_prompt and not self.omit_system_prompt_if_empty:
+                if system_prompt:
                     # For Responses API, system content should also be properly formatted
                     system_content = (
                         system_prompt
@@ -298,7 +298,13 @@ class OpenAIServiceV2(InferenceServiceABC):
                         {"role": "user", "content": content},
                     ]
                 else:
-                    messages = [{"role": "user", "content": content}]
+                    if self.omit_system_prompt_if_empty:
+                        messages = [{"role": "user", "content": content}]
+                    else:
+                        messages = [
+                            {"role": "system", "content": system_prompt},
+                            {"role": "user", "content": content},
+                        ]
 
                 # All OpenAI models with the responses API use these base parameters
                 params = {
