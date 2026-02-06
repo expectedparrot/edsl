@@ -204,6 +204,11 @@ class Rule:
         if "before_rule" not in rule_dict:
             rule_dict["before_rule"] = False
 
+        # Handle backwards compatibility for older serialized rules
+        # that may not have question_name_to_index
+        if "question_name_to_index" not in rule_dict:
+            rule_dict["question_name_to_index"] = {}
+
         return Rule(
             current_q=rule_dict["current_q"],
             expression=rule_dict["expression"],

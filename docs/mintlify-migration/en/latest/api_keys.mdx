@@ -1,11 +1,12 @@
 ---
 title: "Managing Keys"
-description: "API keys are required to access large language models. To use EDSL with models you can either provide your own keys from service providers (*Anthropic, Azure, Bedrock, Deep Infra, DeepSeek, Google, Groq, Mistral, OpenAI, Perplexity, Together, Xai*) or use an **Expected Parrot key** to access all available models at the Expected Parrot server. See the [model pricing page](http://www.expectedparrot.com/getting-started/coop-pricing) for details on current available models and prices."
+description: "API keys are required to access large language models. To use EDSL with models you can either provide your own keys from service providers (*Anthropic, Azure, Bedrock, Deep Infra, DeepSeek, Google, Groq, Mistral, OpenAI, Perplexity, Together, Xai*) or use an **Expected Parrot key** to access all available models at the Expected Parrot server. See the [model pricing page](http://www.expectedparrot.com/models) for details on current available models and prices."
 ---
 
-In addition to providing access to all available models, your Expected Parrot key also allows you to post and share content at [Coop](https://www.expectedparrot.com/content/explore): a free platform for AI-based research that is fully integrated with EDSL. [Learn more](http://www.expectedparrot.com/getting-started/coop-how-it-works) about using Coop to collaborate on research.
+In addition to providing access to available models, your Expected Parrot key also allows you to post and share content for free.
 
-This page shows how to store and select keys to use when running surveys on your own computer (*local inference*) or at the Expected Parrot server (*remote inference*). For instructions on using your Expected Parrot key only for accessing Coop, please see the [Coop section](/en/latest/coop) of the documentation.
+This page shows how to store and select keys to use when running surveys on your own computer (*local inference*) or at the Expected Parrot server (*remote inference*). 
+For instructions on using your Expected Parrot key only for accessing Coop, please see the [Coop section](/en/latest/coop) of the documentation.
 
 **Special note for Colab users**: If you are using EDSL in a Colab notebook, please see [special instructions](/en/latest/colab_setup) on storing API keys as “secrets” ([Colab Setup](/en/latest/colab_setup)).
 
@@ -175,7 +176,7 @@ Model.available(service="openai")
 
 Learn more about available models in the [Language Models](/en/latest/language_models#language-models) section of the documentation.
 
-If you attempt to run a survey without storing any API keys, you will get a message with a link to log into Coop and automatically activate remote inference and store your Expected Parrot API key for you.
+If you attempt to run a survey without storing any API keys, you will get a message with a link to log into your Expected Parrot account and automatically activate remote inference and store your Expected Parrot API key for you.
 
 If you provide an invalid API key you will receive an error message AuthenticationError: Incorrect API key provided…. You may also receive an error message if you do not have credits on your account with a service provider.
 
