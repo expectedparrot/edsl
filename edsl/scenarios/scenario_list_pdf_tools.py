@@ -205,7 +205,15 @@ class PdfTools:
         # Iterate through each page and extract text
         for page_num in range(len(document)):
             page = document.load_page(page_num)
-            text = page.get_text()
+            blocks = page.get_text("blocks")  # Extract text blocks
+
+            # Sort blocks by their vertical position (y0) to maintain reading order
+            blocks.sort(key=lambda b: (b[1], b[0]))  # Sort by y0 first, then x0
+
+            # Combine the text blocks in order
+            text = ""
+            for block in blocks:
+                text += block[4] + "\n"
 
             # Create a dictionary for the current page
             page_info = {"filename": filename, "page": page_num + 1, "text": text}
