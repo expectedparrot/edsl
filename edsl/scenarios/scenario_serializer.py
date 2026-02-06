@@ -77,12 +77,14 @@ class ScenarioSerializer:
                 d[key] = value.to_dict()
             elif isinstance(value, FileStore) or isinstance(value, Prompt):
                 value_dict = value.to_dict(add_edsl_version=add_edsl_version)
-                if (
-                    offload_base64
-                    and isinstance(value_dict, dict)
-                    and "base64_string" in value_dict
-                ):
-                    value_dict["base64_string"] = "offloaded"
+                if isinstance(value_dict, dict) and "base64_string" in value_dict:
+                    # Auto-offload if already uploaded to GCS (has file_uuid)
+                    gcs_info = value_dict.get("external_locations", {}).get("gcs", {})
+                    if gcs_info.get("uploaded") and gcs_info.get("file_uuid"):
+                        value_dict["base64_string"] = "offloaded"
+                    # Also offload if explicitly requested
+                    elif offload_base64:
+                        value_dict["base64_string"] = "offloaded"
                 d[key] = value_dict
 
         if add_edsl_version:

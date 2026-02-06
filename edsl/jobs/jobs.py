@@ -882,12 +882,72 @@ class Jobs(Base):
 
         >>> from edsl.jobs import Jobs
         >>> hash(Jobs.example())
-        846655441787442972
+        811125667169176429
 
         """
         from ..utilities import dict_hash
 
         return dict_hash(self.to_dict(add_edsl_version=False))
+
+    def offload_files(self, coop=None, max_workers: int = 20) -> "Jobs":
+        """Upload all FileStore objects in scenarios to GCS in parallel.
+
+        This method finds all FileStore objects in the job's scenarios and uploads
+        them to Google Cloud Storage. After uploading, each FileStore will have its
+        `external_locations.gcs` set with `file_uuid` and `user_uuid`.
+
+        When `to_dict()` is called after offloading, FileStores that have been
+        uploaded will automatically have their `base64_string` set to "offloaded"
+        instead of the full content.
+
+        Args:
+            coop: Optional Coop instance. If not provided, creates a new one.
+            max_workers: Maximum number of parallel upload threads (default: 10).
+
+        Returns:
+            Jobs: Returns self for method chaining.
+
+        Example:
+            >>> job = Jobs.example()
+            >>> _ = job.offload_files()  # Uploads FileStores to GCS in parallel
+            >>> job_dict = job.to_dict()  # FileStores auto-offloaded in dict
+        """
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+
+        if coop is None:
+            from ..coop import Coop
+
+            coop = Coop()
+
+        from ..scenarios import FileStore
+
+        # Collect all FileStores that need uploading
+        filestores_to_upload = []
+        for scenario in self.scenarios:
+            for key, value in scenario.items():
+                if isinstance(value, FileStore):
+                    # Skip if already uploaded
+                    gcs_info = getattr(value, "external_locations", {}).get("gcs", {})
+                    if gcs_info.get("uploaded") and gcs_info.get("file_uuid"):
+                        continue
+
+                    # Skip if already offloaded (no content to upload)
+                    if value.base64_string == "offloaded":
+                        continue
+
+                    filestores_to_upload.append(value)
+
+        # Upload in parallel
+        if filestores_to_upload:
+            with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                futures = {
+                    executor.submit(coop._upload_filestore, fs): fs
+                    for fs in filestores_to_upload
+                }
+                for future in as_completed(futures):
+                    future.result()  # Raises exception if upload failed
+
+        return self
 
     def _output(self, message) -> None:
         """Check if a Job is verbose. If so, print the message."""
@@ -2556,7 +2616,7 @@ class Jobs(Base):
 
     def humanize(
         self,
-        project_name: str = "Project",
+        human_survey_name: str = "New survey",
         scenario_list_method: Optional[
             Literal["randomize", "loop", "single_scenario", "ordered"]
         ] = None,
@@ -2573,6 +2633,7 @@ class Jobs(Base):
         """
         from edsl.coop import Coop
         from edsl.coop.exceptions import CoopValueError
+        from ..scenarios import Scenario
 
         if len(self.agents) > 0 or len(self.models) > 0:
             raise CoopValueError("We don't support humanize with agents or models yet.")
@@ -2606,11 +2667,11 @@ class Jobs(Base):
             scenario_list = self.scenarios
 
         c = Coop()
-        project_details = c.create_project(
+        human_survey_details = c.create_human_survey(
             self.survey,
             scenario_list,
             scenario_list_method,
-            project_name,
+            human_survey_name,
             survey_description,
             survey_alias,
             survey_visibility,
@@ -2618,7 +2679,7 @@ class Jobs(Base):
             scenario_list_alias,
             scenario_list_visibility,
         )
-        return project_details
+        return Scenario(human_survey_details)
 
 
 def main():

@@ -1,14 +1,63 @@
 from __future__ import annotations
-from typing import Optional
+from typing import Optional, List, Dict, Any, Union, Literal
 
 from uuid import uuid4
 
-from pydantic import model_validator, field_validator, BaseModel, ValidationError
+from pydantic import field_validator, BaseModel
 
 
 from .question_base import QuestionBase
 from .response_validator_abc import ResponseValidatorABC
 from .decorators import inject_exception
+
+
+class TextContent(BaseModel):
+    type: Literal["text"] = "text"
+    text: str
+
+
+class InterviewerMessage(BaseModel):
+    """
+    Pydantic model for interviewer messages in an interview transcript.
+
+    Attributes:
+        role: The role of the speaker, always "interviewer".
+        content: The text content of the message.
+
+    Examples:
+        >>> msg = InterviewerMessage(content=[{"type": "text", "text": "How are you?"}])
+        >>> msg.role
+        'interviewer'
+        >>> msg.content[0].type
+        'text'
+        >>> msg.content[0].text
+        'How are you?'
+    """
+
+    role: Literal["interviewer"] = "interviewer"
+    content: List[TextContent]
+
+
+class RespondentMessage(BaseModel):
+    """
+    Pydantic model for respondent messages in an interview transcript.
+
+    Attributes:
+        role: The role of the speaker, always "respondent".
+        content: The text content of the message.
+
+    Examples:
+        >>> msg = RespondentMessage(content=[{"type": "text", "text": "I'm doing well, thank you."}])
+        >>> msg.role
+        'respondent'
+        >>> msg.content[0].type
+        'text'
+        >>> msg.content[0].text
+        "I'm doing well, thank you."
+    """
+
+    role: Literal["respondent"] = "respondent"
+    content: List[TextContent]
 
 
 class InterviewResponse(BaseModel):
@@ -17,72 +66,57 @@ class InterviewResponse(BaseModel):
 
     This model defines the structure and validation rules for responses to
     interview questions. It ensures that responses contain a valid interview
-    transcript string with dialogue between interviewer and respondent.
+    transcript as a list of InterviewerMessage and RespondentMessage instances.
 
     Attributes:
-        answer: The interview transcript as a string with newline-separated dialogue.
+        answer: The interview transcript as a list of message instances.
         generated_tokens: Optional raw LLM output for token tracking.
 
     Examples:
         >>> # Valid interview response
-        >>> response = InterviewResponse(answer="Interviewer: How are you?\\nRespondent: I'm doing well, thank you.")
-        >>> "Interviewer:" in response.answer
-        True
+        >>> response = InterviewResponse(answer=[{"role": "interviewer", "content": [{"type": "text", "text": "How are you?"}]}, {"role": "respondent", "content": [{"type": "text", "text": "I'm doing well, thank you."}]}])
+        >>> len(response.answer)
+        2
+        >>> response.answer[0].role
+        'interviewer'
 
-        >>> # Empty string is valid
-        >>> response = InterviewResponse(answer="")
+        >>> # Empty list is valid
+        >>> response = InterviewResponse(answer=[])
         >>> response.answer
-        ''
+        []
     """
 
-    answer: str
+    answer: List[Union[InterviewerMessage, RespondentMessage]]
     generated_tokens: Optional[str] = None
 
     @field_validator("answer", mode="before")
     @classmethod
-    def convert_answer_to_string(cls, v):
-        """Convert answer to string to handle non-string responses from language models."""
-        if v is not None:
-            return str(v)
-        return v
+    def convert_answer_to_list(cls, v):
+        """Convert answer to list to handle various response formats from language models."""
+        if v is None:
+            return []
+        if isinstance(v, str):
+            # Try to parse JSON string
+            import json
 
-    @model_validator(mode="after")
-    def validate_tokens_match_answer(self):
-        """
-        Validate that the answer matches the generated tokens if provided.
-
-        This validator ensures consistency between the answer and generated_tokens
-        fields when both are present. They must match exactly.
-
-        Returns:
-            The validated model instance.
-
-        Raises:
-            ValueError: If the answer and generated_tokens don't match exactly.
-        """
-        if self.generated_tokens is not None:
-            if self.answer.strip() != self.generated_tokens.strip():
-                from .exceptions import QuestionAnswerValidationError
-
-                validation_error = ValidationError.from_exception_data(
-                    title="InterviewResponse",
-                    line_errors=[
-                        {
-                            "type": "value_error",
-                            "loc": ("answer", "generated_tokens"),
-                            "msg": "Values must match",
-                            "input": self.generated_tokens,
-                            "ctx": {"error": "Values do not match"},
-                        }
-                    ],
-                )
-                raise QuestionAnswerValidationError(
-                    message=f"answer '{self.answer}' must exactly match generated_tokens '{self.generated_tokens}'",
-                    data=self.model_dump(),
-                    model=self.__class__,
-                    pydantic_error=validation_error,
-                )
-        return self
+            try:
+                parsed = json.loads(v)
+                if isinstance(parsed, list):
+                    return parsed
+                # If it's a single dict, wrap it in a list
+                if isinstance(parsed, dict):
+                    return [parsed]
+            except json.JSONDecodeError:
+                pass
+            # If string parsing fails, return empty list
+            return []
+        if isinstance(v, list):
+            return v
+        if isinstance(v, dict):
+            # Single dict, wrap in list
+            return [v]
+        # For other types, try to convert to list
+        return list(v) if hasattr(v, "__iter__") else []
 
 
 class InterviewResponseValidator(ResponseValidatorABC):
@@ -90,8 +124,8 @@ class InterviewResponseValidator(ResponseValidatorABC):
     Validator for interview question responses.
 
     This class implements the validation and fixing logic for interview responses.
-    It ensures that responses contain a valid interview transcript string and
-    provides methods to fix common issues in responses.
+    It ensures that responses contain a valid interview transcript as a list of
+    dictionaries and provides methods to fix common issues in responses.
 
     Attributes:
         required_params: List of required parameters for validation.
@@ -100,7 +134,17 @@ class InterviewResponseValidator(ResponseValidatorABC):
     """
 
     required_params = []
-    valid_examples = [({"answer": "Interviewer: Hello!\nRespondent: Hi there!"}, {})]
+    valid_examples = [
+        (
+            {
+                "answer": [
+                    {"role": "interviewer", "text": "Hello!"},
+                    {"role": "respondent", "text": "Hi there!"},
+                ]
+            },
+            {},
+        )
+    ]
     invalid_examples = [
         (
             {"answer": None},
@@ -109,13 +153,47 @@ class InterviewResponseValidator(ResponseValidatorABC):
         ),
     ]
 
+    def _preprocess(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Preprocess the answer to convert messages to the required format.
+
+        This method converts each message in the answer list to the format:
+        - "role": (stays the same)
+        - "content": [{"type": "text", "text": ...}]
+
+        Args:
+            data: The raw answer dictionary before validation.
+
+        Returns:
+            The preprocessed answer dictionary with messages in the new format.
+        """
+        answer = data.get("answer")
+        if answer is not None and isinstance(answer, list):
+            processed_answer = []
+            for item in answer:
+                if isinstance(item, dict):
+                    # Create a new dict with role and content format
+                    processed_item = {}
+                    # Keep the role as is
+                    role = item.get("role", "unknown")
+                    processed_item["role"] = role
+
+                    # Convert text to content format
+                    text_content = item.get("text", "")
+                    processed_item["content"] = [{"type": "text", "text": text_content}]
+                    processed_answer.append(processed_item)
+                else:
+                    processed_answer.append(item)
+            data["answer"] = processed_answer
+        return data
+
     def fix(self, response: dict, verbose: bool = False) -> dict:
         """
         Fix common issues in interview responses.
 
         This method attempts to fix invalid responses by ensuring the answer
-        field contains a valid string and is consistent with the generated_tokens
-        field if present.
+        field contains a valid list of dictionaries and is consistent with the
+        generated_tokens field if present.
 
         Args:
             response: The response dictionary to fix.
@@ -124,28 +202,59 @@ class InterviewResponseValidator(ResponseValidatorABC):
         Returns:
             A fixed version of the response dictionary.
         """
-        # Convert both answer and generated_tokens to strings to handle integer responses
         answer = response.get("answer")
         generated_tokens = response.get("generated_tokens")
 
-        # Convert answer to string if it's not None
-        if answer is not None:
-            answer = str(answer)
+        # Convert answer to list of dicts if needed
+        if answer is None:
+            answer = []
+        elif isinstance(answer, str):
+            # Try to parse JSON string
+            import json
 
-        # Convert generated_tokens to string if it's not None
-        if generated_tokens is not None:
-            generated_tokens = str(generated_tokens)
+            try:
+                parsed = json.loads(answer)
+                if isinstance(parsed, list):
+                    answer = parsed
+                elif isinstance(parsed, dict):
+                    answer = [parsed]
+                else:
+                    answer = []
+            except json.JSONDecodeError:
+                answer = []
+        elif isinstance(answer, dict):
+            # Single dict, wrap in list
+            answer = [answer]
+        elif not isinstance(answer, list):
+            answer = []
+
+        # Convert generated_tokens to list if it's a string
+        if generated_tokens is not None and isinstance(generated_tokens, str):
+            import json
+
+            try:
+                parsed = json.loads(generated_tokens)
+                if isinstance(parsed, list):
+                    generated_tokens_list = parsed
+                elif isinstance(parsed, dict):
+                    generated_tokens_list = [parsed]
+                else:
+                    generated_tokens_list = answer
+            except json.JSONDecodeError:
+                generated_tokens_list = answer
+        else:
+            generated_tokens_list = answer if generated_tokens is not None else None
 
         # If generated_tokens exists, prefer it over answer for consistency
-        if generated_tokens is not None:
+        if generated_tokens_list is not None:
             return {
-                "answer": generated_tokens,
+                "answer": generated_tokens_list,
                 "generated_tokens": generated_tokens,
             }
         else:
-            # If no generated_tokens, use the answer (converted to string)
+            # If no generated_tokens, use the answer (converted to list)
             return {
-                "answer": answer or "",
+                "answer": answer,
                 "generated_tokens": None,
             }
 
@@ -159,9 +268,9 @@ class QuestionInterview(QuestionBase):
     the overall research question, while the interview_guide gives the interviewer
     specific topics or questions to explore during the conversation.
 
-    The response should be formatted as a newline-separated dialogue between
-    "Interviewer:" and "Respondent:", going back and forth to create a realistic
-    interview transcript.
+    The response should be formatted as a list of dictionaries, where each dictionary
+    has "role" and "text" fields. The "role" field should be "interviewer" or "respondent",
+    and these are automatically converted to "message" during post-processing.
 
     Attributes:
         question_type (str): Identifier for this question type, set to "interview".
@@ -277,8 +386,22 @@ Respondent: [Your response...]"></textarea>
             @classmethod
             def build(cls, **kwargs):
                 """Generate consistent answer and generated_tokens."""
-                # Generate a random answer first
-                answer_value = cls.__faker__.text()
+                # Generate a random interview transcript as a list of dicts
+                # Create 3-5 turns alternating between interviewer and respondent
+                import random
+
+                num_turns = random.randint(3, 5)
+                answer_value = []
+                for i in range(num_turns):
+                    if i % 2 == 0:
+                        role = "interviewer"
+                        text = cls.__faker__.sentence()
+                    else:
+                        role = "respondent"
+                        text = cls.__faker__.sentence()
+                    answer_value.append(
+                        {"role": role, "content": [{"type": "text", "text": text}]}
+                    )
 
                 # Create the model with consistent values to avoid validation error
                 return cls.__model__(
@@ -350,8 +473,11 @@ def main():
 
     # Validate an answer
     valid_answer = {
-        "answer": "Interviewer: How was your experience?\nRespondent: It was great!",
-        "generated_tokens": "Interviewer: How was your experience?\nRespondent: It was great!",
+        "answer": [
+            {"role": "interviewer", "text": "How was your experience?"},
+            {"role": "respondent", "text": "It was great!"},
+        ],
+        "generated_tokens": None,
     }
     validated = q._validate_answer(valid_answer)
     print(f"Validated answer: {validated}")

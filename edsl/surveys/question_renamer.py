@@ -97,10 +97,11 @@ class QuestionRenamer:
                 rule.expression,
             )
 
-            # Update the question_name_to_index mapping in the rule
-            if old_name in rule.question_name_to_index:
-                index = rule.question_name_to_index.pop(old_name)
-                rule.question_name_to_index[new_name] = index
+        # Update the shared question_name_to_index mapping (all rules share this)
+        shared_map = new_survey.rule_collection.question_name_to_index
+        if old_name in shared_map:
+            index = shared_map.pop(old_name)
+            shared_map[new_name] = index
 
         # 3. Update memory plans
         new_memory_plan_data = {}
