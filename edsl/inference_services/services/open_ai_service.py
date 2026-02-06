@@ -32,13 +32,16 @@ class OpenAIParameterBuilder:
 
         default_max_tokens = model_params.get("max_tokens", 1000)
         default_temperature = model_params.get("temperature", 0.5)
+        default_reasoning_effort = model_params.get("reasoning_effort", "medium")
         if model in OPENAI_REASONING_MODELS:
             # For reasoning models, use much higher completion tokens to allow for reasoning + response
             max_tokens = max(default_max_tokens, 5000)
             temperature = 1
+            reasoning_effort = default_reasoning_effort
         else:
             max_tokens = default_max_tokens
             temperature = default_temperature
+            reasoning_effort = None
 
         # Base parameters
         params = {
@@ -56,6 +59,9 @@ class OpenAIParameterBuilder:
                 else None
             ),
         }
+
+        if model in OPENAI_REASONING_MODELS:
+            params["reasoning_effort"] = reasoning_effort
 
         return params
 
@@ -168,6 +174,7 @@ class OpenAIService(InferenceServiceABC):
                 "presence_penalty": 0,
                 "logprobs": False,
                 "top_logprobs": 3,
+                "reasoning_effort": None,
             }
 
             def sync_client(self):
@@ -320,6 +327,7 @@ class OpenAIService(InferenceServiceABC):
                     presence_penalty=self.presence_penalty,
                     logprobs=self.logprobs,
                     top_logprobs=self.top_logprobs,
+                    reasoning_effort=self.reasoning_effort,
                 )
 
                 # Add structured output support if response_schema is provided

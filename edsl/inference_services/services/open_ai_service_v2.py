@@ -140,6 +140,7 @@ class OpenAIServiceV2(InferenceServiceABC):
                 "presence_penalty": 0,
                 "logprobs": False,
                 "top_logprobs": 3,
+                "reasoning": None,
             }
 
             def sync_client(self) -> openai.OpenAI:
@@ -322,7 +323,10 @@ class OpenAIServiceV2(InferenceServiceABC):
 
                 # Only add reasoning parameter for reasoning models
                 if is_reasoning_model:
-                    params["reasoning"] = {"summary": "auto"}
+                    reasoning_params = {"summary": "auto"}
+                    if isinstance(self.reasoning, dict):
+                        reasoning_params.update(self.reasoning)
+                    params["reasoning"] = reasoning_params
 
                 # For all models using the responses API, use max_output_tokens
                 # instead of max_tokens (which is for the completions API)
