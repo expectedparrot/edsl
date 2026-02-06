@@ -43,19 +43,15 @@ login()
 
 ## 3. Choose where to run surveys
 
-You can use EDSL to run surveys locally on your own machine or remotely at the Expected Parrot server. To activate remote inference, navigate to the [Settings](https://www.expectedparrot.com/home/settings) page of your account and toggle on *remote inference*:
+You can use EDSL to run surveys locally on your own machine or remotely at the Expected Parrot server. To activate or deactivate remote inference, navigate to the [Settings](https://www.expectedparrot.com/home/settings) page of your account and toggle *remote inference* on or off.
 
-<Frame>
-![Toggle on remote inference](/images/en/latest/home-settings.png)
-</Frame>
-
-This allows you to use remote caching features and automatically store all your survey results. See the [Remote Inference](/en/latest/remote_inference) and [Remote Caching](/en/latest/remote_caching) sections for details.
+Remote inference allows you to use remote caching features and automatically store all your survey results. See the [Remote Inference](/en/latest/remote_inference) and [Remote Caching](/en/latest/remote_caching) sections for details.
 
 To run surveys locally you must provide your own keys from service providers. See the next step below for details.
 
 ## 4. Manage API keys for language models
 
-API keys are required to run surveys with language models. EDSL works with many language models from popular service providers, including Anthropic, Azure, Bedrock, DeepInfra, DeepSeek, Google, Mistral, OpenAI, Perplexity, Together and Xai. Current model pricing and performance information is available [here](https://www.expectedparrot.com/getting-started/coop-pricing).
+API keys are required to run surveys with language models. EDSL works with many language models from popular service providers, including Anthropic, Azure, Bedrock, DeepInfra, DeepSeek, Google, Mistral, OpenAI, Perplexity, Together and Xai. Current model pricing and performance information is available [here](https://www.expectedparrot.com/models).
 
 When you run a survey you can choose whether to use your own keys from service providers and/or an **Expected Parrot API key** to access all available models at once. There are several ways to manage your keys:
 
@@ -63,11 +59,7 @@ When you run a survey you can choose whether to use your own keys from service p
 - Store keys in a .env file on your computer
 - Store keys directly in your EDSL code (*not recommended for security reasons*)
 
-If you have your own keys from service providers you can add them to your [Keys](https://www.expectedparrot.com/home/keys) page. You can also choose whether to grant access to other users and set usage limits:
-
-<Frame>
-![Keys page view showing stored keys](/images/en/latest/home-keys.png)
-</Frame>
+If you have your own keys from service providers you can add them to your [Keys](https://www.expectedparrot.com/home/keys) page. You can also choose whether to grant access to other users and set usage limits.
 
 If you are running surveys locally, or only want to post and retrieve content at Coop without running your surveys remotely, you can store your keys in a .env file on your computer. This file should be in the same directory as your EDSL code and contain the following lines:
 
@@ -91,25 +83,6 @@ Note that if you use your own keys, you will be charged directly by the service 
 ## 5. Run a survey
 
 Read the [Starter Tutorial](/en/latest/starter_tutorial) and [download a notebook](https://www.expectedparrot.com/content/179b3a78-2505-4568-acd9-c09d18953288) to create a survey and run it. See examples for many other use cases and [tips](/en/latest/checklist) on using EDSL effectively in the documentation.
-
-## Getting help with EDSL objects
-
-EDSL provides an LLM-powered help system for all classes. You can call `vibe_help()` on any EDSL object to get contextual assistance:
-
-```python
-from edsl import Agent, Survey, Results
-
-# Get help on any EDSL class
-Agent.vibe_help()
-Survey.vibe_help()
-Results.vibe_help()
-
-# Or on specific instances
-agent = Agent(age=30)
-agent.vibe_help()
-```
-
-This method uses a language model to provide helpful information about the object, its methods, and how to use it effectively.
 
 ## Support
 
