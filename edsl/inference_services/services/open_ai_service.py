@@ -37,7 +37,9 @@ class OpenAIParameterBuilder:
             # For reasoning models, use much higher completion tokens to allow for reasoning + response
             max_tokens = max(default_max_tokens, 5000)
             temperature = 1
-            reasoning_effort = default_reasoning_effort
+            # If no reasoning effort is provided, use "medium" as the default
+            # Some models (e.g. gpt-5) do not support null values for reasoning_effort
+            reasoning_effort = default_reasoning_effort or "medium"
         else:
             max_tokens = default_max_tokens
             temperature = default_temperature
