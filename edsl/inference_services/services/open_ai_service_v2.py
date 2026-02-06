@@ -43,8 +43,8 @@ class OpenAIServiceV2(InferenceServiceABC):
     usage_sequence = ["usage"]
     # sequence to extract reasoning summary from response.output
     reasoning_sequence = ["output", 0, "summary"]
-    input_token_name = "prompt_tokens"
-    output_token_name = "completion_tokens"
+    input_token_name = "input_tokens"
+    output_token_name = "output_tokens"
 
     available_models_url = "https://platform.openai.com/docs/models/gp"
 
