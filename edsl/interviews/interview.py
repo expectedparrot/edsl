@@ -9,7 +9,7 @@ a survey with a specific language model and scenario. It handles the complete wo
 4. Handling exceptions and retry logic
 5. Managing the asynchronous execution of question answering tasks
 
-The Interview class serves as the execution layer between high-level Jobs objects and 
+The Interview class serves as the execution layer between high-level Jobs objects and
 the individual API calls to language models, with support for caching and distributed execution.
 """
 
@@ -289,7 +289,7 @@ class Interview:
         Examples:
             >>> i = Interview.example()
             >>> hash(i)
-            697272427402946620
+            134932146855371893
         """
         # Create the base dictionary with core components
         d = {
