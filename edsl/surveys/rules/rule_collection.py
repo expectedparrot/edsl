@@ -105,11 +105,21 @@ class RuleCollection(UserList):
         >>> rule_collection.question_name_to_index == new_rule_collection.question_name_to_index
         True
         """
+        rules = []
+        for rule in self:
+            rule_dict = rule.to_dict(include_question_name_to_index=False)
+            # Include minimal map per rule for backward compatibility with old versions
+            # that expect question_name_to_index in each rule.
+            # Only includes question names referenced in this rule's expression.
+            rule_dict["question_name_to_index"] = {
+                name: self._question_name_to_index[name]
+                for name in rule._extracted_question_names
+                if name in self._question_name_to_index
+            }
+            rules.append(rule_dict)
         return {
             "question_name_to_index": self._question_name_to_index,
-            "rules": [
-                rule.to_dict(include_question_name_to_index=False) for rule in self
-            ],
+            "rules": rules,
             "num_questions": self.num_questions,
         }
 
