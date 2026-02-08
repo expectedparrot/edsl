@@ -385,6 +385,69 @@ class TestResults(unittest.TestCase):
         assert r1 == r2
 
 
+class TestResultBuilder(unittest.TestCase):
+    """Tests for ResultBuilder conflict resolution.
+
+    Regression test for issue #2380:
+    https://github.com/expectedparrot/edsl/issues/2380
+    """
+
+    def test_trait_renamed_when_conflicting_with_question_name(self):
+        """Test that agent traits are renamed (not dropped) when they conflict with answer keys.
+
+        When a question_name is identical to a trait key, the trait should be
+        renamed to '{trait_key}_agent' and remain accessible in results.
+        """
+        import warnings
+        from edsl.results import Result
+        from edsl.agents import Agent
+        from edsl.scenarios import Scenario
+
+        # Create a minimal mock model to avoid external dependencies
+        class MockModel:
+            def __init__(self):
+                self.model = "test-model"
+                self._inference_service_ = "test"
+                self.parameters = {}
+
+        # Create a result where answer key "age" conflicts with agent trait "age"
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+
+            result = Result(
+                agent=Agent(traits={"age": 46, "location": "Cambridge"}),
+                scenario=Scenario.example(),
+                model=MockModel(),
+                iteration=1,
+                answer={"age": "I am 46 years old"},  # Same key as agent trait
+                prompt={"key": "value"},
+            )
+
+            # Verify a warning was issued about the conflict
+            self.assertEqual(len(w), 1)
+            self.assertIn("age", str(w[0].message))
+            self.assertIn("renamed", str(w[0].message).lower())
+
+        # The answer should be accessible as "age"
+        self.assertEqual(result.sub_dicts["answer"]["age"], "I am 46 years old")
+
+        # The agent trait should be renamed to "age_agent" (not dropped)
+        self.assertIn(
+            "age_agent",
+            result.sub_dicts["agent"],
+            f"Trait 'age' should be renamed to 'age_agent', but agent sub_dict has: "
+            f"{list(result.sub_dicts['agent'].keys())}",
+        )
+        self.assertEqual(result.sub_dicts["agent"]["age_agent"], 46)
+
+        # The non-conflicting trait should remain unchanged
+        self.assertEqual(result.sub_dicts["agent"]["location"], "Cambridge")
+
+        # Verify key_to_data_type includes the renamed key
+        self.assertIn("age_agent", result.key_to_data_type)
+        self.assertEqual(result.key_to_data_type["age_agent"], "agent")
+
+
 if __name__ == "__main__":
     unittest.main()
     TestResults().test_print_latest()
