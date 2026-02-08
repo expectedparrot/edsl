@@ -43,8 +43,8 @@ class OpenAIServiceV2(InferenceServiceABC):
     usage_sequence = ["usage"]
     # sequence to extract reasoning summary from response.output
     reasoning_sequence = ["output", 0, "summary"]
-    input_token_name = "prompt_tokens"
-    output_token_name = "completion_tokens"
+    input_token_name = "input_tokens"
+    output_token_name = "output_tokens"
 
     available_models_url = "https://platform.openai.com/docs/models/gp"
 
@@ -140,6 +140,7 @@ class OpenAIServiceV2(InferenceServiceABC):
                 "presence_penalty": 0,
                 "logprobs": False,
                 "top_logprobs": 3,
+                "reasoning": None,
             }
 
             def sync_client(self) -> openai.OpenAI:
@@ -286,7 +287,7 @@ class OpenAIServiceV2(InferenceServiceABC):
                                     )
                 # build input sequence
                 messages: Any
-                if system_prompt and not self.omit_system_prompt_if_empty:
+                if system_prompt:
                     # For Responses API, system content should also be properly formatted
                     system_content = (
                         system_prompt
@@ -298,7 +299,13 @@ class OpenAIServiceV2(InferenceServiceABC):
                         {"role": "user", "content": content},
                     ]
                 else:
-                    messages = [{"role": "user", "content": content}]
+                    if self.omit_system_prompt_if_empty:
+                        messages = [{"role": "user", "content": content}]
+                    else:
+                        messages = [
+                            {"role": "system", "content": system_prompt},
+                            {"role": "user", "content": content},
+                        ]
 
                 # All OpenAI models with the responses API use these base parameters
                 params = {
@@ -316,7 +323,10 @@ class OpenAIServiceV2(InferenceServiceABC):
 
                 # Only add reasoning parameter for reasoning models
                 if is_reasoning_model:
-                    params["reasoning"] = {"summary": "auto"}
+                    reasoning_params = {"summary": "auto"}
+                    if isinstance(self.reasoning, dict):
+                        reasoning_params.update(self.reasoning)
+                    params["reasoning"] = reasoning_params
 
                 # For all models using the responses API, use max_output_tokens
                 # instead of max_tokens (which is for the completions API)
