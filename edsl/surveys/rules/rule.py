@@ -135,6 +135,9 @@ class Rule:
                 f"Rule expression: '{expression}'"
             )
 
+        # Store extracted question names for minimal serialization
+        self._extracted_question_names = extracted_question_names
+
         # get the indices of the questions mentioned in the expression
         self.named_questions_by_index = [
             question_name_to_index[q]
