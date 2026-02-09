@@ -759,7 +759,7 @@ class FileStore(Scenario):
         self,
         description: Optional[str] = None,
         alias: Optional[str] = None,
-        visibility: Optional[str] = "unlisted",
+        visibility: Optional[str] = "private",
         expected_parrot_url: Optional[str] = None,
     ) -> dict:
         """

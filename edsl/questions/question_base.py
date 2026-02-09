@@ -1066,7 +1066,7 @@ class QuestionBase(
         human_survey_name: str = "New survey",
         survey_description: Optional[str] = None,
         survey_alias: Optional[str] = None,
-        survey_visibility: Optional["VisibilityType"] = "unlisted",
+        survey_visibility: Optional["VisibilityType"] = "private",
     ) -> dict:
         """
         Turn a single question into a survey and send the survey to Coop.

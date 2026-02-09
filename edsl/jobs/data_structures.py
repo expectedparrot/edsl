@@ -60,7 +60,7 @@ class RunParameters(Base):
         remote_cache_description (str, optional): Description for entries in the remote cache
         remote_inference_description (str, optional): Description for the remote inference job
         remote_inference_results_visibility (VisibilityType): Visibility setting for results
-            on Coop: "private", "public", or "unlisted" (default is "unlisted")
+            on Coop: "private", "public", or "unlisted" (default is "private")
         skip_retry (bool): Whether to skip retry attempts for failed interviews, default is False
         raise_validation_errors (bool): Whether to raise validation errors, default is False
         background (bool): Whether to run in background mode, default is False
@@ -82,7 +82,7 @@ class RunParameters(Base):
     print_exceptions: bool = True
     remote_cache_description: Optional[str] = None
     remote_inference_description: Optional[str] = None
-    remote_inference_results_visibility: Optional[VisibilityType] = "unlisted"
+    remote_inference_results_visibility: Optional[VisibilityType] = "private"
     skip_retry: bool = False
     raise_validation_errors: bool = False
     background: bool = False

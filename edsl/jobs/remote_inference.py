@@ -135,7 +135,7 @@ class JobsRemoteInferenceHandler:
         self,
         iterations: int = 1,
         remote_inference_description: Optional[str] = None,
-        remote_inference_results_visibility: Optional["VisibilityType"] = "unlisted",
+        remote_inference_results_visibility: Optional["VisibilityType"] = "private",
         fresh: Optional[bool] = False,
         new_format: Optional[bool] = True,
     ) -> RemoteJobInfo:
@@ -693,7 +693,7 @@ class JobsRemoteInferenceHandler:
         self,
         iterations: int = 1,
         remote_inference_description: Optional[str] = None,
-        remote_inference_results_visibility: Optional["VisibilityType"] = "unlisted",
+        remote_inference_results_visibility: Optional["VisibilityType"] = "private",
         new_format: Optional[bool] = True,
     ) -> Union["Results", None]:
         """

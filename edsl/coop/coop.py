@@ -1067,7 +1067,7 @@ class Coop(CoopFunctionsMixin):
         object: EDSLObject,
         description: Optional[str] = None,
         alias: Optional[str] = None,
-        visibility: Optional[VisibilityType] = "unlisted",
+        visibility: Optional[VisibilityType] = "private",
     ) -> dict:
         """
         Store an EDSL object in the Expected Parrot cloud service.
@@ -1790,8 +1790,9 @@ class Coop(CoopFunctionsMixin):
         job: "Jobs",
         description: Optional[str] = None,
         status: RemoteJobStatus = "queued",
-        visibility: Optional[VisibilityType] = "unlisted",
-        initial_results_visibility: Optional[VisibilityType] = "unlisted",
+        visibility: Optional[VisibilityType] = "private",
+        initial_results_visibility: Optional[VisibilityType] = "private",
+        initial_results_description: Optional[str] = None,
         iterations: Optional[int] = 1,
         fresh: Optional[bool] = False,
     ) -> RemoteInferenceCreationInfo:
@@ -1888,6 +1889,7 @@ class Coop(CoopFunctionsMixin):
                 "job_uuid": job_uuid,
                 "message": "Job uploaded successfully",
                 "nr_questions": job.nr_questions,
+                "initial_results_description": initial_results_description,
             },
         )
         response_json = response.json()
@@ -1913,8 +1915,8 @@ class Coop(CoopFunctionsMixin):
         job: "Jobs",
         description: Optional[str] = None,
         status: RemoteJobStatus = "queued",
-        visibility: Optional[VisibilityType] = "unlisted",
-        initial_results_visibility: Optional[VisibilityType] = "unlisted",
+        visibility: Optional[VisibilityType] = "private",
+        initial_results_visibility: Optional[VisibilityType] = "private",
         iterations: Optional[int] = 1,
         fresh: Optional[bool] = False,
     ) -> RemoteInferenceCreationInfo:
@@ -2429,10 +2431,10 @@ class Coop(CoopFunctionsMixin):
         human_survey_name: str = "New survey",
         survey_description: Optional[str] = None,
         survey_alias: Optional[str] = None,
-        survey_visibility: Optional[VisibilityType] = "unlisted",
+        survey_visibility: Optional[VisibilityType] = "private",
         scenario_list_description: Optional[str] = None,
         scenario_list_alias: Optional[str] = None,
-        scenario_list_visibility: Optional[VisibilityType] = "unlisted",
+        scenario_list_visibility: Optional[VisibilityType] = "private",
     ):
         """
         Create a human survey on Coop, first creating the survey and scenario list (if scenarios are used).
@@ -3748,7 +3750,7 @@ class Coop(CoopFunctionsMixin):
         object: EDSLObject,
         description: Optional[str] = None,
         alias: Optional[str] = None,
-        visibility: Optional[VisibilityType] = "unlisted",
+        visibility: Optional[VisibilityType] = "private",
         force: bool = False,
     ) -> "Scenario":
         """
