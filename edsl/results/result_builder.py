@@ -113,7 +113,7 @@ class ResultBuilder:
 
                     warnings.warn(
                         f"Key '{key}' exists in both '{key_mappings[key]}' and '{data_type}'. "
-                        f"The '{data_type}' key will be renamed to '{key}_{data_type}' to avoid collision."
+                        f"The '{data_type}' key will be renamed '{key}_{data_type}' to ensure uniqueness."
                     )
                     conflicts.append((key, data_type))
                 else:
