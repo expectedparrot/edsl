@@ -1456,7 +1456,7 @@ The method is dynamic and responsive to changes in the agent’s state:
 2. If using the default template and the codebook has been updated since initialization, this method will recreate the template to reflect the current codebook values
 3. The template is rendered with access to all trait values, the complete traits dictionary, and the codebook
 
-The template rendering makes the following variables available: - All individual trait keys (e.g., {{ age }}, {{ occupation }}) - The full traits dictionary as {{ traits }} - The codebook as {{ codebook }}
+The template rendering makes the following variables available: - All individual trait keys (e.g., `{{ age }}`, `{{ occupation }}`) - The full traits dictionary as `{{ traits }}` - The codebook as `{{ codebook }}`
 
 > **Returns:**
 
@@ -2687,7 +2687,7 @@ A warning is emitted if the set of mapped trait names does not exactly equal the
 
 q_to_traits: Mapping from question name to list of trait keys, e.g.
 
-{"geo": ["hometown"], "cuisine": ["food"]}.
+`{"geo": ["hometown"], "cuisine": ["food"]}`
 
 > **Returns:**
 
