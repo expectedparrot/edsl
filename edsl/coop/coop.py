@@ -2607,9 +2607,6 @@ class Coop(CoopFunctionsMixin):
                     results = results + question_results
             return results
         except Exception:
-            import traceback
-
-            print(traceback.format_exc())
             human_response_scenarios = []
             for response in human_responses:
                 response_uuid = response.get("response_uuid")
