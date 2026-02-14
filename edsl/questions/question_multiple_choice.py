@@ -168,6 +168,13 @@ class MultipleChoiceResponseValidator(ResponseValidatorABC):
             if verbose:
                 print("Not attempting to fix None answer value")
             return response
+        
+        answer = response.get("answer")
+        # Normalize responses like "0: Yes" to "0" if use_code=True
+        if isinstance(answer, str) and ":" in answer and getattr(self, "use_code", False):
+            if verbose:
+                print(f"Normalizing answer from '{answer}' to code only")
+            response["answer"] = answer.split(":")[0].strip()
 
         # Get the raw text to analyze
         response_text = str(response.get("answer", ""))
