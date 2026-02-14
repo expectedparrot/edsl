@@ -35,6 +35,7 @@ from .exceptions import (
     CoopNoUUIDError,
     CoopServerResponseError,
     CoopValueError,
+    CoopObjectTypeError,
 )
 from .utils import (
     EDSLObject,
@@ -258,9 +259,9 @@ class Coop(CoopFunctionsMixin):
             if "json_string" in log_payload and log_payload["json_string"]:
                 json_str = log_payload["json_string"]
                 if len(json_str) > 200:
-                    log_payload[
-                        "json_string"
-                    ] = f"{json_str[:200]}... (truncated, total length: {len(json_str)})"
+                    log_payload["json_string"] = (
+                        f"{json_str[:200]}... (truncated, total length: {len(json_str)})"
+                    )
             self._logger.info(f"Request payload: {log_payload}")
 
         try:
@@ -2511,6 +2512,29 @@ class Coop(CoopFunctionsMixin):
             "scenario_list_uuid": response_json.get("scenario_list_uuid"),
         }
 
+    def get_survey_preview_url(self, survey: "Survey") -> str:
+        """
+        Create or update the survey preview for the authenticated user and return its URL.
+
+        Posts the survey JSON to the preview endpoint, then returns the URL where the
+        preview can be viewed.
+        """
+
+        from ..surveys import Survey
+
+        if not isinstance(survey, Survey):
+            raise CoopObjectTypeError("This is not a survey.")
+        survey_dict = survey.to_dict()
+        response = self._send_server_request(
+            uri="api/v0/human-surveys/preview",
+            method="POST",
+            payload={"survey_json": survey_dict},
+        )
+        self._resolve_server_response(response)
+        response_json = response.json()
+        preview_uuid = response_json.get("preview_uuid")
+        return f"{self.url}/home/human-surveys/preview/{preview_uuid}"
+
     def _turn_human_responses_into_results(
         self,
         human_responses: List[dict],
@@ -2583,6 +2607,9 @@ class Coop(CoopFunctionsMixin):
                     results = results + question_results
             return results
         except Exception:
+            import traceback
+
+            print(traceback.format_exc())
             human_response_scenarios = []
             for response in human_responses:
                 response_uuid = response.get("response_uuid")
@@ -3869,9 +3896,7 @@ class Coop(CoopFunctionsMixin):
                     value_type = (
                         "inf"
                         if math.isinf(value)
-                        else "nan"
-                        if math.isnan(value)
-                        else "invalid"
+                        else "nan" if math.isnan(value) else "invalid"
                     )
                     error_msg += f"  • {path}: {value} ({value_type})\n"
 

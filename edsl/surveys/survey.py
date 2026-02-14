@@ -3210,6 +3210,15 @@ class Survey(Base):
         )
         return Scenario(human_survey_details)
 
+    def preview(self) -> str:
+        """
+        Returns a link to preview the humanize survey on Coop.
+        """
+        from ..coop import Coop
+
+        c = Coop()
+        return c.get_survey_preview_url(self)
+
     # Add export method delegations
     def css(self):
         """Return the default CSS style for the survey."""
