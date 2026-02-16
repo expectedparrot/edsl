@@ -448,6 +448,11 @@ class PromptConstructor:
             d[question_name][entry_type] = value
         return dict(d)
 
+    # Module-level singleton placeholders to avoid repeated object creation
+    _PLACEHOLDER_ANSWER = PlaceholderAnswer()
+    _PLACEHOLDER_COMMENT = PlaceholderComment()
+    _PLACEHOLDER_GENERATED_TOKENS = PlaceholderGeneratedTokens()
+
     @staticmethod
     def _add_answers(
         answer_dict: dict, current_answers: dict
@@ -469,16 +474,25 @@ class PromptConstructor:
             >>> PromptConstructor._add_answers(d, current_answers)['q0'].answer
             'LOVE IT!'
         """
+        if not current_answers:
+            return answer_dict
+
         augmented_answers = PromptConstructor._augmented_answers_dict(current_answers)
 
-        for question in answer_dict:
-            if question in augmented_answers:
+        for question in augmented_answers:
+            if question in answer_dict:
                 for entry_type, value in augmented_answers[question].items():
                     setattr(answer_dict[question], entry_type, value)
-            else:
-                answer_dict[question].answer = PlaceholderAnswer()
-                answer_dict[question].comment = PlaceholderComment()
-                answer_dict[question].generated_tokens = PlaceholderGeneratedTokens()
+
+        # Set placeholders only for questions NOT in current_answers, using singletons
+        pa = PromptConstructor._PLACEHOLDER_ANSWER
+        pc = PromptConstructor._PLACEHOLDER_COMMENT
+        pt = PromptConstructor._PLACEHOLDER_GENERATED_TOKENS
+        for question in answer_dict:
+            if question not in augmented_answers:
+                answer_dict[question].answer = pa
+                answer_dict[question].comment = pc
+                answer_dict[question].generated_tokens = pt
         return answer_dict
 
     @cached_property

@@ -427,9 +427,9 @@ class Survey(Base):
 
     def question_names_to_questions(self) -> dict:
         """Return a dictionary mapping question names to question attributes."""
-        # For performance: avoid expensive duplication, just return question references
-        result = {q.question_name: q for q in self.questions}
-        return result
+        if not hasattr(self, "_cached_qname_to_q"):
+            self._cached_qname_to_q = {q.question_name: q for q in self.questions}
+        return self._cached_qname_to_q
 
     @property
     def question_names(self) -> list[str]:
@@ -441,7 +441,9 @@ class Survey(Base):
         >>> s.question_names
         ['q0', 'q1', 'q2']
         """
-        return [q.question_name for q in self.questions]
+        if not hasattr(self, "_cached_question_names"):
+            self._cached_question_names = [q.question_name for q in self.questions]
+        return self._cached_question_names
 
     @property
     def question_name_to_index(self) -> dict[str, int]:
@@ -453,7 +455,11 @@ class Survey(Base):
         >>> s.question_name_to_index
         {'q0': 0, 'q1': 1, 'q2': 2}
         """
-        return {q.question_name: i for i, q in enumerate(self.questions)}
+        if not hasattr(self, "_cached_qname_to_index"):
+            self._cached_qname_to_index = {
+                q.question_name: i for i, q in enumerate(self.questions)
+            }
+        return self._cached_qname_to_index
 
     def to_long_format(
         self, scenario_list: "ScenarioList"
