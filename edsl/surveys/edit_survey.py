@@ -64,6 +64,15 @@ class EditSurvey:
         # descriptor.
         self.survey._questions.insert(index, question)
 
+        # Invalidate cached question name lookups
+        for attr in (
+            "_cached_question_names",
+            "_cached_qname_to_q",
+            "_cached_qname_to_index",
+        ):
+            if hasattr(self.survey, attr):
+                delattr(self.survey, attr)
+
         if interior_insertion:
             for question_name, old_index in self.survey._pseudo_indices.items():
                 if old_index >= index:
@@ -144,6 +153,15 @@ class EditSurvey:
         # Remove the question
         deleted_question = self.survey._questions.pop(index)
         del self.survey._pseudo_indices[deleted_question.question_name]
+
+        # Invalidate cached question name lookups
+        for attr in (
+            "_cached_question_names",
+            "_cached_qname_to_q",
+            "_cached_qname_to_index",
+        ):
+            if hasattr(self.survey, attr):
+                delattr(self.survey, attr)
 
         # Update indices
         for question_name, old_index in self.survey._pseudo_indices.items():
