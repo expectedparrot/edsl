@@ -59,6 +59,54 @@ _LAZY_MODULES = {
 # Cache for lazy-loaded modules
 _module_cache = {}
 
+# Direct mapping of common exports to their module — avoids importing
+# every module in random set order just to find one class.
+_EXPORT_TO_MODULE = {
+    # questions
+    "QuestionFreeText": "questions",
+    "QuestionMultipleChoice": "questions",
+    "QuestionCheckBox": "questions",
+    "QuestionLinearScale": "questions",
+    "QuestionNumerical": "questions",
+    "QuestionYesNo": "questions",
+    "QuestionList": "questions",
+    "QuestionRank": "questions",
+    "QuestionBudget": "questions",
+    "QuestionExtract": "questions",
+    "QuestionMatrix": "questions",
+    "QuestionTopK": "questions",
+    "QuestionFunctional": "questions",
+    "QuestionBase": "questions",
+    # surveys
+    "Survey": "surveys",
+    # agents
+    "Agent": "agents",
+    "AgentList": "agents",
+    # scenarios
+    "Scenario": "scenarios",
+    "ScenarioList": "scenarios",
+    "FileStore": "scenarios",
+    # language_models
+    "Model": "language_models",
+    "ModelList": "language_models",
+    "LanguageModel": "language_models",
+    # results
+    "Results": "results",
+    # dataset
+    "Dataset": "dataset",
+    # coop
+    "Coop": "coop",
+    # jobs
+    "Jobs": "jobs",
+    # caching
+    "Cache": "caching",
+    "CacheEntry": "caching",
+    # instructions
+    "Instruction": "instructions",
+    # notebooks
+    "Notebook": "notebooks",
+}
+
 
 def __getattr__(name):
     """Lazy loading of EDSL modules and their exports."""
@@ -71,7 +119,16 @@ def __getattr__(name):
     if name in current_module_dict:
         return current_module_dict[name]
 
-    # Check if it's a module we should lazy-load
+    # Fast path: direct lookup for known exports
+    if name in _EXPORT_TO_MODULE:
+        module_name = _EXPORT_TO_MODULE[name]
+        module = _module_cache.get(module_name)
+        if module is None:
+            module = importlib.import_module(f".{module_name}", package="edsl")
+            _module_cache[module_name] = module
+        return getattr(module, name)
+
+    # Slow path: search all modules for unknown exports
     for module_name in _LAZY_MODULES:
         try:
             module = _module_cache.get(module_name)
