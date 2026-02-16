@@ -1028,7 +1028,16 @@ class Jobs(Base):
                 return results, None
             else:
                 results, reason = jh.poll_remote_inference_job(job_info)
-                return results, reason
+                if results is not None:
+                    return results, reason
+                # Remote was used but returned no results — don't fall back to local
+                if reason:
+                    raise RuntimeError(
+                        f"Remote execution did not return results. Reason: {reason}"
+                    )
+                raise RuntimeError(
+                    "Remote execution completed but results could not be retrieved."
+                )
         else:
             return None, None
 

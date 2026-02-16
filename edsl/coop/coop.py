@@ -259,9 +259,9 @@ class Coop(CoopFunctionsMixin):
             if "json_string" in log_payload and log_payload["json_string"]:
                 json_str = log_payload["json_string"]
                 if len(json_str) > 200:
-                    log_payload["json_string"] = (
-                        f"{json_str[:200]}... (truncated, total length: {len(json_str)})"
-                    )
+                    log_payload[
+                        "json_string"
+                    ] = f"{json_str[:200]}... (truncated, total length: {len(json_str)})"
             self._logger.info(f"Request payload: {log_payload}")
 
         try:
@@ -2112,6 +2112,50 @@ class Coop(CoopFunctionsMixin):
             }
         )
 
+    def remote_inference_results_manifest(
+        self,
+        job_uuid: str,
+        page_size: int = 100,
+    ) -> dict:
+        """
+        Get the manifest for paginated results fetching from the runner.
+
+        Returns:
+            dict with keys: job_id, status, total_interviews, page_size,
+            page_count, interview_ids
+        """
+        response = self._send_server_request(
+            uri=f"api/v0/remote-inference/job/{job_uuid}/results/manifest",
+            method="GET",
+            params={"page_size": page_size},
+        )
+        self._resolve_server_response(response)
+        return response.json()
+
+    def remote_inference_results_page(
+        self,
+        job_uuid: str,
+        page: int = 0,
+        page_size: int = 100,
+    ) -> dict:
+        """
+        Get a page of raw interview data from the runner.
+
+        Each interview contains raw dicts (agent, scenario, model, answers)
+        that the EDSL client uses to build Result objects locally.
+
+        Returns:
+            dict with keys: job_id, page, page_size, total_on_page,
+            interviews (list of raw interview dicts), timing_ms
+        """
+        response = self._send_server_request(
+            uri=f"api/v0/remote-inference/job/{job_uuid}/results/page",
+            method="GET",
+            params={"page": page, "page_size": page_size},
+        )
+        self._resolve_server_response(response)
+        return response.json()
+
     def new_remote_inference_get(
         self,
         job_uuid: Optional[str] = None,
@@ -3893,7 +3937,9 @@ class Coop(CoopFunctionsMixin):
                     value_type = (
                         "inf"
                         if math.isinf(value)
-                        else "nan" if math.isnan(value) else "invalid"
+                        else "nan"
+                        if math.isnan(value)
+                        else "invalid"
                     )
                     error_msg += f"  • {path}: {value} ({value_type})\n"
 
