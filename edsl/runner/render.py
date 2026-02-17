@@ -40,6 +40,7 @@ class RenderedPrompt:
     cache_key: str
     files_list: list[Any] | None = None
     question_name: str | None = None
+    question_id: str | None = None
     model_id: str | None = None
     model_name: str | None = None
     service_name: str | None = None
@@ -182,6 +183,7 @@ class RenderService:
             cache_key=cache_key,
             files_list=prompts.get("files_list"),
             question_name=task_def.question_name,
+            question_id=task_def.question_id,
             model_id=task_def.model_id,
             model_name=model_data.get("model") if model_data else None,
             service_name=model_data.get("inference_service") if model_data else None,
@@ -804,6 +806,7 @@ class RenderWorker:
                     cache_key=cache_key,
                     files_list=prompts.get("files_list"),
                     question_name=task_def.question_name,
+                    question_id=task_def.question_id,
                     model_id=task_def.model_id,
                     model_name=model_data.get("model") if model_data else None,
                     service_name=model_data.get("inference_service")

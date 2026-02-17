@@ -440,7 +440,7 @@ class Runner:
             JobHandle to track and retrieve results.
         """
         job_id, direct_task_info, _job_data = self._service.submit_job(
-            job, user_id=user_id, n=n
+            job, user_id=user_id, n=n, stop_on_exception=stop_on_exception
         )
 
         # Register queues for models used in this job

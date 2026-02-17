@@ -243,6 +243,7 @@ class ExecutionWorker:
                 cache=cache,
                 iteration=task.iteration,
                 files_list=task.files_list,
+                question_name=task.question_name,
             )
 
             # Extract answer and tokens from the response
@@ -262,6 +263,11 @@ class ExecutionWorker:
                 edsl_dict.reasoning_summary
                 if hasattr(edsl_dict, "reasoning_summary")
                 else None
+            )
+
+            # Validate answer through question's validator (handles repair/fix)
+            answer, comment, validated = self._validate_answer(
+                task, answer, comment, generated_tokens
             )
 
             # From model_outputs (ModelResponse)
@@ -314,7 +320,7 @@ class ExecutionWorker:
                 input_price_per_million_tokens=input_price,
                 output_price_per_million_tokens=output_price,
                 cache_key=cache_key,
-                validated=True,  # If we got here without exception, it's validated
+                validated=validated,
                 reasoning_summary=reasoning_summary,
             )
 
@@ -328,6 +334,41 @@ class ExecutionWorker:
                 error_type=self._classify_error(e),
                 error_message=str(e),
             )
+
+    def _validate_answer(
+        self, task: Any, answer: Any, comment: str | None, generated_tokens: str | None
+    ) -> tuple[Any, str | None, bool]:
+        """Validate answer through the question's response validator.
+
+        Returns (answer, comment, validated) tuple.
+        """
+        if task.question_id is None:
+            return answer, comment, True
+
+        try:
+            question_data = self._job_service._jobs.get_question(
+                task.job_id, task.question_id
+            )
+
+            from ..questions import QuestionBase
+
+            question = QuestionBase.from_dict(question_data)
+            raw_answer_dict = {
+                "answer": answer,
+                "generated_tokens": generated_tokens or str(answer),
+            }
+            if comment:
+                raw_answer_dict["comment"] = comment
+
+            validated_dict = question._validate_answer(raw_answer_dict)
+            return (
+                validated_dict.get("answer", answer),
+                validated_dict.get("comment", comment),
+                True,
+            )
+        except Exception:
+            # Validation failed — return original answer with validated=False
+            return answer, comment, False
 
     def _classify_error(self, error: Exception) -> str:
         """Classify an error into a type."""

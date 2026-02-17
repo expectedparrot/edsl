@@ -62,6 +62,7 @@ class JobService:
         self._interviews = InterviewStore(storage)
         self._tasks = TaskStore(storage)
         self._answers = AnswerStore(storage)
+        self._job_stop_on_exception: dict[str, bool] = {}  # job_id -> stop_on_exception
 
     @property
     def jobs(self) -> JobStore:
@@ -124,6 +125,7 @@ class JobService:
         """
         submit_start = time.time()
         job_id = job_id or getattr(job, "id", None) or generate_id()
+        self._job_stop_on_exception[job_id] = stop_on_exception
         n_iterations = max(1, n)  # Ensure at least 1 iteration
 
         # Reset DB stats tracking for this submit
@@ -798,12 +800,31 @@ class JobService:
         error_type: str,
         error_message: str,
     ) -> None:
-        """Called when a task permanently fails."""
+        """Called when a task fails. Retries if policy allows, otherwise marks as permanent failure."""
         task_def = self._tasks.get_definition(job_id, interview_id, task_id)
         if task_def is None:
             raise ValueError(f"Task {task_id} not found")
 
-        # Update task status and error
+        # Check retry policy before marking as permanently failed
+        # Skip retries if stop_on_exception is set for this job
+        if not self._job_stop_on_exception.get(job_id, False):
+            job_def = self._jobs.get_definition(job_id)
+            if job_def is not None:
+                # Look up retry policy for this error type, fall back to a default retryable policy
+                default_policy = RetryPolicy(
+                    max_attempts=3, base_delay_seconds=0.5, retryable=True
+                )
+                policy = job_def.retry_policies.get(error_type, default_policy)
+
+                if policy.retryable:
+                    attempt_count = self._tasks.increment_attempt(task_id, error_type)
+                    if attempt_count < policy.max_attempts:
+                        # Reset task to READY and add back to the ready set for re-rendering
+                        self._tasks.set_status(task_id, TaskStatus.READY)
+                        self._tasks.add_to_ready(job_id, task_id)
+                        return
+
+        # Permanently failed — update task status and error
         self._tasks.set_status(task_id, TaskStatus.FAILED)
         self._tasks.set_error(task_id, error_type, error_message)
 
@@ -1547,10 +1568,16 @@ class JobService:
                 q_data = questions_data.get(q_id)
                 if q_data:
                     q_name = q_data.get("question_name", q_id)
+                    q_options = q_data.get("question_options")
+                    # Resolve template variables in question_options using prior answers
+                    if isinstance(q_options, str) and "{{" in q_options:
+                        q_options = self._resolve_question_options(
+                            q_options, answer_dict, scenario
+                        )
                     question_to_attributes[q_name] = {
                         "question_text": q_data.get("question_text", ""),
                         "question_type": q_data.get("question_type", ""),
-                        "question_options": q_data.get("question_options"),
+                        "question_options": q_options,
                     }
 
         # Get iteration from interview definition
@@ -1832,6 +1859,32 @@ class JobService:
         if isinstance(obj, dict) and "id" in obj:
             return str(obj["id"])
         return generate_id()
+
+    @staticmethod
+    def _resolve_question_options(
+        template: str, answer_dict: dict, scenario: Any
+    ) -> Any:
+        """Resolve template variables like '{{ colors.answer }}' in question_options."""
+        import re
+
+        # Match patterns like {{ question_name.answer }}
+        match = re.match(r"\{\{\s*(\w+)\.answer\s*\}\}", template.strip())
+        if match:
+            q_name = match.group(1)
+            if q_name in answer_dict and answer_dict[q_name] is not None:
+                return answer_dict[q_name]
+
+        # Match patterns like {{ scenario.variable }}
+        match = re.match(r"\{\{\s*scenario\.(\w+)\s*\}\}", template.strip())
+        if match and scenario:
+            attr = match.group(1)
+            if hasattr(scenario, attr):
+                return getattr(scenario, attr)
+            if isinstance(scenario, dict) and attr in scenario:
+                return scenario[attr]
+
+        # Couldn't resolve — return the raw template
+        return template
 
     def _to_dict(self, obj: Any) -> dict:
         """Convert an object to a dict for storage."""

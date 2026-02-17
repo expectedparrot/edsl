@@ -251,7 +251,13 @@ class LanguageModel(
             self._api_token = None
 
         # Add test model parameters that need to survive serialization
-        for test_param in ("canned_response", "fail_at_number", "never_ending"):
+        for test_param in (
+            "canned_response",
+            "fail_at_number",
+            "never_ending",
+            "throw_exception",
+            "exception_probability",
+        ):
             if test_param in kwargs:
                 self.parameters[test_param] = kwargs[test_param]
 
@@ -784,6 +790,7 @@ class LanguageModel(
         invigilator: Optional["InvigilatorBase"] = None,
         response_schema: Optional[dict] = None,
         response_schema_name: Optional[str] = None,
+        question_name: Optional[str] = None,
     ) -> ModelResponse:
         """Handle model calls with caching for efficiency.
 
@@ -891,8 +898,11 @@ class LanguageModel(
                 "cache_key": cache_key,  # Pass cache key for tracking
             }
             # Add question_name parameter for test models
-            if self.model == "test" and invigilator:
-                params["question_name"] = invigilator.question.question_name
+            if self.model == "test":
+                if invigilator:
+                    params["question_name"] = invigilator.question.question_name
+                elif question_name:
+                    params["question_name"] = question_name
 
             # Add invigilator parameter for scripted models
             if hasattr(self, "agent_question_responses") and invigilator:
@@ -1001,6 +1011,10 @@ class LanguageModel(
         if "invigilator" in kwargs:
             params.update({"invigilator": kwargs["invigilator"]})
 
+        # Add question_name if provided (for test models with dict canned_response)
+        if "question_name" in kwargs:
+            params.update({"question_name": kwargs["question_name"]})
+
         # Add response schema if provided (for QuestionPydantic)
         if "response_schema" in kwargs:
             params.update({"response_schema": kwargs["response_schema"]})
@@ -1080,7 +1094,13 @@ class LanguageModel(
 
         # For test models, ensure test parameters are included in serialization
         if self.model == "test":
-            for test_param in ("canned_response", "fail_at_number", "never_ending"):
+            for test_param in (
+                "canned_response",
+                "fail_at_number",
+                "never_ending",
+                "throw_exception",
+                "exception_probability",
+            ):
                 if hasattr(self, test_param):
                     parameters[test_param] = getattr(self, test_param)
 
@@ -1123,7 +1143,13 @@ class LanguageModel(
         service_name = data.get("inference_service", None)
 
         # Handle test model parameters that need to be passed as kwargs
-        test_param_names = ("canned_response", "fail_at_number", "never_ending")
+        test_param_names = (
+            "canned_response",
+            "fail_at_number",
+            "never_ending",
+            "throw_exception",
+            "exception_probability",
+        )
         if model_name == "test" and "parameters" in data:
             test_params = {
                 k: data["parameters"][k]
