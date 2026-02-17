@@ -1435,18 +1435,23 @@ class JobService:
             )
 
         # Build the answer dict (matches EDSL's answer_dict structure)
+        # Include None for failed/skipped questions so all questions appear in results
         answer_dict = {a.question_name: a.answer for a in answers}
+        for qname in question_names:
+            if qname not in answer_dict:
+                answer_dict[qname] = None
 
         # Build prompt dict (matches EDSL's prompt_dictionary structure)
-        # EDSL expects Prompt objects, which serialize to {"text": "..."} dicts
+        from edsl.prompts import Prompt
+
         prompt_dict = {}
         for a in answers:
-            prompt_dict[f"{a.question_name}_user_prompt"] = {
-                "text": a.user_prompt or ""
-            }
-            prompt_dict[f"{a.question_name}_system_prompt"] = {
-                "text": a.system_prompt or ""
-            }
+            prompt_dict[f"{a.question_name}_user_prompt"] = Prompt(
+                text=a.user_prompt or ""
+            )
+            prompt_dict[f"{a.question_name}_system_prompt"] = Prompt(
+                text=a.system_prompt or ""
+            )
 
         # Build raw_model_response dict (matches EDSL's raw_model_results_dictionary)
         raw_model_response_dict = {}
@@ -1571,6 +1576,25 @@ class JobService:
             validated_dict=validated_dict,
             question_to_attributes=question_to_attributes,
         )
+
+        # Set interview_hash for compatibility with EDSL's Interview-based results.
+        # Compute a deterministic hash from the same components Interview.__hash__ uses.
+        from edsl.utilities.utilities import dict_hash
+
+        hash_data = {
+            "agent": agent.to_dict(add_edsl_version=False)
+            if hasattr(agent, "to_dict")
+            else {},
+            "scenario": scenario.to_dict(add_edsl_version=False)
+            if hasattr(scenario, "to_dict")
+            else {},
+            "model": model.to_dict(add_edsl_version=False)
+            if model and hasattr(model, "to_dict")
+            else {},
+            "iteration": iteration,
+        }
+        result.interview_hash = dict_hash(hash_data)
+
         if _timing is not None:
             _timing["create_result_object"] = (
                 _timing.get("create_result_object", 0) + (_time.time() - _t) * 1000
