@@ -1722,7 +1722,9 @@ class Jobs(Base):
             cache=self.run_config.environment.cache,
             stop_on_exception=self.run_config.parameters.stop_on_exception,
         )
-        return handle.results()
+        return handle.results(
+            show_progress=True,
+        )
 
     @with_config
     def run(self, *, config: RunConfig) -> Optional["Results"]:

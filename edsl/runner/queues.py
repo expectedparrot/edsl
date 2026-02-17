@@ -119,6 +119,8 @@ class Queue:
         # Throughput tracking
         self._request_count = 0
         self._token_count = 0
+        self._input_token_count = 0
+        self._output_token_count = 0
         self._start_time: float | None = None
         self._end_time: float | None = None  # Frozen when queue becomes idle
         self._stats_lock = threading.Lock()  # Thread-safe stats updates
@@ -199,12 +201,23 @@ class Queue:
             tpm_wait = self.tpm_bucket.time_until_available(estimated_tokens)
             return max(rpm_wait, tpm_wait)
 
-    def reconcile(self, estimated_tokens: int, actual_tokens: int) -> None:
+    def reconcile(
+        self,
+        estimated_tokens: int,
+        actual_tokens: int,
+        input_tokens: int | None = None,
+        output_tokens: int | None = None,
+    ) -> None:
         """Adjust TPM bucket after actual usage is known (thread-safe)."""
         with self._stats_lock:
             self.tpm_bucket.reconcile(estimated_tokens, actual_tokens)
             # Update token count with actual (adjust for estimate difference)
             self._token_count += actual_tokens - estimated_tokens
+            # Track input/output breakdown
+            if input_tokens is not None:
+                self._input_token_count += input_tokens
+            if output_tokens is not None:
+                self._output_token_count += output_tokens
 
     def get_throughput_stats(self) -> dict:
         """
@@ -225,6 +238,8 @@ class Queue:
                 return {
                     "request_count": 0,
                     "token_count": 0,
+                    "input_token_count": 0,
+                    "output_token_count": 0,
                     "elapsed_seconds": 0,
                     "avg_rpm": 0,
                     "avg_tpm": 0,
@@ -252,6 +267,8 @@ class Queue:
             return {
                 "request_count": self._request_count,
                 "token_count": self._token_count,
+                "input_token_count": self._input_token_count,
+                "output_token_count": self._output_token_count,
                 "elapsed_seconds": elapsed,
                 "avg_rpm": avg_rpm,
                 "avg_tpm": avg_tpm,

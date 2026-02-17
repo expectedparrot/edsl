@@ -143,6 +143,8 @@ class ExecutionWorker:
                     success=result.success,
                     answer=result.answer,
                     actual_tokens=actual_tokens,
+                    input_tokens=result.input_tokens,
+                    output_tokens=result.output_tokens,
                     error_type=result.error_type,
                     error_message=result.error_message,
                 )

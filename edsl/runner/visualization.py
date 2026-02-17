@@ -508,11 +508,10 @@ class JobVisualizer:
 
             # Get throughput stats (actual average usage)
             stats = queue.get_throughput_stats()
-            rpm_limit = int(queue.rpm_bucket.capacity)
             tpm_limit = int(queue.tpm_bucket.capacity)
-            avg_tpm = stats["avg_tpm"]
-            tpm_util = stats["tpm_utilization"]
             is_frozen = stats.get("is_frozen", False)
+            elapsed = stats.get("elapsed_seconds", 0)
+            token_count = stats.get("token_count", 0)
 
             name = f"{q_meta.service}/{q_meta.model[:15]}"
             padded_name = name.ljust(max_name_len)
@@ -523,13 +522,35 @@ class JobVisualizer:
             else:
                 status = f"Q:{depth:3d} F:{in_flight:3d}"
 
-            # Format: name [queued][in_flight] status  TPM: current/limit (%)
-            avg_tpm_str = f"{avg_tpm:,.0f}"
-            tpm_limit_str = f"{tpm_limit:,}"
+            # Token breakdown: input/output
+            input_tok = stats.get("input_token_count", 0)
+            output_tok = stats.get("output_token_count", 0)
+
+            # TPM display: show actual rate only when elapsed >= 10s,
+            # otherwise show total tokens consumed (short bursts produce misleading rates)
+            if elapsed >= 10:
+                avg_tpm = stats["avg_tpm"]
+                tpm_util = min(stats["tpm_utilization"], 100.0)
+                tpm_display = (
+                    f"{Colors.GRAY}TPM:{Colors.RESET}"
+                    f"{avg_tpm:,.0f}/{tpm_limit:,} ({tpm_util:3.0f}%)"
+                )
+            else:
+                tpm_display = (
+                    f"{Colors.GRAY}tokens:{Colors.RESET}"
+                    f"{token_count:,} ({elapsed:.1f}s)"
+                )
+
+            # Add input/output breakdown if we have real data
+            if input_tok > 0 or output_tok > 0:
+                tpm_display += (
+                    f" {Colors.GRAY}[in:{input_tok:,} out:{output_tok:,}]{Colors.RESET}"
+                )
+
             lines.append(
                 f"  {Colors.CYAN}{padded_name}{Colors.RESET} "
                 f"[{queued_bar}][{in_flight_bar}] {status} "
-                f"{Colors.GRAY}TPM:{Colors.RESET}{avg_tpm_str}/{tpm_limit_str} ({tpm_util:4.0f}%)"
+                f"{tpm_display}"
             )
 
         # Summary line with totals

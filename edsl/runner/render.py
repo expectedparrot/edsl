@@ -310,20 +310,6 @@ class RenderService:
             self._profile_counts.get("render_calls", 0) + 1
         )
 
-        # Debug: log scenario values and files_list from get_prompts
-        _scenario_types = (
-            {k: type(v).__name__ for k, v in scenario.items()} if scenario else {}
-        )
-        _files = prompts.get("files_list")
-        _file_keys = getattr(prompt_constructor, "file_keys_from_question", None)
-        print(
-            f"[RENDER DEBUG] scenario_keys={list(scenario.keys()) if scenario else []}, "
-            f"scenario_value_types={_scenario_types}, "
-            f"file_keys_from_question={_file_keys}, "
-            f"files_list={type(_files).__name__}({len(_files) if _files else 0})",
-            flush=True,
-        )
-
         return {
             "system_prompt": str(prompts.get("system_prompt", "")),
             "user_prompt": str(prompts.get("user_prompt", "")),
@@ -876,20 +862,13 @@ class RenderWorker:
         if hasattr(self._storage, "add_timing_events_batch"):
             self._storage.add_timing_events_batch(job_id, timing_events)
 
-        # Log EDSL render profiling stats
+        # Collect EDSL render profiling stats (stored as timing events, not printed)
         profile_stats = self._render_service.get_profile_stats()
         if profile_stats["counts"].get("render_calls", 0) > 0:
-            print(
-                f"[RENDER {job_id[:8]}] EDSL profiling ({profile_stats['counts'].get('render_calls', 0)} renders):"
-            )
-            for name, time_ms in sorted(
-                profile_stats["times_ms"].items(), key=lambda x: -x[1]
-            ):
-                print(f"  {name}: {time_ms:.1f}ms")
             # Reset for next batch
             self._render_service.reset_profile_stats()
 
-            # Also add to timing events for visibility in test output
+            # Add to timing events for visibility via API
             for name, time_ms in profile_stats["times_ms"].items():
                 timing_events.append(
                     {

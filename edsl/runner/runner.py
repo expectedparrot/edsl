@@ -154,6 +154,7 @@ class JobHandle:
         debug: bool = False,
         timing: bool = False,
         stop_on_exception: bool | None = None,
+        show_progress: bool = False,
     ) -> Any:
         """
         Execute all tasks and return EDSL Results object.
@@ -165,6 +166,7 @@ class JobHandle:
             stop_on_exception: Override the job's stop_on_exception setting.
                               If None, uses the setting from submit().
                               If True, cancels job and raises TaskExecutionError on first failure.
+            show_progress: Show live progress visualization during execution.
 
         Returns:
             An edsl.results.Results object containing all completed interviews.
@@ -181,6 +183,7 @@ class JobHandle:
             debug=debug,
             timing=timing,
             stop_on_exception=stop_on_exception,
+            show_progress=show_progress,
         )
 
         state = self._service.jobs.get_state(self._job_id)
@@ -485,6 +488,7 @@ class Runner:
         debug: bool = False,
         timing: bool = False,
         stop_on_exception: bool | None = None,
+        show_progress: bool = False,
     ) -> TimingStats | None:
         """
         Execute all tasks for a job.
@@ -494,6 +498,7 @@ class Runner:
             debug: Enable debug output.
             timing: Print timing breakdown.
             stop_on_exception: Override the job's stop_on_exception setting.
+            show_progress: Show live progress visualization during execution.
 
         Returns:
             TimingStats if timing=True, else None.
@@ -512,6 +517,7 @@ class Runner:
                 cache=cache,
                 stats=stats,
                 stop_on_exception=effective_stop_on_exception,
+                show_progress=show_progress,
             )
         )
         return stats
@@ -524,8 +530,12 @@ class Runner:
         cache: Any = None,
         stats: TimingStats | None = None,
         stop_on_exception: bool = False,
+        show_progress: bool = False,
     ) -> None:
         """Async implementation of job execution with parallel workers."""
+        import sys
+        import shutil
+
         pool = ExecutionWorkerPool(
             coordinator=self._coordinator,
             job_service=self._service,
@@ -541,6 +551,22 @@ class Runner:
             await self._coordinator.start_cleanup_loop()
 
         await asyncio.sleep(0.01)
+
+        # Progress display setup
+        job_start_time = time.time()
+        if show_progress:
+            visualizer = JobVisualizer(self._storage, self._registry, self._coordinator)
+            is_terminal = hasattr(sys.stderr, "isatty") and sys.stderr.isatty()
+            last_progress_update = 0.0
+            progress_interval = 0.15  # Update at most every 150ms
+            try:
+                term_width = shutil.get_terminal_size().columns
+            except Exception:
+                term_width = 80
+            max_per_line = max(4, (term_width - 4) // 6)
+            if is_terminal:
+                sys.stderr.write("\033[?25l")  # Hide cursor
+                sys.stderr.flush()
 
         try:
             while True:
@@ -615,6 +641,22 @@ class Runner:
                 ):
                     break
 
+                # Show progress visualization
+                if (
+                    show_progress
+                    and (time.time() - last_progress_update) >= progress_interval
+                ):
+                    self._draw_progress(
+                        visualizer,
+                        job_id,
+                        progress,
+                        job_start_time,
+                        is_terminal,
+                        max_per_line,
+                        sys.stderr,
+                    )
+                    last_progress_update = time.time()
+
                 # Smart wait
                 t0 = time.time()
                 if progress["running_tasks"] > 0 and progress["ready_tasks"] == 0:
@@ -627,9 +669,68 @@ class Runner:
                     stats.loop_iterations += 1
 
         finally:
+            if show_progress:
+                # Final progress snapshot
+                progress = self._service.get_progress(job_id)
+                self._draw_progress(
+                    visualizer,
+                    job_id,
+                    progress,
+                    job_start_time,
+                    is_terminal,
+                    max_per_line,
+                    sys.stderr,
+                    final=True,
+                )
+                if is_terminal:
+                    sys.stderr.write("\033[?25h")  # Restore cursor
+                    sys.stderr.flush()
+
             if self._distributed:
                 await self._coordinator.stop_cleanup_loop()
             await pool.stop()
+
+    @staticmethod
+    def _draw_progress(
+        visualizer: "JobVisualizer",
+        job_id: str,
+        progress: dict,
+        start_time: float,
+        is_terminal: bool,
+        max_per_line: int,
+        stream,
+        final: bool = False,
+    ) -> None:
+        """Render progress visualization to stream."""
+        elapsed = time.time() - start_time
+
+        if is_terminal:
+            # Full visualization with colored dots — redraws in place
+            output = visualizer.render_job_compact(
+                job_id,
+                max_rows=6,
+                max_per_line=max_per_line,
+            )
+            queue_output = visualizer.render_queues_compact(
+                max_lines=5,
+                total_tasks=progress.get("total_tasks", 0),
+            )
+            # Move cursor home, clear below, draw
+            stream.write("\033[H\033[J")
+            stream.write(f"{output}\n\n{queue_output}\n")
+            stream.flush()
+        else:
+            # Simple single-line fallback for non-terminals
+            done = progress.get("completed_tasks", 0)
+            total = progress.get("total_tasks", 0)
+            failed = progress.get("failed_tasks", 0)
+            running = progress.get("running_tasks", 0)
+            line = f"Progress: {done}/{total} done, {running} running, {failed} failed [{elapsed:.1f}s]"
+            if final:
+                stream.write(f"\r{line}\n")
+            else:
+                stream.write(f"\r{line}")
+            stream.flush()
 
     def _execute_ready_direct_answers(
         self,

@@ -44,6 +44,8 @@ class WorkCompletion:
     success: bool
     answer: Any = None
     actual_tokens: int | None = None
+    input_tokens: int | None = None
+    output_tokens: int | None = None
     error_type: str | None = None
     error_message: str | None = None
 
@@ -296,16 +298,26 @@ class ExecutionCoordinator:
 
     def complete_work(self, completion: WorkCompletion) -> None:
         """Worker reports task completion."""
+        # Get estimated_tokens before untracking
+        estimated_tokens = 0
+        with self._in_flight_lock:
+            if completion.task_id in self._in_flight:
+                _, task_dict, _ = self._in_flight[completion.task_id]
+                estimated_tokens = task_dict.get("estimated_tokens", 0)
+
         # Untrack from in-flight
         self._untrack_in_flight(completion.task_id)
 
-        queue = self._registry.get_queue(completion.queue_id)
-
-        # Reconcile tokens
-        if completion.actual_tokens is not None:
-            # We don't have estimated_tokens here, so we skip reconciliation
-            # In production, we'd track this
-            pass
+        # Reconcile estimated vs actual tokens in the queue
+        if completion.actual_tokens is not None and estimated_tokens > 0:
+            queue = self._registry.get_queue(completion.queue_id)
+            if queue is not None:
+                queue.reconcile(
+                    estimated_tokens,
+                    completion.actual_tokens,
+                    input_tokens=completion.input_tokens,
+                    output_tokens=completion.output_tokens,
+                )
 
     def _wake_workers(self) -> None:
         """Signal waiting workers that work is available."""
