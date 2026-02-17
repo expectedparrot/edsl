@@ -262,7 +262,7 @@ class QuestionInstructionPromptBuilder:
         if not undefined_vars:
             return
         question_names_set = set(self.survey.question_names)
-        for var in undefined_vars & question_names_set:
+        for var in set(undefined_vars) & question_names_set:
             logging.warning(
                 f"Question name found in undefined_template_variables: {var}"
             )
