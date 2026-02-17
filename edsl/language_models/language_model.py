@@ -181,7 +181,10 @@ class LanguageModel(
         reasoning_sequence = (
             cls.reasoning_sequence if hasattr(cls, "reasoning_sequence") else None
         )
-        return RawResponseHandler(key_sequence, usage_sequence, reasoning_sequence)
+        inference_service = getattr(cls, "_inference_service_", None)
+        return RawResponseHandler(
+            key_sequence, usage_sequence, reasoning_sequence, inference_service
+        )
 
     def __init__(
         self,
