@@ -34,6 +34,7 @@ from .coordinator import ExecutionCoordinator, WorkAssignment, WorkCompletion
 from .executor import ExecutionWorker, ExecutionWorkerPool, ExecutionResult
 from .visualization import JobVisualizer, JobHandleVisualizer, Colors, Symbols
 from .serialization import serialize_job, deserialize_job
+from .runner import Runner, JobHandle
 
 __all__ = [
     # Storage
@@ -86,4 +87,7 @@ __all__ = [
     # Serialization
     "serialize_job",
     "deserialize_job",
+    # Runner
+    "Runner",
+    "JobHandle",
 ]

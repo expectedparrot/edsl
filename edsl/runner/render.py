@@ -263,9 +263,22 @@ class RenderService:
             "question_from_dict", 0
         ) + (_t.time() - _t0)
 
-        # Create minimal survey for prompt constructor
+        # Create survey for prompt constructor
+        # Include stub questions for dependencies so piping ({{ dep.answer }}) works
         _t0 = _t.time()
-        survey = Survey([question])
+        questions_for_survey = []
+        if current_answers:
+            from ..questions import QuestionFreeText
+
+            for qname in current_answers:
+                if qname != question.question_name:
+                    stub = QuestionFreeText(
+                        question_name=qname,
+                        question_text="(dependency)",
+                    )
+                    questions_for_survey.append(stub)
+        questions_for_survey.append(question)
+        survey = Survey(questions_for_survey)
         memory_plan = MemoryPlan(survey=survey)
         self._profile_times["survey_memory_plan"] = self._profile_times.get(
             "survey_memory_plan", 0
