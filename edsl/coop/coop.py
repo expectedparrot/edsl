@@ -2114,24 +2114,24 @@ class Coop(CoopFunctionsMixin):
 
     def new_remote_inference_get(
         self,
-        job_uuid: Optional[str] = None,
+        job_uuid: Optional[Union[str, List[str]]] = None,
         results_uuid: Optional[str] = None,
         include_json_string: Optional[bool] = False,
-    ) -> RemoteInferenceResponse:
+    ) -> Union[RemoteInferenceResponse, List[RemoteInferenceResponse]]:
         """
-        Get the status and details of a remote inference job.
+        Get the status and details of a remote inference job or jobs.
 
-        This method retrieves the current status and information about a remote job,
-        including links to results if the job has completed successfully.
+        This method retrieves the current status and information about one or more remote jobs,
+        including links to results if the jobs have completed successfully.
 
         Parameters:
-            job_uuid (str, optional): The UUID of the remote job to check
+            job_uuid (str or list of str, optional): The UUID(s) of the remote job(s) to check
             results_uuid (str, optional): The UUID of the results associated with the job
                 (can be used if you only have the results UUID)
             include_json_string (bool, optional): If True, include the json string for the job in the response
 
         Returns:
-            RemoteInferenceResponse: Information about the job including:
+            RemoteInferenceResponse or list of RemoteInferenceResponse: Information about the job(s) including:
                 job_uuid: The unique identifier for the job
                 results_uuid: The UUID of the results
                 results_url: URL to access the results
@@ -2178,7 +2178,17 @@ class Coop(CoopFunctionsMixin):
             >>> print(f"Job status: {job_status['status']}")
             >>> if job_status['status'] == 'completed':
             ...     print(f"Results available at: {job_status['results_url']}")
+            >>> # Example with list of UUIDs
+            >>> multi_status = coop.new_remote_inference_get(["uuid1", "uuid2"])
         """
+        if isinstance(job_uuid, list):
+            return [
+                self.new_remote_inference_get(
+                    uuid, include_json_string=include_json_string
+                )
+                for uuid in job_uuid
+            ]
+
         if job_uuid is None and results_uuid is None:
             from .exceptions import CoopValueError
 
