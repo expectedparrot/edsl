@@ -226,9 +226,6 @@ class ExecutionWorker:
                     f"Model {task.model_id} not found for job {task.job_id}"
                 )
 
-            # Disable remote proxy to make direct API calls
-            model.remote_proxy = False
-
             # Handle cache: None or False=create new empty cache, otherwise use provided
             if self._cache is False or self._cache is None:
                 cache = Cache()  # Create new cache

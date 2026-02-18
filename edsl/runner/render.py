@@ -210,6 +210,11 @@ class RenderService:
                 )
                 if answer is not None:
                     current_answers[other_task.question_name] = answer.answer
+                    # Include comment for piping ({{ qname.comment }})
+                    if answer.comment:
+                        current_answers[
+                            f"{other_task.question_name}_comment"
+                        ] = answer.comment
 
         return current_answers
 
@@ -273,6 +278,8 @@ class RenderService:
             from ..questions import QuestionFreeText
 
             for qname in current_answers:
+                if qname.endswith("_comment") or qname.endswith("_generated_tokens"):
+                    continue
                 if qname != question.question_name:
                     stub = QuestionFreeText(
                         question_name=qname,
@@ -731,9 +738,12 @@ class RenderWorker:
                 answers = self._answers.get_for_interview(
                     job_id, interview_id, question_names
                 )
-                answers_cache[interview_id] = {
-                    qn: a.answer for qn, a in answers.items()
-                }
+                cache_entry = {}
+                for qn, a in answers.items():
+                    cache_entry[qn] = a.answer
+                    if a.comment:
+                        cache_entry[f"{qn}_comment"] = a.comment
+                answers_cache[interview_id] = cache_entry
         _step_timings["step8_answer_cache"] = _time.time() - _t0
 
         if debug:

@@ -63,6 +63,9 @@ class JobService:
         self._tasks = TaskStore(storage)
         self._answers = AnswerStore(storage)
         self._job_stop_on_exception: dict[str, bool] = {}  # job_id -> stop_on_exception
+        self._original_models: dict[
+            str, dict[str, Any]
+        ] = {}  # job_id -> {model_id -> model_obj}
 
     @property
     def jobs(self) -> JobStore:
@@ -82,10 +85,17 @@ class JobService:
 
     def get_model_for_task(self, job_id: str, model_id: str) -> Any:
         """
-        Reconstruct the actual model object for LLM execution.
+        Get the actual model object for LLM execution.
 
-        Deserializes the stored model dict back into an EDSL LanguageModel.
+        Prefers the original (unserialized) model object if available,
+        since some attributes like `func` don't survive serialization.
+        Falls back to deserializing from stored dict.
         """
+        # Prefer original model object (preserves func, closures, etc.)
+        job_models = self._original_models.get(job_id)
+        if job_models and model_id in job_models:
+            return job_models[model_id]
+
         model_data = self._jobs.get_model(job_id, model_id)
         if model_data is None:
             return None
@@ -201,6 +211,8 @@ class JobService:
         t0 = time.time()
         models_batch = {m_id: self._to_dict(m) for m_id, m in model_map.items()}
         self._jobs.write_models_batch(job_id, models_batch)
+        # Keep original model objects for local execution (func/closures don't serialize)
+        self._original_models[job_id] = dict(model_map)
         logger.info(
             f"[SUBMIT {job_id[:8]}] write_models_batch ({len(models_batch)}): {(time.time() - t0)*1000:.1f}ms"
         )
