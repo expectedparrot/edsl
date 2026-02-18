@@ -752,6 +752,18 @@ class Runner:
 
             job_id_check, interview_id = self._service._tasks.get_location(task_id)
 
+            # Check skip logic before executing
+            should_skip, skip_reason = self._service.should_skip_task(
+                job_id, interview_id, task_id, debug=debug
+            )
+            if should_skip:
+                self._service.on_task_skipped(
+                    job_id, interview_id, task_id, skip_reason
+                )
+                self._direct_registry.remove(task_id)
+                count += 1
+                continue
+
             try:
                 result = self._direct_registry.execute(task_id)
 

@@ -1563,6 +1563,12 @@ class JobService:
                 )
 
         # Build question_to_attributes from already-fetched questions_data
+        # Get per-interview option permutations (for questions_to_randomize)
+        option_permutations = (
+            interview_def.question_option_permutations
+            if interview_def and hasattr(interview_def, "question_option_permutations")
+            else {}
+        )
         if job_def and job_def.question_ids and questions_data:
             for q_id in job_def.question_ids:
                 q_data = questions_data.get(q_id)
@@ -1574,6 +1580,9 @@ class JobService:
                         q_options = self._resolve_question_options(
                             q_options, answer_dict, scenario
                         )
+                    # Apply per-interview randomized permutation if present
+                    if option_permutations and q_name in option_permutations:
+                        q_options = option_permutations[q_name]
                     question_to_attributes[q_name] = {
                         "question_text": q_data.get("question_text", ""),
                         "question_type": q_data.get("question_type", ""),
@@ -1824,6 +1833,27 @@ class JobService:
                             parent_names.add(index_to_name[parent_idx])
                     if parent_names:
                         dag[child_name] = parent_names
+
+            # Add implicit dependencies from skip/stop rules
+            # If question q0 has a rule that can affect q1 (stop, jump), then q1
+            # must wait for q0 to complete so skip logic can evaluate properly.
+            if (
+                hasattr(survey, "rule_collection")
+                and survey.rule_collection is not None
+            ):
+                non_default = getattr(survey.rule_collection, "non_default_rules", None)
+                if non_default:
+                    for rule in non_default:
+                        source_idx = rule.current_q
+                        if source_idx not in index_to_name:
+                            continue
+                        source_name = index_to_name[source_idx]
+                        # All questions after the source depend on it
+                        for target_idx in range(source_idx + 1, len(survey.questions)):
+                            target_name = index_to_name[target_idx]
+                            if target_name not in dag:
+                                dag[target_name] = set()
+                            dag[target_name].add(source_name)
 
             return dag
 
