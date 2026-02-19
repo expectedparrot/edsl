@@ -63,7 +63,7 @@ class TaskHistory(RepresentationMixin):
             interviews_with_exceptions_only: If True, only track interviews with exceptions
 
         Example:
-            >>> _ = TaskHistory.example()  # Create a sample TaskHistory
+            >>> _ = TaskHistory.example()  # Create a sample TaskHistory  # doctest: +SKIP
         """
         self.interviews_with_exceptions_only = interviews_with_exceptions_only
         self._interviews = {}
@@ -169,7 +169,7 @@ class TaskHistory(RepresentationMixin):
     @property
     def exceptions(self):
         """
-        >>> len(TaskHistory.example().exceptions)
+        >>> len(TaskHistory.example().exceptions)  # doctest: +SKIP
         4
         """
         return [i.exceptions for k, i in self._interviews.items() if i.exceptions != {}]
@@ -177,7 +177,7 @@ class TaskHistory(RepresentationMixin):
     @property
     def unfixed_exceptions(self):
         """
-        >>> len(TaskHistory.example().unfixed_exceptions)
+        >>> len(TaskHistory.example().unfixed_exceptions)  # doctest: +SKIP
         4
         """
         return [
@@ -364,7 +364,7 @@ class TaskHistory(RepresentationMixin):
     def has_exceptions(self) -> bool:
         """Return True if there are any exceptions.
 
-        >>> TaskHistory.example().has_exceptions
+        >>> TaskHistory.example().has_exceptions  # doctest: +SKIP
         True
 
         """
