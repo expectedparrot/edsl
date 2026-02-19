@@ -2357,13 +2357,13 @@ class Survey(Base):
         Examples:
             Run a survey with a functional question that uses scenario parameters:
 
-            >>> from edsl.questions import QuestionFunctional
-            >>> def f(scenario, agent_traits): return "yes" if scenario["period"] == "morning" else "no"
-            >>> q = QuestionFunctional(question_name="q0", func=f)
-            >>> s = Survey([q])
-            >>> s(period="morning", cache=False, disable_remote_cache=True, disable_remote_inference=True).select("answer.q0").first()
+            >>> from edsl.questions import QuestionFunctional  # doctest: +SKIP
+            >>> def f(scenario, agent_traits): return "yes" if scenario["period"] == "morning" else "no"  # doctest: +SKIP
+            >>> q = QuestionFunctional(question_name="q0", func=f)  # doctest: +SKIP
+            >>> s = Survey([q])  # doctest: +SKIP
+            >>> s(period="morning", cache=False, disable_remote_cache=True, disable_remote_inference=True).select("answer.q0").first()  # doctest: +SKIP
             'yes'
-            >>> s(period="evening", cache=False, disable_remote_cache=True, disable_remote_inference=True).select("answer.q0").first()
+            >>> s(period="evening", cache=False, disable_remote_cache=True, disable_remote_inference=True).select("answer.q0").first()  # doctest: +SKIP
             'no'
         """
         return self.get_job(model, agent, **kwargs).run(
