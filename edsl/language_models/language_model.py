@@ -791,6 +791,7 @@ class LanguageModel(
         response_schema: Optional[dict] = None,
         response_schema_name: Optional[str] = None,
         question_name: Optional[str] = None,
+        agent_name: Optional[str] = None,
     ) -> ModelResponse:
         """Handle model calls with caching for efficiency.
 
@@ -904,9 +905,15 @@ class LanguageModel(
                 elif question_name:
                     params["question_name"] = question_name
 
-            # Add invigilator parameter for scripted models
-            if hasattr(self, "agent_question_responses") and invigilator:
-                params["invigilator"] = invigilator
+            # Add invigilator or agent_name/question_name for scripted models
+            if hasattr(self, "agent_question_responses"):
+                if invigilator:
+                    params["invigilator"] = invigilator
+                else:
+                    if agent_name:
+                        params["agent_name"] = agent_name
+                    if question_name:
+                        params["question_name"] = question_name
 
             # Add response schema if provided (for structured output)
             if response_schema is not None:
@@ -1014,6 +1021,10 @@ class LanguageModel(
         # Add question_name if provided (for test models with dict canned_response)
         if "question_name" in kwargs:
             params.update({"question_name": kwargs["question_name"]})
+
+        # Add agent_name if provided (for scripted response models)
+        if "agent_name" in kwargs:
+            params.update({"agent_name": kwargs["agent_name"]})
 
         # Add response schema if provided (for QuestionPydantic)
         if "response_schema" in kwargs:

@@ -1588,10 +1588,9 @@ class JobService:
                     q_name = q_data.get("question_name", q_id)
                     q_options = q_data.get("question_options")
                     # Resolve template variables in question_options using prior answers
-                    if isinstance(q_options, str) and "{{" in q_options:
-                        q_options = self._resolve_question_options(
-                            q_options, answer_dict, scenario
-                        )
+                    q_options = self._resolve_question_options(
+                        q_options, answer_dict, scenario
+                    )
                     # Apply per-interview randomized permutation if present
                     if option_permutations and q_name in option_permutations:
                         q_options = option_permutations[q_name]
@@ -1904,19 +1903,51 @@ class JobService:
 
     @staticmethod
     def _resolve_question_options(
-        template: str, answer_dict: dict, scenario: Any
+        options: Any, answer_dict: dict, scenario: Any
     ) -> Any:
-        """Resolve template variables like '{{ colors.answer }}' in question_options."""
+        """Resolve template variables in question_options.
+
+        Handles:
+        - String templates: "{{ q1.answer }}"
+        - Dict format: {"from": "{{ q1.answer }}", "add": ["Other"]}
+        - Non-template values (lists, None): returned as-is
+        """
         import re
 
-        # Match patterns like {{ question_name.answer }}
+        # Dict format: {"from": "{{ q1.answer }}", "add": ["Option X"]}
+        if isinstance(options, dict) and "from" in options:
+            from_template = options["from"]
+            additional = options.get("add", [])
+            base = JobService._resolve_template_string(
+                from_template, answer_dict, scenario
+            )
+            if isinstance(base, list):
+                return base + additional
+            # Couldn't resolve the "from" template
+            return additional if additional else options
+
+        # String template: "{{ q1.answer }}"
+        if isinstance(options, str) and "{{" in options:
+            return JobService._resolve_template_string(options, answer_dict, scenario)
+
+        # Non-template (list, None, etc.) — return as-is
+        return options
+
+    @staticmethod
+    def _resolve_template_string(
+        template: str, answer_dict: dict, scenario: Any
+    ) -> Any:
+        """Resolve a single template string like '{{ q1.answer }}' or '{{ scenario.var }}'."""
+        import re
+
+        # Match {{ question_name.answer }}
         match = re.match(r"\{\{\s*(\w+)\.answer\s*\}\}", template.strip())
         if match:
             q_name = match.group(1)
             if q_name in answer_dict and answer_dict[q_name] is not None:
                 return answer_dict[q_name]
 
-        # Match patterns like {{ scenario.variable }}
+        # Match {{ scenario.variable }}
         match = re.match(r"\{\{\s*scenario\.(\w+)\s*\}\}", template.strip())
         if match and scenario:
             attr = match.group(1)

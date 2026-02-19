@@ -241,6 +241,7 @@ class ExecutionWorker:
                 iteration=task.iteration,
                 files_list=task.files_list,
                 question_name=task.question_name,
+                agent_name=task.agent_name,
             )
 
             # Extract answer and tokens from the response
@@ -337,6 +338,8 @@ class ExecutionWorker:
     ) -> tuple[Any, str | None, bool]:
         """Validate answer through the question's response validator.
 
+        Mirrors old InvigilatorAI flow: resolve template options before validation.
+
         Returns (answer, comment, validated) tuple.
         """
         if task.question_id is None:
@@ -346,6 +349,26 @@ class ExecutionWorker:
             question_data = self._job_service._jobs.get_question(
                 task.job_id, task.question_id
             )
+
+            # Resolve template options before validation (mirrors InvigilatorAI).
+            # In the old system, prompt_constructor.get_question_options() resolves
+            # templates like "{{ q1.answer }}" or {"from": "{{ q1.answer }}", "add": [...]}
+            # using prior answers, then mutates the question object BEFORE calling
+            # _validate_answer.
+            q_options = question_data.get("question_options") if question_data else None
+            needs_resolve = (isinstance(q_options, str) and "{{" in q_options) or (
+                isinstance(q_options, dict) and "from" in q_options
+            )
+            if needs_resolve:
+                answer_dict = self._get_interview_answers(
+                    task.job_id, task.interview_id
+                )
+                resolved = JobService._resolve_question_options(
+                    q_options, answer_dict, None
+                )
+                if resolved != q_options:
+                    question_data = question_data.copy()
+                    question_data["question_options"] = resolved
 
             from ..questions import QuestionBase
 
@@ -366,6 +389,11 @@ class ExecutionWorker:
         except Exception:
             # Validation failed — return original answer with validated=False
             return answer, comment, False
+
+    def _get_interview_answers(self, job_id: str, interview_id: str) -> dict:
+        """Get current answers for an interview as {question_name: answer_value}."""
+        answers = self._job_service._answers.get_all_for_interview(job_id, interview_id)
+        return {a.question_name: a.answer for a in answers}
 
     def _classify_error(self, error: Exception) -> str:
         """Classify an error into a type."""

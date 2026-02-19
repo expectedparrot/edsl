@@ -47,6 +47,7 @@ class RenderedPrompt:
     iteration: int = (
         0  # Which iteration this task belongs to (for cache key differentiation)
     )
+    agent_name: str | None = None
 
 
 class RenderService:
@@ -188,6 +189,7 @@ class RenderService:
             model_name=model_data.get("model") if model_data else None,
             service_name=model_data.get("inference_service") if model_data else None,
             iteration=task_def.iteration,
+            agent_name=agent_data.get("name") if agent_data else None,
         )
 
     def _get_current_answers(
@@ -823,6 +825,7 @@ class RenderWorker:
                     if model_data
                     else None,
                     iteration=task_def.iteration,
+                    agent_name=agent_data.get("name") if agent_data else None,
                 )
             )
 
