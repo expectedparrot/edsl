@@ -207,10 +207,10 @@ class QuestionInstructionPromptBuilder:
         Returns:
             Dict: Enriched prompt data
         """
-        prompt_data["data"] = (
-            QuestionInstructionPromptBuilder._process_question_options(
-                prompt_data["data"], scenario, prior_answers_dict
-            )
+        prompt_data[
+            "data"
+        ] = QuestionInstructionPromptBuilder._process_question_options(
+            prompt_data["data"], scenario, prior_answers_dict
         )
         return prompt_data
 
@@ -259,11 +259,13 @@ class QuestionInstructionPromptBuilder:
         Args:
             undefined_vars: Set of undefined template variables
         """
-        for question_name in self.survey.question_names:
-            if question_name in undefined_vars:
-                logging.warning(
-                    f"Question name found in undefined_template_variables: {question_name}"
-                )
+        if not undefined_vars:
+            return
+        question_names_set = set(self.survey.question_names)
+        for var in set(undefined_vars) & question_names_set:
+            logging.warning(
+                f"Question name found in undefined_template_variables: {var}"
+            )
 
     def _append_survey_instructions(self, rendered_prompt: "Prompt") -> "Prompt":
         """Appends any relevant survey instructions to the rendered prompt.

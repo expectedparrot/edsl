@@ -551,9 +551,9 @@ class JobsRemoteInferenceHandler:
             model_cost_dict["input_cost_credits_with_cache"] = converter.usd_to_credits(
                 input_cost_with_cache
             )
-            model_cost_dict["output_cost_credits_with_cache"] = (
-                converter.usd_to_credits(output_cost_with_cache)
-            )
+            model_cost_dict[
+                "output_cost_credits_with_cache"
+            ] = converter.usd_to_credits(output_cost_with_cache)
         return list(expenses_by_model.values())
 
     def _fetch_results_and_log(
@@ -620,6 +620,208 @@ class JobsRemoteInferenceHandler:
         results.results_uuid = results_uuid
         return results
 
+    def _fetch_results_streamed(
+        self,
+        job_info: "RemoteJobInfo",
+        job_status: Literal["completed", "partial_failed"],
+        remote_job_data: "RemoteInferenceResponse",
+    ) -> "Results":
+        """
+        Fetch results from the runner via paginated streaming.
+
+        Instead of downloading a pre-built Results object from GCS,
+        this fetches raw interview data page by page from the runner
+        and builds Result objects locally.
+        """
+        from ..coop import Coop
+        from ..results import Results, Result
+        from ..agents import Agent
+        from ..scenarios import Scenario
+        from ..language_models import LanguageModel
+
+        coop = Coop(api_key=self.api_key)
+
+        # Step 1: Get the manifest
+        manifest = coop.remote_inference_results_manifest(job_info.job_uuid)
+        total_interviews = manifest.get("total_interviews", 0)
+        page_count = manifest.get("page_count", 0)
+        page_size = manifest.get("page_size", 100)
+
+        job_info.logger.update(
+            f"Fetching results: 0/{total_interviews} interviews",
+            status=JobsStatus.COMPLETED
+            if job_status == "completed"
+            else JobsStatus.PARTIALLY_FAILED,
+        )
+
+        # Step 2: Fetch pages and build Result objects locally
+        result_list = []
+        fetched = 0
+
+        for page_num in range(page_count):
+            page_data = coop.remote_inference_results_page(
+                job_info.job_uuid, page=page_num, page_size=page_size
+            )
+
+            for interview in page_data.get("interviews", []):
+                # Deserialize EDSL objects from raw dicts
+                agent_data = interview.get("agent") or {}
+                scenario_data = interview.get("scenario") or {}
+                model_data = interview.get("model") or {}
+                iteration = interview.get("iteration", 0)
+                answers_raw = interview.get("answers", [])
+
+                agent = Agent.from_dict(agent_data) if agent_data else Agent()
+                scenario = (
+                    Scenario.from_dict(scenario_data) if scenario_data else Scenario()
+                )
+                model = LanguageModel.from_dict(model_data) if model_data else None
+
+                # Build answer dicts matching EDSL Result structure
+                answer_dict = {}
+                prompt_dict = {}
+                raw_model_response_dict = {}
+                generated_tokens_dict = {}
+                comments_dict = {}
+                reasoning_summaries_dict = {}
+                cache_used_dict = {}
+                cache_keys = {}
+                validated_dict = {}
+
+                for a in answers_raw:
+                    qname = a["question_name"]
+                    answer_dict[qname] = a.get("answer")
+                    prompt_dict[f"{qname}_user_prompt"] = {
+                        "text": a.get("user_prompt") or ""
+                    }
+                    prompt_dict[f"{qname}_system_prompt"] = {
+                        "text": a.get("system_prompt") or ""
+                    }
+                    raw_model_response_dict[f"{qname}_raw_model_response"] = a.get(
+                        "raw_model_response"
+                    )
+                    raw_model_response_dict[f"{qname}_input_tokens"] = a.get(
+                        "input_tokens"
+                    )
+                    raw_model_response_dict[f"{qname}_output_tokens"] = a.get(
+                        "output_tokens"
+                    )
+                    raw_model_response_dict[
+                        f"{qname}_input_price_per_million_tokens"
+                    ] = a.get("input_price_per_million_tokens")
+                    raw_model_response_dict[
+                        f"{qname}_output_price_per_million_tokens"
+                    ] = a.get("output_price_per_million_tokens")
+
+                    # Calculate cost
+                    total_cost = None
+                    input_tokens = a.get("input_tokens")
+                    output_tokens = a.get("output_tokens")
+                    if input_tokens is not None and output_tokens is not None:
+                        input_price = a.get("input_price_per_million_tokens") or 0
+                        output_price = a.get("output_price_per_million_tokens") or 0
+                        total_cost = (input_price / 1_000_000 * input_tokens) + (
+                            output_price / 1_000_000 * output_tokens
+                        )
+                    raw_model_response_dict[f"{qname}_cost"] = total_cost
+                    one_usd_buys = (
+                        "NA"
+                        if total_cost is None or total_cost == 0
+                        else 1.0 / total_cost
+                    )
+                    raw_model_response_dict[f"{qname}_one_usd_buys"] = one_usd_buys
+
+                    generated_tokens_dict[f"{qname}_generated_tokens"] = a.get(
+                        "generated_tokens"
+                    )
+                    comments_dict[f"{qname}_comment"] = a.get("comment")
+                    reasoning_summaries_dict[f"{qname}_reasoning_summary"] = a.get(
+                        "reasoning_summary"
+                    )
+                    cache_used_dict[qname] = a.get("cached", False)
+                    cache_keys[qname] = a.get("cache_key")
+                    validated_dict[f"{qname}_validated"] = a.get("validated")
+
+                result = Result(
+                    agent=agent,
+                    scenario=scenario,
+                    model=model,
+                    iteration=iteration,
+                    answer=answer_dict,
+                    prompt=prompt_dict,
+                    raw_model_response=raw_model_response_dict,
+                    survey=self.jobs.survey if self.jobs else None,
+                    generated_tokens=generated_tokens_dict,
+                    comments_dict=comments_dict,
+                    reasoning_summaries_dict=reasoning_summaries_dict,
+                    cache_used_dict=cache_used_dict,
+                    cache_keys=cache_keys,
+                    validated_dict=validated_dict,
+                )
+                result_list.append(result)
+                fetched += 1
+
+            # Update progress
+            job_info.logger.update(
+                f"Fetching results: {fetched}/{total_interviews} interviews",
+                status=JobsStatus.COMPLETED
+                if job_status == "completed"
+                else JobsStatus.PARTIALLY_FAILED,
+            )
+
+        # Step 3: Build the Results object
+        results = Results(
+            survey=self.jobs.survey if self.jobs else None,
+            data=result_list,
+        )
+
+        # Log completion
+        if job_status == "completed":
+            job_info.logger.add_info("completed_interviews", len(result_list))
+            job_info.logger.add_info("failed_interviews", 0)
+            job_info.logger.update(
+                f"Job completed. {len(result_list)} interviews fetched.",
+                status=JobsStatus.COMPLETED,
+            )
+            if hasattr(job_info.logger, "job_completed"):
+                job_info.logger.job_completed(JobsStatus.COMPLETED)
+        elif job_status == "partial_failed":
+            job_info.logger.update(
+                f"Job partially failed. {len(result_list)} interviews fetched.",
+                status=JobsStatus.PARTIALLY_FAILED,
+            )
+            if hasattr(job_info.logger, "job_completed"):
+                job_info.logger.job_completed(JobsStatus.PARTIALLY_FAILED)
+
+        # Extract expenses from remote_job_data if available
+        latest_job_run_details = remote_job_data.get("latest_job_run_details", {})
+        expenses = latest_job_run_details.get("expenses", [])
+        if expenses:
+            model_costs = []
+            for exp in expenses:
+                model_costs.append(
+                    ModelCost(
+                        service=exp.get("service"),
+                        model=exp.get("model"),
+                        input_tokens=exp.get("token_count")
+                        if exp.get("token_type") == "input"
+                        else None,
+                        input_cost_usd=exp.get("cost_usd")
+                        if exp.get("token_type") == "input"
+                        else None,
+                        output_tokens=exp.get("token_count")
+                        if exp.get("token_type") == "output"
+                        else None,
+                        output_cost_usd=exp.get("cost_usd")
+                        if exp.get("token_type") == "output"
+                        else None,
+                    )
+                )
+            job_info.logger.add_info("model_costs", model_costs)
+
+        results.job_uuid = job_info.job_uuid
+        return results
+
     def _attempt_fetch_job(
         self,
         job_info: RemoteJobInfo,
@@ -659,8 +861,19 @@ class JobsRemoteInferenceHandler:
                     object_fetcher=object_fetcher,
                 )
                 return results, reason
-            else:
-                return None, reason
+
+            # Check if results are available from the runner (paginated streaming)
+            latest_details = remote_job_data.get("latest_job_run_details", {})
+            results_available = latest_details.get("results_available", False)
+            if results_available and status in ("completed", "partial_failed"):
+                results = self._fetch_results_streamed(
+                    job_info=job_info,
+                    job_status=status,
+                    remote_job_data=remote_job_data,
+                )
+                return results, reason
+
+            return None, reason
 
         else:
             self._sleep_for_a_bit(job_info, status)

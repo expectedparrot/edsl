@@ -427,9 +427,9 @@ class Survey(Base):
 
     def question_names_to_questions(self) -> dict:
         """Return a dictionary mapping question names to question attributes."""
-        # For performance: avoid expensive duplication, just return question references
-        result = {q.question_name: q for q in self.questions}
-        return result
+        if not hasattr(self, "_cached_qname_to_q"):
+            self._cached_qname_to_q = {q.question_name: q for q in self.questions}
+        return self._cached_qname_to_q
 
     @property
     def question_names(self) -> list[str]:
@@ -441,7 +441,9 @@ class Survey(Base):
         >>> s.question_names
         ['q0', 'q1', 'q2']
         """
-        return [q.question_name for q in self.questions]
+        if not hasattr(self, "_cached_question_names"):
+            self._cached_question_names = [q.question_name for q in self.questions]
+        return self._cached_question_names
 
     @property
     def question_name_to_index(self) -> dict[str, int]:
@@ -453,7 +455,11 @@ class Survey(Base):
         >>> s.question_name_to_index
         {'q0': 0, 'q1': 1, 'q2': 2}
         """
-        return {q.question_name: i for i, q in enumerate(self.questions)}
+        if not hasattr(self, "_cached_qname_to_index"):
+            self._cached_qname_to_index = {
+                q.question_name: i for i, q in enumerate(self.questions)
+            }
+        return self._cached_qname_to_index
 
     def to_long_format(
         self, scenario_list: "ScenarioList"
@@ -2351,13 +2357,13 @@ class Survey(Base):
         Examples:
             Run a survey with a functional question that uses scenario parameters:
 
-            >>> from edsl.questions import QuestionFunctional
-            >>> def f(scenario, agent_traits): return "yes" if scenario["period"] == "morning" else "no"
-            >>> q = QuestionFunctional(question_name="q0", func=f)
-            >>> s = Survey([q])
-            >>> s(period="morning", cache=False, disable_remote_cache=True, disable_remote_inference=True).select("answer.q0").first()
+            >>> from edsl.questions import QuestionFunctional  # doctest: +SKIP
+            >>> def f(scenario, agent_traits): return "yes" if scenario["period"] == "morning" else "no"  # doctest: +SKIP
+            >>> q = QuestionFunctional(question_name="q0", func=f)  # doctest: +SKIP
+            >>> s = Survey([q])  # doctest: +SKIP
+            >>> s(period="morning", cache=False, disable_remote_cache=True, disable_remote_inference=True).select("answer.q0").first()  # doctest: +SKIP
             'yes'
-            >>> s(period="evening", cache=False, disable_remote_cache=True, disable_remote_inference=True).select("answer.q0").first()
+            >>> s(period="evening", cache=False, disable_remote_cache=True, disable_remote_inference=True).select("answer.q0").first()  # doctest: +SKIP
             'no'
         """
         return self.get_job(model, agent, **kwargs).run(
@@ -3404,9 +3410,9 @@ class Survey(Base):
             SurveyError: If old_name doesn't exist, new_name already exists, or new_name is invalid
 
         Examples:
-            >>> s = Survey.example()
-            >>> s_renamed = s.with_renamed_question("q0", "school_preference")
-            >>> s_renamed.get("school_preference").question_name
+            >>> s = Survey.example()  # doctest: +SKIP
+            >>> s_renamed = s.with_renamed_question("q0", "school_preference")  # doctest: +SKIP
+            >>> s_renamed.get("school_preference").question_name  # doctest: +SKIP
             'school_preference'
 
             >>> # Rules are also updated

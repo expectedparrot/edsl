@@ -1028,7 +1028,16 @@ class Jobs(Base):
                 return results, None
             else:
                 results, reason = jh.poll_remote_inference_job(job_info)
-                return results, reason
+                if results is not None:
+                    return results, reason
+                # Remote was used but returned no results — don't fall back to local
+                if reason:
+                    raise RuntimeError(
+                        f"Remote execution did not return results. Reason: {reason}"
+                    )
+                raise RuntimeError(
+                    "Remote execution completed but results could not be retrieved."
+                )
         else:
             return None, None
 
@@ -1702,6 +1711,21 @@ class Jobs(Base):
                     results.append(r)
         return Results(survey=self.survey, data=results)
 
+    def _execute_with_runner(self) -> "Results":
+        """Execute job locally using the Runner engine."""
+        from ..runner.runner import Runner
+
+        runner = Runner()
+        handle = runner.submit(
+            self,
+            n=self.run_config.parameters.n,
+            cache=self.run_config.environment.cache,
+            stop_on_exception=self.run_config.parameters.stop_on_exception,
+        )
+        return handle.results(
+            show_progress=True,
+        )
+
     @with_config
     def run(self, *, config: RunConfig) -> Optional["Results"]:
         """Run the job by conducting interviews and return their results.
@@ -1818,8 +1842,8 @@ class Jobs(Base):
             print("🔗 Add credits at: https://www.expectedparrot.com/home/credits")
             return None
 
-        self._logger.info("Starting local execution with remote cache")
-        results = asyncio.run(self._execute_with_remote_cache(run_job_async=False))
+        self._logger.info("Starting local execution with Runner")
+        results = self._execute_with_runner()
 
         self._logger.info("Applying post-run methods to results")
         final_results = self._apply_post_run_methods(results)
