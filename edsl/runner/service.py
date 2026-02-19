@@ -1357,6 +1357,7 @@ class JobService:
         all_object_data: dict | None = None,
         questions_data: dict | None = None,
         prefetched_answers: dict | None = None,
+        indices: dict | None = None,
         _timing: dict | None = None,
     ) -> Any:
         """
@@ -1622,6 +1623,7 @@ class JobService:
             cache_keys=cache_keys,
             validated_dict=validated_dict,
             question_to_attributes=question_to_attributes,
+            indices=indices,
         )
 
         # Set interview_hash for compatibility with EDSL's Interview-based results.
@@ -1778,12 +1780,27 @@ class JobService:
         # BUILD RESULTS: Use pre-fetched data (no more DB calls in loop)
         # =====================================================================
 
+        # Build index maps for agent/scenario/model position indices
+        agent_index_map = {aid: i for i, aid in enumerate(job_def.agent_ids)}
+        scenario_index_map = {sid: i for i, sid in enumerate(job_def.scenario_ids)}
+        model_index_map = {mid: i for i, mid in enumerate(job_def.model_ids)}
+
         result_list = []
         _t_loop = _time.time()
         for interview_id in completed_interview_ids:
             # Pass all pre-fetched data to avoid DB calls inside build_edsl_result
             interview_def = interview_defs.get(interview_id)
             interview_answers = all_answers.get(interview_id, {})
+
+            # Compute indices for this interview
+            indices = None
+            if interview_def:
+                indices = {
+                    "agent": agent_index_map.get(interview_def.agent_id, 0),
+                    "scenario": scenario_index_map.get(interview_def.scenario_id, 0),
+                    "model": model_index_map.get(interview_def.model_id, 0),
+                }
+
             result = self.build_edsl_result(
                 job_id,
                 interview_id,
@@ -1793,11 +1810,23 @@ class JobService:
                 all_object_data=all_object_data,
                 questions_data=questions_data,
                 prefetched_answers=interview_answers,
+                indices=indices,
                 _timing=_timing,
             )
             result_list.append(result)
         if _timing is not None:
             _timing["build_results_loop_total"] = (_time.time() - _t_loop) * 1000
+
+        # Sort results to match the old system's ordering:
+        # agent-major, then scenario, then model, then iteration.
+        result_list.sort(
+            key=lambda r: (
+                r.indices.get("agent", 0) if r.indices else 0,
+                r.indices.get("scenario", 0) if r.indices else 0,
+                r.indices.get("model", 0) if r.indices else 0,
+                r.data.get("iteration", 0),
+            )
+        )
 
         # Create the Results object
         _t = _time.time()

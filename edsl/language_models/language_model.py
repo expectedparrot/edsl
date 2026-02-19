@@ -254,6 +254,7 @@ class LanguageModel(
             self._api_token = None
 
         # Add test model parameters that need to survive serialization
+        # Only add if value is truthy (non-default) to avoid polluting parameters
         for test_param in (
             "canned_response",
             "fail_at_number",
@@ -261,7 +262,7 @@ class LanguageModel(
             "throw_exception",
             "exception_probability",
         ):
-            if test_param in kwargs:
+            if test_param in kwargs and kwargs[test_param]:
                 self.parameters[test_param] = kwargs[test_param]
 
     def _set_key_lookup(self, key_lookup: Optional["KeyLookup"] = None) -> "KeyLookup":
@@ -1107,6 +1108,7 @@ class LanguageModel(
         parameters = self.parameters.copy()
 
         # For test models, ensure test parameters are included in serialization
+        # Only add if truthy to avoid polluting parameters with defaults
         if self.model == "test":
             for test_param in (
                 "canned_response",
@@ -1115,7 +1117,7 @@ class LanguageModel(
                 "throw_exception",
                 "exception_probability",
             ):
-                if hasattr(self, test_param):
+                if hasattr(self, test_param) and getattr(self, test_param):
                     parameters[test_param] = getattr(self, test_param)
 
         d = {

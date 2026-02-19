@@ -767,6 +767,8 @@ class Runner:
             try:
                 result = self._direct_registry.execute(task_id)
 
+                from .models import generate_id
+
                 self._service.on_task_completed(
                     job_id=job_id,
                     interview_id=interview_id,
@@ -776,6 +778,7 @@ class Runner:
                     input_tokens=result.get("input_tokens", 0),
                     output_tokens=result.get("output_tokens", 0),
                     cached=result.get("cached", False),
+                    cache_key=generate_id(),
                 )
 
                 self._direct_registry.remove(task_id)
