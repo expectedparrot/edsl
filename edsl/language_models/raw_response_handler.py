@@ -63,10 +63,12 @@ class RawResponseHandler:
         key_sequence: list,
         usage_sequence: Optional[list] = None,
         reasoning_sequence: Optional[list] = None,
+        inference_service: Optional[str] = None,
     ):
         self.key_sequence = key_sequence
         self.usage_sequence = usage_sequence
         self.reasoning_sequence = reasoning_sequence
+        self.inference_service = inference_service
 
     def get_generated_token_string(self, raw_response):
         try:
@@ -118,6 +120,20 @@ class RawResponseHandler:
                         ):
                             return choice["message"]["content"]
 
+                # Anthropic reasoning completions format
+                text_blocks = []
+                if "content" in raw_response and isinstance(
+                    raw_response["content"], list
+                ):
+                    for item in raw_response["content"]:
+                        if (
+                            isinstance(item, dict)
+                            and "type" in item
+                            and item["type"] == "text"
+                        ):
+                            text_blocks.append(item["text"])
+                    return "\n\n".join(text_blocks)
+
                 # Text directly in response
                 if "text" in raw_response:
                     return raw_response["text"]
@@ -168,32 +184,54 @@ class RawResponseHandler:
         """
         Extract reasoning summary from the model response.
 
-        Handles various response structures:
-        1. Standard path extraction using self.reasoning_sequence
-        2. Direct access to output[0]['summary'] for OpenAI responses
-        3. List responses where the first item contains the output structure
+        When inference_service is None, returns None (skip).
+        When set, uses the path for that service only; other services return None.
+
+        Paths:
+        - anthropic: reasoning_sequence ["content"] then filter type='thinking' blocks
+        - openai / openai_v2: reasoning_sequence or output[0]['summary'] fallback
+        - other: return None
         """
-        if self.reasoning_sequence is None:
+        if self.inference_service is None:
             return None
 
-        try:
-            # First try the standard extraction path
-            summary_data = _extract_item_from_raw_response(
-                raw_response, self.reasoning_sequence
-            )
+        # Anthropic: use reasoning_sequence to get content, then filter thinking blocks
+        if self.inference_service == "anthropic":
+            if self.reasoning_sequence is not None:
+                try:
+                    summary_data = _extract_item_from_raw_response(
+                        raw_response, self.reasoning_sequence
+                    )
+                    if isinstance(summary_data, list):
+                        thinking_parts = [
+                            item["thinking"]
+                            for item in summary_data
+                            if isinstance(item, dict)
+                            and item.get("type") == "thinking"
+                            and "thinking" in item
+                        ]
+                        if thinking_parts:
+                            return "\n\n".join(thinking_parts)
+                except Exception:
+                    pass
+            return None
 
-            # If summary_data is a list of dictionaries with 'text' and 'type' fields
-            # (as in OpenAI's response format), combine them into a single string
-            if isinstance(summary_data, list) and all(
-                isinstance(item, dict) and "text" in item for item in summary_data
-            ):
-                return "\n\n".join(item["text"] for item in summary_data)
-
-            return summary_data
-        except Exception:
-            # Fallback approaches for different response structures
+        # OpenAI-style: reasoning_sequence or output/summary fallbacks
+        if self.inference_service in ("openai", "openai_v2"):
+            if self.reasoning_sequence is not None:
+                try:
+                    summary_data = _extract_item_from_raw_response(
+                        raw_response, self.reasoning_sequence
+                    )
+                    if isinstance(summary_data, list) and all(
+                        isinstance(item, dict) and "text" in item
+                        for item in summary_data
+                    ):
+                        return "\n\n".join(item["text"] for item in summary_data)
+                    return summary_data
+                except Exception:
+                    pass
             try:
-                # Case 1: Direct dict with 'output' field (common OpenAI format)
                 if isinstance(raw_response, dict) and "output" in raw_response:
                     output = raw_response["output"]
                     if (
@@ -207,8 +245,6 @@ class RawResponseHandler:
                             for item in summary_data
                         ):
                             return "\n\n".join(item["text"] for item in summary_data)
-
-                # Case 2: List where the first item is a dict with 'output' field
                 if isinstance(raw_response, list) and len(raw_response) > 0:
                     first_item = raw_response[0]
                     if isinstance(first_item, dict) and "output" in first_item:
@@ -228,8 +264,10 @@ class RawResponseHandler:
                                 )
             except Exception:
                 pass
-
             return None
+
+        # Other inference service: don't try anything
+        return None
 
     def parse_response(self, raw_response: dict[str, Any]) -> Any:
         """Parses the API response and returns the response text."""

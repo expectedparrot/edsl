@@ -219,7 +219,7 @@ class ResultFromInterview:
             if model_class and hasattr(model_class, "reasoning_sequence"):
                 from ..language_models.raw_response_handler import RawResponseHandler
 
-                # Create a handler with the model's reasoning sequence
+                # Create a handler with the model's sequences and inference service
                 handler = RawResponseHandler(
                     key_sequence=(
                         model_class.key_sequence
@@ -231,7 +231,8 @@ class ResultFromInterview:
                         if hasattr(model_class, "usage_sequence")
                         else None
                     ),
-                    reasoning_sequence=model_class.reasoning_sequence,
+                    reasoning_sequence=getattr(model_class, "reasoning_sequence", None),
+                    inference_service=getattr(model_class, "_inference_service_", None),
                 )
 
                 # Try to extract the reasoning summary
