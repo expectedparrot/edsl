@@ -158,10 +158,10 @@ class RuleManager:
         ...
         """
         expression = ValidatedString(expression)
-        prior_question_appears = False
-        for prior_question in self.survey.questions:
-            if prior_question.question_name in expression:
-                prior_question_appears = True
+        prior_question_appears = any(
+            prior_question.question_name in expression
+            for prior_question in self.survey.questions
+        )
 
         if not prior_question_appears:
             import warnings
