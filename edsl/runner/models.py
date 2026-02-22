@@ -120,6 +120,9 @@ DEFAULT_RETRY_POLICIES = {
     "server_error": RetryPolicy(max_attempts=3, base_delay_seconds=1.0, retryable=True),
     "parse_error": RetryPolicy(max_attempts=2, base_delay_seconds=0.5, retryable=True),
     "render_error": RetryPolicy(max_attempts=2, base_delay_seconds=0.5, retryable=True),
+    "validation_error": RetryPolicy(
+        max_attempts=2, base_delay_seconds=0.5, retryable=True
+    ),
     "content_policy": RetryPolicy(
         max_attempts=1, base_delay_seconds=0.0, retryable=False
     ),

@@ -15,6 +15,8 @@ from .models import TaskStatus, generate_id
 
 # EDSL imports - relative since this module lives inside edsl package
 from ..caching import Cache
+from ..questions import QuestionBase
+from ..questions.exceptions import QuestionAnswerValidationError
 
 if TYPE_CHECKING:
     from .worker_registry import WorkerRegistry, AsyncHeartbeatManager
@@ -338,57 +340,49 @@ class ExecutionWorker:
     ) -> tuple[Any, str | None, bool]:
         """Validate answer through the question's response validator.
 
-        Mirrors old InvigilatorAI flow: resolve template options before validation.
+        Resolves template options before validation.
+        Raises QuestionAnswerValidationError on failure (handled by _execute).
 
         Returns (answer, comment, validated) tuple.
         """
         if task.question_id is None:
             return answer, comment, True
 
-        try:
-            question_data = self._job_service._jobs.get_question(
-                task.job_id, task.question_id
+        question_data = self._job_service._jobs.get_question(
+            task.job_id, task.question_id
+        )
+
+        if not question_data:
+            return answer, comment, True
+
+        # Resolve template options before validation.
+        q_options = question_data.get("question_options")
+        needs_resolve = (isinstance(q_options, str) and "{{" in q_options) or (
+            isinstance(q_options, dict) and "from" in q_options
+        )
+        if needs_resolve:
+            answer_dict = self._get_interview_answers(task.job_id, task.interview_id)
+            resolved = JobService._resolve_question_options(
+                q_options, answer_dict, None
             )
+            if resolved != q_options:
+                question_data = question_data.copy()
+                question_data["question_options"] = resolved
 
-            # Resolve template options before validation (mirrors InvigilatorAI).
-            # In the old system, prompt_constructor.get_question_options() resolves
-            # templates like "{{ q1.answer }}" or {"from": "{{ q1.answer }}", "add": [...]}
-            # using prior answers, then mutates the question object BEFORE calling
-            # _validate_answer.
-            q_options = question_data.get("question_options") if question_data else None
-            needs_resolve = (isinstance(q_options, str) and "{{" in q_options) or (
-                isinstance(q_options, dict) and "from" in q_options
-            )
-            if needs_resolve:
-                answer_dict = self._get_interview_answers(
-                    task.job_id, task.interview_id
-                )
-                resolved = JobService._resolve_question_options(
-                    q_options, answer_dict, None
-                )
-                if resolved != q_options:
-                    question_data = question_data.copy()
-                    question_data["question_options"] = resolved
+        question = QuestionBase.from_dict(question_data)
+        raw_answer_dict = {
+            "answer": answer,
+            "generated_tokens": generated_tokens or str(answer),
+        }
+        if comment:
+            raw_answer_dict["comment"] = comment
 
-            from ..questions import QuestionBase
-
-            question = QuestionBase.from_dict(question_data)
-            raw_answer_dict = {
-                "answer": answer,
-                "generated_tokens": generated_tokens or str(answer),
-            }
-            if comment:
-                raw_answer_dict["comment"] = comment
-
-            validated_dict = question._validate_answer(raw_answer_dict)
-            return (
-                validated_dict.get("answer", answer),
-                validated_dict.get("comment", comment),
-                True,
-            )
-        except Exception:
-            # Validation failed — return original answer with validated=False
-            return answer, comment, False
+        validated_dict = question._validate_answer(raw_answer_dict)
+        return (
+            validated_dict.get("answer", answer),
+            validated_dict.get("comment", comment),
+            True,
+        )
 
     def _get_interview_answers(self, job_id: str, interview_id: str) -> dict:
         """Get current answers for an interview as {question_name: answer_value}."""
@@ -397,6 +391,9 @@ class ExecutionWorker:
 
     def _classify_error(self, error: Exception) -> str:
         """Classify an error into a type."""
+        if isinstance(error, QuestionAnswerValidationError):
+            return "validation_error"
+
         error_str = str(error).lower()
 
         if "timeout" in error_str:
