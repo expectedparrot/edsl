@@ -355,30 +355,11 @@ class ExecutionWorker:
         if not question_data:
             return answer, comment, True
 
-        # Resolve template options before validation.
-        q_options = question_data.get("question_options")
-        needs_resolve = (isinstance(q_options, str) and "{{" in q_options) or (
-            isinstance(q_options, dict) and "from" in q_options
+        # Resolve template strings in question data before validation.
+        # This handles question_options, min_value, max_value, etc.
+        question_data = self._resolve_question_templates(
+            question_data, task.job_id, task.interview_id
         )
-        if needs_resolve:
-            answer_dict = self._get_interview_answers(task.job_id, task.interview_id)
-
-            # Fetch scenario data to resolve {{ scenario.variable }} templates
-            scenario = None
-            interview_def = self._job_service._interviews.get_definition(
-                task.job_id, task.interview_id
-            )
-            if interview_def:
-                scenario = self._job_service._jobs.get_scenario(
-                    task.job_id, interview_def.scenario_id
-                )
-
-            resolved = JobService._resolve_question_options(
-                q_options, answer_dict, scenario
-            )
-            if resolved != q_options:
-                question_data = question_data.copy()
-                question_data["question_options"] = resolved
 
         question = QuestionBase.from_dict(question_data)
         raw_answer_dict = {
@@ -388,17 +369,75 @@ class ExecutionWorker:
         if comment:
             raw_answer_dict["comment"] = comment
 
-        validated_dict = question._validate_answer(raw_answer_dict)
-        return (
-            validated_dict.get("answer", answer),
-            validated_dict.get("comment", comment),
-            True,
-        )
+        try:
+            validated_dict = question._validate_answer(raw_answer_dict)
+            return (
+                validated_dict.get("answer", answer),
+                validated_dict.get("comment", comment),
+                True,
+            )
+        except QuestionAnswerValidationError:
+            raise  # Real validation failure — let _execute handle it
+        except Exception:
+            # Bug in validation code (e.g. type mismatch) — don't block the answer
+            return answer, comment, False
 
     def _get_interview_answers(self, job_id: str, interview_id: str) -> dict:
         """Get current answers for an interview as {question_name: answer_value}."""
         answers = self._job_service._answers.get_all_for_interview(job_id, interview_id)
         return {a.question_name: a.answer for a in answers}
+
+    def _resolve_question_templates(
+        self, question_data: dict, job_id: str, interview_id: str
+    ) -> dict:
+        """Resolve all template strings ({{ ... }}) in question data.
+
+        Handles question_options, min_value, max_value, and any other
+        string fields that reference prior answers or scenario variables.
+        """
+        # Check if any values need resolution
+        has_templates = False
+        for key, value in question_data.items():
+            if isinstance(value, str) and "{{" in value:
+                has_templates = True
+                break
+            if (
+                isinstance(value, dict)
+                and key == "question_options"
+                and "from" in value
+            ):
+                has_templates = True
+                break
+
+        if not has_templates:
+            return question_data
+
+        answer_dict = self._get_interview_answers(job_id, interview_id)
+        scenario = None
+        interview_def = self._job_service._interviews.get_definition(
+            job_id, interview_id
+        )
+        if interview_def:
+            scenario = self._job_service._jobs.get_scenario(
+                job_id, interview_def.scenario_id
+            )
+
+        resolved_data = question_data.copy()
+        for key, value in question_data.items():
+            if key == "question_options":
+                resolved = JobService._resolve_question_options(
+                    value, answer_dict, scenario
+                )
+                if resolved != value:
+                    resolved_data[key] = resolved
+            elif isinstance(value, str) and "{{" in value:
+                resolved = JobService._resolve_template_string(
+                    value, answer_dict, scenario
+                )
+                if resolved != value:
+                    resolved_data[key] = resolved
+
+        return resolved_data
 
     def _classify_error(self, error: Exception) -> str:
         """Classify an error into a type."""

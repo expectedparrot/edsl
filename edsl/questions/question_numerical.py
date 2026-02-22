@@ -93,7 +93,11 @@ def create_numeric_response(
         @model_validator(mode="after")
         def validate_range_constraints(self):
             """Validate that the number meets range constraints."""
-            if min_value is not None and self.answer < min_value:
+            # Cast to float in case values come from template resolution as strings
+            _min = float(min_value) if min_value is not None else None
+            _max = float(max_value) if max_value is not None else None
+
+            if _min is not None and self.answer < _min:
                 validation_error = ValidationError.from_exception_data(
                     title="ConstrainedNumericResponse",
                     line_errors=[
@@ -113,7 +117,7 @@ def create_numeric_response(
                     pydantic_error=validation_error,
                 )
 
-            if max_value is not None and self.answer > max_value:
+            if _max is not None and self.answer > _max:
                 validation_error = ValidationError.from_exception_data(
                     title="ConstrainedNumericResponse",
                     line_errors=[
