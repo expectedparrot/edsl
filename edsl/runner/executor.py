@@ -362,8 +362,19 @@ class ExecutionWorker:
         )
         if needs_resolve:
             answer_dict = self._get_interview_answers(task.job_id, task.interview_id)
+
+            # Fetch scenario data to resolve {{ scenario.variable }} templates
+            scenario = None
+            interview_def = self._job_service._interviews.get_definition(
+                task.job_id, task.interview_id
+            )
+            if interview_def:
+                scenario = self._job_service._jobs.get_scenario(
+                    task.job_id, interview_def.scenario_id
+                )
+
             resolved = JobService._resolve_question_options(
-                q_options, answer_dict, None
+                q_options, answer_dict, scenario
             )
             if resolved != q_options:
                 question_data = question_data.copy()

@@ -811,6 +811,7 @@ class JobService:
         task_id: str,
         error_type: str,
         error_message: str,
+        force_permanent: bool = False,
     ) -> None:
         """Called when a task fails. Retries if policy allows, otherwise marks as permanent failure."""
         task_def = self._tasks.get_definition(job_id, interview_id, task_id)
@@ -819,7 +820,8 @@ class JobService:
 
         # Check retry policy before marking as permanently failed
         # Skip retries if stop_on_exception is set for this job
-        if not self._job_stop_on_exception.get(job_id, False):
+        # Skip retries if caller has already exhausted retries (force_permanent)
+        if not force_permanent and not self._job_stop_on_exception.get(job_id, False):
             job_def = self._jobs.get_definition(job_id)
             if job_def is not None:
                 # Look up retry policy for this error type, fall back to a default retryable policy
