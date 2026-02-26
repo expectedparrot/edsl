@@ -61,39 +61,16 @@ class FreeTextResponse(BaseModel):
     @model_validator(mode="after")
     def validate_tokens_match_answer(self):
         """
-        Validate that the answer matches the generated tokens if provided.
+        Accept answer even when it differs from generated_tokens.
 
-        This validator ensures consistency between the answer and generated_tokens
-        fields when both are present. They must match exactly.
+        parse_response intentionally splits on the last newline: everything
+        before it becomes 'answer', the last paragraph becomes 'comment',
+        and 'generated_tokens' keeps the full raw text. These are meant to
+        be different, so no equality check is needed for free text.
 
         Returns:
             The validated model instance.
-
-        Raises:
-            ValueError: If the answer and generated_tokens don't match exactly.
         """
-        if self.generated_tokens is not None:
-            if self.answer.strip() != self.generated_tokens.strip():
-                from .exceptions import QuestionAnswerValidationError
-
-                validation_error = ValidationError.from_exception_data(
-                    title="FreeTextResponse",
-                    line_errors=[
-                        {
-                            "type": "value_error",
-                            "loc": ("answer", "generated_tokens"),
-                            "msg": "Values must match",
-                            "input": self.generated_tokens,
-                            "ctx": {"error": "Values do not match"},
-                        }
-                    ],
-                )
-                raise QuestionAnswerValidationError(
-                    message=f"answer '{self.answer}' must exactly match generated_tokens '{self.generated_tokens}'",
-                    data=self.model_dump(),
-                    model=self.__class__,
-                    pydantic_error=validation_error,
-                )
         return self
 
 
