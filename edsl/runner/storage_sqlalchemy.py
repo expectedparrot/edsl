@@ -555,6 +555,13 @@ class SQLAlchemyStorage:
 
             return new_value
 
+    def batch_increment_volatile(self, key_amounts: dict[str, int]) -> dict[str, int]:
+        """Atomically increment multiple counters."""
+        result = {}
+        for key, amount in key_amounts.items():
+            result[key] = self.increment_volatile(key, amount)
+        return result
+
     def scan_keys_volatile(self, pattern: str) -> list[str]:
         """Scan volatile storage for keys matching pattern (glob-style)."""
         with self._session() as session:

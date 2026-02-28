@@ -776,6 +776,134 @@ class JobService:
             had_failures = interview_state == InterviewState.COMPLETED_WITH_FAILURES
             self._jobs.mark_interview_completed(job_id, interview_id, had_failures)
 
+    def on_tasks_completed_batch(
+        self,
+        job_id: str,
+        tasks: list[dict],
+    ) -> None:
+        """Batch version of on_task_completed for processing many cache hits at once.
+
+        Each dict in tasks must have:
+            interview_id, task_id, answer_value, and optionally:
+            comment, input_tokens, output_tokens, raw_model_response,
+            generated_tokens, cached, system_prompt, user_prompt,
+            input_price_per_million_tokens, output_price_per_million_tokens,
+            cache_key, validated, reasoning_summary
+        """
+        if not tasks:
+            return
+
+        import time as _t
+
+        _batch_t0 = _t.time()
+
+        # 1. Group tasks by interview_id for batch lookups
+        tasks_by_interview: dict[str, list[dict]] = {}
+        for task_info in tasks:
+            iid = task_info["interview_id"]
+            if iid not in tasks_by_interview:
+                tasks_by_interview[iid] = []
+            tasks_by_interview[iid].append(task_info)
+
+        # 2. Batch get all task definitions (grouped by interview)
+        all_task_defs: dict[str, "TaskDefinition"] = {}
+        for iid, itasks in tasks_by_interview.items():
+            task_ids = [t["task_id"] for t in itasks]
+            defs = self._tasks.get_definitions_batch(job_id, iid, task_ids)
+            for tid, td in defs.items():
+                if td is not None:
+                    all_task_defs[tid] = td
+        _t_defs = (_t.time() - _batch_t0) * 1000
+
+        # 3. Build and batch-store all answers
+        _t0 = _t.time()
+        now = datetime.utcnow()
+        answers = []
+        for task_info in tasks:
+            task_def = all_task_defs.get(task_info["task_id"])
+            if task_def is None:
+                continue
+            answers.append(
+                Answer(
+                    job_id=job_id,
+                    interview_id=task_info["interview_id"],
+                    question_name=task_def.question_name,
+                    answer=task_info["answer_value"],
+                    created_at=now,
+                    system_prompt=task_info.get("system_prompt"),
+                    user_prompt=task_info.get("user_prompt"),
+                    comment=task_info.get("comment"),
+                    cached=task_info.get("cached", False),
+                    input_tokens=task_info.get("input_tokens"),
+                    output_tokens=task_info.get("output_tokens"),
+                    raw_model_response=task_info.get("raw_model_response"),
+                    generated_tokens=task_info.get("generated_tokens"),
+                    model_id=task_def.model_id,
+                    input_price_per_million_tokens=task_info.get(
+                        "input_price_per_million_tokens"
+                    ),
+                    output_price_per_million_tokens=task_info.get(
+                        "output_price_per_million_tokens"
+                    ),
+                    cache_key=task_info.get("cache_key"),
+                    validated=task_info.get("validated"),
+                    reasoning_summary=task_info.get("reasoning_summary"),
+                )
+            )
+        self._answers.store_batch(answers)
+        _t_answers = (_t.time() - _t0) * 1000
+
+        # 4. Batch set all task statuses to COMPLETED
+        _t0 = _t.time()
+        completed_task_ids = [
+            t["task_id"] for t in tasks if t["task_id"] in all_task_defs
+        ]
+        self._tasks.set_statuses_batch(completed_task_ids, TaskStatus.COMPLETED)
+        _t_status = (_t.time() - _t0) * 1000
+
+        # 5. Process dependencies (for each task's dependents)
+        _t0 = _t.time()
+        for task_info in tasks:
+            task_def = all_task_defs.get(task_info["task_id"])
+            if task_def is None:
+                continue
+            for dependent_id in task_def.dependents:
+                self._tasks.mark_dependency_satisfied(job_id, dependent_id)
+        _t_deps = (_t.time() - _t0) * 1000
+
+        # 6. Batch increment interview completed counters
+        _t0 = _t.time()
+        interview_counts: dict[str, int] = {}
+        for task_info in tasks:
+            if task_info["task_id"] in all_task_defs:
+                iid = task_info["interview_id"]
+                interview_counts[iid] = interview_counts.get(iid, 0) + 1
+        self._interviews.increment_completed_batch(interview_counts)
+        _t_incr = (_t.time() - _t0) * 1000
+
+        # 7. Batch finalize interviews and job
+        _t0 = _t.time()
+        interview_ids = list(interview_counts.keys())
+        self._interviews.finalize_batch(job_id, interview_ids)
+
+        # Check which interviews are done and update job
+        interview_states = self._interviews.get_states_batch(interview_ids)
+        for iid, state in interview_states.items():
+            if state != InterviewState.RUNNING:
+                had_failures = state == InterviewState.COMPLETED_WITH_FAILURES
+                self._jobs.mark_interview_completed(job_id, iid, had_failures)
+        _t_finalize = (_t.time() - _t0) * 1000
+
+        _total = (_t.time() - _batch_t0) * 1000
+        logger.info(
+            f"[on_tasks_completed_batch] {len(tasks)} tasks, "
+            f"{len(interview_counts)} interviews: "
+            f"defs={_t_defs:.0f}ms, answers={_t_answers:.0f}ms, "
+            f"status={_t_status:.0f}ms, deps={_t_deps:.0f}ms, "
+            f"incr={_t_incr:.0f}ms, finalize={_t_finalize:.0f}ms, "
+            f"total={_total:.0f}ms"
+        )
+
     def on_task_skipped(
         self,
         job_id: str,

@@ -327,6 +327,50 @@ class RenderService:
             "files_list": prompts.get("files_list"),
         }
 
+    def _render_with_objects(
+        self,
+        scenario: "Scenario",
+        agent: "Agent",
+        model: "LanguageModel",
+        question: "QuestionBase",
+        survey: "Survey",
+        memory_plan: "MemoryPlan",
+        current_answers: dict[str, Any],
+    ) -> dict[str, str]:
+        """Render prompts using pre-built EDSL objects (avoids redundant from_dict)."""
+        import time as _t
+
+        _t0 = _t.time()
+        prompt_constructor = PromptConstructor(
+            agent=agent,
+            question=question,
+            scenario=scenario,
+            survey=survey,
+            model=model,
+            current_answers=current_answers,
+            memory_plan=memory_plan,
+            prompt_plan=PromptPlan(),
+        )
+        self._profile_times["prompt_constructor_init"] = self._profile_times.get(
+            "prompt_constructor_init", 0
+        ) + (_t.time() - _t0)
+
+        _t0 = _t.time()
+        prompts = prompt_constructor.get_prompts()
+        self._profile_times["get_prompts"] = self._profile_times.get(
+            "get_prompts", 0
+        ) + (_t.time() - _t0)
+
+        self._profile_counts["render_calls"] = (
+            self._profile_counts.get("render_calls", 0) + 1
+        )
+
+        return {
+            "system_prompt": str(prompts.get("system_prompt", "")),
+            "user_prompt": str(prompts.get("user_prompt", "")),
+            "files_list": prompts.get("files_list"),
+        }
+
     def get_profile_stats(self) -> dict:
         """Return profiling statistics for _render_with_edsl calls."""
         return {
@@ -753,10 +797,61 @@ class RenderWorker:
                 f"  [render] Step 8 (answer caching): {_step_timings['step8_answer_cache']:.2f}s, deps={sum(len(v) for v in dep_task_ids_by_interview.values())}"
             )
 
-        # Step 9: Render each task (CPU-bound, can't batch this)
+        # Step 8.5: Pre-build EDSL objects once per unique ID
+        # Instead of calling from_dict() 800 times with the same data,
+        # build each unique object once and reuse it in the render loop.
+        _t0 = _time.time()
+        edsl_scenarios: dict[str, "Scenario"] = {}
+        for sid, data in scenarios.items():
+            data = self._render_service._restore_scenario_filestores(data)
+            if data and "_default" not in data:
+                edsl_scenarios[sid] = Scenario.from_dict(data)
+            else:
+                edsl_scenarios[sid] = Scenario({})
+
+        edsl_agents: dict[str, "Agent"] = {}
+        for aid, data in agents.items():
+            if data and "_default" not in data:
+                edsl_agents[aid] = Agent.from_dict(data)
+            else:
+                edsl_agents[aid] = Agent()
+
+        edsl_models: dict[str, "LanguageModel"] = {}
+        for mid, data in models.items():
+            if data and "_default" not in data:
+                edsl_models[mid] = LanguageModel.from_dict(data)
+            else:
+                edsl_models[mid] = LanguageModel.from_dict({"model": "gpt-4o-mini"})
+
+        edsl_questions_base: dict[str, "QuestionBase"] = {}
+        for qid, data in questions.items():
+            if data:
+                edsl_questions_base[qid] = QuestionBase.from_dict(data)
+
+        _step_timings["step8.5_prebuild_objects"] = _time.time() - _t0
+
+        if debug:
+            print(
+                f"  [render] Step 8.5 (pre-build): {len(edsl_scenarios)} scenarios, "
+                f"{len(edsl_agents)} agents, {len(edsl_models)} models, "
+                f"{len(edsl_questions_base)} questions in "
+                f"{_step_timings['step8.5_prebuild_objects']:.3f}s"
+            )
+
+        # Step 9: Render each task using pre-built objects
         _t0 = _time.time()
         rendered = []
         _edsl_render_time = 0.0
+
+        # Caches for objects that depend on per-task context
+        _permuted_questions: dict[tuple, "QuestionBase"] = {}
+        _survey_cache: dict[tuple, tuple] = {}
+        _prompt_cache: dict[
+            tuple, dict
+        ] = {}  # Cache rendered prompts by input combination
+
+        from ..questions import QuestionFreeText as _QuestionFreeText
+
         for task_id in tasks_to_render:
             task_def = all_task_defs.get(task_id)
             if not task_def:
@@ -765,38 +860,99 @@ class RenderWorker:
             _, interview_id = locations[task_id]
             interview_def = interview_defs.get(interview_id)
 
-            # Get cached data
-            scenario_data = scenarios.get(task_def.scenario_id)
-            scenario_data = self._render_service._restore_scenario_filestores(
-                scenario_data
-            )
-            agent_data = agents.get(task_def.agent_id)
-            model_data = models.get(task_def.model_id)
-            question_data = questions.get(task_def.question_id)
+            # Look up pre-built objects by ID
+            scenario = edsl_scenarios.get(task_def.scenario_id, Scenario({}))
+            agent = edsl_agents.get(task_def.agent_id, Agent())
+            model = edsl_models.get(task_def.model_id)
+            if not model:
+                continue
 
-            # Apply permutations
-            if interview_def and interview_def.question_option_permutations:
-                question_data = self._render_service._apply_option_permutation(
-                    question_data,
-                    task_def.question_name,
-                    interview_def.question_option_permutations,
-                )
+            # Get question — handle optional permutations
+            question = edsl_questions_base.get(task_def.question_id)
+            if not question:
+                continue
+
+            # Track permutation key for prompt caching
+            _perm_key = None
+            if (
+                interview_def
+                and interview_def.question_option_permutations
+                and task_def.question_name in interview_def.question_option_permutations
+            ):
+                perms = interview_def.question_option_permutations[
+                    task_def.question_name
+                ]
+                _perm_key = (task_def.question_id, tuple(str(o) for o in perms))
+                if _perm_key not in _permuted_questions:
+                    q_data = questions.get(task_def.question_id)
+                    q_data = self._render_service._apply_option_permutation(
+                        q_data,
+                        task_def.question_name,
+                        interview_def.question_option_permutations,
+                    )
+                    _permuted_questions[_perm_key] = QuestionBase.from_dict(q_data)
+                question = _permuted_questions[_perm_key]
 
             # Get current answers from cache
             current_answers = answers_cache.get(interview_id, {})
 
-            # Render prompts
-            _t_edsl = _time.time()
-            prompts = self._render_service._render_with_edsl(
-                scenario_data=scenario_data,
-                agent_data=agent_data,
-                model_data=model_data,
-                question_data=question_data,
-                current_answers=current_answers,
+            # Get or build Survey + MemoryPlan (cached by question + answer keys)
+            answer_names = tuple(
+                sorted(
+                    k
+                    for k in current_answers
+                    if not k.endswith("_comment")
+                    and not k.endswith("_generated_tokens")
+                )
             )
+            survey_key = (id(question), answer_names)
+            if survey_key not in _survey_cache:
+                questions_for_survey = []
+                if current_answers:
+                    for qname in current_answers:
+                        if qname.endswith("_comment") or qname.endswith(
+                            "_generated_tokens"
+                        ):
+                            continue
+                        if qname != question.question_name:
+                            stub = _QuestionFreeText(
+                                question_name=qname,
+                                question_text="(dependency)",
+                            )
+                            questions_for_survey.append(stub)
+                questions_for_survey.append(question)
+                survey = Survey(questions_for_survey)
+                _survey_cache[survey_key] = (survey, MemoryPlan(survey=survey))
+
+            survey, memory_plan = _survey_cache[survey_key]
+
+            # Render prompts using pre-built objects (cached by input combination)
+            _t_edsl = _time.time()
+            prompt_key = (
+                task_def.scenario_id,
+                task_def.agent_id,
+                task_def.model_id,
+                task_def.question_id,
+                _perm_key,  # None if no permutation, otherwise (qid, perm_tuple)
+                answer_names,
+            )
+            if prompt_key in _prompt_cache:
+                prompts = _prompt_cache[prompt_key]
+            else:
+                prompts = self._render_service._render_with_objects(
+                    scenario=scenario,
+                    agent=agent,
+                    model=model,
+                    question=question,
+                    survey=survey,
+                    memory_plan=memory_plan,
+                    current_answers=current_answers,
+                )
+                _prompt_cache[prompt_key] = prompts
             _edsl_render_time += _time.time() - _t_edsl
 
             # Compute cache key
+            model_data = models.get(task_def.model_id)
             cache_key = self._render_service._compute_cache_key(
                 model_data,
                 prompts["system_prompt"],
@@ -807,6 +963,7 @@ class RenderWorker:
                 len(prompts["system_prompt"]) + len(prompts["user_prompt"])
             ) // 4 + 500
 
+            agent_data = agents.get(task_def.agent_id)
             rendered.append(
                 RenderedPrompt(
                     task_id=task_id,
@@ -831,6 +988,14 @@ class RenderWorker:
 
         _step_timings["step9_render_loop"] = _time.time() - _t0
         _step_timings["step9a_edsl_render"] = _edsl_render_time
+        _step_timings["step9b_survey_cache_size"] = len(_survey_cache)
+        _step_timings["step9c_permuted_questions"] = len(_permuted_questions)
+        _step_timings["step9d_prompt_cache_size"] = len(_prompt_cache)
+        _step_timings["step9e_prompt_cache_hit_rate"] = (
+            f"{len(rendered) - len(_prompt_cache)}/{len(rendered)} hits"
+            if rendered
+            else "0/0"
+        )
 
         if debug:
             print(

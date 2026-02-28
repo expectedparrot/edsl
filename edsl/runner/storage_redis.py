@@ -90,6 +90,31 @@ class RedisStorage:
         except redis.ConnectionError as e:
             raise ConnectionError(f"Failed to connect to Redis: {e}")
 
+        # Pre-register Lua scripts for reuse (avoids re-registering on every call)
+        self._increment_script = self._client.register_script(
+            """
+        local key = KEYS[1]
+        local amount = tonumber(ARGV[1])
+
+        local current = redis.call('GET', key)
+        local new_value
+
+        if current then
+            local obj = cjson.decode(current)
+            if obj._type ~= 'int' and obj._type ~= 'float' then
+                return redis.error_reply('Cannot increment non-numeric value')
+            end
+            new_value = obj._value + amount
+        else
+            new_value = amount
+        end
+
+        local new_obj = cjson.encode({_type = 'int', _value = new_value})
+        redis.call('SET', key, new_obj)
+        return new_value
+        """
+        )
+
     def _key(self, namespace: str, key: str) -> str:
         """Build a prefixed key."""
         return f"{self._prefix}:{namespace}:{key}"
@@ -261,34 +286,33 @@ class RedisStorage:
         """
         Atomically increment a counter.
 
-        Uses a Lua script to handle the type-tagged format atomically.
+        Uses a pre-registered Lua script to handle the type-tagged format atomically.
         """
-        lua_script = """
-        local key = KEYS[1]
-        local amount = tonumber(ARGV[1])
-
-        local current = redis.call('GET', key)
-        local new_value
-
-        if current then
-            local obj = cjson.decode(current)
-            if obj._type ~= 'int' and obj._type ~= 'float' then
-                return redis.error_reply('Cannot increment non-numeric value')
-            end
-            new_value = obj._value + amount
-        else
-            new_value = amount
-        end
-
-        local new_obj = cjson.encode({_type = 'int', _value = new_value})
-        redis.call('SET', key, new_obj)
-        return new_value
-        """
-
-        # Register and execute the script
-        script = self._client.register_script(lua_script)
-        result = script(keys=[self._volatile_key(key)], args=[amount])
+        result = self._increment_script(keys=[self._volatile_key(key)], args=[amount])
         return int(result)
+
+    def batch_increment_volatile(self, key_amounts: dict[str, int]) -> dict[str, int]:
+        """
+        Atomically increment multiple counters in a single Redis pipeline.
+
+        Args:
+            key_amounts: dict mapping key -> amount to increment by
+
+        Returns:
+            dict mapping key -> new value after increment
+        """
+        if not key_amounts:
+            return {}
+
+        pipe = self._client.pipeline(transaction=False)
+        ordered_keys = list(key_amounts.keys())
+        for key in ordered_keys:
+            amount = key_amounts[key]
+            self._increment_script(
+                keys=[self._volatile_key(key)], args=[amount], client=pipe
+            )
+        results = pipe.execute()
+        return {key: int(results[i]) for i, key in enumerate(ordered_keys)}
 
     def scan_keys_volatile(self, pattern: str) -> list[str]:
         """Scan volatile storage for keys matching pattern (glob-style)."""

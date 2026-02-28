@@ -363,6 +363,26 @@ class InterviewStore:
     def increment_blocked(self, interview_id: str) -> int:
         return self._storage.increment_volatile(f"interview:{interview_id}:blocked")
 
+    def increment_completed_batch(
+        self, interview_counts: dict[str, int]
+    ) -> dict[str, int]:
+        """Increment completed counts for multiple interviews in one pipeline.
+
+        Args:
+            interview_counts: dict mapping interview_id -> number of completed tasks
+
+        Returns:
+            dict mapping interview_id -> new completed count
+        """
+        if not interview_counts:
+            return {}
+        key_amounts = {
+            f"interview:{iid}:completed": count
+            for iid, count in interview_counts.items()
+        }
+        results = self._storage.batch_increment_volatile(key_amounts)
+        return {iid: results[f"interview:{iid}:completed"] for iid in interview_counts}
+
     def set_state(self, interview_id: str, state: InterviewState) -> None:
         self._storage.write_volatile(f"interview:{interview_id}:state", state.value)
 
@@ -506,6 +526,28 @@ class InterviewStore:
         if status.is_done(definition.total_tasks):
             new_state = status.compute_state(definition.total_tasks)
             self.set_state(interview_id, new_state)
+
+    def finalize_batch(self, job_id: str, interview_ids: list[str]) -> None:
+        """Check if multiple interviews are done and update states accordingly.
+
+        Uses batch reads to check all interviews at once, then individually
+        updates any that are finalized.
+        """
+        if not interview_ids:
+            return
+
+        # Batch read all definitions and statuses
+        definitions = self.get_definitions_batch(job_id, interview_ids)
+        statuses = self.get_statuses_batch(interview_ids)
+
+        for interview_id in interview_ids:
+            defn = definitions.get(interview_id)
+            status = statuses.get(interview_id)
+            if defn is None or status is None:
+                continue
+            if status.is_done(defn.total_tasks):
+                new_state = status.compute_state(defn.total_tasks)
+                self.set_state(interview_id, new_state)
 
 
 class TaskStore:
@@ -835,6 +877,20 @@ class AnswerStore:
         # Both stores - persistent for durability, volatile for fast reads
         self._storage.write_persistent(key, data)
         self._storage.write_volatile(key, data)
+
+    def store_batch(self, answers: list[Answer]) -> None:
+        """Write multiple answers in a single batch operation."""
+        if not answers:
+            return
+        persistent_items = {}
+        volatile_items = {}
+        for answer in answers:
+            key = answer.storage_key()
+            data = answer.to_dict()
+            persistent_items[key] = data
+            volatile_items[key] = data
+        self._storage.batch_write_persistent(persistent_items)
+        self._storage.batch_write_volatile(volatile_items)
 
     # Read operations
 

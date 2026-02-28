@@ -87,6 +87,13 @@ class StorageProtocol(Protocol):
         """
         ...
 
+    def batch_increment_volatile(self, key_amounts: dict[str, int]) -> dict[str, int]:
+        """
+        Atomically increment multiple counters in a single operation.
+        Returns a dict mapping key to new value.
+        """
+        ...
+
     def add_to_set(self, key: str, value: str) -> bool:
         """
         Add value to a set. Creates set if it doesn't exist.
@@ -251,6 +258,18 @@ class InMemoryStorage:
             new_value = int(current) + amount
             self._volatile[key] = new_value
             return new_value
+
+    def batch_increment_volatile(self, key_amounts: dict[str, int]) -> dict[str, int]:
+        with self._lock:
+            result = {}
+            for key, amount in key_amounts.items():
+                current = self._volatile.get(key, 0)
+                if not isinstance(current, (int, float)):
+                    raise TypeError(f"Cannot increment non-numeric value at key {key}")
+                new_value = int(current) + amount
+                self._volatile[key] = new_value
+                result[key] = new_value
+            return result
 
     def add_to_set(self, key: str, value: str) -> bool:
         with self._lock:

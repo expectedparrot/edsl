@@ -245,6 +245,10 @@ class HybridStorage:
         """Atomically increment a counter."""
         return self._volatile.increment_volatile(key, amount)
 
+    def batch_increment_volatile(self, key_amounts: dict[str, int]) -> dict[str, int]:
+        """Atomically increment multiple counters in a single pipeline."""
+        return self._volatile.batch_increment_volatile(key_amounts)
+
     def scan_keys_volatile(self, pattern: str) -> list[str]:
         """Scan volatile storage for keys matching pattern."""
         return self._volatile.scan_keys_volatile(pattern)
