@@ -1078,6 +1078,63 @@ class JobService:
             "running_tasks": running_tasks,
         }
 
+    def get_progress_lightweight(self, job_id: str) -> dict:
+        """Get progress using only counters (no task-status scan).
+
+        Much faster than get_progress() because it only reads:
+        - 1 job definition (cached after first read)
+        - 1 job status (2 Redis reads: completed + failed interviews)
+        - 1 job state (1 Redis read)
+        - N interview statuses (4 reads each: completed, skipped, failed, blocked)
+
+        Does NOT read individual task statuses (which requires 800+ reads).
+        Running/pending/ready task counts are estimated from interview counters.
+        """
+        job_def = self._jobs.get_definition(job_id)
+        if job_def is None:
+            return {}
+
+        job_status = self._jobs.get_status(job_id)
+        job_state = self._jobs.get_state(job_id)
+
+        # Aggregate from interview statuses only (no per-task reads)
+        total_tasks = 0
+        completed_tasks = 0
+        skipped_tasks = 0
+        failed_tasks = 0
+
+        for interview_id in job_def.interview_ids:
+            interview_def = self._interviews.get_definition(job_id, interview_id)
+            interview_status = self._interviews.get_status(interview_id)
+
+            if interview_def:
+                total_tasks += interview_def.total_tasks
+
+            completed_tasks += interview_status.completed
+            skipped_tasks += interview_status.skipped
+            failed_tasks += interview_status.failed
+
+        # Estimate running from remaining (without reading all task statuses)
+        accounted = completed_tasks + skipped_tasks + failed_tasks
+        remaining = max(0, total_tasks - accounted)
+
+        return {
+            "job_id": job_id,
+            "state": job_state.value,
+            "total_interviews": job_def.total_interviews,
+            "completed_interviews": job_status.completed_interviews,
+            "failed_interviews": job_status.failed_interviews,
+            "running_interviews": job_def.total_interviews - job_status.finished_count,
+            "total_tasks": total_tasks,
+            "completed_tasks": completed_tasks,
+            "skipped_tasks": skipped_tasks,
+            "failed_tasks": failed_tasks,
+            "blocked_tasks": 0,
+            "pending_tasks": 0,
+            "ready_tasks": 0,
+            "running_tasks": remaining,
+        }
+
     def get_progress_batch(self, job_ids: list[str]) -> dict[str, dict]:
         """
         Get detailed progress for multiple jobs in a single batch operation.

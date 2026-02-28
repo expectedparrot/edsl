@@ -2,9 +2,37 @@ from __future__ import annotations
 from typing import Dict, Any, Optional, TYPE_CHECKING, Literal
 from functools import cached_property
 import logging
+import time as _time
+import threading
 
 # Module-level cache for prior_answers_dict to avoid recomputation across questions
 _prior_answers_dict_cache = {}
+
+# Thread-safe timing accumulators for get_prompts() sub-components
+_timing_lock = threading.Lock()
+_timing_accum = {
+    "agent_instructions": 0.0,
+    "agent_persona": 0.0,
+    "question_instructions": 0.0,
+    "prior_question_memory": 0.0,
+    "prompt_plan": 0.0,
+    "file_keys": 0.0,
+    "call_count": 0,
+}
+
+
+def reset_prompt_timings():
+    """Reset timing accumulators."""
+    with _timing_lock:
+        for k in _timing_accum:
+            _timing_accum[k] = 0.0 if isinstance(_timing_accum[k], float) else 0
+
+
+def get_prompt_timings() -> dict:
+    """Get accumulated timing data."""
+    with _timing_lock:
+        return dict(_timing_accum)
+
 
 from .prompt_helpers import PromptPlan
 from .question_template_replacements_builder import (
@@ -376,8 +404,16 @@ class PromptConstructor:
         """
         # Add caching to avoid repeated computation for same survey and current_answers
         if not hasattr(self, "_cached_prior_answers_dict"):
+            _t_pa = _time.time()
             question_names_dict = self.survey.question_names_to_questions()
+            _t_pa2 = _time.time()
             result = self._add_answers(question_names_dict, self.current_answers)
+            _t_pa3 = _time.time()
+            with _timing_lock:
+                _timing_accum.setdefault("prior_answers__q_names", 0.0)
+                _timing_accum.setdefault("prior_answers__add_answers", 0.0)
+                _timing_accum["prior_answers__q_names"] += _t_pa2 - _t_pa
+                _timing_accum["prior_answers__add_answers"] += _t_pa3 - _t_pa2
             self._cached_prior_answers_dict = result
 
         return self._cached_prior_answers_dict
@@ -562,8 +598,17 @@ class PromptConstructor:
             QuestionInstructionPromptBuilder,
         )
 
+        _t_qipb_init = _time.time()
         qipb = QuestionInstructionPromptBuilder.from_prompt_constructor(self)
+        _t_qipb_build = _time.time()
         prompt = qipb.build()
+        _t_qipb_done = _time.time()
+
+        with _timing_lock:
+            _timing_accum.setdefault("q_instr__init", 0.0)
+            _timing_accum.setdefault("q_instr__build", 0.0)
+            _timing_accum["q_instr__init"] += _t_qipb_build - _t_qipb_init
+            _timing_accum["q_instr__build"] += _t_qipb_done - _t_qipb_build
 
         if prompt.captured_variables:
             self.captured_variables.update(prompt.captured_variables)
@@ -701,11 +746,16 @@ class PromptConstructor:
             - Handles file attachments if specified in the question
             - Returns a complete dictionary ready for use with the language model
         """
-        # Build all the components
+        # Build all the components with timing
+        _t0 = _time.time()
         agent_instructions = self.agent_instructions_prompt
+        _t1 = _time.time()
         agent_persona = self.agent_persona_prompt
+        _t2 = _time.time()
         question_instructions = self.question_instructions_prompt
+        _t3 = _time.time()
         prior_question_memory = self.prior_question_memory_prompt
+        _t4 = _time.time()
 
         # Get components dict
         components = {
@@ -717,6 +767,7 @@ class PromptConstructor:
 
         # Generate prompts from plan
         prompts = self.prompt_plan.get_prompts(**components)
+        _t5 = _time.time()
 
         # Handle file keys if present
         file_keys = self.file_keys_from_question
@@ -725,6 +776,17 @@ class PromptConstructor:
             for key in file_keys:
                 files_list.append(self.scenario[key])
             prompts["files_list"] = files_list
+        _t6 = _time.time()
+
+        # Accumulate timings (thread-safe)
+        with _timing_lock:
+            _timing_accum["agent_instructions"] += _t1 - _t0
+            _timing_accum["agent_persona"] += _t2 - _t1
+            _timing_accum["question_instructions"] += _t3 - _t2
+            _timing_accum["prior_question_memory"] += _t4 - _t3
+            _timing_accum["prompt_plan"] += _t5 - _t4
+            _timing_accum["file_keys"] += _t6 - _t5
+            _timing_accum["call_count"] += 1
 
         return prompts
 

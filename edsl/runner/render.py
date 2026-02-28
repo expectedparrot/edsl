@@ -842,6 +842,25 @@ class RenderWorker:
         _t0 = _time.time()
         rendered = []
         _edsl_render_time = 0.0
+        _cache_key_time = 0.0
+        _append_time = 0.0
+        _lookup_time = 0.0
+        _survey_build_time = 0.0
+
+        # Reset timing accumulators before the loop
+        from ..invigilators.prompt_constructor import (
+            reset_prompt_timings,
+            get_prompt_timings,
+        )
+        from ..invigilators.question_instructions_prompt_builder import (
+            reset_build_timings,
+            get_build_timings,
+        )
+        from ..prompts.prompt import reset_render_timings, get_render_timings
+
+        reset_prompt_timings()
+        reset_build_timings()
+        reset_render_timings()
 
         # Caches for objects that depend on per-task context
         _permuted_questions: dict[tuple, "QuestionBase"] = {}
@@ -853,6 +872,7 @@ class RenderWorker:
         from ..questions import QuestionFreeText as _QuestionFreeText
 
         for task_id in tasks_to_render:
+            _t_loop = _time.time()
             task_def = all_task_defs.get(task_id)
             if not task_def:
                 continue
@@ -871,6 +891,7 @@ class RenderWorker:
             question = edsl_questions_base.get(task_def.question_id)
             if not question:
                 continue
+            _lookup_time += _time.time() - _t_loop
 
             # Track permutation key for prompt caching
             _perm_key = None
@@ -897,6 +918,7 @@ class RenderWorker:
             current_answers = answers_cache.get(interview_id, {})
 
             # Get or build Survey + MemoryPlan (cached by question + answer keys)
+            _t_survey = _time.time()
             answer_names = tuple(
                 sorted(
                     k
@@ -925,6 +947,7 @@ class RenderWorker:
                 _survey_cache[survey_key] = (survey, MemoryPlan(survey=survey))
 
             survey, memory_plan = _survey_cache[survey_key]
+            _survey_build_time += _time.time() - _t_survey
 
             # Render prompts using pre-built objects (cached by input combination)
             _t_edsl = _time.time()
@@ -952,6 +975,7 @@ class RenderWorker:
             _edsl_render_time += _time.time() - _t_edsl
 
             # Compute cache key
+            _t_ck = _time.time()
             model_data = models.get(task_def.model_id)
             cache_key = self._render_service._compute_cache_key(
                 model_data,
@@ -963,6 +987,8 @@ class RenderWorker:
                 len(prompts["system_prompt"]) + len(prompts["user_prompt"])
             ) // 4 + 500
 
+            _cache_key_time += _time.time() - _t_ck
+            _t_ap = _time.time()
             agent_data = agents.get(task_def.agent_id)
             rendered.append(
                 RenderedPrompt(
@@ -985,9 +1011,14 @@ class RenderWorker:
                     agent_name=agent_data.get("name") if agent_data else None,
                 )
             )
+            _append_time += _time.time() - _t_ap
 
         _step_timings["step9_render_loop"] = _time.time() - _t0
         _step_timings["step9a_edsl_render"] = _edsl_render_time
+        _step_timings["step9f_cache_key"] = _cache_key_time
+        _step_timings["step9g_append"] = _append_time
+        _step_timings["step9h_lookup"] = _lookup_time
+        _step_timings["step9i_survey_build"] = _survey_build_time
         _step_timings["step9b_survey_cache_size"] = len(_survey_cache)
         _step_timings["step9c_permuted_questions"] = len(_permuted_questions)
         _step_timings["step9d_prompt_cache_size"] = len(_prompt_cache)
@@ -999,7 +1030,47 @@ class RenderWorker:
 
         if debug:
             print(
-                f"  [render] Step 9 (EDSL render): {_step_timings['step9_render_loop']:.2f}s for {len(rendered)} tasks"
+                f"  [render] Step 9 (EDSL render): {_step_timings['step9_render_loop']:.2f}s for {len(rendered)} tasks | "
+                f"edsl={_edsl_render_time:.3f}s, cache_key={_cache_key_time:.3f}s, "
+                f"append={_append_time:.3f}s, lookup={_lookup_time:.3f}s, "
+                f"survey={_survey_build_time:.3f}s, prompt_cache={len(_prompt_cache)} unique"
+            )
+            # Print accumulated sub-timings from EDSL internals
+            pt = get_prompt_timings()
+            bt = get_build_timings()
+            rt = get_render_timings()
+            print(
+                f"  [render] Step 9 get_prompts breakdown ({pt['call_count']} calls): "
+                f"agent_instr={pt['agent_instructions']:.3f}s, "
+                f"agent_persona={pt['agent_persona']:.3f}s, "
+                f"q_instructions={pt['question_instructions']:.3f}s "
+                f"(init={pt.get('q_instr__init', 0):.3f}s, build={pt.get('q_instr__build', 0):.3f}s), "
+                f"prior_memory={pt['prior_question_memory']:.3f}s, "
+                f"prompt_plan={pt['prompt_plan']:.3f}s, "
+                f"file_keys={pt['file_keys']:.3f}s"
+            )
+            print(
+                f"  [render] Step 9 build() breakdown ({bt['call_count']} calls): "
+                f"create_base={bt['create_base_prompt']:.3f}s, "
+                f"enrich_opts={bt['enrich_options']:.3f}s, "
+                f"render_prompt={bt['render_prompt']:.3f}s "
+                f"(build_dict={bt['render_prompt__build_dict']:.3f}s, "
+                f"prompt.render={bt['render_prompt__prompt_render']:.3f}s), "
+                f"validate={bt['validate_template']:.3f}s, "
+                f"survey_instr={bt['append_survey_instr']:.3f}s"
+            )
+            print(
+                f"  [render] Step 9 Prompt._render() breakdown ({rt['call_count']} calls, "
+                f"{int(rt['fast_path_skips'])} fast-path skips): "
+                f"find_vars={rt['find_template_vars']:.3f}s, "
+                f"build_repl={rt['build_replacements']:.3f}s, "
+                f"template.render={rt['template_render']:.3f}s, "
+                f"total={rt['total_render']:.3f}s"
+            )
+            print(
+                f"  [render] Step 9 prior_answers: "
+                f"q_names_to_questions={pt.get('prior_answers__q_names', 0):.3f}s, "
+                f"add_answers={pt.get('prior_answers__add_answers', 0):.3f}s"
             )
 
         # Step 10: Batch set statuses to QUEUED
@@ -1010,6 +1081,21 @@ class RenderWorker:
 
         # Compute total render time
         _step_timings["total"] = _time.time() - _render_start
+
+        if debug:
+            # Print all step timings sorted by key
+            time_steps = {
+                k: v
+                for k, v in sorted(_step_timings.items())
+                if isinstance(v, (int, float))
+            }
+            parts = []
+            for k, v in time_steps.items():
+                if isinstance(v, float) and v < 100:  # skip counts
+                    parts.append(f"{k}={v:.3f}s")
+                elif isinstance(v, int) or v >= 100:
+                    parts.append(f"{k}={v}")
+            print(f"  [render] ALL STEPS: {', '.join(parts)}")
 
         # Store render timing as timing events for the job
         # This data will be available via the /jobs/{job_id}/timing endpoint
