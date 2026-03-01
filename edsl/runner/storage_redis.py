@@ -18,14 +18,13 @@ from typing import Any
 
 try:
     import redis
-    from redis import Redis, ConnectionPool, BlockingConnectionPool
+    from redis import Redis, ConnectionPool
 
     REDIS_AVAILABLE = True
 except ImportError:
     REDIS_AVAILABLE = False
     Redis = None
     ConnectionPool = None
-    BlockingConnectionPool = None
 
 
 class RedisStorage:
