@@ -731,8 +731,14 @@ class JobService:
         reasoning_summary: str | None = None,
     ) -> None:
         """Called when a task finishes successfully with an answer."""
+        import time as _time
+
+        _t_total = _time.monotonic()
+
         # Get task definition for question_name and model_id
+        _t = _time.monotonic()
         task_def = self._tasks.get_definition(job_id, interview_id, task_id)
+        _dt_get_def = (_time.monotonic() - _t) * 1000
         if task_def is None:
             raise ValueError(f"Task {task_id} not found")
 
@@ -758,23 +764,42 @@ class JobService:
             validated=validated,
             reasoning_summary=reasoning_summary,
         )
+        _t = _time.monotonic()
         self._answers.store(answer)
+        _dt_store = (_time.monotonic() - _t) * 1000
 
         # Update task status
+        _t = _time.monotonic()
         self._tasks.set_status(task_id, TaskStatus.COMPLETED)
+        _dt_set_status = (_time.monotonic() - _t) * 1000
 
         # Notify dependents
+        _t = _time.monotonic()
         for dependent_id in task_def.dependents:
             self._tasks.mark_dependency_satisfied(job_id, dependent_id)
+        _dt_deps = (_time.monotonic() - _t) * 1000
 
         # Update interview status
+        _t = _time.monotonic()
         self._interviews.mark_task_completed(job_id, interview_id)
+        _dt_mark = (_time.monotonic() - _t) * 1000
 
         # Check if interview is done -> update job
+        _t = _time.monotonic()
         interview_state = self._interviews.get_state(interview_id)
         if interview_state != InterviewState.RUNNING:
             had_failures = interview_state == InterviewState.COMPLETED_WITH_FAILURES
             self._jobs.mark_interview_completed(job_id, interview_id, had_failures)
+        _dt_finalize = (_time.monotonic() - _t) * 1000
+
+        _dt_total = (_time.monotonic() - _t_total) * 1000
+        print(
+            f"[OTC_TIMING] task={task_id[:8]} total={_dt_total:.1f}ms "
+            f"get_def={_dt_get_def:.1f} store={_dt_store:.1f} "
+            f"set_status={_dt_set_status:.1f} deps={_dt_deps:.1f} "
+            f"mark_completed={_dt_mark:.1f} finalize={_dt_finalize:.1f}",
+            flush=True,
+        )
 
     def on_tasks_completed_batch(
         self,
