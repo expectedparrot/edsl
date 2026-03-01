@@ -18,13 +18,14 @@ from typing import Any
 
 try:
     import redis
-    from redis import Redis, ConnectionPool
+    from redis import Redis, ConnectionPool, BlockingConnectionPool
 
     REDIS_AVAILABLE = True
 except ImportError:
     REDIS_AVAILABLE = False
     Redis = None
     ConnectionPool = None
+    BlockingConnectionPool = None
 
 
 class RedisStorage:
@@ -58,7 +59,7 @@ class RedisStorage:
         self,
         redis_url: str = "redis://localhost:6379",
         prefix: str = "runner",
-        connection_pool_size: int = 50,
+        connection_pool_size: int = 500,
         decode_responses: bool = False,
     ):
         """

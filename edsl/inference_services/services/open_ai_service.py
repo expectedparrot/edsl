@@ -3,6 +3,7 @@ from typing import Any, List, Optional, Dict, NewType, TYPE_CHECKING
 import os
 
 import openai
+from openai import DefaultAioHttpClient
 
 from ..inference_service_abc import InferenceServiceABC
 from .message_builder import MessageBuilder
@@ -111,6 +112,7 @@ class OpenAIService(InferenceServiceABC):
             client = cls._async_client_(
                 api_key=api_key,
                 base_url=cls._base_url_,
+                http_client=DefaultAioHttpClient(),
             )
             cls._async_client_instances[api_key] = client
         client = cls._async_client_instances[api_key]
