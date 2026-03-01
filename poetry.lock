@@ -2116,6 +2116,22 @@ socks = ["socksio (==1.*)"]
 zstd = ["zstandard (>=0.18.0)"]
 
 [[package]]
+name = "httpx-aiohttp"
+version = "0.1.12"
+description = "Aiohttp transport for HTTPX"
+optional = false
+python-versions = ">=3.8"
+groups = ["main"]
+files = [
+    {file = "httpx_aiohttp-0.1.12-py3-none-any.whl", hash = "sha256:5b0eac39a7f360fa7867a60bcb46bb1024eada9c01cbfecdb54dc1edb3fb7141"},
+    {file = "httpx_aiohttp-0.1.12.tar.gz", hash = "sha256:81feec51fd82c0ecfa0e9aaf1b1a6c2591260d5e2bcbeb7eb0277a78e610df2c"},
+]
+
+[package.dependencies]
+aiohttp = ">=3.10.0,<4"
+httpx = ">=0.27.0"
+
+[[package]]
 name = "huggingface-hub"
 version = "0.36.0"
 description = "Client library to download and publish models, datasets and other repos on the huggingface.co hub"
@@ -4548,9 +4564,11 @@ files = [
 ]
 
 [package.dependencies]
+aiohttp = {version = "*", optional = true, markers = "extra == \"aiohttp\""}
 anyio = ">=3.5.0,<5"
 distro = ">=1.7.0,<2"
 httpx = ">=0.23.0,<1"
+httpx-aiohttp = {version = ">=0.1.8", optional = true, markers = "extra == \"aiohttp\""}
 jiter = ">=0.4.0,<1"
 pydantic = ">=1.9.0,<3"
 sniffio = "*"
@@ -8290,4 +8308,4 @@ viz = ["altair", "nbclient", "nbformat", "pyyaml", "termplotlib"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10,<3.14"
-content-hash = "69e7c3d8abcce2ac48c534a6e23883fc82b2b6a82826b246ed9e4f04d67cdb70"
+content-hash = "65ce38615c09869af5c5a5849bfa438955b7fe63cf492a34b6225f164eb1d9ab"

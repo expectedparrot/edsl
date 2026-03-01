@@ -20,7 +20,7 @@ python = ">=3.10,<3.14"
 setuptools = "<72.0"
 sqlalchemy = "^2.0.23"
 python-dotenv = "^1.0.0"
-openai = "^1.4.0"
+openai = {version = "^1.4.0", extras = ["aiohttp"]}
 jinja2 = "^3.1.2"
 rich = "^13.7.0"
 simpleeval = "^0.9.13"
