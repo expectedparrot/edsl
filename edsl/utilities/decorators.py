@@ -1,6 +1,5 @@
 import functools
 import asyncio
-import nest_asyncio
 import os
 import gc
 import time
@@ -11,7 +10,22 @@ from datetime import datetime
 from pathlib import Path
 from edsl import __version__ as edsl_version
 
-nest_asyncio.apply()
+
+def _in_jupyter() -> bool:
+    """Detect whether we are running inside a Jupyter/IPython notebook."""
+    try:
+        from IPython import get_ipython
+
+        ipy = get_ipython()
+        return ipy is not None and "IPKernelApp" in ipy.config
+    except (ImportError, AttributeError):
+        return False
+
+
+if _in_jupyter():
+    import nest_asyncio
+
+    nest_asyncio.apply()
 
 
 def add_edsl_version(func):
