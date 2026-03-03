@@ -61,7 +61,6 @@ from ..instructions import ChangeInstruction
 from .base import EndOfSurvey, EndOfSurveyParent
 from .descriptors import QuestionsDescriptor, QuestionsToRandomizeDescriptor
 from .memory import MemoryPlan
-from .survey_flow_visualization import SurveyFlowVisualization
 from ..instructions import InstructionHandler
 from .edit_survey import EditSurvey
 from .survey_simulator import Simulator
@@ -349,6 +348,13 @@ class Survey(Base):
 
     def show_flow(self, filename: Optional[str] = None):
         """Show the flow of the survey."""
+        try:
+            from edsl.surveys.extras.survey_flow_visualization import SurveyFlowVisualization
+        except ImportError:
+            raise ImportError(
+                "Survey.show_flow() requires pydot. "
+                "Install with: pip install edsl[viz]"
+            ) from None
         return SurveyFlowVisualization(self).show_flow(filename=filename)
 
     def add_instruction(
