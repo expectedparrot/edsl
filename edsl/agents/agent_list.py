@@ -108,6 +108,7 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
 
         self._codebook = codebook
         self._agent_list_trait_operations = AgentListTraitOperations(self)
+        self._agent_list_joiner = AgentListJoiner(self)
 
     def at(self, index: int) -> "Agent":
         """Get the agent at the specified index position."""
@@ -571,38 +572,13 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
 
         return new_agent_list
 
+    @wraps(AgentListJoiner._join)
     def _join(self, other: "AgentList", join_type: str = "inner") -> AgentList:
-        """Join two AgentLists (private method).
+        return self._agent_list_joiner._join(other, join_type=join_type)
 
-        Args:
-            other: The other AgentList to join
-            join_type: The type of join to perform
-        """
-        from .agent_list_joiner import AgentListJoiner
-
-        return AgentListJoiner._join_two(self, other, join_type=join_type)
-
+    @wraps(AgentListJoiner.join)
     def join(self, other: "AgentList", join_type: str = "inner") -> "AgentList":
-        """Join this AgentList with another AgentList.
-
-        Args:
-            other: The other AgentList to join with
-            join_type: The type of join to perform ("inner", "left", or "right")
-
-        Returns:
-            AgentList: A new AgentList containing the joined results
-
-        Examples:
-            >>> from edsl import Agent, AgentList
-            >>> al1 = AgentList([Agent(name="John", traits={"age": 30})])
-            >>> al2 = AgentList([Agent(name="John", traits={"height": 180})])
-            >>> joined = al1.join(al2)
-            >>> joined[0].traits
-            {'age': 30, 'height': 180}
-        """
-        from .agent_list_joiner import AgentListJoiner
-
-        return AgentListJoiner.join_two(self, other, join_type=join_type)
+        return self._agent_list_joiner.join(other, join_type=join_type)
 
     @classmethod
     def join_multiple(
@@ -631,8 +607,6 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
             >>> joined[0].traits
             {'age': 30, 'height': 180, 'weight': 75}
         """
-        from .agent_list_joiner import AgentListJoiner
-
         return AgentListJoiner.join_multiple(*agent_lists, join_type=join_type)
 
     def filter(self, expression: str) -> AgentList:
