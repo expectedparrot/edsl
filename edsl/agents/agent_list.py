@@ -22,6 +22,7 @@ from ..dataset.dataset_operations_mixin import AgentListOperationsMixin
 from ..config import RICH_STYLES
 
 from .agent import Agent
+from .agent_list_filter import AgentListFilter
 from .agent_list_joiner import AgentListJoiner
 from .agent_list_trait_operations import AgentListTraitOperations
 
@@ -109,6 +110,7 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
         self._codebook = codebook
         self._agent_list_trait_operations = AgentListTraitOperations(self)
         self._agent_list_joiner = AgentListJoiner(self)
+        self._agent_list_filter = AgentListFilter(self)
 
     def at(self, index: int) -> "Agent":
         """Get the agent at the specified index position."""
@@ -609,102 +611,9 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
         """
         return AgentListJoiner.join_multiple(*agent_lists, join_type=join_type)
 
+    @wraps(AgentListFilter.filter)
     def filter(self, expression: str) -> AgentList:
-        """Filter agents based on a boolean expression.
-
-        Args:
-            expression: A string containing a boolean expression to evaluate against
-                each agent's traits.
-
-        Returns:
-            AgentList: A new AgentList containing only agents that satisfy the expression.
-
-        Examples:
-            >>> from edsl import Agent
-            >>> al = AgentList([Agent(traits = {'a': 1, 'b': 1}),
-            ...                Agent(traits = {'a': 1, 'b': 2})])
-            >>> al.filter("b == 2")
-            AgentList([Agent(traits = {'a': 1, 'b': 2})])
-            >>> al = AgentList([Agent(traits = {'a': 1, 'b': 1}, name = 'steve'),
-            ...                Agent(traits = {'a': 1, 'b': 2}, name = 'roxanne')])
-            >>> len(al.filter("name == 'steve'"))
-            1
-            >>> len(al.filter("name == 'roxanne'"))
-            1
-            >>> len(al.filter("name == 'steve' and a == 1"))
-            1
-            >>> len(al.filter("name == 'steve' and a == 2"))
-            0
-            >>> len(al.filter("name == 'steve' and a == 1 and b == 2"))
-            0
-        """
-        from .agent_list_filter import AgentListFilter
-
-        return AgentListFilter.filter(self, expression)
-
-    # def vibe_filter(
-    #     self,
-    #     criteria: str,
-    #     *,
-    #     model: str = "gpt-4o",
-    #     temperature: float = 0.1,
-    #     show_expression: bool = False,
-    # ) -> "AgentList":
-    #     """
-    #     Filter the agent list using natural language criteria.
-
-    #     This method uses an LLM to generate a filter expression based on
-    #     natural language criteria, then applies it using the agent list's filter method.
-
-    #     Parameters:
-    #         criteria: Natural language description of the filtering criteria.
-    #             Examples:
-    #             - "Keep only people over 30"
-    #             - "Only engineers"
-    #             - "Agents in Boston"
-    #             - "Remove anyone under 25"
-    #         model: OpenAI model to use for generating the filter (default: "gpt-4o")
-    #         temperature: Temperature for generation (default: 0.1 for consistent logic)
-    #         show_expression: If True, prints the generated filter expression
-
-    #     Returns:
-    #         AgentList: A new AgentList containing only agents that match the criteria
-
-    #     Examples:
-    #         >>> from edsl import Agent, AgentList
-    #         >>> agents = AgentList([
-    #         ...     Agent(name='Alice', traits={'age': 25, 'occupation': 'engineer'}),
-    #         ...     Agent(name='Bob', traits={'age': 35, 'occupation': 'teacher'}),
-    #         ... ])
-    #         >>> filtered = agents.vibe_filter("Only people over 30")  # doctest: +SKIP
-
-    #     Notes:
-    #         - Requires OPENAI_API_KEY environment variable to be set
-    #         - The LLM generates a filter expression using trait names directly
-    #         - Uses the agent list's built-in filter() method for safe evaluation
-    #         - Use show_expression=True to see the generated filter logic
-    #     """
-    #     from edsl.dataset.vibes.vibe_filter import VibeFilter
-
-    #     # Get trait names and sample data
-    #     trait_names = self.all_traits
-
-    #     # Get a few sample agents' traits to help the LLM understand the data structure
-    #     sample_dicts = []
-    #     for agent in self[:5]:  # First 5 agents
-    #         sample_dicts.append(dict(agent.traits))
-
-    #     # Create the filter generator
-    #     filter_gen = VibeFilter(model=model, temperature=temperature)
-
-    #     # Generate the filter expression
-    #     filter_expr = filter_gen.create_filter(trait_names, sample_dicts, criteria)
-
-    #     if show_expression:
-    #         print(f"Generated filter expression: {filter_expr}")
-
-    #     # Use the agent list's built-in filter method which returns AgentList
-    #     return self.filter(filter_expr)
+        return self._agent_list_filter.filter(expression)
 
     @property
     def all_traits(self) -> list[str]:
