@@ -1921,6 +1921,27 @@ class Coop(CoopFunctionsMixin):
             }
         )
 
+    def cancel_remote_inference_job(self, job_uuid: str) -> None:
+        """
+        Request cancellation of a queued or running remote inference job.
+
+        Calls the server to mark the job as cancelling. The job may not stop
+        immediately; poll with new_remote_inference_get(job_uuid) to see status.
+
+        Parameters:
+            job_uuid (str): The UUID of the remote job to cancel.
+
+        Raises:
+            CoopServerResponseError: If the server returns an error (e.g. not found, forbidden).
+        """
+        response = self._send_server_request(
+            uri="api/v0/remote-inference/update-status",
+            method="POST",
+            payload={"job_uuid": str(job_uuid), "status": "cancelling"},
+        )
+        self._resolve_server_response(response)
+        return response.json()
+
     def old_remote_inference_create(
         self,
         job: "Jobs",
