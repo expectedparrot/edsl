@@ -793,12 +793,11 @@ class JobService:
         _dt_finalize = (_time.monotonic() - _t) * 1000
 
         _dt_total = (_time.monotonic() - _t_total) * 1000
-        print(
+        logger.info(
             f"[OTC_TIMING] task={task_id[:8]} total={_dt_total:.1f}ms "
             f"get_def={_dt_get_def:.1f} store={_dt_store:.1f} "
             f"set_status={_dt_set_status:.1f} deps={_dt_deps:.1f} "
-            f"mark_completed={_dt_mark:.1f} finalize={_dt_finalize:.1f}",
-            flush=True,
+            f"mark_completed={_dt_mark:.1f} finalize={_dt_finalize:.1f}"
         )
 
     def on_tasks_completed_batch(

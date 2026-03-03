@@ -1,9 +1,11 @@
 """Minimal test of run_async with Google model"""
 
 import asyncio
+import pytest
 from edsl import QuestionFreeText, Model, Agent, Scenario
 
 
+@pytest.mark.skip(reason="Requires Google API credentials and async plugin")
 async def test_run_async():
     print("\n=== Starting run_async test ===")
 

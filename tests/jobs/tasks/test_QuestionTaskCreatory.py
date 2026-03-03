@@ -58,7 +58,7 @@ class TestQuestionTaskCreator(unittest.IsolatedAsyncioTestCase):
         self.assertIn("test_question", task.get_name())
 
     async def test_run_focal_task_success(self):
-        asyncio.run(self.task_creator._run_focal_task())
+        await self.task_creator._run_focal_task()
         self.assertEqual(self.task_creator.task_status, TaskStatus.SUCCESS)
 
     async def test_dependency_failure_handling(self):
@@ -71,7 +71,7 @@ class TestQuestionTaskCreator(unittest.IsolatedAsyncioTestCase):
         self.task_creator.add_dependency(failing_task)
 
         with self.assertRaises(InterviewErrorPriorTaskCanceled):
-            asyncio.run(self.task_creator._run_task_async())
+            await self.task_creator._run_task_async()
 
         self.assertEqual(self.task_creator.task_status, TaskStatus.PARENT_FAILED)
 

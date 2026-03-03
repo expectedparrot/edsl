@@ -72,17 +72,19 @@ def jupyter_nb_handler(func):
 
     @functools.wraps(func)
     async def async_wrapper(*args, **kwargs):
-        # This is an async wrapper to await the coroutine
         return await func(*args, **kwargs)
 
     def wrapper(*args, **kwargs):
-        loop = asyncio.get_event_loop()
-        if loop.is_running():
-            # If the loop is running, schedule the coroutine and wait for the result
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            loop = None
+
+        if loop is not None and loop.is_running():
+            # Inside Jupyter or an already-running loop (nest_asyncio patched)
             future = asyncio.ensure_future(async_wrapper(*args, **kwargs))
             return loop.run_until_complete(future)
         else:
-            # If the loop is not running, run the coroutine to completion
             return asyncio.run(async_wrapper(*args, **kwargs))
 
     return wrapper
