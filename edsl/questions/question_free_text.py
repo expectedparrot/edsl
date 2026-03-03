@@ -34,12 +34,10 @@ class FreeTextResponse(BaseModel):
         >>> response.answer
         'Hello world'
 
-        >>> # Invalid response with mismatched tokens
-        >>> try:
-        ...     FreeTextResponse(answer="Hello world", generated_tokens="Different text")
-        ... except Exception as e:
-        ...     print("Validation error occurred")
-        Validation error occurred
+        >>> # Mismatched tokens are accepted (answer may differ from generated_tokens)
+        >>> response = FreeTextResponse(answer="Hello world", generated_tokens="Different text")
+        >>> response.answer
+        'Hello world'
 
         >>> # Empty string is valid
         >>> response = FreeTextResponse(answer="")
