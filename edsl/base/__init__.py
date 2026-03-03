@@ -19,6 +19,7 @@ from edsl.base.base_class import (
     RepresentationMixin,
     is_iterable,
 )
+from edsl.base.decorators import Snapshot, snapshot, make_initial_snapshot
 from edsl.base.base_exception import BaseException
 from edsl.base.exceptions import (
     BaseValueError,
@@ -81,6 +82,10 @@ __all__ = [
     "get_token_pricing",
     "pricing",
     "service_to_api_keyname",
+    # Decorators / snapshots
+    "Snapshot",
+    "snapshot",
+    "make_initial_snapshot",
     # Data transfer models
     "AgentResponseDict",
     "Answers",
