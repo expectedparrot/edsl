@@ -23,14 +23,18 @@ class AgentListTraitOperations:
     dropping, keeping, selecting, renaming, adding, removing, and translating traits.
     """
 
-    @staticmethod
-    def drop(
-        agent_list: "AgentList", *field_names: Union[str, List[str]]
-    ) -> "AgentList":
+    def __init__(self, agent_list: "AgentList"):
+        """Initialize with a reference to the AgentList.
+
+        Args:
+            agent_list: The AgentList instance to operate on.
+        """
+        self._agent_list = agent_list
+
+    def drop(self, *field_names: Union[str, List[str]]) -> "AgentList":
         """Drop field(s) from all agents in the AgentList.
 
         Args:
-            agent_list: The AgentList to operate on
             *field_names: The name(s) of the field(s) to drop. Can be:
                 - Single field name: drop("age")
                 - Multiple field names: drop("age", "height")
@@ -40,25 +44,36 @@ class AgentListTraitOperations:
             AgentList: A new AgentList with the specified fields dropped from all agents.
 
         Examples:
+            Drop a single trait from all agents:
+
             >>> from edsl import Agent, AgentList
-            >>> from edsl.agents.agent_list_trait_operations import AgentListTraitOperations
             >>> al = AgentList([Agent(traits={"age": 30, "hair": "brown", "height": 5.5})])
-            >>> al_dropped = AgentListTraitOperations.drop(al, "age")
+            >>> al_dropped = al.drop("age")
             >>> al_dropped[0].traits
             {'hair': 'brown', 'height': 5.5}
+
+            Drop multiple traits using separate arguments:
+
+            >>> al = AgentList([Agent(traits={"age": 30, "hair": "brown", "height": 5.5})])
+            >>> al_dropped = al.drop("age", "height")
+            >>> al_dropped[0].traits
+            {'hair': 'brown'}
+
+            Drop multiple traits using a list:
+
+            >>> al = AgentList([Agent(traits={"age": 30, "hair": "brown", "height": 5.5})])
+            >>> al_dropped = al.drop(["age", "height"])
+            >>> al_dropped[0].traits
+            {'hair': 'brown'}
         """
         from .agent_list import AgentList
 
-        return AgentList([a.drop(*field_names) for a in agent_list.data])
+        return AgentList([a.drop(*field_names) for a in self._agent_list.data])
 
-    @staticmethod
-    def keep(
-        agent_list: "AgentList", *field_names: Union[str, List[str]]
-    ) -> "AgentList":
+    def keep(self, *field_names: Union[str, List[str]]) -> "AgentList":
         """Keep only the specified fields from all agents in the AgentList.
 
         Args:
-            agent_list: The AgentList to operate on
             *field_names: The name(s) of the field(s) to keep. Can be:
                 - Single field name: keep("age")
                 - Multiple field names: keep("age", "height")
@@ -68,23 +83,45 @@ class AgentListTraitOperations:
             AgentList: A new AgentList with only the specified fields kept for all agents.
 
         Examples:
+            Keep a single trait for all agents:
+
             >>> from edsl import Agent, AgentList
-            >>> from edsl.agents.agent_list_trait_operations import AgentListTraitOperations
             >>> al = AgentList([Agent(traits={"age": 30, "hair": "brown", "height": 5.5})])
-            >>> al_kept = AgentListTraitOperations.keep(al, "age")
+            >>> al_kept = al.keep("age")
+            >>> al_kept[0].traits
+            {'age': 30}
+
+            Keep multiple traits using separate arguments:
+
+            >>> al = AgentList([Agent(traits={"age": 30, "hair": "brown", "height": 5.5})])
+            >>> al_kept = al.keep("age", "height")
+            >>> al_kept[0].traits
+            {'age': 30, 'height': 5.5}
+
+            Keep multiple traits using a list:
+
+            >>> al = AgentList([Agent(traits={"age": 30, "hair": "brown", "height": 5.5})])
+            >>> al_kept = al.keep(["age", "height"])
+            >>> al_kept[0].traits
+            {'age': 30, 'height': 5.5}
+
+            Keep agent fields and traits:
+
+            >>> al = AgentList([Agent(traits={"age": 30, "hair": "brown"}, name="John")])
+            >>> al_kept = al.keep("name", "age")
+            >>> al_kept[0].name
+            'John'
             >>> al_kept[0].traits
             {'age': 30}
         """
         from .agent_list import AgentList
 
-        return AgentList([a.keep(*field_names) for a in agent_list.data])
+        return AgentList([a.keep(*field_names) for a in self._agent_list.data])
 
-    @staticmethod
-    def rename(agent_list: "AgentList", old_name: str, new_name: str) -> "AgentList":
+    def rename(self, old_name: str, new_name: str) -> "AgentList":
         """Rename a trait across all agents in the list.
 
         Args:
-            agent_list: The AgentList to operate on
             old_name: The current name of the trait.
             new_name: The new name to assign to the trait.
 
@@ -92,38 +129,36 @@ class AgentListTraitOperations:
             AgentList: A new AgentList with the renamed trait.
 
         Examples:
-            >>> from edsl import Agent, AgentList
-            >>> from edsl.agents.agent_list_trait_operations import AgentListTraitOperations
-            >>> al = AgentList([Agent(traits = {'a': 1, 'b': 1})])
-            >>> al2 = AgentListTraitOperations.rename(al, 'a', 'c')
-            >>> al2[0].traits
-            {'c': 1, 'b': 1}
+            >>> from edsl import Agent
+            >>> al = AgentList([Agent(traits = {'a': 1, 'b': 1}),
+            ...                Agent(traits = {'a': 1, 'b': 2})])
+            >>> al2 = al.rename('a', 'c')
+            >>> assert al2 == AgentList([Agent(traits = {'c': 1, 'b': 1}),
+            ...                         Agent(traits = {'c': 1, 'b': 2})])
+            >>> assert al != al2
         """
         from .agent_list import AgentList
 
         newagents = []
-        for agent in agent_list:
+        for agent in self._agent_list:
             newagents.append(agent.rename(old_name, new_name))
         return AgentList(newagents)
 
-    @staticmethod
-    def select(agent_list: "AgentList", *traits) -> "AgentList":
+    def select(self, *traits) -> "AgentList":
         """Create a new AgentList with only the specified traits.
 
         Args:
-            agent_list: The AgentList to operate on
             *traits: Variable number of trait names to keep.
 
         Returns:
             AgentList: A new AgentList containing agents with only the selected traits.
 
         Examples:
-            >>> from edsl import Agent, AgentList
-            >>> from edsl.agents.agent_list_trait_operations import AgentListTraitOperations
-            >>> al = AgentList([Agent(traits = {'a': 1, 'b': 1})])
-            >>> selected = AgentListTraitOperations.select(al, 'a')
-            >>> selected[0].traits
-            {'a': 1}
+            >>> from edsl import Agent
+            >>> al = AgentList([Agent(traits = {'a': 1, 'b': 1}),
+            ...                Agent(traits = {'a': 1, 'b': 2})])
+            >>> al.select('a')
+            AgentList([Agent(traits = {'a': 1}), Agent(traits = {'a': 1})])
         """
         from .agent_list import AgentList
 
@@ -132,96 +167,77 @@ class AgentListTraitOperations:
         else:
             traits_to_select = list(traits)
 
-        return AgentList([agent.select(*traits_to_select) for agent in agent_list.data])
+        return AgentList([agent.select(*traits_to_select) for agent in self._agent_list.data])
 
-    @staticmethod
-    def get_all_traits(agent_list: "AgentList") -> list[str]:
+    @property
+    def all_traits(self) -> list[str]:
         """Return all traits in the AgentList.
-
-        Args:
-            agent_list: The AgentList to get traits from
 
         Returns:
             list[str]: List of all unique trait names across all agents
 
         Examples:
-            >>> from edsl import Agent, AgentList
-            >>> from edsl.agents.agent_list_trait_operations import AgentListTraitOperations
+            >>> from edsl import Agent
             >>> agent_1 = Agent(traits = {'age': 22})
             >>> agent_2 = Agent(traits = {'hair': 'brown'})
             >>> al = AgentList([agent_1, agent_2])
-            >>> AgentListTraitOperations.get_all_traits(al)
+            >>> al.all_traits
             ['age', 'hair']
         """
         d = {}
-        for agent in agent_list:
+        for agent in self._agent_list:
             d.update(agent.traits)
         return list(d.keys())
 
-    @staticmethod
-    def translate_traits(
-        agent_list: "AgentList", codebook: dict[str, str]
-    ) -> "AgentList":
+    def translate_traits(self, codebook: dict[str, str]) -> "AgentList":
         """Translate traits to a new codebook.
 
         Args:
-            agent_list: The AgentList to operate on
-            codebook: The new codebook for translation
+            codebook: The new codebook.
 
         Returns:
             AgentList: A new AgentList with translated traits
 
         Examples:
-            >>> from edsl import AgentList
-            >>> from edsl.agents.agent_list_trait_operations import AgentListTraitOperations
             >>> al = AgentList.example()
             >>> codebook = {'hair': {'brown':'Secret word for green'}}
-            >>> translated = AgentListTraitOperations.translate_traits(al, codebook)
-            >>> len(translated)
-            2
+            >>> al.translate_traits(codebook)
+            AgentList([Agent(traits = {'age': 22, 'hair': 'Secret word for green', 'height': 5.5}), Agent(traits = {'age': 22, 'hair': 'Secret word for green', 'height': 5.5})])
         """
         from .agent_list import AgentList
 
         new_agents = []
-        for agent in agent_list.data:
+        for agent in self._agent_list.data:
             new_agents.append(agent.translate_traits(codebook))
         return AgentList(new_agents)
 
-    @staticmethod
-    def remove_trait(agent_list: "AgentList", trait: str) -> "AgentList":
+    def remove_trait(self, trait: str) -> "AgentList":
         """Remove traits from the AgentList.
 
         Args:
-            agent_list: The AgentList to operate on
-            trait: The trait to remove
+            trait: The trait to remove.
 
         Returns:
             AgentList: A new AgentList with the trait removed from all agents
 
         Examples:
-            >>> from edsl import Agent, AgentList
-            >>> from edsl.agents.agent_list_trait_operations import AgentListTraitOperations
-            >>> al = AgentList([Agent({'age': 22, 'hair': 'brown', 'height': 5.5})])
-            >>> result = AgentListTraitOperations.remove_trait(al, 'age')
-            >>> result[0].traits
-            {'hair': 'brown', 'height': 5.5}
+            >>> from edsl import Agent
+            >>> al = AgentList([Agent({'age': 22, 'hair': 'brown', 'height': 5.5}), Agent({'age': 22, 'hair': 'brown', 'height': 5.5})])
+            >>> al.remove_trait('age')
+            AgentList([Agent(traits = {'hair': 'brown', 'height': 5.5}), Agent(traits = {'hair': 'brown', 'height': 5.5})])
         """
         from .agent_list import AgentList
 
         agents = []
-        new_al = agent_list.duplicate()
+        new_al = self._agent_list.duplicate()
         for agent in new_al.data:
             agents.append(agent.remove_trait(trait))
         return AgentList(agents)
 
-    @staticmethod
-    def add_trait(
-        agent_list: "AgentList", trait: str, values: List[Any]
-    ) -> "AgentList":
+    def add_trait(self, trait: str, values: List[Any]) -> "AgentList":
         """Adds a new trait to every agent, with values taken from values.
 
         Args:
-            agent_list: The AgentList to operate on
             trait: The name of the trait.
             values: The value(s) of the trait. If a single value is passed, it is used for all agents.
 
@@ -229,12 +245,15 @@ class AgentListTraitOperations:
             AgentList: A new AgentList with the trait added to all agents
 
         Examples:
-            >>> from edsl import AgentList
-            >>> from edsl.agents.agent_list_trait_operations import AgentListTraitOperations
             >>> al = AgentList.example()
-            >>> new_al = AgentListTraitOperations.add_trait(al, 'new_trait', 1)
-            >>> len(new_al)
-            2
+            >>> new_al = al.add_trait('new_trait', 1)
+            >>> new_al.select('new_trait').to_scenario_list().to_list()
+            [1, 1]
+            >>> al.add_trait('new_trait', [1, 2, 3])
+            Traceback (most recent call last):
+            ...
+            edsl.agents.exceptions.AgentListError: The passed values have to be the same length as the agent list.
+            ...
         """
         from .agent_list import AgentList
         from .exceptions import AgentListError
@@ -242,11 +261,11 @@ class AgentListTraitOperations:
         if not is_iterable(values):
             new_agents = []
             value = values
-            for agent in agent_list.data:
+            for agent in self._agent_list.data:
                 new_agents.append(agent.add_trait(trait, value))
             return AgentList(new_agents)
 
-        if len(values) != len(agent_list):
+        if len(values) != len(self._agent_list):
             e = AgentListError(
                 "The passed values have to be the same length as the agent list."
             )
@@ -255,17 +274,16 @@ class AgentListTraitOperations:
             else:
                 raise e
         new_agents = []
-        for agent, value in zip(agent_list.data, values):
+        for agent, value in zip(self._agent_list.data, values):
             new_agents.append(agent.add_trait(trait, value))
         return AgentList(new_agents)
 
-    @staticmethod
-    def numberify(agent_list: "AgentList") -> "AgentList":
+    def numberify(self) -> "AgentList":
         """Convert string traits to numeric types where possible.
 
         This method attempts to convert string values to integers or floats
-        for all traits across all agents. It handles missing and None values
-        gracefully by leaving them unchanged.
+        for all traits across all agents. It's particularly useful when loading
+        data from CSV files where numeric fields may be stored as strings.
 
         Conversion rules:
         - None values remain None
@@ -275,24 +293,27 @@ class AgentListTraitOperations:
         - String values that cannot be parsed remain as strings
         - Empty strings remain as empty strings
 
-        Args:
-            agent_list: The AgentList to operate on
-
         Returns:
             AgentList: A new AgentList with numeric conversions applied
 
         Examples:
             >>> from edsl import Agent, AgentList
-            >>> from edsl.agents.agent_list_trait_operations import AgentListTraitOperations
             >>> al = AgentList([
-            ...     Agent(traits={'age': '30', 'height': '5.5', 'city': 'NYC'}),
-            ...     Agent(traits={'age': '25', 'height': '6.0', 'city': 'LA'})
+            ...     Agent(name='Alice', traits={'age': '30', 'height': '5.5'}),
+            ...     Agent(name='Bob', traits={'age': '25', 'height': '6.0'})
             ... ])
-            >>> al_numeric = AgentListTraitOperations.numberify(al)
+            >>> al_numeric = al.numberify()
             >>> al_numeric[0].traits
-            {'age': 30, 'height': 5.5, 'city': 'NYC'}
+            {'age': 30, 'height': 5.5}
             >>> al_numeric[1].traits
-            {'age': 25, 'height': 6.0, 'city': 'LA'}
+            {'age': 25, 'height': 6.0}
+
+            Works with None values and mixed types:
+
+            >>> al = AgentList([Agent(traits={'count': '100', 'value': None, 'label': 'test'})])
+            >>> al_numeric = al.numberify()
+            >>> al_numeric[0].traits
+            {'count': 100, 'value': None, 'label': 'test'}
         """
         from .agent_list import AgentList
 
@@ -332,7 +353,7 @@ class AgentListTraitOperations:
 
         # Create new agents with converted traits
         new_agents = []
-        for agent in agent_list.data:
+        for agent in self._agent_list.data:
             new_traits = {
                 key: convert_to_number(value) for key, value in agent.traits.items()
             }
@@ -349,10 +370,7 @@ class AgentListTraitOperations:
 
         return AgentList(new_agents)
 
-    @staticmethod
-    def filter_na(
-        agent_list: "AgentList", fields: Union[str, List[str]] = "*"
-    ) -> "AgentList":
+    def filter_na(self, fields: Union[str, List[str]] = "*") -> "AgentList":
         """Remove agents where specified traits contain None or NaN values.
 
         This method filters out agents that have null/NaN values in the specified
@@ -360,7 +378,6 @@ class AgentListTraitOperations:
         NA include: None, float('nan'), and string representations like 'nan', 'none', 'null'.
 
         Args:
-            agent_list: The AgentList to operate on
             fields: Trait name(s) to check for NA values. Can be:
                     - "*" (default): Check all traits in each agent
                     - A single trait name (str): Check only that trait
@@ -373,37 +390,57 @@ class AgentListTraitOperations:
                       in the specified traits.
 
         Examples:
+            Remove agents with any NA values in any trait:
+
             >>> from edsl import Agent, AgentList
-            >>> from edsl.agents.agent_list_trait_operations import AgentListTraitOperations
             >>> al = AgentList([
             ...     Agent(traits={'a': 1, 'b': 2}),
             ...     Agent(traits={'a': None, 'b': 3}),
             ...     Agent(traits={'a': 4, 'b': 5})
             ... ])
-            >>> filtered = AgentListTraitOperations.filter_na(al)
+            >>> filtered = al.filter_na()
             >>> len(filtered)
             2
             >>> filtered[0].traits
             {'a': 1, 'b': 2}
 
-            Filter by specific trait:
+            Remove agents with NA in specific trait:
+
             >>> al = AgentList([
             ...     Agent(name='Alice', traits={'age': 30}),
             ...     Agent(name='Bob', traits={'age': None}),
             ...     Agent(name='Charlie', traits={'age': 25})
             ... ])
-            >>> filtered = AgentListTraitOperations.filter_na(al, 'age')
+            >>> filtered = al.filter_na('age')
             >>> len(filtered)
             2
+            >>> filtered[0].name
+            'Alice'
+            >>> filtered[1].name
+            'Charlie'
+
+            Remove agents with NA in multiple specific traits:
+
+            >>> al = AgentList([
+            ...     Agent(traits={'person_name': 'Alice', 'age': 30}),
+            ...     Agent(traits={'person_name': None, 'age': 25}),
+            ...     Agent(traits={'person_name': 'Bob', 'age': None})
+            ... ])
+            >>> filtered = al.filter_na(['person_name', 'age'])
+            >>> len(filtered)
+            1
+            >>> filtered[0].traits['person_name']
+            'Alice'
 
             Handle float NaN values:
+
             >>> import math
             >>> al = AgentList([
             ...     Agent(traits={'x': 1.0, 'y': 2.0}),
             ...     Agent(traits={'x': float('nan'), 'y': 3.0}),
             ...     Agent(traits={'x': 4.0, 'y': 5.0})
             ... ])
-            >>> filtered = AgentListTraitOperations.filter_na(al, 'x')
+            >>> filtered = al.filter_na('x')
             >>> len(filtered)
             2
         """
@@ -428,7 +465,7 @@ class AgentListTraitOperations:
         if fields == "*":
             # Check all traits - need to collect all unique trait keys across agents
             check_traits = set()
-            for agent in agent_list:
+            for agent in self._agent_list:
                 check_traits.update(agent.traits.keys())
             check_traits = list(check_traits)
         elif isinstance(fields, str):
@@ -438,7 +475,7 @@ class AgentListTraitOperations:
 
         # Filter agents
         new_agents = []
-        for agent in agent_list.data:
+        for agent in self._agent_list.data:
             # Check if any of the specified traits contain NA
             has_na = False
             for trait in check_traits:
