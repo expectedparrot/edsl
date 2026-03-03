@@ -12,6 +12,7 @@ import re
 import random
 from uuid import uuid4
 from pathlib import Path
+from functools import wraps
 
 from typing import (
     Any,
@@ -1229,6 +1230,8 @@ class Survey(Base):
         """
         return EditSurvey(self).delete_question(identifier)
 
+        
+    @wraps(EditSurvey.add_question)
     def add_question(
         self, question: QuestionBase, index: Optional[int] = None
     ) -> Survey:
