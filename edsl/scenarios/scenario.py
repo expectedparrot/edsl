@@ -36,9 +36,6 @@ if TYPE_CHECKING:
     from .qr_code import QRCodeList
 
 
-from .firecrawl_scenario import FirecrawlRequest
-
-
 class Scenario(Base, UserDict):
     """
     A dictionary-like object that stores key-value pairs for parameterizing questions.
@@ -77,8 +74,6 @@ class Scenario(Base, UserDict):
         >>> import os
         >>> os.unlink(data_path) # Clean up temp file
     """
-
-    firecrawl = FirecrawlRequest()
 
     __documentation__ = "https://docs.expectedparrot.com/en/latest/scenarios.html"
 
