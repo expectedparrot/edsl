@@ -129,7 +129,7 @@ class AgentListTraitOperations:
             AgentList: A new AgentList with the renamed trait.
 
         Examples:
-            >>> from edsl import Agent
+            >>> from edsl import Agent, AgentList
             >>> al = AgentList([Agent(traits = {'a': 1, 'b': 1}),
             ...                Agent(traits = {'a': 1, 'b': 2})])
             >>> al2 = al.rename('a', 'c')
@@ -154,7 +154,7 @@ class AgentListTraitOperations:
             AgentList: A new AgentList containing agents with only the selected traits.
 
         Examples:
-            >>> from edsl import Agent
+            >>> from edsl import Agent, AgentList
             >>> al = AgentList([Agent(traits = {'a': 1, 'b': 1}),
             ...                Agent(traits = {'a': 1, 'b': 2})])
             >>> al.select('a')
@@ -177,7 +177,7 @@ class AgentListTraitOperations:
             list[str]: List of all unique trait names across all agents
 
         Examples:
-            >>> from edsl import Agent
+            >>> from edsl import Agent, AgentList
             >>> agent_1 = Agent(traits = {'age': 22})
             >>> agent_2 = Agent(traits = {'hair': 'brown'})
             >>> al = AgentList([agent_1, agent_2])
@@ -199,6 +199,7 @@ class AgentListTraitOperations:
             AgentList: A new AgentList with translated traits
 
         Examples:
+            >>> from edsl import AgentList
             >>> al = AgentList.example()
             >>> codebook = {'hair': {'brown':'Secret word for green'}}
             >>> al.translate_traits(codebook)
@@ -221,7 +222,7 @@ class AgentListTraitOperations:
             AgentList: A new AgentList with the trait removed from all agents
 
         Examples:
-            >>> from edsl import Agent
+            >>> from edsl import Agent, AgentList
             >>> al = AgentList([Agent({'age': 22, 'hair': 'brown', 'height': 5.5}), Agent({'age': 22, 'hair': 'brown', 'height': 5.5})])
             >>> al.remove_trait('age')
             AgentList([Agent(traits = {'hair': 'brown', 'height': 5.5}), Agent(traits = {'hair': 'brown', 'height': 5.5})])
@@ -245,6 +246,7 @@ class AgentListTraitOperations:
             AgentList: A new AgentList with the trait added to all agents
 
         Examples:
+            >>> from edsl import AgentList
             >>> al = AgentList.example()
             >>> new_al = al.add_trait('new_trait', 1)
             >>> new_al.select('new_trait').to_scenario_list().to_list()

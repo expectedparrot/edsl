@@ -48,7 +48,7 @@ class AgentListFilter:
             AgentList: A new AgentList containing only agents that satisfy the expression.
 
         Examples:
-            >>> from edsl import Agent
+            >>> from edsl import Agent, AgentList
             >>> al = AgentList([Agent(traits = {'a': 1, 'b': 1}),
             ...                Agent(traits = {'a': 1, 'b': 2})])
             >>> al.filter("b == 2")

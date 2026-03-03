@@ -26,8 +26,15 @@ class ScenarioListTransformer:
       on a new field, preserving streaming behavior and original API.
     """
 
-    @staticmethod
-    def to_scenario_of_lists(scenario_list: "ScenarioList") -> "Scenario":
+    def __init__(self, scenario_list: "ScenarioList"):
+        """Initialize with a reference to the ScenarioList.
+
+        Args:
+            scenario_list: The ScenarioList instance to operate on.
+        """
+        self._scenario_list = scenario_list
+
+    def to_scenario_of_lists(self) -> "Scenario":
         """Collapse a ScenarioList to a single Scenario with list-valued fields.
 
         The resulting Scenario has one entry per field appearing anywhere in the
@@ -41,27 +48,27 @@ class ScenarioListTransformer:
             ...     Scenario({"a": 1, "b": 10}),
             ...     Scenario({"a": 2, "b": 20}),
             ... ])
-            >>> ScenarioListTransformer.to_scenario_of_lists(sl)
+            >>> sl.to_scenario_of_lists()
             Scenario({'a': [1, 2], 'b': [10, 20]})
 
             >>> sl_ragged = ScenarioList([
             ...     Scenario({"a": 1}),
             ...     Scenario({"b": 2}),
             ... ])
-            >>> ScenarioListTransformer.to_scenario_of_lists(sl_ragged)
+            >>> sl_ragged.to_scenario_of_lists()
             Scenario({'a': [1, None], 'b': [None, 2]})
         """
         from .scenario import Scenario
 
         # Empty input -> empty Scenario
-        if len(scenario_list) == 0:
+        if len(self._scenario_list) == 0:
             return Scenario({})
 
         # Preserve field order: start with the first row's keys, then add any new
         # keys as they are first encountered across subsequent rows.
-        keys: List[str] = list(scenario_list[0].keys())
+        keys: List[str] = list(self._scenario_list[0].keys())
         seen = set(keys)
-        for row in scenario_list:
+        for row in self._scenario_list:
             for key in row.keys():
                 if key not in seen:
                     keys.append(key)
@@ -70,14 +77,11 @@ class ScenarioListTransformer:
         # Build dict of lists, padding missing keys with None
         collapsed: dict[str, list] = {}
         for key in keys:
-            collapsed[key] = [s.get(key, None) for s in scenario_list]
+            collapsed[key] = [s.get(key, None) for s in self._scenario_list]
 
         return Scenario(collapsed)
 
-    @staticmethod
-    def to_agent_traits(
-        scenario_list: "ScenarioList", agent_name: "str | None" = None
-    ) -> "Agent":
+    def to_agent_traits(self, agent_name: "str | None" = None) -> "Agent":
         """Convert all Scenario objects into traits of a single Agent.
 
         Mirrors ScenarioList.to_agent_traits behavior.
@@ -87,7 +91,7 @@ class ScenarioListTransformer:
         all_traits: dict[str, object] = {}
         key_counts: dict[str, int] = {}
 
-        for scenario in scenario_list.data:
+        for scenario in self._scenario_list.data:
             scenario_dict = scenario.to_dict(add_edsl_version=False)
 
             for key, value in scenario_dict.items():
@@ -107,12 +111,11 @@ class ScenarioListTransformer:
                 all_traits[new_key] = value
 
         if agent_name is None:
-            agent_name = f"Agent_from_{len(scenario_list)}_scenarios"
+            agent_name = f"Agent_from_{len(self._scenario_list)}_scenarios"
 
         return Agent(traits=all_traits, name=agent_name)
 
-    @staticmethod
-    def filter(scenario_list: "ScenarioList", expression: str) -> "ScenarioList":
+    def filter(self, expression: str) -> "ScenarioList":
         """Filter a ScenarioList based on an expression.
 
         Mirrors ScenarioList.filter behavior and errors.
@@ -124,13 +127,13 @@ class ScenarioListTransformer:
         from .scenario_list import ScenarioList  # type: ignore
 
         try:
-            first_item = scenario_list[0] if len(scenario_list) > 0 else None
+            first_item = self._scenario_list[0] if len(self._scenario_list) > 0 else None
             if first_item:
-                sample_size = min(len(scenario_list), 100)
+                sample_size = min(len(self._scenario_list), 100)
                 base_keys = set(first_item.keys())
                 keys = set()
                 count = 0
-                for scenario in scenario_list:
+                for scenario in self._scenario_list:
                     keys.update(scenario.keys())
                     count += 1
                     if count >= sample_size:
@@ -142,7 +145,7 @@ class ScenarioListTransformer:
         except IndexError:
             pass
 
-        new_sl = ScenarioList(data=[], codebook=getattr(scenario_list, "codebook", {}))
+        new_sl = ScenarioList(data=[], codebook=getattr(self._scenario_list, "codebook", {}))
 
         def create_evaluator(scenario):
             # Handle field names containing dots by creating safe aliases
@@ -171,7 +174,7 @@ class ScenarioListTransformer:
             return EvalWithCompoundTypes(names=scenario_names), modified_expression
 
         try:
-            for scenario in scenario_list:
+            for scenario in self._scenario_list:
                 evaluator, eval_expression = create_evaluator(scenario)
                 if evaluator.eval(eval_expression):
                     scenario_copy = scenario.copy()
@@ -179,7 +182,7 @@ class ScenarioListTransformer:
                     del scenario_copy
         except NameNotDefined as e:
             try:
-                first_item = scenario_list[0] if len(scenario_list) > 0 else None
+                first_item = self._scenario_list[0] if len(self._scenario_list) > 0 else None
                 available_fields = ", ".join(first_item.keys() if first_item else [])
             except Exception:
                 available_fields = "unknown"
@@ -196,23 +199,21 @@ class ScenarioListTransformer:
 
         return new_sl
 
-    @staticmethod
     def transform(
-        scenario_list: "ScenarioList", field: str, func, new_name: "str | None" = None
+        self, field: str, func, new_name: "str | None" = None
     ) -> "ScenarioList":
         """Transform a field using a function for each Scenario in the list."""
         from .scenario_list import ScenarioList  # type: ignore
 
         new_scenarios = []
-        for scenario in scenario_list:
+        for scenario in self._scenario_list:
             new_scenario = scenario.copy()
             new_scenario[new_name or field] = func(scenario[field])
             new_scenarios.append(new_scenario)
         return ScenarioList(new_scenarios)
 
-    @staticmethod
     def apply(
-        scenario_list: "ScenarioList",
+        self,
         func,
         field: str,
         new_name: "str | None",
@@ -222,20 +223,19 @@ class ScenarioListTransformer:
         from .scenario_list import ScenarioList  # type: ignore
 
         new_list = ScenarioList(
-            data=[], codebook=getattr(scenario_list, "codebook", {})
+            data=[], codebook=getattr(self._scenario_list, "codebook", {})
         )
         if new_name is None:
             new_name = field
-        for scenario in scenario_list:
+        for scenario in self._scenario_list:
             scenario[new_name] = func(scenario[field])
             if replace:
                 del scenario[field]
             new_list.append(scenario)
         return new_list
 
-    @staticmethod
     def unpack_dict(
-        scenario_list: "ScenarioList",
+        self,
         field: str,
         prefix: "str | None" = None,
         drop_field: bool = False,
@@ -244,7 +244,7 @@ class ScenarioListTransformer:
         from .scenario_list import ScenarioList  # type: ignore
 
         new_scenarios = []
-        for scenario in scenario_list:
+        for scenario in self._scenario_list:
             new_scenario = scenario.copy()
             for key, value in scenario[field].items():
                 if prefix:
@@ -256,9 +256,8 @@ class ScenarioListTransformer:
             new_scenarios.append(new_scenario)
         return ScenarioList(new_scenarios)
 
-    @staticmethod
     def unpack(
-        scenario_list: "ScenarioList",
+        self,
         field: str,
         new_names: "list[str] | None" = None,
         keep_original: bool = True,
@@ -267,10 +266,10 @@ class ScenarioListTransformer:
         from .scenario_list import ScenarioList  # type: ignore
 
         new_names = new_names or [
-            f"{field}_{i}" for i in range(len(scenario_list[0][field]))
+            f"{field}_{i}" for i in range(len(self._scenario_list[0][field]))
         ]
-        new_sl = ScenarioList(data=[], codebook=getattr(scenario_list, "codebook", {}))
-        for scenario in scenario_list:
+        new_sl = ScenarioList(data=[], codebook=getattr(self._scenario_list, "codebook", {}))
+        for scenario in self._scenario_list:
             new_scenario = scenario.copy()
             if len(new_names) == 1:
                 new_scenario[new_names[0]] = scenario[field]
@@ -283,9 +282,8 @@ class ScenarioListTransformer:
             new_sl.append(new_scenario)
         return new_sl
 
-    @staticmethod
     def mutate(
-        scenario_list: "ScenarioList",
+        self,
         new_var_string: str,
         functions_dict: "dict[str, callable] | None" = None,
     ) -> "ScenarioList":
@@ -318,15 +316,14 @@ class ScenarioListTransformer:
             return new_s
 
         try:
-            new_data = [_new_scenario(s, var_name) for s in scenario_list]
+            new_data = [_new_scenario(s, var_name) for s in self._scenario_list]
         except Exception as e:
             raise ScenarioError(f"Error in mutate. Exception:{e}")
 
         return ScenarioList(new_data)
 
-    @staticmethod
     def unpivot(
-        scenario_list: "ScenarioList",
+        self,
         id_vars: "list[str] | None" = None,
         value_vars: "list[str] | None" = None,
     ) -> "ScenarioList":
@@ -338,11 +335,11 @@ class ScenarioListTransformer:
             id_vars = []
         if value_vars is None:
             value_vars = [
-                field for field in scenario_list[0].keys() if field not in id_vars
+                field for field in self._scenario_list[0].keys() if field not in id_vars
             ]
 
         new_scenarios = ScenarioList(data=[], codebook={})
-        for scenario in scenario_list:
+        for scenario in self._scenario_list:
             for var in value_vars:
                 new_scenario = {id_var: scenario[id_var] for id_var in id_vars}
                 new_scenario["variable"] = var
@@ -351,9 +348,8 @@ class ScenarioListTransformer:
 
         return new_scenarios
 
-    @staticmethod
     def pivot(
-        scenario_list: "ScenarioList",
+        self,
         id_vars: "list[str] | None" = None,
         var_name: str = "variable",
         value_name: str = "value",
@@ -367,7 +363,7 @@ class ScenarioListTransformer:
 
         pivoted_dict: dict[tuple, dict] = {}
 
-        for scenario in scenario_list:
+        for scenario in self._scenario_list:
             id_key = tuple(scenario[id_var] for id_var in id_vars)
             if id_key not in pivoted_dict:
                 pivoted_dict[id_key] = {id_var: scenario[id_var] for id_var in id_vars}
@@ -375,14 +371,13 @@ class ScenarioListTransformer:
             value = scenario[value_name]
             pivoted_dict[id_key][variable] = value
 
-        new_sl = ScenarioList(data=[], codebook=getattr(scenario_list, "codebook", {}))
+        new_sl = ScenarioList(data=[], codebook=getattr(self._scenario_list, "codebook", {}))
         for id_key, values in pivoted_dict.items():
             new_sl.append(Scenario(dict(zip(id_vars, id_key), **values)))
         return new_sl
 
-    @staticmethod
     def group_by(
-        scenario_list: "ScenarioList",
+        self,
         id_vars: list[str],
         variables: list[str],
         func,
@@ -401,12 +396,12 @@ class ScenarioListTransformer:
             )
 
         grouped: dict[tuple, dict[str, list]] = defaultdict(lambda: defaultdict(list))
-        for scenario in scenario_list:
+        for scenario in self._scenario_list:
             key = tuple(scenario[id_var] for id_var in id_vars)
             for var in variables:
                 grouped[key][var].append(scenario[var])
 
-        new_sl = ScenarioList(data=[], codebook=getattr(scenario_list, "codebook", {}))
+        new_sl = ScenarioList(data=[], codebook=getattr(self._scenario_list, "codebook", {}))
         for key, group in grouped.items():
             try:
                 aggregated = func(*[group[var] for var in variables])
@@ -424,9 +419,8 @@ class ScenarioListTransformer:
 
         return new_sl
 
-    @staticmethod
     def order_by(
-        scenario_list: "ScenarioList", fields: list[str], reverse: bool = False
+        self, fields: list[str], reverse: bool = False
     ) -> "ScenarioList":
         """Order scenarios by one or more fields."""
         from .scenario_list import ScenarioList  # type: ignore
@@ -435,28 +429,26 @@ class ScenarioListTransformer:
             return tuple(scenario[field] for field in fields)
 
         return ScenarioList(
-            sorted(scenario_list.data, key=get_sort_key, reverse=reverse)
+            sorted(self._scenario_list.data, key=get_sort_key, reverse=reverse)
         )
 
-    @staticmethod
     def reorder_keys(
-        scenario_list: "ScenarioList", new_order: list[str]
+        self, new_order: list[str]
     ) -> "ScenarioList":
         """Reorder keys in each Scenario according to provided order."""
         from .scenario_list import ScenarioList  # type: ignore
         from .scenario import Scenario
 
-        assert set(new_order) == set(scenario_list.parameters)
+        assert set(new_order) == set(self._scenario_list.parameters)
 
-        new_sl = ScenarioList(data=[], codebook=getattr(scenario_list, "codebook", {}))
-        for scenario in scenario_list:
+        new_sl = ScenarioList(data=[], codebook=getattr(self._scenario_list, "codebook", {}))
+        for scenario in self._scenario_list:
             new_scenario = Scenario({key: scenario[key] for key in new_order})
             new_sl.append(new_scenario)
         return new_sl
 
-    @staticmethod
     def create_comparisons(
-        scenario_list: "ScenarioList",
+        self,
         bidirectional: bool = False,
         num_options: int = 2,
         option_prefix: str = "option_",
@@ -474,16 +466,16 @@ class ScenarioListTransformer:
 
         if num_options < 2:
             raise ValueScenarioError("num_options must be at least 2")
-        if num_options > len(scenario_list):
+        if num_options > len(self._scenario_list):
             raise ValueScenarioError(
-                f"num_options ({num_options}) cannot exceed the number of scenarios ({len(scenario_list)})"
+                f"num_options ({num_options}) cannot exceed the number of scenarios ({len(self._scenario_list)})"
             )
         if use_alphabet and num_options > 26:
             raise ValueScenarioError(
                 "When using alphabet labels, num_options cannot exceed 26 (the number of letters in the English alphabet)"
             )
 
-        scenario_dicts = [s.to_dict(add_edsl_version=False) for s in scenario_list]
+        scenario_dicts = [s.to_dict(add_edsl_version=False) for s in self._scenario_list]
 
         if bidirectional:
             if num_options == 2:
@@ -506,9 +498,8 @@ class ScenarioListTransformer:
 
         return ScenarioList(result)
 
-    @staticmethod
     def collapse(
-        scenario_list: "ScenarioList",
+        self,
         field: str,
         separator: "str | None" = None,
         prefix: str = "",
@@ -523,17 +514,17 @@ class ScenarioListTransformer:
         from .scenario import Scenario
         from collections import defaultdict
 
-        if not scenario_list:
+        if not self._scenario_list:
             return ScenarioList([])
 
-        id_vars = [key for key in scenario_list[0].keys() if key != field]
+        id_vars = [key for key in self._scenario_list[0].keys() if key != field]
 
         grouped: dict[tuple, list] = defaultdict(list)
-        for scenario in scenario_list:
+        for scenario in self._scenario_list:
             key = tuple(scenario[id_var] for id_var in id_vars)
             grouped[key].append(scenario[field])
 
-        new_sl = ScenarioList(data=[], codebook=getattr(scenario_list, "codebook", {}))
+        new_sl = ScenarioList(data=[], codebook=getattr(self._scenario_list, "codebook", {}))
         for key, values in grouped.items():
             new_scenario = dict(zip(id_vars, key))
             if separator:
@@ -547,9 +538,8 @@ class ScenarioListTransformer:
 
         return new_sl
 
-    @staticmethod
     def _concatenate(
-        scenario_list: "ScenarioList",
+        self,
         fields: list[str],
         output_type: str = "string",
         separator: str = ";",
@@ -572,7 +562,7 @@ class ScenarioListTransformer:
             )
 
         new_scenarios = []
-        for scenario in scenario_list:
+        for scenario in self._scenario_list:
             new_scenario = scenario.copy()
             values = []
             for field in fields:
@@ -612,17 +602,15 @@ class ScenarioListTransformer:
 
         return ScenarioList(new_scenarios)
 
-    @staticmethod
     def concatenate(
-        scenario_list: "ScenarioList",
+        self,
         fields: list[str],
         separator: str = ";",
         prefix: str = "",
         postfix: str = "",
         new_field_name: "str | None" = None,
     ) -> "ScenarioList":
-        return ScenarioListTransformer._concatenate(
-            scenario_list,
+        return self._concatenate(
             fields,
             output_type="string",
             separator=separator,
@@ -631,16 +619,14 @@ class ScenarioListTransformer:
             new_field_name=new_field_name,
         )
 
-    @staticmethod
     def concatenate_to_list(
-        scenario_list: "ScenarioList",
+        self,
         fields: list[str],
         prefix: str = "",
         postfix: str = "",
         new_field_name: "str | None" = None,
     ) -> "ScenarioList":
-        return ScenarioListTransformer._concatenate(
-            scenario_list,
+        return self._concatenate(
             fields,
             output_type="list",
             prefix=prefix,
@@ -648,16 +634,14 @@ class ScenarioListTransformer:
             new_field_name=new_field_name,
         )
 
-    @staticmethod
     def concatenate_to_set(
-        scenario_list: "ScenarioList",
+        self,
         fields: list[str],
         prefix: str = "",
         postfix: str = "",
         new_field_name: "str | None" = None,
     ) -> "ScenarioList":
-        return ScenarioListTransformer._concatenate(
-            scenario_list,
+        return self._concatenate(
             fields,
             output_type="set",
             prefix=prefix,
