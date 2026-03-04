@@ -45,7 +45,7 @@ For example:
 ```python
 from edsl import QuestionNumerical, Model
 
-m = Model("gemini-1.5-flash")
+m = Model("gemini-2.5-flash")
 
 q = QuestionNumerical(
   question_name = "random",
@@ -61,7 +61,7 @@ Example output:
 
 | model | parameters | system_prompt | user_prompt | output | iteration | timestamp | cache_key |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| gemini-1.5-flash | `{‘temperature’: 0.5, ‘topP’: 1, ‘topK’: 1, ‘maxOutputTokens’: 2048, ‘stopSequences’: []}` | nan | Please give me a random number between 1 and 100. This question requires a numerical response in the form of an integer or decimal (e.g., -12, 0, 1, 2, 3.45, …). Respond with just your number on a single line. If your response is equivalent to zero, report ‘0’ After the answer, put a comment explaining your choice on the next line. | `{“candidates”: [{“content”: {“parts”: [{“text”: “87n# This is a randomly generated number between 1 and 100.n”}], “role”: “model”}, “finish_reason”: 1, “safety_ratings”: [{“category”: 8, “probability”: 1, “blocked”: false}, {“category”: 10, “probability”: 1, “blocked”: false}, {“category”: 7, “probability”: 1, “blocked”: false}, {“category”: 9, “probability”: 1, “blocked”: false}], “avg_logprobs”: -0.03539780080318451, “token_count”: 0, “grounding_attributions”: []}], “usage_metadata”: {“prompt_token_count”: 97, “candidates_token_count”: 20, “total_token_count”: 117, “cached_content_token_count”: 0}}` | 0 | 1737491116 | 7f057154c60a1b9ae343b0634fe7a370 |
+| gemini-2.5-flash | `{‘temperature’: 0.5, ‘topP’: 1, ‘topK’: 1, ‘maxOutputTokens’: 2048, ‘stopSequences’: []}` | nan | Please give me a random number between 1 and 100. This question requires a numerical response in the form of an integer or decimal (e.g., -12, 0, 1, 2, 3.45, …). Respond with just your number on a single line. If your response is equivalent to zero, report ‘0’ After the answer, put a comment explaining your choice on the next line. | `{“candidates”: [{“content”: {“parts”: [{“text”: “87n# This is a randomly generated number between 1 and 100.n”}], “role”: “model”}, “finish_reason”: 1, “safety_ratings”: [{“category”: 8, “probability”: 1, “blocked”: false}, {“category”: 10, “probability”: 1, “blocked”: false}, {“category”: 7, “probability”: 1, “blocked”: false}, {“category”: 9, “probability”: 1, “blocked”: false}], “avg_logprobs”: -0.03539780080318451, “token_count”: 0, “grounding_attributions”: []}], “usage_metadata”: {“prompt_token_count”: 97, “candidates_token_count”: 20, “total_token_count”: 117, “cached_content_token_count”: 0}}` | 0 | 1737491116 | 7f057154c60a1b9ae343b0634fe7a370 |
 
 The results object also includes columns of information about the cache for the results:
 
@@ -108,7 +108,7 @@ For example, here we run a new question and confirm that the default cache was n
 ```python
 from edsl import QuestionNumerical, Model
 
-m = Model("gemini-1.5-flash")
+m = Model("gemini-2.5-flash")
 
 q = QuestionNumerical(
   question_name = "random",
@@ -147,7 +147,7 @@ For example:
 ```python expandable
 from edsl import QuestionFreeText, QuestionNumerical, Survey, Model
 
-m = Model("gemini-1.5-flash")
+m = Model("gemini-2.5-flash")
 
 # This question is already run, so we can use its cache from above (r1.cache)
 q1 = QuestionNumerical(
@@ -676,4 +676,3 @@ Write the cache to a JSONL file.
 > ### write_sqlite_db(*db_path: str*) → None[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/caching.py)
 
 Write the cache to an SQLite database.
-

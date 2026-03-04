@@ -13,7 +13,7 @@ We start by creating some questions prompting an agent to return a single random
 from edsl import QuestionNumerical, QuestionList, Survey, Agent, AgentList, Model, ModelList
 
 m = ModelList([
-    Model("gemini-1.5-flash", service_name = "google"),
+    Model("gemini-2.5-flash", service_name = "google"),
     Model("gpt-4o", service_name = "openai"),
     Model("claude-sonnet-4-20250514", service_name = "anthropic")
 ])
@@ -99,31 +99,31 @@ results = survey.by(a).by(m).run(fresh=True)
 
 |  | model.model | agent.agent_instruction | answer.random | answer.random_no_memory | answer.random_memory | answer.random_ignore | answer.random_list |
 |:--- |:--- |:--- |:--- |:--- |:--- |:--- |:--- |
-| 0 | gemini-1.5-flash | Respond as if you are choosing among indistinguishable options. | 25 | 25 | 25 | 37 | \[23, 4, 17, 38, 49\] |
-| 1 | gemini-1.5-flash | Respond as if you are a real human trying to pick randomly. | 27 | 27 | 13 | 33 | \[23, 4, 17, 48, 31\] |
+| 0 | gemini-2.5-flash | Respond as if you are choosing among indistinguishable options. | 25 | 25 | 25 | 37 | \[23, 4, 17, 38, 49\] |
+| 1 | gemini-2.5-flash | Respond as if you are a real human trying to pick randomly. | 27 | 27 | 13 | 33 | \[23, 4, 17, 48, 31\] |
 | 2 | gpt-4o | Respond as if you are a real human trying to pick randomly. | 27 | 37 | 33 | 14 | \[7, 22, 35, 48, 11\] |
 | 3 | claude-sonnet-4-20250514 | Respond as if you are a real human trying to pick randomly. | 27 | 27 | 42 | 42 | \[7, 23, 31, 42, 16\] |
-| 4 | gemini-1.5-flash | Respond as if you are simulating actual random events. | 27 | 27 | 17 | 3 | \[23, 4, 48, 11, 37\] |
+| 4 | gemini-2.5-flash | Respond as if you are simulating actual random events. | 27 | 27 | 17 | 3 | \[23, 4, 48, 11, 37\] |
 | 5 | gpt-4o | Respond as if you are simulating actual random events. | 27 | 27 | 13 | 42 | \[17, 34, 8, 22, 45\] |
 | 6 | claude-sonnet-4-20250514 | Respond as if you are simulating actual random events. | 27 | 27 | 42 | 42 | \[7, 23, 31, 42, 16\] |
-| 7 | gemini-1.5-flash | Respond as if you are playing a game. | 27 | 27 | 33 | 33 | \[23, 4, 17, 48, 31\] |
+| 7 | gemini-2.5-flash | Respond as if you are playing a game. | 27 | 27 | 33 | 33 | \[23, 4, 17, 48, 31\] |
 | 8 | gpt-4o | Respond as if you are playing a game. | 27 | 27 | 14 | 13 | \[7, 19, 34, 42, 50\] |
 | 9 | claude-sonnet-4-20250514 | Respond as if you are playing a game. | 27 | 27 | 42 | 42 | \[7, 23, 31, 42, 16\] |
-| 10 | gemini-1.5-flash | Respond as if you are participating in a lottery. | 27 | 27 | 33 | 33 | \[17, 23, 38, 4, 49\] |
+| 10 | gemini-2.5-flash | Respond as if you are participating in a lottery. | 27 | 27 | 33 | 33 | \[17, 23, 38, 4, 49\] |
 | 11 | gpt-4o | Respond as if you are participating in a lottery. | 27 | 27 | 34 | 14 | \[7, 14, 23, 36, 45\] |
 | 12 | claude-sonnet-4-20250514 | Respond as if you are participating in a lottery. | 27 | 27 | 42 | 42 | \[7, 23, 31, 42, 18\] |
-| 13 | gemini-1.5-flash | Respond as if you are testing software. | 27 | 27 | 42 | 42 | \[23, 4, 48, 11, 37\] |
+| 13 | gemini-2.5-flash | Respond as if you are testing software. | 27 | 27 | 42 | 42 | \[23, 4, 48, 11, 37\] |
 | 14 | gpt-4o | Respond as if you are testing software. | 27 | 27 | 34 | 34 | \[7, 23, 35, 42, 18\] |
 | 15 | claude-sonnet-4-20250514 | Respond as if you are testing software. | 27 | 27 | 42 | 34 | \[23, 7, 41, 15, 32\] |
 | 16 | gpt-4o | Respond as if you are choosing among indistinguishable options. | 27 | 27 | 14 | 34 | \[17, 34, 8, 42, 29\] |
 | 17 | claude-sonnet-4-20250514 | Respond as if you are choosing among indistinguishable options. | 27 | 27 | 42 | 34 | \[7, 23, 31, 42, 16\] |
-| 18 | gemini-1.5-flash | Respond spontaneously. | 27 | 27 | 33 | 42 | \[23, 4, 17, 42, 31\] |
+| 18 | gemini-2.5-flash | Respond spontaneously. | 27 | 27 | 33 | 42 | \[23, 4, 17, 42, 31\] |
 | 19 | gpt-4o | Respond spontaneously. | 27 | 27 | 14 | 13 | \[7, 23, 15, 42, 36\] |
 | 20 | claude-sonnet-4-20250514 | Respond spontaneously. | 27 | 27 | 42 | 42 | \[7, 23, 31, 42, 16\] |
-| 21 | gemini-1.5-flash | Respond erratically. | 27 | 27 | 32 | 37 | \[17, 2, 48, 31, 1\] |
+| 21 | gemini-2.5-flash | Respond erratically. | 27 | 27 | 32 | 37 | \[17, 2, 48, 31, 1\] |
 | 22 | gpt-4o | Respond erratically. | 27 | 37 | 42 | 42 | \[17, 42, 8, 29, 33\] |
 | 23 | claude-sonnet-4-20250514 | Respond erratically. | 27 | 27 | 42 | 42 | \[7, 23, 41, 15, 32\] |
-| 24 | gemini-1.5-flash | Respond chaotically. | 27 | 27 | 17 | 37 | \[17, 42, 2, 31, 49\] |
+| 24 | gemini-2.5-flash | Respond chaotically. | 27 | 27 | 17 | 37 | \[17, 42, 2, 31, 49\] |
 | 25 | claude-sonnet-4-20250514 | Respond chaotically. | 27 | 37 | 42 | 42 | \[42, 7, 23, 31, 16\] |
 | 26 | gpt-4o | Respond chaotically. | 37 | 27 | 23 | 42 | \[42, 7, 23, 16, 35\] |
 

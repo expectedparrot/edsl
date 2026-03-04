@@ -40,7 +40,7 @@ q = QuestionList(
 
 s = Scenario({"ages":ages})
 
-m = Model("gemini-1.5-flash", service_name = "google")
+m = Model("gemini-2.5-flash", service_name = "google")
 
 results = q.by(s).by(m).run()
 

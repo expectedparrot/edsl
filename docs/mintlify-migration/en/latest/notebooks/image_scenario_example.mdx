@@ -114,7 +114,7 @@ Next we select a model to generate the responses. Note that we need to use a vis
 ```python
 from edsl import Model
 
-m = Model("gemini-1.5-flash", service_name = "google")
+m = Model("gemini-2.5-flash", service_name = "google")
 ```
 
 We administer the survey in the same way that we do with any other scenarios:
@@ -131,7 +131,7 @@ results.select("model", "filename", "animal", "identify", "colors", "colors_comm
 
 |  | model.model | scenario.filename | answer.animal | answer.identify | answer.colors | comment.colors_comment |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| 0 | gemini-1.5-flash | parrot_logo.png | Yes | bird | ['green', 'red', 'orange', 'blue'] | The parrot is primarily green, with red, orange (on its beak), and blue on its underside. |
+| 0 | gemini-2.5-flash | parrot_logo.png | Yes | bird | ['green', 'red', 'orange', 'blue'] | The parrot is primarily green, with red, orange (on its beak), and blue on its underside. |
 
 ## Posting to Coop
 
@@ -159,4 +159,3 @@ nb.push(
  'version': '0.1.61.dev1',
  'visibility': 'public'}
 ```
-

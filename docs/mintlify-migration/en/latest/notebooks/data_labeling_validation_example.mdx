@@ -62,7 +62,7 @@ agents = AgentList([
 ])
 
 models = ModelList([
-    Model("gemini-1.5-flash", service_name = "google"),
+    Model("gemini-2.5-flash", service_name = "google"),
     Model("gpt-4o", service_name = "openai")
 ])
 
@@ -139,4 +139,3 @@ human_results
 ```python
 human_results.select("age", "tv_viewing", "characters_0", "years_0", "characters_1", "years_1", "characters_2", "years_2")
 ```
-

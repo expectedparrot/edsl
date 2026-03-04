@@ -78,7 +78,7 @@ We can specify the language models that we want to use to generate responses:
   from edsl import ModelList, Model
 
   models = ModelList(
-    Model(m) for m in ["gemini-1.5-flash", "gpt-4o"]
+    Model(m) for m in ["gemini-2.5-flash", "gpt-4o"]
   )
 
 
@@ -151,7 +151,7 @@ Output:
   * - scenario:scenario_index
     - 0
   * - model:model
-    - gemini-1.5-flash
+    - gemini-2.5-flash
   * - model:parameters
     - {'temperature': 0.5, 'topP': 1, 'topK': 1, 'maxOutputTokens': 2048, 'stopSequences': []}
   * - model:inference_service
@@ -171,7 +171,7 @@ Output:
   * - prompt:read_system_prompt
     - {'text': "You are answering questions as if you were a human. Do not break character. Your traits: {'persona': 'student'}", 'class_name': 'Prompt'}
   * - raw_model_response:important_raw_model_response
-    - {'candidates': [{'content': {'parts': [{'text': "5\n\nIt's, like, a huge deal!  The future of the planet is at stake, and that affects everything –  from the environment to the economy to, you know, my future.  It's definitely something I worry about.\n"}], 'role': 'model'}, 'finish_reason': 1, 'safety_ratings': [{'category': 8, 'probability': 1, 'blocked': False}, {'category': 10, 'probability': 1, 'blocked': False}, {'category': 7, 'probability': 1, 'blocked': False}, {'category': 9, 'probability': 1, 'blocked': False}], 'avg_logprobs': -0.2145003372768186, 'token_count': 0, 'grounding_attributions': []}], 'usage_metadata': {'prompt_token_count': 128, 'candidates_token_count': 53, 'total_token_count': 181, 'cached_content_token_count': 0}, 'model_version': 'gemini-1.5-flash'}
+    - {'candidates': [{'content': {'parts': [{'text': "5\n\nIt's, like, a huge deal!  The future of the planet is at stake, and that affects everything –  from the environment to the economy to, you know, my future.  It's definitely something I worry about.\n"}], 'role': 'model'}, 'finish_reason': 1, 'safety_ratings': [{'category': 8, 'probability': 1, 'blocked': False}, {'category': 10, 'probability': 1, 'blocked': False}, {'category': 7, 'probability': 1, 'blocked': False}, {'category': 9, 'probability': 1, 'blocked': False}], 'avg_logprobs': -0.2145003372768186, 'token_count': 0, 'grounding_attributions': []}], 'usage_metadata': {'prompt_token_count': 128, 'candidates_token_count': 53, 'total_token_count': 181, 'cached_content_token_count': 0}, 'model_version': 'gemini-2.5-flash'}
   * - raw_model_response:important_input_tokens
     - 128
   * - raw_model_response:important_output_tokens
@@ -185,7 +185,7 @@ Output:
   * - raw_model_response:important_one_usd_buys
     - 39215.691903
   * - raw_model_response:read_raw_model_response
-    - {'candidates': [{'content': {'parts': [{'text': "Yes\n\nI've read a few articles and some chapters from textbooks for my environmental science classes, which covered climate change extensively.  It's not quite the same as reading a whole book dedicated to the topic, but I've definitely learned about it.\n"}], 'role': 'model'}, 'finish_reason': 1, 'safety_ratings': [{'category': 8, 'probability': 1, 'blocked': False}, {'category': 10, 'probability': 1, 'blocked': False}, {'category': 7, 'probability': 1, 'blocked': False}, {'category': 9, 'probability': 1, 'blocked': False}], 'avg_logprobs': -0.15844399840743453, 'token_count': 0, 'grounding_attributions': []}], 'usage_metadata': {'prompt_token_count': 95, 'candidates_token_count': 54, 'total_token_count': 149, 'cached_content_token_count': 0}, 'model_version': 'gemini-1.5-flash'}
+    - {'candidates': [{'content': {'parts': [{'text': "Yes\n\nI've read a few articles and some chapters from textbooks for my environmental science classes, which covered climate change extensively.  It's not quite the same as reading a whole book dedicated to the topic, but I've definitely learned about it.\n"}], 'role': 'model'}, 'finish_reason': 1, 'safety_ratings': [{'category': 8, 'probability': 1, 'blocked': False}, {'category': 10, 'probability': 1, 'blocked': False}, {'category': 7, 'probability': 1, 'blocked': False}, {'category': 9, 'probability': 1, 'blocked': False}], 'avg_logprobs': -0.15844399840743453, 'token_count': 0, 'grounding_attributions': []}], 'usage_metadata': {'prompt_token_count': 95, 'candidates_token_count': 54, 'total_token_count': 149, 'cached_content_token_count': 0}, 'model_version': 'gemini-2.5-flash'}
   * - raw_model_response:read_input_tokens
     - 95
   * - raw_model_response:read_output_tokens
@@ -436,7 +436,7 @@ A table with the selected columns will be printed:
     - scenario.topic
     - answer.read
     - answer.important
-  * - gemini-1.5-flash
+  * - gemini-2.5-flash
     - student
     - climate change
     - Yes
@@ -446,7 +446,7 @@ A table with the selected columns will be printed:
     - climate change
     - Yes
     - 5
-  * - gemini-1.5-flash
+  * - gemini-2.5-flash
     - student
     - house prices
     - No
@@ -456,7 +456,7 @@ A table with the selected columns will be printed:
     - house prices
     - No
     - 3
-  * - gemini-1.5-flash
+  * - gemini-2.5-flash
     - celebrity
     - climate change
     - Yes
@@ -466,7 +466,7 @@ A table with the selected columns will be printed:
     - climate change
     - Yes
     - 5
-  * - gemini-1.5-flash
+  * - gemini-2.5-flash
     - celebrity
     - house prices
     - Yes
@@ -502,22 +502,22 @@ The following table will be printed:
     - scenario.topic
     - answer.read
     - answer.important
-  * - gemini-1.5-flash
+  * - gemini-2.5-flash
     - celebrity
     - climate change
     - Yes
     - 5
-  * - gemini-1.5-flash
+  * - gemini-2.5-flash
     - celebrity
     - house prices
     - Yes
     - 3
-  * - gemini-1.5-flash
+  * - gemini-2.5-flash
     - student
     - climate change
     - Yes
     - 5
-  * - gemini-1.5-flash
+  * - gemini-2.5-flash
     - student
     - house prices
     - No
@@ -596,22 +596,22 @@ The following table will be printed:
     - house prices
     - No
     - 3
-  * - gemini-1.5-flash
+  * - gemini-2.5-flash
     - student
     - climate change
     - Yes
     - 5
-  * - gemini-1.5-flash
+  * - gemini-2.5-flash
     - student
     - house prices
     - No
     - 1
-  * - gemini-1.5-flash
+  * - gemini-2.5-flash
     - celebrity
     - climate change
     - Yes
     - 5
-  * - gemini-1.5-flash
+  * - gemini-2.5-flash
     - celebrity
     - house prices
     - Yes
@@ -724,7 +724,7 @@ This will return a table of the selected components of the first 4 results:
     - scenario.topic
     - answer.read
     - answer.important
-  * - gemini-1.5-flash
+  * - gemini-2.5-flash
     - student
     - climate change
     - Yes
@@ -734,7 +734,7 @@ This will return a table of the selected components of the first 4 results:
     - climate change
     - Yes
     - 5
-  * - gemini-1.5-flash
+  * - gemini-2.5-flash
     - student
     - house prices
     - No
@@ -811,7 +811,7 @@ This will return a table of shuffled results:
     - scenario.topic
     - answer.read
     - answer.important
-  * - gemini-1.5-flash
+  * - gemini-2.5-flash
     - celebrity
     - climate change
     - Yes
@@ -821,12 +821,12 @@ This will return a table of shuffled results:
     - house prices
     - No
     - 3
-  * - gemini-1.5-flash
+  * - gemini-2.5-flash
     - celebrity
     - house prices
     - Yes
     - 3
-  * - gemini-1.5-flash
+  * - gemini-2.5-flash
     - student
     - house prices
     - No
@@ -846,7 +846,7 @@ This will return a table of shuffled results:
     - climate change
     - Yes
     - 5
-  * - gemini-1.5-flash
+  * - gemini-2.5-flash
     - student
     - climate change
     - Yes
@@ -890,7 +890,7 @@ For example:
 
  from edsl import QuestionDict, Model
 
-  m = Model("gemini-1.5-flash")
+  m = Model("gemini-2.5-flash")
 
   q = QuestionDict(
     question_name = "recipe",
@@ -913,7 +913,7 @@ This will return a table of the flattened results:
     - answer.recipe.title
     - answer.recipe.ingredients
     - answer.recipe.instructions
-  * - gemini-1.5-flash
+  * - gemini-2.5-flash
     - {'title': 'Simple Hot Chocolate', 'ingredients': ['1 cup milk (dairy or non-dairy)', '1 tablespoon unsweetened cocoa powder', '1-2 tablespoons sugar (or to taste)', 'Pinch of salt'], 'instructions': ['Combine milk, cocoa powder, sugar, and salt in a small saucepan.', 'Heat over medium heat, stirring constantly, until the mixture is smooth and heated through.', 'Do not boil.', 'Pour into a mug and enjoy!']}
     - Simple Hot Chocolate 
     - ['1 cup milk (dairy or non-dairy)', '1 tablespoon unsweetened cocoa powder', '1-2 tablespoons sugar (or to taste)', 'Pinch of salt']
@@ -1040,7 +1040,7 @@ For example, the following code will generate a report of the first 4 results:
 
   from edsl import QuestionFreeText, ScenarioList, Model
 
-  m = Model("gemini-1.5-flash")
+  m = Model("gemini-2.5-flash")
 
   s = ScenarioList.from_list("language", ["German", "Dutch", "French", "English"])
 
@@ -1061,7 +1061,7 @@ This will return a report of the first 2 results:
   Observation: 1
 
   model.model
-  gemini-1.5-flash
+  gemini-2.5-flash
 
   answer.poem
   Der Schnee fällt leis', ein weicher Flor, Die Welt in Weiß, ein Zauberchor. Die Bäume stehn, in Stille gehüllt, Der Winterwind, sein Lied erfüllt.
@@ -1073,7 +1073,7 @@ This will return a report of the first 2 results:
 
   Observation: 2
   model.model
-  gemini-1.5-flash
+  gemini-2.5-flash
 
   answer.poem
   De winter komt, de dagen kort, De sneeuw valt zacht, een wit decor. De bomen staan, kaal en stil, Een ijzige wind, een koude tril.
@@ -1083,7 +1083,7 @@ This will return a report of the first 2 results:
   scenario.language
   Dutch
 
-  "# Observation: 1\n## model.model\ngemini-1.5-flash\n## answer.poem\nDer Schnee fällt leis', ein weicher Flor,\nDie Welt in Weiß, ein Zauberchor.\nDie Bäume stehn, in Stille gehüllt,\nDer Winterwind, sein Lied erfüllt.\n\n(Translation: The snow falls softly, a gentle veil, / The world in white, a magic choir. / The trees stand, wrapped in silence, / The winter wind, its song fulfilled.)\n## scenario.language\nGerman\n\n---\n\n# Observation: 2\n## model.model\ngemini-1.5-flash\n## answer.poem\nDe winter komt, de dagen kort,\nDe sneeuw valt zacht, een wit decor.\nDe bomen staan, kaal en stil,\nEen ijzige wind, een koude tril.\n\n(Translation: Winter comes, the days are short, / The snow falls softly, a white décor. / The trees stand, bare and still, / An icy wind, a cold shiver.)\n## scenario.language\nDutch\n"
+  "# Observation: 1\n## model.model\ngemini-2.5-flash\n## answer.poem\nDer Schnee fällt leis', ein weicher Flor,\nDie Welt in Weiß, ein Zauberchor.\nDie Bäume stehn, in Stille gehüllt,\nDer Winterwind, sein Lied erfüllt.\n\n(Translation: The snow falls softly, a gentle veil, / The world in white, a magic choir. / The trees stand, wrapped in silence, / The winter wind, its song fulfilled.)\n## scenario.language\nGerman\n\n---\n\n# Observation: 2\n## model.model\ngemini-2.5-flash\n## answer.poem\nDe winter komt, de dagen kort,\nDe sneeuw valt zacht, een wit decor.\nDe bomen staan, kaal en stil,\nEen ijzige wind, een koude tril.\n\n(Translation: Winter comes, the days are short, / The snow falls softly, a white décor. / The trees stand, bare and still, / An icy wind, a cold shiver.)\n## scenario.language\nDutch\n"
 
 
 Accessing results with SQL
@@ -1108,7 +1108,7 @@ This following table will be displayed
     - persona
     - read
     - important
-  * - gemini-1.5-flash
+  * - gemini-2.5-flash
     - student
     - Yes
     - 5
@@ -1116,7 +1116,7 @@ This following table will be displayed
     - student
     - Yes
     - 5
-  * - gemini-1.5-flash
+  * - gemini-2.5-flash
     - student
     - No
     - 1
@@ -1236,4 +1236,3 @@ Results class
    :undoc-members:
    :show-inheritance:
    :special-members: __init__
-

@@ -116,7 +116,7 @@ For example, here we run a survey with remote caching activated, and pass a desc
 
   from edsl import Model, QuestionFreeText, Survey
 
-  m = Model("gemini-1.5-flash")
+  m = Model("gemini-2.5-flash")
 
   q = QuestionFreeText(
     question_name = "prime",
@@ -172,11 +172,11 @@ Output:
      - iteration	
      - timestamp	
      - cache_key
-   * - gemini-1.5-flash	
+   * - gemini-2.5-flash	
      - {'temperature': 0.5, 'topP': 1, 'topK': 1, 'maxOutputTokens': 2048, 'stopSequences': []}
      - nan
      - Is 2 a prime number?
-     -	{"candidates": [{"content": {"parts": [{"text": "Yes, 2 is a prime number. It's the only even prime number.\n"}], "role": "model"}, "finish_reason": 1, "safety_ratings": [{"category": 8, "probability": 1, "blocked": false}, {"category": 10, "probability": 1, "blocked": false}, {"category": 7, "probability": 1, "blocked": false}, {"category": 9, "probability": 1, "blocked": false}], "avg_logprobs": -0.0006228652317076921, "token_count": 0, "grounding_attributions": []}], "usage_metadata": {"prompt_token_count": 7, "candidates_token_count": 20, "total_token_count": 27, "cached_content_token_count": 0}, "model_version": "gemini-1.5-flash"}	
+     -	{"candidates": [{"content": {"parts": [{"text": "Yes, 2 is a prime number. It's the only even prime number.\n"}], "role": "model"}, "finish_reason": 1, "safety_ratings": [{"category": 8, "probability": 1, "blocked": false}, {"category": 10, "probability": 1, "blocked": false}, {"category": 7, "probability": 1, "blocked": false}, {"category": 9, "probability": 1, "blocked": false}], "avg_logprobs": -0.0006228652317076921, "token_count": 0, "grounding_attributions": []}], "usage_metadata": {"prompt_token_count": 7, "candidates_token_count": 20, "total_token_count": 27, "cached_content_token_count": 0}, "model_version": "gemini-2.5-flash"}	
      - 0	
      - 1738759640	
      - b939c0cf262061c7aedbbbfedc540689

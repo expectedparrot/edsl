@@ -166,7 +166,7 @@ To select models to use with a survey:
 from edsl import ModelList, Model
 
 models = ModelList(
-    Model(m) for m in ["gemini-1.5-flash", "gpt-4o"]
+    Model(m) for m in ["gemini-2.5-flash", "gpt-4o"]
 )
 ```
 
@@ -187,25 +187,25 @@ results.select("model", "persona", "preferred_mode_commute", "work_from_home")
 
 |  | model.model | agent.persona | answer.preferred_mode_commute | answer.work_from_home |
 | :--- | :--- | :--- | :--- | :--- |
-| 0 | gemini-1.5-flash | A theater manager or events coordinator interested in understanding the operational aspects, facilities, and programming of performing arts centers, such as the Broward Center. | Car | 1 |
+| 0 | gemini-2.5-flash | A theater manager or events coordinator interested in understanding the operational aspects, facilities, and programming of performing arts centers, such as the Broward Center. | Car | 1 |
 | 1 | gpt-4o | A theater manager or events coordinator interested in understanding the operational aspects, facilities, and programming of performing arts centers, such as the Broward Center. | Car | 2 |
-| 2 | gemini-1.5-flash | An urban planner looking to understand the distribution and organization of public services in the Halifax Regional Municipality. | Public transportation | 3 |
+| 2 | gemini-2.5-flash | An urban planner looking to understand the distribution and organization of public services in the Halifax Regional Municipality. | Public transportation | 3 |
 | 3 | gpt-4o | An urban planner looking to understand the distribution and organization of public services in the Halifax Regional Municipality. | Public transportation | 4 |
-| 4 | gemini-1.5-flash | A high school literature teacher looking for supplementary materials to enrich their curriculum and provide students with a deeper understanding of their state's cultural heritage. | Car | 3 |
+| 4 | gemini-2.5-flash | A high school literature teacher looking for supplementary materials to enrich their curriculum and provide students with a deeper understanding of their state's cultural heritage. | Car | 3 |
 | 5 | gpt-4o | A high school literature teacher looking for supplementary materials to enrich their curriculum and provide students with a deeper understanding of their state's cultural heritage. | Car | 3 |
-| 6 | gemini-1.5-flash | A science fiction writer, exploring the use of secret trials as a theme in stories that examine surveillance, privacy, and power dynamics in society. | Work from home | 5 |
+| 6 | gemini-2.5-flash | A science fiction writer, exploring the use of secret trials as a theme in stories that examine surveillance, privacy, and power dynamics in society. | Work from home | 5 |
 | 7 | gpt-4o | A science fiction writer, exploring the use of secret trials as a theme in stories that examine surveillance, privacy, and power dynamics in society. | Work from home | 5 |
-| 8 | gemini-1.5-flash | A financial analyst specializing in Asian markets and wealthy individuals, interested in tracking the investments and philanthropic activities of billionaires like Gerald Chan. | Work from home | 4 |
+| 8 | gemini-2.5-flash | A financial analyst specializing in Asian markets and wealthy individuals, interested in tracking the investments and philanthropic activities of billionaires like Gerald Chan. | Work from home | 4 |
 | 9 | gpt-4o | A financial analyst specializing in Asian markets and wealthy individuals, interested in tracking the investments and philanthropic activities of billionaires like Gerald Chan. | Work from home | 5 |
-| 10 | gemini-1.5-flash | A high school physics teacher who enjoys applying physics concepts to various sports, curious about the effects of water resistance and body positioning in Paralympic swimming. | Car | 3 |
+| 10 | gemini-2.5-flash | A high school physics teacher who enjoys applying physics concepts to various sports, curious about the effects of water resistance and body positioning in Paralympic swimming. | Car | 3 |
 | 11 | gpt-4o | A high school physics teacher who enjoys applying physics concepts to various sports, curious about the effects of water resistance and body positioning in Paralympic swimming. | Bike | 2 |
-| 12 | gemini-1.5-flash | A high school physical education teacher seeking to incorporate Paralympic history and achievements into the curriculum to inspire and educate students about inclusivity in sports. | Car | 1 |
+| 12 | gemini-2.5-flash | A high school physical education teacher seeking to incorporate Paralympic history and achievements into the curriculum to inspire and educate students about inclusivity in sports. | Car | 1 |
 | 13 | gpt-4o | A high school physical education teacher seeking to incorporate Paralympic history and achievements into the curriculum to inspire and educate students about inclusivity in sports. | Bike | 1 |
-| 14 | gemini-1.5-flash | A high school history teacher creating lesson plans on South American civilizations and their regional diversity. | Car | 3 |
+| 14 | gemini-2.5-flash | A high school history teacher creating lesson plans on South American civilizations and their regional diversity. | Car | 3 |
 | 15 | gpt-4o | A high school history teacher creating lesson plans on South American civilizations and their regional diversity. | Car | 4 |
-| 16 | gemini-1.5-flash | A cultural anthropologist studying the representation and adaptation of traditional folklore in contemporary media, particularly in television and film. | Work from home | 4 |
+| 16 | gemini-2.5-flash | A cultural anthropologist studying the representation and adaptation of traditional folklore in contemporary media, particularly in television and film. | Work from home | 4 |
 | 17 | gpt-4o | A cultural anthropologist studying the representation and adaptation of traditional folklore in contemporary media, particularly in television and film. | Work from home | 4 |
-| 18 | gemini-1.5-flash | A high school earth science teacher looking for real-world examples to explain climate zones, soil types, and human-environment interactions. | Car | 2 |
+| 18 | gemini-2.5-flash | A high school earth science teacher looking for real-world examples to explain climate zones, soil types, and human-environment interactions. | Car | 2 |
 | 19 | gpt-4o | A high school earth science teacher looking for real-world examples to explain climate zones, soil types, and human-environment interactions. | Car | 3 |
 
 ## Constructing traits

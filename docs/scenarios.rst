@@ -216,7 +216,7 @@ For example, here we call the `by()` method on the example question created abov
 
   a = Agent(traits = {"persona":"You are a human."})
 
-  m = Model("gemini-1.5-flash")
+  m = Model("gemini-2.5-flash")
 
   results = q.by(s).by(a).by(m).run()
 
@@ -881,7 +881,7 @@ We can add the key to questions as we do scenarios from other data sources:
 
   from edsl import Model, QuestionFreeText, QuestionList, Survey
 
-  m = Model("gemini-1.5-flash") # we need to use a vision model
+  m = Model("gemini-2.5-flash") # we need to use a vision model
   
   q1 = QuestionFreeText(
     question_name = "identify",
