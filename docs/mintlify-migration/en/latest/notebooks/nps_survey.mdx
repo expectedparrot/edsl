@@ -228,7 +228,7 @@ from edsl import Model
 To select a model to use with a survey we pass a model name to a `Model`:
 
 ```python
-m = Model("gemini-2.5-flash")
+m = Model("gemini-1.5-flash")
 ```
 
 If we want to compare responses for several models, we can use a `ModelList` instead:
@@ -239,7 +239,7 @@ from edsl import ModelList
 
 ```python
 m = ModelList(
-    Model(model) for model in ["gemini-2.5-flash", "gpt-4o"]
+    Model(model) for model in ["gemini-1.5-flash", "gpt-4o"]
 )
 ```
 
@@ -382,7 +382,7 @@ For example, we can filter, sort and display columns of results in a table:
 ```python
 (
     results
-    .filter("model.model == 'gemini-2.5-flash'")
+    .filter("model.model == 'gemini-1.5-flash'")
     .sort_by("recommend", reverse=True)
     .select("model","persona","recommend", "recommend_comment")
 )
@@ -390,16 +390,16 @@ For example, we can filter, sort and display columns of results in a table:
 
 |  | model.model | agent.persona | answer.recommend | comment.recommend_comment |
 | :--- | :--- | :--- | :--- | :--- |
-| 0 | gemini-2.5-flash | John, a retired teacher who is thrilled with the eco-friendly garden design | 10 | Honestly, I'm absolutely delighted with the garden design. It's exceeded all my expectations – the way you've incorporated sustainable practices is just brilliant, and it's already attracting so much wildlife! I'd recommend your company to anyone in a heartbeat. |
-| 1 | gemini-2.5-flash | Maria, a busy professional who is satisfied with the maintenance services but desires quicker responses | 8 | Honestly, the service is great! My building is always clean and well-maintained. It's just that sometimes getting a quick response to a request can be a bit of a challenge, especially when I'm juggling a million things at work. If that improved, it would be a solid 10. |
-| 2 | gemini-2.5-flash | Sophia, a new parent who appreciates the child-safe landscaping features but finds them costly | 7 | Honestly, I love that you guys prioritize child safety in your landscaping designs. The rubber mulch and the rounded edges on everything are fantastic, and I feel so much better letting my little one explore the yard now. But... wow, it was expensive! I'd definitely recommend you to other parents who have the budget for it, though. |
-| 3 | gemini-2.5-flash | Raj, a tech-savvy entrepreneur who loves the innovative designs but is frustrated with the lack of digital communication options | 4 | Look, the designs are *amazing*. Seriously, I'm blown away by the innovation. But the whole communication process? It's stuck in the dark ages. Email chains, phone calls... it's a nightmare for someone like me who lives and breathes digital efficiency. So, I'd recommend you, but with a big caveat about needing to seriously upgrade your communication game. |
-| 4 | gemini-2.5-flash | Liam, a young homeowner who is disappointed with the delayed project completion | 2 | Honestly, I'm pretty frustrated. The delays on my project have been a real headache, and it's put a massive crimp in my plans. I wouldn't actively discourage anyone, but I definitely wouldn't be enthusiastically recommending you guys either. |
+| 0 | gemini-1.5-flash | John, a retired teacher who is thrilled with the eco-friendly garden design | 10 | Honestly, I'm absolutely delighted with the garden design. It's exceeded all my expectations – the way you've incorporated sustainable practices is just brilliant, and it's already attracting so much wildlife! I'd recommend your company to anyone in a heartbeat. |
+| 1 | gemini-1.5-flash | Maria, a busy professional who is satisfied with the maintenance services but desires quicker responses | 8 | Honestly, the service is great! My building is always clean and well-maintained. It's just that sometimes getting a quick response to a request can be a bit of a challenge, especially when I'm juggling a million things at work. If that improved, it would be a solid 10. |
+| 2 | gemini-1.5-flash | Sophia, a new parent who appreciates the child-safe landscaping features but finds them costly | 7 | Honestly, I love that you guys prioritize child safety in your landscaping designs. The rubber mulch and the rounded edges on everything are fantastic, and I feel so much better letting my little one explore the yard now. But... wow, it was expensive! I'd definitely recommend you to other parents who have the budget for it, though. |
+| 3 | gemini-1.5-flash | Raj, a tech-savvy entrepreneur who loves the innovative designs but is frustrated with the lack of digital communication options | 4 | Look, the designs are *amazing*. Seriously, I'm blown away by the innovation. But the whole communication process? It's stuck in the dark ages. Email chains, phone calls... it's a nightmare for someone like me who lives and breathes digital efficiency. So, I'd recommend you, but with a big caveat about needing to seriously upgrade your communication game. |
+| 4 | gemini-1.5-flash | Liam, a young homeowner who is disappointed with the delayed project completion | 2 | Honestly, I'm pretty frustrated. The delays on my project have been a real headache, and it's put a massive crimp in my plans. I wouldn't actively discourage anyone, but I definitely wouldn't be enthusiastically recommending you guys either. |
 
 ```python
 (
     results
-    .filter("model.model == 'gemini-2.5-flash'")
+    .filter("model.model == 'gemini-1.5-flash'")
     .sort_by("satisfied_0")
     .select("satisfied_0", "satisfied_0_comment", "improve_0")
 )
@@ -416,7 +416,7 @@ For example, we can filter, sort and display columns of results in a table:
 ```python
 (
     results
-    .filter("model.model == 'gemini-2.5-flash'")
+    .filter("model.model == 'gemini-1.5-flash'")
     .select("satisfied_1", "satisfied_1_comment", "improve_1")
     .print(pretty_labels = {
         "answer.satisfied_1": "Customer service: satisfaction",

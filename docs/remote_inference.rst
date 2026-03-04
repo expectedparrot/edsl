@@ -104,7 +104,7 @@ We optionally pass description and visibility parameters (these can be edited at
 
   from edsl import Model, QuestionFreeText, Survey
 
-  m = Model("gemini-2.5-flash")
+  m = Model("gemini-1.5-flash")
 
   q = QuestionFreeText(
     question_name = "prime",
@@ -165,7 +165,7 @@ For example, here we estimate the cost of running a simple survey with a model:
 
   from edsl import Model, QuestionFreeText, Survey
 
-  m = Model("gemini-2.5-flash")
+  m = Model("gemini-1.5-flash")
 
   q = QuestionFreeText(
     question_name = "prime",
@@ -188,7 +188,7 @@ Output:
   'estimated_total_input_tokens': 5,
   'estimated_total_output_tokens': 4,
   'model_costs': [{'inference_service': 'google',
-    'model': 'gemini-2.5-flash',
+    'model': 'gemini-1.5-flash',
     'estimated_cost_usd': 1.575e-06,
     'estimated_input_tokens': 5,
     'estimated_output_tokens': 4}]}

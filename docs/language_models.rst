@@ -230,7 +230,7 @@ For example, the following code creates a `Model` for each of `gpt-4o` and `gemi
 
   ml = ModelList([
     Model("gpt-4o", service_name = "openai"), 
-    Model("gemini-2.5-flash", service_name = "google")
+    Model("gemini-1.5-flash", service_name = "google")
   ])
 
 
@@ -240,7 +240,7 @@ This code is equivalent to the following:
 
   from edsl import Model, ModelList
 
-  ml = ModelList(Model(model) for model in ["gpt-4o", "gemini-2.5-flash"])
+  ml = ModelList(Model(model) for model in ["gpt-4o", "gemini-1.5-flash"])
 
 
 We can also use a special method to pass a list of names instead:
@@ -249,7 +249,7 @@ We can also use a special method to pass a list of names instead:
 
   from edsl import Model, ModelList
 
-  model_names = ['gpt-4o', 'gemini-2.5-flash']
+  model_names = ['gpt-4o', 'gemini-1.5-flash']
 
   ml = ModelList.from_names(model_names)
 
@@ -297,7 +297,7 @@ Output:
      - nan	
      - nan	
      - nan	
-     - gemini-2.5-flash	
+     - gemini-1.5-flash	
      - nan	
      - google
 
@@ -309,13 +309,13 @@ Similar to how we specify :ref:`agents` and :ref:`scenarios` to use with a surve
 We can pass either a single `Model` object or a list of models to the `by()` method. 
 If multiple models are to be used they are passed as a list or as a `ModelList` object.
 
-For example, the following code specifies that a survey will be run with each of `gpt-4o` and `gemini-2.5-flash`:
+For example, the following code specifies that a survey will be run with each of `gpt-4o` and `gemini-1.5-flash`:
 
 .. code-block:: python
 
   from edsl import Model, QuestionFreeText, Survey
 
-  m = [Model("gpt-4o", service_name = "openai"), Model("gemini-2.5-flash", service_name = "google")]
+  m = [Model("gpt-4o", service_name = "openai"), Model("gemini-1.5-flash", service_name = "google")]
 
   q = QuestionFreeText(
     question_name = "example",
@@ -333,7 +333,7 @@ This code uses `ModelList` instead of a list of `Model` objects:
 
   from edsl import Model, ModelList, QuestionFreeText, Survey
 
-  ml = ModelList(Model(model) for model in ["gpt-4o", "gemini-2.5-flash"])
+  ml = ModelList(Model(model) for model in ["gpt-4o", "gemini-1.5-flash"])
 
   q = QuestionFreeText(
     question_name = "example",

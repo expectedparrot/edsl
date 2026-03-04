@@ -130,7 +130,7 @@ Choose whether to use your own API keys for LLMs, or access all <a href="https:/
 ```python
 from edsl import Model, ModelList, QuestionFreeText
 
-ml = ModelList(Model(m) for m in ["gpt-4o", "gemini-2.5-flash"])
+ml = ModelList(Model(m) for m in ["gpt-4o", "gemini-1.5-flash"])
 
 q = QuestionFreeText(
   question_name = "example",
@@ -145,7 +145,7 @@ results.select("model", "example")
 > | model.model        | answer.example                                                                                  |
 > |--------------------|-------------------------------------------------------------------------------------------------|
 > | gpt-4o             | When using large language models (LLMs) to answer surveys, my top tip is to ensure that the ... |
-> | gemini-2.5-flash   | My top tip for using LLMs to answer surveys is to **treat the LLM as a sophisticated brainst... |
+> | gemini-1.5-flash   | My top tip for using LLMs to answer surveys is to **treat the LLM as a sophisticated brainst... |
 
 <br>
 

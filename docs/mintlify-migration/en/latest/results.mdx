@@ -68,7 +68,7 @@ We can specify the language models that we want to use to generate responses:
 from edsl import ModelList, Model
 
 models = ModelList(
-  Model(m) for m in ["gemini-2.5-flash", "gpt-4o"]
+  Model(m) for m in ["gemini-1.5-flash", "gpt-4o"]
 )
 ```
 
@@ -284,13 +284,13 @@ A table with the selected columns will be printed:
 
 | model.model | agent.persona | scenario.topic | answer.read | answer.important |
 | :--- | :--- | :--- | :--- | :--- |
-| gemini-2.5-flash | student | climate change | Yes | 5 |
+| gemini-1.5-flash | student | climate change | Yes | 5 |
 | gpt-4o | student | climate change | Yes | 5 |
-| gemini-2.5-flash | student | house prices | No | 1 |
+| gemini-1.5-flash | student | house prices | No | 1 |
 | gpt-4o | student | house prices | No | 3 |
-| gemini-2.5-flash | celebrity | climate change | Yes | 5 |
+| gemini-1.5-flash | celebrity | climate change | Yes | 5 |
 | gpt-4o | celebrity | climate change | Yes | 5 |
-| gemini-2.5-flash | celebrity | house prices | Yes | 3 |
+| gemini-1.5-flash | celebrity | house prices | Yes | 3 |
 | gpt-4o | celebrity | house prices | No | 3 |
 
 ## Sorting results
@@ -308,10 +308,10 @@ The following table will be printed:
 
 | model.model | agent.persona | scenario.topic | answer.read | answer.important |
 | :--- | :--- | :--- | :--- | :--- |
-| gemini-2.5-flash | celebrity | climate change | Yes | 5 |
-| gemini-2.5-flash | celebrity | house prices | Yes | 3 |
-| gemini-2.5-flash | student | climate change | Yes | 5 |
-| gemini-2.5-flash | student | house prices | No | 1 |
+| gemini-1.5-flash | celebrity | climate change | Yes | 5 |
+| gemini-1.5-flash | celebrity | house prices | Yes | 3 |
+| gemini-1.5-flash | student | climate change | Yes | 5 |
+| gemini-1.5-flash | student | house prices | No | 1 |
 | gpt-4o | celebrity | climate change | Yes | 5 |
 | gpt-4o | celebrity | house prices | No | 3 |
 | gpt-4o | student | climate change | Yes | 5 |
@@ -343,10 +343,10 @@ The following table will be printed:
 | gpt-4o | student | house prices | No | 3 |
 | gpt-4o | celebrity | climate change | Yes | 5 |
 | gpt-4o | celebrity | house prices | No | 3 |
-| gemini-2.5-flash | student | climate change | Yes | 5 |
-| gemini-2.5-flash | student | house prices | No | 1 |
-| gemini-2.5-flash | celebrity | climate change | Yes | 5 |
-| gemini-2.5-flash | celebrity | house prices | Yes | 3 |
+| gemini-1.5-flash | student | climate change | Yes | 5 |
+| gemini-1.5-flash | student | house prices | No | 1 |
+| gemini-1.5-flash | celebrity | climate change | Yes | 5 |
+| gemini-1.5-flash | celebrity | house prices | Yes | 3 |
 
 ## Filtering results
 
@@ -401,9 +401,9 @@ This will return a table of the selected components of the first 4 results:
 
 | model.model | agent.persona | scenario.topic | answer.read | answer.important |
 | :--- | :--- | :--- | :--- | :--- |
-| gemini-2.5-flash | student | climate change | Yes | 5 |
+| gemini-1.5-flash | student | climate change | Yes | 5 |
 | gpt-4o | student | climate change | Yes | 5 |
-| gemini-2.5-flash | student | house prices | No | 1 |
+| gemini-1.5-flash | student | house prices | No | 1 |
 | gpt-4o | student | house prices | No | 3 |
 
 ## Sampling results
@@ -444,14 +444,14 @@ This will return a table of shuffled results:
 
 | model.model | agent.persona | scenario.topic | answer.read | answer.important |
 | :--- | :--- | :--- | :--- | :--- |
-| gemini-2.5-flash | celebrity | climate change | Yes | 5 |
+| gemini-1.5-flash | celebrity | climate change | Yes | 5 |
 | gpt-4o | student | house prices | No | 3 |
-| gemini-2.5-flash | celebrity | house prices | Yes | 3 |
-| gemini-2.5-flash | student | house prices | No | 1 |
+| gemini-1.5-flash | celebrity | house prices | Yes | 3 |
+| gemini-1.5-flash | student | house prices | No | 1 |
 | gpt-4o | celebrity | house prices | No | 3 |
 | gpt-4o | celebrity | climate change | Yes | 5 |
 | gpt-4o | student | climate change | Yes | 5 |
-| gemini-2.5-flash | student | climate change | Yes | 5 |
+| gemini-1.5-flash | student | climate change | Yes | 5 |
 
 ## Adding results
 
@@ -482,7 +482,7 @@ For example:
 ```python
 from edsl import QuestionDict, Model
 
- m = Model("gemini-2.5-flash")
+ m = Model("gemini-1.5-flash")
 
  q = QuestionDict(
    question_name = "recipe",
@@ -499,7 +499,7 @@ This will return a table of the flattened results:
 
 | model.model | answer.recipe | answer.recipe.title | answer.recipe.ingredients | answer.recipe.instructions |
 | :--- | :--- | :--- | :--- | :--- |
-| gemini-2.5-flash | \{‘title’: ‘Simple Hot Chocolate’, ‘ingredients’: [‘1 cup milk (dairy or non-dairy)’, ‘1 tablespoon unsweetened cocoa powder’, ‘1-2 tablespoons sugar (or to taste)’, ‘Pinch of salt’], ‘instructions’: [‘Combine milk, cocoa powder, sugar, and salt in a small saucepan.’, ‘Heat over medium heat, stirring constantly, until the mixture is smooth and heated through.’, ‘Do not boil.’, ‘Pour into a mug and enjoy!’]} | Simple Hot Chocolate | [‘1 cup milk (dairy or non-dairy)’, ‘1 tablespoon unsweetened cocoa powder’, ‘1-2 tablespoons sugar (or to taste)’, ‘Pinch of salt’] | [‘Combine milk, cocoa powder, sugar, and salt in a small saucepan.’, ‘Heat over medium heat, stirring constantly, until the mixture is smooth and heated through.’, ‘Do not boil.’, ‘Pour into a mug and enjoy!’] |
+| gemini-1.5-flash | \{‘title’: ‘Simple Hot Chocolate’, ‘ingredients’: [‘1 cup milk (dairy or non-dairy)’, ‘1 tablespoon unsweetened cocoa powder’, ‘1-2 tablespoons sugar (or to taste)’, ‘Pinch of salt’], ‘instructions’: [‘Combine milk, cocoa powder, sugar, and salt in a small saucepan.’, ‘Heat over medium heat, stirring constantly, until the mixture is smooth and heated through.’, ‘Do not boil.’, ‘Pour into a mug and enjoy!’]} | Simple Hot Chocolate | [‘1 cup milk (dairy or non-dairy)’, ‘1 tablespoon unsweetened cocoa powder’, ‘1-2 tablespoons sugar (or to taste)’, ‘Pinch of salt’] | [‘Combine milk, cocoa powder, sugar, and salt in a small saucepan.’, ‘Heat over medium heat, stirring constantly, until the mixture is smooth and heated through.’, ‘Do not boil.’, ‘Pour into a mug and enjoy!’] |
 
 ## Retrieving results
 
@@ -591,7 +591,7 @@ For example, the following code will generate a report of the first 4 results:
 ```python
 from edsl import QuestionFreeText, ScenarioList, Model
 
-m = Model("gemini-2.5-flash")
+m = Model("gemini-1.5-flash")
 
 s = ScenarioList.from_list("language", ["German", "Dutch", "French", "English"])
 
@@ -611,7 +611,7 @@ This will return a report of the first 2 results:
 Observation: 1
 
 model.model
-gemini-2.5-flash
+gemini-1.5-flash
 
 answer.poem
 Der Schnee fällt leis', ein weicher Flor, Die Welt in Weiß, ein Zauberchor. Die Bäume stehn, in Stille gehüllt, Der Winterwind, sein Lied erfüllt.
@@ -623,7 +623,7 @@ German
 
 Observation: 2
 model.model
-gemini-2.5-flash
+gemini-1.5-flash
 
 answer.poem
 De winter komt, de dagen kort, De sneeuw valt zacht, een wit decor. De bomen staan, kaal en stil, Een ijzige wind, een koude tril.
@@ -633,7 +633,7 @@ De winter komt, de dagen kort, De sneeuw valt zacht, een wit decor. De bomen sta
 scenario.language
 Dutch
 
-"# Observation: 1n## model.modelngemini-2.5-flashn## answer.poemnDer Schnee fällt leis', ein weicher Flor,nDie Welt in Weiß, ein Zauberchor.nDie Bäume stehn, in Stille gehüllt,nDer Winterwind, sein Lied erfüllt.nn(Translation: The snow falls softly, a gentle veil, / The world in white, a magic choir. / The trees stand, wrapped in silence, / The winter wind, its song fulfilled.)n## scenario.languagenGermannn---nn# Observation: 2n## model.modelngemini-2.5-flashn## answer.poemnDe winter komt, de dagen kort,nDe sneeuw valt zacht, een wit decor.nDe bomen staan, kaal en stil,nEen ijzige wind, een koude tril.nn(Translation: Winter comes, the days are short, / The snow falls softly, a white décor. / The trees stand, bare and still, / An icy wind, a cold shiver.)n## scenario.languagenDutchn"
+"# Observation: 1n## model.modelngemini-1.5-flashn## answer.poemnDer Schnee fällt leis', ein weicher Flor,nDie Welt in Weiß, ein Zauberchor.nDie Bäume stehn, in Stille gehüllt,nDer Winterwind, sein Lied erfüllt.nn(Translation: The snow falls softly, a gentle veil, / The world in white, a magic choir. / The trees stand, wrapped in silence, / The winter wind, its song fulfilled.)n## scenario.languagenGermannn---nn# Observation: 2n## model.modelngemini-1.5-flashn## answer.poemnDe winter komt, de dagen kort,nDe sneeuw valt zacht, een wit decor.nDe bomen staan, kaal en stil,nEen ijzige wind, een koude tril.nn(Translation: Winter comes, the days are short, / The snow falls softly, a white décor. / The trees stand, bare and still, / An icy wind, a cold shiver.)n## scenario.languagenDutchn"
 ```
 
 ## Accessing results with SQL
@@ -650,9 +650,9 @@ This following table will be displayed
 
 | model | persona | read | important |
 | :--- | :--- | :--- | :--- |
-| gemini-2.5-flash | student | Yes | 5 |
+| gemini-1.5-flash | student | Yes | 5 |
 | gpt-4o | student | Yes | 5 |
-| gemini-2.5-flash | student | No | 1 |
+| gemini-1.5-flash | student | No | 1 |
 | gpt-4o | student | No | 3 |
 
 ## Dataframes

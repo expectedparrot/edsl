@@ -139,7 +139,7 @@ Next we select a model to generate the responses ([check available models and pr
 ```python
 from edsl import Model
 
-m = Model("gemini-2.5-flash")
+m = Model("gemini-1.5-flash")
 ```
 
 We can inspect (or modify) the default parameters of the model that will be used:
@@ -149,12 +149,12 @@ m
 ```
 
 ```python
-gemini-2.5-flash
+gemini-1.5-flash
 ```
 
 |  | key | value |
 | :--- | :--- | :--- |
-| 0 | model | gemini-2.5-flash |
+| 0 | model | gemini-1.5-flash |
 | 1 | parameters:temperature | 0.500000 |
 | 2 | parameters:topP | 1 |
 | 3 | parameters:topK | 1 |
@@ -260,24 +260,24 @@ We can select and inspect any components of the results. We can see by a “None
 
 |  | model.model | agent.annual_income | agent.age | scenario.item | answer.recent_purchase | answer.amount | answer.next_purchase |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| 0 | gemini-2.5-flash | $100,000-250,000 | 30 | electronics | Yes | 2500.000000 | Within the next year |
-| 1 | gemini-2.5-flash | $100,000-250,000 | 30 | phones | Yes | 1200.000000 | Within the next year |
-| 2 | gemini-2.5-flash | $100,000-250,000 | 50 | electronics | Yes | 2500.000000 | Within the next year |
-| 3 | gemini-2.5-flash | $100,000-250,000 | 50 | phones | Yes | 1200.000000 | Within the next year |
-| 4 | gemini-2.5-flash | $100,000-250,000 | 70 | electronics | Yes | 500.000000 | Within the next year |
-| 5 | gemini-2.5-flash | $100,000-250,000 | 70 | phones | No | nan | Within the next year |
-| 6 | gemini-2.5-flash | above $250,000 | 30 | electronics | Yes | 5000.000000 | Within the next year |
-| 7 | gemini-2.5-flash | above $250,000 | 30 | phones | Yes | 0.000000 | Within the next year |
-| 8 | gemini-2.5-flash | above $250,000 | 50 | electronics | Yes | 5000.000000 | Within the next year |
-| 9 | gemini-2.5-flash | above $250,000 | 50 | phones | Yes | 0.000000 | Within the next year |
-| 10 | gemini-2.5-flash | above $250,000 | 70 | electronics | Yes | 5000.000000 | Within the next year |
-| 11 | gemini-2.5-flash | above $250,000 | 70 | phones | No | nan | Never |
-| 12 | gemini-2.5-flash | under $100,000 | 30 | electronics | Yes | 250.000000 | Within the next year |
-| 13 | gemini-2.5-flash | under $100,000 | 30 | phones | No | nan | Within the next year |
-| 14 | gemini-2.5-flash | under $100,000 | 50 | electronics | No | nan | Within the next year |
-| 15 | gemini-2.5-flash | under $100,000 | 50 | phones | No | nan | Within the next year |
-| 16 | gemini-2.5-flash | under $100,000 | 70 | electronics | No | nan | Within the next year |
-| 17 | gemini-2.5-flash | under $100,000 | 70 | phones | No | nan | Never |
+| 0 | gemini-1.5-flash | $100,000-250,000 | 30 | electronics | Yes | 2500.000000 | Within the next year |
+| 1 | gemini-1.5-flash | $100,000-250,000 | 30 | phones | Yes | 1200.000000 | Within the next year |
+| 2 | gemini-1.5-flash | $100,000-250,000 | 50 | electronics | Yes | 2500.000000 | Within the next year |
+| 3 | gemini-1.5-flash | $100,000-250,000 | 50 | phones | Yes | 1200.000000 | Within the next year |
+| 4 | gemini-1.5-flash | $100,000-250,000 | 70 | electronics | Yes | 500.000000 | Within the next year |
+| 5 | gemini-1.5-flash | $100,000-250,000 | 70 | phones | No | nan | Within the next year |
+| 6 | gemini-1.5-flash | above $250,000 | 30 | electronics | Yes | 5000.000000 | Within the next year |
+| 7 | gemini-1.5-flash | above $250,000 | 30 | phones | Yes | 0.000000 | Within the next year |
+| 8 | gemini-1.5-flash | above $250,000 | 50 | electronics | Yes | 5000.000000 | Within the next year |
+| 9 | gemini-1.5-flash | above $250,000 | 50 | phones | Yes | 0.000000 | Within the next year |
+| 10 | gemini-1.5-flash | above $250,000 | 70 | electronics | Yes | 5000.000000 | Within the next year |
+| 11 | gemini-1.5-flash | above $250,000 | 70 | phones | No | nan | Never |
+| 12 | gemini-1.5-flash | under $100,000 | 30 | electronics | Yes | 250.000000 | Within the next year |
+| 13 | gemini-1.5-flash | under $100,000 | 30 | phones | No | nan | Within the next year |
+| 14 | gemini-1.5-flash | under $100,000 | 50 | electronics | No | nan | Within the next year |
+| 15 | gemini-1.5-flash | under $100,000 | 50 | phones | No | nan | Within the next year |
+| 16 | gemini-1.5-flash | under $100,000 | 70 | electronics | No | nan | Within the next year |
+| 17 | gemini-1.5-flash | under $100,000 | 70 | phones | No | nan | Never |
 
 ## Example 2
 
@@ -367,15 +367,15 @@ There is no “scenario” field in results because the scenarios were already a
 
 |  | model.model | agent.annual_income | agent.age | answer.recent_purchase_electronics | answer.amount_electronics | answer.next_purchase_electronics | answer.recent_purchase_phones | answer.amount_phones | answer.next_purchase_phones |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| 0 | gemini-2.5-flash | $100,000-250,000 | 30 | Yes | 2500 | Within the next year | Yes | 1200.000000 | Within the next year |
-| 1 | gemini-2.5-flash | $100,000-250,000 | 50 | Yes | 2500 | Within the next year | Yes | 1200.000000 | Within the next year |
-| 2 | gemini-2.5-flash | $100,000-250,000 | 70 | Yes | 500 | Within the next year | No | 0.000000 | Within the next year |
-| 3 | gemini-2.5-flash | above $250,000 | 30 | Yes | 5000 | Within the next year | Yes | 0.000000 | Within the next year |
-| 4 | gemini-2.5-flash | above $250,000 | 50 | Yes | 5000 | Within the next year | Yes | 0.000000 | Within the next year |
-| 5 | gemini-2.5-flash | above $250,000 | 70 | Yes | 5000 | Within the next year | No | 0.000000 | Never |
-| 6 | gemini-2.5-flash | under $100,000 | 30 | Yes | 250 | Within the next year | No | 300.000000 | Within the next year |
-| 7 | gemini-2.5-flash | under $100,000 | 50 | No | 250 | Within the next year | nan | nan | nan |
-| 8 | gemini-2.5-flash | under $100,000 | 70 | No | 0 | Within the next year | nan | nan | nan |
+| 0 | gemini-1.5-flash | $100,000-250,000 | 30 | Yes | 2500 | Within the next year | Yes | 1200.000000 | Within the next year |
+| 1 | gemini-1.5-flash | $100,000-250,000 | 50 | Yes | 2500 | Within the next year | Yes | 1200.000000 | Within the next year |
+| 2 | gemini-1.5-flash | $100,000-250,000 | 70 | Yes | 500 | Within the next year | No | 0.000000 | Within the next year |
+| 3 | gemini-1.5-flash | above $250,000 | 30 | Yes | 5000 | Within the next year | Yes | 0.000000 | Within the next year |
+| 4 | gemini-1.5-flash | above $250,000 | 50 | Yes | 5000 | Within the next year | Yes | 0.000000 | Within the next year |
+| 5 | gemini-1.5-flash | above $250,000 | 70 | Yes | 5000 | Within the next year | No | 0.000000 | Never |
+| 6 | gemini-1.5-flash | under $100,000 | 30 | Yes | 250 | Within the next year | No | 300.000000 | Within the next year |
+| 7 | gemini-1.5-flash | under $100,000 | 50 | No | 250 | Within the next year | nan | nan | nan |
+| 8 | gemini-1.5-flash | under $100,000 | 70 | No | 0 | Within the next year | nan | nan | nan |
 
 ## Posting to the Coop
 

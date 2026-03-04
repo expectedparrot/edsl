@@ -12,7 +12,7 @@ from edsl import Model, ModelList, ScenarioList, QuestionFreeText, QuestionLinea
 ```python
 m = ModelList([
     Model("claude-3-7-sonnet-20250219", service_name = "anthropic"),
-    Model("gemini-2.5-flash", service_name = "google"),
+    Model("gemini-1.5-flash", service_name = "google"),
     Model("gpt-4o", service_name = "openai")
 ])
 ```
@@ -57,10 +57,10 @@ results.select("model", "topic", "haiku", "originality")
 |  | model.model | scenario.topic | answer.haiku | answer.originality |
 | :--- | :--- | :--- | :--- | :--- |
 | 0 | claude-3-7-sonnet-20250219 | winter | Snowflakes drift downward Blanket of white hides the earth Silence embraces | 2 |
-| 1 | gemini-2.5-flash | winter | White breath in the air, Frozen ground crunches below, Silence blankets all. | 2 |
+| 1 | gemini-1.5-flash | winter | White breath in the air, Frozen ground crunches below, Silence blankets all. | 2 |
 | 2 | gpt-4o | winter | Snow blankets the earth, Silent whispers fill the air, Cold breath of winter. | 2 |
 | 3 | claude-3-7-sonnet-20250219 | language models | Words dance in code, Patterns weave through silicon— Echoes of our thoughts. | 4 |
-| 4 | gemini-2.5-flash | language models | Data flows like streams, Words bloom, a digital flower, Meaning takes its form. | 2 |
+| 4 | gemini-1.5-flash | language models | Data flows like streams, Words bloom, a digital flower, Meaning takes its form. | 2 |
 | 5 | gpt-4o | language models | Words dance in silence, Patterns weave through vast data— Machines learn to speak. | 4 |
 
 ## Next we prompt each model to rate every haiku
@@ -86,10 +86,10 @@ haikus
 |  | drafting_model | topic | haiku |
 | :--- | :--- | :--- | :--- |
 | 0 | claude-3-7-sonnet-20250219 | winter | Snowflakes drift downward Blanket of white hides the earth Silence embraces |
-| 1 | gemini-2.5-flash | winter | White breath in the air, Frozen ground crunches below, Silence blankets all. |
+| 1 | gemini-1.5-flash | winter | White breath in the air, Frozen ground crunches below, Silence blankets all. |
 | 2 | gpt-4o | winter | Snow blankets the earth, Silent whispers fill the air, Cold breath of winter. |
 | 3 | claude-3-7-sonnet-20250219 | language models | Words dance in code, Patterns weave through silicon— Echoes of our thoughts. |
-| 4 | gemini-2.5-flash | language models | Data flows like streams, Words bloom, a digital flower, Meaning takes its form. |
+| 4 | gemini-1.5-flash | language models | Data flows like streams, Words bloom, a digital flower, Meaning takes its form. |
 | 5 | gpt-4o | language models | Words dance in silence, Patterns weave through vast data— Machines learn to speak. |
 
 ```python
@@ -107,22 +107,22 @@ new_results = new_q.by(haikus).by(m).run()
 |  | model.model | scenario.drafting_model | scenario.topic | scenario.haiku | answer.originality |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | 0 | claude-3-7-sonnet-20250219 | claude-3-7-sonnet-20250219 | language models | Words dance in code, Patterns weave through silicon— Echoes of our thoughts. | 4 |
-| 1 | gemini-2.5-flash | claude-3-7-sonnet-20250219 | language models | Words dance in code, Patterns weave through silicon— Echoes of our thoughts. | 3 |
+| 1 | gemini-1.5-flash | claude-3-7-sonnet-20250219 | language models | Words dance in code, Patterns weave through silicon— Echoes of our thoughts. | 3 |
 | 2 | gpt-4o | claude-3-7-sonnet-20250219 | language models | Words dance in code, Patterns weave through silicon— Echoes of our thoughts. | 4 |
-| 3 | claude-3-7-sonnet-20250219 | gemini-2.5-flash | language models | Data flows like streams, Words bloom, a digital flower, Meaning takes its form. | 3 |
-| 4 | gemini-2.5-flash | gemini-2.5-flash | language models | Data flows like streams, Words bloom, a digital flower, Meaning takes its form. | 2 |
-| 5 | gpt-4o | gemini-2.5-flash | language models | Data flows like streams, Words bloom, a digital flower, Meaning takes its form. | 3 |
+| 3 | claude-3-7-sonnet-20250219 | gemini-1.5-flash | language models | Data flows like streams, Words bloom, a digital flower, Meaning takes its form. | 3 |
+| 4 | gemini-1.5-flash | gemini-1.5-flash | language models | Data flows like streams, Words bloom, a digital flower, Meaning takes its form. | 2 |
+| 5 | gpt-4o | gemini-1.5-flash | language models | Data flows like streams, Words bloom, a digital flower, Meaning takes its form. | 3 |
 | 6 | claude-3-7-sonnet-20250219 | gpt-4o | language models | Words dance in silence, Patterns weave through vast data— Machines learn to speak. | 4 |
-| 7 | gemini-2.5-flash | gpt-4o | language models | Words dance in silence, Patterns weave through vast data— Machines learn to speak. | 3 |
+| 7 | gemini-1.5-flash | gpt-4o | language models | Words dance in silence, Patterns weave through vast data— Machines learn to speak. | 3 |
 | 8 | gpt-4o | gpt-4o | language models | Words dance in silence, Patterns weave through vast data— Machines learn to speak. | 4 |
 | 9 | claude-3-7-sonnet-20250219 | claude-3-7-sonnet-20250219 | winter | Snowflakes drift downward Blanket of white hides the earth Silence embraces | 2 |
-| 10 | gemini-2.5-flash | claude-3-7-sonnet-20250219 | winter | Snowflakes drift downward Blanket of white hides the earth Silence embraces | 2 |
+| 10 | gemini-1.5-flash | claude-3-7-sonnet-20250219 | winter | Snowflakes drift downward Blanket of white hides the earth Silence embraces | 2 |
 | 11 | gpt-4o | claude-3-7-sonnet-20250219 | winter | Snowflakes drift downward Blanket of white hides the earth Silence embraces | 2 |
-| 12 | claude-3-7-sonnet-20250219 | gemini-2.5-flash | winter | White breath in the air, Frozen ground crunches below, Silence blankets all. | 3 |
-| 13 | gemini-2.5-flash | gemini-2.5-flash | winter | White breath in the air, Frozen ground crunches below, Silence blankets all. | 2 |
-| 14 | gpt-4o | gemini-2.5-flash | winter | White breath in the air, Frozen ground crunches below, Silence blankets all. | 2 |
+| 12 | claude-3-7-sonnet-20250219 | gemini-1.5-flash | winter | White breath in the air, Frozen ground crunches below, Silence blankets all. | 3 |
+| 13 | gemini-1.5-flash | gemini-1.5-flash | winter | White breath in the air, Frozen ground crunches below, Silence blankets all. | 2 |
+| 14 | gpt-4o | gemini-1.5-flash | winter | White breath in the air, Frozen ground crunches below, Silence blankets all. | 2 |
 | 15 | claude-3-7-sonnet-20250219 | gpt-4o | winter | Snow blankets the earth, Silent whispers fill the air, Cold breath of winter. | 2 |
-| 16 | gemini-2.5-flash | gpt-4o | winter | Snow blankets the earth, Silent whispers fill the air, Cold breath of winter. | 2 |
+| 16 | gemini-1.5-flash | gpt-4o | winter | Snow blankets the earth, Silent whispers fill the air, Cold breath of winter. | 2 |
 | 17 | gpt-4o | gpt-4o | winter | Snow blankets the earth, Silent whispers fill the air, Cold breath of winter. | 2 |
 
 ## Posting this notebook to Coop

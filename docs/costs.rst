@@ -40,7 +40,7 @@ For example:
     survey = Survey(questions = [q])
     models = ModelList([
         Model("gpt-4o", service_name = "openai"),
-        Model("gemini-2.5-flash", service_name = "google")
+        Model("gemini-1.5-flash", service_name = "google")
     ])
 
     job = survey.by(models)
@@ -71,14 +71,14 @@ This will return:
     'cost_usd': 0.00051,
     'credits_hold': 0.06},
     {'inference_service': 'google',
-    'model': 'gemini-2.5-flash',
+    'model': 'gemini-1.5-flash',
     'token_type': 'input',
     'price_per_million_tokens': 0.075,
     'tokens': 67,
     'cost_usd': 5.025e-06,
     'credits_hold': 0.01},
     {'inference_service': 'google',
-    'model': 'gemini-2.5-flash',
+    'model': 'gemini-1.5-flash',
     'token_type': 'output',
     'price_per_million_tokens': 0.3,
     'tokens': 51,
@@ -174,17 +174,17 @@ Output:
     - raw_model_response.read_output_tokens
     - raw_model_response.important_input_tokens
     - raw_model_response.important_cost
-  * - gemini-2.5-flash
+  * - gemini-1.5-flash
     - Have you read any books about {{ scenario.topic }}?
     - On a scale from 1 to 5, how important to you is {{ scenario.topic }}?
     - 0.075000
     - 53
     - 0.300000
     - 42872.461058
-    - {'candidates': [{'content': {'parts': [{'text': "5\n\nIt's, like, a huge deal!  The future of the planet is at stake, and that affects everything -  from the environment to the economy to, you know, my future.  It's definitely something I worry about.\n"}], 'role': 'model'}, 'finish_reason': 1, 'safety_ratings': [{'category': 8, 'probability': 1, 'blocked': False}, {'category': 10, 'probability': 1, 'blocked': False}, {'category': 7, 'probability': 1, 'blocked': False}, {'category': 9, 'probability': 1, 'blocked': False}], 'avg_logprobs': -0.2145003372768186, 'token_count': 0, 'grounding_attributions': []}], 'usage_metadata': {'prompt_token_count': 128, 'candidates_token_count': 53, 'total_token_count': 181, 'cached_content_token_count': 0}, 'model_version': 'gemini-2.5-flash'}
+    - {'candidates': [{'content': {'parts': [{'text': "5\n\nIt's, like, a huge deal!  The future of the planet is at stake, and that affects everything -  from the environment to the economy to, you know, my future.  It's definitely something I worry about.\n"}], 'role': 'model'}, 'finish_reason': 1, 'safety_ratings': [{'category': 8, 'probability': 1, 'blocked': False}, {'category': 10, 'probability': 1, 'blocked': False}, {'category': 7, 'probability': 1, 'blocked': False}, {'category': 9, 'probability': 1, 'blocked': False}], 'avg_logprobs': -0.2145003372768186, 'token_count': 0, 'grounding_attributions': []}], 'usage_metadata': {'prompt_token_count': 128, 'candidates_token_count': 53, 'total_token_count': 181, 'cached_content_token_count': 0}, 'model_version': 'gemini-1.5-flash'}
     - 0.075000
     - 95
-    - {'candidates': [{'content': {'parts': [{'text': "Yes\n\nI've read a few articles and some chapters from textbooks for my environmental science classes, which covered climate change extensively.  It's not quite the same as reading a whole book dedicated to the topic, but I've definitely learned about it.\n"}], 'role': 'model'}, 'finish_reason': 1, 'safety_ratings': [{'category': 8, 'probability': 1, 'blocked': False}, {'category': 10, 'probability': 1, 'blocked': False}, {'category': 7, 'probability': 1, 'blocked': False}, {'category': 9, 'probability': 1, 'blocked': False}], 'avg_logprobs': -0.15844399840743453, 'token_count': 0, 'grounding_attributions': []}], 'usage_metadata': {'prompt_token_count': 95, 'candidates_token_count': 54, 'total_token_count': 149, 'cached_content_token_count': 0}, 'model_version': 'gemini-2.5-flash'}
+    - {'candidates': [{'content': {'parts': [{'text': "Yes\n\nI've read a few articles and some chapters from textbooks for my environmental science classes, which covered climate change extensively.  It's not quite the same as reading a whole book dedicated to the topic, but I've definitely learned about it.\n"}], 'role': 'model'}, 'finish_reason': 1, 'safety_ratings': [{'category': 8, 'probability': 1, 'blocked': False}, {'category': 10, 'probability': 1, 'blocked': False}, {'category': 7, 'probability': 1, 'blocked': False}, {'category': 9, 'probability': 1, 'blocked': False}], 'avg_logprobs': -0.15844399840743453, 'token_count': 0, 'grounding_attributions': []}], 'usage_metadata': {'prompt_token_count': 95, 'candidates_token_count': 54, 'total_token_count': 149, 'cached_content_token_count': 0}, 'model_version': 'gemini-1.5-flash'}
     - 39215.691903
     - 0.300000
     - 0.000023
@@ -208,17 +208,17 @@ Output:
     - 34
     - 131
     - 0.000647
-  * - gemini-2.5-flash
+  * - gemini-1.5-flash
     - Have you read any books about {{ scenario.topic }}?
     - On a scale from 1 to 5, how important to you is {{ scenario.topic }}?
     - 0.075000
     - 48
     - 0.300000
     - 52287.589235
-    - {'candidates': [{'content': {'parts': [{'text': "1\n\nHouse prices are something I think about, but it's not something that's keeping me up at night.  It's more of a long-term consideration than something I'm actively focused on right now.\n"}], 'role': 'model'}, 'finish_reason': 1, 'safety_ratings': [{'category': 8, 'probability': 1, 'blocked': False}, {'category': 10, 'probability': 1, 'blocked': False}, {'category': 7, 'probability': 1, 'blocked': False}, {'category': 9, 'probability': 1, 'blocked': False}], 'avg_logprobs': -0.22673827409744263, 'token_count': 0, 'grounding_attributions': []}], 'usage_metadata': {'prompt_token_count': 128, 'candidates_token_count': 48, 'total_token_count': 176, 'cached_content_token_count': 0}, 'model_version': 'gemini-2.5-flash'}
+    - {'candidates': [{'content': {'parts': [{'text': "1\n\nHouse prices are something I think about, but it's not something that's keeping me up at night.  It's more of a long-term consideration than something I'm actively focused on right now.\n"}], 'role': 'model'}, 'finish_reason': 1, 'safety_ratings': [{'category': 8, 'probability': 1, 'blocked': False}, {'category': 10, 'probability': 1, 'blocked': False}, {'category': 7, 'probability': 1, 'blocked': False}, {'category': 9, 'probability': 1, 'blocked': False}], 'avg_logprobs': -0.22673827409744263, 'token_count': 0, 'grounding_attributions': []}], 'usage_metadata': {'prompt_token_count': 128, 'candidates_token_count': 48, 'total_token_count': 176, 'cached_content_token_count': 0}, 'model_version': 'gemini-1.5-flash'}
     - 0.075000
     - 95
-    - {'candidates': [{'content': {'parts': [{'text': "No\n\nI'm a student, so I haven't had much time to read books outside of my coursework.  House prices aren't really something I've focused on yet.\n"}], 'role': 'model'}, 'finish_reason': 1, 'safety_ratings': [{'category': 8, 'probability': 1, 'blocked': False}, {'category': 10, 'probability': 1, 'blocked': False}, {'category': 7, 'probability': 1, 'blocked': False}, {'category': 9, 'probability': 1, 'blocked': False}], 'avg_logprobs': -0.12296264171600342, 'token_count': 0, 'grounding_attributions': []}], 'usage_metadata': {'prompt_token_count': 95, 'candidates_token_count': 40, 'total_token_count': 135, 'cached_content_token_count': 0}, 'model_version': 'gemini-2.5-flash'}
+    - {'candidates': [{'content': {'parts': [{'text': "No\n\nI'm a student, so I haven't had much time to read books outside of my coursework.  House prices aren't really something I've focused on yet.\n"}], 'role': 'model'}, 'finish_reason': 1, 'safety_ratings': [{'category': 8, 'probability': 1, 'blocked': False}, {'category': 10, 'probability': 1, 'blocked': False}, {'category': 7, 'probability': 1, 'blocked': False}, {'category': 9, 'probability': 1, 'blocked': False}], 'avg_logprobs': -0.12296264171600342, 'token_count': 0, 'grounding_attributions': []}], 'usage_metadata': {'prompt_token_count': 95, 'candidates_token_count': 40, 'total_token_count': 135, 'cached_content_token_count': 0}, 'model_version': 'gemini-1.5-flash'}
     - 41666.672500
     - 0.300000
     - 0.000019
@@ -242,17 +242,17 @@ Output:
     - 23
     - 131
     - 0.000647
-  * - gemini-2.5-flash
+  * - gemini-1.5-flash
     - Have you read any books about {{ scenario.topic }}?
     - On a scale from 1 to 5, how important to you is {{ scenario.topic }}?
     - 0.075000
     - 55
     - 0.300000
     - 29304.034247
-    - {'candidates': [{'content': {'parts': [{'text': "5\n\nIt's absolutely crucial.  As someone with a global platform, I see firsthand the devastating effects of climate change – from extreme weather events impacting communities to the threats to biodiversity.  We need urgent action, and I'm committed to doing my part.\n"}], 'role': 'model'}, 'finish_reason': 1, 'safety_ratings': [{'category': 8, 'probability': 1, 'blocked': False}, {'category': 10, 'probability': 1, 'blocked': False}, {'category': 7, 'probability': 1, 'blocked': False}, {'category': 9, 'probability': 1, 'blocked': False}], 'avg_logprobs': -0.25197906494140626, 'token_count': 0, 'grounding_attributions': []}], 'usage_metadata': {'prompt_token_count': 128, 'candidates_token_count': 55, 'total_token_count': 183, 'cached_content_token_count': 0}, 'model_version': 'gemini-2.5-flash'}
+    - {'candidates': [{'content': {'parts': [{'text': "5\n\nIt's absolutely crucial.  As someone with a global platform, I see firsthand the devastating effects of climate change – from extreme weather events impacting communities to the threats to biodiversity.  We need urgent action, and I'm committed to doing my part.\n"}], 'role': 'model'}, 'finish_reason': 1, 'safety_ratings': [{'category': 8, 'probability': 1, 'blocked': False}, {'category': 10, 'probability': 1, 'blocked': False}, {'category': 7, 'probability': 1, 'blocked': False}, {'category': 9, 'probability': 1, 'blocked': False}], 'avg_logprobs': -0.25197906494140626, 'token_count': 0, 'grounding_attributions': []}], 'usage_metadata': {'prompt_token_count': 128, 'candidates_token_count': 55, 'total_token_count': 183, 'cached_content_token_count': 0}, 'model_version': 'gemini-1.5-flash'}
     - 0.075000
     - 95
-    - {'candidates': [{'content': {'parts': [{'text': "Yes\n\nOh honey,  I've read *so many* books about climate change.  It's a topic I'm incredibly passionate about, and I try to stay informed.  Between interviews and red carpets, I always have a stack of books on my nightstand, and lately, a lot of them have been focused on environmental issues.  It's crucial to be aware of what's happening to our planet.\n"}], 'role': 'model'}, 'finish_reason': 1, 'safety_ratings': [{'category': 8, 'probability': 1, 'blocked': False}, {'category': 10, 'probability': 1, 'blocked': False}, {'category': 7, 'probability': 1, 'blocked': False}, {'category': 9, 'probability': 1, 'blocked': False}], 'avg_logprobs': -0.29773031870524086, 'token_count': 0, 'grounding_attributions': []}], 'usage_metadata': {'prompt_token_count': 95, 'candidates_token_count': 90, 'total_token_count': 185, 'cached_content_token_count': 0}, 'model_version': 'gemini-2.5-flash'}
+    - {'candidates': [{'content': {'parts': [{'text': "Yes\n\nOh honey,  I've read *so many* books about climate change.  It's a topic I'm incredibly passionate about, and I try to stay informed.  Between interviews and red carpets, I always have a stack of books on my nightstand, and lately, a lot of them have been focused on environmental issues.  It's crucial to be aware of what's happening to our planet.\n"}], 'role': 'model'}, 'finish_reason': 1, 'safety_ratings': [{'category': 8, 'probability': 1, 'blocked': False}, {'category': 10, 'probability': 1, 'blocked': False}, {'category': 7, 'probability': 1, 'blocked': False}, {'category': 9, 'probability': 1, 'blocked': False}], 'avg_logprobs': -0.29773031870524086, 'token_count': 0, 'grounding_attributions': []}], 'usage_metadata': {'prompt_token_count': 95, 'candidates_token_count': 90, 'total_token_count': 185, 'cached_content_token_count': 0}, 'model_version': 'gemini-1.5-flash'}
     - 38314.181794
     - 0.300000
     - 0.000034
@@ -276,17 +276,17 @@ Output:
     - 42
     - 133
     - 0.000723
-  * - gemini-2.5-flash
+  * - gemini-1.5-flash
     - Have you read any books about {{ scenario.topic }}?
     - On a scale from 1 to 5, how important to you is {{ scenario.topic }}?
     - 0.075000
     - 59
     - 0.300000
     - 35180.304746
-    - {'candidates': [{'content': {'parts': [{'text': "3\n\nHonestly, it's something I think about, but it's not my biggest concern.  I mean, a nice place to live is great, but my career and family take precedence.  Plus, I have people who handle that kind of thing for me, thankfully!\n"}], 'role': 'model'}, 'finish_reason': 1, 'safety_ratings': [{'category': 8, 'probability': 1, 'blocked': False}, {'category': 10, 'probability': 1, 'blocked': False}, {'category': 7, 'probability': 1, 'blocked': False}, {'category': 9, 'probability': 1, 'blocked': False}], 'avg_logprobs': -0.2841725430246127, 'token_count': 0, 'grounding_attributions': []}], 'usage_metadata': {'prompt_token_count': 128, 'candidates_token_count': 59, 'total_token_count': 187, 'cached_content_token_count': 0}, 'model_version': 'gemini-2.5-flash'}
+    - {'candidates': [{'content': {'parts': [{'text': "3\n\nHonestly, it's something I think about, but it's not my biggest concern.  I mean, a nice place to live is great, but my career and family take precedence.  Plus, I have people who handle that kind of thing for me, thankfully!\n"}], 'role': 'model'}, 'finish_reason': 1, 'safety_ratings': [{'category': 8, 'probability': 1, 'blocked': False}, {'category': 10, 'probability': 1, 'blocked': False}, {'category': 7, 'probability': 1, 'blocked': False}, {'category': 9, 'probability': 1, 'blocked': False}], 'avg_logprobs': -0.2841725430246127, 'token_count': 0, 'grounding_attributions': []}], 'usage_metadata': {'prompt_token_count': 128, 'candidates_token_count': 59, 'total_token_count': 187, 'cached_content_token_count': 0}, 'model_version': 'gemini-1.5-flash'}
     - 0.075000
     - 95
-    - {'candidates': [{'content': {'parts': [{'text': "Yes\n\nI mean, honestly, who *hasn't* been obsessed with the housing market lately?  It's practically a national pastime at this point!  I've skimmed a few, mostly for research for a role, but let's be real, the real estate market is its own kind of wild, unpredictable drama.\n"}], 'role': 'model'}, 'finish_reason': 1, 'safety_ratings': [{'category': 8, 'probability': 1, 'blocked': False}, {'category': 10, 'probability': 1, 'blocked': False}, {'category': 7, 'probability': 1, 'blocked': False}, {'category': 9, 'probability': 1, 'blocked': False}], 'avg_logprobs': -0.33602206807740975, 'token_count': 0, 'grounding_attributions': []}], 'usage_metadata': {'prompt_token_count': 95, 'candidates_token_count': 71, 'total_token_count': 166, 'cached_content_token_count': 0}, 'model_version': 'gemini-2.5-flash'}
+    - {'candidates': [{'content': {'parts': [{'text': "Yes\n\nI mean, honestly, who *hasn't* been obsessed with the housing market lately?  It's practically a national pastime at this point!  I've skimmed a few, mostly for research for a role, but let's be real, the real estate market is its own kind of wild, unpredictable drama.\n"}], 'role': 'model'}, 'finish_reason': 1, 'safety_ratings': [{'category': 8, 'probability': 1, 'blocked': False}, {'category': 10, 'probability': 1, 'blocked': False}, {'category': 7, 'probability': 1, 'blocked': False}, {'category': 9, 'probability': 1, 'blocked': False}], 'avg_logprobs': -0.33602206807740975, 'token_count': 0, 'grounding_attributions': []}], 'usage_metadata': {'prompt_token_count': 95, 'candidates_token_count': 71, 'total_token_count': 166, 'cached_content_token_count': 0}, 'model_version': 'gemini-1.5-flash'}
     - 36630.042024
     - 0.300000
     - 0.000028

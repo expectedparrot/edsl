@@ -94,7 +94,7 @@ For example, here we run a question with two models and inspect the raw model re
         question_text = "What are the colors of a rainbow?"
     )
 
-    m = ModelList(Model(m) for m in ["gemini-2.5-flash", "gpt-4o"])
+    m = ModelList(Model(m) for m in ["gemini-1.5-flash", "gpt-4o"])
 
     results = q.by(m).run()
 
@@ -110,9 +110,9 @@ Output:
      - raw_model_response.rainbow_cost
      - raw_model_response.rainbow_raw_model_response
      - raw_model_response.rainbow_one_usd_buys
-   * - gemini-2.5-flash
+   * - gemini-1.5-flash
      - 0.000018	
-     - {'candidates': [{'content': {'parts': [{'text': "The colors of a rainbow are typically listed as red, orange, yellow, green, blue, indigo, and violet. However, it's important to note that these colors blend seamlessly into each other, and the number of distinct colors perceived can vary from person to person.\n"}], 'role': 'model'}, 'finish_reason': 1, 'safety_ratings': [{'category': 8, 'probability': 1, 'blocked': False}, {'category': 10, 'probability': 1, 'blocked': False}, {'category': 7, 'probability': 1, 'blocked': False}, {'category': 9, 'probability': 1, 'blocked': False}], 'avg_logprobs': -0.099734950483891, 'token_count': 0, 'grounding_attributions': []}], 'usage_metadata': {'prompt_token_count': 8, 'candidates_token_count': 57, 'total_token_count': 65, 'cached_content_token_count': 0}, 'model_version': 'gemini-2.5-flash'}	
+     - {'candidates': [{'content': {'parts': [{'text': "The colors of a rainbow are typically listed as red, orange, yellow, green, blue, indigo, and violet. However, it's important to note that these colors blend seamlessly into each other, and the number of distinct colors perceived can vary from person to person.\n"}], 'role': 'model'}, 'finish_reason': 1, 'safety_ratings': [{'category': 8, 'probability': 1, 'blocked': False}, {'category': 10, 'probability': 1, 'blocked': False}, {'category': 7, 'probability': 1, 'blocked': False}, {'category': 9, 'probability': 1, 'blocked': False}], 'avg_logprobs': -0.099734950483891, 'token_count': 0, 'grounding_attributions': []}], 'usage_metadata': {'prompt_token_count': 8, 'candidates_token_count': 57, 'total_token_count': 65, 'cached_content_token_count': 0}, 'model_version': 'gemini-1.5-flash'}	
      - 56497.186153
    * - gpt-4o	
      - 0.000438	
@@ -137,7 +137,7 @@ The total cost of the response is calculated based on the token rates set by the
     = 0.05 credits (rounded up to the nearest 1/100th credit)
 
 
-In the raw model response information for the response from *gemini-2.5-flash*, we can see values for `prompt_token_count` and `candidates_token_count` (input tokens and output tokens, respectively):
+In the raw model response information for the response from *gemini-1.5-flash*, we can see values for `prompt_token_count` and `candidates_token_count` (input tokens and output tokens, respectively):
 
 .. code-block:: text
 

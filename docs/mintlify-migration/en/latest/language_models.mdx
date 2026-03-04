@@ -116,7 +116,7 @@ from edsl import Model, ModelList
 
 ml = ModelList([
   Model("gpt-4o", service_name = "openai"),
-  Model("gemini-2.5-flash", service_name = "google")
+  Model("gemini-1.5-flash", service_name = "google")
 ])
 ```
 
@@ -125,7 +125,7 @@ This code is equivalent to the following:
 ```python
 from edsl import Model, ModelList
 
-ml = ModelList(Model(model) for model in ["gpt-4o", "gemini-2.5-flash"])
+ml = ModelList(Model(model) for model in ["gpt-4o", "gemini-1.5-flash"])
 ```
 
 We can also use a special method to pass a list of names instead:
@@ -133,7 +133,7 @@ We can also use a special method to pass a list of names instead:
 ```python
 from edsl import Model, ModelList
 
-model_names = ['gpt-4o', 'gemini-2.5-flash']
+model_names = ['gpt-4o', 'gemini-1.5-flash']
 
 ml = ModelList.from_names(model_names)
 
@@ -145,18 +145,18 @@ Output:
 | topK | presence_penalty | top_logprobs | topP | temperature | stopSequences | maxOutputTokens | logprobs | max_tokens | frequency_penalty | model | top_p | inference_service |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
 | nan | 0.000000 | 3.000000 | nan | 0.500000 | nan | nan | False | 1000.000000 | 0.000000 | gpt-4o | 1.000000 | openai |
-| 1.000000 | nan | nan | 1.000000 | 0.500000 | [] | 2048.000000 | nan | nan | nan | gemini-2.5-flash | nan | google |
+| 1.000000 | nan | nan | 1.000000 | 0.500000 | [] | 2048.000000 | nan | nan | nan | gemini-1.5-flash | nan | google |
 
 ## Running a survey with models
 
 Similar to how we specify [Agents](/en/latest/agents) and [Scenarios](/en/latest/scenarios) to use with a survey, we specify the models to use by adding them to a survey with the by() method when the survey is run. We can pass either a single Model object or a list of models to the by() method. If multiple models are to be used they are passed as a list or as a ModelList object.
 
-For example, the following code specifies that a survey will be run with each of gpt-4o and gemini-2.5-flash:
+For example, the following code specifies that a survey will be run with each of gpt-4o and gemini-1.5-flash:
 
 ```python
 from edsl import Model, QuestionFreeText, Survey
 
-m = [Model("gpt-4o", service_name = "openai"), Model("gemini-2.5-flash", service_name = "google")]
+m = [Model("gpt-4o", service_name = "openai"), Model("gemini-1.5-flash", service_name = "google")]
 
 q = QuestionFreeText(
   question_name = "example",
@@ -173,7 +173,7 @@ This code uses ModelList instead of a list of Model objects:
 ```python
 from edsl import Model, ModelList, QuestionFreeText, Survey
 
-ml = ModelList(Model(model) for model in ["gpt-4o", "gemini-2.5-flash"])
+ml = ModelList(Model(model) for model in ["gpt-4o", "gemini-1.5-flash"])
 
 q = QuestionFreeText(
   question_name = "example",

@@ -69,7 +69,7 @@ For example:
 
   from edsl import QuestionNumerical, Model
 
-  m = Model("gemini-2.5-flash")
+  m = Model("gemini-1.5-flash")
 
   q = QuestionNumerical(
     question_name = "random",
@@ -94,7 +94,7 @@ Example output:
     - iteration
     - timestamp
     - cache_key
-  * - gemini-2.5-flash
+  * - gemini-1.5-flash
     - {'temperature': 0.5, 'topP': 1, 'topK': 1, 'maxOutputTokens': 2048, 'stopSequences': []}
     - nan
     - Please give me a random number between 1 and 100. This question requires a numerical response in the form of an integer or decimal (e.g., -12, 0, 1, 2, 3.45, ...). Respond with just your number on a single line. If your response is equivalent to zero, report '0' After the answer, put a comment explaining your choice on the next line.
@@ -155,7 +155,7 @@ For example, here we run a new question and confirm that the default cache was n
 
   from edsl import QuestionNumerical, Model
 
-  m = Model("gemini-2.5-flash")
+  m = Model("gemini-1.5-flash")
 
   q = QuestionNumerical(
     question_name = "random",
@@ -208,7 +208,7 @@ For example:
 
   from edsl import QuestionFreeText, QuestionNumerical, Survey, Model
 
-  m = Model("gemini-2.5-flash")
+  m = Model("gemini-1.5-flash")
 
   # This question is already run, so we can use its cache from above (r1.cache)
   q1 = QuestionNumerical(
