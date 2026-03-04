@@ -95,7 +95,7 @@ def make_initial_snapshot(obj) -> Snapshot:
     )
 
 
-def snapshot(note: str):
+def snapshot(method):
     """Decorator for methods that return an EDSL object with ``to_yaml()``.
 
     After the decorated method executes, a :class:`Snapshot` is created from
@@ -104,40 +104,37 @@ def snapshot(note: str):
     :class:`Snapshot`) and ``to_yaml()``.
     """
 
-    def decorator(method):
-        @wraps(method)
-        def wrapper(self, *args, **kwargs):
-            result = method(self, *args, **kwargs)
+    @wraps(method)
+    def wrapper(self, *args, **kwargs):
+        result = method(self, *args, **kwargs)
 
-            sig = inspect.signature(method)
-            bound = sig.bind(self, *args, **kwargs)
-            bound.apply_defaults()
-            params = {
-                k: str(v) for k, v in bound.arguments.items() if k != "self"
-            }
+        sig = inspect.signature(method)
+        bound = sig.bind(self, *args, **kwargs)
+        bound.apply_defaults()
+        params = {
+            k: str(v) for k, v in bound.arguments.items() if k != "self"
+        }
 
-            new_yaml = result.to_yaml()
-            prev_yaml = (
-                self._snapshots[-1].yaml if self._snapshots else None
-            )
-            diff = (
-                _compute_yaml_diff(prev_yaml, new_yaml) if prev_yaml else None
-            )
+        new_yaml = result.to_yaml()
+        prev_yaml = (
+            self._snapshots[-1].yaml if self._snapshots else None
+        )
+        diff = (
+            _compute_yaml_diff(prev_yaml, new_yaml) if prev_yaml else None
+        )
 
-            snap = Snapshot(
-                yaml=new_yaml,
-                note=note,
-                timestamp=datetime.now(timezone.utc).isoformat(),
-                object_hash=hash(result),
-                parameters=params,
-                yaml_diff=diff if diff else None,
-            )
-            result._snapshots = list(self._snapshots) + [snap]
-            return result
+        snap = Snapshot(
+            yaml=new_yaml,
+            note=method.__name__,
+            timestamp=datetime.now(timezone.utc).isoformat(),
+            object_hash=hash(result),
+            parameters=params,
+            yaml_diff=diff if diff else None,
+        )
+        result._snapshots = list(self._snapshots) + [snap]
+        return result
 
-        return wrapper
-
-    return decorator
+    return wrapper
 
 
 def polly_command(func):

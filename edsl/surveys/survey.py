@@ -1248,25 +1248,11 @@ class Survey(Base):
         return self._editor.delete_question(identifier)
 
         
-    @snapshot("add_question")
+    @snapshot
+    @wraps(EditSurvey.add_question)
     def add_question(
         self, question: QuestionBase, index: Optional[int] = None
     ) -> Survey:
-        """
-        Add a question to survey.
-
-        :param question: The question to add to the survey.
-        :param question_name: The name of the question. If not provided, the question name is used.
-
-        The question is appended at the end of the self.questions list
-        A default rule is created that the next index is the next question.
-
-        >>> from edsl import QuestionMultipleChoice
-        >>> q = QuestionMultipleChoice(question_text = "Do you like school?", question_options=["yes", "no"], question_name="q0")
-        >>> s = Survey().add_question(q)
-
-        # Adding a question with a duplicate name would raise SurveyCreationError
-        """
         return self._editor.add_question(question, index)
 
     def combine_multiple_choice_to_matrix(
