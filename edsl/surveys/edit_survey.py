@@ -50,7 +50,7 @@ class EditSurvey:
         The question is appended at the end of the self.questions list
         A default rule is created that the next index is the next question.
 
-        >>> from edsl import QuestionMultipleChoice
+        >>> from edsl import QuestionMultipleChoice, Survey
         >>> q = QuestionMultipleChoice(question_text = "Do you like school?", question_options=["yes", "no"], question_name="q0")
         >>> s = Survey().add_question(q)
 

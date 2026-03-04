@@ -669,7 +669,7 @@ class Jobs(Base):
             JobsFlowVisualization(self).show_flow(filename=filename)
         else:
             # Fallback to survey flow visualisation
-            from ..surveys import SurveyFlowVisualization
+            from ..surveys.extras.survey_flow_visualization import SurveyFlowVisualization
 
             scenario = self.scenarios[0] if self.scenarios else None
             SurveyFlowVisualization(
