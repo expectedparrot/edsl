@@ -1000,6 +1000,7 @@ class Jobs(Base):
             remote_inference_results_visibility=self.run_config.parameters.remote_inference_results_visibility,
             fresh=self.run_config.parameters.fresh,
             new_format=self.run_config.parameters.new_format,
+            alert_on_completion_config=self.run_config.parameters.alert_on_completion_config,
         )
         return job_info
 
@@ -1765,6 +1766,9 @@ class Jobs(Base):
             If True, uses remote_inference_create method, if False uses old_remote_inference_create method (default: True)
         expected_parrot_api_key : str, optional
             Custom EXPECTED_PARROT_API_KEY to use for this job run
+        alert_on_completion_config : dict or AlertOnCompletionConfig, optional
+            Config for job completion alerts (email and/or webhooks). Pass a dict with
+            "email" (bool) and "webhooks" (list of {"url": str}, max 3 items).
 
         Returns
         -------
