@@ -2198,6 +2198,9 @@ def decorate_methods_from_mixin(cls, mixin_cls):
         if not attr_name.startswith("_"):
             attr_value = getattr(mixin_cls, attr_name)
             if callable(attr_value):
+                # Respect explicit definitions on the class itself
+                if attr_name in cls.__dict__:
+                    continue
                 # Check if the method is already defined in the class's MRO
                 # but skip DataOperationsBase methods
                 for base in cls.__mro__[1:]:  # Skip the class itself
