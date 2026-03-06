@@ -45,6 +45,7 @@ from .utils import (
     VisibilityType,
 )
 
+from ..jobs.data_structures import AlertOnCompletionConfig
 from .coop_functions import CoopFunctionsMixin
 from .coop_regular_objects import CoopRegularObjects
 from .coop_jobs_objects import CoopJobsObjects
@@ -1796,6 +1797,7 @@ class Coop(CoopFunctionsMixin):
         initial_results_description: Optional[str] = None,
         iterations: Optional[int] = 1,
         fresh: Optional[bool] = False,
+        alert_on_completion_config: Optional[Any] = None,
     ) -> RemoteInferenceCreationInfo:
         """
         Create a remote inference job for execution in the Expected Parrot cloud.
@@ -1817,6 +1819,8 @@ class Coop(CoopFunctionsMixin):
             initial_results_visibility (VisibilityType): Access level for the job results
             iterations (int): Number of times to run each interview (default: 1)
             fresh (bool): If True, ignore existing cache entries and generate new results
+            alert_on_completion_config (dict, optional): Config for job completion alerts
+                (email and/or webhooks). Dict with "email" (bool) and "webhooks" (list of {"url": str}, max 3).
 
         Returns:
             RemoteInferenceCreationInfo: Information about the created job including:
@@ -1845,19 +1849,25 @@ class Coop(CoopFunctionsMixin):
             f"Creating remote inference job with description: {description}"
         )
 
+        payload = {
+            "json_string": "offloaded",
+            "description": description,
+            "status": status,
+            "iterations": iterations,
+            "visibility": visibility,
+            "version": self._edsl_version,
+            "initial_results_visibility": initial_results_visibility,
+            "fresh": fresh,
+        }
+        if alert_on_completion_config is not None:
+            validated = AlertOnCompletionConfig.model_validate(
+                alert_on_completion_config
+            )
+            payload["alert_on_completion_config"] = validated.model_dump()
         response = self._send_server_request(
             uri="api/v0/new-remote-inference",
             method="POST",
-            payload={
-                "json_string": "offloaded",
-                "description": description,
-                "status": status,
-                "iterations": iterations,
-                "visibility": visibility,
-                "version": self._edsl_version,
-                "initial_results_visibility": initial_results_visibility,
-                "fresh": fresh,
-            },
+            payload=payload,
         )
         self._resolve_server_response(response)
         response_json = response.json()
@@ -1910,6 +1920,27 @@ class Coop(CoopFunctionsMixin):
                 "version": self._edsl_version,
             }
         )
+
+    def cancel_remote_inference_job(self, job_uuid: str) -> None:
+        """
+        Request cancellation of a queued or running remote inference job.
+
+        Calls the server to mark the job as cancelling. The job may not stop
+        immediately; poll with new_remote_inference_get(job_uuid) to see status.
+
+        Parameters:
+            job_uuid (str): The UUID of the remote job to cancel.
+
+        Raises:
+            CoopServerResponseError: If the server returns an error (e.g. not found, forbidden).
+        """
+        response = self._send_server_request(
+            uri="api/v0/remote-inference/update-status",
+            method="POST",
+            payload={"job_uuid": str(job_uuid), "status": "cancelling"},
+        )
+        self._resolve_server_response(response)
+        return response.json()
 
     def old_remote_inference_create(
         self,
