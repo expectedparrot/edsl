@@ -63,7 +63,7 @@ import json
 
 # Import for refactoring to Source classes
 
-from tabulate import tabulate_formats
+from ..dataset.display.table_display import SUPPORTED_TABLE_FORMATS
 
 try:
     from typing import TypeAlias
@@ -1273,10 +1273,10 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
     ) -> str:
         """Return the ScenarioList as a table."""
 
-        if tablefmt is not None and tablefmt not in (tabulate_formats + ["rich"]):
+        if tablefmt is not None and tablefmt not in SUPPORTED_TABLE_FORMATS:
             raise ValueError(
                 f"Invalid table format: {tablefmt}",
-                f"Valid formats are: {tabulate_formats}",
+                f"Valid formats are: {list(SUPPORTED_TABLE_FORMATS)}",
             )
         return self.to_dataset().table(
             *fields, tablefmt=tablefmt, pretty_labels=pretty_labels

@@ -22,8 +22,59 @@ from ...config import CONFIG
 
 Row = Sequence[Union[str, int, float, bool, None]]
 TableFormat = Literal[
-    "grid", "simple", "pipe", "orgtbl", "rst", "mediawiki", "html", "latex", "rich"
+    "rich", "grid", "simple", "pipe", "markdown",
 ]
+
+# Supported non-rich table formats (replaces tabulate_formats)
+SUPPORTED_TABLE_FORMATS = ("rich", "grid", "simple", "pipe", "markdown")
+
+
+def _simple_table(headers, data, fmt="grid"):
+    """Render a table as plain text without external dependencies.
+
+    Supports formats: grid, simple, pipe/markdown.
+    """
+    if not data:
+        return " | ".join(str(h) for h in headers)
+
+    # Compute column widths
+    cols = len(headers)
+    widths = [len(str(h)) for h in headers]
+    for row in data:
+        for i in range(cols):
+            widths[i] = max(widths[i], len("" if row[i] is None else str(row[i])))
+
+    def _pad(val, w):
+        s = "" if val is None else str(val)
+        return s.ljust(w)
+
+    if fmt in ("pipe", "markdown"):
+        header_line = "| " + " | ".join(_pad(h, widths[i]) for i, h in enumerate(headers)) + " |"
+        sep_line = "| " + " | ".join("-" * widths[i] for i in range(cols)) + " |"
+        row_lines = [
+            "| " + " | ".join(_pad(row[i], widths[i]) for i in range(cols)) + " |"
+            for row in data
+        ]
+        return "\n".join([header_line, sep_line] + row_lines)
+
+    elif fmt == "simple":
+        header_line = "  ".join(_pad(h, widths[i]) for i, h in enumerate(headers))
+        sep_line = "  ".join("-" * widths[i] for i in range(cols))
+        row_lines = [
+            "  ".join(_pad(row[i], widths[i]) for i in range(cols))
+            for row in data
+        ]
+        return "\n".join([header_line, sep_line] + row_lines)
+
+    else:  # grid
+        hsep = "+-" + "-+-".join("-" * widths[i] for i in range(cols)) + "-+"
+        header_line = "| " + " | ".join(_pad(h, widths[i]) for i, h in enumerate(headers)) + " |"
+        row_lines = [
+            "| " + " | ".join(_pad(row[i], widths[i]) for i in range(cols)) + " |"
+            for row in data
+        ]
+        parts = [hsep, header_line, hsep] + [line for r in row_lines for line in (r, hsep)]
+        return "\n".join(parts)
 
 
 def _get_default_renderer():
@@ -147,10 +198,7 @@ class TableDisplay:
 
             return renderer.render_str()
         else:
-            # Fall back to tabulate for other formats
-            from tabulate import tabulate
-
-            return tabulate(self.data, headers=self.headers, tablefmt=self.tablefmt)
+            return _simple_table(self.headers, self.data, fmt=self.tablefmt or "grid")
 
     def to_string(self) -> str:
         """Return a string rendering of the table using the current format/renderer.
@@ -162,28 +210,8 @@ class TableDisplay:
         return self.__repr__()
 
     def to_markdown(self) -> str:
-        """Return the table as a Markdown string.
-
-        Uses the 'pipe' table format (GitHub-flavored Markdown compatible).
-        Falls back to a minimal manual renderer if 'tabulate' is unavailable.
-        """
-        try:
-            from tabulate import tabulate
-
-            return tabulate(self.data, headers=self.headers, tablefmt="pipe")
-        except Exception:
-            # Minimal fallback: construct a simple pipe table without alignment
-            headers_line = "| " + " | ".join([str(h) for h in self.headers]) + " |"
-            separator = "| " + " | ".join(["---" for _ in self.headers]) + " |"
-            rows = [
-                "| "
-                + " | ".join(
-                    ["" if v is None else str(v) for v in row]  # ensure printable
-                )
-                + " |"
-                for row in self.data
-            ]
-            return "\n".join([headers_line, separator, *rows])
+        """Return the table as a Markdown string (pipe format)."""
+        return _simple_table(self.headers, self.data, fmt="pipe")
 
     @classmethod
     def from_dictionary(

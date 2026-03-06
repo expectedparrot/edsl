@@ -1046,16 +1046,15 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
         headers, data = self._tabular()
 
         if tablefmt is not None and tablefmt != "rich":
-            # Rich format is handled separately, so we don't validate it against tabulate_formats
-            from tabulate import tabulate_formats
+            from .display.table_display import SUPPORTED_TABLE_FORMATS
 
-            if tablefmt not in tabulate_formats:
+            if tablefmt not in SUPPORTED_TABLE_FORMATS:
                 print(
                     f"Error: The following table format is not supported: {tablefmt}",
                     file=sys.stderr,
                 )
                 print(
-                    f"\nAvailable formats are: {tabulate_formats} and 'rich'",
+                    f"\nAvailable formats are: {list(SUPPORTED_TABLE_FORMATS)}",
                     file=sys.stderr,
                 )
                 return None

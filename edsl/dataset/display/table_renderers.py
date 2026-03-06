@@ -705,17 +705,9 @@ class RichRenderer(DataTablesRendererABC):
             console.print(self._build_rich_table())
 
         except ImportError:
-            # Fallback if Rich is not installed
-            print("Rich package is not installed. Install with 'pip install rich'")
-            from tabulate import tabulate
+            from .table_display import _simple_table
 
-            print(
-                tabulate(
-                    self.table_data.data,
-                    headers=self.table_data.headers,
-                    tablefmt="grid",
-                )
-            )
+            print(_simple_table(self.table_data.headers, self.table_data.data, fmt="grid"))
 
     # ------------------------------------------------------------------
     # String representation helpers
@@ -777,11 +769,6 @@ class RichRenderer(DataTablesRendererABC):
             capture_console.print(self._build_rich_table())
             return buffer.getvalue()
         except ImportError:
-            # Degrade gracefully if Rich isn't available.
-            from tabulate import tabulate
+            from .table_display import _simple_table
 
-            return tabulate(
-                self.table_data.data,
-                headers=self.table_data.headers,
-                tablefmt="grid",
-            )
+            return _simple_table(self.table_data.headers, self.table_data.data, fmt="grid")

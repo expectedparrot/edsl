@@ -29,7 +29,10 @@ from typing import Any
 
 from .storage import InMemoryStorage, StorageProtocol
 from .storage_redis import RedisStorage, REDIS_AVAILABLE
-from .storage_sqlalchemy import SQLAlchemyStorage
+try:
+    from .storage_sqlalchemy import SQLAlchemyStorage
+except ImportError:
+    SQLAlchemyStorage = None
 from .storage_gcs import GCSBlobStorage, GCS_AVAILABLE
 
 
