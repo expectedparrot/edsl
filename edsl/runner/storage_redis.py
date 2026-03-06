@@ -19,12 +19,16 @@ from typing import Any
 try:
     import redis
     from redis import Redis, ConnectionPool
+    from redis.retry import Retry
+    from redis.backoff import ExponentialBackoff
 
     REDIS_AVAILABLE = True
 except ImportError:
     REDIS_AVAILABLE = False
     Redis = None
     ConnectionPool = None
+    Retry = None
+    ExponentialBackoff = None
 
 
 class RedisStorage:
@@ -82,7 +86,13 @@ class RedisStorage:
             max_connections=connection_pool_size,
             decode_responses=False,  # We handle encoding ourselves
         )
-        self._client: Redis = Redis(connection_pool=self._pool)
+        self._client: Redis = Redis(
+            connection_pool=self._pool,
+            retry_on_error=[redis.ConnectionError, redis.TimeoutError],
+            retry=Retry(backoff=ExponentialBackoff(), retries=3),
+            health_check_interval=30,
+            socket_keepalive=True,
+        )
 
         # Test connection
         try:
