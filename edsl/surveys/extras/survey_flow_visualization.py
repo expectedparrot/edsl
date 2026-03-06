@@ -39,7 +39,7 @@ def _question_label(question, max_text_len: int = 40) -> str:
     text = getattr(question, "question_text", "") or ""
     if len(text) > max_text_len:
         text = text[:max_text_len] + "…"
-    return f"[{icon}] {name}\n{text}"
+    return f"[{icon}] {name}\n<i>{text}</i>"
 
 
 class SurveyFlowVisualization:

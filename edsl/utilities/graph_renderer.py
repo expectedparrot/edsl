@@ -196,7 +196,10 @@ class RenderedGraph:
 
 def _render_ascii(nodes: list[NodeDef], edges: list[EdgeDef]) -> str:
     """Render a simple ASCII representation of a directed graph."""
-    node_labels = {n.id: n.label.replace("\n", " ") for n in nodes}
+    import re
+    def _strip_html(s: str) -> str:
+        return re.sub(r"<[^>]+>", "", s)
+    node_labels = {n.id: _strip_html(n.label.replace("\n", " ")) for n in nodes}
 
     # Build adjacency: src -> [(dst, label)]
     adj: dict[str, list[tuple[str, str]]] = {}
