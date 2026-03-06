@@ -2,9 +2,6 @@ from __future__ import annotations
 from typing import Any, List, Optional, Dict, NewType, TYPE_CHECKING
 import os
 
-import openai
-from openai import DefaultAioHttpClient
-
 from ..inference_service_abc import InferenceServiceABC
 from .message_builder import MessageBuilder
 from ..decorators import report_errors_async
@@ -12,6 +9,7 @@ from .service_enums import OPENAI_REASONING_MODELS
 
 # Use TYPE_CHECKING to avoid circular imports at runtime
 if TYPE_CHECKING:
+    import openai as _openai_mod
     from ...language_models import LanguageModel
 
 rate_limits = {}
@@ -22,6 +20,12 @@ if TYPE_CHECKING:
 
 
 APIToken = NewType("APIToken", str)
+
+
+def _get_openai():
+    """Lazy import of the openai package."""
+    import openai
+    return openai
 
 
 class OpenAIParameterBuilder:
@@ -76,11 +80,11 @@ class OpenAIService(InferenceServiceABC):
     _env_key_name_ = "OPENAI_API_KEY"
     _base_url_ = None
 
-    _sync_client_ = openai.OpenAI
-    _async_client_ = openai.AsyncOpenAI
+    _sync_client_ = None  # resolved lazily via _get_openai()
+    _async_client_ = None  # resolved lazily via _get_openai()
 
-    _sync_client_instances: Dict[APIToken, openai.OpenAI] = {}
-    _async_client_instances: Dict[APIToken, openai.AsyncOpenAI] = {}
+    _sync_client_instances: Dict[str, Any] = {}
+    _async_client_instances: Dict[str, Any] = {}
 
     key_sequence = ["choices", 0, "message", "content"]
     usage_sequence = ["usage"]
@@ -96,7 +100,16 @@ class OpenAIService(InferenceServiceABC):
         cls._async_client_instances = {}
 
     @classmethod
+    def _resolve_clients(cls):
+        """Resolve lazy client classes on first use."""
+        if cls._sync_client_ is None:
+            openai = _get_openai()
+            cls._sync_client_ = openai.OpenAI
+            cls._async_client_ = openai.AsyncOpenAI
+
+    @classmethod
     def sync_client(cls, api_key):
+        cls._resolve_clients()
         if api_key not in cls._sync_client_instances:
             client = cls._sync_client_(
                 api_key=api_key,
@@ -108,7 +121,9 @@ class OpenAIService(InferenceServiceABC):
 
     @classmethod
     def async_client(cls, api_key):
+        cls._resolve_clients()
         if api_key not in cls._async_client_instances:
+            from openai import DefaultAioHttpClient
             client = cls._async_client_(
                 api_key=api_key,
                 base_url=cls._base_url_,

@@ -1,7 +1,5 @@
 from .open_ai_service import OpenAIService
 
-import openai
-
 
 class TogetherAIService(OpenAIService):
     """DeepInfra service class."""
@@ -131,8 +129,8 @@ class TogetherAIService(OpenAIService):
         "zero-one-ai/Yi-6B",
     ]
 
-    _sync_client_ = openai.OpenAI
-    _async_client_ = openai.AsyncOpenAI
+    _sync_client_ = None  # inherited _resolve_clients() will set these lazily
+    _async_client_ = None
 
     @classmethod
     def get_model_info(cls, api_token=None):
