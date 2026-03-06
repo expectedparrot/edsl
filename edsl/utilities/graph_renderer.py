@@ -119,24 +119,23 @@ class RenderedGraph:
     def png_path(self) -> str | None:
         return self._png_path
 
-    def _repr_html_(self) -> str:
-        """HTML display for Jupyter notebooks."""
+    def _repr_markdown_(self) -> str:
+        """Markdown display for Jupyter notebooks (mermaid diagrams)."""
         if self._text is not None:
-            # Mermaid: use a <pre> with mermaid class for rendering
-            import html
-            return (
-                f'<pre class="mermaid">\n{html.escape(self._text)}\n</pre>\n'
-                '<script type="module">'
-                'import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";'
-                "mermaid.initialize({startOnLoad:true});"
-                "</script>"
-            )
+            return f"```mermaid\n{self._text}\n```"
+        return ""
+
+    def _repr_html_(self) -> str:
+        """HTML display for Jupyter notebooks (PNG diagrams)."""
         if self._png_path is not None:
             import base64
 
             with open(self._png_path, "rb") as f:
                 data = base64.b64encode(f.read()).decode()
             return f'<img src="data:image/png;base64,{data}" />'
+        if self._text is not None:
+            # Fallback: render mermaid via markdown
+            return self._repr_markdown_()
         return "<p>No graph rendered</p>"
 
     def __repr__(self) -> str:
@@ -165,6 +164,9 @@ class RenderedGraph:
                 from PIL import Image as PILImage
                 img = PILImage.open(self._png_path)
                 return img
+            elif self._text is not None:
+                from IPython.display import display, Markdown
+                display(Markdown(self._repr_markdown_()))
             else:
                 from IPython.display import display, HTML
                 display(HTML(self._repr_html_()))
