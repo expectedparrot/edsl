@@ -350,16 +350,15 @@ class Survey(Base):
         """Return instructions that are relevant to the question."""
         return self._relevant_instructions_dict[question]
 
-    def show_flow(self, filename: Optional[str] = None):
-        """Show the flow of the survey."""
-        try:
-            from edsl.surveys.extras.survey_flow_visualization import SurveyFlowVisualization
-        except ImportError:
-            raise ImportError(
-                "Survey.show_flow() requires pydot. "
-                "Install with: pip install edsl[viz]"
-            ) from None
-        return SurveyFlowVisualization(self).show_flow(filename=filename)
+    def show_flow(self, filename: Optional[str] = None, renderer: Optional[str] = None):
+        """Show the flow of the survey.
+
+        Args:
+            filename: Optional path to save the output.
+            renderer: "mermaid" or "pydot" (default: auto-detect).
+        """
+        from edsl.surveys.extras.survey_flow_visualization import SurveyFlowVisualization
+        return SurveyFlowVisualization(self).show_flow(filename=filename, renderer=renderer)
 
     def add_instruction(
         self, instruction: Union["Instruction", "ChangeInstruction"]
