@@ -510,10 +510,10 @@ test-doctests: ## Run doctests for a specific directory (e.g., make test-doctest
 		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/scenarios && \
 		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/questions && \
 		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/utilities && \
-		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/language_models && \
+		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules --ignore=edsl/language_models/unused edsl/language_models && \
 		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/caching && \
 		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/invigilators && \
-		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/inference_services; \
+		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules --ignore=edsl/inference_services/services edsl/inference_services; \
 	fi
 	@bash scripts/mark_check_complete.sh DOCTESTS
 

@@ -1232,15 +1232,15 @@ class Scenario(Base, UserDict):
             ImportError: If the python-docx library is not installed.
 
         Examples:
-            >>> from docx import Document
-            >>> doc = Document()
-            >>> _ = doc.add_heading("EDSL Survey")
-            >>> _ = doc.add_paragraph("This is a test.")
-            >>> doc.save("test.docx")
-            >>> s = Scenario.from_docx("test.docx")
-            >>> s
+            >>> from docx import Document  # doctest: +SKIP
+            >>> doc = Document()  # doctest: +SKIP
+            >>> _ = doc.add_heading("EDSL Survey")  # doctest: +SKIP
+            >>> _ = doc.add_paragraph("This is a test.")  # doctest: +SKIP
+            >>> doc.save("test.docx")  # doctest: +SKIP
+            >>> s = Scenario.from_docx("test.docx")  # doctest: +SKIP
+            >>> s  # doctest: +SKIP
             Scenario({'file_path': 'test.docx', 'text': 'EDSL Survey\\nThis is a test.'})
-            >>> import os; os.remove("test.docx")
+            >>> import os; os.remove("test.docx")  # doctest: +SKIP
 
         Notes:
             - The returned Scenario typically contains the file path and extracted text

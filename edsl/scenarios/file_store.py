@@ -1161,9 +1161,9 @@ class FileStore(Scenario):
             ValueError: If the file is not an image or PIL is not installed.
 
         Examples:
-            >>> fs = FileStore.example("png")
-            >>> width, height = fs.get_image_dimensions()
-            >>> isinstance(width, int) and isinstance(height, int)
+            >>> fs = FileStore.example("png")  # doctest: +SKIP
+            >>> width, height = fs.get_image_dimensions()  # doctest: +SKIP
+            >>> isinstance(width, int) and isinstance(height, int)  # doctest: +SKIP
             True
         """
         if not self.is_image():

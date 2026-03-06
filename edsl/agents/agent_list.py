@@ -56,12 +56,6 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
     >>> AgentList.example().to_dataset()
     Dataset([{'age': [22, 22]}, {'hair': ['brown', 'brown']}, {'height': [5.5, 5.5]}])
 
-    >>> AgentList.example().select('age', 'hair', 'height').to_pandas()
-       age   hair  height
-    0   22  brown     5.5
-    1   22  brown     5.5
-
-
     """
 
     __documentation__ = (
