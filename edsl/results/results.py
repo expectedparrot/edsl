@@ -165,7 +165,6 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         total_results: Optional[int] = None,
         task_history: Optional["TaskHistory"] = None,
         sort_by_iteration: bool = False,
-        data_class: Optional[type] = list,  # ResultsSQLList,
     ):
         """Instantiate a Results object with a survey and a list of Result objects.
 
@@ -178,7 +177,6 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
             total_results: An integer representing the total number of results.
             task_history: A TaskHistory object containing information about the tasks.
             sort_by_iteration: Whether to sort data by iteration before initializing.
-            data_class: The class to use for the data container (default: list).
         """
         if survey is not None and isinstance(survey, str):
             pulled_results = Results.pull(survey)
@@ -188,14 +186,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         self.completed = True
         self._fetching = False
 
-        # Determine the data class to use
-        if data is not None:
-            # Use the class of the provided data if it's not a basic list
-            self._data_class = (
-                data.__class__ if not isinstance(data, list) else data_class
-            )
-        else:
-            self._data_class = data_class
+        self._data_class = list
 
         # Sort data appropriately before initialization if needed
         if data and sort_by_iteration:
@@ -1253,16 +1244,6 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
             >>> r.insert_sorted(new_result)
         """
         return self._container.insert_sorted(item)
-
-    @wraps(ResultsSerializer.to_disk)
-    def to_disk(self, filepath: str) -> None:
-        return self._results_serializer.to_disk(filepath)
-
-    @classmethod
-    @wraps(ResultsSerializer.from_disk)
-    def from_disk(cls, filepath: str) -> "Results":
-        return ResultsSerializer.from_disk(filepath)
-
 
 def main():  # pragma: no cover
     """Run example operations on a Results object.

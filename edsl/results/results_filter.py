@@ -130,7 +130,6 @@ class ResultsFilter:
                 survey=self.results.survey,
                 data=[],  # Empty data list
                 created_columns=self.results.created_columns,
-                data_class=self.results._data_class,  # Preserve the original data class
             )
 
             # Process one result at a time

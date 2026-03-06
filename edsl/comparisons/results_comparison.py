@@ -8,7 +8,7 @@ from rich.table import Table
 from typing import TYPE_CHECKING
 
 from .factory import ComparisonFactory
-from .visualization import render_comparison_table, render_metric_heatmap
+from .visualization import render_comparison_table
 
 # Public API -----------------------------------------------------------
 
@@ -473,24 +473,6 @@ class ResultPairComparison:
         # Cache and return
         self._cached_scores[cache_key] = total
         return total
-
-    @staticmethod
-    def metric_heatmap(
-        results: Sequence,
-        metric_name: str,
-        comparison_factory: ComparisonFactory | None = None,
-        agg_func: Callable[[List[float]], float] | None = None,
-        title: str | None = None,
-        ax: Optional[Any] = None,
-    ):
-        return render_metric_heatmap(
-            results,
-            metric_name=metric_name,
-            comparison_factory=comparison_factory,
-            agg_func=agg_func,
-            title=title,
-            ax=ax,
-        )
 
     @classmethod
     def example(

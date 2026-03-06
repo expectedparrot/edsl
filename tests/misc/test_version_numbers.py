@@ -4,9 +4,9 @@
 
 
 def test_version_numbers():
+    import tomllib
     import edsl
-    from toml import load
 
-    with open("pyproject.toml", "r") as f:
-        pyproject = load(f)
+    with open("pyproject.toml", "rb") as f:
+        pyproject = tomllib.load(f)
     assert edsl.__version__ == pyproject["tool"]["poetry"]["version"]

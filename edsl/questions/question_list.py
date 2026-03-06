@@ -486,6 +486,12 @@ class QuestionList(QuestionBase):
     def create_response_model(self):
         return create_model(self.min_list_items, self.max_list_items, self.permissive)
 
+    def _simulate_answer(self, human_readable: bool = False) -> dict:
+        """Generate a simulated list answer."""
+        min_items = self.min_list_items or 2
+        items = [f"Item {i+1}" for i in range(min_items)]
+        return {"answer": items, "comment": "Simulated answer"}
+
     @property
     def question_html_content(self) -> str:
         from jinja2 import Template

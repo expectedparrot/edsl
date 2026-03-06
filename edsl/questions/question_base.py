@@ -288,88 +288,34 @@ class QuestionBase(
 
         return duplicated
 
-    @property
-    def fake_data_factory(self):
-        """
-        Create and return a factory for generating fake response data.
-
-        This property lazily creates a factory class based on Pydantic's ModelFactory
-        that can generate fake data conforming to the question's response model.
-        The factory is cached after first creation for efficiency.
-
-        Returns:
-            ModelFactory: A factory class that can generate fake data for this question type.
-
-        Notes:
-            - Uses polyfactory to generate valid fake data instances
-            - The response model for the question defines the structure of the generated data
-            - Primarily used for testing and simulation purposes
-        """
-        if not hasattr(self, "_fake_data_factory"):
-            from polyfactory.factories.pydantic_factory import ModelFactory
-            from random import randint, uniform
-
-            class FakeData(ModelFactory[self.response_model]):
-                # Add customization for specific question types
-                if hasattr(self, "question_type") and self.question_type == "numerical":
-
-                    @classmethod
-                    def build_answer(cls):
-                        min_val = getattr(self, "min_value", None)
-                        max_val = getattr(self, "max_value", None)
-
-                        # Default values if none provided
-                        min_val = 0 if min_val is None else min_val
-                        max_val = 100 if max_val is None else max_val
-
-                        # Ensure values are within bounds
-                        if isinstance(min_val, int) and isinstance(max_val, int):
-                            return randint(min_val, max_val)
-                        else:
-                            return uniform(min_val, max_val)
-
-            self._fake_data_factory = FakeData
-        return self._fake_data_factory
-
     def _simulate_answer(self, human_readable: bool = False) -> dict:
         """
         Generate a simulated valid answer for this question.
-
-        This method creates a plausible answer that would pass validation for this
-        question type. It's primarily used for testing, examples, and debugging purposes.
-
-        Args:
-            human_readable: If True, converts code-based answers to their human-readable
-                           text equivalents for multiple choice and similar questions.
-
-        Returns:
-            dict: A dictionary containing a simulated valid answer with appropriate
-                 structure for this question type.
 
         Examples:
             >>> from edsl import QuestionFreeText as Q
             >>> answer = Q.example()._simulate_answer()
             >>> "answer" in answer and "generated_tokens" in answer
             True
-
-        Notes:
-            - Free text questions have special handling with a predefined response
-            - Other question types use the fake_data_factory to generate valid responses
-            - For questions with options, the human_readable parameter determines whether
-              indices or actual text options are returned
         """
+        import random
+
         if self.question_type == "free_text":
             return {
                 "answer": "Hello, how are you?",
                 "generated_tokens": "Hello, how are you?",
             }
 
-        simulated_answer = self.fake_data_factory.build().dict()
-        if human_readable and hasattr(self, "question_options") and self.use_code:
-            simulated_answer["answer"] = [
-                self.question_options[index] for index in simulated_answer["answer"]
-            ]
-        return simulated_answer
+        if hasattr(self, "question_options") and self.question_options:
+            if self.use_code:
+                answer = random.randint(0, len(self.question_options) - 1)
+                if human_readable:
+                    answer = self.question_options[answer]
+            else:
+                answer = random.choice(self.question_options)
+            return {"answer": answer, "comment": "Simulated answer"}
+
+        return {"answer": "Simulated answer", "comment": "Simulated answer"}
 
     class ValidatedAnswer(TypedDict):
         """
@@ -477,7 +423,6 @@ class QuestionBase(
         exclude_list = [
             "question_type",
             # "_include_comment",
-            "_fake_data_factory",
             # "_use_code",
             "_model_instructions",
         ]

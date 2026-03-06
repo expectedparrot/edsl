@@ -191,8 +191,6 @@ class ResultsContainer:
                 "The created columns are not the same so they cannot be added together."
             )
 
-        # Create a new ResultsSQLList with the combined data
-        # combined_data = ResultsSQLList()
         combined_data = self._results._data_class()
         combined_data.extend(self._results.data)
         combined_data.extend(other.data)

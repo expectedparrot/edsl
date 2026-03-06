@@ -15,7 +15,10 @@ Strategy classes:
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional, Union, Tuple
 import numpy as np
-from scipy.optimize import minimize
+try:
+    from scipy.optimize import minimize
+except ImportError:
+    minimize = None
 
 
 class WeightingStrategy(ABC):
@@ -159,6 +162,12 @@ class CategoricalKLStrategy(WeightingStrategy):
         Returns:
             np.ndarray: Normalized weights that minimize KL divergence
         """
+        if minimize is None:
+            raise ImportError(
+                "scipy is required for CategoricalKLStrategy. "
+                "Install it with: pip install scipy"
+            )
+
         self.validate_inputs(responses, target)
 
         n = len(responses)

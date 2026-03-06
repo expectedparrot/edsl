@@ -53,7 +53,6 @@ _LAZY_MODULES = {
     "extensions",
     "macros",
     "comparisons",
-    "assistants",
 }
 
 # Cache for lazy-loaded modules

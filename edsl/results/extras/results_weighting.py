@@ -358,7 +358,13 @@ class ResultsWeighting:
             >>> metric_weights = {'how_feeling': 2.0, 'how_feeling_yesterday': 1.0}
             >>> weights = weighter.find_weights_for_multiple_targets(targets, metric_weights)
         """
-        from scipy.optimize import minimize
+        try:
+            from scipy.optimize import minimize
+        except ImportError:
+            raise ImportError(
+                "scipy is required for multi-target weighting. "
+                "Install it with: pip install scipy"
+            )
 
         if not targets:
             raise ValueError("targets dictionary cannot be empty")

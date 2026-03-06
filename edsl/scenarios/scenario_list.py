@@ -59,7 +59,6 @@ import os
 from collections.abc import Iterable, MutableSequence
 from functools import wraps
 import json
-import pickle
 
 
 # Import for refactoring to Source classes
@@ -71,7 +70,6 @@ try:
 except ImportError:
     from typing_extensions import TypeAlias
 
-from ..config import CONFIG
 
 if TYPE_CHECKING:
     from ..dataset import Dataset
@@ -80,7 +78,7 @@ if TYPE_CHECKING:
     from ..questions import QuestionBase, Question
     from ..agents import Agent
     from typing import Sequence
-    from .scenarioml.prediction import Prediction
+
 
 
 from ..base import Base
@@ -94,8 +92,6 @@ from ..utilities import (
 )
 from ..display.utils import smart_truncate
 from ..dataset import ScenarioListOperationsMixin
-
-from ..db_list.sqlite_list import SQLiteList
 
 from .exceptions import ScenarioError
 from .scenario import Scenario
@@ -124,24 +120,7 @@ TableFormat: TypeAlias = Literal[
 ]
 
 
-class ScenarioSQLiteList(SQLiteList):
-    """SQLite-backed list specifically for storing Scenario objects."""
-
-    def serialize(self, obj):
-        """Serialize a Scenario object or other data to bytes using pickle."""
-        return pickle.dumps(obj)
-
-    def deserialize(self, data):
-        """Deserialize pickled bytes back to a Scenario object or other data."""
-        if isinstance(data, str):
-            return pickle.loads(data.encode())
-        return pickle.loads(data)
-
-
-if use_sqlite := CONFIG.get("EDSL_USE_SQLITE_FOR_SCENARIO_LIST").lower() == "true":
-    data_class = ScenarioSQLiteList
-else:
-    data_class = list
+data_class = list
 
 
 class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):

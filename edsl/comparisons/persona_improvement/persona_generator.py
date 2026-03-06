@@ -146,4 +146,6 @@ class PersonaGenerator:
         new_results = jobs.run(verbose=verbose)
 
         # Return agent list with persona attributes
-        return new_results.augmented_agents("persona")
+        from edsl.results.extras import ResultsAugmenter
+
+        return ResultsAugmenter(new_results).augmented_agents("persona")
