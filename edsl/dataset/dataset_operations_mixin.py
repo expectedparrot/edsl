@@ -446,48 +446,74 @@ class DataOperationsBase:
             shape: The shape of the data in the database ("wide" or "long")
 
         Returns:
-            A database connection
+            A sqlite3 connection
 
         Examples:
-            >>> from sqlalchemy import text
             >>> from edsl import Results
-            >>> engine = Results.example()._db()
-            >>> len(engine.execute(text("SELECT * FROM self")).fetchall())
+            >>> conn = Results.example()._db()
+            >>> len(conn.execute("SELECT * FROM self").fetchall())
             4
-            >>> engine = Results.example()._db(shape = "long")
-            >>> len(engine.execute(text("SELECT * FROM self")).fetchall())
+            >>> conn = Results.example()._db(shape = "long")
+            >>> len(conn.execute("SELECT * FROM self").fetchall())
             200
         """
-        # Import needed for database connection
-        from sqlalchemy import create_engine
+        import csv
+        import sqlite3
 
-        engine = create_engine("sqlite:///:memory:")
-        if remove_prefix and shape == "wide":
-            df = self.remove_prefix().to_pandas(lists_as_strings=True)
-        else:
-            df = self.to_pandas(lists_as_strings=True)
+        # Use to_csv to serialize all data to strings (handles complex objects)
+        csv_string = self.to_csv(
+            remove_prefix=(remove_prefix and shape == "wide")
+        ).text
+        reader = csv.reader(io.StringIO(csv_string))
+        columns = next(reader)
+        rows = list(reader)
+
+        conn = sqlite3.connect(":memory:")
 
         if shape == "long":
-            # Melt the dataframe to convert it to long format
-            df = df.melt(var_name="key", value_name="value")
-            # Add a row number column for reference
-            df.insert(0, "row_number", range(1, len(df) + 1))
-
-            # Split the key into data_type and key
-            df["data_type"] = df["key"].apply(
-                lambda x: x.split(".")[0] if "." in x else None
+            conn.execute(
+                "CREATE TABLE self (row_number INTEGER, key TEXT, value TEXT, data_type TEXT)"
             )
-            df["key"] = df["key"].apply(
-                lambda x: ".".join(x.split(".")[1:]) if "." in x else x
-            )
+            row_num = 1
+            for col_name in columns:
+                col_idx = columns.index(col_name)
+                if "." in col_name:
+                    data_type = col_name.split(".")[0]
+                    key = ".".join(col_name.split(".")[1:])
+                else:
+                    data_type = None
+                    key = col_name
+                for row in rows:
+                    val = row[col_idx] if row[col_idx] != "" else None
+                    conn.execute(
+                        "INSERT INTO self VALUES (?, ?, ?, ?)",
+                        (row_num, key, val, data_type),
+                    )
+                    row_num += 1
+        else:
+            quoted_cols = [f'"{c}"' for c in columns]
+            conn.execute(f"CREATE TABLE self ({', '.join(quoted_cols)})")
+            placeholders = ", ".join(["?"] * len(columns))
+            for row in rows:
+                # Try to convert numeric strings back to numbers
+                typed_row = []
+                for val in row:
+                    if val == "":
+                        typed_row.append(None)
+                    else:
+                        try:
+                            typed_row.append(int(val))
+                        except ValueError:
+                            try:
+                                typed_row.append(float(val))
+                            except ValueError:
+                                typed_row.append(val)
+                conn.execute(
+                    f"INSERT INTO self VALUES ({placeholders})", typed_row
+                )
 
-        df.to_sql(
-            "self",
-            engine,
-            index=False,
-            if_exists="replace",
-        )
-        return engine.connect()
+        conn.commit()
+        return conn
 
     def sql(
         self,
@@ -543,22 +569,39 @@ class DataOperationsBase:
             >>> len(r.sql("SELECT * FROM self", shape="long"))
             200
         """
-        import pandas as pd
-
         conn = self._db(remove_prefix=remove_prefix, shape=shape)
-        df = pd.read_sql_query(query, conn)
-
-        # Transpose the DataFrame if transpose is True
-        if transpose or transpose_by:
-            df = pd.DataFrame(df)
-            if transpose_by:
-                df = df.set_index(transpose_by)
-            else:
-                df = df.set_index(df.columns[0])
-            df = df.transpose()
+        cursor = conn.execute(query)
+        col_names = [desc[0] for desc in cursor.description]
+        rows = cursor.fetchall()
         from .dataset import Dataset
 
-        return Dataset.from_pandas_dataframe(df)
+        if transpose or transpose_by:
+            # Determine which column to use as the index
+            index_col = transpose_by if transpose_by else col_names[0]
+            idx_pos = col_names.index(index_col)
+            value_cols = [c for c in col_names if c != index_col]
+
+            # Index values become the new column names
+            index_values = [row[idx_pos] for row in rows]
+
+            # Each new column corresponds to one old row;
+            # each new row corresponds to one old value column
+            result_entries = []
+            for idx_val in index_values:
+                col_data = []
+                row_for_val = next(r for r in rows if r[idx_pos] == idx_val)
+                for vc in value_cols:
+                    vc_pos = col_names.index(vc)
+                    col_data.append(row_for_val[vc_pos])
+                result_entries.append({str(idx_val): col_data})
+
+            return Dataset(result_entries)
+
+        # Standard (non-transpose) case
+        result_entries = []
+        for i, col in enumerate(col_names):
+            result_entries.append({col: [row[i] for row in rows]})
+        return Dataset(result_entries)
 
     def to_pandas(self, remove_prefix: bool = False, lists_as_strings=False):
         """Convert the results to a pandas DataFrame, ensuring that lists remain as lists.
@@ -589,7 +632,12 @@ class DataOperationsBase:
             2           Terrible
             3                 OK
         """
-        import pandas as pd
+        try:
+            import pandas as pd
+        except ImportError:
+            from ..base.exceptions import MissingOptionalDependencyError
+
+            raise MissingOptionalDependencyError("pandas", "file-formats")
 
         # Handle empty dataset case
         if not self.data:
