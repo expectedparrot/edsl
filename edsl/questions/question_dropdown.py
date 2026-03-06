@@ -3,7 +3,7 @@ from typing import Union, Optional, List, Any
 
 from jinja2 import Template
 from pydantic import BaseModel, Field
-from rank_bm25 import BM25Okapi
+from ..utilities.bm25 import BM25Okapi
 
 from .question_base import QuestionBase
 from .descriptors import QuestionOptionsDescriptor

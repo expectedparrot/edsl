@@ -4,7 +4,6 @@ import os
 import gc
 import time
 import json
-import psutil
 import tracemalloc
 from datetime import datetime
 from pathlib import Path
@@ -135,6 +134,8 @@ def memory_profile(func):
         gc.collect()
 
         # Get process for memory measurements
+        import psutil
+
         process = psutil.Process(os.getpid())
 
         # Start memory tracking

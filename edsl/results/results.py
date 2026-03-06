@@ -405,39 +405,8 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         """Extend the Results list with items from another iterable."""
         return self._container.extend(other)
 
+    @wraps(ResultsContainer.__add__)
     def __add__(self, other: Results) -> Results:
-        """Add two Results objects together.
-
-        Combines two Results objects into a new one. Both objects must have the same
-        survey and created columns.
-
-        Args:
-            other: A Results object to add to this one.
-
-        Returns:
-            A new Results object containing data from both objects.
-
-        Raises:
-            ResultsError: If the surveys or created columns of the two objects don't match.
-
-        Examples:
-            >>> from edsl.results import Results
-            >>> r1 = Results.example()
-            >>> r2 = Results.example()
-            >>> # Combine two Results objects
-            >>> r3 = r1 + r2
-            >>> len(r3) == len(r1) + len(r2)
-            True
-
-            >>> # Attempting to add incompatible Results
-            >>> from unittest.mock import Mock
-            >>> r4 = Results(survey=Mock())  # Different survey
-            >>> try:
-            ...     r1 + r4
-            ... except ResultsError:
-            ...     True
-            True
-        """
         return self._container.__add__(other)
 
     def _repr_html_(self):
@@ -561,6 +530,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         self.cache = cache
 
     @property
+    @wraps(ResultsProperties.has_unfixed_exceptions.fget)
     def has_unfixed_exceptions(self) -> bool:
         return self._properties.has_unfixed_exceptions
 
@@ -575,6 +545,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         )
 
     @property
+    @wraps(ResultsProperties.hashes.fget)
     def hashes(self) -> set:
         return self._properties.hashes
 
@@ -605,15 +576,8 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         return ResultsSerializer.from_dict(data)
 
     @property
+    @wraps(ResultsProperties.columns.fget)
     def columns(self) -> list[str]:
-        """Return a list of all of the columns that are in the Results.
-
-        Example:
-
-        >>> r = Results.example()
-        >>> r.columns
-        ['agent.agent_index', ...]
-        """
         return self._properties.columns
 
     def show_columns(self):
@@ -655,110 +619,51 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         return ColumnTreeVisualization(data_types)
 
     @property
+    @wraps(ResultsProperties.answer_keys.fget)
     def answer_keys(self) -> dict[str, str]:
-        """Return a mapping of answer keys to question text.
-
-        Example:
-
-        >>> r = Results.example()
-        >>> r.answer_keys
-        {'how_feeling': 'How are you this {{ period }}?', 'how_feeling_yesterday': 'How were you feeling yesterday {{ period }}?'}
-        """
         return self._properties.answer_keys
 
     @property
+    @wraps(ResultsProperties.agents.fget)
     def agents(self) -> AgentList:
-        """Return a list of all of the agents in the Results.
-
-        Example:
-
-        >>> r = Results.example()
-        >>> r.agents
-        AgentList([Agent(traits = {'status': 'Joyful'}), Agent(traits = {'status': 'Joyful'}), Agent(traits = {'status': 'Sad'}), Agent(traits = {'status': 'Sad'})])
-        """
         return self._properties.agents
 
     @property
+    @wraps(ResultsProperties.models.fget)
     def models(self) -> ModelList:
-        """Return a list of all of the models in the Results.
-
-        Example:
-
-        >>> r = Results.example()
-        >>> r.models[0]
-        Model(model_name = ...)
-        """
         return self._properties.models
 
     def __eq__(self, other):
         return hash(self) == hash(other)
 
     @property
+    @wraps(ResultsProperties.scenarios.fget)
     def scenarios(self) -> ScenarioList:
-        """Return a list of all of the scenarios in the Results.
-
-        Example:
-
-        >>> r = Results.example()
-        >>> r.scenarios
-        ScenarioList([Scenario({'period': 'morning'}), Scenario({'period': 'afternoon'}), Scenario({'period': 'morning'}), Scenario({'period': 'afternoon'})])
-        """
         return self._properties.scenarios
 
     @property
+    @wraps(ResultsProperties.agent_keys.fget)
     def agent_keys(self) -> list[str]:
-        """Return a set of all of the keys that are in the Agent data.
-
-        Example:
-
-        >>> r = Results.example()
-        >>> r.agent_keys
-        ['agent_index', 'agent_instruction', 'agent_name', 'status']
-        """
         return self._properties.agent_keys
 
     @property
+    @wraps(ResultsProperties.model_keys.fget)
     def model_keys(self) -> list[str]:
-        """Return a set of all of the keys that are in the LanguageModel data.
-
-        >>> r = Results.example()
-        >>> r.model_keys
-        ['canned_response', 'inference_service', 'model', 'model_index', 'temperature']
-        """
         return self._properties.model_keys
 
     @property
+    @wraps(ResultsProperties.scenario_keys.fget)
     def scenario_keys(self) -> list[str]:
-        """Return a set of all of the keys that are in the Scenario data.
-
-        >>> r = Results.example()
-        >>> r.scenario_keys
-        ['period', 'scenario_index']
-        """
         return self._properties.scenario_keys
 
     @property
+    @wraps(ResultsProperties.question_names.fget)
     def question_names(self) -> list[str]:
-        """Return a list of all of the question names.
-
-        Example:
-
-        >>> r = Results.example()
-        >>> r.question_names
-        ['how_feeling', 'how_feeling_yesterday']
-        """
         return self._properties.question_names
 
     @property
+    @wraps(ResultsProperties.all_keys.fget)
     def all_keys(self) -> list[str]:
-        """Return a set of all of the keys that are in the Results.
-
-        Example:
-
-        >>> r = Results.example()
-        >>> r.all_keys
-        ['agent_index', ...]
-        """
         return self._properties.all_keys
 
     def first(self) -> Result:
