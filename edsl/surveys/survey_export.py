@@ -172,8 +172,6 @@ class SurveyExport:
         survey = Survey(questions=[q0, q1, q2])
         ...
         """
-        import black
-
         header_lines = ["from edsl.surveys.Survey import Survey"]
         header_lines.append("from edsl import Question")
         lines = ["\n".join(header_lines)]
@@ -185,9 +183,13 @@ class SurveyExport:
         lines.append(
             f"{survey_var_name} = Survey(questions = [{', '.join(self.survey.question_names)}])"
         )
-        # return lines
         code_string = "\n".join(lines)
-        formatted_code = black.format_str(code_string, mode=black.FileMode())
+        try:
+            import black
+
+            formatted_code = black.format_str(code_string, mode=black.FileMode())
+        except ImportError:
+            formatted_code = code_string
 
         if filename:
             print("The code has been saved to", filename)

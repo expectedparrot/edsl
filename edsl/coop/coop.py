@@ -1188,13 +1188,16 @@ class Coop(CoopFunctionsMixin):
                     byte_data = pretty_json_string.encode("utf-8")
                 # Lint python files prior to upload
                 elif file_store_metadata["suffix"] == "py":
-                    import black
-
                     file_store_bytes = base64.b64decode(object_dict["base64_string"])
                     python_string = file_store_bytes.decode("utf-8")
-                    formatted_python_string = black.format_str(
-                        python_string, mode=black.Mode()
-                    )
+                    try:
+                        import black
+
+                        formatted_python_string = black.format_str(
+                            python_string, mode=black.Mode()
+                        )
+                    except ImportError:
+                        formatted_python_string = python_string
                     byte_data = formatted_python_string.encode("utf-8")
                 else:
                     byte_data = base64.b64decode(object_dict["base64_string"])
