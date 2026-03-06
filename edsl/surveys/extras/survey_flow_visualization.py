@@ -1,15 +1,11 @@
 """A mixin for visualizing the flow of a survey with parameter nodes.
 
-Requires: pydot (pip install edsl[viz])
+Supports both Mermaid (text-based, no dependencies) and pydot/graphviz backends.
 """
 
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
+
 from edsl.surveys.base import RulePriority, EndOfSurvey
-import tempfile
-
-
-# Import types for annotations
-from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from edsl.surveys.survey import Survey
@@ -18,7 +14,7 @@ if TYPE_CHECKING:
 
 
 class SurveyFlowVisualization:
-    """A mixin for visualizing the flow of a survey with parameter visualization."""
+    """Visualize the flow of a survey with parameter visualization."""
 
     def __init__(
         self,
@@ -30,24 +26,17 @@ class SurveyFlowVisualization:
         self.scenario = scenario or {}
         self.agent = agent
 
-    def show_flow(self, filename: Optional[str] = None):
-        """Create an image showing the flow of users through the survey and question parameters.
+    def show_flow(self, filename: Optional[str] = None, renderer: Optional[str] = None):
+        """Create a visualization showing the survey flow and question parameters.
 
-        In marimo notebooks, returns a PIL Image that will be displayed automatically.
-        In Jupyter/Colab, displays the image inline using IPython.display.
-        Otherwise, opens the image in the system viewer.
+        Args:
+            filename: Optional path to save the output.
+            renderer: "mermaid" or "pydot" (default: auto-detect).
         """
-        # Create a graph object
-        import pydot
+        from edsl.utilities.graph_renderer import DiGraph
 
-        FONT_SIZE = "10"
+        graph = DiGraph(renderer=renderer)
 
-        graph = pydot.Dot(graph_type="digraph", fontsize=FONT_SIZE)
-
-        # First collect all unique parameters and different types of references
-        params_and_refs = set()
-        param_to_questions = {}  # Keep track of which questions use each parameter
-        reference_types = {}  # Dictionary to store different types of references
         reference_colors = {
             "answer": "purple",
             "question_text": "red",
@@ -56,7 +45,7 @@ class SurveyFlowVisualization:
             "default": "grey",
         }
 
-        # Build a mapping of questions to their groups
+        # Build question-to-group mapping
         question_to_group = {}
         if self.survey.question_groups:
             for group_name, (start_idx, end_idx) in self.survey.question_groups.items():
@@ -64,265 +53,105 @@ class SurveyFlowVisualization:
                     if q_idx < len(self.survey.questions):
                         question_to_group[q_idx] = group_name
 
-        # Create question groups as subgraph clusters first
+        # Create group subgraphs
         group_colors = [
-            "lightblue",
-            "lightgreen",
-            "lightyellow",
-            "lightcyan",
-            "lightpink",
-            "lavender",
-            "mistyrose",
-            "honeydew",
+            "lightblue", "lightgreen", "lightyellow", "lightcyan",
+            "lightpink", "lavender", "mistyrose", "honeydew",
         ]
-
-        group_clusters = {}
         if self.survey.question_groups:
-            for i, (group_name, (start_idx, end_idx)) in enumerate(
-                self.survey.question_groups.items()
-            ):
+            for i, (group_name, _) in enumerate(self.survey.question_groups.items()):
                 color = group_colors[i % len(group_colors)]
-
-                # Create a subgraph cluster for the group
-                cluster = pydot.Cluster(
+                graph.add_subgraph(
                     f"cluster_{group_name}",
                     label=f"Group: {group_name}",
-                    style="filled",
-                    fillcolor=color,
-                    color="black",
-                    fontsize=str(int(FONT_SIZE) + 2),
-                    fontname="Arial Bold",
+                    fill_color=color,
                 )
-                group_clusters[group_name] = cluster
 
-        # First pass: collect parameters and their question associations
+        # Collect parameters and references
+        params_and_refs = set()
+        param_to_questions = {}
+        reference_types = {}
+
         for index, question in enumerate(self.survey.questions):
-            question_node = pydot.Node(
-                f"Q{index}",
-                label=f"{question.question_name}",
-                shape="ellipse",
-                fontsize=FONT_SIZE,
-            )
-
-            # Add node to appropriate cluster or main graph
+            subgraph = None
             if index in question_to_group:
-                group_name = question_to_group[index]
-                group_clusters[group_name].add_node(question_node)
-            else:
-                graph.add_node(question_node)
+                subgraph = f"cluster_{question_to_group[index]}"
+
+            graph.add_node(
+                f"Q{index}",
+                label=question.question_name,
+                shape="ellipse",
+                subgraph=subgraph,
+            )
 
             if hasattr(question, "detailed_parameters"):
                 for param in question.detailed_parameters:
-                    if "agent." in param:
-                        # Handle agent trait references
+                    if "agent." in param or "scenario." in param:
                         params_and_refs.add(param)
-                        if param not in param_to_questions:
-                            param_to_questions[param] = []
-                        param_to_questions[param].append(index)
-                    if "scenario." in param:
-                        params_and_refs.add(param)
-                        if param not in param_to_questions:
-                            param_to_questions[param] = []
-                        param_to_questions[param].append(index)
+                        param_to_questions.setdefault(param, []).append(index)
                     elif "." in param:
                         source_q, ref_type = param.split(".", 1)
-                        if ref_type not in reference_types:
-                            reference_types[ref_type] = set()
-                        reference_types[ref_type].add((source_q, index))
+                        reference_types.setdefault(ref_type, set()).add((source_q, index))
                     else:
                         params_and_refs.add(param)
-                        if param not in param_to_questions:
-                            param_to_questions[param] = []
-                        param_to_questions[param].append(index)
+                        param_to_questions.setdefault(param, []).append(index)
 
-        # Add group clusters to the graph
-        for cluster in group_clusters.values():
-            graph.add_subgraph(cluster)
-
-        # Add edges for all reference types
+        # Add reference edges
         for ref_type, references in reference_types.items():
             color = reference_colors.get(ref_type, reference_colors["default"])
             for source_q_name, target_q_index in references:
-                # Find the source question index by name
                 try:
                     source_q_index = next(
-                        i
-                        for i, q in enumerate(self.survey.questions)
+                        i for i, q in enumerate(self.survey.questions)
                         if q.question_name == source_q_name
                     )
                 except StopIteration:
-                    print(f"Source question {source_q_name} not found in survey.")
                     continue
-
-                ref_edge = pydot.Edge(
-                    f"Q{source_q_index}",
-                    f"Q{target_q_index}",
-                    style="dashed",
-                    color=color,
-                    label=f".{ref_type}",
-                    fontcolor=color,
-                    fontname="Courier",
-                    fontsize=FONT_SIZE,
+                graph.add_edge(
+                    f"Q{source_q_index}", f"Q{target_q_index}",
+                    label=f".{ref_type}", style="dashed", color=color, font_color=color,
                 )
-                graph.add_edge(ref_edge)
 
-        # Create parameter nodes and connect them to questions
+        # Add parameter nodes
         for param in params_and_refs:
-            param_node_name = f"param_{param}"
-            node_attrs = {
-                "label": f"{{{{ {param} }}}}",
-                "shape": "box",
-                "style": "filled",
-                "fillcolor": "lightgrey",
-                "fontsize": FONT_SIZE,
-            }
-
-            # Special handling for agent traits
+            node_id = f"param_{param}"
             if param.startswith("agent."):
-                node_attrs.update(
-                    {
-                        "fillcolor": "lightpink",
-                        "label": f"Agent Trait\n{{{{ {param} }}}}",
-                    }
-                )
-            # Check if parameter exists in scenario
+                graph.add_node(node_id, label=f"Agent Trait\n{{{{ {param} }}}}", shape="box", fill_color="lightpink")
             elif self.scenario and param.startswith("scenario."):
-                node_attrs.update(
-                    {"fillcolor": "lightgreen", "label": f"Scenario\n{{{{ {param} }}}}"}
-                )
+                graph.add_node(node_id, label=f"Scenario\n{{{{ {param} }}}}", shape="box", fill_color="lightgreen")
+            else:
+                graph.add_node(node_id, label=f"{{{{ {param} }}}}", shape="box", fill_color="lightgrey")
 
-            param_node = pydot.Node(param_node_name, **node_attrs)
-            graph.add_node(param_node)
-
-            # Connect this parameter to all questions that use it
             for q_index in param_to_questions[param]:
-                param_edge = pydot.Edge(
-                    param_node_name,
-                    f"Q{q_index}",
-                    style="dotted",
-                    arrowsize="0.5",
-                    fontsize=FONT_SIZE,
-                )
-                graph.add_edge(param_edge)
+                graph.add_edge(node_id, f"Q{q_index}", style="dotted")
 
-        # Add an "EndOfSurvey" node
-        graph.add_node(
-            pydot.Node(
-                "EndOfSurvey",
-                label="End of Survey",
-                shape="rectangle",
-                fontsize=FONT_SIZE,
-                style="filled",
-                fillcolor="lightgrey",
-            )
-        )
+        # End of survey node
+        graph.add_node("EndOfSurvey", label="End of Survey", shape="box", fill_color="lightgrey")
 
-        # Add edges for normal flow through the survey
+        # Normal flow edges
         num_questions = len(self.survey.questions)
         for index in range(num_questions - 1):
-            graph.add_edge(pydot.Edge(f"Q{index}", f"Q{index+1}", fontsize=FONT_SIZE))
+            graph.add_edge(f"Q{index}", f"Q{index + 1}")
+        if num_questions > 0:
+            graph.add_edge(f"Q{num_questions - 1}", "EndOfSurvey")
 
-        graph.add_edge(
-            pydot.Edge(f"Q{num_questions-1}", "EndOfSurvey", fontsize=FONT_SIZE)
-        )
-
+        # Rule edges
         relevant_rules = [
-            rule
-            for rule in self.survey.rule_collection
+            rule for rule in self.survey.rule_collection
             if rule.priority > RulePriority.DEFAULT.value
         ]
+        colors = ["blue", "red", "orange", "purple", "brown", "cyan", "darkgreen"]
 
-        # edge-colors to cycle through
-        colors = [
-            "blue",
-            "red",
-            "orange",
-            "purple",
-            "brown",
-            "cyan",
-            "darkgreen",
-        ]
-        rule_colors = {
-            rule: colors[i % len(colors)] for i, rule in enumerate(relevant_rules)
-        }
-
-        for rule in relevant_rules:
-            color = rule_colors[rule]
-            edge_label = f"if {rule.expression}"
-            source_node = f"Q{rule.current_q}"
-            target_node = (
+        for i, rule in enumerate(relevant_rules):
+            color = colors[i % len(colors)]
+            target = (
                 f"Q{rule.next_q}"
                 if rule.next_q != EndOfSurvey and rule.next_q < num_questions
                 else "EndOfSurvey"
             )
-            if rule.before_rule:
-                edge = pydot.Edge(
-                    source_node,
-                    target_node,
-                    label=edge_label,
-                    color=color,
-                    fontcolor=color,
-                    tailport="n",
-                    headport="n",
-                    fontname="Courier",
-                    fontsize=FONT_SIZE,
-                )
-            else:
-                edge = pydot.Edge(
-                    source_node,
-                    target_node,
-                    label=edge_label,
-                    color=color,
-                    fontcolor=color,
-                    fontname="Courier",
-                    fontsize=FONT_SIZE,
-                )
+            graph.add_edge(
+                f"Q{rule.current_q}", target,
+                label=f"if {rule.expression}", color=color, font_color=color,
+            )
 
-            graph.add_edge(edge)
-
-        if filename is not None:
-            graph.write_png(filename)
-            print(f"Flowchart saved to {filename}")
-            return
-
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmp_file:
-            try:
-                graph.write_png(tmp_file.name)
-            except FileNotFoundError:
-                print(
-                    """File not found. Most likely it's because you don't have graphviz installed. Please install it and try again.
-                        On Ubuntu, you can install it by running:
-                        $ sudo apt-get install graphviz
-                        On Mac, you can install it by running:
-                        $ brew install graphviz
-                        On Windows, you can install it by running:
-                        $ choco install graphviz
-                    """
-                )
-            from edsl.utilities.is_notebook import is_notebook
-            import sys
-
-            if is_notebook():
-                # Check if we're in marimo
-                if "marimo" in sys.modules:
-                    # marimo can display PIL Images directly
-                    from PIL import Image as PILImage
-
-                    img = PILImage.open(tmp_file.name)
-                    return img
-                else:
-                    # Jupyter/Colab: use IPython display
-                    from IPython.display import Image, display
-
-                    display(Image(tmp_file.name))
-            else:
-                import os
-
-                if os.name == "nt":  # Windows
-                    os.system(f"start {tmp_file.name}")
-                elif os.name == "posix":  # macOS, Linux, Unix, etc.
-                    os.system(
-                        f"open {tmp_file.name}"
-                        if sys.platform == "darwin"
-                        else f"xdg-open {tmp_file.name}"
-                    )
+        return graph.show(filename=filename)
