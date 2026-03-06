@@ -23,10 +23,12 @@ class TestQuestionTaskCreator(unittest.IsolatedAsyncioTestCase):
         self.answer_question_func = AsyncMock(return_value=answer)
         self.model_buckets = MagicMock(spec=ModelBuckets)
         self.model_buckets.requests_bucket = Mock(
-            wait_time=Mock(return_value=0), get_tokens=AsyncMock()
+            wait_time=Mock(return_value=0), get_tokens=AsyncMock(),
+            turbo_mode_on=Mock(), turbo_mode_off=Mock()
         )
         self.model_buckets.tokens_bucket = AsyncMock(
-            wait_time=Mock(return_value=0), get_tokens=AsyncMock(), add_tokens=Mock()
+            wait_time=Mock(return_value=0), get_tokens=AsyncMock(), add_tokens=Mock(),
+            turbo_mode_on=Mock(), turbo_mode_off=Mock()
         )
 
         self.task_creator = QuestionTaskCreator(

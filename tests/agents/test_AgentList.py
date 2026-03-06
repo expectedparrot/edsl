@@ -289,17 +289,17 @@ class TestAgentList(unittest.TestCase):
     
     def test_cartesian_product(self):
         """Test cartesian product (multiplication) of agent lists"""
-        # Create two simple agent lists
+        # Create two simple agent lists (no names to avoid name-conflict warnings)
         agents1 = AgentList([
-            Agent(name="A1", traits={"trait1": "value1"}),
-            Agent(name="A2", traits={"trait1": "value2"})
+            Agent(traits={"trait1": "value1"}),
+            Agent(traits={"trait1": "value2"})
         ])
-        
+
         agents2 = AgentList([
-            Agent(name="B1", traits={"trait2": "value3"}),
-            Agent(name="B2", traits={"trait2": "value4"})
+            Agent(traits={"trait2": "value3"}),
+            Agent(traits={"trait2": "value4"})
         ])
-        
+
         # Multiply them
         product = agents1 * agents2
         
