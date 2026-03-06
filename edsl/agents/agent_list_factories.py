@@ -252,15 +252,26 @@ class AgentListFactories:
 
         agents = []
         for scenario in scenario_list:
-            # Simple implementation to handle the basic test case
             new_scenario = scenario.copy().data
-            if "name" in new_scenario:
-                new_scenario["agent_name"] = new_scenario.pop("name")
-                new_agent = Agent(traits=new_scenario, name=new_scenario["agent_name"])
-                agents.append(new_agent)
-            else:
-                new_agent = Agent(traits=new_scenario)
-                agents.append(new_agent)
+            agent_kwargs = {}
+
+            # Extract agent_parameters if present
+            agent_params = new_scenario.pop("agent_parameters", None)
+            if agent_params and isinstance(agent_params, dict):
+                if "instruction" in agent_params:
+                    agent_kwargs["instruction"] = agent_params.pop("instruction")
+                if "name" in agent_params:
+                    agent_kwargs["name"] = agent_params.pop("name")
+                # Any remaining agent_params become traits
+                new_scenario.update(agent_params)
+
+            # Extract name from scenario (agent_parameters name takes precedence)
+            if "name" in new_scenario and "name" not in agent_kwargs:
+                agent_kwargs["name"] = new_scenario.pop("name")
+            elif "name" in new_scenario:
+                new_scenario.pop("name")
+
+            agents.append(Agent(traits=new_scenario, **agent_kwargs))
 
         # Add a debug check to verify we've processed the scenarios correctly
         if len(agents) != len(scenario_list):

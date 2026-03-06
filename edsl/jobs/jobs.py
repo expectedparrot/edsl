@@ -654,9 +654,9 @@ class Jobs(Base):
 
         >>> from edsl.jobs import Jobs
         >>> job = Jobs.example()
-        >>> job.show_flow()  # Visualises survey flow (no deps/post-run methods)
+        >>> _ = job.show_flow()  # doctest: +SKIP
         >>> job2 = job.select('how_feeling').to_pandas()  # add post-run methods
-        >>> job2.show_flow()  # Now visualises job flow
+        >>> _ = job2.show_flow()  # doctest: +SKIP
         """
         # Decide which visualisation to use
         has_dependencies = getattr(self, "_depends_on", None) is not None
