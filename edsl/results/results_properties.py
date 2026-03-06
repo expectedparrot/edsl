@@ -170,13 +170,3 @@ class ResultsProperties:
         """Return a set of hashes for all result objects."""
         return set(hash(result) for result in self._results.data)
 
-    @property
-    def shelf_keys(self) -> set:
-        """Return a copy of the set of shelved result keys.
-
-        This property delegates to the ResultsSerializer class.
-        """
-        from .results_serializer import ResultsSerializer
-
-        serializer = ResultsSerializer(self._results)
-        return serializer.shelf_keys

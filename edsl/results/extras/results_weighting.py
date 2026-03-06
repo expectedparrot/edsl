@@ -24,7 +24,7 @@ from .results_weighting_strategies import (
 )
 
 if TYPE_CHECKING:
-    from . import Results
+    from ..results import Results
 
 
 class ResultsWeighting:

@@ -63,7 +63,7 @@ class ResultsFilter:
     def filter(self, expression: str) -> "Results":
         """Filter results based on a boolean expression.
 
-        This method evaluates a boolean expression against each Result object in the
+        Evaluates a boolean expression against each Result object in the
         collection and returns a new Results object containing only those that match.
         The expression can reference any column in the data and supports standard
         Python operators and syntax.
@@ -91,6 +91,22 @@ class ResultsFilter:
             - You can use string methods like '.startswith()', '.contains()', etc.
             - The expression can be a multi-line string for improved readability
             - You can use template-style syntax with double curly braces: {{ field }}
+
+        Examples:
+            >>> from edsl.results import Results
+            >>> r = Results.example()
+
+            >>> # Simple equality filter
+            >>> r.filter("how_feeling == 'Great'").select('how_feeling')
+            Dataset([{'answer.how_feeling': ['Great']}])
+
+            >>> # Using OR condition
+            >>> r.filter("how_feeling == 'Great' or how_feeling == 'Terrible'").select('how_feeling')
+            Dataset([{'answer.how_feeling': ['Great', 'Terrible']}])
+
+            >>> # Filter on agent properties
+            >>> r.filter("agent.status == 'Joyful'").select('agent.status')
+            Dataset([{'agent.status': ['Joyful', 'Joyful']}])
         """
         # Import here to avoid circular imports
         from .results import Results

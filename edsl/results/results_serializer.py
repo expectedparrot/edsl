@@ -42,6 +42,7 @@ class ResultsSerializer:
         include_task_history: bool = False,
         include_cache_info: bool = True,
         offload_scenarios: bool = True,
+        full_dict: bool = False,
     ) -> Dict[str, Any]:
         """Convert the Results object to a dictionary representation.
 
@@ -54,7 +55,7 @@ class ResultsSerializer:
             offload_scenarios: Whether to optimize scenarios before serialization
 
         Returns:
-            Dict[str, Any]: Dictionary representation of the Results object
+            dict[str, Any]: Dictionary representation of the Results object
         """
         from ..caching import Cache
 
@@ -125,11 +126,12 @@ class ResultsSerializer:
             ResultsDeserializationError: If there's an error during deserialization
 
         Examples:
-            >>> # This would typically be used internally
-            >>> # r = Results.example()
-            >>> # d = ResultsSerializer(r).to_dict()
-            >>> # r2 = ResultsSerializer.from_dict(d)
-            >>> # r == r2
+            >>> from edsl.results import Results
+            >>> r = Results.example()
+            >>> d = r.to_dict()
+            >>> r2 = Results.from_dict(d)
+            >>> r == r2
+            True
         """
         # Import here to avoid circular imports
         from .results import Results
@@ -170,100 +172,10 @@ class ResultsSerializer:
             raise ResultsDeserializationError(f"Error in Results.from_dict: {e}")
         return results
 
-    def shelve_result(self, result: "Result") -> str:
-        """Store a Result object in persistent storage using its hash as the key.
-
-        Args:
-            result: A Result object to store
-
-        Returns:
-            str: The hash key for retrieving the result later
-
-        Raises:
-            ResultsError: If there's an error storing the Result
-        """
-        import shelve
-
-        key = str(hash(result))
-        try:
-            with shelve.open(self.results._shelve_path) as shelf:
-                shelf[key] = result.to_dict()
-                self.results._shelf_keys.add(key)
-            return key
-        except Exception as e:
-            raise ResultsError(f"Error storing Result in shelve database: {str(e)}")
-
-    def get_shelved_result(self, key: str) -> "Result":
-        """Retrieve a Result object from persistent storage.
-
-        Args:
-            key: The hash key of the Result to retrieve
-
-        Returns:
-            Result: The stored Result object
-
-        Raises:
-            ResultsError: If the key doesn't exist or if there's an error retrieving the Result
-        """
-        import shelve
-        from .result import Result
-
-        if key not in self.results._shelf_keys:
-            raise ResultsError(f"No result found with key: {key}")
-
-        try:
-            with shelve.open(self.results._shelve_path) as shelf:
-                return Result.from_dict(shelf[key])
-        except Exception as e:
-            raise ResultsError(
-                f"Error retrieving Result from shelve database: {str(e)}"
-            )
-
-    @property
-    def shelf_keys(self) -> set:
-        """Return a copy of the set of shelved result keys."""
-        return self.results._shelf_keys.copy()
-
-    def insert_from_shelf(self) -> None:
-        """Move all shelved results into memory using insert_sorted method.
-        Clears the shelf after successful insertion.
-
-        This method preserves the original order of results by using their 'order'
-        attribute if available, which ensures consistent ordering even after
-        serialization/deserialization.
-
-        Raises:
-            ResultsError: If there's an error accessing or clearing the shelf
-        """
-        import shelve
-        from .result import Result
-
-        if not self.results._shelf_keys:
-            return
-
-        try:
-            # First collect all results from shelf
-            with shelve.open(self.results._shelve_path) as shelf:
-                # Get and insert all results first
-                for key in self.results._shelf_keys:
-                    result_dict = shelf[key]
-                    result = Result.from_dict(result_dict)
-                    self.results.insert_sorted(result)
-
-                # Now clear the shelf
-                for key in self.results._shelf_keys:
-                    del shelf[key]
-
-            # Clear the tracking set
-            self.results._shelf_keys.clear()
-
-        except Exception as e:
-            raise ResultsError(f"Error moving results from shelf to memory: {str(e)}")
-
     def to_disk(self, filepath: str) -> None:
         """Serialize the Results object to a zip file, preserving the SQLite database.
 
-        This method creates a zip file containing:
+        Creates a zip file containing:
         1. The SQLite database file from the data container
         2. A metadata.json file with the survey, created_columns, and other non-data info
         3. The cache data if present
@@ -353,10 +265,8 @@ class ResultsSerializer:
     def from_disk(cls, filepath: str) -> "Results":
         """Load a Results object from a zip file.
 
-        This method:
-        1. Extracts the SQLite database file
-        2. Loads the metadata
-        3. Creates a new Results instance with the restored data
+        Extracts the SQLite database file, loads the metadata,
+        and creates a new Results instance with the restored data.
 
         Args:
             filepath: Path to the zip file containing the serialized Results

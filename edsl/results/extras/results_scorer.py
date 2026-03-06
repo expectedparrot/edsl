@@ -8,7 +8,7 @@ for Results objects, including function-based scoring and answer key scoring.
 from typing import Callable, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from . import Results
+    from ..results import Results
 
 
 class ResultsScorer:

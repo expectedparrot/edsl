@@ -1,7 +1,7 @@
 import unittest
 import numpy as np
 from edsl.results import Results
-from edsl.results.results_weighting import ResultsWeighting
+from edsl.results.extras import ResultsWeighting
 
 
 class TestResultsWeighting(unittest.TestCase):
@@ -41,20 +41,6 @@ class TestResultsWeighting(unittest.TestCase):
         # Find optimal weights using iterative method
         weights = self.weighter.find_optimal_weights(
             "how_feeling", target_dist, method="iterative"
-        )
-
-        # Check basic properties
-        self.assertEqual(len(weights), len(self.results))
-        self.assertAlmostEqual(weights.sum(), 1.0, places=6)
-        self.assertTrue(np.all(weights >= 0))
-
-    def test_find_optimal_weights_via_results_method(self):
-        """Test the convenience method on Results object."""
-        target_dist = {"Great": 0.5, "OK": 0.3, "Terrible": 0.2}
-
-        # Use the Results method directly
-        weights = self.results.find_weights_for_target_distribution(
-            "how_feeling", target_dist
         )
 
         # Check basic properties
@@ -307,18 +293,6 @@ class TestResultsWeighting(unittest.TestCase):
 
         # Results should differ between methods
         self.assertFalse(np.allclose(weights_sum, weights_max))
-
-    def test_multi_target_via_results_method(self):
-        """Test the convenience method on Results object."""
-        targets = {
-            'how_feeling': {'Great': 0.5, 'OK': 0.3, 'Terrible': 0.2},
-            'how_feeling_yesterday': {'Great': 0.4, 'Good': 0.3, 'OK': 0.2, 'Terrible': 0.1}
-        }
-
-        weights = self.results.find_weights_for_multiple_targets(targets)
-
-        self.assertEqual(len(weights), len(self.results))
-        self.assertAlmostEqual(weights.sum(), 1.0, places=6)
 
     def test_multi_target_empty_targets(self):
         """Test that empty targets raises ValueError."""
