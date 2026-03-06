@@ -148,6 +148,14 @@ class RenderedGraph:
         return "<p>No graph rendered</p>"
 
     def __repr__(self) -> str:
+        # In Jupyter, _repr_markdown_ handles display; return empty to avoid
+        # duplicate output in the cell's text/plain area.
+        try:
+            from IPython import get_ipython
+            if get_ipython() is not None:
+                return ""
+        except (ImportError, NameError):
+            pass
         if self._text is not None:
             return self._ascii or self._text
         if self._png_path is not None:
