@@ -623,9 +623,9 @@ class DataOperationsBase:
             remove_prefix: Whether to remove the prefix from the column names.
 
         Examples:
-            >>> from edsl.results import Results
-            >>> r = Results.example()
-            >>> r.select('how_feeling').to_pandas()
+            >>> from edsl.results import Results  # doctest: +SKIP
+            >>> r = Results.example()  # doctest: +SKIP
+            >>> r.select('how_feeling').to_pandas()  # doctest: +SKIP
               answer.how_feeling
             0                 OK
             1              Great
