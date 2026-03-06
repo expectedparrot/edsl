@@ -107,9 +107,18 @@ class RenderedGraph:
     Provides display methods for different environments (notebook, terminal, file).
     """
 
-    def __init__(self, text: str | None = None, png_path: str | None = None):
+    def __init__(
+        self,
+        text: str | None = None,
+        png_path: str | None = None,
+        nodes: list[NodeDef] | None = None,
+        edges: list[EdgeDef] | None = None,
+    ):
         self._text = text
         self._png_path = png_path
+        self._nodes = nodes or []
+        self._edges = edges or []
+        self._ascii = _render_ascii(self._nodes, self._edges) if self._nodes else None
 
     @property
     def text(self) -> str | None:
@@ -140,7 +149,7 @@ class RenderedGraph:
 
     def __repr__(self) -> str:
         if self._text is not None:
-            return self._text
+            return self._ascii or self._text
         if self._png_path is not None:
             return f"RenderedGraph(png_path={self._png_path!r})"
         return "RenderedGraph(empty)"
@@ -178,7 +187,67 @@ class RenderedGraph:
                 opener = "open" if sys.platform == "darwin" else "xdg-open"
                 os.system(f"{opener} {self._png_path}")
         else:
-            print(self._text)
+            print(self._ascii or self._text)
+
+
+# ---------------------------------------------------------------------------
+# ASCII renderer (for terminal __repr__)
+# ---------------------------------------------------------------------------
+
+def _render_ascii(nodes: list[NodeDef], edges: list[EdgeDef]) -> str:
+    """Render a simple ASCII representation of a directed graph."""
+    node_labels = {n.id: n.label.replace("\n", " ") for n in nodes}
+
+    # Build adjacency: src -> [(dst, label)]
+    adj: dict[str, list[tuple[str, str]]] = {}
+    has_incoming: set[str] = set()
+    for e in edges:
+        adj.setdefault(e.src, []).append((e.dst, e.label))
+        has_incoming.add(e.dst)
+
+    # Find roots (nodes with no incoming edges)
+    all_ids = [n.id for n in nodes]
+    roots = [nid for nid in all_ids if nid not in has_incoming]
+    if not roots:
+        roots = all_ids[:1]  # fallback: just start from first node
+
+    lines: list[str] = []
+    visited: set[str] = set()
+
+    def _walk(nid: str, prefix: str, is_last: bool):
+        if nid in visited:
+            connector = "└── " if is_last else "├── "
+            lines.append(f"{prefix}{connector}[{node_labels.get(nid, nid)}] (see above)")
+            return
+        visited.add(nid)
+
+        connector = "└── " if is_last else "├── "
+        if prefix == "" and len(roots) == 1:
+            lines.append(f"[{node_labels.get(nid, nid)}]")
+        else:
+            lines.append(f"{prefix}{connector}[{node_labels.get(nid, nid)}]")
+
+        children = adj.get(nid, [])
+        child_prefix = prefix + ("    " if is_last else "│   ")
+        if prefix == "" and len(roots) == 1:
+            child_prefix = ""
+
+        for i, (dst, label) in enumerate(children):
+            is_child_last = (i == len(children) - 1)
+            if label:
+                arrow_connector = "└─" if is_child_last else "├─"
+                lines.append(f"{child_prefix}{arrow_connector}── {label} ──>")
+                _walk(dst, child_prefix, is_child_last)
+            else:
+                lines.append(f"{child_prefix}{'└' if is_child_last else '├'}──>")
+                _walk(dst, child_prefix, is_child_last)
+
+    for i, root in enumerate(roots):
+        if i > 0:
+            lines.append("")
+        _walk(root, "", i == len(roots) - 1)
+
+    return "\n".join(lines)
 
 
 # ---------------------------------------------------------------------------
@@ -252,7 +321,7 @@ class MermaidRenderer:
         style_lines = _mermaid_styles(nodes, subgraphs)
         lines.extend(f"    {sl}" for sl in style_lines)
 
-        return RenderedGraph(text="\n".join(lines))
+        return RenderedGraph(text="\n".join(lines), nodes=nodes, edges=edges)
 
 
 def _mermaid_escape(text: str) -> str:
@@ -396,12 +465,8 @@ class PydotRenderer:
 # ---------------------------------------------------------------------------
 
 def _default_renderer() -> str:
-    """Pick the best available renderer."""
-    try:
-        import pydot
-        return "pydot"
-    except ImportError:
-        return "mermaid"
+    """Pick the default renderer. Mermaid is preferred (zero deps)."""
+    return "mermaid"
 
 
 class DiGraph:

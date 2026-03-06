@@ -13,6 +13,35 @@ if TYPE_CHECKING:
     from edsl.agents import Agent
 
 
+_QUESTION_TYPE_ICONS = {
+    "free_text": "✏️",
+    "multiple_choice": "◉",
+    "checkbox": "☑",
+    "linear_scale": "⟷",
+    "numerical": "#",
+    "yes_no": "Y/N",
+    "likert_five": "★5",
+    "top_k": "🔝",
+    "rank": "↕",
+    "budget": "$",
+    "extract": "⛏",
+    "list": "▤",
+    "dropdown": "▾",
+    "matrix": "▦",
+    "file_upload": "📎",
+}
+
+
+def _question_label(question, max_text_len: int = 40) -> str:
+    """Build a rich label for a question node."""
+    icon = _QUESTION_TYPE_ICONS.get(getattr(question, "question_type", ""), "?")
+    name = question.question_name
+    text = getattr(question, "question_text", "") or ""
+    if len(text) > max_text_len:
+        text = text[:max_text_len] + "…"
+    return f"[{icon}] {name}\n{text}"
+
+
 class SurveyFlowVisualization:
     """Visualize the flow of a survey with parameter visualization."""
 
@@ -79,8 +108,8 @@ class SurveyFlowVisualization:
 
             graph.add_node(
                 f"Q{index}",
-                label=question.question_name,
-                shape="ellipse",
+                label=_question_label(question),
+                shape="box",
                 subgraph=subgraph,
             )
 
