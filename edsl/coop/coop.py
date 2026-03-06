@@ -763,6 +763,21 @@ class Coop(CoopFunctionsMixin):
         except Timeout:
             return {}
 
+    @staticmethod
+    def _is_widget_short_name_valid(short_name: str) -> tuple:
+        """Check if a widget short name is valid (lowercase letters, digits, underscores, starts with letter)."""
+        if not short_name:
+            return False, "Widget short name cannot be empty."
+        if not short_name[0].isalpha():
+            return False, "Widget short name must start with a lowercase letter."
+        for char in short_name:
+            if not (char.islower() or char.isdigit() or char == "_"):
+                return (
+                    False,
+                    f"Widget short name contains invalid character '{char}'. Only lowercase letters, digits, and underscores are allowed.",
+                )
+        return True, None
+
     def _get_widget_javascript(self, widget_name: str) -> str:
         """
         Fetches the javascript for a widget from the server using cached singleton.
@@ -806,9 +821,7 @@ class Coop(CoopFunctionsMixin):
         Raises:
             CoopServerResponseError: If there's an error communicating with the server
         """
-        from ..widgets.base_widget import EDSLBaseWidget
-
-        short_name_is_valid, error_message = EDSLBaseWidget.is_widget_short_name_valid(
+        short_name_is_valid, error_message = self._is_widget_short_name_valid(
             short_name
         )
         if not short_name_is_valid:
@@ -989,12 +1002,10 @@ class Coop(CoopFunctionsMixin):
         """
         payload = {}
         if short_name is not None:
-            from ..widgets.base_widget import EDSLBaseWidget
-
             (
                 short_name_is_valid,
                 error_message,
-            ) = EDSLBaseWidget.is_widget_short_name_valid(short_name)
+            ) = self._is_widget_short_name_valid(short_name)
             if not short_name_is_valid:
                 raise CoopValueError(error_message)
             payload["short_name"] = short_name

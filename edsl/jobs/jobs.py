@@ -2628,16 +2628,6 @@ class Jobs(Base):
 
         return job
 
-    def inspect(self):
-        """Create an interactive inspector widget for this job."""
-        try:
-            from ..widgets.job_inspector import JobInspectorWidget
-        except ImportError as e:
-            raise ImportError(
-                "Job inspector widget is not available. Make sure the widgets module is installed."
-            ) from e
-        return JobInspectorWidget(self)
-
     def code(self):
         """Return the code to create this instance."""
         raise JobsImplementationError("Code generation not implemented yet")

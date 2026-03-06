@@ -276,12 +276,6 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
 
         self._report = None
 
-    def view(self) -> None:
-        """View the results in a Jupyter notebook."""
-        from ..widgets.results_viewer import ResultsViewerWidget
-
-        return ResultsViewerWidget(results=self)
-
     def transcripts(self, show_comments: bool = True) -> "Transcripts":
         """Return a Transcripts object for viewing interview responses across multiple respondents.
 

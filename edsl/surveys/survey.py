@@ -3421,26 +3421,6 @@ class Survey(Base):
 
         return QuestionRenamer.with_renamed_question(self, old_name, new_name)
 
-    # def inspect(self):
-    #     """Create an interactive inspector widget for this survey.
-
-    #     This method creates a SurveyInspectorWidget that provides an interactive
-    #     interface for exploring the survey structure, questions, and flow logic.
-
-    #     Returns:
-    #         SurveyInspectorWidget instance: Interactive widget for inspecting this survey
-
-    #     Raises:
-    #         ImportError: If the widgets module cannot be imported
-    #     """
-    #     try:
-    #         from ..widgets.survey_inspector import SurveyInspectorWidget
-    #     except ImportError as e:
-    #         raise ImportError(
-    #             "Survey inspector widget is not available. Make sure the widgets module is installed."
-    #         ) from e
-
-    #     return SurveyInspectorWidget(self)
 
     # @classmethod
     # def generate_from_topic(
