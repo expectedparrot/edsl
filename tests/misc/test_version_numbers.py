@@ -3,6 +3,10 @@
 # edsl.__version__
 
 
+import sys
+import pytest
+
+@pytest.mark.skipif(sys.version_info < (3, 11), reason="tomllib requires Python 3.11+")
 def test_version_numbers():
     import tomllib
     import edsl
