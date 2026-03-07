@@ -1681,6 +1681,7 @@ class JobService:
 
         # Build the answer dict (matches EDSL's answer_dict structure)
         # Include None for failed/skipped questions so all questions appear in results
+        _t_dicts = _time.time()
         answer_dict = {a.question_name: a.answer for a in answers}
         for qname in question_names:
             if qname not in answer_dict:
@@ -1689,6 +1690,7 @@ class JobService:
         # Build prompt dict (matches EDSL's prompt_dictionary structure)
         from edsl.prompts import Prompt
 
+        _t_prompts = _time.time()
         prompt_dict = {}
         for a in answers:
             prompt_dict[f"{a.question_name}_user_prompt"] = Prompt(
@@ -1696,6 +1698,11 @@ class JobService:
             )
             prompt_dict[f"{a.question_name}_system_prompt"] = Prompt(
                 text=a.system_prompt or ""
+            )
+        if _timing is not None:
+            _timing["build_prompt_objects"] = (
+                _timing.get("build_prompt_objects", 0)
+                + (_time.time() - _t_prompts) * 1000
             )
 
         # Build raw_model_response dict (matches EDSL's raw_model_results_dictionary)
@@ -1758,6 +1765,11 @@ class JobService:
         for a in answers:
             validated_dict[f"{a.question_name}_validated"] = a.validated
 
+        if _timing is not None:
+            _timing["build_dicts"] = (
+                _timing.get("build_dicts", 0) + (_time.time() - _t_dicts) * 1000
+            )
+
         # Get survey and question attributes
         # Use passed job_def if available, otherwise fetch
         if job_def is None:
@@ -1788,6 +1800,7 @@ class JobService:
 
         # Build question_to_attributes from already-fetched questions_data
         # Get per-interview option permutations (for questions_to_randomize)
+        _t_qattr = _time.time()
         option_permutations = (
             interview_def.question_option_permutations
             if interview_def and hasattr(interview_def, "question_option_permutations")
@@ -1811,6 +1824,11 @@ class JobService:
                         "question_type": q_data.get("question_type", ""),
                         "question_options": q_options,
                     }
+        if _timing is not None:
+            _timing["build_question_attrs"] = (
+                _timing.get("build_question_attrs", 0)
+                + (_time.time() - _t_qattr) * 1000
+            )
 
         # Get iteration from interview definition
         iteration = (
@@ -1839,6 +1857,7 @@ class JobService:
 
         # Set interview_hash for compatibility with EDSL's Interview-based results.
         # Compute a deterministic hash from the same components Interview.__hash__ uses.
+        _t_hash = _time.time()
         from edsl.utilities.utilities import dict_hash
 
         hash_data = {
@@ -1858,6 +1877,9 @@ class JobService:
         if _timing is not None:
             _timing["create_result_object"] = (
                 _timing.get("create_result_object", 0) + (_time.time() - _t) * 1000
+            )
+            _timing["interview_hash"] = (
+                _timing.get("interview_hash", 0) + (_time.time() - _t_hash) * 1000
             )
 
         return result
