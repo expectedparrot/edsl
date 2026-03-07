@@ -1377,7 +1377,12 @@ class Jobs(Base):
             # Configure remote proxy and fresh parameter for all models when remote inference is enabled
             proxy_config_start = time.time()
             self._logger.info("Configuring remote proxy and fresh parameter for models")
-            for model in self.models:
+            # Also configure models embedded in QuestionThinking questions
+            all_models = list(self.models)
+            for q in getattr(self.survey, 'questions', []):
+                if hasattr(q, '_model') and getattr(q, 'question_type', None) == 'thinking':
+                    all_models.append(q._model)
+            for model in all_models:
                 # Only set to True if it's not already explicitly set to False
                 if (
                     not hasattr(model, "remote_proxy")
@@ -1400,7 +1405,12 @@ class Jobs(Base):
             # When API proxy is disabled, ensure remote proxy is also disabled
             proxy_config_start = time.time()
             self._logger.info("Disabling remote proxy for models (API proxy disabled)")
-            for model in self.models:
+            # Also configure models embedded in QuestionThinking questions
+            all_models = list(self.models)
+            for q in getattr(self.survey, 'questions', []):
+                if hasattr(q, '_model') and getattr(q, 'question_type', None) == 'thinking':
+                    all_models.append(q._model)
+            for model in all_models:
                 model.remote_proxy = False
                 self._logger.debug(f"Disabled remote proxy for model: {model.model}")
 
