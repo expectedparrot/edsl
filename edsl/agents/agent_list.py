@@ -67,6 +67,7 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
         self,
         data: Optional[list["Agent"] | str] = None,
         codebook: Optional[dict[str, str]] = None,
+        traits_presentation_template: Optional[str] = None,
     ):
         """Initialize a new AgentList.
 
@@ -99,6 +100,11 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
             self.set_codebook(codebook)
 
         self._codebook = codebook
+
+        # Apply traits_presentation_template to all agents if provided
+        self._traits_presentation_template = traits_presentation_template
+        if traits_presentation_template is not None:
+            self.set_traits_presentation_template(traits_presentation_template)
         self._agent_list_serializer = AgentListSerializer(self)
         self._agent_list_representation = AgentListRepresentation(self)
         self._agent_list_sampling = AgentListSampling(self)
@@ -263,6 +269,7 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
         return AgentList(
             self.data + other.data,
             codebook=self.codebook if hasattr(self, "codebook") else None,
+            traits_presentation_template=self._traits_presentation_template,
         )
 
     @property

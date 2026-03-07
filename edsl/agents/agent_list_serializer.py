@@ -71,6 +71,10 @@ class AgentListSerializer:
             if all_same and first_codebook:
                 d["codebook"] = first_codebook
 
+            shared_tpt = self._shared_agent_value("traits_presentation_template")
+            if shared_tpt is not None:
+                d["traits_presentation_template"] = shared_tpt
+
         if add_edsl_version:
             from edsl import __version__
 
@@ -109,6 +113,9 @@ class AgentListSerializer:
 
         if "codebook" in data and data["codebook"]:
             agent_list.set_codebook(data["codebook"])
+
+        if "traits_presentation_template" in data and data["traits_presentation_template"]:
+            agent_list.set_traits_presentation_template(data["traits_presentation_template"])
 
         return agent_list
 
