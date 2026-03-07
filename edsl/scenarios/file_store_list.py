@@ -8,8 +8,6 @@ from .file_store import FileStore
 if TYPE_CHECKING:
     pass
 
-data_class = list
-
 
 class FileStoreList(ScenarioList):
     """
@@ -53,7 +51,6 @@ class FileStoreList(ScenarioList):
         self,
         data: Optional[list] = None,
         codebook: Optional[dict[str, str]] = None,
-        data_class: Optional[type] = data_class,
     ):
         """
         Initialize a new FileStoreList with optional data and codebook.
@@ -61,21 +58,11 @@ class FileStoreList(ScenarioList):
         Args:
             data: Optional list of FileStore objects to initialize with.
             codebook: Optional metadata describing the fields in the file stores.
-            data_class: Optional data class for underlying storage (list or SQLite).
 
         Raises:
             TypeError: If any item in data is not a FileStore object.
         """
-        # Validate that all items are FileStore objects
-        # if data:
-        #     for item in data:
-        #         if not isinstance(item, FileStore) or not isinstance(item, Scenario):
-        #             raise TypeError(
-        #                 f"All items must be FileStore objects, got {type(item)}"
-        #             )
-
-        # Initialize using parent class
-        super().__init__(data=data, codebook=codebook, data_class=data_class)
+        super().__init__(data=data, codebook=codebook)
 
     def append(self, item: FileStore) -> None:
         """

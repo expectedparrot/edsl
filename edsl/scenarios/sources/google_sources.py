@@ -77,14 +77,13 @@ class GoogleDocSource(Source):
                 temp_file.write(response.content)
                 temp_filename = temp_file.name
 
-            # Use the DocxScenario class to process the temporary file
-            from ..DocxScenario import DocxScenario
+            # Process the temporary DOCX file
+            from docx import Document
 
-            # Create a scenario from the DOCX file
-            docx_scenario = DocxScenario(temp_filename)
+            doc = Document(temp_filename)
             scenarios = [
                 Scenario({"text": paragraph.text})
-                for paragraph in docx_scenario.doc.paragraphs
+                for paragraph in doc.paragraphs
             ]
 
             return ScenarioList(scenarios)

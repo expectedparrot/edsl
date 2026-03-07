@@ -214,8 +214,7 @@ class ScenarioFactory:
         Creates a Scenario containing text extracted from a PDF file.
 
         This method extracts text and metadata from a PDF file and creates a Scenario
-        containing this information. It uses the PdfExtractor class which provides
-        access to text content, metadata, and structure from PDF files.
+        containing this information.
 
         Args:
             pdf_path: Path to the PDF file to extract content from.
@@ -239,9 +238,8 @@ class ScenarioFactory:
             - The extraction process parses the PDF to maintain structure where possible
         """
         try:
-            from edsl.scenarios.PdfExtractor import PdfExtractor
-
-            extractor = PdfExtractor(pdf_path)
+            import os
+            import fitz
 
             # Import here to avoid circular imports
             try:
@@ -249,7 +247,21 @@ class ScenarioFactory:
             except ImportError:
                 from edsl.scenarios import Scenario
 
-            return Scenario(extractor.get_pdf_dict())
+            if not os.path.exists(pdf_path):
+                raise FileNotFoundError(f"The file {pdf_path} does not exist.")
+
+            document = fitz.open(pdf_path)
+            filename = os.path.basename(pdf_path)
+
+            text = ""
+            for page_num in range(len(document)):
+                page = document.load_page(page_num)
+                blocks = page.get_text("blocks")
+                blocks.sort(key=lambda b: (b[1], b[0]))
+                for block in blocks:
+                    text += block[4] + "\n"
+
+            return Scenario({"filename": filename, "text": text})
         except ImportError as e:
             raise ImportError(
                 f"Could not extract text from PDF: {str(e)}. "
@@ -453,8 +465,7 @@ class ScenarioFactory:
         Creates a Scenario containing text extracted from a Microsoft Word document.
 
         This method extracts text and structure from a DOCX file and creates a Scenario
-        containing this information. It uses the DocxScenario class to handle the
-        extraction process and maintain document structure where possible.
+        containing this information.
 
         Args:
             docx_path: Path to the DOCX file to extract content from.
@@ -482,7 +493,7 @@ class ScenarioFactory:
             - The extraction process attempts to maintain document structure
             - Requires the python-docx library to be installed
         """
-        from edsl.scenarios.DocxScenario import DocxScenario
+        from docx import Document
 
         # Import here to avoid circular imports
         try:
@@ -490,7 +501,9 @@ class ScenarioFactory:
         except ImportError:
             from edsl.scenarios import Scenario
 
-        return Scenario(DocxScenario(docx_path).get_scenario_dict())
+        doc = Document(docx_path)
+        text = "\n".join(para.text for para in doc.paragraphs)
+        return Scenario({"file_path": docx_path, "text": text})
 
     @classmethod
     def example(cls, randomize: bool = False) -> "Scenario":

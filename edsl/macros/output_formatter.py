@@ -36,8 +36,6 @@ relevant_classes = {
         "if_",
         "when",
         "add_value",
-        "to_ranked_scenario_list",
-        "to_true_skill_ranked_list",
         "to_agent_blueprint",
         "__getitem__",
         "add_scenario_reference",

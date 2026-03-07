@@ -1098,6 +1098,13 @@ class Base(
 
         raise BaseNotImplementedError("This method is not implemented yet.")
 
+    # @abstractmethod
+    # def to_jsonl(self):
+    #     """Convert the object to a JSONL string."""
+    #     from edsl.base.exceptions import BaseNotImplementedError
+
+    #     raise BaseNotImplementedError("This method is not implemented yet.")
+
     def json(self):
         """Get a formatted JSON representation of this object.
 

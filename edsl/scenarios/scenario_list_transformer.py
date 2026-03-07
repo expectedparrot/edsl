@@ -976,6 +976,187 @@ class ScenarioListTransformer:
 
         return ScenarioSnakifier(self._scenario_list).snakify()
 
+    def add_scenario_reference(self, key: str, scenario_field_name: str) -> "ScenarioList":
+        """Add a reference to the scenario to a field across all Scenarios.
+
+        Appends a Jinja-style ``{{ scenario.<field> }}`` reference to the value
+        of *key* in every Scenario.
+
+        Args:
+            key: The field whose value will have the reference appended.
+            scenario_field_name: The scenario field name to reference.
+
+        Returns:
+            A new ScenarioList with updated Scenarios.
+        """
+        from .scenario_list import ScenarioList
+
+        new_list = ScenarioList(data=[], codebook=self._scenario_list.codebook)
+        for scenario in self._scenario_list:
+            scenario[key] = scenario[key] + "{{ scenario." + scenario_field_name + " }}"
+            new_list.append(scenario)
+        return new_list
+
+    def string_cat(
+        self,
+        key: str,
+        addend: str,
+        position: str = "suffix",
+        inplace: bool = False,
+    ) -> "ScenarioList":
+        """Concatenate a string to a field across all Scenarios.
+
+        Applies the same behavior as ``Scenario.string_cat`` to each Scenario in the list.
+        By default, returns a new ``ScenarioList``; set ``inplace=True`` to modify this list.
+
+        Args:
+            key: The key whose value will be concatenated in each Scenario.
+            addend: The string to concatenate to the existing value.
+            position: Either "suffix" (default) or "prefix".
+            inplace: If True, modify scenarios in place and return self.
+
+        Returns:
+            A ``ScenarioList`` with updated Scenarios.
+
+        Raises:
+            KeyError: If ``key`` is missing in any Scenario.
+            TypeError: If any value under ``key`` is not a string.
+            ValueError: If ``position`` is not "suffix" or "prefix".
+        """
+        from .scenario_list import ScenarioList
+
+        if inplace:
+            for scenario in self._scenario_list:
+                scenario.string_cat(key, addend, position=position, inplace=True)
+            return self._scenario_list
+
+        new_list = ScenarioList(data=[], codebook=self._scenario_list.codebook)
+        for scenario in self._scenario_list:
+            new_list.append(
+                scenario.string_cat(key, addend, position=position, inplace=False)
+            )
+        return new_list
+
+    def string_cat_if(
+        self,
+        key: str,
+        addend: str,
+        condition: "Any",
+        position: str = "suffix",
+        inplace: bool = False,
+    ) -> "ScenarioList":
+        """Conditionally concatenate a string to a field across all Scenarios.
+
+        The condition may be a boolean or a string such as 'yes'/'no', 'true'/'false', '1'/'0'.
+        Non-empty strings are coerced using a permissive truthy mapping.
+        """
+
+        def _to_bool(val):
+            if isinstance(val, bool):
+                return val
+            if val is None:
+                return False
+            if isinstance(val, (int, float)):
+                return bool(val)
+            if isinstance(val, str):
+                lowered = val.strip().lower()
+                if lowered in {"", "false", "no", "0", "off", "n"}:
+                    return False
+                if lowered in {"true", "yes", "1", "on", "y"}:
+                    return True
+                return True
+            return bool(val)
+
+        if not _to_bool(condition):
+            return self._scenario_list if inplace else self._scenario_list.duplicate()
+        return self.string_cat(key, addend, position=position, inplace=inplace)
+
+    def zip(self, field_a: str, field_b: str, new_name: str) -> "ScenarioList":
+        """Zip two iterable fields in each Scenario into a dict under a new key.
+
+        For every Scenario in the list, this method computes
+        ``dict(zip(scenario[field_a], scenario[field_b]))`` and stores the result
+        in a new key named ``new_name``.
+
+        Args:
+            field_a: Name of the first iterable field whose values become dict keys.
+            field_b: Name of the second iterable field whose values become dict values.
+            new_name: Name of the new field to store the resulting dictionary under.
+
+        Returns:
+            A new ScenarioList with the zipped dictionary added to each Scenario.
+
+        Examples:
+            >>> from edsl.scenarios import Scenario, ScenarioList
+            >>> sl = ScenarioList([
+            ...     Scenario({"keys": ["a", "b"], "vals": [1, 2]}),
+            ...     Scenario({"keys": ["x", "y"], "vals": [9, 8]}),
+            ... ])
+            >>> sl2 = sl.zip("keys", "vals", "mapping")
+            >>> sl2[0]["mapping"], sl2[1]["mapping"]
+            ({'a': 1, 'b': 2}, {'x': 9, 'y': 8})
+        """
+        from .scenario_list import ScenarioList
+
+        new_list = ScenarioList(data=[], codebook=self._scenario_list.codebook)
+        for scenario in self._scenario_list:
+            new_list.append(scenario.zip(field_a, field_b, new_name))
+        return new_list
+
+    def give_valid_names(self, existing_codebook: "dict | None" = None) -> "ScenarioList":
+        """Give valid Python variable names to scenario keys.
+
+        Renames keys that are not valid Python identifiers using sanitization.
+        An optional *existing_codebook* can supply predetermined mappings from
+        original names to valid names.
+
+        Args:
+            existing_codebook: Optional pre-existing mapping of original keys to
+                valid replacement names.
+
+        Returns:
+            A new ScenarioList with valid variable names and an updated codebook.
+
+        Examples:
+            >>> from edsl.scenarios import Scenario, ScenarioList
+            >>> s = ScenarioList([Scenario({'a': 1, 'b': 2}), Scenario({'a': 1, 'b': 1})])
+            >>> s.give_valid_names()
+            ScenarioList([Scenario({'a': 1, 'b': 2}), Scenario({'a': 1, 'b': 1})])
+            >>> s = ScenarioList([Scenario({'are you there John?': 1, 'b': 2}), Scenario({'a': 1, 'b': 1})])
+            >>> s.give_valid_names()
+            ScenarioList([Scenario({'john': 1, 'b': 2}), Scenario({'a': 1, 'b': 1})])
+            >>> s.give_valid_names({'are you there John?': 'custom_name'})
+            ScenarioList([Scenario({'custom_name': 1, 'b': 2}), Scenario({'a': 1, 'b': 1})])
+        """
+        from .scenario_list import ScenarioList
+        from .scenario import Scenario
+        from ..utilities import sanitize_string, is_valid_variable_name
+
+        codebook = existing_codebook.copy() if existing_codebook else {}
+
+        new_scenarios = ScenarioList(data=[], codebook=codebook)
+
+        for scenario in self._scenario_list:
+            new_scenario = {}
+            for key in scenario:
+                if is_valid_variable_name(key):
+                    new_scenario[key] = scenario[key]
+                    continue
+
+                if key in codebook:
+                    new_key = codebook[key]
+                else:
+                    new_key = sanitize_string(key)
+                    if not is_valid_variable_name(new_key):
+                        new_key = f"var_{len(codebook)}"
+                    codebook[key] = new_key
+
+                new_scenario[new_key] = scenario[key]
+
+            new_scenarios.append(Scenario(new_scenario))
+
+        return new_scenarios
+
     def replace_values(self, replacements: dict) -> "ScenarioList":
         """
         Create new scenarios with values replaced according to the provided replacement dictionary.

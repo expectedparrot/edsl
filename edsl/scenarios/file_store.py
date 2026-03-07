@@ -4,7 +4,7 @@ import tempfile
 import mimetypes
 import asyncio
 import os
-from typing import Dict, IO, Optional
+from typing import Dict, Optional
 from typing import Union
 from uuid import UUID
 import time
