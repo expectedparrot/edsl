@@ -49,7 +49,6 @@ _LAZY_MODULES = {
     "instructions",
     "jobs",
     "base",
-    "conversation",
     "extensions",
     "macros",
 }

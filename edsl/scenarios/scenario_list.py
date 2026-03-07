@@ -90,7 +90,7 @@ from ..utilities import (
     memory_profile,
     list_split,
 )
-from ..display.utils import smart_truncate
+from ..utilities.display_utils import smart_truncate
 from ..dataset import ScenarioListOperationsMixin
 
 from .exceptions import ScenarioError

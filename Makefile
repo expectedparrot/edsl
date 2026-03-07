@@ -67,6 +67,26 @@ find: ## Search for a pattern. Use `make find term="pattern"`
 	@find . -type d \( -name '.venv' -o -name '__pycache__' \) -prune -o -type f -print | xargs grep -l "$(term)"
 
 ###############
+##@Pyodide 🌐
+###############
+PYODIDE_DIR ?= static/pyodide_repl
+PYODIDE_PORT ?= 8005
+PYODIDE_WHEEL_INDEX ?= wheel_name.txt
+
+pyodide-wheel: ## Build wheel and copy it into the Pyodide REPL folder
+	@mkdir -p $(PYODIDE_DIR)
+	@poetry build -f wheel
+	@wheel=$$(ls -t dist/*.whl | head -1); \
+	wheel_name=$$(basename "$$wheel"); \
+	echo "Copying $$wheel -> $(PYODIDE_DIR)/$$wheel_name"; \
+	cp "$$wheel" "$(PYODIDE_DIR)/$$wheel_name"; \
+	echo "$$wheel_name" > "$(PYODIDE_DIR)/$(PYODIDE_WHEEL_INDEX)"
+
+pyodide-repl: pyodide-wheel ## Serve a browser REPL with the wheel installed (open http://localhost:$(PYODIDE_PORT))
+	@echo "Starting Pyodide REPL at http://localhost:$(PYODIDE_PORT)"
+	@python -m http.server --directory $(PYODIDE_DIR) $(PYODIDE_PORT)
+
+###############
 ##@Environment Management 🔧
 ###############
 #

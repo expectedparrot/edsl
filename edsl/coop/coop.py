@@ -4116,10 +4116,16 @@ class Coop(CoopFunctionsMixin):
                 rich_print(f"[#38bdf8][link={url}]{url}[/link][/#38bdf8]")
         else:
             # Running in an interactive environment (e.g., Jupyter Notebook)
-            # Use IPython HTML display
-            from IPython.display import HTML, display
+            # Use IPython HTML display if available, otherwise fall back to plain text
+            try:
+                from IPython.display import HTML, display
 
-            display(HTML(html_content))
+                display(HTML(html_content))
+            except ImportError:
+                if link_description:
+                    print(f"{link_description}\n{url}")
+                else:
+                    print(url)
 
         print("Logging in will activate the following features:")
         print("  - Remote inference: Runs jobs remotely on the Expected Parrot server.")
