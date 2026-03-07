@@ -241,6 +241,26 @@ class HybridStorage:
         """Delete a key from volatile storage."""
         self._volatile.delete_volatile(key)
 
+    def batch_delete_volatile(self, keys: list[str]) -> int:
+        """Delete multiple keys from volatile storage in a single operation."""
+        if hasattr(self._volatile, "batch_delete_volatile"):
+            return self._volatile.batch_delete_volatile(keys)
+        # Fallback to individual deletes
+        for key in keys:
+            self._volatile.delete_volatile(key)
+        return len(keys)
+
+    def batch_delete_persistent(self, keys: list[str]) -> int:
+        """Delete multiple keys from persistent storage in a single operation."""
+        if self._all_redis:
+            return self.batch_delete_volatile(keys)
+        if hasattr(self._persistent, "batch_delete_persistent"):
+            return self._persistent.batch_delete_persistent(keys)
+        # Fallback to individual deletes
+        for key in keys:
+            self._persistent.delete_persistent(key)
+        return len(keys)
+
     def increment_volatile(self, key: str, amount: int = 1) -> int:
         """Atomically increment a counter."""
         return self._volatile.increment_volatile(key, amount)

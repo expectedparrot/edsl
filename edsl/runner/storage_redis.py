@@ -211,6 +211,13 @@ class RedisStorage:
         """Delete a key from persistent storage."""
         self._client.delete(self._persistent_key(key))
 
+    def batch_delete_persistent(self, keys: list[str]) -> int:
+        """Delete multiple keys from persistent storage in a single operation."""
+        if not keys:
+            return 0
+        redis_keys = [self._persistent_key(k) for k in keys]
+        return self._client.delete(*redis_keys)
+
     def scan_keys_persistent(self, pattern: str) -> list[str]:
         """Scan persistent storage for keys matching pattern (glob-style)."""
         # Convert glob pattern to Redis pattern
