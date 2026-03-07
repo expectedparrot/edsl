@@ -76,7 +76,9 @@ class AgentInvigilator:
             InvigilatorAI,
         )
 
-        if hasattr(question, "answer_question_directly"):
+        if hasattr(question, "_invigilator_class"):
+            return question._invigilator_class
+        elif hasattr(question, "answer_question_directly"):
             return InvigilatorFunctional
         elif hasattr(self.agent, "answer_question_directly"):
             return InvigilatorHuman

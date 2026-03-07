@@ -468,7 +468,15 @@ class Runner:
 
     def _ensure_queues_for_job(self, job: Any) -> None:
         """Register queues for all models used in this job."""
-        models = job.models if hasattr(job, "models") else []
+        models = list(job.models) if hasattr(job, "models") else []
+
+        # Also include models embedded in QuestionThinking questions
+        survey = job.survey if hasattr(job, "survey") else getattr(job, "_survey", None)
+        if survey:
+            for q in getattr(survey, "questions", []):
+                if hasattr(q, "_model") and getattr(q, "question_type", None) == "thinking":
+                    models.append(q._model)
+
         for model in models:
             service = getattr(model, "_inference_service_", "openai")
             model_name = getattr(model, "model", "gpt-4o-mini")
