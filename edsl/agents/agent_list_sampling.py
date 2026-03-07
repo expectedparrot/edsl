@@ -14,6 +14,7 @@ class AgentListSampling:
 
     Instantiated with a reference to an AgentList; provides methods for
     random sampling, shuffling, train/test splitting, and deep copying.
+    All methods return a new AgentList object.
     """
 
     def __init__(self, agent_list: "AgentList") -> None:
@@ -56,6 +57,7 @@ class AgentListSampling:
 
         Randomly assigns agents to two groups (left and right) based on the specified
         fraction. Useful for creating train/test splits or other random partitions.
+        The original AgentList is not modified.
 
         Args:
             frac_left: Fraction (0-1) of agents to assign to the left group.

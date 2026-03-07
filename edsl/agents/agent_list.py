@@ -42,6 +42,7 @@ if TYPE_CHECKING:
     from ..scenarios import ScenarioList
     from ..results import Results
     from .agent_list_deltas import AgentListDeltas
+    from ..dataset import Dataset
 
 class AgentList(UserList, Base, AgentListOperationsMixin):
     """A list of Agents with additional functionality for manipulation and analysis.
@@ -682,7 +683,7 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
             .table(*fields, tablefmt=tablefmt, pretty_labels=pretty_labels)
         )
 
-    def to_dataset(self, traits_only: bool = True):
+    def to_dataset(self, traits_only: bool = True) -> 'Dataset':
         """Convert the AgentList to a Dataset.
 
         Args:

@@ -26,8 +26,51 @@ def linkcode_resolve(domain, info):
         return None
     if not info["module"]:
         return None
-    filename = info["module"].replace(".", "/")
-    return f"https://github.com/{username}/{projectname}/blob/main/{filename}.py"
+
+    import importlib
+    import inspect
+
+    try:
+        mod = importlib.import_module(info["module"])
+    except ImportError:
+        return None
+
+    # Try to find the actual object for line number resolution
+    obj = mod
+    for part in info["fullname"].split("."):
+        try:
+            obj = getattr(obj, part)
+        except AttributeError:
+            obj = mod
+            break
+
+    # Unwrap decorated objects to get the real source
+    obj = inspect.unwrap(obj, stop=lambda o: hasattr(o, "__code__"))
+
+    try:
+        sourcefile = inspect.getsourcefile(obj)
+        _, lineno = inspect.getsourcelines(obj)
+    except (TypeError, OSError):
+        try:
+            sourcefile = inspect.getsourcefile(mod)
+        except TypeError:
+            return None
+        lineno = None
+
+    if not sourcefile:
+        return None
+
+    # Make path relative to project root (one level up from docs/)
+    rel = os.path.relpath(sourcefile, os.path.join(os.path.dirname(__file__), ".."))
+
+    # Only link to files inside the project
+    if rel.startswith(".."):
+        return None
+
+    url = f"https://github.com/{username}/{projectname}/blob/main/{rel}"
+    if lineno:
+        url += f"#L{lineno}"
+    return url
 
 
 def print_directory_tree(startpath):
