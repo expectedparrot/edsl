@@ -207,7 +207,7 @@ save = ["vl-convert-python (>=1.7.0)"]
 name = "annotated-types"
 version = "0.7.0"
 description = "Reusable constraint types to use with typing.Annotated"
-optional = true
+optional = false
 python-versions = ">=3.8"
 files = [
     {file = "annotated_types-0.7.0-py3-none-any.whl", hash = "sha256:1f02e8b43a8fbbc3f3e0d4f0f4bfc8131bcb4eebe8849b8e5c773f3a1c582a53"},
@@ -4059,7 +4059,7 @@ files = [
 name = "pydantic"
 version = "2.12.5"
 description = "Data validation using Python type hints"
-optional = true
+optional = false
 python-versions = ">=3.9"
 files = [
     {file = "pydantic-2.12.5-py3-none-any.whl", hash = "sha256:e561593fccf61e8a20fc46dfc2dfe075b8be7d0188df33f221ad1f0139180f9d"},
@@ -4080,7 +4080,7 @@ timezone = ["tzdata"]
 name = "pydantic-core"
 version = "2.41.5"
 description = "Core functionality for Pydantic validation and serialization"
-optional = true
+optional = false
 python-versions = ">=3.9"
 files = [
     {file = "pydantic_core-2.41.5-cp310-cp310-macosx_10_12_x86_64.whl", hash = "sha256:77b63866ca88d804225eaa4af3e664c5faf3568cea95360d21f4725ab6e07146"},
@@ -6204,7 +6204,7 @@ files = [
 name = "typing-inspection"
 version = "0.4.2"
 description = "Runtime typing introspection tools"
-optional = true
+optional = false
 python-versions = ">=3.9"
 files = [
     {file = "typing_inspection-0.4.2-py3-none-any.whl", hash = "sha256:4ed1cacbdc298c220f1bd249ed5287caa16f34d44ef4e9c3d0cbad5b521545e7"},
@@ -6540,4 +6540,4 @@ viz = ["altair", "nbclient", "nbformat", "pydot", "termplotlib"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.10,<3.14"
-content-hash = "69c3f635536a049069e3e05cd50bf80b1f826b1097871ad2bfd7bb84d85648bb"
+content-hash = "47cf6ee46acb08b1293bd6684ec3ebcf0122d6cd7c1dd6f1fa3212eae8e021de"
