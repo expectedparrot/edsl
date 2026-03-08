@@ -54,7 +54,7 @@ class InferenceServiceABC(ABC):
         """
         Returns the name of the service.
 
-        >>> from edsl.inference_services.services import OpenAIService
+        >>> from edsl.inference_services.services.open_ai_service import OpenAIService
         >>> OpenAIService.get_service_name()
         'openai'
         """

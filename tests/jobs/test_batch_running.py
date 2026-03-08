@@ -1,7 +1,23 @@
 """Unit tests for the Jobs.run_batch method."""
 
+import pytest
 from edsl.jobs import Jobs
 from edsl import Model, Question, Agent, Survey
+from edsl.scenarios import Scenario, ScenarioList
+
+
+def _make_batch_job():
+    """Create a simple job without template variables for batch testing."""
+    q1 = Question("multiple_choice", question_name="q1",
+                  question_text="How are you?",
+                  question_options=["Good", "Bad"])
+    q2 = Question("multiple_choice", question_name="q2",
+                  question_text="How were you yesterday?",
+                  question_options=["Good", "Bad"])
+    survey = Survey([q1, q2])
+    a1 = Agent(traits={"mood": "happy"})
+    a2 = Agent(traits={"mood": "sad"})
+    return Jobs(survey).by(a1, a2).by(Model('test'))
 
 
 class TestJobsBatchRunning:
@@ -9,8 +25,7 @@ class TestJobsBatchRunning:
 
     def test_run_batch_basic_functionality(self):
         """Test basic batch running functionality."""
-        # Create a simple job
-        job = Jobs.example().by(Model('test'))
+        job = _make_batch_job()
 
         # Run with 2 batches
         results = job.run_batch(
@@ -25,7 +40,7 @@ class TestJobsBatchRunning:
 
     def test_run_batch_single_batch(self):
         """Test batch running with a single batch (should work like regular run)."""
-        job = Jobs.example().by(Model('test'))
+        job = _make_batch_job()
 
         results = job.run_batch(
             num_batches=1,
@@ -39,7 +54,6 @@ class TestJobsBatchRunning:
 
     def test_run_batch_more_batches_than_interviews(self):
         """Test batch running when num_batches > number of interviews."""
-        # Create a job with minimal interviews
         q = Question("free_text", question_name="test", question_text="What is 1+1?")
         survey = Survey([q])
         job = Jobs(survey).by(Agent.example()).by(Model('test'))
@@ -55,7 +69,7 @@ class TestJobsBatchRunning:
 
     def test_run_batch_preserves_results_structure(self):
         """Test that batch running preserves the expected Results structure."""
-        job = Jobs.example().by(Model('test'))
+        job = _make_batch_job()
 
         results = job.run_batch(
             num_batches=2,
@@ -73,7 +87,7 @@ class TestJobsBatchRunning:
 
     def test_run_batch_with_different_batch_sizes(self):
         """Test batch running with various batch sizes."""
-        job = Jobs.example().by(Model('test'))
+        job = _make_batch_job()
 
         # Test different batch counts
         for num_batches in [1, 2, 3]:
@@ -87,7 +101,7 @@ class TestJobsBatchRunning:
 
     def test_run_batch_attributes_handling(self):
         """Test that batch results properly handle optional attributes like bucket_collection."""
-        job = Jobs.example().by(Model('test'))
+        job = _make_batch_job()
 
         results = job.run_batch(
             num_batches=2,

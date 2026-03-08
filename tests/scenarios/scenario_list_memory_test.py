@@ -4,11 +4,13 @@ Memory usage test for ScenarioList with different data sizes.
 
 import gc
 import os
-import psutil
 import time
 import json
 from typing import Dict, List
-import matplotlib.pyplot as plt
+import pytest
+
+psutil = pytest.importorskip("psutil")
+plt = pytest.importorskip("matplotlib.pyplot")
 
 
 def get_memory_usage() -> float:

@@ -186,65 +186,6 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
         """
         return self.to_scenario_list().filter(expression).to_dataset()
 
-    def vibe_filter(
-        self,
-        criteria: str,
-        *,
-        model: str = "gpt-4o",
-        temperature: float = 0.1,
-        show_expression: bool = False,
-    ) -> "Dataset":
-        """
-        Filter the dataset using natural language criteria.
-
-        This method uses an LLM to generate a filter expression based on
-        natural language criteria, then applies it using the dataset's filter method.
-
-        Parameters:
-            criteria: Natural language description of the filtering criteria.
-                Examples:
-                - "Keep only people over 30"
-                - "Remove outliers in the satisfaction scores"
-                - "Only include responses from the last month"
-                - "Filter out any rows with missing data"
-            model: OpenAI model to use for generating the filter (default: "gpt-4o")
-            temperature: Temperature for generation (default: 0.1 for consistent logic)
-            show_expression: If True, prints the generated filter expression
-
-        Returns:
-            Dataset: A new Dataset containing only the rows that match the criteria
-
-        Examples:
-            >>> from edsl.dataset import Dataset
-            >>> d = Dataset([{'age': [25, 35, 42]}, {'occupation': ['student', 'engineer', 'teacher']}])
-            >>> # filtered = d.vibe_filter("Keep only people over 30")
-
-        Notes:
-            - Requires OPENAI_API_KEY environment variable to be set
-            - The LLM generates a filter expression using column names directly
-            - Uses the dataset's built-in filter() method for safe evaluation
-            - Use show_expression=True to see the generated filter logic
-        """
-        from .vibes.vibe_filter import VibeFilter
-
-        # Get column names and sample data
-        columns = self.relevant_columns()
-
-        # Get a few sample rows to help the LLM understand the data structure
-        sample_dicts = self.to_dicts(remove_prefix=False)[:5]
-
-        # Create the filter generator
-        filter_gen = VibeFilter(model=model, temperature=temperature)
-
-        # Generate the filter expression
-        filter_expr = filter_gen.create_filter(columns, sample_dicts, criteria)
-
-        if show_expression:
-            print(f"Generated filter expression: {filter_expr}")
-
-        # Use the dataset's built-in filter method which returns Dataset
-        return self.filter(filter_expr)
-
     def mutate(
         self, new_var_string: str, functions_dict: Optional[dict[str, Callable]] = None
     ) -> "Dataset":
@@ -817,7 +758,7 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
         return Dataset(new_data)
 
     def merge(self, other: Dataset, by_x, by_y) -> Dataset:
-        """Merge the dataset with another dataset on the given keys.
+        """Merge the dataset with another dataset on the given keys (left join).
 
         Examples:
             >>> d1 = Dataset([{'key': [1, 2, 3]}, {'value1': ['a', 'b', 'c']}])
@@ -832,10 +773,34 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
             >>> len(merged.data[0]['id'])
             2
         """
-        df1 = self.to_pandas()
-        df2 = other.to_pandas()
-        merged_df = df1.merge(df2, how="left", left_on=by_x, right_on=by_y)
-        return Dataset.from_pandas_dataframe(merged_df)
+        # Convert self to list of row dicts
+        left_keys = [list(d.keys())[0] for d in self.data]
+        n_left = len(self.data[0][left_keys[0]])
+        left_rows = []
+        for i in range(n_left):
+            row = {k: self.data[j][k][i] for j, k in enumerate(left_keys)}
+            left_rows.append(row)
+
+        # Build lookup from other keyed by by_y
+        right_keys = [list(d.keys())[0] for d in other.data]
+        n_right = len(other.data[0][right_keys[0]])
+        right_lookup = {}
+        for i in range(n_right):
+            key_val = other.data[right_keys.index(by_y)][by_y][i]
+            right_lookup[key_val] = {k: other.data[j][k][i] for j, k in enumerate(right_keys) if k != by_y}
+
+        # Left join
+        result_keys = left_keys + [k for k in right_keys if k != by_y]
+        result = {k: [] for k in result_keys}
+        for row in left_rows:
+            match = right_lookup.get(row[by_x], {})
+            for k in left_keys:
+                result[k].append(row[k])
+            for k in right_keys:
+                if k != by_y:
+                    result[k].append(match.get(k))
+
+        return Dataset([{k: result[k]} for k in result_keys])
 
     def to(self, survey_or_question: Union["Survey", "QuestionBase"]) -> "Job":
         """Transform the dataset using a survey or question.
@@ -1105,16 +1070,15 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
         headers, data = self._tabular()
 
         if tablefmt is not None and tablefmt != "rich":
-            # Rich format is handled separately, so we don't validate it against tabulate_formats
-            from tabulate import tabulate_formats
+            from .display.table_display import SUPPORTED_TABLE_FORMATS
 
-            if tablefmt not in tabulate_formats:
+            if tablefmt not in SUPPORTED_TABLE_FORMATS:
                 print(
                     f"Error: The following table format is not supported: {tablefmt}",
                     file=sys.stderr,
                 )
                 print(
-                    f"\nAvailable formats are: {tabulate_formats} and 'rich'",
+                    f"\nAvailable formats are: {list(SUPPORTED_TABLE_FORMATS)}",
                     file=sys.stderr,
                 )
                 return None

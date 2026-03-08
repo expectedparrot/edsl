@@ -5,7 +5,11 @@ A distributed system for executing EDSL jobs at scale.
 """
 
 from .storage import StorageProtocol, InMemoryStorage
-from .storage_sqlalchemy import SQLAlchemyStorage
+
+try:
+    from .storage_sqlalchemy import SQLAlchemyStorage
+except ImportError:
+    SQLAlchemyStorage = None
 from .models import (
     JobState,
     InterviewState,

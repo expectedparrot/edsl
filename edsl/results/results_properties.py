@@ -36,9 +36,11 @@ class ResultsProperties:
     def columns(self) -> list[str]:
         """Return a list of all of the columns that are in the Results.
 
-        Example:
-            Access through Results instance: results.columns
-            Returns: ['agent.agent_index', ...]
+        Examples:
+            >>> from edsl.results import Results
+            >>> r = Results.example()
+            >>> r.columns
+            ['agent.agent_index', ...]
         """
         return self._results._cache_manager.columns
 
@@ -46,9 +48,11 @@ class ResultsProperties:
     def answer_keys(self) -> dict[str, str]:
         """Return a mapping of answer keys to question text.
 
-        Example:
-            Access through Results instance: results.answer_keys
-            Returns: {'how_feeling': 'How are you this {{ period }}?', ...}
+        Examples:
+            >>> from edsl.results import Results
+            >>> r = Results.example()
+            >>> r.answer_keys
+            {'how_feeling': 'How are you this {{ period }}?', 'how_feeling_yesterday': 'How were you feeling yesterday {{ period }}?'}
         """
         from ..utilities.utilities import shorten_string
 
@@ -70,9 +74,11 @@ class ResultsProperties:
     def agents(self) -> "AgentList":
         """Return a list of all of the agents in the Results.
 
-        Example:
-            Access through Results instance: results.agents
-            Returns: AgentList([Agent(traits = {'status': 'Joyful'}), ...])
+        Examples:
+            >>> from edsl.results import Results
+            >>> r = Results.example()
+            >>> r.agents
+            AgentList([Agent(traits = {'status': 'Joyful'}), Agent(traits = {'status': 'Joyful'}), Agent(traits = {'status': 'Sad'}), Agent(traits = {'status': 'Sad'})])
         """
         from ..agents import AgentList
 
@@ -82,9 +88,11 @@ class ResultsProperties:
     def models(self) -> "ModelList":
         """Return a list of all of the models in the Results.
 
-        Example:
-            Access through Results instance: results.models
-            Returns: ModelList([Model(model_name = ...), ...])
+        Examples:
+            >>> from edsl.results import Results
+            >>> r = Results.example()
+            >>> r.models[0]
+            Model(model_name = ...)
         """
         from ..language_models import ModelList
 
@@ -94,9 +102,11 @@ class ResultsProperties:
     def scenarios(self) -> "ScenarioList":
         """Return a list of all of the scenarios in the Results.
 
-        Example:
-            Access through Results instance: results.scenarios
-            Returns: ScenarioList([Scenario({'period': 'morning'}), ...])
+        Examples:
+            >>> from edsl.results import Results
+            >>> r = Results.example()
+            >>> r.scenarios
+            ScenarioList([Scenario({'period': 'morning'}), Scenario({'period': 'afternoon'}), Scenario({'period': 'morning'}), Scenario({'period': 'afternoon'})])
         """
         from ..scenarios import ScenarioList
 
@@ -106,9 +116,11 @@ class ResultsProperties:
     def agent_keys(self) -> list[str]:
         """Return a set of all of the keys that are in the Agent data.
 
-        Example:
-            Access through Results instance: results.agent_keys
-            Returns: ['agent_index', 'agent_instruction', 'agent_name', 'status']
+        Examples:
+            >>> from edsl.results import Results
+            >>> r = Results.example()
+            >>> r.agent_keys
+            ['agent_index', 'agent_instruction', 'agent_name', 'status']
         """
         return sorted(self._results._cache_manager.data_type_to_keys["agent"])
 
@@ -116,9 +128,11 @@ class ResultsProperties:
     def model_keys(self) -> list[str]:
         """Return a set of all of the keys that are in the LanguageModel data.
 
-        Example:
-            Access through Results instance: results.model_keys
-            Returns: ['frequency_penalty', 'inference_service', 'logprobs', ...]
+        Examples:
+            >>> from edsl.results import Results
+            >>> r = Results.example()
+            >>> r.model_keys
+            ['canned_response', 'inference_service', 'model', 'model_index', 'temperature']
         """
         return sorted(self._results._cache_manager.data_type_to_keys["model"])
 
@@ -126,9 +140,11 @@ class ResultsProperties:
     def scenario_keys(self) -> list[str]:
         """Return a set of all of the keys that are in the Scenario data.
 
-        Example:
-            Access through Results instance: results.scenario_keys
-            Returns: ['period', 'scenario_index']
+        Examples:
+            >>> from edsl.results import Results
+            >>> r = Results.example()
+            >>> r.scenario_keys
+            ['period', 'scenario_index']
         """
         return sorted(self._results._cache_manager.data_type_to_keys["scenario"])
 
@@ -136,9 +152,11 @@ class ResultsProperties:
     def question_names(self) -> list[str]:
         """Return a list of all of the question names.
 
-        Example:
-            Access through Results instance: results.question_names
-            Returns: ['how_feeling', 'how_feeling_yesterday']
+        Examples:
+            >>> from edsl.results import Results
+            >>> r = Results.example()
+            >>> r.question_names
+            ['how_feeling', 'how_feeling_yesterday']
         """
         if self._results.survey is None:
             return []
@@ -148,9 +166,11 @@ class ResultsProperties:
     def all_keys(self) -> list[str]:
         """Return a set of all of the keys that are in the Results.
 
-        Example:
-            Access through Results instance: results.all_keys
-            Returns: ['agent_index', ...]
+        Examples:
+            >>> from edsl.results import Results
+            >>> r = Results.example()
+            >>> r.all_keys
+            ['agent_index', ...]
         """
         answer_keys = set(self.answer_keys)
         all_keys = (
@@ -170,13 +190,3 @@ class ResultsProperties:
         """Return a set of hashes for all result objects."""
         return set(hash(result) for result in self._results.data)
 
-    @property
-    def shelf_keys(self) -> set:
-        """Return a copy of the set of shelved result keys.
-
-        This property delegates to the ResultsSerializer class.
-        """
-        from .results_serializer import ResultsSerializer
-
-        serializer = ResultsSerializer(self._results)
-        return serializer.shelf_keys

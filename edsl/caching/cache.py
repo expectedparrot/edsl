@@ -654,7 +654,7 @@ class Cache(Base):
             - Deferred entries (new_entries_to_write_later) are written to the main data store
             - If a filename was provided at initialization, cache is persisted to that file
             - Persistence format is determined by the filename extension (.jsonl or .db)
-            - SQLAlchemy resources are properly disposed when the context is exited
+            - Database connections are properly closed when the context is exited
         """
         # Write any deferred entries to the main data store
         for key, entry in self.new_entries_to_write_later.items():
@@ -834,15 +834,13 @@ class Cache(Base):
     def close(self):
         """Explicitly close and clean up resources.
 
-        This method properly disposes of any SQLAlchemy engines and
-        connections to prevent memory leaks.
+        This method properly closes any database connections
+        to prevent memory leaks.
         """
         try:
             # Clean up SQLiteDict resources if present
-            if not isinstance(self.data, dict):
-                # Handle SQLiteDict or other database-backed storage
-                if hasattr(self.data, "engine") and self.data.engine:
-                    self.data.engine.dispose()
+            if hasattr(self.data, "close"):
+                self.data.close()
         except Exception:
             # Silently ignore errors during cleanup to prevent issues during garbage collection
             pass
@@ -850,7 +848,7 @@ class Cache(Base):
     def __del__(self):
         """Destructor for proper resource cleanup.
 
-        Ensures SQLAlchemy connections are properly closed when the Cache
+        Ensures database connections are properly closed when the Cache
         object is garbage collected.
         """
         try:

@@ -4,25 +4,31 @@ from __future__ import annotations
 
 # csv import moved to agent_list_factories.py
 import sys
-import random
 import warnings
 import logging
 from collections import defaultdict
+from functools import wraps
 from itertools import product
 
-from ..base.decorators import polly_command
-
 from collections import UserList
-from typing import Any, Callable, List, Optional, Union, TYPE_CHECKING
+from pathlib import Path
+from typing import Any, Callable, Generator, Iterable, List, Optional, Union, TYPE_CHECKING
 
 # simpleeval imports moved to agent_list_filter.py
 
 from ..base import Base
-from ..utilities import is_notebook, remove_edsl_version, dict_hash, list_split
+from ..utilities import is_notebook, remove_edsl_version, dict_hash
 from ..dataset.dataset_operations_mixin import AgentListOperationsMixin
-from ..config import RICH_STYLES
-
 from .agent import Agent
+from .agent_list_builder import AgentListBuilder
+from .agent_list_code_generator import AgentListCodeGenerator
+from .agent_list_factories import AgentListFactories
+from .agent_list_filter import AgentListFilter
+from .agent_list_joiner import AgentListJoiner
+from .agent_list_representation import AgentListRepresentation
+from .agent_list_sampling import AgentListSampling
+from .agent_list_serializer import AgentListSerializer
+from .agent_list_trait_operations import AgentListTraitOperations
 
 from .exceptions import AgentListError
 
@@ -36,15 +42,8 @@ if TYPE_CHECKING:
     from ..scenarios import ScenarioList
     from ..results import Results
     from .agent_list_deltas import AgentListDeltas
+    from ..dataset import Dataset
 
-
-# is_iterable function moved to agent_list_trait_operations.py
-
-
-# EmptyAgentList moved to agent_list_filter.py
-
-
-# ResultsExportMixin,
 class AgentList(UserList, Base, AgentListOperationsMixin):
     """A list of Agents with additional functionality for manipulation and analysis.
 
@@ -58,12 +57,6 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
     >>> AgentList.example().to_dataset()
     Dataset([{'age': [22, 22]}, {'hair': ['brown', 'brown']}, {'height': [5.5, 5.5]}])
 
-    >>> AgentList.example().select('age', 'hair', 'height').to_pandas()
-       age   hair  height
-    0   22  brown     5.5
-    1   22  brown     5.5
-
-
     """
 
     __documentation__ = (
@@ -74,6 +67,7 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
         self,
         data: Optional[list["Agent"] | str] = None,
         codebook: Optional[dict[str, str]] = None,
+        traits_presentation_template: Optional[str] = None,
     ):
         """Initialize a new AgentList.
 
@@ -107,6 +101,17 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
 
         self._codebook = codebook
 
+        # Apply traits_presentation_template to all agents if provided
+        self._traits_presentation_template = traits_presentation_template
+        if traits_presentation_template is not None:
+            self.set_traits_presentation_template(traits_presentation_template)
+        self._agent_list_serializer = AgentListSerializer(self)
+        self._agent_list_representation = AgentListRepresentation(self)
+        self._agent_list_sampling = AgentListSampling(self)
+        self._agent_list_trait_operations = AgentListTraitOperations(self)
+        self._agent_list_joiner = AgentListJoiner(self)
+        self._agent_list_filter = AgentListFilter(self)
+
     def at(self, index: int) -> "Agent":
         """Get the agent at the specified index position."""
         return self.data[index]
@@ -127,8 +132,6 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
         """
         for agent in self.data:
             agent.instruction = instruction
-
-        return self
 
     def set_dynamic_traits(self, function: Callable) -> None:
         """Set the dynamic traits for all agents in the list.
@@ -231,7 +234,6 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
         """
         return AgentList([agent.with_categories(*categories) for agent in self.data])
 
-    @polly_command
     def add_instructions(self, instructions: str) -> "AgentList":
         """Apply instructions to all agents in the list.
 
@@ -267,6 +269,7 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
         return AgentList(
             self.data + other.data,
             codebook=self.codebook if hasattr(self, "codebook") else None,
+            traits_presentation_template=self._traits_presentation_template,
         )
 
     @property
@@ -276,17 +279,6 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
         for agent in self.data:
             keys.update(agent.traits.keys())
         return list(keys)
-
-    @classmethod
-    def manage(cls):
-        from ..widgets.agent_list_manager import AgentListManagerWidget
-
-        return AgentListManagerWidget()
-
-    def edit(self):
-        from ..widgets.agent_list_builder import AgentListBuilderWidget
-
-        return AgentListBuilderWidget(self)
 
     def set_traits_presentation_template(
         self, traits_presentation_template: str
@@ -301,75 +293,34 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
 
         return None
 
+    def set_codebook(self, codebook: dict[str, str]) -> None:
+        """Set the codebook for the AgentList.
+
+        >>> from edsl import Agent
+        >>> a = Agent(traits = {'hair': 'brown'})
+        >>> al = AgentList([a, a])
+        >>> al.set_codebook({'hair': "Color of hair on driver's license"})
+        >>> al[0].codebook
+        {'hair': "Color of hair on driver's license"}
+
+        :param codebook: The codebook.
+        """
+        for agent in self.data:
+            agent.codebook = codebook
+
+    @wraps(AgentListSampling.shuffle)
     def shuffle(self, seed: Optional[str] = None) -> AgentList:
-        """Randomly shuffle the agents in place.
+        return self._agent_list_sampling.shuffle(seed)
 
-        Args:
-            seed: Optional seed for the random number generator to ensure reproducibility.
-
-        Returns:
-            AgentList: The shuffled AgentList (self).
-        """
-        if seed is not None:
-            random.seed(seed)
-        random.shuffle(self.data)
-        return self
-
-    @polly_command
+    @wraps(AgentListSampling.sample)
     def sample(self, n: int, seed: Optional[str] = None) -> AgentList:
-        """Return a random sample of agents.
+        return self._agent_list_sampling.sample(n, seed)
 
-        Args:
-            n: The number of agents to sample.
-            seed: Optional seed for the random number generator to ensure reproducibility.
-
-        Returns:
-            AgentList: A new AgentList containing the sampled agents.
-        """
-
-        if seed:
-            random.seed(seed)
-        return AgentList(random.sample(self.data, n))
-
-    @polly_command
+    @wraps(AgentListSampling.split)
     def split(
         self, frac_left: float, seed: Optional[int] = None
     ) -> tuple[AgentList, AgentList]:
-        """Split the AgentList into two random groups.
-
-        Randomly assigns agents to two groups (left and right) based on the specified
-        fraction. Useful for creating train/test splits or other random partitions.
-
-        Args:
-            frac_left: Fraction (0-1) of agents to assign to the left group.
-            seed: Optional random seed for reproducibility.
-
-        Returns:
-            tuple[AgentList, AgentList]: A tuple containing (left, right) AgentLists.
-
-        Raises:
-            ValueError: If frac_left is not between 0 and 1.
-
-        Examples:
-            Split an agent list 70/30:
-
-            >>> from edsl import Agent, AgentList
-            >>> al = AgentList([Agent(traits={'id': i}) for i in range(10)])
-            >>> left, right = al.split(0.7, seed=42)
-            >>> len(left)
-            7
-            >>> len(right)
-            3
-
-            Create reproducible splits:
-
-            >>> al = AgentList([Agent(traits={'id': i}) for i in range(5)])
-            >>> left1, right1 = al.split(0.6, seed=123)
-            >>> left2, right2 = al.split(0.6, seed=123)
-            >>> len(left1) == len(left2) and len(right1) == len(right2)
-            True
-        """
-        return list_split(self, frac_left, seed)
+        return self._agent_list_sampling.split(frac_left, seed)
 
     def apply_deltas(self, deltas: "AgentListDeltas") -> AgentList:
         """Apply an AgentListDeltas to create a new agent list with updated agents.
@@ -411,179 +362,53 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
         """
         return deltas.apply(self)
 
+    @wraps(AgentListTraitOperations.drop)
     def drop(self, *field_names: Union[str, List[str]]) -> AgentList:
-        """Drop field(s) from all agents in the AgentList.
+        return self._agent_list_trait_operations.drop(*field_names)
 
-        Args:
-            *field_names: The name(s) of the field(s) to drop. Can be:
-                - Single field name: drop("age")
-                - Multiple field names: drop("age", "height")
-                - List of field names: drop(["age", "height"])
-
-        Returns:
-            AgentList: A new AgentList with the specified fields dropped from all agents.
-
-        Examples:
-            Drop a single trait from all agents:
-
-            >>> from edsl import Agent, AgentList
-            >>> al = AgentList([Agent(traits={"age": 30, "hair": "brown", "height": 5.5})])
-            >>> al_dropped = al.drop("age")
-            >>> al_dropped[0].traits
-            {'hair': 'brown', 'height': 5.5}
-
-            Drop multiple traits using separate arguments:
-
-            >>> al = AgentList([Agent(traits={"age": 30, "hair": "brown", "height": 5.5})])
-            >>> al_dropped = al.drop("age", "height")
-            >>> al_dropped[0].traits
-            {'hair': 'brown'}
-
-            Drop multiple traits using a list:
-
-            >>> al = AgentList([Agent(traits={"age": 30, "hair": "brown", "height": 5.5})])
-            >>> al_dropped = al.drop(["age", "height"])
-            >>> al_dropped[0].traits
-            {'hair': 'brown'}
-        """
-        from .agent_list_trait_operations import AgentListTraitOperations
-
-        return AgentListTraitOperations.drop(self, *field_names)
-
+    @wraps(AgentListTraitOperations.keep)
     def keep(self, *field_names: Union[str, List[str]]) -> AgentList:
-        """Keep only the specified fields from all agents in the AgentList.
+        return self._agent_list_trait_operations.keep(*field_names)
 
-        Args:
-            *field_names: The name(s) of the field(s) to keep. Can be:
-                - Single field name: keep("age")
-                - Multiple field names: keep("age", "height")
-                - List of field names: keep(["age", "height"])
-
-        Returns:
-            AgentList: A new AgentList with only the specified fields kept for all agents.
-
-        Examples:
-            Keep a single trait for all agents:
-
-            >>> from edsl import Agent, AgentList
-            >>> al = AgentList([Agent(traits={"age": 30, "hair": "brown", "height": 5.5})])
-            >>> al_kept = al.keep("age")
-            >>> al_kept[0].traits
-            {'age': 30}
-
-            Keep multiple traits using separate arguments:
-
-            >>> al = AgentList([Agent(traits={"age": 30, "hair": "brown", "height": 5.5})])
-            >>> al_kept = al.keep("age", "height")
-            >>> al_kept[0].traits
-            {'age': 30, 'height': 5.5}
-
-            Keep multiple traits using a list:
-
-            >>> al = AgentList([Agent(traits={"age": 30, "hair": "brown", "height": 5.5})])
-            >>> al_kept = al.keep(["age", "height"])
-            >>> al_kept[0].traits
-            {'age': 30, 'height': 5.5}
-
-            Keep agent fields and traits:
-
-            >>> al = AgentList([Agent(traits={"age": 30, "hair": "brown"}, name="John")])
-            >>> al_kept = al.keep("name", "age")
-            >>> al_kept[0].name
-            'John'
-            >>> al_kept[0].traits
-            {'age': 30}
-        """
-        from .agent_list_trait_operations import AgentListTraitOperations
-
-        return AgentListTraitOperations.keep(self, *field_names)
-
+    @wraps(AgentListSampling.duplicate)
     def duplicate(self) -> AgentList:
-        """Create a deep copy of the AgentList.
+        return self._agent_list_sampling.duplicate()
 
-        Returns:
-            AgentList: A new AgentList containing copies of all agents.
+    # def collapse(self, warn_about_none_name: bool = True) -> "AgentList":
+    #     """All agents with the same name have their traits combined.
 
-        Examples:
-            >>> al = AgentList.example()
-            >>> al2 = al.duplicate()
-            >>> al2 == al
-            True
-            >>> id(al2) == id(al)
-            False
-        """
-        return AgentList([a.duplicate() for a in self.data])
+    #     >>> al = AgentList([Agent(name = 'steve'), Agent(name = 'roxanne')])
+    #     >>> al.collapse()
+    #     AgentList([Agent(name = \"\"\"steve\"\"\", traits = {}), Agent(name = \"\"\"roxanne\"\"\", traits = {})])
+    #     >>> al = AgentList([Agent(name = 'steve', traits = {'age': 22}), Agent(name = 'steve', traits = {'hair': 'brown'})])
+    #     >>> al.collapse()
+    #     AgentList([Agent(name = \"\"\"steve\"\"\", traits = {'age': 22, 'hair': 'brown'})])
+    #     >>> AgentList.example().collapse(warn_about_none_name = False)
+    #     AgentList([Agent(traits = {'age': 22, 'hair': 'brown', 'height': 5.5})])
+    #     """
+    #     new_agent_list = AgentList()
+    #     warned_about_none_name = False
+    #     d = {}
+    #     for agent in self:
+    #         if agent.name is None:
+    #             if not warned_about_none_name and warn_about_none_name:
+    #                 warnings.warn("Agent has no name, so it will be ignored.")
+    #                 warned_about_none_name = True
+    #         if agent.name not in d:
+    #             d[agent.name] = agent
+    #         else:
+    #             d[agent.name].traits.update(agent.traits)
+    #     for name, agent in d.items():
+    #         new_agent_list.append(agent)
+    #     return new_agent_list
 
-    def collapse(self, warn_about_none_name: bool = True) -> "AgentList":
-        """All agents with the same name have their traits combined.
-
-        >>> al = AgentList([Agent(name = 'steve'), Agent(name = 'roxanne')])
-        >>> al.collapse()
-        AgentList([Agent(name = \"\"\"steve\"\"\", traits = {}), Agent(name = \"\"\"roxanne\"\"\", traits = {})])
-        >>> al = AgentList([Agent(name = 'steve', traits = {'age': 22}), Agent(name = 'steve', traits = {'hair': 'brown'})])
-        >>> al.collapse()
-        AgentList([Agent(name = \"\"\"steve\"\"\", traits = {'age': 22, 'hair': 'brown'})])
-        >>> AgentList.example().collapse(warn_about_none_name = False)
-        AgentList([Agent(traits = {'age': 22, 'hair': 'brown', 'height': 5.5})])
-        """
-        new_agent_list = AgentList()
-        warned_about_none_name = False
-        d = {}
-        for agent in self:
-            if agent.name is None:
-                if not warned_about_none_name and warn_about_none_name:
-                    warnings.warn("Agent has no name, so it will be ignored.")
-                    warned_about_none_name = True
-            if agent.name not in d:
-                d[agent.name] = agent
-            else:
-                d[agent.name].traits.update(agent.traits)
-        for name, agent in d.items():
-            new_agent_list.append(agent)
-        return new_agent_list
-
+    @wraps(AgentListTraitOperations.rename)
     def rename(self, old_name: str, new_name: str) -> AgentList:
-        """Rename a trait across all agents in the list.
+        return self._agent_list_trait_operations.rename(old_name, new_name)
 
-        Args:
-            old_name: The current name of the trait.
-            new_name: The new name to assign to the trait.
-
-        Returns:
-            AgentList: A new AgentList with the renamed trait.
-
-        Examples:
-            >>> from edsl import Agent
-            >>> al = AgentList([Agent(traits = {'a': 1, 'b': 1}),
-            ...                Agent(traits = {'a': 1, 'b': 2})])
-            >>> al2 = al.rename('a', 'c')
-            >>> assert al2 == AgentList([Agent(traits = {'c': 1, 'b': 1}),
-            ...                         Agent(traits = {'c': 1, 'b': 2})])
-            >>> assert al != al2
-        """
-        from .agent_list_trait_operations import AgentListTraitOperations
-
-        return AgentListTraitOperations.rename(self, old_name, new_name)
-
+    @wraps(AgentListTraitOperations.select)
     def select(self, *traits) -> AgentList:
-        """Create a new AgentList with only the specified traits.
-
-        Args:
-            *traits: Variable number of trait names to keep.
-
-        Returns:
-            AgentList: A new AgentList containing agents with only the selected traits.
-
-        Examples:
-            >>> from edsl import Agent
-            >>> al = AgentList([Agent(traits = {'a': 1, 'b': 1}),
-            ...                Agent(traits = {'a': 1, 'b': 2})])
-            >>> al.select('a')
-            AgentList([Agent(traits = {'a': 1}), Agent(traits = {'a': 1})])
-        """
-        from .agent_list_trait_operations import AgentListTraitOperations
-
-        return AgentListTraitOperations.select(self, *traits)
+        return self._agent_list_trait_operations.select(*traits)
 
     def _apply_names(
         self,
@@ -686,183 +511,32 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
 
         return new_agent_list
 
+    @wraps(AgentListJoiner._join)
     def _join(self, other: "AgentList", join_type: str = "inner") -> AgentList:
-        """Join two AgentLists (private method).
+        return self._agent_list_joiner._join(other, join_type=join_type)
 
-        Args:
-            other: The other AgentList to join
-            join_type: The type of join to perform
-        """
-        from .agent_list_joiner import AgentListJoiner
-
-        return AgentListJoiner._join_two(self, other, join_type=join_type)
-
+    @wraps(AgentListJoiner.join)
     def join(self, other: "AgentList", join_type: str = "inner") -> "AgentList":
-        """Join this AgentList with another AgentList.
-
-        Args:
-            other: The other AgentList to join with
-            join_type: The type of join to perform ("inner", "left", or "right")
-
-        Returns:
-            AgentList: A new AgentList containing the joined results
-
-        Examples:
-            >>> from edsl import Agent, AgentList
-            >>> al1 = AgentList([Agent(name="John", traits={"age": 30})])
-            >>> al2 = AgentList([Agent(name="John", traits={"height": 180})])
-            >>> joined = al1.join(al2)
-            >>> joined[0].traits
-            {'age': 30, 'height': 180}
-        """
-        from .agent_list_joiner import AgentListJoiner
-
-        return AgentListJoiner.join_two(self, other, join_type=join_type)
+        return self._agent_list_joiner.join(other, join_type=join_type)
 
     @classmethod
+    @wraps(AgentListJoiner.join_multiple)
     def join_multiple(
         cls, *agent_lists: "AgentList", join_type: str = "inner"
     ) -> "AgentList":
-        """Join multiple AgentLists together.
-
-        Args:
-            *agent_lists: Variable number of AgentList objects to join
-            join_type: The type of join to perform ("inner", "left", or "right")
-
-        Returns:
-            AgentList: A new AgentList containing the joined results
-
-        Raises:
-            ValueError: If fewer than 2 AgentLists are provided
-
-        Examples:
-            >>> from edsl import Agent, AgentList
-            >>> al1 = AgentList([Agent(name="John", traits={"age": 30})])
-            >>> al2 = AgentList([Agent(name="John", traits={"height": 180})])
-            >>> al3 = AgentList([Agent(name="John", traits={"weight": 75})])
-            >>> joined = AgentList.join_multiple(al1, al2, al3)
-            >>> len(joined)
-            1
-            >>> joined[0].traits
-            {'age': 30, 'height': 180, 'weight': 75}
-        """
-        from .agent_list_joiner import AgentListJoiner
-
         return AgentListJoiner.join_multiple(*agent_lists, join_type=join_type)
 
-    @polly_command
+    @wraps(AgentListFilter.filter)
     def filter(self, expression: str) -> AgentList:
-        """Filter agents based on a boolean expression.
-
-        Args:
-            expression: A string containing a boolean expression to evaluate against
-                each agent's traits.
-
-        Returns:
-            AgentList: A new AgentList containing only agents that satisfy the expression.
-
-        Examples:
-            >>> from edsl import Agent
-            >>> al = AgentList([Agent(traits = {'a': 1, 'b': 1}),
-            ...                Agent(traits = {'a': 1, 'b': 2})])
-            >>> al.filter("b == 2")
-            AgentList([Agent(traits = {'a': 1, 'b': 2})])
-            >>> al = AgentList([Agent(traits = {'a': 1, 'b': 1}, name = 'steve'),
-            ...                Agent(traits = {'a': 1, 'b': 2}, name = 'roxanne')])
-            >>> len(al.filter("name == 'steve'"))
-            1
-            >>> len(al.filter("name == 'roxanne'"))
-            1
-            >>> len(al.filter("name == 'steve' and a == 1"))
-            1
-            >>> len(al.filter("name == 'steve' and a == 2"))
-            0
-            >>> len(al.filter("name == 'steve' and a == 1 and b == 2"))
-            0
-        """
-        from .agent_list_filter import AgentListFilter
-
-        return AgentListFilter.filter(self, expression)
-
-    def vibe_filter(
-        self,
-        criteria: str,
-        *,
-        model: str = "gpt-4o",
-        temperature: float = 0.1,
-        show_expression: bool = False,
-    ) -> "AgentList":
-        """
-        Filter the agent list using natural language criteria.
-
-        This method uses an LLM to generate a filter expression based on
-        natural language criteria, then applies it using the agent list's filter method.
-
-        Parameters:
-            criteria: Natural language description of the filtering criteria.
-                Examples:
-                - "Keep only people over 30"
-                - "Only engineers"
-                - "Agents in Boston"
-                - "Remove anyone under 25"
-            model: OpenAI model to use for generating the filter (default: "gpt-4o")
-            temperature: Temperature for generation (default: 0.1 for consistent logic)
-            show_expression: If True, prints the generated filter expression
-
-        Returns:
-            AgentList: A new AgentList containing only agents that match the criteria
-
-        Examples:
-            >>> from edsl import Agent, AgentList
-            >>> agents = AgentList([
-            ...     Agent(name='Alice', traits={'age': 25, 'occupation': 'engineer'}),
-            ...     Agent(name='Bob', traits={'age': 35, 'occupation': 'teacher'}),
-            ... ])
-            >>> filtered = agents.vibe_filter("Only people over 30")  # doctest: +SKIP
-
-        Notes:
-            - Requires OPENAI_API_KEY environment variable to be set
-            - The LLM generates a filter expression using trait names directly
-            - Uses the agent list's built-in filter() method for safe evaluation
-            - Use show_expression=True to see the generated filter logic
-        """
-        from edsl.dataset.vibes.vibe_filter import VibeFilter
-
-        # Get trait names and sample data
-        trait_names = self.all_traits
-
-        # Get a few sample agents' traits to help the LLM understand the data structure
-        sample_dicts = []
-        for agent in self[:5]:  # First 5 agents
-            sample_dicts.append(dict(agent.traits))
-
-        # Create the filter generator
-        filter_gen = VibeFilter(model=model, temperature=temperature)
-
-        # Generate the filter expression
-        filter_expr = filter_gen.create_filter(trait_names, sample_dicts, criteria)
-
-        if show_expression:
-            print(f"Generated filter expression: {filter_expr}")
-
-        # Use the agent list's built-in filter method which returns AgentList
-        return self.filter(filter_expr)
+        return self._agent_list_filter.filter(expression)
 
     @property
+    @wraps(AgentListTraitOperations.all_traits.fget)
     def all_traits(self) -> list[str]:
-        """Return all traits in the AgentList.
-        >>> from edsl import Agent
-        >>> agent_1 = Agent(traits = {'age': 22})
-        >>> agent_2 = Agent(traits = {'hair': 'brown'})
-        >>> al = AgentList([agent_1, agent_2])
-        >>> al.all_traits
-        ['age', 'hair']
-        """
-        from .agent_list_trait_operations import AgentListTraitOperations
-
-        return AgentListTraitOperations.get_all_traits(self)
+        return self._agent_list_trait_operations.all_traits
 
     @classmethod
+    @wraps(AgentListBuilder.from_source)
     def from_source(
         cls,
         source_type_or_data,
@@ -872,58 +546,6 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
         name_field: Optional[str] = None,
         **kwargs,
     ) -> "AgentList":
-        """Create an AgentList from a specified source type or infer it automatically.
-
-        This method serves as the main entry point for creating AgentList objects,
-        providing a unified interface for various data sources.
-
-        **Two modes of operation:**
-
-        1. **Explicit source type** (2+ arguments): Specify the source type explicitly
-           Example: AgentList.from_source('csv', 'data.csv')
-
-        2. **Auto-detect source** (1 argument): Pass only the data and let it infer the type
-           Example: AgentList.from_source('data.csv') or AgentList.from_source({'key': [1,2,3]})
-
-        Args:
-            source_type_or_data: Either:
-                - A string specifying the source type ('csv', 'excel', 'pdf', etc.)
-                  when using explicit mode with additional args
-                - The actual data source (file path, URL, dict, DataFrame, etc.)
-                  when using auto-detect mode
-            *args: Positional arguments to pass to the source-specific method
-                   (only used in explicit mode).
-            instructions: Optional instructions to apply to all created agents.
-            codebook: Optional dictionary mapping trait names to descriptions, or a path to a CSV file.
-                     If a CSV file is provided, it should have 2 columns: original keys and descriptions.
-                     Keys will be automatically converted to pythonic names.
-            name_field: The name of the field to use as the agent name (for CSV/Excel sources).
-            **kwargs: Additional keyword arguments to pass to the source-specific method.
-
-        Returns:
-            An AgentList object created from the specified source.
-
-        Examples:
-            >>> # Explicit source type (original behavior)
-            >>> # agents = AgentList.from_source(
-            >>> #     'csv', 'agents.csv',
-            >>> #     instructions="Answer as if you were the person described"
-            >>> # )
-            >>> #
-            >>> # Auto-detect source type (new behavior)
-            >>> # agents = AgentList.from_source(
-            >>> #     'agents.csv',
-            >>> #     instructions="Answer as if you were the person described"
-            >>> # )
-            >>> #
-            >>> # Auto-detect from dictionary
-            >>> # agents = AgentList.from_source(
-            >>> #     {'age': [25, 30], 'name': ['Alice', 'Bob']},
-            >>> #     instructions="You are this person"
-            >>> # )
-        """
-        from .agent_list_builder import AgentListBuilder
-
         return AgentListBuilder.from_source(
             source_type_or_data,
             *args,
@@ -933,254 +555,54 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
             **kwargs,
         )
 
-    @classmethod
-    def from_csv(
-        cls,
-        file_path: str,
-        name_field: Optional[str] = None,
-        codebook: Optional[dict[str, str]] = None,
-        instructions: Optional[str] = None,
-    ):
-        """Load AgentList from a CSV file.
-
-        .. deprecated::
-            Use `AgentList.from_source('csv', ...)` instead.
-
-        >>> import csv
-        >>> import os
-        >>> with open('/tmp/agents.csv', 'w') as f:
-        ...     writer = csv.writer(f)
-        ...     _ = writer.writerow(['age', 'hair', 'height'])
-        ...     _ = writer.writerow([22, 'brown', 5.5])
-        >>> al = AgentList.from_csv('/tmp/agents.csv')  # doctest: +SKIP
-        >>> al = AgentList.from_csv('/tmp/agents.csv', name_field='hair')  # doctest: +SKIP
-        >>> al = AgentList.from_csv('/tmp/agents.csv', codebook={'age': 'Age in years'})  # doctest: +SKIP
-        >>> al = AgentList.from_csv('/tmp/agents.csv', instructions='Answer as a person')  # doctest: +SKIP
-        >>> os.remove('/tmp/agents.csv')  # doctest: +SKIP
-
-        :param file_path: The path to the CSV file.
-        :param name_field: The name of the field to use as the agent name.
-        :param codebook: Optional dictionary mapping trait names to descriptions.
-        :param instructions: Optional instructions to apply to all created agents.
-        """
-        from .agent_list_factories import AgentListFactories
-
-        return AgentListFactories.from_csv(
-            file_path,
-            name_field=name_field,
-            codebook=codebook,
-            instructions=instructions,
-        )
-
+    @wraps(AgentListTraitOperations.translate_traits)
     def translate_traits(self, codebook: dict[str, str]):
-        """Translate traits to a new codebook.
+        return self._agent_list_trait_operations.translate_traits(codebook)
 
-        :param codebook: The new codebook.
-
-        >>> al = AgentList.example()
-        >>> codebook = {'hair': {'brown':'Secret word for green'}}
-        >>> al.translate_traits(codebook)
-        AgentList([Agent(traits = {'age': 22, 'hair': 'Secret word for green', 'height': 5.5}), Agent(traits = {'age': 22, 'hair': 'Secret word for green', 'height': 5.5})])
-        """
-        from .agent_list_trait_operations import AgentListTraitOperations
-
-        return AgentListTraitOperations.translate_traits(self, codebook)
-
+    @wraps(AgentListTraitOperations.remove_trait)
     def remove_trait(self, trait: str):
-        """Remove traits from the AgentList.
-
-        :param traits: The traits to remove.
-        >>> from edsl import Agent
-        >>> al = AgentList([Agent({'age': 22, 'hair': 'brown', 'height': 5.5}), Agent({'age': 22, 'hair': 'brown', 'height': 5.5})])
-        >>> al.remove_trait('age')
-        AgentList([Agent(traits = {'hair': 'brown', 'height': 5.5}), Agent(traits = {'hair': 'brown', 'height': 5.5})])
-        """
-        from .agent_list_trait_operations import AgentListTraitOperations
-
-        return AgentListTraitOperations.remove_trait(self, trait)
+        return self._agent_list_trait_operations.remove_trait(trait)
 
     @property
     def names(self) -> List[str]:
         """Returns the names of the agents in the AgentList."""
         return [agent.name for agent in self.data]
 
+    @wraps(AgentListTraitOperations.add_trait)
     def add_trait(self, trait: str, values: List[Any]) -> AgentList:
-        """Adds a new trait to every agent, with values taken from values.
+        return self._agent_list_trait_operations.add_trait(trait, values)
 
-        :param trait: The name of the trait.
-        :param values: The valeues(s) of the trait. If a single value is passed, it is used for all agents.
-
-        >>> al = AgentList.example()
-        >>> new_al = al.add_trait('new_trait', 1)
-        >>> new_al.select('new_trait').to_scenario_list().to_list()
-        [1, 1]
-        >>> al.add_trait('new_trait', [1, 2, 3])
-        Traceback (most recent call last):
-        ...
-        edsl.agents.exceptions.AgentListError: The passed values have to be the same length as the agent list.
-        ...
-        """
-        from .agent_list_trait_operations import AgentListTraitOperations
-
-        return AgentListTraitOperations.add_trait(self, trait, values)
-
+    @wraps(AgentListTraitOperations.numberify)
     def numberify(self) -> AgentList:
-        """Convert string traits to numeric types where possible.
+        return self._agent_list_trait_operations.numberify()
 
-        This method attempts to convert string values to integers or floats
-        for all traits across all agents. It's particularly useful when loading
-        data from CSV files where numeric fields may be stored as strings.
-
-        Conversion rules:
-        - None values remain None
-        - Already numeric values (int, float) remain unchanged
-        - String values that can be parsed as integers are converted to int
-        - String values that can be parsed as floats are converted to float
-        - String values that cannot be parsed remain as strings
-        - Empty strings remain as empty strings
-
-        Returns:
-            AgentList: A new AgentList with numeric conversions applied
-
-        Examples:
-            >>> from edsl import Agent, AgentList
-            >>> al = AgentList([
-            ...     Agent(name='Alice', traits={'age': '30', 'height': '5.5'}),
-            ...     Agent(name='Bob', traits={'age': '25', 'height': '6.0'})
-            ... ])
-            >>> al_numeric = al.numberify()
-            >>> al_numeric[0].traits
-            {'age': 30, 'height': 5.5}
-            >>> al_numeric[1].traits
-            {'age': 25, 'height': 6.0}
-
-            Works with None values and mixed types:
-
-            >>> al = AgentList([Agent(traits={'count': '100', 'value': None, 'label': 'test'})])
-            >>> al_numeric = al.numberify()
-            >>> al_numeric[0].traits
-            {'count': 100, 'value': None, 'label': 'test'}
-        """
-        from .agent_list_trait_operations import AgentListTraitOperations
-
-        return AgentListTraitOperations.numberify(self)
-
+    @wraps(AgentListTraitOperations.filter_na)
     def filter_na(self, fields: Union[str, List[str]] = "*") -> AgentList:
-        """Remove agents where specified traits contain None or NaN values.
-
-        This method filters out agents that have null/NaN values in the specified
-        traits. It's similar to pandas' dropna() functionality. Values considered as
-        NA include: None, float('nan'), and string representations like 'nan', 'none', 'null'.
-
-        Args:
-            fields: Trait name(s) to check for NA values. Can be:
-                    - "*" (default): Check all traits in each agent
-                    - A single trait name (str): Check only that trait
-                    - A list of trait names: Check all specified traits
-
-                    An agent is kept only if NONE of the specified traits contain NA values.
-
-        Returns:
-            AgentList: A new AgentList containing only agents without NA values
-                      in the specified traits.
-
-        Examples:
-            Remove agents with any NA values in any trait:
-
-            >>> from edsl import Agent, AgentList
-            >>> al = AgentList([
-            ...     Agent(traits={'a': 1, 'b': 2}),
-            ...     Agent(traits={'a': None, 'b': 3}),
-            ...     Agent(traits={'a': 4, 'b': 5})
-            ... ])
-            >>> filtered = al.filter_na()
-            >>> len(filtered)
-            2
-            >>> filtered[0].traits
-            {'a': 1, 'b': 2}
-
-            Remove agents with NA in specific trait:
-
-            >>> al = AgentList([
-            ...     Agent(name='Alice', traits={'age': 30}),
-            ...     Agent(name='Bob', traits={'age': None}),
-            ...     Agent(name='Charlie', traits={'age': 25})
-            ... ])
-            >>> filtered = al.filter_na('age')
-            >>> len(filtered)
-            2
-            >>> filtered[0].name
-            'Alice'
-            >>> filtered[1].name
-            'Charlie'
-
-            Remove agents with NA in multiple specific traits:
-
-            >>> al = AgentList([
-            ...     Agent(traits={'person_name': 'Alice', 'age': 30}),
-            ...     Agent(traits={'person_name': None, 'age': 25}),
-            ...     Agent(traits={'person_name': 'Bob', 'age': None})
-            ... ])
-            >>> filtered = al.filter_na(['person_name', 'age'])
-            >>> len(filtered)
-            1
-            >>> filtered[0].traits['person_name']
-            'Alice'
-
-            Handle float NaN values:
-
-            >>> import math
-            >>> al = AgentList([
-            ...     Agent(traits={'x': 1.0, 'y': 2.0}),
-            ...     Agent(traits={'x': float('nan'), 'y': 3.0}),
-            ...     Agent(traits={'x': 4.0, 'y': 5.0})
-            ... ])
-            >>> filtered = al.filter_na('x')
-            >>> len(filtered)
-            2
-        """
-        from .agent_list_trait_operations import AgentListTraitOperations
-
-        return AgentListTraitOperations.filter_na(self, fields)
+        return self._agent_list_trait_operations.filter_na(fields)
 
     @classmethod
+    @wraps(AgentListFactories.from_csv)
+    def from_csv(
+        cls,
+        file_path: str,
+        name_field: Optional[str] = None,
+        codebook: Optional[dict[str, str]] = None,
+        instructions: Optional[str] = None,
+    ) -> "AgentList":
+        return AgentListFactories.from_csv(
+            file_path, name_field=name_field, codebook=codebook, instructions=instructions,
+        )
+
+    @classmethod
+    @wraps(AgentListFactories.from_results)
     def from_results(
         cls, results: "Results", question_names: Optional[List[str]] = None
     ) -> "AgentList":
-        """Create an AgentList from a Results object.
-
-        Args:
-            results: The Results object to convert
-            question_names: Optional list of question names to include. If None, all questions are included.
-                          Affects both answer.* columns (as traits) and prompt.* columns (as codebook).
-                          Agent traits are always included.
-
-        Returns:
-            AgentList: A new AgentList created from the Results
-        """
-        from .agent_list_factories import AgentListFactories
-
         return AgentListFactories.from_results(results, question_names)
 
     @staticmethod
+    @wraps(AgentListFactories.get_codebook)
     def get_codebook(file_path: str) -> dict:
-        """Returns a codebook dictionary mapping CSV column names to None.
-
-        Reads the header row of a CSV file and creates a codebook with field names as keys
-        and None as values.
-
-        Args:
-            file_path: Path to the CSV file to read.
-
-        Returns:
-            A dictionary with CSV column names as keys and None as values.
-
-        Raises:
-            FileNotFoundError: If the specified file path does not exist.
-            csv.Error: If there is an error reading the CSV file.
-        """
-        from .agent_list_factories import AgentListFactories
-
         return AgentListFactories.get_codebook(file_path)
 
     def __hash__(self) -> int:
@@ -1206,196 +628,48 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
         else:
             raise ValueError(f"Cannot convert AgentList to {type(target)}")
 
+    @wraps(AgentListSerializer.to_dict)
     def to_dict(self, sorted=False, add_edsl_version=True, full_dict=False):
-        """Serialize the AgentList to a dictionary.
-
-        >>> AgentList.example().to_dict(add_edsl_version=False)
-        {'agent_list': [{'traits': {'age': 22, 'hair': 'brown', 'height': 5.5}}, {'traits': {'age': 22, 'hair': 'brown', 'height': 5.5}}]}
-        >>> example_codebook = {'age': 'Age in years'}
-        >>> al = AgentList.example().set_codebook(example_codebook)
-        >>> result = al.to_dict(add_edsl_version=False)
-        >>> 'codebook' in result
-        True
-        >>> result['codebook'] == example_codebook
-        True
-        """
-        from .agent_list_serializer import AgentListSerializer
-
-        return AgentListSerializer.to_dict(
-            self, sorted=sorted, add_edsl_version=add_edsl_version, full_dict=full_dict
+        return self._agent_list_serializer.to_dict(
+            sorted=sorted, add_edsl_version=add_edsl_version, full_dict=full_dict
         )
+
+    @wraps(AgentListSerializer.to_jsonl)
+    def to_jsonl(self, filename: Union[str, Path, None] = None) -> Optional[str]:
+        return self._agent_list_serializer.to_jsonl(filename=filename)
+
+    @classmethod
+    @wraps(AgentListSerializer.from_jsonl)
+    def from_jsonl(cls, source: Union[str, Path, Iterable[str]]) -> AgentList:
+        return AgentListSerializer.from_jsonl(source)
+
+    @classmethod
+    @wraps(AgentListSerializer.iter_agents_from_jsonl)
+    def iter_agents_from_jsonl(
+        cls, source: Union[str, Path, Iterable[str]]
+    ) -> Generator[Agent, None, None]:
+        return AgentListSerializer.iter_agents_from_jsonl(source)
 
     def __eq__(self, other: AgentList) -> bool:
         return self.to_dict(sorted=True, add_edsl_version=False) == other.to_dict(
             sorted=True, add_edsl_version=False
         )
 
+    @wraps(AgentListRepresentation.repr)
     def __repr__(self):
-        """Return a string representation of the AgentList.
+        return self._agent_list_representation.repr()
 
-        Uses traditional repr format when running doctests, otherwise uses
-        rich-based display for better readability. In Jupyter notebooks,
-        returns a minimal string since _repr_html_ handles the display.
-        """
-        import os
-
-        if os.environ.get("EDSL_RUNNING_DOCTESTS") == "True":
-            return self._eval_repr_()
-
-        # Check if we're in a Jupyter notebook environment
-        # If so, return minimal representation since _repr_html_ will handle display
-        try:
-            from IPython import get_ipython
-
-            ipy = get_ipython()
-            if ipy is not None and "IPKernelApp" in ipy.config:
-                # We're in a Jupyter notebook/kernel, not IPython terminal
-                return "AgentList(...)"
-        except (NameError, ImportError):
-            pass
-
-        return self._summary_repr()
-
+    @wraps(AgentListRepresentation.eval_repr)
     def _eval_repr_(self) -> str:
-        """Return an eval-able string representation of the AgentList.
+        return self._agent_list_representation.eval_repr()
 
-        This representation can be used with eval() to recreate the AgentList object.
-        Used primarily for doctests and debugging.
-        """
-        return f"AgentList({self.data})"
-
+    @wraps(AgentListRepresentation.summary_repr)
     def _summary_repr(self, MAX_AGENTS: int = 10, MAX_TRAITS: int = 10) -> str:
-        """Generate a summary representation of the AgentList with Rich formatting.
+        return self._agent_list_representation.summary_repr(MAX_AGENTS, MAX_TRAITS)
 
-        Args:
-            MAX_AGENTS: Maximum number of agents to show (default: 10)
-            MAX_TRAITS: Maximum number of traits to show per agent (default: 10)
-        """
-        from rich.console import Console
-        from rich.text import Text
-        import io
-        import shutil
-        import textwrap
-
-        # Get terminal width
-        terminal_width = shutil.get_terminal_size().columns
-
-        # Build the Rich text
-        output = Text()
-        output.append("AgentList(\n", style=RICH_STYLES["primary"])
-        output.append(f"    num_agents={len(self)},\n", style=RICH_STYLES["default"])
-        output.append("    agents=[\n", style=RICH_STYLES["default"])
-
-        # Show the first MAX_AGENTS agents
-        num_to_show = min(MAX_AGENTS, len(self))
-        for i, agent in enumerate(self.data[:num_to_show]):
-            # Get agent traits with limited fields
-            agent_traits = dict(list(agent.traits.items())[:MAX_TRAITS])
-
-            # Check if we need to indicate truncation
-            num_traits = len(agent.traits)
-            was_truncated = num_traits > MAX_TRAITS
-
-            # Build agent repr with indentation
-            output.append("        Agent(\n", style=RICH_STYLES["primary"])
-            output.append(
-                f"            num_traits={num_traits},\n", style=RICH_STYLES["default"]
-            )
-
-            # Add name if present
-            if agent.name is not None:
-                output.append(
-                    f"            name={repr(agent.name)},\n",
-                    style=RICH_STYLES["default"],
-                )
-
-            output.append("            traits={\n", style=RICH_STYLES["default"])
-
-            # Show traits
-            for key, value in agent_traits.items():
-                # Format the value with wrapping if needed
-                max_value_length = max(terminal_width - 30, 50)
-                value_repr = repr(value)
-
-                output.append("                ", style=RICH_STYLES["default"])
-                output.append(f"'{key}'", style=RICH_STYLES["secondary"])
-                output.append(": ", style=RICH_STYLES["default"])
-
-                # Wrap long text values
-                if len(value_repr) > max_value_length:
-                    # Use textwrap to break into multiple lines
-                    wrapped_lines = textwrap.wrap(
-                        value_repr,
-                        width=max_value_length,
-                        break_long_words=True,
-                        break_on_hyphens=False,
-                    )
-                    for line_idx, line in enumerate(wrapped_lines):
-                        if line_idx == 0:
-                            output.append(f"{line}\n", style=RICH_STYLES["default"])
-                        else:
-                            # Continuation lines are indented to align with the value
-                            output.append(
-                                f"                    {line}\n",
-                                style=RICH_STYLES["default"],
-                            )
-                    # Remove the last newline and add comma
-                    output._text[-1] = output._text[-1].rstrip("\n") + ",\n"
-                else:
-                    output.append(f"{value_repr},\n", style=RICH_STYLES["default"])
-
-            if was_truncated:
-                output.append(
-                    f"                ... ({num_traits - MAX_TRAITS} more traits)\n",
-                    style=RICH_STYLES["dim"],
-                )
-
-            output.append("            }\n", style=RICH_STYLES["default"])
-            output.append("        )", style=RICH_STYLES["primary"])
-
-            # Add comma and newline unless it's the last one
-            if i < num_to_show - 1:
-                output.append(",\n", style=RICH_STYLES["default"])
-            else:
-                output.append("\n", style=RICH_STYLES["default"])
-
-        # Add ellipsis if there are more agents
-        if len(self) > MAX_AGENTS:
-            output.append(
-                f"        ... ({len(self) - MAX_AGENTS} more agents)\n",
-                style=RICH_STYLES["dim"],
-            )
-
-        output.append("    ]\n", style=RICH_STYLES["default"])
-        output.append(")", style=RICH_STYLES["primary"])
-
-        # Render to string
-        console = Console(file=io.StringIO(), force_terminal=True, width=terminal_width)
-        console.print(output, end="")
-        return console.file.getvalue()
-
+    @wraps(AgentListRepresentation.summary)
     def _summary(self) -> dict:
-        return {
-            "agents": len(self),
-        }
-
-    def set_codebook(self, codebook: dict[str, str]) -> AgentList:
-        """Set the codebook for the AgentList.
-
-        >>> from edsl import Agent
-        >>> a = Agent(traits = {'hair': 'brown'})
-        >>> al = AgentList([a, a])
-        >>> _ = al.set_codebook({'hair': "Color of hair on driver's license"})
-        >>> al[0].codebook
-        {'hair': "Color of hair on driver's license"}
-
-
-        :param codebook: The codebook.
-        """
-        for agent in self.data:
-            agent.codebook = codebook
-
-        return self
+        return self._agent_list_representation.summary()
 
     def table(
         self,
@@ -1416,7 +690,7 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
             .table(*fields, tablefmt=tablefmt, pretty_labels=pretty_labels)
         )
 
-    def to_dataset(self, traits_only: bool = True):
+    def to_dataset(self, traits_only: bool = True) -> 'Dataset':
         """Convert the AgentList to a Dataset.
 
         Args:
@@ -1459,68 +733,25 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
 
     @classmethod
     @remove_edsl_version
+    @wraps(AgentListFactories.from_dict)
     def from_dict(cls, data: dict) -> "AgentList":
-        """Deserialize the dictionary back to an AgentList object.
-
-        :param: data: A dictionary representing an AgentList.
-
-        >>> from edsl import Agent
-        >>> al = AgentList([Agent.example(), Agent.example()])
-        >>> al2 = AgentList.from_dict(al.to_dict())
-        >>> al2 == al
-        True
-        >>> example_codebook = {'age': 'Age in years'}
-        >>> al = AgentList([Agent.example()]).set_codebook(example_codebook)
-        >>> al2 = AgentList.from_dict(al.to_dict())
-        >>> al2[0].codebook == example_codebook
-        True
-        """
-        from .agent_list_factories import AgentListFactories
-
         return AgentListFactories.from_dict(data)
 
     @classmethod
+    @wraps(AgentListFactories.example)
     def example(
         cls, randomize: bool = False, codebook: Optional[dict[str, str]] = None
     ) -> AgentList:
-        """
-        Returns an example AgentList instance.
-
-        :param randomize: If True, uses Agent's randomize method.
-        :param codebook: Optional dictionary mapping trait names to descriptions.
-
-        >>> al = AgentList.example()
-        >>> al
-        AgentList([Agent(traits = {'age': 22, 'hair': 'brown', 'height': 5.5}), Agent(traits = {'age': 22, 'hair': 'brown', 'height': 5.5})])
-        >>> al = AgentList.example(codebook={'age': 'Age in years'})
-        >>> al[0].codebook
-        {'age': 'Age in years'}
-        """
-        from .agent_list_factories import AgentListFactories
-
         return AgentListFactories.example(randomize=randomize, codebook=codebook)
 
     @classmethod
+    @wraps(AgentListFactories.from_list)
     def from_list(
         cls,
         trait_name: str,
         values: List[Any],
         codebook: Optional[dict[str, str]] = None,
     ) -> "AgentList":
-        """Create an AgentList from a list of values.
-
-        :param trait_name: The name of the trait.
-        :param values: A list of values.
-        :param codebook: Optional dictionary mapping trait names to descriptions.
-
-        >>> AgentList.from_list('age', [22, 23])
-        AgentList([Agent(traits = {'age': 22}), Agent(traits = {'age': 23})])
-        >>> al = AgentList.from_list('age', [22], codebook={'age': 'Age in years'})
-        >>> al[0].codebook
-        {'age': 'Age in years'}
-        """
-        from .agent_list_factories import AgentListFactories
-
         return AgentListFactories.from_list(trait_name, values, codebook=codebook)
 
     def __mul__(self, other: AgentList) -> AgentList:
@@ -1585,214 +816,15 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
             self._codebook = codebook
         return self._codebook
 
+    @wraps(AgentListCodeGenerator.generate_code)
     def code(self, string=True) -> Union[str, list[str]]:
-        """Return code to construct an AgentList.
-
-        >>> al = AgentList.example()
-        >>> print(al.code())
-        from edsl import Agent
-        from edsl import AgentList
-        agent_list = AgentList([Agent(traits = {'age': 22, 'hair': 'brown', 'height': 5.5}), Agent(traits = {'age': 22, 'hair': 'brown', 'height': 5.5})])
-        """
-        from .agent_list_code_generator import AgentListCodeGenerator
-
         return AgentListCodeGenerator.generate_code(self, string=string)
 
     @classmethod
+    @wraps(AgentListFactories.from_scenario_list)
     def from_scenario_list(cls, scenario_list: "ScenarioList") -> "AgentList":
-        """Create an AgentList from a ScenarioList.
-
-        This method supports special fields that map to Agent parameters:
-        - "name": Will be used as the agent's name
-        - "agent_parameters": A dictionary containing:
-            - "instruction": The agent's instruction text
-            - "name": The agent's name (overrides the "name" field if present)
-
-        Example:
-            >>> from edsl import ScenarioList, Scenario
-            >>> # Basic usage with traits
-            >>> s = ScenarioList([Scenario({'age': 22, 'hair': 'brown', 'height': 5.5})])
-            >>> al = AgentList.from_scenario_list(s)
-            >>> al
-            AgentList([Agent(traits = {'age': 22, 'hair': 'brown', 'height': 5.5})])
-        """
-        from .agent_list_factories import AgentListFactories
-
         return AgentListFactories.from_scenario_list(scenario_list)
 
-    @classmethod
-    def from_vibes(
-        cls,
-        description: str,
-        *,
-        num_agents: Optional[int] = None,
-        traits: Optional[List[str]] = None,
-        model: str = "gpt-4o",
-        temperature: float = 0.8,
-    ) -> "AgentList":
-        """Generate an AgentList from a natural language description of a population.
-
-        This method uses an LLM to generate a diverse population of agents with
-        appropriate traits based on a description. It automatically creates realistic,
-        varied individuals that represent the described population.
-
-        Args:
-            description: Natural language description of the population.
-                Examples:
-                - "College students studying computer science"
-                - "Small business owners in the Midwest"
-                - "Retired professionals interested in travel"
-                - "Healthcare workers during the pandemic"
-            num_agents: Optional number of agents to generate. If not provided,
-                the LLM will decide based on the population (typically 5-10).
-            traits: Optional list of specific trait names to include for each agent.
-                If not provided, appropriate traits will be inferred from the description.
-                Examples: ["age", "occupation", "education_level", "income_bracket"]
-            model: OpenAI model to use for generation (default: "gpt-4o")
-            temperature: Temperature for generation (default: 0.8 for diversity)
-
-        Returns:
-            AgentList: A new AgentList with generated agents
-
-        Examples:
-            Basic usage:
-
-            >>> agents = AgentList.from_vibes("College students studying computer science")  # doctest: +SKIP
-
-            With specific number of agents:
-
-            >>> agents = AgentList.from_vibes(
-            ...     "Small business owners in the Midwest",
-            ...     num_agents=8
-            ... )  # doctest: +SKIP
-
-            With specific traits:
-
-            >>> agents = AgentList.from_vibes(
-            ...     "Voters in a swing state",
-            ...     traits=["age", "political_affiliation", "education_level", "key_issue"],
-            ...     num_agents=10
-            ... )  # doctest: +SKIP
-
-            Using a different model:
-
-            >>> agents = AgentList.from_vibes(
-            ...     "Retired professionals interested in travel",
-            ...     model="gpt-4",
-            ...     temperature=0.7
-            ... )  # doctest: +SKIP
-
-        Notes:
-            - Requires OPENAI_API_KEY environment variable to be set
-            - The generator creates diverse agents with realistic trait values
-            - All agents will have the same set of trait names for consistency
-            - Higher temperature (0.7-0.9) creates more diverse populations
-            - The generator avoids stereotypes and creates nuanced individuals
-        """
-        from .vibes import AgentGenerator
-
-        # Create the generator
-        generator = AgentGenerator(model=model, temperature=temperature)
-
-        # Generate the agent population
-        agent_data = generator.generate_agents(
-            description, num_agents=num_agents, traits=traits
-        )
-
-        # Convert each agent definition to an Agent object
-        agents = []
-        for agent_def in agent_data["agents"]:
-            agent_traits = agent_def["traits"]
-            agent_name = agent_def.get("name")
-
-            # Create the agent with traits and optional name
-            agent = Agent(traits=agent_traits, name=agent_name)
-            agents.append(agent)
-
-        return cls(agents)
-
-    def vibe_edit(
-        self,
-        edit_instructions: str,
-        *,
-        model: str = "gpt-4o",
-        temperature: float = 0.7,
-    ) -> "AgentList":
-        """Edit the agent list using natural language instructions.
-
-        This method uses an LLM to modify an existing agent list based on natural language
-        instructions. It can modify agent traits, add or remove traits, change trait values,
-        filter agents, or make other modifications as requested.
-
-        Args:
-            edit_instructions: Natural language description of the edits to apply.
-                Examples:
-                - "Make all agents 10 years older"
-                - "Add an 'education' trait to all agents"
-                - "Remove agents under age 25"
-                - "Translate all text traits to Spanish"
-                - "Make the agents more diverse in background"
-            model: OpenAI model to use for editing (default: "gpt-4o")
-            temperature: Temperature for generation (default: 0.7)
-
-        Returns:
-            AgentList: A new AgentList instance with the edited agents
-
-        Examples:
-            Basic usage:
-
-            >>> agents = AgentList.from_vibes("College students")  # doctest: +SKIP
-            >>> edited_agents = agents.vibe_edit("Make all agents 5 years older")  # doctest: +SKIP
-
-            Add a new trait:
-
-            >>> agents = AgentList.from_vibes("Software engineers")  # doctest: +SKIP
-            >>> edited_agents = agents.vibe_edit("Add a 'programming_language' trait to all agents")  # doctest: +SKIP
-
-            Filter agents:
-
-            >>> agents = AgentList.from_vibes("Various professionals")  # doctest: +SKIP
-            >>> edited_agents = agents.vibe_edit("Keep only agents with technical backgrounds")  # doctest: +SKIP
-
-            Translate traits:
-
-            >>> agents = AgentList.from_vibes("Restaurant customers")  # doctest: +SKIP
-            >>> edited_agents = agents.vibe_edit("Translate all text traits to French")  # doctest: +SKIP
-
-        Notes:
-            - Requires OPENAI_API_KEY environment variable to be set
-            - The editor will maintain agent structure and traits unless explicitly asked to change them
-            - Agents can be filtered by asking to remove or keep certain agents
-            - New traits can be added with appropriate values inferred from existing traits
-            - Trait values will be modified appropriately based on instructions
-        """
-        from .vibes import AgentVibeEdit
-
-        # Convert current agents to dict format
-        current_agents = []
-        for agent in self.data:
-            agent_dict = {"traits": dict(agent.traits)}
-            if hasattr(agent, "name") and agent.name:
-                agent_dict["name"] = agent.name
-            current_agents.append(agent_dict)
-
-        # Create the editor
-        editor = AgentVibeEdit(model=model, temperature=temperature)
-
-        # Edit the agent list
-        edited_data = editor.edit_agent_list(current_agents, edit_instructions)
-
-        # Convert each edited agent definition to an Agent object
-        agents = []
-        for agent_def in edited_data["agents"]:
-            agent_traits = agent_def["traits"]
-            agent_name = agent_def.get("name")
-
-            # Create the agent with traits and optional name
-            agent = Agent(traits=agent_traits, name=agent_name)
-            agents.append(agent)
-
-        return self.__class__(agents)
 
 
 if __name__ == "__main__":

@@ -18,7 +18,6 @@ relevant_classes = {
         "to_scenario_list",
         "select",
         "table",
-        "report_from_template",
         "long_view",
         "augment_agents",
         "agents",

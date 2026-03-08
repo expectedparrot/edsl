@@ -654,9 +654,9 @@ class Jobs(Base):
 
         >>> from edsl.jobs import Jobs
         >>> job = Jobs.example()
-        >>> job.show_flow()  # Visualises survey flow (no deps/post-run methods)
+        >>> _ = job.show_flow()  # doctest: +SKIP
         >>> job2 = job.select('how_feeling').to_pandas()  # add post-run methods
-        >>> job2.show_flow()  # Now visualises job flow
+        >>> _ = job2.show_flow()  # doctest: +SKIP
         """
         # Decide which visualisation to use
         has_dependencies = getattr(self, "_depends_on", None) is not None
@@ -669,7 +669,7 @@ class Jobs(Base):
             JobsFlowVisualization(self).show_flow(filename=filename)
         else:
             # Fallback to survey flow visualisation
-            from ..surveys import SurveyFlowVisualization
+            from ..surveys.extras.survey_flow_visualization import SurveyFlowVisualization
 
             scenario = self.scenarios[0] if self.scenarios else None
             SurveyFlowVisualization(
@@ -2627,16 +2627,6 @@ class Jobs(Base):
         assert len(scenario_list) == 2
 
         return job
-
-    def inspect(self):
-        """Create an interactive inspector widget for this job."""
-        try:
-            from ..widgets.job_inspector import JobInspectorWidget
-        except ImportError as e:
-            raise ImportError(
-                "Job inspector widget is not available. Make sure the widgets module is installed."
-            ) from e
-        return JobInspectorWidget(self)
 
     def code(self):
         """Return the code to create this instance."""

@@ -1,2473 +1,1093 @@
 """
-EDSL package main entry point with dynamic method discovery.
+EDSL CLI — agent-friendly interface. All output is JSON on stdout.
 
-This module provides the main entry point when the EDSL package is executed directly
-using `python -m edsl`.
+Entry point: edsl = "edsl.__main__:main" (pyproject.toml)
 """
 
 import sys
-import typer
-import inspect
 import json
-import cmd
+from typing import Optional
 from pathlib import Path
-from typing import Optional, Any, Dict, List, Tuple
-from rich.console import Console
-from rich.table import Table
-import os
-import shlex
-import warnings
-import ast
-import readline
-import re
-import types
-import shutil
-import webbrowser
-from functools import lru_cache
 
-try:
-    from dotenv import load_dotenv
-except ImportError:
-    load_dotenv = None
-
-warnings.filterwarnings(
-    "ignore", category=UserWarning, module="edsl\.scenarios\.file_store"
-)
-
-# Path for persistent CLI history
-HISTORY_FILE = Path.home() / ".edsl_cli_commands_log"
-
-# Active env profile
-_active_profile: Optional[str] = None
-
-# Interactive mode flag
-_interactive_mode: bool = False
-
-# Create the main Typer app
-app = typer.Typer(
-    help="EDSL - Expected Parrot Domain Specific Language (use .help for dot commands)",
-    invoke_without_command=True,
-)
-console = Console()
-
-
-# Function to get the appropriate console for output
-def get_console():
-    """Get console that outputs to stderr when running non-interactively for piping."""
-    if not _interactive_mode and not sys.stdout.isatty():
-        # For piping, use stderr but preserve terminal detection for Rich tables
-        return Console(file=sys.stderr, force_terminal=True, width=120)
-    return console
-
-
-# Currently focused object (top of stack)
-_loaded_object = None
-_loaded_object_name = None
-
-# Maintain a stack of all objects that have been loaded/created in the session.
-# The first element in each tuple is a human-readable name for the object, the
-# second element is the object itself.  Indexing is 1-based when shown to the
-# user so that $1 refers to the first entry, $2 the second and so on.
-_object_stack: List[Tuple[str, Any]] = []
-
-# Shell command names that should never be overridden by dynamically added
-# methods from loaded objects. This prevents conflicts like `load` which the
-# shell uses for switching focus.
-_RESERVED_SHELL_COMMANDS = {
-    "load",
-    "stack",
-    "info",
-    "methods",
-    "exit",
-    "quit",
-    "EOF",
-    "ls",
-    "cd",
-    "unload",
-    "pull",
-    "create",
-    "show_key",
-    "switch",
-    "profiles",
-    "pop",
-    "clear",
-}
-
-# Built-in functions to expose as additional CLI/shell commands
-_BUILTIN_FUNCTIONS = {
-    "len": len,
-    "str": str,
-    "repr": repr,
-    "hash": hash,
-    "dir": dir,
-    "type": lambda obj: type(obj).__name__,  # Return the object's type name
-    "id": id,
-    "print": lambda obj: str(obj),  # Alias to show the object's string representation
-}
+import click
 
 # ---------------------------------------------------------------------------
-# Stack reference resolver
+# Exit codes
+# ---------------------------------------------------------------------------
+
+EXIT_OK = 0
+EXIT_ERROR = 1
+EXIT_USAGE = 2
+EXIT_NOT_FOUND = 3
+EXIT_AUTH = 4
+EXIT_VALIDATION = 5
+EXIT_REMOTE = 6
+
+# ---------------------------------------------------------------------------
+# Output helpers
 # ---------------------------------------------------------------------------
 
 
-def _resolve_stack_reference(token: str):
-    """If token matches $<n>, return corresponding object from stack, else return token."""
-    if isinstance(token, str) and re.fullmatch(r"\$\d+", token):
-        idx = int(token[1:]) - 1
-        if 0 <= idx < len(_object_stack):
-            return _object_stack[idx][1]
-    return token
+def _output(data: dict, warnings: Optional[list] = None) -> None:
+    """Write a success envelope to stdout."""
+    envelope = {"status": "ok", "data": data, "warnings": warnings or []}
+    json.dump(envelope, sys.stdout, indent=2, default=str)
+    sys.stdout.write("\n")
 
 
-# ---------------------------------------------------------------------------
-# Helper to parse positional/keyword args from a line (needs to be before class)
-# ---------------------------------------------------------------------------
+def _error(code: str, message: str, suggestion: str = "",
+           exit_code: int = EXIT_ERROR, details: Optional[list] = None) -> None:
+    """Write an error envelope to stdout and exit."""
+    err = {"code": code, "message": message}
+    if suggestion:
+        err["suggestion"] = suggestion
+    if details:
+        err["details"] = details
+    envelope = {"status": "error", "error": err}
+    json.dump(envelope, sys.stdout, indent=2, default=str)
+    sys.stdout.write("\n")
+    raise SystemExit(exit_code)
 
 
-def _parse_line_args_kwargs(line: str):
-    """Parse a command line string into (args, kwargs)."""
-    # Use posix=False so we retain quotes inside tokens (important for dict strings)
-    tokens = shlex.split(line, posix=False)
-    positional = []
-    keyword = {}
-    for tok in tokens:
-        tok = tok.strip()
-        if "=" in tok:
-            key, val = tok.split("=", 1)
-            # Try literal_eval first (handles dicts/lists/numbers/strings)
-            resolved_val = _resolve_stack_reference(val)
-            if resolved_val is not val:
-                val_eval = resolved_val
-            else:
-                try:
-                    val_eval = ast.literal_eval(val)
-                except Exception:
-                    # Fallback: strip quotes
-                    if (val.startswith("'") and val.endswith("'")) or (
-                        val.startswith('"') and val.endswith('"')
-                    ):
-                        val_eval = val[1:-1]
-                    else:
-                        val_eval = val
-            keyword[key] = val_eval
-        else:
-            resolved = _resolve_stack_reference(tok)
-            if resolved is tok:
-                # try literal eval for positional
-                try:
-                    resolved = ast.literal_eval(tok)
-                except Exception:
-                    pass
-            positional.append(resolved)
-    return positional, keyword
+def _read_json_file(path: str) -> dict:
+    """Read and parse a JSON file, or emit an error."""
+    p = Path(path)
+    if not p.exists():
+        _error("FILE_NOT_FOUND", f"File not found: {path}",
+               suggestion="Check the file path.", exit_code=EXIT_NOT_FOUND)
+    try:
+        return json.loads(p.read_text())
+    except json.JSONDecodeError as e:
+        _error("INVALID_JSON", f"Failed to parse JSON from {path}: {e}",
+               suggestion="Ensure the file contains valid JSON.", exit_code=EXIT_USAGE)
 
 
-# ---------------------------------------------------------------------------
-# Stdin handling for piped data
-# ---------------------------------------------------------------------------
-
-
-def _load_from_stdin() -> bool:
-    """
-    Check if there's data on stdin and try to load it as an EDSL object.
-    If it's not an EDSL object, convert it to a FileStore object.
-    Returns True if an object was successfully loaded, False otherwise.
-    """
-    # Only try to read from stdin if it's not connected to a terminal (i.e., piped data)
+def _read_stdin() -> Optional[str]:
+    """Read stdin if it's not a TTY."""
     if sys.stdin.isatty():
-        return False
+        return None
+    return sys.stdin.read()
+
+
+# ---------------------------------------------------------------------------
+# Click app hierarchy
+# ---------------------------------------------------------------------------
+
+@click.group(invoke_without_command=True)
+@click.pass_context
+def app(ctx):
+    """EDSL CLI — run LLM surveys. All output is JSON."""
+    if ctx.invoked_subcommand is None:
+        _output({
+            "commands": ["run", "models", "info", "validate", "schema", "auth", "results", "coop"],
+            "help": "Use 'edsl <command> --help' for details on each command.",
+        })
+
+
+@app.group(invoke_without_command=True)
+@click.pass_context
+def schema(ctx):
+    """Introspect object schemas for construction."""
+    if ctx.invoked_subcommand is None:
+        _output({
+            "commands": ["list", "show", "error"],
+            "help": "Use 'edsl schema <command> --help' for details.",
+        })
+
+
+@app.group(invoke_without_command=True)
+@click.pass_context
+def auth(ctx):
+    """Authentication management."""
+    if ctx.invoked_subcommand is None:
+        _output({
+            "commands": ["login", "status"],
+            "help": "Use 'edsl auth <command> --help' for details.",
+        })
+
+
+@app.group(invoke_without_command=True)
+@click.pass_context
+def results(ctx):
+    """Query and extract data from Results files."""
+    if ctx.invoked_subcommand is None:
+        _output({
+            "commands": ["columns", "select"],
+            "help": "Use 'edsl results <command> --help' for details.",
+        })
+
+
+@app.group(invoke_without_command=True)
+@click.pass_context
+def coop(ctx):
+    """Search, fetch, and share objects via Coop."""
+    if ctx.invoked_subcommand is None:
+        _output({
+            "commands": ["search", "pull", "push"],
+            "help": "Use 'edsl coop <command> --help' for details.",
+        })
+
+
+# ---------------------------------------------------------------------------
+# edsl info
+# ---------------------------------------------------------------------------
+
+@app.command()
+def info():
+    """Version, config, and diagnostics."""
+    from edsl.__version__ import __version__
+    from edsl.config import CONFIG
+    from edsl.coop.ep_key_handling import ExpectedParrotKeyHandler
+
+    handler = ExpectedParrotKeyHandler()
+    api_key = handler.get_ep_api_key()
+
+    _output({
+        "version": __version__,
+        "config": CONFIG.to_dict(),
+        "api_key_configured": bool(api_key),
+    })
+
+
+# ---------------------------------------------------------------------------
+# edsl models
+# ---------------------------------------------------------------------------
+
+@app.command()
+@click.option("--service", default=None, help="Filter by service name.")
+@click.option("--search", default=None, help="Wildcard search pattern.")
+def models(service, search):
+    """List available models."""
+    from edsl.language_models import Model
 
     try:
-        # Read all data from stdin
-        stdin_data = sys.stdin.read().strip()
-        if not stdin_data:
-            return False
-
-        console.print("[cyan]Reading data from stdin...[/cyan]")
-
-        # After reading piped data, restore stdin to terminal for interactive use
-        _restore_stdin_to_terminal()
-
-        # Try to parse as JSON first
-        try:
-            data = json.loads(stdin_data)
-            is_json = True
-        except json.JSONDecodeError:
-            # Not JSON, treat as raw text data
-            data = stdin_data
-            is_json = False
-
-        # Try to use EDSL's generic load functionality if it's JSON with EDSL structure
-        if is_json and isinstance(data, dict) and "edsl_class_name" in data:
-            try:
-                from edsl.base.base_class import RegisterSubclassesMeta
-
-                class_name = data["edsl_class_name"]
-                registry = RegisterSubclassesMeta.get_registry()
-
-                if class_name not in registry:
-                    console.print(
-                        f"[red]Unknown EDSL class '{class_name}'. Available: {', '.join(registry.keys())}[/red]"
-                    )
-                    return False
-
-                cls = registry[class_name]
-                obj = cls.from_dict(data)
-                new_name = obj.__class__.__name__
-                _add_to_stack(new_name, obj)
-                console.print(
-                    f"[green]✓ Successfully loaded {new_name} from stdin (${len(_object_stack)})[/green]"
-                )
-                _register_dynamic_commands()
-                return True
-
-            except ImportError:
-                console.print(
-                    "[yellow]Warning: Could not import EDSL registry utilities[/yellow]"
-                )
-            except Exception as e:
-                console.print(f"[yellow]Generic load failed: {e}[/yellow]")
-
-                # Try to instantiate based on class name if present
-                try:
-                    class_name = data["edsl_class_name"]
-                    # Remove metadata fields
-                    obj_data = {
-                        k: v for k, v in data.items() if not k.startswith("edsl_")
-                    }
-
-                    obj = _instantiate_from_registry(class_name, [], obj_data)
-                    new_name = obj.__class__.__name__
-                    _add_to_stack(new_name, obj)
-                    console.print(
-                        f"[green]✓ Successfully created {new_name} from stdin data (${len(_object_stack)})[/green]"
-                    )
-                    _register_dynamic_commands()
-                    return True
-                except Exception as e2:
-                    console.print(
-                        f"[yellow]Failed to instantiate object from stdin data: {e2}[/yellow]"
-                    )
-
-        # If we reach here, either it's not EDSL JSON or loading failed
-        # Try to load as native Python object if it's JSON
-        if is_json:
-            try:
-                # Load JSON as native Python object (dict, list, etc.)
-                new_name = type(data).__name__
-                _add_to_stack(new_name, data)
-                console.print(
-                    f"[green]✓ Successfully loaded JSON as {new_name} (${len(_object_stack)})[/green]"
-                )
-                _register_dynamic_commands()
-                return True
-            except Exception as e:
-                console.print(
-                    f"[yellow]Failed to load JSON as Python object: {e}[/yellow]"
-                )
-
-        # Fall back to FileStore for non-JSON data or if JSON loading failed
-        console.print("[cyan]Converting data to FileStore...[/cyan]")
-
-        try:
-            # Import FileStore from scenarios
-            from .scenarios.file_store import FileStore
-            import tempfile
-
-            # Create a temporary file with the stdin data
-            with tempfile.NamedTemporaryFile(
-                mode="w", delete=False, suffix=".txt"
-            ) as temp_file:
-                if is_json:
-                    # Write JSON data formatted
-                    temp_file.write(json.dumps(data, indent=2, default=str))
-                else:
-                    # Write raw text data
-                    temp_file.write(stdin_data)
-                temp_file_path = temp_file.name
-
-            # Create FileStore from the temporary file
-            file_store = FileStore(temp_file_path)
-            new_name = "FileStore"
-            _add_to_stack(new_name, file_store)
-            console.print(
-                f"[green]✓ Successfully converted stdin data to {new_name} (${len(_object_stack)})[/green]"
-            )
-            _register_dynamic_commands()
-            return True
-
-        except ImportError as e:
-            console.print(f"[red]Error: Failed to import FileStore. {e}[/red]")
-            return False
-        except Exception as e:
-            console.print(f"[red]Error creating FileStore from stdin data: {e}[/red]")
-            return False
-
-    except Exception as e:
-        console.print(f"[red]Error reading from stdin: {e}[/red]")
-        return False
-
-
-def _restore_stdin_to_terminal():
-    """Restore stdin to be connected to the terminal for interactive input."""
-    try:
-        # Close current stdin and reopen it to the terminal
-        sys.stdin.close()
-        sys.stdin = open("/dev/tty", "r")
+        available = Model.available(search_term=search or None, service_name=service or None)
     except Exception:
-        # If we can't restore to /dev/tty, try to at least reset stdin
+        # Some services may fail to import; try with local_only
         try:
-            import io
-
-            sys.stdin = io.TextIOWrapper(io.BufferedReader(io.FileIO(0)))
-        except Exception:
-            # Last resort: just continue with current stdin
-            pass
-
-
-# ---------------------------------------------------------------------------
-# Registry instantiation helper (must appear before shell usage)
-# ---------------------------------------------------------------------------
-
-
-@lru_cache()
-def _get_registry():
-    from edsl.coop.utils import ObjectRegistry
-
-    return ObjectRegistry.get_registry()
-
-
-def _instantiate_from_registry(class_name: str, args: list, kwargs: dict):
-    """Instantiate object using registry with catch-all parameter mapping."""
-    registry = _get_registry()
-    cls = (
-        registry.get(class_name)
-        or registry.get(class_name.capitalize())
-        or registry.get(class_name.lower())
-    )
-    if cls is None:
-        raise ValueError(
-            f"Unknown class '{class_name}'. Available: {', '.join(registry.keys())}"
-        )
-
-    sig = inspect.signature(cls.__init__)
-    formal_params = {
-        p.name
-        for p in sig.parameters.values()
-        if p.kind
-        in (inspect.Parameter.POSITIONAL_OR_KEYWORD, inspect.Parameter.KEYWORD_ONLY)
-        and p.name != "self"
-    }
-    var_kw = any(
-        p.kind == inspect.Parameter.VAR_KEYWORD for p in sig.parameters.values()
-    )
-
-    preferred = ["traits", "data", "attributes", "params"]
-    catch = next((n for n in preferred if n in formal_params), None)
-
-    extra = {k: kwargs.pop(k) for k in list(kwargs.keys()) if k not in formal_params}
-    if extra:
-        if catch:
-            if catch in kwargs and isinstance(kwargs[catch], dict):
-                kwargs[catch].update(extra)
-            else:
-                kwargs[catch] = extra
-        elif var_kw:
-            kwargs.update(extra)
-        else:
-            raise TypeError(f"Unknown parameters: {', '.join(extra.keys())}")
-
-    if catch and args and isinstance(args[0], dict) and catch not in kwargs:
-        kwargs[catch] = args.pop(0)
-
-    return cls(*args, **kwargs)
-
-
-class EDSLShell(cmd.Cmd):
-    """Interactive shell for loaded EDSL objects."""
-
-    def __init__(
-        self,
-        loaded_object: Any = None,
-        object_name: Optional[str] = None,
-        output_console: Optional[Console] = None,
-    ):
-        super().__init__()
-        # Load persistent history if available
-        try:
-            if HISTORY_FILE.exists():
-                readline.read_history_file(str(HISTORY_FILE))
-        except Exception:
-            pass
-        self.loaded_object = loaded_object
-        self.object_name = object_name if object_name else "None"
-        self.output_console = output_console if output_console else console
-        if self.loaded_object is None:
-            self.intro = "\nInteractive EDSL Shell (no object loaded)"
-            self.prompt = "edsl> "
-        else:
-            self.intro = f"\nInteractive EDSL Shell - {self.object_name} loaded"
-            self.prompt = f"edsl ({self.object_name})> "
-
-        # Add dynamic methods to the shell
-        self._add_dynamic_methods()
-
-    def _add_dynamic_methods(self):
-        """Add methods from the loaded object as shell commands."""
-        # If no object is loaded, nothing to add (other than built-ins if desired)
-        if self.loaded_object is None:
-            return
-
-        methods = _get_callable_methods(self.loaded_object)
-
-        for method_name, method in methods.items():
-            # Create a wrapper function for the method
-            def make_wrapper(method_name, method):
-                def wrapper(line):
-                    return self._call_method(method_name, line)
-
-                return wrapper
-
-            # Skip reserved command names to avoid clobbering built-ins like 'load'.
-            if method_name in _RESERVED_SHELL_COMMANDS:
-                continue
-
-            # Add the method to the shell
-            setattr(self, f"do_{method_name}", make_wrapper(method_name, method))
-
-            # Add help for the method
-            help_text = (
-                method.__doc__
-                or f"Call {method_name} method on loaded {self.object_name}"
-            )
-            setattr(self, f"help_{method_name}", lambda: console.print(help_text))
-
-        # ---------------------------------------------------------------
-        # Add built-in function wrappers (len, str, repr, etc.)
-        # ---------------------------------------------------------------
-
-        for func_name, func in _BUILTIN_FUNCTIONS.items():
-            # Avoid overriding reserved or existing commands
-            if func_name in _RESERVED_SHELL_COMMANDS or hasattr(
-                self, f"do_{func_name}"
-            ):
-                continue
-
-            def make_builtin_wrapper(func_name, func):
-                def wrapper(line):
-                    try:
-                        console.print(
-                            f"[cyan]Calling built-in {func_name}({self.object_name})...[/cyan]"
-                        )
-                        result = func(self.loaded_object)
-                        if result is not None:
-                            console.print(f"[green]Returned:[/green] {result}")
-                    except Exception as e:
-                        console.print(
-                            f"[red]Error calling built-in {func_name}: {e}[/red]"
-                        )
-
-                return wrapper
-
-            setattr(self, f"do_{func_name}", make_builtin_wrapper(func_name, func))
-            setattr(
-                self,
-                f"help_{func_name}",
-                lambda: console.print(
-                    f"Apply Python built-in '{func_name}' to the loaded object."
-                ),
-            )
-
-    def _call_method(self, method_name, line):
-        """Call a method on the loaded object."""
-        if self.loaded_object is None:
-            console.print(
-                "[yellow]No object loaded. Use 'load <FILEPATH>' first.[/yellow]"
-            )
-            return
-        try:
-            method = getattr(self.loaded_object, method_name)
-
-            tokens = shlex.split(line)
-            positional_args = []
-            keyword_args = {}
-
-            for tok in tokens:
-                if "=" in tok:
-                    key, val = tok.split("=", 1)
-                    # Strip surrounding quotes if any
-                    if (val.startswith("'") and val.endswith("'")) or (
-                        val.startswith('"') and val.endswith('"')
-                    ):
-                        val = val[1:-1]
-                    # Try to safely evaluate literal (e.g., numbers, True, False)
-                    try:
-                        val_eval = ast.literal_eval(val)
-                    except Exception:
-                        val_eval = val
-                    keyword_args[key] = val_eval
-                else:
-                    positional_args.append(tok)
-
-            preview_args = [str(a) for a in positional_args] + [
-                f"{k}={v}" for k, v in keyword_args.items()
-            ]
-            console.print(
-                f"[cyan]Calling {self.object_name}.{method_name}({', '.join(preview_args)})...[/cyan]"
-            )
-
-            result = method(*positional_args, **keyword_args)
-
-            # Display result
-            if result is not None:
-                console.print("[green]Returned:[/green]")
-                if isinstance(result, (dict, list)):
-                    console.print_json(json.dumps(result, indent=2, default=str))
-                else:
-                    # Check if it's a TableDisplay to avoid double Rich formatting
-                    try:
-                        from edsl.dataset.display.table_display import TableDisplay
-
-                        if isinstance(result, TableDisplay):
-                            # For TableDisplay, print the string directly without console formatting
-                            print(str(result))
-                        else:
-                            console.print(str(result))
-                    except ImportError:
-                        console.print(str(result))
-
-                # Push new objects onto the stack automatically
-                # Primitive return types (str, int, etc.) shouldn't be added.
-                if not isinstance(result, (str, int, float, bool, bytes, bytearray)):
-                    new_name = result.__class__.__name__
-                    _add_to_stack(new_name, result)
-                    console.print(
-                        f"[cyan]Added new object to stack as ${len(_object_stack)} ({new_name}). Switched focus.[/cyan]"
-                    )
-
-                    # Update shell context
-                    self.loaded_object = result
-                    self.object_name = new_name
-                    self.prompt = f"edsl ({new_name})> "
-
-                    # Refresh dynamic methods for the new object
-                    self._add_dynamic_methods()
-
-                    # Register new dynamic commands for the freshly focused object (CLI)
-                    _register_dynamic_commands()
-            else:
-                console.print("[green]✓ Method executed successfully[/green]")
-
+            available = Model.available(search_term=search or None, service_name=service or None, local_only=True)
         except Exception as e:
-            console.print(f"[red]Error calling {method_name}: {e}[/red]")
+            _error("MODEL_LIST_ERROR", str(e))
 
-    def do_info(self, line):
-        """Show information about the loaded object."""
-        console.print(f"[cyan]Loaded object: {self.object_name}[/cyan]")
+    # Determine which services have configured keys
+    try:
+        key_info = Model.key_info()
+        configured_services = set()
+        for entry in key_info:
+            if hasattr(entry, 'get'):
+                if entry.get('api_key_set'):
+                    configured_services.add(entry.get('service_name', ''))
+            elif hasattr(entry, 'api_key_set'):
+                if entry.api_key_set:
+                    configured_services.add(getattr(entry, 'service_name', ''))
+    except Exception:
+        configured_services = set()
 
-        # Show object properties
-        table = Table(title="Object Properties")
-        table.add_column("Property", style="cyan")
-        table.add_column("Value", style="white")
+    model_list = []
+    for m in available:
+        model_name = m.model if hasattr(m, 'model') else str(m)
+        service_name = getattr(m, '_inference_service_', '') or getattr(m, 'inference_service', '') or ""
+        model_list.append({
+            "model_name": model_name,
+            "service_name": service_name,
+            "configured": service_name in configured_services,
+        })
 
-        # Get non-callable attributes
-        for name in dir(self.loaded_object):
-            if not name.startswith("_") and not callable(
-                getattr(self.loaded_object, name)
-            ):
-                value = getattr(self.loaded_object, name)
-                # Truncate long values
-                str_value = str(value)
-                if len(str_value) > 100:
-                    str_value = str_value[:97] + "..."
-                table.add_row(name, str_value)
+    # Sort alphabetically by service then model
+    model_list.sort(key=lambda x: (x["service_name"], x["model_name"]))
+    _output({"models": model_list})
 
-        console.print(table)
 
-    def do_methods(self, line):
-        """List all available methods on the loaded object."""
-        methods = _get_callable_methods(self.loaded_object)
+# ---------------------------------------------------------------------------
+# edsl auth
+# ---------------------------------------------------------------------------
 
-        table = Table(title=f"Methods for {self.object_name}")
-        table.add_column("Method", style="cyan")
-        table.add_column("Signature", style="yellow")
-        table.add_column("Description", style="white")
+@auth.command("login")
+@click.option("--api_key", default=None, help="Provide API key directly.")
+def auth_login(api_key):
+    """Store an API key for Expected Parrot / Coop access."""
+    from edsl.coop.ep_key_handling import ExpectedParrotKeyHandler
 
-        for method_name, method in methods.items():
-            if method_name in _RESERVED_SHELL_COMMANDS:
-                continue
-            try:
-                sig = inspect.signature(method)
-            except (TypeError, ValueError):
-                sig = None
-            doc = method.__doc__ or "No description available"
-            first_line = doc.split("\n")[0].strip()
-            table.add_row(method_name, str(sig) if sig else "No signature", first_line)
+    handler = ExpectedParrotKeyHandler()
 
-        console.print(table)
+    if api_key:
+        handler.store_ep_api_key(api_key)
+        _output({"message": "API key stored successfully"})
+    else:
+        # Browser-based flow
+        import secrets
+        from edsl.config import CONFIG
 
-    def do_exit(self, line):
-        """Exit the interactive shell."""
+        edsl_auth_token = secrets.token_urlsafe(16)
+        login_url = f"{CONFIG.EXPECTED_PARROT_URL}/login?edsl_auth_token={edsl_auth_token}"
+        _output({
+            "action": "awaiting_login",
+            "login_url": login_url,
+        })
+
+        # Poll for key
         try:
-            readline.write_history_file(str(HISTORY_FILE))
-        except Exception:
-            pass
-        console.print("[yellow]Goodbye![/yellow]")
-        return True
+            from edsl.coop import Coop
+            import webbrowser
+            webbrowser.open(login_url)
+            coop_client = Coop()
+            api_key_result = coop_client._poll_for_api_key(edsl_auth_token)
+            if api_key_result:
+                handler.store_ep_api_key(api_key_result)
+                import os
+                os.environ["EXPECTED_PARROT_API_KEY"] = api_key_result
+                _output({"message": "API key stored successfully"})
+            else:
+                _error("AUTH_TIMEOUT", "Timed out waiting for login.",
+                       suggestion="Try again or use --api_key to provide a key directly.",
+                       exit_code=EXIT_AUTH)
+        except Exception as e:
+            _error("AUTH_ERROR", str(e),
+                   suggestion="Try again or use --api_key to provide a key directly.",
+                   exit_code=EXIT_AUTH)
 
-    def do_quit(self, line):
-        """Exit the interactive shell."""
-        return self.do_exit(line)
 
-    def do_EOF(self, line):
-        """Handle Ctrl+D to exit."""
-        try:
-            readline.write_history_file(str(HISTORY_FILE))
-        except Exception:
-            pass
-        console.print("")
-        return self.do_exit(line)
+@auth.command("status")
+def auth_status():
+    """Check authentication status."""
+    from edsl.coop.ep_key_handling import ExpectedParrotKeyHandler
+    import os
 
-    def emptyline(self):
-        """Handle empty line input."""
+    handler = ExpectedParrotKeyHandler()
+
+    env_key = os.environ.get("EXPECTED_PARROT_API_KEY", "")
+    stored_key = ""
+    try:
+        key_path = Path(handler.config_dir) / handler.ep_key_file_name
+        if key_path.exists():
+            stored_key = key_path.read_text().strip()
+    except Exception:
         pass
 
-    def _execute_piped_commands_in_shell(self, command_line):
-        """Execute a sequence of commands connected by pipe operators within the shell."""
-        # Split by pipe operator
-        commands = [cmd.strip() for cmd in command_line.split("|")]
+    if env_key:
+        source = "environment"
+        has_key = True
+    elif stored_key:
+        source = "stored"
+        has_key = True
+    else:
+        source = "none"
+        has_key = False
 
-        if len(commands) < 2:
-            console.print(
-                "[red]Error: Pipe operator found but no commands to chain.[/red]"
-            )
-            return
+    data = {
+        "authenticated": has_key,
+        "api_key_source": source,
+    }
 
-        console.print(f"[cyan]Executing {len(commands)} chained commands...[/cyan]")
-
-        # Execute each command in sequence
-        for i, command in enumerate(commands):
-            if not command:
-                console.print(f"[red]Error: Empty command at position {i+1}[/red]")
-                return
-
-            console.print(f"[cyan]Step {i+1}: {command}[/cyan]")
-
-            # Execute the command recursively using the shell's default method
-            # but without pipe handling to avoid infinite recursion
-            try:
-                self._execute_single_command(command)
-            except Exception as e:
-                console.print(f"[red]Command '{command}' failed: {e}[/red]")
-                return
-
-            # Show the current state after each command
-            if self.loaded_object is not None:
-                console.print(f"[green]→ Current object: {self.object_name}[/green]")
-            else:
-                console.print("[yellow]→ No object currently loaded[/yellow]")
-
-        console.print("[green]✓ All commands executed successfully![/green]")
-
-    def _execute_single_command(self, command):
-        """Execute a single command without pipe handling."""
-        command = command.strip()
-
-        # Handle dot commands (SQLite-style)
-        if command.startswith("."):
-            parts = command.split(None, 1)
-            dot_command = parts[0][1:]  # Remove the leading dot
-            dot_args = parts[1] if len(parts) > 1 else ""
-
-            # Map dot commands to their corresponding methods
-            dot_command_map = {
-                "load": self.do_dot_load,
-                "stack": self.do_dot_stack,
-                "unload": self.do_dot_unload,
-                "pull": self.do_dot_pull,
-                "create": self.do_dot_create,
-                "show_key": self.do_dot_show_key,
-                "profiles": self.do_dot_profiles,
-                "switch": self.do_dot_switch,
-                "pop": self.do_dot_pop,
-                "clear": self.do_dot_clear,
-                "error": self.do_dot_error,
-                "help": self.do_dot_help,
-                "list": self.do_dot_list,
-                "quit": self.do_quit,
-                "exit": self.do_exit,
-            }
-
-            if dot_command in dot_command_map:
-                return dot_command_map[dot_command](dot_args)
-            else:
-                console.print(f"[red]Unknown dot command: .{dot_command}[/red]")
-                console.print(
-                    "[yellow]Available dot commands: .load, .stack, .unload, .pull, .create, .show_key, .profiles, .switch, .pop, .clear, .error, .help, .list, .quit, .exit[/yellow]"
-                )
-                return
-
-        # Handle regular attribute access
-        attr_name = command.split()[0]
-        if self.loaded_object is not None and hasattr(self.loaded_object, attr_name):
-            value = getattr(self.loaded_object, attr_name)
-            import inspect
-
-            if inspect.isroutine(value):
-                # Try to call the method with no arguments
-                try:
-                    console.print(
-                        f"[cyan]Calling {self.object_name}.{attr_name}()...[/cyan]"
-                    )
-                    result = value()
-
-                    # Display result
-                    if result is not None:
-                        console.print("[green]Returned:[/green]")
-                        if isinstance(result, (dict, list)):
-                            console.print_json(
-                                json.dumps(result, indent=2, default=str)
-                            )
-                        else:
-                            # Check if it's a TableDisplay to avoid double Rich formatting
-                            try:
-                                from edsl.dataset.display.table_display import (
-                                    TableDisplay,
-                                )
-
-                                if isinstance(result, TableDisplay):
-                                    # For TableDisplay, print the string directly without console formatting
-                                    print(str(result))
-                                else:
-                                    console.print(str(result))
-                            except ImportError:
-                                console.print(str(result))
-
-                        # Push new objects onto the stack automatically
-                        # Primitive return types (str, int, etc.) shouldn't be added.
-                        if not isinstance(
-                            result, (str, int, float, bool, bytes, bytearray)
-                        ):
-                            new_name = result.__class__.__name__
-                            _add_to_stack(new_name, result)
-                            console.print(
-                                f"[cyan]Added new object to stack as ${len(_object_stack)} ({new_name}). Switched focus.[/cyan]"
-                            )
-
-                            # Update shell context
-                            self.loaded_object = result
-                            self.object_name = new_name
-                            self.prompt = f"edsl ({new_name})> "
-
-                            # Refresh dynamic methods for the new object
-                            self._add_dynamic_methods()
-
-                            # Register new dynamic commands for the freshly focused object (CLI)
-                            _register_dynamic_commands()
-                    else:
-                        console.print("[green]✓ Method executed successfully[/green]")
-                except TypeError as e:
-                    # Method requires arguments
-                    console.print(
-                        f"[red]Method {attr_name} requires arguments: {e}[/red]"
-                    )
-                except Exception as e:
-                    console.print(f"[red]Error calling {attr_name}: {e}[/red]")
-            else:
-                console.print(f"[green]Attribute {attr_name}:[/green] {value}")
-
-                # Push non-primitive objects to stack
-                if not isinstance(value, (str, int, float, bool, bytes, bytearray)):
-                    new_name = value.__class__.__name__
-                    _add_to_stack(new_name, value)
-                    console.print(
-                        f"[cyan]Added attribute value to stack as ${len(_object_stack)} ({new_name}).[/cyan]"
-                    )
-                    # Update focus
-                    self.loaded_object = value
-                    self.object_name = new_name
-                    self.prompt = f"edsl ({new_name})> "
-                    self._add_dynamic_methods()
-                    _register_dynamic_commands()
-            return
-
-        console.print(f"[red]Unknown command: {command}[/red]")
-        console.print(
-            "[yellow]Type 'methods' to see available methods or '.help' for help.[/yellow]"
-        )
-
-    def default(self, line):
-        """Handle unknown commands."""
-        command = line.strip()
-
-        # Handle piped commands (command chaining)
-        if "|" in command:
-            return self._execute_piped_commands_in_shell(command)
-
-        # Use the single command execution method
-        return self._execute_single_command(command)
-
-    # -------------------------------------------------------------------
-    # Dot command implementations (SQLite-style)
-    # -------------------------------------------------------------------
-
-    def do_dot_load(self, line):
-        """Load a file or switch to an object in the stack."""
-        global _loaded_object, _loaded_object_name
-
-        target = line.strip()
-        if not target:
-            console.print("[yellow]Usage: .load <filepath>|$<n>[/yellow]")
-            return
-
-        # Handle stack reference ($n)
-        if target.startswith("$"):
-            try:
-                idx = int(target[1:]) - 1
-                if idx < 0 or idx >= len(_object_stack):
-                    raise IndexError
-                name, obj = _object_stack[idx]
-
-                # Switch focus
-                self.loaded_object = obj
-                self.object_name = name
-
-                # Update globals too
-                _loaded_object = obj
-                _loaded_object_name = name
-
-                self.prompt = f"edsl ({name})> "
-                # Refresh dynamic methods for newly focused object
-                self._add_dynamic_methods()
-                console.print(f"[green]Switched focus to {name} (${idx+1})[/green]")
-            except (ValueError, IndexError):
-                console.print("[red]Invalid stack reference.[/red]")
-            return
-
-        # Otherwise treat as filepath
+    # Try to get username if authenticated
+    if has_key:
         try:
-            load(Path(target), object_type="auto", interactive=False)
-
-            # Bring shell context in sync with global state
-            self.loaded_object = _loaded_object
-            self.object_name = _loaded_object_name
-            self.prompt = f"edsl ({self.object_name})> "
-            # Refresh dynamic methods after loading new object
-            self._add_dynamic_methods()
+            from edsl.coop import Coop
+            # Suppress any stdout from Coop internals
+            import io
+            old_stdout = sys.stdout
+            sys.stdout = io.StringIO()
+            try:
+                coop_client = Coop()
+                profile = coop_client.get_profile()
+            finally:
+                sys.stdout = old_stdout
+            if hasattr(profile, 'get'):
+                data["username"] = profile.get("username", None)
+            elif hasattr(profile, 'username'):
+                data["username"] = profile.username
         except Exception:
-            # Errors are already printed in load(); simply pass
+            data["username"] = None
+
+    _output(data)
+
+
+# ---------------------------------------------------------------------------
+# edsl schema
+# ---------------------------------------------------------------------------
+
+def _get_schema_classes():
+    """Return a map of schema names to (class, description) for all introspectable types."""
+    from edsl.agents import Agent, AgentList
+    from edsl.scenarios import Scenario, ScenarioList
+    from edsl.surveys import Survey
+    from edsl.language_models import Model
+    from edsl.language_models.model_list import ModelList
+    from edsl.jobs import Jobs
+    from edsl.results import Results
+    from edsl.questions.register_questions_meta import RegisterQuestionsMeta
+
+    # Force import of question types
+    from edsl.questions import (
+        QuestionFreeText, QuestionMultipleChoice, QuestionCheckBox,
+        QuestionLinearScale, QuestionNumerical, QuestionYesNo,
+        QuestionList, QuestionRank, QuestionBudget, QuestionExtract,
+        QuestionMatrix, QuestionTopK,
+    )
+
+    classes = {
+        "Agent": (Agent, "A respondent with traits and optional instructions."),
+        "AgentList": (AgentList, "A list of Agent objects. Pass to 'edsl run --agent_list'."),
+        "Scenario": (Scenario, "Template parameters for questions using Jinja2 {{variable}} syntax."),
+        "ScenarioList": (ScenarioList, "A list of Scenario objects. Pass to 'edsl run --scenario_list'."),
+        "Survey": (Survey, "A collection of questions with optional flow logic."),
+        "Model": (Model, "An LLM configuration. Pass to 'edsl run --model'."),
+        "ModelList": (ModelList, "A list of Model objects. Pass to 'edsl run --model_list'."),
+        "Jobs": (Jobs, "A complete job spec (survey + agents + models + scenarios). Pass to 'edsl run --jobs'."),
+        "Results": (Results, "Output from a job run. Pass to 'edsl results select --file'."),
+    }
+
+    # Add question types
+    type_map = RegisterQuestionsMeta.question_types_to_classes()
+    for qtype, cls in sorted(type_map.items()):
+        classes[qtype] = (cls, f"Question type '{qtype}'.")
+
+    return classes
+
+
+@schema.command("list")
+def schema_list():
+    """List all types available for schema introspection."""
+    classes = _get_schema_classes()
+
+    object_types = []
+    question_types = []
+    for name, (cls, desc) in classes.items():
+        entry = {"name": name, "description": desc}
+        if name[0].isupper():
+            object_types.append(entry)
+        else:
+            question_types.append(entry)
+
+    _output({"object_types": object_types, "question_types": question_types})
+
+
+@schema.command("show")
+@click.option("--class", "class_name", default=None, help="EDSL class to inspect (e.g. Agent, ScenarioList, Survey, Jobs).")
+@click.option("--question_type", default=None, help="Question type to inspect (e.g. free_text, multiple_choice).")
+def schema_show(class_name, question_type):
+    """Show the serialized schema of an EDSL type via its .example().to_dict()."""
+    if class_name and question_type:
+        _error("USAGE_ERROR", "--class and --question_type are mutually exclusive.",
+               exit_code=EXIT_USAGE)
+    if not class_name and not question_type:
+        _error("USAGE_ERROR", "Provide one of --class or --question_type.",
+               suggestion="Use 'edsl schema list' to see available types.",
+               exit_code=EXIT_USAGE)
+
+    classes = _get_schema_classes()
+    schema_type = class_name or question_type
+
+    if schema_type not in classes:
+        # Suggest from the right category
+        if class_name:
+            available = sorted(n for n in classes if n[0].isupper())
+        else:
+            available = sorted(n for n in classes if n[0].islower())
+        _error("NOT_FOUND", f"Unknown type: '{schema_type}'",
+               suggestion=f"Available: {', '.join(available)}",
+               exit_code=EXIT_NOT_FOUND)
+
+    cls, desc = classes[schema_type]
+
+    try:
+        example = cls.example()
+        serialized = example.to_dict()
+    except Exception as e:
+        _error("RUN_ERROR", f"Failed to generate example for '{schema_type}': {e}",
+               exit_code=EXIT_ERROR)
+
+    _output({
+        "type": schema_type,
+        "description": desc,
+        "example": serialized,
+    })
+
+
+@schema.command("error")
+def schema_error():
+    """Documents the error envelope and all known error codes."""
+    _output({
+        "envelope": {
+            "status": "error",
+            "error": {
+                "code": "string — error code",
+                "message": "string — human-readable description",
+                "suggestion": "string — what to do next (optional)",
+                "details": "array — detailed sub-errors for validation (optional)",
+            },
+        },
+        "exit_codes": {
+            "0": "Success",
+            "1": "General error",
+            "2": "Usage error (bad arguments, conflicting flags)",
+            "3": "Resource not found",
+            "4": "Authentication error",
+            "5": "Validation error",
+            "6": "Remote service error",
+        },
+        "known_error_codes": [
+            "FILE_NOT_FOUND", "INVALID_JSON", "USAGE_ERROR",
+            "UNKNOWN_QUESTION_TYPE", "INVALID_MODEL", "MODEL_LIST_ERROR",
+            "AUTH_TIMEOUT", "AUTH_ERROR",
+            "VALIDATION_ERROR", "RUN_ERROR",
+            "COOP_ERROR", "NOT_FOUND",
+        ],
+    })
+
+
+# ---------------------------------------------------------------------------
+# edsl validate
+# ---------------------------------------------------------------------------
+
+@app.command()
+@click.option("--file", "file_path", default=None, help="Path to JSON file to validate.")
+@click.option("--json_data", default=None, help="Inline JSON string.")
+@click.option("--type", "force_type", default=None, help="Force validation as type.")
+def validate(file_path, json_data, force_type):
+    """Validate a question, survey, or job spec without executing."""
+    raw = None
+    if file_path:
+        raw = _read_json_file(file_path)
+    elif json_data:
+        try:
+            raw = json.loads(json_data)
+        except json.JSONDecodeError as e:
+            _error("INVALID_JSON", f"Failed to parse JSON: {e}",
+                   exit_code=EXIT_USAGE)
+    else:
+        stdin_data = _read_stdin()
+        if stdin_data:
+            try:
+                raw = json.loads(stdin_data)
+            except json.JSONDecodeError as e:
+                _error("INVALID_JSON", f"Failed to parse JSON from stdin: {e}",
+                       exit_code=EXIT_USAGE)
+
+    if raw is None:
+        _error("USAGE_ERROR", "No input provided.",
+               suggestion="Use --file, --json_data, or pipe JSON via stdin.",
+               exit_code=EXIT_USAGE)
+
+    warnings_list = []
+
+    # Detect object type
+    obj_type = force_type
+    if not obj_type:
+        if "survey" in raw and isinstance(raw.get("survey"), dict):
+            obj_type = "job"
+        elif "questions" in raw and isinstance(raw.get("questions"), list):
+            obj_type = "job_lightweight"
+        elif "type" in raw and "question_text" in raw:
+            obj_type = "question"
+        else:
+            obj_type = "unknown"
+
+    try:
+        if obj_type == "question":
+            normalized = _validate_question(raw, warnings_list)
+            _output({"valid": True, "object_type": "question", "normalized": normalized}, warnings=warnings_list)
+        elif obj_type == "job":
+            from edsl.jobs import Jobs
+            Jobs.from_dict(raw)
+            _output({"valid": True, "object_type": "job", "normalized": raw}, warnings=warnings_list)
+        elif obj_type == "job_lightweight":
+            _validate_lightweight_job(raw, warnings_list)
+            _output({"valid": True, "object_type": "job_lightweight", "normalized": raw}, warnings=warnings_list)
+        elif obj_type == "survey":
+            from edsl.surveys import Survey
+            Survey.from_dict(raw)
+            _output({"valid": True, "object_type": "survey", "normalized": raw}, warnings=warnings_list)
+        elif obj_type == "agent_list":
+            from edsl.agents import AgentList
+            AgentList.from_dict(raw)
+            _output({"valid": True, "object_type": "agent_list", "normalized": raw}, warnings=warnings_list)
+        elif obj_type == "scenario_list":
+            from edsl.scenarios import ScenarioList
+            ScenarioList.from_dict(raw)
+            _output({"valid": True, "object_type": "scenario_list", "normalized": raw}, warnings=warnings_list)
+        else:
+            _error("VALIDATION_ERROR", "Could not determine object type from input.",
+                   suggestion="Use --type to specify: question, survey, job, agent_list, scenario_list.",
+                   exit_code=EXIT_VALIDATION)
+    except SystemExit:
+        raise
+    except Exception as e:
+        _error("VALIDATION_ERROR", f"Input failed validation: {e}",
+               suggestion="Check the input against 'edsl schema' output.",
+               exit_code=EXIT_VALIDATION)
+
+
+def _validate_question(raw: dict, warnings_list: list) -> dict:
+    """Validate and normalize a single question dict."""
+    from edsl.questions.register_questions_meta import RegisterQuestionsMeta
+
+    from edsl.questions import (
+        QuestionFreeText, QuestionMultipleChoice, QuestionCheckBox,
+        QuestionLinearScale, QuestionNumerical, QuestionYesNo,
+        QuestionList, QuestionRank, QuestionBudget, QuestionExtract,
+    )
+
+    qtype = raw.get("type", raw.get("question_type", "free_text"))
+    type_map = RegisterQuestionsMeta.question_types_to_classes()
+
+    if qtype not in type_map:
+        _error("VALIDATION_ERROR", f"Unknown question type: '{qtype}'",
+               suggestion=f"Available: {', '.join(sorted(type_map.keys()))}",
+               exit_code=EXIT_VALIDATION)
+
+    if "question_name" not in raw:
+        raw["question_name"] = "q0"
+        warnings_list.append({
+            "code": "AUTO_GENERATED_NAME",
+            "message": "question_name was omitted and set to 'q0'",
+        })
+
+    kwargs = {k: v for k, v in raw.items() if k not in ("type", "question_type")}
+
+    cls = type_map[qtype]
+    q = cls(**kwargs)
+    normalized = {"type": qtype, **{k: v for k, v in raw.items() if k != "type" and k != "question_type"}}
+    return normalized
+
+
+def _validate_lightweight_job(raw: dict, warnings_list: list) -> None:
+    """Validate a lightweight job spec."""
+    questions = raw.get("questions", [])
+    if not questions:
+        _error("VALIDATION_ERROR", "Job spec has empty 'questions' array.",
+               exit_code=EXIT_VALIDATION)
+
+    for i, q in enumerate(questions):
+        if "question_text" not in q:
+            _error("VALIDATION_ERROR",
+                   f"questions[{i}] missing 'question_text'.",
+                   exit_code=EXIT_VALIDATION)
+        if "question_name" not in q:
+            q["question_name"] = f"q{i}"
+            warnings_list.append({
+                "code": "AUTO_GENERATED_NAME",
+                "message": f"questions[{i}].question_name was omitted and set to 'q{i}'",
+            })
+
+
+# ---------------------------------------------------------------------------
+# edsl run
+# ---------------------------------------------------------------------------
+
+@app.command()
+@click.option("--jobs", default=None, help="Path to serialized Jobs JSON.")
+@click.option("--survey", default=None, help="Path to serialized Survey JSON.")
+@click.option("--json_data", default=None, help="Inline JSON.")
+@click.option("--question", "-q", default=None, help="Question text.")
+@click.option("--agent_list", default=None, help="Path to AgentList JSON.")
+@click.option("--scenario_list", default=None, help="Path to ScenarioList JSON.")
+@click.option("--model_list", default=None, help="Path to ModelList JSON.")
+@click.option("--model", "-m", default=None, help="Model name.")
+@click.option("--type", "-t", "qtype", default="free_text", help="Question type.")
+@click.option("--options", default=None, help="JSON array for MC/checkbox.")
+@click.option("--name", "-n", default=None, help="Question name.")
+@click.option("--progress/--no_progress", default=False, help="Show progress bar on stderr.")
+@click.option("--fresh", is_flag=True, default=False, help="Ignore cache.")
+@click.option("--save", default=None, help="Save Results JSON to file.")
+def run(jobs, survey, json_data, question, agent_list, scenario_list,
+        model_list, model, qtype, options, name, progress, fresh, save):
+    """Run question(s) and get results."""
+    from edsl.jobs import Jobs
+    from edsl.surveys import Survey as SurveyClass
+    from edsl.agents import Agent, AgentList as AgentListClass
+    from edsl.scenarios import Scenario, ScenarioList as ScenarioListClass
+    from edsl.language_models import Model as ModelClass, LanguageModel
+    from edsl.language_models.model_list import ModelList as ModelListClass
+
+    # Check mutually exclusive model flags
+    if model and model_list:
+        _error("USAGE_ERROR", "--model and --model_list are mutually exclusive.",
+               exit_code=EXIT_USAGE)
+
+    # Step 1: Determine base input source
+    sources = []
+    if jobs:
+        sources.append("jobs")
+    if survey:
+        sources.append("survey")
+    if json_data:
+        sources.append("json")
+    if question:
+        sources.append("question")
+
+    stdin_data = _read_stdin() if not sources else None
+    if stdin_data:
+        sources.append("stdin")
+
+    if len(sources) > 1:
+        _error("USAGE_ERROR",
+               f"Multiple input sources provided: {', '.join(sources)}. Only one allowed.",
+               suggestion="Use exactly one of: --jobs, --survey, --json_data, --question, or stdin.",
+               exit_code=EXIT_USAGE)
+
+    input_mode = sources[0] if sources else None
+    if not input_mode:
+        _error("USAGE_ERROR", "No input provided.",
+               suggestion="Use --jobs, --survey, --json_data, --question, or pipe JSON via stdin.",
+               exit_code=EXIT_USAGE)
+
+    # Step 2: Build the Jobs object
+    try:
+        job = _build_job(
+            input_mode=input_mode,
+            jobs_path=jobs, survey_path=survey, json_str=json_data,
+            stdin_data=stdin_data, question_text=question,
+            question_type=qtype, question_options=options, question_name=name,
+        )
+    except SystemExit:
+        raise
+    except Exception as e:
+        _error("RUN_ERROR", f"Failed to build job: {e}",
+               suggestion="Use 'edsl validate' to check your input.",
+               exit_code=EXIT_ERROR)
+
+    # Step 3: Apply component overrides
+    try:
+        if agent_list:
+            data = _read_json_file(agent_list)
+            job = Jobs(
+                survey=job.survey,
+                agents=AgentListClass.from_dict(data),
+                models=job.models,
+                scenarios=job.scenarios,
+            )
+        if scenario_list:
+            data = _read_json_file(scenario_list)
+            job = Jobs(
+                survey=job.survey,
+                agents=job.agents,
+                models=job.models,
+                scenarios=ScenarioListClass.from_dict(data),
+            )
+        if model_list:
+            data = _read_json_file(model_list)
+            job = Jobs(
+                survey=job.survey,
+                agents=job.agents,
+                models=ModelListClass.from_dict(data),
+                scenarios=job.scenarios,
+            )
+        if model:
+            job = Jobs(
+                survey=job.survey,
+                agents=job.agents,
+                models=[ModelClass(model)],
+                scenarios=job.scenarios,
+            )
+    except SystemExit:
+        raise
+    except Exception as e:
+        _error("RUN_ERROR", f"Failed to apply overrides: {e}", exit_code=EXIT_ERROR)
+
+    # Step 4: Execute
+    try:
+        results_obj = job.run(
+            progress_bar=progress,
+            fresh=fresh,
+            verbose=False,
+        )
+    except Exception as e:
+        _error("RUN_ERROR", f"Job execution failed: {e}", exit_code=EXIT_ERROR)
+
+    # Format output
+    try:
+        result_data = []
+        for r in results_obj:
+            entry = {}
+            # Answer
+            entry["answer"] = dict(r.get("answer", {})) if hasattr(r, 'get') else {}
+
+            # Agent, scenario, model
+            if hasattr(r, 'agent'):
+                entry["agent"] = {"traits": dict(r.agent.traits) if hasattr(r.agent, 'traits') else {}}
+            if hasattr(r, 'scenario'):
+                entry["scenario"] = dict(r.scenario) if r.scenario else {}
+            if hasattr(r, 'model'):
+                entry["model"] = {
+                    "model": r.model.model if hasattr(r.model, 'model') else str(r.model),
+                    "service": r.model.inference_service if hasattr(r.model, 'inference_service') else "",
+                }
+            result_data.append(entry)
+    except Exception:
+        # Fallback: use select().to_dicts()
+        try:
+            result_data = results_obj.select("answer.*").to_dicts(remove_prefix=True)
+        except Exception:
+            result_data = []
+
+    # Save if requested
+    if save:
+        try:
+            save_path = Path(save)
+            save_path.write_text(json.dumps(results_obj.to_dict(), indent=2, default=str))
+        except Exception:
             pass
 
-    def do_dot_stack(self, line):
-        """Show the current object stack."""
-        _print_stack()
+    meta = {
+        "input_mode": input_mode,
+        "model_count": len(job.models) if hasattr(job, 'models') else 0,
+        "agent_count": len(job.agents) if hasattr(job, 'agents') else 0,
+        "scenario_count": len(job.scenarios) if hasattr(job, 'scenarios') else 0,
+        "result_count": len(result_data),
+    }
 
-    def do_dot_unload(self, line):
-        """Unload the current object and clear the stack."""
-        _unload()
-        # Update shell prompt/context
-        self.loaded_object = None
-        self.object_name = None
-        self.prompt = "edsl> "
+    _output({"results": result_data, "meta": meta})
 
-    def do_dot_pull(self, line):
-        """Pull an object from Expected Parrot Coop by UUID."""
-        uuid_str = line.strip()
-        if not uuid_str:
-            console.print("[yellow]Usage: .pull <uuid>[/yellow]")
+
+def _build_job(input_mode, jobs_path, survey_path, json_str, stdin_data,
+               question_text, question_type, question_options, question_name):
+    """Build a Jobs object from the determined input source."""
+    from edsl.jobs import Jobs
+    from edsl.surveys import Survey as SurveyClass
+    from edsl.questions.register_questions_meta import RegisterQuestionsMeta
+
+    from edsl.questions import (
+        QuestionFreeText, QuestionMultipleChoice, QuestionCheckBox,
+        QuestionLinearScale, QuestionNumerical, QuestionYesNo,
+        QuestionList, QuestionRank, QuestionBudget, QuestionExtract,
+    )
+
+    if input_mode == "jobs":
+        data = _read_json_file(jobs_path)
+        return Jobs.from_dict(data)
+
+    if input_mode == "survey":
+        data = _read_json_file(survey_path)
+        sv = SurveyClass.from_dict(data)
+        return Jobs(survey=sv)
+
+    if input_mode in ("json", "stdin"):
+        raw_str = json_str if input_mode == "json" else stdin_data
+        try:
+            data = json.loads(raw_str)
+        except json.JSONDecodeError as e:
+            _error("INVALID_JSON", f"Failed to parse JSON: {e}", exit_code=EXIT_USAGE)
+        return _build_job_from_json(data)
+
+    if input_mode == "question":
+        qname = question_name or "q0"
+        type_map = RegisterQuestionsMeta.question_types_to_classes()
+        if question_type not in type_map:
+            _error("UNKNOWN_QUESTION_TYPE", f"Unknown type: '{question_type}'",
+                   suggestion=f"Available: {', '.join(sorted(type_map.keys()))}",
+                   exit_code=EXIT_USAGE)
+        kwargs = {"question_name": qname, "question_text": question_text}
+        if question_options:
+            try:
+                kwargs["question_options"] = json.loads(question_options)
+            except json.JSONDecodeError:
+                _error("INVALID_JSON", "Failed to parse --options as JSON array.",
+                       exit_code=EXIT_USAGE)
+        cls = type_map[question_type]
+        q = cls(**kwargs)
+        sv = SurveyClass(questions=[q])
+        return Jobs(survey=sv)
+
+    _error("USAGE_ERROR", f"Unknown input mode: {input_mode}", exit_code=EXIT_USAGE)
+
+
+def _build_job_from_json(data: dict):
+    """Build a Jobs from parsed JSON, auto-detecting shape."""
+    from edsl.jobs import Jobs
+    from edsl.surveys import Survey as SurveyClass
+    from edsl.agents import Agent
+    from edsl.scenarios import Scenario
+    from edsl.language_models import Model as ModelClass
+    from edsl.questions.register_questions_meta import RegisterQuestionsMeta
+
+    # Shape 1: serialized Jobs (has "survey" key)
+    if "survey" in data and isinstance(data["survey"], dict):
+        return Jobs.from_dict(data)
+
+    # Shape 2: lightweight job spec (has "questions" array)
+    if "questions" in data and isinstance(data["questions"], list):
+        type_map = RegisterQuestionsMeta.question_types_to_classes()
+        questions = []
+        for i, qd in enumerate(data["questions"]):
+            qtype = qd.pop("type", qd.pop("question_type", "free_text"))
+            if "question_name" not in qd:
+                qd["question_name"] = f"q{i}"
+            if qtype not in type_map:
+                _error("UNKNOWN_QUESTION_TYPE", f"Unknown type in questions[{i}]: '{qtype}'",
+                       exit_code=EXIT_VALIDATION)
+            questions.append(type_map[qtype](**qd))
+
+        sv = SurveyClass(questions=questions)
+        agents = [Agent(traits=a.get("traits", a)) for a in data.get("agents", [])]
+        scenarios = [Scenario(s) for s in data.get("scenarios", [])]
+        models_list = [ModelClass(m) if isinstance(m, str) else ModelClass(**m) for m in data.get("models", [])]
+
+        return Jobs(
+            survey=sv,
+            agents=agents or None,
+            models=models_list or None,
+            scenarios=scenarios or None,
+        )
+
+    # Shape 3: single question shorthand
+    if "type" in data and "question_text" in data:
+        type_map = RegisterQuestionsMeta.question_types_to_classes()
+        qtype = data.pop("type", data.pop("question_type", "free_text"))
+        if "question_name" not in data:
+            data["question_name"] = "q0"
+        if qtype not in type_map:
+            _error("UNKNOWN_QUESTION_TYPE", f"Unknown type: '{qtype}'",
+                   exit_code=EXIT_VALIDATION)
+        q = type_map[qtype](**{k: v for k, v in data.items() if k != "question_type"})
+        sv = SurveyClass(questions=[q])
+        return Jobs(survey=sv)
+
+    _error("VALIDATION_ERROR",
+           "Could not determine JSON shape. Expected serialized Jobs, lightweight job spec, or single question.",
+           suggestion="Use 'edsl schema survey' to see accepted shapes.",
+           exit_code=EXIT_VALIDATION)
+
+
+# ---------------------------------------------------------------------------
+# edsl results
+# ---------------------------------------------------------------------------
+
+@results.command("columns")
+@click.option("--file", "file_path", required=True, help="Path to serialized Results JSON.")
+def results_columns(file_path):
+    """List available columns in a Results file."""
+    data = _read_json_file(file_path)
+    try:
+        from edsl.results import Results
+        results_obj = Results.from_dict(data)
+        _output({"columns": sorted(results_obj.columns)})
+    except Exception as e:
+        _error("VALIDATION_ERROR", f"Failed to load Results: {e}", exit_code=EXIT_ERROR)
+
+
+@results.command("select")
+@click.option("--file", "file_path", required=True, help="Path to serialized Results JSON.")
+@click.option("--column", multiple=True, help="Column to select. Repeat for multiple: --column answer.q0 --column agent.age")
+@click.option("--filter", "-f", "filter_expr", default=None, help="Filter expression.")
+@click.option("--order_by", default=None, help="Sort by column.")
+@click.option("--csv", "as_csv", is_flag=True, default=False, help="Output as CSV.")
+@click.option("--limit", default=None, type=int, help="Max rows.")
+def results_select(file_path, column, filter_expr, order_by, as_csv, limit):
+    """Extract columns from a Results file with optional filtering."""
+    data = _read_json_file(file_path)
+    try:
+        from edsl.results import Results
+        results_obj = Results.from_dict(data)
+    except Exception as e:
+        _error("VALIDATION_ERROR", f"Failed to load Results: {e}", exit_code=EXIT_ERROR)
+
+    try:
+        r = results_obj
+
+        if filter_expr:
+            r = r.filter(filter_expr)
+
+        if order_by:
+            r = r.order_by(order_by)
+
+        if column:
+            dataset = r.select(*column)
+        else:
+            dataset = r.select()
+
+        rows = dataset.to_dicts(remove_prefix=False)
+
+        if limit and limit > 0:
+            rows = rows[:limit]
+
+        if as_csv:
+            import io
+            import csv as csv_mod
+            if rows:
+                output = io.StringIO()
+                writer = csv_mod.DictWriter(output, fieldnames=rows[0].keys())
+                writer.writeheader()
+                writer.writerows(rows)
+                sys.stdout.write(output.getvalue())
             return
 
+        _output({"data": rows})
+
+    except SystemExit:
+        raise
+    except Exception as e:
+        _error("RUN_ERROR", f"Query failed: {e}", exit_code=EXIT_ERROR)
+
+
+# ---------------------------------------------------------------------------
+# edsl coop
+# ---------------------------------------------------------------------------
+
+@coop.command("search")
+@click.option("--query", "-q", default=None, help="Search by description.")
+@click.option("--type", "obj_type", default=None, help="Filter by object type.")
+@click.option("--visibility", default=None, help="public, private, unlisted.")
+@click.option("--community", is_flag=True, default=False, help="Search community objects.")
+@click.option("--page", default=1, type=int, help="Page number.")
+@click.option("--page_size", default=10, type=int, help="Results per page (max 100).")
+def coop_search(query, obj_type, visibility, community, page, page_size):
+    """Search for shared EDSL objects on Coop."""
+    try:
         from edsl.coop import Coop
+        coop_client = Coop()
 
-        console.print(f"[cyan]Pulling object {uuid_str} from Coop...[/cyan]")
-        coop = Coop()
-        obj = coop.pull(uuid_str)
+        kwargs = {
+            "page": page,
+            "page_size": page_size,
+            "community": community,
+        }
+        if query:
+            kwargs["search_query"] = query
+        if obj_type:
+            kwargs["object_type"] = obj_type
+        if visibility:
+            kwargs["visibility"] = visibility
 
-        new_name = obj.__class__.__name__
-        _add_to_stack(new_name, obj)
+        result = coop_client.list(**kwargs)
 
-        # Update shell context
-        self.loaded_object = obj
-        self.object_name = new_name
-        self.prompt = f"edsl ({new_name})> "
-
-        # Refresh dynamic methods
-        self._add_dynamic_methods()
-
-        # Register CLI dynamic commands
-        _register_dynamic_commands()
-
-        console.print(
-            f"[green]✓ Pulled object {uuid_str} as {new_name} (${len(_object_stack)})[/green]"
-        )
-
-    def do_dot_create(self, line):
-        """Create an object from the registry."""
-        if not line.strip():
-            self.output_console.print(
-                "[yellow]Usage: .create <ClassName> [args] [key=value ...][/yellow]"
-            )
-            return
-
-        # Split only first token for class name
-        parts = line.strip().split(maxsplit=1)
-        class_name = parts[0]
-        arg_line = parts[1] if len(parts) > 1 else ""
-
-        # If arg_line starts with dict/list literal keep as single positional
-        if arg_line.lstrip().startswith(("{", "[")):
-            try:
-                arg_obj = ast.literal_eval(arg_line.strip())
-                args = [arg_obj]
-                kwargs = {}
-            except Exception as e:
-                self.output_console.print(f"[red]Failed to parse literal: {e}[/red]")
-                raise typer.Exit(1)
-        else:
-            args, kwargs = _parse_line_args_kwargs(arg_line)
-
-        try:
-            obj = _instantiate_from_registry(class_name, args, kwargs)
-            new_name = obj.__class__.__name__
-            _add_to_stack(new_name, obj)
-            # Switch focus
-            self.loaded_object = obj
-            self.object_name = new_name
-            self.prompt = f"edsl ({new_name})> "
-            self._add_dynamic_methods()
-            _register_dynamic_commands()
-
-            self.output_console.print(
-                f"[green]✓ Created {new_name} (${len(_object_stack)})[/green]"
-            )
-        except Exception as err:
-            self.output_console.print(f"[red]Error creating object: {err}[/red]")
-            raise typer.Exit(1)
-
-    def do_dot_show_key(self, line):
-        """Display the current Expected Parrot API key (masked)."""
-        key = _get_expected_parrot_key()
-        if key:
-            masked = key[:4] + "..." + key[-4:]
-            console.print(f"[green]Expected Parrot key:[/green] {masked}")
-        else:
-            console.print(
-                "[yellow]No Expected Parrot key found in environment.[/yellow]"
-            )
-
-    def do_dot_profiles(self, line):
-        """List available .env_<profile> files."""
-        profiles = _list_env_profiles()
-        if profiles:
-            console.print("[cyan]Available profiles:[/cyan]")
-            for p in profiles:
-                name = p[len(".env_") :]
-                console.print(f" • {name} ({p})")
-        else:
-            console.print("[yellow]No profiles found.[/yellow]")
-
-    def do_dot_switch(self, line):
-        """Switch to a given environment profile."""
-        profile = line.strip()
-        if not profile:
-            console.print("[yellow]Usage: .switch <profile>[/yellow]")
-            return
-        ok = _load_env_profile(profile)
-        if ok:
-            console.print(
-                f"[green]✓ Switched to profile '{profile}' and reloaded .env[/green]"
-            )
-        else:
-            console.print(f"[red]Profile '.env_{profile}' not found.[/red]")
-
-    def do_dot_pop(self, line):
-        """Remove the currently focused object from the stack and switch to the previous one."""
-        if not _object_stack:
-            console.print("[yellow]Stack is empty - nothing to pop.[/yellow]")
-            return
-
-        if self.loaded_object is None:
-            console.print("[yellow]No object is currently focused.[/yellow]")
-            return
-
-        # Find the current object in the stack
-        current_idx = None
-        for idx, (name, obj) in enumerate(_object_stack):
-            if obj is self.loaded_object:
-                current_idx = idx
-                break
-
-        if current_idx is None:
-            console.print("[yellow]Current object not found in stack.[/yellow]")
-            return
-
-        # Remove the current object from the stack
-        removed_name, removed_obj = _object_stack.pop(current_idx)
-        console.print(f"[green]✓ Popped {removed_name} from stack[/green]")
-
-        # Update global state
-        global _loaded_object, _loaded_object_name
-
-        # If stack is now empty, unload everything
-        if not _object_stack:
-            _loaded_object = None
-            _loaded_object_name = None
-            self.loaded_object = None
-            self.object_name = None
-            self.prompt = "edsl> "
-            console.print("[yellow]Stack is now empty - no object loaded.[/yellow]")
-        else:
-            # Switch to the previous object in the stack
-            if current_idx >= len(_object_stack):
-                # We removed the last item, focus on the new last item
-                new_idx = len(_object_stack) - 1
+        objects = []
+        for item in result:
+            obj = {}
+            if hasattr(item, 'items'):
+                obj = dict(item)
+            elif hasattr(item, '__dict__'):
+                obj = {k: v for k, v in item.__dict__.items() if not k.startswith('_')}
             else:
-                # We removed a middle item, focus on the item that took its place
-                # But let's actually focus on the previous item if it exists
-                new_idx = max(0, current_idx - 1)
-
-            new_name, new_obj = _object_stack[new_idx]
-
-            # Update global and local state
-            _loaded_object = new_obj
-            _loaded_object_name = new_name
-            self.loaded_object = new_obj
-            self.object_name = new_name
-            self.prompt = f"edsl ({new_name})> "
-
-            # Refresh dynamic methods for the new object
-            self._add_dynamic_methods()
-            _register_dynamic_commands()
-
-            console.print(f"[green]Switched focus to {new_name} (${new_idx+1})[/green]")
-
-    def do_dot_clear(self, line):
-        """Clear the entire object stack but keep current focus."""
-        if not _object_stack:
-            console.print("[yellow]Stack is already empty.[/yellow]")
-            return
-
-        # Count objects before clearing
-        count = len(_object_stack)
-        current_obj = self.loaded_object
-        current_name = self.object_name
-
-        # Clear the stack
-        _object_stack.clear()
-
-        # If we had a focused object, add it back as the only item
-        if current_obj is not None and current_name is not None:
-            _object_stack.append((current_name, current_obj))
-            console.print(
-                f"[green]✓ Cleared {count} objects from stack, kept current focus on {current_name}[/green]"
-            )
-        else:
-            console.print(f"[green]✓ Cleared {count} objects from stack[/green]")
-
-        # Update global state to match
-        global _loaded_object, _loaded_object_name
-        if current_obj is not None:
-            _loaded_object = current_obj
-            _loaded_object_name = current_name
-        else:
-            _loaded_object = None
-            _loaded_object_name = None
-
-    def do_dot_error(self, line):
-        """Open error URL in browser with given UUID."""
-        uuid_str = line.strip()
-        if not uuid_str:
-            console.print("[yellow]Usage: .error <uuid>[/yellow]")
-            return
-
-        # Construct the URL
-        url = f"https://www.expectedparrot.com/admin/remote-inference/error/{uuid_str}"
-
-        try:
-            console.print(f"[cyan]Opening error page for UUID {uuid_str}...[/cyan]")
-            webbrowser.open(url)
-            console.print(f"[green]✓ Opened {url}[/green]")
-        except Exception as e:
-            console.print(f"[red]Error opening browser: {e}[/red]")
-            console.print(f"[yellow]Manual URL: {url}[/yellow]")
-
-    # -------------------------------------------------------------------
-    # Filesystem operations
-    # -------------------------------------------------------------------
-
-    def do_ls(self, line):
-        """List directory contents. Usage: ls [path] [--all|-a]"""
-        tokens = shlex.split(line)
-        show_hidden = False
-        path = Path.cwd()
-        for token in tokens:
-            if token in ("-a", "--all"):
-                show_hidden = True
-            else:
-                path = Path(token).expanduser()
-        _print_directory(path, show_hidden)
-
-    def do_cd(self, line):
-        """Change current directory. Usage: cd <path>"""
-        target = line.strip() or "~"
-        path = Path(target).expanduser()
-        if not path.exists() or not path.is_dir():
-            console.print(f"[red]Directory '{path}' does not exist.[/red]")
-            return
-        try:
-            os.chdir(path)
-            console.print(f"[green]✓ Changed directory to {path}[/green]")
-        except Exception as e:
-            console.print(f"[red]Error changing directory: {e}[/red]")
-
-    # -------------------------------------------------------------------
-    # Coop pull operation
-    # -------------------------------------------------------------------
-
-    # -------------------------------------------------------------------
-    # Instantiate new objects: agent / scenario
-    # -------------------------------------------------------------------
-
-    # -------------------------------------------------------------------
-    # Show Expected Parrot key
-    # -------------------------------------------------------------------
-
-    # -------------------------------------------------------------------
-    # Profile management
-    # -------------------------------------------------------------------
-
-    def do_dot_list(self, line):
-        """List objects from Coop by calling the list() method on an EDSL class."""
-        class_name = line.strip()
-        if not class_name:
-            console.print("[yellow]Usage: .list <ClassName>[/yellow]")
-            return
-
-        try:
-            # Get the class from the registry
-            registry = _get_registry()
-            cls = (
-                registry.get(class_name)
-                or registry.get(class_name.capitalize())
-                or registry.get(class_name.lower())
-            )
-            if cls is None:
-                console.print(
-                    f"[red]Unknown class '{class_name}'. Available: {', '.join(registry.keys())}[/red]"
-                )
-                return
-
-            # Call the list() method on the class
-            console.print(f"[cyan]Calling {class_name}.list()...[/cyan]")
-            result = cls.list()
-
-            # Display the result
-            if result is not None:
-                console.print("[green]Returned:[/green]")
-                # Check if it's a TableDisplay to avoid double Rich formatting
-                try:
-                    from edsl.dataset.display.table_display import TableDisplay
-
-                    if isinstance(result, TableDisplay):
-                        print(str(result))
-                    else:
-                        console.print(str(result))
-                except ImportError:
-                    console.print(str(result))
-
-                # Push the result onto the stack if it's not a primitive type
-                if not isinstance(result, (str, int, float, bool, bytes, bytearray)):
-                    new_name = result.__class__.__name__
-                    _add_to_stack(new_name, result)
-                    console.print(
-                        f"[cyan]Added result to stack as ${len(_object_stack)} ({new_name}). Switched focus.[/cyan]"
-                    )
-
-                    # Update shell context
-                    self.loaded_object = result
-                    self.object_name = new_name
-                    self.prompt = f"edsl ({new_name})> "
-
-                    # Refresh dynamic methods for the new object
-                    self._add_dynamic_methods()
-                    _register_dynamic_commands()
-            else:
-                console.print("[green]✓ Method executed successfully[/green]")
-
-        except Exception as e:
-            console.print(f"[red]Error calling {class_name}.list(): {e}[/red]")
-
-    def do_dot_help(self, line):
-        """Show comprehensive help for EDSL commands."""
-
-        help_table = Table(
-            title="EDSL Commands", show_header=True, header_style="bold cyan"
-        )
-        help_table.add_column("Command", style="cyan", width=15)
-        help_table.add_column("Description", style="white", width=50)
-        help_table.add_column("Example", style="yellow", width=30)
-
-        commands_help = [
-            (".load", "Load a file or switch focus", ".load myfile.json or .load $2"),
-            (".create", "Create an object from registry", ".create Agent"),
-            (".pull", "Pull object from Coop by UUID", ".pull abc-123-def"),
-            (".info", "Show info about loaded object", ".info"),
-            (".methods", "List available methods", ".methods"),
-            (".stack", "Show object stack", ".stack"),
-            (".unload", "Unload current object", ".unload"),
-            (".pop", "Remove current from stack", ".pop"),
-            (".clear", "Clear stack but keep focus", ".clear"),
-            ("ls", "List directory contents", "ls /path"),
-            ("cd", "Change directory", "cd /path"),
-            (".profiles", "List env profiles", ".profiles"),
-            (".switch", "Switch env profile", ".switch dev"),
-            (".show_key", "Show API key (masked)", ".show_key"),
-            (".error", "Open error URL in browser", ".error abc-123-def"),
-            (".list", "List objects from Coop", ".list Agent"),
-            (".quit", "Exit the shell", ".quit"),
-            (".help", "Show this help", ".help"),
-        ]
-
-        for cmd, desc, example in commands_help:
-            help_table.add_row(cmd, desc, example)
-
-        console.print(help_table)
-
-        console.print("\n[bold cyan]Method Calls:[/bold cyan]")
-        console.print("  Call any method on the loaded object directly:")
-        console.print("  method_name arg1 arg2 key=value")
-        console.print("  Example: run")
-        console.print("  Example: to_dict")
-
-        console.print("\n[bold cyan]Built-in Functions:[/bold cyan]")
-        console.print("  len, str, repr, hash, dir, type, id, print")
-        console.print("  Example: len  # calls len() on loaded object")
-
-        console.print("\n[bold cyan]Stack References:[/bold cyan]")
-        console.print("  Use $1, $2, $3, etc. to reference objects in the stack")
-        console.print("  Example: .load $2  # switch focus to object #2")
-
-
-def _get_callable_methods(obj: Any) -> Dict[str, callable]:
-    """Get all callable methods from an object that don't start with underscore."""
-    methods: Dict[str, callable] = {}
-    for name in dir(obj):
-        if name.startswith("_"):
-            continue
-        attr = getattr(obj, name)
-        # Only expose if it is a proper function/method/descriptor routine, not just any callable object
-        if (
-            inspect.isfunction(attr)
-            or inspect.ismethod(attr)
-            or isinstance(
-                attr,
-                (
-                    types.MethodType,
-                    types.FunctionType,
-                    types.BuiltinFunctionType,
-                    types.BuiltinMethodType,
-                    types.MethodDescriptorType,
-                ),
-            )
-        ):
-            methods[name] = attr
-    return methods
-
-
-def _create_dynamic_command(method_name: str, method: callable):
-    """Create a dynamic typer command for a method."""
-
-    def dynamic_command():
-        """Dynamically created command."""
-        if _loaded_object is None:
-            console.print(
-                "[red]Error: No object loaded. Use 'edsl .load FILEPATH' first.[/red]"
-            )
-            raise typer.Exit(1)
-
-        try:
-            # Get the method from the loaded object
-            method = getattr(_loaded_object, method_name)
-
-            # Call the method with no arguments (methods that need args will need to be handled differently)
-            console.print(
-                f"[cyan]Calling {_loaded_object_name}.{method_name}()...[/cyan]"
-            )
-            result = method()
-
-            # Display result
-            if result is not None:
-                console.print("[green]Returned:[/green]")
-                if isinstance(result, (dict, list)):
-                    console.print_json(json.dumps(result, indent=2, default=str))
-                else:
-                    # Check if it's a TableDisplay to avoid double Rich formatting
-                    try:
-                        from edsl.dataset.display.table_display import TableDisplay
-
-                        if isinstance(result, TableDisplay):
-                            # For TableDisplay, print the string directly without console formatting
-                            print(str(result))
-                        else:
-                            console.print(str(result))
-                    except ImportError:
-                        console.print(str(result))
-
-                # Push new objects onto the stack automatically
-                # Primitive return types (str, int, etc.) shouldn't be added.
-                if not isinstance(result, (str, int, float, bool, bytes, bytearray)):
-                    new_name = result.__class__.__name__
-                    _add_to_stack(new_name, result)
-                    console.print(
-                        f"[cyan]Added new object to stack as ${len(_object_stack)} ({new_name}).[/cyan]"
-                    )
-                    # Register new dynamic commands for the freshly focused object
-                    _register_dynamic_commands()
-            else:
-                console.print("[green]✓ Method executed successfully[/green]")
-
-        except Exception as e:
-            console.print(f"[red]Error calling {method_name}: {e}[/red]")
-            raise typer.Exit(1)
-
-    # Get method signature for help
-    try:
-        sig = inspect.signature(method)
-    except (TypeError, ValueError):
-        sig = None
-    docstring = method.__doc__ or f"Call {method_name} method on loaded object"
-
-    # Set the command name and help
-    dynamic_command.__name__ = method_name
-    dynamic_command.__doc__ = (
-        docstring if sig is not None else f"{docstring} (no signature)"
-    )
-
-    return dynamic_command
-
-
-def _create_builtin_cli_command(func_name: str, func):
-    """Create a Typer command that applies a built-in function to the loaded object."""
-
-    def builtin_command():
-        if _loaded_object is None:
-            console.print(
-                "[red]Error: No object loaded. Use 'edsl .load FILEPATH' first.[/red]"
-            )
-            raise typer.Exit(1)
-
-        try:
-            console.print(
-                f"[cyan]Calling built-in {func_name}({_loaded_object_name})...[/cyan]"
-            )
-            result = func(_loaded_object)
-
-            # Display result
-            if result is not None:
-                console.print(f"[green]Returned:[/green] {result}")
-        except Exception as e:
-            console.print(f"[red]Error calling built-in {func_name}: {e}[/red]")
-            raise typer.Exit(1)
-
-    builtin_command.__name__ = func_name
-    builtin_command.__doc__ = (
-        f"Apply Python built-in '{func_name}' to the currently loaded object."
-    )
-
-    return builtin_command
-
-
-def _register_dynamic_commands():
-    """Register dynamic commands based on the loaded object's methods."""
-    global _loaded_object
-
-    if _loaded_object is None:
-        return
-
-    methods = _get_callable_methods(_loaded_object)
-
-    for method_name, method in methods.items():
-        # Skip if command already exists
-        if method_name in _RESERVED_SHELL_COMMANDS or hasattr(app, method_name):
-            continue
-
-        # Create and register the dynamic command
-        dynamic_cmd = _create_dynamic_command(method_name, method)
-        app.command(
-            name=method_name, help=f"Call {method_name} on loaded {_loaded_object_name}"
-        )(dynamic_cmd)
-
-    # -------------------------------------------------------------------
-    # Register built-in function commands (len, str, etc.)
-    # -------------------------------------------------------------------
-
-    for func_name, func in _BUILTIN_FUNCTIONS.items():
-        # Avoid clobbering existing commands or reserved words
-        if func_name in _RESERVED_SHELL_COMMANDS or hasattr(app, func_name):
-            continue
-
-        builtin_cmd = _create_builtin_cli_command(func_name, func)
-        app.command(
-            name=func_name,
-            help=f"Apply built-in '{func_name}' to loaded {_loaded_object_name}",
-        )(builtin_cmd)
-
-
-@app.command(name=".load")
-def load(
-    filepath: Path = typer.Argument(..., help="Path to the file to load"),
-    object_type: Optional[str] = typer.Option(
-        "auto",
-        "--type",
-        "-t",
-        help="Object type to load (auto, filestore, scenario, etc.)",
-    ),
-    interactive: bool = typer.Option(
-        False, "--interactive", "-i", help="Start interactive shell after loading"
-    ),
-) -> None:
-    """
-    Load a file as an EDSL object and make its methods available as CLI commands.
-
-    After loading, you can either:
-    1. Call methods directly: python -m edsl <method_name> [args]
-    2. Start interactive shell: python -m edsl .load FILEPATH --interactive
-    3. Start shell after loading: python -m edsl .shell
-
-    Args:
-        filepath: Path to the file to load
-        object_type: Type of object to create (auto-detected by default)
-        interactive: Start interactive shell after loading
-    """
-    global _loaded_object, _loaded_object_name
-
-    # Check if file exists
-    if not filepath.exists():
-        console.print(f"[red]Error: File '{filepath}' does not exist[/red]")
-        raise typer.Exit(1)
-
-    if not filepath.is_file():
-        console.print(f"[red]Error: '{filepath}' is not a file[/red]")
-        raise typer.Exit(1)
-
-    try:
-        # Import FileStore from scenarios
-        from .scenarios.file_store import FileStore
-
-        console.print(f"[cyan]Loading '{filepath}' as EDSL object...[/cyan]")
-
-        # Create the appropriate object based on type
-        if object_type == "auto":
-            try:
-                from edsl.utilities.edsl_load import load as edsl_generic_load
-
-                temp_obj = edsl_generic_load(str(filepath))
-                temp_name = temp_obj.__class__.__name__
-
-                _add_to_stack(temp_name, temp_obj)
-            except Exception as e:
-                console.print(
-                    f"[yellow]Auto load failed with '{e}'. Falling back to FileStore.[/yellow]"
-                )
-                # Fallback to FileStore
-                temp_obj = FileStore(str(filepath))
-                temp_name = "FileStore"
-                _add_to_stack(temp_name, temp_obj)
-        elif object_type == "filestore":
-            temp_obj = FileStore(str(filepath))
-            temp_name = "FileStore"
-
-            # Add to stack and set as current
-            _add_to_stack(temp_name, temp_obj)
-        else:
-            console.print(f"[red]Error: Unknown object type '{object_type}'[/red]")
-            raise typer.Exit(1)
-
-        console.print(f"[green]✓ Successfully loaded {_loaded_object_name}[/green]")
-        console.print(f"[cyan]File: {filepath}[/cyan]")
-
-        if interactive:
-            console.print("\n[yellow]Starting interactive shell...[/yellow]")
-            shell = EDSLShell(_loaded_object, _loaded_object_name)
-            shell.cmdloop()
-        else:
-            _register_dynamic_commands()
-
-    except ImportError as e:
-        console.print(f"[red]Error: Failed to import required modules. {e}[/red]")
-        raise typer.Exit(1)
+                obj = dict(item) if hasattr(item, '__iter__') else {"value": str(item)}
+            objects.append(obj)
+
+        _output({
+            "objects": objects,
+            "page": page,
+            "page_size": page_size,
+        })
+
+    except SystemExit:
+        raise
     except Exception as e:
-        console.print(f"[red]Error loading file: {e}[/red]")
-        raise typer.Exit(1)
+        _error("COOP_ERROR", str(e),
+               suggestion="Check your API key with 'edsl auth status'.",
+               exit_code=EXIT_REMOTE)
 
 
-@app.command(name=".info")
-def info():
-    """Show information about the currently loaded object."""
-    if _loaded_object is None:
-        console.print("[red]No object loaded. Use 'edsl .load FILEPATH' first.[/red]")
-        raise typer.Exit(1)
-
-    console.print(f"[cyan]Loaded object: {_loaded_object_name}[/cyan]")
-
-    # Show object properties
-    table = Table(title="Object Properties")
-    table.add_column("Property", style="cyan")
-    table.add_column("Value", style="white")
-
-    # Get non-callable attributes
-    for name in dir(_loaded_object):
-        if not name.startswith("_") and not callable(getattr(_loaded_object, name)):
-            value = getattr(_loaded_object, name)
-            # Truncate long values
-            str_value = str(value)
-            if len(str_value) > 100:
-                str_value = str_value[:97] + "..."
-            table.add_row(name, str_value)
-
-    console.print(table)
-
-
-@app.command(name=".methods")
-def methods():
-    """List all available methods on the loaded object."""
-    if _loaded_object is None:
-        console.print("[red]No object loaded. Use 'edsl .load FILEPATH' first.[/red]")
-        raise typer.Exit(1)
-
-    methods = _get_callable_methods(_loaded_object)
-
-    table = Table(title=f"Methods for {_loaded_object_name}")
-    table.add_column("Method", style="cyan")
-    table.add_column("Signature", style="yellow")
-    table.add_column("Description", style="white")
-
-    for method_name, method in methods.items():
-        if method_name in _RESERVED_SHELL_COMMANDS:
-            continue
-        try:
-            sig = inspect.signature(method)
-        except (TypeError, ValueError):
-            sig = None
-        doc = method.__doc__ or "No description available"
-        first_line = doc.split("\n")[0].strip()
-        table.add_row(method_name, str(sig) if sig else "No signature", first_line)
-
-    console.print(table)
-
-
-@app.command(name=".shell")
-def shell():
-    """Start an interactive shell for the loaded object."""
-    if _loaded_object is None:
-        console.print("[red]No object loaded. Use 'edsl .load FILEPATH' first.[/red]")
-        raise typer.Exit(1)
-
-    console.print(
-        f"[yellow]Starting interactive shell for {_loaded_object_name}...[/yellow]"
-    )
-    shell = EDSLShell(_loaded_object, _loaded_object_name)
-    shell.cmdloop()
-
-
-@app.command(name=".version")
-def version():
-    """Show the EDSL version."""
+@coop.command("pull")
+@click.option("--id", "obj_id", required=True, help="UUID, alias, or URL.")
+@click.option("--output", "-o", "output_path", required=True, help="File to write pulled object to.")
+def coop_pull(obj_id, output_path):
+    """Download an object from Coop and save to a file."""
     try:
-        from importlib import metadata
+        from edsl.coop import Coop
+        coop_client = Coop()
+        obj = coop_client.pull(obj_id)
 
-        version = metadata.version("edsl")
-        console.print(f"[bold cyan]EDSL version:[/bold cyan] {version}")
-    except metadata.PackageNotFoundError:
-        console.print(
-            "[yellow]EDSL package not installed or version not available.[/yellow]"
-        )
-
-
-@app.command(name=".stack")
-def stack():
-    """Show the current object stack."""
-    _print_stack()
-
-
-@app.command(name=".unload")
-def unload():
-    """Unload the current object and clear the stack."""
-    _unload()
-
-
-@app.command(name=".ls", help="List files in a directory")
-def ls_cli(
-    path: Path = typer.Argument(
-        None, help="Path to list (defaults to current directory)"
-    ),
-    all: bool = typer.Option(False, "--all", "-a", help="Include hidden files"),
-):
-    _print_directory(path if path else Path.cwd(), show_hidden=all)
-
-
-@app.command(name=".cd", help="Change current working directory")
-def cd_cli(path: Path = typer.Argument("~", help="Directory to change to")):
-    path = path.expanduser()
-    if not path.exists() or not path.is_dir():
-        console.print(f"[red]Directory '{path}' does not exist.[/red]")
-        raise typer.Exit(1)
-    try:
-        os.chdir(path)
-        console.print(f"[green]✓ Changed directory to {path}[/green]")
-    except Exception as e:
-        console.print(f"[red]Error changing directory: {e}")
-        raise typer.Exit(1)
-
-
-@app.command(name=".pull", help="Pull an object from Expected Parrot Coop by UUID")
-def pull_cli(uuid: str = typer.Argument(..., help="UUID of the object to pull")):
-    """Pull an object from Coop, add to stack, and register commands."""
-    from edsl.coop import Coop
-
-    coop = Coop()
-    obj = coop.pull(uuid)
-
-    new_name = obj.__class__.__name__
-    _add_to_stack(new_name, obj)
-
-    console.print(
-        f"[green]✓ Pulled object {uuid} as {new_name} (${len(_object_stack)})[/green]"
-    )
-
-    # Register dynamic commands for the new object
-    _register_dynamic_commands()
-
-
-@app.command(
-    name=".test-stdin", help="Output a test EDSL object for testing stdin functionality"
-)
-def test_stdin():
-    """Create and output a simple EDSL object for testing stdin functionality.
-
-    Usage example:
-        python -m edsl test-stdin | python -m edsl
-    """
-    try:
-        from edsl.agents import Agent
-
-        # Create a simple agent
-        agent = Agent(traits={"persona": "A helpful test agent"})
-
-        # Output the serialized object
-        import json
-
-        output = json.dumps(agent.to_dict(), indent=2, default=str)
-        print(output)
-
-    except ImportError as e:
-        console.print(f"[red]Error: Could not import required modules. {e}[/red]")
-        raise typer.Exit(1)
-    except Exception as e:
-        console.print(f"[red]Error creating test object: {e}[/red]")
-        raise typer.Exit(1)
-
-
-@app.callback()
-def callback(
-    ctx: typer.Context,
-    interactive: bool = typer.Option(
-        False,
-        "--interactive",
-        "-i",
-        help="Stay in interactive mode after command execution.",
-    ),
-):
-    """
-    EDSL - Expected Parrot Survey Language
-
-    A toolkit for creating, managing, and running surveys with language models.
-
-    All commands use dot prefixes (e.g., .load, .create, .pull).
-    Use .help to see all available commands.
-
-    EDSL supports reading serialized objects from stdin when used in a pipeline.
-    For example: echo '{"edsl_class_name": "Agent", ...}' | python -m edsl
-    Or: python -m edsl .test-stdin | python -m edsl
-
-    Command chaining is supported using the pipe operator |:
-    Example: python -m edsl .create Agent | to_dict
-    Example: python -m edsl .load myfile.json | select 'answer.*' | table
-
-    If invoked without any command, starts an interactive shell.
-    """
-
-    # Store the interactive flag globally so commands can access it
-    global _interactive_mode
-    _interactive_mode = interactive
-
-    # Check for and process stdin data first
-    stdin_loaded = False
-    if not sys.stdin.isatty():
-        stdin_loaded = _load_from_stdin()
-
-    # If no subcommand was supplied, default to interactive mode
-    if ctx.invoked_subcommand is None:
-        if stdin_loaded:
-            console.print(
-                f"[yellow]Starting interactive shell with loaded {_loaded_object_name}...[/yellow]"
-            )
-            shell = EDSLShell(_loaded_object, _loaded_object_name)
+        # Serialize
+        if hasattr(obj, 'to_dict'):
+            serialized = obj.to_dict()
         else:
-            console.print(
-                "[yellow]Starting interactive shell (no object loaded)...[/yellow]"
-            )
-            shell = EDSLShell()
-        shell.cmdloop()
-        raise typer.Exit()
+            serialized = obj
+
+        Path(output_path).write_text(json.dumps(serialized, indent=2, default=str))
+
+        # Build a compact summary for the envelope
+        obj_type = type(obj).__name__
+        summary = {"saved_to": output_path, "object_type": obj_type}
+
+        # Add useful metadata without dumping the whole object
+        if isinstance(serialized, dict):
+            summary["top_level_keys"] = list(serialized.keys())
+            json_size = len(json.dumps(serialized, default=str))
+            summary["json_bytes"] = json_size
+
+        _output(summary)
+
+    except SystemExit:
+        raise
+    except Exception as e:
+        _error("COOP_ERROR", str(e),
+               suggestion="Check the ID and your API key.",
+               exit_code=EXIT_REMOTE)
 
 
-def _add_to_stack(name: str, obj: Any) -> None:
-    """Append the object to the global stack and make it the current object."""
-    global _loaded_object, _loaded_object_name
+@coop.command("push")
+@click.option("--file", "file_path", required=True, help="Path to serialized JSON.")
+@click.option("--description", default="", help="Object description.")
+@click.option("--alias", default=None, help="Short name.")
+@click.option("--visibility", default="private", help="public, private, unlisted.")
+def coop_push(file_path, description, alias, visibility):
+    """Upload a serialized EDSL object to Coop."""
+    data = _read_json_file(file_path)
 
-    _object_stack.append((name, obj))
-    _loaded_object = obj
-    _loaded_object_name = name
+    try:
+        from edsl.coop import Coop
+        from edsl.base import Base
 
+        # Try to deserialize into an EDSL object
+        class_name = data.get("edsl_class_name", "")
+        obj = None
 
-def _unload() -> None:
-    """Reset session to an empty state (no object loaded, empty stack)."""
-    global _loaded_object, _loaded_object_name, _object_stack
-
-    if _loaded_object is None:
-        console.print("[yellow]No object is currently loaded.[/yellow]")
-        return
-
-    _loaded_object = None
-    _loaded_object_name = None
-    # Do NOT clear the stack; keep past objects for reference
-
-    console.print("[green]✓ Unloaded current object.[/green]")
-
-
-def _print_stack() -> None:
-    """Pretty-print the current object stack."""
-    if not _object_stack:
-        console.print("[yellow]Stack is empty.[/yellow]")
-        return
-
-    table = Table(title="Object Stack")
-    table.add_column("#", style="cyan")
-    table.add_column("Object", style="white")
-
-    for idx, (name, obj) in enumerate(_object_stack, start=1):
-        current_marker = " (current)" if obj is _loaded_object else ""
-        table.add_row(f"${idx}", f"{name}{current_marker}")
-
-    console.print(table)
-
-
-# ---------------------------------------------------------------------------
-# Filesystem helpers
-# ---------------------------------------------------------------------------
-
-
-def _print_directory(path: Path, show_hidden: bool = False) -> None:
-    """Pretty-print the contents of a directory using a Rich table."""
-    if not path.exists() or not path.is_dir():
-        console.print(f"[red]'{path}' is not a valid directory.[/red]")
-        return
-
-    entries = sorted(path.iterdir(), key=lambda p: (p.is_file(), p.name.lower()))
-    table = Table(title=f"Contents of {path}")
-    table.add_column("Name", style="cyan")
-    table.add_column("Type", style="yellow")
-    table.add_column("Size", style="white", justify="right")
-
-    for entry in entries:
-        if not show_hidden and entry.name.startswith("."):
-            continue
-        entry_type = "Dir" if entry.is_dir() else "File"
-        size = "-" if entry.is_dir() else f"{entry.stat().st_size} B"
-        table.add_row(entry.name, entry_type, size)
-
-    console.print(table)
-
-
-def _get_expected_parrot_key():
-    """Return Expected Parrot key from env or .env search."""
-    key_names = ("EXPECTED_PARROT_API_KEY", "EXPECTED_PARROT_KEY", "EP_KEY")
-    for k in key_names:
-        val = os.getenv(k)
-        if val:
-            return val
-
-    # If python-dotenv isn't available, do a simple manual parse for cwd .env
-    if not load_dotenv:
-        current_env = Path.cwd() / ".env"
-        if current_env.exists():
+        if class_name:
             try:
-                with current_env.open() as f:
-                    for line in f:
-                        line = line.strip()
-                        if not line or line.startswith("#"):
-                            continue
-                        if "=" in line:
-                            k, v = line.split("=", 1)
-                            k = k.strip()
-                            v = v.strip().strip(
-                                "'\""
-                            )  # strip surrounding quotes if any
-                            if k in key_names:
-                                return v
+                obj = Base.from_dict(data)
             except Exception:
                 pass
-    return None
 
+        if obj is None:
+            _error("VALIDATION_ERROR",
+                   "Could not deserialize file into an EDSL object.",
+                   suggestion="Ensure the file was produced by .to_dict() on an EDSL object.",
+                   exit_code=EXIT_VALIDATION)
 
-def _load_env_profile(profile: str) -> bool:
-    """Switch to a profile by copying .env_<profile> to .env and backing up the old .env."""
-    global _active_profile
+        coop_client = Coop()
+        push_kwargs = {"description": description, "visibility": visibility}
+        if alias:
+            push_kwargs["alias"] = alias
 
-    filename = f".env_{profile}"
-    profile_path = None
+        result = coop_client.push(obj, **push_kwargs)
 
-    # Find the profile file
-    for p in [Path.cwd()] + list(Path.cwd().parents):
-        candidate = p / filename
-        if candidate.exists():
-            profile_path = candidate
-            break
-
-    if profile_path is None:
-        home_candidate = Path.home() / filename
-        if home_candidate.exists():
-            profile_path = home_candidate
-
-    if profile_path is None:
-        return False
-
-    # Work in the current directory for .env management
-    current_dir = Path.cwd()
-    env_path = current_dir / ".env"
-    env_bak_path = current_dir / ".env_bak"
-
-    try:
-        # Step 1: Backup current .env to .env_bak if it exists
-        if env_path.exists():
-            console.print("[cyan]Backing up current .env to .env_bak...[/cyan]")
-            shutil.copy2(env_path, env_bak_path)
-
-        # Step 2: Copy the profile to .env
-        console.print(f"[cyan]Copying {profile_path} to .env...[/cyan]")
-        shutil.copy2(profile_path, env_path)
-
-        # Step 3: Clear existing environment variables first
-        for var in ("EXPECTED_PARROT_API_KEY", "EXPECTED_PARROT_KEY", "EP_KEY"):
-            os.environ.pop(var, None)
-
-        # Step 4: Reload the new .env file
-        if load_dotenv:
-            load_dotenv(env_path, override=True)
+        # Extract result info
+        result_data = {}
+        if hasattr(result, 'items'):
+            result_data = dict(result)
+        elif hasattr(result, '__dict__'):
+            result_data = {k: v for k, v in result.__dict__.items() if not k.startswith('_')}
         else:
-            # Fallback manual parsing when python-dotenv is not installed
-            with env_path.open() as f:
-                for line in f:
-                    line = line.strip()
-                    if not line or line.startswith("#") or "=" not in line:
-                        continue
-                    k, v = line.split("=", 1)
-                    k = k.strip()
-                    v = v.strip().strip("'\"")  # strip surrounding quotes if any
-                    os.environ[k] = v
+            result_data = {"result": str(result)}
 
-        _active_profile = profile
-        return True
+        _output(result_data)
 
+    except SystemExit:
+        raise
     except Exception as e:
-        console.print(f"[red]Error switching profile: {e}[/red]")
-        return False
+        _error("COOP_ERROR", str(e),
+               suggestion="Check your API key with 'edsl auth status'.",
+               exit_code=EXIT_REMOTE)
 
 
-def _list_env_profiles() -> List[str]:
-    """Return list of .env_<profile> filenames discovered."""
-    seen: set[str] = set()
-    paths = [Path.cwd()] + list(Path.cwd().parents) + [Path.home()]
-    for p in paths:
-        for env_file in p.glob(".env_*"):
-            seen.add(env_file.name)
-    return sorted(seen)
-
-
-# -------------------------------------------------------------------
-# Additional CLI commands
-# -------------------------------------------------------------------
-
-
-@app.command(name=".profiles", help="List available environment profiles")
-def profiles_cli():
-    profiles = _list_env_profiles()
-    if profiles:
-        console.print("[cyan]Available profiles:[/cyan]")
-        for p in profiles:
-            name = p[len(".env_") :]
-            console.print(f" • {name} ({p})")
-    else:
-        console.print("No profiles found.")
-
-
-@app.command(
-    name=".switch",
-    help="Switch to environment profile (backs up .env to .env_bak and copies profile to .env)",
-)
-def switch_cli(profile: str = typer.Argument(..., help="Profile name")):
-    if _load_env_profile(profile):
-        console.print(
-            f"[green]✓ Switched to profile '{profile}' and reloaded .env[/green]"
-        )
-    else:
-        console.print(f"[red]Profile '.env_{profile}' not found.[/red]")
-        raise typer.Exit(1)
-
-
-@app.command(name=".create", help="Create an object from the registry")
-def create_cli(
-    class_name: str = typer.Argument(..., help="Class name to instantiate"),
-    args: Optional[str] = typer.Argument(
-        None, help="Arguments for the class (as string)"
-    ),
-):
-    """Create an object from the registry."""
-
-    if not args:
-        args = ""
-
-    # If args starts with dict/list literal keep as single positional
-    if args.lstrip().startswith(("{", "[")):
-        try:
-            arg_obj = ast.literal_eval(args.strip())
-            positional_args = [arg_obj]
-            keyword_args = {}
-        except Exception as e:
-            console.print(f"[red]Failed to parse literal: {e}[/red]")
-            raise typer.Exit(1)
-    else:
-        positional_args, keyword_args = _parse_line_args_kwargs(args)
-
-    try:
-        obj = _instantiate_from_registry(class_name, positional_args, keyword_args)
-        new_name = obj.__class__.__name__
-        _add_to_stack(new_name, obj)
-        _register_dynamic_commands()
-
-        console.print(f"[green]✓ Created {new_name} (${len(_object_stack)})[/green]")
-    except Exception as err:
-        console.print(f"[red]Error creating object: {err}[/red]")
-        raise typer.Exit(1)
-
-
-@app.command(
-    name=".show_key", help="Display the current Expected Parrot API key (masked)"
-)
-def show_key_cli():
-    """Display the current Expected Parrot API key (masked)."""
-    key = _get_expected_parrot_key()
-    if key:
-        masked = key[:4] + "..." + key[-4:]
-        console.print(f"[green]Expected Parrot key:[/green] {masked}")
-    else:
-        console.print("[yellow]No Expected Parrot key found in environment.[/yellow]")
-
-
-@app.command(name=".pop", help="Remove the currently focused object from the stack")
-def pop_cli():
-    """Remove the currently focused object from the stack and switch to the previous one."""
-    global _loaded_object, _loaded_object_name
-
-    if not _object_stack:
-        console.print("[yellow]Stack is empty - nothing to pop.[/yellow]")
-        return
-
-    if _loaded_object is None:
-        console.print("[yellow]No object is currently focused.[/yellow]")
-        return
-
-    # Find the current object in the stack
-    current_idx = None
-    for idx, (name, obj) in enumerate(_object_stack):
-        if obj is _loaded_object:
-            current_idx = idx
-            break
-
-    if current_idx is None:
-        console.print("[yellow]Current object not found in stack.[/yellow]")
-        return
-
-    # Remove the current object from the stack
-    removed_name, removed_obj = _object_stack.pop(current_idx)
-    console.print(f"[green]✓ Popped {removed_name} from stack[/green]")
-
-    # If stack is now empty, unload everything
-    if not _object_stack:
-        _loaded_object = None
-        _loaded_object_name = None
-        console.print("[yellow]Stack is now empty - no object loaded.[/yellow]")
-    else:
-        # Switch to the previous object in the stack
-        if current_idx >= len(_object_stack):
-            # We removed the last item, focus on the new last item
-            new_idx = len(_object_stack) - 1
-        else:
-            # We removed a middle item, focus on the item that took its place
-            # But let's actually focus on the previous item if it exists
-            new_idx = max(0, current_idx - 1)
-
-        new_name, new_obj = _object_stack[new_idx]
-
-        # Update global state
-        _loaded_object = new_obj
-        _loaded_object_name = new_name
-
-        _register_dynamic_commands()
-
-        console.print(f"[green]Switched focus to {new_name} (${new_idx+1})[/green]")
-
-
-@app.command(name=".clear", help="Clear the entire object stack but keep current focus")
-def clear_cli():
-    """Clear the entire object stack but keep current focus."""
-    global _loaded_object, _loaded_object_name
-
-    if not _object_stack:
-        console.print("[yellow]Stack is already empty.[/yellow]")
-        return
-
-    # Count objects before clearing
-    count = len(_object_stack)
-    current_obj = _loaded_object
-    current_name = _loaded_object_name
-
-    # Clear the stack
-    _object_stack.clear()
-
-    # If we had a focused object, add it back as the only item
-    if current_obj is not None and current_name is not None:
-        _object_stack.append((current_name, current_obj))
-        console.print(
-            f"[green]✓ Cleared {count} objects from stack, kept current focus on {current_name}[/green]"
-        )
-        _loaded_object = current_obj
-        _loaded_object_name = current_name
-    else:
-        console.print(f"[green]✓ Cleared {count} objects from stack[/green]")
-        _loaded_object = None
-        _loaded_object_name = None
-
-
-@app.command(name=".error", help="Open error URL in browser with given UUID")
-def error_cli(uuid: str = typer.Argument(..., help="UUID of the error to open")):
-    """Open error URL in browser with given UUID."""
-
-    # Construct the URL
-    url = f"https://www.expectedparrot.com/admin/remote-inference/error/{uuid}"
-
-    try:
-        console.print(f"[cyan]Opening error page for UUID {uuid}...[/cyan]")
-        webbrowser.open(url)
-        console.print(f"[green]✓ Opened {url}[/green]")
-    except Exception as e:
-        console.print(f"[red]Error opening browser: {e}[/red]")
-        console.print(f"[yellow]Manual URL: {url}[/yellow]")
-
-
-@app.command(
-    name=".list",
-    help="List objects from Coop by calling the list() method on an EDSL class",
-)
-def list_cli(class_name: str = typer.Argument(..., help="EDSL class name")):
-    """List objects from Coop by calling the list() method on an EDSL class."""
-    try:
-        # Get the class from the registry
-        registry = _get_registry()
-        cls = (
-            registry.get(class_name)
-            or registry.get(class_name.capitalize())
-            or registry.get(class_name.lower())
-        )
-        if cls is None:
-            console.print(
-                f"[red]Unknown class '{class_name}'. Available: {', '.join(registry.keys())}[/red]"
-            )
-            raise typer.Exit(1)
-
-        # Call the list() method on the class
-        console.print(f"[cyan]Calling {class_name}.list()...[/cyan]")
-        result = cls.list()
-
-        # Display the result
-        if result is not None:
-            console.print("[green]Returned:[/green]")
-            # Check if it's a TableDisplay to avoid double Rich formatting
-            try:
-                from edsl.dataset.display.table_display import TableDisplay
-
-                if isinstance(result, TableDisplay):
-                    print(str(result))
-                else:
-                    console.print(str(result))
-            except ImportError:
-                console.print(str(result))
-
-            # Push the result onto the stack if it's not a primitive type
-            if not isinstance(result, (str, int, float, bool, bytes, bytearray)):
-                new_name = result.__class__.__name__
-                _add_to_stack(new_name, result)
-                console.print(
-                    f"[cyan]Added result to stack as ${len(_object_stack)} ({new_name})[/cyan]"
-                )
-                _register_dynamic_commands()
-        else:
-            console.print("[green]✓ Method executed successfully[/green]")
-
-    except Exception as e:
-        console.print(f"[red]Error calling {class_name}.list(): {e}[/red]")
-        raise typer.Exit(1)
-
-
-@app.command(name=".help", help="Show help for EDSL commands")
-def help_cli():
-    """Show comprehensive help for EDSL dot commands."""
-
-    help_table = Table(
-        title="EDSL Dot Commands", show_header=True, header_style="bold cyan"
-    )
-    help_table.add_column("Command", style="cyan", width=15)
-    help_table.add_column("Description", style="white", width=50)
-    help_table.add_column("Example", style="yellow", width=30)
-
-    commands_help = [
-        (".load", "Load a file as an EDSL object", ".load myfile.json"),
-        (".create", "Create an object from registry", ".create Agent"),
-        (".pull", "Pull object from Coop by UUID", ".pull abc-123-def"),
-        (".info", "Show info about loaded object", ".info"),
-        (".methods", "List available methods", ".methods"),
-        (".stack", "Show object stack", ".stack"),
-        (".unload", "Unload current object", ".unload"),
-        (".pop", "Remove current from stack", ".pop"),
-        (".clear", "Clear stack but keep focus", ".clear"),
-        (".shell", "Start interactive shell", ".shell"),
-        (".ls", "List directory contents", ".ls /path"),
-        (".cd", "Change directory", ".cd /path"),
-        (".profiles", "List env profiles", ".profiles"),
-        (".switch", "Switch env profile", ".switch dev"),
-        (".show_key", "Show API key (masked)", ".show_key"),
-        (".error", "Open error URL in browser", ".error abc-123-def"),
-        (".list", "List objects from Coop", ".list Agent"),
-        (".version", "Show EDSL version", ".version"),
-        (".test-stdin", "Output test object", ".test-stdin"),
-        (".help", "Show this help", ".help"),
-    ]
-
-    for cmd, desc, example in commands_help:
-        help_table.add_row(cmd, desc, example)
-
-    console.print(help_table)
-
-    console.print("\n[bold cyan]Usage Examples:[/bold cyan]")
-    console.print("  python -m edsl .load myfile.json")
-    console.print('  python -m edsl .create Agent traits=\'{"persona": "helpful"}\'')
-    console.print("  python -m edsl .shell  # Start interactive mode")
-    console.print("  python -m edsl  # Start interactive mode (default)")
-
-    console.print("\n[bold cyan]Interactive Shell:[/bold cyan]")
-    console.print(
-        "  Once in the shell, you can use dot commands or call methods directly"
-    )
-    console.print("  Example: .load myfile.json")
-    console.print("  Example: run  # calls the run() method on loaded object")
-
-    console.print("\n[bold cyan]Stack References:[/bold cyan]")
-    console.print("  Use $1, $2, $3, etc. to reference objects in the stack")
-    console.print("  Example: .load $2  # switch focus to object #2")
-
-    console.print("\n[bold cyan]Command Chaining:[/bold cyan]")
-    console.print("  Chain commands with the pipe operator |")
-    console.print("  Each command's output becomes the input for the next command")
-    console.print("  Example: .create Agent | to_dict")
-    console.print("  Example: .load myfile.json | select 'answer.*' | table")
-
-
-def _has_pipe_operator() -> bool:
-    """Check if the command line contains a pipe operator."""
-    # Check if any argument contains a pipe operator (including quoted strings)
-    for arg in sys.argv[1:]:
-        if "|" in arg:
-            return True
-    return False
-
-
-def _execute_piped_commands():
-    """Execute a sequence of commands connected by pipe operators."""
-    global _loaded_object, _loaded_object_name
-
-    # Filter out --interactive/-i flags from the command line arguments
-    filtered_args = []
-    for arg in sys.argv[1:]:
-        if arg not in ("--interactive", "-i"):
-            filtered_args.append(arg)
-
-    # Handle the case where the entire command is in a single quoted argument
-    if len(filtered_args) == 1 and "|" in filtered_args[0]:
-        # Single quoted argument containing pipe operator
-        full_command = filtered_args[0]
-    else:
-        # Join all arguments after the script name
-        full_command = " ".join(filtered_args)
-
-    # Split by pipe operator
-    commands = [cmd.strip() for cmd in full_command.split("|")]
-
-    if len(commands) < 2:
-        console.print("[red]Error: Pipe operator found but no commands to chain.[/red]")
-        raise typer.Exit(1)
-
-    console.print(f"[cyan]Executing {len(commands)} chained commands...[/cyan]")
-
-    # Create a shell instance to handle command execution
-    shell = EDSLShell()
-
-    # Execute each command in sequence
-    for i, command in enumerate(commands):
-        if not command:
-            console.print(f"[red]Error: Empty command at position {i+1}[/red]")
-            raise typer.Exit(1)
-
-        console.print(f"[cyan]Step {i+1}: {command}[/cyan]")
-
-        # Update the shell's loaded object state to match global state
-        shell.loaded_object = _loaded_object
-        shell.object_name = _loaded_object_name
-        if _loaded_object is not None:
-            shell.prompt = f"edsl ({_loaded_object_name})> "
-            shell._add_dynamic_methods()
-        else:
-            shell.prompt = "edsl> "
-
-        # Execute the command using the shell's default method (same as interactive)
-        try:
-            shell.default(command)
-        except Exception as e:
-            console.print(f"[red]Command '{command}' failed: {e}[/red]")
-            raise typer.Exit(1)
-
-        # Update global state from shell state
-        _loaded_object = shell.loaded_object
-        _loaded_object_name = shell.object_name
-
-        # Show the current state after each command
-        if _loaded_object is not None:
-            console.print(f"[green]→ Current object: {_loaded_object_name}[/green]")
-        else:
-            console.print("[yellow]→ No object currently loaded[/yellow]")
-
-    console.print("[green]✓ All commands executed successfully![/green]")
-
-    # If interactive mode was requested, don't exit - let the caller handle it
-    return _interactive_mode
-
-
-def _execute_single_dot_command():
-    """Execute a single dot command when passed as a quoted argument."""
-    global _loaded_object, _loaded_object_name
-
-    # Filter out --interactive/-i flags from the command line arguments
-    filtered_args = []
-    for arg in sys.argv[1:]:
-        if arg not in ("--interactive", "-i"):
-            filtered_args.append(arg)
-
-    if not filtered_args:
-        console.print("[red]Error: No command provided.[/red]")
-        raise typer.Exit(1)
-
-    # The first argument is the dot command, remaining arguments are parameters
-    dot_command = filtered_args[0]
-    additional_args = filtered_args[1:] if len(filtered_args) > 1 else []
-
-    # If there are additional arguments, append them to the dot command
-    if additional_args:
-        full_command = dot_command + " " + " ".join(additional_args)
-    else:
-        full_command = dot_command
-
-    output_console = get_console()
-    output_console.print(f"[cyan]Executing command: {full_command}[/cyan]")
-
-    # Create a shell instance to handle command execution
-    shell = EDSLShell(output_console=output_console)
-
-    # Update the shell's loaded object state to match global state
-    shell.loaded_object = _loaded_object
-    shell.object_name = _loaded_object_name
-    if _loaded_object is not None:
-        shell.prompt = f"edsl ({_loaded_object_name})> "
-        shell._add_dynamic_methods()
-    else:
-        shell.prompt = "edsl> "
-
-    # Execute the command using the shell's default method (same as interactive)
-    try:
-        shell.default(full_command)
-    except Exception as e:
-        output_console.print(f"[red]Command '{full_command}' failed: {e}[/red]")
-        raise typer.Exit(1)
-
-    # Update global state from shell state
-    _loaded_object = shell.loaded_object
-    _loaded_object_name = shell.object_name
-
-    # Show the current state after command execution
-    if _loaded_object is not None:
-        output_console.print(f"[green]→ Current object: {_loaded_object_name}[/green]")
-    else:
-        output_console.print("[yellow]→ No object currently loaded[/yellow]")
-
-    output_console.print("[green]✓ Command executed successfully![/green]")
-
-    # If interactive mode was requested, don't exit - let the caller handle it
-    return _interactive_mode
-
-
-def _is_edsl_object(obj):
-    """Check if an object is an EDSL object (inherits from Base)."""
-    try:
-        from edsl.base.base_class import Base
-
-        return isinstance(obj, Base)
-    except ImportError:
-        return False
-
-
-def _print_json_on_exit():
-    """Print JSON representation of the focused object on exit if running non-interactively."""
-    # Only print JSON if we're not in interactive mode and have a focused object
-    if not _interactive_mode and _loaded_object is not None:
-        try:
-            if _is_edsl_object(_loaded_object):
-                # EDSL object - use to_dict()
-                print(json.dumps(_loaded_object.to_dict()))
-            else:
-                # Non-EDSL object - attempt to serialize as JSON
-                print(json.dumps(_loaded_object, default=str))
-        except Exception:
-            # If JSON serialization fails, just print the object as string
-            print(str(_loaded_object))
-
+# ---------------------------------------------------------------------------
+# Entry point
+# ---------------------------------------------------------------------------
 
 def main():
-    """Main entry point for the EDSL package when executed as a module."""
-    global _interactive_mode
-
-    # Check for interactive flag early
-    _interactive_mode = "--interactive" in sys.argv or "-i" in sys.argv
-
-    # If no arguments provided, start interactive shell directly
-    if len(sys.argv) == 1:
-        # Check for stdin data even when no arguments provided
-        stdin_loaded = False
-        if not sys.stdin.isatty():
-            stdin_loaded = _load_from_stdin()
-
-        if stdin_loaded:
-            console.print(
-                f"[yellow]Starting interactive shell with loaded {_loaded_object_name}...[/yellow]"
-            )
-            shell = EDSLShell(_loaded_object, _loaded_object_name)
-        else:
-            console.print(
-                "[yellow]Starting interactive shell (no object loaded)...[/yellow]"
-            )
-            shell = EDSLShell()
-        shell.cmdloop()
-    else:
-        # Check for pipe operator before passing to Typer
-        if _has_pipe_operator():
-            try:
-                should_continue_interactive = _execute_piped_commands()
-                # After piped command execution, start interactive shell if --interactive flag was used
-                if should_continue_interactive:
-                    console.print(
-                        "[yellow]Starting interactive shell after piped command execution...[/yellow]"
-                    )
-                    if _loaded_object:
-                        shell = EDSLShell(_loaded_object, _loaded_object_name)
-                    else:
-                        shell = EDSLShell()
-                    shell.cmdloop()
-                else:
-                    # Print JSON on exit if not going to interactive mode
-                    _print_json_on_exit()
-            except SystemExit:
-                # _execute_piped_commands might raise SystemExit, catch it
-                # Still check if we should start interactive mode
-                if _interactive_mode:
-                    console.print(
-                        "[yellow]Starting interactive shell after piped command execution...[/yellow]"
-                    )
-                    if _loaded_object:
-                        shell = EDSLShell(_loaded_object, _loaded_object_name)
-                    else:
-                        shell = EDSLShell()
-                    shell.cmdloop()
-                else:
-                    # Print JSON on exit if not going to interactive mode
-                    _print_json_on_exit()
-        # Check if first argument is a quoted dot command
-        elif len(sys.argv) >= 2 and sys.argv[1].startswith("."):
-            # Handle quoted dot commands like ".create Agent"
-            try:
-                should_continue_interactive = _execute_single_dot_command()
-                if should_continue_interactive:
-                    console.print(
-                        "[yellow]Starting interactive shell after command execution...[/yellow]"
-                    )
-                    if _loaded_object:
-                        shell = EDSLShell(_loaded_object, _loaded_object_name)
-                    else:
-                        shell = EDSLShell()
-                    shell.cmdloop()
-                else:
-                    # Print JSON on exit if not going to interactive mode
-                    _print_json_on_exit()
-            except SystemExit:
-                if _interactive_mode:
-                    console.print(
-                        "[yellow]Starting interactive shell after command execution...[/yellow]"
-                    )
-                    if _loaded_object:
-                        shell = EDSLShell(_loaded_object, _loaded_object_name)
-                    else:
-                        shell = EDSLShell()
-                    shell.cmdloop()
-                else:
-                    # Print JSON on exit if not going to interactive mode
-                    _print_json_on_exit()
-        else:
-            try:
-                app()
-            except SystemExit as e:
-                # Typer raises SystemExit after command execution
-                # If --interactive flag was used, start interactive shell
-                if _interactive_mode:
-                    console.print(
-                        "[yellow]Starting interactive shell after command execution...[/yellow]"
-                    )
-                    if _loaded_object:
-                        shell = EDSLShell(_loaded_object, _loaded_object_name)
-                    else:
-                        shell = EDSLShell()
-                    shell.cmdloop()
-                else:
-                    # Print JSON on exit if not going to interactive mode
-                    _print_json_on_exit()
-                    # Re-raise the SystemExit if not in interactive mode
-                    raise e
+    try:
+        app(standalone_mode=False)
+    except click.exceptions.MissingParameter as e:
+        # Use the flag name (e.g. --type) not the Python variable name
+        flag = e.param.opts[0] if e.param and e.param.opts else f"--{e.param.name}"
+        _error("USAGE_ERROR", f"Missing required option: {flag}",
+               suggestion=f"Run 'edsl {' '.join(sys.argv[1:])} --help' for usage.",
+               exit_code=EXIT_USAGE)
+    except click.exceptions.BadParameter as e:
+        _error("USAGE_ERROR", str(e), exit_code=EXIT_USAGE)
+    except click.exceptions.UsageError as e:
+        _error("USAGE_ERROR", str(e), exit_code=EXIT_USAGE)
+    except click.exceptions.ClickException as e:
+        _error("USAGE_ERROR", e.format_message(), exit_code=EXIT_USAGE)
 
 
 if __name__ == "__main__":

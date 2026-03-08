@@ -38,7 +38,7 @@ print(report.generate())
 from __future__ import annotations
 import json
 import warnings
-from dataclasses import dataclass
+from functools import wraps
 from typing import Optional, Callable, Any, Union, List, TYPE_CHECKING
 from collections.abc import MutableSequence
 
@@ -48,7 +48,6 @@ if TYPE_CHECKING:
     from ..interviews import Interview
     from ..surveys import Survey
     from ..agents import AgentList
-    from ..reports.report import QuestionAnalysis
     from ..scenarios import ScenarioList
     from ..results import Result
     from ..tasks import TaskHistory
@@ -56,8 +55,6 @@ if TYPE_CHECKING:
     from ..dataset import Dataset
     from ..caching import Cache
     from .results_transcript import Transcripts
-    from .vibes import ResultsVibeAnalysis
-    from .vibes.vibe_accessor import ResultsVibeAccessor
 
 
 from ..utilities import dict_hash
@@ -70,37 +67,18 @@ from .utilities import ensure_ready
 from .job_cost_calculator import JobCostCalculator
 from .results_sampler import ResultsSampler
 from .data_type_cache_manager import DataTypeCacheManager
-from .results_analyzer import ResultsAnalyzer
 from .results_remote_fetcher import ResultsRemoteFetcher
-from .results_scorer import ResultsScorer
 from .results_transformer import ResultsTransformer
 from .results_properties import ResultsProperties
+from .results_representation import ResultsRepresentation
 from .results_container import ResultsContainer
 from .results_grouper import ResultsGrouper
-from .results_weighting import ResultsWeighting
-
+from .results_transcript_generator import TranscriptsGenerator
 from .exceptions import (
     ResultsError,
     ResultsColumnNotFoundError,
     ResultsInvalidNameError,
 )
-
-
-@dataclass
-class AgentListSplit:
-    """Result of splitting a Results object into train/test AgentLists with corresponding surveys.
-
-    Attributes:
-        train: AgentList containing agents with training questions as traits
-        test: AgentList containing agents with test questions as traits
-        train_survey: Survey object containing only the training questions
-        test_survey: Survey object containing only the test questions
-    """
-
-    train: "AgentList"
-    test: "AgentList"
-    train_survey: "Survey"
-    test_survey: "Survey"
 
 
 class Results(MutableSequence, ResultsOperationsMixin, Base):
@@ -187,7 +165,6 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         total_results: Optional[int] = None,
         task_history: Optional["TaskHistory"] = None,
         sort_by_iteration: bool = False,
-        data_class: Optional[type] = list,  # ResultsSQLList,
     ):
         """Instantiate a Results object with a survey and a list of Result objects.
 
@@ -200,7 +177,6 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
             total_results: An integer representing the total number of results.
             task_history: A TaskHistory object containing information about the tasks.
             sort_by_iteration: Whether to sort data by iteration before initializing.
-            data_class: The class to use for the data container (default: list).
         """
         if survey is not None and isinstance(survey, str):
             pulled_results = Results.pull(survey)
@@ -210,14 +186,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         self.completed = True
         self._fetching = False
 
-        # Determine the data class to use
-        if data is not None:
-            # Use the class of the provided data if it's not a basic list
-            self._data_class = (
-                data.__class__ if not isinstance(data, list) else data_class
-            )
-        else:
-            self._data_class = data_class
+        self._data_class = list
 
         # Sort data appropriately before initialization if needed
         if data and sort_by_iteration:
@@ -239,15 +208,6 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
 
         from ..caching import Cache
         from ..tasks import TaskHistory
-        import tempfile
-        import os
-
-        # Create a unique shelve path in the system temp directory
-        self._shelve_path = os.path.join(
-            tempfile.gettempdir(), f"edsl_results_{os.getpid()}"
-        )
-        self._shelf_keys = set()  # Track shelved result keys
-
         self.survey = survey
         self.created_columns = created_columns or []
         self._job_uuid = job_uuid
@@ -268,6 +228,18 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         # Initialize grouper handler
         self._grouper = ResultsGrouper(self)
 
+        # Initialize representation handler
+        self._representation = ResultsRepresentation(self)
+
+        # Initialize filter handler
+        self._results_filter = ResultsFilter(self)
+
+        # Initialize transcripts generator
+        self._transcripts_generator = TranscriptsGenerator(self)
+
+        # Initialize serializer
+        self._results_serializer = ResultsSerializer(self)
+
         if name is not None:
             self.name = name
         else:
@@ -276,55 +248,9 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         if hasattr(self, "_add_output_functions"):
             self._add_output_functions()
 
-        self._report = None
-
-    def view(self) -> None:
-        """View the results in a Jupyter notebook."""
-        from ..widgets.results_viewer import ResultsViewerWidget
-
-        return ResultsViewerWidget(results=self)
-
+    @wraps(TranscriptsGenerator.transcripts)
     def transcripts(self, show_comments: bool = True) -> "Transcripts":
-        """Return a Transcripts object for viewing interview responses across multiple respondents.
-
-        This method creates a carousel-style viewer that allows navigation across different
-        Result objects (respondents) while keeping the same question in focus. This is useful
-        for comparing how different respondents answered the same question.
-
-        The Transcripts viewer provides:
-        - Navigation between respondents (Result objects)
-        - Navigation between questions
-        - Agent name display for each respondent
-        - Synchronized question viewing across respondents
-        - Copy button for plain text export
-
-        In HTML/Jupyter, displays as an interactive carousel with:
-        - "Prev/Next Respondent" buttons to navigate between agents
-        - "Prev Q/Next Q" buttons to navigate between questions
-
-        In terminal, displays Rich formatted output with agent headers and Q&A pairs.
-
-        Args:
-            show_comments: Whether to include respondent comments in the transcripts.
-                Defaults to True.
-
-        Returns:
-            A Transcripts object that adapts its display to the environment.
-
-        Examples:
-            >>> from edsl.results import Results
-            >>> results = Results.example()
-            >>> transcripts = results.transcripts()
-            >>> # In Jupyter: Interactive carousel navigation
-            >>> # In terminal: Rich formatted display
-            >>> # As string: Plain text format
-
-            >>> # Without comments
-            >>> transcripts_no_comments = results.transcripts(show_comments=False)
-        """
-        from .results_transcript import Transcripts
-
-        return Transcripts(self, show_comments=show_comments)
+        return self._transcripts_generator.transcripts(show_comments=show_comments)
 
     @classmethod
     def from_job_info(cls, job_info: dict) -> "Results":
@@ -358,64 +284,13 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
     def add_task_history_entry(self, interview: "Interview") -> None:
         self.task_history.add_interview(interview)
 
+    @wraps(DataTypeCacheManager.get_answers)
     def get_answers(self, question_name: str) -> list:
-        """Get the answers for a given question name.
+        return self._cache_manager.get_answers(question_name)
 
-        Args:
-            question_name: The name of the question to fetch answers for.
-
-        Returns:
-            list: A list of answers, one from each result in the data.
-
-        Examples:
-            >>> from edsl.results import Results
-            >>> r = Results.example()
-            >>> answers = r.get_answers('how_feeling')
-            >>> isinstance(answers, list)
-            True
-            >>> len(answers) == len(r)
-            True
-        """
-        return self._cache_manager.fetch_list("answer", question_name)
-
+    @wraps(ResultsRepresentation.summary)
     def _summary(self) -> dict:
-        """Return a dictionary containing summary statistics about the Results object.
-
-        The summary includes:
-        - Number of observations (results)
-        - Number of unique agents
-        - Number of unique models
-        - Number of unique scenarios
-        - Number of questions in the survey
-        - Survey question names (truncated for readability)
-
-        Returns:
-            dict: A dictionary containing the summary statistics
-
-        Examples:
-            >>> from edsl.results import Results
-            >>> r = Results.example()
-            >>> summary = r._summary()
-            >>> isinstance(summary, dict)
-            True
-            >>> all(key in summary for key in ['observations', 'agents', 'models', 'scenarios', 'questions', 'Survey question names'])
-            True
-            >>> summary['observations'] > 0
-            True
-            >>> summary['questions'] > 0
-            True
-        """
-        import reprlib
-
-        d = {
-            "observations": len(self),
-            "agents": len(set(self.agents)),
-            "models": len(set(self.models)),
-            "scenarios": len(set(self.scenarios)),
-            "questions": len(self.survey),
-            "Survey question names": reprlib.repr(self.survey.question_names),
-        }
-        return d
+        return self._representation.summary()
 
     def _cache_keys(self) -> List[str]:  # -> list:
         """Return a list of all cache keys from the results.
@@ -441,110 +316,6 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
     def relevant_cache(self, cache: Cache) -> Cache:
         cache_keys = self._cache_keys()
         return cache.subset(cache_keys)
-
-    def analyze(self, *question_names: str) -> "QuestionAnalysis":
-        try:
-            from edsl.reports import Report
-        except ImportError:
-            raise ValueError(
-                "Please install edsl as edsl[viz] to use the analyze method."
-            )
-
-        if self._report is None:
-            self._report = Report(self)
-
-        return self._report.analyze(*question_names)
-
-    @property
-    def vibe(self) -> "ResultsVibeAccessor":
-        """Access vibe-based results analysis methods.
-
-        Returns a ResultsVibeAccessor that provides natural language methods
-        for analyzing and visualizing results data.
-
-        Returns:
-            ResultsVibeAccessor: Accessor for vibe methods
-
-        Examples:
-            >>> results = Results.example()  # doctest: +SKIP
-            >>> results.vibe.analyze()  # doctest: +SKIP
-            >>> results.vibe.plot()  # doctest: +SKIP
-            >>> results.vibe.sql("Show me satisfaction scores")  # doctest: +SKIP
-        """
-        from .vibes.vibe_accessor import ResultsVibeAccessor
-
-        return ResultsVibeAccessor(self)
-
-    def vibe_analyze(
-        self,
-        *,
-        model: str = "gpt-4o",
-        temperature: float = 0.7,
-        include_visualizations: bool = False,
-        generate_summary: bool = True,
-    ) -> "ResultsVibeAnalysis":
-        """Analyze all questions with LLM-powered insights.
-
-        This method iterates through each question in the survey, generates
-        standard analysis using the existing analyze() method, and uses an LLM
-        to provide natural language insights about the data patterns. Optionally,
-        it can also send visualizations to OpenAI's vision API for analysis.
-
-        In a Jupyter notebook, the results will display automatically with rich
-        formatting. For the best experience with interactive plots, call .display()
-        on the returned object.
-
-        Args:
-            model: OpenAI model to use for generating insights (default: "gpt-4o")
-            temperature: Temperature for LLM generation (default: 0.7)
-            include_visualizations: Whether to send visualizations to OpenAI for analysis
-                (default: False). WARNING: This can significantly increase API costs.
-            generate_summary: Whether to generate an overall summary report across
-                all questions (default: True)
-
-        Returns:
-            ResultsVibeAnalysis: Container object with analyses for all questions.
-                In Jupyter notebooks, will display automatically with HTML formatting.
-                For interactive plots, call .display() method.
-
-        Raises:
-            ValueError: If no survey is available or visualization dependencies missing
-            ImportError: If required packages are not installed
-
-        Examples:
-            >>> results = Results.example()  # doctest: +SKIP
-
-            >>> # Basic usage - will show HTML summary in notebooks
-            >>> results.vibe_analyze()  # doctest: +SKIP
-
-            >>> # For interactive plots and rich display
-            >>> analysis = results.vibe_analyze()  # doctest: +SKIP
-            >>> analysis.display()  # Shows plots inline with insights  # doctest: +SKIP
-
-            >>> # Access a specific question's analysis
-            >>> q_analysis = analysis["how_feeling"]  # doctest: +SKIP
-            >>> q_analysis.analysis.bar_chart  # doctest: +SKIP
-            >>> print(q_analysis.llm_insights)  # doctest: +SKIP
-            >>> # Charts are stored as PNG bytes for serialization
-            >>> q_analysis.chart_png  # PNG bytes  # doctest: +SKIP
-
-            >>> # With visualization analysis (more expensive - uses vision API)
-            >>> analysis = results.vibe_analyze(  # doctest: +SKIP
-            ...     include_visualizations=True
-            ... )  # doctest: +SKIP
-            >>> analysis.display()  # doctest: +SKIP
-
-            >>> # Export to serializable format for notebooks
-            >>> data = analysis.to_dict()  # doctest: +SKIP
-            >>> import json  # doctest: +SKIP
-            >>> json.dumps(data)  # Fully serializable  # doctest: +SKIP
-        """
-        return self.vibe.analyze(
-            model=model,
-            temperature=temperature,
-            include_visualizations=include_visualizations,
-            generate_summary=generate_summary,
-        )
 
     def agent_answers_by_question(
         self, agent_key_fields: Optional[List[str]] = None, separator: str = ","
@@ -634,39 +405,8 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         """Extend the Results list with items from another iterable."""
         return self._container.extend(other)
 
+    @wraps(ResultsContainer.__add__)
     def __add__(self, other: Results) -> Results:
-        """Add two Results objects together.
-
-        Combines two Results objects into a new one. Both objects must have the same
-        survey and created columns.
-
-        Args:
-            other: A Results object to add to this one.
-
-        Returns:
-            A new Results object containing data from both objects.
-
-        Raises:
-            ResultsError: If the surveys or created columns of the two objects don't match.
-
-        Examples:
-            >>> from edsl.results import Results
-            >>> r1 = Results.example()
-            >>> r2 = Results.example()
-            >>> # Combine two Results objects
-            >>> r3 = r1 + r2
-            >>> len(r3) == len(r1) + len(r2)
-            True
-
-            >>> # Attempting to add incompatible Results
-            >>> from unittest.mock import Mock
-            >>> r4 = Results(survey=Mock())  # Different survey
-            >>> try:
-            ...     r1 + r4
-            ... except ResultsError:
-            ...     True
-            True
-        """
         return self._container.__add__(other)
 
     def _repr_html_(self):
@@ -680,151 +420,17 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         return super()._repr_html_()
 
     @ensure_ready
+    @wraps(ResultsRepresentation.repr)
     def __repr__(self) -> str:
-        """Return a string representation of the Results.
+        return self._representation.repr()
 
-        Uses traditional repr format when running doctests, otherwise uses
-        rich-based display for better readability. In Jupyter notebooks,
-        returns a minimal string since _repr_html_ handles the display.
-        """
-        import os
-
-        if os.environ.get("EDSL_RUNNING_DOCTESTS") == "True":
-            return self._eval_repr_()
-
-        # Check if we're in a Jupyter notebook environment
-        # If so, return minimal representation since _repr_html_ will handle display
-        try:
-            from IPython import get_ipython
-
-            ipy = get_ipython()
-            if ipy is not None and "IPKernelApp" in ipy.config:
-                # We're in a Jupyter notebook/kernel, not IPython terminal
-                return "Results(...)"
-        except (NameError, ImportError):
-            pass
-
-        return self._summary_repr()
-
+    @wraps(ResultsRepresentation.eval_repr)
     def _eval_repr_(self) -> str:
-        """Return an eval-able string representation of the Results.
+        return self._representation.eval_repr()
 
-        This representation can be used with eval() to recreate the Results object.
-        Used primarily for doctests and debugging.
-        """
-        return f"Results(data = {self.data}, survey = {repr(self.survey)}, created_columns = {self.created_columns})"
-
+    @wraps(ResultsRepresentation.summary_repr)
     def _summary_repr(self, max_text_preview: int = 60, max_items: int = 25) -> str:
-        """Generate a summary representation of the Results with Rich formatting.
-
-        Args:
-            max_text_preview: Maximum characters to show for question text previews
-            max_items: Maximum number of items to show in lists before truncating
-        """
-        from rich.console import Console
-        from rich.text import Text
-        import io
-        from edsl.config import RICH_STYLES
-
-        # Build the Rich text
-        output = Text()
-        output.append("Results(\n", style=RICH_STYLES["primary"])
-        output.append(
-            f"    num_observations={len(self)},\n", style=RICH_STYLES["default"]
-        )
-        output.append(
-            f"    num_agents={len(set(self.agents))},\n", style=RICH_STYLES["default"]
-        )
-        output.append(
-            f"    num_models={len(set(self.models))},\n", style=RICH_STYLES["default"]
-        )
-        output.append(
-            f"    num_scenarios={len(set(self.scenarios))},\n",
-            style=RICH_STYLES["default"],
-        )
-
-        # Show agent traits
-        if len(self.agents) > 0:
-            agent_keys = self.agent_keys
-            if agent_keys:
-                output.append("    agent_traits: [", style=RICH_STYLES["default"])
-                # Filter out internal fields
-                trait_keys = [k for k in agent_keys if not k.startswith("agent_")]
-                if trait_keys:
-                    output.append(
-                        f"{', '.join(repr(k) for k in trait_keys[:max_items])}",
-                        style=RICH_STYLES["secondary"],
-                    )
-                    if len(trait_keys) > max_items:
-                        output.append(
-                            f", ... ({len(trait_keys) - max_items} more)",
-                            style=RICH_STYLES["dim"],
-                        )
-                output.append("],\n", style=RICH_STYLES["default"])
-
-        # Show scenario fields
-        if len(self.scenarios) > 0:
-            scenario_keys = self.scenario_keys
-            if scenario_keys:
-                output.append("    scenario_fields: [", style=RICH_STYLES["default"])
-                # Filter out internal fields
-                field_keys = [k for k in scenario_keys if not k.startswith("scenario_")]
-                if field_keys:
-                    output.append(
-                        f"{', '.join(repr(k) for k in field_keys[:max_items])}",
-                        style=RICH_STYLES["secondary"],
-                    )
-                    if len(field_keys) > max_items:
-                        output.append(
-                            f", ... ({len(field_keys) - max_items} more)",
-                            style=RICH_STYLES["dim"],
-                        )
-                output.append("],\n", style=RICH_STYLES["default"])
-
-        # Show question information with text previews
-        if self.survey and hasattr(self.survey, "questions"):
-            questions = self.survey.questions
-            output.append(
-                f"    num_questions={len(questions)},\n", style=RICH_STYLES["default"]
-            )
-            output.append("    questions: [\n", style=RICH_STYLES["default"])
-
-            # Show up to max_items questions with text previews
-            for question in questions[:max_items]:
-                q_name = question.question_name
-                q_text = question.question_text
-
-                # Truncate text if too long
-                if len(q_text) > max_text_preview:
-                    q_text = q_text[:max_text_preview] + "..."
-
-                output.append("        ", style=RICH_STYLES["default"])
-                output.append(f"'{q_name}'", style=RICH_STYLES["secondary"])
-                output.append(": ", style=RICH_STYLES["default"])
-                output.append(f'"{q_text}"', style=RICH_STYLES["dim"])
-                output.append(",\n", style=RICH_STYLES["default"])
-
-            if len(questions) > max_items:
-                output.append(
-                    f"        ... ({len(questions) - max_items} more)\n",
-                    style=RICH_STYLES["dim"],
-                )
-
-            output.append("    ],\n", style=RICH_STYLES["default"])
-
-        # Show created columns if any
-        if self.created_columns:
-            output.append(
-                f"    created_columns={self.created_columns}\n",
-                style=RICH_STYLES["key"],
-            )
-
-        output.append(")", style=RICH_STYLES["primary"])
-
-        # Render to string
-        console = Console(file=io.StringIO(), force_terminal=True, width=120)
-        console.print(output, end="")
-        return console.file.getvalue()
+        return self._representation.summary_repr(max_text_preview, max_items)
 
     def table(
         self,
@@ -871,6 +477,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         for result in self.data:
             result.scenario.offload(inplace=True)
 
+    @wraps(ResultsSerializer.to_dict)
     def to_dict(
         self,
         sort: bool = False,
@@ -881,24 +488,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         offload_scenarios: bool = True,
         full_dict: bool = False,
     ) -> dict[str, Any]:
-        """Convert the Results object to a dictionary representation.
-
-        This method delegates to the ResultsSerializer class to handle the conversion
-        of the Results object to a dictionary format suitable for serialization.
-
-        Args:
-            sort: Whether to sort the results data by hash before serialization
-            add_edsl_version: Whether to include the EDSL version in the output
-            include_cache: Whether to include cache data in the output
-            include_task_history: Whether to include task history in the output
-            include_cache_info: Whether to include cache information in result data
-            offload_scenarios: Whether to optimize scenarios before serialization
-
-        Returns:
-            dict[str, Any]: Dictionary representation of the Results object
-        """
-        serializer = ResultsSerializer(self)
-        return serializer.to_dict(
+        return self._results_serializer.to_dict(
             sort=sort,
             add_edsl_version=add_edsl_version,
             include_cache=include_cache,
@@ -906,23 +496,6 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
             include_cache_info=include_cache_info,
             offload_scenarios=offload_scenarios,
         )
-
-    def compare(self, other_results: Results) -> dict:
-        """
-        Compare two Results objects and return the differences.
-        """
-        hashes_0 = [hash(result) for result in self]
-        hashes_1 = [hash(result) for result in other_results]
-
-        in_self_but_not_other = set(hashes_0).difference(set(hashes_1))
-        in_other_but_not_self = set(hashes_1).difference(set(hashes_0))
-
-        indicies_self = [hashes_0.index(h) for h in in_self_but_not_other]
-        indices_other = [hashes_1.index(h) for h in in_other_but_not_self]
-        return {
-            "a_not_b": [self[i] for i in indicies_self],
-            "b_not_a": [other_results[i] for i in indices_other],
-        }
 
     def initialize_cache_from_results(self):
         from ..caching import Cache, CacheEntry
@@ -957,6 +530,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         self.cache = cache
 
     @property
+    @wraps(ResultsProperties.has_unfixed_exceptions.fget)
     def has_unfixed_exceptions(self) -> bool:
         return self._properties.has_unfixed_exceptions
 
@@ -971,6 +545,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         )
 
     @property
+    @wraps(ResultsProperties.hashes.fget)
     def hashes(self) -> set:
         return self._properties.hashes
 
@@ -996,37 +571,13 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         return sampler.sample_legacy(n)
 
     @classmethod
+    @wraps(ResultsSerializer.from_dict)
     def from_dict(cls, data: dict[str, Any]) -> Results:
-        """Convert a dictionary to a Results object.
-
-        This method delegates to the ResultsSerializer class to handle the conversion
-        of a dictionary representation back to a Results object.
-
-        Args:
-            data: A dictionary representation of a Results object.
-
-        Returns:
-            Results: A new Results object created from the dictionary data
-
-        Examples:
-            >>> r = Results.example()
-            >>> d = r.to_dict()
-            >>> r2 = Results.from_dict(d)
-            >>> r == r2
-            True
-        """
         return ResultsSerializer.from_dict(data)
 
     @property
+    @wraps(ResultsProperties.columns.fget)
     def columns(self) -> list[str]:
-        """Return a list of all of the columns that are in the Results.
-
-        Example:
-
-        >>> r = Results.example()
-        >>> r.columns
-        ['agent.agent_index', ...]
-        """
         return self._properties.columns
 
     def show_columns(self):
@@ -1068,110 +619,51 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         return ColumnTreeVisualization(data_types)
 
     @property
+    @wraps(ResultsProperties.answer_keys.fget)
     def answer_keys(self) -> dict[str, str]:
-        """Return a mapping of answer keys to question text.
-
-        Example:
-
-        >>> r = Results.example()
-        >>> r.answer_keys
-        {'how_feeling': 'How are you this {{ period }}?', 'how_feeling_yesterday': 'How were you feeling yesterday {{ period }}?'}
-        """
         return self._properties.answer_keys
 
     @property
+    @wraps(ResultsProperties.agents.fget)
     def agents(self) -> AgentList:
-        """Return a list of all of the agents in the Results.
-
-        Example:
-
-        >>> r = Results.example()
-        >>> r.agents
-        AgentList([Agent(traits = {'status': 'Joyful'}), Agent(traits = {'status': 'Joyful'}), Agent(traits = {'status': 'Sad'}), Agent(traits = {'status': 'Sad'})])
-        """
         return self._properties.agents
 
     @property
+    @wraps(ResultsProperties.models.fget)
     def models(self) -> ModelList:
-        """Return a list of all of the models in the Results.
-
-        Example:
-
-        >>> r = Results.example()
-        >>> r.models[0]
-        Model(model_name = ...)
-        """
         return self._properties.models
 
     def __eq__(self, other):
         return hash(self) == hash(other)
 
     @property
+    @wraps(ResultsProperties.scenarios.fget)
     def scenarios(self) -> ScenarioList:
-        """Return a list of all of the scenarios in the Results.
-
-        Example:
-
-        >>> r = Results.example()
-        >>> r.scenarios
-        ScenarioList([Scenario({'period': 'morning'}), Scenario({'period': 'afternoon'}), Scenario({'period': 'morning'}), Scenario({'period': 'afternoon'})])
-        """
         return self._properties.scenarios
 
     @property
+    @wraps(ResultsProperties.agent_keys.fget)
     def agent_keys(self) -> list[str]:
-        """Return a set of all of the keys that are in the Agent data.
-
-        Example:
-
-        >>> r = Results.example()
-        >>> r.agent_keys
-        ['agent_index', 'agent_instruction', 'agent_name', 'status']
-        """
         return self._properties.agent_keys
 
     @property
+    @wraps(ResultsProperties.model_keys.fget)
     def model_keys(self) -> list[str]:
-        """Return a set of all of the keys that are in the LanguageModel data.
-
-        >>> r = Results.example()
-        >>> r.model_keys
-        ['canned_response', 'inference_service', 'model', 'model_index', 'temperature']
-        """
         return self._properties.model_keys
 
     @property
+    @wraps(ResultsProperties.scenario_keys.fget)
     def scenario_keys(self) -> list[str]:
-        """Return a set of all of the keys that are in the Scenario data.
-
-        >>> r = Results.example()
-        >>> r.scenario_keys
-        ['period', 'scenario_index']
-        """
         return self._properties.scenario_keys
 
     @property
+    @wraps(ResultsProperties.question_names.fget)
     def question_names(self) -> list[str]:
-        """Return a list of all of the question names.
-
-        Example:
-
-        >>> r = Results.example()
-        >>> r.question_names
-        ['how_feeling', 'how_feeling_yesterday']
-        """
         return self._properties.question_names
 
     @property
+    @wraps(ResultsProperties.all_keys.fget)
     def all_keys(self) -> list[str]:
-        """Return a set of all of the keys that are in the Results.
-
-        Example:
-
-        >>> r = Results.example()
-        >>> r.all_keys
-        ['agent_index', ...]
-        """
         return self._properties.all_keys
 
     def first(self) -> Result:
@@ -1499,131 +991,6 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         """
         return self._grouper.bucket_by(*columns)
 
-    @ensure_ready
-    def augmented_agents(
-        self,
-        *fields: str,
-        include_existing_traits: bool = False,
-        include_codebook: bool = False,
-    ) -> "AgentList":
-        """Augment the agent list by adding specified fields as new traits.
-
-        Takes field names (similar to the select method) and adds them as new traits
-        to the agents in the agent list. This only works when there is a one-to-one
-        mapping between agents and results.
-
-        Args:
-            *fields: Field names to add as traits. Field identifiers follow the same
-                rules as :meth:`select` – they can be specified either as fully-qualified
-                names (e.g. ``"answer.how_feeling"``) or by bare attribute name when
-                unambiguous.
-
-        Returns:
-            AgentList: A new AgentList with the specified fields added as traits.
-
-        Raises:
-            ResultsError: If there are multiple observations per agent (e.g., from
-                multiple scenarios or models), or if no fields are provided, or if
-                an invalid field name is supplied.
-
-        Examples:
-            >>> from edsl import QuestionFreeText, Agent, Survey
-            >>> from edsl.language_models import LanguageModel
-            >>> q1 = QuestionFreeText(question_name="color", question_text="What is your favorite color?")
-            >>> q2 = QuestionFreeText(question_name="food", question_text="What is your favorite food?")
-            >>> survey = Survey([q1, q2])
-            >>> agents = [Agent(name="Alice"), Agent(name="Bob")]
-            >>> m = LanguageModel.example(test_model=True, canned_response="Blue")
-            >>> results = survey.by(agents).by(m).run(disable_remote_inference=True)
-            >>> augmented_agents = results.augmented_agents("color", "food")
-            >>> len(augmented_agents) == len(agents)
-            True
-        """
-        # Check if fields are provided
-        if not fields:
-            raise ResultsError("At least one field must be specified for augmentation.")
-
-        from ..agents import AgentList
-
-        al = AgentList()
-        for result in self.data:
-            agent = result.get("agent")
-            new_agent = agent.copy()
-            naming_dict = {"name": new_agent.name}
-            if not include_existing_traits:
-                new_agent.traits = {}
-            if not include_codebook:
-                new_agent.codebook = {}
-                new_agent.traits_presentation_template = "Your traits: {{traits}}"
-            naming_dict["scenario_index"] = result.sub_dicts["scenario"][
-                "scenario_index"
-            ]
-            naming_dict["model_index"] = result.sub_dicts["model"]["model_index"]
-            new_agent.traits = {
-                k: v for k, v in result.sub_dicts["answer"].items() if k in fields
-            }
-            new_agent.name = repr(naming_dict)
-            al.append(new_agent)
-        return al
-
-        # Check for one-to-one mapping between agents and results
-        agent_counts = {}
-        for result in self.data:
-            agent = result.get("agent")
-            agent_hash = hash(agent)
-            agent_counts[agent_hash] = agent_counts.get(agent_hash, 0) + 1
-
-        # If any agent has more than one result, throw an exception
-        max_count = max(agent_counts.values()) if agent_counts else 0
-        if max_count > 1:
-            raise ResultsError(
-                f"Cannot augment agents when there are multiple observations per agent. "
-                f"Found agents with up to {max_count} observations. This typically happens "
-                f"when using multiple scenarios or models."
-            )
-
-        # Get the current agents
-        agent_list = self.agents.copy()
-        if not include_existing_traits:
-            for agent in agent_list:
-                agent.traits = {}
-
-        # For each field, extract the values and add as a trait
-        for field in fields:
-            # Use select to get the field values
-            dataset = self.select(field)
-
-            # Dataset is a list of dictionaries, each with a single key-value pair
-            # We need to extract the values from the first (and only) dictionary
-            if len(dataset) == 0:
-                raise ResultsError(f"No data found for field '{field}'.")
-
-            # Get the column name (which might be different from the field name)
-            column_name = list(dataset[0].keys())[0]
-            values = dataset[0][column_name]
-
-            # Extract the trait name from the field
-            # If it's fully qualified like "answer.how_feeling", use "how_feeling"
-            # Otherwise use the field name as-is
-            if "." in field:
-                trait_name = field.split(".", 1)[1]
-            else:
-                # Look up the actual key from the field name
-                if field in self._cache_manager.key_to_data_type:
-                    trait_name = field
-                else:
-                    # Fallback: extract from column_name
-                    trait_name = (
-                        column_name.split(".", 1)[1]
-                        if "." in column_name
-                        else column_name
-                    )
-
-            # Add the trait to the agent list
-            agent_list = agent_list.add_trait(trait_name, values)
-
-        return agent_list
-
     def _parse_column(self, column: str) -> tuple[str, str]:
         """Parse a column name into a data type and key."""
         if "." in column:
@@ -1678,43 +1045,9 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         return transformer.order_by(*columns, reverse=reverse)
 
     @ensure_ready
+    @wraps(ResultsFilter.filter)
     def filter(self, expression: str) -> Results:
-        """Filter results based on a boolean expression.
-
-        This method delegates to the ResultsFilter class to evaluate a boolean expression
-        against each Result object in the collection and returns a new Results object
-        containing only those that match.
-
-        Args:
-            expression: A string containing a Python expression that evaluates to a boolean.
-                       The expression is applied to each Result object individually.
-                       Can be a multi-line string for better readability.
-                       Supports template-style syntax with {{ field }} notation.
-
-        Returns:
-            A new Results object containing only the Result objects that satisfy the expression.
-
-        Raises:
-            ResultsFilterError: If the expression is invalid or uses improper syntax
-                (like using '=' instead of '==').
-
-        Examples:
-            >>> r = Results.example()
-
-            >>> # Simple equality filter
-            >>> r.filter("how_feeling == 'Great'").select('how_feeling')
-            Dataset([{'answer.how_feeling': ['Great']}])
-
-            >>> # Using OR condition
-            >>> r.filter("how_feeling == 'Great' or how_feeling == 'Terrible'").select('how_feeling')
-            Dataset([{'answer.how_feeling': ['Great', 'Terrible']}])
-
-            >>> # Filter on agent properties
-            >>> r.filter("agent.status == 'Joyful'").select('agent.status')
-            Dataset([{'agent.status': ['Joyful', 'Joyful']}])
-        """
-        filter_handler = ResultsFilter(self)
-        return filter_handler.filter(expression)
+        return self._results_filter.filter(expression)
 
     @classmethod
     def example(cls, randomize: bool = False) -> Results:
@@ -1741,233 +1074,6 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         )
         return results
 
-    @classmethod
-    def from_survey_monkey(
-        cls,
-        filepath: str,
-        verbose: bool = False,
-        create_semantic_names: bool = False,
-        repair_excel_dates: bool = True,
-        order_options_semantically: bool = True,
-        disable_remote_inference: bool = True,
-        **run_kwargs,
-    ) -> "Results":
-        """Create a Results object from a Survey Monkey CSV or Excel export.
-
-        This method imports a Survey Monkey export (CSV or Excel) and generates a
-        Results object by running agents (one per respondent) through the
-        reconstructed survey.
-
-        The import process:
-        1. Converts Excel to CSV if needed
-        2. Parses the CSV to extract questions, options, and responses
-        3. Creates a Survey with questions matching the original
-        4. Creates an AgentList with one agent per respondent
-        5. Runs the agents through the survey to generate Results
-
-        Args:
-            filepath: Path to the Survey Monkey export file. Supports CSV (.csv)
-                and Excel (.xlsx, .xls) formats.
-            verbose: If True, print progress information during parsing.
-            create_semantic_names: If True, rename questions with semantic names
-                derived from question text instead of index-based names.
-            repair_excel_dates: If True, use LLM to detect and repair Excel-mangled
-                date formatting in answer options (e.g., "5-Mar" → "3-5").
-                Enabled by default since Excel date mangling is common.
-            order_options_semantically: If True, use LLM to analyze and reorder
-                multiple choice options in semantically correct order (e.g., company
-                sizes from small to large). Enabled by default.
-            disable_remote_inference: If True, run locally without remote API calls.
-                Defaults to True.
-            **run_kwargs: Additional arguments passed to Jobs.run().
-
-        Returns:
-            Results: A Results object containing the imported survey responses.
-
-        Examples:
-            >>> # Basic usage with CSV
-            >>> results = Results.from_survey_monkey("survey_results.csv")  # doctest: +SKIP
-
-            >>> # Basic usage with Excel
-            >>> results = Results.from_survey_monkey("survey_results.xlsx")  # doctest: +SKIP
-
-            >>> # With semantic question names and verbose output
-            >>> results = Results.from_survey_monkey(
-            ...     "survey_results.csv",
-            ...     verbose=True,
-            ...     create_semantic_names=True
-            ... )  # doctest: +SKIP
-
-            >>> # Disable LLM-based processing for faster import
-            >>> results = Results.from_survey_monkey(
-            ...     "survey_results.csv",
-            ...     repair_excel_dates=False,
-            ...     order_options_semantically=False
-            ... )  # doctest: +SKIP
-        """
-        import os
-        import tempfile
-        from ..conjure.survey_monkey import ImportSurveyMonkey
-
-        # Check file extension to determine if conversion is needed
-        _, ext = os.path.splitext(filepath.lower())
-
-        if ext in (".xlsx", ".xls"):
-            # Convert Excel to CSV
-            import pandas as pd
-
-            if verbose:
-                print(f"Converting Excel file to CSV: {filepath}")
-
-            df = pd.read_excel(filepath, header=None)
-
-            # Create a temporary CSV file
-            with tempfile.NamedTemporaryFile(
-                mode="w", suffix=".csv", delete=False, newline=""
-            ) as tmp_file:
-                csv_path = tmp_file.name
-                df.to_csv(tmp_file, index=False, header=False)
-
-            try:
-                importer = ImportSurveyMonkey(
-                    csv_file=csv_path,
-                    verbose=verbose,
-                    create_semantic_names=create_semantic_names,
-                    repair_excel_dates=repair_excel_dates,
-                    order_options_semantically=order_options_semantically,
-                )
-                return importer.run(
-                    disable_remote_inference=disable_remote_inference, **run_kwargs
-                )
-            finally:
-                # Clean up temporary file
-                os.unlink(csv_path)
-        else:
-            # Assume CSV format
-            importer = ImportSurveyMonkey(
-                csv_file=filepath,
-                verbose=verbose,
-                create_semantic_names=create_semantic_names,
-                repair_excel_dates=repair_excel_dates,
-                order_options_semantically=order_options_semantically,
-            )
-            return importer.run(
-                disable_remote_inference=disable_remote_inference, **run_kwargs
-            )
-
-    @classmethod
-    def from_qualtrics(
-        cls,
-        filepath: str,
-        verbose: bool = False,
-        create_semantic_names: bool = False,
-        disable_remote_inference: bool = True,
-        **run_kwargs,
-    ) -> "Results":
-        """Create a Results object from a Qualtrics CSV or tab-delimited export.
-
-        This method imports a Qualtrics export (CSV or tab with 3-row headers) and generates a
-        Results object by running agents (one per respondent) through the
-        reconstructed survey.
-
-        The import process:
-        1. Parses the 3-row header Qualtrics format:
-           - Row 1: Short labels (Q1, Q2_1, etc.)
-           - Row 2: Question text
-           - Row 3: ImportId metadata (JSON format)
-        2. Detects question types and creates appropriate EDSL questions
-        3. Creates a Survey with questions matching the original
-        4. Creates an AgentList with one agent per respondent
-        5. Runs the agents through the survey to generate Results
-
-        Note: Tab-delimited files (.tab, .tsv) are automatically converted to CSV format
-        before processing, so both CSV and tab formats are supported.
-
-        Args:
-            filepath: Path to the Qualtrics export file. Can be CSV (.csv) or
-                tab-delimited (.tab, .tsv). Must be in the standard Qualtrics
-                export format with 3 header rows.
-            verbose: If True, print progress information during parsing.
-            create_semantic_names: If True, rename questions with semantic names
-                derived from question text instead of Q1, Q2, etc.
-            disable_remote_inference: If True, run locally without remote API calls.
-                Defaults to True.
-            **run_kwargs: Additional arguments passed to Jobs.run().
-
-        Returns:
-            Results: A Results object containing the imported survey responses.
-
-        Examples:
-            >>> # Basic usage with CSV
-            >>> results = Results.from_qualtrics("qualtrics_export.csv")  # doctest: +SKIP
-
-            >>> # Basic usage with tab file
-            >>> results = Results.from_qualtrics("qualtrics_export.tab")  # doctest: +SKIP
-
-            >>> # With semantic question names and verbose output
-            >>> results = Results.from_qualtrics(
-            ...     "qualtrics_export.csv",
-            ...     verbose=True,
-            ...     create_semantic_names=True
-            ... )  # doctest: +SKIP
-
-            >>> # Run with additional parameters
-            >>> results = Results.from_qualtrics(
-            ...     "qualtrics_export.csv",
-            ...     disable_remote_inference=True,
-            ...     raise_validation_errors=False
-            ... )  # doctest: +SKIP
-        """
-        import os
-        import tempfile
-        from ..conjure.qualtrics import ImportQualtrics
-
-        # Check file extension to determine if conversion is needed
-        _, ext = os.path.splitext(filepath.lower())
-
-        if ext in (".tab", ".tsv"):
-            # Convert tab-delimited to CSV
-            import pandas as pd
-
-            if verbose:
-                print(f"Converting tab-delimited file to CSV: {filepath}")
-
-            # Read tab-delimited file
-            df = pd.read_csv(filepath, sep="\t", encoding="utf-8")
-
-            # Create a temporary CSV file
-            with tempfile.NamedTemporaryFile(
-                mode="w", suffix=".csv", delete=False, newline=""
-            ) as tmp_file:
-                csv_path = tmp_file.name
-                df.to_csv(tmp_file, index=False)
-
-            try:
-                importer = ImportQualtrics(
-                    csv_file=csv_path,
-                    verbose=verbose,
-                    create_semantic_names=create_semantic_names,
-                )
-                return importer.run(
-                    disable_remote_inference=disable_remote_inference, **run_kwargs
-                )
-            finally:
-                # Clean up temporary file
-                try:
-                    os.unlink(csv_path)
-                except OSError:
-                    pass
-        else:
-            # Handle as CSV directly
-            importer = ImportQualtrics(
-                csv_file=filepath,
-                verbose=verbose,
-                create_semantic_names=create_semantic_names,
-            )
-            return importer.run(
-                disable_remote_inference=disable_remote_inference, **run_kwargs
-            )
-
     def rich_print(self):
         """Display an object as a table."""
         pass
@@ -1984,26 +1090,6 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         else:
             print("No exceptions to show.")
 
-    def score(self, f: Callable) -> list:
-        """Score the results using a function.
-
-        This method delegates to the ResultsScorer class to handle the scoring operation.
-
-        Args:
-            f: A function that takes values from a Result object and returns a score.
-
-        Returns:
-            list: A list of scores, one for each Result object.
-
-        Examples:
-            >>> r = Results.example()
-            >>> def f(status): return 1 if status == 'Joyful' else 0
-            >>> r.score(f)
-            [1, 1, 0, 0]
-        """
-        scorer = ResultsScorer(self)
-        return scorer.score(f)
-
     def give_agents_uuid_names(self) -> None:
         """Give the agents uuid names."""
         import uuid
@@ -2011,170 +1097,6 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         for agent in self.agents:
             agent.name = uuid.uuid4()
         return None
-
-    def score_with_answer_key(self, answer_key: dict) -> list:
-        """Score the results using an answer key.
-
-        This method delegates to the ResultsScorer class to handle the scoring operation.
-
-        Args:
-            answer_key: A dictionary that maps answer values to scores.
-
-        Returns:
-            list: A list of scores, one for each Result object.
-        """
-        scorer = ResultsScorer(self)
-        return scorer.score_with_answer_key(answer_key)
-
-    def find_weights_for_target_distribution(
-        self,
-        question_name: str,
-        target_dist: dict,
-        strategy: str = "categorical_kl",
-        method: Optional[str] = None,
-        max_iter: int = 100,
-        **kwargs,
-    ):
-        """Find optimal weights that match a target distribution.
-
-        This method computes weights for each result (survey response) such that when
-        applied to the responses for a given question, the weighted empirical distribution
-        matches the target distribution as closely as possible.
-
-        This is useful for:
-        - Survey reweighting to match population demographics
-        - Importance sampling for distribution matching
-        - Post-stratification adjustments
-
-        Multiple strategies are supported for different data types and algorithms.
-
-        Args:
-            question_name: Name of the question to compute weights for
-            target_dist: Target distribution (format depends on strategy)
-                        - For categorical (default): Dict[str, float] mapping categories to probabilities
-                        - For continuous_binned: Dict[Tuple[float, float], float] mapping ranges to probabilities
-                        Must sum to 1.0. Example: {'yes': 0.6, 'no': 0.4}
-            strategy: Weighting strategy to use (default: "categorical_kl")
-                     Options: "categorical_kl", "categorical_ipf", "continuous_binned"
-            method: DEPRECATED - use strategy instead. For backward compatibility:
-                   "optimization" -> "categorical_kl", "iterative" -> "categorical_ipf"
-            max_iter: Maximum iterations for iterative methods (default: 100)
-            **kwargs: Additional strategy-specific parameters
-
-        Returns:
-            numpy.ndarray: Array of normalized weights (one per result), summing to 1.0
-
-        Raises:
-            ValueError: If target_dist doesn't sum to 1.0, or if question responses
-                       contain categories not in target_dist
-            KeyError: If question_name doesn't exist in results
-
-        Examples:
-            >>> from edsl.results import Results
-            >>> r = Results.example()
-            >>> # Categorical data with KL divergence (default)
-            >>> target = {'Great': 0.5, 'OK': 0.3, 'Terrible': 0.2}
-            >>> weights = r.find_weights_for_target_distribution('how_feeling', target)
-            >>> len(weights) == len(r)
-            True
-            >>> bool(abs(weights.sum() - 1.0) < 1e-6)  # Weights are normalized
-            True
-
-            >>> # Using iterative proportional fitting
-            >>> weights_ipf = r.find_weights_for_target_distribution(
-            ...     'how_feeling', target, strategy='categorical_ipf'
-            ... )
-
-            >>> # Continuous data with binning (if you have numerical responses)
-            >>> # target_bins = {(0, 30): 0.3, (30, 50): 0.5, (50, 100): 0.2}
-            >>> # weights = r.find_weights_for_target_distribution(
-            >>> #     'age', target_bins, strategy='continuous_binned'
-            >>> # )
-        """
-        weighter = ResultsWeighting(self)
-        return weighter.find_optimal_weights(
-            question_name=question_name,
-            target_dist=target_dist,
-            strategy=strategy,
-            method=method,
-            max_iter=max_iter,
-            **kwargs,
-        )
-
-    def find_weights_for_multiple_targets(
-        self,
-        targets: dict,
-        metric_weights: Optional[dict] = None,
-        strategies: Optional[dict] = None,
-        aggregation: str = "weighted_sum",
-        **kwargs,
-    ):
-        """Find optimal weights that simultaneously match multiple target distributions.
-
-        This method finds a single set of weights that balances matching multiple
-        target distributions at once. This is particularly useful for survey reweighting
-        where you need to match multiple marginal distributions simultaneously
-        (e.g., age AND gender AND location).
-
-        The method minimizes a combination of divergences across all questions:
-        - weighted_sum: Σᵢ αᵢ * KL(Pᵢ||Qᵢ) (default)
-        - max: max(α₁*KL₁, α₂*KL₂, ...) (minimax approach)
-        - weighted_product: Πᵢ KLᵢ^αᵢ (geometric mean-like)
-
-        Args:
-            targets: Dictionary mapping question names to their target distributions
-                    Example: {'age': {(0,30): 0.3, (30,50): 0.7}, 'gender': {'M': 0.5, 'F': 0.5}}
-            metric_weights: Relative importance of each question (will be auto-normalized)
-                           Default: equal weights. Example: {'age': 2.0, 'gender': 1.0}
-            strategies: Strategy to use for each question (per-question strategies)
-                       Default: "categorical_kl" for all
-                       Example: {'age': 'continuous_binned', 'gender': 'categorical_kl'}
-            aggregation: How to combine metrics - "weighted_sum" (default), "max", "weighted_product"
-            **kwargs: Additional parameters for optimization
-
-        Returns:
-            numpy.ndarray: Normalized weights (sum to 1.0) balancing all targets
-
-        Raises:
-            ValueError: If targets is empty, strategies are invalid, or aggregation is unknown
-            KeyError: If question names don't exist in results
-
-        Examples:
-            >>> from edsl.results import Results
-            >>> r = Results.example()
-
-            >>> # Match two distributions simultaneously with equal importance
-            >>> targets = {
-            ...     'how_feeling': {'Great': 0.5, 'OK': 0.3, 'Terrible': 0.2},
-            ...     'how_feeling_yesterday': {'Great': 0.4, 'Good': 0.3, 'OK': 0.2, 'Terrible': 0.1}
-            ... }
-            >>> weights = r.find_weights_for_multiple_targets(targets)
-            >>> len(weights) == len(r)
-            True
-
-            >>> # With custom importance (first question 2x more important)
-            >>> metric_weights = {'how_feeling': 2.0, 'how_feeling_yesterday': 1.0}
-            >>> weights = r.find_weights_for_multiple_targets(targets, metric_weights)
-
-            >>> # Using max aggregation (minimax approach)
-            >>> weights = r.find_weights_for_multiple_targets(targets, aggregation='max')
-
-            >>> # Mixed strategies for different question types
-            >>> # targets_mixed = {
-            >>> #     'age': {(0, 30): 0.3, (30, 50): 0.5, (50, 100): 0.2},
-            >>> #     'gender': {'Male': 0.48, 'Female': 0.52}
-            >>> # }
-            >>> # strategies = {'age': 'continuous_binned', 'gender': 'categorical_kl'}
-            >>> # weights = r.find_weights_for_multiple_targets(targets_mixed, strategies=strategies)
-        """
-        weighter = ResultsWeighting(self)
-        return weighter.find_weights_for_multiple_targets(
-            targets=targets,
-            metric_weights=metric_weights,
-            strategies=strategies,
-            aggregation=aggregation,
-            **kwargs,
-        )
 
     def fetch_remote(self, job_info: Any) -> bool:
         """Fetch remote Results object and update this instance with the data.
@@ -2210,261 +1132,6 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         fetcher = ResultsRemoteFetcher(self)
         return fetcher.fetch(polling_interval)
 
-    def split(
-        self,
-        train_questions: Optional[List[str]] = None,
-        test_questions: Optional[List[str]] = None,
-        exclude_questions: Optional[List[str]] = None,
-        num_questions: Optional[int] = None,
-        seed: Optional[int] = None,
-    ) -> "AgentListSplit":
-        """Create an AgentList from the results with a train/test split.
-
-        Args:
-            train_questions: Questions to use as TRAIN (deterministic, creates split)
-            test_questions: Questions to use as TEST (deterministic, creates split)
-            exclude_questions: Questions to fully exclude from both train and test
-            num_questions: Number of questions to randomly select for TRAIN (stochastic, creates split).
-                          If None and no other split parameters are provided, defaults to half of available questions.
-            seed: Optional random seed for reproducible random selection (only used with num_questions)
-
-        Returns:
-            AgentListSplit with train/test splits and corresponding surveys.
-
-        Raises:
-            ResultsError: If survey has skip logic or piping (not supported for splits)
-
-        Examples:
-            >>> # Deterministic split - specify train questions
-            >>> # split = results.split(train_questions=['q1', 'q2'])
-            >>> # split.train has q1, q2; split.test has all others
-            >>>
-            >>> # Deterministic split - specify test questions
-            >>> # split = results.split(test_questions=['q8', 'q9'])
-            >>> # split.train has all others; split.test has q8, q9
-            >>>
-            >>> # Stochastic split - randomly select 3 questions for train
-            >>> # split = results.split(num_questions=3, seed=42)
-            >>> # split.train has 3 random questions; split.test has remaining
-            >>>
-            >>> # Default 50/50 split - no parameters specified
-            >>> # split = results.split(seed=42)
-            >>> # split.train has half the questions; split.test has the other half
-            >>>
-            >>> # Exclude certain questions entirely
-            >>> # split = results.split(num_questions=3, exclude_questions=['q10'])
-        """
-        from ..agents import AgentList
-        import random
-        import re
-
-        # Check if survey has skip logic (non-default rules)
-        if len(self.survey.rule_collection.non_default_rules) > 0:
-            raise ResultsError(
-                "Cannot create agent list splits from surveys with skip logic. "
-                "Skip logic creates dependencies between questions that would be broken by splitting."
-            )
-
-        # Check if survey has piping ({{ }} syntax in question text or options)
-        piping_pattern = re.compile(r"\{\{.*?\}\}")
-        for question in self.survey.questions:
-            # Check question text
-            if piping_pattern.search(question.question_text):
-                raise ResultsError(
-                    f"Cannot create agent list splits from surveys with piping. "
-                    f"Question '{question.question_name}' has piping in its question_text."
-                )
-            # Check question options if they exist
-            if hasattr(question, "question_options") and question.question_options:
-                for option in question.question_options:
-                    if isinstance(option, str) and piping_pattern.search(option):
-                        raise ResultsError(
-                            f"Cannot create agent list splits from surveys with piping. "
-                            f"Question '{question.question_name}' has piping in its options."
-                        )
-
-        # Ensure only one splitting method is used
-        split_params = sum(
-            [
-                train_questions is not None,
-                test_questions is not None,
-                num_questions is not None,
-            ]
-        )
-        if split_params > 1:
-            raise ValueError(
-                "Only one of train_questions, test_questions, or num_questions can be specified"
-            )
-
-        all_questions = list(self.survey.question_names)
-
-        # Apply exclusions first
-        if exclude_questions is not None:
-            for q in exclude_questions:
-                if q not in all_questions:
-                    raise ValueError(f"Question {q} not found in survey.")
-            all_questions = [q for q in all_questions if q not in exclude_questions]
-
-        # Case 1: train_questions - these become TRAIN split
-        if train_questions is not None:
-            # Validate questions exist
-            for q in train_questions:
-                if q not in all_questions:
-                    raise ValueError(
-                        f"Question {q} not found in survey (or was excluded)."
-                    )
-
-            train_questions_list = train_questions
-            test_questions_list = [
-                q for q in all_questions if q not in train_questions_list
-            ]
-
-            if not train_questions_list:
-                raise ValueError("train_questions resulted in an empty list")
-            if not test_questions_list:
-                raise ValueError(
-                    "No questions left for test split after selecting train questions"
-                )
-
-            train_agent_list = AgentList.from_results(self, train_questions_list)
-            test_agent_list = AgentList.from_results(self, test_questions_list)
-
-            train_survey = self.survey.select(*train_questions_list)
-            test_survey = self.survey.select(*test_questions_list)
-
-            return AgentListSplit(
-                train=train_agent_list,
-                test=test_agent_list,
-                train_survey=train_survey,
-                test_survey=test_survey,
-            )
-
-        # Case 2: test_questions - these become TEST split
-        if test_questions is not None:
-            # Validate questions exist
-            for q in test_questions:
-                if q not in all_questions:
-                    raise ValueError(
-                        f"Question {q} not found in survey (or was excluded)."
-                    )
-
-            test_questions_list = test_questions
-            train_questions = [q for q in all_questions if q not in test_questions_list]
-
-            if not test_questions_list:
-                raise ValueError("test_questions resulted in an empty list")
-            if not train_questions:
-                raise ValueError(
-                    "No questions left for train split after selecting test questions"
-                )
-
-            train_agent_list = AgentList.from_results(self, train_questions)
-            test_agent_list = AgentList.from_results(self, test_questions_list)
-
-            train_survey = self.survey.select(*train_questions)
-            test_survey = self.survey.select(*test_questions_list)
-
-            return AgentListSplit(
-                train=train_agent_list,
-                test=test_agent_list,
-                train_survey=train_survey,
-                test_survey=test_survey,
-            )
-
-        # Case 3: num_questions - randomly select for TRAIN split (stochastic)
-        # If num_questions is None, default to half of available questions
-        if num_questions is None:
-            num_questions = len(all_questions) // 2
-
-        if num_questions > len(all_questions):
-            raise ValueError(
-                f"num_questions ({num_questions}) cannot exceed available questions ({len(all_questions)})"
-            )
-
-        # Set seed if provided
-        if seed is not None:
-            random.seed(seed)
-
-        # Randomly select questions for train split
-        train_questions = random.sample(all_questions, num_questions)
-        test_questions_list = [q for q in all_questions if q not in train_questions]
-
-        if not test_questions_list:
-            raise ValueError("No questions left for test split after random selection")
-
-        train_agent_list = AgentList.from_results(self, train_questions)
-        test_agent_list = AgentList.from_results(self, test_questions_list)
-
-        train_survey = self.survey.select(*train_questions)
-        test_survey = self.survey.select(*test_questions_list)
-
-        return AgentListSplit(
-            train=train_agent_list,
-            test=test_agent_list,
-            train_survey=train_survey,
-            test_survey=test_survey,
-        )
-
-    def spot_issues(self, models: Optional[ModelList] = None) -> Results:
-        """Run a survey to spot issues and suggest improvements for prompts that had no model response.
-
-        This method delegates to the ResultsAnalyzer class to handle the analysis and debugging.
-
-        Args:
-            models: Optional ModelList to use for the analysis. If None, uses the default model.
-
-        Returns:
-            Results: A new Results object containing the analysis and suggestions for improvement.
-
-        Notes:
-            Future version: Allow user to optionally pass a list of questions to review,
-            regardless of whether they had a null model response.
-        """
-        analyzer = ResultsAnalyzer(self)
-        return analyzer.spot_issues(models)
-
-    def shelve_result(self, result: "Result") -> str:
-        """Store a Result object in persistent storage using its hash as the key.
-
-        This method delegates to the ResultsSerializer class to handle the shelving operation.
-
-        Args:
-            result: A Result object to store
-
-        Returns:
-            str: The hash key for retrieving the result later
-
-        Raises:
-            ResultsError: If there's an error storing the Result
-        """
-        serializer = ResultsSerializer(self)
-        return serializer.shelve_result(result)
-
-    def get_shelved_result(self, key: str) -> "Result":
-        """Retrieve a Result object from persistent storage.
-
-        This method delegates to the ResultsSerializer class to handle the retrieval operation.
-
-        Args:
-            key: The hash key of the Result to retrieve
-
-        Returns:
-            Result: The stored Result object
-
-        Raises:
-            ResultsError: If the key doesn't exist or if there's an error retrieving the Result
-        """
-        serializer = ResultsSerializer(self)
-        return serializer.get_shelved_result(key)
-
-    @property
-    def shelf_keys(self) -> set:
-        """Return a copy of the set of shelved result keys.
-
-        This property delegates to the ResultsSerializer class.
-        """
-        return self._properties.shelf_keys
-
     @ensure_ready
     def insert_sorted(self, item: "Result") -> None:
         """Insert a Result object into the Results list while maintaining sort order.
@@ -2482,64 +1149,6 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
             >>> r.insert_sorted(new_result)
         """
         return self._container.insert_sorted(item)
-
-    def insert_from_shelf(self) -> None:
-        """Move all shelved results into memory using insert_sorted method.
-
-        This method delegates to the ResultsSerializer class to handle the shelf operations.
-        Clears the shelf after successful insertion.
-
-        This method preserves the original order of results by using their 'order'
-        attribute if available, which ensures consistent ordering even after
-        serialization/deserialization.
-
-        Raises:
-            ResultsError: If there's an error accessing or clearing the shelf
-        """
-        serializer = ResultsSerializer(self)
-        return serializer.insert_from_shelf()
-
-    def to_disk(self, filepath: str) -> None:
-        """Serialize the Results object to a zip file, preserving the SQLite database.
-
-        This method delegates to the ResultsSerializer class to handle the disk serialization.
-
-        This method creates a zip file containing:
-        1. The SQLite database file from the data container
-        2. A metadata.json file with the survey, created_columns, and other non-data info
-        3. The cache data if present
-
-        Args:
-            filepath: Path where the zip file should be saved
-
-        Raises:
-            ResultsError: If there's an error during serialization
-        """
-        serializer = ResultsSerializer(self)
-        return serializer.to_disk(filepath)
-
-    @classmethod
-    def from_disk(cls, filepath: str) -> "Results":
-        """Load a Results object from a zip file.
-
-        This method delegates to the ResultsSerializer class to handle the disk deserialization.
-
-        This method:
-        1. Extracts the SQLite database file
-        2. Loads the metadata
-        3. Creates a new Results instance with the restored data
-
-        Args:
-            filepath: Path to the zip file containing the serialized Results
-
-        Returns:
-            Results: A new Results instance with the restored data
-
-        Raises:
-            ResultsError: If there's an error during deserialization
-        """
-        return ResultsSerializer.from_disk(filepath)
-
 
 def main():  # pragma: no cover
     """Run example operations on a Results object.

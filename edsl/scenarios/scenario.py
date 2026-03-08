@@ -24,7 +24,7 @@ from typing import Union, List, Optional, TYPE_CHECKING, Dict, Any, Iterable, Ma
 
 from ..base import Base
 from .exceptions import ScenarioError
-from ..display.utils import smart_truncate
+from ..utilities.display_utils import smart_truncate
 
 if TYPE_CHECKING:
     from .scenario_list import ScenarioList
@@ -34,9 +34,6 @@ if TYPE_CHECKING:
     from ..questions import QuestionBase as Question
     from ..surveys import Survey
     from .qr_code import QRCodeList
-
-
-from .firecrawl_scenario import FirecrawlRequest
 
 
 class Scenario(Base, UserDict):
@@ -77,8 +74,6 @@ class Scenario(Base, UserDict):
         >>> import os
         >>> os.unlink(data_path) # Clean up temp file
     """
-
-    firecrawl = FirecrawlRequest()
 
     __documentation__ = "https://docs.expectedparrot.com/en/latest/scenarios.html"
 
@@ -1237,15 +1232,15 @@ class Scenario(Base, UserDict):
             ImportError: If the python-docx library is not installed.
 
         Examples:
-            >>> from docx import Document
-            >>> doc = Document()
-            >>> _ = doc.add_heading("EDSL Survey")
-            >>> _ = doc.add_paragraph("This is a test.")
-            >>> doc.save("test.docx")
-            >>> s = Scenario.from_docx("test.docx")
-            >>> s
+            >>> from docx import Document  # doctest: +SKIP
+            >>> doc = Document()  # doctest: +SKIP
+            >>> _ = doc.add_heading("EDSL Survey")  # doctest: +SKIP
+            >>> _ = doc.add_paragraph("This is a test.")  # doctest: +SKIP
+            >>> doc.save("test.docx")  # doctest: +SKIP
+            >>> s = Scenario.from_docx("test.docx")  # doctest: +SKIP
+            >>> s  # doctest: +SKIP
             Scenario({'file_path': 'test.docx', 'text': 'EDSL Survey\\nThis is a test.'})
-            >>> import os; os.remove("test.docx")
+            >>> import os; os.remove("test.docx")  # doctest: +SKIP
 
         Notes:
             - The returned Scenario typically contains the file path and extracted text

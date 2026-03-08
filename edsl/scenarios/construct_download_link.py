@@ -4,7 +4,7 @@ import os
 from typing import TYPE_CHECKING, Optional, List
 
 if TYPE_CHECKING:
-    from ..display import HTML
+    from ..utilities.display_utils import HTML
     from ..scenarios import FileStore
 
 
@@ -46,7 +46,7 @@ class ConstructDownloadLink:
         """
         # We'll use a string annotation instead of an import for doctests
         try:
-            from edsl.display import HTML
+            from edsl.utilities.display_utils import HTML
         except ImportError:
             # For doctest, provide a mock HTML class
             class HTML:
@@ -148,7 +148,7 @@ class ConstructDownloadLink:
             )
 
         try:
-            from edsl.display import HTML
+            from edsl.utilities.display_utils import HTML
         except ImportError:
             # For doctest, provide a mock HTML class
             class HTML:

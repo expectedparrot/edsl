@@ -5,10 +5,9 @@ including database handling, decorators, and helper classes.
 """
 
 from .results_utilities import (
-    ResultsSQLList,
     ensure_fetched,
     ensure_ready,
     NotReadyObject,
 )
 
-__all__ = ["ResultsSQLList", "ensure_fetched", "ensure_ready", "NotReadyObject"]
+__all__ = ["ensure_fetched", "ensure_ready", "NotReadyObject"]

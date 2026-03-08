@@ -371,45 +371,15 @@ Respondent: [Your response...]"></textarea>
         )
         return question_html_content
 
-    @property
-    def fake_data_factory(self):
-        """
-        Custom factory for generating fake interview data.
-
-        Ensures answer and generated_tokens are consistent when both present.
-        """
-        from polyfactory.factories.pydantic_factory import ModelFactory
-
-        class ConsistentInterviewResponseFactory(ModelFactory[InterviewResponse]):
-            __model__ = InterviewResponse
-
-            @classmethod
-            def build(cls, **kwargs):
-                """Generate consistent answer and generated_tokens."""
-                # Generate a random interview transcript as a list of dicts
-                # Create 3-5 turns alternating between interviewer and respondent
-                import random
-
-                num_turns = random.randint(3, 5)
-                answer_value = []
-                for i in range(num_turns):
-                    if i % 2 == 0:
-                        role = "interviewer"
-                        text = cls.__faker__.sentence()
-                    else:
-                        role = "respondent"
-                        text = cls.__faker__.sentence()
-                    answer_value.append(
-                        {"role": role, "content": [{"type": "text", "text": text}]}
-                    )
-
-                # Create the model with consistent values to avoid validation error
-                return cls.__model__(
-                    answer=answer_value,
-                    generated_tokens=None,  # Keep generated_tokens as None to avoid mismatch
-                )
-
-        return ConsistentInterviewResponseFactory
+    def _simulate_answer(self, human_readable: bool = False) -> dict:
+        """Generate a simulated interview answer."""
+        return {
+            "answer": [
+                {"role": "interviewer", "content": [{"type": "text", "text": "How are you?"}]},
+                {"role": "respondent", "content": [{"type": "text", "text": "I am fine."}]},
+            ],
+            "generated_tokens": None,
+        }
 
     @property
     def data(self) -> dict:

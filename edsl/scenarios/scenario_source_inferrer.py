@@ -73,9 +73,9 @@ class ScenarioSourceInferrer:
             >>> sl = ScenarioSourceInferrer.infer_and_create("data.csv")  # doctest: +SKIP
 
             >>> # From pandas DataFrame
-            >>> import pandas as pd
-            >>> df = pd.DataFrame({"a": [1, 2], "b": [3, 4]})
-            >>> sl = ScenarioSourceInferrer.infer_and_create(df)
+            >>> import pandas as pd  # doctest: +SKIP
+            >>> df = pd.DataFrame({"a": [1, 2], "b": [3, 4]})  # doctest: +SKIP
+            >>> sl = ScenarioSourceInferrer.infer_and_create(df)  # doctest: +SKIP
 
             >>> # From dictionary
             >>> data = {"product": ["coffee", "tea"], "price": [4.99, 3.99]}

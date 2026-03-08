@@ -41,6 +41,21 @@ class EditSurvey:
     def add_question(
         self, question: "QuestionBase", index: Optional[int] = None
     ) -> "Survey":
+        """
+        Add a question to survey.
+
+        :param question: The question to add to the survey.
+        :param question_name: The name of the question. If not provided, the question name is used.
+
+        The question is appended at the end of the self.questions list
+        A default rule is created that the next index is the next question.
+
+        >>> from edsl import QuestionMultipleChoice, Survey
+        >>> q = QuestionMultipleChoice(question_text = "Do you like school?", question_options=["yes", "no"], question_name="q0")
+        >>> s = Survey().add_question(q)
+
+        # Adding a question with a duplicate name would raise SurveyCreationError
+        """
         if question.question_name in self.survey.question_names:
             raise SurveyCreationError(
                 f"""Question name '{question.question_name}' already exists in survey. Existing names are {self.survey.question_names}."""

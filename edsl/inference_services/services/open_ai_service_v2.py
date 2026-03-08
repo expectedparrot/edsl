@@ -2,14 +2,13 @@ from __future__ import annotations
 from typing import Any, List, Optional, Dict, NewType, TYPE_CHECKING
 import os
 
-import openai
-
 from ..inference_service_abc import InferenceServiceABC
 from ..decorators import report_errors_async
 from .service_enums import OPENAI_REASONING_MODELS
 
 # Use TYPE_CHECKING to avoid circular imports at runtime
 if TYPE_CHECKING:
+    import openai as _openai_mod
     from ...language_models import LanguageModel
 
 # from ..rate_limits_cache import rate_limits
@@ -25,6 +24,12 @@ if TYPE_CHECKING:
 APIToken = NewType("APIToken", str)
 
 
+def _get_openai():
+    """Lazy import of the openai package."""
+    import openai
+    return openai
+
+
 class OpenAIServiceV2(InferenceServiceABC):
     """OpenAI service class using the Responses API."""
 
@@ -32,11 +37,11 @@ class OpenAIServiceV2(InferenceServiceABC):
     _env_key_name_ = "OPENAI_API_KEY"
     _base_url_ = None
 
-    _sync_client_ = openai.OpenAI
-    _async_client_ = openai.AsyncOpenAI
+    _sync_client_ = None  # resolved lazily via _get_openai()
+    _async_client_ = None  # resolved lazily via _get_openai()
 
-    _sync_client_instances: Dict[APIToken, openai.OpenAI] = {}
-    _async_client_instances: Dict[APIToken, openai.AsyncOpenAI] = {}
+    _sync_client_instances: Dict[str, Any] = {}
+    _async_client_instances: Dict[str, Any] = {}
 
     # sequence to extract text from response.output
     key_sequence = ["output", 1, "content", 0, "text"]
@@ -54,7 +59,16 @@ class OpenAIServiceV2(InferenceServiceABC):
         cls._async_client_instances = {}
 
     @classmethod
-    def sync_client(cls, api_key: str) -> openai.OpenAI:
+    def _resolve_clients(cls):
+        """Resolve lazy client classes on first use."""
+        if cls._sync_client_ is None:
+            openai = _get_openai()
+            cls._sync_client_ = openai.OpenAI
+            cls._async_client_ = openai.AsyncOpenAI
+
+    @classmethod
+    def sync_client(cls, api_key: str):
+        cls._resolve_clients()
         if api_key not in cls._sync_client_instances:
             client = cls._sync_client_(
                 api_key=api_key,
@@ -64,7 +78,8 @@ class OpenAIServiceV2(InferenceServiceABC):
         return cls._sync_client_instances[api_key]
 
     @classmethod
-    def async_client(cls, api_key: str) -> openai.AsyncOpenAI:
+    def async_client(cls, api_key: str):
+        cls._resolve_clients()
         if api_key not in cls._async_client_instances:
             client = cls._async_client_(
                 api_key=api_key,
@@ -143,10 +158,10 @@ class OpenAIServiceV2(InferenceServiceABC):
                 "reasoning": None,
             }
 
-            def sync_client(self) -> openai.OpenAI:
+            def sync_client(self):
                 return cls.sync_client(api_key=self.api_token)
 
-            def async_client(self) -> openai.AsyncOpenAI:
+            def async_client(self):
                 return cls.async_client(api_key=self.api_token)
 
             @classmethod

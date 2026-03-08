@@ -397,25 +397,6 @@ class TaskHistory(RepresentationMixin):
 
         print(self.get_updates())
 
-    def plot_completion_times(self):
-        """Plot the completion times for each task."""
-        import matplotlib.pyplot as plt
-
-        updates = self.get_updates()
-
-        elapsed = [update.max_time - update.min_time for update in updates]
-        for i, update in enumerate(updates):
-            if update[-1]["value"] != TaskStatus.SUCCESS:
-                elapsed[i] = 0
-        x = range(len(elapsed))
-        y = elapsed
-
-        plt.bar(x, y)
-        plt.title("Per-interview completion times")
-        plt.xlabel("Task")
-        plt.ylabel("Time (seconds)")
-        plt.show()
-
     def plotting_data(self, num_periods=100):
         updates = self.get_updates()
 
@@ -451,51 +432,6 @@ class TaskHistory(RepresentationMixin):
             new_counts.append(d)
 
         return new_counts
-
-    def plot(self, num_periods=100, get_embedded_html=False):
-        """Plot the number of tasks in each state over time."""
-        new_counts = self.plotting_data(num_periods)
-        max_count = max([max(entry.values()) for entry in new_counts])
-
-        rows = int(len(TaskStatus) ** 0.5) + 1
-        cols = (len(TaskStatus) + rows - 1) // rows  # Ensure all plots fit
-
-        import matplotlib.pyplot as plt
-
-        fig, axes = plt.subplots(rows, cols, figsize=(15, 10))
-        axes = axes.flatten()  # Flatten in case of a single row/column
-
-        for i, status in enumerate(TaskStatus):
-            ax = axes[i]
-            x = range(len(new_counts))
-            y = [
-                item.get(status, 0) for item in new_counts
-            ]  # Use .get() to handle missing keys safely
-            ax.plot(x, y, marker="o", linestyle="-")
-            ax.set_title(status.name)
-            ax.set_xlabel("Time Periods")
-            ax.set_ylabel("Count")
-            ax.grid(True)
-            ax.set_ylim(0, max_count)
-
-        # Hide any unused subplots
-        for ax in axes[len(TaskStatus) :]:
-            ax.axis("off")
-
-        plt.tight_layout()
-
-        if get_embedded_html:
-            buffer = BytesIO()
-            fig.savefig(buffer, format="png")
-            plt.close(fig)
-            buffer.seek(0)
-
-            # Encode plot to base64 string
-            img_data = base64.b64encode(buffer.getvalue()).decode("utf-8")
-            buffer.close()
-            return f'<img src="data:image/png;base64,{img_data}" alt="Plot">'
-        else:
-            plt.show()
 
     def css(self):
         from importlib import resources

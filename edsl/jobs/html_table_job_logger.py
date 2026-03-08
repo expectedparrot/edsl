@@ -3,8 +3,6 @@ import uuid
 from datetime import datetime
 from typing import Union
 
-from IPython.display import display, HTML
-
 from .jobs_remote_inference_logger import JobLogger
 from .jobs_status_enums import JobsStatus
 
@@ -12,6 +10,9 @@ from .jobs_status_enums import JobsStatus
 class HTMLTableJobLogger(JobLogger):
     def __init__(self, verbose=True, **kwargs):
         super().__init__(verbose=verbose)
+        from IPython.display import display, HTML
+
+        self._HTML = HTML
         self.display_handle = display(HTML(""), display_id=True)
         self.current_message = None
         self.log_id = str(uuid.uuid4())
@@ -123,7 +124,7 @@ class HTMLTableJobLogger(JobLogger):
             self.is_expanded = False
 
         if self.verbose:
-            self.display_handle.update(HTML(self._get_html(status)))
+            self.display_handle.update(self._HTML(self._get_html(status)))
         else:
             return None
 

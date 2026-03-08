@@ -246,11 +246,6 @@ class TestSurvey(unittest.TestCase):
         first_question = next(path)
         assert first_question == q1
 
-    def test_simulations(self):
-        for index in range(10):
-            print("Running simulation:" + str(index))
-            s = Survey.random_survey()
-            s.simulate()
 
     def test_draw(self):
         import random

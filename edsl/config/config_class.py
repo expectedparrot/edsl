@@ -128,10 +128,6 @@ CONFIG_MAP = {
         "default": "90",
         "info": "This config var determines the maximum price before a confirmation prompt is shown.",
     },
-    "EDSL_USE_SQLITE_FOR_SCENARIO_LIST": {
-        "default": "False",
-        "info": "This config var determines whether to use SQLite for ScenarioList instances.",
-    },
     "EDSL_VERBOSE_MODE": {
         "default": "False",
         "info": "This config var determines whether to enable verbose output mode throughout the application.",

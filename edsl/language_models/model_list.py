@@ -134,11 +134,15 @@ class ModelList(Base, UserList):
     ):
         """
         >>> ModelList.example().table('model_name')
-        model_name
-        ------------
-        gpt-4o
-        gpt-4o
-        gpt-4o
+        +------------+
+        | model_name |
+        +------------+
+        | gpt-4o     |
+        +------------+
+        | gpt-4o     |
+        +------------+
+        | gpt-4o     |
+        +------------+
         """
         return (
             self.to_scenario_list()

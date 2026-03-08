@@ -17,7 +17,17 @@ logger = logging.getLogger(__name__)
 
 from .storage import StorageProtocol
 from .stores import JobStore, InterviewStore, TaskStore, AnswerStore
-from .storage_sqlalchemy import reset_db_stats, get_db_stats
+try:
+    from .storage_sqlalchemy import reset_db_stats, get_db_stats
+except ImportError:
+    # sqlalchemy not installed — provide no-op stubs
+    import time as _time
+
+    def reset_db_stats():
+        pass
+
+    def get_db_stats():
+        return {"calls": 0, "elapsed_ms": 0}
 from .models import (
     JobDefinition,
     JobStatus,

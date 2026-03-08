@@ -358,8 +358,12 @@ class InterviewExceptionCollection(UserDict):
 
     def ascii_table(self, traceback: bool = False) -> None:
         """Print the collection of exceptions as an ASCII table."""
-        headers = ["Question name", "Exception", "Time", "Traceback"]
-        from tabulate import tabulate
+        from ..dataset.display.table_display import _simple_table
+
+        if traceback:
+            headers = ["Question name", "Exception", "Time", "Traceback"]
+        else:
+            headers = ["Question name", "Exception", "Time"]
 
         data = []
         for question, exceptions in self.data.items():
@@ -375,7 +379,7 @@ class InterviewExceptionCollection(UserDict):
                     row = [question, exception["exception"], exception["time"]]
                 data.append(row)
 
-        print(tabulate(data, headers=headers, tablefmt="grid"))
+        print(_simple_table(headers, data, fmt="grid"))
 
 
 if __name__ == "__main__":

@@ -172,15 +172,20 @@ class ResultsContainer:
             ResultsError: If the surveys or created columns of the two objects don't match.
 
         Examples:
-            Access through Results instance:
-                from edsl.results import Results
-                r1 = Results.example()
-                r2 = Results.example()
-                # Combine two Results objects
-                r3 = r1 + r2
-                len(r3) == len(r1) + len(r2)  # True
+            >>> from edsl.results import Results
+            >>> r1 = Results.example()
+            >>> r2 = Results.example()
+            >>> r3 = r1 + r2
+            >>> len(r3) == len(r1) + len(r2)
+            True
 
-                # Attempting to add incompatible Results raises ResultsError
+            >>> from unittest.mock import Mock
+            >>> r4 = Results(survey=Mock())
+            >>> try:
+            ...     r1 + r4
+            ... except ResultsError:
+            ...     True
+            True
         """
         if self._results.survey != other.survey:
             raise ResultsError(
@@ -191,8 +196,6 @@ class ResultsContainer:
                 "The created columns are not the same so they cannot be added together."
             )
 
-        # Create a new ResultsSQLList with the combined data
-        # combined_data = ResultsSQLList()
         combined_data = self._results._data_class()
         combined_data.extend(self._results.data)
         combined_data.extend(other.data)

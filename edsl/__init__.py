@@ -49,11 +49,8 @@ _LAZY_MODULES = {
     "instructions",
     "jobs",
     "base",
-    "conversation",
     "extensions",
     "macros",
-    "comparisons",
-    "assistants",
 }
 
 # Cache for lazy-loaded modules
