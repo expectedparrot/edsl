@@ -37,10 +37,12 @@ jobs:
           git pull
           sed -i -E "s|edsl = \{git = \"https://github.com/expectedparrot/edsl.git\", rev = \".*\"\}|edsl = {git = \"https://github.com/expectedparrot/edsl.git\", rev = \"$COMMIT\"}|" pyproject.toml
           sed -i -E "s|edsl = \{git = \"https://github.com/expectedparrot/edsl.git\",branch = \".*\"\}|edsl = {git = \"https://github.com/expectedparrot/edsl.git\", rev = \"$COMMIT\"}|" pyproject.toml
+          source /home/stefan/expectedparrot/coopr/project/bin/activate
+          poetry lock
       - name: Run Docker Compose
         run: |
           cd /home/stefan/expectedparrot/coopr
-          docker compose build backend && docker compose up --wait
+          docker compose up --build --wait
 
       - name: Fetch and checkout last commit in EDSL
         run: |
