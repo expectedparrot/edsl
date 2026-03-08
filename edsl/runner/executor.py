@@ -5,9 +5,12 @@ Uses EDSL's language model infrastructure for actual API calls.
 Supports distributed execution with heartbeats and worker registration.
 """
 
+import logging
 from dataclasses import dataclass
 from typing import Any, TYPE_CHECKING
 import asyncio
+
+logger = logging.getLogger(__name__)
 
 from .coordinator import ExecutionCoordinator, WorkAssignment, WorkCompletion
 from .service import JobService
@@ -325,13 +328,17 @@ class ExecutionWorker:
             )
 
         except Exception as e:
-            # Return failure result instead of printing/raising
+            error_type = self._classify_error(e)
+            logger.error(
+                f"[TASK FAILED] task={task.task_id[:8]}... "
+                f"type={error_type} error={e!r}"
+            )
             return ExecutionResult(
                 task_id=task.task_id,
                 job_id=task.job_id,
                 interview_id=task.interview_id,
                 success=False,
-                error_type=self._classify_error(e),
+                error_type=error_type,
                 error_message=str(e),
             )
 
