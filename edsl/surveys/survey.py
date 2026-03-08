@@ -139,6 +139,7 @@ class Survey(Base):
         question_groups: Optional["QuestionGroupType"] = None,
         name: Optional[str] = None,
         questions_to_randomize: Optional[List[str]] = None,
+        _internal_copy: bool = False,
     ):
         """Initialize a new Survey instance.
 
@@ -215,10 +216,13 @@ class Survey(Base):
         self._navigator = SurveyNavigator(self)
         self._editor = EditSurvey(self)
 
-        # Validate survey structure (e.g., check for forward piping references)
-        # This will raise SurveyPipingReferenceError if questions are in wrong order
-        self.dag()
-        self._snapshots = [make_initial_snapshot(self)]
+        if not _internal_copy:
+            # Validate survey structure (e.g., check for forward piping references)
+            # This will raise SurveyPipingReferenceError if questions are in wrong order
+            self.dag()
+            self._snapshots = [make_initial_snapshot(self)]
+        else:
+            self._snapshots = []
 
     def clipboard_data(self) -> str:
         """Return the clipboard data for the survey."""
@@ -294,7 +298,7 @@ class Survey(Base):
 
         d = self.to_dict()
         d["questions"] = [q.to_dict() for q in new_questions]
-        new_survey = Survey.from_dict(d)
+        new_survey = Survey.from_dict(d, _internal_copy=True)
 
         # Preserve any non-serialized attributes from the new_questions
         for i, new_question in enumerate(new_questions):
@@ -357,8 +361,13 @@ class Survey(Base):
             filename: Optional path to save the output.
             renderer: "mermaid" or "pydot" (default: auto-detect).
         """
-        from edsl.surveys.extras.survey_flow_visualization import SurveyFlowVisualization
-        return SurveyFlowVisualization(self).show_flow(filename=filename, renderer=renderer)
+        from edsl.surveys.extras.survey_flow_visualization import (
+            SurveyFlowVisualization,
+        )
+
+        return SurveyFlowVisualization(self).show_flow(
+            filename=filename, renderer=renderer
+        )
 
     def add_instruction(
         self, instruction: Union["Instruction", "ChangeInstruction"]
@@ -548,7 +557,7 @@ class Survey(Base):
 
     @classmethod
     @remove_edsl_version
-    def from_dict(cls, data: dict) -> Survey:
+    def from_dict(cls, data: dict, _internal_copy: bool = False) -> Survey:
         """Reconstruct a Survey object from its dictionary representation.
 
         This class method is the counterpart to to_dict() and allows you to recreate
@@ -647,6 +656,7 @@ class Survey(Base):
             question_groups=data["question_groups"],
             questions_to_randomize=questions_to_randomize,
             name=name,
+            _internal_copy=_internal_copy,
         )
 
         return survey
@@ -1245,7 +1255,6 @@ class Survey(Base):
         """
         return self._editor.delete_question(identifier)
 
-        
     @snapshot
     @wraps(EditSurvey.add_question)
     def add_question(
@@ -3419,7 +3428,6 @@ class Survey(Base):
         from .question_renamer import QuestionRenamer
 
         return QuestionRenamer.with_renamed_question(self, old_name, new_name)
-
 
     # @classmethod
     # def generate_from_topic(
