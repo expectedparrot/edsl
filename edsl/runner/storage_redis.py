@@ -663,6 +663,34 @@ class RedisStorage:
         )
         return result.decode("utf-8") if isinstance(result, bytes) else result
 
+    def stream_add_batch(
+        self,
+        stream: str,
+        items: list[dict],
+        maxlen: int | None = None,
+        approximate: bool = True,
+    ) -> list[str]:
+        """Add multiple messages to a Redis Stream in a single pipeline.
+
+        Returns:
+            List of message IDs
+        """
+        if not items:
+            return []
+
+        key = self._stream_key(stream)
+        pipe = self._client.pipeline(transaction=False)
+        for data in items:
+            encoded = {}
+            for k, v in data.items():
+                if isinstance(v, (str, bytes)):
+                    encoded[k] = v
+                else:
+                    encoded[k] = json.dumps(v)
+            pipe.xadd(key, encoded, maxlen=maxlen, approximate=approximate)
+        results = pipe.execute()
+        return [r.decode("utf-8") if isinstance(r, bytes) else r for r in results]
+
     def stream_read(
         self,
         stream: str,

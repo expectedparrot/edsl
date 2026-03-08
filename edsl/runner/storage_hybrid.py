@@ -29,6 +29,7 @@ from typing import Any
 
 from .storage import InMemoryStorage, StorageProtocol
 from .storage_redis import RedisStorage, REDIS_AVAILABLE
+
 try:
     from .storage_sqlalchemy import SQLAlchemyStorage
 except ImportError:
@@ -335,6 +336,18 @@ class HybridStorage:
         if hasattr(self._volatile, "stream_add"):
             return self._volatile.stream_add(stream, data, maxlen, approximate)
         return None
+
+    def stream_add_batch(
+        self,
+        stream: str,
+        items: list[dict],
+        maxlen: int | None = None,
+        approximate: bool = True,
+    ) -> list[str]:
+        """Add multiple messages to a Redis Stream in a single pipeline."""
+        if hasattr(self._volatile, "stream_add_batch"):
+            return self._volatile.stream_add_batch(stream, items, maxlen, approximate)
+        return [self.stream_add(stream, item, maxlen, approximate) for item in items]
 
     def stream_read(
         self,
