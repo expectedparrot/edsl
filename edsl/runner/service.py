@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 
 from .storage import StorageProtocol
 from .stores import JobStore, InterviewStore, TaskStore, AnswerStore
+
 try:
     from .storage_sqlalchemy import reset_db_stats, get_db_stats
 except ImportError:
@@ -28,6 +29,8 @@ except ImportError:
 
     def get_db_stats():
         return {"calls": 0, "elapsed_ms": 0}
+
+
 from .models import (
     JobDefinition,
     JobStatus,
@@ -1115,14 +1118,8 @@ class JobService:
     def get_progress_lightweight(self, job_id: str) -> dict:
         """Get progress using only counters (no task-status scan).
 
-        Much faster than get_progress() because it only reads:
-        - 1 job definition (cached after first read)
-        - 1 job status (2 Redis reads: completed + failed interviews)
-        - 1 job state (1 Redis read)
-        - N interview statuses (4 reads each: completed, skipped, failed, blocked)
-
-        Does NOT read individual task statuses (which requires 800+ reads).
-        Running/pending/ready task counts are estimated from interview counters.
+        Uses batch reads to fetch all interview definitions and statuses
+        in 2 Redis pipelines instead of N×5 individual reads.
         """
         job_def = self._jobs.get_definition(job_id)
         if job_def is None:
@@ -1131,22 +1128,27 @@ class JobService:
         job_status = self._jobs.get_status(job_id)
         job_state = self._jobs.get_state(job_id)
 
-        # Aggregate from interview statuses only (no per-task reads)
+        # Batch read all interview definitions and statuses (2 pipeline calls)
+        interview_ids = job_def.interview_ids
+        interview_defs = self._interviews.get_definitions_batch(job_id, interview_ids)
+        interview_statuses = self._interviews.get_statuses_batch(interview_ids)
+
+        # Aggregate from batch results
         total_tasks = 0
         completed_tasks = 0
         skipped_tasks = 0
         failed_tasks = 0
 
-        for interview_id in job_def.interview_ids:
-            interview_def = self._interviews.get_definition(job_id, interview_id)
-            interview_status = self._interviews.get_status(interview_id)
-
+        for interview_id in interview_ids:
+            interview_def = interview_defs.get(interview_id)
             if interview_def:
                 total_tasks += interview_def.total_tasks
 
-            completed_tasks += interview_status.completed
-            skipped_tasks += interview_status.skipped
-            failed_tasks += interview_status.failed
+            interview_status = interview_statuses.get(interview_id)
+            if interview_status:
+                completed_tasks += interview_status.completed
+                skipped_tasks += interview_status.skipped
+                failed_tasks += interview_status.failed
 
         # Estimate running from remaining (without reading all task statuses)
         accounted = completed_tasks + skipped_tasks + failed_tasks
