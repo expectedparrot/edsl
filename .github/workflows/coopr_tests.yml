@@ -37,7 +37,7 @@ jobs:
           git pull
           sed -i -E "s|edsl = \{git = \"https://github.com/expectedparrot/edsl.git\", rev = \".*\"\}|edsl = {git = \"https://github.com/expectedparrot/edsl.git\", rev = \"$COMMIT\"}|" pyproject.toml
           sed -i -E "s|edsl = \{git = \"https://github.com/expectedparrot/edsl.git\",branch = \".*\"\}|edsl = {git = \"https://github.com/expectedparrot/edsl.git\", rev = \"$COMMIT\"}|" pyproject.toml
-          source /home/stefan/expectedparrot/coopr/project/bin/activate
+          source /home/stefan/expectedparrot/coopr/backend/project/bin/activate
           poetry lock
       - name: Run Docker Compose
         run: |
