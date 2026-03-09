@@ -2543,7 +2543,11 @@ class Coop(CoopFunctionsMixin):
             "scenario_list_uuid": response_json.get("scenario_list_uuid"),
         }
 
-    def get_survey_preview_url(self, survey: "Survey") -> str:
+    def get_survey_preview_url(
+        self,
+        survey: "Survey",
+        humanize_schema: Optional[Dict[str, Any]] = None,
+    ) -> str:
         """
         Create or update the survey preview for the authenticated user and return its URL.
 
@@ -2556,10 +2560,13 @@ class Coop(CoopFunctionsMixin):
         if not isinstance(survey, Survey):
             raise CoopObjectTypeError("This is not a survey.")
         survey_dict = survey.to_dict()
+        payload: Dict[str, Any] = {"survey_json": survey_dict}
+        if humanize_schema is not None:
+            payload["humanize_schema"] = humanize_schema
         response = self._send_server_request(
             uri="api/v0/human-surveys/preview",
             method="POST",
-            payload={"survey_json": survey_dict},
+            payload=payload,
         )
         self._resolve_server_response(response)
         response_json = response.json()

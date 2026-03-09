@@ -3210,14 +3210,17 @@ class Survey(Base):
         )
         return Scenario(human_survey_details)
 
-    def preview(self) -> str:
+    def preview(
+        self,
+        humanize_schema: Optional[Dict[str, Any]] = None,
+    ) -> str:
         """
         Returns a link to preview the humanize survey on Coop.
         """
         from ..coop import Coop
 
         c = Coop()
-        return c.get_survey_preview_url(self)
+        return c.get_survey_preview_url(self, humanize_schema=humanize_schema)
 
     # Add export method delegations
     def css(self):
