@@ -7,7 +7,6 @@ from typing import Any, Union, Optional, TYPE_CHECKING, Callable
 
 from ..base import PersistenceMixin, HashingMixin
 
-from .dataset_tree import Tree
 from .exceptions import DatasetKeyError, DatasetValueError, DatasetTypeError
 
 
@@ -37,8 +36,6 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
     3. Visualization capabilities including tables, plots, and reports
     4. Export to various formats (CSV, Excel, SQLite, pandas, etc.)
     5. Serialization for storage and transport
-    6. Tree-based data exploration
-
     A Dataset typically contains multiple columns, each represented as a dictionary
     with a single key-value pair. The key is the column name and the value is a list
     of values for that column. All columns must have the same length.
@@ -1037,17 +1034,6 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
             new_data.append({key: new_values})
 
         return Dataset(new_data)
-
-    def tree(self, node_order: Optional[list[str]] = None) -> Tree:
-        """Return a tree representation of the dataset.
-
-        >>> d = Dataset([{'a':[1,2,3,4]}, {'b':[4,3,2,1]}])
-        >>> d.tree()
-        Tree(Dataset({'a': [1, 2, 3, 4], 'b': [4, 3, 2, 1]}), node_order=['a', 'b'])
-        """
-        if node_order is None:
-            node_order = self.keys()
-        return Tree(self, node_order=node_order)
 
     def table(
         self,

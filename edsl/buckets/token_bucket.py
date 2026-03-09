@@ -16,7 +16,6 @@ class TokenBucket:
     and replenished at a constant rate over time.
 
     Features:
-    - Supports both local and remote operation via factory method
     - Thread-safe implementation
     - Configurable capacity and refill rates
     - Ability to track usage patterns
@@ -42,59 +41,6 @@ class TokenBucket:
         58.33
     """
 
-    def __new__(
-        cls,
-        *,
-        bucket_name: str,
-        bucket_type: str,
-        capacity: Union[int, float],
-        refill_rate: Union[int, float],
-        remote_url: Optional[str] = None,
-    ):
-        """Factory method to create either a local or remote token bucket.
-
-        This method determines whether to create a local TokenBucket instance or
-        a remote TokenBucketClient instance based on the provided parameters.
-
-        Args:
-            bucket_name: Name of the bucket for identification
-            bucket_type: Type of the bucket (e.g., 'api', 'database', etc.)
-            capacity: Maximum number of tokens the bucket can hold
-            refill_rate: Rate at which tokens are refilled (tokens per second)
-            remote_url: If provided, creates a remote token bucket client
-
-        Returns:
-            Either a TokenBucket instance (local) or a TokenBucketClient instance (remote)
-
-        Example:
-            >>> # Local bucket
-            >>> local_bucket = TokenBucket(
-            ...     bucket_name="local-rate-limit",
-            ...     bucket_type="api",
-            ...     capacity=100,
-            ...     refill_rate=10
-            ... )
-            >>> isinstance(local_bucket, TokenBucket)
-            True
-            >>> local_bucket.bucket_name
-            'local-rate-limit'
-        """
-        if remote_url is not None:
-            # Import the client directly from its module to avoid circular imports
-            from .token_bucket_client import TokenBucketClient
-
-            return TokenBucketClient(
-                bucket_name=bucket_name,
-                bucket_type=bucket_type,
-                capacity=capacity,
-                refill_rate=refill_rate,
-                api_base_url=remote_url,
-            )
-
-        # Create a local token bucket
-        instance = super(TokenBucket, cls).__new__(cls)
-        return instance
-
     def __init__(
         self,
         *,
@@ -102,7 +48,6 @@ class TokenBucket:
         bucket_type: str,
         capacity: Union[int, float],
         refill_rate: Union[int, float],
-        remote_url: Optional[str] = None,
     ):
         """Initialize a new token bucket instance.
 
@@ -113,7 +58,6 @@ class TokenBucket:
             bucket_type: Type of the bucket (e.g., 'api', 'database', etc.)
             capacity: Maximum number of tokens the bucket can hold
             refill_rate: Rate at which tokens are refilled (tokens per second)
-            remote_url: If provided, initialization is skipped (handled by __new__)
 
         Note:
             - The bucket starts full (tokens = capacity)
@@ -127,10 +71,6 @@ class TokenBucket:
             >>> bucket.target_rate == bucket.capacity * 60  # Target rate in tokens per minute
             True
         """
-        # Skip initialization if this is a remote bucket
-        if remote_url is not None:
-            return
-
         self.bucket_name = bucket_name
         self.bucket_type = bucket_type
         self.capacity = capacity

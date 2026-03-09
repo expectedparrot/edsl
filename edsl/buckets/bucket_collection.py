@@ -40,8 +40,6 @@ class BucketCollection(UserDict):
         infinity_buckets (bool): If True, all buckets have infinite capacity and refill rate
         models_to_services (dict): Maps model names to their service provider names
         services_to_buckets (dict): Maps service names to their ModelBuckets instances
-        remote_url (str, optional): URL for remote token bucket server if using distributed mode
-
     Example:
         >>> from edsl import Model
         >>> bucket_collection = BucketCollection()
@@ -74,15 +72,6 @@ class BucketCollection(UserDict):
         self.services_to_buckets = {}  # Maps service names to ModelBuckets
         self._lock = RLock()
 
-        # Check for remote token bucket server URL in environment
-        import os
-
-        url = os.environ.get("EDSL_REMOTE_TOKEN_BUCKET_URL", None)
-
-        if url == "None" or url is None:
-            self.remote_url = None
-        else:
-            self.remote_url = url
 
     @classmethod
     def from_models(
@@ -190,7 +179,6 @@ class BucketCollection(UserDict):
                     bucket_type="requests",
                     capacity=RPS,
                     refill_rate=RPS,
-                    remote_url=self.remote_url,
                 )
 
                 # Create token rate limiting bucket
@@ -199,7 +187,6 @@ class BucketCollection(UserDict):
                     bucket_type="tokens",
                     capacity=TPS,
                     refill_rate=TPS,
-                    remote_url=self.remote_url,
                 )
 
                 # Store the buckets for this service
@@ -249,8 +236,7 @@ class BucketCollection(UserDict):
                         bucket_type="requests",
                         capacity=new_rps,
                         refill_rate=new_rps,
-                        remote_url=self.remote_url,
-                    )
+                        )
                     self.services_to_buckets[service].requests_bucket = (
                         new_requests_bucket
                     )
@@ -263,8 +249,7 @@ class BucketCollection(UserDict):
                         bucket_type="tokens",
                         capacity=new_tps,
                         refill_rate=new_tps,
-                        remote_url=self.remote_url,
-                    )
+                        )
                     self.services_to_buckets[service].tokens_bucket = new_tokens_bucket
 
 
