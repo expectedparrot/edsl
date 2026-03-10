@@ -1601,6 +1601,25 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
 
         return cls([Scenario(s) for s in scenario_dicts_list])
 
+    def to_jsonl(self, filename=None):
+        """Export the ScenarioList as JSONL.
+
+        >>> sl = ScenarioList([Scenario({'food': 'pizza'}), Scenario({'food': 'tacos'})])
+        >>> sl2 = ScenarioList.from_jsonl(sl.to_jsonl())
+        >>> sl == sl2
+        True
+        """
+        from .scenario_list_serializer import ScenarioListSerializer
+
+        return ScenarioListSerializer(self).to_jsonl(filename=filename)
+
+    @classmethod
+    def from_jsonl(cls, source):
+        """Create a ScenarioList from a JSONL source (file path, string, or iterable)."""
+        from .scenario_list_serializer import ScenarioListSerializer
+
+        return ScenarioListSerializer.from_jsonl(source)
+
     @classmethod
     @remove_edsl_version
     def from_dict(cls, data: dict) -> ScenarioList:

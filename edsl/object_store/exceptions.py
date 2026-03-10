@@ -17,7 +17,7 @@ class StaleBranchError(BaseException):
             f"\n"
             f"To fix, either pull the latest version and re-apply your changes:\n"
             f"\n"
-            f"    al = AgentList.store.load(al._cas_uuid, root=root)\n"
+            f"    al = AgentList.store.load(al.store.uuid, root=root)\n"
             f"    # re-apply your changes to al\n"
             f"    al.store.save(message=\"...\")\n"
             f"\n"

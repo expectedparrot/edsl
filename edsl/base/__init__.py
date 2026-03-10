@@ -19,6 +19,7 @@ from edsl.base.base_class import (
     RepresentationMixin,
     is_iterable,
 )
+from edsl.base.store_accessor import StoreDescriptor
 from edsl.base.decorators import Snapshot, snapshot, make_initial_snapshot
 from edsl.base.base_exception import BaseException
 from edsl.base.exceptions import (
@@ -82,6 +83,8 @@ __all__ = [
     "get_token_pricing",
     "pricing",
     "service_to_api_keyname",
+    # Store accessor
+    "StoreDescriptor",
     # Decorators / snapshots
     "Snapshot",
     "snapshot",

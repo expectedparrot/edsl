@@ -546,6 +546,25 @@ class Survey(Base):
 
         return d
 
+    def to_jsonl(self, filename=None):
+        """Export the Survey as JSONL.
+
+        >>> sv = Survey.example()
+        >>> sv2 = Survey.from_jsonl(sv.to_jsonl())
+        >>> sv == sv2
+        True
+        """
+        from .survey_serializer import SurveySerializer
+
+        return SurveySerializer(self).to_jsonl(filename=filename)
+
+    @classmethod
+    def from_jsonl(cls, source):
+        """Create a Survey from a JSONL source (file path, string, or iterable)."""
+        from .survey_serializer import SurveySerializer
+
+        return SurveySerializer.from_jsonl(source)
+
     @classmethod
     @remove_edsl_version
     def from_dict(cls, data: dict) -> Survey:

@@ -135,12 +135,6 @@ class PersistenceMixin:
         """
         return self.from_dict(self.to_dict(add_edsl_version=False))
 
-    def store(self, container_dict: dict, name: Optional[str] = None):
-        if name is None:
-            name = hash(self)
-        container_dict[name] = self
-        return self
-
     def push(
         self,
         description: Optional[str] = None,
@@ -986,6 +980,9 @@ class Base(
     and capabilities across the framework.
     """
 
+    from .store_accessor import StoreDescriptor
+    store = StoreDescriptor()
+
     def get_uuid(self) -> str:
         """
         Get the UUID of this object from the Expected Parrot cloud service based on its hash.
@@ -1157,22 +1154,6 @@ class Base(
         comment = log_format.format(comment=comment)
         func(comment)
         return self
-
-    def store(self, d: dict, key_name: Optional[str] = None):
-        """Store this object in a dictionary with an optional key.
-
-        Args:
-            d: The dictionary in which to store the object
-            key_name: Optional key to use (defaults to the length of the dictionary)
-
-        Returns:
-            None
-        """
-        if key_name is None:
-            index = len(d)
-        else:
-            index = key_name
-        d[index] = self
 
     @abstractmethod
     def from_dict():

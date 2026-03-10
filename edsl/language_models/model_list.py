@@ -176,6 +176,25 @@ class ModelList(Base, UserList):
 
         return d
 
+    def to_jsonl(self, filename=None):
+        """Export the ModelList as JSONL.
+
+        >>> ml = ModelList.example()
+        >>> ml2 = ModelList.from_jsonl(ml.to_jsonl())
+        >>> ml == ml2
+        True
+        """
+        from .model_list_serializer import ModelListSerializer
+
+        return ModelListSerializer(self).to_jsonl(filename=filename)
+
+    @classmethod
+    def from_jsonl(cls, source):
+        """Create a ModelList from a JSONL source (file path, string, or iterable)."""
+        from .model_list_serializer import ModelListSerializer
+
+        return ModelListSerializer.from_jsonl(source)
+
     @classmethod
     def from_names(self, *args, **kwargs):
         """A a model list from a list of names"""

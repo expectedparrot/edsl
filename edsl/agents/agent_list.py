@@ -63,10 +63,6 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
         "https://docs.expectedparrot.com/en/latest/agents.html#agentlist-class"
     )
 
-    _cas_uuid: Optional[str] = None
-    _cas_commit: Optional[str] = None
-    _cas_branch: Optional[str] = None
-
     def __init__(
         self,
         data: Optional[list["Agent"] | str] = None,
@@ -641,9 +637,6 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
     @wraps(AgentListSerializer.to_jsonl)
     def to_jsonl(self, filename: Union[str, Path, None] = None) -> Optional[str]:
         return self._agent_list_serializer.to_jsonl(filename=filename)
-
-    from .agent_list_store_accessor import StoreDescriptor
-    store = StoreDescriptor()
 
     @classmethod
     @wraps(AgentListSerializer.from_jsonl)

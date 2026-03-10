@@ -147,6 +147,7 @@ class AgentListSerializer:
     def _build_metadata(self, add_edsl_version: bool = True) -> dict:
         """Build the metadata header row for JSONL export."""
         meta: dict = {
+            "__header__": True,
             "edsl_class_name": "AgentList",
             "n_agents": len(self._agent_list.data),
         }

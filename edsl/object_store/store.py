@@ -20,13 +20,17 @@ from .cas_repository import CASRepository
 # deserialize the JSONL content.  Lazy — entries are callables that
 # return the class.
 _CLASS_REGISTRY: dict[str, callable] = {
-    "AgentList": lambda: _import_agent_list(),
+    "AgentList": lambda: _lazy_import("edsl.agents.agent_list", "AgentList"),
+    "ScenarioList": lambda: _lazy_import("edsl.scenarios.scenario_list", "ScenarioList"),
+    "ModelList": lambda: _lazy_import("edsl.language_models.model_list", "ModelList"),
+    "Survey": lambda: _lazy_import("edsl.surveys.survey", "Survey"),
 }
 
 
-def _import_agent_list():
-    from edsl.agents.agent_list import AgentList
-    return AgentList
+def _lazy_import(module_path: str, class_name: str):
+    import importlib
+    mod = importlib.import_module(module_path)
+    return getattr(mod, class_name)
 
 
 class ObjectStore:
@@ -48,21 +52,15 @@ class ObjectStore:
         'main'
         >>> len(info['commit']) == 64
         True
-        >>> al._cas_uuid == uid
-        True
-        >>> al._cas_commit == info['commit']
-        True
-        >>> al._cas_branch == 'main'
-        True
-        >>> al2 = store.load(uid)
+        >>> al2, meta = store.load(uid)
         >>> al == al2
         True
-        >>> al2._cas_uuid == uid
+        >>> meta['uuid'] == uid
         True
-        >>> al2._cas_commit == info['commit']
+        >>> meta['commit'] == info['commit']
         True
-        >>> al2._cas_branch == 'main'
-        True
+        >>> meta['branch']
+        'main'
         >>> len(store.list()) == 1
         True
         >>> len(store.log(uid)) == 1
@@ -89,25 +87,32 @@ class ObjectStore:
     # core operations
     # ------------------------------------------------------------------
 
-    def save(self, obj, message: str = "", branch: Optional[str] = None) -> dict:
+    def save(
+        self,
+        obj,
+        message: str = "",
+        branch: Optional[str] = None,
+        uuid: Optional[str] = None,
+        expected_parent: Optional[str] = None,
+    ) -> dict:
         """Save an object to CAS.
 
         Returns a dict with ``uuid``, ``commit``, ``branch``, ``parent``,
         ``timestamp``, and ``message``.
 
-        Auto-assigns a UUID on first save, reuses on subsequent saves.
-        The object must provide ``to_jsonl() -> str``.
-
-        Uses compare-and-swap: if the object carries a ``_cas_commit``
-        from a previous save/load, the branch tip must still point at
-        that commit.  Otherwise :class:`StaleBranchError` is raised.
+        Args:
+            obj: The object to save.  Must provide ``to_jsonl() -> str``.
+            message: Commit message.
+            branch: Target branch (default: current HEAD branch).
+            uuid: Existing UUID to reuse, or *None* to auto-assign.
+            expected_parent: If given, the branch tip must still point at
+                this commit (compare-and-swap).  Otherwise
+                :class:`StaleBranchError` is raised.
         """
-        uuid = getattr(obj, "_cas_uuid", None) or str(uuid4())
-        obj._cas_uuid = uuid
+        uuid = uuid or str(uuid4())
         obj_dir = self.root / uuid
         repo = CASRepository(obj_dir)
 
-        expected_parent = getattr(obj, "_cas_commit", None)
         info = repo.save(
             obj.to_jsonl(),
             message=message,
@@ -116,25 +121,26 @@ class ObjectStore:
         )
         self._write_meta(obj_dir, type(obj).__name__, message)
 
-        # Track commit and branch on the object
-        obj._cas_commit = info["commit"]
-        obj._cas_branch = info["branch"]
-
         return {"uuid": uuid, **info}
 
     def load(self, uuid: str, commit: Optional[str] = None, branch: Optional[str] = None):
-        """Load an object by UUID. Defaults to HEAD."""
+        """Load an object by UUID. Defaults to HEAD.
+
+        Returns a tuple ``(obj, meta)`` where *meta* is a dict with
+        ``uuid``, ``commit``, and ``branch`` so the caller can track
+        CAS state however it likes.
+        """
         repo = self._repo(uuid)
         content = repo.load(commit=commit, branch=branch)
         cls = self._resolve_class(uuid)
         obj = cls.from_jsonl(content)
-        obj._cas_uuid = uuid
 
-        # Track commit and branch on the loaded object
-        obj._cas_commit = repo.resolve(commit, branch)
-        obj._cas_branch = repo.head_branch()
-
-        return obj
+        meta = {
+            "uuid": uuid,
+            "commit": repo.resolve(commit, branch),
+            "branch": repo.head_branch(),
+        }
+        return obj, meta
 
     def log(self, uuid: str, commit: Optional[str] = None, branch: Optional[str] = None) -> list[dict]:
         """Commit history for an object."""
