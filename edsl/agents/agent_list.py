@@ -640,32 +640,8 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
     def to_jsonl(self, filename: Union[str, Path, None] = None) -> Optional[str]:
         return self._agent_list_serializer.to_jsonl(filename=filename)
 
-    @wraps(AgentListSerializer.to_cas)
-    def to_cas(self, directory: Union[str, Path], message: str = "") -> str:
-        return self._agent_list_serializer.to_cas(directory=directory, message=message)
-
-    @classmethod
-    @wraps(AgentListSerializer.from_cas)
-    def from_cas(cls, directory: Union[str, Path], commit=None) -> AgentList:
-        return AgentListSerializer.from_cas(directory, commit=commit)
-
-    @staticmethod
-    @wraps(AgentListSerializer.cas_log)
-    def cas_log(directory: Union[str, Path], commit=None):
-        return AgentListSerializer.cas_log(directory, commit=commit)
-
-    def new_save(self, message: str = "", store=None) -> str:
-        """Save to the global ObjectStore. Returns the UUID."""
-        from ..object_store import ObjectStore
-        store = store or ObjectStore()
-        return store.new_save(self, message=message)
-
-    @classmethod
-    def new_load(cls, uuid: str, commit=None, store=None) -> AgentList:
-        """Load from the global ObjectStore by UUID."""
-        from ..object_store import ObjectStore
-        store = store or ObjectStore()
-        return store.new_load(uuid, commit=commit)
+    from .agent_list_store_accessor import StoreDescriptor
+    store = StoreDescriptor()
 
     @classmethod
     @wraps(AgentListSerializer.from_jsonl)

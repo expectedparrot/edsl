@@ -12,11 +12,12 @@ def cas_tree(directory: Union[str, Path]) -> str:
     """Return an ASCII tree representation of a CAS directory.
 
     >>> import tempfile
-    >>> from edsl import Agent, AgentList
-    >>> al = AgentList([Agent(traits={'age': 22})])
-    >>> d = al.to_cas(tempfile.mkdtemp(), message="test")
-    >>> print(cas_tree(d))  # doctest: +ELLIPSIS
-    agent_repo/...
+    >>> from edsl.cas_repository import CASRepository
+    >>> d = tempfile.mkdtemp()
+    >>> repo = CASRepository(d)
+    >>> _ = repo.save("hello\\n", message="test")
+    >>> len(cas_tree(d)) > 0
+    True
     """
     directory = Path(directory)
 
@@ -44,26 +45,27 @@ def cas_tree(directory: Union[str, Path]) -> str:
 def cas_blobs(directory: Union[str, Path]) -> list[dict]:
     """Return a list of blob summaries from a CAS directory.
 
-    Each dict has keys ``hash`` (short) and ``traits``.
+    Each dict has keys ``hash`` (short) and ``size`` (character count).
 
     >>> import tempfile
-    >>> from edsl import Agent, AgentList
-    >>> al = AgentList([Agent(traits={'age': 22})])
-    >>> d = al.to_cas(tempfile.mkdtemp(), message="test")
+    >>> from edsl.cas_repository import CASRepository
+    >>> d = tempfile.mkdtemp()
+    >>> repo = CASRepository(d)
+    >>> _ = repo.save("hello\\n", message="test")
     >>> blobs = cas_blobs(d)
     >>> len(blobs)
     1
-    >>> 'age' in blobs[0]['traits']
-    True
     """
     directory = Path(directory)
     blobs_dir = directory / "blobs"
+    if not blobs_dir.exists():
+        return []
     result = []
     for f in sorted(os.listdir(blobs_dir)):
-        data = json.loads((blobs_dir / f).read_text())
+        content = (blobs_dir / f).read_text()
         result.append({
             "hash": f.replace(".json", "")[:16],
-            "traits": data.get("traits", {}),
+            "size": len(content),
         })
     return result
 
@@ -74,9 +76,10 @@ def cas_status(directory: Union[str, Path]) -> dict:
     Keys: ``head``, ``num_commits``, ``num_blobs``, ``num_trees``.
 
     >>> import tempfile
-    >>> from edsl import Agent, AgentList
-    >>> al = AgentList([Agent(traits={'age': 22})])
-    >>> d = al.to_cas(tempfile.mkdtemp(), message="test")
+    >>> from edsl.cas_repository import CASRepository
+    >>> d = tempfile.mkdtemp()
+    >>> repo = CASRepository(d)
+    >>> _ = repo.save("hello\\n", message="test")
     >>> s = cas_status(d)
     >>> s['num_commits']
     1
@@ -84,9 +87,11 @@ def cas_status(directory: Union[str, Path]) -> dict:
     1
     """
     directory = Path(directory)
-    head = (directory / "HEAD").read_text().strip()
+    head_branch = (directory / "HEAD").read_text().strip()
+    ref_path = directory / "refs" / head_branch
+    commit_hash = ref_path.read_text().strip() if ref_path.exists() else head_branch
     return {
-        "head": head[:16],
+        "head": commit_hash[:16],
         "num_commits": len(os.listdir(directory / "commits")),
         "num_blobs": len(os.listdir(directory / "blobs")),
         "num_trees": len(os.listdir(directory / "trees")),
@@ -98,55 +103,53 @@ def cas_diff(
     commit_a: Optional[str] = None,
     commit_b: Optional[str] = None,
 ) -> dict:
-    """Compare two commits and return added/removed/unchanged blob hashes.
+    """Compare two commits and return whether the blob changed.
 
     Defaults: *commit_a* is the parent of HEAD, *commit_b* is HEAD.
-    Returns a dict with keys ``added``, ``removed``, ``unchanged``,
-    each a list of short hashes.
+    Returns a dict with keys ``changed`` (bool) and ``blob_a``, ``blob_b``
+    (short hashes).
 
     >>> import tempfile
-    >>> from edsl import Agent, AgentList
-    >>> al = AgentList([Agent(traits={'age': 22})])
+    >>> from edsl.cas_repository import CASRepository
     >>> d = tempfile.mkdtemp()
-    >>> al.to_cas(d, message="v1")  # doctest: +ELLIPSIS
-    '...'
-    >>> al2 = AgentList([Agent(traits={'age': 22}), Agent(traits={'age': 30})])
-    >>> al2.to_cas(d, message="v2")  # doctest: +ELLIPSIS
-    '...'
+    >>> repo = CASRepository(d)
+    >>> _ = repo.save("v1\\n", message="v1")
+    >>> _ = repo.save("v2\\n", message="v2")
     >>> diff = cas_diff(d)
-    >>> len(diff['added'])
-    1
-    >>> len(diff['unchanged'])
-    1
+    >>> diff['changed']
+    True
     """
+    from edsl.cas_repository import CASRepository
+
     directory = Path(directory)
+    repo = CASRepository(directory)
 
     if commit_b is None:
-        commit_b = (directory / "HEAD").read_text().strip()
+        commit_b = repo._resolve_head()
     if commit_a is None:
         commit_obj = json.loads(
             (directory / "commits" / f"{commit_b}.json").read_text()
         )
         commit_a = commit_obj.get("parent")
 
-    def _get_blob_set(commit_hash):
+    def _get_blob(commit_hash):
         if commit_hash is None:
-            return set()
+            return None
         commit_obj = json.loads(
             (directory / "commits" / f"{commit_hash}.json").read_text()
         )
         tree_obj = json.loads(
             (directory / "trees" / f"{commit_obj['tree']}.json").read_text()
         )
-        return set(tree_obj["hashes"])
+        return tree_obj["blob"]
 
-    blobs_a = _get_blob_set(commit_a)
-    blobs_b = _get_blob_set(commit_b)
+    blob_a = _get_blob(commit_a)
+    blob_b = _get_blob(commit_b)
 
     return {
-        "added": [h[:16] for h in sorted(blobs_b - blobs_a)],
-        "removed": [h[:16] for h in sorted(blobs_a - blobs_b)],
-        "unchanged": [h[:16] for h in sorted(blobs_a & blobs_b)],
+        "changed": blob_a != blob_b,
+        "blob_a": blob_a[:16] if blob_a else None,
+        "blob_b": blob_b[:16] if blob_b else None,
     }
 
 
@@ -157,17 +160,18 @@ def cas_summary(directory: Union[str, Path]) -> str:
     for display or printing.
 
     >>> import tempfile
-    >>> from edsl import Agent, AgentList
-    >>> al = AgentList([Agent(traits={'age': 22})])
-    >>> d = al.to_cas(tempfile.mkdtemp(), message="first commit")
+    >>> from edsl.cas_repository import CASRepository
+    >>> d = tempfile.mkdtemp()
+    >>> repo = CASRepository(d)
+    >>> _ = repo.save("hello\\n", message="first commit")
     >>> print(cas_summary(d))  # doctest: +ELLIPSIS
     CAS Repository...
     """
-    from edsl.agents.agent_list_serializer import AgentListSerializer
+    from edsl.cas_repository import CASRepository
 
     directory = Path(directory)
     status = cas_status(directory)
-    log = AgentListSerializer.cas_log(directory)
+    log = CASRepository(directory).log()
     blobs = cas_blobs(directory)
 
     lines = [
@@ -187,7 +191,7 @@ def cas_summary(directory: Union[str, Path]) -> str:
     lines.append("")
     lines.append("Blobs:")
     for b in blobs:
-        lines.append(f"  {b['hash']}...  {b['traits']}")
+        lines.append(f"  {b['hash']}...  size={b['size']}")
 
     return "\n".join(lines)
 
