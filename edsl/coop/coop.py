@@ -2467,6 +2467,7 @@ class Coop(CoopFunctionsMixin):
         scenario_list_description: Optional[str] = None,
         scenario_list_alias: Optional[str] = None,
         scenario_list_visibility: Optional[VisibilityType] = "private",
+        humanize_schema: Optional[Dict[str, Any]] = None,
     ):
         """
         Create a human survey on Coop, first creating the survey and scenario list (if scenarios are used).
@@ -2496,17 +2497,20 @@ class Coop(CoopFunctionsMixin):
             scenario_list_uuid = scenario_list_details.get("uuid")
         else:
             scenario_list_uuid = None
+        payload: Dict[str, Any] = {
+            "human_survey_name": human_survey_name,
+            "survey_uuid": str(survey_uuid),
+            "scenario_list_uuid": (
+                str(scenario_list_uuid) if scenario_list_uuid is not None else None
+            ),
+            "scenario_list_method": scenario_list_method,
+        }
+        if humanize_schema is not None:
+            payload["humanize_schema"] = humanize_schema
         response = self._send_server_request(
             uri="api/v0/human-surveys",
             method="POST",
-            payload={
-                "human_survey_name": human_survey_name,
-                "survey_uuid": str(survey_uuid),
-                "scenario_list_uuid": (
-                    str(scenario_list_uuid) if scenario_list_uuid is not None else None
-                ),
-                "scenario_list_method": scenario_list_method,
-            },
+            payload=payload,
         )
         self._resolve_server_response(response)
         response_json = response.json()
