@@ -29,7 +29,10 @@ class ClassStoreAccessor:
         >>> from edsl import Agent, AgentList
         >>> root = tempfile.mkdtemp()
         >>> al = AgentList([Agent(traits={'age': 22})])
-        >>> uid = al.store.save(message="test", root=root)
+        >>> info = al.store.save(message="test", root=root)
+        >>> uid = info['uuid']
+        >>> 'commit' in info and 'branch' in info
+        True
         >>> al2 = AgentList.store.load(uid, root=root)
         >>> al == al2
         True
@@ -44,6 +47,11 @@ class ClassStoreAccessor:
         """Load an AgentList by UUID from the store."""
         from ..object_store import ObjectStore
         return ObjectStore(root).load(uuid, commit=commit, branch=branch)
+
+    def log(self, uuid: str, commit=None, branch=None, root=None) -> list[dict]:
+        """Commit history for an object in the store."""
+        from ..object_store import ObjectStore
+        return ObjectStore(root).log(uuid, commit=commit, branch=branch)
 
     def list(self, root=None) -> list:
         """List all objects in the store."""
@@ -69,8 +77,10 @@ class InstanceStoreAccessor(ClassStoreAccessor):
         >>> from edsl import Agent, AgentList
         >>> root = tempfile.mkdtemp()
         >>> al = AgentList([Agent(traits={'age': 22})])
-        >>> uid = al.store.save(message="first", root=root)
-        >>> al._cas_uuid == uid
+        >>> info = al.store.save(message="first", root=root)
+        >>> info['branch']
+        'main'
+        >>> al._cas_uuid == info['uuid']
         True
         >>> al.store.log(root=root)[0]['message']
         'first'
@@ -79,8 +89,12 @@ class InstanceStoreAccessor(ClassStoreAccessor):
     def __init__(self, agent_list: "AgentList") -> None:
         self._agent_list = agent_list
 
-    def save(self, message: str = "", branch=None, root=None) -> str:
-        """Save this AgentList to the store. Returns its UUID."""
+    def save(self, message: str = "", branch=None, root=None) -> dict:
+        """Save this AgentList to the store.
+
+        Returns a dict with ``uuid``, ``commit``, ``branch``, ``parent``,
+        ``timestamp``, and ``message``.
+        """
         from ..object_store import ObjectStore
         return ObjectStore(root).save(self._agent_list, message=message, branch=branch)
 

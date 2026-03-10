@@ -64,6 +64,8 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
     )
 
     _cas_uuid: Optional[str] = None
+    _cas_commit: Optional[str] = None
+    _cas_branch: Optional[str] = None
 
     def __init__(
         self,

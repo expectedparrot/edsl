@@ -42,15 +42,26 @@ class ObjectStore:
         >>> from edsl import Agent, AgentList
         >>> store = ObjectStore(tempfile.mkdtemp())
         >>> al = AgentList([Agent(traits={"age": 22})])
-        >>> uid = store.save(al, message="first")
-        >>> len(uid) == 36  # UUID format
+        >>> info = store.save(al, message="first")
+        >>> uid = info['uuid']
+        >>> info['branch']
+        'main'
+        >>> len(info['commit']) == 64
         True
         >>> al._cas_uuid == uid
+        True
+        >>> al._cas_commit == info['commit']
+        True
+        >>> al._cas_branch == 'main'
         True
         >>> al2 = store.load(uid)
         >>> al == al2
         True
         >>> al2._cas_uuid == uid
+        True
+        >>> al2._cas_commit == info['commit']
+        True
+        >>> al2._cas_branch == 'main'
         True
         >>> len(store.list()) == 1
         True
@@ -78,19 +89,38 @@ class ObjectStore:
     # core operations
     # ------------------------------------------------------------------
 
-    def save(self, obj, message: str = "", branch: Optional[str] = None) -> str:
-        """Save an object to CAS. Returns its UUID.
+    def save(self, obj, message: str = "", branch: Optional[str] = None) -> dict:
+        """Save an object to CAS.
+
+        Returns a dict with ``uuid``, ``commit``, ``branch``, ``parent``,
+        ``timestamp``, and ``message``.
 
         Auto-assigns a UUID on first save, reuses on subsequent saves.
         The object must provide ``to_jsonl() -> str``.
+
+        Uses compare-and-swap: if the object carries a ``_cas_commit``
+        from a previous save/load, the branch tip must still point at
+        that commit.  Otherwise :class:`StaleBranchError` is raised.
         """
         uuid = getattr(obj, "_cas_uuid", None) or str(uuid4())
         obj._cas_uuid = uuid
         obj_dir = self.root / uuid
         repo = CASRepository(obj_dir)
-        repo.save(obj.to_jsonl(), message=message, branch=branch)
+
+        expected_parent = getattr(obj, "_cas_commit", None)
+        info = repo.save(
+            obj.to_jsonl(),
+            message=message,
+            branch=branch,
+            expected_parent=expected_parent,
+        )
         self._write_meta(obj_dir, type(obj).__name__, message)
-        return uuid
+
+        # Track commit and branch on the object
+        obj._cas_commit = info["commit"]
+        obj._cas_branch = info["branch"]
+
+        return {"uuid": uuid, **info}
 
     def load(self, uuid: str, commit: Optional[str] = None, branch: Optional[str] = None):
         """Load an object by UUID. Defaults to HEAD."""
@@ -99,6 +129,11 @@ class ObjectStore:
         cls = self._resolve_class(uuid)
         obj = cls.from_jsonl(content)
         obj._cas_uuid = uuid
+
+        # Track commit and branch on the loaded object
+        obj._cas_commit = repo.resolve(commit, branch)
+        obj._cas_branch = repo.head_branch()
+
         return obj
 
     def log(self, uuid: str, commit: Optional[str] = None, branch: Optional[str] = None) -> list[dict]:

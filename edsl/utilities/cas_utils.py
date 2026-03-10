@@ -12,7 +12,7 @@ def cas_tree(directory: Union[str, Path]) -> str:
     """Return an ASCII tree representation of a CAS directory.
 
     >>> import tempfile
-    >>> from edsl.cas_repository import CASRepository
+    >>> from edsl.object_store import CASRepository
     >>> d = tempfile.mkdtemp()
     >>> repo = CASRepository(d)
     >>> _ = repo.save("hello\\n", message="test")
@@ -48,7 +48,7 @@ def cas_blobs(directory: Union[str, Path]) -> list[dict]:
     Each dict has keys ``hash`` (short) and ``size`` (character count).
 
     >>> import tempfile
-    >>> from edsl.cas_repository import CASRepository
+    >>> from edsl.object_store import CASRepository
     >>> d = tempfile.mkdtemp()
     >>> repo = CASRepository(d)
     >>> _ = repo.save("hello\\n", message="test")
@@ -76,7 +76,7 @@ def cas_status(directory: Union[str, Path]) -> dict:
     Keys: ``head``, ``num_commits``, ``num_blobs``, ``num_trees``.
 
     >>> import tempfile
-    >>> from edsl.cas_repository import CASRepository
+    >>> from edsl.object_store import CASRepository
     >>> d = tempfile.mkdtemp()
     >>> repo = CASRepository(d)
     >>> _ = repo.save("hello\\n", message="test")
@@ -110,7 +110,7 @@ def cas_diff(
     (short hashes).
 
     >>> import tempfile
-    >>> from edsl.cas_repository import CASRepository
+    >>> from edsl.object_store import CASRepository
     >>> d = tempfile.mkdtemp()
     >>> repo = CASRepository(d)
     >>> _ = repo.save("v1\\n", message="v1")
@@ -119,7 +119,7 @@ def cas_diff(
     >>> diff['changed']
     True
     """
-    from edsl.cas_repository import CASRepository
+    from edsl.object_store import CASRepository
 
     directory = Path(directory)
     repo = CASRepository(directory)
@@ -160,14 +160,14 @@ def cas_summary(directory: Union[str, Path]) -> str:
     for display or printing.
 
     >>> import tempfile
-    >>> from edsl.cas_repository import CASRepository
+    >>> from edsl.object_store import CASRepository
     >>> d = tempfile.mkdtemp()
     >>> repo = CASRepository(d)
     >>> _ = repo.save("hello\\n", message="first commit")
     >>> print(cas_summary(d))  # doctest: +ELLIPSIS
     CAS Repository...
     """
-    from edsl.cas_repository import CASRepository
+    from edsl.object_store import CASRepository
 
     directory = Path(directory)
     status = cas_status(directory)

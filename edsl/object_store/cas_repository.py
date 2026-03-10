@@ -12,6 +12,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import List, Optional, Union
 
+from .exceptions import StaleBranchError
+
 
 class CASRepository:
     """Git-like content-addressable storage for a single directory.
@@ -28,20 +30,25 @@ class CASRepository:
     Examples:
         >>> import tempfile
         >>> repo = CASRepository(tempfile.mkdtemp())
-        >>> h1 = repo.save("hello\\nworld\\n", message="first")
+        >>> info1 = repo.save("hello\\nworld\\n", message="first")
+        >>> info1['branch']
+        'main'
         >>> repo.load() == "hello\\nworld\\n"
         True
-        >>> h2 = repo.save("updated\\n", message="second")
+        >>> info2 = repo.save("updated\\n", message="second")
+        >>> info2['parent'] == info1['commit']
+        True
         >>> repo.load() == "updated\\n"
         True
-        >>> repo.load(commit=h1) == "hello\\nworld\\n"
+        >>> repo.load(commit=info1['commit']) == "hello\\nworld\\n"
         True
         >>> len(repo.log()) == 2
         True
         >>> repo.branch("experiment")
         >>> repo.checkout("experiment")
-        >>> repo.save("experiment data\\n", message="on branch")  # doctest: +ELLIPSIS
-        '...'
+        >>> info3 = repo.save("experiment data\\n", message="on branch")
+        >>> info3['branch']
+        'experiment'
         >>> repo.load(branch="main") == "updated\\n"
         True
         >>> repo.load(branch="experiment") == "experiment data\\n"
@@ -62,14 +69,24 @@ class CASRepository:
         content: str,
         message: str = "",
         branch: Optional[str] = None,
-    ) -> str:
-        """Store *content* as a new commit. Returns the commit hash."""
+        expected_parent: Optional[str] = None,
+    ) -> dict:
+        """Store *content* as a new commit.
+
+        If *expected_parent* is set the branch tip must match it exactly,
+        otherwise :class:`StaleBranchError` is raised.  This gives
+        compare-and-swap semantics at the repository level.
+
+        Returns:
+            A dict with ``commit``, ``branch``, ``parent``, ``timestamp``,
+            and ``message``.
+        """
         directory = self.directory
         head_path = directory / "HEAD"
 
         # Determine which branch to commit to
         if head_path.exists():
-            current_branch = self._head_branch()
+            current_branch = self.head_branch()
             if branch is not None and branch != current_branch:
                 self._write(head_path, branch + "\n")
                 current_branch = branch
@@ -96,10 +113,19 @@ class CASRepository:
         if ref_path.exists():
             parent = ref_path.read_text().strip() or None
 
+        # Compare-and-swap: reject if branch tip moved since caller last read
+        if expected_parent is not None and parent != expected_parent:
+            raise StaleBranchError(
+                branch=current_branch,
+                expected=expected_parent,
+                actual=parent or "(no commits)",
+            )
+
+        timestamp = datetime.now(timezone.utc).isoformat()
         commit_obj = {
             "tree": tree_hash,
             "parent": parent,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": timestamp,
             "message": message,
         }
         commit_content = json.dumps(commit_obj, sort_keys=True)
@@ -113,7 +139,13 @@ class CASRepository:
         # overwrite readable snapshot
         self._write(directory / "current.jsonl", content)
 
-        return commit_hash
+        return {
+            "commit": commit_hash,
+            "branch": current_branch,
+            "parent": parent,
+            "timestamp": timestamp,
+            "message": message,
+        }
 
     def load(
         self,
@@ -121,7 +153,7 @@ class CASRepository:
         branch: Optional[str] = None,
     ) -> str:
         """Load content string from a commit. Defaults to HEAD."""
-        commit_hash = self._resolve(commit, branch)
+        commit_hash = self.resolve(commit, branch)
         commit_obj = json.loads(
             (self.directory / "commits" / f"{commit_hash}.json").read_text()
         )
@@ -137,7 +169,7 @@ class CASRepository:
         branch: Optional[str] = None,
     ) -> List[dict]:
         """Walk the commit chain and return the history (newest first)."""
-        current: Optional[str] = self._resolve(commit, branch)
+        current: Optional[str] = self.resolve(commit, branch)
         history: list[dict] = []
         while current:
             commit_obj = json.loads(
@@ -188,6 +220,34 @@ class CASRepository:
         self._write(self.directory / "current.jsonl", content)
 
     # ------------------------------------------------------------------
+    # public helpers (formerly private)
+    # ------------------------------------------------------------------
+
+    def head_branch(self) -> Optional[str]:
+        """Return the current branch name, or None if HEAD doesn't exist."""
+        head_path = self.directory / "HEAD"
+        if not head_path.exists():
+            return None
+        return head_path.read_text().strip() or None
+
+    def resolve(
+        self,
+        commit: Optional[str],
+        branch: Optional[str] = None,
+    ) -> str:
+        """Resolve a commit/branch specification to a concrete commit hash."""
+        if commit is not None:
+            return commit
+        if branch is not None:
+            ref_path = self.directory / "refs" / branch
+            if not ref_path.exists():
+                raise FileNotFoundError(
+                    f"Branch '{branch}' does not exist: {ref_path}"
+                )
+            return ref_path.read_text().strip()
+        return self._resolve_head()
+
+    # ------------------------------------------------------------------
     # private helpers
     # ------------------------------------------------------------------
 
@@ -221,29 +281,9 @@ class CASRepository:
             )
         return ref_path.read_text().strip()
 
-    def _head_branch(self) -> Optional[str]:
-        """Return the current branch name, or None if HEAD doesn't exist."""
-        head_path = self.directory / "HEAD"
-        if not head_path.exists():
-            return None
-        return head_path.read_text().strip() or None
-
-    def _resolve(
-        self,
-        commit: Optional[str],
-        branch: Optional[str],
-    ) -> str:
-        """Resolve a commit/branch specification to a concrete commit hash."""
-        if commit is not None:
-            return commit
-        if branch is not None:
-            ref_path = self.directory / "refs" / branch
-            if not ref_path.exists():
-                raise FileNotFoundError(
-                    f"Branch '{branch}' does not exist: {ref_path}"
-                )
-            return ref_path.read_text().strip()
-        return self._resolve_head()
+    # Keep old names as aliases for backward compatibility within the package
+    _head_branch = head_branch
+    _resolve = resolve
 
 
 if __name__ == "__main__":
