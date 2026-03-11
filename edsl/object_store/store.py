@@ -24,6 +24,7 @@ _CLASS_REGISTRY: dict[str, callable] = {
     "ScenarioList": lambda: _lazy_import("edsl.scenarios.scenario_list", "ScenarioList"),
     "ModelList": lambda: _lazy_import("edsl.language_models.model_list", "ModelList"),
     "Survey": lambda: _lazy_import("edsl.surveys.survey", "Survey"),
+    "Jobs": lambda: _lazy_import("edsl.jobs.jobs", "Jobs"),
 }
 
 

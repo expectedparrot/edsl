@@ -2447,6 +2447,22 @@ class Jobs(Base):
         """
         return Jobs.from_dict(self.to_dict())
 
+    def to_jsonl(self, filename=None, root=None, message=""):
+        """Export as JSONL with CAS pointers to component objects.
+
+        Components are auto-saved to the store if not already saved.
+        """
+        from .jobs_serializer import JobsSerializer
+
+        return JobsSerializer(self).to_jsonl(filename=filename, root=root, message=message)
+
+    @classmethod
+    def from_jsonl(cls, source, root=None):
+        """Load a Jobs from a JSONL file with CAS pointers."""
+        from .jobs_serializer import JobsSerializer
+
+        return JobsSerializer.from_jsonl(source, root=root)
+
     def to_dict(self, add_edsl_version=True, full_dict=None):
         """Convert the Jobs instance to a dictionary representation.
 
