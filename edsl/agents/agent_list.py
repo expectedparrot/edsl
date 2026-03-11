@@ -635,12 +635,12 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
         )
 
     @wraps(AgentListSerializer.to_jsonl)
-    def to_jsonl(self, filename: Union[str, Path, None] = None) -> Optional[str]:
+    def to_jsonl(self, filename: Union[str, Path, None] = None, **kwargs) -> Optional[str]:
         return self._agent_list_serializer.to_jsonl(filename=filename)
 
     @classmethod
     @wraps(AgentListSerializer.from_jsonl)
-    def from_jsonl(cls, source: Union[str, Path, Iterable[str]]) -> AgentList:
+    def from_jsonl(cls, source: Union[str, Path, Iterable[str]], **kwargs) -> AgentList:
         return AgentListSerializer.from_jsonl(source)
 
     @classmethod

@@ -58,6 +58,7 @@ import random
 import os
 from collections.abc import Iterable, MutableSequence
 from functools import wraps
+from pathlib import Path
 import json
 
 
@@ -1601,24 +1602,55 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
 
         return cls([Scenario(s) for s in scenario_dicts_list])
 
-    def to_jsonl(self, filename=None):
+    def to_jsonl(self, filename=None, blob_writer=None, offload_filestores=False):
         """Export the ScenarioList as JSONL.
+
+        Args:
+            filename: Optional file path to write to. Returns string if None.
+            blob_writer: Callback ``(base64_content) -> hash`` for externalizing
+                FileStore blobs.  When provided, base64 content is replaced with
+                sentinel references in the JSONL output.
+            offload_filestores: When True and *filename* is given, automatically
+                create a sidecar directory (``<filename>.blobs/``) to store
+                extracted FileStore blobs.
 
         >>> sl = ScenarioList([Scenario({'food': 'pizza'}), Scenario({'food': 'tacos'})])
         >>> sl2 = ScenarioList.from_jsonl(sl.to_jsonl())
         >>> sl == sl2
         True
         """
-        from .scenario_list_serializer import ScenarioListSerializer
+        from .scenario_list_serializer import ScenarioListSerializer, SidecarBlobStore
 
-        return ScenarioListSerializer(self).to_jsonl(filename=filename)
+        if offload_filestores and blob_writer is None:
+            if filename is None:
+                raise ValueError(
+                    "offload_filestores=True requires a filename (sidecar "
+                    "directory cannot be created for a string return)"
+                )
+            sidecar = SidecarBlobStore(Path(str(filename) + ".blobs"))
+            blob_writer = sidecar.write_blob
+
+        return ScenarioListSerializer(self).to_jsonl(
+            filename=filename, blob_writer=blob_writer,
+        )
 
     @classmethod
-    def from_jsonl(cls, source):
-        """Create a ScenarioList from a JSONL source (file path, string, or iterable)."""
-        from .scenario_list_serializer import ScenarioListSerializer
+    def from_jsonl(cls, source, blob_reader=None):
+        """Create a ScenarioList from a JSONL source (file path, string, or iterable).
 
-        return ScenarioListSerializer.from_jsonl(source)
+        If *source* is a file path and a sidecar ``.blobs/`` directory exists
+        alongside it, blob references are automatically resolved from there.
+        """
+        from .scenario_list_serializer import ScenarioListSerializer, SidecarBlobStore
+
+        # Auto-detect sidecar directory for file paths
+        if blob_reader is None and isinstance(source, (str, Path)):
+            candidate = Path(str(source))
+            sidecar_dir = Path(str(candidate) + ".blobs")
+            if sidecar_dir.is_dir():
+                blob_reader = SidecarBlobStore(sidecar_dir).read_blob
+
+        return ScenarioListSerializer.from_jsonl(source, blob_reader=blob_reader)
 
     @classmethod
     @remove_edsl_version

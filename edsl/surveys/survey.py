@@ -546,7 +546,7 @@ class Survey(Base):
 
         return d
 
-    def to_jsonl(self, filename=None):
+    def to_jsonl(self, filename=None, **kwargs):
         """Export the Survey as JSONL.
 
         >>> sv = Survey.example()
@@ -559,7 +559,7 @@ class Survey(Base):
         return SurveySerializer(self).to_jsonl(filename=filename)
 
     @classmethod
-    def from_jsonl(cls, source):
+    def from_jsonl(cls, source, **kwargs):
         """Create a Survey from a JSONL source (file path, string, or iterable)."""
         from .survey_serializer import SurveySerializer
 

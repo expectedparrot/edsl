@@ -45,8 +45,18 @@ class MetadataIndex(Protocol):
         type_name: Optional[str] = None,
         query: Optional[str] = None,
         owner: Optional[str] = None,
+        visibility: Optional[str] = None,
+        alias: Optional[str] = None,
     ) -> list[dict]:
-        """Filter objects by type, text search, and/or owner."""
+        """Filter objects by type, text search, owner, visibility, and/or alias."""
+        ...
+
+    def get_by_alias(self, owner: str, alias: str) -> Optional[dict]:
+        """Look up an object by its owner/alias pair, or ``None``."""
+        ...
+
+    def update_metadata(self, uuid: str, **kwargs) -> None:
+        """Update metadata fields (title, alias, visibility, description) without a commit."""
         ...
 
     # ------------------------------------------------------------------

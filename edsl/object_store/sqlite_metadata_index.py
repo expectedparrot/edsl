@@ -8,9 +8,42 @@ from __future__ import annotations
 import json
 import secrets
 import sqlite3
+import threading
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
+
+
+class _ThreadSafeConnection:
+    """Thin wrapper around a sqlite3 Connection that serializes all access."""
+
+    def __init__(self, conn: sqlite3.Connection) -> None:
+        self._conn = conn
+        self._lock = threading.Lock()
+
+    def execute(self, sql, params=()):
+        with self._lock:
+            return self._conn.execute(sql, params)
+
+    def executescript(self, sql):
+        with self._lock:
+            return self._conn.executescript(sql)
+
+    def commit(self):
+        with self._lock:
+            self._conn.commit()
+
+    def close(self):
+        with self._lock:
+            self._conn.close()
+
+    @property
+    def row_factory(self):
+        return self._conn.row_factory
+
+    @row_factory.setter
+    def row_factory(self, value):
+        self._conn.row_factory = value
 
 
 class SQLiteMetadataIndex:
@@ -40,14 +73,14 @@ class SQLiteMetadataIndex:
     def __init__(self, db_path: str | Path) -> None:
         self._db_path = Path(db_path)
         self._db_path.parent.mkdir(parents=True, exist_ok=True)
-        self._conn = sqlite3.connect(str(self._db_path), check_same_thread=False)
-        self._conn.row_factory = sqlite3.Row
+        raw = sqlite3.connect(str(self._db_path), check_same_thread=False)
+        raw.row_factory = sqlite3.Row
+        self._conn = _ThreadSafeConnection(raw)
         self._conn.execute("PRAGMA journal_mode=WAL")
         self._conn.execute("PRAGMA foreign_keys=ON")
         self._ensure_schema()
 
     def _ensure_schema(self) -> None:
-        # Base tables (original schema without owner)
         self._conn.executescript(
             """
             CREATE TABLE IF NOT EXISTS objects (
@@ -55,11 +88,19 @@ class SQLiteMetadataIndex:
                 type          TEXT NOT NULL,
                 description   TEXT DEFAULT '',
                 created       TEXT NOT NULL,
-                last_modified TEXT NOT NULL
+                last_modified TEXT NOT NULL,
+                owner         TEXT,
+                title         TEXT DEFAULT '',
+                alias         TEXT,
+                visibility    TEXT DEFAULT 'private'
             );
 
             CREATE INDEX IF NOT EXISTS idx_objects_type
                 ON objects(type);
+            CREATE INDEX IF NOT EXISTS idx_objects_owner
+                ON objects(owner);
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_objects_owner_alias
+                ON objects(owner, alias) WHERE alias IS NOT NULL;
 
             CREATE TABLE IF NOT EXISTS commits (
                 hash      TEXT NOT NULL,
@@ -77,20 +118,7 @@ class SQLiteMetadataIndex:
                 ON commits(uuid);
             CREATE INDEX IF NOT EXISTS idx_commits_branch
                 ON commits(uuid, branch);
-            """
-        )
-        self._conn.commit()
 
-        # Migration: add owner column if missing (for existing DBs)
-        try:
-            self._conn.execute("SELECT owner FROM objects LIMIT 0")
-        except sqlite3.OperationalError:
-            self._conn.execute("ALTER TABLE objects ADD COLUMN owner TEXT")
-            self._conn.commit()
-
-        # Phase 4 tables: users, tokens
-        self._conn.executescript(
-            """
             CREATE TABLE IF NOT EXISTS users (
                 username  TEXT PRIMARY KEY,
                 created   TEXT NOT NULL
@@ -102,9 +130,6 @@ class SQLiteMetadataIndex:
                 created   TEXT NOT NULL,
                 FOREIGN KEY (username) REFERENCES users(username) ON DELETE CASCADE
             );
-
-            CREATE INDEX IF NOT EXISTS idx_objects_owner
-                ON objects(owner);
             """
         )
         self._conn.commit()
@@ -148,12 +173,27 @@ class SQLiteMetadataIndex:
 
     def put(self, uuid: str, meta: dict, owner: Optional[str] = None) -> None:
         self._conn.execute(
-            """INSERT INTO objects (uuid, type, description, created, last_modified, owner)
-               VALUES (:uuid, :type, :description, :created, :last_modified, :owner)
+            """INSERT INTO objects (uuid, type, description, created, last_modified, owner,
+                                   title, alias, visibility)
+               VALUES (:uuid, :type, :description, :created, :last_modified, :owner,
+                       :title, :alias, :visibility)
                ON CONFLICT(uuid) DO UPDATE SET
-                   description = excluded.description,
-                   last_modified = excluded.last_modified""",
-            {"uuid": uuid, "owner": owner, **meta},
+                   description = COALESCE(excluded.description, objects.description),
+                   last_modified = excluded.last_modified,
+                   title = COALESCE(excluded.title, objects.title),
+                   alias = COALESCE(excluded.alias, objects.alias),
+                   visibility = COALESCE(excluded.visibility, objects.visibility)""",
+            {
+                "uuid": uuid,
+                "owner": owner,
+                "type": meta.get("type", ""),
+                "description": meta.get("description", ""),
+                "created": meta.get("created", ""),
+                "last_modified": meta.get("last_modified", ""),
+                "title": meta.get("title"),
+                "alias": meta.get("alias"),
+                "visibility": meta.get("visibility", "private"),
+            },
         )
         self._conn.commit()
 
@@ -184,6 +224,8 @@ class SQLiteMetadataIndex:
         type_name: Optional[str] = None,
         query: Optional[str] = None,
         owner: Optional[str] = None,
+        visibility: Optional[str] = None,
+        alias: Optional[str] = None,
     ) -> list[dict]:
         clauses: list[str] = []
         params: list = []
@@ -191,17 +233,46 @@ class SQLiteMetadataIndex:
             clauses.append("type = ?")
             params.append(type_name)
         if query:
-            clauses.append("description LIKE ?")
-            params.append(f"%{query}%")
+            clauses.append("(description LIKE ? OR title LIKE ?)")
+            params.extend([f"%{query}%", f"%{query}%"])
         if owner:
             clauses.append("owner = ?")
             params.append(owner)
+        if visibility:
+            clauses.append("visibility = ?")
+            params.append(visibility)
+        if alias:
+            clauses.append("alias = ?")
+            params.append(alias)
         where = " AND ".join(clauses) if clauses else "1=1"
         rows = self._conn.execute(
             f"SELECT * FROM objects WHERE {where} ORDER BY last_modified DESC",
             params,
         ).fetchall()
         return [dict(r) for r in rows]
+
+    def get_by_alias(self, owner: str, alias: str) -> Optional[dict]:
+        """Look up an object by its owner/alias pair."""
+        row = self._conn.execute(
+            "SELECT * FROM objects WHERE owner = ? AND alias = ?",
+            (owner, alias),
+        ).fetchone()
+        return dict(row) if row else None
+
+    def update_metadata(self, uuid: str, **kwargs) -> None:
+        """Update metadata fields (title, alias, visibility, description) without a commit."""
+        allowed = {"title", "alias", "visibility", "description"}
+        updates = {k: v for k, v in kwargs.items() if k in allowed and v is not None}
+        if not updates:
+            return
+        now = datetime.now(timezone.utc).isoformat()
+        updates["last_modified"] = now
+        set_clause = ", ".join(f"{k} = ?" for k in updates)
+        params = list(updates.values()) + [uuid]
+        self._conn.execute(
+            f"UPDATE objects SET {set_clause} WHERE uuid = ?", params
+        )
+        self._conn.commit()
 
     # ------------------------------------------------------------------
     # Ownership

@@ -6,6 +6,7 @@ Uses :class:`CASRepository` for versioning.  Domain objects only need
 
 from __future__ import annotations
 
+import hashlib
 from datetime import datetime, timezone
 from pathlib import Path
 from uuid import uuid4
@@ -113,6 +114,10 @@ class ObjectStore:
         uuid: Optional[str] = None,
         expected_parent: Optional[str] = None,
         owner: Optional[str] = None,
+        title: Optional[str] = None,
+        alias: Optional[str] = None,
+        visibility: Optional[str] = None,
+        description: Optional[str] = None,
     ) -> dict:
         """Save an object to CAS.
 
@@ -132,8 +137,21 @@ class ObjectStore:
         backend = self._backend_factory(uuid)
         repo = CASRepository(self.root / uuid, backend=backend)
 
+        # Create a blob_writer that stores FileStore blobs directly
+        # into the CAS backend's blobs/ namespace for deduplication.
+        def blob_writer(base64_content: str) -> str:
+            h = hashlib.sha256(base64_content.encode()).hexdigest()
+            key = f"blobs/{h}.json"
+            if not backend.exists(key):
+                backend.write(key, base64_content)
+            return h
+
+        # All EDSL classes accept **kwargs on to_jsonl (Option B).
+        # Only ScenarioList actually uses blob_writer; others ignore it.
+        content = obj.to_jsonl(blob_writer=blob_writer)
+
         info = repo.save(
-            obj.to_jsonl(),
+            content,
             message=message,
             branch=branch,
             expected_parent=expected_parent,
@@ -141,7 +159,10 @@ class ObjectStore:
 
         # Update metadata index
         type_name = type(obj).__name__
-        self._update_meta(uuid, type_name, message, owner=owner)
+        self._update_meta(
+            uuid, type_name, description or message, owner=owner,
+            title=title, alias=alias, visibility=visibility,
+        )
 
         # Index the commit
         self._index.put_commit(uuid, info["commit"], {
@@ -164,7 +185,14 @@ class ObjectStore:
         repo = self._repo(uuid)
         content = repo.load(commit=commit, branch=branch)
         cls = self._resolve_class(uuid)
-        obj = cls.from_jsonl(content)
+        backend = repo._backend
+
+        # Create a blob_reader that resolves FileStore blob references
+        # from the CAS backend's blobs/ namespace.
+        def blob_reader(hash_hex: str) -> str:
+            return backend.read(f"blobs/{hash_hex}.json")
+
+        obj = cls.from_jsonl(content, blob_reader=blob_reader)
 
         meta = {
             "uuid": uuid,
@@ -276,12 +304,40 @@ class ObjectStore:
                 dest.write(tree_key, source.read(tree_key))
                 copied["trees"] += 1
 
-            # Copy blob(s) referenced by the tree
+            # Copy the main content blob referenced by the tree
             tree_obj = json.loads(source.read(tree_key))
             blob_key = f"blobs/{tree_obj['blob']}.json"
             if not dest.exists(blob_key):
                 dest.write(blob_key, source.read(blob_key))
                 copied["blobs"] += 1
+
+            # Copy any file blobs referenced within the JSONL content.
+            # FileStore offloading stores blobs at blobs/<hash>.json with
+            # hashes referenced inside the JSONL rows.
+            try:
+                content = source.read(blob_key)
+                for line in content.splitlines():
+                    if not line.strip():
+                        continue
+                    row = json.loads(line)
+                    if isinstance(row, dict) and row.get("__header__"):
+                        if not row.get("has_blobs"):
+                            break  # no file blobs to sync
+                        continue
+                    if not isinstance(row, dict):
+                        continue
+                    for val in row.values():
+                        if (
+                            isinstance(val, dict)
+                            and val.get("base64_string") == "__cas_blob__"
+                            and "__blob_hash__" in val
+                        ):
+                            fb_key = f"blobs/{val['__blob_hash__']}.json"
+                            if not dest.exists(fb_key):
+                                dest.write(fb_key, source.read(fb_key))
+                                copied["blobs"] += 1
+            except (json.JSONDecodeError, KeyError):
+                pass  # not a JSONL with blobs, skip
 
             # Copy commit
             dest.write(commit_key, commit_content)
@@ -326,6 +382,9 @@ class ObjectStore:
             remote_backend._pending_meta = {
                 "type": meta["type"],
                 "description": meta.get("description", ""),
+                "title": meta.get("title", ""),
+                "alias": meta.get("alias"),
+                "visibility": meta.get("visibility", "private"),
             }
 
         return self.sync(local_backend, remote_backend, branch=branch)
@@ -359,7 +418,14 @@ class ObjectStore:
             req = Request(meta_url, headers={"Accept": "application/json"})
             with urlopen(req) as resp:
                 remote_meta = json.loads(resp.read().decode())
-            self._update_meta(uuid, remote_meta.get("type", ""), remote_meta.get("description", ""))
+            self._update_meta(
+                uuid,
+                remote_meta.get("type", ""),
+                remote_meta.get("description", ""),
+                title=remote_meta.get("title"),
+                alias=remote_meta.get("alias"),
+                visibility=remote_meta.get("visibility"),
+            )
         except HTTPError:
             pass
 
@@ -386,7 +452,16 @@ class ObjectStore:
     # metadata helpers
     # ------------------------------------------------------------------
 
-    def _update_meta(self, uuid: str, type_name: str, message: str, owner: Optional[str] = None) -> None:
+    def _update_meta(
+        self,
+        uuid: str,
+        type_name: str,
+        message: str,
+        owner: Optional[str] = None,
+        title: Optional[str] = None,
+        alias: Optional[str] = None,
+        visibility: Optional[str] = None,
+    ) -> None:
         """Update the metadata index for an object."""
         now = datetime.now(timezone.utc).isoformat()
         existing = self._index.get(uuid)
@@ -396,11 +471,31 @@ class ObjectStore:
             meta["last_modified"] = now
             if message:
                 meta["description"] = message
+            if title is not None:
+                meta["title"] = title
+            if alias is not None:
+                meta["alias"] = alias
+            if visibility is not None:
+                meta["visibility"] = visibility
         else:
             meta = {
                 "type": type_name,
                 "description": message,
                 "created": now,
                 "last_modified": now,
+                "title": title or "",
+                "alias": alias,
+                "visibility": visibility or "private",
             }
         self._index.put(uuid, meta, owner=owner)
+
+    def update_metadata(self, uuid: str, **kwargs) -> None:
+        """Update metadata fields without creating a commit."""
+        self._index.update_metadata(uuid, **kwargs)
+
+    def get_by_alias(self, owner: str, alias: str):
+        """Look up and load an object by owner/alias."""
+        meta = self._index.get_by_alias(owner, alias)
+        if meta is None:
+            raise FileNotFoundError(f"No object with alias '{owner}/{alias}'")
+        return self.load(meta["uuid"])

@@ -146,7 +146,16 @@ class InstanceStoreAccessor(ClassStoreAccessor):
         self.commit: Optional[str] = None
         self.current_branch: Optional[str] = None
 
-    def save(self, message: str = "", branch=None, root=None) -> dict:
+    def save(
+        self,
+        message: str = "",
+        branch=None,
+        root=None,
+        title: Optional[str] = None,
+        alias: Optional[str] = None,
+        visibility: Optional[str] = None,
+        description: Optional[str] = None,
+    ) -> dict:
         """Save this object to the store.
 
         Returns a dict with ``uuid``, ``commit``, ``branch``, ``parent``,
@@ -160,11 +169,23 @@ class InstanceStoreAccessor(ClassStoreAccessor):
             branch=branch,
             uuid=self.uuid,
             expected_parent=self.commit,
+            title=title,
+            alias=alias,
+            visibility=visibility,
+            description=description,
         )
         self.uuid = info["uuid"]
         self.commit = info["commit"]
         self.current_branch = info["branch"]
         return info
+
+    def update_metadata(self, root=None, **kwargs) -> None:
+        """Update metadata (title, alias, visibility, description) without a new commit."""
+        from ..object_store import ObjectStore
+
+        if self.uuid is None:
+            raise ValueError("This object has not been saved to a store yet.")
+        ObjectStore(root).update_metadata(self.uuid, **kwargs)
 
     def load(self, uuid: str = None, commit=None, branch=None, root=None):
         """Load an object by UUID, or reload this object from its last-known UUID."""
