@@ -81,11 +81,11 @@ class CASRepository:
         content: str,
         message: str = "",
         branch: Optional[str] = None,
-        expected_parent: Optional[str] = None,
+        expected_tip: Optional[str] = None,
     ) -> dict:
         """Store *content* as a new commit.
 
-        If *expected_parent* is set the branch tip must match it exactly,
+        If *expected_tip* is set the branch tip must match it exactly,
         otherwise :class:`StaleBranchError` is raised.  This gives
         compare-and-swap semantics at the repository level.
 
@@ -125,10 +125,10 @@ class CASRepository:
             parent = b.read(ref_key).strip() or None
 
         # Compare-and-swap: reject if branch tip moved since caller last read
-        if expected_parent is not None and parent != expected_parent:
+        if expected_tip is not None and parent != expected_tip:
             raise StaleBranchError(
                 branch=current_branch,
-                expected=expected_parent,
+                expected=expected_tip,
                 actual=parent or "(no commits)",
             )
 
@@ -282,10 +282,6 @@ class CASRepository:
                 f"Branch '{branch}' referenced by HEAD does not exist"
             )
         return b.read(ref_key).strip()
-
-    # Keep old names as aliases for backward compatibility within the package
-    _head_branch = head_branch
-    _resolve = resolve
 
 
 if __name__ == "__main__":

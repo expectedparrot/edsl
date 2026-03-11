@@ -168,7 +168,7 @@ class InstanceStoreAccessor(ClassStoreAccessor):
             message=message,
             branch=branch,
             uuid=self.uuid,
-            expected_parent=self.commit,
+            expected_tip=self.commit,
             title=title,
             alias=alias,
             visibility=visibility,

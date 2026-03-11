@@ -1,4 +1,4 @@
-"""Global CAS object store at ~/.edsl_objects/.
+"""Global CAS object store.
 
 Uses :class:`CASRepository` for versioning.  Domain objects only need
 ``to_jsonl()`` / ``from_jsonl()`` — they don't know about CAS internals.
@@ -7,20 +7,28 @@ Uses :class:`CASRepository` for versioning.  Domain objects only need
 from __future__ import annotations
 
 import hashlib
+import importlib
+import json
 from datetime import datetime, timezone
 from pathlib import Path
 from uuid import uuid4
-from typing import Optional
+from typing import Callable, Optional, Type
+
+import platformdirs
 
 from .cas_repository import CASRepository
 from .fs_backend import FileSystemBackend
 from .sqlite_metadata_index import SQLiteMetadataIndex
 
 
+# ---------------------------------------------------------------------------
+# Storable class registry
+# ---------------------------------------------------------------------------
+
 # Map type-name strings (stored in metadata index) to the class that can
 # deserialize the JSONL content.  Lazy — entries are callables that
 # return the class.
-_CLASS_REGISTRY: dict[str, callable] = {
+_CLASS_REGISTRY: dict[str, Callable[[], Type]] = {
     "AgentList": lambda: _lazy_import("edsl.agents.agent_list", "AgentList"),
     "ScenarioList": lambda: _lazy_import("edsl.scenarios.scenario_list", "ScenarioList"),
     "ModelList": lambda: _lazy_import("edsl.language_models.model_list", "ModelList"),
@@ -30,9 +38,131 @@ _CLASS_REGISTRY: dict[str, callable] = {
 
 
 def _lazy_import(module_path: str, class_name: str):
-    import importlib
     mod = importlib.import_module(module_path)
     return getattr(mod, class_name)
+
+
+def register_storable(type_name: str, module_path: str, class_name: str) -> None:
+    """Register an additional storable class at runtime.
+
+    Example::
+
+        register_storable("MyList", "mypackage.mymodule", "MyList")
+    """
+    _CLASS_REGISTRY[type_name] = lambda: _lazy_import(module_path, class_name)
+
+
+# ---------------------------------------------------------------------------
+# Blob reference discovery for sync
+# ---------------------------------------------------------------------------
+
+def _discover_blob_refs(content: str) -> list[str]:
+    """Return blob hashes referenced in JSONL content via FileStore offloading.
+
+    Inspects the ``__header__`` line for a ``has_blobs`` flag, then scans
+    data rows for ``__cas_blob__`` sentinel values.  Returns an empty list
+    if there are no blob references.
+    """
+    hashes: list[str] = []
+    for line in content.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            row = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if not isinstance(row, dict):
+            continue
+        if row.get("__header__"):
+            if not row.get("has_blobs"):
+                return []  # header says no blobs — short-circuit
+            continue
+        for val in row.values():
+            if (
+                isinstance(val, dict)
+                and val.get("base64_string") == "__cas_blob__"
+                and "__blob_hash__" in val
+            ):
+                hashes.append(val["__blob_hash__"])
+    return hashes
+
+
+# ---------------------------------------------------------------------------
+# Sync helpers
+# ---------------------------------------------------------------------------
+
+def _resolve_sync_branch(source, branch: Optional[str]) -> tuple[str, str]:
+    """Resolve the branch name and tip commit hash from the source backend.
+
+    Returns ``(branch_name, tip_commit_hash)``.
+    """
+    if branch is not None:
+        ref_key = f"refs/{branch}"
+        if not source.exists(ref_key):
+            raise FileNotFoundError(f"Branch '{branch}' does not exist on source")
+        tip = source.read(ref_key).strip()
+        return branch, tip
+
+    if not source.exists("HEAD"):
+        raise FileNotFoundError("No HEAD on source — nothing to sync")
+    head_branch = source.read("HEAD").strip()
+    tip = source.read(f"refs/{head_branch}").strip()
+    return head_branch, tip
+
+
+def _sync_commit(source, dest, commit_hash: str) -> dict:
+    """Copy a single commit and its tree/blob from source to dest.
+
+    Returns a dict with counts of copied objects (``blobs``, ``trees``,
+    ``commits``) and the list of file-blob hashes referenced in the content.
+    """
+    copied = {"blobs": 0, "trees": 0, "commits": 0}
+
+    commit_key = f"commits/{commit_hash}.json"
+    commit_content = source.read(commit_key)
+    commit_obj = json.loads(commit_content)
+
+    # Copy tree
+    tree_key = f"trees/{commit_obj['tree']}.json"
+    if not dest.exists(tree_key):
+        dest.write(tree_key, source.read(tree_key))
+        copied["trees"] += 1
+
+    # Copy the main content blob referenced by the tree
+    tree_obj = json.loads(source.read(tree_key))
+    blob_key = f"blobs/{tree_obj['blob']}.json"
+    if not dest.exists(blob_key):
+        dest.write(blob_key, source.read(blob_key))
+        copied["blobs"] += 1
+
+    # Discover file-blob references in the content
+    content = source.read(blob_key)
+    blob_refs = _discover_blob_refs(content)
+
+    # Copy referenced file blobs
+    for blob_hash in blob_refs:
+        fb_key = f"blobs/{blob_hash}.json"
+        if not dest.exists(fb_key):
+            dest.write(fb_key, source.read(fb_key))
+            copied["blobs"] += 1
+
+    # Copy commit itself
+    dest.write(commit_key, commit_content)
+    copied["commits"] += 1
+
+    return {**copied, "parent": commit_obj.get("parent")}
+
+
+def _update_dest_refs(dest, branch: str, tip: str) -> None:
+    """Update ref, HEAD, and current.jsonl snapshot on the destination."""
+    dest.write(f"refs/{branch}", tip + "\n")
+    dest.write("HEAD", branch + "\n")
+
+    # Reconstruct current.jsonl from the tip commit
+    tip_commit = json.loads(dest.read(f"commits/{tip}.json"))
+    tip_tree = json.loads(dest.read(f"trees/{tip_commit['tree']}.json"))
+    dest.write("current.jsonl", dest.read(f"blobs/{tip_tree['blob']}.json"))
 
 
 class ObjectStore:
@@ -70,7 +200,7 @@ class ObjectStore:
         []
     """
 
-    DEFAULT_ROOT = Path.home() / ".edsl_objects"
+    DEFAULT_ROOT = Path(platformdirs.user_data_dir("edsl")) / "objects"
 
     def __init__(
         self,
@@ -112,7 +242,7 @@ class ObjectStore:
         message: str = "",
         branch: Optional[str] = None,
         uuid: Optional[str] = None,
-        expected_parent: Optional[str] = None,
+        expected_tip: Optional[str] = None,
         owner: Optional[str] = None,
         title: Optional[str] = None,
         alias: Optional[str] = None,
@@ -129,7 +259,7 @@ class ObjectStore:
             message: Commit message.
             branch: Target branch (default: current HEAD branch).
             uuid: Existing UUID to reuse, or *None* to auto-assign.
-            expected_parent: If given, the branch tip must still point at
+            expected_tip: If given, the branch tip must still point at
                 this commit (compare-and-swap).  Otherwise
                 :class:`StaleBranchError` is raised.
         """
@@ -154,7 +284,7 @@ class ObjectStore:
             content,
             message=message,
             branch=branch,
-            expected_parent=expected_parent,
+            expected_tip=expected_tip,
         )
 
         # Update metadata index
@@ -271,90 +401,23 @@ class ObjectStore:
             >>> CASRepository(dst_dir, backend=dst).load() == "hello\\n"
             True
         """
-        import json
+        branch, tip = _resolve_sync_branch(source, branch)
 
-        # Resolve the starting commit
-        if branch is not None:
-            ref_key = f"refs/{branch}"
-            if not source.exists(ref_key):
-                raise FileNotFoundError(f"Branch '{branch}' does not exist on source")
-            tip = source.read(ref_key).strip()
-        else:
-            if not source.exists("HEAD"):
-                raise FileNotFoundError("No HEAD on source — nothing to sync")
-            head_branch = source.read("HEAD").strip()
-            branch = head_branch
-            tip = source.read(f"refs/{branch}").strip()
-
-        # Walk commit chain, collect missing objects
-        copied = {"blobs": 0, "trees": 0, "commits": 0}
+        totals = {"blobs": 0, "trees": 0, "commits": 0}
         commit_hash = tip
         while commit_hash:
             commit_key = f"commits/{commit_hash}.json"
             if dest.exists(commit_key):
-                # Already have this commit and all its ancestors
-                break
+                break  # already have this commit and all ancestors
 
-            commit_content = source.read(commit_key)
-            commit_obj = json.loads(commit_content)
+            result = _sync_commit(source, dest, commit_hash)
+            for k in ("blobs", "trees", "commits"):
+                totals[k] += result[k]
+            commit_hash = result["parent"]
 
-            # Copy tree
-            tree_key = f"trees/{commit_obj['tree']}.json"
-            if not dest.exists(tree_key):
-                dest.write(tree_key, source.read(tree_key))
-                copied["trees"] += 1
+        _update_dest_refs(dest, branch, tip)
 
-            # Copy the main content blob referenced by the tree
-            tree_obj = json.loads(source.read(tree_key))
-            blob_key = f"blobs/{tree_obj['blob']}.json"
-            if not dest.exists(blob_key):
-                dest.write(blob_key, source.read(blob_key))
-                copied["blobs"] += 1
-
-            # Copy any file blobs referenced within the JSONL content.
-            # FileStore offloading stores blobs at blobs/<hash>.json with
-            # hashes referenced inside the JSONL rows.
-            try:
-                content = source.read(blob_key)
-                for line in content.splitlines():
-                    if not line.strip():
-                        continue
-                    row = json.loads(line)
-                    if isinstance(row, dict) and row.get("__header__"):
-                        if not row.get("has_blobs"):
-                            break  # no file blobs to sync
-                        continue
-                    if not isinstance(row, dict):
-                        continue
-                    for val in row.values():
-                        if (
-                            isinstance(val, dict)
-                            and val.get("base64_string") == "__cas_blob__"
-                            and "__blob_hash__" in val
-                        ):
-                            fb_key = f"blobs/{val['__blob_hash__']}.json"
-                            if not dest.exists(fb_key):
-                                dest.write(fb_key, source.read(fb_key))
-                                copied["blobs"] += 1
-            except (json.JSONDecodeError, KeyError):
-                pass  # not a JSONL with blobs, skip
-
-            # Copy commit
-            dest.write(commit_key, commit_content)
-            copied["commits"] += 1
-
-            commit_hash = commit_obj.get("parent")
-
-        # Update ref and HEAD
-        dest.write(f"refs/{branch}", tip + "\n")
-        dest.write("HEAD", branch + "\n")
-
-        # Update current.jsonl snapshot
-        tip_commit = json.loads(dest.read(f"commits/{tip}.json"))
-        tip_tree = json.loads(dest.read(f"trees/{tip_commit['tree']}.json"))
-        dest.write("current.jsonl", dest.read(f"blobs/{tip_tree['blob']}.json"))
-
-        return {"commit": tip, "branch": branch, **copied}
+        return {"commit": tip, "branch": branch, **totals}
 
     def push(self, uuid: str, remote_url: str, branch: Optional[str] = None, token: Optional[str] = None) -> dict:
         """Push a local object to a remote CAS service.
@@ -409,15 +472,8 @@ class ObjectStore:
         result = self.sync(remote_backend, local_backend, branch=branch)
 
         # Sync metadata from remote
-        import json
-        from urllib.request import Request, urlopen
-        from urllib.error import HTTPError
-
         try:
-            meta_url = f"{remote_url.rstrip('/')}/api/objects/{uuid}/meta"
-            req = Request(meta_url, headers={"Accept": "application/json"})
-            with urlopen(req) as resp:
-                remote_meta = json.loads(resp.read().decode())
+            remote_meta = remote_backend.get_metadata()
             self._update_meta(
                 uuid,
                 remote_meta.get("type", ""),
@@ -426,8 +482,8 @@ class ObjectStore:
                 alias=remote_meta.get("alias"),
                 visibility=remote_meta.get("visibility"),
             )
-        except HTTPError:
-            pass
+        except (KeyError, OSError):
+            pass  # remote may not support metadata endpoint
 
         return result
 

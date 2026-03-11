@@ -396,6 +396,12 @@ class SQLiteMetadataIndex:
         """Close the database connection."""
         self._conn.close()
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *args):
+        self.close()
+
 
 if __name__ == "__main__":
     import doctest

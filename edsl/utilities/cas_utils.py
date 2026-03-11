@@ -125,7 +125,7 @@ def cas_diff(
     repo = CASRepository(directory)
 
     if commit_b is None:
-        commit_b = repo._resolve_head()
+        commit_b = repo.resolve(None)
     if commit_a is None:
         commit_obj = json.loads(
             (directory / "commits" / f"{commit_b}.json").read_text()

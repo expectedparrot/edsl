@@ -9,11 +9,39 @@ updated, matching git's model of "stage objects, then push."
 
 from __future__ import annotations
 
-import hashlib
 import json
+import re
 from typing import Iterator, Optional
 from urllib.request import Request, urlopen
 from urllib.error import HTTPError
+
+
+# ---------------------------------------------------------------------------
+# Key parsing utilities
+# ---------------------------------------------------------------------------
+
+# Patterns: "blobs/<hash>.json", "trees/<hash>.json", "commits/<hash>.json"
+_CAS_KEY_RE = re.compile(r"^(blobs|trees|commits)/([0-9a-f]+)\.json$")
+_REF_KEY_RE = re.compile(r"^refs/(.+)$")
+
+
+def _parse_cas_key(key: str) -> tuple[str, str]:
+    """Parse a CAS key like ``blobs/abc123.json`` into ``("blobs", "abc123")``.
+
+    Raises :class:`KeyError` if the key doesn't match.
+    """
+    m = _CAS_KEY_RE.match(key)
+    if not m:
+        raise KeyError(f"Not a CAS object key: {key}")
+    return m.group(1), m.group(2)
+
+
+def _parse_ref_key(key: str) -> str:
+    """Parse ``refs/<branch>`` and return the branch name."""
+    m = _REF_KEY_RE.match(key)
+    if not m:
+        raise KeyError(f"Not a ref key: {key}")
+    return m.group(1)
 
 
 class HttpBackend:
@@ -60,21 +88,26 @@ class HttpBackend:
         """Map a StorageBackend key to an HTTP URL and a response extractor."""
         if key == "HEAD":
             return f"{self._prefix}/head", lambda r: r["branch"] + "\n"
-        if key.startswith("refs/"):
-            branch = key[5:]
-            return f"{self._prefix}/refs/{branch}", lambda r: r["commit"] + "\n"
-        if key.startswith("commits/") and key.endswith(".json"):
-            h = key[8:-5]
-            return f"{self._prefix}/commits/{h}", lambda r: json.dumps(r, sort_keys=True)
-        if key.startswith("trees/") and key.endswith(".json"):
-            h = key[6:-5]
-            return f"{self._prefix}/trees/{h}", lambda r: json.dumps(r, sort_keys=True)
-        if key.startswith("blobs/") and key.endswith(".json"):
-            h = key[6:-5]
-            return f"{self._prefix}/blobs/{h}", lambda r: r["content"]
         if key == "current.jsonl":
             return f"{self._prefix}/content", lambda r: r["content"]
-        raise KeyError(f"Unmapped key: {key}")
+
+        # refs/<branch>
+        try:
+            branch = _parse_ref_key(key)
+            return f"{self._prefix}/refs/{branch}", lambda r: r["commit"] + "\n"
+        except KeyError:
+            pass
+
+        # blobs/trees/commits
+        try:
+            kind, hash_hex = _parse_cas_key(key)
+        except KeyError:
+            raise KeyError(f"Unmapped key: {key}")
+
+        if kind == "blobs":
+            return f"{self._prefix}/blobs/{hash_hex}", lambda r: r["content"]
+        # trees and commits are stored as JSON objects
+        return f"{self._prefix}/{kind}/{hash_hex}", lambda r: json.dumps(r, sort_keys=True)
 
     # ------------------------------------------------------------------
     # Write (buffered)
@@ -82,29 +115,32 @@ class HttpBackend:
 
     def write(self, key: str, content: str) -> None:
         """Buffer a write.  Ref/HEAD writes trigger a flush (push)."""
-        if key.startswith("blobs/") and key.endswith(".json"):
-            h = key[6:-5]
-            self._pending_blobs[h] = content
-        elif key.startswith("trees/") and key.endswith(".json"):
-            h = key[6:-5]
-            self._pending_trees[h] = content
-        elif key.startswith("commits/") and key.endswith(".json"):
-            h = key[8:-5]
-            self._pending_commits[h] = content
-        elif key.startswith("refs/"):
-            # Ref update — flush everything as a push bundle
-            branch = key[5:]
+        # CAS object keys
+        try:
+            kind, hash_hex = _parse_cas_key(key)
+            {"blobs": self._pending_blobs,
+             "trees": self._pending_trees,
+             "commits": self._pending_commits}[kind][hash_hex] = content
+            return
+        except KeyError:
+            pass
+
+        # Ref update — flush everything as a push bundle
+        try:
+            branch = _parse_ref_key(key)
             commit_hash = content.strip()
             self._flush(branch, commit_hash)
-        elif key == "HEAD":
-            # HEAD update — just set it on the server
+            return
+        except KeyError:
+            pass
+
+        if key == "HEAD":
             self._put_json(
                 f"{self._prefix}/head",
                 {"branch": content.strip()},
             )
         elif key == "current.jsonl":
-            # Snapshot — no need to push, it's derived from the commit
-            pass
+            pass  # snapshot — derived from the commit, no push needed
         else:
             raise KeyError(f"Unmapped write key: {key}")
 
@@ -112,7 +148,7 @@ class HttpBackend:
         self,
         branch: str,
         commit_hash: str,
-        expected_parent: Optional[str] = None,
+        expected_tip: Optional[str] = None,
     ) -> dict:
         """Push buffered objects and update a ref."""
         bundle: dict = {
@@ -124,8 +160,8 @@ class HttpBackend:
                 "commit": commit_hash,
             },
         }
-        if expected_parent is not None:
-            bundle["update_ref"]["expected_parent"] = expected_parent
+        if expected_tip is not None:
+            bundle["update_ref"]["expected_tip"] = expected_tip
         if self._pending_meta is not None:
             bundle["meta"] = self._pending_meta
 
@@ -165,10 +201,21 @@ class HttpBackend:
             req = Request(
                 f"{self._prefix}",
                 method="DELETE",
+                headers=self._auth_headers(),
             )
-            urlopen(req)
-        except HTTPError:
-            pass
+            with urlopen(req, timeout=30) as resp:
+                pass
+        except HTTPError as e:
+            if e.code != 404:
+                raise
+
+    # ------------------------------------------------------------------
+    # Metadata
+    # ------------------------------------------------------------------
+
+    def get_metadata(self) -> dict:
+        """Fetch object metadata from the remote service."""
+        return self._get(f"{self._prefix}/meta")
 
     # ------------------------------------------------------------------
     # List
