@@ -27,12 +27,18 @@ class CASRepository:
         <dir>/HEAD
         <dir>/current.jsonl
 
+    Accepts an optional *backend* (:class:`StorageBackend` protocol) to
+    abstract file I/O.  Defaults to :class:`FileSystemBackend` rooted at
+    *directory*.
+
     Examples:
         >>> import tempfile
         >>> repo = CASRepository(tempfile.mkdtemp())
         >>> info1 = repo.save("hello\\nworld\\n", message="first")
         >>> info1['branch']
         'main'
+        >>> 'tree' in info1
+        True
         >>> repo.load() == "hello\\nworld\\n"
         True
         >>> info2 = repo.save("updated\\n", message="second")
@@ -57,8 +63,14 @@ class CASRepository:
         ['experiment', 'main']
     """
 
-    def __init__(self, directory: Union[str, Path]) -> None:
+    def __init__(self, directory: Union[str, Path], backend=None) -> None:
         self.directory = Path(directory)
+        if backend is not None:
+            self._backend = backend
+        else:
+            from .fs_backend import FileSystemBackend
+
+            self._backend = FileSystemBackend(self.directory)
 
     # ------------------------------------------------------------------
     # public API
@@ -78,40 +90,39 @@ class CASRepository:
         compare-and-swap semantics at the repository level.
 
         Returns:
-            A dict with ``commit``, ``branch``, ``parent``, ``timestamp``,
-            and ``message``.
+            A dict with ``commit``, ``tree``, ``branch``, ``parent``,
+            ``timestamp``, and ``message``.
         """
-        directory = self.directory
-        head_path = directory / "HEAD"
+        b = self._backend
 
         # Determine which branch to commit to
-        if head_path.exists():
+        if b.exists("HEAD"):
             current_branch = self.head_branch()
             if branch is not None and branch != current_branch:
-                self._write(head_path, branch + "\n")
+                b.write("HEAD", branch + "\n")
                 current_branch = branch
         else:
             current_branch = branch or "main"
 
         # blob
         blob_hash = self._hash(content)
-        blob_path = directory / "blobs" / f"{blob_hash}.json"
-        if not blob_path.exists():
-            self._write(blob_path, content)
+        blob_key = f"blobs/{blob_hash}.json"
+        if not b.exists(blob_key):
+            b.write(blob_key, content)
 
         # tree — single-blob reference
         tree_obj = {"blob": blob_hash}
         tree_content = json.dumps(tree_obj, sort_keys=True)
         tree_hash = self._hash(tree_content)
-        tree_path = directory / "trees" / f"{tree_hash}.json"
-        if not tree_path.exists():
-            self._write(tree_path, tree_content)
+        tree_key = f"trees/{tree_hash}.json"
+        if not b.exists(tree_key):
+            b.write(tree_key, tree_content)
 
         # commit
         parent: Optional[str] = None
-        ref_path = directory / "refs" / current_branch
-        if ref_path.exists():
-            parent = ref_path.read_text().strip() or None
+        ref_key = f"refs/{current_branch}"
+        if b.exists(ref_key):
+            parent = b.read(ref_key).strip() or None
 
         # Compare-and-swap: reject if branch tip moved since caller last read
         if expected_parent is not None and parent != expected_parent:
@@ -130,17 +141,18 @@ class CASRepository:
         }
         commit_content = json.dumps(commit_obj, sort_keys=True)
         commit_hash = self._hash(commit_content)
-        self._write(directory / "commits" / f"{commit_hash}.json", commit_content)
+        b.write(f"commits/{commit_hash}.json", commit_content)
 
         # update branch ref and HEAD
-        self._write(ref_path, commit_hash + "\n")
-        self._write(head_path, current_branch + "\n")
+        b.write(ref_key, commit_hash + "\n")
+        b.write("HEAD", current_branch + "\n")
 
         # overwrite readable snapshot
-        self._write(directory / "current.jsonl", content)
+        b.write("current.jsonl", content)
 
         return {
             "commit": commit_hash,
+            "tree": tree_hash,
             "branch": current_branch,
             "parent": parent,
             "timestamp": timestamp,
@@ -153,15 +165,11 @@ class CASRepository:
         branch: Optional[str] = None,
     ) -> str:
         """Load content string from a commit. Defaults to HEAD."""
+        b = self._backend
         commit_hash = self.resolve(commit, branch)
-        commit_obj = json.loads(
-            (self.directory / "commits" / f"{commit_hash}.json").read_text()
-        )
-        tree_obj = json.loads(
-            (self.directory / "trees" / f"{commit_obj['tree']}.json").read_text()
-        )
-        blob_hash = tree_obj["blob"]
-        return (self.directory / "blobs" / f"{blob_hash}.json").read_text()
+        commit_obj = json.loads(b.read(f"commits/{commit_hash}.json"))
+        tree_obj = json.loads(b.read(f"trees/{commit_obj['tree']}.json"))
+        return b.read(f"blobs/{tree_obj['blob']}.json")
 
     def log(
         self,
@@ -169,55 +177,55 @@ class CASRepository:
         branch: Optional[str] = None,
     ) -> List[dict]:
         """Walk the commit chain and return the history (newest first)."""
+        b = self._backend
         current: Optional[str] = self.resolve(commit, branch)
         history: list[dict] = []
         while current:
-            commit_obj = json.loads(
-                (self.directory / "commits" / f"{current}.json").read_text()
-            )
+            commit_obj = json.loads(b.read(f"commits/{current}.json"))
             history.append({"hash": current, **commit_obj})
             current = commit_obj.get("parent")
         return history
 
     def branches(self) -> List[str]:
         """List all branch names."""
-        refs_dir = self.directory / "refs"
-        if not refs_dir.exists():
-            return []
-        return sorted(f.name for f in refs_dir.iterdir() if f.is_file())
+        return sorted(
+            key.split("/", 1)[1]
+            for key in self._backend.list_prefix("refs/")
+        )
 
     def branch(self, name: str, from_branch: Optional[str] = None) -> None:
         """Create a new branch pointing at the same commit as *from_branch*.
 
         Does NOT switch HEAD.
         """
-        ref_path = self.directory / "refs" / name
-        if ref_path.exists():
+        b = self._backend
+        ref_key = f"refs/{name}"
+        if b.exists(ref_key):
             raise ValueError(f"Branch '{name}' already exists")
 
         if from_branch is not None:
-            source_ref = self.directory / "refs" / from_branch
-            if not source_ref.exists():
+            source_key = f"refs/{from_branch}"
+            if not b.exists(source_key):
                 raise FileNotFoundError(
                     f"Source branch '{from_branch}' does not exist"
                 )
-            commit_hash = source_ref.read_text().strip()
+            commit_hash = b.read(source_key).strip()
         else:
             commit_hash = self._resolve_head()
 
-        self._write(ref_path, commit_hash + "\n")
+        b.write(ref_key, commit_hash + "\n")
 
     def checkout(self, branch: str) -> None:
         """Switch HEAD to the given branch and update current.jsonl."""
-        ref_path = self.directory / "refs" / branch
-        if not ref_path.exists():
+        b = self._backend
+        if not b.exists(f"refs/{branch}"):
             raise FileNotFoundError(f"Branch '{branch}' does not exist")
 
-        self._write(self.directory / "HEAD", branch + "\n")
+        b.write("HEAD", branch + "\n")
 
         # Update current.jsonl to reflect the branch tip
         content = self.load(branch=branch)
-        self._write(self.directory / "current.jsonl", content)
+        b.write("current.jsonl", content)
 
     # ------------------------------------------------------------------
     # public helpers (formerly private)
@@ -225,10 +233,10 @@ class CASRepository:
 
     def head_branch(self) -> Optional[str]:
         """Return the current branch name, or None if HEAD doesn't exist."""
-        head_path = self.directory / "HEAD"
-        if not head_path.exists():
+        b = self._backend
+        if not b.exists("HEAD"):
             return None
-        return head_path.read_text().strip() or None
+        return b.read("HEAD").strip() or None
 
     def resolve(
         self,
@@ -239,12 +247,12 @@ class CASRepository:
         if commit is not None:
             return commit
         if branch is not None:
-            ref_path = self.directory / "refs" / branch
-            if not ref_path.exists():
+            ref_key = f"refs/{branch}"
+            if not self._backend.exists(ref_key):
                 raise FileNotFoundError(
-                    f"Branch '{branch}' does not exist: {ref_path}"
+                    f"Branch '{branch}' does not exist"
                 )
-            return ref_path.read_text().strip()
+            return self._backend.read(ref_key).strip()
         return self._resolve_head()
 
     # ------------------------------------------------------------------
@@ -256,30 +264,24 @@ class CASRepository:
         """SHA-256 hex digest of a string."""
         return hashlib.sha256(content.encode()).hexdigest()
 
-    @staticmethod
-    def _write(path: Path, content: str) -> None:
-        """Write *content* to *path*, creating parent dirs as needed."""
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(content)
-
     def _resolve_head(self) -> str:
-        """Resolve HEAD → commit hash via refs/."""
-        head_path = self.directory / "HEAD"
-        if not head_path.exists():
+        """Resolve HEAD -> commit hash via refs/."""
+        b = self._backend
+        if not b.exists("HEAD"):
             raise FileNotFoundError(
                 f"No HEAD in CAS directory: {self.directory}"
             )
-        branch = head_path.read_text().strip()
+        branch = b.read("HEAD").strip()
         if not branch:
             raise FileNotFoundError(
                 f"HEAD is empty in CAS directory: {self.directory}"
             )
-        ref_path = self.directory / "refs" / branch
-        if not ref_path.exists():
+        ref_key = f"refs/{branch}"
+        if not b.exists(ref_key):
             raise FileNotFoundError(
-                f"Branch '{branch}' referenced by HEAD does not exist: {ref_path}"
+                f"Branch '{branch}' referenced by HEAD does not exist"
             )
-        return ref_path.read_text().strip()
+        return b.read(ref_key).strip()
 
     # Keep old names as aliases for backward compatibility within the package
     _head_branch = head_branch
