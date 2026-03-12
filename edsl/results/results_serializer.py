@@ -3,9 +3,16 @@
 This module provides the ResultsSerializer class which handles serialization and
 deserialization operations for Results objects, including dictionary conversion,
 object reconstruction, shelve operations, and disk persistence.
+
+CAS JSONL format (Jobs-style pointers):
+  - Line 1: header (``__header__: true``, class name, version, n_results)
+  - Line 2: manifest with CAS pointers to Survey and Cache, plus inline metadata
+  - Lines 3–N+2: one ``Result.to_dict()`` per line (inline)
 """
 
-from typing import TYPE_CHECKING, Any, Dict
+import json
+from pathlib import Path
+from typing import Iterable, Optional, Union, TYPE_CHECKING, Any, Dict
 from ..utilities import remove_edsl_version
 
 if TYPE_CHECKING:
@@ -13,6 +20,65 @@ if TYPE_CHECKING:
     from .result import Result
 
 from .exceptions import ResultsDeserializationError
+
+
+def _open_lines(source: Union[str, Path, Iterable[str]]) -> Iterable[str]:
+    """Normalise *source* into an iterable of lines."""
+    if isinstance(source, Path):
+        with open(source, "r") as fh:
+            yield from fh
+        return
+
+    if isinstance(source, str):
+        if "\n" not in source.rstrip("\n"):
+            candidate = Path(source)
+            try:
+                if candidate.is_file():
+                    with open(candidate, "r") as fh:
+                        yield from fh
+                    return
+            except OSError:
+                pass
+        yield from source.splitlines()
+    else:
+        yield from source
+
+
+def _component_pointer(component, name: str, root=None, message: str = "") -> dict:
+    """Return a CAS pointer dict for a component, auto-saving if needed."""
+    if component.store.uuid is None:
+        component.store.save(message=message or f"auto-saved by Results.to_jsonl()", root=root)
+    return {
+        "uuid": component.store.uuid,
+        "branch": component.store.current_branch,
+        "commit": component.store.commit,
+    }
+
+
+def _save_cache_to_store(cache, root=None, message: str = "") -> dict:
+    """Save a Cache to ObjectStore directly (Cache.store is shadowed by a method)."""
+    from ..object_store import ObjectStore
+
+    obj_store = ObjectStore(root) if root else ObjectStore()
+    info = obj_store.save(cache, message=message or "auto-saved by Results.to_jsonl()")
+    return {
+        "uuid": info["uuid"],
+        "branch": info["branch"],
+        "commit": info["commit"],
+    }
+
+
+def _load_cache_from_store(pointer, root=None):
+    """Load a Cache from ObjectStore by CAS pointer."""
+    from ..object_store import ObjectStore
+
+    obj_store = ObjectStore(root) if root else ObjectStore()
+    cache, _meta = obj_store.load(
+        pointer["uuid"],
+        commit=pointer.get("commit"),
+        branch=pointer.get("branch"),
+    )
+    return cache
 
 
 class ResultsSerializer:
@@ -170,5 +236,120 @@ class ResultsSerializer:
                 results.append(result)
         except Exception as e:
             raise ResultsDeserializationError(f"Error in Results.from_dict: {e}")
+        return results
+
+    # ------------------------------------------------------------------
+    # CAS JSONL serialization (Jobs-style pointers)
+    # ------------------------------------------------------------------
+
+    def _build_header(self) -> dict:
+        from .. import __version__
+
+        return {
+            "__header__": True,
+            "edsl_class_name": "Results",
+            "edsl_version": __version__,
+            "n_results": len(self.results.data),
+        }
+
+    def _build_manifest(self, root=None, message: str = "") -> dict:
+        """Build a manifest with CAS pointers for Survey and Cache."""
+        manifest: dict = {
+            "survey": _component_pointer(
+                self.results.survey, "survey", root=root, message=message
+            ),
+            "created_columns": self.results.created_columns,
+            "name": self.results.name,
+        }
+        # Only include cache pointer if cache is non-empty
+        if hasattr(self.results, "cache") and len(self.results.cache) > 0:
+            manifest["cache"] = _save_cache_to_store(
+                self.results.cache, root=root, message=message
+            )
+        return manifest
+
+    def to_jsonl(
+        self,
+        filename: Union[str, Path, None] = None,
+        root=None,
+        message: str = "",
+        **kwargs,
+    ) -> Optional[str]:
+        """Export as JSONL with CAS pointers to Survey and Cache.
+
+        Format:
+          - Line 1: header
+          - Line 2: manifest (CAS pointers + metadata)
+          - Lines 3+: one Result.to_dict() per line
+        """
+        header = json.dumps(self._build_header())
+        manifest = json.dumps(self._build_manifest(root=root, message=message))
+        lines = [header, manifest]
+        for result in self.results.data:
+            lines.append(json.dumps(result.to_dict(add_edsl_version=True)))
+        content = "\n".join(lines) + "\n"
+
+        if filename is not None:
+            with open(filename, "w") as f:
+                f.write(content)
+            return None
+        return content
+
+    @staticmethod
+    def from_jsonl(
+        source: Union[str, Path, Iterable[str]], root=None, **kwargs
+    ) -> "Results":
+        """Create a Results instance from a CAS JSONL source.
+
+        Survey and Cache are loaded from the ObjectStore by their CAS pointers.
+        Result objects are read inline from the remaining lines.
+        """
+        from .results import Results
+        from .result import Result
+        from ..surveys import Survey
+        from ..caching import Cache
+        from ..tasks import TaskHistory
+
+        line_iter = iter(_open_lines(source))
+        _header = json.loads(next(line_iter))  # noqa: F841
+        manifest = json.loads(next(line_iter))
+
+        # Load survey from CAS
+        survey_ptr = manifest["survey"]
+        survey = Survey.store.load(
+            survey_ptr["uuid"],
+            commit=survey_ptr["commit"],
+            branch=survey_ptr["branch"],
+            root=root,
+        )
+
+        # Load cache from CAS (if pointer exists)
+        if "cache" in manifest:
+            cache = _load_cache_from_store(manifest["cache"], root=root)
+        else:
+            cache = Cache()
+
+        created_columns = manifest.get("created_columns", [])
+        name = manifest.get("name", None)
+
+        # Read inline Result objects
+        results_data = []
+        for line in line_iter:
+            line = line.strip()
+            if not line:
+                continue
+            results_data.append(Result.from_dict(json.loads(line)))
+
+        results = Results(
+            survey=survey,
+            data=[],
+            created_columns=created_columns,
+            cache=cache,
+            task_history=TaskHistory(interviews=[]),
+            name=name,
+        )
+        for result in results_data:
+            results.append(result)
+
         return results
 

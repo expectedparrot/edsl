@@ -276,30 +276,8 @@ class CacheEntry(RepresentationMixin):
         return True
 
     def __repr__(self) -> str:
-        """Return a string representation of this cache entry.
-
-        Uses the rich table format in terminals, falls back to eval-style
-        repr during doctests and in Jupyter notebooks.
-        """
-        import os
-
-        if os.environ.get("EDSL_RUNNING_DOCTESTS") == "True":
-            return self._eval_repr_()
-
-        try:
-            from IPython import get_ipython
-
-            ipy = get_ipython()
-            if ipy is not None and "IPKernelApp" in ipy.config:
-                return self._eval_repr_()
-        except (NameError, ImportError):
-            pass
-
-        result = self._summary_repr()
-        info = self._store_info_line()
-        if info:
-            result = result.rstrip() + "\n" + info
-        return result
+        """Return an eval-able string representation of this cache entry."""
+        return self._eval_repr_()
 
     def _eval_repr_(self) -> str:
         """Return an eval-able string representation of the CacheEntry."""

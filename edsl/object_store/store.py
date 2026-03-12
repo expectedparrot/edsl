@@ -32,6 +32,8 @@ _CLASS_REGISTRY: dict[str, Callable[[], Type]] = {
     "ModelList": lambda: _lazy_import("edsl.language_models.model_list", "ModelList"),
     "Survey": lambda: _lazy_import("edsl.surveys.survey", "Survey"),
     "Jobs": lambda: _lazy_import("edsl.jobs.jobs", "Jobs"),
+    "Cache": lambda: _lazy_import("edsl.caching.cache", "Cache"),
+    "Results": lambda: _lazy_import("edsl.results.results", "Results"),
 }
 
 
@@ -230,16 +232,23 @@ class ObjectStore:
         return CASRepository(self.root / uuid, backend=backend)
 
     def resolve_uuid(self, prefix: str) -> str:
-        """Resolve a UUID prefix to a full UUID.
+        """Resolve a UUID prefix **or alias** to a full UUID.
 
-        Accepts full UUIDs (returned as-is) or unique prefixes of at
-        least ``_MIN_PREFIX_LENGTH`` characters.  Raises
-        :class:`AmbiguousUUIDError` when the prefix matches more than
-        one object, and :class:`FileNotFoundError` when it matches none.
+        Accepts full UUIDs (returned as-is), unique prefixes of at
+        least ``_MIN_PREFIX_LENGTH`` characters, or an alias string.
+        Raises :class:`AmbiguousUUIDError` when the prefix matches more
+        than one object, and :class:`FileNotFoundError` when it matches
+        none.
         """
         # Full UUID (xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx) -- skip query
         if len(prefix) == 36 and prefix.count("-") == 4:
             return prefix
+
+        # Try alias lookup first (aliases can be shorter than _MIN_PREFIX_LENGTH)
+        alias_uuid = self._index.resolve_alias(prefix)
+        if alias_uuid is not None:
+            return alias_uuid
+
         if len(prefix) < _MIN_PREFIX_LENGTH:
             raise ValueError(
                 f"UUID prefix must be at least {_MIN_PREFIX_LENGTH} characters "
@@ -250,7 +259,7 @@ class ObjectStore:
             return matches[0]
         if not matches:
             raise FileNotFoundError(
-                f"No object with UUID prefix '{prefix}' in store"
+                f"No object with UUID prefix or alias '{prefix}' in store"
             )
         raise AmbiguousUUIDError(prefix, matches)
 

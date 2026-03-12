@@ -267,6 +267,14 @@ class SQLiteMetadataIndex:
         ).fetchone()
         return dict(row) if row else None
 
+    def resolve_alias(self, alias: str) -> Optional[str]:
+        """Look up a UUID by alias (any owner). Returns None if not found."""
+        row = self._conn.execute(
+            "SELECT uuid FROM objects WHERE alias = ? LIMIT 1",
+            (alias,),
+        ).fetchone()
+        return row[0] if row else None
+
     def update_metadata(self, uuid: str, **kwargs) -> None:
         """Update metadata fields (title, alias, visibility, description) without a commit."""
         allowed = {"title", "alias", "visibility", "description"}

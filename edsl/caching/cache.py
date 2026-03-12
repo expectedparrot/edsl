@@ -452,23 +452,9 @@ class Cache(Base):
             self.new_entries_to_write_later.update(new_data)
 
     def add_from_jsonl(self, filename: str, write_now: Optional[bool] = True) -> None:
-        """
-        Add entries to the cache from a JSONL.
-
-        :param write_now: Whether to write to the cache immediately (similar to `immediate_write`).
-        """
-        from .cache_entry import CacheEntry
-
-        with open(filename, "a+") as f:
-            f.seek(0)
-            lines = f.readlines()
-        new_data = {}
-        for line in lines:
-            d = json.loads(line)
-            key = list(d.keys())[0]
-            value = list(d.values())[0]
-            new_data[key] = CacheEntry(**value)
-        self.add_from_dict(new_data=new_data, write_now=write_now)
+        """Add entries to the cache from a CAS-format JSONL file."""
+        loaded = Cache.from_jsonl(filename)
+        self.add_from_dict(new_data=loaded.data, write_now=write_now)
 
     def add_from_sqlite(self, db_path: str, write_now: Optional[bool] = True):
         """
@@ -503,31 +489,48 @@ class Cache(Base):
         return cls.from_sqlite_db(path)
 
     @classmethod
-    def from_jsonl(cls, jsonlfile: str, db_path: Optional[str] = None) -> Cache:
+    def from_jsonl(cls, source, **kwargs) -> "Cache":
+        """Reconstruct a Cache from CAS-compatible JSONL content.
+
+        Accepts a raw JSONL string, a file path, or an iterable of lines.
         """
-        Construct a Cache from a JSONL file.
+        from .cache_entry import CacheEntry
+        from pathlib import Path
 
-        :param jsonlfile: The path to the JSONL file of cache entries.
-        :param db_path: The path to the SQLite database used to store the cache.
-
-        * If `db_path` is None, the cache will be stored in memory, as a dictionary.
-        * If `db_path` is provided, the cache will be stored in an SQLite database.
-        """
-        # if a file doesn't exist at jsonfile, throw an error
-        from .sql_dict import SQLiteDict
-        from .exceptions import CacheFileNotFoundError
-
-        if not os.path.exists(jsonlfile):
-            raise CacheFileNotFoundError(f"File {jsonlfile} not found")
-
-        if db_path is None:
-            data = {}
+        # Normalise source to text content
+        if isinstance(source, (str, Path)):
+            source_str = str(source)
+            # Single-line string that doesn't start with '{' — treat as file path
+            if "\n" not in source_str.rstrip("\n") and not source_str.lstrip().startswith("{"):
+                p = Path(source_str)
+                try:
+                    if p.is_file():
+                        source_str = p.read_text()
+                    else:
+                        from .exceptions import CacheFileNotFoundError
+                        raise CacheFileNotFoundError(f"File {source_str} not found")
+                except OSError:
+                    pass
+            lines = source_str.strip().splitlines()
         else:
-            data = SQLiteDict(db_path)
+            lines = [l.strip() for l in source if l.strip()]
 
-        cache = Cache(data=data)
-        cache.add_from_jsonl(jsonlfile)
-        return cache
+        if not lines:
+            return cls(data={})
+
+        # Skip header line
+        first = json.loads(lines[0])
+        if isinstance(first, dict) and first.get("__header__"):
+            lines = lines[1:]
+
+        data = {}
+        for line in lines:
+            line = line.strip()
+            if not line:
+                continue
+            row = json.loads(line)
+            data[row["key"]] = CacheEntry.from_dict(row["entry"])
+        return cls(data=data)
 
     def write_sqlite_db(self, db_path: str) -> None:
         """
@@ -555,13 +558,39 @@ class Cache(Base):
             raise CacheError("Invalid file extension. Must be .jsonl or .db")
 
     def write_jsonl(self, filename: str) -> None:
+        """Write the cache to a CAS-format JSONL file."""
+        self.to_jsonl(filename=filename)
+
+    # ------------------------------------------------------------------
+    # CAS-compatible JSONL serialization
+    # ------------------------------------------------------------------
+
+    def to_jsonl(self, filename=None, **kwargs) -> Optional[str]:
+        """Export as CAS-compatible JSONL string or write to *filename*.
+
+        Format:
+          - Line 1: header with ``__header__: true`` and metadata
+          - Lines 2–N+1: one ``{"key": "...", "entry": {...}}`` per CacheEntry
         """
-        Write the cache to a JSONL file.
-        """
-        path = os.path.join(os.getcwd(), filename)
-        with open(path, "w") as f:
-            for key, value in self.data.items():
-                f.write(json.dumps({key: value.to_dict()}) + "\n")
+        from .. import __version__
+
+        header = json.dumps({
+            "__header__": True,
+            "edsl_class_name": "Cache",
+            "edsl_version": __version__,
+            "n_entries": len(self.data),
+        })
+        lines = [header]
+        for key, entry in self.data.items():
+            lines.append(json.dumps({"key": key, "entry": entry.to_dict()}))
+        content = "\n".join(lines) + "\n"
+
+        if filename is not None:
+            with open(filename, "w") as f:
+                f.write(content)
+            return None
+        return content
+
 
     def to_scenario_list(self):
         from ..scenarios import ScenarioList, Scenario
