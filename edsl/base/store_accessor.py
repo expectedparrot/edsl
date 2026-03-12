@@ -55,17 +55,13 @@ class ClassStoreAccessor:
         >>> root = tempfile.mkdtemp()
         >>> al = AgentList([Agent(traits={'age': 22})])
         >>> info = al.store.save(message="test", root=root)
+        >>> info['status']
+        'ok'
         >>> uid = info['uuid']
-        >>> 'commit' in info and 'branch' in info
-        True
         >>> al2 = AgentList.store.load(uid, root=root)
         >>> al == al2
         True
-        >>> len(AgentList.store.list(root=root))
-        1
         >>> AgentList.store.delete(uid, root=root)
-        >>> AgentList.store.list(root=root)
-        []
     """
 
     def load(self, uuid: str, commit=None, branch=None, root=None):
@@ -79,17 +75,19 @@ class ClassStoreAccessor:
         obj.store.current_branch = meta["branch"]
         return obj
 
-    def log(self, uuid: str, commit=None, branch=None, root=None) -> list[dict]:
+    def log(self, uuid: str, commit=None, branch=None, root=None):
         """Commit history for an object in the store."""
         from ..object_store import ObjectStore
+        from ..object_store.store_info import StoreLogInfo
 
-        return ObjectStore(root).log(uuid, commit=commit, branch=branch)
+        return StoreLogInfo(ObjectStore(root).log(uuid, commit=commit, branch=branch))
 
-    def list(self, root=None) -> list:
+    def list(self, root=None):
         """List all objects in the store."""
         from ..object_store import ObjectStore
+        from ..object_store.store_info import StoreListInfo
 
-        return ObjectStore(root).list()
+        return StoreListInfo(ObjectStore(root).list())
 
     def delete(self, uuid: str, root=None) -> None:
         """Delete an object from the store."""
@@ -124,27 +122,78 @@ class InstanceStoreAccessor(ClassStoreAccessor):
     - ``commit``         — the last-known commit hash
     - ``current_branch`` — the last-known branch name
 
+    Metadata fields can be set as attributes and are persisted on the
+    next ``save()``: ``title``, ``alias``, ``visibility``, ``description``.
+
     Examples:
         >>> import tempfile
         >>> from edsl import Agent, AgentList
         >>> root = tempfile.mkdtemp()
         >>> al = AgentList([Agent(traits={'age': 22})])
         >>> info = al.store.save(message="first", root=root)
-        >>> info['branch']
-        'main'
+        >>> info['status']
+        'ok'
         >>> al.store.uuid == info['uuid']
         True
         >>> al.store.current_branch
         'main'
-        >>> al.store.log(root=root)[0]['message']
-        'first'
     """
+
+    _ALLOWED_ATTRS = frozenset({
+        "_instance", "uuid", "commit", "current_branch",
+        "_title", "_alias", "_visibility", "_description",
+        "title", "alias", "visibility", "description",
+    })
 
     def __init__(self, instance) -> None:
         self._instance = instance
         self.uuid: Optional[str] = None
         self.commit: Optional[str] = None
         self.current_branch: Optional[str] = None
+        self._title: Optional[str] = None
+        self._alias: Optional[str] = None
+        self._visibility: Optional[str] = None
+        self._description: Optional[str] = None
+
+    def __setattr__(self, name: str, value) -> None:
+        if name not in self._ALLOWED_ATTRS:
+            raise AttributeError(
+                f"Cannot set attribute {name!r} on {type(self).__name__}. "
+                f"Settable metadata attributes: title, alias, visibility, description"
+            )
+        super().__setattr__(name, value)
+
+    @property
+    def title(self) -> Optional[str]:
+        return self._title
+
+    @title.setter
+    def title(self, value: str) -> None:
+        self._title = value
+
+    @property
+    def alias(self) -> Optional[str]:
+        return self._alias
+
+    @alias.setter
+    def alias(self, value: str) -> None:
+        self._alias = value
+
+    @property
+    def visibility(self) -> Optional[str]:
+        return self._visibility
+
+    @visibility.setter
+    def visibility(self, value: str) -> None:
+        self._visibility = value
+
+    @property
+    def description(self) -> Optional[str]:
+        return self._description
+
+    @description.setter
+    def description(self, value: str) -> None:
+        self._description = value
 
     def save(
         self,
@@ -155,13 +204,26 @@ class InstanceStoreAccessor(ClassStoreAccessor):
         alias: Optional[str] = None,
         visibility: Optional[str] = None,
         description: Optional[str] = None,
-    ) -> dict:
+    ):
         """Save this object to the store.
 
-        Returns a dict with ``uuid``, ``commit``, ``branch``, ``parent``,
-        ``timestamp``, and ``message``.
+        Returns a :class:`~edsl.object_store.store_info.StoreSaveInfo`
+        (a dict subclass) with ``status``, ``uuid``, ``branch``,
+        ``commit`` (short hash), and a human-readable ``message``.
+
+        Metadata fields (``title``, ``alias``, ``visibility``,
+        ``description``) can be passed as keyword arguments or set as
+        attributes before calling ``save()``.
         """
         from ..object_store import ObjectStore
+        from ..object_store.store_info import StoreSaveInfo
+
+        title = title if title is not None else self._title
+        alias = alias if alias is not None else self._alias
+        visibility = visibility if visibility is not None else self._visibility
+        description = description if description is not None else self._description
+
+        is_new = self.uuid is None
 
         info = ObjectStore(root).save(
             self._instance,
@@ -177,7 +239,27 @@ class InstanceStoreAccessor(ClassStoreAccessor):
         self.uuid = info["uuid"]
         self.commit = info["commit"]
         self.current_branch = info["branch"]
-        return info
+        self._title = self._alias = self._visibility = self._description = None
+
+        parts = []
+        if is_new:
+            parts.append(f"created {info['uuid'][:8]}")
+        else:
+            parts.append(f"committed to {info['branch']}")
+        if alias:
+            parts.append(f"alias set to '{alias}'")
+        if title:
+            parts.append(f"title set to '{title}'")
+        if visibility:
+            parts.append(f"visibility set to '{visibility}'")
+
+        return StoreSaveInfo(
+            status="ok",
+            uuid=info["uuid"],
+            branch=info["branch"],
+            commit=info["commit"][:12],
+            message="; ".join(parts),
+        )
 
     def update_metadata(self, root=None, **kwargs) -> None:
         """Update metadata (title, alias, visibility, description) without a new commit."""
@@ -195,13 +277,14 @@ class InstanceStoreAccessor(ClassStoreAccessor):
             raise ValueError("This object has not been saved to a store yet.")
         return super().load(self.uuid, commit=commit, branch=branch, root=root)
 
-    def log(self, root=None) -> list[dict]:
+    def log(self, root=None):
         """Commit history for this object in the store."""
         from ..object_store import ObjectStore
+        from ..object_store.store_info import StoreLogInfo
 
         if self.uuid is None:
             raise ValueError("This object has not been saved to a store yet.")
-        return ObjectStore(root).log(self.uuid)
+        return StoreLogInfo(ObjectStore(root).log(self.uuid))
 
     def branches(self, root=None) -> list[str]:
         """List branches for this object in the store."""

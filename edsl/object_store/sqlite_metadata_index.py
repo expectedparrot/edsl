@@ -203,6 +203,14 @@ class SQLiteMetadataIndex:
         ).fetchone()
         return dict(row) if row else None
 
+    def resolve_prefix(self, prefix: str) -> list[str]:
+        """Return all UUIDs matching the given prefix."""
+        rows = self._conn.execute(
+            "SELECT uuid FROM objects WHERE uuid LIKE ?",
+            (prefix + "%",),
+        ).fetchall()
+        return [r["uuid"] for r in rows]
+
     def delete(self, uuid: str) -> None:
         self._conn.execute("DELETE FROM objects WHERE uuid = ?", (uuid,))
         self._conn.commit()

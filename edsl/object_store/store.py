@@ -1,8 +1,4 @@
-"""Global CAS object store.
-
-Uses :class:`CASRepository` for versioning.  Domain objects only need
-``to_jsonl()`` / ``from_jsonl()`` — they don't know about CAS internals.
-"""
+"""Global CAS object store."""
 
 from __future__ import annotations
 
@@ -17,9 +13,11 @@ from typing import Callable, Optional, Type
 import platformdirs
 
 from .cas_repository import CASRepository
+from .exceptions import AmbiguousUUIDError
 from .fs_backend import FileSystemBackend
 from .sqlite_metadata_index import SQLiteMetadataIndex
 
+_MIN_PREFIX_LENGTH = 4
 
 # ---------------------------------------------------------------------------
 # Storable class registry
@@ -109,7 +107,6 @@ def _resolve_sync_branch(source, branch: Optional[str]) -> tuple[str, str]:
     head_branch = source.read("HEAD").strip()
     tip = source.read(f"refs/{head_branch}").strip()
     return head_branch, tip
-
 
 def _sync_commit(source, dest, commit_hash: str) -> dict:
     """Copy a single commit and its tree/blob from source to dest.
@@ -232,6 +229,31 @@ class ObjectStore:
             raise FileNotFoundError(f"No object with UUID {uuid} in store")
         return CASRepository(self.root / uuid, backend=backend)
 
+    def resolve_uuid(self, prefix: str) -> str:
+        """Resolve a UUID prefix to a full UUID.
+
+        Accepts full UUIDs (returned as-is) or unique prefixes of at
+        least ``_MIN_PREFIX_LENGTH`` characters.  Raises
+        :class:`AmbiguousUUIDError` when the prefix matches more than
+        one object, and :class:`FileNotFoundError` when it matches none.
+        """
+        # Full UUID (xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx) -- skip query
+        if len(prefix) == 36 and prefix.count("-") == 4:
+            return prefix
+        if len(prefix) < _MIN_PREFIX_LENGTH:
+            raise ValueError(
+                f"UUID prefix must be at least {_MIN_PREFIX_LENGTH} characters "
+                f"(got {len(prefix)})"
+            )
+        matches = self._index.resolve_prefix(prefix)
+        if len(matches) == 1:
+            return matches[0]
+        if not matches:
+            raise FileNotFoundError(
+                f"No object with UUID prefix '{prefix}' in store"
+            )
+        raise AmbiguousUUIDError(prefix, matches)
+
     # ------------------------------------------------------------------
     # core operations
     # ------------------------------------------------------------------
@@ -306,12 +328,13 @@ class ObjectStore:
         return {"uuid": uuid, **info}
 
     def load(self, uuid: str, commit: Optional[str] = None, branch: Optional[str] = None):
-        """Load an object by UUID. Defaults to HEAD.
+        """Load an object by UUID (or unique prefix). Defaults to HEAD.
 
         Returns a tuple ``(obj, meta)`` where *meta* is a dict with
         ``uuid``, ``commit``, and ``branch`` so the caller can track
         CAS state however it likes.
         """
+        uuid = self.resolve_uuid(uuid)
         repo = self._repo(uuid)
         content = repo.load(commit=commit, branch=branch)
         cls = self._resolve_class(uuid)
@@ -337,6 +360,7 @@ class ObjectStore:
         Tries the metadata index first (fast), falls back to walking
         the commit chain in the CAS repository.
         """
+        uuid = self.resolve_uuid(uuid)
         indexed = self._index.log(uuid, branch=branch)
         if indexed:
             return indexed
@@ -345,22 +369,26 @@ class ObjectStore:
 
     def branches(self, uuid: str) -> list[str]:
         """List branches for an object."""
+        uuid = self.resolve_uuid(uuid)
         return self._repo(uuid).branches()
 
     def branch(self, uuid: str, name: str, from_branch: Optional[str] = None) -> None:
         """Create a new branch for an object."""
+        uuid = self.resolve_uuid(uuid)
         self._repo(uuid).branch(name, from_branch=from_branch)
 
     def checkout(self, uuid: str, branch: str) -> None:
         """Switch an object's HEAD to the given branch."""
+        uuid = self.resolve_uuid(uuid)
         self._repo(uuid).checkout(branch)
-
+        
     def list(self) -> list[dict]:
         """List all objects in the store."""
         return self._index.list_all()
 
     def delete(self, uuid: str) -> None:
         """Remove an object and its history from the store."""
+        uuid = self.resolve_uuid(uuid)
         self._index.delete(uuid)
         backend = self._backend_factory(uuid)
         backend.delete_tree("")
@@ -423,7 +451,7 @@ class ObjectStore:
         """Push a local object to a remote CAS service.
 
         Args:
-            uuid: The local object UUID to push.
+            uuid: The local object UUID (or unique prefix) to push.
             remote_url: Base URL of the remote CAS service.
             branch: Branch to push (default: HEAD branch).
             token: Bearer token for authentication.
@@ -433,6 +461,7 @@ class ObjectStore:
         """
         from .http_backend import HttpBackend
 
+        uuid = self.resolve_uuid(uuid)
         local_backend = self._backend_factory(uuid)
         if not local_backend.exists("HEAD"):
             raise FileNotFoundError(f"No object with UUID {uuid} in local store")
@@ -547,6 +576,7 @@ class ObjectStore:
 
     def update_metadata(self, uuid: str, **kwargs) -> None:
         """Update metadata fields without creating a commit."""
+        uuid = self.resolve_uuid(uuid)
         self._index.update_metadata(uuid, **kwargs)
 
     def get_by_alias(self, owner: str, alias: str):
