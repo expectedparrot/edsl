@@ -37,6 +37,7 @@ _CLASS_REGISTRY: dict[str, Callable[[], Type]] = {
     "QuestionBase": lambda: _lazy_import("edsl.questions.question_base", "QuestionBase"),
     "Agent": lambda: _lazy_import("edsl.agents.agent", "Agent"),
     "Scenario": lambda: _lazy_import("edsl.scenarios.scenario", "Scenario"),
+    "Instruction": lambda: _lazy_import("edsl.instructions.instruction", "Instruction"),
 }
 
 
