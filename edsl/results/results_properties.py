@@ -92,7 +92,7 @@ class ResultsProperties:
             >>> from edsl.results import Results
             >>> r = Results.example()
             >>> r.models[0]
-            Model(model_name = ...)
+            Model(...)
         """
         from ..language_models import ModelList
 

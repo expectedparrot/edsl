@@ -779,169 +779,64 @@ class QuestionBase(
             formatted_items = ",\n\t".join(items)
             return f"Question('{question_type}',\n\t{formatted_items}\n)"
 
-    def _summary_repr(
-        self, max_text_length: int = 10_000, max_options: int = 50
-    ) -> str:
-        """Generate a summary representation of the Question with Rich formatting.
-
-        Args:
-            max_text_length: Maximum length of question text before truncating
-            max_options: Maximum number of options to show before truncating
-        """
-        MAX_OPTION_LENGTH_VALUE = 160
-        from rich.console import Console
-        from rich.text import Text
-        import io
-        from edsl.config import RICH_STYLES
-
-        # Build the Rich text
-        output = Text()
-        question_type = self.to_dict().get("question_type", "unknown")
-        output.append("Question(", style=RICH_STYLES["primary"])
-        output.append(f"'{question_type}'", style=RICH_STYLES["secondary"])
-        output.append(",\n", style=RICH_STYLES["primary"])
-
-        # Question name
-        output.append("    question_name=", style=RICH_STYLES["default"])
-        output.append(f'"{self.question_name}"', style=RICH_STYLES["key"])
-        output.append(",\n", style=RICH_STYLES["default"])
-
-        # Question text with Jinja2 and angle bracket highlighting (no truncation)
+    @staticmethod
+    def _highlight_template(text: str) -> "Text":
+        """Return a ``rich.text.Text`` with ``{{ }}`` and ``< >`` spans highlighted."""
         import re
+        from rich.text import Text
 
-        question_text = self.question_text
-
-        output.append("    question_text=", style=RICH_STYLES["default"])
-
-        # Build a separate Text object for the question text to preserve styling
-        question_text_styled = Text()
-        question_text_styled.append('"', style=RICH_STYLES["default"])
-
-        # Parse and highlight both Jinja2 variables and angle brackets
-        # Pattern captures {{ }}, < >, or regular text
-        combined_pattern = r"(\{\{.*?\}\}|<[^>]+>)"
-        parts = re.split(combined_pattern, question_text)
-
+        styled = Text()
+        parts = re.split(r"(\{\{.*?\}\}|<[^>]+>)", text)
         for part in parts:
-            if not part:  # Skip empty strings from split
+            if not part:
                 continue
-            elif part.startswith("{{") and part.endswith("}}"):
-                # Replace spaces with non-breaking spaces to prevent wrapping inside variables
-                part_no_break = part.replace(" ", "\u00a0")
-                # Highlight Jinja2 variables with primary style (bold blue)
-                question_text_styled.append(part_no_break, style=RICH_STYLES["primary"])
+            if part.startswith("{{") and part.endswith("}}"):
+                styled.append(part.replace(" ", "\u00a0"), style="bold blue")
             elif part.startswith("<") and part.endswith(">"):
-                # Replace spaces with non-breaking spaces in angle brackets too
-                part_no_break = part.replace(" ", "\u00a0")
-                # Highlight angle bracket tags in secondary style
-                question_text_styled.append(
-                    part_no_break, style=RICH_STYLES["secondary"]
-                )
+                styled.append(part.replace(" ", "\u00a0"), style="bold green")
             else:
-                # Regular text in green style
-                question_text_styled.append(part, style=RICH_STYLES["secondary"])
+                styled.append(part)
+        return styled
 
-        question_text_styled.append('"', style=RICH_STYLES["default"])
+    def _summary_repr(self) -> str:
+        """Generate a summary representation of the Question as a Rich table."""
+        from ..utilities.summary_table import ColumnDef, render_summary_table
 
-        # Append the styled question text as a complete unit
-        output.append(question_text_styled)
+        q_dict = self.to_dict(add_edsl_version=False)
+        question_type = q_dict.get("question_type", "unknown")
+        title = f"Question ({question_type})"
 
-        # Question options (if present)
-        if hasattr(self, "question_options"):
-            num_options = len(self.question_options)
+        columns = [
+            ColumnDef("Attribute", style="bold green", no_wrap=True),
+            ColumnDef("Value"),
+        ]
 
-            if num_options > 0:
-                output.append(",\n", style=RICH_STYLES["default"])
-                output.append("    question_options=[\n", style=RICH_STYLES["default"])
+        rows: list[tuple] = [
+            ("question_name", repr(self.question_name)),
+            ("question_text", self._highlight_template(self.question_text)),
+        ]
 
-                for i, option in enumerate(list(self.question_options)[:max_options]):
-                    option_str = str(option)
-                    if len(option_str) > MAX_OPTION_LENGTH_VALUE:
-                        option_str = option_str[: MAX_OPTION_LENGTH_VALUE - 3] + "..."
-                    output.append("        ", style=RICH_STYLES["default"])
-                    output.append(f'"{option_str}"', style=RICH_STYLES["secondary"])
-                    output.append(",\n", style=RICH_STYLES["default"])
+        if hasattr(self, "question_options") and self.question_options:
+            rows.append(("question_options", ", ".join(str(o) for o in self.question_options)))
 
-                if num_options > max_options:
-                    output.append(
-                        f"        ... ({num_options - max_options} more)\n",
-                        style=RICH_STYLES["dim"],
-                    )
-
-                output.append("    ]", style=RICH_STYLES["default"])
-
-        # Numerical constraints (for QuestionNumerical)
-        if hasattr(self, "min_value") and self.min_value is not None:
-            output.append(",\n", style=RICH_STYLES["default"])
-            output.append(
-                f"    min_value={self.min_value}", style=RICH_STYLES["default"]
-            )
-
-        if hasattr(self, "max_value") and self.max_value is not None:
-            output.append(",\n", style=RICH_STYLES["default"])
-            output.append(
-                f"    max_value={self.max_value}", style=RICH_STYLES["default"]
-            )
-
-        # Selection constraints (for QuestionCheckBox, QuestionRank)
-        if hasattr(self, "min_selections") and self.min_selections is not None:
-            output.append(",\n", style=RICH_STYLES["default"])
-            output.append(
-                f"    min_selections={self.min_selections}",
-                style=RICH_STYLES["default"],
-            )
-
-        if hasattr(self, "max_selections") and self.max_selections is not None:
-            output.append(",\n", style=RICH_STYLES["default"])
-            output.append(
-                f"    max_selections={self.max_selections}",
-                style=RICH_STYLES["default"],
-            )
-
-        if hasattr(self, "num_selections") and self.num_selections is not None:
-            output.append(",\n", style=RICH_STYLES["default"])
-            output.append(
-                f"    num_selections={self.num_selections}",
-                style=RICH_STYLES["default"],
-            )
-
-        # Option labels (for QuestionLinearScale)
         if hasattr(self, "option_labels") and self.option_labels:
-            output.append(",\n", style=RICH_STYLES["default"])
-            output.append("    option_labels={", style=RICH_STYLES["default"])
-            labels_str = ", ".join(f"{k}: '{v}'" for k, v in self.option_labels.items())
-            if len(labels_str) > 50:
-                labels_str = labels_str[:47] + "..."
-            output.append(labels_str, style=RICH_STYLES["highlight"])
-            output.append("}", style=RICH_STYLES["default"])
+            labels = ", ".join(f"{k}: {v!r}" for k, v in self.option_labels.items())
+            rows.append(("option_labels", f"{{{labels}}}"))
 
-        # Weight (for QuestionLinearScale)
-        if hasattr(self, "weight") and self.weight is not None:
-            output.append(",\n", style=RICH_STYLES["default"])
-            output.append(f"    weight={self.weight}", style=RICH_STYLES["default"])
+        for attr in ("min_value", "max_value", "min_selections", "max_selections",
+                      "num_selections", "max_list_items", "weight"):
+            if hasattr(self, attr) and getattr(self, attr) is not None:
+                rows.append((attr, repr(getattr(self, attr))))
 
-        # Boolean flags - check both .data and direct attributes
         data_dict = self.data
-
-        if "use_code" in data_dict and data_dict["use_code"]:
-            output.append(",\n", style=RICH_STYLES["default"])
-            output.append("    use_code=True", style=RICH_STYLES["default"])
-
-        # permissive is stored without underscore, so check attribute directly
+        if data_dict.get("use_code"):
+            rows.append(("use_code", "True"))
         if hasattr(self, "permissive") and self.permissive:
-            output.append(",\n", style=RICH_STYLES["default"])
-            output.append("    permissive=True", style=RICH_STYLES["default"])
-
+            rows.append(("permissive", "True"))
         if "include_comment" in data_dict and not data_dict["include_comment"]:
-            output.append(",\n", style=RICH_STYLES["default"])
-            output.append("    include_comment=False", style=RICH_STYLES["default"])
+            rows.append(("include_comment", "False"))
 
-        output.append("\n)", style=RICH_STYLES["primary"])
-
-        # Render to string
-        console = Console(file=io.StringIO(), force_terminal=True, width=120)
-        console.print(output, end="")
-        return console.file.getvalue()
+        return render_summary_table(title=title, columns=columns, rows=rows)
 
     def __eq__(self, other: Union[Any, Type[QuestionBase]]) -> bool:
         """Check if two questions are equal. Equality is defined as having the .to_dict().

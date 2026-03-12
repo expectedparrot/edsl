@@ -1205,24 +1205,44 @@ class LanguageModel(
     def __repr__(self) -> str:
         """Generate a string representation of the model.
 
-        This representation includes the model identifier and all parameters,
-        providing a clear picture of how the model is configured.
-
-        Returns:
-            str: A string representation of the model
+        Uses the rich table format in terminals, falls back to eval-style
+        repr during doctests and in Jupyter notebooks.
         """
-        # Format the parameters as a string
-        param_string = ", ".join(
-            f'{key} = """{value}"""' if key == "canned_response" else f"{key} = {value}"
-            for key, value in self.parameters.items()
-        )
+        import os
 
-        # Combine model name and parameters
-        return (
-            f"Model(model_name = '{self.model}', service_name = '{self._inference_service_}'"
-            + (f", {param_string}" if param_string else "")
-            + ")"
-        )
+        if os.environ.get("EDSL_RUNNING_DOCTESTS") == "True":
+            return self._eval_repr_()
+
+        try:
+            from IPython import get_ipython
+
+            ipy = get_ipython()
+            if ipy is not None and "IPKernelApp" in ipy.config:
+                return f"Model('{self.model}')"
+        except (NameError, ImportError):
+            pass
+
+        return self._summary_repr()
+
+    def _summary_repr(self) -> str:
+        """Generate a summary representation of the Model as a Rich table."""
+        from ..utilities.summary_table import ColumnDef, render_summary_table
+
+        title = f"Model ({self._inference_service_})"
+
+        columns = [
+            ColumnDef("Parameter", style="bold green", no_wrap=True),
+            ColumnDef("Value"),
+        ]
+
+        rows: list[tuple] = [
+            ("model", repr(self.model)),
+            ("service", repr(self._inference_service_)),
+        ]
+        for key, value in self.parameters.items():
+            rows.append((key, repr(value)))
+
+        return render_summary_table(title=title, columns=columns, rows=rows)
 
     def _eval_repr_(self) -> str:
         """Generate a clean, eval-able string representation of the model.

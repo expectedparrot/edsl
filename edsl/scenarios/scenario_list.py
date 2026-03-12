@@ -861,86 +861,33 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
     #     result = gen.generate_scenarios(description)
     #     return cls([Scenario(scenario) for scenario in result["scenarios"]])
 
-    def _summary_repr(self, MAX_SCENARIOS: int = 10, MAX_FIELDS: int = 500) -> str:
-        """Generate a summary representation of the ScenarioList with Rich formatting.
+    def _summary_repr(self, max_rows: int = 500) -> str:
+        """Generate a summary representation of the ScenarioList as a Rich table.
+
+        One column per scenario key, one row per scenario.
 
         Args:
-            MAX_SCENARIOS: Maximum number of scenarios to show (default: 10)
-            MAX_FIELDS: Maximum number of fields to show per scenario (default: 500)
+            max_rows: Maximum number of scenario rows to show before truncating.
         """
-        from rich.console import Console
-        from rich.text import Text
-        import io
-        import shutil
-        from edsl.config import RICH_STYLES
+        from ..utilities.summary_table import ColumnDef, render_summary_table
 
-        # Get terminal width
-        terminal_width = shutil.get_terminal_size().columns
+        num_scenarios = len(self)
+        title = f"ScenarioList ({num_scenarios} scenario{'s' if num_scenarios != 1 else ''})"
 
-        # Build the Rich text
-        output = Text()
-        output.append("ScenarioList(\n", style=RICH_STYLES["primary"])
-        output.append(f"    num_scenarios={len(self)},\n", style=RICH_STYLES["default"])
-        output.append("    scenarios=[\n", style=RICH_STYLES["default"])
+        all_keys = sorted(self.parameters) if self.parameters else []
 
-        # Show the first MAX_SCENARIOS scenarios
-        num_to_show = min(MAX_SCENARIOS, len(self))
-        for i, scenario in enumerate(self.data[:num_to_show]):
-            # Get scenario representation with limited fields
-            scenario_data = dict(list(scenario.items())[:MAX_FIELDS])
+        columns = [
+            ColumnDef("#", style="dim", no_wrap=True, justify="right"),
+        ] + [ColumnDef(key, style="bold green") for key in all_keys]
 
-            # Check if we need to indicate truncation
-            num_fields = len(scenario)
-            was_truncated = num_fields > MAX_FIELDS
+        rows = []
+        for idx, scenario in enumerate(self.data):
+            row = [str(idx)] + [repr(scenario.get(k, "")) for k in all_keys]
+            rows.append(tuple(row))
 
-            # Build scenario repr with indentation
-            output.append("        Scenario(\n", style=RICH_STYLES["primary"])
-            output.append(
-                f"            num_keys={num_fields},\n", style=RICH_STYLES["default"]
-            )
-            output.append("            data={\n", style=RICH_STYLES["default"])
-
-            # Show fields
-            for key, value in scenario_data.items():
-                # Format the value with smart truncation if needed
-                max_value_length = max(terminal_width - 30, 50)
-                value_repr = repr(value)
-                if len(value_repr) > max_value_length:
-                    value_repr = smart_truncate(value_repr, max_value_length)
-
-                output.append("                ", style=RICH_STYLES["default"])
-                output.append(f"'{key}'", style=RICH_STYLES["key"])
-                output.append(f": {value_repr},\n", style=RICH_STYLES["default"])
-
-            if was_truncated:
-                output.append(
-                    f"                ... ({num_fields - MAX_FIELDS} more fields)\n",
-                    style=RICH_STYLES["dim"],
-                )
-
-            output.append("            }\n", style=RICH_STYLES["default"])
-            output.append("        )", style=RICH_STYLES["primary"])
-
-            # Add comma and newline unless it's the last one
-            if i < num_to_show - 1:
-                output.append(",\n", style=RICH_STYLES["default"])
-            else:
-                output.append("\n", style=RICH_STYLES["default"])
-
-        # Add ellipsis if there are more scenarios
-        if len(self) > MAX_SCENARIOS:
-            output.append(
-                f"        ... ({len(self) - MAX_SCENARIOS} more scenarios)\n",
-                style=RICH_STYLES["dim"],
-            )
-
-        output.append("    ]\n", style=RICH_STYLES["default"])
-        output.append(")", style=RICH_STYLES["primary"])
-
-        # Render to string
-        console = Console(file=io.StringIO(), force_terminal=True, width=terminal_width)
-        console.print(output, end="")
-        return console.file.getvalue()
+        return render_summary_table(
+            title=title, columns=columns, rows=rows, max_rows=max_rows,
+        )
 
     def __mul__(self, other: ScenarioList) -> ScenarioList:
         """Takes the cross product of two ScenarioLists.
