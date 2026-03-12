@@ -216,6 +216,26 @@ class CoopValueError(CoopErrors):
     relevant_doc = "https://docs.expectedparrot.com/en/latest/using_coop.html"
 
 
+class HumanizeSchemaValidationError(CoopErrors):
+    """
+    Exception raised when a humanize schema is invalid for a survey.
+
+    Raised when validating a humanize schema against a survey if:
+
+    - The schema cannot be parsed
+    - The schema references a question not in the survey
+    - The schema references an instruction (humanize schema applies only to questions)
+    - A question has a type that is not supported for humanize schema
+    - A question's schema entry does not validate against the expected model for that question type
+
+    To fix this error, ensure your humanize schema meets the parameters
+    required for the survey (correct structure, question names that exist in the
+    survey, and schema entries that match each question's type).
+    """
+
+    relevant_doc = "https://docs.expectedparrot.com/en/latest/using_coop.html"
+
+
 class CoopTypeError(CoopErrors):
     """
     Exception raised when a parameter has an incorrect type.

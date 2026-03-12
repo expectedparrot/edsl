@@ -2480,6 +2480,8 @@ class Coop(CoopFunctionsMixin):
             raise CoopValueError(
                 "You must specify both a scenario list and a scenario list method to use scenarios with your survey."
             )
+        if humanize_schema is not None:
+            self.validate_human_survey_humanize_schema(survey, humanize_schema)
         survey_details = self.push(
             object=survey,
             description=survey_description,
@@ -2563,6 +2565,8 @@ class Coop(CoopFunctionsMixin):
 
         if not isinstance(survey, Survey):
             raise CoopObjectTypeError("This is not a survey.")
+        if humanize_schema is not None:
+            self.validate_human_survey_humanize_schema(survey, humanize_schema)
         survey_dict = survey.to_dict()
         payload: Dict[str, Any] = {"survey_json": survey_dict}
         if humanize_schema is not None:
@@ -2576,6 +2580,21 @@ class Coop(CoopFunctionsMixin):
         response_json = response.json()
         preview_uuid = response_json.get("preview_uuid")
         return f"{self.url}/home/human-surveys/preview/{preview_uuid}"
+
+    def validate_human_survey_humanize_schema(
+        self,
+        survey: "Survey",
+        humanize_schema: Dict[str, Any],
+    ) -> None:
+        """
+        Validate a humanize schema and its alignment with the survey's questions.
+
+        Raises HumanizeSchemaValidationError if the schema is invalid or does
+        not match the survey. Valid schemas complete without error.
+        """
+        from .coop_humanize_schema import validate_humanize_schema
+
+        validate_humanize_schema(survey, humanize_schema)
 
     def _turn_human_responses_into_results(
         self,
