@@ -104,6 +104,7 @@
       "group": "Validating with Humans",
       "pages": [
         "en/latest/humanize",
+        "en/latest/humanize_schema",
         "en/latest/prolific"
       ]
     },

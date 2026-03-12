@@ -1,0 +1,76 @@
+---
+title: "Humanize schema"
+description: "Reference for the humanize schema: a dict that configures how survey questions are presented and behave in human-facing web surveys."
+sidebarTitle: "Humanize schema"
+---
+
+When creating a human survey or preview (e.g. [survey.humanize()](/en/latest/surveys) or [survey.preview()](/en/latest/surveys)), you can pass a **humanize schema** to control styling and optionality per question. The schema is validated against your survey before use.
+
+## Fields
+
+### Top-level
+
+<ParamField path="questions" type="dict" required={false}>
+  Map of question name (string) → question config. Each key must be a question name that exists in the survey and refers to a question (not an instruction). Each value is a dict: see **Per-question entry** below.
+</ParamField>
+
+<ParamField path="survey" type="dict" required={false}>
+  Optional survey-level options (e.g. custom CSS). When omitted, no survey-level options are applied.
+</ParamField>
+
+### Survey-level (`survey`)
+
+<ParamField path="survey.custom_css" type="string" required={false}>
+  Optional custom CSS for the survey. Can be `null` or omitted.
+</ParamField>
+
+### Per-question entry (`questions` values)
+
+Each value in `questions` is a dict. The allowed fields depend on the **question type** in your survey. The schema entry for a question is validated against the model for that question type.
+
+**Question types that support `optional`:** `free_text`, `budget`, `checkbox`, `interview`, `likert_five`, `linear_scale`, `list`, `matrix`, `multiple_choice`, `multiple_choice_with_other`, `numerical`, `rank`, `top_k`, `yes_no`.
+
+<ParamField path="questions.*.optional" type="boolean" default={false}>
+  Whether the question is optional. Only present for the question types listed above. Default is `false` when omitted.
+</ParamField>
+
+**Compute questions:** For question type `compute`, the entry must be an empty dict `{}` (no fields).
+
+## Example
+
+```python
+from edsl import Survey, QuestionFreeText, QuestionMultipleChoice
+
+survey = Survey([
+    QuestionFreeText(question_name="feedback", question_text="Any feedback?"),
+    QuestionMultipleChoice(
+        question_name="rating",
+        question_text="Rate your experience.",
+        question_options=["Good", "OK", "Bad"],
+    ),
+])
+
+humanize_schema = {
+    "questions": {
+        "feedback": {"optional": True},
+        "rating": {"optional": False},
+    },
+    "survey": {"custom_css": None},
+}
+
+# Validation runs before creating the human survey
+survey.humanize(humanize_schema=humanize_schema)
+```
+
+## Validation
+
+If the schema is invalid, Coop raises `HumanizeSchemaValidationError`. Common causes:
+
+- A key in `questions` is not a question name in the survey, or is an instruction.
+- A question's type is not supported for humanize schema (e.g. `demand`, `dropdown`).
+- A question's entry has the wrong shape for its type (e.g. wrong field types or extra fields that aren’t allowed).
+- Top-level structure is invalid (e.g. `questions` not a dict, or an entry not a dict).
+
+You can also pass the schema to `survey.preview(humanize_schema=...)` to get a preview URL.
+
+Ensure your humanize schema matches the parameters above for each question type in your survey.

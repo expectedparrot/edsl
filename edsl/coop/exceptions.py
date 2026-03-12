@@ -21,7 +21,7 @@ class CoopErrors(BaseException):
     to handle all Coop-related errors in a single exception handler.
     """
 
-    relevant_doc = "https://docs.expectedparrot.com/en/latest/using_coop.html"
+    relevant_doc = "https://docs.expectedparrot.com/en/latest/coop"
 
 
 class CoopInvalidURLError(CoopErrors):
@@ -46,9 +46,7 @@ class CoopInvalidURLError(CoopErrors):
         ```
     """
 
-    relevant_doc = (
-        "https://docs.expectedparrot.com/en/latest/using_coop.html#accessing-content"
-    )
+    relevant_doc = "https://docs.expectedparrot.com/en/latest/coop"
 
 
 class CoopNoUUIDError(CoopErrors):
@@ -70,9 +68,7 @@ class CoopNoUUIDError(CoopErrors):
         ```
     """
 
-    relevant_doc = (
-        "https://docs.expectedparrot.com/en/latest/using_coop.html#accessing-content"
-    )
+    relevant_doc = "https://docs.expectedparrot.com/en/latest/coop"
 
 
 class CoopServerResponseError(CoopErrors):
@@ -97,7 +93,7 @@ class CoopServerResponseError(CoopErrors):
         ```
     """
 
-    relevant_doc = "https://docs.expectedparrot.com/en/latest/api_keys.html"
+    relevant_doc = "https://docs.expectedparrot.com/en/latest/api_keys"
 
 
 class CoopInvalidMethodError(CoopErrors):
@@ -119,7 +115,7 @@ class CoopInvalidMethodError(CoopErrors):
         ```
     """
 
-    relevant_doc = "https://docs.expectedparrot.com/en/latest/using_coop.html"
+    relevant_doc = "https://docs.expectedparrot.com/en/latest/coop"
 
 
 class CoopResponseError(CoopErrors):
@@ -142,7 +138,7 @@ class CoopResponseError(CoopErrors):
         ```
     """
 
-    relevant_doc = "https://docs.expectedparrot.com/en/latest/using_coop.html"
+    relevant_doc = "https://docs.expectedparrot.com/en/latest/coop"
 
 
 class CoopObjectTypeError(CoopErrors):
@@ -165,9 +161,7 @@ class CoopObjectTypeError(CoopErrors):
         ```
     """
 
-    relevant_doc = (
-        "https://docs.expectedparrot.com/en/latest/using_coop.html#accessing-content"
-    )
+    relevant_doc = "https://docs.expectedparrot.com/en/latest/coop"
 
 
 class CoopPatchError(CoopErrors):
@@ -189,9 +183,7 @@ class CoopPatchError(CoopErrors):
         ```
     """
 
-    relevant_doc = (
-        "https://docs.expectedparrot.com/en/latest/using_coop.html#updating-content"
-    )
+    relevant_doc = "https://docs.expectedparrot.com/en/latest/coop"
 
 
 class CoopValueError(CoopErrors):
@@ -213,7 +205,7 @@ class CoopValueError(CoopErrors):
         ```
     """
 
-    relevant_doc = "https://docs.expectedparrot.com/en/latest/using_coop.html"
+    relevant_doc = "https://docs.expectedparrot.com/en/latest/coop"
 
 
 class HumanizeSchemaValidationError(CoopErrors):
@@ -233,7 +225,7 @@ class HumanizeSchemaValidationError(CoopErrors):
     survey, and schema entries that match each question's type).
     """
 
-    relevant_doc = "https://docs.expectedparrot.com/en/latest/using_coop.html"
+    relevant_doc = "https://docs.expectedparrot.com/en/latest/humanize_schema"
 
 
 class CoopTypeError(CoopErrors):
@@ -255,7 +247,7 @@ class CoopTypeError(CoopErrors):
         ```
     """
 
-    relevant_doc = "https://docs.expectedparrot.com/en/latest/using_coop.html"
+    relevant_doc = "https://docs.expectedparrot.com/en/latest/coop"
 
 
 class CoopTimeoutError(CoopErrors):
@@ -277,7 +269,7 @@ class CoopTimeoutError(CoopErrors):
         ```
     """
 
-    relevant_doc = "https://docs.expectedparrot.com/en/latest/using_coop.html"
+    relevant_doc = "https://docs.expectedparrot.com/en/latest/coop"
 
 
 class CoopSerializationError(CoopErrors):
@@ -300,4 +292,4 @@ class CoopSerializationError(CoopErrors):
         ```
     """
 
-    relevant_doc = "https://docs.expectedparrot.com/en/latest/using_coop.html"
+    relevant_doc = "https://docs.expectedparrot.com/en/latest/coop"
