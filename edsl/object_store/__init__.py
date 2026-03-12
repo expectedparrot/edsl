@@ -13,7 +13,7 @@ from .fs_backend import FileSystemBackend
 from .http_backend import HttpBackend
 from .metadata_index import MetadataIndex
 from .sqlite_metadata_index import SQLiteMetadataIndex
-from .store_info import StoreSaveInfo, StoreListInfo, StoreLogInfo
+from .store_info import StoreSaveInfo, StoreListInfo, StoreLogInfo, StoreDiffInfo
 
 __all__ = [
     "ObjectStore",
@@ -28,4 +28,5 @@ __all__ = [
     "StoreSaveInfo",
     "StoreListInfo",
     "StoreLogInfo",
+    "StoreDiffInfo",
 ]

@@ -101,6 +101,23 @@ class ClassStoreAccessor:
 
         return ObjectStore(root).branches(uuid)
 
+    def diff(self, uuid: str, ref_a: str = None, ref_b: str = None, branch=None, context: int = 3, root=None):
+        """Diff two versions of an object identified by *uuid*.
+
+        Follows git conventions:
+
+        - ``diff(uuid)``                       — HEAD vs HEAD~1
+        - ``diff(uuid, "HEAD~2")``             — HEAD vs two commits back
+        - ``diff(uuid, "abc123")``             — HEAD vs that commit hash/prefix
+        - ``diff(uuid, "abc123", "def456")``   — explicit old → new
+
+        Returns a :class:`~edsl.object_store.store_info.StoreDiffInfo`
+        (a coloured unified-diff string).
+        """
+        from ..object_store import ObjectStore
+
+        return ObjectStore(root).diff(uuid, ref_a=ref_a, ref_b=ref_b, branch=branch, context=context)
+
     def pull(self, uuid: str, remote_url: str = DEFAULT_REMOTE_URL, branch=None, root=None, token=None):
         """Pull a remote object to the local store by UUID.
 
@@ -285,6 +302,23 @@ class InstanceStoreAccessor(ClassStoreAccessor):
         if self.uuid is None:
             raise ValueError("This object has not been saved to a store yet.")
         return StoreLogInfo(ObjectStore(root).log(self.uuid))
+
+    def diff(self, ref_a: str = None, ref_b: str = None, branch=None, context: int = 3, root=None):
+        """Diff two saved versions of this object.
+
+        Follows git conventions:
+
+        - ``diff()``                   — HEAD vs HEAD~1 (last change)
+        - ``diff("HEAD~2")``           — HEAD vs two commits back
+        - ``diff("abc123")``           — HEAD vs that commit hash/prefix
+        - ``diff("abc123", "def456")`` — explicit old → new
+
+        Returns a :class:`~edsl.object_store.store_info.StoreDiffInfo`
+        (a coloured unified-diff string).
+        """
+        if self.uuid is None:
+            raise ValueError("This object has not been saved to a store yet.")
+        return super().diff(self.uuid, ref_a=ref_a, ref_b=ref_b, branch=branch, context=context, root=root)
 
     def branches(self, root=None) -> list[str]:
         """List branches for this object in the store."""

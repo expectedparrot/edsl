@@ -197,6 +197,11 @@ class QuestionBase(
     question_name: str = QuestionNameDescriptor()
     question_text: str = QuestionTextDescriptor()
 
+    _store_class_name = "QuestionBase"
+
+    from edsl.base.store_accessor import StoreDescriptor
+    store = StoreDescriptor()
+
     _answering_instructions = None
     _question_presentation = None
 
@@ -425,6 +430,7 @@ class QuestionBase(
             # "_include_comment",
             # "_use_code",
             "_model_instructions",
+            "_store_accessor",
         ]
         only_if_not_na_list = ["_answering_instructions", "_question_presentation"]
 
@@ -554,6 +560,63 @@ class QuestionBase(
             return new_q
 
         return question_class(**local_data)
+
+    def to_jsonl(self, blob_writer=None, **kwargs) -> str:
+        """Serialize to JSONL with one line per field (header + one line per field).
+
+        The first line is a header with edsl_class_name, question_type, and edsl_version.
+        Subsequent lines are ``{"field": ..., "value": ...}`` pairs.
+
+        >>> from edsl.questions import QuestionFreeText
+        >>> jsonl = QuestionFreeText.example().to_jsonl()
+        >>> lines = jsonl.splitlines()
+        >>> import json; json.loads(lines[0])["__header__"]
+        True
+        """
+        import json
+        import edsl
+
+        d = self.to_dict(add_edsl_version=False)
+        question_type = d.pop("question_type")
+        header = {
+            "__header__": True,
+            "edsl_class_name": type(self).__name__,
+            "question_type": question_type,
+            "edsl_version": edsl.__version__,
+        }
+        lines = [json.dumps(header)]
+        for field, value in d.items():
+            lines.append(json.dumps({"field": field, "value": value}))
+        return "\n".join(lines)
+
+    @classmethod
+    def from_jsonl(cls, source, blob_reader=None, **kwargs) -> "QuestionBase":
+        """Deserialize from JSONL produced by :meth:`to_jsonl`.
+
+        *source* may be a JSONL string or an iterable of lines.
+
+        >>> from edsl.questions import QuestionFreeText
+        >>> q = QuestionFreeText.example()
+        >>> q2 = QuestionFreeText.from_jsonl(q.to_jsonl())
+        >>> q.question_text == q2.question_text
+        True
+        """
+        import json
+        from .register_questions_meta import RegisterQuestionsMeta
+
+        if isinstance(source, str):
+            lines = source.strip().splitlines()
+        else:
+            lines = list(source)
+        header = json.loads(lines[0])
+        question_type = header["question_type"]
+        registry = RegisterQuestionsMeta.question_types_to_classes()
+        target_cls = registry[question_type]
+        fields = {}
+        for line in lines[1:]:
+            row = json.loads(line)
+            fields[row["field"]] = row["value"]
+        return target_cls(**fields)
 
     @classmethod
     def _get_test_model(cls, canned_response: Optional[str] = None) -> "LanguageModel":

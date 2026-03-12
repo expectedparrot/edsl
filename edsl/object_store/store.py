@@ -34,6 +34,9 @@ _CLASS_REGISTRY: dict[str, Callable[[], Type]] = {
     "Jobs": lambda: _lazy_import("edsl.jobs.jobs", "Jobs"),
     "Cache": lambda: _lazy_import("edsl.caching.cache", "Cache"),
     "Results": lambda: _lazy_import("edsl.results.results", "Results"),
+    "QuestionBase": lambda: _lazy_import("edsl.questions.question_base", "QuestionBase"),
+    "Agent": lambda: _lazy_import("edsl.agents.agent", "Agent"),
+    "Scenario": lambda: _lazy_import("edsl.scenarios.scenario", "Scenario"),
 }
 
 
@@ -319,7 +322,7 @@ class ObjectStore:
         )
 
         # Update metadata index
-        type_name = type(obj).__name__
+        type_name = getattr(obj, "_store_class_name", None) or type(obj).__name__
         self._update_meta(
             uuid, type_name, description or message, owner=owner,
             title=title, alias=alias, visibility=visibility,
@@ -375,6 +378,88 @@ class ObjectStore:
             return indexed
         # Fallback for objects not yet indexed
         return self._repo(uuid).log(commit=commit, branch=branch)
+
+    def diff(
+        self,
+        uuid: str,
+        ref_a: str = None,
+        ref_b: str = None,
+        branch: Optional[str] = None,
+        context: int = 3,
+    ):
+        """Compute a unified diff between two versions of an object.
+
+        Follows git conventions:
+
+        - ``diff()``                   — HEAD~1 → HEAD (last change)
+        - ``diff("HEAD~2")``           — HEAD~2 → HEAD (two commits back)
+        - ``diff("abc123")``           — abc123 → HEAD
+        - ``diff("abc123", "def456")`` — abc123 → def456
+
+        Returns a :class:`StoreDiffInfo` (a ``str`` subclass with ANSI
+        colour in ``__repr__`` and HTML in ``_repr_html_``).
+        """
+        from .store_info import StoreDiffInfo
+
+        uuid = self.resolve_uuid(uuid)
+        history = self.log(uuid, branch=branch)   # newest-first
+        if not history:
+            raise ValueError(f"No commit history for UUID {uuid}")
+
+        def _resolve_ref(ref):
+            """Resolve a ref spec to a concrete commit hash."""
+            if ref is None or ref == "HEAD":
+                return history[0]["hash"]
+            if isinstance(ref, str) and ref.upper().startswith("HEAD~"):
+                try:
+                    n = int(ref.split("~", 1)[1])
+                except ValueError:
+                    raise ValueError(f"Invalid HEAD~N ref: {ref!r}")
+                if n >= len(history):
+                    raise IndexError(
+                        f"{ref} does not exist; history has {len(history)} "
+                        f"commit(s)"
+                    )
+                return history[n]["hash"]
+            # Treat as a commit-hash prefix
+            candidates = [e["hash"] for e in history if e["hash"].startswith(ref)]
+            if not candidates:
+                raise FileNotFoundError(f"No commit with prefix {ref!r} in history")
+            if len(candidates) > 1:
+                raise ValueError(f"Ambiguous commit prefix {ref!r}: {candidates}")
+            return candidates[0]
+
+        # Follow git conventions:
+        #   diff()           → HEAD~1 (old) → HEAD (new)
+        #   diff("HEAD~2")   → HEAD~2 (old) → HEAD (new)
+        #   diff("abc", "def") → abc (old) → def (new)
+        if ref_a is None and ref_b is None:
+            commit_old = _resolve_ref("HEAD~1")
+            commit_new = _resolve_ref(None)       # HEAD
+        elif ref_b is None:
+            commit_old = _resolve_ref(ref_a)      # first arg = old
+            commit_new = _resolve_ref(None)       # HEAD
+        else:
+            commit_old = _resolve_ref(ref_a)      # first arg = old
+            commit_new = _resolve_ref(ref_b)      # second arg = new
+
+        obj_old, _ = self.load(uuid, commit=commit_old)
+        obj_new, _ = self.load(uuid, commit=commit_new)
+
+        yaml_old = obj_old.to_yaml().splitlines(keepends=True)
+        yaml_new = obj_new.to_yaml().splitlines(keepends=True)
+
+        import difflib
+        diff_lines = list(difflib.unified_diff(
+            yaml_old,
+            yaml_new,
+            fromfile=f"commit {commit_old[:12]}",
+            tofile=f"commit {commit_new[:12]}",
+            n=context,
+        ))
+        diff_text = "".join(diff_lines) or "(no differences)\n"
+
+        return StoreDiffInfo(diff_text, commit_a=commit_new, commit_b=commit_old)
 
     def branches(self, uuid: str) -> list[str]:
         """List branches for an object."""

@@ -77,6 +77,11 @@ class Scenario(Base, UserDict):
 
     __documentation__ = "https://docs.expectedparrot.com/en/latest/scenarios.html"
 
+    # CAS store support
+    _store_class_name = "Scenario"
+    from edsl.base.store_accessor import StoreDescriptor
+    store = StoreDescriptor()
+
     def __init__(
         self,
         data: Optional[Union[Dict[str, Any], Mapping[str, Any]]] = None,
@@ -1371,6 +1376,57 @@ class Scenario(Base, UserDict):
         from .scenario_serializer import ScenarioSerializer
 
         return ScenarioSerializer.from_dict(d)
+
+    def to_jsonl(self, blob_writer=None, **kwargs) -> str:
+        """Serialize to JSONL with one line per key-value field.
+
+        The first line is a header; subsequent lines are ``{"field": ..., "value": ...}`` pairs,
+        one per scenario key.
+
+        >>> import json
+        >>> s = Scenario({"food": "wood chips", "drink": "water"})
+        >>> lines = s.to_jsonl().splitlines()
+        >>> json.loads(lines[0])["__header__"]
+        True
+        >>> json.loads(lines[1])["field"]
+        'food'
+        """
+        import json
+        import edsl
+
+        d = self.to_dict(add_edsl_version=False)
+        header = {
+            "__header__": True,
+            "edsl_class_name": "Scenario",
+            "edsl_version": edsl.__version__,
+        }
+        lines = [json.dumps(header)]
+        for field, value in d.items():
+            lines.append(json.dumps({"field": field, "value": value}))
+        return "\n".join(lines)
+
+    @classmethod
+    def from_jsonl(cls, source, blob_reader=None, **kwargs) -> "Scenario":
+        """Deserialize from JSONL produced by :meth:`to_jsonl`.
+
+        *source* may be a JSONL string or an iterable of lines.
+
+        >>> s = Scenario({"food": "wood chips", "drink": "water"})
+        >>> s2 = Scenario.from_jsonl(s.to_jsonl())
+        >>> s2["food"] == s["food"] and s2["drink"] == s["drink"]
+        True
+        """
+        import json
+
+        if isinstance(source, str):
+            lines = source.strip().splitlines()
+        else:
+            lines = list(source)
+        fields = {}
+        for line in lines[1:]:
+            row = json.loads(line)
+            fields[row["field"]] = row["value"]
+        return cls.from_dict(fields)
 
     def _table(self) -> tuple[List[Dict[str, str]], List[str]]:
         """Prepare generic table data for scenario attributes.
