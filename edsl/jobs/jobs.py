@@ -1724,7 +1724,7 @@ class Jobs(Base):
             stop_on_exception=self.run_config.parameters.stop_on_exception,
         )
         return handle.results(
-            show_progress=True,
+            show_progress=self.run_config.parameters.progress_bar,
         )
 
     @with_config
@@ -2209,8 +2209,12 @@ class Jobs(Base):
 
         if os.environ.get("EDSL_RUNNING_DOCTESTS") == "True":
             return self._eval_repr_()
-        else:
-            return self._summary_repr()
+
+        result = self._summary_repr()
+        info = self._store_info_line()
+        if info:
+            result = result.rstrip() + "\n" + info
+        return result
 
     def _eval_repr_(self) -> str:
         """Return an eval-able string representation of the Jobs instance.
@@ -2242,103 +2246,60 @@ class Jobs(Base):
 
         return f"Jobs(survey={survey_repr}, agents={agents_repr}, models={models_repr}, scenarios={scenarios_repr})"
 
-    def _summary_repr(self, max_items: int = 3) -> str:
-        """Generate a summary representation of the Jobs with Rich formatting.
+    def _summary_repr(self) -> str:
+        """Generate a summary representation of the Jobs as a Rich table."""
+        from ..utilities.summary_table import ColumnDef, render_summary_table
 
-        Args:
-            max_items: Maximum number of items to show in lists before truncating
-        """
-        from rich.console import Console
-        from rich.text import Text
-        import io
-        from edsl.config import RICH_STYLES
+        num_interviews = self.num_interviews
+        title = f"Jobs ({num_interviews} interview{'s' if num_interviews != 1 else ''})"
 
-        # Build the Rich text
-        output = Text()
-        output.append("Jobs(\n", style=RICH_STYLES["primary"])
-        output.append(
-            f"    num_interviews={self.num_interviews},\n", style=RICH_STYLES["default"]
-        )
+        columns = [
+            ColumnDef("Component", style="bold green", no_wrap=True),
+            ColumnDef("Count", style="dim", no_wrap=True, justify="right"),
+            ColumnDef("Details"),
+        ]
 
-        # Survey information
+        rows: list[tuple] = []
+
+        # Survey
         if self.survey:
-            num_questions = len(self.survey.questions)
-            output.append(
-                f"    survey: {num_questions} question{'s' if num_questions != 1 else ''},\n",
-                style=RICH_STYLES["secondary"],
-            )
+            num_q = len(self.survey.questions)
+            names = [q.question_name for q in self.survey.questions]
+            rows.append((
+                "Survey",
+                str(num_q),
+                ", ".join(names) if names else "",
+            ))
 
-            # Show first few question names
-            if num_questions > 0:
-                question_names = [
-                    q.question_name for q in self.survey.questions[:max_items]
-                ]
-                if num_questions > max_items:
-                    question_names.append(f"... ({num_questions - max_items} more)")
-                output.append(
-                    f"        questions: {question_names},\n", style=RICH_STYLES["dim"]
-                )
-
-        # Agents information
+        # Agents
         num_agents = len(self.agents) if self.agents else 0
-        output.append(
-            f"    agents: {num_agents} agent{'s' if num_agents != 1 else ''},\n",
-            style=RICH_STYLES["key"],
-        )
-
+        agent_detail = ""
         if num_agents > 0 and hasattr(self.agents, "trait_keys"):
-            trait_keys = self.agents.trait_keys[:max_items]
-            if len(self.agents.trait_keys) > max_items:
-                trait_keys.append(
-                    f"... ({len(self.agents.trait_keys) - max_items} more)"
-                )
-            if trait_keys:
-                output.append(
-                    f"        traits: {trait_keys},\n", style=RICH_STYLES["dim"]
-                )
+            keys = sorted(self.agents.trait_keys)
+            if keys:
+                agent_detail = f"traits: {', '.join(keys)}"
+        rows.append(("Agents", str(num_agents), agent_detail))
 
-        # Models information
+        # Models
         num_models = len(self.models) if self.models else 0
-        output.append(
-            f"    models: {num_models} model{'s' if num_models != 1 else ''},\n",
-            style=RICH_STYLES["secondary"],
-        )
-
+        model_names = []
         if num_models > 0:
-            model_names = []
-            for model in list(self.models)[:max_items]:
-                model_name = getattr(
-                    model, "model", getattr(model, "_model_", "unknown")
+            for model in list(self.models):
+                model_names.append(
+                    getattr(model, "model", getattr(model, "_model_", "unknown"))
                 )
-                model_names.append(model_name)
-            if num_models > max_items:
-                model_names.append(f"... ({num_models - max_items} more)")
-            output.append(f"        models: {model_names},\n", style=RICH_STYLES["dim"])
+        rows.append(("Models", str(num_models), ", ".join(model_names)))
 
-        # Scenarios information
+        # Scenarios
         num_scenarios = len(self.scenarios) if self.scenarios else 0
-        output.append(
-            f"    scenarios: {num_scenarios} scenario{'s' if num_scenarios != 1 else ''},\n",
-            style=RICH_STYLES["secondary"],
-        )
-
+        scenario_detail = ""
         if num_scenarios > 0 and hasattr(self.scenarios, "parameters"):
-            params = list(self.scenarios.parameters)[:max_items]
-            if len(self.scenarios.parameters) > max_items:
-                params.append(
-                    f"... ({len(self.scenarios.parameters) - max_items} more)"
-                )
+            params = sorted(self.scenarios.parameters)
             if params:
-                output.append(
-                    f"        parameters: {params},\n", style=RICH_STYLES["dim"]
-                )
+                scenario_detail = f"keys: {', '.join(params)}"
+        rows.append(("Scenarios", str(num_scenarios), scenario_detail))
 
-        output.append(")", style=RICH_STYLES["primary"])
-
-        # Render to string
-        console = Console(file=io.StringIO(), force_terminal=True, width=120)
-        console.print(output, end="")
-        return console.file.getvalue()
+        return render_summary_table(title=title, columns=columns, rows=rows)
 
     def _summary(self):
         return {

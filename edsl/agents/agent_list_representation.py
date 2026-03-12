@@ -38,7 +38,11 @@ class AgentListRepresentation:
         except (NameError, ImportError):
             pass
 
-        return self.summary_repr()
+        result = self.summary_repr()
+        info = self._agent_list._store_info_line()
+        if info:
+            result = result.rstrip() + "\n" + info
+        return result
 
     def eval_repr(self) -> str:
         """Return an eval-able string representation of the AgentList.

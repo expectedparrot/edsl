@@ -858,12 +858,30 @@ class Cache(Base):
             pass
 
     def __repr__(self):
+        """Return a string representation of the Cache object.
+
+        Routes to _summary_repr for terminal display, _eval_repr_ during
+        doctests and in Jupyter notebooks.
         """
-        Return a string representation of the Cache object.
-        """
-        return (
-            f"Cache(data = {repr(self.data)}, immediate_write={self.immediate_write})"
-        )
+        import os
+
+        if os.environ.get("EDSL_RUNNING_DOCTESTS") == "True":
+            return self._eval_repr_()
+
+        try:
+            from IPython import get_ipython
+
+            ipy = get_ipython()
+            if ipy is not None and "IPKernelApp" in ipy.config:
+                return self._eval_repr_()
+        except (NameError, ImportError):
+            pass
+
+        result = self._summary_repr()
+        info = self._store_info_line()
+        if info:
+            result = result.rstrip() + "\n" + info
+        return result
 
     ####################
     # EXAMPLES
@@ -984,29 +1002,49 @@ class Cache(Base):
         return f"Cache(data={{{len(self.data)} entries}})"
 
     def _summary_repr(self) -> str:
-        """Generate a summary representation of the Cache with Rich formatting.
+        """Generate a summary representation of the Cache as a Rich table."""
+        from .cache_entry import CacheEntry
+        from ..utilities.summary_table import ColumnDef, render_summary_table
 
-        Returns:
-            str: A formatted summary representation of the Cache
-        """
-        from rich.console import Console
-        from rich.text import Text
-        import io
-        from edsl.config import RICH_STYLES
+        num_entries = len(self.data)
+        title = f"Cache ({num_entries} entr{'y' if num_entries == 1 else 'ies'})"
 
-        output = Text()
-        output.append("Cache(", style=RICH_STYLES["primary"])
-        output.append(f"entries={len(self.data)}", style=RICH_STYLES["default"])
+        columns = [
+            ColumnDef("Key", style="dim", no_wrap=True),
+            ColumnDef("Model", style="bold green", no_wrap=True),
+            ColumnDef("Service", style="dim", no_wrap=True),
+            ColumnDef("System Prompt"),
+            ColumnDef("User Prompt"),
+            ColumnDef("Output"),
+        ]
 
+        def _trunc(s: str, n: int = 60) -> str:
+            return s if len(s) <= n else s[: n - 1] + "…"
+
+        rows = []
+        for key, entry in self.data.items():
+            rows.append((
+                key[:12] + "…",
+                getattr(entry, "model", ""),
+                getattr(entry, "service", "") or "",
+                _trunc(getattr(entry, "system_prompt", "")),
+                _trunc(getattr(entry, "user_prompt", "")),
+                _trunc(getattr(entry, "output", "")),
+            ))
+
+        caption_parts: list[str] = []
         if hasattr(self, "filename") and self.filename:
-            output.append(", ", style=RICH_STYLES["default"])
-            output.append(f'filename="{self.filename}"', style=RICH_STYLES["key"])
+            caption_parts.append(f'filename="{self.filename}"')
+        if self.immediate_write:
+            caption_parts.append("immediate_write=True")
 
-        output.append(")", style=RICH_STYLES["primary"])
-
-        console = Console(file=io.StringIO(), force_terminal=True, width=120)
-        console.print(output, end="")
-        return console.file.getvalue()
+        return render_summary_table(
+            title=title,
+            columns=columns,
+            rows=rows,
+            caption=", ".join(caption_parts) if caption_parts else None,
+            max_rows=500,
+        )
 
 
 if __name__ == "__main__":

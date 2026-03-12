@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import io
 import os
 from typing import TYPE_CHECKING
 
@@ -39,7 +38,11 @@ class ResultsRepresentation:
         except (NameError, ImportError):
             pass
 
-        return self.summary_repr()
+        result = self.summary_repr()
+        info = self._results._store_info_line()
+        if info:
+            result = result.rstrip() + "\n" + info
+        return result
 
     def eval_repr(self) -> str:
         """Return an eval-able string representation of the Results.
@@ -50,108 +53,68 @@ class ResultsRepresentation:
         r = self._results
         return f"Results(data = {r.data}, survey = {repr(r.survey)}, created_columns = {r.created_columns})"
 
-    def summary_repr(self, max_text_preview: int = 60, max_items: int = 25) -> str:
-        """Generate a summary representation of the Results with Rich formatting.
-
-        Args:
-            max_text_preview: Maximum characters to show for question text previews
-            max_items: Maximum number of items to show in lists before truncating
-        """
-        from rich.console import Console
-        from rich.text import Text
-        from edsl.config import RICH_STYLES
+    def summary_repr(self, max_text_preview: int = 60, max_items: int = 500) -> str:
+        """Generate a summary representation of the Results as a Rich table."""
+        from ..utilities.summary_table import ColumnDef, render_summary_table
 
         r = self._results
 
-        output = Text()
-        output.append("Results(\n", style=RICH_STYLES["primary"])
-        output.append(
-            f"    num_observations={len(r)},\n", style=RICH_STYLES["default"]
-        )
-        output.append(
-            f"    num_agents={len(set(r.agents))},\n", style=RICH_STYLES["default"]
-        )
-        output.append(
-            f"    num_models={len(set(r.models))},\n", style=RICH_STYLES["default"]
-        )
-        output.append(
-            f"    num_scenarios={len(set(r.scenarios))},\n",
-            style=RICH_STYLES["default"],
+        num_obs = len(r)
+        num_agents = len(set(r.agents))
+        num_models = len(set(r.models))
+        num_scenarios = len(set(r.scenarios))
+        num_questions = len(r.survey.questions) if r.survey and hasattr(r.survey, "questions") else 0
+
+        title = (
+            f"Results ({num_obs} observation{'s' if num_obs != 1 else ''}, "
+            f"{num_questions} question{'s' if num_questions != 1 else ''})"
         )
 
-        if len(r.agents) > 0:
-            agent_keys = r.agent_keys
-            if agent_keys:
-                output.append("    agent_traits: [", style=RICH_STYLES["default"])
-                trait_keys = [k for k in agent_keys if not k.startswith("agent_")]
-                if trait_keys:
-                    output.append(
-                        f"{', '.join(repr(k) for k in trait_keys[:max_items])}",
-                        style=RICH_STYLES["secondary"],
-                    )
-                    if len(trait_keys) > max_items:
-                        output.append(
-                            f", ... ({len(trait_keys) - max_items} more)",
-                            style=RICH_STYLES["dim"],
-                        )
-                output.append("],\n", style=RICH_STYLES["default"])
+        columns = [
+            ColumnDef("Component", style="bold green", no_wrap=True),
+            ColumnDef("Count", style="dim", no_wrap=True, justify="right"),
+            ColumnDef("Details"),
+        ]
 
-        if len(r.scenarios) > 0:
-            scenario_keys = r.scenario_keys
-            if scenario_keys:
-                output.append("    scenario_fields: [", style=RICH_STYLES["default"])
-                field_keys = [k for k in scenario_keys if not k.startswith("scenario_")]
-                if field_keys:
-                    output.append(
-                        f"{', '.join(repr(k) for k in field_keys[:max_items])}",
-                        style=RICH_STYLES["secondary"],
-                    )
-                    if len(field_keys) > max_items:
-                        output.append(
-                            f", ... ({len(field_keys) - max_items} more)",
-                            style=RICH_STYLES["dim"],
-                        )
-                output.append("],\n", style=RICH_STYLES["default"])
+        rows: list[tuple] = []
 
+        # Questions
         if r.survey and hasattr(r.survey, "questions"):
-            questions = r.survey.questions
-            output.append(
-                f"    num_questions={len(questions)},\n", style=RICH_STYLES["default"]
-            )
-            output.append("    questions: [\n", style=RICH_STYLES["default"])
+            names = [q.question_name for q in r.survey.questions]
+            rows.append(("Questions", str(num_questions), ", ".join(names)))
 
-            for question in questions[:max_items]:
-                q_name = question.question_name
-                q_text = question.question_text
+        # Agents
+        agent_detail = ""
+        if num_agents > 0:
+            trait_keys = [k for k in r.agent_keys if not k.startswith("agent_")]
+            if trait_keys:
+                agent_detail = f"traits: {', '.join(trait_keys)}"
+        rows.append(("Agents", str(num_agents), agent_detail))
 
-                if len(q_text) > max_text_preview:
-                    q_text = q_text[:max_text_preview] + "..."
+        # Models
+        model_names = []
+        for m in set(r.models):
+            model_names.append(getattr(m, "model", getattr(m, "_model_", "unknown")))
+        rows.append(("Models", str(num_models), ", ".join(sorted(set(model_names)))))
 
-                output.append("        ", style=RICH_STYLES["default"])
-                output.append(f"'{q_name}'", style=RICH_STYLES["secondary"])
-                output.append(": ", style=RICH_STYLES["default"])
-                output.append(f'"{q_text}"', style=RICH_STYLES["dim"])
-                output.append(",\n", style=RICH_STYLES["default"])
+        # Scenarios
+        scenario_detail = ""
+        if num_scenarios > 0:
+            field_keys = [k for k in r.scenario_keys if not k.startswith("scenario_")]
+            if field_keys:
+                scenario_detail = f"keys: {', '.join(field_keys)}"
+        rows.append(("Scenarios", str(num_scenarios), scenario_detail))
 
-            if len(questions) > max_items:
-                output.append(
-                    f"        ... ({len(questions) - max_items} more)\n",
-                    style=RICH_STYLES["dim"],
-                )
-
-            output.append("    ],\n", style=RICH_STYLES["default"])
-
+        caption_parts: list[str] = []
         if r.created_columns:
-            output.append(
-                f"    created_columns={r.created_columns}\n",
-                style=RICH_STYLES["key"],
-            )
+            caption_parts.append(f"created_columns: {r.created_columns}")
 
-        output.append(")", style=RICH_STYLES["primary"])
-
-        console = Console(file=io.StringIO(), force_terminal=True, width=120)
-        console.print(output, end="")
-        return console.file.getvalue()
+        return render_summary_table(
+            title=title,
+            columns=columns,
+            rows=rows,
+            caption=", ".join(caption_parts) if caption_parts else None,
+        )
 
     def summary(self) -> dict:
         """Return a dictionary containing summary statistics about the Results object.

@@ -876,6 +876,43 @@ class RepresentationMixin:
                 + TableDisplay.from_dictionary_wide(display_dict)._repr_html_()
             )
 
+    def _store_info_line(self) -> str:
+        """Build a dim store-metadata line if this object has been saved."""
+        accessor = self.__dict__.get("_store_accessor")
+        if accessor is None or getattr(accessor, "uuid", None) is None:
+            return ""
+        parts: list[str] = [f"uuid: {accessor.uuid[:8]}"]
+        if accessor.current_branch:
+            parts.append(f"branch: {accessor.current_branch}")
+        if accessor.commit:
+            parts.append(f"commit: {accessor.commit[:8]}")
+        try:
+            from edsl.object_store import ObjectStore
+
+            meta = ObjectStore()._index.get(accessor.uuid)
+            if meta:
+                for field in ("title", "alias", "visibility"):
+                    val = meta.get(field)
+                    if val:
+                        parts.append(f"{field}: {val}")
+                lm = meta.get("last_modified")
+                if lm:
+                    parts.append(f"modified: {str(lm)[:10]}")
+        except Exception:
+            pass
+        raw = " | ".join(parts)
+        import io
+        import shutil
+
+        from rich.console import Console
+        from rich.text import Text
+
+        width = shutil.get_terminal_size().columns
+        t = Text(raw, style="dim italic")
+        c = Console(file=io.StringIO(), force_terminal=True, width=width)
+        c.print(t, end="")
+        return c.file.getvalue()
+
     def __repr__(self):
         """Return a string representation of the object.
 
@@ -891,19 +928,20 @@ class RepresentationMixin:
         if os.environ.get("EDSL_RUNNING_DOCTESTS") == "True":
             return self._eval_repr_()
 
-        # Check if we're in a Jupyter notebook environment
-        # If so, return minimal representation since _repr_html_ will handle display
         try:
             from IPython import get_ipython
 
             ipy = get_ipython()
             if ipy is not None and "IPKernelApp" in ipy.config:
-                # We're in a Jupyter notebook/kernel, not IPython terminal
                 return f"{self.__class__.__name__}(...)"
         except (NameError, ImportError):
             pass
 
-        return self._summary_repr()
+        result = self._summary_repr()
+        info = self._store_info_line()
+        if info:
+            result = result.rstrip() + "\n" + info
+        return result
 
     def __str__(self):
         """Return the string representation of the object.

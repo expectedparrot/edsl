@@ -1222,7 +1222,11 @@ class LanguageModel(
         except (NameError, ImportError):
             pass
 
-        return self._summary_repr()
+        result = self._summary_repr()
+        info = self._store_info_line()
+        if info:
+            result = result.rstrip() + "\n" + info
+        return result
 
     def _summary_repr(self) -> str:
         """Generate a summary representation of the Model as a Rich table."""

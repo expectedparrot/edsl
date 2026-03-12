@@ -35,7 +35,7 @@ class ColumnDef:
 CellValue = Union[str, Text]
 
 
-MAX_TERMINAL_LINES = 200
+MAX_TERMINAL_LINES = 2000
 
 
 def _build_table(

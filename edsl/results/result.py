@@ -739,98 +739,54 @@ class Result(Base, UserDict):
         params = ", ".join(f"{key}={repr(value)}" for key, value in self.data.items())
         return f"{self.__class__.__name__}({params})"
 
-    def _summary_repr(self, max_answers: int = 5) -> str:
-        """Generate a summary representation of the Result with Rich formatting.
+    def _summary_repr(self) -> str:
+        """Generate a summary representation of the Result as a Rich table."""
+        from ..utilities.summary_table import ColumnDef, render_summary_table
 
-        Args:
-            max_answers: Maximum number of answers to show before truncating
-        """
-        from rich.console import Console
-        from rich.text import Text
-        import io
-        from edsl.config import RICH_STYLES
+        model_name = getattr(
+            self.model, "model", getattr(self.model, "_model_", "unknown")
+        ) if self.model else "none"
+        service = getattr(self.model, "_inference_service_", "") if self.model else ""
 
-        # Build the Rich text
-        output = Text()
-        output.append("Result(\n", style=RICH_STYLES["primary"])
+        answers = self.answer or {}
+        title = f"Result ({len(answers)} answer{'s' if len(answers) != 1 else ''})"
 
-        # Agent information
+        columns = [
+            ColumnDef("Field", style="bold green", no_wrap=True),
+            ColumnDef("Value"),
+        ]
+
+        rows: list[tuple] = []
+
+        # Agent traits
         if self.agent:
-            agent_traits = getattr(self.agent, "traits", {})
-            if agent_traits:
-                trait_str = ", ".join(
-                    f"{k}={repr(v)}" for k, v in list(agent_traits.items())[:3]
-                )
-                if len(agent_traits) > 3:
-                    trait_str += f", ... ({len(agent_traits) - 3} more)"
-                output.append(
-                    f"    agent: {{{trait_str}}},\n", style=RICH_STYLES["key"]
-                )
+            traits = getattr(self.agent, "traits", {})
+            if traits:
+                traits_str = ", ".join(f"{k}={repr(v)}" for k, v in traits.items())
+                rows.append(("agent", f"{{{traits_str}}}"))
             else:
-                output.append("    agent: Agent(),\n", style=RICH_STYLES["key"])
+                rows.append(("agent", "Agent()"))
 
-        # Scenario information
+        # Scenario
         if self.scenario:
-            scenario_dict = dict(self.scenario)
-            if scenario_dict:
-                scenario_str = ", ".join(
-                    f"{k}={repr(v)}" for k, v in list(scenario_dict.items())[:3]
-                )
-                if len(scenario_dict) > 3:
-                    scenario_str += f", ... ({len(scenario_dict) - 3} more)"
-                output.append(
-                    f"    scenario: {{{scenario_str}}},\n", style=RICH_STYLES["key"]
-                )
+            sc = dict(self.scenario)
+            if sc:
+                sc_str = ", ".join(f"{k}={repr(v)}" for k, v in sc.items())
+                rows.append(("scenario", f"{{{sc_str}}}"))
             else:
-                output.append("    scenario: Scenario(),\n", style=RICH_STYLES["key"])
+                rows.append(("scenario", "Scenario()"))
 
-        # Model information
-        if self.model:
-            model_name = getattr(
-                self.model, "model", getattr(self.model, "_model_", "unknown")
-            )
-            service_name = getattr(self.model, "_inference_service_", "unknown")
-            output.append(
-                f"    model: {model_name} ({service_name}),\n", style=RICH_STYLES["key"]
-            )
+        # Model
+        rows.append(("model", f"{model_name} ({service})" if service else model_name))
 
         # Iteration
-        iteration = self.data.get("iteration", 0)
-        output.append(f"    iteration: {iteration},\n", style=RICH_STYLES["default"])
+        rows.append(("iteration", str(self.data.get("iteration", 0))))
 
-        # Answers
-        answers = self.answer
-        if answers:
-            output.append(
-                f"    answers: {len(answers)} question{'s' if len(answers) != 1 else ''},\n",
-                style=RICH_STYLES["secondary"],
-            )
-            output.append("        {\n", style=RICH_STYLES["default"])
+        # Answers — one row per question
+        for q_name, q_answer in answers.items():
+            rows.append((f"answer.{q_name}", repr(q_answer)))
 
-            for i, (q_name, q_answer) in enumerate(list(answers.items())[:max_answers]):
-                answer_repr = repr(q_answer)
-                if len(answer_repr) > 50:
-                    answer_repr = answer_repr[:47] + "..."
-                output.append("            ", style=RICH_STYLES["default"])
-                output.append(f"'{q_name}'", style=RICH_STYLES["secondary"])
-                output.append(f": {answer_repr},\n", style=RICH_STYLES["default"])
-
-            if len(answers) > max_answers:
-                output.append(
-                    f"            ... ({len(answers) - max_answers} more)\n",
-                    style=RICH_STYLES["dim"],
-                )
-
-            output.append("        },\n", style=RICH_STYLES["default"])
-        else:
-            output.append("    answers: {},\n", style=RICH_STYLES["dim"])
-
-        output.append(")", style=RICH_STYLES["primary"])
-
-        # Render to string
-        console = Console(file=io.StringIO(), force_terminal=True, width=120)
-        console.print(output, end="")
-        return console.file.getvalue()
+        return render_summary_table(title=title, columns=columns, rows=rows)
 
     @classmethod
     def example(cls) -> "Result":
