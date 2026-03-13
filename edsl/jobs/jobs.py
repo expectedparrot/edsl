@@ -13,6 +13,7 @@ from typing import (
     Optional,
     Union,
     Any,
+    Dict,
     Literal,
     Sequence,
     Generator,
@@ -2630,6 +2631,7 @@ class Jobs(Base):
         scenario_list_description: Optional[str] = None,
         scenario_list_alias: Optional[str] = None,
         scenario_list_visibility: Optional["VisibilityType"] = "private",
+        humanize_schema: Optional[Dict[str, Any]] = None,
     ):
         """Send the survey and scenario list to Coop.
 
@@ -2682,6 +2684,7 @@ class Jobs(Base):
             scenario_list_description,
             scenario_list_alias,
             scenario_list_visibility,
+            humanize_schema=humanize_schema,
         )
         return Scenario(human_survey_details)
 
