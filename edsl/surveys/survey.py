@@ -558,6 +558,10 @@ class Survey(Base):
 
         return SurveySerializer(self).to_jsonl(filename=filename)
 
+    def to_jsonl_rows(self, blob_writer=None):
+        from .survey_serializer import SurveySerializer
+        return SurveySerializer(self).to_jsonl_rows()
+
     @classmethod
     def from_jsonl(cls, source, **kwargs):
         """Create a Survey from a JSONL source (file path, string, or iterable)."""

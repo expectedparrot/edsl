@@ -36,7 +36,7 @@ ObjectStore          — Top-level API: save/load/list/delete/push/pull by UUID
   HEAD                    — current branch name (e.g. "main\n")
   refs/<branch>           — branch tip commit hash
   blobs/<sha256>.json     — content-addressed data blobs
-  trees/<sha256>.json     — tree objects ({"blob": "<hash>"})
+  trees/<sha256>.json     — tree objects ({"blobs": ["<hash>", ...]})
   commits/<sha256>.json   — commit objects (tree, parent, timestamp, message)
   current.jsonl           — convenience snapshot of HEAD content
 ```

@@ -15,6 +15,12 @@ from typing import List, Optional, Union
 from .exceptions import StaleBranchError
 
 
+def _reconstruct_content(b, tree_obj: dict) -> str:
+    """Reconstruct the full JSONL string from a tree object."""
+    parts = [b.read(f"blobs/{h}.json") for h in tree_obj["blobs"]]
+    return "\n".join(parts) + "\n"
+
+
 class CASRepository:
     """Git-like content-addressable storage for a single directory.
 
@@ -34,14 +40,14 @@ class CASRepository:
     Examples:
         >>> import tempfile
         >>> repo = CASRepository(tempfile.mkdtemp())
-        >>> info1 = repo.save("hello\\nworld\\n", message="first")
+        >>> info1 = repo.save(["hello", "world"], message="first")
         >>> info1['branch']
         'main'
         >>> 'tree' in info1
         True
         >>> repo.load() == "hello\\nworld\\n"
         True
-        >>> info2 = repo.save("updated\\n", message="second")
+        >>> info2 = repo.save(["updated"], message="second")
         >>> info2['parent'] == info1['commit']
         True
         >>> repo.load() == "updated\\n"
@@ -52,7 +58,7 @@ class CASRepository:
         True
         >>> repo.branch("experiment")
         >>> repo.checkout("experiment")
-        >>> info3 = repo.save("experiment data\\n", message="on branch")
+        >>> info3 = repo.save(["experiment data"], message="on branch")
         >>> info3['branch']
         'experiment'
         >>> repo.load(branch="main") == "updated\\n"
@@ -78,12 +84,16 @@ class CASRepository:
 
     def save(
         self,
-        content: str,
+        rows: List[str],
         message: str = "",
         branch: Optional[str] = None,
         expected_tip: Optional[str] = None,
     ) -> dict:
-        """Store *content* as a new commit.
+        """Store *rows* (one string per JSONL row) as a new commit.
+
+        Each row is stored as its own content-addressed blob.  The tree
+        object records the ordered list of blob hashes so the full JSONL
+        can be reconstructed on load.
 
         If *expected_tip* is set the branch tip must match it exactly,
         otherwise :class:`StaleBranchError` is raised.  This gives
@@ -104,14 +114,17 @@ class CASRepository:
         else:
             current_branch = branch or "main"
 
-        # blob
-        blob_hash = self._hash(content)
-        blob_key = f"blobs/{blob_hash}.json"
-        if not b.exists(blob_key):
-            b.write(blob_key, content)
+        # One blob per row — deduplicated by content hash
+        blob_hashes = []
+        for row in rows:
+            h = self._hash(row)
+            key = f"blobs/{h}.json"
+            if not b.exists(key):
+                b.write(key, row)
+            blob_hashes.append(h)
 
-        # tree — single-blob reference
-        tree_obj = {"blob": blob_hash}
+        # tree — ordered list of blob hashes
+        tree_obj = {"blobs": blob_hashes}
         tree_content = json.dumps(tree_obj, sort_keys=True)
         tree_hash = self._hash(tree_content)
         tree_key = f"trees/{tree_hash}.json"
@@ -148,7 +161,7 @@ class CASRepository:
         b.write("HEAD", current_branch + "\n")
 
         # overwrite readable snapshot
-        b.write("current.jsonl", content)
+        b.write("current.jsonl", _reconstruct_content(b, tree_obj))
 
         return {
             "commit": commit_hash,
@@ -169,7 +182,7 @@ class CASRepository:
         commit_hash = self.resolve(commit, branch)
         commit_obj = json.loads(b.read(f"commits/{commit_hash}.json"))
         tree_obj = json.loads(b.read(f"trees/{commit_obj['tree']}.json"))
-        return b.read(f"blobs/{tree_obj['blob']}.json")
+        return _reconstruct_content(b, tree_obj)
 
     def log(
         self,

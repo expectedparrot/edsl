@@ -51,6 +51,7 @@ _LAZY_MODULES = {
     "base",
     "extensions",
     "macros",
+    "study",
 }
 
 # Cache for lazy-loaded modules
@@ -100,6 +101,8 @@ _EXPORT_TO_MODULE = {
     "CacheEntry": "caching",
     # instructions
     "Instruction": "instructions",
+    # study
+    "Study": "study",
     # notebooks
     "Notebook": "notebooks",
 }

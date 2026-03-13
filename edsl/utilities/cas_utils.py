@@ -15,7 +15,7 @@ def cas_tree(directory: Union[str, Path]) -> str:
     >>> from edsl.object_store import CASRepository
     >>> d = tempfile.mkdtemp()
     >>> repo = CASRepository(d)
-    >>> _ = repo.save("hello\\n", message="test")
+    >>> _ = repo.save(["hello"], message="test")
     >>> len(cas_tree(d)) > 0
     True
     """
@@ -51,7 +51,7 @@ def cas_blobs(directory: Union[str, Path]) -> list[dict]:
     >>> from edsl.object_store import CASRepository
     >>> d = tempfile.mkdtemp()
     >>> repo = CASRepository(d)
-    >>> _ = repo.save("hello\\n", message="test")
+    >>> _ = repo.save(["hello"], message="test")
     >>> blobs = cas_blobs(d)
     >>> len(blobs)
     1
@@ -79,7 +79,7 @@ def cas_status(directory: Union[str, Path]) -> dict:
     >>> from edsl.object_store import CASRepository
     >>> d = tempfile.mkdtemp()
     >>> repo = CASRepository(d)
-    >>> _ = repo.save("hello\\n", message="test")
+    >>> _ = repo.save(["hello"], message="test")
     >>> s = cas_status(d)
     >>> s['num_commits']
     1
@@ -113,8 +113,8 @@ def cas_diff(
     >>> from edsl.object_store import CASRepository
     >>> d = tempfile.mkdtemp()
     >>> repo = CASRepository(d)
-    >>> _ = repo.save("v1\\n", message="v1")
-    >>> _ = repo.save("v2\\n", message="v2")
+    >>> _ = repo.save(["v1"], message="v1")
+    >>> _ = repo.save(["v2"], message="v2")
     >>> diff = cas_diff(d)
     >>> diff['changed']
     True
@@ -132,24 +132,21 @@ def cas_diff(
         )
         commit_a = commit_obj.get("parent")
 
-    def _get_blob(commit_hash):
+    def _get_tree_hash(commit_hash):
         if commit_hash is None:
             return None
         commit_obj = json.loads(
             (directory / "commits" / f"{commit_hash}.json").read_text()
         )
-        tree_obj = json.loads(
-            (directory / "trees" / f"{commit_obj['tree']}.json").read_text()
-        )
-        return tree_obj["blob"]
+        return commit_obj["tree"]
 
-    blob_a = _get_blob(commit_a)
-    blob_b = _get_blob(commit_b)
+    tree_a = _get_tree_hash(commit_a)
+    tree_b = _get_tree_hash(commit_b)
 
     return {
-        "changed": blob_a != blob_b,
-        "blob_a": blob_a[:16] if blob_a else None,
-        "blob_b": blob_b[:16] if blob_b else None,
+        "changed": tree_a != tree_b,
+        "tree_a": tree_a[:16] if tree_a else None,
+        "tree_b": tree_b[:16] if tree_b else None,
     }
 
 
@@ -163,7 +160,7 @@ def cas_summary(directory: Union[str, Path]) -> str:
     >>> from edsl.object_store import CASRepository
     >>> d = tempfile.mkdtemp()
     >>> repo = CASRepository(d)
-    >>> _ = repo.save("hello\\n", message="first commit")
+    >>> _ = repo.save(["hello"], message="first commit")
     >>> print(cas_summary(d))  # doctest: +ELLIPSIS
     CAS Repository...
     """

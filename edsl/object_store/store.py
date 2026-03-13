@@ -38,6 +38,7 @@ _CLASS_REGISTRY: dict[str, Callable[[], Type]] = {
     "Agent": lambda: _lazy_import("edsl.agents.agent", "Agent"),
     "Scenario": lambda: _lazy_import("edsl.scenarios.scenario", "Scenario"),
     "Instruction": lambda: _lazy_import("edsl.instructions.instruction", "Instruction"),
+    "Study": lambda: _lazy_import("edsl.study.study", "Study"),
 }
 
 
@@ -132,15 +133,19 @@ def _sync_commit(source, dest, commit_hash: str) -> dict:
         dest.write(tree_key, source.read(tree_key))
         copied["trees"] += 1
 
-    # Copy the main content blob referenced by the tree
+    # Copy all row blobs referenced by the tree
     tree_obj = json.loads(source.read(tree_key))
-    blob_key = f"blobs/{tree_obj['blob']}.json"
-    if not dest.exists(blob_key):
-        dest.write(blob_key, source.read(blob_key))
-        copied["blobs"] += 1
+    rows = []
+    for blob_hash in tree_obj["blobs"]:
+        blob_key = f"blobs/{blob_hash}.json"
+        row = source.read(blob_key)
+        rows.append(row)
+        if not dest.exists(blob_key):
+            dest.write(blob_key, row)
+            copied["blobs"] += 1
 
-    # Discover file-blob references in the content
-    content = source.read(blob_key)
+    # Discover FileStore blob references embedded in row content
+    content = "\n".join(rows) + "\n"
     blob_refs = _discover_blob_refs(content)
 
     # Copy referenced file blobs
@@ -165,7 +170,8 @@ def _update_dest_refs(dest, branch: str, tip: str) -> None:
     # Reconstruct current.jsonl from the tip commit
     tip_commit = json.loads(dest.read(f"commits/{tip}.json"))
     tip_tree = json.loads(dest.read(f"trees/{tip_commit['tree']}.json"))
-    dest.write("current.jsonl", dest.read(f"blobs/{tip_tree['blob']}.json"))
+    rows = [dest.read(f"blobs/{h}.json") for h in tip_tree["blobs"]]
+    dest.write("current.jsonl", "\n".join(rows) + "\n")
 
 
 class ObjectStore:
@@ -311,12 +317,10 @@ class ObjectStore:
                 backend.write(key, base64_content)
             return h
 
-        # All EDSL classes accept **kwargs on to_jsonl (Option B).
-        # Only ScenarioList actually uses blob_writer; others ignore it.
-        content = obj.to_jsonl(blob_writer=blob_writer)
+        rows = list(obj.to_jsonl_rows(blob_writer=blob_writer))
 
         info = repo.save(
-            content,
+            rows,
             message=message,
             branch=branch,
             expected_tip=expected_tip,

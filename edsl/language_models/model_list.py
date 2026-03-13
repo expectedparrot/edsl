@@ -185,6 +185,10 @@ class ModelList(Base, UserList):
 
         return ModelListSerializer(self).to_jsonl(filename=filename)
 
+    def to_jsonl_rows(self, blob_writer=None):
+        from .model_list_serializer import ModelListSerializer
+        return ModelListSerializer(self).to_jsonl_rows()
+
     @classmethod
     def from_jsonl(cls, source, **kwargs):
         """Create a ModelList from a JSONL source (file path, string, or iterable)."""

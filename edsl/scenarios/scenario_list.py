@@ -1608,6 +1608,10 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             filename=filename, blob_writer=blob_writer,
         )
 
+    def to_jsonl_rows(self, blob_writer=None):
+        from .scenario_list_serializer import ScenarioListSerializer
+        return ScenarioListSerializer(self).to_jsonl_rows(blob_writer=blob_writer)
+
     @classmethod
     def from_jsonl(cls, source, blob_reader=None):
         """Create a ScenarioList from a JSONL source (file path, string, or iterable).

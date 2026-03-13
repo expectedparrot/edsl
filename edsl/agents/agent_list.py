@@ -638,6 +638,9 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
     def to_jsonl(self, filename: Union[str, Path, None] = None, **kwargs) -> Optional[str]:
         return self._agent_list_serializer.to_jsonl(filename=filename)
 
+    def to_jsonl_rows(self, blob_writer=None):
+        return self._agent_list_serializer.to_jsonl_rows()
+
     @classmethod
     @wraps(AgentListSerializer.from_jsonl)
     def from_jsonl(cls, source: Union[str, Path, Iterable[str]], **kwargs) -> AgentList:

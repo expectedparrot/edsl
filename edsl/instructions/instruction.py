@@ -116,6 +116,9 @@ class Instruction(RepresentationMixin):
             lines.append(json.dumps({"field": field, "value": value}))
         return "\n".join(lines)
 
+    def to_jsonl_rows(self, blob_writer=None):
+        return iter(self.to_jsonl().splitlines())
+
     @classmethod
     def from_jsonl(cls, source, blob_reader=None, **kwargs) -> "Instruction":
         """Deserialize from JSONL produced by :meth:`to_jsonl`.
