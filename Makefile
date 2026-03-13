@@ -82,6 +82,28 @@ pyodide-wheel: ## Build wheel and copy it into the Pyodide REPL folder
 	cp "$$wheel" "$(PYODIDE_DIR)/$$wheel_name"; \
 	echo "$$wheel_name" > "$(PYODIDE_DIR)/$(PYODIDE_WHEEL_INDEX)"
 
+GH_REPO ?= expectedparrot/edsl
+WASM_BRANCH ?= wasm-assets
+
+deploy-wheel: ## Build wheel, push to wasm-assets branch, print CORS-friendly CDN URL
+	@poetry build -f wheel
+	@wheel=$$(ls -t dist/*.whl | head -1); \
+	wheel_name=$$(basename "$$wheel"); \
+	echo "Deploying $$wheel_name to branch $(WASM_BRANCH) ..."; \
+	tmpdir=$$(mktemp -d); \
+	git clone --depth 1 --single-branch \
+		"https://github.com/$(GH_REPO).git" "$$tmpdir" -b $(WASM_BRANCH) 2>/dev/null \
+	|| ( git clone --depth 1 "https://github.com/$(GH_REPO).git" "$$tmpdir" && \
+	     cd "$$tmpdir" && git checkout --orphan $(WASM_BRANCH) && git rm -rf . ); \
+	cp "$$wheel" "$$tmpdir/$$wheel_name"; \
+	cd "$$tmpdir" && git add "$$wheel_name" && \
+		git commit -m "Update wheel: $$wheel_name" --allow-empty && \
+		git push origin $(WASM_BRANCH) --force; \
+	rm -rf "$$tmpdir"; \
+	url="https://cdn.jsdelivr.net/gh/$(GH_REPO)@$(WASM_BRANCH)/$$wheel_name"; \
+	echo ""; \
+	echo "$$url"
+
 pyodide-repl: pyodide-wheel ## Serve a browser REPL with the wheel installed (open http://localhost:$(PYODIDE_PORT))
 	@echo "Starting Pyodide REPL at http://localhost:$(PYODIDE_PORT)"
 	@python -m http.server --directory $(PYODIDE_DIR) $(PYODIDE_PORT)
