@@ -189,7 +189,10 @@ class AgentBlueprint(Base):
         return cls(dimension_map, seed=seed, cycle=cycle)
 
     def _repr_html_(self) -> str:
-        return self.table()._repr_html_()
+        t = self.table()
+        if t is None:
+            return ""
+        return t.to_pandas_for_display()._repr_html_()
 
     def _rich_repr(self) -> str:  # pragma: no cover
         """Return a Rich-formatted representation with dimension details.

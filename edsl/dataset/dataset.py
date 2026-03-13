@@ -10,7 +10,7 @@ from ..base import PersistenceMixin, HashingMixin
 from .exceptions import DatasetKeyError, DatasetValueError, DatasetTypeError
 
 
-from .display.table_display import TableDisplay
+SUPPORTED_TABLE_FORMATS = ("rich", "grid", "simple", "pipe", "markdown")
 
 # from .smart_objects import FirstObject
 from .dataset_operations_mixin import DatasetOperationsMixin
@@ -462,25 +462,41 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
             caption=caption,
         )
 
-    def write(self, filename: str, tablefmt: Optional[str] = None) -> None:
-        """Write the dataset to a file in the specified format.
+    def write(self, filename: str, **kwargs) -> None:
+        """Write the dataset to a file, dispatching on file extension.
 
-        Args:
-            filename: The name of the file to write to.
-            tablefmt: Optional format for the table (e.g., 'csv', 'html', 'latex').
+        Supported extensions: .csv, .html, .md, .tex, .xlsx, .json
         """
-        return self.table(tablefmt=tablefmt).write(filename)
+        import os
+
+        ext = os.path.splitext(filename)[1].lower()
+        if ext == ".csv":
+            self.to_pandas().to_csv(filename, index=False, **kwargs)
+        elif ext == ".html":
+            with open(filename, "w") as f:
+                f.write(self._repr_html_())
+        elif ext == ".md":
+            with open(filename, "w") as f:
+                f.write(self.to_markdown_table())
+        elif ext == ".tex":
+            with open(filename, "w") as f:
+                f.write(self.latex(**kwargs))
+        elif ext in (".xlsx", ".xls"):
+            self.to_pandas().to_excel(filename, index=False, **kwargs)
+        elif ext == ".json":
+            import json
+
+            with open(filename, "w") as f:
+                json.dump(self.to_dict(), f, indent=2)
+        else:
+            raise ValueError(
+                f"Unsupported file extension: {ext}. "
+                f"Supported: .csv, .html, .md, .tex, .xlsx, .json"
+            )
 
     def _repr_html_(self):
-        """Return an HTML representation of the dataset for Jupyter notebooks.
-
-        Examples:
-            >>> d = Dataset([{'a': [1, 2, 3]}, {'b': [4, 5, 6]}])
-            >>> html = d._repr_html_()
-            >>> isinstance(html, str)
-            True
-        """
-        return self.table(print_parameters=self.print_parameters)._repr_html_()
+        """Return an HTML representation of the dataset for Jupyter notebooks."""
+        return self.to_pandas_for_display()._repr_html_()
 
     def _tabular(self) -> tuple[list[str], list[list[Any]]]:
         """Convert the dataset to a tabular format (headers and rows).
@@ -595,11 +611,9 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
         """Return a LaTeX representation of the dataset.
 
         Args:
-            **kwargs: Additional arguments to pass to the table formatter.
-
-
+            **kwargs: Additional arguments to pass to pandas to_latex().
         """
-        return self.table().latex()
+        return self.to_pandas().to_latex(index=False, **kwargs)
 
     def remove_prefix(self) -> Dataset:
         """Remove the prefix from column names that contain dots.
@@ -633,7 +647,7 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
                 format: The output format ("html", "markdown", "rich", "latex")
 
         Returns:
-            TableDisplay object
+            Dataset object
 
         Examples:
             >>> d = Dataset([{'a': [1, 2, 3]}, {'b': [4, 5, 6]}])
@@ -989,78 +1003,113 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
         max_rows: Optional[int] = None,
         pretty_labels=None,
         print_parameters: Optional[dict] = None,
-    ):
+    ) -> "Dataset":
+        """Return a Dataset filtered to *fields* and optionally truncated.
+
+        Args:
+            fields: Column names to include. If empty, all columns are kept.
+            tablefmt: Kept for backward compatibility (ignored).
+            max_rows: Maximum number of rows to show.
+            pretty_labels: Dict mapping old column names to new ones.
+            print_parameters: Display parameters (stored on the result).
+        """
         if pretty_labels is not None:
             new_fields = []
             for field in fields:
                 new_fields.append(pretty_labels.get(field, field))
             return self.rename(pretty_labels).table(
-                *new_fields, tablefmt=tablefmt, max_rows=max_rows
+                *new_fields, max_rows=max_rows
             )
 
-        self.print_parameters = print_parameters
-
-        headers, data = self._tabular()
-
-        if tablefmt is not None and tablefmt != "rich":
-            from .display.table_display import SUPPORTED_TABLE_FORMATS
-
-            if tablefmt not in SUPPORTED_TABLE_FORMATS:
-                print(
-                    f"Error: The following table format is not supported: {tablefmt}",
-                    file=sys.stderr,
-                )
-                print(
-                    f"\nAvailable formats are: {list(SUPPORTED_TABLE_FORMATS)}",
-                    file=sys.stderr,
-                )
-                return None
-
-        if max_rows:
-            if len(data) < max_rows:
-                max_rows = None
+        result = self
 
         if fields:
-            full_data = data
-            data = []
-            indices = []
+            headers = self.keys()
             for field in fields:
                 if field not in headers:
+                    import difflib
+
                     print(
                         f"Error: The following field was not found: {field}",
                         file=sys.stderr,
                     )
                     print(f"\nAvailable fields are: {headers}", file=sys.stderr)
-
-                    # Optional: Suggest similar fields using difflib
-                    import difflib
-
                     matches = difflib.get_close_matches(field, headers)
                     if matches:
                         print(f"\nDid you mean: {matches[0]} ?", file=sys.stderr)
                     return None
-                indices.append(headers.index(field))
-            headers = fields
-            for row in full_data:
-                data.append([row[i] for i in indices])
+            result = result.select(*fields)
 
         if max_rows is not None:
-            if max_rows > len(data):
+            n = len(result)
+            if max_rows > n:
                 from .exceptions import DatasetValueError
 
                 raise DatasetValueError(
                     "max_rows cannot be greater than the number of rows in the dataset."
                 )
-            last_line = data[-1]
-            spaces = len(data[max_rows])
-            filler_line = ["." for i in range(spaces)]
-            data = data[:max_rows]
-            data.append(filler_line)
-            data.append(last_line)
+            if max_rows < n:
+                result = result.head(max_rows)
 
-        return TableDisplay(
-            data=data, headers=headers, tablefmt=tablefmt, raw_data_set=self
-        )
+        if print_parameters is not None:
+            result.print_parameters = print_parameters
+
+        return result
+
+    def flip(self) -> "Dataset":
+        """Transpose the dataset: columns become rows and vice versa.
+
+        Returns a new Dataset with a 'column' key and one key per original row.
+
+        Examples:
+            >>> d = Dataset([{'a': [1, 2]}, {'b': [3, 4]}])
+            >>> d.flip()
+            Dataset([{'column': ['a', 'b']}, {'0': [1, 3]}, {'1': [2, 4]}])
+        """
+        headers, rows = self._tabular()
+        new_data = [{"column": headers}]
+        for i, row in enumerate(rows):
+            new_data.append({str(i): [row[j] for j in range(len(headers))]})
+        return Dataset(new_data)
+
+    def long(self) -> "Dataset":
+        """Convert to long format: one row per (row_index, key, value) triple.
+
+        Examples:
+            >>> d = Dataset([{'a': [1, 2]}, {'b': [3, 4]}])
+            >>> d.long()
+            Dataset([{'row': [0, 0, 1, 1]}, {'key': ['a', 'b', 'a', 'b']}, {'value': [1, 3, 2, 4]}])
+        """
+        headers, rows = self._tabular()
+        row_col, key_col, val_col = [], [], []
+        for i, row in enumerate(rows):
+            for j, h in enumerate(headers):
+                row_col.append(i)
+                key_col.append(h)
+                val_col.append(row[j])
+        return Dataset([{"row": row_col}, {"key": key_col}, {"value": val_col}])
+
+    def to_markdown_table(self) -> str:
+        """Return the dataset as a pipe-format markdown table.
+
+        Examples:
+            >>> d = Dataset([{'a': [1]}, {'b': [2]}])
+            >>> print(d.to_markdown_table())
+            | a | b |
+            | - | - |
+            | 1 | 2 |
+        """
+        from ..utilities.simple_table import simple_table
+
+        headers, data = self._tabular()
+        return simple_table(headers, data, fmt="pipe")
+
+    def to_string(self) -> str:
+        """Return a string rendering of the dataset.
+
+        Uses Rich for terminal display when available, falls back to grid format.
+        """
+        return self.__repr__()
 
     def summary(self) -> "Dataset":
         """Return a summary of the dataset.

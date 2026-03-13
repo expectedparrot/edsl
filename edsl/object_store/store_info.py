@@ -10,11 +10,11 @@ from __future__ import annotations
 
 
 def _to_table(rows: list[dict]) -> str:
-    """Render a list of dicts as a rich table string via ScenarioList."""
+    """Render a list of dicts as a plain-text table."""
     from edsl.scenarios import Scenario, ScenarioList
 
     sl = ScenarioList([Scenario(row) for row in rows])
-    return repr(sl.table())
+    return sl.to_dataset().to_markdown_table()
 
 
 class StoreSaveInfo(dict):
@@ -74,7 +74,7 @@ class StoreListInfo(list):
         from edsl.scenarios import Scenario, ScenarioList
 
         sl = ScenarioList([Scenario(row) for row in self])
-        return sl.table()._repr_html_()
+        return sl._repr_html_()
 
 
 class StoreLogInfo(list):
@@ -101,7 +101,7 @@ class StoreLogInfo(list):
         from edsl.scenarios import Scenario, ScenarioList
 
         sl = ScenarioList([Scenario(row) for row in self])
-        return sl.table()._repr_html_()
+        return sl._repr_html_()
 
 
 class StoreDiffInfo(str):

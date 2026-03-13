@@ -1245,6 +1245,17 @@ class Agent(Base):
         ]
         return f"{class_name}({', '.join(items)})"
 
+    def info(self) -> list:
+        """Return display sections as (title, Dataset) pairs."""
+        from edsl.dataset import Dataset
+
+        traits = self.traits
+        if not traits:
+            return [("Agent", Dataset([{"trait": []}, {"value": []}]))]
+        keys = list(traits.keys())
+        values = [repr(v) for v in traits.values()]
+        return [("Agent", Dataset([{"trait": keys}, {"value": values}]))]
+
     def _summary_repr(self, max_traits: int = 500) -> str:
         """Generate a summary representation of the Agent as a Rich table.
 

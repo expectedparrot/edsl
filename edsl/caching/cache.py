@@ -758,45 +758,13 @@ class Cache(Base):
     def to_dataset(self):
         return self.to_scenario_list().to_dataset()
 
-    def _repr_html_(self):
-        """Generate an HTML representation for Jupyter notebooks.
+    def to_pandas(self):
+        """Convert to a pandas DataFrame."""
+        return self.to_dataset().to_pandas()
 
-        This method is automatically called by Jupyter to render the object
-        as HTML in notebook cells. It handles empty caches gracefully.
-
-        Returns:
-            str: HTML representation of the object
-        """
-        # Get class name and documentation link
-        class_name = self.__class__.__name__
-        docs = getattr(self, "__documentation__", "")
-
-        # Create header with link to documentation
-        header = f"<a href='{docs}'>{class_name}</a>"
-
-        # Add summary if available
-        if hasattr(self, "_summary"):
-            summary_dict = self._summary()
-            summary_line = "".join([f" {k}: {v};" for k, v in summary_dict.items()])
-            header = f"<p>{header}{summary_line}</p>"
-        else:
-            header = f"<p>{header}</p>"
-
-        # Handle empty cache
-        if len(self.data) == 0:
-            return f"{header}<p><em>Empty cache</em></p>"
-
-        # For non-empty caches, render the table as usual
-        from edsl.dataset.display.table_display import TableDisplay
-
-        try:
-            return header + self.table()._repr_html_()
-        except Exception:
-            # Fallback if table() fails - display as dictionary
-            display_dict = {"entries": len(self.data)}
-            return (
-                header + TableDisplay.from_dictionary_wide(display_dict)._repr_html_()
-            )
+    def to_pandas_for_display(self):
+        """Convert to a pandas DataFrame for notebook display."""
+        return self.to_pandas()
 
     @classmethod
     @remove_edsl_version
@@ -1029,6 +997,37 @@ class Cache(Base):
             str: A string that can be evaluated to recreate the Cache object
         """
         return f"Cache(data={{{len(self.data)} entries}})"
+
+    def info(self) -> list:
+        """Return display sections as (title, Dataset) pairs."""
+        from edsl.dataset import Dataset
+
+        def _trunc(s: str, n: int = 60) -> str:
+            return s if len(s) <= n else s[: n - 1] + "…"
+
+        keys = []
+        models = []
+        services = []
+        system_prompts = []
+        user_prompts = []
+        outputs = []
+        for key, entry in self.data.items():
+            keys.append(key[:12] + "…")
+            models.append(getattr(entry, "model", ""))
+            services.append(getattr(entry, "service", "") or "")
+            system_prompts.append(_trunc(getattr(entry, "system_prompt", "")))
+            user_prompts.append(_trunc(getattr(entry, "user_prompt", "")))
+            outputs.append(_trunc(getattr(entry, "output", "")))
+
+        data = [
+            {"key": keys},
+            {"model": models},
+            {"service": services},
+            {"system_prompt": system_prompts},
+            {"user_prompt": user_prompts},
+            {"output": outputs},
+        ]
+        return [("Cache", Dataset(data))]
 
     def _summary_repr(self) -> str:
         """Generate a summary representation of the Cache as a Rich table."""

@@ -64,7 +64,7 @@ import json
 
 # Import for refactoring to Source classes
 
-from ..dataset.display.table_display import SUPPORTED_TABLE_FORMATS
+from ..dataset.dataset import SUPPORTED_TABLE_FORMATS
 
 try:
     from typing import TypeAlias
@@ -860,6 +860,21 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
     #     gen = ScenarioGenerator(model="gpt-4o", temperature=0.7)
     #     result = gen.generate_scenarios(description)
     #     return cls([Scenario(scenario) for scenario in result["scenarios"]])
+
+    def info(self) -> list:
+        """Return display sections as (title, Dataset) pairs."""
+        from edsl.dataset import Dataset
+
+        all_keys = sorted(self.parameters) if self.parameters else []
+        if not all_keys:
+            return [("ScenarioList", Dataset([]))]
+        columns: dict[str, list] = {k: [] for k in all_keys}
+        for scenario in self.data:
+            for k in all_keys:
+                v = scenario.get(k)
+                columns[k].append("" if v is None else repr(v))
+        data = [{k: v} for k, v in columns.items()]
+        return [("ScenarioList", Dataset(data))]
 
     def _summary_repr(self, max_rows: int = 500) -> str:
         """Generate a summary representation of the ScenarioList as a Rich table.

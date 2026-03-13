@@ -861,6 +861,28 @@ class QuestionBase(
                 styled.append(part)
         return styled
 
+    def info(self) -> list:
+        """Return display sections as (title, Dataset) pairs.
+
+        Uses the question's ``to_dict()`` fields as columns, same approach
+        as Survey.info() but for a single question.
+        """
+        from edsl.dataset import Dataset
+
+        d = self.to_dict(add_edsl_version=False)
+        keys = list(d.keys())
+        values = []
+        for v in d.values():
+            if v is None:
+                values.append("")
+            elif isinstance(v, list):
+                values.append(", ".join(str(o) for o in v))
+            elif isinstance(v, dict):
+                values.append(", ".join(f"{k}: {val}" for k, val in v.items()))
+            else:
+                values.append(str(v))
+        return [("Question", Dataset([{"field": keys}, {"value": values}]))]
+
     def _summary_repr(self) -> str:
         """Generate a summary representation of the Question as a Rich table."""
         from ..utilities.summary_table import ColumnDef, render_summary_table

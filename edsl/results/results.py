@@ -420,9 +420,8 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         return super()._repr_html_()
 
     @ensure_ready
-    @wraps(ResultsRepresentation.repr)
     def __repr__(self) -> str:
-        return self._representation.repr()
+        return super().__repr__()
 
     @wraps(ResultsRepresentation.eval_repr)
     def _eval_repr_(self) -> str:
@@ -431,6 +430,77 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
     @wraps(ResultsRepresentation.summary_repr)
     def _summary_repr(self, max_text_preview: int = 60, max_items: int = 25) -> str:
         return self._representation.summary_repr(max_text_preview, max_items)
+
+    def info(self) -> list:
+        """Return display sections as (title, Dataset) pairs.
+
+        Produces a summary table (Components/Count/Details) and the data
+        table, mirroring what ``summary_repr`` shows in the terminal.
+        """
+        from edsl.dataset import Dataset
+
+        num_obs = len(self)
+        num_agents = len(set(self.agents))
+        num_models = len(set(self.models))
+        num_scenarios = len(set(self.scenarios))
+        num_questions = (
+            len(self.survey.questions)
+            if self.survey and hasattr(self.survey, "questions")
+            else 0
+        )
+
+        components = []
+        counts = []
+        details = []
+
+        # Questions
+        if self.survey and hasattr(self.survey, "questions"):
+            names = [q.question_name for q in self.survey.questions]
+            components.append("Questions")
+            counts.append(str(num_questions))
+            details.append(", ".join(names))
+
+        # Agents
+        agent_detail = ""
+        if num_agents > 0:
+            trait_keys = [k for k in self.agent_keys if not k.startswith("agent_")]
+            if trait_keys:
+                agent_detail = f"traits: {', '.join(trait_keys)}"
+        components.append("Agents")
+        counts.append(str(num_agents))
+        details.append(agent_detail)
+
+        # Models
+        model_names = []
+        for m in set(self.models):
+            model_names.append(
+                getattr(m, "model", getattr(m, "_model_", "unknown"))
+            )
+        components.append("Models")
+        counts.append(str(num_models))
+        details.append(", ".join(sorted(set(model_names))))
+
+        # Scenarios
+        scenario_detail = ""
+        if num_scenarios > 0:
+            field_keys = [
+                k for k in self.scenario_keys if not k.startswith("scenario_")
+            ]
+            if field_keys:
+                scenario_detail = f"keys: {', '.join(field_keys)}"
+        components.append("Scenarios")
+        counts.append(str(num_scenarios))
+        details.append(scenario_detail)
+
+        summary = Dataset(
+            [
+                {"Component": components},
+                {"Count": counts},
+                {"Details": details},
+            ]
+        )
+        data = self.to_dataset()
+        return [("Summary", summary), ("Data", data)]
 
     def table(
         self,

@@ -2889,7 +2889,11 @@ class Survey(Base):
                 f"Survey indices must be int, str, slice, or List[str], not {type(index)}"
             )
 
-    def select(self, *question_names: List[str]) -> "Survey":
+    def select(self, *args, **kwargs) -> "Survey":
+        """Treat like a dataset.select()"""
+        return self.info()[0][1].select(*args, **kwargs)
+
+    def subset(self, *question_names: List[str]) -> "Survey":
         """Create a new Survey with questions selected by name."""
         if isinstance(question_names, str):
             question_names = [question_names]
@@ -2981,6 +2985,86 @@ class Survey(Base):
             "# questions": len(self),
             "question_name list": self.question_names,
         }
+
+    def info(self) -> list:
+        """Return display sections as (title, Dataset) pairs.
+
+        Builds one section with a column per question field (using the
+        actual field names from each question's ``to_dict()``).  Fields
+        that don't apply to a given question are shown as blank strings.
+        A ``skip_logic`` column is appended when any non-default rules
+        exist.
+        """
+        from edsl.dataset import Dataset
+        from collections import defaultdict, OrderedDict
+        from .base import EndOfSurvey
+
+        num_questions = len(self.questions)
+
+        # Collect dicts and discover the union of all field names.
+        q_dicts: list[dict] = []
+        # Use ordered priority list so common fields come first.
+        priority = [
+            "question_name",
+            "question_type",
+            "question_text",
+            "question_options",
+        ]
+        all_keys: OrderedDict[str, None] = OrderedDict()
+        for key in priority:
+            all_keys[key] = None
+
+        for question in self.questions:
+            d = question.to_dict(add_edsl_version=False)
+            q_dicts.append(d)
+            for key in d:
+                if key not in all_keys:
+                    all_keys[key] = None
+
+        # Build column lists — blank string for missing / None values.
+        columns: dict[str, list] = {k: [] for k in all_keys}
+        for d in q_dicts:
+            for key in all_keys:
+                val = d.get(key)
+                if val is None:
+                    columns[key].append("")
+                elif isinstance(val, list):
+                    columns[key].append(", ".join(str(o) for o in val))
+                elif isinstance(val, dict):
+                    columns[key].append(
+                        ", ".join(f"{k}: {v}" for k, v in val.items())
+                    )
+                else:
+                    columns[key].append(str(val))
+
+        # Skip logic column (only if any rules exist).
+        rules_by_q: dict[int, list] = defaultdict(list)
+        for rule in self.rule_collection.non_default_rules:
+            rules_by_q[rule.current_q].append(rule)
+
+        if rules_by_q:
+            skip_logic: list[str] = []
+            for idx in range(num_questions):
+                if idx in rules_by_q:
+                    lines = []
+                    for rule in rules_by_q[idx]:
+                        if rule.next_q == EndOfSurvey or rule.next_q >= num_questions:
+                            target = "END"
+                        else:
+                            target = self.questions[rule.next_q].question_name
+                        lines.append(f"if {rule.expression} → {target}")
+                    skip_logic.append("\n".join(lines))
+                else:
+                    skip_logic.append("")
+            columns["skip_logic"] = skip_logic
+
+        # Drop columns that are entirely blank.
+        data = []
+        for key, values in columns.items():
+            if any(v != "" for v in values):
+                data.append({key: values})
+
+        return [("Questions", Dataset(data))]
 
     def tree(self, node_list: Optional[List[str]] = None):
         return self.to_scenario_list().tree(node_list=node_list)
@@ -3287,7 +3371,7 @@ class Survey(Base):
         Returns:
             str: Markdown formatted string representation of the survey.
         """
-        text = self.table(tablefmt="github").to_string()
+        text = self.table().to_markdown_table()
         # Replace Jinja2 braces with << >> to indicate piping
         text = re.sub(r"\{\{", "<<", text)
         text = re.sub(r"\}\}", ">>", text)

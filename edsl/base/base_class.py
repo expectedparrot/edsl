@@ -814,6 +814,19 @@ class RepresentationMixin:
                 display_dict[key] = value
         return display_dict
 
+    def info(self) -> list:
+        """Return display sections as a list of (title, Dataset) pairs.
+
+        Override this method to control what is shown in both terminal and
+        Jupyter representations.  The base implementation converts
+        ``display_dict()`` into a single Key/Value Dataset section.
+        """
+        from edsl.dataset import Dataset
+
+        d = self.display_dict()
+        ds = Dataset([{"Key": list(d.keys())}, {"Value": list(d.values())}])
+        return [(self.__class__.__name__, ds)]
+
     def print(self, format="rich"):
         """Print a formatted table representation of this object.
 
@@ -836,45 +849,50 @@ class RepresentationMixin:
         console = Console(record=True)
         console.print(table)
 
-    def _repr_html_(self, include_class_info: bool = True):
+    def _repr_html_(self):
         """Generate an HTML representation for Jupyter notebooks.
 
-        This method is automatically called by Jupyter to render the object
-        as HTML in notebook cells.
+        If ``info()`` has been overridden, renders each (title, Dataset)
+        section as an HTML heading + pandas table.  Otherwise falls back
+        to the legacy ``_summary()`` / ``to_pandas_for_display()`` path.
 
         Returns:
             str: HTML representation of the object
         """
-        from edsl.dataset.display.table_display import TableDisplay
+        # Use info() path when overridden
+        if type(self).info is not RepresentationMixin.info:
+            parts = [f"<b>{self.__class__.__name__}</b>"]
+            for title, ds in self.info():
+                parts.append(f"<h4>{title}</h4>")
+                parts.append(ds.to_pandas()._repr_html_())
+            return "\n".join(parts)
 
+        # Legacy path for classes that haven't adopted info() yet
+        import pandas as pd
+
+        parts = []
+
+        # Info section from _summary()
         if hasattr(self, "_summary"):
-            summary_dict = self._summary()
-            summary_line = "".join([f" {k}: {v};" for k, v in summary_dict.items()])
             class_name = self.__class__.__name__
             docs = getattr(self, "__documentation__", "")
-            table = self.table()
-            table_html = table._repr_html_() if table is not None else ""
-            if include_class_info:
-                return (
-                    "<p>"
-                    + f"<a href='{docs}'>{class_name}</a>"
-                    + summary_line
-                    + "</p>"
-                    + table_html
-                )
-            else:
-                return table_html
+            summary = self._summary()
+            info_df = pd.DataFrame(
+                list(summary.items()), columns=["Property", "Value"]
+            )
+            header = f"<b><a href='{docs}'>{class_name}</a></b>" if docs else f"<b>{class_name}</b>"
+            parts.append(header)
+            parts.append(info_df._repr_html_())
+
+        # Data section
+        if hasattr(self, "to_pandas_for_display"):
+            parts.append(self.to_pandas_for_display()._repr_html_())
         else:
-            class_name = self.__class__.__name__
-            documentation = getattr(self, "__documentation__", "")
-            summary_line = (
-                "<p>" + f"<a href='{documentation}'>{class_name}</a>" + "</p>"
-            )
-            display_dict = self.display_dict()
-            return (
-                summary_line
-                + TableDisplay.from_dictionary_wide(display_dict)._repr_html_()
-            )
+            d = self.display_dict()
+            fallback = pd.DataFrame(list(d.items()), columns=["Key", "Value"])
+            parts.append(fallback._repr_html_())
+
+        return "\n".join(parts)
 
     def _store_info_line(self) -> str:
         """Build a dim store-metadata line if this object has been saved."""
@@ -937,7 +955,15 @@ class RepresentationMixin:
         except (NameError, ImportError):
             pass
 
-        result = self._summary_repr()
+        # Use info() when overridden, else legacy _summary_repr()
+        if type(self).info is not RepresentationMixin.info:
+            parts = []
+            for title, ds in self.info():
+                parts.append(ds._summary_repr())
+            result = "\n".join(parts)
+        else:
+            result = self._summary_repr()
+
         info = self._store_info_line()
         if info:
             result = result.rstrip() + "\n" + info

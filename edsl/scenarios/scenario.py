@@ -712,6 +712,15 @@ class Scenario(Base, UserDict):
             return f"dict[{len(value)}]"
         return type(value).__name__
 
+    def info(self) -> list:
+        """Return display sections as (title, Dataset) pairs."""
+        from edsl.dataset import Dataset
+
+        keys = list(self.data.keys())
+        values = [repr(v) for v in self.data.values()]
+        types = [self._type_label(v) for v in self.data.values()]
+        return [("Scenario", Dataset([{"key": keys}, {"value": values}, {"type": types}]))]
+
     def _summary_repr(self, max_items: int = 500) -> str:
         """Generate a summary representation of the Scenario as a Rich table.
 
@@ -782,6 +791,14 @@ class Scenario(Base, UserDict):
         from .scenario_serializer import ScenarioSerializer
 
         return ScenarioSerializer(self).to_dataset()
+
+    def to_pandas(self):
+        """Convert to a pandas DataFrame."""
+        return self.to_dataset().to_pandas()
+
+    def to_pandas_for_display(self):
+        """Convert to a pandas DataFrame for notebook display."""
+        return self.to_pandas()
 
     def select(self, *args: Union[str, Iterable[str]]) -> "Scenario":
         """Select a subset of keys from a scenario.

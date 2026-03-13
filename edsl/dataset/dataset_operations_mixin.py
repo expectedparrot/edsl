@@ -601,6 +601,10 @@ class DataOperationsBase:
             result_entries.append({col: [row[i] for row in rows]})
         return Dataset(result_entries)
 
+    def to_pandas_for_display(self):
+        """Convert to a pandas DataFrame for notebook display."""
+        return self.to_pandas()
+
     def to_pandas(self, remove_prefix: bool = False, lists_as_strings=False):
         """Convert the results to a pandas DataFrame, ensuring that lists remain as lists.
 

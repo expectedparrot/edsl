@@ -655,13 +655,35 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
             sorted=True, add_edsl_version=False
         )
 
-    @wraps(AgentListRepresentation.repr)
     def __repr__(self):
-        return self._agent_list_representation.repr()
+        from edsl.base.base_class import RepresentationMixin
+        return RepresentationMixin.__repr__(self)
 
     @wraps(AgentListRepresentation.eval_repr)
     def _eval_repr_(self) -> str:
         return self._agent_list_representation.eval_repr()
+
+    def info(self) -> list:
+        """Return display sections as (title, Dataset) pairs."""
+        from edsl.dataset import Dataset
+
+        all_keys = sorted(self.trait_keys) if self.trait_keys else []
+        has_names = any(agent.name is not None for agent in self.data)
+
+        columns: dict[str, list] = {}
+        if has_names:
+            columns["name"] = []
+        for k in all_keys:
+            columns[k] = []
+
+        for agent in self.data:
+            if has_names:
+                columns["name"].append(repr(agent.name) if agent.name else "")
+            for k in all_keys:
+                columns[k].append(repr(agent.traits.get(k, "")))
+
+        data = [{k: v} for k, v in columns.items()]
+        return [("AgentList", Dataset(data))]
 
     @wraps(AgentListRepresentation.summary_repr)
     def _summary_repr(self, MAX_AGENTS: int = 10, MAX_TRAITS: int = 10) -> str:

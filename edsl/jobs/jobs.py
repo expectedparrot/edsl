@@ -2246,6 +2246,58 @@ class Jobs(Base):
 
         return f"Jobs(survey={survey_repr}, agents={agents_repr}, models={models_repr}, scenarios={scenarios_repr})"
 
+    def info(self) -> list:
+        """Return display sections as (title, Dataset) pairs."""
+        from edsl.dataset import Dataset
+
+        components = []
+        counts = []
+        details = []
+
+        if self.survey:
+            names = [q.question_name for q in self.survey.questions]
+            components.append("Survey")
+            counts.append(str(len(self.survey.questions)))
+            details.append(", ".join(names) if names else "")
+
+        num_agents = len(self.agents) if self.agents else 0
+        agent_detail = ""
+        if num_agents > 0 and hasattr(self.agents, "trait_keys"):
+            keys = sorted(self.agents.trait_keys)
+            if keys:
+                agent_detail = f"traits: {', '.join(keys)}"
+        components.append("Agents")
+        counts.append(str(num_agents))
+        details.append(agent_detail)
+
+        num_models = len(self.models) if self.models else 0
+        model_names = []
+        if num_models > 0:
+            for model in list(self.models):
+                model_names.append(
+                    str(getattr(model, "model", getattr(model, "_model_", "unknown")))
+                )
+        components.append("Models")
+        counts.append(str(num_models))
+        details.append(", ".join(model_names))
+
+        num_scenarios = len(self.scenarios) if self.scenarios else 0
+        scenario_detail = ""
+        if num_scenarios > 0 and hasattr(self.scenarios, "parameters"):
+            params = sorted(self.scenarios.parameters)
+            if params:
+                scenario_detail = f"keys: {', '.join(params)}"
+        components.append("Scenarios")
+        counts.append(str(num_scenarios))
+        details.append(scenario_detail)
+
+        summary = Dataset([
+            {"Component": components},
+            {"Count": counts},
+            {"Details": details},
+        ])
+        return [("Jobs", summary)]
+
     def _summary_repr(self) -> str:
         """Generate a summary representation of the Jobs as a Rich table."""
         from ..utilities.summary_table import ColumnDef, render_summary_table

@@ -358,7 +358,7 @@ class InterviewExceptionCollection(UserDict):
 
     def ascii_table(self, traceback: bool = False) -> None:
         """Print the collection of exceptions as an ASCII table."""
-        from ..dataset.display.table_display import _simple_table
+        from ..utilities.simple_table import simple_table as _simple_table
 
         if traceback:
             headers = ["Question name", "Exception", "Time", "Traceback"]

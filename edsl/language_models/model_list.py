@@ -52,6 +52,17 @@ class ModelList(Base, UserList):
 
         return f"ModelList({UserList.__repr__(self)})"
 
+    def info(self) -> list:
+        """Return display sections as (title, Dataset) pairs."""
+        from edsl.dataset import Dataset
+
+        models = []
+        services = []
+        for model in self:
+            models.append(str(getattr(model, "model", getattr(model, "_model_", "unknown"))))
+            services.append(str(getattr(model, "_inference_service_", "unknown")))
+        return [("ModelList", Dataset([{"model": models}, {"service": services}]))]
+
     def _summary_repr(self, max_rows: int = 500) -> str:
         """Generate a summary representation of the ModelList as a Rich table.
 
@@ -118,15 +129,7 @@ class ModelList(Base, UserList):
     ):
         """
         >>> ModelList.example().table('model_name')
-        +------------+
-        | model_name |
-        +------------+
-        | gpt-4o     |
-        +------------+
-        | gpt-4o     |
-        +------------+
-        | gpt-4o     |
-        +------------+
+        Dataset([{'model_name': ['gpt-4o', 'gpt-4o', 'gpt-4o']}])
         """
         return (
             self.to_scenario_list()

@@ -1228,6 +1228,17 @@ class LanguageModel(
             result = result.rstrip() + "\n" + info
         return result
 
+    def info(self) -> list:
+        """Return display sections as (title, Dataset) pairs."""
+        from edsl.dataset import Dataset
+
+        keys = ["model", "service"]
+        values = [str(self.model), str(self._inference_service_)]
+        for k, v in self.parameters.items():
+            keys.append(k)
+            values.append(repr(v))
+        return [("Model", Dataset([{"parameter": keys}, {"value": values}]))]
+
     def _summary_repr(self) -> str:
         """Generate a summary representation of the Model as a Rich table."""
         from ..utilities.summary_table import ColumnDef, render_summary_table

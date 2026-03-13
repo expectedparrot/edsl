@@ -739,6 +739,42 @@ class Result(Base, UserDict):
         params = ", ".join(f"{key}={repr(value)}" for key, value in self.data.items())
         return f"{self.__class__.__name__}({params})"
 
+    def info(self) -> list:
+        """Return display sections as (title, Dataset) pairs."""
+        from edsl.dataset import Dataset
+
+        model_name = getattr(
+            self.model, "model", getattr(self.model, "_model_", "unknown")
+        ) if self.model else "none"
+        service = getattr(self.model, "_inference_service_", "") if self.model else ""
+
+        fields = []
+        values = []
+
+        if self.agent:
+            traits = getattr(self.agent, "traits", {})
+            if traits:
+                fields.append("agent")
+                values.append(", ".join(f"{k}={repr(v)}" for k, v in traits.items()))
+
+        if self.scenario:
+            sc = dict(self.scenario)
+            if sc:
+                fields.append("scenario")
+                values.append(", ".join(f"{k}={repr(v)}" for k, v in sc.items()))
+
+        fields.append("model")
+        values.append(f"{model_name} ({service})" if service else str(model_name))
+
+        fields.append("iteration")
+        values.append(str(self.data.get("iteration", 0)))
+
+        for q_name, q_answer in (self.answer or {}).items():
+            fields.append(f"answer.{q_name}")
+            values.append(repr(q_answer))
+
+        return [("Result", Dataset([{"field": fields}, {"value": values}]))]
+
     def _summary_repr(self) -> str:
         """Generate a summary representation of the Result as a Rich table."""
         from ..utilities.summary_table import ColumnDef, render_summary_table
