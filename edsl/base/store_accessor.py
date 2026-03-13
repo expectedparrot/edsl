@@ -364,13 +364,28 @@ class InstanceStoreAccessor(ClassStoreAccessor):
         The object must have a UUID (from a previous save or pull).
         Uses ``EXPECTED_PARROT_API_KEY`` from the environment if
         no token is given.
+
+        After pulling, the in-memory object is updated to reflect the
+        latest version from the remote store.
         """
         from ..object_store import ObjectStore
 
         token = token or _default_token()
         if self.uuid is None:
             raise ValueError("This object has no UUID. Save it first or use ObjectStore.pull() with an explicit UUID.")
-        return ObjectStore(root).pull(self.uuid, remote_url, branch=branch, token=token)
+        result = ObjectStore(root).pull(self.uuid, remote_url, branch=branch, token=token)
+
+        # Reload from local store and update the in-memory object
+        updated, meta = ObjectStore(root).load(self.uuid, branch=branch)
+        # Preserve the store accessor itself while replacing domain state
+        old_accessor = self._instance.__dict__.get("_store_accessor")
+        self._instance.__dict__.update(updated.__dict__)
+        if old_accessor is not None:
+            self._instance.__dict__["_store_accessor"] = old_accessor
+        self.commit = meta["commit"]
+        self.current_branch = meta["branch"]
+
+        return result
 
 
 if __name__ == "__main__":
