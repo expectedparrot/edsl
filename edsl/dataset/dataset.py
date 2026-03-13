@@ -416,104 +416,51 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
         """
         return f"Dataset({self.data})"
 
-    def _summary_repr(
-        self, max_rows: int = 5, max_cols: int = 10, max_value_length: int = 30
-    ) -> str:
-        """Generate a summary representation of the Dataset with Rich formatting.
+    def _summary_repr(self, max_rows: int = 500, max_cols: int = 10) -> str:
+        """Generate a summary representation of the Dataset as a Rich table.
+
+        One column per dataset key, one row per observation.
 
         Args:
-            max_rows: Maximum number of rows to show before truncating
-            max_cols: Maximum number of columns to show before truncating
-            max_value_length: Maximum length of a value before truncating
+            max_rows: Maximum number of rows to show before truncating.
+            max_cols: Maximum number of data columns to show before truncating.
         """
-        from rich.console import Console
-        from rich.text import Text
-        import io
-        from edsl.config import RICH_STYLES
+        from ..utilities.summary_table import ColumnDef, render_summary_table
 
-        # Build the Rich text with consistent styling
-        output = Text()
-        output.append("Dataset(\n", style=RICH_STYLES["primary"])
-
-        # Handle empty dataset
         if not self.data:
-            output.append("    data=[]\n", style=RICH_STYLES["dim"])
-            output.append(")", style=RICH_STYLES["primary"])
-            console = Console(file=io.StringIO(), force_terminal=True, width=120)
-            console.print(output, end="")
-            return console.file.getvalue()
+            title = "Dataset (0 rows, 0 columns)"
+            return render_summary_table(
+                title=title, columns=[], rows=[], max_rows=max_rows,
+            )
 
         num_obs = len(self)
         num_cols = len(self.keys())
+        title = f"Dataset ({num_obs} row{'s' if num_obs != 1 else ''}, {num_cols} column{'s' if num_cols != 1 else ''})"
 
-        output.append(
-            f"    num_observations={num_obs},\n", style=RICH_STYLES["default"]
+        headers, tabular_rows = self._tabular()
+
+        truncated = len(headers) > max_cols
+        visible_headers = headers[:max_cols] if truncated else headers
+        hidden_count = len(headers) - max_cols if truncated else 0
+
+        columns = [
+            ColumnDef("#", style="dim", no_wrap=True, justify="right"),
+        ] + [ColumnDef(h, style="bold green") for h in visible_headers]
+
+        rows = []
+        for idx, row in enumerate(tabular_rows):
+            visible_vals = row[:max_cols] if truncated else row
+            rows.append(tuple([str(idx)] + [repr(v) for v in visible_vals]))
+
+        caption = (
+            f"{hidden_count} more column{'s' if hidden_count != 1 else ''} not shown. "
+            f"Use .select() to pick columns or .long() to see all."
+        ) if truncated else None
+
+        return render_summary_table(
+            title=title, columns=columns, rows=rows, max_rows=max_rows,
+            caption=caption,
         )
-        output.append(f"    num_columns={num_cols},\n", style=RICH_STYLES["default"])
-
-        # Show column names
-        if num_cols > 0:
-            cols = self.keys()
-            output.append("    columns=[\n", style=RICH_STYLES["default"])
-
-            for i, col in enumerate(cols[:max_cols]):
-                col_str = str(col)
-                if len(col_str) > 40:
-                    col_str = col_str[:37] + "..."
-                output.append("        ", style=RICH_STYLES["default"])
-                output.append(f"'{col_str}'", style=RICH_STYLES["key"])
-                output.append(",\n", style=RICH_STYLES["default"])
-
-            if num_cols > max_cols:
-                output.append(
-                    f"        ... ({num_cols - max_cols} more)\n",
-                    style=RICH_STYLES["dim"],
-                )
-
-            output.append("    ],\n", style=RICH_STYLES["default"])
-
-            # Show preview of data
-            if num_obs > 0:
-                output.append("    preview={\n", style=RICH_STYLES["default"])
-                headers, rows = self._tabular()
-
-                # Show column headers and first few values
-                for i, col in enumerate(headers[:max_cols]):
-                    col_values = [row[i] for row in rows[:max_rows]]
-
-                    # Format values with truncation
-                    formatted_values = []
-                    for val in col_values:
-                        val_str = repr(val)
-                        if len(val_str) > max_value_length:
-                            val_str = val_str[: max_value_length - 3] + "..."
-                        formatted_values.append(val_str)
-
-                    output.append("        ", style=RICH_STYLES["default"])
-                    output.append(f"'{col}'", style=RICH_STYLES["secondary"])
-                    output.append(
-                        f": [{', '.join(formatted_values)}", style=RICH_STYLES["value"]
-                    )
-
-                    if num_obs > max_rows:
-                        output.append(", ...", style=RICH_STYLES["dim"])
-
-                    output.append("],\n", style=RICH_STYLES["default"])
-
-                if num_cols > max_cols:
-                    output.append(
-                        f"        ... ({num_cols - max_cols} more columns)\n",
-                        style=RICH_STYLES["dim"],
-                    )
-
-                output.append("    }\n", style=RICH_STYLES["default"])
-
-        output.append(")", style=RICH_STYLES["primary"])
-
-        # Render to string
-        console = Console(file=io.StringIO(), force_terminal=True, width=120)
-        console.print(output, end="")
-        return console.file.getvalue()
 
     def write(self, filename: str, tablefmt: Optional[str] = None) -> None:
         """Write the dataset to a file in the specified format.
