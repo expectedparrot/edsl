@@ -1,0 +1,388 @@
+---
+title: "Custom CSS"
+description: "CSS classes and HTML structure for styling human-facing surveys with custom CSS."
+sidebarTitle: "Custom CSS"
+---
+
+Every question component supported by humanize has `edsl-*` CSS classes so you can customise the survey appearance.
+
+## HTML structure by question type
+
+### Budget
+
+```html
+<div class="edsl-question edsl-budget-question">
+  <div class="edsl-question-text">Allocate $100 across categories.</div>
+  <div class="edsl-budget-options">
+    <div class="edsl-budget-item">
+      <label class="edsl-budget-label">Food</label>
+      <input class="edsl-budget-input" type="text" />
+    </div>
+    <div class="edsl-budget-item">
+      <label class="edsl-budget-label">Transport</label>
+      <input class="edsl-budget-input" type="text" />
+    </div>
+    <div class="edsl-budget-total">
+      <span>Total</span>
+      <span>75</span>
+    </div>
+  </div>
+  <p class="edsl-error">…</p>
+</div>
+```
+
+### Checkbox
+
+```html
+<div class="edsl-question edsl-checkbox-question">
+  <div class="edsl-question-text">Select all that apply.</div>
+
+  <div class="edsl-select-all">
+    <input class="edsl-checkbox" type="checkbox" />
+    <label class="edsl-option-label">Select All</label>
+  </div>
+
+  <div class="edsl-options">
+    <div class="edsl-option">
+      <input class="edsl-checkbox" type="checkbox" />
+      <label class="edsl-option-label">Option A</label>
+    </div>
+    <div class="edsl-option">
+      <input class="edsl-checkbox" type="checkbox" />
+      <label class="edsl-option-label">Option B</label>
+    </div>
+  </div>
+  <p class="edsl-error">…</p>
+</div>
+```
+
+### EDSL object
+
+```html
+<div class="edsl-question edsl-object-question">
+  <div class="edsl-question-text">Select the agent list to use.</div>
+  <div>
+    <button class="edsl-object-select-btn" type="button">Select an Agent List</button>
+  </div>
+
+  <!-- shown after an object is selected -->
+  <div class="edsl-object-selected">
+    <span>Selected Agent List</span>
+    <p>My agents - Q1 2025</p>
+    <span>UUID: a1b2c3d4-…</span>
+    <div>
+      <button type="button">View</button>
+      <button type="button">Clear</button>
+    </div>
+  </div>
+
+  <p class="edsl-error">…</p>
+</div>
+```
+
+### File upload (multiple)
+
+```html
+<div class="edsl-question edsl-file-upload-question">
+  <div class="edsl-question-text">Upload supporting documents.</div>
+  <div>
+    <input type="file" multiple />
+    <div>
+      <span>2 files chosen</span>
+      <button type="button">Choose Files</button>
+    </div>
+  </div>
+  <div class="edsl-file-list">
+    <div>
+      <p>Selected files (2):</p>
+      <button type="button">Clear all</button>
+    </div>
+    <div class="edsl-file-item">
+      <p>doc1.pdf <span>(24 KB)</span></p>
+      <button type="button">Remove</button>
+    </div>
+    <div class="edsl-file-item">
+      <p>doc2.pdf <span>(18 KB)</span></p>
+      <button type="button">Remove</button>
+    </div>
+  </div>
+  <p class="edsl-error">…</p>
+</div>
+```
+
+### File upload (single)
+
+```html
+<div class="edsl-question edsl-file-upload-question">
+  <div class="edsl-question-text">Upload your CV.</div>
+  <input type="file" />
+  <!-- shown after a file is selected -->
+  <div>
+    <p>Selected: resume.pdf (142 KB)</p>
+    <button type="button">Clear</button>
+  </div>
+  <p class="edsl-error">…</p>
+</div>
+```
+
+### Free text
+
+```html
+<div class="edsl-question edsl-free-text-question">
+  <div class="edsl-question-text">Tell us about yourself.</div>
+  <textarea class="edsl-textarea" rows="4"></textarea>
+  <p class="edsl-error">…</p>
+</div>
+```
+
+### Linear scale
+
+```html
+<div class="edsl-question edsl-linear-scale-question">
+  <div class="edsl-question-text">Rate from 1 to 5.</div>
+  <div class="edsl-options">
+    <label class="edsl-option">
+      <input class="edsl-radio" type="radio" value="1" />
+      <span class="edsl-option-label">1 - Very poor</span>
+    </label>
+    <label class="edsl-option">
+      <input class="edsl-radio" type="radio" value="2" />
+      <span class="edsl-option-label">2</span>
+    </label>
+    <!-- … -->
+    <label class="edsl-option">
+      <input class="edsl-radio" type="radio" value="5" />
+      <span class="edsl-option-label">5 - Excellent</span>
+    </label>
+  </div>
+  <p class="edsl-error">…</p>
+</div>
+```
+
+### Likert five
+
+```html
+<div class="edsl-question edsl-likert-question">
+  <div class="edsl-question-text">How satisfied are you?</div>
+  <div class="edsl-options">
+    <label class="edsl-option">
+      <input class="edsl-radio" type="radio" value="Strongly disagree" />
+      <span class="edsl-option-label">Strongly disagree</span>
+    </label>
+    <label class="edsl-option">
+      <input class="edsl-radio" type="radio" value="Disagree" />
+      <span class="edsl-option-label">Disagree</span>
+    </label>
+    <label class="edsl-option">
+      <input class="edsl-radio" type="radio" value="Neutral" />
+      <span class="edsl-option-label">Neutral</span>
+    </label>
+    <label class="edsl-option">
+      <input class="edsl-radio" type="radio" value="Agree" />
+      <span class="edsl-option-label">Agree</span>
+    </label>
+    <label class="edsl-option">
+      <input class="edsl-radio" type="radio" value="Strongly agree" />
+      <span class="edsl-option-label">Strongly agree</span>
+    </label>
+  </div>
+  <p class="edsl-error">…</p>
+</div>
+```
+
+### List
+
+```html
+<div class="edsl-question edsl-list-question">
+  <div class="edsl-question-text">List your top hobbies.</div>
+  <p>Please enter one item per line.</p>
+  <textarea class="edsl-textarea" rows="4"></textarea>
+  <p class="edsl-error">…</p>
+</div>
+```
+
+### Matrix
+
+```html
+<div class="edsl-question edsl-matrix-question">
+  <div class="edsl-question-text">Rate each item.</div>
+  <table class="edsl-matrix-table">
+    <thead>
+      <tr class="edsl-matrix-header-row">
+        <th><!-- row label column --></th>
+        <th>1</th>
+        <th>2</th>
+        <th>3</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr class="edsl-matrix-row">
+        <td class="edsl-matrix-label-cell">Price</td>
+        <td class="edsl-matrix-cell">
+          <label>
+            <input class="edsl-radio" type="radio" value="1" />
+          </label>
+        </td>
+        <td class="edsl-matrix-cell">
+          <label>
+            <input class="edsl-radio" type="radio" value="2" />
+          </label>
+        </td>
+        <td class="edsl-matrix-cell">
+          <label>
+            <input class="edsl-radio" type="radio" value="3" />
+          </label>
+        </td>
+      </tr>
+      <tr class="edsl-matrix-row">
+        <td class="edsl-matrix-label-cell">Quality</td>
+        <!-- … -->
+      </tr>
+    </tbody>
+  </table>
+  <p class="edsl-error">…</p>
+</div>
+```
+
+### Multiple choice
+
+```html
+<div class="edsl-question edsl-multiple-choice-question">
+  <div class="edsl-question-text">Which fruit do you prefer?</div>
+  <div class="edsl-options">
+    <label class="edsl-option">
+      <input class="edsl-radio" type="radio" value="Apple" />
+      <span class="edsl-option-label">Apple</span>
+    </label>
+    <label class="edsl-option">
+      <input class="edsl-radio" type="radio" value="Banana" />
+      <span class="edsl-option-label">Banana</span>
+    </label>
+    <label class="edsl-option">
+      <input class="edsl-radio" type="radio" value="Cherry" />
+      <span class="edsl-option-label">Cherry</span>
+    </label>
+  </div>
+  <!-- shown only on error -->
+  <p class="edsl-error"><svg>…</svg> Please select an option.</p>
+</div>
+```
+
+### Multiple choice with other
+
+```html
+<div class="edsl-question edsl-multiple-choice-with-other-question">
+  <div class="edsl-question-text">How did you hear about us?</div>
+  <div class="edsl-options">
+    <label class="edsl-option">
+      <input class="edsl-radio" type="radio" value="Search engine" />
+      <span class="edsl-option-label">Search engine</span>
+    </label>
+    <label class="edsl-option">
+      <input class="edsl-radio" type="radio" value="Friend" />
+      <span class="edsl-option-label">Friend</span>
+    </label>
+
+    <div class="edsl-other-option">
+      <label class="edsl-option">
+        <input class="edsl-radio" type="radio" value="Other" />
+        <span class="edsl-option-label">Other</span>
+      </label>
+      <input class="edsl-other-input" type="text" placeholder="Please specify…" />
+    </div>
+  </div>
+  <p class="edsl-error">…</p>
+</div>
+```
+
+### Numerical
+
+```html
+<div class="edsl-question edsl-numerical-question">
+  <div class="edsl-question-text">Enter your age.</div>
+  <input class="edsl-input" type="text" />
+  <p class="edsl-error">…</p>
+</div>
+```
+
+### Rank
+
+```html
+<div class="edsl-question edsl-rank-question">
+  <div class="edsl-question-text">Rank these items from most to least preferred.</div>
+  <div class="edsl-rank-list">
+    <div class="edsl-rank-options">
+
+      <div class="edsl-rank-item">
+        <select class="edsl-rank-select">
+          <option value="1">1</option>
+          <option value="2">2</option>
+          <option value="3">3</option>
+          <!-- if hasRankCap: -->
+          <option value="not-ranked">Not ranked</option>
+        </select>
+        <span class="edsl-rank-item-label">Item A</span>
+        <div class="edsl-rank-drag-handle">
+          <!-- GripVertical icon (drag handle) -->
+        </div>
+      </div>
+
+      <div class="edsl-rank-item">
+        <select class="edsl-rank-select">…</select>
+        <span class="edsl-rank-item-label">Item B</span>
+        <div class="edsl-rank-drag-handle">…</div>
+      </div>
+
+      <div class="edsl-rank-item">
+        <select class="edsl-rank-select">…</select>
+        <span class="edsl-rank-item-label">Item C</span>
+        <div class="edsl-rank-drag-handle">…</div>
+      </div>
+
+    </div>
+  </div>
+  <p class="edsl-error">…</p>
+</div>
+```
+
+### Top K
+
+```html
+<div class="edsl-question edsl-top-k-question">
+  <div class="edsl-question-text">Pick your top 2.</div>
+  <div class="edsl-options">
+    <div class="edsl-option">
+      <input class="edsl-checkbox" type="checkbox" />
+      <label class="edsl-option-label">Choice A</label>
+    </div>
+    <div class="edsl-option">
+      <input class="edsl-checkbox" type="checkbox" />
+      <label class="edsl-option-label">Choice B</label>
+    </div>
+    <div class="edsl-option">
+      <input class="edsl-checkbox" type="checkbox" />
+      <label class="edsl-option-label">Choice C</label>
+    </div>
+  </div>
+  <p class="edsl-error">…</p>
+</div>
+```
+
+### Yes/no
+
+```html
+<div class="edsl-question edsl-yes-no-question">
+  <div class="edsl-question-text">Do you agree?</div>
+  <div class="edsl-options">
+    <label class="edsl-option">
+      <input class="edsl-radio" type="radio" value="Yes" />
+      <span class="edsl-option-label">Yes</span>
+    </label>
+    <label class="edsl-option">
+      <input class="edsl-radio" type="radio" value="No" />
+      <span class="edsl-option-label">No</span>
+    </label>
+  </div>
+  <p class="edsl-error">…</p>
+</div>
+```
