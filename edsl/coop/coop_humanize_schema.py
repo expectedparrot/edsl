@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Dict, Optional, Type, Union
 
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel, ConfigDict, ValidationError
 
 from ..questions import QuestionBase
 
@@ -15,97 +15,103 @@ if TYPE_CHECKING:
     from ..surveys.survey import QuestionType
 
 
-class SurveyHumanizeSchema(BaseModel):
+class HumanizeSchemaBase(BaseModel):
+    """Base for humanize schema models; forbids extra fields."""
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class SurveyHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the survey (e.g. custom styling)."""
 
     custom_css: Optional[str] = None
 
 
-class FreeTextHumanizeSchema(BaseModel):
+class FreeTextHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the free text question type."""
 
     optional: bool = False
 
 
-class BudgetHumanizeSchema(BaseModel):
+class BudgetHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the budget question type."""
 
     optional: bool = False
 
 
-class CheckboxHumanizeSchema(BaseModel):
+class CheckboxHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the checkbox question type."""
 
     optional: bool = False
 
 
-class ComputeHumanizeSchema(BaseModel):
+class ComputeHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the compute question type (no optionality)."""
 
     pass
 
 
-class InterviewHumanizeSchema(BaseModel):
+class InterviewHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the interview question type."""
 
     optional: bool = False
 
 
-class LikertHumanizeSchema(BaseModel):
+class LikertHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the likert question type."""
 
     optional: bool = False
 
 
-class LinearScaleHumanizeSchema(BaseModel):
+class LinearScaleHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the linear scale question type."""
 
     optional: bool = False
 
 
-class ListHumanizeSchema(BaseModel):
+class ListHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the list question type."""
 
     optional: bool = False
 
 
-class MatrixHumanizeSchema(BaseModel):
+class MatrixHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the matrix question type."""
 
     optional: bool = False
 
 
-class MultipleChoiceHumanizeSchema(BaseModel):
+class MultipleChoiceHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the multiple choice question type."""
 
     optional: bool = False
 
 
-class MultipleChoiceWithOtherHumanizeSchema(BaseModel):
+class MultipleChoiceWithOtherHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the multiple choice with other question type."""
 
     optional: bool = False
 
 
-class NumericalHumanizeSchema(BaseModel):
+class NumericalHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the numerical question type."""
 
     optional: bool = False
 
 
-class RankHumanizeSchema(BaseModel):
+class RankHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the rank question type."""
 
     optional: bool = False
 
 
-class TopKHumanizeSchema(BaseModel):
+class TopKHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the top k question type."""
 
     optional: bool = False
 
 
-class YesNoHumanizeSchema(BaseModel):
+class YesNoHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the yes/no question type."""
 
     optional: bool = False
@@ -130,7 +136,7 @@ HumanizeQuestionSchema = Union[
 ]
 
 
-class HumanizeSchema(BaseModel):
+class HumanizeSchema(HumanizeSchemaBase):
     """Humanize options per question; maps question names to their schema."""
 
     questions: dict[str, HumanizeQuestionSchema] = {}
