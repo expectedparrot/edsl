@@ -866,15 +866,27 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         from edsl.dataset import Dataset
 
         all_keys = sorted(self.parameters) if self.parameters else []
+
+        # Summary section
+        summary_ds = Dataset([
+            {"Field": ["Scenarios", "Parameters"]},
+            {"Value": [
+                str(len(self.data)),
+                ", ".join(all_keys) if all_keys else "(none)",
+            ]},
+        ])
+
         if not all_keys:
-            return [("ScenarioList", Dataset([]))]
+            return [("Summary", summary_ds)]
+
+        # Data section
         columns: dict[str, list] = {k: [] for k in all_keys}
         for scenario in self.data:
             for k in all_keys:
                 v = scenario.get(k)
-                columns[k].append("" if v is None else repr(v))
+                columns[k].append("" if v is None else str(v))
         data = [{k: v} for k, v in columns.items()]
-        return [("ScenarioList", Dataset(data))]
+        return [("Summary", summary_ds), ("Scenarios", Dataset(data))]
 
     def _summary_repr(self, max_rows: int = 500) -> str:
         """Generate a summary representation of the ScenarioList as a Rich table.

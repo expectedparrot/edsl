@@ -670,6 +670,22 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
         all_keys = sorted(self.trait_keys) if self.trait_keys else []
         has_names = any(agent.name is not None for agent in self.data)
 
+        # Summary section
+        summary_fields = ["Agents", "Traits"]
+        summary_values = [
+            str(len(self.data)),
+            ", ".join(all_keys) if all_keys else "(none)",
+        ]
+        if has_names:
+            named_count = sum(1 for a in self.data if a.name is not None)
+            summary_fields.append("Named")
+            summary_values.append(str(named_count))
+
+        summary_ds = Dataset(
+            [{"Field": summary_fields}, {"Value": summary_values}]
+        )
+
+        # Data section
         columns: dict[str, list] = {}
         if has_names:
             columns["name"] = []
@@ -678,12 +694,13 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
 
         for agent in self.data:
             if has_names:
-                columns["name"].append(repr(agent.name) if agent.name else "")
+                columns["name"].append(str(agent.name) if agent.name else "")
             for k in all_keys:
-                columns[k].append(repr(agent.traits.get(k, "")))
+                v = agent.traits.get(k, "")
+                columns[k].append(str(v) if v != "" else "")
 
         data = [{k: v} for k, v in columns.items()]
-        return [("AgentList", Dataset(data))]
+        return [("Summary", summary_ds), ("Agents", Dataset(data))]
 
     @wraps(AgentListRepresentation.summary_repr)
     def _summary_repr(self, MAX_AGENTS: int = 10, MAX_TRAITS: int = 10) -> str:

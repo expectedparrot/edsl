@@ -61,7 +61,17 @@ class ModelList(Base, UserList):
         for model in self:
             models.append(str(getattr(model, "model", getattr(model, "_model_", "unknown"))))
             services.append(str(getattr(model, "_inference_service_", "unknown")))
-        return [("ModelList", Dataset([{"model": models}, {"service": services}]))]
+
+        unique_services = sorted(set(services))
+        summary_ds = Dataset([
+            {"Field": ["Models", "Services"]},
+            {"Value": [
+                str(len(self)),
+                ", ".join(unique_services) if unique_services else "(none)",
+            ]},
+        ])
+
+        return [("Summary", summary_ds), ("Models", Dataset([{"model": models}, {"service": services}]))]
 
     def _summary_repr(self, max_rows: int = 500) -> str:
         """Generate a summary representation of the ModelList as a Rich table.
