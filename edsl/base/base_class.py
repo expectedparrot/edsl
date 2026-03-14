@@ -849,50 +849,26 @@ class RepresentationMixin:
         console = Console(record=True)
         console.print(table)
 
+    def _mime_(self):
+        """Marimo display protocol — returns an interactive table.
+
+        Marimo checks for ``_mime_()`` before ``_repr_html_()``, so when
+        running inside a Marimo notebook the object renders as a live,
+        interactive pandas table (sortable, searchable, downloadable).
+        """
+        import marimo as mo
+
+        return mo.ui.table(
+            self.to_dataset().to_pandas(), selection=None, pagination=True
+        )._mime_()
+
     def _repr_html_(self):
         """Generate an HTML representation for Jupyter notebooks.
-
-        If ``info()`` has been overridden, renders each (title, Dataset)
-        section as an HTML heading + pandas table.  Otherwise falls back
-        to the legacy ``_summary()`` / ``to_pandas_for_display()`` path.
 
         Returns:
             str: HTML representation of the object
         """
-        # Use info() path when overridden
-        if type(self).info is not RepresentationMixin.info:
-            parts = [f"<b>{self.__class__.__name__}</b>"]
-            for title, ds in self.info():
-                parts.append(f"<h4>{title}</h4>")
-                parts.append(ds.to_pandas()._repr_html_())
-            return "\n".join(parts)
-
-        # Legacy path for classes that haven't adopted info() yet
-        import pandas as pd
-
-        parts = []
-
-        # Info section from _summary()
-        if hasattr(self, "_summary"):
-            class_name = self.__class__.__name__
-            docs = getattr(self, "__documentation__", "")
-            summary = self._summary()
-            info_df = pd.DataFrame(
-                list(summary.items()), columns=["Property", "Value"]
-            )
-            header = f"<b><a href='{docs}'>{class_name}</a></b>" if docs else f"<b>{class_name}</b>"
-            parts.append(header)
-            parts.append(info_df._repr_html_())
-
-        # Data section
-        if hasattr(self, "to_pandas_for_display"):
-            parts.append(self.to_pandas_for_display()._repr_html_())
-        else:
-            d = self.display_dict()
-            fallback = pd.DataFrame(list(d.items()), columns=["Key", "Value"])
-            parts.append(fallback._repr_html_())
-
-        return "\n".join(parts)
+        return self.to_dataset().to_pandas()._repr_html_()
 
     def _store_info_line(self) -> str:
         """Build a dim store-metadata line if this object has been saved."""
