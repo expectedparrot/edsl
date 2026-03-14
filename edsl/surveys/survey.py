@@ -28,7 +28,7 @@ from typing import (
 from typing_extensions import Literal
 from ..base import Base
 from ..scenarios import Scenario
-from ..utilities import remove_edsl_version, with_spinner
+from ..utilities import remove_edsl_version
 
 if TYPE_CHECKING:
     from ..questions import QuestionBase
@@ -62,7 +62,6 @@ from .descriptors import QuestionsDescriptor, QuestionsToRandomizeDescriptor
 from .memory import MemoryPlan
 from ..instructions import InstructionHandler
 from .edit_survey import EditSurvey
-from .survey_simulator import Simulator
 from .memory import MemoryManagement
 from .rules import RuleManager, RuleCollection
 from .survey_export import SurveyExport
@@ -73,8 +72,7 @@ from .exceptions import (
     SurveyError,
 )
 
-from dataclasses import dataclass
-from ..base.decorators import Snapshot, snapshot, make_initial_snapshot
+from ..base.decorators import snapshot, make_initial_snapshot
 
 
 class Survey(Base):

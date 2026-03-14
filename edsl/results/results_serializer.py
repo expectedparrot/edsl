@@ -19,7 +19,6 @@ from ..utilities import remove_edsl_version
 
 if TYPE_CHECKING:
     from .results import Results
-    from .result import Result
 
 from .exceptions import ResultsDeserializationError
 
@@ -218,7 +217,6 @@ class ResultsSerializer:
           - Result rows (one Result.to_dict() per line)
         """
         from .. import __version__
-        from ..caching import Cache
 
         # Collect survey and cache rows first to get counts
         survey_rows = list(self.results.survey.to_jsonl_rows(blob_writer=blob_writer))

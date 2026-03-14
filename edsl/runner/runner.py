@@ -15,18 +15,18 @@ Usage:
     results = job_handle.results()
 """
 
-from typing import Any, Optional, TYPE_CHECKING, Union
-from dataclasses import dataclass, field
+from typing import Any, TYPE_CHECKING
+from dataclasses import dataclass
 import time
 import asyncio
 
 from .storage import InMemoryStorage, StorageProtocol
 from .service import JobService
-from .models import JobState, TaskStatus, TaskExecutionError
+from .models import JobState, TaskExecutionError
 from .queues import QueueRegistry, load_queues_from_env
 from .coordinator import ExecutionCoordinator
 from .render import RenderWorker
-from .executor import ExecutionWorker, ExecutionWorkerPool
+from .executor import ExecutionWorkerPool
 from .visualization import JobHandleVisualizer, JobVisualizer
 from .direct_answer import DirectAnswerRegistry, DirectAnswerEntry
 

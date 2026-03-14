@@ -8,7 +8,6 @@ abstracting the storage protocol details.
 import logging
 import time
 from datetime import datetime
-from typing import Any
 
 from .storage import StorageProtocol
 

@@ -25,11 +25,9 @@ from .exceptions import (
     DatasetKeyError,
     DatasetValueError,
     DatasetTypeError,
-    DatasetExportError,
 )
 
 if TYPE_CHECKING:
-    from docx import Document
     from .dataset import Dataset
     from ..scenarios import ScenarioList
     from ..jobs import Job  # noqa: F401

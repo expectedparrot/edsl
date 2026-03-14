@@ -13,8 +13,8 @@ from __future__ import annotations
 
 import io
 import shutil
-from dataclasses import dataclass, field
-from typing import Any, Optional, Sequence, Union
+from dataclasses import dataclass
+from typing import Optional, Sequence, Union
 
 from rich import box
 from rich.console import Console

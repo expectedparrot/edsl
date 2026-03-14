@@ -96,7 +96,6 @@ class ExecutionWorker:
 
     async def run(self) -> None:
         """Main worker loop."""
-        from .models import TaskStatus
 
         self._running = True
 

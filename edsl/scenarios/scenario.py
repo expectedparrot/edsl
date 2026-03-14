@@ -24,7 +24,6 @@ from typing import Union, List, Optional, TYPE_CHECKING, Dict, Any, Iterable, Ma
 
 from ..base import Base
 from .exceptions import ScenarioError
-from ..utilities.display_utils import smart_truncate
 
 if TYPE_CHECKING:
     from .scenario_list import ScenarioList

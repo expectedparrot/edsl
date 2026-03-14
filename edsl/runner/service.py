@@ -21,7 +21,6 @@ try:
     from .storage_sqlalchemy import reset_db_stats, get_db_stats
 except ImportError:
     # sqlalchemy not installed — provide no-op stubs
-    import time as _time
 
     def reset_db_stats():
         pass
@@ -30,13 +29,11 @@ except ImportError:
         return {"calls": 0, "elapsed_ms": 0}
 from .models import (
     JobDefinition,
-    JobStatus,
     JobState,
     InterviewDefinition,
     InterviewStatus,
     InterviewState,
     TaskDefinition,
-    TaskState,
     TaskStatus,
     Answer,
     RetryPolicy,
@@ -51,7 +48,6 @@ from ..surveys.base import EndOfSurvey
 from ..results import Result, Results
 from ..agents import Agent
 from ..scenarios import Scenario
-from ..questions import QuestionBase
 
 if TYPE_CHECKING:
     # Avoid circular import - these would be EDSL types
@@ -593,7 +589,7 @@ class JobService:
         # First question is never skipped
         if question_index == 0:
             if debug:
-                print(f"  [skip] First question - not skipping")
+                print("  [skip] First question - not skipping")
             return False, None
 
         # OPTIMIZATION: If survey has no user-defined skip rules, skip evaluation entirely
@@ -2184,7 +2180,6 @@ class JobService:
         - Dict format: {"from": "{{ q1.answer }}", "add": ["Other"]}
         - Non-template values (lists, None): returned as-is
         """
-        import re
 
         # Dict format: {"from": "{{ q1.answer }}", "add": ["Option X"]}
         if isinstance(options, dict) and "from" in options:

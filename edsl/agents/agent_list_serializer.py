@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Generator, Iterable, List, Optional, Union, TYPE_CHECKING
+from typing import Generator, Iterable, Union, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .agent import Agent

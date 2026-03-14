@@ -39,7 +39,7 @@ from __future__ import annotations
 import json
 import warnings
 from functools import wraps
-from typing import Optional, Callable, Any, Union, List, TYPE_CHECKING
+from typing import Optional, Any, Union, List, TYPE_CHECKING
 from collections.abc import MutableSequence
 
 from ..base import Base

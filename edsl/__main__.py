@@ -318,12 +318,6 @@ def _get_schema_classes():
     from edsl.questions.register_questions_meta import RegisterQuestionsMeta
 
     # Force import of question types
-    from edsl.questions import (
-        QuestionFreeText, QuestionMultipleChoice, QuestionCheckBox,
-        QuestionLinearScale, QuestionNumerical, QuestionYesNo,
-        QuestionList, QuestionRank, QuestionBudget, QuestionExtract,
-        QuestionMatrix, QuestionTopK,
-    )
 
     classes = {
         "Agent": (Agent, "A respondent with traits and optional instructions."),
@@ -522,11 +516,6 @@ def _validate_question(raw: dict, warnings_list: list) -> dict:
     """Validate and normalize a single question dict."""
     from edsl.questions.register_questions_meta import RegisterQuestionsMeta
 
-    from edsl.questions import (
-        QuestionFreeText, QuestionMultipleChoice, QuestionCheckBox,
-        QuestionLinearScale, QuestionNumerical, QuestionYesNo,
-        QuestionList, QuestionRank, QuestionBudget, QuestionExtract,
-    )
 
     qtype = raw.get("type", raw.get("question_type", "free_text"))
     type_map = RegisterQuestionsMeta.question_types_to_classes()
@@ -594,10 +583,9 @@ def run(jobs, survey, json_data, question, agent_list, scenario_list,
         model_list, model, qtype, options, name, progress, fresh, save):
     """Run question(s) and get results."""
     from edsl.jobs import Jobs
-    from edsl.surveys import Survey as SurveyClass
-    from edsl.agents import Agent, AgentList as AgentListClass
-    from edsl.scenarios import Scenario, ScenarioList as ScenarioListClass
-    from edsl.language_models import Model as ModelClass, LanguageModel
+    from edsl.agents import AgentList as AgentListClass
+    from edsl.scenarios import ScenarioList as ScenarioListClass
+    from edsl.language_models import Model as ModelClass
     from edsl.language_models.model_list import ModelList as ModelListClass
 
     # Check mutually exclusive model flags
@@ -747,11 +735,6 @@ def _build_job(input_mode, jobs_path, survey_path, json_str, stdin_data,
     from edsl.surveys import Survey as SurveyClass
     from edsl.questions.register_questions_meta import RegisterQuestionsMeta
 
-    from edsl.questions import (
-        QuestionFreeText, QuestionMultipleChoice, QuestionCheckBox,
-        QuestionLinearScale, QuestionNumerical, QuestionYesNo,
-        QuestionList, QuestionRank, QuestionBudget, QuestionExtract,
-    )
 
     if input_mode == "jobs":
         data = _read_json_file(jobs_path)

@@ -8,7 +8,6 @@ from .service_enums import OPENAI_REASONING_MODELS
 
 # Use TYPE_CHECKING to avoid circular imports at runtime
 if TYPE_CHECKING:
-    import openai as _openai_mod
     from ...language_models import LanguageModel
 
 # from ..rate_limits_cache import rate_limits

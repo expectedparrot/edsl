@@ -44,7 +44,7 @@ def _open_lines(source: Union[str, Path, Iterable[str]]) -> Iterable[str]:
 def _component_pointer(component, name: str, root=None, message: str = "") -> dict:
     """Return a CAS pointer dict for a component, auto-saving if needed."""
     if component.store.uuid is None:
-        component.store.save(message=message or f"auto-saved by Jobs.to_jsonl()", root=root)
+        component.store.save(message=message or "auto-saved by Jobs.to_jsonl()", root=root)
     return {
         "uuid": component.store.uuid,
         "branch": component.store.current_branch,

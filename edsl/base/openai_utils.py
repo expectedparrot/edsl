@@ -10,7 +10,7 @@ from typing import Optional
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from openai import OpenAI, OpenAIError
+    from openai import OpenAI
 
 
 def create_openai_client(api_key: Optional[str] = None, **kwargs) -> OpenAI:

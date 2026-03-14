@@ -1036,7 +1036,6 @@ class Cache(Base):
 
     def _summary_repr(self) -> str:
         """Generate a summary representation of the Cache as a Rich table."""
-        from .cache_entry import CacheEntry
         from ..utilities.summary_table import ColumnDef, render_summary_table
 
         num_entries = len(self.data)

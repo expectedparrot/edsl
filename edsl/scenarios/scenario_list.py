@@ -54,9 +54,8 @@ from typing import (
 )
 import warnings
 import csv
-import random
 import os
-from collections.abc import Iterable, MutableSequence
+from collections.abc import MutableSequence
 from functools import wraps
 from pathlib import Path
 import json
@@ -78,7 +77,6 @@ if TYPE_CHECKING:
     from ..surveys import Survey
     from ..questions import QuestionBase, Question
     from ..agents import Agent
-    from typing import Sequence
 
 
 
@@ -89,9 +87,7 @@ from ..utilities import (
     is_valid_variable_name,
     dict_hash,
     memory_profile,
-    list_split,
 )
-from ..utilities.display_utils import smart_truncate
 from ..dataset import ScenarioListOperationsMixin
 
 from .exceptions import ScenarioError

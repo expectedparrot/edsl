@@ -7,7 +7,6 @@ that users run large-scale experiments or simulations in EDSL.
 """
 
 from __future__ import annotations
-import asyncio
 from importlib import import_module
 from typing import (
     Optional,
