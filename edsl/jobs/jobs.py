@@ -1043,6 +1043,17 @@ class Jobs(Base):
 
     def _prepare_to_run(self) -> None:
         """Prepare the job to run and ensure keys are in place for a remote job."""
+        # Check for collisions between agent trait keys and question names
+        from .exceptions import JobsValueError
+        question_names = {q.question_name for q in self.survey.questions}
+        for agent in self.agents:
+            conflicting = set(agent.traits.keys()) & question_names
+            if conflicting:
+                raise JobsValueError(
+                    f"Agent trait key(s) {conflicting} conflict with question name(s). "
+                    f"Please rename the trait(s) or question(s) to avoid collisions. "
+                    f"For example: agent.rename({{{repr(list(conflicting)[0])}: 'agent_{list(conflicting)[0]}'}})"
+                )
         CheckSurveyScenarioCompatibility(self.survey, self.scenarios).check()
 
     def _check_if_remote_keys_ok(self) -> None:
