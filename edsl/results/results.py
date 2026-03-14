@@ -962,7 +962,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         self,
         n: Optional[int] = None,
         frac: Optional[float] = None,
-        with_replacement: bool = True,
+        with_replacement: bool = False,
         seed: Optional[str] = None,
     ) -> Results:
         """Return a random sample of the results.
