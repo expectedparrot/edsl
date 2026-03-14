@@ -510,16 +510,30 @@ class Runner:
             if stop_on_exception is not None
             else self._job_stop_on_exception.get(job_id, False)
         )
-        asyncio.run(
-            self._execute_job_async(
-                job_id,
-                debug=debug,
-                cache=cache,
-                stats=stats,
-                stop_on_exception=effective_stop_on_exception,
-                show_progress=show_progress,
-            )
+        coro = self._execute_job_async(
+            job_id,
+            debug=debug,
+            cache=cache,
+            stats=stats,
+            stop_on_exception=effective_stop_on_exception,
+            show_progress=show_progress,
         )
+
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            loop = None
+
+        if loop is not None and loop.is_running():
+            # We're inside an already-running event loop (e.g. marimo, Jupyter).
+            # Apply nest_asyncio so asyncio.run() can work inside the loop.
+            import nest_asyncio
+
+            nest_asyncio.apply()
+            asyncio.run(coro)
+        else:
+            asyncio.run(coro)
+
         return stats
 
     async def _execute_job_async(
