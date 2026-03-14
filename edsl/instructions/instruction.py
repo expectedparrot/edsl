@@ -1,5 +1,5 @@
 from __future__ import annotations
-from ..utilities.remove_edsl_version import remove_edsl_version
+from ..utilities import remove_edsl_version
 from ..base import RepresentationMixin
 from typing import TYPE_CHECKING
 

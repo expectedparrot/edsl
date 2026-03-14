@@ -42,6 +42,14 @@ class StoreSaveInfo(dict):
             f"branch={branch!r}, commit={commit!r}, message={msg!r})"
         )
 
+    def _mime_(self):
+        """Marimo display protocol — returns an interactive table."""
+        import marimo as mo
+        import pandas as pd
+
+        df = pd.DataFrame(list(self.items()), columns=["key", "value"])
+        return mo.ui.table(df, selection=None, pagination=True)._mime_()
+
     def _repr_html_(self) -> str:
         rows = "".join(
             f"<tr><td style='font-weight:600'>{k}</td><td>{v}</td></tr>"
@@ -67,6 +75,16 @@ class StoreListInfo(list):
         if not self:
             return "(no objects in store)"
         return _to_table(list(self))
+
+    def _mime_(self):
+        """Marimo display protocol — returns an interactive table."""
+        if not self:
+            import marimo as mo
+            return mo.Html("<em>No objects in store.</em>")._mime_()
+        from edsl.scenarios import Scenario, ScenarioList
+
+        sl = ScenarioList([Scenario(row) for row in self])
+        return sl._mime_()
 
     def _repr_html_(self) -> str:
         if not self:
@@ -94,6 +112,16 @@ class StoreLogInfo(list):
         if not self:
             return "(no commits)"
         return _to_table(list(self))
+
+    def _mime_(self):
+        """Marimo display protocol — returns an interactive table."""
+        if not self:
+            import marimo as mo
+            return mo.Html("<em>No commits.</em>")._mime_()
+        from edsl.scenarios import Scenario, ScenarioList
+
+        sl = ScenarioList([Scenario(row) for row in self])
+        return sl._mime_()
 
     def _repr_html_(self) -> str:
         if not self:

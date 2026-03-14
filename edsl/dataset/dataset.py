@@ -494,6 +494,14 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
                 f"Supported: .csv, .html, .md, .tex, .xlsx, .json"
             )
 
+    def _mime_(self):
+        """Marimo display protocol — returns an interactive table."""
+        import marimo as mo
+
+        return mo.ui.table(
+            self.to_pandas(), selection=None, pagination=True
+        )._mime_()
+
     def _repr_html_(self):
         """Return an HTML representation of the dataset for Jupyter notebooks."""
         return self.to_pandas_for_display()._repr_html_()

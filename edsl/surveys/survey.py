@@ -2971,6 +2971,16 @@ class Survey(Base):
             )
         return f"Survey(questions=[{questions_string}], memory_plan={self.memory_plan}, rule_collection={self.rule_collection}, question_groups={self.question_groups}, questions_to_randomize={self.questions_to_randomize})"
 
+    def to_dataset(self):
+        """Convert the survey to a Dataset with one row per question.
+
+        Returns a tabular Dataset with columns for question_name,
+        question_type, question_text, question_options, and skip_logic
+        (when any non-default rules exist).
+        """
+        _, dataset = self.info()[0]
+        return dataset
+
     def _summary_repr(self, max_text_preview: int = 60, max_items: int = 50) -> str:
         """Generate a summary representation of the Survey with Rich formatting.
 

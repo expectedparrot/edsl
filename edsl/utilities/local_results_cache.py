@@ -3,9 +3,6 @@ from pathlib import Path
 import tempfile
 from typing import Optional
 
-# Reuse the generic loader we just implemented
-from .edsl_load import load as _load_edsl_obj
-
 
 @contextmanager
 def object_disk_cache(
@@ -66,7 +63,7 @@ def object_disk_cache(
     # ------------------------------------------------------------------
     if cache_path.exists():
         try:
-            cached_obj = _load_edsl_obj(str(cache_path))
+            cached_obj = Base.load(str(cache_path))
             if verbose:
                 print("[cache] hit – loaded object from disk")
             yield cached_obj

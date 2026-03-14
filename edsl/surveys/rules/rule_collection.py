@@ -85,6 +85,10 @@ class RuleCollection(UserList):
 
         return Dataset([{k: v} for k, v in rule_list.items()])
 
+    def _mime_(self):
+        """Marimo display protocol — returns an interactive table."""
+        return self.to_dataset()._mime_()
+
     def _repr_html_(self):
         """Return an HTML representation of the RuleCollection object."""
         return self.to_dataset()._repr_html_()
