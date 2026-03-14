@@ -54,10 +54,29 @@ class AgentListFactories:
         from .agent import Agent
         from .agent_list import AgentList
 
+        from ..utilities.utilities import is_valid_variable_name, make_valid_variable_name
+
         agent_list = []
+        warned_keys = set()
         with open(file_path, "r") as f:
             reader = csv.DictReader(f)
             for row in reader:
+                # Sanitize trait keys to valid Python identifiers
+                sanitized_row = {}
+                for key, value in row.items():
+                    if not is_valid_variable_name(key):
+                        new_key = make_valid_variable_name(key)
+                        if key not in warned_keys:
+                            warnings.warn(
+                                f"Trait name '{key}' is not a valid Python identifier. "
+                                f"Renaming to '{new_key}'."
+                            )
+                            warned_keys.add(key)
+                        sanitized_row[new_key] = value
+                    else:
+                        sanitized_row[key] = value
+                row = sanitized_row
+
                 if "name" in row:
                     warnings.warn("Using 'name' field in the CSV for the Agent name")
                     name_field = "name"
