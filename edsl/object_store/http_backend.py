@@ -150,22 +150,48 @@ class HttpBackend:
         commit_hash: str,
         expected_tip: Optional[str] = None,
     ) -> dict:
-        """Push buffered objects and update a ref."""
-        bundle: dict = {
-            "blobs": self._pending_blobs,
-            "trees": self._pending_trees,
-            "commits": self._pending_commits,
-            "update_ref": {
-                "branch": branch,
-                "commit": commit_hash,
-            },
+        """Push buffered objects using the 3-phase signed-URL protocol."""
+        update_ref: dict = {
+            "branch": branch,
+            "commit": commit_hash,
         }
         if expected_tip is not None:
-            bundle["update_ref"]["expected_tip"] = expected_tip
-        if self._pending_meta is not None:
-            bundle["meta"] = self._pending_meta
+            update_ref["expected_tip"] = expected_tip
 
-        result = self._post_json(f"{self._prefix}/push", bundle)
+        # Build manifest of objects to upload
+        objects = []
+        content_map: dict[str, str] = {}  # "category/hash" -> content
+        for category, pending in [
+            ("blobs", self._pending_blobs),
+            ("trees", self._pending_trees),
+            ("commits", self._pending_commits),
+        ]:
+            for hash_, content in pending.items():
+                objects.append({"category": category, "hash": hash_, "size": len(content)})
+                content_map[f"{category}/{hash_}"] = content
+
+        # Phase 1: begin
+        begin_body: dict = {"objects": objects, "update_ref": update_ref}
+        if self._pending_meta is not None:
+            begin_body["meta"] = self._pending_meta
+
+        session = self._post_json(f"{self._prefix}/push/begin", begin_body)
+
+        # Phase 2: upload objects (skip already_exists)
+        for entry in session.get("upload_urls", []):
+            if entry.get("already_exists"):
+                continue
+            key = f"{entry['category']}/{entry['hash']}"
+            content = content_map.get(key)
+            if content is None:
+                continue
+            self._put_raw(f"{self.base_url}{entry['upload_url']}", content.encode())
+
+        # Phase 3: finalize
+        result = self._post_json(
+            f"{self._prefix}/push/finalize",
+            {"session_id": session["session_id"]},
+        )
 
         # Clear buffers
         self._pending_blobs.clear()
@@ -265,3 +291,10 @@ class HttpBackend:
         req = Request(url, data=body, headers=headers, method="PUT")
         with urlopen(req) as resp:
             return json.loads(resp.read().decode())
+
+    def _put_raw(self, url: str, data: bytes) -> None:
+        """PUT raw bytes (for signed-URL uploads)."""
+        headers = {**self._auth_headers(), "Content-Type": "application/octet-stream"}
+        req = Request(url, data=data, headers=headers, method="PUT")
+        with urlopen(req) as resp:
+            resp.read()  # drain response
