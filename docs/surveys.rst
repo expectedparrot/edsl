@@ -751,6 +751,20 @@ The dict format also works when piping from scenario data:
    results = q.by(scenario).run()
 
 
+Alternatively, you can use Jinja2's native list concatenation directly inside the template braces:
+
+.. code-block:: python
+
+   q2 = QuestionMultipleChoice(
+      question_name = "top_choice",
+      question_text = "Which is your #1 favorite color?",
+      question_options = "{{ colors.answer + ['None of the above', 'Other'] }}"
+   )
+
+Note that the ``+`` operator must be *inside* the ``{{ }}`` braces for Jinja2 to evaluate it.
+Placing it outside (e.g., ``"{{ colors.answer }}" + ["Other"]``) will not work.
+
+
 Agent traits
 ^^^^^^^^^^^^
 
