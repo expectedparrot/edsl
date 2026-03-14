@@ -169,6 +169,21 @@ class MultipleChoiceResponseValidator(ResponseValidatorABC):
                 print("Not attempting to fix None answer value")
             return response
 
+        # When use_code=True, try to extract the numeric code from responses
+        # like "0: Yes", "0 - Yes", "0. Yes", etc.
+        if self.use_code:
+            answer = str(response.get("answer", ""))
+            import re
+            code_match = re.match(r"^\s*(\d+)\s*[:.\-)\]]\s*", answer)
+            if code_match:
+                code = int(code_match.group(1))
+                if 0 <= code < len(self.question_options):
+                    return {
+                        "answer": code,
+                        "comment": response.get("comment"),
+                        "generated_tokens": response.get("generated_tokens"),
+                    }
+
         # Get the raw text to analyze
         response_text = str(response.get("answer", ""))
         if not response_text:
