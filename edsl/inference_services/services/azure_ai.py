@@ -4,7 +4,7 @@ from urllib.parse import urlparse, parse_qs
 
 from azure.ai.inference.aio import ChatCompletionsClient
 from azure.core.credentials import AzureKeyCredential
-from azure.ai.inference.models import SystemMessage, UserMessage
+from azure.ai.inference.models import SystemMessage, UserMessage, TextContentItem, ImageContentItem, ImageUrl
 
 from ..inference_service_abc import InferenceServiceABC
 from ..decorators import report_errors_async
@@ -259,7 +259,6 @@ class AzureAIService(InferenceServiceABC):
                         fresh=fresh_value,  # Pass fresh parameter
                     )
 
-                # Note: files_list is not yet implemented for Azure AI service
                 try:
                     model_info_dict = self.get_model_info_dict()
                     api_key = model_info_dict[model_name]["azure_endpoint_key"]
@@ -319,7 +318,57 @@ class AzureAIService(InferenceServiceABC):
                     messages = []
                     if system_prompt:
                         messages.append(SystemMessage(content=system_prompt))
-                    messages.append(UserMessage(content=user_prompt))
+
+                    # Handle file attachments
+                    if files_list:
+                        content_items = [TextContentItem(text=user_prompt)]
+                        for f in files_list:
+                            if f.mime_type.startswith("image/"):
+                                content_items.append(
+                                    ImageContentItem(
+                                        image_url=ImageUrl(
+                                            url=f"data:{f.mime_type};base64,{f.base64_string}"
+                                        )
+                                    )
+                                )
+                            elif f.mime_type == "application/pdf":
+                                # Azure doesn't support PDF as image data URLs;
+                                # extract text and send inline
+                                filename = getattr(f, "filename", "document.pdf")
+                                extracted = getattr(f, "extracted_text", None)
+                                if not extracted:
+                                    try:
+                                        extracted = f.extract_text()
+                                    except Exception:
+                                        extracted = None
+                                if extracted:
+                                    content_items.append(
+                                        TextContentItem(
+                                            text=f"--- Content from PDF '{filename}' ---\n{extracted}\n--- End of PDF ---"
+                                        )
+                                    )
+                                else:
+                                    content_items.append(
+                                        TextContentItem(text=f"[PDF file '{filename}' could not be processed]")
+                                    )
+                            else:
+                                # For text-based files, inline the content
+                                import base64
+                                filename = getattr(f, "filename", "file")
+                                try:
+                                    text = base64.b64decode(f.base64_string).decode("utf-8")
+                                    content_items.append(
+                                        TextContentItem(
+                                            text=f"--- Content from '{filename}' ---\n{text}\n--- End of {filename} ---"
+                                        )
+                                    )
+                                except (UnicodeDecodeError, Exception):
+                                    content_items.append(
+                                        TextContentItem(text=f"[File '{filename}' of type '{f.mime_type}' cannot be displayed]")
+                                    )
+                        messages.append(UserMessage(content=content_items))
+                    else:
+                        messages.append(UserMessage(content=user_prompt))
 
                     # Make the API call with parameters
                     # Use deployment name if available (for Azure OpenAI), otherwise use model_name
