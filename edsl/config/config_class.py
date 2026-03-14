@@ -1,6 +1,8 @@
 """This module provides a Config class that loads environment variables from a .env file and sets them as class attributes."""
 
 import os
+import sys
+import io
 import platformdirs
 from dotenv import load_dotenv, find_dotenv
 from ..base import BaseException
@@ -183,7 +185,20 @@ class Config(RepresentationMixin):
             override = False
         else:
             override = True
-        _ = load_dotenv(dotenv_path=find_dotenv(usecwd=True), override=override)
+        dotenv_path = find_dotenv(usecwd=True)
+        # Capture stderr to detect parse errors from python-dotenv
+        old_stderr = sys.stderr
+        sys.stderr = captured = io.StringIO()
+        try:
+            _ = load_dotenv(dotenv_path=dotenv_path, override=override)
+        finally:
+            sys.stderr = old_stderr
+        parse_errors = captured.getvalue().strip()
+        if parse_errors:
+            raise InvalidEnvironmentVariableError(
+                f"Failed to parse .env file at '{dotenv_path}': {parse_errors}. "
+                f"Please check the file for syntax errors (each line should be KEY=VALUE)."
+            )
 
     def __contains__(self, env_var: str) -> bool:
         """
