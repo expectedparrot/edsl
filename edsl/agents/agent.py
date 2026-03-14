@@ -691,6 +691,24 @@ class Agent(Base):
         """Set traits using the unified traits manager."""
         self.traits_manager.set_traits_safely(traits)
 
+    @property
+    def visible_traits(self) -> dict[str, Any]:
+        """Get traits excluding hidden ones (prefixed with '_').
+
+        Traits whose keys start with '_' are treated as hidden metadata.
+        They are stored and serialized but excluded from LLM prompts
+        by default.
+
+        Returns:
+            dict: Dictionary of visible agent traits
+
+        Examples:
+            >>> a = Agent(traits={"age": 10, "_internal_id": "xyz"})
+            >>> a.visible_traits
+            {'age': 10}
+        """
+        return {k: v for k, v in self.traits.items() if not k.startswith("_")}
+
     def to(self, target: Union["QuestionBase", "Jobs", "Survey"]) -> "Jobs":
         """Send the agent to a question, job, or survey.
 
