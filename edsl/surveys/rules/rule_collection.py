@@ -86,11 +86,7 @@ class RuleCollection(UserList):
         return Dataset([{k: v} for k, v in rule_list.items()])
 
     def _repr_html_(self):
-        """Return an HTML representation of the RuleCollection object.
-
-        >>> rule_collection = RuleCollection.example()
-        >>> _ = rule_collection._repr_html_()
-        """
+        """Return an HTML representation of the RuleCollection object."""
         return self.to_dataset()._repr_html_()
 
     def to_dict(self, add_edsl_version=True):
