@@ -16,6 +16,11 @@ When creating a human survey or preview (e.g. `survey.humanize()` or `survey.pre
       
       **Supported question types:** `free_text`, `budget`, `checkbox`, `interview`, `likert_five`, `linear_scale`, `list`, `matrix`, `multiple_choice`, `multiple_choice_with_other`, `numerical`, `rank`, `top_k`, `yes_no`.
     </ParamField>
+    <ParamField path="questions.question_name.format" type="object" required={false}>
+      Display format: `"radio"` (list of radio buttons) or `"dropdown"` (single `<select>`). Default is `"radio"` when omitted. Use `{"type": "radio"}` or `{"type": "dropdown"}`.
+      
+      **Supported question types:** `likert_five`, `linear_scale`, `multiple_choice`, `yes_no`. Other question types do not accept `format`.
+    </ParamField>
   </Expandable>
 </ParamField>
 
@@ -45,7 +50,7 @@ survey = Survey([
 humanize_schema = {
     "questions": {
         "feedback": {"optional": True},
-        "rating": {"optional": False},
+        "rating": {"optional": False, "format": {"type": "dropdown"}},
     },
     "survey": {"custom_css": None},
 }

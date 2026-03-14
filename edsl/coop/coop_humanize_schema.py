@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Dict, Optional, Type, Union
+from typing import TYPE_CHECKING, Any, Dict, Literal, Optional, Type, Union
 
-from pydantic import BaseModel, ConfigDict, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from ..questions import QuestionBase
 
@@ -19,6 +19,12 @@ class HumanizeSchemaBase(BaseModel):
     """Base for humanize schema models; forbids extra fields."""
 
     model_config = ConfigDict(extra="forbid")
+
+
+class MCSubclassFormatSchema(BaseModel):
+    """Display format for MC-style questions: radio list or dropdown."""
+
+    type: Literal["radio", "dropdown"] = "radio"
 
 
 class SurveyHumanizeSchema(HumanizeSchemaBase):
@@ -61,12 +67,14 @@ class LikertHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the likert question type."""
 
     optional: bool = False
+    format: MCSubclassFormatSchema = Field(default_factory=MCSubclassFormatSchema)
 
 
 class LinearScaleHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the linear scale question type."""
 
     optional: bool = False
+    format: MCSubclassFormatSchema = Field(default_factory=MCSubclassFormatSchema)
 
 
 class ListHumanizeSchema(HumanizeSchemaBase):
@@ -85,6 +93,7 @@ class MultipleChoiceHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the multiple choice question type."""
 
     optional: bool = False
+    format: MCSubclassFormatSchema = Field(default_factory=MCSubclassFormatSchema)
 
 
 class MultipleChoiceWithOtherHumanizeSchema(HumanizeSchemaBase):
@@ -115,6 +124,7 @@ class YesNoHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the yes/no question type."""
 
     optional: bool = False
+    format: MCSubclassFormatSchema = Field(default_factory=MCSubclassFormatSchema)
 
 
 HumanizeQuestionSchema = Union[
