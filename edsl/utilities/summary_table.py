@@ -107,7 +107,7 @@ def render_summary_table(
         caption: Optional dim italic caption displayed below the table.
         max_rows: If set and ``len(rows)`` exceeds this, only the first
             *max_rows* rows are shown followed by an overflow indicator.
-        max_lines: Safety limit on rendered output height (default 200).
+        max_lines: Safety limit on rendered output height (default 2000).
             If the table exceeds this many lines it is automatically
             re-rendered with fewer rows to fit.
 

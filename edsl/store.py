@@ -11,6 +11,7 @@ Usage::
 
 from __future__ import annotations
 
+import builtins
 from typing import Optional
 
 from edsl.object_store.store import ObjectStore
@@ -35,7 +36,7 @@ def _rows_to_dataset(rows: list[dict], columns: list[str] | None = None) -> "Dat
     if columns:
         keys = columns + [k for k in rows[0] if k not in columns]
     else:
-        keys = __builtins__["list"](rows[0].keys()) if isinstance(__builtins__, dict) else list(rows[0].keys())
+        keys = builtins.list(rows[0].keys())
     return Dataset([{k: [r.get(k) for r in rows]} for k in keys])
 
 

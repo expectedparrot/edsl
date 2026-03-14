@@ -526,11 +526,11 @@ class Runner:
 
         if loop is not None and loop.is_running():
             # We're inside an already-running event loop (e.g. marimo, Jupyter).
-            # Apply nest_asyncio so asyncio.run() can work inside the loop.
+            # Apply nest_asyncio so we can nest into the running loop.
             import nest_asyncio
 
             nest_asyncio.apply()
-            asyncio.run(coro)
+            loop.run_until_complete(coro)
         else:
             asyncio.run(coro)
 

@@ -19,7 +19,7 @@ def object_disk_cache(
        ``<hash>.json.gz`` inside the cache directory (defaults to
        ``$TMPDIR/edsl_job_cache``).
     2. If that file exists attempt to load it with
-       :pyfunc:`edsl.utilities.edsl_load.load`.
+       :pyfunc:`edsl.base.base_class.Base.load`.
     3. On success yield the cached object (cache *hit*).  On failure (corrupt or
        incompatible file) fall back to re-running the job.
     4. After running the job save the returned object back to the same path so

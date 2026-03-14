@@ -2891,7 +2891,7 @@ class Survey(Base):
                 f"Survey indices must be int, str, slice, or List[str], not {type(index)}"
             )
 
-    def select(self, *args, **kwargs) -> "Survey":
+    def select(self, *args, **kwargs) -> "Dataset":
         """Treat like a dataset.select()"""
         return self.info()[0][1].select(*args, **kwargs)
 
