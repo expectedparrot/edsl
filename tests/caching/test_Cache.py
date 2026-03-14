@@ -75,11 +75,13 @@ def test_write_to_db(cache_example):
 
 def test_html_empty_cache(cache_empty):
     """Test that an empty cache can generate HTML representation without errors."""
+    pytest.importorskip("pandas")
     html = cache_empty._repr_html_()
     assert isinstance(html, str)
 
 def test_html_non_empty_cache(cache_example):
     """Test that a non-empty cache can generate HTML representation."""
+    pytest.importorskip("pandas")
     html = cache_example._repr_html_()
     assert isinstance(html, str)
     assert "<table" in html
