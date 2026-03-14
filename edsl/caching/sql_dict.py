@@ -9,6 +9,7 @@ making it a drop-in replacement for regular dictionaries but with database persi
 
 from __future__ import annotations
 import json
+import threading
 from typing import Any, Generator, Optional, Union, Dict, TypeVar
 
 from ..config import CONFIG
@@ -82,6 +83,7 @@ class SQLiteDict:
             self.engine = create_engine(self.db_path, echo=False, future=True)
             Base.metadata.create_all(self.engine)
             self.Session = sessionmaker(bind=self.engine)
+            self._lock = threading.RLock()
         except SQLAlchemyError as e:
             from .exceptions import CacheError
 
@@ -130,11 +132,12 @@ class SQLiteDict:
             raise CacheValueError(
                 f"Value must be a CacheEntry object (got {type(value)})."
             )
-        with self.Session() as db:
-            from .orm import Data
+        with self._lock:
+            with self.Session() as db:
+                from .orm import Data
 
-            db.merge(Data(key=key, value=json.dumps(value.to_dict())))
-            db.commit()
+                db.merge(Data(key=key, value=json.dumps(value.to_dict())))
+                db.commit()
 
     def __getitem__(self, key: str) -> CacheEntry:
         """
@@ -159,15 +162,16 @@ class SQLiteDict:
             >>> d["foo"] == CacheEntry.example()
             True
         """
-        with self.Session() as db:
-            from .orm import Data
+        with self._lock:
+            with self.Session() as db:
+                from .orm import Data
 
-            value = db.query(Data).filter_by(key=key).first()
-            if not value:
-                from .exceptions import CacheKeyError
+                value = db.query(Data).filter_by(key=key).first()
+                if not value:
+                    from .exceptions import CacheKeyError
 
-                raise CacheKeyError(f"Key '{key}' not found.")
-            return CacheEntry.from_dict(json.loads(value.value))
+                    raise CacheKeyError(f"Key '{key}' not found.")
+                return CacheEntry.from_dict(json.loads(value.value))
 
     def get(self, key: str, default: Optional[Any] = None) -> Union[CacheEntry, Any]:
         """
@@ -191,10 +195,11 @@ class SQLiteDict:
         """
         from .exceptions import CacheKeyError
 
-        try:
-            return self[key]
-        except (KeyError, CacheKeyError):
-            return default
+        with self._lock:
+            try:
+                return self[key]
+            except KeyError:
+                return default
 
     def __bool__(self) -> bool:
         """
@@ -249,16 +254,23 @@ class SQLiteDict:
                 f"new_d must be a dict or SQLiteDict object (got {type(new_d)})"
             )
         current_batch = 0
-        with self.Session() as db:
-            for key, value in new_d.items():
-                if current_batch == max_batch_size:
-                    db.commit()
-                    current_batch = 0
-                current_batch += 1
-                # Only merge if key doesn't exist or overwrite is True
-                if (key in self and overwrite) or key not in self:
+        with self._lock:
+            with self.Session() as db:
+                from .orm import Data
+                
+                for key, value in new_d.items():
+                    if current_batch == max_batch_size:
+                        db.commit()
+                        current_batch = 0
+                    current_batch += 1
+                    # Optimized: Check existence using current session to avoid opening new ones
+                    if not overwrite:
+                        exists = db.query(Data.key).filter_by(key=key).first() is not None
+                        if exists:
+                            continue
+                            
                     db.merge(Data(key=key, value=json.dumps(value.to_dict())))
-            db.commit()
+                db.commit()
 
     def values(self) -> Generator[CacheEntry, None, None]:
         """
@@ -269,9 +281,12 @@ class SQLiteDict:
         >>> list(d.values()) == [CacheEntry.example()]
         True
         """
-        with self.Session() as db:
-            for instance in db.query(Data).all():
-                yield CacheEntry.from_dict(json.loads(instance.value))
+        with self._lock:
+            from .orm import Data
+            
+            with self.Session() as db:
+                for value in db.query(Data).all():
+                    yield CacheEntry.from_dict(json.loads(value.value))
 
     def items(self) -> Generator[tuple[str, CacheEntry], None, None]:
         """
@@ -282,9 +297,12 @@ class SQLiteDict:
         >>> list(d.items()) == [("foo", CacheEntry.example())]
         True
         """
-        with self.Session() as db:
-            for instance in db.query(Data).all():
-                yield (instance.key, CacheEntry.from_dict(json.loads(instance.value)))
+        with self._lock:
+            from .orm import Data
+            
+            with self.Session() as db:
+                for value in db.query(Data).all():
+                    yield value.key, CacheEntry.from_dict(json.loads(value.value))
 
     def to_dict(self):
         """
@@ -307,15 +325,18 @@ class SQLiteDict:
         >>> d.get("foo", "missing")
         'missing'
         """
-        with self.Session() as db:
-            instance = db.query(Data).filter_by(key=key).one_or_none()
-            if instance:
-                db.delete(instance)
-                db.commit()
-            else:
-                from .exceptions import CacheKeyError
+        with self._lock:
+            with self.Session() as db:
+                from .orm import Data
 
-                raise CacheKeyError(f"Key '{key}' not found.")
+                value = db.query(Data).filter_by(key=key).first()
+                if value:
+                    db.delete(value)
+                    db.commit()
+                else:
+                    from .exceptions import CacheKeyError
+
+                    raise CacheKeyError(f"Key '{key}' not found.")
 
     def __contains__(self, key: str) -> bool:
         """
@@ -328,8 +349,10 @@ class SQLiteDict:
         >>> "bar" in d
         False
         """
-        with self.Session() as db:
-            return db.query(Data).filter_by(key=key).first() is not None
+        with self._lock:
+            with self.Session() as db:
+                from .orm import Data
+                return db.query(Data).filter_by(key=key).first() is not None
 
     def __iter__(self) -> Generator[str, None, None]:
         """
