@@ -248,12 +248,11 @@ class OpenAIService(InferenceServiceABC):
                 Returns:
                     Filtered parameters dictionary with service-specific adjustments
                 """
-                # XAI service specific filtering
+                # XAI service specific filtering — most grok models
+                # don't support penalty parameters
                 if self._inference_service_ == "xai":
-                    if "grok-4" in self.model:
-                        # Grok-4 models don't support penalty parameters
-                        params.pop("presence_penalty", None)
-                        params.pop("frequency_penalty", None)
+                    params.pop("presence_penalty", None)
+                    params.pop("frequency_penalty", None)
 
                 # Add additional service-specific filtering logic here as needed
                 # Example:
