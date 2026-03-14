@@ -110,7 +110,20 @@ class GoogleService(InferenceServiceABC):
             _cached_api_token = None
             _client_lock = None
 
+            # Map common/generic parameter names to Google-specific names
+            _parameter_aliases_ = {
+                "max_output_tokens": "maxOutputTokens",
+                "max_tokens": "maxOutputTokens",
+                "top_p": "topP",
+                "top_k": "topK",
+                "stop_sequences": "stopSequences",
+            }
+
             def __init__(self, *args, **kwargs):
+                # Translate generic parameter names to Google-specific names
+                for generic, google_name in self._parameter_aliases_.items():
+                    if generic in kwargs and google_name not in kwargs:
+                        kwargs[google_name] = kwargs.pop(generic)
                 super().__init__(*args, **kwargs)
                 if self._client_lock is None:
                     import asyncio
