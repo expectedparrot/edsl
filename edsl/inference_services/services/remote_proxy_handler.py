@@ -57,7 +57,7 @@ class RemoteProxyHandler:
             inference_service: The name of the inference service (e.g., "openai")
             job_uuid: Optional job UUID for progress tracking
         """
-        self.proxy_url = os.environ.get("EXPECTED_PARROT_URL", "http://localhost:8000")
+        self.proxy_url = os.environ.get("EXPECTED_PARROT_URL", "http://localhost:8000").rstrip("/")
         if "chick" in self.proxy_url:
             self.proxy_url = "https://chickapi.expectedparrot.com"
         else:

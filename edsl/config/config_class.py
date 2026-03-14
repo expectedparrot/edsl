@@ -216,6 +216,9 @@ class Config(RepresentationMixin):
                         f"Invalid value '{value}' for {env_var}. "
                         f"Valid values are: {', '.join(valid_values)}"
                     )
+                # Strip trailing slashes from URL values to prevent double-slash issues
+                if env_var.endswith("_URL"):
+                    value = value.rstrip("/")
                 setattr(self, env_var, value)
             # otherwise, if EDSL_RUN_MODE == "production" set it to its default value
             elif self.EDSL_RUN_MODE == "production":
