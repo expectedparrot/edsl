@@ -284,6 +284,10 @@ class ListResponseValidator(ResponseValidatorABC):
                 pydantic_error=validation_error,
             )
 
+        # Convert empty string to empty list (LLMs like o3 sometimes return "")
+        if raw_edsl_answer_dict.get("answer") == "":
+            raw_edsl_answer_dict["answer"] = []
+
         # Check if answer is not a list
         if "answer" in raw_edsl_answer_dict and not isinstance(
             raw_edsl_answer_dict["answer"], list
