@@ -78,6 +78,7 @@ class OpenAIService(InferenceServiceABC):
     _inference_service_ = "openai"
     _env_key_name_ = "OPENAI_API_KEY"
     _base_url_ = None
+    _supports_files_api_ = True
 
     _sync_client_ = None  # resolved lazily via _get_openai()
     _async_client_ = None  # resolved lazily via _get_openai()
@@ -323,12 +324,14 @@ class OpenAIService(InferenceServiceABC):
                     )
 
                 # Use MessageBuilder to construct messages
+                supports_files_api = getattr(cls, "_supports_files_api_", True)
                 message_builder = MessageBuilder(
                     model=self.model,
                     files_list=files_list,
                     user_prompt=user_prompt,
                     system_prompt=system_prompt,
                     omit_system_prompt_if_empty=self.omit_system_prompt_if_empty,
+                    supports_files_api=supports_files_api,
                 )
 
                 client = self.async_client()
