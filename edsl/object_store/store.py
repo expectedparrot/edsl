@@ -28,11 +28,11 @@ _MIN_PREFIX_LENGTH = 4
 # return the class.
 _CLASS_REGISTRY: dict[str, Callable[[], Type]] = {
     "AgentList": lambda: _lazy_import("edsl.agents.agent_list", "AgentList"),
+    "Cache": lambda: _lazy_import("edsl.caching.cache", "Cache"),
     "ScenarioList": lambda: _lazy_import("edsl.scenarios.scenario_list", "ScenarioList"),
     "ModelList": lambda: _lazy_import("edsl.language_models.model_list", "ModelList"),
     "Survey": lambda: _lazy_import("edsl.surveys.survey", "Survey"),
     "Jobs": lambda: _lazy_import("edsl.jobs.jobs", "Jobs"),
-    "Cache": lambda: _lazy_import("edsl.caching.cache", "Cache"),
     "Results": lambda: _lazy_import("edsl.results.results", "Results"),
     "QuestionBase": lambda: _lazy_import("edsl.questions.question_base", "QuestionBase"),
     "Agent": lambda: _lazy_import("edsl.agents.agent", "Agent"),

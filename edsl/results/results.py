@@ -567,16 +567,18 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
             offload_scenarios=offload_scenarios,
         )
 
-    def to_jsonl(self, filename=None, root=None, message="", **kwargs):
-        """Export as JSONL with CAS pointers to Survey and Cache."""
-        return self._results_serializer.to_jsonl(
-            filename=filename, root=root, message=message
-        )
+    def to_jsonl_rows(self, blob_writer=None):
+        """Yield JSONL rows for CAS storage."""
+        return self._results_serializer.to_jsonl_rows(blob_writer=blob_writer)
+
+    def to_jsonl(self, filename=None, **kwargs):
+        """Export as inline JSONL."""
+        return self._results_serializer.to_jsonl(filename=filename)
 
     @classmethod
-    def from_jsonl(cls, source, root=None, **kwargs):
-        """Load a Results from a CAS JSONL source."""
-        return ResultsSerializer.from_jsonl(source, root=root)
+    def from_jsonl(cls, source, **kwargs):
+        """Load a Results from an inline JSONL source."""
+        return ResultsSerializer.from_jsonl(source)
 
     def initialize_cache_from_results(self):
         from ..caching import Cache, CacheEntry

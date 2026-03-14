@@ -565,6 +565,22 @@ class Cache(Base):
     # CAS-compatible JSONL serialization
     # ------------------------------------------------------------------
 
+    def to_jsonl_rows(self, blob_writer=None):
+        """Yield JSONL rows for CAS storage.
+
+        Each row is a JSON string (without trailing newline).
+        """
+        from .. import __version__
+
+        yield json.dumps({
+            "__header__": True,
+            "edsl_class_name": "Cache",
+            "edsl_version": __version__,
+            "n_entries": len(self.data),
+        })
+        for key, entry in self.data.items():
+            yield json.dumps({"key": key, "entry": entry.to_dict()})
+
     def to_jsonl(self, filename=None, **kwargs) -> Optional[str]:
         """Export as CAS-compatible JSONL string or write to *filename*.
 
@@ -572,18 +588,7 @@ class Cache(Base):
           - Line 1: header with ``__header__: true`` and metadata
           - Lines 2–N+1: one ``{"key": "...", "entry": {...}}`` per CacheEntry
         """
-        from .. import __version__
-
-        header = json.dumps({
-            "__header__": True,
-            "edsl_class_name": "Cache",
-            "edsl_version": __version__,
-            "n_entries": len(self.data),
-        })
-        lines = [header]
-        for key, entry in self.data.items():
-            lines.append(json.dumps({"key": key, "entry": entry.to_dict()}))
-        content = "\n".join(lines) + "\n"
+        content = "\n".join(self.to_jsonl_rows()) + "\n"
 
         if filename is not None:
             with open(filename, "w") as f:
