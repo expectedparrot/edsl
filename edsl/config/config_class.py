@@ -234,6 +234,12 @@ class Config(RepresentationMixin):
                 # Strip trailing slashes from URL values to prevent double-slash issues
                 if env_var.endswith("_URL"):
                     value = value.rstrip("/")
+                    # Warn if EXPECTED_PARROT_URL uses http instead of https
+                    if env_var == "EXPECTED_PARROT_URL" and value.startswith("http://") and "localhost" not in value:
+                        raise InvalidEnvironmentVariableError(
+                            f"EXPECTED_PARROT_URL uses 'http://' but the server requires 'https://'. "
+                            f"Got: {value}. Change to: {value.replace('http://', 'https://')}"
+                        )
                 setattr(self, env_var, value)
             # otherwise, if EDSL_RUN_MODE == "production" set it to its default value
             elif self.EDSL_RUN_MODE == "production":
