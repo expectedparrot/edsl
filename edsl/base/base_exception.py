@@ -1,3 +1,4 @@
+import os
 import sys
 
 # Example logger import
@@ -9,6 +10,8 @@ class BaseException(Exception):
 
     This class extends the standard Python Exception class to provide more helpful error messages
     by including links to relevant documentation and example notebooks when available.
+
+    Set the environment variable ``EDSL_DEBUG=1`` to show full tracebacks for all EDSL exceptions.
 
     Attributes:
         relevant_doc: URL to documentation explaining this type of exception
@@ -132,7 +135,7 @@ class BaseException(Exception):
 
         # Wrap in a function so we can pass it to set_custom_exc.
         def _ipython_custom_exc(shell, etype, evalue, tb, tb_offset=None):
-            if issubclass(etype, BaseException) and cls.suppress_traceback:
+            if issubclass(etype, BaseException) and cls.suppress_traceback and not os.environ.get("EDSL_DEBUG"):
                 # Show custom message only if not silent
                 if not getattr(evalue, "silent", False):
                     # Try HTML display first; fall back to stderr
@@ -167,7 +170,7 @@ class BaseException(Exception):
         original_excepthook = sys.excepthook
 
         def _custom_excepthook(exc_type, exc_value, exc_traceback):
-            if issubclass(exc_type, BaseException) and cls.suppress_traceback:
+            if issubclass(exc_type, BaseException) and cls.suppress_traceback and not os.environ.get("EDSL_DEBUG"):
                 # Show custom message only if not silent
                 if not getattr(exc_value, "silent", False):
                     # try:
