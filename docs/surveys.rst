@@ -765,6 +765,86 @@ Note that the ``+`` operator must be *inside* the ``{{ }}`` braces for Jinja2 to
 Placing it outside (e.g., ``"{{ colors.answer }}" + ["Other"]``) will not work.
 
 
+Jinja2 conditionals and loops
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+EDSL uses `Jinja2 <https://jinja.palletsprojects.com/>`_ for template rendering, which means you can
+use its full syntax including conditionals and loops in your question text and options.
+
+**Conditionals** use ``{% if %}`` / ``{% else %}`` / ``{% endif %}`` blocks:
+
+.. code-block:: python
+
+   from edsl import QuestionFreeText, QuestionMultipleChoice, Survey, Agent
+
+   q1 = QuestionMultipleChoice(
+      question_name = "pet",
+      question_text = "Do you have a pet?",
+      question_options = ["Yes", "No"]
+   )
+
+   q2 = QuestionFreeText(
+      question_name = "followup",
+      question_text = """
+      {% if pet.answer == 'Yes' %}
+      What kind of pet do you have and what is its name?
+      {% else %}
+      If you could have any pet, what would you choose?
+      {% endif %}
+      """
+   )
+
+   survey = Survey([q1, q2])
+
+**Loops** use ``{% for %}`` / ``{% endfor %}`` blocks. This is useful for dynamically building
+question text from lists:
+
+.. code-block:: python
+
+   from edsl import QuestionFreeText, QuestionList, Survey
+
+   q1 = QuestionList(
+      question_name = "topics",
+      question_text = "List 3 topics you want to learn about.",
+      max_list_items = 3
+   )
+
+   q2 = QuestionFreeText(
+      question_name = "summary",
+      question_text = """
+      You mentioned these topics:
+      {% for topic in topics.answer %}
+      - {{ topic }}
+      {% endfor %}
+      Please summarize why you're interested in these topics.
+      """
+   )
+
+   survey = Survey([q1, q2])
+
+You can also **combine conditionals and loops**:
+
+.. code-block:: python
+
+   q = QuestionFreeText(
+      question_name = "analysis",
+      question_text = """
+      {% if topics.answer | length > 2 %}
+      You listed {{ topics.answer | length }} topics. Let's focus on the first two:
+      {% for topic in topics.answer[:2] %}
+      - {{ topic }}
+      {% endfor %}
+      {% else %}
+      Tell me more about: {{ topics.answer | join(', ') }}
+      {% endif %}
+      """
+   )
+
+Jinja2 also provides useful **filters** like ``| length``, ``| join(', ')``, ``| upper``, ``| lower``,
+and ``| default('fallback')``. See the `Jinja2 template documentation <https://jinja.palletsprojects.com/en/3.1.x/templates/>`_
+for the full list of available features.
+
+
 Agent traits
 ^^^^^^^^^^^^
 
