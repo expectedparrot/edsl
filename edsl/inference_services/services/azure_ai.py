@@ -263,6 +263,7 @@ class AzureAIService(InferenceServiceABC):
                     model_info_dict = self.get_model_info_dict()
                     api_key = model_info_dict[model_name]["azure_endpoint_key"]
                     endpoint = model_info_dict[model_name]["endpoint"]
+                    model_type = model_info_dict[model_name].get("type", "azure_openai")
                 except (KeyError, TypeError):
                     from ..exceptions import InferenceServiceEnvironmentError
 
@@ -271,125 +272,163 @@ class AzureAIService(InferenceServiceABC):
                     )
 
                 # Extract base endpoint URL and deployment name for Azure OpenAI models
-                # The stored endpoint might include the full path like /openai/deployments/{deployment}/chat/completions
                 deployment_name = None
+                azure_base_endpoint = None
+                api_version = model_info_dict[model_name].get("api_version")
+
                 if "/openai/deployments/" in endpoint:
-                    # Parse the URL to extract base endpoint and deployment name
                     from urllib.parse import urlparse, urlunparse
 
                     parsed = urlparse(endpoint)
-
-                    # Extract deployment name from path
                     path_parts = parsed.path.split("/")
                     if "deployments" in path_parts:
                         deploy_idx = path_parts.index("deployments")
                         if deploy_idx + 1 < len(path_parts):
                             deployment_name = path_parts[deploy_idx + 1]
 
-                    # Construct base endpoint (scheme + netloc + /openai/deployments/{deployment})
+                    # Base endpoint is just scheme + netloc (e.g., https://xxx.openai.azure.com)
+                    azure_base_endpoint = urlunparse(
+                        (parsed.scheme, parsed.netloc, "", "", "", "")
+                    )
+
+                # For Azure OpenAI models, use the OpenAI SDK with Responses API
+                # This gives us full file upload + PDF support
+                if model_type == "azure_openai" and azure_base_endpoint:
+                    import openai
+
+                    # Responses API requires at least 2025-03-01-preview
+                    responses_api_version = "2025-03-01-preview"
+                    client = openai.AsyncAzureOpenAI(
+                        azure_endpoint=azure_base_endpoint,
+                        api_key=api_key,
+                        api_version=responses_api_version,
+                    )
+
+                    # Build content for Responses API
+                    content = [{"type": "input_text", "text": user_prompt}]
+
+                    if files_list:
+                        for f in files_list:
+                            if f.mime_type.startswith("image/"):
+                                content.append({
+                                    "type": "input_image",
+                                    "image_url": f"data:{f.mime_type};base64,{f.base64_string}",
+                                })
+                            elif f.mime_type == "application/pdf":
+                                # Upload PDF via Files API, then reference by ID
+                                import base64 as b64mod
+                                import io
+                                pdf_bytes = b64mod.b64decode(f.base64_string)
+                                pdf_file = io.BytesIO(pdf_bytes)
+                                pdf_file.name = getattr(f, "filename", "document.pdf")
+                                sync_client = openai.AzureOpenAI(
+                                    azure_endpoint=azure_base_endpoint,
+                                    api_key=api_key,
+                                    api_version=responses_api_version,
+                                )
+                                uploaded = sync_client.files.create(file=pdf_file, purpose="assistants")
+                                content.append({
+                                    "type": "input_file",
+                                    "file_id": uploaded.id,
+                                })
+                            else:
+                                # Text-based files: inline content
+                                import base64 as b64mod
+                                filename = getattr(f, "filename", "file")
+                                try:
+                                    text = b64mod.b64decode(f.base64_string).decode("utf-8")
+                                    content.append({
+                                        "type": "input_text",
+                                        "text": f"--- Content from '{filename}' ---\n{text}\n--- End of {filename} ---",
+                                    })
+                                except (UnicodeDecodeError, Exception):
+                                    content.append({
+                                        "type": "input_text",
+                                        "text": f"[File '{filename}' of type '{f.mime_type}' cannot be displayed]",
+                                    })
+
+                    input_messages = []
+                    if system_prompt:
+                        input_messages.append({"role": "system", "content": system_prompt})
+                    input_messages.append({"role": "user", "content": content})
+
+                    model_to_use = deployment_name or model_name
+                    response = await client.responses.create(
+                        model=model_to_use,
+                        input=input_messages,
+                        max_output_tokens=self.max_tokens,
+                        temperature=self.temperature,
+                        top_p=self.top_p,
+                    )
+                    return response.model_dump()
+
+                # For non-OpenAI Azure models, use the Azure AI Inference SDK
+                else:
                     if deployment_name:
+                        from urllib.parse import urlunparse
+                        parsed = urlparse(endpoint)
                         base_path = f"/openai/deployments/{deployment_name}"
                         endpoint = urlunparse(
                             (parsed.scheme, parsed.netloc, base_path, "", "", "")
                         )
-                    else:
-                        # Fallback to base URL without path
-                        endpoint = urlunparse(
-                            (parsed.scheme, parsed.netloc, "", "", "", "")
-                        )
 
-                # Use Azure AI Inference SDK for all models (unified approach)
-                api_version = model_info_dict[model_name].get("api_version")
+                    client_kwargs = {
+                        "endpoint": endpoint,
+                        "credential": AzureKeyCredential(api_key),
+                    }
+                    if api_version:
+                        client_kwargs["api_version"] = api_version
 
-                # Create client with optional api_version
-                client_kwargs = {
-                    "endpoint": endpoint,
-                    "credential": AzureKeyCredential(api_key),
-                }
+                    client = ChatCompletionsClient(**client_kwargs)
 
-                # Add api_version if available (required for some models)
-                if api_version:
-                    client_kwargs["api_version"] = api_version
+                    try:
+                        messages = []
+                        if system_prompt:
+                            messages.append(SystemMessage(content=system_prompt))
 
-                client = ChatCompletionsClient(**client_kwargs)
-
-                try:
-                    # Build messages
-                    messages = []
-                    if system_prompt:
-                        messages.append(SystemMessage(content=system_prompt))
-
-                    # Handle file attachments
-                    if files_list:
-                        content_items = [TextContentItem(text=user_prompt)]
-                        for f in files_list:
-                            if f.mime_type.startswith("image/"):
-                                content_items.append(
-                                    ImageContentItem(
-                                        image_url=ImageUrl(
-                                            url=f"data:{f.mime_type};base64,{f.base64_string}"
-                                        )
-                                    )
-                                )
-                            elif f.mime_type == "application/pdf":
-                                # Azure doesn't support PDF as image data URLs;
-                                # extract text and send inline
-                                filename = getattr(f, "filename", "document.pdf")
-                                extracted = getattr(f, "extracted_text", None)
-                                if not extracted:
-                                    try:
-                                        extracted = f.extract_text()
-                                    except Exception:
-                                        extracted = None
-                                if extracted:
+                        if files_list:
+                            content_items = [TextContentItem(text=user_prompt)]
+                            for f in files_list:
+                                if f.mime_type.startswith("image/"):
                                     content_items.append(
-                                        TextContentItem(
-                                            text=f"--- Content from PDF '{filename}' ---\n{extracted}\n--- End of PDF ---"
+                                        ImageContentItem(
+                                            image_url=ImageUrl(
+                                                url=f"data:{f.mime_type};base64,{f.base64_string}"
+                                            )
                                         )
                                     )
                                 else:
-                                    content_items.append(
-                                        TextContentItem(text=f"[PDF file '{filename}' could not be processed]")
-                                    )
-                            else:
-                                # For text-based files, inline the content
-                                import base64
-                                filename = getattr(f, "filename", "file")
-                                try:
-                                    text = base64.b64decode(f.base64_string).decode("utf-8")
-                                    content_items.append(
-                                        TextContentItem(
-                                            text=f"--- Content from '{filename}' ---\n{text}\n--- End of {filename} ---"
+                                    import base64 as b64mod
+                                    filename = getattr(f, "filename", "file")
+                                    try:
+                                        text = b64mod.b64decode(f.base64_string).decode("utf-8")
+                                        content_items.append(
+                                            TextContentItem(
+                                                text=f"--- Content from '{filename}' ---\n{text}\n--- End of {filename} ---"
+                                            )
                                         )
-                                    )
-                                except (UnicodeDecodeError, Exception):
-                                    content_items.append(
-                                        TextContentItem(text=f"[File '{filename}' of type '{f.mime_type}' cannot be displayed]")
-                                    )
-                        messages.append(UserMessage(content=content_items))
-                    else:
-                        messages.append(UserMessage(content=user_prompt))
+                                    except (UnicodeDecodeError, Exception):
+                                        content_items.append(
+                                            TextContentItem(text=f"[File '{filename}' of type '{f.mime_type}' cannot be displayed]")
+                                        )
+                            messages.append(UserMessage(content=content_items))
+                        else:
+                            messages.append(UserMessage(content=user_prompt))
 
-                    # Make the API call with parameters
-                    # Use deployment name if available (for Azure OpenAI), otherwise use model_name
-                    model_to_use = deployment_name if deployment_name else model_name
+                        model_to_use = deployment_name if deployment_name else model_name
+                        params = AzureParameterBuilder.build_params(
+                            model=model_name,
+                            messages=messages,
+                            temperature=self.temperature,
+                            max_tokens=self.max_tokens,
+                            top_p=self.top_p,
+                        )
+                        params["model"] = model_to_use
 
-                    # Use AzureParameterBuilder to construct parameters
-                    params = AzureParameterBuilder.build_params(
-                        model=model_name,
-                        messages=messages,
-                        temperature=self.temperature,
-                        max_tokens=self.max_tokens,
-                        top_p=self.top_p,
-                    )
-
-                    # Add the model to the parameters
-                    params["model"] = model_to_use
-
-                    response = await client.complete(**params)
-                    return response.as_dict()
-                finally:
-                    await client.close()
+                        response = await client.complete(**params)
+                        return response.as_dict()
+                    finally:
+                        await client.close()
 
         LLM.__name__ = model_class_name
         return LLM
