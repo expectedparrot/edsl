@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 # csv import moved to agent_list_factories.py
-import sys
 import warnings
 import logging
 from collections import defaultdict
@@ -17,7 +16,7 @@ from typing import Any, Callable, Generator, Iterable, List, Optional, Union, TY
 # simpleeval imports moved to agent_list_filter.py
 
 from ..base import Base
-from ..utilities import is_notebook, remove_edsl_version, dict_hash
+from ..utilities import remove_edsl_version, dict_hash
 from ..dataset.dataset_operations_mixin import AgentListOperationsMixin
 from .agent import Agent
 from .agent_list_builder import AgentListBuilder
@@ -720,12 +719,7 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
         pretty_labels: Optional[dict] = None,
     ) -> Any:
         if len(self) == 0:
-            e = AgentListError("Cannot create a table from an empty AgentList.")
-            if is_notebook():
-                print(e, file=sys.stderr)
-                return None
-            else:
-                raise e
+            raise AgentListError("Cannot create a table from an empty AgentList.")
         return (
             self.to_scenario_list()
             .to_dataset()

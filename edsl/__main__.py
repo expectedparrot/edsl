@@ -234,8 +234,6 @@ def auth_login(api_key):
             api_key_result = coop_client._poll_for_api_key(edsl_auth_token)
             if api_key_result:
                 handler.store_ep_api_key(api_key_result)
-                import os
-                os.environ["EXPECTED_PARROT_API_KEY"] = api_key_result
                 _output({"message": "API key stored successfully"})
             else:
                 _error("AUTH_TIMEOUT", "Timed out waiting for login.",
@@ -250,33 +248,14 @@ def auth_login(api_key):
 @auth.command("status")
 def auth_status():
     """Check authentication status."""
-    from edsl.coop.ep_key_handling import ExpectedParrotKeyHandler
     import os
 
-    handler = ExpectedParrotKeyHandler()
-
     env_key = os.environ.get("EXPECTED_PARROT_API_KEY", "")
-    stored_key = ""
-    try:
-        key_path = Path(handler.config_dir) / handler.ep_key_file_name
-        if key_path.exists():
-            stored_key = key_path.read_text().strip()
-    except Exception:
-        pass
-
-    if env_key:
-        source = "environment"
-        has_key = True
-    elif stored_key:
-        source = "stored"
-        has_key = True
-    else:
-        source = "none"
-        has_key = False
+    has_key = bool(env_key)
 
     data = {
         "authenticated": has_key,
-        "api_key_source": source,
+        "api_key_source": "environment" if has_key else "none",
     }
 
     # Try to get username if authenticated

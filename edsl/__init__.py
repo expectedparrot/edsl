@@ -191,7 +191,14 @@ def _is_notebook_environment() -> bool:
     Returns:
         bool: True if running in a notebook, False otherwise
     """
-    # Check for marimo first
+    import sys
+
+    # If stdout is a real terminal, we're not in a notebook even if
+    # marimo or IPython happen to be importable.
+    if hasattr(sys.stdout, "isatty") and sys.stdout.isatty():
+        return False
+
+    # Check for marimo
     try:
         import marimo as mo
 
@@ -202,7 +209,6 @@ def _is_notebook_environment() -> bool:
 
     # Check for Jupyter/IPython notebook
     try:
-        # Check if IPython is available and we're in a notebook
         from IPython import get_ipython
 
         ipython = get_ipython()
@@ -371,21 +377,16 @@ def _poll_for_api_key_notebook(coop, edsl_auth_token: str, timeout: int = 120):
         time.sleep(1)  # Check every second instead of 5 seconds for better UX
 
 
-def login(timeout: int = 120) -> None:
+def login(timeout: int = 120, force: bool = False) -> None:
     """
     Start the Expected Parrot login process to obtain and store an API key.
 
-    This function creates a Coop instance and initiates the login flow, which will:
-    1. Generate a temporary authentication token
-    2. Display a login URL for the user to visit (with enhanced notebook UI)
-    3. Poll for the API key once the user completes the login
-    4. Store the API key locally for future use
-
-    In Jupyter/IPython notebooks, this will display a styled HTML interface
-    with a clickable button that opens the login page in a new tab.
+    If a valid key already exists, reports the current user and returns
+    unless ``force=True`` is passed to re-authenticate.
 
     Args:
         timeout: Maximum time to wait for login completion, in seconds (default: 120)
+        force: If True, skip the existing-key check and always start a new login flow.
 
     Raises:
         CoopTimeoutError: If login times out
@@ -393,11 +394,31 @@ def login(timeout: int = 120) -> None:
 
     Example:
         >>> from edsl import login
-        >>> login()  # Shows styled button interface in notebooks
+        >>> login()           # uses existing key if valid
+        >>> login(force=True) # always starts a new login flow
     """
     from edsl.coop import Coop
     import secrets
     from edsl.config import CONFIG
+
+    # If the user already has a key, check if it works
+    if not force:
+        existing_key = os.environ.get("EXPECTED_PARROT_API_KEY")
+        if existing_key:
+            try:
+                coop = Coop(api_key=existing_key)
+                profile = coop.get_profile()
+                username = (
+                    profile.get("username", "unknown")
+                    if isinstance(profile, dict)
+                    else getattr(profile, "username", "unknown")
+                )
+                print(f"Already logged in as {username}.")
+                print("To re-authenticate, use login(force=True).")
+                return
+            except Exception:
+                # Key is invalid — fall through to login flow
+                pass
 
     # If we're in a notebook, handle the UI specially
     if _is_notebook_environment():
