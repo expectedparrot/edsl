@@ -21,7 +21,27 @@ def _in_jupyter() -> bool:
         return False
 
 
-if _in_jupyter():
+def _in_marimo() -> bool:
+    """Detect whether we are running inside a marimo notebook."""
+    try:
+        import marimo as mo
+
+        runtime = mo.running_app()
+        return runtime is not None
+    except Exception:
+        return False
+
+
+def _has_running_event_loop() -> bool:
+    """Check if there is a currently running asyncio event loop."""
+    try:
+        loop = asyncio.get_running_loop()
+        return loop is not None and loop.is_running()
+    except RuntimeError:
+        return False
+
+
+if _in_jupyter() or _in_marimo() or _has_running_event_loop():
     import nest_asyncio
 
     nest_asyncio.apply()
