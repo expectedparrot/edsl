@@ -217,6 +217,57 @@ Output:
 
 
 
+Thinking / reasoning budgets
+----------------------------
+
+Many model providers now offer "thinking" or "reasoning" models that can spend extra tokens on chain-of-thought before producing a final answer.
+EDSL lets you control this budget on a per-model basis.
+
+**Google Gemini** — use the ``thinking_budget`` parameter (integer, number of thinking tokens).
+Set it to ``0`` to disable thinking entirely:
+
+.. code-block:: python
+
+  from edsl import Model
+
+  # Allow up to 8000 tokens of thinking
+  m = Model("gemini-2.5-flash", service_name="google", thinking_budget=8000)
+
+  # Disable thinking
+  m = Model("gemini-2.5-flash", service_name="google", thinking_budget=0)
+
+See `Google's documentation <https://ai.google.dev/gemini-api/docs/thinking>`_ for supported models and budget ranges.
+
+**Anthropic** — use the ``thinking`` parameter (a dict with ``type`` and ``budget_tokens``):
+
+.. code-block:: python
+
+  from edsl import Model
+
+  m = Model(
+      "claude-sonnet-4-20250514",
+      service_name="anthropic",
+      thinking={"type": "enabled", "budget_tokens": 10000},
+  )
+
+See `Anthropic's documentation <https://docs.anthropic.com/en/docs/build-with-claude/extended-thinking>`_ for details.
+
+**OpenAI (reasoning models)** — use ``reasoning_effort`` (``"low"``, ``"medium"``, or ``"high"``) with the completions API, or ``reasoning`` (a dict) with the responses API:
+
+.. code-block:: python
+
+  from edsl import Model
+
+  # Completions API (service_name="openai")
+  m = Model("o3", service_name="openai", reasoning_effort="high")
+
+  # Responses API (service_name="openai_v2")
+  m = Model("o3", service_name="openai_v2", reasoning={"effort": "high", "summary": "auto"})
+
+When using reasoning/thinking models, the ``Results`` object includes a ``reasoning_summary`` field with the model's chain-of-thought output.
+See the `reasoning model example notebook <https://www.expectedparrot.com/content/RobinHorton/reasoning-model-example>`_ for a full walkthrough.
+
+
 Prompt plans
 ------------
 

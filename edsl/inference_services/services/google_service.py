@@ -103,6 +103,7 @@ class GoogleService(InferenceServiceABC):
                 "topK": 1,
                 "maxOutputTokens": 2048,
                 "stopSequences": [],
+                "thinking_budget": None,
             }
 
             model = None
@@ -238,7 +239,7 @@ class GoogleService(InferenceServiceABC):
                 # config_start = time.time()
                 types = _get_types()
 
-                generation_config = types.GenerateContentConfig(
+                config_kwargs = dict(
                     temperature=self.temperature,
                     top_p=self.topP,
                     top_k=self.topK,
@@ -253,6 +254,13 @@ class GoogleService(InferenceServiceABC):
                     ],
                     system_instruction=system_instruction,
                 )
+
+                if self.thinking_budget is not None:
+                    config_kwargs["thinking_config"] = types.ThinkingConfig(
+                        thinking_budget=self.thinking_budget,
+                    )
+
+                generation_config = types.GenerateContentConfig(**config_kwargs)
                 # config_time = time.time() - config_start
                 # print(f"Configuration creation took {config_time:.3f}s", flush=True)
 
