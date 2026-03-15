@@ -530,10 +530,11 @@ class QuestionMultipleChoice(QuestionBase):
         """
         # Resolve enumeration from use_code (backward compat) and enumeration param
         if use_code and enumeration is not None:
-            raise ValueError(
-                "Cannot set both use_code=True and enumeration. "
-                "use_code=True is equivalent to enumeration='numeric_starts_with_0'."
-            )
+            if enumeration != "numeric_starts_with_0":
+                raise ValueError(
+                    "Cannot set both use_code=True and a conflicting enumeration. "
+                    "use_code=True is equivalent to enumeration='numeric_starts_with_0'."
+                )
         if enumeration is not None:
             try:
                 self._enumeration = AnswerEnumeration(enumeration)

@@ -339,7 +339,7 @@ class QuestionTemplateReplacementsBuilder:
         >>> from edsl import QuestionMultipleChoice
         >>> q = QuestionMultipleChoice(question_text="Do you like school?", question_name = "q0", question_options = ["yes", "no"])
         >>> QuestionTemplateReplacementsBuilder._question_data_replacements(q, q.data)
-        {'use_code': False, 'include_comment': True, 'question_name': 'q0', 'question_text': 'Do you like school?', 'question_options': ['yes', 'no']}
+        {'use_code': False, 'include_comment': True, 'enumeration': 'none', 'question_name': 'q0', 'question_text': 'Do you like school?', 'question_options': ['yes', 'no']}
 
         """
         enumeration = getattr(question, "_enumeration", None)
