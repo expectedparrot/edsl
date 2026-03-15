@@ -209,16 +209,6 @@ class AzureAIService(InferenceServiceABC):
                 "top_p": 0.9,
             }
 
-            @property
-            def remote_proxy(self) -> bool:
-                """Check if remote proxy is enabled."""
-                return getattr(self, "_remote_proxy", False)
-
-            @remote_proxy.setter
-            def remote_proxy(self, value: bool):
-                """Set the remote proxy flag."""
-                self._remote_proxy = value
-
             def get_model_info_dict(self):
                 """Initialize the model info dict from the key lookup."""
                 # Get model info from the user's Azure key in the key lookup
@@ -237,28 +227,6 @@ class AzureAIService(InferenceServiceABC):
                 cache_key: Optional[str] = None,  # Cache key for tracking
             ) -> dict[str, Any]:
                 """Call Azure OpenAI API and return the response."""
-                # Check if remote proxy is enabled
-                if self.remote_proxy:
-                    from .remote_proxy_handler import RemoteProxyHandler
-
-                    handler = RemoteProxyHandler(
-                        model=self._model_,
-                        inference_service=self._inference_service_,
-                        job_uuid=getattr(self, "job_uuid", None),
-                    )
-
-                    # Get fresh parameter
-                    fresh_value = getattr(self, "fresh", False)
-
-                    return await handler.execute_model_call(
-                        user_prompt=user_prompt,
-                        system_prompt=system_prompt,
-                        files_list=files_list,
-                        cache_key=cache_key,
-                        parameters=self._parameters_,
-                        fresh=fresh_value,  # Pass fresh parameter
-                    )
-
                 try:
                     model_info_dict = self.get_model_info_dict()
                     api_key = model_info_dict[model_name]["azure_endpoint_key"]

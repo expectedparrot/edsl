@@ -1232,14 +1232,6 @@ class Jobs(Base):
             f"final results count: {len(results) if results else 0}"
         )
 
-        # Clear file cache after job completion
-        if self.run_config.parameters.use_api_proxy:
-            from ..inference_services.services.remote_proxy_handler import (
-                RemoteProxyHandler,
-            )
-
-            await RemoteProxyHandler.clear_file_cache()
-
         return results
 
     @property
@@ -1293,13 +1285,6 @@ class Jobs(Base):
         import time
 
         start_time = time.time()
-
-        # Reset balance error flag for new job
-        from ..inference_services.services.remote_proxy_handler import (
-            reset_balance_error_flag,
-        )
-
-        reset_balance_error_flag()
 
         self._logger.info("Starting job configuration transfer")
         # Apply configuration from input config to self.run_config
@@ -1372,65 +1357,23 @@ class Jobs(Base):
                 f"Remote key check completed in {time.time() - key_check_start:.3f}s"
             )
 
-            # Pre-flight balance check with cost estimation
-            balance_check_start = time.time()
-            self._logger.info("Performing pre-flight balance check")
-            insufficient_balance_reason = self._check_balance_before_execution()
-            if insufficient_balance_reason:
-                self._logger.info(
-                    f"Pre-flight balance check failed: {insufficient_balance_reason}"
-                )
-                return None, insufficient_balance_reason
-            self._logger.info(
-                f"Pre-flight balance check completed in {time.time() - balance_check_start:.3f}s"
-            )
-
-            # Configure remote proxy and fresh parameter for all models when remote inference is enabled
-            proxy_config_start = time.time()
-            self._logger.info("Configuring remote proxy and fresh parameter for models")
-            # Also configure models embedded in QuestionThinking questions
+            # Pass fresh parameter to all models
             all_models = list(self.models)
             for q in getattr(self.survey, 'questions', []):
                 if hasattr(q, '_model') and getattr(q, 'question_type', None) == 'thinking':
                     all_models.append(q._model)
             for model in all_models:
-                # Only set to True if it's not already explicitly set to False
-                if (
-                    not hasattr(model, "remote_proxy")
-                    or model.remote_proxy is not False
-                ):
-                    model.remote_proxy = True
-                    self._logger.debug(f"Enabled remote proxy for model: {model.model}")
-                else:
-                    self._logger.debug(
-                        f"Remote proxy disabled by user for model: {model.model}"
-                    )
-
-                # Pass fresh parameter to model
                 model.fresh = self.run_config.parameters.fresh
                 self._logger.debug(f"Set fresh={model.fresh} for model: {model.model}")
-            self._logger.info(
-                f"Remote proxy configuration completed in {time.time() - proxy_config_start:.3f}s"
-            )
         else:
-            # When API proxy is disabled, ensure remote proxy is also disabled
-            proxy_config_start = time.time()
-            self._logger.info("Disabling remote proxy for models (API proxy disabled)")
-            # Also configure models embedded in QuestionThinking questions
+            # Pass fresh parameter to all models
             all_models = list(self.models)
             for q in getattr(self.survey, 'questions', []):
                 if hasattr(q, '_model') and getattr(q, 'question_type', None) == 'thinking':
                     all_models.append(q._model)
             for model in all_models:
-                model.remote_proxy = False
-                self._logger.debug(f"Disabled remote proxy for model: {model.model}")
-
-                # Pass fresh parameter to model
                 model.fresh = self.run_config.parameters.fresh
                 self._logger.debug(f"Set fresh={model.fresh} for model: {model.model}")
-            self._logger.info(
-                f"Remote proxy disable completed in {time.time() - proxy_config_start:.3f}s"
-            )
 
         # Setup caching
         cache_start = time.time()
@@ -1504,88 +1447,6 @@ class Jobs(Base):
         )
 
         return None, reason
-
-    def _check_balance_before_execution(self) -> Optional[str]:
-        """Check if user has sufficient balance to run the job.
-
-        Returns:
-            None if balance is sufficient, error message string if insufficient
-        """
-        try:
-            # Only check balance for remote proxy jobs
-            if not any(getattr(model, "remote_proxy", False) for model in self.models):
-                return None
-
-            # Estimate job cost
-            self._logger.info("Estimating job cost...")
-            try:
-                cost_estimate = self.estimate_job_cost(
-                    iterations=self.run_config.parameters.n
-                )
-                estimated_cost_usd = cost_estimate.get("estimated_total_cost_usd", 0)
-
-                # Get the proper minicredits from the cost estimate
-                estimated_cost_minicredits = cost_estimate.get("total_credits_hold", 0)
-
-                self._logger.info(
-                    f"Estimated job cost: ${estimated_cost_usd:.6f} USD ({estimated_cost_minicredits:.2f} minicredits)"
-                )
-            except Exception as e:
-                print(f"   ⚠️  Could not estimate job cost: {e}")
-                self._logger.warning(
-                    f"Could not estimate job cost: {e}. Proceeding without balance check."
-                )
-                return None
-
-            # Check user balance via Coop
-            self._logger.info("Checking user balance...")
-            try:
-                import time
-                from ..coop import Coop
-
-                balance_check_start = time.time()
-                coop = Coop()
-                balance_data = coop.get_balance()
-                balance_check_time = time.time() - balance_check_start
-
-                # Extract balance from Coop response
-                current_balance = balance_data.get("minicredits", 0)
-                balance_string = f"{current_balance} minicredits"
-
-                # Convert minicredits to dollars for display (1000 minicredits = 1 credit = 1 cent, so 100,000 minicredits = $1 USD)
-                balance_dollars = current_balance / 100000
-
-                self._logger.info(
-                    f"Current user balance: {balance_string} (${balance_dollars:.3f} USD) - fetched in {balance_check_time:.3f}s"
-                )
-
-                # Compare estimated cost with balance
-                if current_balance <= 0:
-                    return f"insufficient funds: Current balance is {balance_string} (${balance_dollars:.3f} USD). Please add credits to your account."
-
-                if estimated_cost_minicredits > current_balance:
-                    estimated_cost_dollars = estimated_cost_minicredits / 100000
-                    return (
-                        f"insufficient funds: Estimated job cost ({estimated_cost_minicredits:.0f} minicredits / ${estimated_cost_dollars:.3f} USD) "
-                        f"exceeds current balance ({balance_string} / ${balance_dollars:.3f} USD). Please add credits to your account."
-                    )
-
-                self._logger.info(
-                    f"Balance check passed: {balance_string} >= {estimated_cost_minicredits:.2f} minicredits needed"
-                )
-                return None
-
-            except Exception as e:
-                self._logger.warning(
-                    f"Could not check user balance: {e}. Proceeding without balance check."
-                )
-                return None
-
-        except Exception as e:
-            self._logger.error(
-                f"Error during balance check: {e}. Proceeding without balance check."
-            )
-            return None
 
     def then(self, method_name, *args, **kwargs) -> "Jobs":
         """Schedule a method to be called on the results object after the job runs.

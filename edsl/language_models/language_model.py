@@ -222,7 +222,6 @@ class LanguageModel(
 
         # Initialize basic settings
         self.remote = False
-        self.remote_proxy = True  # Default to using remote proxy when available
         self.job_uuid = (
             None  # Job UUID for progress tracking, set when progress bar is enabled
         )
