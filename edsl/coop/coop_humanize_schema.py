@@ -21,7 +21,7 @@ class HumanizeSchemaBase(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
-class MCSubclassFormatSchema(BaseModel):
+class MCSubclassFormatSchema(HumanizeSchemaBase):
     """Display format for MC-style questions: radio list or dropdown."""
 
     type: Literal["radio", "dropdown"] = "radio"
