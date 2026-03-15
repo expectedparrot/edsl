@@ -1,5 +1,8 @@
 import pytest
 
+pytest.importorskip("nbformat")
+pytest.importorskip("jsonschema")
+
 from edsl.notebooks import Notebook, NotebookEnvironmentError
 from jsonschema.exceptions import ValidationError
 from nbformat.reader import NotJSONError

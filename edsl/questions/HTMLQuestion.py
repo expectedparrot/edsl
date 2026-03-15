@@ -88,7 +88,7 @@ class HTMLQuestion:
         rendered_html = base_template.render(**params)
 
         if iframe:
-            from ..display import display_html
+            from ..utilities.display_utils import display_html
 
             height = height or 200
             width = width or 600

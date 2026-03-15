@@ -53,7 +53,7 @@ jobs:
       - if: env.run_build_test == 'true'
         name: Install deps
         shell: bash
-        run: poetry install
+        run: poetry install --without dev,test
 
       - if: env.run_build_test == 'true'
         name: Build

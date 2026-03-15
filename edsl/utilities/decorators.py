@@ -1,17 +1,30 @@
 import functools
 import asyncio
-import nest_asyncio
 import os
 import gc
 import time
 import json
-import psutil
 import tracemalloc
 from datetime import datetime
 from pathlib import Path
 from edsl import __version__ as edsl_version
 
-nest_asyncio.apply()
+
+def _in_jupyter() -> bool:
+    """Detect whether we are running inside a Jupyter/IPython notebook."""
+    try:
+        from IPython import get_ipython
+
+        ipy = get_ipython()
+        return ipy is not None and "IPKernelApp" in ipy.config
+    except (ImportError, AttributeError):
+        return False
+
+
+if _in_jupyter():
+    import nest_asyncio
+
+    nest_asyncio.apply()
 
 
 def add_edsl_version(func):
@@ -58,17 +71,19 @@ def jupyter_nb_handler(func):
 
     @functools.wraps(func)
     async def async_wrapper(*args, **kwargs):
-        # This is an async wrapper to await the coroutine
         return await func(*args, **kwargs)
 
     def wrapper(*args, **kwargs):
-        loop = asyncio.get_event_loop()
-        if loop.is_running():
-            # If the loop is running, schedule the coroutine and wait for the result
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            loop = None
+
+        if loop is not None and loop.is_running():
+            # Inside Jupyter or an already-running loop (nest_asyncio patched)
             future = asyncio.ensure_future(async_wrapper(*args, **kwargs))
             return loop.run_until_complete(future)
         else:
-            # If the loop is not running, run the coroutine to completion
             return asyncio.run(async_wrapper(*args, **kwargs))
 
     return wrapper
@@ -119,6 +134,8 @@ def memory_profile(func):
         gc.collect()
 
         # Get process for memory measurements
+        import psutil
+
         process = psutil.Process(os.getpid())
 
         # Start memory tracking

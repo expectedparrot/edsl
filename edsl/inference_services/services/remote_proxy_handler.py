@@ -27,13 +27,8 @@ _request_counter = 0
 # Global balance error flag to prevent multiple requests after balance failure
 _balance_error_detected = False
 
-try:
-    import httpx
-    import aiohttp
-except ImportError:
-    raise ImportError(
-        "httpx and aiohttp are required for remote proxy. Install with: pip install httpx aiohttp"
-    )
+import httpx
+import aiohttp
 
 if TYPE_CHECKING:
     from ...scenarios.file_store import FileStore as Files

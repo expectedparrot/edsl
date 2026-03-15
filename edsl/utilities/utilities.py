@@ -226,7 +226,7 @@ def is_notebook() -> bool:
 
 def file_notice(file_name):
     """Print a notice about the file being created."""
-    from ..display import file_notice as display_file_notice
+    from .display_utils import file_notice as display_file_notice
 
     display_file_notice(file_name, link_text="Download file")
 

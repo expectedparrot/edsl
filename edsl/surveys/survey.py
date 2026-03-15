@@ -12,6 +12,7 @@ import re
 import random
 from uuid import uuid4
 from pathlib import Path
+from functools import wraps
 
 from typing import (
     Any,
@@ -39,7 +40,6 @@ if TYPE_CHECKING:
     from ..results import Results, Result
     from ..scenarios import ScenarioList
     from ..buckets.bucket_collection import BucketCollection
-    from .vibes.vibe_accessor import SurveyVibeAccessor
     from ..key_management.key_lookup import KeyLookup
     from ..scenarios import FileStore
 
@@ -60,7 +60,6 @@ from ..instructions import ChangeInstruction
 from .base import EndOfSurvey, EndOfSurveyParent
 from .descriptors import QuestionsDescriptor, QuestionsToRandomizeDescriptor
 from .memory import MemoryPlan
-from .survey_flow_visualization import SurveyFlowVisualization
 from ..instructions import InstructionHandler
 from .edit_survey import EditSurvey
 from .survey_simulator import Simulator
@@ -73,6 +72,9 @@ from .exceptions import (
     SurveyCreationError,
     SurveyError,
 )
+
+from dataclasses import dataclass
+from ..base.decorators import Snapshot, snapshot, make_initial_snapshot
 
 
 class Survey(Base):
@@ -137,6 +139,7 @@ class Survey(Base):
         question_groups: Optional["QuestionGroupType"] = None,
         name: Optional[str] = None,
         questions_to_randomize: Optional[List[str]] = None,
+        _internal_copy: bool = False,
     ):
         """Initialize a new Survey instance.
 
@@ -211,43 +214,48 @@ class Survey(Base):
 
         self._exporter = SurveyExport(self)
         self._navigator = SurveyNavigator(self)
+        self._editor = EditSurvey(self)
 
-        # Validate survey structure (e.g., check for forward piping references)
-        # This will raise SurveyPipingReferenceError if questions are in wrong order
-        self.dag()
+        if not _internal_copy:
+            # Validate survey structure (e.g., check for forward piping references)
+            # This will raise SurveyPipingReferenceError if questions are in wrong order
+            self.dag()
+            self._snapshots = [make_initial_snapshot(self)]
+        else:
+            self._snapshots = []
 
-    def clipboard_data(self):
+    def clipboard_data(self) -> str:
         """Return the clipboard data for the survey."""
         text = []
         for question in self.questions:
             text.append(question.human_readable())
         return "\n\n".join(text)
 
-    @classmethod
-    def auto_survey(
-        cls, overall_question: str, population: str, num_questions: int
-    ) -> Survey:
-        """Create a survey with a single question that asks the user how they are doing."""
-        from edsl import ext
+    # @classmethod
+    # def auto_survey(
+    #     cls, overall_question: str, population: str, num_questions: int
+    # ) -> Survey:
+    #     """Create a survey with a single question that asks the user how they are doing."""
+    #     from edsl import ext
 
-        survey_info = ext.create_survey(
-            overall_question=overall_question,
-            population=population,
-            num_questions=num_questions,
-        )
-        return survey_info["survey"]
+    #     survey_info = ext.create_survey(
+    #         overall_question=overall_question,
+    #         population=population,
+    #         num_questions=num_questions,
+    #     )
+    #     return survey_info["survey"]
 
-    def generate_description(self) -> str:
-        """Generate a description of the survey."""
-        from ..questions import QuestionFreeText
+    # def generate_description(self) -> str:
+    #     """Generate a description of the survey."""
+    #     from ..questions import QuestionFreeText
 
-        question_texts = [q.question_text for q in self.questions]
-        q = QuestionFreeText(
-            question_text=f"What is a good one sentence description of this survey? The questions are: {question_texts}",
-            question_name="description",
-        )
-        results = q.run(verbose=False)
-        return results.select("answer.description").first()
+    #     question_texts = [q.question_text for q in self.questions]
+    #     q = QuestionFreeText(
+    #         question_text=f"What is a good one sentence description of this survey? The questions are: {question_texts}",
+    #         question_name="description",
+    #     )
+    #     results = q.run(verbose=False)
+    #     return results.select("answer.description").first()
 
     def question_names_valid(self) -> bool:
         """Check if the question names are valid."""
@@ -290,7 +298,7 @@ class Survey(Base):
 
         d = self.to_dict()
         d["questions"] = [q.to_dict() for q in new_questions]
-        new_survey = Survey.from_dict(d)
+        new_survey = Survey.from_dict(d, _internal_copy=True)
 
         # Preserve any non-serialized attributes from the new_questions
         for i, new_question in enumerate(new_questions):
@@ -346,9 +354,20 @@ class Survey(Base):
         """Return instructions that are relevant to the question."""
         return self._relevant_instructions_dict[question]
 
-    def show_flow(self, filename: Optional[str] = None):
-        """Show the flow of the survey."""
-        return SurveyFlowVisualization(self).show_flow(filename=filename)
+    def show_flow(self, filename: Optional[str] = None, renderer: Optional[str] = None):
+        """Show the flow of the survey.
+
+        Args:
+            filename: Optional path to save the output.
+            renderer: "mermaid" or "pydot" (default: auto-detect).
+        """
+        from edsl.surveys.extras.survey_flow_visualization import (
+            SurveyFlowVisualization,
+        )
+
+        return SurveyFlowVisualization(self).show_flow(
+            filename=filename, renderer=renderer
+        )
 
     def add_instruction(
         self, instruction: Union["Instruction", "ChangeInstruction"]
@@ -366,15 +385,15 @@ class Survey(Base):
         >>> s._pseudo_indices
         {'intro': -0.5}
         """
-        return EditSurvey(self).add_instruction(instruction)
+        return self._editor.add_instruction(instruction)
 
-    @classmethod
-    def random_survey(cls):
-        return Simulator.random_survey()
+    # @classmethod
+    # def random_survey(cls):
+    #     return Simulator.random_survey()
 
-    def simulate(self) -> dict:
-        """Simulate the survey and return the answers."""
-        return Simulator(self).simulate()
+    # def simulate(self) -> dict:
+    #     """Simulate the survey and return the answers."""
+    #     return Simulator(self).simulate()
 
     def _get_question_index(
         self, q: Union["QuestionBase", str, EndOfSurveyParent]
@@ -427,9 +446,9 @@ class Survey(Base):
 
     def question_names_to_questions(self) -> dict:
         """Return a dictionary mapping question names to question attributes."""
-        # For performance: avoid expensive duplication, just return question references
-        result = {q.question_name: q for q in self.questions}
-        return result
+        if not hasattr(self, "_cached_qname_to_q"):
+            self._cached_qname_to_q = {q.question_name: q for q in self.questions}
+        return self._cached_qname_to_q
 
     @property
     def question_names(self) -> list[str]:
@@ -441,7 +460,9 @@ class Survey(Base):
         >>> s.question_names
         ['q0', 'q1', 'q2']
         """
-        return [q.question_name for q in self.questions]
+        if not hasattr(self, "_cached_question_names"):
+            self._cached_question_names = [q.question_name for q in self.questions]
+        return self._cached_question_names
 
     @property
     def question_name_to_index(self) -> dict[str, int]:
@@ -453,7 +474,11 @@ class Survey(Base):
         >>> s.question_name_to_index
         {'q0': 0, 'q1': 1, 'q2': 2}
         """
-        return {q.question_name: i for i, q in enumerate(self.questions)}
+        if not hasattr(self, "_cached_qname_to_index"):
+            self._cached_qname_to_index = {
+                q.question_name: i for i, q in enumerate(self.questions)
+            }
+        return self._cached_qname_to_index
 
     def to_long_format(
         self, scenario_list: "ScenarioList"
@@ -532,7 +557,7 @@ class Survey(Base):
 
     @classmethod
     @remove_edsl_version
-    def from_dict(cls, data: dict) -> Survey:
+    def from_dict(cls, data: dict, _internal_copy: bool = False) -> Survey:
         """Reconstruct a Survey object from its dictionary representation.
 
         This class method is the counterpart to to_dict() and allows you to recreate
@@ -631,390 +656,391 @@ class Survey(Base):
             question_groups=data["question_groups"],
             questions_to_randomize=questions_to_randomize,
             name=name,
+            _internal_copy=_internal_copy,
         )
 
         return survey
 
-    @classmethod
-    def from_qsf(
-        cls, qsf_path: Union[str, "Path"], encoding: str = "utf-8"
-    ) -> "Survey":
-        """Create a Survey from a Qualtrics QSF file or URL.
+    # @classmethod
+    # def from_qsf(
+    #     cls, qsf_path: Union[str, "Path"], encoding: str = "utf-8"
+    # ) -> "Survey":
+    #     """Create a Survey from a Qualtrics QSF file or URL.
 
-        This class method converts a Qualtrics Survey Format (QSF) file into an EDSL Survey.
-        It handles the parsing of QSF JSON structure and maps Qualtrics question types to
-        appropriate EDSL question types.
+    #     This class method converts a Qualtrics Survey Format (QSF) file into an EDSL Survey.
+    #     It handles the parsing of QSF JSON structure and maps Qualtrics question types to
+    #     appropriate EDSL question types.
 
-        Args:
-            qsf_path: Path to the QSF file, Path object, or URL to download the QSF from
-            encoding: File encoding, defaults to "utf-8"
+    #     Args:
+    #         qsf_path: Path to the QSF file, Path object, or URL to download the QSF from
+    #         encoding: File encoding, defaults to "utf-8"
 
-        Returns:
-            Survey: A new Survey object with questions converted from the QSF file
+    #     Returns:
+    #         Survey: A new Survey object with questions converted from the QSF file
 
-        Examples:
-            Load a survey from a local QSF file:
+    #     Examples:
+    #         Load a survey from a local QSF file:
 
-            >>> survey = Survey.from_qsf("my_survey.qsf")  # doctest: +SKIP
-            >>> print(f"Loaded survey with {len(survey.questions)} questions")  # doctest: +SKIP
+    #         >>> survey = Survey.from_qsf("my_survey.qsf")  # doctest: +SKIP
+    #         >>> print(f"Loaded survey with {len(survey.questions)} questions")  # doctest: +SKIP
 
-            Load a survey from a URL:
+    #         Load a survey from a URL:
 
-            >>> url = "https://dataverse.harvard.edu/api/access/datafile/:persistentId?persistentId=doi:10.7910/DVN/EOFAKX/T10GWZ"  # doctest: +SKIP
-            >>> survey = Survey.from_qsf(url)  # doctest: +SKIP
+    #         >>> url = "https://dataverse.harvard.edu/api/access/datafile/:persistentId?persistentId=doi:10.7910/DVN/EOFAKX/T10GWZ"  # doctest: +SKIP
+    #         >>> survey = Survey.from_qsf(url)  # doctest: +SKIP
 
-            Run the converted survey with an agent:
+    #         Run the converted survey with an agent:
 
-            >>> from edsl import Agent  # doctest: +SKIP
-            >>> results = survey.by(Agent()).run()  # doctest: +SKIP
+    #         >>> from edsl import Agent  # doctest: +SKIP
+    #         >>> results = survey.by(Agent()).run()  # doctest: +SKIP
 
-        Note:
-            This method requires a valid QSF file with proper Qualtrics format.
-            Complex QSF features like advanced branching logic may require manual
-            adjustment after conversion.
-        """
-        from pathlib import Path
-        import tempfile
-        import urllib.request
-        import urllib.parse
-        from .qsf_parser import QSFParser
+    #     Note:
+    #         This method requires a valid QSF file with proper Qualtrics format.
+    #         Complex QSF features like advanced branching logic may require manual
+    #         adjustment after conversion.
+    #     """
+    #     from pathlib import Path
+    #     import tempfile
+    #     import urllib.request
+    #     import urllib.parse
+    #     from .qsf_parser import QSFParser
 
-        # Check if qsf_path is a URL
-        if isinstance(qsf_path, str) and (
-            qsf_path.startswith("http://") or qsf_path.startswith("https://")
-        ):
-            print(f"Downloading QSF from URL: {qsf_path}")
+    #     # Check if qsf_path is a URL
+    #     if isinstance(qsf_path, str) and (
+    #         qsf_path.startswith("http://") or qsf_path.startswith("https://")
+    #     ):
+    #         print(f"Downloading QSF from URL: {qsf_path}")
 
-            try:
-                # Create a temporary file to store the downloaded QSF
-                with tempfile.NamedTemporaryFile(
-                    mode="w+b", suffix=".qsf", delete=False
-                ) as temp_file:
-                    # Create request with user agent to avoid 403 errors
-                    req = urllib.request.Request(
-                        qsf_path,
-                        headers={
-                            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
-                        },
-                    )
+    #         try:
+    #             # Create a temporary file to store the downloaded QSF
+    #             with tempfile.NamedTemporaryFile(
+    #                 mode="w+b", suffix=".qsf", delete=False
+    #             ) as temp_file:
+    #                 # Create request with user agent to avoid 403 errors
+    #                 req = urllib.request.Request(
+    #                     qsf_path,
+    #                     headers={
+    #                         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+    #                     },
+    #                 )
 
-                    # Download the file
-                    with urllib.request.urlopen(req) as response:
-                        temp_file.write(response.read())
-                    temp_file_path = temp_file.name
+    #                 # Download the file
+    #                 with urllib.request.urlopen(req) as response:
+    #                     temp_file.write(response.read())
+    #                 temp_file_path = temp_file.name
 
-                print(f"Downloaded to temporary file: {temp_file_path}")
+    #             print(f"Downloaded to temporary file: {temp_file_path}")
 
-                # Parse the downloaded file
-                parser = QSFParser.from_file(temp_file_path, encoding)
-                qsf_survey = parser.parse()
+    #             # Parse the downloaded file
+    #             parser = QSFParser.from_file(temp_file_path, encoding)
+    #             qsf_survey = parser.parse()
 
-                # Clean up the temporary file
-                Path(temp_file_path).unlink()
-                print("Temporary file cleaned up")
+    #             # Clean up the temporary file
+    #             Path(temp_file_path).unlink()
+    #             print("Temporary file cleaned up")
 
-            except Exception as e:
-                # Clean up temp file if it was created
-                if "temp_file_path" in locals() and Path(temp_file_path).exists():
-                    Path(temp_file_path).unlink()
+    #         except Exception as e:
+    #             # Clean up temp file if it was created
+    #             if "temp_file_path" in locals() and Path(temp_file_path).exists():
+    #                 Path(temp_file_path).unlink()
 
-                # Try curl as fallback
-                print("urllib failed, trying curl as fallback...")
-                try:
-                    import subprocess
-                    import tempfile
+    #             # Try curl as fallback
+    #             print("urllib failed, trying curl as fallback...")
+    #             try:
+    #                 import subprocess
+    #                 import tempfile
 
-                    with tempfile.NamedTemporaryFile(
-                        mode="w+b", suffix=".qsf", delete=False
-                    ) as temp_file:
-                        temp_file_path = temp_file.name
+    #                 with tempfile.NamedTemporaryFile(
+    #                     mode="w+b", suffix=".qsf", delete=False
+    #                 ) as temp_file:
+    #                     temp_file_path = temp_file.name
 
-                    # Use curl to download
-                    result = subprocess.run(
-                        ["curl", "-L", qsf_path, "-o", temp_file_path],
-                        capture_output=True,
-                        text=True,
-                        timeout=60,
-                    )
+    #                 # Use curl to download
+    #                 result = subprocess.run(
+    #                     ["curl", "-L", qsf_path, "-o", temp_file_path],
+    #                     capture_output=True,
+    #                     text=True,
+    #                     timeout=60,
+    #                 )
 
-                    if result.returncode == 0:
-                        print(f"Downloaded successfully with curl to: {temp_file_path}")
-                        # Parse the downloaded file
-                        parser = QSFParser.from_file(temp_file_path, encoding)
-                        qsf_survey = parser.parse()
+    #                 if result.returncode == 0:
+    #                     print(f"Downloaded successfully with curl to: {temp_file_path}")
+    #                     # Parse the downloaded file
+    #                     parser = QSFParser.from_file(temp_file_path, encoding)
+    #                     qsf_survey = parser.parse()
 
-                        # Clean up the temporary file
-                        Path(temp_file_path).unlink()
-                        print("Temporary file cleaned up")
-                    else:
-                        # Clean up temp file on curl failure
-                        if Path(temp_file_path).exists():
-                            Path(temp_file_path).unlink()
-                        raise Exception(f"Curl download failed: {result.stderr}")
+    #                     # Clean up the temporary file
+    #                     Path(temp_file_path).unlink()
+    #                     print("Temporary file cleaned up")
+    #                 else:
+    #                     # Clean up temp file on curl failure
+    #                     if Path(temp_file_path).exists():
+    #                         Path(temp_file_path).unlink()
+    #                     raise Exception(f"Curl download failed: {result.stderr}")
 
-                except Exception as curl_error:
-                    # Clean up temp file
-                    if "temp_file_path" in locals() and Path(temp_file_path).exists():
-                        Path(temp_file_path).unlink()
-                    raise Exception(
-                        f"Failed to download QSF from URL. urllib error: {e}, curl error: {curl_error}"
-                    )
+    #             except Exception as curl_error:
+    #                 # Clean up temp file
+    #                 if "temp_file_path" in locals() and Path(temp_file_path).exists():
+    #                     Path(temp_file_path).unlink()
+    #                 raise Exception(
+    #                     f"Failed to download QSF from URL. urllib error: {e}, curl error: {curl_error}"
+    #                 )
 
-        else:
-            # Handle as local file path
-            parser = QSFParser.from_file(qsf_path, encoding)
-            qsf_survey = parser.parse()
+    #     else:
+    #         # Handle as local file path
+    #         parser = QSFParser.from_file(qsf_path, encoding)
+    #         qsf_survey = parser.parse()
 
-        # Convert QSF questions to EDSL questions
-        questions = cls._convert_qsf_questions(qsf_survey.questions)
+    #     # Convert QSF questions to EDSL questions
+    #     questions = cls._convert_qsf_questions(qsf_survey.questions)
 
-        # Extract question groups from QSF blocks
-        question_groups = cls._extract_question_groups(qsf_survey.blocks, questions)
+    #     # Extract question groups from QSF blocks
+    #     question_groups = cls._extract_question_groups(qsf_survey.blocks, questions)
 
-        # Extract questions to randomize from QSF flow
-        questions_to_randomize = cls._extract_randomized_questions(
-            qsf_survey.flow, qsf_survey.blocks, questions
-        )
+    #     # Extract questions to randomize from QSF flow
+    #     questions_to_randomize = cls._extract_randomized_questions(
+    #         qsf_survey.flow, qsf_survey.blocks, questions
+    #     )
 
-        # Create the Survey
-        survey = cls(
-            questions=questions,
-            question_groups=question_groups if question_groups else None,
-            questions_to_randomize=(
-                questions_to_randomize if questions_to_randomize else None
-            ),
-        )
+    #     # Create the Survey
+    #     survey = cls(
+    #         questions=questions,
+    #         question_groups=question_groups if question_groups else None,
+    #         questions_to_randomize=(
+    #             questions_to_randomize if questions_to_randomize else None
+    #         ),
+    #     )
 
-        # Set survey name from QSF
-        if hasattr(survey, "_name"):
-            survey._name = qsf_survey.name
+    #     # Set survey name from QSF
+    #     if hasattr(survey, "_name"):
+    #         survey._name = qsf_survey.name
 
-        return survey
+    #     return survey
 
-    @classmethod
-    def _convert_qsf_questions(cls, qsf_questions: List) -> List["QuestionType"]:
-        """Convert QSF questions to EDSL questions."""
-        from ..questions import (
-            QuestionMultipleChoice,
-            QuestionCheckBox,
-            QuestionFreeText,
-            QuestionMatrix,
-            QuestionLinearScale,
-            QuestionYesNo,
-        )
-        from ..instructions import Instruction
+    # @classmethod
+    # def _convert_qsf_questions(cls, qsf_questions: List) -> List["QuestionType"]:
+    #     """Convert QSF questions to EDSL questions."""
+    #     from ..questions import (
+    #         QuestionMultipleChoice,
+    #         QuestionCheckBox,
+    #         QuestionFreeText,
+    #         QuestionMatrix,
+    #         QuestionLinearScale,
+    #         QuestionYesNo,
+    #     )
+    #     from ..instructions import Instruction
 
-        edsl_questions = []
-        used_names = set()  # Track used names to ensure uniqueness
+    #     edsl_questions = []
+    #     used_names = set()  # Track used names to ensure uniqueness
 
-        for qsf_q in qsf_questions:
-            base_question_name = cls._sanitize_name(qsf_q.export_tag or qsf_q.id)
-            question_text = qsf_q.text
+    #     for qsf_q in qsf_questions:
+    #         base_question_name = cls._sanitize_name(qsf_q.export_tag or qsf_q.id)
+    #         question_text = qsf_q.text
 
-            # Ensure unique question names
-            question_name = base_question_name
-            counter = 1
-            while question_name in used_names:
-                question_name = f"{base_question_name}_{counter}"
-                counter += 1
-            used_names.add(question_name)
+    #         # Ensure unique question names
+    #         question_name = base_question_name
+    #         counter = 1
+    #         while question_name in used_names:
+    #             question_name = f"{base_question_name}_{counter}"
+    #             counter += 1
+    #         used_names.add(question_name)
 
-            # Ensure question text meets EDSL minimum length requirements
-            if not question_text or len(question_text.strip()) < 3:
-                question_text = (
-                    f"Question {question_name}"
-                    if not question_text
-                    else f"Question {question_name}: {question_text}"
-                )
+    #         # Ensure question text meets EDSL minimum length requirements
+    #         if not question_text or len(question_text.strip()) < 3:
+    #             question_text = (
+    #                 f"Question {question_name}"
+    #                 if not question_text
+    #                 else f"Question {question_name}: {question_text}"
+    #             )
 
-            try:
-                if qsf_q.type == "descriptive":
-                    # Convert descriptive text to instructions
-                    edsl_questions.append(
-                        Instruction(name=question_name, text=question_text)
-                    )
+    #         try:
+    #             if qsf_q.type == "descriptive":
+    #                 # Convert descriptive text to instructions
+    #                 edsl_questions.append(
+    #                     Instruction(name=question_name, text=question_text)
+    #                 )
 
-                elif qsf_q.type == "single_choice":
-                    options = [
-                        choice.text
-                        for choice in qsf_q.choices
-                        if choice.text and choice.text.strip()
-                    ]
-                    if not options:
-                        options = [
-                            "Option 1",
-                            "Option 2",
-                        ]  # Default options if none found
+    #             elif qsf_q.type == "single_choice":
+    #                 options = [
+    #                     choice.text
+    #                     for choice in qsf_q.choices
+    #                     if choice.text and choice.text.strip()
+    #                 ]
+    #                 if not options:
+    #                     options = [
+    #                         "Option 1",
+    #                         "Option 2",
+    #                     ]  # Default options if none found
 
-                    if len(options) == 2 and cls._is_yes_no(options):
-                        edsl_questions.append(
-                            QuestionYesNo(
-                                question_name=question_name,
-                                question_text=question_text,
-                                question_options=options,
-                            )
-                        )
-                    else:
-                        edsl_questions.append(
-                            QuestionMultipleChoice(
-                                question_name=question_name,
-                                question_text=question_text,
-                                question_options=options,
-                            )
-                        )
+    #                 if len(options) == 2 and cls._is_yes_no(options):
+    #                     edsl_questions.append(
+    #                         QuestionYesNo(
+    #                             question_name=question_name,
+    #                             question_text=question_text,
+    #                             question_options=options,
+    #                         )
+    #                     )
+    #                 else:
+    #                     edsl_questions.append(
+    #                         QuestionMultipleChoice(
+    #                             question_name=question_name,
+    #                             question_text=question_text,
+    #                             question_options=options,
+    #                         )
+    #                     )
 
-                elif qsf_q.type == "multi_choice":
-                    options = [
-                        choice.text
-                        for choice in qsf_q.choices
-                        if choice.text and choice.text.strip()
-                    ]
-                    if not options:
-                        options = [
-                            "Option 1",
-                            "Option 2",
-                            "Option 3",
-                        ]  # Default options if none found
+    #             elif qsf_q.type == "multi_choice":
+    #                 options = [
+    #                     choice.text
+    #                     for choice in qsf_q.choices
+    #                     if choice.text and choice.text.strip()
+    #                 ]
+    #                 if not options:
+    #                     options = [
+    #                         "Option 1",
+    #                         "Option 2",
+    #                         "Option 3",
+    #                     ]  # Default options if none found
 
-                    edsl_questions.append(
-                        QuestionCheckBox(
-                            question_name=question_name,
-                            question_text=question_text,
-                            question_options=options,
-                        )
-                    )
+    #                 edsl_questions.append(
+    #                     QuestionCheckBox(
+    #                         question_name=question_name,
+    #                         question_text=question_text,
+    #                         question_options=options,
+    #                     )
+    #                 )
 
-                elif qsf_q.type == "text":
-                    edsl_questions.append(
-                        QuestionFreeText(
-                            question_name=question_name, question_text=question_text
-                        )
-                    )
+    #             elif qsf_q.type == "text":
+    #                 edsl_questions.append(
+    #                     QuestionFreeText(
+    #                         question_name=question_name, question_text=question_text
+    #                     )
+    #                 )
 
-                elif qsf_q.type == "matrix_single":
-                    options = [
-                        choice.text
-                        for choice in qsf_q.choices
-                        if choice.text and choice.text.strip()
-                    ]
-                    items = (
-                        [
-                            scale_item.text
-                            for scale_item in qsf_q.scale
-                            if scale_item.text and scale_item.text.strip()
-                        ]
-                        if qsf_q.scale
-                        else []
-                    )
+    #             elif qsf_q.type == "matrix_single":
+    #                 options = [
+    #                     choice.text
+    #                     for choice in qsf_q.choices
+    #                     if choice.text and choice.text.strip()
+    #                 ]
+    #                 items = (
+    #                     [
+    #                         scale_item.text
+    #                         for scale_item in qsf_q.scale
+    #                         if scale_item.text and scale_item.text.strip()
+    #                     ]
+    #                     if qsf_q.scale
+    #                     else []
+    #                 )
 
-                    if not options:
-                        options = ["Poor", "Fair", "Good", "Excellent"]
-                    if not items:
-                        items = ["Item 1", "Item 2"]
+    #                 if not options:
+    #                     options = ["Poor", "Fair", "Good", "Excellent"]
+    #                 if not items:
+    #                     items = ["Item 1", "Item 2"]
 
-                    edsl_questions.append(
-                        QuestionMatrix(
-                            question_name=question_name,
-                            question_text=question_text,
-                            question_options=options,
-                            question_items=items,
-                        )
-                    )
+    #                 edsl_questions.append(
+    #                     QuestionMatrix(
+    #                         question_name=question_name,
+    #                         question_text=question_text,
+    #                         question_options=options,
+    #                         question_items=items,
+    #                     )
+    #                 )
 
-                elif qsf_q.type == "slider":
-                    try:
-                        if qsf_q.choices:
-                            options = []
-                            option_labels = {}
-                            for choice in qsf_q.choices:
-                                try:
-                                    num_value = int(choice.text)
-                                    options.append(num_value)
-                                except ValueError:
-                                    options.append(choice.order)
-                                    option_labels[choice.order] = choice.text
+    #             elif qsf_q.type == "slider":
+    #                 try:
+    #                     if qsf_q.choices:
+    #                         options = []
+    #                         option_labels = {}
+    #                         for choice in qsf_q.choices:
+    #                             try:
+    #                                 num_value = int(choice.text)
+    #                                 options.append(num_value)
+    #                             except ValueError:
+    #                                 options.append(choice.order)
+    #                                 option_labels[choice.order] = choice.text
 
-                            edsl_questions.append(
-                                QuestionLinearScale(
-                                    question_name=question_name,
-                                    question_text=question_text,
-                                    question_options=sorted(options),
-                                    option_labels=(
-                                        option_labels if option_labels else {}
-                                    ),
-                                )
-                            )
-                        else:
-                            edsl_questions.append(
-                                QuestionLinearScale(
-                                    question_name=question_name,
-                                    question_text=question_text,
-                                    question_options=list(range(1, 8)),
-                                )
-                            )
-                    except Exception:
-                        # Fallback to multiple choice
-                        options = [
-                            choice.text
-                            for choice in qsf_q.choices
-                            if choice.text and choice.text.strip()
-                        ]
-                        if not options:
-                            options = [
-                                "1",
-                                "2",
-                                "3",
-                                "4",
-                                "5",
-                            ]  # Default scale if none found
+    #                         edsl_questions.append(
+    #                             QuestionLinearScale(
+    #                                 question_name=question_name,
+    #                                 question_text=question_text,
+    #                                 question_options=sorted(options),
+    #                                 option_labels=(
+    #                                     option_labels if option_labels else {}
+    #                                 ),
+    #                             )
+    #                         )
+    #                     else:
+    #                         edsl_questions.append(
+    #                             QuestionLinearScale(
+    #                                 question_name=question_name,
+    #                                 question_text=question_text,
+    #                                 question_options=list(range(1, 8)),
+    #                             )
+    #                         )
+    #                 except Exception:
+    #                     # Fallback to multiple choice
+    #                     options = [
+    #                         choice.text
+    #                         for choice in qsf_q.choices
+    #                         if choice.text and choice.text.strip()
+    #                     ]
+    #                     if not options:
+    #                         options = [
+    #                             "1",
+    #                             "2",
+    #                             "3",
+    #                             "4",
+    #                             "5",
+    #                         ]  # Default scale if none found
 
-                        edsl_questions.append(
-                            QuestionMultipleChoice(
-                                question_name=question_name,
-                                question_text=question_text,
-                                question_options=options,
-                            )
-                        )
+    #                     edsl_questions.append(
+    #                         QuestionMultipleChoice(
+    #                             question_name=question_name,
+    #                             question_text=question_text,
+    #                             question_options=options,
+    #                         )
+    #                     )
 
-                elif qsf_q.type in ["dropdown", "choice"]:
-                    options = [
-                        choice.text
-                        for choice in qsf_q.choices
-                        if choice.text and choice.text.strip()
-                    ]
-                    if not options:
-                        options = [
-                            "Option 1",
-                            "Option 2",
-                            "Option 3",
-                        ]  # Default options if none found
+    #             elif qsf_q.type in ["dropdown", "choice"]:
+    #                 options = [
+    #                     choice.text
+    #                     for choice in qsf_q.choices
+    #                     if choice.text and choice.text.strip()
+    #                 ]
+    #                 if not options:
+    #                     options = [
+    #                         "Option 1",
+    #                         "Option 2",
+    #                         "Option 3",
+    #                     ]  # Default options if none found
 
-                    edsl_questions.append(
-                        QuestionMultipleChoice(
-                            question_name=question_name,
-                            question_text=question_text,
-                            question_options=options,
-                        )
-                    )
+    #                 edsl_questions.append(
+    #                     QuestionMultipleChoice(
+    #                         question_name=question_name,
+    #                         question_text=question_text,
+    #                         question_options=options,
+    #                     )
+    #                 )
 
-                else:
-                    # Default to free text for unknown types
-                    edsl_questions.append(
-                        QuestionFreeText(
-                            question_name=question_name, question_text=question_text
-                        )
-                    )
+    #             else:
+    #                 # Default to free text for unknown types
+    #                 edsl_questions.append(
+    #                     QuestionFreeText(
+    #                         question_name=question_name, question_text=question_text
+    #                     )
+    #                 )
 
-            except Exception as e:
-                print(f"Warning: Could not convert question '{question_name}': {e}")
-                # Fallback to free text
-                edsl_questions.append(
-                    QuestionFreeText(
-                        question_name=question_name, question_text=question_text
-                    )
-                )
+    #         except Exception as e:
+    #             print(f"Warning: Could not convert question '{question_name}': {e}")
+    #             # Fallback to free text
+    #             edsl_questions.append(
+    #                 QuestionFreeText(
+    #                     question_name=question_name, question_text=question_text
+    #                 )
+    #             )
 
-        return edsl_questions
+    #     return edsl_questions
 
     @classmethod
     def _extract_question_groups(
@@ -1049,40 +1075,40 @@ class Survey(Base):
 
         return question_groups
 
-    @classmethod
-    def _extract_randomized_questions(
-        cls, qsf_flow, qsf_blocks: List, edsl_questions: List
-    ) -> List[str]:
-        """Extract questions that should be randomized from QSF flow."""
-        randomized_questions = []
+    # @classmethod
+    # def _extract_randomized_questions(
+    #     cls, qsf_flow, qsf_blocks: List, edsl_questions: List
+    # ) -> List[str]:
+    #     """Extract questions that should be randomized from QSF flow."""
+    #     randomized_questions = []
 
-        def process_flow_node(node):
-            if hasattr(node, "type") and node.type == "randomizer":
-                for child in getattr(node, "children", []):
-                    if (
-                        hasattr(child, "type")
-                        and child.type == "block"
-                        and hasattr(child, "block_id")
-                    ):
-                        # Find questions in this block
-                        for block in qsf_blocks:
-                            if block.id == child.block_id:
-                                for element in block.elements:
-                                    if (
-                                        element.kind == "question"
-                                        and element.question_id
-                                    ):
-                                        qsf_name = cls._sanitize_name(
-                                            element.question_id
-                                        )
-                                        if qsf_name not in randomized_questions:
-                                            randomized_questions.append(qsf_name)
+    #     def process_flow_node(node):
+    #         if hasattr(node, "type") and node.type == "randomizer":
+    #             for child in getattr(node, "children", []):
+    #                 if (
+    #                     hasattr(child, "type")
+    #                     and child.type == "block"
+    #                     and hasattr(child, "block_id")
+    #                 ):
+    #                     # Find questions in this block
+    #                     for block in qsf_blocks:
+    #                         if block.id == child.block_id:
+    #                             for element in block.elements:
+    #                                 if (
+    #                                     element.kind == "question"
+    #                                     and element.question_id
+    #                                 ):
+    #                                     qsf_name = cls._sanitize_name(
+    #                                         element.question_id
+    #                                     )
+    #                                     if qsf_name not in randomized_questions:
+    #                                         randomized_questions.append(qsf_name)
 
-            for child in getattr(node, "children", []):
-                process_flow_node(child)
+    #         for child in getattr(node, "children", []):
+    #             process_flow_node(child)
 
-        process_flow_node(qsf_flow)
-        return randomized_questions
+    #     process_flow_node(qsf_flow)
+    #     return randomized_questions
 
     @classmethod
     def _sanitize_name(cls, name: str) -> str:
@@ -1113,19 +1139,19 @@ class Survey(Base):
 
         return name
 
-    @classmethod
-    def _is_yes_no(cls, options: List[str]) -> bool:
-        """Check if options represent a yes/no question."""
-        if len(options) != 2:
-            return False
+    # @classmethod
+    # def _is_yes_no(cls, options: List[str]) -> bool:
+    #     """Check if options represent a yes/no question."""
+    #     if len(options) != 2:
+    #         return False
 
-        options_lower = [opt.lower().strip() for opt in options]
-        yes_variants = {"yes", "y", "true", "1", "agree", "si", "oui"}
-        no_variants = {"no", "n", "false", "0", "disagree", "non", "non"}
+    #     options_lower = [opt.lower().strip() for opt in options]
+    #     yes_variants = {"yes", "y", "true", "1", "agree", "si", "oui"}
+    #     no_variants = {"no", "n", "false", "0", "disagree", "non", "non"}
 
-        return any(opt in yes_variants for opt in options_lower) and any(
-            opt in no_variants for opt in options_lower
-        )
+    #     return any(opt in yes_variants for opt in options_lower) and any(
+    #         opt in no_variants for opt in options_lower
+    #     )
 
     @property
     def scenario_attributes(self) -> list[str]:
@@ -1207,7 +1233,7 @@ class Survey(Base):
         >>> s.move_question("q0", 2).question_names
         ['q1', 'q2', 'q0']
         """
-        return EditSurvey(self).move_question(identifier, new_index)
+        return self._editor.move_question(identifier, new_index)
 
     def delete_question(self, identifier: Union[str, int]) -> Survey:
         """
@@ -1227,27 +1253,14 @@ class Survey(Base):
         >>> len(s.questions)
         0
         """
-        return EditSurvey(self).delete_question(identifier)
+        return self._editor.delete_question(identifier)
 
+    @snapshot
+    @wraps(EditSurvey.add_question)
     def add_question(
         self, question: QuestionBase, index: Optional[int] = None
     ) -> Survey:
-        """
-        Add a question to survey.
-
-        :param question: The question to add to the survey.
-        :param question_name: The name of the question. If not provided, the question name is used.
-
-        The question is appended at the end of the self.questions list
-        A default rule is created that the next index is the next question.
-
-        >>> from edsl import QuestionMultipleChoice
-        >>> q = QuestionMultipleChoice(question_text = "Do you like school?", question_options=["yes", "no"], question_name="q0")
-        >>> s = Survey().add_question(q)
-
-        # Adding a question with a duplicate name would raise SurveyCreationError
-        """
-        return EditSurvey(self).add_question(question, index)
+        return self._editor.add_question(question, index)
 
     def combine_multiple_choice_to_matrix(
         self,
@@ -2351,13 +2364,13 @@ class Survey(Base):
         Examples:
             Run a survey with a functional question that uses scenario parameters:
 
-            >>> from edsl.questions import QuestionFunctional
-            >>> def f(scenario, agent_traits): return "yes" if scenario["period"] == "morning" else "no"
-            >>> q = QuestionFunctional(question_name="q0", func=f)
-            >>> s = Survey([q])
-            >>> s(period="morning", cache=False, disable_remote_cache=True, disable_remote_inference=True).select("answer.q0").first()
+            >>> from edsl.questions import QuestionFunctional  # doctest: +SKIP
+            >>> def f(scenario, agent_traits): return "yes" if scenario["period"] == "morning" else "no"  # doctest: +SKIP
+            >>> q = QuestionFunctional(question_name="q0", func=f)  # doctest: +SKIP
+            >>> s = Survey([q])  # doctest: +SKIP
+            >>> s(period="morning", cache=False, disable_remote_cache=True, disable_remote_inference=True).select("answer.q0").first()  # doctest: +SKIP
             'yes'
-            >>> s(period="evening", cache=False, disable_remote_cache=True, disable_remote_inference=True).select("answer.q0").first()
+            >>> s(period="evening", cache=False, disable_remote_cache=True, disable_remote_inference=True).select("answer.q0").first()  # doctest: +SKIP
             'no'
         """
         return self.get_job(model, agent, **kwargs).run(
@@ -3409,9 +3422,9 @@ class Survey(Base):
             SurveyError: If old_name doesn't exist, new_name already exists, or new_name is invalid
 
         Examples:
-            >>> s = Survey.example()
-            >>> s_renamed = s.with_renamed_question("q0", "school_preference")
-            >>> s_renamed.get("school_preference").question_name
+            >>> s = Survey.example()  # doctest: +SKIP
+            >>> s_renamed = s.with_renamed_question("q0", "school_preference")  # doctest: +SKIP
+            >>> s_renamed.get("school_preference").question_name  # doctest: +SKIP
             'school_preference'
 
             >>> # Rules are also updated
@@ -3421,222 +3434,201 @@ class Survey(Base):
 
         return QuestionRenamer.with_renamed_question(self, old_name, new_name)
 
-    # def inspect(self):
-    #     """Create an interactive inspector widget for this survey.
+    # @classmethod
+    # def generate_from_topic(
+    #     cls,
+    #     topic: str,
+    #     n_questions: int = 5,
+    #     model: Optional["LanguageModel"] = None,
+    #     scenario_keys: Optional[List[str]] = None,
+    #     verbose: bool = True,
+    # ) -> "Survey":
+    #     """Generate a survey from a topic using an LLM.
 
-    #     This method creates a SurveyInspectorWidget that provides an interactive
-    #     interface for exploring the survey structure, questions, and flow logic.
+    #     This method uses a language model to generate a well-balanced survey
+    #     for the given topic with the specified number of questions.
+
+    #     Args:
+    #         topic: The topic to generate questions about
+    #         n_questions: Number of questions to generate (default: 5)
+    #         model: Language model to use for generation. If None, uses default model.
+    #         scenario_keys: Optional list of scenario keys to include in question texts.
+    #                       Each key will be added as {{ scenario.<key> }} in the questions.
+    #         verbose: Whether to show the underlying survey generation process (default: True)
 
     #     Returns:
-    #         SurveyInspectorWidget instance: Interactive widget for inspecting this survey
+    #         Survey: A new Survey instance with generated questions
 
-    #     Raises:
-    #         ImportError: If the widgets module cannot be imported
+    #     Examples:
+    #         >>> survey = Survey.generate_from_topic("workplace satisfaction", n_questions=3)  # doctest: +SKIP
+    #         >>> survey = Survey.generate_from_topic("product feedback", scenario_keys=["product_name", "version"])  # doctest: +SKIP
+    #         >>> survey = Survey.generate_from_topic("feedback", verbose=False)  # doctest: +SKIP
     #     """
-    #     try:
-    #         from ..widgets.survey_inspector import SurveyInspectorWidget
-    #     except ImportError as e:
-    #         raise ImportError(
-    #             "Survey inspector widget is not available. Make sure the widgets module is installed."
-    #         ) from e
+    #     from .survey_generator import SurveyGenerator
 
-    #     return SurveyInspectorWidget(self)
+    #     return SurveyGenerator.generate_from_topic(
+    #         cls, topic, n_questions, model, scenario_keys, verbose
+    #     )
 
-    @classmethod
-    def generate_from_topic(
-        cls,
-        topic: str,
-        n_questions: int = 5,
-        model: Optional["LanguageModel"] = None,
-        scenario_keys: Optional[List[str]] = None,
-        verbose: bool = True,
-    ) -> "Survey":
-        """Generate a survey from a topic using an LLM.
+    # @classmethod
+    # def generate_from_questions(
+    #     cls,
+    #     question_texts: List[str],
+    #     question_types: Optional[List[str]] = None,
+    #     question_names: Optional[List[str]] = None,
+    #     model: Optional["LanguageModel"] = None,
+    #     scenario_keys: Optional[List[str]] = None,
+    #     verbose: bool = True,
+    # ) -> "Survey":
+    #     """Generate a survey from a list of question texts.
 
-        This method uses a language model to generate a well-balanced survey
-        for the given topic with the specified number of questions.
+    #     This method takes a list of question texts and optionally infers question types
+    #     and generates question names using an LLM.
 
-        Args:
-            topic: The topic to generate questions about
-            n_questions: Number of questions to generate (default: 5)
-            model: Language model to use for generation. If None, uses default model.
-            scenario_keys: Optional list of scenario keys to include in question texts.
-                          Each key will be added as {{ scenario.<key> }} in the questions.
-            verbose: Whether to show the underlying survey generation process (default: True)
+    #     Args:
+    #         question_texts: List of question text strings
+    #         question_types: Optional list of question types corresponding to each text.
+    #                       If None, types will be inferred by the model.
+    #         question_names: Optional list of question names. If None, names will be generated.
+    #         model: Language model to use for inference. If None, uses default model.
+    #         scenario_keys: Optional list of scenario keys to include in question texts.
+    #                       Each key will be added as {{ scenario.<key> }} in the questions.
+    #         verbose: Whether to show the underlying survey generation process (default: True)
 
-        Returns:
-            Survey: A new Survey instance with generated questions
+    #     Returns:
+    #         Survey: A new Survey instance with the questions
 
-        Examples:
-            >>> survey = Survey.generate_from_topic("workplace satisfaction", n_questions=3)  # doctest: +SKIP
-            >>> survey = Survey.generate_from_topic("product feedback", scenario_keys=["product_name", "version"])  # doctest: +SKIP
-            >>> survey = Survey.generate_from_topic("feedback", verbose=False)  # doctest: +SKIP
-        """
-        from .survey_generator import SurveyGenerator
+    #     Examples:
+    #         >>> texts = ["How satisfied are you?", "What is your age?"]
+    #         >>> survey = Survey.generate_from_questions(texts)  # doctest: +SKIP
+    #         >>> types = ["LinearScale", "Numerical"]
+    #         >>> names = ["satisfaction", "age"]
+    #         >>> survey = Survey.generate_from_questions(texts, types, names)  # doctest: +SKIP
+    #         >>> survey = Survey.generate_from_questions(texts, scenario_keys=["product_name"])  # doctest: +SKIP
+    #         >>> survey = Survey.generate_from_questions(texts, verbose=False)  # doctest: +SKIP
+    #     """
+    #     from .survey_generator import SurveyGenerator
 
-        return SurveyGenerator.generate_from_topic(
-            cls, topic, n_questions, model, scenario_keys, verbose
-        )
+    #     return SurveyGenerator.generate_from_questions(
+    #         cls,
+    #         question_texts,
+    #         question_types,
+    #         question_names,
+    #         model,
+    #         scenario_keys,
+    #         verbose,
+    #     )
 
-    @classmethod
-    def generate_from_questions(
-        cls,
-        question_texts: List[str],
-        question_types: Optional[List[str]] = None,
-        question_names: Optional[List[str]] = None,
-        model: Optional["LanguageModel"] = None,
-        scenario_keys: Optional[List[str]] = None,
-        verbose: bool = True,
-    ) -> "Survey":
-        """Generate a survey from a list of question texts.
+    # @property
+    # def vibe(self) -> "SurveyVibeAccessor":
+    #     """Access vibe-based survey editing methods.
 
-        This method takes a list of question texts and optionally infers question types
-        and generates question names using an LLM.
+    #     Returns a SurveyVibeAccessor that provides natural language methods
+    #     for editing, adding questions, and describing the survey.
 
-        Args:
-            question_texts: List of question text strings
-            question_types: Optional list of question types corresponding to each text.
-                          If None, types will be inferred by the model.
-            question_names: Optional list of question names. If None, names will be generated.
-            model: Language model to use for inference. If None, uses default model.
-            scenario_keys: Optional list of scenario keys to include in question texts.
-                          Each key will be added as {{ scenario.<key> }} in the questions.
-            verbose: Whether to show the underlying survey generation process (default: True)
+    #     Returns:
+    #         SurveyVibeAccessor: Accessor for vibe methods
 
-        Returns:
-            Survey: A new Survey instance with the questions
+    #     Examples:
+    #         >>> survey = Survey.from_vibes("Customer satisfaction")  # doctest: +SKIP
+    #         >>> survey.vibe.edit("Translate to Spanish")  # doctest: +SKIP
+    #         >>> survey.vibe.add("Add age question")  # doctest: +SKIP
+    #         >>> survey.vibe.describe()  # doctest: +SKIP
+    #     """
+    #     from .vibes.vibe_accessor import SurveyVibeAccessor
 
-        Examples:
-            >>> texts = ["How satisfied are you?", "What is your age?"]
-            >>> survey = Survey.generate_from_questions(texts)  # doctest: +SKIP
-            >>> types = ["LinearScale", "Numerical"]
-            >>> names = ["satisfaction", "age"]
-            >>> survey = Survey.generate_from_questions(texts, types, names)  # doctest: +SKIP
-            >>> survey = Survey.generate_from_questions(texts, scenario_keys=["product_name"])  # doctest: +SKIP
-            >>> survey = Survey.generate_from_questions(texts, verbose=False)  # doctest: +SKIP
-        """
-        from .survey_generator import SurveyGenerator
+    #     return SurveyVibeAccessor(self)
 
-        return SurveyGenerator.generate_from_questions(
-            cls,
-            question_texts,
-            question_types,
-            question_names,
-            model,
-            scenario_keys,
-            verbose,
-        )
+    # @classmethod
+    # @with_spinner("Generating survey from description...")
+    # def from_vibes(
+    #     cls,
+    #     description: str,
+    #     *,
+    #     num_questions: Optional[int] = None,
+    #     model: str = "gpt-4o",
+    #     temperature: float = 0.7,
+    #     remote: bool = False,
+    # ) -> "Survey":
+    #     """Generate a survey from a natural language description.
 
-    @property
-    def vibe(self) -> "SurveyVibeAccessor":
-        """Access vibe-based survey editing methods.
+    #     This method uses an LLM to generate a complete survey based on a description
+    #     of what the survey should cover. It can execute in two modes:
+    #     - Local: Uses your OPENAI_API_KEY to generate surveys locally
+    #     - Remote: Delegates to a FastAPI server (used when no key or remote=True)
 
-        Returns a SurveyVibeAccessor that provides natural language methods
-        for editing, adding questions, and describing the survey.
+    #     The method automatically determines which mode to use:
+    #     1. If remote=True, always use remote generation
+    #     2. If OPENAI_API_KEY is not set, automatically use remote generation
+    #     3. Otherwise, use local generation
 
-        Returns:
-            SurveyVibeAccessor: Accessor for vibe methods
+    #     Args:
+    #         description: Natural language description of the survey topic.
+    #             Examples:
+    #             - "Survey about a new consumer brand of vitamin water"
+    #             - "Customer satisfaction survey for a restaurant"
+    #             - "Employee engagement survey"
+    #         num_questions: Optional number of questions to generate. If not provided,
+    #             the LLM will decide based on the topic (typically 5-10).
+    #         model: OpenAI model to use for generation (default: "gpt-4o")
+    #         temperature: Temperature for generation (default: 0.7)
+    #         remote: Force remote generation even if OPENAI_API_KEY is available
+    #             (default: False)
 
-        Examples:
-            >>> survey = Survey.from_vibes("Customer satisfaction")  # doctest: +SKIP
-            >>> survey.vibe.edit("Translate to Spanish")  # doctest: +SKIP
-            >>> survey.vibe.add("Add age question")  # doctest: +SKIP
-            >>> survey.vibe.describe()  # doctest: +SKIP
-        """
-        from .vibes.vibe_accessor import SurveyVibeAccessor
+    #     Returns:
+    #         Survey: A new Survey instance with the generated questions
 
-        return SurveyVibeAccessor(self)
+    #     Examples:
+    #         Basic usage (automatically chooses local/remote based on API key):
 
-    @classmethod
-    @with_spinner("Generating survey from description...")
-    def from_vibes(
-        cls,
-        description: str,
-        *,
-        num_questions: Optional[int] = None,
-        model: str = "gpt-4o",
-        temperature: float = 0.7,
-        remote: bool = False,
-    ) -> "Survey":
-        """Generate a survey from a natural language description.
+    #         >>> survey = Survey.from_vibes("Survey about a new consumer brand of vitamin water")  # doctest: +SKIP
 
-        This method uses an LLM to generate a complete survey based on a description
-        of what the survey should cover. It can execute in two modes:
-        - Local: Uses your OPENAI_API_KEY to generate surveys locally
-        - Remote: Delegates to a FastAPI server (used when no key or remote=True)
+    #         Force remote generation:
 
-        The method automatically determines which mode to use:
-        1. If remote=True, always use remote generation
-        2. If OPENAI_API_KEY is not set, automatically use remote generation
-        3. Otherwise, use local generation
+    #         >>> survey = Survey.from_vibes("Employee engagement survey", remote=True)  # doctest: +SKIP
 
-        Args:
-            description: Natural language description of the survey topic.
-                Examples:
-                - "Survey about a new consumer brand of vitamin water"
-                - "Customer satisfaction survey for a restaurant"
-                - "Employee engagement survey"
-            num_questions: Optional number of questions to generate. If not provided,
-                the LLM will decide based on the topic (typically 5-10).
-            model: OpenAI model to use for generation (default: "gpt-4o")
-            temperature: Temperature for generation (default: 0.7)
-            remote: Force remote generation even if OPENAI_API_KEY is available
-                (default: False)
+    #         With specific number of questions:
 
-        Returns:
-            Survey: A new Survey instance with the generated questions
+    #         >>> survey = Survey.from_vibes("Employee engagement survey", num_questions=8)  # doctest: +SKIP
 
-        Examples:
-            Basic usage (automatically chooses local/remote based on API key):
+    #         Using a different model:
 
-            >>> survey = Survey.from_vibes("Survey about a new consumer brand of vitamin water")  # doctest: +SKIP
+    #         >>> survey = Survey.from_vibes(
+    #         ...     "Customer satisfaction for a restaurant",
+    #         ...     model="gpt-4",
+    #         ...     temperature=0.5
+    #         ... )  # doctest: +SKIP
 
-            Force remote generation:
+    #     Notes:
+    #         - Local mode requires OPENAI_API_KEY environment variable to be set
+    #         - Remote mode requires EXPECTED_PARROT_API_KEY and network access to server
+    #         - If no OPENAI_API_KEY is available, automatically uses remote generation
+    #         - The generator will select from available question types: free_text,
+    #           multiple_choice, checkbox, numerical, likert_five, linear_scale,
+    #           yes_no, rank, budget, list, matrix
+    #         - Questions are automatically given appropriate names and options
+    #     """
+    #     from .vibes.vibes_dispatcher import default_dispatcher
 
-            >>> survey = Survey.from_vibes("Employee engagement survey", remote=True)  # doctest: +SKIP
+    #     return default_dispatcher.dispatch(
+    #         target="survey",
+    #         method="from_vibes",
+    #         survey_cls=cls,
+    #         description=description,
+    #         num_questions=num_questions,
+    #         model=model,
+    #         temperature=temperature,
+    #         remote=remote,
+    #     )
 
-            With specific number of questions:
+    # @classmethod
+    # def _infer_question_types(
+    #     cls, question_data: List[Dict[str, Any]], model: "LanguageModel"
+    # ) -> List[Dict[str, Any]]:
+    #     """Infer question types for question data using an LLM."""
+    #     from .survey_generator import SurveyGenerator
 
-            >>> survey = Survey.from_vibes("Employee engagement survey", num_questions=8)  # doctest: +SKIP
-
-            Using a different model:
-
-            >>> survey = Survey.from_vibes(
-            ...     "Customer satisfaction for a restaurant",
-            ...     model="gpt-4",
-            ...     temperature=0.5
-            ... )  # doctest: +SKIP
-
-        Notes:
-            - Local mode requires OPENAI_API_KEY environment variable to be set
-            - Remote mode requires EXPECTED_PARROT_API_KEY and network access to server
-            - If no OPENAI_API_KEY is available, automatically uses remote generation
-            - The generator will select from available question types: free_text,
-              multiple_choice, checkbox, numerical, likert_five, linear_scale,
-              yes_no, rank, budget, list, matrix
-            - Questions are automatically given appropriate names and options
-        """
-        from .vibes.vibes_dispatcher import default_dispatcher
-
-        return default_dispatcher.dispatch(
-            target="survey",
-            method="from_vibes",
-            survey_cls=cls,
-            description=description,
-            num_questions=num_questions,
-            model=model,
-            temperature=temperature,
-            remote=remote,
-        )
-
-    @classmethod
-    def _infer_question_types(
-        cls, question_data: List[Dict[str, Any]], model: "LanguageModel"
-    ) -> List[Dict[str, Any]]:
-        """Infer question types for question data using an LLM."""
-        from .survey_generator import SurveyGenerator
-
-        return SurveyGenerator._infer_question_types(question_data, model)
+    #     return SurveyGenerator._infer_question_types(question_data, model)
 
     @classmethod
     def _create_question_from_dict(
@@ -3646,6 +3638,91 @@ class Survey(Base):
         from .survey_generator import SurveyGenerator
 
         return SurveyGenerator._create_question_from_dict(data, default_name)
+
+    @classmethod
+    def _trace_callers(
+        cls,
+        method_name: str,
+        *,
+        exclude_dirs: Optional[List[str]] = None,
+    ) -> Dict[str, List[str]]:
+        """Find files outside ``surveys/`` that call a Survey method.
+
+        Parameters
+        ----------
+        method_name : str
+            Name of the method to search for (e.g. ``"add_question"``).
+        exclude_dirs : list[str], optional
+            Directory *names* (relative to the ``edsl`` package root) to
+            exclude from the search.  Defaults to ``["surveys"]``.
+
+        Returns
+        -------
+        dict
+            Mapping of file paths to lists of matching lines.
+        """
+        import subprocess
+
+        if exclude_dirs is None:
+            exclude_dirs = ["surveys"]
+
+        edsl_root = Path(__file__).resolve().parent.parent  # edsl/
+
+        pattern = rf"\.{method_name}\s*\("
+        cmd = [
+            "grep",
+            "-rn",
+            "-E",
+            pattern,
+            "--include=*.py",
+        ]
+        for d in exclude_dirs:
+            cmd.extend(["--exclude-dir", d])
+        cmd.append(str(edsl_root))
+
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        hits: Dict[str, List[str]] = {}
+        for line in result.stdout.splitlines():
+            # lines look like /path/to/file.py:123:  some code
+            parts = line.split(":", 2)
+            if len(parts) >= 3:
+                filepath, lineno, text = parts[0], parts[1], parts[2]
+                rel = str(Path(filepath).relative_to(edsl_root))
+                hits.setdefault(rel, []).append(f"{lineno}:{text}")
+        return hits
+
+    @classmethod
+    def _trace_all_callers(
+        cls,
+        *,
+        exclude_dirs: Optional[List[str]] = None,
+        include_private: bool = False,
+    ) -> Dict[str, Dict[str, List[str]]]:
+        """Run :meth:`_trace_callers` for every method on ``Survey``.
+
+        Parameters
+        ----------
+        exclude_dirs : list[str], optional
+            Passed through to :meth:`_trace_callers`.
+        include_private : bool
+            If *False* (default), skip methods whose names start with ``_``.
+
+        Returns
+        -------
+        dict
+            ``{method_name: {file: [lines]}}`` for methods that have at least
+            one external caller.
+        """
+        results: Dict[str, Dict[str, List[str]]] = {}
+        for name in sorted(dir(cls)):
+            if not include_private and name.startswith("_"):
+                continue
+            if not callable(getattr(cls, name, None)):
+                continue
+            hits = cls._trace_callers(name, exclude_dirs=exclude_dirs)
+            if hits:
+                results[name] = hits
+        return results
 
 
 def main():

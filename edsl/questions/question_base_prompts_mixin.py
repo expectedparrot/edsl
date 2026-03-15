@@ -26,9 +26,9 @@ class TemplateManager:
                 resources.files(f"edsl.questions.templates.{question_type}")
                 / template_name
             )
-            self._template_cache[(question_type, template_name)] = (
-                template_file.read_text()
-            )
+            self._template_cache[
+                (question_type, template_name)
+            ] = template_file.read_text()
         return self._template_cache[(question_type, template_name)]
 
 
@@ -292,13 +292,9 @@ class QuestionBasePromptsMixin:
         env = Environment()
         # Parse the template
         txt = self._all_text()
-        # txt = self.question_text
-        # if hasattr(self, "question_options"):
-        #    txt += " ".join(self.question_options)
         parsed_content = env.parse(txt)
         # Extract undeclared variables
         variables = meta.find_undeclared_variables(parsed_content)
-        # Return as a list
         return set(variables)
 
     def get_instructions(self, model: Optional[str] = None) -> type["PromptBase"]:

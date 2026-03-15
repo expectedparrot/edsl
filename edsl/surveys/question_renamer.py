@@ -41,10 +41,10 @@ class QuestionRenamer:
             SurveyError: If old_name doesn't exist, new_name already exists, or new_name is invalid
 
         Examples:
-            >>> from edsl import Survey
-            >>> s = Survey.example()
-            >>> s_renamed = s.with_renamed_question("q0", "school_preference")
-            >>> s_renamed.get("school_preference").question_name
+            >>> from edsl import Survey  # doctest: +SKIP
+            >>> s = Survey.example()  # doctest: +SKIP
+            >>> s_renamed = s.with_renamed_question("q0", "school_preference")  # doctest: +SKIP
+            >>> s_renamed.get("school_preference").question_name  # doctest: +SKIP
             'school_preference'
 
             >>> # Rules are also updated

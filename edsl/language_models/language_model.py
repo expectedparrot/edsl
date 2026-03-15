@@ -158,9 +158,9 @@ class LanguageModel(
     """
 
     _model_: str = None
-    key_sequence: tuple[str, ...] = (
-        None  # This should be something like ["choices", 0, "message", "content"]
-    )
+    key_sequence: tuple[
+        str, ...
+    ] = None  # This should be something like ["choices", 0, "message", "content"]
 
     DEFAULT_RPM = 300
     DEFAULT_TPM = 1000000
@@ -253,9 +253,17 @@ class LanguageModel(
             # Skip the API key check. Sometimes this is useful for testing.
             self._api_token = None
 
-        # Add canned response to parameters
-        if "canned_response" in kwargs:
-            self.parameters["canned_response"] = kwargs["canned_response"]
+        # Add test model parameters that need to survive serialization
+        # Only add if value is truthy (non-default) to avoid polluting parameters
+        for test_param in (
+            "canned_response",
+            "fail_at_number",
+            "never_ending",
+            "throw_exception",
+            "exception_probability",
+        ):
+            if test_param in kwargs and kwargs[test_param]:
+                self.parameters[test_param] = kwargs[test_param]
 
     def _set_key_lookup(self, key_lookup: Optional["KeyLookup"] = None) -> "KeyLookup":
         """Set up the API key lookup mechanism.
@@ -786,6 +794,8 @@ class LanguageModel(
         invigilator: Optional["InvigilatorBase"] = None,
         response_schema: Optional[dict] = None,
         response_schema_name: Optional[str] = None,
+        question_name: Optional[str] = None,
+        agent_name: Optional[str] = None,
     ) -> ModelResponse:
         """Handle model calls with caching for efficiency.
 
@@ -893,12 +903,21 @@ class LanguageModel(
                 "cache_key": cache_key,  # Pass cache key for tracking
             }
             # Add question_name parameter for test models
-            if self.model == "test" and invigilator:
-                params["question_name"] = invigilator.question.question_name
+            if self.model == "test":
+                if invigilator:
+                    params["question_name"] = invigilator.question.question_name
+                elif question_name:
+                    params["question_name"] = question_name
 
-            # Add invigilator parameter for scripted models
-            if hasattr(self, "agent_question_responses") and invigilator:
-                params["invigilator"] = invigilator
+            # Add invigilator or agent_name/question_name for scripted models
+            if hasattr(self, "agent_question_responses"):
+                if invigilator:
+                    params["invigilator"] = invigilator
+                else:
+                    if agent_name:
+                        params["agent_name"] = agent_name
+                    if question_name:
+                        params["question_name"] = question_name
 
             # Add response schema if provided (for structured output)
             if response_schema is not None:
@@ -1003,6 +1022,14 @@ class LanguageModel(
         if "invigilator" in kwargs:
             params.update({"invigilator": kwargs["invigilator"]})
 
+        # Add question_name if provided (for test models with dict canned_response)
+        if "question_name" in kwargs:
+            params.update({"question_name": kwargs["question_name"]})
+
+        # Add agent_name if provided (for scripted response models)
+        if "agent_name" in kwargs:
+            params.update({"agent_name": kwargs["agent_name"]})
+
         # Add response schema if provided (for QuestionPydantic)
         if "response_schema" in kwargs:
             params.update({"response_schema": kwargs["response_schema"]})
@@ -1080,9 +1107,18 @@ class LanguageModel(
         # Build the base dictionary with essential model information
         parameters = self.parameters.copy()
 
-        # For test models, ensure canned_response is included in serialization
-        if self.model == "test" and hasattr(self, "canned_response"):
-            parameters["canned_response"] = self.canned_response
+        # For test models, ensure test parameters are included in serialization
+        # Only add if truthy to avoid polluting parameters with defaults
+        if self.model == "test":
+            for test_param in (
+                "canned_response",
+                "fail_at_number",
+                "never_ending",
+                "throw_exception",
+                "exception_probability",
+            ):
+                if hasattr(self, test_param) and getattr(self, test_param):
+                    parameters[test_param] = getattr(self, test_param)
 
         d = {
             "model": self.model,
@@ -1122,25 +1158,27 @@ class LanguageModel(
         model_name = data["model"]
         service_name = data.get("inference_service", None)
 
-        # Handle canned_response in parameters for test models
-        if (
-            model_name == "test"
-            and "parameters" in data
-            and "canned_response" in data["parameters"]
-        ):
-            # Extract canned_response from parameters to set as a direct attribute
-            canned_response = data["parameters"]["canned_response"]
-            params_copy = data.copy()
-
-            # Add it as a top-level parameter for model initialization
-            if isinstance(params_copy, dict) and "parameters" in params_copy:
-                params_copy["canned_response"] = canned_response
-
-            # Create the instance using the registry (which returns a model class)
-            model_class = registry.create_language_model(
-                model_name, service_name=service_name
-            )
-            return model_class(**params_copy)
+        # Handle test model parameters that need to be passed as kwargs
+        test_param_names = (
+            "canned_response",
+            "fail_at_number",
+            "never_ending",
+            "throw_exception",
+            "exception_probability",
+        )
+        if model_name == "test" and "parameters" in data:
+            test_params = {
+                k: data["parameters"][k]
+                for k in test_param_names
+                if k in data["parameters"]
+            }
+            if test_params:
+                params_copy = data.copy()
+                params_copy.update(test_params)
+                model_class = registry.create_language_model(
+                    model_name, service_name=service_name
+                )
+                return model_class(**params_copy)
 
         try:
             model_class = registry.create_language_model(
@@ -1157,9 +1195,9 @@ class LanguageModel(
                 )
                 test_data = data.copy()
                 test_data["model"] = "test"  # Test model expects "test" as model name
-                test_data["original_model"] = (
-                    model_name  # Preserve original for debugging
-                )
+                test_data[
+                    "original_model"
+                ] = model_name  # Preserve original for debugging
                 return test_model_class(**test_data)
             else:
                 raise

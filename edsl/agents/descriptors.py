@@ -5,15 +5,12 @@ from .exceptions import AgentNameError, AgentTraitKeyError
 
 
 def convert_agent_name(x):
-    # potentially a numpy int64
-    import numpy as np
-
-    if isinstance(x, np.int64):
-        return int(x)
-    elif x is None:
+    if x is None:
         return None
     elif isinstance(x, int):
-        return x
+        return int(x)
+    elif hasattr(x, '__int__') and type(x).__module__ == 'numpy':
+        return int(x)
     else:
         return str(x)
 

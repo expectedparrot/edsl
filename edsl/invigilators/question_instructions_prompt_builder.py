@@ -1,8 +1,37 @@
 from typing import Dict, Set, Any, Union, TYPE_CHECKING
 from warnings import warn
 import logging
+import time as _time
+import threading
 
 from .prompt_constructor import PromptConstructor
+
+# Thread-safe timing accumulators for build() sub-steps
+_build_timing_lock = threading.Lock()
+_build_timing_accum = {
+    "create_base_prompt": 0.0,
+    "enrich_options": 0.0,
+    "render_prompt": 0.0,
+    "render_prompt__build_dict": 0.0,
+    "render_prompt__prompt_render": 0.0,
+    "validate_template": 0.0,
+    "append_survey_instr": 0.0,
+    "call_count": 0,
+}
+
+
+def reset_build_timings():
+    with _build_timing_lock:
+        for k in _build_timing_accum:
+            _build_timing_accum[k] = (
+                0.0 if isinstance(_build_timing_accum[k], float) else 0
+            )
+
+
+def get_build_timings() -> dict:
+    with _build_timing_lock:
+        return dict(_build_timing_accum)
+
 
 if TYPE_CHECKING:
     from ..language_models import Model
@@ -108,7 +137,9 @@ class QuestionInstructionPromptBuilder:
         \""")
         """
         # Create base prompt
+        _t0 = _time.time()
         base_prompt = self._create_base_prompt()
+        _t1 = _time.time()
 
         # Enrich with options
         enriched_prompt = self._enrich_with_question_options(
@@ -116,15 +147,27 @@ class QuestionInstructionPromptBuilder:
             scenario=self.scenario,
             prior_answers_dict=self.prior_answers_dict,
         )
+        _t2 = _time.time()
 
         # Render prompt
         rendered_prompt = self._render_prompt(enriched_prompt)
+        _t3 = _time.time()
 
         # Validate template variables
         self._validate_template_variables(rendered_prompt)
+        _t4 = _time.time()
 
         # Append survey instructions
         final_prompt = self._append_survey_instructions(rendered_prompt)
+        _t5 = _time.time()
+
+        with _build_timing_lock:
+            _build_timing_accum["create_base_prompt"] += _t1 - _t0
+            _build_timing_accum["enrich_options"] += _t2 - _t1
+            _build_timing_accum["render_prompt"] += _t3 - _t2
+            _build_timing_accum["validate_template"] += _t4 - _t3
+            _build_timing_accum["append_survey_instr"] += _t5 - _t4
+            _build_timing_accum["call_count"] += 1
 
         return final_prompt
 
@@ -207,10 +250,10 @@ class QuestionInstructionPromptBuilder:
         Returns:
             Dict: Enriched prompt data
         """
-        prompt_data["data"] = (
-            QuestionInstructionPromptBuilder._process_question_options(
-                prompt_data["data"], scenario, prior_answers_dict
-            )
+        prompt_data[
+            "data"
+        ] = QuestionInstructionPromptBuilder._process_question_options(
+            prompt_data["data"], scenario, prior_answers_dict
         )
         return prompt_data
 
@@ -224,10 +267,17 @@ class QuestionInstructionPromptBuilder:
             Prompt: Rendered instructions
         """
         # Build replacement dict
+        _t0 = _time.time()
         replacement_dict = self.qtrb.build_replacement_dict(prompt_data["data"])
+        _t1 = _time.time()
 
         # Render with dict
         rendered_prompt = prompt_data["prompt"].render(replacement_dict)
+        _t2 = _time.time()
+
+        with _build_timing_lock:
+            _build_timing_accum["render_prompt__build_dict"] += _t1 - _t0
+            _build_timing_accum["render_prompt__prompt_render"] += _t2 - _t1
 
         # Handle captured variables
         if rendered_prompt.captured_variables:
@@ -259,11 +309,13 @@ class QuestionInstructionPromptBuilder:
         Args:
             undefined_vars: Set of undefined template variables
         """
-        for question_name in self.survey.question_names:
-            if question_name in undefined_vars:
-                logging.warning(
-                    f"Question name found in undefined_template_variables: {question_name}"
-                )
+        if not undefined_vars:
+            return
+        question_names_set = set(self.survey.question_names)
+        for var in set(undefined_vars) & question_names_set:
+            logging.warning(
+                f"Question name found in undefined_template_variables: {var}"
+            )
 
     def _append_survey_instructions(self, rendered_prompt: "Prompt") -> "Prompt":
         """Appends any relevant survey instructions to the rendered prompt.

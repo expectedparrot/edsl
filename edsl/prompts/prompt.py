@@ -3,6 +3,7 @@ from typing import Any, List, Union, Dict, Optional
 from pathlib import Path
 import logging
 import time
+import threading
 from functools import lru_cache
 
 from jinja2 import Environment, meta, Undefined
@@ -12,6 +13,31 @@ from .exceptions import TemplateRenderError, PromptValueError, PromptImplementat
 from ..base import PersistenceMixin, RepresentationMixin
 
 logger = logging.getLogger(__name__)
+
+# Thread-safe timing accumulators for _render() internals
+_render_timing_lock = threading.Lock()
+_render_timing_accum = {
+    "fast_path_skips": 0,
+    "find_template_vars": 0.0,
+    "build_replacements": 0.0,
+    "template_render": 0.0,
+    "total_render": 0.0,
+    "call_count": 0,
+}
+
+
+def reset_render_timings():
+    with _render_timing_lock:
+        for k in _render_timing_accum:
+            _render_timing_accum[k] = (
+                0.0 if isinstance(_render_timing_accum[k], float) else 0
+            )
+
+
+def get_render_timings() -> dict:
+    with _render_timing_lock:
+        return dict(_render_timing_accum)
+
 
 MAX_NESTING = 100
 
@@ -53,10 +79,13 @@ def make_env() -> SandboxedEnvironment:
     return SandboxedEnvironment(undefined=PreserveUndefined)
 
 
+# Module-level cached environment for parsing/compilation (no globals mutation)
+_PARSE_ENV = SandboxedEnvironment(undefined=PreserveUndefined)
+
+
 @lru_cache(maxsize=100000)
 def _find_template_variables(template_text: str) -> List[str]:
-    env = make_env()
-    ast = env.parse(template_text)
+    ast = _PARSE_ENV.parse(template_text)
     return list(meta.find_undeclared_variables(ast))
 
 
@@ -67,10 +96,7 @@ def _get_compiled_template(template_text: str):
     This is the main performance optimization - instead of recompiling
     templates for every render, we cache compiled templates by their text.
     """
-    # print("#################")
-    # print(template_text)
-    env = make_env()
-    return env.from_string(template_text)
+    return _PARSE_ENV.from_string(template_text)
 
 
 def _make_hashable(value):
@@ -85,8 +111,7 @@ def _make_hashable(value):
 @lru_cache(maxsize=100000)
 def _compile_template(text: str):
     """Compile a Jinja template with caching."""
-    env = make_env()
-    return env.from_string(text)
+    return _PARSE_ENV.from_string(text)
 
 
 @lru_cache(maxsize=100000)
@@ -352,7 +377,18 @@ class Prompt(str, PersistenceMixin, RepresentationMixin):
         Render the template text with variables replaced.
         Returns (rendered_text, captured_variables).
         """
+        _t_total = time.time()
+
+        # FAST PATH: if no Jinja syntax in the text, skip all template processing
+        if "{{" not in text and "{%" not in text:
+            with _render_timing_lock:
+                _render_timing_accum["fast_path_skips"] += 1
+                _render_timing_accum["call_count"] += 1
+                _render_timing_accum["total_render"] += time.time() - _t_total
+            return text, template_vars.get_all()
+
         # Combine replacements.
+        _t_repl = time.time()
         from ..scenarios import Scenario
 
         # This fixed Issue 2027 - the scenario prefix  was not being recoginized in the template
@@ -365,33 +401,46 @@ class Prompt(str, PersistenceMixin, RepresentationMixin):
             **additional_replacements,
             **additional,
         }
+        _t_repl_end = time.time()
 
         # If no replacements and no Jinja variables, just return the text.
+        _t_find = time.time()
         has_vars = _find_template_variables(text)
+        _t_find_end = time.time()
         if not all_replacements and not has_vars:
+            with _render_timing_lock:
+                _render_timing_accum["build_replacements"] += _t_repl_end - _t_repl
+                _render_timing_accum["find_template_vars"] += _t_find_end - _t_find
+                _render_timing_accum["call_count"] += 1
+                _render_timing_accum["total_render"] += time.time() - _t_total
             return text, template_vars.get_all()
-
-        env = make_env()
-        # Provide access to the 'vars' object inside the template.
-        env.globals["vars"] = template_vars
 
         # Start with the original text
         current_text = text
+        _template_render_time = 0.0
 
         for _ in range(MAX_NESTING):
             if "{{" in current_text or "{%" in current_text:
                 template = _get_compiled_template(current_text)
 
-                # Re-inject the vars object since cached template doesn't have it
+                # Inject the vars object for this render call
                 template.globals["vars"] = template_vars
 
+                _t_render = time.time()
                 rendered_text = template.render(**all_replacements)
+                _template_render_time += time.time() - _t_render
             else:
                 # No template syntax, use text as-is
                 rendered_text = current_text
 
             if rendered_text == current_text:
                 # No more changes, return final text with captured variables.
+                with _render_timing_lock:
+                    _render_timing_accum["build_replacements"] += _t_repl_end - _t_repl
+                    _render_timing_accum["find_template_vars"] += _t_find_end - _t_find
+                    _render_timing_accum["template_render"] += _template_render_time
+                    _render_timing_accum["call_count"] += 1
+                    _render_timing_accum["total_render"] += time.time() - _t_total
                 return rendered_text, template_vars.get_all()
 
             # Update current_text for next iteration

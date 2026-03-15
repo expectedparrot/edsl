@@ -1,4 +1,3 @@
-from IPython.display import HTML, display
 import difflib
 
 
@@ -71,5 +70,7 @@ def show_diff(
     </style>
     <div class="diff-wrapper">
     """
+
+    from IPython.display import HTML, display
 
     display(HTML(custom_css + html_table + "</div>"))

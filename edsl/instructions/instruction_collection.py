@@ -33,10 +33,16 @@ class InstructionCollection(UserDict):
 
     @property
     def question_names(self):
-        return [q.name for q in self.questions]
+        if not hasattr(self, "_cached_question_names"):
+            self._cached_question_names = [q.name for q in self.questions]
+        return self._cached_question_names
 
     def question_index(self, question_name):
-        return self.question_names.index(question_name)
+        if not hasattr(self, "_cached_question_index"):
+            self._cached_question_index = {
+                name: i for i, name in enumerate(self.question_names)
+            }
+        return self._cached_question_index[question_name]
 
     def _entries_before(
         self, question_name

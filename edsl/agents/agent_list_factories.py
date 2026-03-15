@@ -84,20 +84,13 @@ class AgentListFactories:
         """Create an AgentList from a Results object.
 
         Args:
-            results: The Results object to convert
+            results: The Results object to convert.
             question_names: Optional list of question names to include. If None, all questions are included.
                           Affects both answer.* columns (as traits) and the codebook (question_text).
                           Agent traits are always included.
 
         Returns:
-            AgentList: A new AgentList created from the Results
-
-        Examples:
-            >>> from edsl.agents.agent_list_factories import AgentListFactories
-            >>> # This would work with actual Results object
-            >>> # al = AgentListFactories.from_results(results)
-            >>> # To include only specific questions:
-            >>> # al = AgentListFactories.from_results(results, question_names=['age', 'preference'])
+            AgentList: A new AgentList created from the Results.
         """
         from .agent import Agent
         from .agent_list import AgentList
@@ -163,20 +156,19 @@ class AgentListFactories:
     def from_dict(data: dict) -> "AgentList":
         """Deserialize the dictionary back to an AgentList object.
 
-        Args:
-            data: A dictionary representing an AgentList.
+        :param data: A dictionary representing an AgentList.
 
-        Returns:
-            AgentList: A new AgentList created from the dictionary
-
-        Examples:
-            >>> from edsl import Agent, AgentList
-            >>> from edsl.agents.agent_list_factories import AgentListFactories
-            >>> al = AgentList([Agent.example()])
-            >>> data = al.to_dict()
-            >>> al2 = AgentListFactories.from_dict(data)
-            >>> len(al2)
-            1
+        >>> from edsl import Agent, AgentList
+        >>> al = AgentList([Agent.example(), Agent.example()])
+        >>> al2 = AgentList.from_dict(al.to_dict())
+        >>> al2 == al
+        True
+        >>> example_codebook = {'age': 'Age in years'}
+        >>> al = AgentList([Agent.example()])
+        >>> al.set_codebook(example_codebook)
+        >>> al2 = AgentList.from_dict(al.to_dict())
+        >>> al2[0].codebook == example_codebook
+        True
         """
         from .agent_list_serializer import AgentListSerializer
 
@@ -186,24 +178,18 @@ class AgentListFactories:
     def example(
         randomize: bool = False, codebook: Optional[dict[str, str]] = None
     ) -> "AgentList":
-        """
-        Returns an example AgentList instance.
+        """Returns an example AgentList instance.
 
-        Args:
-            randomize: If True, uses Agent's randomize method.
-            codebook: Optional dictionary mapping trait names to descriptions.
+        :param randomize: If True, uses Agent's randomize method.
+        :param codebook: Optional dictionary mapping trait names to descriptions.
 
-        Returns:
-            AgentList: An example AgentList instance
-
-        Examples:
-            >>> from edsl.agents.agent_list_factories import AgentListFactories
-            >>> al = AgentListFactories.example()
-            >>> len(al)
-            2
-            >>> al = AgentListFactories.example(codebook={'age': 'Age in years'})
-            >>> al[0].codebook['age']
-            'Age in years'
+        >>> from edsl import AgentList
+        >>> al = AgentList.example()
+        >>> al
+        AgentList([Agent(traits = {'age': 22, 'hair': 'brown', 'height': 5.5}), Agent(traits = {'age': 22, 'hair': 'brown', 'height': 5.5})])
+        >>> al = AgentList.example(codebook={'age': 'Age in years'})
+        >>> al[0].codebook
+        {'age': 'Age in years'}
         """
         from .agent import Agent
         from .agent_list import AgentList
@@ -223,23 +209,16 @@ class AgentListFactories:
     ) -> "AgentList":
         """Create an AgentList from a list of values.
 
-        Args:
-            trait_name: The name of the trait.
-            values: A list of values.
-            codebook: Optional dictionary mapping trait names to descriptions.
+        :param trait_name: The name of the trait.
+        :param values: A list of values.
+        :param codebook: Optional dictionary mapping trait names to descriptions.
 
-        Returns:
-            AgentList: A new AgentList created from the list of values
-
-        Examples:
-            >>> from edsl.agents.agent_list_factories import AgentListFactories
-            >>> al = AgentListFactories.from_list('age', [22, 23])
-            >>> len(al)
-            2
-            >>> al[0].traits['age']
-            22
-            >>> al[1].traits['age']
-            23
+        >>> from edsl import AgentList
+        >>> AgentList.from_list('age', [22, 23])
+        AgentList([Agent(traits = {'age': 22}), Agent(traits = {'age': 23})])
+        >>> al = AgentList.from_list('age', [22], codebook={'age': 'Age in years'})
+        >>> al[0].codebook
+        {'age': 'Age in years'}
         """
         from .agent import Agent
         from .agent_list import AgentList
@@ -261,36 +240,38 @@ class AgentListFactories:
             - "instruction": The agent's instruction text
             - "name": The agent's name (overrides the "name" field if present)
 
-        Args:
-            scenario_list: The ScenarioList to convert
-
-        Returns:
-            AgentList: A new AgentList created from the ScenarioList
-
-        Examples:
-            >>> from edsl import ScenarioList, Scenario
-            >>> from edsl.agents.agent_list_factories import AgentListFactories
+        Example:
+            >>> from edsl import ScenarioList, Scenario, AgentList
             >>> s = ScenarioList([Scenario({'age': 22, 'hair': 'brown', 'height': 5.5})])
-            >>> al = AgentListFactories.from_scenario_list(s)
-            >>> len(al)
-            1
-            >>> al[0].traits
-            {'age': 22, 'hair': 'brown', 'height': 5.5}
+            >>> al = AgentList.from_scenario_list(s)
+            >>> al
+            AgentList([Agent(traits = {'age': 22, 'hair': 'brown', 'height': 5.5})])
         """
         from .agent import Agent
         from .agent_list import AgentList
 
         agents = []
         for scenario in scenario_list:
-            # Simple implementation to handle the basic test case
             new_scenario = scenario.copy().data
-            if "name" in new_scenario:
-                new_scenario["agent_name"] = new_scenario.pop("name")
-                new_agent = Agent(traits=new_scenario, name=new_scenario["agent_name"])
-                agents.append(new_agent)
-            else:
-                new_agent = Agent(traits=new_scenario)
-                agents.append(new_agent)
+            agent_kwargs = {}
+
+            # Extract agent_parameters if present
+            agent_params = new_scenario.pop("agent_parameters", None)
+            if agent_params and isinstance(agent_params, dict):
+                if "instruction" in agent_params:
+                    agent_kwargs["instruction"] = agent_params.pop("instruction")
+                if "name" in agent_params:
+                    agent_kwargs["name"] = agent_params.pop("name")
+                # Any remaining agent_params become traits
+                new_scenario.update(agent_params)
+
+            # Extract name from scenario (agent_parameters name takes precedence)
+            if "name" in new_scenario and "name" not in agent_kwargs:
+                agent_kwargs["name"] = new_scenario.pop("name")
+            elif "name" in new_scenario:
+                new_scenario.pop("name")
+
+            agents.append(Agent(traits=new_scenario, **agent_kwargs))
 
         # Add a debug check to verify we've processed the scenarios correctly
         if len(agents) != len(scenario_list):
@@ -320,11 +301,11 @@ class AgentListFactories:
         Examples:
             >>> import csv
             >>> import os
-            >>> from edsl.agents.agent_list_factories import AgentListFactories
+            >>> from edsl import AgentList
             >>> with open('/tmp/test_codebook.csv', 'w') as f:
             ...     writer = csv.writer(f)
             ...     _ = writer.writerow(['age', 'hair', 'height'])
-            >>> codebook = AgentListFactories.get_codebook('/tmp/test_codebook.csv')
+            >>> codebook = AgentList.get_codebook('/tmp/test_codebook.csv')
             >>> sorted(codebook.keys())
             ['age', 'hair', 'height']
             >>> os.remove('/tmp/test_codebook.csv')
