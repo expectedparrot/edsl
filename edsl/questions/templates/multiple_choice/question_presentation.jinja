@@ -1,6 +1,18 @@
 {# Question Presention #}
 {{question_text}}
-{% if use_code %}
+{% if enumeration == "numeric_starts_with_1" %}
+    {%- for option in question_options %}
+{{ loop.index }}: {{option}}
+    {% endfor %}
+{% elif enumeration == "letters" %}
+    {%- for option in question_options %}
+{{ "ABCDEFGHIJKLMNOPQRSTUVWXYZ"[loop.index0] }}: {{option}}
+    {% endfor %}
+{% elif enumeration == "letters_lower" %}
+    {%- for option in question_options %}
+{{ "abcdefghijklmnopqrstuvwxyz"[loop.index0] }}: {{option}}
+    {% endfor %}
+{% elif use_code or enumeration == "numeric_starts_with_0" %}
     {%- for option in question_options %}
 {{ loop.index0 }}: {{option}}
     {% endfor %}

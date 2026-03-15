@@ -180,11 +180,14 @@ class QuestionBasePromptsMixin:
         self._question_presentation = value
 
     def prompt_preview(self, scenario=None, agent=None):
+        enumeration = getattr(self, "_enumeration", None)
+        enumeration_value = enumeration.value if enumeration is not None else "none"
         return self.new_default_instructions.render(
             self.data
             | {
                 "include_comment": getattr(self, "_include_comment", True),
                 "use_code": getattr(self, "_use_code", True),
+                "enumeration": enumeration_value,
             }
             | ({"scenario": scenario} or {})
             | ({"agent": agent} or {})
