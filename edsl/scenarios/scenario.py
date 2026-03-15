@@ -1358,7 +1358,7 @@ class Scenario(Base, UserDict):
         )
 
     @classmethod
-    def from_dict(cls, d: Dict[str, Any]) -> "Scenario":
+    def from_dict(cls, d: dict) -> "Scenario":
         """
         Creates a Scenario from a dictionary, with special handling for FileStore objects.
 
