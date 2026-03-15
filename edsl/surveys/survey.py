@@ -12,7 +12,6 @@ import re
 import random
 from uuid import uuid4
 from pathlib import Path
-from functools import wraps
 
 from typing import (
     Any,
@@ -72,7 +71,6 @@ from .exceptions import (
     SurveyError,
 )
 
-from ..base.decorators import snapshot, make_initial_snapshot
 
 
 class Survey(Base):
@@ -221,9 +219,6 @@ class Survey(Base):
             # Validate survey structure (e.g., check for forward piping references)
             # This will raise SurveyPipingReferenceError if questions are in wrong order
             self.dag()
-            self._snapshots = [make_initial_snapshot(self)]
-        else:
-            self._snapshots = []
 
     def clipboard_data(self) -> str:
         """Return the clipboard data for the survey."""
@@ -1288,12 +1283,12 @@ class Survey(Base):
         """
         return self._editor.delete_question(identifier)
 
-    @snapshot
-    @wraps(EditSurvey.add_question)
     def add_question(
         self, question: QuestionBase, index: Optional[int] = None
     ) -> Survey:
         return self._editor.add_question(question, index)
+
+    add_question.__doc__ = EditSurvey.add_question.__doc__
 
     def combine_multiple_choice_to_matrix(
         self,
