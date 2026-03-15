@@ -1195,8 +1195,9 @@ class Base(
         func(comment)
         return self
 
+    @classmethod
     @abstractmethod
-    def from_dict():
+    def from_dict(cls, d=None):
         """Create an instance from a dictionary.
 
         This class method must be implemented by all subclasses to provide a

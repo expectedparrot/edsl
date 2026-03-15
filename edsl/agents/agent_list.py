@@ -857,9 +857,10 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
         return AgentListCodeGenerator.generate_code(self, string=string)
 
     @classmethod
-    @wraps(AgentListFactories.from_scenario_list)
     def from_scenario_list(cls, scenario_list: "ScenarioList") -> "AgentList":
         return AgentListFactories.from_scenario_list(scenario_list)
+
+    from_scenario_list.__func__.__doc__ = AgentListFactories.from_scenario_list.__doc__
 
 
 

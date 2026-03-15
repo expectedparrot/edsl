@@ -132,7 +132,7 @@ class Scenario(Base, UserDict):
         super().__init__()
         self.data = data if data is not None else {}
         # Merge kwargs into data, with kwargs taking precedence
-        self.data.update(kwargs)
+        self.data.update(dict(kwargs))
         self.name = name
 
     def __mul__(
@@ -161,9 +161,9 @@ class Scenario(Base, UserDict):
         from .scenario_list import ScenarioList
 
         if isinstance(scenario_list_or_scenario, ScenarioList):
-            return scenario_list_or_scenario * self
+            return scenario_list_or_scenario * self  # type: ignore[operator]
         elif isinstance(scenario_list_or_scenario, Scenario):
-            return ScenarioList([self]) * scenario_list_or_scenario
+            return ScenarioList([self]) * scenario_list_or_scenario  # type: ignore[operator]
         else:
             raise TypeError(
                 f"Cannot multiply Scenario with {type(scenario_list_or_scenario)}"
@@ -441,7 +441,7 @@ class Scenario(Base, UserDict):
 
         return target
 
-    def table(self, tablefmt: str = "grid") -> str:
+    def table(self, tablefmt: str = "grid") -> "Dataset":
         """Display a scenario as a formatted table.
 
         Args:

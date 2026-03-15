@@ -121,6 +121,7 @@ TableFormat: TypeAlias = Literal[
     "latex_raw",
     "latex_booktabs",
     "tsv",
+    "rich",
 ]
 
 
@@ -149,13 +150,13 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         self,
         data: Optional[list | str] = None,
         codebook: Optional[dict[str, str]] = None,
-        data_class: Optional[type] = data_class,
+        data_class: type = data_class,
     ):
         """Initialize a new ScenarioList with optional data and codebook."""
         self._data_class = data_class
         self.data = self._data_class([])
         if data is not None and isinstance(data, str):
-            sl = ScenarioList.pull(data)
+            sl: ScenarioList = ScenarioList.pull(data)  # type: ignore[assignment]
             if codebook is not None:
                 raise ValueError(
                     "Codebook cannot be provided when pulling from a remote source"
@@ -1248,7 +1249,7 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         *fields: str,
         tablefmt: Optional[TableFormat] = "rich",
         pretty_labels: Optional[dict[str, str]] = None,
-    ) -> str:
+    ) -> "Dataset":
         """Return the ScenarioList as a table."""
 
         if tablefmt is not None and tablefmt not in SUPPORTED_TABLE_FORMATS:
@@ -1260,12 +1261,12 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             *fields, tablefmt=tablefmt, pretty_labels=pretty_labels
         )
 
-    def tree(self, node_list: Optional[List[str]] = None) -> str:
+    def tree(self, node_list: Optional[List[str]] = None) -> Any:
         """Return the ScenarioList as a tree.
 
         :param node_list: The list of nodes to include in the tree.
         """
-        return self.to_dataset().tree(node_list)
+        return self.to_dataset().tree(node_list)  # type: ignore[attr-defined]
 
     def _summary(self) -> dict:
         """Return a summary of the ScenarioList.
@@ -1443,7 +1444,7 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         else:
             data = self
 
-        d = {"scenarios": [s.to_dict(add_edsl_version=add_edsl_version) for s in data]}
+        d: dict[str, Any] = {"scenarios": [s.to_dict(add_edsl_version=add_edsl_version) for s in data]}
 
         # Add codebook if it exists
         if hasattr(self, "codebook") and self.codebook:
@@ -1505,7 +1506,7 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             return survey.by(self)
 
     def for_n(
-        self, target: Union["Question", "Survey", "Job"], iterations: int
+        self, target: Union["Question", "Survey", "Jobs"], iterations: int
     ):
         """Execute a target multiple times, feeding each iteration's output
         into the next.
@@ -1558,9 +1559,9 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             print(enriched_personas.select("persona"))
         """
 
-        intermediate_result = self
+        intermediate_result: Any = self
         for i in range(iterations):
-            clean_target = target.duplicate()
+            clean_target = target.duplicate()  # type: ignore[union-attr]
             new_jobs = clean_target.by(intermediate_result)
             intermediate_result = new_jobs.run()
         return intermediate_result
