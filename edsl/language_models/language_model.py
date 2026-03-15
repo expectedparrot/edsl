@@ -66,6 +66,13 @@ from ..key_management import KeyLookupCollection
 from .registry import RegisterLanguageModelsMeta
 from .raw_response_handler import RawResponseHandler
 
+_INTERNAL_KWARGS = frozenset({
+    "model", "parameters", "inference_service",
+    "edsl_version", "edsl_class_name", "original_model",
+    "skip_api_key_check", "canned_response", "throw_exception",
+    "exception_probability", "func", "fail_at_number", "never_ending",
+})
+
 
 def handle_key_error(func: Callable):
     """Decorator to catch and provide user-friendly error messages for KeyError exceptions.
@@ -219,6 +226,19 @@ class LanguageModel(
         default_parameters = getattr(self, "_parameters_", None)
         parameters = self._overide_default_parameters(kwargs, default_parameters)
         self.parameters = parameters
+
+        # Warn about unknown parameters
+        known_params = set(parameters.keys()) | _INTERNAL_KWARGS
+        unknown_params = {k for k in kwargs if k not in known_params}
+        if unknown_params:
+            import warnings
+            warnings.warn(
+                f"Unknown parameter(s) for model '{self.model}': {', '.join(sorted(unknown_params))}. "
+                f"Known parameters: {', '.join(sorted(parameters.keys()))}. "
+                f"Unknown parameters will still be set but may have no effect.",
+                UserWarning,
+                stacklevel=2,
+            )
 
         # Initialize basic settings
         self.remote = False
