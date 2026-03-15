@@ -32,7 +32,7 @@ if TYPE_CHECKING:
     from ..jobs import Jobs
     from ..questions import QuestionBase as Question
     from ..surveys import Survey
-    from .qr_code import QRCodeList
+    from .contrib.qr_code import QRCodeList
 
 
 class Scenario(Base, UserDict):
@@ -522,7 +522,7 @@ class Scenario(Base, UserDict):
             ValueError: If no uploadable content found or content is offloaded
             requests.RequestException: If any upload fails
         """
-        from .scenario_gcs import ScenarioGCS
+        from .contrib.scenario_gcs import ScenarioGCS
 
         return ScenarioGCS(self).save_to_gcs_bucket(signed_url_or_dict)
 
@@ -544,7 +544,7 @@ class Scenario(Base, UserDict):
 
 
         """
-        from .scenario_gcs import ScenarioGCS
+        from .contrib.scenario_gcs import ScenarioGCS
 
         return ScenarioGCS(self).get_filestore_info()
 
@@ -632,7 +632,7 @@ class Scenario(Base, UserDict):
             - URLs are extracted using regex pattern matching
             - Supports http://, https://, and ftp:// protocols
         """
-        from .qr_code import QRCode, QRCodeList, extract_urls_from_scenario
+        from .contrib.qr_code import QRCode, QRCodeList, extract_urls_from_scenario
 
         urls = extract_urls_from_scenario(self)
 
