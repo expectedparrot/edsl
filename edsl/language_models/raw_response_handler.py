@@ -269,8 +269,19 @@ class RawResponseHandler:
         # Other inference service: don't try anything
         return None
 
+    # Delimiter used in prompt templates and for parsing the comment from
+    # the generated text.  Kept as a class attribute so templates and tests
+    # can reference the single source of truth.
+    COMMENT_DELIMITERS = ["COMMENT:", "CORRECTION:"]
+
     def parse_response(self, raw_response: dict[str, Any]) -> Any:
-        """Parses the API response and returns the response text."""
+        """Parses the API response and returns the response text.
+
+        The comment is separated from the answer by looking for known
+        delimiters (COMMENT:, CORRECTION:) on their own line.  If no
+        delimiter is found, falls back to splitting on the last newline
+        for backwards compatibility with cached responses.
+        """
 
         from edsl.data_transfer_models import EDSLOutput
 
@@ -278,25 +289,64 @@ class RawResponseHandler:
         # Ensure generated_token_string is a string before using string methods
         if not isinstance(generated_token_string, str):
             generated_token_string = str(generated_token_string)
-        last_newline = generated_token_string.rfind("\n")
+
         reasoning_summary = self.get_reasoning_summary(raw_response)
 
-        if last_newline == -1:
-            # There is no comment
-            edsl_dict = {
-                "answer": self.convert_answer(generated_token_string),
-                "generated_tokens": generated_token_string,
-                "comment": None,
-                "reasoning_summary": reasoning_summary,
-            }
-        else:
-            edsl_dict = {
-                "answer": self.convert_answer(generated_token_string[:last_newline]),
-                "comment": generated_token_string[last_newline + 1 :].strip(),
-                "generated_tokens": generated_token_string,
-                "reasoning_summary": reasoning_summary,
-            }
+        answer_text, comment_text = self._split_answer_and_comment(
+            generated_token_string
+        )
+
+        edsl_dict = {
+            "answer": self.convert_answer(answer_text),
+            "generated_tokens": generated_token_string,
+            "comment": comment_text,
+            "reasoning_summary": reasoning_summary,
+        }
         return EDSLOutput(**edsl_dict)
+
+    @classmethod
+    def _split_answer_and_comment(cls, generated_token_string: str):
+        """Split *generated_token_string* into (answer, comment).
+
+        Strategy (in order):
+        1. Look for the **last** occurrence of ``COMMENT:`` (case-insensitive)
+           on its own line (possibly preceded by whitespace).  Everything
+           before that line is the answer; everything after the delimiter
+           keyword is the comment.  Multi-line comments are supported.
+        2. Fall back to the legacy ``rfind("\\n")`` approach so that older
+           cached responses still parse correctly.
+        """
+        import re
+
+        # Strategy 1: look for known comment delimiters (COMMENT:, CORRECTION:)
+        # Match the last line starting with any recognized delimiter.
+        delimiter_alts = "|".join(re.escape(d) for d in cls.COMMENT_DELIMITERS)
+        pattern = r'(?m)^[ \t]*(?:' + delimiter_alts + r')[ \t]*(.*)'
+        matches = list(re.finditer(pattern, generated_token_string, re.IGNORECASE))
+        if matches:
+            last_match = matches[-1]
+            answer_part = generated_token_string[: last_match.start()].strip()
+            # Combine the rest-of-line after the delimiter with any
+            # subsequent lines to form the full comment.
+            comment_part = (
+                last_match.group(1)
+                + generated_token_string[last_match.end() :]
+            ).strip()
+            if not answer_part:
+                # Edge case: the entire string started with COMMENT:
+                # Treat the whole thing as the answer with no comment.
+                return generated_token_string.strip(), None
+            return answer_part, comment_part or None
+
+        # Strategy 2: split on first newline — answer is the first line,
+        # everything after is the comment (preserving multi-line comments)
+        first_newline = generated_token_string.find("\n")
+        if first_newline == -1:
+            return generated_token_string, None
+        else:
+            answer_part = generated_token_string[:first_newline].strip()
+            comment_part = generated_token_string[first_newline + 1 :].strip()
+            return answer_part, comment_part or None
 
     @staticmethod
     def convert_answer(response_part):
