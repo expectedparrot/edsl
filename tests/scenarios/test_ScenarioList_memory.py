@@ -3,7 +3,7 @@ import os
 import pytest
 
 psutil = pytest.importorskip("psutil")
-import numpy as np
+np = pytest.importorskip("numpy")
 from edsl.scenarios import Scenario, ScenarioList
 
 
