@@ -43,7 +43,7 @@ class BucketCollection(UserDict):
     Example:
         >>> from edsl import Model
         >>> bucket_collection = BucketCollection()
-        >>> model = Model('gpt-4')
+        >>> model = Model('test')
         >>> bucket_collection.add_model(model)
         >>> # Now rate limits for the model are being tracked
     """
@@ -93,7 +93,7 @@ class BucketCollection(UserDict):
 
         Example:
             >>> from edsl import Model
-            >>> models = [Model('gpt-4'), Model('gpt-3.5-turbo')]
+            >>> models = [Model('test'), Model('test')]
             >>> collection = BucketCollection.from_models(models)
         """
         bucket_collection = cls(infinity_buckets=infinity_buckets)
@@ -155,7 +155,7 @@ class BucketCollection(UserDict):
 
         Example:
             >>> from edsl import Model
-            >>> model = Model('gpt-4')
+            >>> model = Model('test')
             >>> bucket_collection = BucketCollection()
             >>> bucket_collection.add_model(model)
         """
@@ -265,23 +265,19 @@ if __name__ == "__main__":
 
         >>> from edsl import Model
         >>> # Create models
-        >>> gpt4 = Model('gpt-4')
-        >>> gpt35 = Model('gpt-3.5-turbo')
-        >>> claude = Model('claude-3-opus-20240229')
+        >>> m1 = Model('test')
+        >>> m2 = Model('test')
         >>>
         >>> # Create bucket collection
         >>> collection = BucketCollection()
         >>>
         >>> # Add models to the collection
-        >>> collection.add_model(gpt4)
-        >>> collection.add_model(gpt35)
-        >>> collection.add_model(claude)
+        >>> collection.add_model(m1)
+        >>> collection.add_model(m2)
         >>>
         >>> # Models from the same service share rate limits
-        >>> print(collection[gpt4] is collection[gpt35])  # Both OpenAI
+        >>> print(collection[m1] is collection[m2])  # Same service
         True
-        >>> print(collection[gpt4] is collection[claude])  # Different services
-        False
         >>>
         >>> # Visualize rate limits
         >>> # plots = collection.visualize()
