@@ -217,6 +217,25 @@ Output:
 
 
 
+Prompt plans
+------------
+
+Some models do not support system prompts (e.g., reasoning models like o1/o3, or smaller models like Gemma).
+By default, EDSL places agent information in the system prompt and question information in the user prompt.
+You can change this arrangement using a ``PromptPlan``:
+
+.. code-block:: python
+
+  from edsl import Model
+  from edsl.invigilators.prompt_helpers import PromptPlan
+
+  # All prompt content goes in the user prompt (empty system prompt)
+  m = Model("gpt-4o", prompt_plan=PromptPlan.user_prompt_only())
+
+The ``prompt_plan`` is serialized with the model and persists through save/load roundtrips.
+See the :ref:`prompt-plans` section in the Prompts documentation for full details and custom arrangements.
+
+
 Creating a list of models
 -------------------------
 

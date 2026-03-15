@@ -850,6 +850,7 @@ class Agent(Base):
         iteration: int = 1,
         raise_validation_errors: bool = True,
         key_lookup: Optional["KeyLookup"] = None,
+        prompt_plan=None,
     ) -> "InvigilatorBase":
         """Create an Invigilator.
 
@@ -868,6 +869,7 @@ class Agent(Base):
             iteration: The iteration number
             raise_validation_errors: Whether to raise validation errors
             key_lookup: The key lookup for API credentials
+            prompt_plan: Optional custom prompt plan for prompt construction
 
         Returns:
             An InvigilatorBase instance for handling the question
@@ -893,6 +895,7 @@ class Agent(Base):
             iteration=iteration,
             raise_validation_errors=raise_validation_errors,
             key_lookup=key_lookup,
+            prompt_plan=prompt_plan,
         )
 
     async def async_answer_question(

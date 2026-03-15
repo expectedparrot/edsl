@@ -97,6 +97,7 @@ class AgentInvigilator:
         iteration: int = 0,
         raise_validation_errors: bool = True,
         key_lookup: Optional["KeyLookup"] = None,
+        prompt_plan=None,
     ) -> "InvigilatorBase":
         """Create an Invigilator for handling question answering.
 
@@ -147,6 +148,7 @@ class AgentInvigilator:
             cache=cache,
             raise_validation_errors=raise_validation_errors,
             key_lookup=key_lookup,
+            prompt_plan=prompt_plan,
         )
         return invigilator
 
@@ -163,6 +165,7 @@ class AgentInvigilator:
         iteration: int = 1,
         raise_validation_errors: bool = True,
         key_lookup: Optional["KeyLookup"] = None,
+        prompt_plan=None,
     ) -> "InvigilatorBase":
         """Create an Invigilator with full context setup.
 
@@ -215,6 +218,7 @@ class AgentInvigilator:
             cache=cache,
             raise_validation_errors=raise_validation_errors,
             key_lookup=key_lookup,
+            prompt_plan=prompt_plan,
         )
 
         # Transfer response validation settings if they exist

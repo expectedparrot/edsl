@@ -71,6 +71,7 @@ _INTERNAL_KWARGS = frozenset({
     "edsl_version", "edsl_class_name", "original_model",
     "skip_api_key_check", "canned_response", "throw_exception",
     "exception_probability", "func", "fail_at_number", "never_ending",
+    "prompt_plan",
 })
 
 
@@ -199,6 +200,7 @@ class LanguageModel(
         rpm: Optional[float] = None,
         omit_system_prompt_if_empty_string: bool = True,
         key_lookup: Optional["KeyLookup"] = None,
+        prompt_plan=None,
         **kwargs,
     ):
         """Initialize a new language model instance.
@@ -208,6 +210,12 @@ class LanguageModel(
             rpm: Optional requests per minute rate limit override
             omit_system_prompt_if_empty_string: Whether to omit the system prompt when empty
             key_lookup: Optional custom key lookup for API credentials
+            prompt_plan: Optional :class:`~edsl.invigilators.prompt_helpers.PromptPlan`
+                controlling how prompt components are distributed between the system
+                and user prompts. If ``None`` (the default), the standard arrangement
+                is used (agent info in system prompt, question info in user prompt).
+                Use ``PromptPlan.user_prompt_only()`` for models that don't support
+                system prompts (e.g., reasoning models like o1/o3).
             **kwargs: Additional parameters to pass to the model provider
 
         The initialization process:
@@ -246,6 +254,7 @@ class LanguageModel(
             None  # Job UUID for progress tracking, set when progress bar is enabled
         )
         self.omit_system_prompt_if_empty = omit_system_prompt_if_empty_string
+        self.prompt_plan = prompt_plan
 
         # Set up API key lookup and fetch model information
         self.key_lookup = self._set_key_lookup(key_lookup)
@@ -1145,6 +1154,10 @@ class LanguageModel(
             "inference_service": self._inference_service_,
         }
 
+        # Include prompt_plan if set
+        if self.prompt_plan is not None:
+            d["prompt_plan"] = self.prompt_plan.to_dict()
+
         # Add EDSL version and class information if requested
         if add_edsl_version:
             from edsl import __version__
@@ -1171,6 +1184,12 @@ class LanguageModel(
         from ..inference_services.inference_service_registry import (
             InferenceServiceRegistry,
         )
+        from ..invigilators.prompt_helpers import PromptPlan
+
+        # Extract and reconstruct prompt_plan if present
+        prompt_plan_data = data.pop("prompt_plan", None)
+        if prompt_plan_data is not None:
+            data["prompt_plan"] = PromptPlan.from_dict(prompt_plan_data)
 
         # Create and use the inference service registry to create the language model
         registry = InferenceServiceRegistry()
