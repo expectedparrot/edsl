@@ -129,7 +129,7 @@ class FileStore(Scenario):
             or (mimetypes.guess_type(path)[0] if path else None)
             or "application/octet-stream"
         )
-        self.base64_string = base64_string or self.encode_file_to_base64_string(path)
+        self.base64_string = base64_string or self.encode_file_to_base64_string(path or "")
         self.external_locations = external_locations or {}
 
         self.extracted_text = (
@@ -277,7 +277,7 @@ class FileStore(Scenario):
         return "FileStore: self.path"
 
     @classmethod
-    def example(cls, example_type="txt"):
+    def example(cls, example_type="txt", **kwargs):
         file_methods_class = FileMethods.get_handler(example_type)
         if file_methods_class:
             return cls(file_methods_class().example())
@@ -296,7 +296,7 @@ class FileStore(Scenario):
     ) -> "FileStore":
         """Async version of screenshot functionality"""
         try:
-            from playwright.async_api import async_playwright
+            from playwright.async_api import async_playwright  # ty: ignore[unresolved-import]
         except ImportError:
             raise ImportError(
                 "Screenshot functionality requires additional dependencies.\n"
@@ -384,12 +384,12 @@ class FileStore(Scenario):
     @property
     def size(self) -> int:
         if self.base64_string is not None:
-            return (len(self.base64_string) / 4.0) * 3  # from base64 to char size
+            return int((len(self.base64_string) / 4.0) * 3)  # from base64 to char size
         return os.path.getsize(self.path)
 
     def upload_google(self, refresh: bool = False) -> None:
-        from google import genai
-        from google.genai.types import UploadFileConfig
+        from google import genai  # ty: ignore[unresolved-import]
+        from google.genai.types import UploadFileConfig  # ty: ignore[unresolved-import]
         import time
 
         method_start = time.time()
@@ -467,8 +467,8 @@ class FileStore(Scenario):
         Raises:
             Exception: If upload fails or file activation fails
         """
-        from google import genai
-        from google.genai.types import UploadFileConfig
+        from google import genai  # ty: ignore[unresolved-import]
+        from google.genai.types import UploadFileConfig  # ty: ignore[unresolved-import]
         import asyncio
 
         # Check if already uploaded and refresh not requested
@@ -661,7 +661,7 @@ class FileStore(Scenario):
             print(f"Error writing file: {e}")
             raise
 
-        # return filename
+        return filename
 
     @staticmethod
     def base64_to_text_file(base64_string) -> "IO":
@@ -734,7 +734,7 @@ class FileStore(Scenario):
         else:
             print(f"Viewing of {self.suffix} files is not supported.")
 
-    def extract_text(self) -> str:
+    def extract_text(self) -> Optional[str]:
         handler = FileMethods.get_handler(self.suffix)
         if handler and hasattr(handler, "extract_text"):
             return handler(self.path).extract_text()
@@ -757,6 +757,7 @@ class FileStore(Scenario):
         alias: Optional[str] = None,
         visibility: Optional[str] = "private",
         expected_parrot_url: Optional[str] = None,
+        force: bool = False,
     ) -> dict:
         """
         Push the object to Coop.
@@ -797,7 +798,7 @@ class FileStore(Scenario):
                 file_store_dict["base64_string"] = "offloaded"
             return self.__class__.from_dict(file_store_dict)
 
-    def save_to_gcs_bucket(self, signed_url: str) -> dict:
+    def save_to_gcs_bucket(self, signed_url_or_dict: Union[str, Dict[str, str]]) -> dict:
         """
         Saves the FileStore's file content to a Google Cloud Storage bucket using a signed URL.
 
@@ -833,6 +834,7 @@ class FileStore(Scenario):
         }
 
         # Upload to GCS using the signed URL
+        signed_url = signed_url_or_dict if isinstance(signed_url_or_dict, str) else signed_url_or_dict.get("url", "")
         response = requests.put(signed_url, data=file_content, headers=headers)
         response.raise_for_status()
 
@@ -845,7 +847,11 @@ class FileStore(Scenario):
         }
 
     @classmethod
-    def pull(cls, url_or_uuid: Union[str, UUID]) -> "FileStore":
+    def pull(
+        cls,
+        url_or_uuid: Optional[Union[str, UUID]] = None,
+        expected_parrot_url: Optional[str] = None,
+    ) -> "FileStore":
         """
         Pull a FileStore object from Coop.
 
@@ -856,8 +862,8 @@ class FileStore(Scenario):
         Returns:
             FileStore: The pulled FileStore object
         """
-        scenario_version = Scenario.pull(url_or_uuid)
-        return cls.from_dict(scenario_version.to_dict())
+        scenario_version = Scenario.pull(url_or_uuid, expected_parrot_url=expected_parrot_url)  # type: ignore[return-type]
+        return cls.from_dict(scenario_version.to_dict())  # type: ignore[union-attr]
 
     @classmethod
     def from_url(
@@ -865,6 +871,8 @@ class FileStore(Scenario):
         url: str,
         download_path: Optional[str] = None,
         mime_type: Optional[str] = None,
+        field_name: Optional[str] = None,
+        testing: bool = False,
     ) -> "FileStore":
         """
         :param url: The URL of the file to download.
@@ -1192,7 +1200,7 @@ class FileStore(Scenario):
             raise ValueError("This file is not an image")
 
         try:
-            from PIL import Image
+            from PIL import Image  # ty: ignore[unresolved-import]
         except ImportError:
             raise ImportError(
                 "PIL (Pillow) is required to get image dimensions. Install it with: pip install pillow"
@@ -1236,7 +1244,7 @@ class FileStore(Scenario):
 
         return f"{class_name}({', '.join(items)})"
 
-    def _summary_repr(self) -> str:
+    def _summary_repr(self, max_items: int = 500) -> str:
         """Generate a summary representation of the FileStore with Rich formatting.
 
         Returns:

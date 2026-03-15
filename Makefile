@@ -398,6 +398,28 @@ typing-report:
 	python scripts/typing_report.py --source edsl --output typing_report
 	open typing_report/index.html
 
+TYPECHECK_FILES := \
+	edsl/scenarios/scenario.py \
+	edsl/scenarios/scenario_list.py \
+	edsl/scenarios/scenario_combinator.py
+
+typecheck: ## Run ty type-checker on all tracked files
+	@for f in $(TYPECHECK_FILES); do \
+		printf "%-50s " "$$f"; \
+		output=$$(poetry run ty check $$f 2>&1); \
+		if [ $$? -eq 0 ]; then echo "OK"; else echo "FAIL"; echo "$$output"; fi; \
+	done
+
+typecheck-file: ## Run ty type-checker on a specific file. Use 'make typecheck-file FILE'
+	@if [ -n "$(filter-out $@,$(MAKECMDGOALS))" ]; then \
+		target="$(filter-out $@,$(MAKECMDGOALS))"; \
+		echo "Running ty on: $$target"; \
+		poetry run ty check $$target; \
+	else \
+		echo "Usage: make typecheck-file <file>"; \
+		echo "Example: make typecheck-file edsl/scenarios/scenario.py"; \
+	fi
+
 format: ## Run code autoformatters (black).
 	poetry run black edsl/
 	@bash scripts/mark_check_complete.sh BLACK

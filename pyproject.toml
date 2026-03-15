@@ -110,6 +110,7 @@ sphinx-copybutton = "^0.5.2"
 sphinx-fontawesome = "^0.0.6"
 sphinx-rtd-theme = "^2.0.0"
 toml-sort = "^0.23.1"
+ty = "^0.0.23"
 
 [tool.poetry.scripts]
 edsl = "edsl.__main__:main"
