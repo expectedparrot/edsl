@@ -15,6 +15,8 @@ When creating a human survey or preview (e.g. `survey.humanize()` or `survey.pre
       Whether the question is optional. Default is `false` when omitted.
       
       **Supported question types:** `free_text`, `budget`, `checkbox`, `interview`, `likert_five`, `linear_scale`, `list`, `matrix`, `multiple_choice`, `multiple_choice_with_other`, `numerical`, `rank`, `top_k`, `yes_no`.
+      
+      Note: `optional` currently has no effect for `interview` and `rank`.
     </ParamField>
     <ParamField path="questions.question_name.format" type="object" required={false}>
       Display format. Varies by question type:
