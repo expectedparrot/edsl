@@ -46,7 +46,7 @@ class TestResults(unittest.TestCase):
         self.assertIn("how_feeling", csv)
         # Saves the file
         csv = self.example_results.to_csv().write("test.csv")
-        self.assertIsNone(csv)
+        self.assertEqual(csv, "test.csv")
         os.remove("test.csv")
 
     def test_to_dict(self):
