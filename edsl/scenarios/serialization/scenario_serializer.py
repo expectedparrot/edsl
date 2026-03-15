@@ -65,7 +65,7 @@ class ScenarioSerializer:
             {'food': 'wood chips'}
         """
         from edsl.scenarios import FileStore
-        from edsl.scenarios.dimension import Dimension
+        from edsl.scenarios.contrib.dimension import Dimension
         from edsl.prompts import Prompt
 
         d = self.scenario.data.copy()
@@ -163,7 +163,7 @@ class ScenarioSerializer:
             - This method is commonly used when deserializing scenarios from JSON or other formats
         """
         from edsl.scenarios import FileStore
-        from edsl.scenarios.dimension import Dimension
+        from edsl.scenarios.contrib.dimension import Dimension
 
         # Remove EDSL version information manually
         data_copy = dict(d)

@@ -91,8 +91,8 @@ from ..dataset import ScenarioListOperationsMixin
 
 from .exceptions import ScenarioError
 from .scenario import Scenario
-from .scenario_list_transformer import ScenarioListTransformer
-from .scenario_list_joiner import ScenarioListJoiner
+from .transforms.transformer import ScenarioListTransformer
+from .join.scenario_list_joiner import ScenarioListJoiner
 
 
 def _delegate_doc(source_method):
@@ -1597,7 +1597,7 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         >>> sl == sl2
         True
         """
-        from .scenario_list_serializer import ScenarioListSerializer, SidecarBlobStore
+        from .serialization.scenario_list_serializer import ScenarioListSerializer, SidecarBlobStore
 
         if offload_filestores and blob_writer is None:
             if filename is None:
@@ -1613,7 +1613,7 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         )
 
     def to_jsonl_rows(self, blob_writer=None):
-        from .scenario_list_serializer import ScenarioListSerializer
+        from .serialization.scenario_list_serializer import ScenarioListSerializer
         return ScenarioListSerializer(self).to_jsonl_rows(blob_writer=blob_writer)
 
     @classmethod
@@ -1623,7 +1623,7 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         If *source* is a file path and a sidecar ``.blobs/`` directory exists
         alongside it, blob references are automatically resolved from there.
         """
-        from .scenario_list_serializer import ScenarioListSerializer, SidecarBlobStore
+        from .serialization.scenario_list_serializer import ScenarioListSerializer, SidecarBlobStore
 
         # Auto-detect sidecar directory for file paths
         if blob_reader is None and isinstance(source, (str, Path)):

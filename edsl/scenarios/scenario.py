@@ -662,7 +662,7 @@ class Scenario(Base, UserDict):
         {'food': 'wood chips'}
 
         """
-        from .scenario_serializer import ScenarioSerializer
+        from edsl.scenarios.serialization.scenario_serializer import ScenarioSerializer
 
         return ScenarioSerializer(self).to_dict(add_edsl_version, offload_base64)
 
@@ -680,7 +680,7 @@ class Scenario(Base, UserDict):
             return self._cached_hash
 
         # Compute hash for first time and cache it in the object
-        from .scenario_serializer import ScenarioSerializer
+        from edsl.scenarios.serialization.scenario_serializer import ScenarioSerializer
 
         serializer = ScenarioSerializer(self)
         self._cached_hash = serializer.compute_hash()
@@ -787,7 +787,7 @@ class Scenario(Base, UserDict):
         >>> s.to_dataset()
         Dataset([{'key': ['food']}, {'value': ['wood chips']}])
         """
-        from .scenario_serializer import ScenarioSerializer
+        from edsl.scenarios.serialization.scenario_serializer import ScenarioSerializer
 
         return ScenarioSerializer(self).to_dataset()
 
@@ -1389,7 +1389,7 @@ class Scenario(Base, UserDict):
             - EDSL version information is automatically removed by the @remove_edsl_version decorator
             - This method is commonly used when deserializing scenarios from JSON or other formats
         """
-        from .scenario_serializer import ScenarioSerializer
+        from edsl.scenarios.serialization.scenario_serializer import ScenarioSerializer
 
         return ScenarioSerializer.from_dict(d)
 

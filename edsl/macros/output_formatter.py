@@ -8,7 +8,7 @@ from ..results import Results
 from ..dataset import Dataset
 from ..scenarios import ScenarioList, FileStore
 from ..scenarios import Scenario
-from ..scenarios.agent_blueprint import AgentBlueprint
+from ..scenarios.contrib.agent_blueprint import AgentBlueprint
 from ..surveys import Survey
 from ..agents import AgentList as AgentListImport
 

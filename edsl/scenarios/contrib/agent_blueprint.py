@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from ..scenario_list import ScenarioList
-from ..dimension import Dimension
+from .dimension import Dimension
 from ...base.base_class import Base
 import math
 

@@ -591,15 +591,11 @@ class FileStore(Scenario):
 
     def _repr_html_(self):
         parent_html = super()._repr_html_()
-        from .construct_download_link import ConstructDownloadLink
-
-        link = ConstructDownloadLink(self).html_create_link(self.path, style=None)
+        link = self._html_download_link(self.path)
         return f"{parent_html}<br>{link}"
 
     def download_link(self):
-        from .construct_download_link import ConstructDownloadLink
-
-        return ConstructDownloadLink(self).html_create_link(self.path, style=None)
+        return self._html_download_link(self.path)
 
     def encode_file_to_base64_string(self, file_path: str):
         try:
@@ -901,9 +897,35 @@ class FileStore(Scenario):
         return cls(download_path, mime_type=mime_type)
 
     def create_link(self, custom_filename=None, style=None):
-        from .construct_download_link import ConstructDownloadLink
+        try:
+            from edsl.utilities.display_utils import HTML
+        except ImportError:
+            class HTML:
+                def __init__(self, content):
+                    self.content = content
+                def _repr_html_(self):
+                    return self.content
+        return HTML(self._html_download_link(custom_filename or self.path, style))
 
-        return ConstructDownloadLink(self).create_link(custom_filename, style)
+    def _html_download_link(self, custom_filename=None, style=None):
+        """Generate an HTML download link string for this FileStore."""
+        import os as _os
+        filename = _os.path.basename(custom_filename or self.path)
+        b64_data = self.base64_string
+        mime_type = self.mime_type
+        default_style = {
+            "background-color": "#4CAF50", "color": "white",
+            "padding": "10px 20px", "text-decoration": "none",
+            "border-radius": "4px", "display": "inline-block",
+            "margin": "10px 0", "font-family": "sans-serif", "cursor": "pointer",
+        }
+        button_style = style or default_style
+        style_str = "; ".join(f"{k}: {v}" for k, v in button_style.items())
+        return (
+            f'<a download="{filename}" '
+            f'href="data:{mime_type};base64,{b64_data}" '
+            f'style="{style_str}">Download {filename}</a>'
+        )
 
     def to_pdf(self, output_path: Optional[str] = None, **options) -> "FileStore":
         """

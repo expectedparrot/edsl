@@ -25,14 +25,14 @@ Example:
 
 from .scenario import Scenario
 from .scenario_list import ScenarioList
-from .scenario_serializer import ScenarioSerializer
+from .serialization.scenario_serializer import ScenarioSerializer
 from .scenario_factory import ScenarioFactory
 from .contrib.scenario_gcs import ScenarioGCS
 from .scenario_offloader import ScenarioOffloader
 from .scenario_selector import ScenarioSelector
 from .file_store import FileStore
 from .file_store_list import FileStoreList
-from .dimension import Dimension, DimensionValue
+from .contrib.dimension import Dimension, DimensionValue
 from .contrib.conjoint_profile_generator import ConjointProfileGenerator
 from .contrib.agent_blueprint import AgentBlueprint
 from .scenario_source_inferrer import ScenarioSourceInferrer, from_any
