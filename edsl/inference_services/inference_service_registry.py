@@ -125,9 +125,9 @@ class InferenceServiceRegistry:
     # Use lazy loading - discover service modules without importing them
     _default_service_module_map = discover_service_modules()
     _default_source_preferences = (
+        "archive",
         "coop_working",
         "coop",
-        "archive",
         "local",
         "default_models",
     )
