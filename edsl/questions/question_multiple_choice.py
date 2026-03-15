@@ -1,4 +1,5 @@
 from __future__ import annotations
+from enum import Enum
 from typing import Union, Literal, Optional, List, Any
 
 from jinja2 import Template
@@ -8,6 +9,44 @@ from .question_base import QuestionBase
 from .descriptors import QuestionOptionsDescriptor
 from .decorators import inject_exception
 from .response_validator_abc import ResponseValidatorABC
+
+
+class AnswerEnumeration(str, Enum):
+    """Enumeration styles for multiple choice option labeling."""
+    NONE = "none"
+    NUMERIC_STARTS_WITH_0 = "numeric_starts_with_0"
+    NUMERIC_STARTS_WITH_1 = "numeric_starts_with_1"
+    LETTERS = "letters"
+    LETTERS_LOWER = "letters_lower"
+
+    def codes_for(self, n: int) -> list:
+        """Return the list of valid answer codes for n options."""
+        if self == AnswerEnumeration.NONE:
+            return None
+        elif self == AnswerEnumeration.NUMERIC_STARTS_WITH_0:
+            return list(range(n))
+        elif self == AnswerEnumeration.NUMERIC_STARTS_WITH_1:
+            return list(range(1, n + 1))
+        elif self == AnswerEnumeration.LETTERS:
+            return [chr(65 + i) for i in range(n)]
+        elif self == AnswerEnumeration.LETTERS_LOWER:
+            return [chr(97 + i) for i in range(n)]
+
+    def translate_to_index(self, code) -> int:
+        """Convert an answer code back to a 0-based index."""
+        if self == AnswerEnumeration.NUMERIC_STARTS_WITH_0:
+            return int(code)
+        elif self == AnswerEnumeration.NUMERIC_STARTS_WITH_1:
+            return int(code) - 1
+        elif self == AnswerEnumeration.LETTERS:
+            return ord(str(code).upper()) - 65
+        elif self == AnswerEnumeration.LETTERS_LOWER:
+            return ord(str(code).lower()) - 97
+        return None
+
+    @property
+    def is_enumerated(self) -> bool:
+        return self != AnswerEnumeration.NONE
 
 
 class BaseMultipleChoiceResponse(BaseModel):
@@ -132,7 +171,7 @@ class MultipleChoiceResponseValidator(ResponseValidatorABC):
         'Good'
     """
 
-    required_params = ["question_options", "use_code"]
+    required_params = ["question_options", "use_code", "enumeration"]
 
     def fix(self, response, verbose=False):
         """
@@ -169,20 +208,38 @@ class MultipleChoiceResponseValidator(ResponseValidatorABC):
                 print("Not attempting to fix None answer value")
             return response
 
-        # When use_code=True, try to extract the numeric code from responses
-        # like "0: Yes", "0 - Yes", "0. Yes", etc.
-        if self.use_code:
+        # When using any enumeration style, try to extract the code from
+        # responses like "0: Yes", "B: Blue", "b", "2 - Option", etc.
+        enumeration = getattr(self, "enumeration", AnswerEnumeration.NONE)
+        if enumeration.is_enumerated:
             answer = str(response.get("answer", ""))
             import re
-            code_match = re.match(r"^\s*(\d+)\s*[:.\-)\]]\s*", answer)
-            if code_match:
-                code = int(code_match.group(1))
-                if 0 <= code < len(self.question_options):
-                    return {
-                        "answer": code,
-                        "comment": response.get("comment"),
-                        "generated_tokens": response.get("generated_tokens"),
-                    }
+            valid_codes = enumeration.codes_for(len(self.question_options))
+
+            if enumeration in (AnswerEnumeration.LETTERS, AnswerEnumeration.LETTERS_LOWER):
+                # Extract letter code: "B: Blue" -> "B", or bare "b" -> "B"/"b"
+                letter_match = re.match(r"^\s*([A-Za-z])\s*[:.\-)\]]\s*", answer)
+                if letter_match:
+                    letter = letter_match.group(1)
+                    if enumeration == AnswerEnumeration.LETTERS:
+                        letter = letter.upper()
+                    else:
+                        letter = letter.lower()
+                    if letter in valid_codes:
+                        return {"answer": letter, "comment": response.get("comment"), "generated_tokens": response.get("generated_tokens")}
+                # Bare single letter
+                stripped = answer.strip()
+                if len(stripped) == 1 and stripped.isalpha():
+                    letter = stripped.upper() if enumeration == AnswerEnumeration.LETTERS else stripped.lower()
+                    if letter in valid_codes:
+                        return {"answer": letter, "comment": response.get("comment"), "generated_tokens": response.get("generated_tokens")}
+            else:
+                # Numeric: "0: Yes", "1 - Option", etc.
+                code_match = re.match(r"^\s*(\d+)\s*[:.\-)\]]\s*", answer)
+                if code_match:
+                    code = int(code_match.group(1))
+                    if code in valid_codes:
+                        return {"answer": code, "comment": response.get("comment"), "generated_tokens": response.get("generated_tokens")}
 
         # Get the raw text to analyze
         response_text = str(response.get("answer", ""))
@@ -402,6 +459,7 @@ class QuestionMultipleChoice(QuestionBase):
         question_options: Union[list[str], list[list], list[float], list[int]],
         include_comment: bool = True,
         use_code: bool = False,
+        enumeration: Optional[str] = None,
         answering_instructions: Optional[str] = None,
         question_presentation: Optional[str] = None,
         permissive: bool = False,
@@ -470,12 +528,39 @@ class QuestionMultipleChoice(QuestionBase):
           while still suggesting options
         - Dynamic options can reference variables in a scenario using Jinja2 template syntax
         """
+        # Resolve enumeration from use_code (backward compat) and enumeration param
+        if use_code and enumeration is not None:
+            raise ValueError(
+                "Cannot set both use_code=True and enumeration. "
+                "use_code=True is equivalent to enumeration='numeric_starts_with_0'."
+            )
+        if enumeration is not None:
+            try:
+                self._enumeration = AnswerEnumeration(enumeration)
+            except ValueError:
+                valid = [e.value for e in AnswerEnumeration if e != AnswerEnumeration.NONE]
+                raise ValueError(
+                    f"Invalid enumeration '{enumeration}'. Valid values: {valid}"
+                )
+        elif use_code:
+            self._enumeration = AnswerEnumeration.NUMERIC_STARTS_WITH_0
+        else:
+            self._enumeration = AnswerEnumeration.NONE
+
+        # Validate letter enumeration limit
+        if self._enumeration in (AnswerEnumeration.LETTERS, AnswerEnumeration.LETTERS_LOWER):
+            if isinstance(question_options, list) and len(question_options) > 26:
+                raise ValueError(
+                    f"Letter enumeration supports at most 26 options (A-Z), got {len(question_options)}."
+                )
+
         self.question_name = question_name
         self.question_text = question_text
         self.question_options = self._clean_nan_from_options(question_options)
 
         self._include_comment = include_comment
-        self.use_code = use_code
+        # use_code property is derived from _enumeration for backward compat
+        self._use_code = self._enumeration == AnswerEnumeration.NUMERIC_STARTS_WITH_0
         self.answering_instructions = answering_instructions
         self.question_presentation = question_presentation
         self.permissive = permissive
@@ -507,15 +592,17 @@ class QuestionMultipleChoice(QuestionBase):
                 cleaned_options.append(option)
         return cleaned_options
 
+    @property
+    def enumeration(self) -> AnswerEnumeration:
+        return self._enumeration
+
     def create_response_model(self, replacement_dict: dict = None):
         if replacement_dict is None:
             replacement_dict = {}
-            # The replacement dict that could be from scenario, current answers, etc. to populate the response model
 
-        if self.use_code:
-            return create_response_model(
-                list(range(len(self.question_options))), self.permissive
-            )
+        codes = self._enumeration.codes_for(len(self.question_options))
+        if codes is not None:
+            return create_response_model(codes, self.permissive)
         else:
             return create_response_model(self.question_options, self.permissive)
 
@@ -603,24 +690,18 @@ class QuestionMultipleChoice(QuestionBase):
             self.question_options, replacements_dict
         )
 
-        if self._use_code:
+        if self._enumeration.is_enumerated:
             try:
-                return translated_options[int(answer_code)]
-            except IndexError:
+                idx = self._enumeration.translate_to_index(answer_code)
+                return translated_options[idx]
+            except (IndexError, TypeError, ValueError):
                 from .exceptions import QuestionValueError
 
                 raise QuestionValueError(
-                    f"Answer code is out of range. The answer code index was: {int(answer_code)}. The options were: {translated_options}."
-                )
-            except TypeError:
-                from .exceptions import QuestionValueError
-
-                raise QuestionValueError(
-                    f"The answer code was: '{answer_code}.'",
-                    f"The options were: '{translated_options}'.",
+                    f"Answer code '{answer_code}' could not be translated. "
+                    f"The options were: {translated_options}."
                 )
         else:
-            # return translated_options[answer_code]
             return answer_code
 
     @property

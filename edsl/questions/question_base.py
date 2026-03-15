@@ -434,7 +434,7 @@ class QuestionBase(
         ]
         only_if_not_na_list = ["_answering_instructions", "_question_presentation"]
 
-        only_if_not_default_list = {"_include_comment": True, "_use_code": False}
+        only_if_not_default_list = {"_include_comment": True, "_use_code": False, "_enumeration": "none"}
 
         def ok(key, value):
             if not key.startswith("_"):
