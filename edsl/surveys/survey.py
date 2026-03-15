@@ -137,6 +137,7 @@ class Survey(Base):
         question_groups: Optional["QuestionGroupType"] = None,
         name: Optional[str] = None,
         questions_to_randomize: Optional[List[str]] = None,
+        options_to_pin: Optional[Dict[str, List]] = None,
     ):
         """Initialize a new Survey instance.
 
@@ -203,6 +204,8 @@ class Survey(Base):
 
         # Set through descriptor (handles validation and None -> [] conversion)
         self.questions_to_randomize = questions_to_randomize
+
+        self.options_to_pin: Dict[str, List] = options_to_pin or {}
 
         self._seed: Optional[int] = None
 
@@ -286,7 +289,8 @@ class Survey(Base):
         new_questions = []
         for question in self.questions:
             if question.question_name in self.questions_to_randomize:
-                new_questions.append(question.draw())
+                pin = self.options_to_pin.get(question.question_name, None)
+                new_questions.append(question.draw(pin_options=pin))
             else:
                 new_questions.append(question.duplicate())
 
@@ -537,6 +541,10 @@ class Survey(Base):
         if self.questions_to_randomize != []:
             d["questions_to_randomize"] = self.questions_to_randomize
 
+        # Include pinned options if present
+        if self.options_to_pin:
+            d["options_to_pin"] = self.options_to_pin
+
         # Add version information if requested
         if add_edsl_version:
             d["edsl_version"] = __version__
@@ -645,6 +653,9 @@ class Survey(Base):
         else:
             questions_to_randomize = None
 
+        # Get the pinned options if present
+        options_to_pin = data.get("options_to_pin", None)
+
         if "name" in data:
             name = data["name"]
         else:
@@ -668,6 +679,7 @@ class Survey(Base):
             question_groups=data["question_groups"],
             questions_to_randomize=questions_to_randomize,
             name=name,
+            options_to_pin=options_to_pin,
         )
 
         return survey
