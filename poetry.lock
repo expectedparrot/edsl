@@ -3993,7 +3993,7 @@ files = [
 name = "psutil"
 version = "6.1.1"
 description = "Cross-platform lib for process and system monitoring in Python."
-optional = true
+optional = false
 python-versions = "!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,!=3.4.*,!=3.5.*,>=2.7"
 files = [
     {file = "psutil-6.1.1-cp27-cp27m-macosx_10_9_x86_64.whl", hash = "sha256:9ccc4316f24409159897799b83004cb1e24f9819b0dcf9c0b68bdcb6cefee6a8"},
@@ -6530,7 +6530,7 @@ agent-building = ["seaborn", "sentence-transformers"]
 file-formats = ["openpyxl", "pandas", "pypdf2", "python-docx", "python-pptx"]
 full = ["altair", "anthropic", "azure-ai-inference", "black", "boto3", "fastapi", "google-genai", "groq", "mistralai", "nbclient", "nbformat", "openai", "openpyxl", "pandas", "playwright", "psutil", "pydot", "pypdf2", "python-docx", "python-pptx", "qrcode", "seaborn", "sentence-transformers", "sqlalchemy", "termplotlib", "uvicorn"]
 inference = ["anthropic", "azure-ai-inference", "boto3", "google-genai", "groq", "mistralai", "openai", "sqlalchemy"]
-notebook = ["nbclient", "nbformat"]
+notebook = ["nbclient", "nbformat", "psutil"]
 runner = ["redis", "sqlalchemy"]
 runner-gcp = ["google-cloud-storage"]
 screenshots = ["playwright"]
@@ -6540,4 +6540,4 @@ viz = ["altair", "nbclient", "nbformat", "pydot", "termplotlib"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.10,<3.14"
-content-hash = "47cf6ee46acb08b1293bd6684ec3ebcf0122d6cd7c1dd6f1fa3212eae8e021de"
+content-hash = "a7bde83e169acec515844d6c17e5f0714ea82e32c641c40fd50fe842c20b3d49"
