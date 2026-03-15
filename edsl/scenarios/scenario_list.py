@@ -1824,7 +1824,7 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             dimension_description_field: Optional field name for the dimension description.
             dimension_probs_field: Optional field name for probability weights.
         """
-        from .agent_blueprint import AgentBlueprint
+        from .contrib.agent_blueprint import AgentBlueprint
 
         return AgentBlueprint.from_scenario_list(
             self,
