@@ -467,15 +467,18 @@ visualize: ## Visualize the repo structure
 ###############
 ##@Testing 🐛
 ###############
-github-tests-locally: ## Run tests on GitHub Actions (with only committed files)
+ACT_PYTHON_VERSION ?= 3.12
+ACT_FLAGS ?= --matrix python-version:$(ACT_PYTHON_VERSION) -j test
+
+github-tests-locally: ## Run tests on GitHub Actions (with only committed files). Use ACT_PYTHON_VERSION=3.11 or ACT_FLAGS to customize.
 	@echo "Cleaning up Docker before starting..."
 	@docker stop $$(docker ps -q -f "name=act-") 2>/dev/null || true
 	@docker rm $$(docker ps -aq -f "name=act-") 2>/dev/null || true
 	@docker system prune -f --volumes
 	@echo "Stashing uncommitted changes..."
 	@git stash push -u -m "Temporary stash for github-tests-locally"
-	@echo "Running tests with act..."
-	@act; \
+	@echo "Running tests with act (Python $(ACT_PYTHON_VERSION))..."
+	@act push $(ACT_FLAGS); \
 	EXIT_CODE=$$?; \
 	echo "Restoring uncommitted changes..."; \
 	git stash pop; \
