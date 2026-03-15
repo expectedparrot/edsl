@@ -376,6 +376,10 @@ Every question component supported by humanize has `edsl-*` CSS classes so you c
 
 ### Numerical
 
+<Tabs>
+  <Tab title="Input">
+    When humanize format is `input` (default):
+
 ```html
 <div class="edsl-question edsl-numerical-question">
   <div class="edsl-question-text">Enter your age.</div>
@@ -383,6 +387,26 @@ Every question component supported by humanize has `edsl-*` CSS classes so you c
   <p class="edsl-error">…</p>
 </div>
 ```
+  </Tab>
+  <Tab title="Slider">
+    When humanize format is `slider`:
+
+```html
+<div class="edsl-question edsl-numerical-question">
+  <div class="edsl-question-text">On a scale of 0 to 100, how likely are you to recommend?</div>
+  <div>
+    <input class="edsl-input edsl-numerical-slider" type="range" min="0" max="100" step="1" value="50" />
+    <div>
+      <span>0</span>
+      <span>50</span>
+      <span>100</span>
+    </div>
+  </div>
+  <p class="edsl-error">…</p>
+</div>
+```
+  </Tab>
+</Tabs>
 
 ### Rank
 

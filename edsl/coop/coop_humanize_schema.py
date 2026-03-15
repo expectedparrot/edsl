@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Dict, Literal, Optional, Type, Union
 
-from pydantic import BaseModel, ConfigDict, Field, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 
 from ..questions import QuestionBase
 
@@ -102,10 +102,42 @@ class MultipleChoiceWithOtherHumanizeSchema(HumanizeSchemaBase):
     optional: bool = False
 
 
+class NumericalFormatInputSchema(HumanizeSchemaBase):
+    """Display as a number input field."""
+
+    type: Literal["input"] = "input"
+
+
+class NumericalFormatSliderSchema(HumanizeSchemaBase):
+    """Display as a slider with min, max, and step."""
+
+    type: Literal["slider"] = "slider"
+    min: float = 0.0
+    max: float = 100.0
+    step: float = 1.0
+
+    @model_validator(mode="after")
+    def check_slider_bounds(self) -> "NumericalFormatSliderSchema":
+        if self.min >= self.max:
+            raise ValueError("Slider minimum must be less than maximum.")
+        if self.step <= 0:
+            raise ValueError("Slider step must be positive.")
+        if self.step > (self.max - self.min):
+            raise ValueError("Slider step must not exceed (max - min).")
+        return self
+
+
+NumericalFormatSchema = Union[
+    NumericalFormatInputSchema,
+    NumericalFormatSliderSchema,
+]
+
+
 class NumericalHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the numerical question type."""
 
     optional: bool = False
+    format: NumericalFormatSchema = Field(default_factory=NumericalFormatInputSchema)
 
 
 class RankHumanizeSchema(HumanizeSchemaBase):
