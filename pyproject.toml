@@ -112,5 +112,8 @@ numpy = "^1.24.0"
 [tool.poetry.scripts]
 edsl = "edsl.__main__:main"
 
+[tool.ty.rules]
+unresolved-import = "ignore"
+
 [tool.tomlsort.overrides."tool.poetry.dependencies"]
 table_keys = false

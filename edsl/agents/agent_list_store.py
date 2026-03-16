@@ -6,6 +6,7 @@ from typing import Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .agent_list import AgentList
+    from ..object_store import ObjectStore
 
 
 class _StoreDescriptor:
@@ -57,7 +58,7 @@ class AgentListStore:
     def __init__(self, agent_list: "AgentList") -> None:
         self._agent_list = agent_list
 
-    def save(self, message: str = "", store=None) -> str:
+    def save(self, message: str = "", store: Optional[ObjectStore] = None) -> str:
         """Save the AgentList to the object store. Returns its UUID.
 
         Auto-assigns a UUID on first save, reuses on subsequent saves.
@@ -67,7 +68,7 @@ class AgentListStore:
         return s.new_save(self._agent_list, message=message)
 
     @staticmethod
-    def load(uuid: str, commit: Optional[str] = None, store=None) -> "AgentList":
+    def load(uuid: str, commit: Optional[str] = None, store: Optional[ObjectStore] = None) -> AgentList:
         """Load an AgentList from the object store by UUID.
 
         Args:

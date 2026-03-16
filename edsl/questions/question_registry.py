@@ -91,7 +91,7 @@ class Question(metaclass=Meta):
             is_uuid = len(url_or_uuid) == 36 and url_or_uuid.count("-") == 4
             if not is_uuid and "/" in url_or_uuid:
                 # Looks like shorthand format "username/alias"
-                url_or_uuid = f"{CONFIG.EXPECTED_PARROT_URL}/content/{url_or_uuid}"
+                url_or_uuid = f"{CONFIG.EXPECTED_PARROT_URL}/content/{url_or_uuid}"  # type: ignore[union-attr]
 
         coop = Coop()
         return coop.pull(url_or_uuid, "question")
@@ -135,7 +135,7 @@ class Question(metaclass=Meta):
         ]
 
     @classmethod
-    def available(cls, show_class_names: bool = False) -> Union[list, dict]:
+    def available(cls, show_class_names: bool = False):
         """Return a list of available question types.
 
         :param show_class_names: If True, return a dictionary of question types to class names. If False, return a set of question types.

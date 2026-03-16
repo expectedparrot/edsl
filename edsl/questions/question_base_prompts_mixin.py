@@ -1,5 +1,5 @@
 from importlib import resources
-from typing import Optional, TYPE_CHECKING
+from typing import Any, Optional, TYPE_CHECKING
 from functools import lru_cache
 
 from .exceptions import QuestionAnswerValidationError
@@ -111,7 +111,7 @@ class QuestionBasePromptsMixin:
 
     @classmethod
     def path_to_folder(cls) -> str:
-        return resources.files("edsl.questions.templates", cls.question_type)
+        return resources.files("edsl.questions.templates") / cls.question_type  # type: ignore[operator]
 
     @property
     def response_model(self) -> type["BaseModel"]:
@@ -316,7 +316,7 @@ class QuestionBasePromptsMixin:
                 return self.applicable_prompts(model)[0]()
 
     @staticmethod
-    def sequence_in_dict(d: dict, path: tuple[str, ...]) -> tuple[bool, any]:
+    def sequence_in_dict(d: dict, path: tuple[str, ...]) -> tuple[bool, Any]:
         """Check if a sequence of nested keys exists in a dictionary and return the value.
 
         Args:

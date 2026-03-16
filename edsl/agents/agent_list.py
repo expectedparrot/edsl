@@ -412,7 +412,7 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
     def _apply_names(
         self,
         agent_list_data: list["Agent"],
-        trait_keys: tuple[str],
+        trait_keys: "tuple[str, ...] | list[str]",
         remove_traits: bool = True,
         separator: str = ",",
         force_name: bool = False,
@@ -860,7 +860,7 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
     def from_scenario_list(cls, scenario_list: "ScenarioList") -> "AgentList":
         return AgentListFactories.from_scenario_list(scenario_list)
 
-    from_scenario_list.__func__.__doc__ = AgentListFactories.from_scenario_list.__doc__
+    from_scenario_list.__doc__ = AgentListFactories.from_scenario_list.__doc__
 
 
 

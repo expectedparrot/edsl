@@ -102,7 +102,7 @@ class TemplateRenderer:
                 should_render = self.has_unrendered_variables(result)
 
             return result
-        except exception_class:
+        except exception_class:  # type: ignore[misc]
             raise
         except Exception:
             import warnings
@@ -337,7 +337,7 @@ class QuestionBaseGenMixin:
 
         # Create render function that uses the template renderer
         def render_string(value: str) -> str:
-            return template_renderer.render_string(
+            return template_renderer.render_string(  # type: ignore[union-attr]
                 value,
                 strings_only_replacement_dict,
                 exception_class=self.MaxTemplateNestingExceeded,

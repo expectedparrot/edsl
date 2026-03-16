@@ -82,6 +82,7 @@ if TYPE_CHECKING:
     from ..surveys import Survey
 
 if TYPE_CHECKING:
+    from rich.text import Text
     from .response_validator_abc import ResponseValidatorABC
     from ..language_models import LanguageModel
     from ..results import Results
@@ -194,8 +195,8 @@ class QuestionBase(
         - Questions can be used independently or as part of surveys
     """
 
-    question_name: str = QuestionNameDescriptor()
-    question_text: str = QuestionTextDescriptor()
+    question_name: str = QuestionNameDescriptor()  # type: ignore[assignment]
+    question_text: str = QuestionTextDescriptor()  # type: ignore[assignment]
 
     _store_class_name = "QuestionBase"
 
@@ -341,7 +342,7 @@ class QuestionBase(
         generated_tokens: Optional[str]
 
     def _validate_answer(
-        self, answer: dict, replacement_dict: dict = None
+        self, answer: dict, replacement_dict: Optional[dict] = None
     ) -> ValidatedAnswer:
         """
         Validate a raw answer against this question's constraints.
@@ -545,8 +546,7 @@ class QuestionBase(
             question_class = get_question_class(question_type)
         except ValueError:
             raise QuestionSerializationError(
-                f"No question registered with question_type {question_type}",
-                "The passed in dictionary was: " + str(data),
+                f"No question registered with question_type {question_type}. The passed in dictionary was: {data}",
             )
         except Exception as e:
             raise QuestionSerializationError(
@@ -622,7 +622,7 @@ class QuestionBase(
         return target_cls(**fields)
 
     @classmethod
-    def _get_test_model(cls, canned_response: Optional[str] = None) -> "LanguageModel":
+    def _get_test_model(cls, canned_response: str = "Hello world") -> "LanguageModel":
         """
         Create a test language model with optional predefined response.
 
@@ -690,7 +690,7 @@ class QuestionBase(
         if model is None:
             from ..language_models import Model
 
-            model = Model()
+            model = Model()  # type: ignore[assignment]
         results = (
             cls.example(**kwargs)
             .by(model)

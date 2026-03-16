@@ -331,4 +331,4 @@ class AgentListFactories:
         """
         with open(file_path, "r") as f:
             reader = csv.DictReader(f)
-            return {field: None for field in reader.fieldnames}
+            return {field: None for field in (reader.fieldnames or [])}

@@ -19,7 +19,7 @@ class AnswerEnumeration(str, Enum):
     LETTERS = "letters"
     LETTERS_LOWER = "letters_lower"
 
-    def codes_for(self, n: int) -> list:
+    def codes_for(self, n: int) -> "list | None":
         """Return the list of valid answer codes for n options."""
         if self == AnswerEnumeration.NONE:
             return None
@@ -32,7 +32,7 @@ class AnswerEnumeration(str, Enum):
         elif self == AnswerEnumeration.LETTERS_LOWER:
             return [chr(97 + i) for i in range(n)]
 
-    def translate_to_index(self, code) -> int:
+    def translate_to_index(self, code) -> "Optional[int]":
         """Convert an answer code back to a 0-based index."""
         if self == AnswerEnumeration.NUMERIC_STARTS_WITH_0:
             return int(code)
@@ -117,7 +117,7 @@ def create_response_model(choices: List[str], permissive: bool = False):
                 'Option A'
             """
 
-            answer: Literal[choice_tuple] = Field(description="Selected choice")
+            answer: Literal[choice_tuple] = Field(description="Selected choice")  # type: ignore[valid-type]
 
             model_config = {
                 "json_schema_extra": {"properties": {"answer": {"enum": choices}}}
@@ -215,6 +215,9 @@ class MultipleChoiceResponseValidator(ResponseValidatorABC):
             answer = str(response.get("answer", ""))
             import re
             valid_codes = enumeration.codes_for(len(self.question_options))
+            if valid_codes is None:
+                from .exceptions import QuestionValueError
+                raise QuestionValueError(f"No valid codes for enumeration {enumeration}")
 
             if enumeration in (AnswerEnumeration.LETTERS, AnswerEnumeration.LETTERS_LOWER):
                 # Extract letter code: "B: Blue" -> "B", or bare "b" -> "B"/"b"
@@ -446,9 +449,7 @@ class QuestionMultipleChoice(QuestionBase):
 
     question_type = "multiple_choice"
     purpose = "When options are known and limited"
-    question_options: Union[list[str], list[list], list[float], list[int]] = (
-        QuestionOptionsDescriptor()
-    )
+    question_options = QuestionOptionsDescriptor()
     _response_model = None
     response_validator_class = MultipleChoiceResponseValidator
 
@@ -597,7 +598,7 @@ class QuestionMultipleChoice(QuestionBase):
     def enumeration(self) -> AnswerEnumeration:
         return self._enumeration
 
-    def create_response_model(self, replacement_dict: dict = None):
+    def create_response_model(self, replacement_dict: Optional[dict] = None):
         if replacement_dict is None:
             replacement_dict = {}
 

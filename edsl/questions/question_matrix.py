@@ -778,10 +778,10 @@ class QuestionMatrix(QuestionBase):
     """
 
     question_type = "matrix"
-    question_text: str = QuestionTextDescriptor()
-    question_items: List[str] = QuestionOptionsDescriptor()
-    question_options: List[Union[int, str, float]] = QuestionOptionsDescriptor()
-    option_labels: Optional[Dict[Union[int, str, float], str]] = OptionLabelDescriptor()
+    question_text = QuestionTextDescriptor()
+    question_items = QuestionOptionsDescriptor()
+    question_options = QuestionOptionsDescriptor()
+    option_labels = OptionLabelDescriptor()
 
     _response_model = None
     response_validator_class = MatrixResponseValidator

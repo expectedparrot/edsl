@@ -81,6 +81,6 @@ class AgentListFilter:
             raise AgentListError(f"'{expression}' is not a valid expression.")
 
         if len(new_data) == 0:
-            return EmptyAgentList()
+            return AgentList([])
 
         return AgentList(new_data)

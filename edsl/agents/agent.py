@@ -1036,11 +1036,11 @@ class Agent(Base):
         return AgentOperations.select(self, *traits)
 
     def add(
-        self: A,
-        other_agent: Optional[A] = None,
+        self,
+        other_agent: Optional["Agent"] = None,
         *,
         conflict_strategy: str = "numeric",
-    ) -> A:
+    ) -> "Agent":
         """Combine *self* with *other_agent* and return a new Agent.
 
         Parameters

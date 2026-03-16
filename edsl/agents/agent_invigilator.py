@@ -6,7 +6,7 @@ appropriate invigilator type and handling question answering workflows.
 """
 
 from __future__ import annotations
-from typing import Optional, Type, TYPE_CHECKING
+from typing import Optional, Type, cast, TYPE_CHECKING
 
 from ..utilities import sync_wrapper
 
@@ -126,7 +126,7 @@ class AgentInvigilator:
         from ..language_models import Model
         from ..scenarios import Scenario
 
-        model = model or Model()
+        model = model or cast("LanguageModel", Model())
         scenario = scenario or Scenario()
 
         if cache is None:
@@ -204,7 +204,7 @@ class AgentInvigilator:
 
         # Set the current question context
         self.agent.current_question = question
-        model = model or Model()
+        model = model or cast("LanguageModel", Model())
         scenario = scenario or Scenario()
 
         invigilator = self.create_invigilator(

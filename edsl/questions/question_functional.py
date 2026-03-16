@@ -144,7 +144,7 @@ class QuestionFunctional(QuestionBase):
         super().__init__()
         if func:
             self.function_source_code = inspect.getsource(func)
-            self.function_name = func.__name__
+            self.function_name = func.__name__  # type: ignore[union-attr]
         else:
             self.function_source_code = function_source_code
             self.function_name = function_name

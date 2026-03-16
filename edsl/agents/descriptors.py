@@ -85,7 +85,7 @@ class Codebook(dict):
         sl = ScenarioList()
         for key, value in self.items():
             sl.append(Scenario({"key": key, "value": value}))
-        return sl._repr_html_(include_class_info=False)
+        return sl._repr_html_()
 
 
 class CodebookDescriptor:
