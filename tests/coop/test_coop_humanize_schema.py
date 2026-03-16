@@ -7,7 +7,7 @@ from edsl.coop.coop_humanize_schema import (
 )
 from edsl.coop.exceptions import HumanizeSchemaValidationError
 from edsl.instructions import Instruction
-from edsl.questions import QuestionDemand, QuestionFreeText
+from edsl.questions import QuestionDemand, QuestionFreeText, QuestionMultipleChoice
 from edsl.surveys import Survey
 
 
@@ -53,6 +53,24 @@ class TestValidateHumanizeSchema:
         humanize_schema = {
             "questions": {"q1": {"optional": False}},
             "survey": {"custom_css": None},
+        }
+        validate_humanize_schema(survey, humanize_schema)
+
+    def test_valid_schema_with_format_passes(self):
+        """Humanize schema with format (radio/dropdown) for supported question type passes."""
+        survey = Survey(
+            [
+                QuestionMultipleChoice(
+                    question_name="fruit",
+                    question_text="Which fruit do you prefer?",
+                    question_options=["Apple", "Banana", "Cherry"],
+                ),
+            ]
+        )
+        humanize_schema = {
+            "questions": {
+                "fruit": {"optional": False, "format": {"type": "dropdown"}},
+            },
         }
         validate_humanize_schema(survey, humanize_schema)
 

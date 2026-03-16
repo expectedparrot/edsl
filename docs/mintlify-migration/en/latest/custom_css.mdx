@@ -80,8 +80,10 @@ Every question component supported by humanize has `edsl-*` CSS classes so you c
 </div>
 ```
 
-### File upload (multiple)
+### File upload
 
+<Tabs>
+  <Tab title="Multiple files">
 ```html
 <div class="edsl-question edsl-file-upload-question">
   <div class="edsl-question-text">Upload supporting documents.</div>
@@ -109,9 +111,8 @@ Every question component supported by humanize has `edsl-*` CSS classes so you c
   <p class="edsl-error">…</p>
 </div>
 ```
-
-### File upload (single)
-
+  </Tab>
+  <Tab title="Single file">
 ```html
 <div class="edsl-question edsl-file-upload-question">
   <div class="edsl-question-text">Upload your CV.</div>
@@ -124,6 +125,8 @@ Every question component supported by humanize has `edsl-*` CSS classes so you c
   <p class="edsl-error">…</p>
 </div>
 ```
+  </Tab>
+</Tabs>
 
 ### Free text
 
@@ -136,6 +139,10 @@ Every question component supported by humanize has `edsl-*` CSS classes so you c
 ```
 
 ### Linear scale
+
+<Tabs>
+  <Tab title="Radio">
+    When humanize format is `radio` (default):
 
 ```html
 <div class="edsl-question edsl-linear-scale-question">
@@ -158,8 +165,34 @@ Every question component supported by humanize has `edsl-*` CSS classes so you c
   <p class="edsl-error">…</p>
 </div>
 ```
+  </Tab>
+  <Tab title="Dropdown">
+    When humanize format is `dropdown`:
+
+```html
+<div class="edsl-question edsl-linear-scale-question">
+  <div class="edsl-question-text">Rate from 1 to 5.</div>
+  <div class="edsl-options">
+    <select class="edsl-select" name="q1">
+      <option value="">Select...</option>
+      <option value="1">1 - Very poor</option>
+      <option value="2">2</option>
+      <option value="3">3</option>
+      <option value="4">4</option>
+      <option value="5">5 - Excellent</option>
+    </select>
+  </div>
+  <p class="edsl-error">…</p>
+</div>
+```
+  </Tab>
+</Tabs>
 
 ### Likert five
+
+<Tabs>
+  <Tab title="Radio">
+    When humanize format is `radio` (default):
 
 ```html
 <div class="edsl-question edsl-likert-question">
@@ -189,6 +222,28 @@ Every question component supported by humanize has `edsl-*` CSS classes so you c
   <p class="edsl-error">…</p>
 </div>
 ```
+  </Tab>
+  <Tab title="Dropdown">
+    When humanize format is `dropdown`:
+
+```html
+<div class="edsl-question edsl-likert-question">
+  <div class="edsl-question-text">How satisfied are you?</div>
+  <div class="edsl-options">
+    <select class="edsl-select" name="q1">
+      <option value="">Select...</option>
+      <option value="Strongly disagree">Strongly disagree</option>
+      <option value="Disagree">Disagree</option>
+      <option value="Neutral">Neutral</option>
+      <option value="Agree">Agree</option>
+      <option value="Strongly agree">Strongly agree</option>
+    </select>
+  </div>
+  <p class="edsl-error">…</p>
+</div>
+```
+  </Tab>
+</Tabs>
 
 ### List
 
@@ -246,6 +301,10 @@ Every question component supported by humanize has `edsl-*` CSS classes so you c
 
 ### Multiple choice
 
+<Tabs>
+  <Tab title="Radio">
+    When humanize format is `radio` (default):
+
 ```html
 <div class="edsl-question edsl-multiple-choice-question">
   <div class="edsl-question-text">Which fruit do you prefer?</div>
@@ -267,6 +326,26 @@ Every question component supported by humanize has `edsl-*` CSS classes so you c
   <p class="edsl-error"><svg>…</svg> Please select an option.</p>
 </div>
 ```
+  </Tab>
+  <Tab title="Dropdown">
+    When humanize format is `dropdown`:
+
+```html
+<div class="edsl-question edsl-multiple-choice-question">
+  <div class="edsl-question-text">Which fruit do you prefer?</div>
+  <div class="edsl-options">
+    <select class="edsl-select" name="q1">
+      <option value="">Select...</option>
+      <option value="Apple">Apple</option>
+      <option value="Banana">Banana</option>
+      <option value="Cherry">Cherry</option>
+    </select>
+  </div>
+  <p class="edsl-error">…</p>
+</div>
+```
+  </Tab>
+</Tabs>
 
 ### Multiple choice with other
 
@@ -297,6 +376,10 @@ Every question component supported by humanize has `edsl-*` CSS classes so you c
 
 ### Numerical
 
+<Tabs>
+  <Tab title="Input">
+    When humanize format is `input` (default):
+
 ```html
 <div class="edsl-question edsl-numerical-question">
   <div class="edsl-question-text">Enter your age.</div>
@@ -304,6 +387,26 @@ Every question component supported by humanize has `edsl-*` CSS classes so you c
   <p class="edsl-error">…</p>
 </div>
 ```
+  </Tab>
+  <Tab title="Slider">
+    When humanize format is `slider`:
+
+```html
+<div class="edsl-question edsl-numerical-question">
+  <div class="edsl-question-text">On a scale of 0 to 100, how likely are you to recommend?</div>
+  <div>
+    <input class="edsl-input edsl-numerical-slider" type="range" min="0" max="100" step="1" value="50" />
+    <div>
+      <span>0</span>
+      <span>50</span>
+      <span>100</span>
+    </div>
+  </div>
+  <p class="edsl-error">…</p>
+</div>
+```
+  </Tab>
+</Tabs>
 
 ### Rank
 
@@ -370,6 +473,10 @@ Every question component supported by humanize has `edsl-*` CSS classes so you c
 
 ### Yes/no
 
+<Tabs>
+  <Tab title="Radio">
+    When humanize format is `radio` (default):
+
 ```html
 <div class="edsl-question edsl-yes-no-question">
   <div class="edsl-question-text">Do you agree?</div>
@@ -386,3 +493,22 @@ Every question component supported by humanize has `edsl-*` CSS classes so you c
   <p class="edsl-error">…</p>
 </div>
 ```
+  </Tab>
+  <Tab title="Dropdown">
+    When humanize format is `dropdown`:
+
+```html
+<div class="edsl-question edsl-yes-no-question">
+  <div class="edsl-question-text">Do you agree?</div>
+  <div class="edsl-options">
+    <select class="edsl-select" name="q1">
+      <option value="">Select...</option>
+      <option value="Yes">Yes</option>
+      <option value="No">No</option>
+    </select>
+  </div>
+  <p class="edsl-error">…</p>
+</div>
+```
+  </Tab>
+</Tabs>
