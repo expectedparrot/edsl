@@ -82,14 +82,16 @@ class RawResponseHandler:
             # For non-reasoning models or reasoning models with different response formats,
             # try to extract text directly from common response formats
             if isinstance(raw_response, dict):
-                # Responses API format for non-reasoning models
+                # Responses API format — scan all output items for a message block
                 if "output" in raw_response and isinstance(
                     raw_response["output"], list
                 ):
-                    # Try to get first message content
-                    if len(raw_response["output"]) > 0:
-                        item = raw_response["output"][0]
-                        if isinstance(item, dict) and "content" in item:
+                    for item in raw_response["output"]:
+                        if (
+                            isinstance(item, dict)
+                            and item.get("type") == "message"
+                            and "content" in item
+                        ):
                             if (
                                 isinstance(item["content"], list)
                                 and len(item["content"]) > 0
@@ -102,6 +104,16 @@ class RawResponseHandler:
                                     return first_content["text"]
                             elif isinstance(item["content"], str):
                                 return item["content"]
+                    # No message block found — response may be incomplete
+                    # (e.g., reasoning model used all tokens on thinking)
+                    status = raw_response.get("status")
+                    incomplete = raw_response.get("incomplete_details") or {}
+                    if status == "incomplete":
+                        reason = incomplete.get("reason", "unknown")
+                        raise LanguageModelBadResponseError(
+                            message=f"Response incomplete: {reason}. The model used all output tokens on reasoning with no text generated. Try increasing max_tokens.",
+                            response_json=raw_response,
+                        )
 
                 # OpenAI completions format
                 if (
