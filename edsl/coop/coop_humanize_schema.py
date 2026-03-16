@@ -89,11 +89,18 @@ class MatrixHumanizeSchema(HumanizeSchemaBase):
     optional: bool = False
 
 
+class MultipleChoiceCustomValidation(HumanizeSchemaBase):
+    """Custom validation for multiple choice: require a specific answer (e.g. select_exact_answer)."""
+
+    select_exact_answer: Optional[str] = None
+
+
 class MultipleChoiceHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the multiple choice question type."""
 
     optional: bool = False
     format: MCSubclassFormatSchema = Field(default_factory=MCSubclassFormatSchema)
+    custom_validation: Optional[MultipleChoiceCustomValidation] = None
 
 
 class MultipleChoiceWithOtherHumanizeSchema(HumanizeSchemaBase):

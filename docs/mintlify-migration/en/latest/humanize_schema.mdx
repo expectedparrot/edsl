@@ -26,6 +26,14 @@ When creating a human survey or preview (e.g. `survey.humanize()` or `survey.pre
       
       Other question types do not support `format`; omit it for those.
     </ParamField>
+    <ParamField path="questions.question_name.custom_validation" type="object" required={false}>
+      **Multiple choice only** (`multiple_choice`). Optional custom validation rules.
+      <Expandable title="properties">
+        <ParamField path="questions.question_name.custom_validation.select_exact_answer" type="string" required={false}>
+          If set, the human survey will require the respondent to select this exact option. Use for attention checks or forcing a particular choice. Omit or set to `null` to allow any selection.
+        </ParamField>
+      </Expandable>
+    </ParamField>
   </Expandable>
 </ParamField>
 
@@ -55,7 +63,7 @@ survey = Survey([
 humanize_schema = {
     "questions": {
         "feedback": {"optional": True},
-        "rating": {"optional": False, "format": {"type": "dropdown"}},
+        "rating": {"optional": False, "format": {"type": "dropdown"}, "custom_validation": {"select_exact_answer": "Good"}},
     },
     "survey": {"custom_css": None},
 }
