@@ -3204,6 +3204,7 @@ class Survey(Base):
         survey_description: Optional[str] = None,
         survey_alias: Optional[str] = None,
         survey_visibility: Optional["VisibilityType"] = "private",
+        humanize_schema: Optional[Dict[str, Any]] = None,
     ) -> dict:
         """
         Send the survey to Coop.
@@ -3220,17 +3221,21 @@ class Survey(Base):
             survey_description=survey_description,
             survey_alias=survey_alias,
             survey_visibility=survey_visibility,
+            humanize_schema=humanize_schema,
         )
         return Scenario(human_survey_details)
 
-    def preview(self) -> str:
+    def preview(
+        self,
+        humanize_schema: Optional[Dict[str, Any]] = None,
+    ) -> str:
         """
         Returns a link to preview the humanize survey on Coop.
         """
         from ..coop import Coop
 
         c = Coop()
-        return c.get_survey_preview_url(self)
+        return c.get_survey_preview_url(self, humanize_schema=humanize_schema)
 
     # Add export method delegations
     def css(self):
