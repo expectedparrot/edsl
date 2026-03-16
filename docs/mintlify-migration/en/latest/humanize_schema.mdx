@@ -18,7 +18,7 @@ When creating a human survey or preview (e.g. `survey.humanize()` or `survey.pre
       
       Note: `optional` currently has no effect for `interview` and `rank`.
     </ParamField>
-    <ParamField path="questions.question_name.format" type="object" required={false}>
+    <ParamField path="questions.question_name.format" type="dict" required={false}>
       Display format. Varies by question type:
       
       - **MC-style** (`likert_five`, `linear_scale`, `multiple_choice`, `yes_no`): `"radio"` (list of radio buttons) or `"dropdown"` (single `<select>`). Default is `"radio"`. Use `{"type": "radio"}` or `{"type": "dropdown"}`.
@@ -26,7 +26,7 @@ When creating a human survey or preview (e.g. `survey.humanize()` or `survey.pre
       
       Other question types do not support `format`; omit it for those.
     </ParamField>
-    <ParamField path="questions.question_name.custom_validation" type="object" required={false}>
+    <ParamField path="questions.question_name.custom_validation" type="dict" required={false}>
       **Multiple choice only** (`multiple_choice`). Optional custom validation rules.
       <Expandable title="properties">
         <ParamField path="questions.question_name.custom_validation.select_exact_answer" type="string" required={false}>
