@@ -631,6 +631,27 @@ class ObjectStore:
         except (KeyError, OSError):
             pass  # remote may not support metadata endpoint
 
+        # Index pulled commits into the local metadata index.
+        # sync() copies CAS objects to the local backend but doesn't
+        # update the SQLite index, so log() wouldn't show them.
+        pull_branch = result.get("branch", "main")
+        commit_hash = result.get("commit")
+        while commit_hash:
+            commit_key = f"commits/{commit_hash}.json"
+            try:
+                commit_content = local_backend.read(commit_key)
+            except KeyError:
+                break
+            co = json.loads(commit_content)
+            self._index.put_commit(uuid, commit_hash, {
+                "parent": co.get("parent"),
+                "tree": co["tree"],
+                "timestamp": co["timestamp"],
+                "message": co.get("message", ""),
+                "branch": pull_branch,
+            })
+            commit_hash = co.get("parent")
+
         return result
 
     # ------------------------------------------------------------------
