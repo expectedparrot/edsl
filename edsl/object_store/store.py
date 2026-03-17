@@ -167,15 +167,15 @@ def _sync_commit(source, dest, commit_hash: str, skip_exists: bool = False) -> d
 
 def _update_dest_refs(dest, branch: str, tip: str) -> None:
     """Update ref, HEAD, and current.jsonl snapshot on the destination."""
-    dest.write(f"refs/{branch}", tip + "\n")
-    dest.write("HEAD", branch + "\n")
-
-    # Skip current.jsonl reconstruction for HTTP backends — the server
-    # rebuilds it during push/finalize, and reading back all blobs over
-    # HTTP is extremely slow (one round-trip per blob).
+    # For HTTP backends, the ref write triggers the bundle POST which
+    # handles HEAD and current.jsonl server-side. Skip the extra calls.
     from .http_backend import HttpBackend
     if isinstance(dest, HttpBackend):
+        dest.write(f"refs/{branch}", tip + "\n")
         return
+
+    dest.write(f"refs/{branch}", tip + "\n")
+    dest.write("HEAD", branch + "\n")
 
     # Reconstruct current.jsonl from the tip commit
     tip_commit = json.loads(dest.read(f"commits/{tip}.json"))
