@@ -180,6 +180,13 @@ class InstanceStoreAccessor(ClassStoreAccessor):
             )
         super().__setattr__(name, value)
 
+    def __repr__(self) -> str:
+        if self.uuid is None:
+            return "Store(not saved)"
+        obj_type = type(self._instance).__name__
+        branch = self.current_branch or "?"
+        return f"Store({obj_type} uuid={self.uuid} branch={branch})"
+
     @property
     def title(self) -> Optional[str]:
         return self._title
@@ -297,11 +304,12 @@ class InstanceStoreAccessor(ClassStoreAccessor):
     def log(self, root=None):
         """Commit history for this object in the store."""
         from ..object_store import ObjectStore
-        from ..object_store.store_info import StoreLogInfo
+        from ..scenarios import Scenario, ScenarioList
 
         if self.uuid is None:
             raise ValueError("This object has not been saved to a store yet.")
-        return StoreLogInfo(ObjectStore(root).log(self.uuid))
+        entries = ObjectStore(root).log(self.uuid)
+        return ScenarioList([Scenario(e) for e in entries])
 
     def diff(self, ref_a: str = None, ref_b: str = None, branch=None, context: int = 3, root=None):
         """Diff two saved versions of this object.

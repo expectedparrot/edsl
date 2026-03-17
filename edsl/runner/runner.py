@@ -190,6 +190,11 @@ class JobHandle:
         if state == JobState.CANCELLED:
             raise RuntimeError(f"Job {self._job_id} was cancelled")
 
+        # Finalize CAS streaming (flush pending results)
+        cas = self._runner._job_cas.get(self._job_id)
+        if cas is not None:
+            cas.finalize()
+
         # Time results assembly
         t0 = time.time()
         results = self._service.build_edsl_results(self._job_id)
@@ -204,6 +209,12 @@ class JobHandle:
                 + stats.loop_overhead
             )
             print(stats.report())
+
+        # Attach CAS metadata so results.store.log() works
+        if cas is not None:
+            results.store.uuid = cas.uuid
+            results.store.commit = cas.tip
+            results.store.current_branch = "main"
 
         return results
 
@@ -391,6 +402,9 @@ class Runner:
         # Client-side registry for direct answer tasks
         self._direct_registry = DirectAnswerRegistry()
 
+        # CAS streaming integrations per job
+        self._job_cas: dict[str, Any] = {}
+
     def _create_storage(self, storage: StorageProtocol | str | None) -> StorageProtocol:
         """Create storage from URL string or return existing protocol."""
         if storage is None:
@@ -422,6 +436,8 @@ class Runner:
         n: int = 1,
         cache: Any = None,
         stop_on_exception: bool = False,
+        stream_to_cas: bool = False,
+        cas_batch_size: int = 1,
     ) -> JobHandle:
         """
         Submit a job for execution.
@@ -435,6 +451,10 @@ class Runner:
                    - False: no caching.
                    - Cache: shared across all workers.
             stop_on_exception: If True, cancels the job and raises on first failure.
+            stream_to_cas: If True, incrementally persist results to CAS
+                           as each interview completes.
+            cas_batch_size: Number of completed interviews to accumulate
+                           before writing a CAS commit (default 1).
 
         Returns:
             JobHandle to track and retrieve results.
@@ -463,6 +483,16 @@ class Runner:
 
         # Store stop_on_exception setting
         self._job_stop_on_exception[job_id] = stop_on_exception
+
+        # Opt-in CAS streaming
+        if stream_to_cas:
+            from .cas_integration import RunnerCASIntegration
+
+            survey = job.survey if hasattr(job, "survey") else getattr(job, "_survey", None)
+            if survey is not None:
+                self._job_cas[job_id] = RunnerCASIntegration(
+                    job_id, survey, self._service, batch_size=cas_batch_size
+                )
 
         return JobHandle(job_id, self)
 

@@ -75,6 +75,7 @@ class JobService:
         self._original_models: dict[
             str, dict[str, Any]
         ] = {}  # job_id -> {model_id -> model_obj}
+        self._interview_callbacks: dict[str, Any] = {}  # job_id -> callable(job_id, interview_id)
 
     @property
     def jobs(self) -> JobStore:
@@ -91,6 +92,15 @@ class JobService:
     @property
     def answers(self) -> AnswerStore:
         return self._answers
+
+    def register_interview_callback(self, job_id: str, callback) -> None:
+        """Register a callback invoked when an interview completes.
+
+        The callback receives ``(job_id, interview_id)`` and is called
+        from ``on_task_completed`` / ``on_tasks_completed_batch`` once
+        all tasks for the interview are done.
+        """
+        self._interview_callbacks[job_id] = callback
 
     def get_model_for_task(self, job_id: str, model_id: str) -> Any:
         """
@@ -839,6 +849,10 @@ class JobService:
         if interview_state != InterviewState.RUNNING:
             had_failures = interview_state == InterviewState.COMPLETED_WITH_FAILURES
             self._jobs.mark_interview_completed(job_id, interview_id, had_failures)
+            # Notify CAS streaming callback (if registered)
+            cb = self._interview_callbacks.get(job_id)
+            if cb:
+                cb(job_id, interview_id)
         _dt_finalize = (_time.monotonic() - _t) * 1000
 
         _dt_total = (_time.monotonic() - _t_total) * 1000
@@ -961,10 +975,13 @@ class JobService:
 
         # Check which interviews are done and update job
         interview_states = self._interviews.get_states_batch(interview_ids)
+        cb = self._interview_callbacks.get(job_id)
         for iid, state in interview_states.items():
             if state != InterviewState.RUNNING:
                 had_failures = state == InterviewState.COMPLETED_WITH_FAILURES
                 self._jobs.mark_interview_completed(job_id, iid, had_failures)
+                if cb:
+                    cb(job_id, iid)
         _t_finalize = (_t.time() - _t0) * 1000
 
         _total = (_t.time() - _batch_t0) * 1000
@@ -1004,6 +1021,9 @@ class JobService:
         if interview_state != InterviewState.RUNNING:
             had_failures = interview_state == InterviewState.COMPLETED_WITH_FAILURES
             self._jobs.mark_interview_completed(job_id, interview_id, had_failures)
+            cb = self._interview_callbacks.get(job_id)
+            if cb:
+                cb(job_id, interview_id)
 
     def on_task_failed(
         self,
@@ -1054,6 +1074,9 @@ class JobService:
         if interview_state != InterviewState.RUNNING:
             had_failures = True  # We just had a failure
             self._jobs.mark_interview_completed(job_id, interview_id, had_failures)
+            cb = self._interview_callbacks.get(job_id)
+            if cb:
+                cb(job_id, interview_id)
 
     def _propagate_failure(
         self, job_id: str, interview_id: str, dependent_ids: list[str]

@@ -799,12 +799,12 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         transformer = ResultsTransformer(self)
         return transformer.mutate(new_var_string, functions_dict)
 
-    def long_view(
+    def long(
         self,
         scenario_fields: Optional[List[str]] = None,
         agent_fields: Optional[List[str]] = None,
         model_fields: Optional[List[str]] = None,
-    ) -> Results:
+    ) -> ScenarioList:
         """Return a long view of the results.
 
         The columns are: agent_index, scenario_index, question_name, question_text, answer.
@@ -1156,6 +1156,53 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
             disable_remote_inference=True,
         )
         return results
+
+    def long_view(self, scenario_fields=None, agent_fields=None):
+        """Return a ScenarioList with one row per result-question combination.
+
+        By default each row contains scenario_index, agent_index,
+        question_name, question_text, and answer.  When *scenario_fields*
+        or *agent_fields* are provided the corresponding index column is
+        replaced by the requested field values.
+
+        Args:
+            scenario_fields: List of scenario keys to include (replaces scenario_index).
+            agent_fields: List of agent keys to include (replaces agent_index).
+
+        Returns:
+            ScenarioList
+        """
+        from ..scenarios import Scenario, ScenarioList
+
+        rows = []
+        for idx, result in enumerate(self.data):
+            agent = result["agent"]
+            scenario = result["scenario"]
+            answer_dict = result.sub_dicts.get("answer", {})
+
+            for qname, answer_val in answer_dict.items():
+                row = {}
+
+                # Scenario identification
+                if scenario_fields:
+                    for sf in scenario_fields:
+                        row[f"scenario.{sf}"] = scenario.get(sf)
+                else:
+                    row["scenario_index"] = idx
+
+                # Agent identification
+                if agent_fields:
+                    for af in agent_fields:
+                        row[f"agent.{af}"] = getattr(agent, af, agent.traits.get(af))
+                else:
+                    row["agent_index"] = idx
+
+                row["question_name"] = qname
+                row["question_text"] = result.get_question_text(qname)
+                row["answer"] = answer_val
+                rows.append(Scenario(row))
+
+        return ScenarioList(rows)
 
     def rich_print(self):
         """Display an object as a table."""

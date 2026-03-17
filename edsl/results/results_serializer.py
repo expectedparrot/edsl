@@ -5,11 +5,10 @@ deserialization operations for Results objects, including dictionary conversion,
 object reconstruction, shelve operations, and disk persistence.
 
 Inline JSONL format:
-  - Line 1: header (``__header__: true``, class name, version, n_results, format)
-  - Line 2: manifest (created_columns, name, n_survey_lines, n_cache_lines)
+  - Line 1: header (``__header__: true``, class name, version, format)
+  - Line 2: manifest (created_columns, name, n_survey_lines)
   - Lines 3..S+2: Survey JSONL lines (inline)
-  - Lines S+3..S+C+2: Cache JSONL lines (inline, 0 lines if empty)
-  - Lines S+C+3..: Result rows (one Result.to_dict() per line)
+  - Lines S+3..: Result rows (one Result.to_dict() per line, appendable)
 """
 
 import json
@@ -213,23 +212,18 @@ class ResultsSerializer:
           - Line 1: header
           - Line 2: manifest (line counts + metadata)
           - Survey lines (from Survey.to_jsonl_rows())
-          - Cache lines (from Cache.to_jsonl_rows(), skipped if empty)
           - Result rows (one Result.to_dict() per line)
         """
         from .. import __version__
 
-        # Collect survey and cache rows first to get counts
+        # Collect survey rows first to get count
         survey_rows = list(self.results.survey.to_jsonl_rows(blob_writer=blob_writer))
-
-        has_cache = hasattr(self.results, "cache") and len(self.results.cache) > 0
-        cache_rows = list(self.results.cache.to_jsonl_rows(blob_writer=blob_writer)) if has_cache else []
 
         # Header
         yield json.dumps({
             "__header__": True,
             "edsl_class_name": "Results",
             "edsl_version": __version__,
-            "n_results": len(self.results.data),
             "format": "inline",
         })
 
@@ -238,14 +232,10 @@ class ResultsSerializer:
             "created_columns": self.results.created_columns,
             "name": self.results.name,
             "n_survey_lines": len(survey_rows),
-            "n_cache_lines": len(cache_rows),
         })
 
         # Survey lines
         yield from survey_rows
-
-        # Cache lines
-        yield from cache_rows
 
         # Result rows
         for result in self.results.data:
@@ -262,7 +252,6 @@ class ResultsSerializer:
           - Line 1: header
           - Line 2: manifest (line counts + metadata)
           - Survey lines inline
-          - Cache lines inline (if non-empty)
           - Result rows
         """
         content = "\n".join(self.to_jsonl_rows()) + "\n"
@@ -294,25 +283,18 @@ class ResultsSerializer:
         manifest = json.loads(lines[1])
 
         n_survey = manifest["n_survey_lines"]
-        n_cache = manifest["n_cache_lines"]
 
         # Survey section starts at line index 2
         survey_lines = lines[2 : 2 + n_survey]
         survey = Survey.from_jsonl(survey_lines)
 
-        # Cache section
-        if n_cache > 0:
-            cache_start = 2 + n_survey
-            cache_lines = lines[cache_start : cache_start + n_cache]
-            cache = Cache.from_jsonl(cache_lines)
-        else:
-            cache = Cache()
+        cache = Cache()
 
         created_columns = manifest.get("created_columns", [])
         name = manifest.get("name", None)
 
         # Result rows
-        result_start = 2 + n_survey + n_cache
+        result_start = 2 + n_survey
         results_data = [
             Result.from_dict(json.loads(line))
             for line in lines[result_start:]
