@@ -406,6 +406,12 @@ class SQLiteMetadataIndex:
         self._conn.execute("DELETE FROM tokens WHERE token = ?", (token,))
         self._conn.commit()
 
+    def delete_all(self) -> None:
+        """Delete all data from all tables."""
+        for table in ("commits", "tokens", "objects", "users"):
+            self._conn.execute(f"DELETE FROM {table}")
+        self._conn.commit()
+
     # ------------------------------------------------------------------
 
     def close(self) -> None:

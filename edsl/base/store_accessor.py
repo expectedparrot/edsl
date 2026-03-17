@@ -17,7 +17,9 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-DEFAULT_REMOTE_URL = "http://localhost:8000"
+def _default_remote_url() -> str:
+    from edsl.config import CONFIG
+    return CONFIG.get("EDSL_CAS_URL")
 
 
 def _default_token() -> Optional[str]:
@@ -118,13 +120,14 @@ class ClassStoreAccessor:
 
         return ObjectStore(root).diff(uuid, ref_a=ref_a, ref_b=ref_b, branch=branch, context=context)
 
-    def pull(self, uuid: str, remote_url: str = DEFAULT_REMOTE_URL, branch=None, root=None, token=None):
+    def pull(self, uuid: str, remote_url: str = None, branch=None, root=None, token=None):
         """Pull a remote object to the local store by UUID.
 
         Returns the loaded object with CAS tracking set.
         """
         from ..object_store import ObjectStore
 
+        remote_url = remote_url or _default_remote_url()
         token = token or _default_token()
         ObjectStore(root).pull(uuid, remote_url, branch=branch, token=token)
         return self.load(uuid, root=root)
@@ -352,21 +355,22 @@ class InstanceStoreAccessor(ClassStoreAccessor):
             raise ValueError("This object has not been saved to a store yet.")
         ObjectStore(root).checkout(self.uuid, branch)
 
-    def push(self, remote_url: str = DEFAULT_REMOTE_URL, branch=None, root=None, token=None) -> dict:
+    def push(self, remote_url: str = None, branch=None, root=None, token=None) -> dict:
         """Push this object to a remote CAS service.
 
         Saves locally first if not already saved. Defaults to
-        ``http://localhost:8000``. Uses ``EXPECTED_PARROT_API_KEY``
+        ``EDSL_CAS_URL`` config value. Uses ``EXPECTED_PARROT_API_KEY``
         from the environment if no token is given.
         """
         from ..object_store import ObjectStore
 
+        remote_url = remote_url or _default_remote_url()
         token = token or _default_token()
         if self.uuid is None:
             self.save(root=root)
         return ObjectStore(root).push(self.uuid, remote_url, branch=branch, token=token)
 
-    def pull(self, remote_url: str = DEFAULT_REMOTE_URL, branch=None, root=None, token=None) -> dict:
+    def pull(self, remote_url: str = None, branch=None, root=None, token=None) -> dict:
         """Pull this object from a remote CAS service.
 
         The object must have a UUID (from a previous save or pull).
@@ -378,6 +382,7 @@ class InstanceStoreAccessor(ClassStoreAccessor):
         """
         from ..object_store import ObjectStore
 
+        remote_url = remote_url or _default_remote_url()
         token = token or _default_token()
         if self.uuid is None:
             raise ValueError("This object has no UUID. Save it first or use ObjectStore.pull() with an explicit UUID.")

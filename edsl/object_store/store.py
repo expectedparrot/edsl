@@ -115,11 +115,14 @@ def _resolve_sync_branch(source, branch: Optional[str]) -> tuple[str, str]:
     tip = source.read(f"refs/{head_branch}").strip()
     return head_branch, tip
 
-def _sync_commit(source, dest, commit_hash: str) -> dict:
+def _sync_commit(source, dest, commit_hash: str, skip_exists: bool = False) -> dict:
     """Copy a single commit and its tree/blob from source to dest.
 
     Returns a dict with counts of copied objects (``blobs``, ``trees``,
     ``commits``) and the list of file-blob hashes referenced in the content.
+
+    When *skip_exists* is True, writes all objects unconditionally
+    (the destination handles dedup, e.g. via the push bundle protocol).
     """
     copied = {"blobs": 0, "trees": 0, "commits": 0}
 
@@ -129,7 +132,7 @@ def _sync_commit(source, dest, commit_hash: str) -> dict:
 
     # Copy tree
     tree_key = f"trees/{commit_obj['tree']}.json"
-    if not dest.exists(tree_key):
+    if skip_exists or not dest.exists(tree_key):
         dest.write(tree_key, source.read(tree_key))
         copied["trees"] += 1
 
@@ -140,7 +143,7 @@ def _sync_commit(source, dest, commit_hash: str) -> dict:
         blob_key = f"blobs/{blob_hash}.json"
         row = source.read(blob_key)
         rows.append(row)
-        if not dest.exists(blob_key):
+        if skip_exists or not dest.exists(blob_key):
             dest.write(blob_key, row)
             copied["blobs"] += 1
 
@@ -151,7 +154,7 @@ def _sync_commit(source, dest, commit_hash: str) -> dict:
     # Copy referenced file blobs
     for blob_hash in blob_refs:
         fb_key = f"blobs/{blob_hash}.json"
-        if not dest.exists(fb_key):
+        if skip_exists or not dest.exists(fb_key):
             dest.write(fb_key, source.read(fb_key))
             copied["blobs"] += 1
 
@@ -166,6 +169,13 @@ def _update_dest_refs(dest, branch: str, tip: str) -> None:
     """Update ref, HEAD, and current.jsonl snapshot on the destination."""
     dest.write(f"refs/{branch}", tip + "\n")
     dest.write("HEAD", branch + "\n")
+
+    # Skip current.jsonl reconstruction for HTTP backends — the server
+    # rebuilds it during push/finalize, and reading back all blobs over
+    # HTTP is extremely slow (one round-trip per blob).
+    from .http_backend import HttpBackend
+    if isinstance(dest, HttpBackend):
+        return
 
     # Reconstruct current.jsonl from the tip commit
     tip_commit = json.loads(dest.read(f"commits/{tip}.json"))
@@ -218,7 +228,8 @@ class ObjectStore:
         metadata_index=None,
     ):
         self.root = Path(root) if root else self.DEFAULT_ROOT
-        self.root.mkdir(parents=True, exist_ok=True)
+        if backend_factory is None:
+            self.root.mkdir(parents=True, exist_ok=True)
 
         self._backend_factory = backend_factory or self._default_backend_factory
         self._index = metadata_index or SQLiteMetadataIndex(
@@ -530,14 +541,21 @@ class ObjectStore:
         """
         branch, tip = _resolve_sync_branch(source, branch)
 
+        # For HTTP destinations, skip per-commit existence checks — the
+        # push bundle protocol handles dedup via already_exists flags,
+        # and each exists() call is a slow HTTP round-trip.
+        from .http_backend import HttpBackend
+        skip_exists = isinstance(dest, HttpBackend)
+
         totals = {"blobs": 0, "trees": 0, "commits": 0}
         commit_hash = tip
         while commit_hash:
-            commit_key = f"commits/{commit_hash}.json"
-            if dest.exists(commit_key):
-                break  # already have this commit and all ancestors
+            if not skip_exists:
+                commit_key = f"commits/{commit_hash}.json"
+                if dest.exists(commit_key):
+                    break  # already have this commit and all ancestors
 
-            result = _sync_commit(source, dest, commit_hash)
+            result = _sync_commit(source, dest, commit_hash, skip_exists=skip_exists)
             for k in ("blobs", "trees", "commits"):
                 totals[k] += result[k]
             commit_hash = result["parent"]

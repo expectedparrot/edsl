@@ -139,6 +139,10 @@ CONFIG_MAP = {
         "info": "This config var determines the default table renderer for displaying datasets in notebooks (options: 'pandas', 'datatables', 'rich', 'tabulator').",
         "valid_values": EDSL_TABLE_RENDERERS,
     },
+    "EDSL_CAS_URL": {
+        "default": "http://localhost:8000",
+        "info": "Base URL of the CAS editor service for push/pull operations.",
+    },
 }
 
 

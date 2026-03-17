@@ -32,3 +32,13 @@ __all__ = [
     "StoreDiffInfo",
     "StreamingCASWriter",
 ]
+
+
+def _lazy_gcs_backend():
+    from .gcs_backend import GCSBackend
+    return GCSBackend
+
+
+def _lazy_pg_metadata_index():
+    from .pg_metadata_index import PostgreSQLMetadataIndex
+    return PostgreSQLMetadataIndex

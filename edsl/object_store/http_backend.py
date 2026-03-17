@@ -150,7 +150,7 @@ class HttpBackend:
         commit_hash: str,
         expected_tip: Optional[str] = None,
     ) -> dict:
-        """Push buffered objects using the 3-phase signed-URL protocol."""
+        """Push buffered objects in a single HTTP request."""
         update_ref: dict = {
             "branch": branch,
             "commit": commit_hash,
@@ -158,40 +158,21 @@ class HttpBackend:
         if expected_tip is not None:
             update_ref["expected_tip"] = expected_tip
 
-        # Build manifest of objects to upload
-        objects = []
-        content_map: dict[str, str] = {}  # "category/hash" -> content
+        # Build dict of "category/hash" -> content
+        objects: dict[str, str] = {}
         for category, pending in [
             ("blobs", self._pending_blobs),
             ("trees", self._pending_trees),
             ("commits", self._pending_commits),
         ]:
             for hash_, content in pending.items():
-                objects.append({"category": category, "hash": hash_, "size": len(content)})
-                content_map[f"{category}/{hash_}"] = content
+                objects[f"{category}/{hash_}"] = content
 
-        # Phase 1: begin
-        begin_body: dict = {"objects": objects, "update_ref": update_ref}
+        body: dict = {"objects": objects, "update_ref": update_ref}
         if self._pending_meta is not None:
-            begin_body["meta"] = self._pending_meta
+            body["meta"] = self._pending_meta
 
-        session = self._post_json(f"{self._prefix}/push/begin", begin_body)
-
-        # Phase 2: upload objects (skip already_exists)
-        for entry in session.get("upload_urls", []):
-            if entry.get("already_exists"):
-                continue
-            key = f"{entry['category']}/{entry['hash']}"
-            content = content_map.get(key)
-            if content is None:
-                continue
-            self._put_raw(f"{self.base_url}{entry['upload_url']}", content.encode())
-
-        # Phase 3: finalize
-        result = self._post_json(
-            f"{self._prefix}/push/finalize",
-            {"session_id": session["session_id"]},
-        )
+        result = self._post_json(f"{self._prefix}/push/bundle", body)
 
         # Clear buffers
         self._pending_blobs.clear()
