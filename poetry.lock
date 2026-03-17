@@ -506,7 +506,7 @@ description = "Extensible memoizing collections and decorators"
 optional = true
 python-versions = ">=3.9"
 groups = ["main"]
-markers = "extra == \"inference\" or extra == \"full\" or extra == \"runner-gcp\""
+markers = "extra == \"inference\" or extra == \"full\" or extra == \"runner-gcp\" or extra == \"gcp\""
 files = [
     {file = "cachetools-6.2.2-py3-none-any.whl", hash = "sha256:6c09c98183bf58560c97b2abfcedcbaf6a896a490f534b031b661d3723b45ace"},
     {file = "cachetools-6.2.2.tar.gz", hash = "sha256:8e6d266b25e539df852251cfd6f990b4bc3a141db73b939058d809ebd2590fc6"},
@@ -1443,7 +1443,7 @@ description = "Google API client core library"
 optional = true
 python-versions = ">=3.9"
 groups = ["main"]
-markers = "extra == \"runner-gcp\""
+markers = "extra == \"runner-gcp\" or extra == \"gcp\""
 files = [
     {file = "google_api_core-2.30.0-py3-none-any.whl", hash = "sha256:80be49ee937ff9aba0fd79a6eddfde35fe658b9953ab9b79c57dd7061afa8df5"},
     {file = "google_api_core-2.30.0.tar.gz", hash = "sha256:02edfa9fab31e17fc0befb5f161b3bf93c9096d99aed584625f38065c511ad9b"},
@@ -1470,7 +1470,7 @@ description = "Google Authentication Library"
 optional = true
 python-versions = ">=3.7"
 groups = ["main"]
-markers = "extra == \"inference\" or extra == \"full\" or extra == \"runner-gcp\""
+markers = "extra == \"inference\" or extra == \"full\" or extra == \"runner-gcp\" or extra == \"gcp\""
 files = [
     {file = "google_auth-2.43.0-py2.py3-none-any.whl", hash = "sha256:af628ba6fa493f75c7e9dbe9373d148ca9f4399b5ea29976519e0a3848eddd16"},
     {file = "google_auth-2.43.0.tar.gz", hash = "sha256:88228eee5fc21b62a1b5fe773ca15e67778cb07dc8363adcb4a8827b52d81483"},
@@ -1499,7 +1499,7 @@ description = "Google Cloud API client core library"
 optional = true
 python-versions = ">=3.7"
 groups = ["main"]
-markers = "extra == \"runner-gcp\""
+markers = "extra == \"runner-gcp\" or extra == \"gcp\""
 files = [
     {file = "google_cloud_core-2.5.0-py3-none-any.whl", hash = "sha256:67d977b41ae6c7211ee830c7912e41003ea8194bff15ae7d72fd6f51e57acabc"},
     {file = "google_cloud_core-2.5.0.tar.gz", hash = "sha256:7c1b7ef5c92311717bd05301aa1a91ffbc565673d3b0b4163a52d8413a186963"},
@@ -1519,7 +1519,7 @@ description = "Google Cloud Storage API client library"
 optional = true
 python-versions = ">=3.7"
 groups = ["main"]
-markers = "extra == \"runner-gcp\""
+markers = "extra == \"runner-gcp\" or extra == \"gcp\""
 files = [
     {file = "google_cloud_storage-3.9.0-py3-none-any.whl", hash = "sha256:2dce75a9e8b3387078cbbdad44757d410ecdb916101f8ba308abf202b6968066"},
     {file = "google_cloud_storage-3.9.0.tar.gz", hash = "sha256:f2d8ca7db2f652be757e92573b2196e10fbc09649b5c016f8b422ad593c641cc"},
@@ -1546,7 +1546,7 @@ description = "A python wrapper of the C library 'Google CRC32C'"
 optional = true
 python-versions = ">=3.9"
 groups = ["main"]
-markers = "extra == \"runner-gcp\""
+markers = "extra == \"runner-gcp\" or extra == \"gcp\""
 files = [
     {file = "google_crc32c-1.8.0-cp310-cp310-macosx_12_0_arm64.whl", hash = "sha256:0470b8c3d73b5f4e3300165498e4cf25221c7eb37f1159e221d1825b6df8a7ff"},
     {file = "google_crc32c-1.8.0-cp310-cp310-macosx_12_0_x86_64.whl", hash = "sha256:119fcd90c57c89f30040b47c211acee231b25a45d225e3225294386f5d258288"},
@@ -1617,7 +1617,7 @@ description = "Utilities for Google Media Downloads and Resumable Uploads"
 optional = true
 python-versions = ">=3.7"
 groups = ["main"]
-markers = "extra == \"runner-gcp\""
+markers = "extra == \"runner-gcp\" or extra == \"gcp\""
 files = [
     {file = "google_resumable_media-2.8.0-py3-none-any.whl", hash = "sha256:dd14a116af303845a8d932ddae161a26e86cc229645bc98b39f026f9b1717582"},
     {file = "google_resumable_media-2.8.0.tar.gz", hash = "sha256:f1157ed8b46994d60a1bc432544db62352043113684d4e030ee02e77ebe9a1ae"},
@@ -1637,7 +1637,7 @@ description = "Common protobufs used in Google APIs"
 optional = true
 python-versions = ">=3.7"
 groups = ["main"]
-markers = "extra == \"runner-gcp\""
+markers = "extra == \"runner-gcp\" or extra == \"gcp\""
 files = [
     {file = "googleapis_common_protos-1.72.0-py3-none-any.whl", hash = "sha256:4299c5a82d5ae1a9702ada957347726b167f9f8d1fc352477702a1e851ff4038"},
     {file = "googleapis_common_protos-1.72.0.tar.gz", hash = "sha256:e55a601c1b32b52d7a3e65f43563e2aa61bcd737998ee672ac9b951cd49319f5"},
@@ -4145,7 +4145,7 @@ description = "Beautiful, Pythonic protocol buffers"
 optional = true
 python-versions = ">=3.7"
 groups = ["main"]
-markers = "extra == \"runner-gcp\""
+markers = "extra == \"runner-gcp\" or extra == \"gcp\""
 files = [
     {file = "proto_plus-1.27.1-py3-none-any.whl", hash = "sha256:e4643061f3a4d0de092d62aa4ad09fa4756b2cbb89d4627f3985018216f9fefc"},
     {file = "proto_plus-1.27.1.tar.gz", hash = "sha256:912a7460446625b792f6448bade9e55cd4e41e6ac10e27009ef71a7f317fa147"},
@@ -4164,7 +4164,7 @@ description = ""
 optional = true
 python-versions = ">=3.9"
 groups = ["main"]
-markers = "extra == \"runner-gcp\""
+markers = "extra == \"runner-gcp\" or extra == \"gcp\""
 files = [
     {file = "protobuf-6.33.5-cp310-abi3-win32.whl", hash = "sha256:d71b040839446bac0f4d162e758bea99c8251161dae9d0983a3b88dee345153b"},
     {file = "protobuf-6.33.5-cp310-abi3-win_amd64.whl", hash = "sha256:3093804752167bcab3998bec9f1048baae6e29505adaf1afd14a37bddede533c"},
@@ -4217,7 +4217,7 @@ description = "Pure-Python implementation of ASN.1 types and DER/BER/CER codecs 
 optional = true
 python-versions = ">=3.8"
 groups = ["main"]
-markers = "extra == \"inference\" or extra == \"full\" or extra == \"runner-gcp\""
+markers = "extra == \"inference\" or extra == \"full\" or extra == \"runner-gcp\" or extra == \"gcp\""
 files = [
     {file = "pyasn1-0.6.1-py3-none-any.whl", hash = "sha256:0d632f46f2ba09143da3a8afe9e33fb6f92fa2320ab7e886e2d0f7672af84629"},
     {file = "pyasn1-0.6.1.tar.gz", hash = "sha256:6f580d2bdd84365380830acf45550f2511469f673cb4a5ae3857a3170128b034"},
@@ -4230,7 +4230,7 @@ description = "A collection of ASN.1-based protocols modules"
 optional = true
 python-versions = ">=3.8"
 groups = ["main"]
-markers = "extra == \"inference\" or extra == \"full\" or extra == \"runner-gcp\""
+markers = "extra == \"inference\" or extra == \"full\" or extra == \"runner-gcp\" or extra == \"gcp\""
 files = [
     {file = "pyasn1_modules-0.4.2-py3-none-any.whl", hash = "sha256:29253a9207ce32b64c3ac6600edc75368f98473906e8fd1043bd6b5b1de2c14a"},
     {file = "pyasn1_modules-0.4.2.tar.gz", hash = "sha256:677091de870a80aae844b1ca6134f54652fa2c8c5a52aa396440ac3106e941e6"},
@@ -5351,7 +5351,7 @@ description = "Pure-Python RSA implementation"
 optional = true
 python-versions = "<4,>=3.6"
 groups = ["main"]
-markers = "extra == \"inference\" or extra == \"full\" or extra == \"runner-gcp\""
+markers = "extra == \"inference\" or extra == \"full\" or extra == \"runner-gcp\" or extra == \"gcp\""
 files = [
     {file = "rsa-4.9.1-py3-none-any.whl", hash = "sha256:68635866661c6836b8d39430f97a996acbd61bfa49406748ea243539fe239762"},
     {file = "rsa-4.9.1.tar.gz", hash = "sha256:e7bdbfdb5497da4c07dfd35530e1a902659db6ff241e39d9953cad06ebd0ae75"},
@@ -6477,6 +6477,7 @@ version = "0.0.23"
 description = "An extremely fast Python type checker, written in Rust."
 optional = false
 python-versions = ">=3.8"
+groups = ["dev"]
 files = [
     {file = "ty-0.0.23-py3-none-linux_armv6l.whl", hash = "sha256:e810eef1a5f1cfc0731a58af8d2f334906a96835829767aed00026f1334a8dd7"},
     {file = "ty-0.0.23-py3-none-macosx_10_12_x86_64.whl", hash = "sha256:e43d36bd89a151ddcad01acaeff7dcc507cb73ff164c1878d2d11549d39a061c"},
@@ -6877,6 +6878,7 @@ propcache = ">=0.2.1"
 agent-building = ["seaborn", "sentence-transformers"]
 file-formats = ["openpyxl", "pandas", "pypdf2", "python-docx", "python-pptx"]
 full = ["altair", "anthropic", "azure-ai-inference", "black", "boto3", "fastapi", "google-genai", "groq", "mistralai", "nbclient", "nbformat", "openai", "openpyxl", "pandas", "playwright", "psutil", "pydot", "pypdf2", "python-docx", "python-pptx", "qrcode", "seaborn", "sentence-transformers", "sqlalchemy", "termplotlib", "uvicorn"]
+gcp = ["google-cloud-storage"]
 inference = ["anthropic", "azure-ai-inference", "boto3", "google-genai", "groq", "mistralai", "openai", "sqlalchemy"]
 notebook = ["nbclient", "nbformat", "psutil"]
 runner = ["redis", "sqlalchemy"]
@@ -6888,4 +6890,4 @@ viz = ["altair", "nbclient", "nbformat", "pydot", "termplotlib"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10,<3.14"
-content-hash = "75f6f140ed126e62b58e04627cd396ba54146a61b7ef628501724b418205b18c"
+content-hash = "38f58f8e2761c84a00dd8699bdd0e955eb657b6c7cf3a11d73d93eef1602f17f"
