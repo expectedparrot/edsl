@@ -3,6 +3,7 @@ from typing import Union, TYPE_CHECKING
 if TYPE_CHECKING:
     from ...questions import QuestionBase
     from ..survey import Survey
+    from ..base import EndOfSurveyParent
 
 from ..exceptions import SurveyError, SurveyCreationError
 from .rule import Rule
@@ -90,7 +91,7 @@ class RuleManager:
         self,
         question: Union["QuestionBase", str],
         expression: str,
-        next_question: Union["QuestionBase", str, int],
+        next_question: Union["QuestionBase", str, int, "EndOfSurveyParent"],
         before_rule: bool = False,
     ) -> "Survey":
         """

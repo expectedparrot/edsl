@@ -1,8 +1,10 @@
 # Surveys Refactoring TODO
 
-## 1. Remove all QSF-related methods
-- QSF import/export now lives in a separate plugin
-- Remove any QSF methods from Survey classes and related modules
+## 1. ~~Remove all QSF-related methods~~ (DONE)
+- Removed `qsf_parser.py`, `qsf_example.py`, `survey_generator.py`, `survey_simulator.py`
+- Removed `survey_flow_visualization.py` (compat shim; extras/ version still live)
+- Removed `qsf_to_survey` macro and its test
+- Removed all commented-out QSF/generator/vibes code from `survey.py`
 
 ## 2. Remove TextualInteractiveSurvey
 - Delete the textual interactive survey functionality
@@ -21,11 +23,9 @@
 **Pattern B — Create-on-use delegates (new instance every call, no stored reference)**
 - `EditSurvey(self).add_question(...)`, `.delete_question(...)`, `.move_question(...)`
 - `MemoryManagement(self)._set_memory_plan(...)`, `.add_targeted_memory(...)`
-- `Simulator(self).simulate()`
 - `SurveyFlowVisualization(self).show_flow(...)`
 
 **Pattern C — Static/classmethod delegates**
-- `SurveyGenerator.generate_from_topic(cls, ...)`
 - `FollowupQuestionAdder.add_followup_questions(self, ...)`
 - `QuestionRenamer.with_renamed_question(self, ...)`
 - `combine_multiple_choice_to_matrix(survey=self, ...)`
@@ -33,12 +33,8 @@
 **Pattern D — Standalone function**
 - `generate_summary_repr(self, ...)` from survey_repr.py
 
-**Pattern E — Property accessor (lazy)**
-- `self.vibe` → returns `SurveyVibeAccessor(self)`
-
-**Pattern F — Inline (no delegation, everything on Survey class)**
+**Pattern E — Inline (no delegation, everything on Survey class)**
 - `to_dict`, `from_dict`, `by`, `run`, `__call__`, all rule methods
-- **~500 lines of QSF code** directly on Survey (`from_qsf`, `_convert_qsf_questions`, etc.)
 - DAG, grouping, question lookup, serialization
 
 ### Recommended approach: Stored instance delegates (Pattern A) as the standard
@@ -49,7 +45,7 @@ Pick **one** pattern and use it everywhere. Pattern A (stored instance delegates
 3. **Consistent API** — every delegated method follows `self._delegate.method(...)`
 4. **Testable** — delegates can be unit-tested independently with a mock Survey
 
-For class-level factory methods (`from_qsf`, `generate_from_topic`, etc.), use **Pattern C** (static/classmethod) since there's no instance yet.
+For class-level factory methods, use **Pattern C** (static/classmethod) since there's no instance yet.
 
 ### Proposed delegate classes
 
@@ -61,7 +57,6 @@ For class-level factory methods (`from_qsf`, `generate_from_topic`, etc.), use *
 | `MemoryManagement`     | `self._memory`      | set_full_memory, set_lagged_memory, add_targeted_memory     |
 | `RuleManager`          | `self._rules`       | add_rule, add_skip_rule, add_stop_rule, show_rules, clear   |
 | `SurveyFlowVisualization` | `self._viz`      | show_flow                                                   |
-| `Simulator`            | `self._simulator`   | simulate, random_survey                                     |
 
 ### What stays on Survey directly
 - `__init__`, `to_dict`, `from_dict`, `__eq__`, `__hash__`, `__len__`, `__repr__`
@@ -71,8 +66,8 @@ For class-level factory methods (`from_qsf`, `generate_from_topic`, etc.), use *
 - `dag()` (structural)
 
 ### Migration steps
-1. Remove QSF code first (item #1 above) — eliminates ~500 lines
-2. Store `EditSurvey`, `MemoryManagement`, `Simulator`, `SurveyFlowVisualization` as instance attrs
+1. ~~Remove QSF code first (item #1 above) — eliminates ~500 lines~~ (DONE)
+2. Store `EditSurvey`, `MemoryManagement`, `SurveyFlowVisualization` as instance attrs
 3. Convert create-on-use Pattern B calls to use stored delegates
 4. Move remaining inline rule methods to a `RuleManager` delegate
 5. Move grouping logic to navigator or a new `SurveyGrouping` delegate
@@ -91,7 +86,7 @@ For class-level factory methods (`from_qsf`, `generate_from_topic`, etc.), use *
 - `rules/rule_manager.py`, `rules/rule.py`, `rules/rule_collection.py`, `dag/construct_dag.py`
 
 **Absolute `edsl.surveys.base` imports (5 files):**
-- `followup_questions_demo.py`, `edsl/surveys/survey_flow_visualization.py`, `edsl/surveys/followup_questions.py`, `tests/surveys/test_survey_flow.py`, `tests/surveys/test_group_navigation.py`
+- `followup_questions_demo.py`, `edsl/surveys/followup_questions.py`, `tests/surveys/test_survey_flow.py`, `tests/surveys/test_group_navigation.py`
 
 **Relative `..surveys.base` imports (2 files):**
 - `edsl/interviews/answering_function.py`, `edsl/runner/service.py`

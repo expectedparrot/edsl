@@ -400,6 +400,7 @@ typing-report:
 
 TYPECHECK_FILES := \
 	edsl/scenarios/scenario.py \
+	edsl/surveys/survey.py \
 	edsl/scenarios/scenario_list.py \
 	edsl/scenarios/scenario_combinator.py
 

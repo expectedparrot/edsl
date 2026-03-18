@@ -37,6 +37,7 @@ if TYPE_CHECKING:
     from ..caching import Cache
     from ..jobs import Jobs
     from ..results import Results, Result
+    from ..dataset import Dataset
     from ..scenarios import ScenarioList
     from ..buckets.bucket_collection import BucketCollection
     from ..key_management.key_lookup import KeyLookup
@@ -66,6 +67,7 @@ from .rules import RuleManager, RuleCollection
 from .survey_export import SurveyExport
 from .pseudo_indices import PseudoIndices
 from .survey_navigator import SurveyNavigator
+from .question_group_manager import QuestionGroupManager
 from .exceptions import (
     SurveyCreationError,
     SurveyError,
@@ -214,6 +216,7 @@ class Survey(Base):
         self._exporter = SurveyExport(self)
         self._navigator = SurveyNavigator(self)
         self._editor = EditSurvey(self)
+        self._group_manager = QuestionGroupManager(self)
 
         if not _internal_copy:
             # Validate survey structure (e.g., check for forward piping references)
@@ -221,48 +224,44 @@ class Survey(Base):
             self.dag()
 
     def clipboard_data(self) -> str:
-        """Return the clipboard data for the survey."""
+        """Return a human-readable string of all questions for clipboard use.
+
+        Returns:
+            A newline-separated string of each question's human-readable form.
+
+        Example:
+            >>> s = Survey.example()
+            >>> 'Do you like school?' in s.clipboard_data()
+            True
+        """
         text = []
         for question in self.questions:
             text.append(question.human_readable())
         return "\n\n".join(text)
 
-    # @classmethod
-    # def auto_survey(
-    #     cls, overall_question: str, population: str, num_questions: int
-    # ) -> Survey:
-    #     """Create a survey with a single question that asks the user how they are doing."""
-    #     from edsl import ext
-
-    #     survey_info = ext.create_survey(
-    #         overall_question=overall_question,
-    #         population=population,
-    #         num_questions=num_questions,
-    #     )
-    #     return survey_info["survey"]
-
-    # def generate_description(self) -> str:
-    #     """Generate a description of the survey."""
-    #     from ..questions import QuestionFreeText
-
-    #     question_texts = [q.question_text for q in self.questions]
-    #     q = QuestionFreeText(
-    #         question_text=f"What is a good one sentence description of this survey? The questions are: {question_texts}",
-    #         question_name="description",
-    #     )
-    #     results = q.run(verbose=False)
-    #     return results.select("answer.description").first()
-
     def question_names_valid(self) -> bool:
-        """Check if the question names are valid."""
+        """Check whether every question name in the survey is valid.
+
+        Returns:
+            True if all question names pass validation, False otherwise.
+
+        Example:
+            >>> Survey.example().question_names_valid()
+            True
+        """
         return all(q.is_valid_question_name() for q in self.questions)
 
     def question_to_attributes(self) -> dict:
-        """Return a dictionary of question attributes.
+        """Return a mapping of question names to their core attributes.
 
-        >>> s = Survey.example()
-        >>> s.question_to_attributes()
-        {'q0': {'question_text': 'Do you like school?', 'question_type': 'multiple_choice', 'question_options': ['yes', 'no']}, 'q1': {'question_text': 'Why not?', 'question_type': 'multiple_choice', 'question_options': ['killer bees in cafeteria', 'other']}, 'q2': {'question_text': 'Why?', 'question_type': 'multiple_choice', 'question_options': ['**lack*** of killer bees in cafeteria', 'other']}}
+        Returns:
+            A dict keyed by question_name, each value a dict with
+            ``question_text``, ``question_type``, and ``question_options``.
+
+        Example:
+            >>> s = Survey.example()
+            >>> s.question_to_attributes()
+            {'q0': {'question_text': 'Do you like school?', 'question_type': 'multiple_choice', 'question_options': ['yes', 'no']}, 'q1': {'question_text': 'Why not?', 'question_type': 'multiple_choice', 'question_options': ['killer bees in cafeteria', 'other']}, 'q2': {'question_text': 'Why?', 'question_type': 'multiple_choice', 'question_options': ['**lack*** of killer bees in cafeteria', 'other']}}
         """
         return {
             q.question_name: {
@@ -276,10 +275,23 @@ class Survey(Base):
         }
 
     def draw(self) -> "Survey":
-        """Return a new survey with a randomly selected permutation of the options."""
+        """Return a new survey with randomly permuted options for randomized questions.
+
+        Returns:
+            A new Survey with independently duplicated questions, where
+            questions in ``questions_to_randomize`` have shuffled options.
+
+        Example:
+            >>> s = Survey.example()
+            >>> drawn = s.draw()
+            >>> drawn.question_names == s.question_names
+            True
+            >>> drawn is not s
+            True
+        """
         if self._seed is None:  # only set once
             self._seed = hash(self)
-            random.seed(self._seed)  # type: ignore
+            random.seed(self._seed)
 
         # Always create new questions to avoid sharing state between interviews
         # This is necessary even when there's no randomization because:
@@ -319,13 +331,13 @@ class Survey(Base):
             and hasattr(result, "pseudo_indices")
         ):
             # It's the SeparatedComponents dataclass
-            self._instruction_names_to_instructions = result.instruction_names_to_instructions  # type: ignore
-            self._pseudo_indices = PseudoIndices(result.pseudo_indices)  # type: ignore
-            return result.true_questions  # type: ignore
+            self._instruction_names_to_instructions = result.instruction_names_to_instructions
+            self._pseudo_indices = PseudoIndices(result.pseudo_indices)
+            return result.true_questions
         else:
             # For older versions that return a tuple
             # This is a hacky way to get mypy to allow tuple unpacking of an Any type
-            result_list = list(result)  # type: ignore
+            result_list = list(result)
             if len(result_list) == 3:
                 true_q = result_list[0]
                 inst_dict = result_list[1]
@@ -369,45 +381,46 @@ class Survey(Base):
     def add_instruction(
         self, instruction: Union["Instruction", "ChangeInstruction"]
     ) -> Survey:
-        """
-        Add an instruction to the survey.
+        """Add an instruction to the survey.
 
-        :param instruction: The instruction to add to the survey.
+        Args:
+            instruction: The instruction to add to the survey.
 
-        >>> from edsl import Instruction
-        >>> i = Instruction(text="Pay attention to the following questions.", name="intro")
-        >>> s = Survey().add_instruction(i)
-        >>> s._instruction_names_to_instructions
-        {'intro': Instruction(name="intro", text="Pay attention to the following questions.")}
-        >>> s._pseudo_indices
-        {'intro': -0.5}
+        Returns:
+            The modified survey instance (supports chaining).
+
+        Example:
+            >>> from edsl import Instruction
+            >>> i = Instruction(text="Pay attention to the following questions.", name="intro")
+            >>> s = Survey().add_instruction(i)
+            >>> s._instruction_names_to_instructions
+            {'intro': Instruction(name="intro", text="Pay attention to the following questions.")}
+            >>> s._pseudo_indices
+            {'intro': -0.5}
         """
         return self._editor.add_instruction(instruction)
-
-    # @classmethod
-    # def random_survey(cls):
-    #     return Simulator.random_survey()
-
-    # def simulate(self) -> dict:
-    #     """Simulate the survey and return the answers."""
-    #     return Simulator(self).simulate()
 
     def _get_question_index(
         self, q: Union["QuestionBase", str, EndOfSurveyParent]
     ) -> Union[int, EndOfSurveyParent]:
-        """Return the index of the question or EndOfSurvey object.
+        """Return the index of a question, or EndOfSurvey if appropriate.
 
-        :param q: The question or question name to get the index of.
+        Accepts a question name string, a QuestionBase object, or the
+        EndOfSurvey sentinel.
 
-        It can handle it if the user passes in the question name, the question object, or the EndOfSurvey object.
+        Args:
+            q: The question (name, object, or EndOfSurvey) to look up.
 
-        >>> s = Survey.example()
-        >>> s._get_question_index("q0")
-        0
+        Returns:
+            The integer index of the question, or EndOfSurvey.
 
-        This doesnt' work with questions that don't exist:
+        Raises:
+            SurveyError: If the question name is not found in the survey.
 
-        # Example with a non-existent question name would raise SurveyError
+        Example:
+            >>> s = Survey.example()
+            >>> s._get_question_index("q0")
+            0
         """
         if q is EndOfSurvey:
             return EndOfSurvey
@@ -425,24 +438,56 @@ class Survey(Base):
             return self.question_name_to_index[question_name]
 
     def _get_question_by_name(self, question_name: str) -> QuestionBase:
-        """Return the question object given the question name.
+        """Return the question object for the given name.
 
-        :param question_name: The name of the question to get.
+        Args:
+            question_name: The name of the question to retrieve.
 
-        >>> s = Survey.example()
-        >>> s._get_question_by_name("q0")
-        Question('multiple_choice', question_name = \"""q0\""", question_text = \"""Do you like school?\""", question_options = ['yes', 'no'])
+        Returns:
+            The matching QuestionBase instance.
+
+        Raises:
+            SurveyError: If the question name is not found.
+
+        Example:
+            >>> s = Survey.example()
+            >>> s._get_question_by_name("q0")
+            Question('multiple_choice', question_name = \"""q0\""", question_text = \"""Do you like school?\""", question_options = ['yes', 'no'])
         """
         if question_name not in self.question_name_to_index:
             raise SurveyError(f"Question name {question_name} not found in survey.")
         return self.questions[self.question_name_to_index[question_name]]
 
     def get(self, question_name: str) -> QuestionBase:
-        """Return the question object given the question name."""
+        """Return the question object for the given name.
+
+        Args:
+            question_name: The name of the question to retrieve.
+
+        Returns:
+            The matching QuestionBase instance.
+
+        Raises:
+            SurveyError: If the question name is not found.
+
+        Example:
+            >>> s = Survey.example()
+            >>> s.get('q0').question_text
+            'Do you like school?'
+        """
         return self._get_question_by_name(question_name)
 
     def question_names_to_questions(self) -> dict:
-        """Return a dictionary mapping question names to question attributes."""
+        """Return a dictionary mapping question names to question objects.
+
+        Returns:
+            A dict keyed by question_name with QuestionBase values.
+
+        Example:
+            >>> s = Survey.example()
+            >>> list(s.question_names_to_questions().keys())
+            ['q0', 'q1', 'q2']
+        """
         if not hasattr(self, "_cached_qname_to_q"):
             self._cached_qname_to_q = {q.question_name: q for q in self.questions}
         return self._cached_qname_to_q
@@ -480,7 +525,14 @@ class Survey(Base):
     def to_long_format(
         self, scenario_list: "ScenarioList"
     ) -> Tuple[List[QuestionBase], ScenarioList]:
-        """Return a new survey with the questions in long format and the associated scenario list."""
+        """Expand loop templates into per-scenario questions (long format).
+
+        Args:
+            scenario_list: The scenarios to expand against.
+
+        Returns:
+            A tuple of (expanded questions list, expanded ScenarioList).
+        """
 
         from ..questions.loop_processor import LongSurveyLoopProcessor
 
@@ -569,6 +621,7 @@ class Survey(Base):
         return SurveySerializer(self).to_jsonl(filename=filename)
 
     def to_jsonl_rows(self, blob_writer=None):
+        """Return the survey as a list of JSONL row dicts for serialization."""
         from .survey_serializer import SurveySerializer
         return SurveySerializer(self).to_jsonl_rows()
 
@@ -689,498 +742,6 @@ class Survey(Base):
 
         return survey
 
-    # @classmethod
-    # def from_qsf(
-    #     cls, qsf_path: Union[str, "Path"], encoding: str = "utf-8"
-    # ) -> "Survey":
-    #     """Create a Survey from a Qualtrics QSF file or URL.
-
-    #     This class method converts a Qualtrics Survey Format (QSF) file into an EDSL Survey.
-    #     It handles the parsing of QSF JSON structure and maps Qualtrics question types to
-    #     appropriate EDSL question types.
-
-    #     Args:
-    #         qsf_path: Path to the QSF file, Path object, or URL to download the QSF from
-    #         encoding: File encoding, defaults to "utf-8"
-
-    #     Returns:
-    #         Survey: A new Survey object with questions converted from the QSF file
-
-    #     Examples:
-    #         Load a survey from a local QSF file:
-
-    #         >>> survey = Survey.from_qsf("my_survey.qsf")  # doctest: +SKIP
-    #         >>> print(f"Loaded survey with {len(survey.questions)} questions")  # doctest: +SKIP
-
-    #         Load a survey from a URL:
-
-    #         >>> url = "https://dataverse.harvard.edu/api/access/datafile/:persistentId?persistentId=doi:10.7910/DVN/EOFAKX/T10GWZ"  # doctest: +SKIP
-    #         >>> survey = Survey.from_qsf(url)  # doctest: +SKIP
-
-    #         Run the converted survey with an agent:
-
-    #         >>> from edsl import Agent  # doctest: +SKIP
-    #         >>> results = survey.by(Agent()).run()  # doctest: +SKIP
-
-    #     Note:
-    #         This method requires a valid QSF file with proper Qualtrics format.
-    #         Complex QSF features like advanced branching logic may require manual
-    #         adjustment after conversion.
-    #     """
-    #     from pathlib import Path
-    #     import tempfile
-    #     import urllib.request
-    #     import urllib.parse
-    #     from .qsf_parser import QSFParser
-
-    #     # Check if qsf_path is a URL
-    #     if isinstance(qsf_path, str) and (
-    #         qsf_path.startswith("http://") or qsf_path.startswith("https://")
-    #     ):
-    #         print(f"Downloading QSF from URL: {qsf_path}")
-
-    #         try:
-    #             # Create a temporary file to store the downloaded QSF
-    #             with tempfile.NamedTemporaryFile(
-    #                 mode="w+b", suffix=".qsf", delete=False
-    #             ) as temp_file:
-    #                 # Create request with user agent to avoid 403 errors
-    #                 req = urllib.request.Request(
-    #                     qsf_path,
-    #                     headers={
-    #                         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
-    #                     },
-    #                 )
-
-    #                 # Download the file
-    #                 with urllib.request.urlopen(req) as response:
-    #                     temp_file.write(response.read())
-    #                 temp_file_path = temp_file.name
-
-    #             print(f"Downloaded to temporary file: {temp_file_path}")
-
-    #             # Parse the downloaded file
-    #             parser = QSFParser.from_file(temp_file_path, encoding)
-    #             qsf_survey = parser.parse()
-
-    #             # Clean up the temporary file
-    #             Path(temp_file_path).unlink()
-    #             print("Temporary file cleaned up")
-
-    #         except Exception as e:
-    #             # Clean up temp file if it was created
-    #             if "temp_file_path" in locals() and Path(temp_file_path).exists():
-    #                 Path(temp_file_path).unlink()
-
-    #             # Try curl as fallback
-    #             print("urllib failed, trying curl as fallback...")
-    #             try:
-    #                 import subprocess
-    #                 import tempfile
-
-    #                 with tempfile.NamedTemporaryFile(
-    #                     mode="w+b", suffix=".qsf", delete=False
-    #                 ) as temp_file:
-    #                     temp_file_path = temp_file.name
-
-    #                 # Use curl to download
-    #                 result = subprocess.run(
-    #                     ["curl", "-L", qsf_path, "-o", temp_file_path],
-    #                     capture_output=True,
-    #                     text=True,
-    #                     timeout=60,
-    #                 )
-
-    #                 if result.returncode == 0:
-    #                     print(f"Downloaded successfully with curl to: {temp_file_path}")
-    #                     # Parse the downloaded file
-    #                     parser = QSFParser.from_file(temp_file_path, encoding)
-    #                     qsf_survey = parser.parse()
-
-    #                     # Clean up the temporary file
-    #                     Path(temp_file_path).unlink()
-    #                     print("Temporary file cleaned up")
-    #                 else:
-    #                     # Clean up temp file on curl failure
-    #                     if Path(temp_file_path).exists():
-    #                         Path(temp_file_path).unlink()
-    #                     raise Exception(f"Curl download failed: {result.stderr}")
-
-    #             except Exception as curl_error:
-    #                 # Clean up temp file
-    #                 if "temp_file_path" in locals() and Path(temp_file_path).exists():
-    #                     Path(temp_file_path).unlink()
-    #                 raise Exception(
-    #                     f"Failed to download QSF from URL. urllib error: {e}, curl error: {curl_error}"
-    #                 )
-
-    #     else:
-    #         # Handle as local file path
-    #         parser = QSFParser.from_file(qsf_path, encoding)
-    #         qsf_survey = parser.parse()
-
-    #     # Convert QSF questions to EDSL questions
-    #     questions = cls._convert_qsf_questions(qsf_survey.questions)
-
-    #     # Extract question groups from QSF blocks
-    #     question_groups = cls._extract_question_groups(qsf_survey.blocks, questions)
-
-    #     # Extract questions to randomize from QSF flow
-    #     questions_to_randomize = cls._extract_randomized_questions(
-    #         qsf_survey.flow, qsf_survey.blocks, questions
-    #     )
-
-    #     # Create the Survey
-    #     survey = cls(
-    #         questions=questions,
-    #         question_groups=question_groups if question_groups else None,
-    #         questions_to_randomize=(
-    #             questions_to_randomize if questions_to_randomize else None
-    #         ),
-    #     )
-
-    #     # Set survey name from QSF
-    #     if hasattr(survey, "_name"):
-    #         survey._name = qsf_survey.name
-
-    #     return survey
-
-    # @classmethod
-    # def _convert_qsf_questions(cls, qsf_questions: List) -> List["QuestionType"]:
-    #     """Convert QSF questions to EDSL questions."""
-    #     from ..questions import (
-    #         QuestionMultipleChoice,
-    #         QuestionCheckBox,
-    #         QuestionFreeText,
-    #         QuestionMatrix,
-    #         QuestionLinearScale,
-    #         QuestionYesNo,
-    #     )
-    #     from ..instructions import Instruction
-
-    #     edsl_questions = []
-    #     used_names = set()  # Track used names to ensure uniqueness
-
-    #     for qsf_q in qsf_questions:
-    #         base_question_name = cls._sanitize_name(qsf_q.export_tag or qsf_q.id)
-    #         question_text = qsf_q.text
-
-    #         # Ensure unique question names
-    #         question_name = base_question_name
-    #         counter = 1
-    #         while question_name in used_names:
-    #             question_name = f"{base_question_name}_{counter}"
-    #             counter += 1
-    #         used_names.add(question_name)
-
-    #         # Ensure question text meets EDSL minimum length requirements
-    #         if not question_text or len(question_text.strip()) < 3:
-    #             question_text = (
-    #                 f"Question {question_name}"
-    #                 if not question_text
-    #                 else f"Question {question_name}: {question_text}"
-    #             )
-
-    #         try:
-    #             if qsf_q.type == "descriptive":
-    #                 # Convert descriptive text to instructions
-    #                 edsl_questions.append(
-    #                     Instruction(name=question_name, text=question_text)
-    #                 )
-
-    #             elif qsf_q.type == "single_choice":
-    #                 options = [
-    #                     choice.text
-    #                     for choice in qsf_q.choices
-    #                     if choice.text and choice.text.strip()
-    #                 ]
-    #                 if not options:
-    #                     options = [
-    #                         "Option 1",
-    #                         "Option 2",
-    #                     ]  # Default options if none found
-
-    #                 if len(options) == 2 and cls._is_yes_no(options):
-    #                     edsl_questions.append(
-    #                         QuestionYesNo(
-    #                             question_name=question_name,
-    #                             question_text=question_text,
-    #                             question_options=options,
-    #                         )
-    #                     )
-    #                 else:
-    #                     edsl_questions.append(
-    #                         QuestionMultipleChoice(
-    #                             question_name=question_name,
-    #                             question_text=question_text,
-    #                             question_options=options,
-    #                         )
-    #                     )
-
-    #             elif qsf_q.type == "multi_choice":
-    #                 options = [
-    #                     choice.text
-    #                     for choice in qsf_q.choices
-    #                     if choice.text and choice.text.strip()
-    #                 ]
-    #                 if not options:
-    #                     options = [
-    #                         "Option 1",
-    #                         "Option 2",
-    #                         "Option 3",
-    #                     ]  # Default options if none found
-
-    #                 edsl_questions.append(
-    #                     QuestionCheckBox(
-    #                         question_name=question_name,
-    #                         question_text=question_text,
-    #                         question_options=options,
-    #                     )
-    #                 )
-
-    #             elif qsf_q.type == "text":
-    #                 edsl_questions.append(
-    #                     QuestionFreeText(
-    #                         question_name=question_name, question_text=question_text
-    #                     )
-    #                 )
-
-    #             elif qsf_q.type == "matrix_single":
-    #                 options = [
-    #                     choice.text
-    #                     for choice in qsf_q.choices
-    #                     if choice.text and choice.text.strip()
-    #                 ]
-    #                 items = (
-    #                     [
-    #                         scale_item.text
-    #                         for scale_item in qsf_q.scale
-    #                         if scale_item.text and scale_item.text.strip()
-    #                     ]
-    #                     if qsf_q.scale
-    #                     else []
-    #                 )
-
-    #                 if not options:
-    #                     options = ["Poor", "Fair", "Good", "Excellent"]
-    #                 if not items:
-    #                     items = ["Item 1", "Item 2"]
-
-    #                 edsl_questions.append(
-    #                     QuestionMatrix(
-    #                         question_name=question_name,
-    #                         question_text=question_text,
-    #                         question_options=options,
-    #                         question_items=items,
-    #                     )
-    #                 )
-
-    #             elif qsf_q.type == "slider":
-    #                 try:
-    #                     if qsf_q.choices:
-    #                         options = []
-    #                         option_labels = {}
-    #                         for choice in qsf_q.choices:
-    #                             try:
-    #                                 num_value = int(choice.text)
-    #                                 options.append(num_value)
-    #                             except ValueError:
-    #                                 options.append(choice.order)
-    #                                 option_labels[choice.order] = choice.text
-
-    #                         edsl_questions.append(
-    #                             QuestionLinearScale(
-    #                                 question_name=question_name,
-    #                                 question_text=question_text,
-    #                                 question_options=sorted(options),
-    #                                 option_labels=(
-    #                                     option_labels if option_labels else {}
-    #                                 ),
-    #                             )
-    #                         )
-    #                     else:
-    #                         edsl_questions.append(
-    #                             QuestionLinearScale(
-    #                                 question_name=question_name,
-    #                                 question_text=question_text,
-    #                                 question_options=list(range(1, 8)),
-    #                             )
-    #                         )
-    #                 except Exception:
-    #                     # Fallback to multiple choice
-    #                     options = [
-    #                         choice.text
-    #                         for choice in qsf_q.choices
-    #                         if choice.text and choice.text.strip()
-    #                     ]
-    #                     if not options:
-    #                         options = [
-    #                             "1",
-    #                             "2",
-    #                             "3",
-    #                             "4",
-    #                             "5",
-    #                         ]  # Default scale if none found
-
-    #                     edsl_questions.append(
-    #                         QuestionMultipleChoice(
-    #                             question_name=question_name,
-    #                             question_text=question_text,
-    #                             question_options=options,
-    #                         )
-    #                     )
-
-    #             elif qsf_q.type in ["dropdown", "choice"]:
-    #                 options = [
-    #                     choice.text
-    #                     for choice in qsf_q.choices
-    #                     if choice.text and choice.text.strip()
-    #                 ]
-    #                 if not options:
-    #                     options = [
-    #                         "Option 1",
-    #                         "Option 2",
-    #                         "Option 3",
-    #                     ]  # Default options if none found
-
-    #                 edsl_questions.append(
-    #                     QuestionMultipleChoice(
-    #                         question_name=question_name,
-    #                         question_text=question_text,
-    #                         question_options=options,
-    #                     )
-    #                 )
-
-    #             else:
-    #                 # Default to free text for unknown types
-    #                 edsl_questions.append(
-    #                     QuestionFreeText(
-    #                         question_name=question_name, question_text=question_text
-    #                     )
-    #                 )
-
-    #         except Exception as e:
-    #             print(f"Warning: Could not convert question '{question_name}': {e}")
-    #             # Fallback to free text
-    #             edsl_questions.append(
-    #                 QuestionFreeText(
-    #                     question_name=question_name, question_text=question_text
-    #                 )
-    #             )
-
-    #     return edsl_questions
-
-    @classmethod
-    def _extract_question_groups(
-        cls, qsf_blocks: List, edsl_questions: List
-    ) -> Dict[str, Tuple[int, int]]:
-        """Extract question groups from QSF blocks."""
-        question_groups = {}
-
-        # Map EDSL questions by their names for lookup
-        question_name_to_index = {}
-        for i, q in enumerate(edsl_questions):
-            if hasattr(q, "question_name"):
-                question_name_to_index[q.question_name] = i
-            elif hasattr(q, "name"):
-                question_name_to_index[q.name] = i
-
-        for block in qsf_blocks:
-            block_questions = []
-            for element in block.elements:
-                if element.kind == "question" and element.question_id:
-                    # Find corresponding EDSL question
-                    qsf_name = cls._sanitize_name(element.question_id)
-                    if qsf_name in question_name_to_index:
-                        block_questions.append(question_name_to_index[qsf_name])
-
-            if block_questions:
-                group_name = cls._sanitize_name(block.name or f"block_{block.id}")
-                question_groups[group_name] = (
-                    min(block_questions),
-                    max(block_questions),
-                )
-
-        return question_groups
-
-    # @classmethod
-    # def _extract_randomized_questions(
-    #     cls, qsf_flow, qsf_blocks: List, edsl_questions: List
-    # ) -> List[str]:
-    #     """Extract questions that should be randomized from QSF flow."""
-    #     randomized_questions = []
-
-    #     def process_flow_node(node):
-    #         if hasattr(node, "type") and node.type == "randomizer":
-    #             for child in getattr(node, "children", []):
-    #                 if (
-    #                     hasattr(child, "type")
-    #                     and child.type == "block"
-    #                     and hasattr(child, "block_id")
-    #                 ):
-    #                     # Find questions in this block
-    #                     for block in qsf_blocks:
-    #                         if block.id == child.block_id:
-    #                             for element in block.elements:
-    #                                 if (
-    #                                     element.kind == "question"
-    #                                     and element.question_id
-    #                                 ):
-    #                                     qsf_name = cls._sanitize_name(
-    #                                         element.question_id
-    #                                     )
-    #                                     if qsf_name not in randomized_questions:
-    #                                         randomized_questions.append(qsf_name)
-
-    #         for child in getattr(node, "children", []):
-    #             process_flow_node(child)
-
-    #     process_flow_node(qsf_flow)
-    #     return randomized_questions
-
-    @classmethod
-    def _sanitize_name(cls, name: str) -> str:
-        """Convert a string to a valid Python variable name."""
-        import re
-
-        if not name:
-            return "question"
-
-        # Remove HTML tags and decode entities
-        name = re.sub(r"<[^>]+>", "", name)
-        name = name.replace("&nbsp;", " ").replace("&amp;", "&")
-
-        # Replace invalid characters with underscores
-        name = re.sub(r"[^a-zA-Z0-9_]", "_", name)
-
-        # Ensure it starts with a letter or underscore
-        if name and name[0].isdigit():
-            name = f"q_{name}"
-
-        # Remove consecutive underscores and strip
-        name = re.sub(r"_+", "_", name).strip("_")
-
-        # Ensure it's not empty and not too long
-        name = name or "question"
-        if len(name) > 50:
-            name = name[:50]
-
-        return name
-
-    # @classmethod
-    # def _is_yes_no(cls, options: List[str]) -> bool:
-    #     """Check if options represent a yes/no question."""
-    #     if len(options) != 2:
-    #         return False
-
-    #     options_lower = [opt.lower().strip() for opt in options]
-    #     yes_variants = {"yes", "y", "true", "1", "agree", "si", "oui"}
-    #     no_variants = {"no", "n", "false", "0", "disagree", "non", "non"}
-
-    #     return any(opt in yes_variants for opt in options_lower) and any(
-    #         opt in no_variants for opt in options_lower
-    #     )
-
     @property
     def scenario_attributes(self) -> list[str]:
         """Return a list of attributes that admissible Scenarios should have.
@@ -1231,16 +792,26 @@ class Survey(Base):
         return {q.question_name: q.parameters for q in self.questions}
 
     def __add__(self, other: Survey) -> Survey:
-        """Combine two surveys.
+        """Combine two surveys into one by concatenating their questions.
 
-        :param other: The other survey to combine with this one.
-        >>> s1 = Survey.example()
-        >>> from edsl import QuestionFreeText
-        >>> s2 = Survey([QuestionFreeText(question_text="What is your name?", question_name="yo")])
-        >>> s3 = s1.clear_non_default_rules() + s2
-        >>> len(s3.questions)
-        4
+        Both surveys must have only default rules (no skip/jump logic).
 
+        Args:
+            other: The survey to append after this one.
+
+        Returns:
+            A new Survey containing questions from both surveys.
+
+        Raises:
+            SurveyCreationError: If either survey has non-default rules.
+
+        Example:
+            >>> s1 = Survey.example()
+            >>> from edsl import QuestionFreeText
+            >>> s2 = Survey([QuestionFreeText(question_text="What is your name?", question_name="yo")])
+            >>> s3 = s1.clear_non_default_rules() + s2
+            >>> len(s3.questions)
+            4
         """
         if (
             len(self.rule_collection.non_default_rules) > 0
@@ -1253,24 +824,36 @@ class Survey(Base):
         return Survey(questions=self.questions + other.questions)
 
     def move_question(self, identifier: Union[str, int], new_index: int) -> Survey:
-        """
-        >>> from edsl import QuestionMultipleChoice, Survey
-        >>> s = Survey.example()
-        >>> s.question_names
-        ['q0', 'q1', 'q2']
-        >>> s.move_question("q0", 2).question_names
-        ['q1', 'q2', 'q0']
+        """Move a question to a new position in the survey.
+
+        Args:
+            identifier: The question name or current index to move.
+            new_index: The target position index.
+
+        Returns:
+            The modified survey instance.
+
+        Example:
+            >>> from edsl import QuestionMultipleChoice, Survey
+            >>> s = Survey.example()
+            >>> s.question_names
+            ['q0', 'q1', 'q2']
+            >>> s.move_question("q0", 2).question_names
+            ['q1', 'q2', 'q0']
         """
         return self._editor.move_question(identifier, new_index)
 
     def delete_question(self, identifier: Union[str, int]) -> Survey:
-        """
-        Delete a question from the survey.
+        """Delete a question from the survey.
 
-        :param identifier: The name or index of the question to delete.
-        :return: The updated Survey object.
+        Args:
+            identifier: The name or index of the question to delete.
 
-        >>> from edsl import QuestionMultipleChoice, Survey
+        Returns:
+            The updated Survey object.
+
+        Example:
+            >>> from edsl import QuestionMultipleChoice, Survey
         >>> q1 = QuestionMultipleChoice(question_text="Q1", question_options=["A", "B"], question_name="q1")
         >>> q2 = QuestionMultipleChoice(question_text="Q2", question_options=["C", "D"], question_name="q2")
         >>> s = Survey().add_question(q1).add_question(q2)
@@ -1362,6 +945,65 @@ class Survey(Base):
             **kwargs,
         )
 
+    def _resolve_and_validate_questions(
+        self,
+        include: Optional[List[Union[str, "QuestionBase"]]],
+        allowed_types: tuple,
+        empty_error: str,
+        *,
+        extra_validators: Optional[List[Callable]] = None,
+        auto_filter: Optional[Callable] = None,
+    ) -> List["QuestionBase"]:
+        """Resolve and validate a list of questions by name or object.
+
+        Args:
+            include: Question names or objects to include, or None to auto-select.
+            allowed_types: Tuple of allowed question_type strings.
+            empty_error: Error message when no questions match.
+            extra_validators: Optional callables that take a question and raise
+                SurveyCreationError if invalid.
+            auto_filter: Optional callable to filter self.questions when include
+                is None. If not provided, filters by allowed_types.
+
+        Returns:
+            A list of validated QuestionBase objects.
+        """
+        if include is None:
+            if auto_filter is not None:
+                included_questions = [q for q in self.questions if auto_filter(q)]
+            else:
+                included_questions = [
+                    q
+                    for q in self.questions
+                    if getattr(q, "question_type", None) in allowed_types
+                ]
+        else:
+            name_to_q = self.question_names_to_questions()
+            included_questions = []
+            for item in include:
+                if isinstance(item, str):
+                    if item not in name_to_q:
+                        raise SurveyCreationError(
+                            f"Question '{item}' not found in survey."
+                        )
+                    q_obj = name_to_q[item]
+                else:
+                    q_obj = item
+
+                if getattr(q_obj, "question_type", None) not in allowed_types:
+                    type_desc = "' or '".join(allowed_types)
+                    raise SurveyCreationError(
+                        f"Question '{q_obj.question_name}' must be of type '{type_desc}'."
+                    )
+                for validator in extra_validators or []:
+                    validator(q_obj)
+                included_questions.append(q_obj)
+
+        if not included_questions:
+            raise SurveyCreationError(empty_error)
+
+        return included_questions
+
     def add_summation_question(
         self,
         question_name: str = "total_score",
@@ -1389,51 +1031,20 @@ class Survey(Base):
         Example:
             Adds a `total_score` question that sums prior numeric answers.
         """
-        # Resolve included questions
-        if include is None:
-            included_questions: List["QuestionBase"] = [
-                q
-                for q in self.questions
-                if getattr(q, "question_type", None) in ("numerical", "linear_scale")
-            ]
-        else:
-            name_to_q = self.question_names_to_questions()
-            included_questions = []
-            for item in include:
-                if isinstance(item, str):
-                    if item not in name_to_q:
-                        raise SurveyCreationError(
-                            f"Question '{item}' not found in survey."
-                        )
-                    q_obj = name_to_q[item]
-                else:
-                    q_obj = item
+        included_questions = self._resolve_and_validate_questions(
+            include,
+            allowed_types=("numerical", "linear_scale"),
+            empty_error="No prior 'numerical' or 'linear_scale' questions available to sum.",
+        )
 
-                if getattr(q_obj, "question_type", None) not in (
-                    "numerical",
-                    "linear_scale",
-                ):
-                    raise SurveyCreationError(
-                        f"Question '{q_obj.question_name}' must be of type 'numerical' or 'linear_scale'."
-                    )
-                included_questions.append(q_obj)
-
-        # Must have at least one valid prior question
-        if not included_questions:
-            raise SurveyCreationError(
-                "No prior 'numerical' or 'linear_scale' questions available to sum."
-            )
-
-        # Build the Jinja template to sum answers
         answers_expr = ", ".join(
             f"{q.question_name}.answer" for q in included_questions
         )
         question_text = (
-            f"{{% set numbers = [{answers_expr}] %}}\n"  # list of answers
+            f"{{% set numbers = [{answers_expr}] %}}\n"
             "{{ numbers | sum }}"
         )
 
-        # Create and add the compute question
         from ..questions import QuestionCompute
 
         compute_q = QuestionCompute(
@@ -1482,45 +1093,23 @@ class Survey(Base):
             ... ))
             >>> s = s.add_weighted_linear_scale_sum()
         """
-        # Resolve included questions
-        if include is None:
-            included_questions: List["QuestionBase"] = [
-                q
-                for q in self.questions
-                if getattr(q, "question_type", None) == "linear_scale"
+        def _require_weight(q_obj):
+            if getattr(q_obj, "_weight", None) is None:
+                raise SurveyCreationError(
+                    f"Question '{q_obj.question_name}' must have a weight."
+                )
+
+        included_questions = self._resolve_and_validate_questions(
+            include,
+            allowed_types=("linear_scale",),
+            empty_error="No prior 'linear_scale' questions with weights available.",
+            extra_validators=[_require_weight],
+            auto_filter=lambda q: (
+                getattr(q, "question_type", None) == "linear_scale"
                 and getattr(q, "_weight", None) is not None
-            ]
-        else:
-            name_to_q = self.question_names_to_questions()
-            included_questions = []
-            for item in include:
-                if isinstance(item, str):
-                    if item not in name_to_q:
-                        raise SurveyCreationError(
-                            f"Question '{item}' not found in survey."
-                        )
-                    q_obj = name_to_q[item]
-                else:
-                    q_obj = item
+            ),
+        )
 
-                if getattr(q_obj, "question_type", None) != "linear_scale":
-                    raise SurveyCreationError(
-                        f"Question '{q_obj.question_name}' must be of type 'linear_scale'."
-                    )
-                if getattr(q_obj, "_weight", None) is None:
-                    raise SurveyCreationError(
-                        f"Question '{q_obj.question_name}' must have a weight."
-                    )
-                included_questions.append(q_obj)
-
-        # Must have at least one valid prior question
-        if not included_questions:
-            raise SurveyCreationError(
-                "No prior 'linear_scale' questions with weights available."
-            )
-
-        # Build the Jinja template to compute weighted sum
-        # Create a list of weighted values and sum them
         weighted_values = []
         for q in included_questions:
             weight = getattr(q, "_weight")
@@ -1531,7 +1120,6 @@ class Survey(Base):
             "{{ weighted_values | sum }}"
         )
 
-        # Create and add the compute question
         from ..questions import QuestionCompute
 
         compute_q = QuestionCompute(
@@ -1550,17 +1138,8 @@ class Survey(Base):
             questions_and_instructions, key=lambda x: self._pseudo_indices[x.name]
         )
 
-    # NEW: Public alias for compatibility with other modules such as SurveyExport
-    def recombined_questions_and_instructions(
-        self,
-    ) -> List[Union["QuestionBase", "Instruction"]]:
-        """Return a list of questions and instructions (public wrapper).
-
-        This is a thin wrapper around the internal
-        `_recombined_questions_and_instructions` method, provided for
-        compatibility with modules that expect a public accessor.
-        """
-        return self._recombined_questions_and_instructions()
+    # Keep as internal-only — only called from within edsl/surveys/
+    recombined_questions_and_instructions = _recombined_questions_and_instructions
 
     def set_full_memory_mode(self) -> Survey:
         """Configure the survey so agents remember all previous questions and answers.
@@ -1752,116 +1331,11 @@ class Survey(Base):
             ...     print("Error: Start index greater than end index (as expected)")
             Error: Start index greater than end index (as expected)
         """
+        return self._group_manager.add_question_group(
+            start_question, end_question, group_name
+        )
 
-        if not group_name.isidentifier():
-            raise SurveyCreationError(
-                f"Group name {group_name} is not a valid identifier."
-            )
-
-        if group_name in self.question_groups:
-            raise SurveyCreationError(
-                f"Group name {group_name} already exists in the survey."
-            )
-
-        if group_name in self.question_name_to_index:
-            raise SurveyCreationError(
-                f"Group name {group_name} already exists as a question name in the survey."
-            )
-
-        start_index = self._get_question_index(start_question)
-        end_index = self._get_question_index(end_question)
-
-        # Check if either index is the EndOfSurvey object
-        if start_index is EndOfSurvey or end_index is EndOfSurvey:
-            raise SurveyCreationError(
-                "Cannot use EndOfSurvey as a boundary for question groups."
-            )
-
-        # Now we know both are integers
-        assert isinstance(start_index, int) and isinstance(end_index, int)
-
-        if start_index > end_index:
-            raise SurveyCreationError(
-                f"Start index {start_index} is greater than end index {end_index}."
-            )
-
-        # Check for overlaps with existing groups
-        for existing_group_name, (
-            exist_start,
-            exist_end,
-        ) in self.question_groups.items():
-            # Ensure the existing indices are integers (they should be, but for type checking)
-            assert isinstance(exist_start, int) and isinstance(exist_end, int)
-
-            # Check containment and overlap cases
-            if start_index < exist_start and end_index > exist_end:
-                raise SurveyCreationError(
-                    f"Group {existing_group_name} is contained within the new group."
-                )
-            if start_index > exist_start and end_index < exist_end:
-                raise SurveyCreationError(
-                    f"New group would be contained within existing group {existing_group_name}."
-                )
-            if start_index < exist_start and end_index > exist_start:
-                raise SurveyCreationError(
-                    f"New group overlaps with the start of existing group {existing_group_name}."
-                )
-            if start_index < exist_end and end_index > exist_end:
-                raise SurveyCreationError(
-                    f"New group overlaps with the end of existing group {existing_group_name}."
-                )
-
-        # Validate that questions in the group can be fully rendered
-        self._validate_group_dependencies(start_index, end_index, group_name)
-
-        self.question_groups[group_name] = (start_index, end_index)
-        return self
-
-    def _validate_group_dependencies(
-        self, start_index: int, end_index: int, group_name: str
-    ) -> None:
-        """Validate that questions in a group don't have dependencies on each other.
-
-        Args:
-            start_index: Starting index of the group
-            end_index: Ending index of the group
-            group_name: Name of the group (for error messages)
-
-        Raises:
-            SurveyCreationError: If any question in the group depends on another
-                question in the same group.
-        """
-        # Get the complete dependency DAG
-        dag = self.dag()
-
-        # Get all question indices in the proposed group
-        group_indices = set(range(start_index, end_index + 1))
-
-        # Check each question in the group for dependencies on other group members
-        violations = []
-        for question_idx in group_indices:
-            # Get dependencies for this question
-            dependencies = dag.get(question_idx, set())
-
-            # Check if any dependencies are within the same group
-            internal_deps = dependencies.intersection(group_indices)
-
-            if internal_deps:
-                question_name = self.questions[question_idx].question_name
-                dep_names = [
-                    self.questions[dep_idx].question_name for dep_idx in internal_deps
-                ]
-                violations.append(f"Question '{question_name}' depends on {dep_names}")
-
-        if violations:
-            error_msg = (
-                f"Group '{group_name}' contains questions with internal dependencies:\n"
-                + "\n".join(f"  - {violation}" for violation in violations)
-                + "\n\nQuestions in a group must be able to render independently of other questions in the same group."
-            )
-            raise SurveyCreationError(error_msg)
-
-    def suggest_dependency_aware_groups(self, group_name_prefix: str = "group") -> dict:
+    def _suggest_dependency_aware_groups(self, group_name_prefix: str = "group") -> dict:
         """Suggest valid question groups that respect dependency constraints.
 
         This method analyzes the survey's dependency graph to suggest question groups
@@ -1880,63 +1354,13 @@ class Survey(Base):
             >>> q2 = QuestionFreeText(question_text="What's your age?", question_name="q2")
             >>> q3 = QuestionFreeText(question_text="Hi {{q1}}, based on your age {{q2}}, ...", question_name="q3")
             >>> s = Survey([q1, q2, q3])
-            >>> suggestions = s.suggest_dependency_aware_groups("section")
+            >>> suggestions = s._suggest_dependency_aware_groups("section")
             >>> # Might return: {"section_0": (0, 1), "section_1": (2, 2)}
         """
-        # Get the complete dependency DAG
-        dag = self.dag()
+        return self._group_manager.suggest_dependency_aware_groups(group_name_prefix)
 
-        # Track which questions have been grouped
-        grouped_questions = set()
-        suggested_groups = {}
-        group_counter = 0
-
-        # Process questions in order
-        for i in range(len(self.questions)):
-            if i in grouped_questions:
-                continue
-
-            # Start a new group with the current question
-            current_group = [i]  # Use list to maintain order
-            grouped_questions.add(i)
-
-            # Try to add more questions to this group (only look forward to maintain contiguous groups)
-            j = i + 1
-            while j < len(self.questions):
-                if j in grouped_questions:
-                    j += 1
-                    continue
-
-                # Check if this question depends on any question already in the current group
-                candidate_deps = dag.get(j, set())
-                current_group_set = set(current_group)
-
-                if not candidate_deps.intersection(current_group_set):
-                    # Also check if any question in current group depends on candidate
-                    group_depends_on_candidate = any(
-                        j in dag.get(group_member, set())
-                        for group_member in current_group_set
-                    )
-                    if not group_depends_on_candidate:
-                        # No dependencies either way, add it to the group
-                        current_group.append(j)
-                        grouped_questions.add(j)
-                        j += 1
-                    else:
-                        # Can't add this question, stop looking for more
-                        break
-                else:
-                    # Can't add this question, stop looking for more
-                    break
-
-            # Create the suggested group if it's not just a single question
-            # or if it's the last remaining question(s)
-            if len(current_group) >= 1:
-                group_name = f"{group_name_prefix}_{group_counter}"
-                suggested_groups[group_name] = (current_group[0], current_group[-1])
-                group_counter += 1
-
-        return suggested_groups
+    # Keep public alias for backward compatibility
+    suggest_dependency_aware_groups = _suggest_dependency_aware_groups
 
     def create_allowable_groups(
         self, group_name_prefix: str = "group", max_group_size: Optional[int] = None
@@ -1979,74 +1403,15 @@ class Survey(Base):
             >>> survey.create_allowable_groups("individual", max_group_size=1) # doctest: +ELLIPSIS
             Survey(...)
         """
-        # Clear existing groups to rebuild them
-        self.question_groups.clear()
-
-        # Get the complete dependency DAG
-        dag = self.dag()
-
-        # Track which questions have been grouped
-        grouped_questions = set()
-        group_counter = 0
-
-        # Process questions in order
-        for i in range(len(self.questions)):
-            if i in grouped_questions:
-                continue
-
-            # Start a new group with the current question
-            current_group = [i]
-            grouped_questions.add(i)
-
-            # Try to add more questions to this group (respecting max_group_size)
-            j = i + 1
-            while j < len(self.questions):
-                if j in grouped_questions:
-                    j += 1
-                    continue
-
-                # Check max group size constraint
-                if max_group_size is not None and len(current_group) >= max_group_size:
-                    break
-
-                # Check if this question depends on any question already in the current group
-                candidate_deps = dag.get(j, set())
-                current_group_set = set(current_group)
-
-                if not candidate_deps.intersection(current_group_set):
-                    # Also check if any question in current group depends on candidate
-                    group_depends_on_candidate = any(
-                        j in dag.get(group_member, set())
-                        for group_member in current_group_set
-                    )
-                    if not group_depends_on_candidate:
-                        # No dependencies either way, add it to the group
-                        current_group.append(j)
-                        grouped_questions.add(j)
-                        j += 1
-                    else:
-                        # Can't add this question, stop looking for more
-                        break
-                else:
-                    # Can't add this question, stop looking for more
-                    break
-
-            # Create and apply the group
-            if current_group:
-                group_name = f"{group_name_prefix}_{group_counter}"
-                start_question = self.questions[current_group[0]].question_name
-                end_question = self.questions[current_group[-1]].question_name
-
-                # Use the existing add_question_group method (which includes validation)
-                self.add_question_group(start_question, end_question, group_name)
-                group_counter += 1
-
-        return self
+        return self._group_manager.create_allowable_groups(
+            group_name_prefix, max_group_size
+        )
 
     def show_rules(self) -> None:
-        """Print out the rules in the survey.
+        """Print the rule collection as a Dataset.
 
-        >>> s = Survey.example()
+        Example:
+            >>> s = Survey.example()
         >>> s.show_rules()
         Dataset([{'current_q': [0, 0, 1, 2]}, {'expression': ['True', "{{ q0.answer }}== 'yes'", 'True', 'True']}, {'next_q': [1, 2, 2, 3]}, {'priority': [-1, 0, -1, -1]}, {'before_rule': [False, False, False, False]}])
         """
@@ -2055,15 +1420,20 @@ class Survey(Base):
     def add_stop_rule(
         self, question: Union[QuestionBase, str], expression: str
     ) -> Survey:
-        """Add a rule that stops the survey.
-        The rule is evaluated *after* the question is answered. If the rule is true, the survey ends.
+        """Add a rule that ends the survey when the expression is true.
 
-        :param question: The question to add the stop rule to.
-        :param expression: The expression to evaluate.
+        The rule is evaluated *after* the question is answered.
 
-        If this rule is true, the survey ends.
+        Args:
+            question: The question to attach the stop rule to.
+            expression: A conditional expression; if it evaluates to True
+                the survey ends.
 
-        Here, answering "yes" to q0 ends the survey:
+        Returns:
+            The modified survey instance (supports chaining).
+
+        Example:
+            Here, answering "yes" to q0 ends the survey:
 
         >>> s = Survey.example().add_stop_rule("q0", "{{ q0.answer }} == 'yes'")
         >>> s.next_question("q0", {"q0.answer": "yes"})
@@ -2079,12 +1449,16 @@ class Survey(Base):
         return RuleManager(self).add_stop_rule(question, expression)
 
     def clear_non_default_rules(self) -> Survey:
-        """Remove all non-default rules from the survey.
+        """Return a new survey with all non-default (skip/jump) rules removed.
 
-        >>> Survey.example().show_rules()
-        Dataset([{'current_q': [0, 0, 1, 2]}, {'expression': ['True', "{{ q0.answer }}== 'yes'", 'True', 'True']}, {'next_q': [1, 2, 2, 3]}, {'priority': [-1, 0, -1, -1]}, {'before_rule': [False, False, False, False]}])
-        >>> Survey.example().clear_non_default_rules().show_rules()
-        Dataset([{'current_q': [0, 1, 2]}, {'expression': ['True', 'True', 'True']}, {'next_q': [1, 2, 3]}, {'priority': [-1, -1, -1]}, {'before_rule': [False, False, False]}])
+        Returns:
+            A new Survey with the same questions but only default sequential rules.
+
+        Example:
+            >>> Survey.example().show_rules()
+            Dataset([{'current_q': [0, 0, 1, 2]}, {'expression': ['True', "{{ q0.answer }}== 'yes'", 'True', 'True']}, {'next_q': [1, 2, 2, 3]}, {'priority': [-1, 0, -1, -1]}, {'before_rule': [False, False, False, False]}])
+            >>> Survey.example().clear_non_default_rules().show_rules()
+            Dataset([{'current_q': [0, 1, 2]}, {'expression': ['True', 'True', 'True']}, {'next_q': [1, 2, 3]}, {'priority': [-1, -1, -1]}, {'before_rule': [False, False, False]}])
         """
         s = Survey()
         for question in self.questions:
@@ -2305,10 +1679,18 @@ class Survey(Base):
         return Jobs(survey=self).by(*args)
 
     def gold_standard(self, q_and_a_dict: dict[str, str]) -> "Result":
-        """Run the survey with a gold standard agent and return the result object.
+        """Run the survey with predetermined answers and return the result.
 
         Args:
-            q_and_a_dict: A dictionary of question names and answers.
+            q_and_a_dict: A mapping of question names to their expected answers.
+                Must contain exactly the same keys as ``self.question_names``.
+
+        Returns:
+            A single Result object produced by the gold-standard agent.
+
+        Raises:
+            ValueError: If the keys of q_and_a_dict don't match the survey's
+                question names.
         """
         try:
             assert set(q_and_a_dict.keys()) == set(
@@ -2327,7 +1709,7 @@ class Survey(Base):
         def f(self, question, scenario):
             return q_and_a_dict[question.question_name]
 
-        gold_agent.add_direct_question_answering_method(f)
+        gold_agent.add_direct_question_answering_method(f)  # type: ignore[arg-type]
         return self.by(gold_agent).run(disable_remote_inference=True)[0]
 
     def to_jobs(self) -> "Jobs":
@@ -2401,7 +1783,7 @@ class Survey(Base):
             >>> s(period="evening", cache=False, disable_remote_cache=True, disable_remote_inference=True).select("answer.q0").first()  # doctest: +SKIP
             'no'
         """
-        return self.get_job(model, agent, **kwargs).run(
+        return self._get_job(model, agent, **kwargs).run(
             cache=cache,
             verbose=verbose,
             disable_remote_cache=disable_remote_cache,
@@ -2477,7 +1859,7 @@ class Survey(Base):
             if k in ["disable_remote_inference", "disable_remote_cache"]
         }
 
-        jobs: "Jobs" = self.get_job(model=model, agent=agent, **scenario_kwargs).using(
+        jobs: "Jobs" = self._get_job(model=model, agent=agent, **scenario_kwargs).using(
             c
         )
         return await jobs.run_async(**job_kwargs)
@@ -2516,15 +1898,26 @@ class Survey(Base):
         return Jobs(survey=self).run(*args, **kwargs)
 
     def using(self, obj: Union["Cache", "KeyLookup", "BucketCollection"]) -> "Jobs":
-        """Turn the survey into a Job and appends the arguments to the Job."""
+        """Convert to a Jobs object and attach the given resource.
+
+        Args:
+            obj: A Cache, KeyLookup, or BucketCollection to attach.
+
+        Returns:
+            A Jobs object configured with the provided resource.
+        """
         from ..jobs.Jobs import Jobs
 
         return Jobs(survey=self).using(obj)
 
-    def duplicate(self):
-        """Duplicate the survey.
+    def duplicate(self, add_edsl_version=False):
+        """Create an independent copy of the survey via serialization round-trip.
 
-        >>> s = Survey.example()
+        Returns:
+            A new Survey instance equal to but not identical to this one.
+
+        Example:
+            >>> s = Survey.example()
         >>> s2 = s.duplicate()
         >>> s == s2
         True
@@ -2532,24 +1925,29 @@ class Survey(Base):
         False
 
         """
-        return Survey.from_dict(self.to_dict())
+        return self.copy()
 
     def next_question(
         self,
         current_question: Optional[Union[str, "QuestionBase"]] = None,
         answers: Optional[Dict[str, Any]] = None,
     ) -> Union["QuestionBase", EndOfSurveyParent]:
-        """
-        Return the next question in a survey.
+        """Return the next question in the survey based on rules and answers.
 
-        :param current_question: The current question in the survey.
-        :param answers: The answers for the survey so far
+        If called with no arguments, returns the first question. When answers
+        are provided, skip/jump rules are evaluated to determine the next
+        question. Returns EndOfSurvey when no more questions remain.
 
-        - If called with no arguments, it returns the first question in the survey.
-        - If no answers are provided for a question with a rule, the next question is returned. If answers are provided, the next question is determined by the rules and the answers.
-        - If the next question is the last question in the survey, an EndOfSurvey object is returned.
+        Args:
+            current_question: The current question (name or object). If None,
+                returns the first question.
+            answers: Accumulated answers so far, used to evaluate rules.
 
-        >>> s = Survey.example()
+        Returns:
+            The next QuestionBase, or EndOfSurvey if the survey is complete.
+
+        Example:
+            >>> s = Survey.example()
         >>> s.next_question("q0", {"q0.answer": "yes"}).question_name
         'q2'
         >>> s.next_question("q0", {"q0.answer": "no"}).question_name
@@ -2624,24 +2022,18 @@ class Survey(Base):
         current_item: Optional[Union[str, "QuestionBase", "Instruction"]] = None,
         answers: Optional[Dict[str, Any]] = None,
     ) -> Union["QuestionBase", "Instruction", EndOfSurveyParent]:
-        """
-        Return the next question or instruction in a survey, including instructions in sequence.
+        """Return the next question or instruction in sequence.
 
-        This method extends the functionality of next_question to also handle Instructions
-        that are interspersed between questions. It follows the proper sequence based on
-        pseudo indices and respects survey rules for question flow.
+        Extends ``next_question`` to also yield Instruction objects interspersed
+        between questions. Follows pseudo-index ordering and respects survey rules.
 
-        :param current_item: The current question or instruction in the survey.
-        :param answers: The answers for the survey so far
-
-        - If called with no arguments, it returns the first item (question or instruction) in the survey.
-        - For instructions, it returns the next item in sequence since instructions don't have answers.
-        - For questions, it uses the rule logic to determine the next question, then returns any
-          instructions that come before that target question, or the target question itself.
-        - If the next item would be past the end of the survey, an EndOfSurvey object is returned.
+        Args:
+            current_item: The current question or instruction. If None, returns
+                the first item in the survey.
+            answers: Accumulated answers so far, used to evaluate rules.
 
         Returns:
-            Union["QuestionBase", "Instruction", EndOfSurveyParent]: The next question, instruction, or EndOfSurvey.
+            The next QuestionBase, Instruction, or EndOfSurvey.
 
         Examples:
             With a survey that has instructions:
@@ -2823,18 +2215,16 @@ class Survey(Base):
         return len(self.questions)
 
     def _create_subsurvey(self, selected_questions: List["QuestionBase"]) -> "Survey":
-        """Create a new Survey with the specified questions.
+        """Create a new Survey containing only the specified questions.
 
-        This helper method creates a new Survey instance containing only the
-        selected questions. The new survey inherits relevant attributes from
-        the parent survey but gets fresh rule collections and memory plans
-        appropriate for the subset of questions.
+        Args:
+            selected_questions: Question objects to include in the sub-survey.
 
-        :param selected_questions: List of question objects to include in the new survey
-        :return: New Survey instance with the selected questions
+        Returns:
+            A new Survey with fresh rules/memory appropriate for the subset.
         """
         # Create new survey with selected questions
-        new_survey = Survey(questions=selected_questions)
+        new_survey = Survey(questions=selected_questions)  # type: ignore[arg-type]
 
         # Copy relevant attributes that make sense for a subsurvey
         if hasattr(self, "questions_to_randomize") and self.questions_to_randomize:
@@ -2851,13 +2241,17 @@ class Survey(Base):
     def __getitem__(
         self, index: Union[int, str, slice, List[str]]
     ) -> Union["QuestionBase", "Survey"]:
-        """Return question(s) or a new Survey based on the index type.
+        """Return question(s) or a sub-survey by index, name, slice, or name list.
 
-        :param index: The index of the question(s) to get. Can be:
-            - int: return single question by position
-            - str: return single question by name
-            - slice: return new Survey with sliced questions
-            - List[str]: return new Survey with questions selected by name
+        Args:
+            index: An int (position), str (name), slice, or list of name strings.
+
+        Returns:
+            A single QuestionBase for int/str, or a new Survey for slice/list.
+
+        Raises:
+            KeyError: If a question name is not found.
+            TypeError: If the index type is unsupported.
 
         Examples:
             >>> s = Survey.example()
@@ -2908,20 +2302,42 @@ class Survey(Base):
             )
 
     def select(self, *args, **kwargs) -> "Dataset":
-        """Treat like a dataset.select()"""
+        """Select columns from the survey's info Dataset.
+
+        Returns:
+            A filtered Dataset with the selected columns.
+
+        Example:
+            >>> s = Survey.example()
+            >>> ds = s.select('question_name')
+            >>> ds
+            Dataset([{'question_name': ['q0', 'q1', 'q2']}])
+        """
         return self.info()[0][1].select(*args, **kwargs)
 
-    def subset(self, *question_names: List[str]) -> "Survey":
-        """Create a new Survey with questions selected by name."""
-        if isinstance(question_names, str):
-            question_names = [question_names]
+    def subset(self, *question_names: str) -> "Survey":
+        """Create a new Survey containing only the named questions.
 
+        Args:
+            *question_names: One or more question names to keep.
+
+        Returns:
+            A new Survey with only the specified questions.
+
+        Raises:
+            ValueError: If no question names are provided.
+
+        Example:
+            >>> s = Survey.example()
+            >>> s.subset('q0', 'q2').question_names
+            ['q0', 'q2']
+        """
         if not question_names:
             raise ValueError("At least one question name must be provided")
 
         kept_questions = [self.get(name) for name in question_names]
         assert all(kept_questions), f"Question(s) {question_names} not found in survey"
-        return Survey(questions=kept_questions)
+        return Survey(questions=kept_questions)  # type: ignore[arg-type]
 
     def drop(self, *question_names) -> "Survey":
         """Create a new Survey with specified questions removed by name.
@@ -2993,6 +2409,12 @@ class Survey(Base):
         Returns a tabular Dataset with columns for question_name,
         question_type, question_text, question_options, and skip_logic
         (when any non-default rules exist).
+
+        Example:
+            >>> from edsl.dataset import Dataset
+            >>> ds = Survey.example().to_dataset()
+            >>> isinstance(ds, Dataset)
+            True
         """
         _, dataset = self.info()[0]
         return dataset
@@ -3009,6 +2431,7 @@ class Survey(Base):
         return generate_summary_repr(self, max_text_preview, max_items)
 
     def _summary(self) -> dict:
+        """Return a compact summary dict with question count and names."""
         return {
             "# questions": len(self),
             "question_name list": self.question_names,
@@ -3022,6 +2445,12 @@ class Survey(Base):
         that don't apply to a given question are shown as blank strings.
         A ``skip_logic`` column is appended when any non-default rules
         exist.
+
+        Example:
+            >>> s = Survey.example()
+            >>> sections = s.info()
+            >>> sections[0][0]
+            'Questions'
         """
         from edsl.dataset import Dataset
         from collections import defaultdict, OrderedDict
@@ -3095,9 +2524,16 @@ class Survey(Base):
         return [("Questions", Dataset(data))]
 
     def tree(self, node_list: Optional[List[str]] = None):
+        """Display the survey as a tree structure."""
         return self.to_scenario_list().tree(node_list=node_list)
 
     def table(self, *fields, tablefmt="rich") -> Table:
+        """Render the survey as a table.
+
+        Args:
+            *fields: Column names to include. If omitted, all columns are shown.
+            tablefmt: Table format (default ``"rich"``).
+        """
         return self.to_scenario_list().to_dataset().table(*fields, tablefmt=tablefmt)
 
     def codebook(self) -> Dict[str, str]:
@@ -3163,11 +2599,21 @@ class Survey(Base):
         field_name_new_values: dict,
         pop_fields: Optional[List[str]] = None,
     ) -> "Survey":
-        """Return a new Survey with the specified question edited.
+        """Return a new Survey with the specified question's fields updated.
 
-        This method creates a new Survey instance with the specified question edited.
-        The new survey inherits relevant attributes from the parent survey but gets
-        fresh rule collections and memory plans appropriate for the subset of questions.
+        Args:
+            question_name: Name of the question to edit.
+            field_name_new_values: Dict of field names to new values.
+            pop_fields: Optional list of field names to remove from the question.
+
+        Returns:
+            A new Survey with the edited question.
+
+        Example:
+            >>> s = Survey.example()
+            >>> s2 = s.with_edited_question('q0', {'question_text': 'Do you enjoy school?'})
+            >>> s2.get('q0').question_text
+            'Do you enjoy school?'
         """
         new_survey = self.duplicate()
         question = new_survey.get(question_name)
@@ -3177,7 +2623,7 @@ class Survey(Base):
         old_dict.update(field_name_new_values)
         for field_name in pop_fields or []:
             _ = old_dict.pop(field_name)
-        new_question = Question(**old_dict)
+        new_question = Question(**old_dict)  # type: ignore[missing-argument]
         new_survey.questions[new_survey.questions.index(question)] = new_question
         return new_survey
 
@@ -3300,7 +2746,17 @@ class Survey(Base):
         s = s.add_rule(q0, "{{ q0.answer }}== 'yes'", q2)
         return s
 
-    def get_job(self, model=None, agent=None, **kwargs):
+    def _get_job(self, model=None, agent=None, **kwargs):
+        """Build a Jobs object with the given model, agent, and scenario kwargs.
+
+        Args:
+            model: Language model to use. Defaults to ``Model()``.
+            agent: Agent to use. Defaults to ``Agent()``.
+            **kwargs: Key-value pairs passed as a Scenario.
+
+        Returns:
+            A configured Jobs object ready to run.
+        """
         if model is None:
             from edsl.language_models.model import Model
 
@@ -3315,7 +2771,7 @@ class Survey(Base):
 
             agent = Agent()
 
-        return self.by(s).by(agent).by(model)
+        return self.by(s).by(agent).by(model)  # type: ignore[arg-type]
 
     ###################
     # COOP METHODS
@@ -3326,11 +2782,17 @@ class Survey(Base):
         survey_description: Optional[str] = None,
         survey_alias: Optional[str] = None,
         survey_visibility: Optional["VisibilityType"] = "private",
-    ) -> dict:
-        """
-        Send the survey to Coop.
+    ) -> "Scenario":
+        """Push the survey to Coop and create a project for human respondents.
 
-        Then, create a project on Coop so you can share the survey with human respondents.
+        Args:
+            human_survey_name: Display name for the survey on Coop.
+            survey_description: Optional description text.
+            survey_alias: Optional URL-friendly alias.
+            survey_visibility: One of ``"private"``, ``"public"``, or ``"unlisted"``.
+
+        Returns:
+            A Scenario containing the human-survey project details.
         """
         from ..coop import Coop
         from ..scenarios import Scenario
@@ -3346,9 +2808,7 @@ class Survey(Base):
         return Scenario(human_survey_details)
 
     def preview(self) -> str:
-        """
-        Returns a link to preview the humanize survey on Coop.
-        """
+        """Return a URL to preview the survey on Coop."""
         from ..coop import Coop
 
         c = Coop()
@@ -3398,6 +2858,11 @@ class Survey(Base):
 
         Returns:
             str: Markdown formatted string representation of the survey.
+
+        Example:
+            >>> md = Survey.example().to_markdown()
+            >>> 'Do you like school?' in md
+            True
         """
         text = self.table().to_markdown_table()
         # Replace Jinja2 braces with << >> to indicate piping
@@ -3439,13 +2904,27 @@ class Survey(Base):
 
         Returns:
             ScenarioList: A scenario list containing survey data.
+
+        Example:
+            >>> s = Survey.example()
+            >>> sl = s.to_scenario_list()
+            >>> len(sl) == len(s)
+            True
         """
         return self._exporter.to_scenario_list(
             questions_only, rename, remove_jinja2_syntax
         )
 
     def code(self, filename: str = "", survey_var_name: str = "survey") -> list[str]:
-        """Create the Python code representation of a survey."""
+        """Generate Python source code that recreates this survey.
+
+        Args:
+            filename: If provided, write the code to this file path.
+            survey_var_name: Variable name to use in the generated code.
+
+        Returns:
+            A list of code lines.
+        """
         return self._exporter.code(filename, survey_var_name)
 
     # def html(
@@ -3551,295 +3030,6 @@ class Survey(Base):
 
         return QuestionRenamer.with_renamed_question(self, old_name, new_name)
 
-    # @classmethod
-    # def generate_from_topic(
-    #     cls,
-    #     topic: str,
-    #     n_questions: int = 5,
-    #     model: Optional["LanguageModel"] = None,
-    #     scenario_keys: Optional[List[str]] = None,
-    #     verbose: bool = True,
-    # ) -> "Survey":
-    #     """Generate a survey from a topic using an LLM.
-
-    #     This method uses a language model to generate a well-balanced survey
-    #     for the given topic with the specified number of questions.
-
-    #     Args:
-    #         topic: The topic to generate questions about
-    #         n_questions: Number of questions to generate (default: 5)
-    #         model: Language model to use for generation. If None, uses default model.
-    #         scenario_keys: Optional list of scenario keys to include in question texts.
-    #                       Each key will be added as {{ scenario.<key> }} in the questions.
-    #         verbose: Whether to show the underlying survey generation process (default: True)
-
-    #     Returns:
-    #         Survey: A new Survey instance with generated questions
-
-    #     Examples:
-    #         >>> survey = Survey.generate_from_topic("workplace satisfaction", n_questions=3)  # doctest: +SKIP
-    #         >>> survey = Survey.generate_from_topic("product feedback", scenario_keys=["product_name", "version"])  # doctest: +SKIP
-    #         >>> survey = Survey.generate_from_topic("feedback", verbose=False)  # doctest: +SKIP
-    #     """
-    #     from .survey_generator import SurveyGenerator
-
-    #     return SurveyGenerator.generate_from_topic(
-    #         cls, topic, n_questions, model, scenario_keys, verbose
-    #     )
-
-    # @classmethod
-    # def generate_from_questions(
-    #     cls,
-    #     question_texts: List[str],
-    #     question_types: Optional[List[str]] = None,
-    #     question_names: Optional[List[str]] = None,
-    #     model: Optional["LanguageModel"] = None,
-    #     scenario_keys: Optional[List[str]] = None,
-    #     verbose: bool = True,
-    # ) -> "Survey":
-    #     """Generate a survey from a list of question texts.
-
-    #     This method takes a list of question texts and optionally infers question types
-    #     and generates question names using an LLM.
-
-    #     Args:
-    #         question_texts: List of question text strings
-    #         question_types: Optional list of question types corresponding to each text.
-    #                       If None, types will be inferred by the model.
-    #         question_names: Optional list of question names. If None, names will be generated.
-    #         model: Language model to use for inference. If None, uses default model.
-    #         scenario_keys: Optional list of scenario keys to include in question texts.
-    #                       Each key will be added as {{ scenario.<key> }} in the questions.
-    #         verbose: Whether to show the underlying survey generation process (default: True)
-
-    #     Returns:
-    #         Survey: A new Survey instance with the questions
-
-    #     Examples:
-    #         >>> texts = ["How satisfied are you?", "What is your age?"]
-    #         >>> survey = Survey.generate_from_questions(texts)  # doctest: +SKIP
-    #         >>> types = ["LinearScale", "Numerical"]
-    #         >>> names = ["satisfaction", "age"]
-    #         >>> survey = Survey.generate_from_questions(texts, types, names)  # doctest: +SKIP
-    #         >>> survey = Survey.generate_from_questions(texts, scenario_keys=["product_name"])  # doctest: +SKIP
-    #         >>> survey = Survey.generate_from_questions(texts, verbose=False)  # doctest: +SKIP
-    #     """
-    #     from .survey_generator import SurveyGenerator
-
-    #     return SurveyGenerator.generate_from_questions(
-    #         cls,
-    #         question_texts,
-    #         question_types,
-    #         question_names,
-    #         model,
-    #         scenario_keys,
-    #         verbose,
-    #     )
-
-    # @property
-    # def vibe(self) -> "SurveyVibeAccessor":
-    #     """Access vibe-based survey editing methods.
-
-    #     Returns a SurveyVibeAccessor that provides natural language methods
-    #     for editing, adding questions, and describing the survey.
-
-    #     Returns:
-    #         SurveyVibeAccessor: Accessor for vibe methods
-
-    #     Examples:
-    #         >>> survey = Survey.from_vibes("Customer satisfaction")  # doctest: +SKIP
-    #         >>> survey.vibe.edit("Translate to Spanish")  # doctest: +SKIP
-    #         >>> survey.vibe.add("Add age question")  # doctest: +SKIP
-    #         >>> survey.vibe.describe()  # doctest: +SKIP
-    #     """
-    #     from .vibes.vibe_accessor import SurveyVibeAccessor
-
-    #     return SurveyVibeAccessor(self)
-
-    # @classmethod
-    # @with_spinner("Generating survey from description...")
-    # def from_vibes(
-    #     cls,
-    #     description: str,
-    #     *,
-    #     num_questions: Optional[int] = None,
-    #     model: str = "gpt-4o",
-    #     temperature: float = 0.7,
-    #     remote: bool = False,
-    # ) -> "Survey":
-    #     """Generate a survey from a natural language description.
-
-    #     This method uses an LLM to generate a complete survey based on a description
-    #     of what the survey should cover. It can execute in two modes:
-    #     - Local: Uses your OPENAI_API_KEY to generate surveys locally
-    #     - Remote: Delegates to a FastAPI server (used when no key or remote=True)
-
-    #     The method automatically determines which mode to use:
-    #     1. If remote=True, always use remote generation
-    #     2. If OPENAI_API_KEY is not set, automatically use remote generation
-    #     3. Otherwise, use local generation
-
-    #     Args:
-    #         description: Natural language description of the survey topic.
-    #             Examples:
-    #             - "Survey about a new consumer brand of vitamin water"
-    #             - "Customer satisfaction survey for a restaurant"
-    #             - "Employee engagement survey"
-    #         num_questions: Optional number of questions to generate. If not provided,
-    #             the LLM will decide based on the topic (typically 5-10).
-    #         model: OpenAI model to use for generation (default: "gpt-4o")
-    #         temperature: Temperature for generation (default: 0.7)
-    #         remote: Force remote generation even if OPENAI_API_KEY is available
-    #             (default: False)
-
-    #     Returns:
-    #         Survey: A new Survey instance with the generated questions
-
-    #     Examples:
-    #         Basic usage (automatically chooses local/remote based on API key):
-
-    #         >>> survey = Survey.from_vibes("Survey about a new consumer brand of vitamin water")  # doctest: +SKIP
-
-    #         Force remote generation:
-
-    #         >>> survey = Survey.from_vibes("Employee engagement survey", remote=True)  # doctest: +SKIP
-
-    #         With specific number of questions:
-
-    #         >>> survey = Survey.from_vibes("Employee engagement survey", num_questions=8)  # doctest: +SKIP
-
-    #         Using a different model:
-
-    #         >>> survey = Survey.from_vibes(
-    #         ...     "Customer satisfaction for a restaurant",
-    #         ...     model="gpt-4",
-    #         ...     temperature=0.5
-    #         ... )  # doctest: +SKIP
-
-    #     Notes:
-    #         - Local mode requires OPENAI_API_KEY environment variable to be set
-    #         - Remote mode requires EXPECTED_PARROT_API_KEY and network access to server
-    #         - If no OPENAI_API_KEY is available, automatically uses remote generation
-    #         - The generator will select from available question types: free_text,
-    #           multiple_choice, checkbox, numerical, likert_five, linear_scale,
-    #           yes_no, rank, budget, list, matrix
-    #         - Questions are automatically given appropriate names and options
-    #     """
-    #     from .vibes.vibes_dispatcher import default_dispatcher
-
-    #     return default_dispatcher.dispatch(
-    #         target="survey",
-    #         method="from_vibes",
-    #         survey_cls=cls,
-    #         description=description,
-    #         num_questions=num_questions,
-    #         model=model,
-    #         temperature=temperature,
-    #         remote=remote,
-    #     )
-
-    # @classmethod
-    # def _infer_question_types(
-    #     cls, question_data: List[Dict[str, Any]], model: "LanguageModel"
-    # ) -> List[Dict[str, Any]]:
-    #     """Infer question types for question data using an LLM."""
-    #     from .survey_generator import SurveyGenerator
-
-    #     return SurveyGenerator._infer_question_types(question_data, model)
-
-    @classmethod
-    def _create_question_from_dict(
-        cls, data: Dict[str, Any], default_name: str
-    ) -> "QuestionBase":
-        """Create a question object from a dictionary."""
-        from .survey_generator import SurveyGenerator
-
-        return SurveyGenerator._create_question_from_dict(data, default_name)
-
-    @classmethod
-    def _trace_callers(
-        cls,
-        method_name: str,
-        *,
-        exclude_dirs: Optional[List[str]] = None,
-    ) -> Dict[str, List[str]]:
-        """Find files outside ``surveys/`` that call a Survey method.
-
-        Parameters
-        ----------
-        method_name : str
-            Name of the method to search for (e.g. ``"add_question"``).
-        exclude_dirs : list[str], optional
-            Directory *names* (relative to the ``edsl`` package root) to
-            exclude from the search.  Defaults to ``["surveys"]``.
-
-        Returns
-        -------
-        dict
-            Mapping of file paths to lists of matching lines.
-        """
-        import subprocess
-
-        if exclude_dirs is None:
-            exclude_dirs = ["surveys"]
-
-        edsl_root = Path(__file__).resolve().parent.parent  # edsl/
-
-        pattern = rf"\.{method_name}\s*\("
-        cmd = [
-            "grep",
-            "-rn",
-            "-E",
-            pattern,
-            "--include=*.py",
-        ]
-        for d in exclude_dirs:
-            cmd.extend(["--exclude-dir", d])
-        cmd.append(str(edsl_root))
-
-        result = subprocess.run(cmd, capture_output=True, text=True)
-        hits: Dict[str, List[str]] = {}
-        for line in result.stdout.splitlines():
-            # lines look like /path/to/file.py:123:  some code
-            parts = line.split(":", 2)
-            if len(parts) >= 3:
-                filepath, lineno, text = parts[0], parts[1], parts[2]
-                rel = str(Path(filepath).relative_to(edsl_root))
-                hits.setdefault(rel, []).append(f"{lineno}:{text}")
-        return hits
-
-    @classmethod
-    def _trace_all_callers(
-        cls,
-        *,
-        exclude_dirs: Optional[List[str]] = None,
-        include_private: bool = False,
-    ) -> Dict[str, Dict[str, List[str]]]:
-        """Run :meth:`_trace_callers` for every method on ``Survey``.
-
-        Parameters
-        ----------
-        exclude_dirs : list[str], optional
-            Passed through to :meth:`_trace_callers`.
-        include_private : bool
-            If *False* (default), skip methods whose names start with ``_``.
-
-        Returns
-        -------
-        dict
-            ``{method_name: {file: [lines]}}`` for methods that have at least
-            one external caller.
-        """
-        results: Dict[str, Dict[str, List[str]]] = {}
-        for name in sorted(dir(cls)):
-            if not include_private and name.startswith("_"):
-                continue
-            if not callable(getattr(cls, name, None)):
-                continue
-            hits = cls._trace_callers(name, exclude_dirs=exclude_dirs)
-            if hits:
-                results[name] = hits
-        return results
 
 
 def main():
