@@ -6,21 +6,44 @@ import shutil
 import subprocess
 import tempfile
 from pathlib import Path
-from urllib.parse import urlparse, urlunparse
 
-import requests
-
-from edsl.base.base_class import Base
+from edsl.study.client import StudyClient, _resolve_server_url, authed_remote_url
 from edsl.study.descriptors import NameField, AliasField
 from edsl.study.exceptions import (
-    StudyAuthError,
     StudyError,
     StudyGitError,
-    StudyServerError,
 )
 
-_DEFAULT_SERVER_URL = "https://study.expectedparrot.com"
 _METADATA_FILE = ".study.json"
+
+# Default scaffold for new studies. Each entry is either:
+#   {"type": "dir"}  — creates the directory with a .gitkeep
+#   {"type": "file", "content": "..."}  — creates the file with that content
+DEFAULT_SCAFFOLD = {
+    "data": {"type": "dir"},
+    "analysis": {"type": "dir"},
+    "writeup": {"type": "dir"},
+    "writeup/plots": {"type": "dir"},
+    "writeup/tables": {"type": "dir"},
+    "writeup/report.md": {
+        "type": "file",
+        "content": "# Report\n",
+    },
+    "Makefile": {
+        "type": "file",
+        "content": (
+            ".PHONY: all clean\n"
+            "\n"
+            "all:\n"
+            "\t@echo \"Run analysis and build report\"\n"
+            "\n"
+            "clean:\n"
+            "\t@echo \"Clean generated files\"\n"
+        ),
+    },
+}
+
+_METADATA_FIELDS = ("alias", "title", "description", "visibility")
 
 
 def _log(verbose: bool, msg: str):
@@ -28,7 +51,13 @@ def _log(verbose: bool, msg: str):
         print(msg)
 
 
-class Study(Base):
+def _spinner(message: str):
+    """Return a rich stderr spinner context manager."""
+    from rich.console import Console
+    return Console(stderr=True).status(message, spinner="dots")
+
+
+class Study:
     """A git-backed study directory that syncs with a remote meta-server.
 
     A Study wraps a local directory under git version control. It can push to
@@ -49,7 +78,16 @@ class Study(Base):
         *,
         directory_location: str | None = None,
         server_url: str | None = None,
+        scaffold: dict | bool = False,
     ):
+        """
+        Args:
+            name: Directory basename for the study.
+            directory_location: Parent directory. Defaults to a temp directory.
+            server_url: Meta-server URL. Defaults to config or built-in fallback.
+            scaffold: If ``True``, populate with ``DEFAULT_SCAFFOLD``. If a dict,
+                use it as a custom scaffold. If ``False`` (default), no scaffolding.
+        """
         self.name = name
         self.alias = None
         self.title = None
@@ -62,17 +100,48 @@ class Study(Base):
         self._directory_location = str(Path(directory_location).resolve())
         self.path = os.path.join(self._directory_location, name)
 
-        # Resolve server URL
-        if server_url is not None:
-            self.server_url = server_url.rstrip("/")
-        else:
-            self.server_url = self._default_server_url()
+        # Server
+        self.server_url = _resolve_server_url(server_url)
 
         # Internal state loaded from .study.json
         self._uuid: str | None = None
         self._gitlab_url: str | None = None
 
+        self._scaffold = scaffold
         self._init_directory()
+
+    # ------------------------------------------------------------------
+    # Alternate constructors (bypass __init__)
+    # ------------------------------------------------------------------
+
+    @classmethod
+    def _new_bare(
+        cls,
+        name: str,
+        path: str,
+        server_url: str,
+        *,
+        alias: str | None = None,
+        uuid: str | None = None,
+        gitlab_url: str | None = None,
+    ) -> "Study":
+        """Create a Study instance without running ``_init_directory``.
+
+        Used by ``clone`` and ``from_repo`` which set up the directory
+        themselves.
+        """
+        study = object.__new__(cls)
+        study._field_name = name
+        study._field_alias = alias
+        study.title = None
+        study.description = None
+        study.visibility = "private"
+        study._directory_location = str(Path(path).parent)
+        study.path = path
+        study.server_url = server_url
+        study._uuid = uuid
+        study._gitlab_url = gitlab_url
+        return study
 
     # ------------------------------------------------------------------
     # Directory / git initialisation
@@ -85,6 +154,9 @@ class Study(Base):
             os.makedirs(self.path, exist_ok=True)
             self._git_run("init")
             self._write_gitignore()
+            if self._scaffold:
+                tree = DEFAULT_SCAFFOLD if self._scaffold is True else self._scaffold
+                self._apply_scaffold(tree)
             self._save_metadata()
         elif os.path.isfile(metadata_path):
             self._load_metadata()
@@ -109,6 +181,25 @@ class Study(Base):
                 self._git_run("commit", "-m", "Initial .gitignore")
             except StudyGitError:
                 pass
+
+    def _apply_scaffold(self, tree: dict):
+        """Create directories and files from a scaffold tree.
+
+        Args:
+            tree: A dict mapping relative paths to entries. Each entry is:
+                ``{"type": "dir"}`` — creates the directory with a ``.gitkeep``
+                ``{"type": "file", "content": "..."}`` — creates the file
+        """
+        for rel_path, entry in tree.items():
+            full_path = Path(self.path) / rel_path
+            if entry["type"] == "dir":
+                full_path.mkdir(parents=True, exist_ok=True)
+                gitkeep = full_path / ".gitkeep"
+                if not gitkeep.exists():
+                    gitkeep.touch()
+            elif entry["type"] == "file":
+                full_path.parent.mkdir(parents=True, exist_ok=True)
+                full_path.write_text(entry.get("content", ""))
 
     # ------------------------------------------------------------------
     # Metadata persistence (.study.json)
@@ -141,58 +232,12 @@ class Study(Base):
         self.visibility = data.get("visibility", "private")
         self.server_url = data.get("server_url", self.server_url)
 
-    # ------------------------------------------------------------------
-    # Auth (Coop pattern)
-    # ------------------------------------------------------------------
-
-    @property
-    def _headers(self) -> dict:
-        """Build authorization headers using the Expected Parrot API key."""
-        api_key = self._get_api_key()
-        return {"Authorization": f"Bearer {api_key}"}
-
-    @staticmethod
-    def _get_api_key() -> str:
-        """Retrieve the API key from the environment."""
-        key = os.environ.get("EXPECTED_PARROT_API_KEY")
-        if not key:
-            try:
-                from edsl.coop.ep_key_handling import ExpectedParrotKeyHandler
-                key = ExpectedParrotKeyHandler().get_ep_api_key()
-            except Exception:
-                pass
-        if not key:
-            raise StudyAuthError(
-                "No API key found. Set EXPECTED_PARROT_API_KEY or run edsl.login()."
-            )
-        # Strip surrounding quotes if present (from .env files)
-        return key.strip("'\"")
-
-    # ------------------------------------------------------------------
-    # Server communication
-    # ------------------------------------------------------------------
-
-    def _server_post(self, endpoint: str, body: dict) -> requests.Response:
-        """POST to the server with bearer auth."""
-        try:
-            return requests.post(
-                f"{self.server_url}{endpoint}",
-                json=body,
-                headers=self._headers,
-                timeout=30,
-            )
-        except requests.RequestException as exc:
-            raise StudyServerError(f"Failed to contact server: {exc}")
-
-    @staticmethod
-    def _authed_remote_url(gitlab_url: str, token: str) -> str:
-        """Inject ``oauth2:{token}@`` into a GitLab URL."""
-        parsed = urlparse(gitlab_url)
-        authed = parsed._replace(
-            netloc=f"oauth2:{token}@{parsed.hostname}"
-            + (f":{parsed.port}" if parsed.port else "")
-        )
-        return urlunparse(authed)
+    def _update_metadata_fields(self, **kwargs):
+        """Set any non-None metadata kwargs on self."""
+        for field in _METADATA_FIELDS:
+            value = kwargs.get(field)
+            if value is not None:
+                setattr(self, field, value)
 
     # ------------------------------------------------------------------
     # Public API
@@ -221,16 +266,9 @@ class Study(Base):
         On the first push, creates a UUID and GitLab project. Subsequent
         pushes just mint a new token and push.
         """
-        # Update local metadata from kwargs
-        if alias is not None:
-            self.alias = alias
-        if title is not None:
-            self.title = title
-        if description is not None:
-            self.description = description
-        if visibility is not None:
-            self.visibility = visibility
-
+        self._update_metadata_fields(
+            alias=alias, title=title, description=description, visibility=visibility,
+        )
         self._check_git_clean()
 
         body = {
@@ -241,19 +279,12 @@ class Study(Base):
             "visibility": self.visibility or "private",
         }
 
-        _log(verbose, "Requesting push token...")
-        resp = self._server_post("/push-req", body)
+        is_first_push = self._uuid is None
+        spinner_msg = "[bold cyan]Creating study..." if is_first_push else "[bold cyan]Requesting push token..."
 
-        if resp.status_code == 409:
-            raise StudyServerError("Alias already taken.")
-        if resp.status_code == 403:
-            raise StudyServerError("Not authorized to push to this study.")
-        if not resp.ok:
-            raise StudyServerError(
-                f"Push request failed ({resp.status_code}): {resp.text}"
-            )
-
-        data = resp.json()
+        client = StudyClient(self.server_url)
+        with _spinner(spinner_msg):
+            data = client.push_request(body)
 
         if self._uuid is None:
             self._uuid = data["uuid"]
@@ -261,9 +292,8 @@ class Study(Base):
         self._gitlab_url = data.get("gitlab_url", self._gitlab_url)
         self._save_metadata()
 
-        remote = self._authed_remote_url(data["gitlab_url"], data["token"])
-        _log(verbose, "Pushing...")
-        self._git_run("push", remote, f"HEAD:{branch}", capture_output=True)
+        remote = authed_remote_url(data["gitlab_url"], data["token"])
+        self._git_push_with_retry(remote, branch, verbose=verbose)
         _log(verbose, "Push complete.")
 
     def pull(self, branch: str = "main", *, verbose: bool = False):
@@ -272,15 +302,10 @@ class Study(Base):
             raise StudyError("Study has not been pushed yet.")
 
         _log(verbose, "Requesting pull token...")
-        resp = self._server_post("/pull-event", {"uuid": self._uuid})
+        client = StudyClient(self.server_url)
+        data = client.pull_request(self._uuid)
 
-        if not resp.ok:
-            raise StudyServerError(
-                f"Pull request failed ({resp.status_code}): {resp.text}"
-            )
-
-        data = resp.json()
-        remote = self._authed_remote_url(data["gitlab_url"], data["token"])
+        remote = authed_remote_url(data["gitlab_url"], data["token"])
         _log(verbose, "Fetching...")
         self._git_run("fetch", remote, branch, capture_output=True)
         self._git_run("merge", "FETCH_HEAD")
@@ -311,43 +336,19 @@ class Study(Base):
             raise StudyError("Study has not been pushed yet.")
 
         body = {}
-        if alias is not None:
-            body["alias"] = alias
-        if title is not None:
-            body["title"] = title
-        if description is not None:
-            body["description"] = description
-        if visibility is not None:
-            body["visibility"] = visibility
+        for field in _METADATA_FIELDS:
+            value = locals()[field]
+            if value is not None:
+                body[field] = value
 
         if not body:
             raise StudyError("Provide at least one field to update.")
 
         _log(verbose, f"Updating metadata for {self._uuid}...")
-        try:
-            resp = requests.patch(
-                f"{self.server_url}/repos/{self._uuid}",
-                json=body,
-                headers=self._headers,
-                timeout=30,
-            )
-        except requests.RequestException as exc:
-            raise StudyServerError(f"Failed to contact server: {exc}")
+        client = StudyClient(self.server_url)
+        client.update_metadata(self._uuid, body)
 
-        if not resp.ok:
-            raise StudyServerError(
-                f"Metadata update failed ({resp.status_code}): {resp.text}"
-            )
-
-        # Update local state
-        if alias is not None:
-            self.alias = alias
-        if title is not None:
-            self.title = title
-        if description is not None:
-            self.description = description
-        if visibility is not None:
-            self.visibility = visibility
+        self._update_metadata_fields(**body)
         self._save_metadata()
         _log(verbose, "Metadata updated.")
 
@@ -372,80 +373,44 @@ class Study(Base):
         if uuid is not None and alias is not None:
             raise StudyError("Provide uuid or alias, not both.")
 
-        if server_url is not None:
-            url = server_url.rstrip("/")
-        else:
-            url = cls._default_server_url()
+        url = _resolve_server_url(server_url)
+        client = StudyClient(url)
 
-        api_key = cls._get_api_key()
-        headers = {"Authorization": f"Bearer {api_key}"}
+        with _spinner("[bold cyan]Requesting clone token...") as status:
+            data = client.clone_request(uuid=uuid, alias=alias)
 
-        body = {}
-        if uuid is not None:
-            body["uuid"] = uuid
-        if alias is not None:
-            body["alias"] = alias
+            token = data["token"]
+            gitlab_url = data["gitlab_url"]
+            repo_uuid = data["uuid"]
 
-        _log(verbose, f"Requesting clone token from {url}...")
-        try:
-            resp = requests.post(
-                f"{url}/clone-req", json=body, headers=headers, timeout=30
+            authed_url = authed_remote_url(gitlab_url, token)
+            dir_name = (alias or repo_uuid[:12]).replace("/", "-")
+
+            if directory_location is None:
+                directory_location = tempfile.mkdtemp(prefix=f"edsl_study_{dir_name}_")
+            directory_location = str(Path(directory_location).resolve())
+            clone_path = os.path.join(directory_location, dir_name)
+
+            status.update("[bold cyan]Cloning repository...")
+            try:
+                subprocess.run(
+                    ["git", "clone", authed_url, clone_path],
+                    check=True,
+                    capture_output=True,
+                    text=True,
+                )
+            except subprocess.CalledProcessError as exc:
+                raise StudyGitError(
+                    f"git clone failed: {exc.stderr or exc.stdout or str(exc)}"
+                )
+
+            status.update("[bold cyan]Setting up study...")
+            study = cls._new_bare(
+                dir_name, clone_path, url,
+                alias=alias, uuid=repo_uuid, gitlab_url=gitlab_url,
             )
-        except requests.RequestException as exc:
-            raise StudyServerError(f"Failed to contact server: {exc}")
-
-        if resp.status_code == 404:
-            error = resp.json().get("error", "not_found")
-            raise StudyServerError(f"Study not found or not yet pushed: {error}")
-        if resp.status_code == 403:
-            raise StudyServerError("Not authorized to access this study.")
-        if not resp.ok:
-            raise StudyServerError(
-                f"Clone request failed ({resp.status_code}): {resp.text}"
-            )
-
-        data = resp.json()
-        token = data["token"]
-        gitlab_url = data["gitlab_url"]
-        repo_uuid = data["uuid"]
-
-        authed_url = cls._authed_remote_url(gitlab_url, token)
-
-        # Use alias or uuid fragment as directory name
-        dir_name = (alias or repo_uuid[:12]).replace("/", "-")
-
-        if directory_location is None:
-            directory_location = tempfile.mkdtemp(prefix=f"edsl_study_{dir_name}_")
-        directory_location = str(Path(directory_location).resolve())
-        clone_path = os.path.join(directory_location, dir_name)
-
-        _log(verbose, f"Cloning into {clone_path}...")
-        try:
-            subprocess.run(
-                ["git", "clone", authed_url, clone_path],
-                check=True,
-                capture_output=True,
-                text=True,
-            )
-        except subprocess.CalledProcessError as exc:
-            raise StudyGitError(
-                f"git clone failed: {exc.stderr or exc.stdout or str(exc)}"
-            )
-
-        study = object.__new__(cls)
-        study._field_name = dir_name
-        study._field_alias = alias
-        study.title = None
-        study.description = None
-        study.visibility = "private"
-        study._directory_location = directory_location
-        study.path = clone_path
-        study.server_url = url
-        study._uuid = repo_uuid
-        study._gitlab_url = gitlab_url
-
-        study._write_gitignore()
-        study._save_metadata()
+            study._write_gitignore()
+            study._save_metadata()
 
         _log(verbose, f"Clone complete. uuid={repo_uuid}")
         return study
@@ -472,25 +437,10 @@ class Study(Base):
         if name is None:
             name = os.path.basename(repo_path)
 
-        if server_url is not None:
-            url = server_url.rstrip("/")
-        else:
-            url = cls._default_server_url()
-
+        url = _resolve_server_url(server_url)
         _log(verbose, f"Wrapping {repo_path} as study '{name}'...")
 
-        study = object.__new__(cls)
-        study._field_name = name
-        study._field_alias = None
-        study.title = None
-        study.description = None
-        study.visibility = "private"
-        study._directory_location = str(Path(repo_path).parent)
-        study.path = repo_path
-        study.server_url = url
-        study._uuid = None
-        study._gitlab_url = None
-
+        study = cls._new_bare(name, repo_path, url)
         study._write_gitignore()
         study._save_metadata()
 
@@ -510,29 +460,13 @@ class Study(Base):
         """
         from edsl.scenarios import Scenario, ScenarioList
 
-        if server_url is not None:
-            url = server_url.rstrip("/")
-        else:
-            url = cls._default_server_url()
-
-        api_key = cls._get_api_key()
-        headers = {"Authorization": f"Bearer {api_key}"}
+        url = _resolve_server_url(server_url)
+        client = StudyClient(url)
 
         _log(verbose, f"Listing studies from {url}...")
-        try:
-            resp = requests.get(
-                f"{url}/repos", headers=headers, timeout=30
-            )
-        except requests.RequestException as exc:
-            raise StudyServerError(f"Failed to contact server: {exc}")
-
-        if not resp.ok:
-            raise StudyServerError(
-                f"List request failed ({resp.status_code}): {resp.text}"
-            )
-
-        repos = resp.json().get("repos", [])
+        repos = client.list_repos()
         _log(verbose, f"Found {len(repos)} studies.")
+
         scenarios = [
             Scenario({
                 "uuid": r["uuid"],
@@ -573,185 +507,33 @@ class Study(Base):
         return str(dest)
 
     # ------------------------------------------------------------------
-    # Inspection (read-only shell / git commands)
+    # Shell command runner
     # ------------------------------------------------------------------
 
-    def pwd(self) -> str:
-        """Return the absolute path to the study directory."""
-        return self.path
-
-    def ls(self, path: str = ".", all: bool = False) -> "list[str]":
-        """List files in the study directory (or a subdirectory).
+    def command(self, cmd: str) -> None:
+        """Run a shell command in the study directory and print its output.
 
         Args:
-            path: Relative path within the study. Defaults to root.
-            all: If True, include hidden files (dotfiles).
+            cmd: The command string to execute (e.g. ``"ls -la"``, ``"git status"``).
 
-        Returns:
-            Sorted list of filenames.
+        Raises:
+            StudyError: If the command exits with a non-zero status.
         """
-        target = Path(self.path) / path
-        if not target.is_dir():
-            raise StudyError(f"Not a directory: {target}")
-        entries = sorted(target.iterdir())
-        if not all:
-            entries = [e for e in entries if not e.name.startswith(".")]
-        return [e.name for e in entries]
-
-    def tree(self, path: str = ".", max_depth: int | None = None) -> str:
-        """Return a tree-style listing of the study directory.
-
-        Excludes ``.git`` and ``.study.json``. Uses ``tree`` if available,
-        otherwise falls back to a simple Python implementation.
-
-        Args:
-            path: Relative path within the study. Defaults to root.
-            max_depth: Maximum depth to display.
-        """
-        target = Path(self.path) / path
-        if not target.is_dir():
-            raise StudyError(f"Not a directory: {target}")
-
-        # Try the system tree command
-        cmd = ["tree", str(target), "-I", ".git|.study.json", "--noreport"]
-        if max_depth is not None:
-            cmd.extend(["-L", str(max_depth)])
         try:
-            result = subprocess.run(cmd, capture_output=True, text=True, check=True)
-            return result.stdout.rstrip()
-        except (FileNotFoundError, subprocess.CalledProcessError):
-            pass
-
-        # Fallback: simple Python tree
-        return self._python_tree(target, max_depth=max_depth)
-
-    @staticmethod
-    def _python_tree(root: Path, prefix: str = "", max_depth: int | None = None, _depth: int = 0) -> str:
-        SKIP = {".git", ".study.json"}
-        if max_depth is not None and _depth > max_depth:
-            return ""
-        lines = [str(root.name) + "/"] if _depth == 0 else []
-        entries = sorted(
-            [e for e in root.iterdir() if e.name not in SKIP],
-            key=lambda e: (not e.is_dir(), e.name),
-        )
-        for i, entry in enumerate(entries):
-            is_last = i == len(entries) - 1
-            connector = "└── " if is_last else "├── "
-            lines.append(f"{prefix}{connector}{entry.name}")
-            if entry.is_dir() and (max_depth is None or _depth + 1 < max_depth):
-                extension = "    " if is_last else "│   "
-                subtree = Study._python_tree(
-                    entry, prefix=prefix + extension,
-                    max_depth=max_depth, _depth=_depth + 1,
-                )
-                if subtree:
-                    lines.append(subtree)
-        return "\n".join(lines)
-
-    def status(self) -> str:
-        """Return ``git status`` output."""
-        result = self._git_run("status")
-        return result.stdout.rstrip()
-
-    def log(self, n: int = 10) -> str:
-        """Return recent git log (oneline format).
-
-        Args:
-            n: Number of commits to show.
-        """
-        result = self._git_run("log", "--oneline", f"-{n}")
-        return result.stdout.rstrip()
-
-    def diff(self, staged: bool = False) -> str:
-        """Return ``git diff`` output.
-
-        Args:
-            staged: If True, show staged (cached) changes instead of unstaged.
-        """
-        args = ["diff"]
-        if staged:
-            args.append("--cached")
-        result = self._git_run(*args)
-        return result.stdout.rstrip()
-
-    def branches(self) -> "list[str]":
-        """Return list of local branch names."""
-        result = self._git_run("branch", "--format=%(refname:short)")
-        return [b for b in result.stdout.strip().splitlines() if b]
-
-    def current_branch(self) -> str:
-        """Return the name of the current branch."""
-        result = self._git_run("rev-parse", "--abbrev-ref", "HEAD")
-        return result.stdout.strip()
-
-    def du(self) -> str:
-        """Return disk usage of the study directory (excluding .git).
-
-        Returns a human-readable size string.
-        """
-        total = 0
-        git_dir = Path(self.path) / ".git"
-        for f in Path(self.path).rglob("*"):
-            if f.is_file() and not str(f).startswith(str(git_dir)):
-                total += f.stat().st_size
-        # Human-readable
-        for unit in ("B", "KB", "MB", "GB"):
-            if total < 1024:
-                return f"{total:.1f} {unit}"
-            total /= 1024
-        return f"{total:.1f} TB"
-
-    def wc(self, path: str = ".") -> dict:
-        """Count files, directories, and total lines in the study.
-
-        Args:
-            path: Relative path within the study. Defaults to root.
-
-        Returns:
-            Dict with ``files``, ``dirs``, ``lines`` keys.
-        """
-        target = Path(self.path) / path
-        files = dirs = lines = 0
-        git_dir = Path(self.path) / ".git"
-        for entry in target.rglob("*"):
-            if str(entry).startswith(str(git_dir)):
-                continue
-            if entry.name == _METADATA_FILE:
-                continue
-            if entry.is_dir():
-                dirs += 1
-            elif entry.is_file():
-                files += 1
-                try:
-                    lines += len(entry.read_text(errors="ignore").splitlines())
-                except (OSError, UnicodeDecodeError):
-                    pass
-        return {"files": files, "dirs": dirs, "lines": lines}
-
-    def cat(self, path: str) -> str:
-        """Return the contents of a file in the study.
-
-        Args:
-            path: Relative path within the study.
-        """
-        target = Path(self.path) / path
-        if not target.is_file():
-            raise StudyError(f"Not a file: {target}")
-        return target.read_text()
-
-    def head(self, path: str, n: int = 10) -> str:
-        """Return the first ``n`` lines of a file.
-
-        Args:
-            path: Relative path within the study.
-            n: Number of lines.
-        """
-        target = Path(self.path) / path
-        if not target.is_file():
-            raise StudyError(f"Not a file: {target}")
-        with open(target) as f:
-            return "".join(f.readline() for _ in range(n))
+            result = subprocess.run(
+                cmd,
+                shell=True,
+                cwd=self.path,
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+            print(result.stdout.rstrip())
+        except subprocess.CalledProcessError as exc:
+            raise StudyError(
+                f"Command failed (exit {exc.returncode}): {cmd}\n"
+                + (exc.stderr or exc.stdout or "").rstrip()
+            )
 
     # ------------------------------------------------------------------
     # Git helpers
@@ -771,6 +553,29 @@ class Study(Base):
                 f"git {' '.join(args)} failed: {exc.stderr or exc.stdout or str(exc)}"
             )
 
+    def _git_push_with_retry(
+        self, remote: str, branch: str, max_retries: int = 3, verbose: bool = False
+    ):
+        """Push with retries to handle GitLab token propagation delays."""
+        import time
+
+        for attempt in range(max_retries):
+            try:
+                self._git_run("push", remote, f"HEAD:{branch}", capture_output=True)
+                return
+            except StudyGitError as exc:
+                is_auth_error = "Access denied" in str(exc) or "Authentication failed" in str(exc)
+                if is_auth_error and attempt < max_retries - 1:
+                    wait = 5 * (attempt + 1)
+                    with _spinner("[bold cyan]Waiting for GitLab token to propagate...") as status:
+                        for remaining in range(wait, 0, -1):
+                            status.update(
+                                f"[bold cyan]Waiting for GitLab token to propagate... [white]{remaining}s"
+                            )
+                            time.sleep(1)
+                else:
+                    raise
+
     def _check_git_clean(self):
         result = self._git_run("status", "--porcelain")
         if result.stdout.strip():
@@ -780,19 +585,7 @@ class Study(Base):
             )
 
     # ------------------------------------------------------------------
-    # Config helper
-    # ------------------------------------------------------------------
-
-    @staticmethod
-    def _default_server_url() -> str:
-        try:
-            from edsl.config import CONFIG
-            return CONFIG.get("EDSL_STUDY_SERVER_URL")
-        except Exception:
-            return _DEFAULT_SERVER_URL
-
-    # ------------------------------------------------------------------
-    # Base abstract method implementations
+    # Serialization / representation
     # ------------------------------------------------------------------
 
     def to_dict(self, add_edsl_version=True) -> dict:
@@ -819,15 +612,12 @@ class Study(Base):
             directory_location=d.get("directory_location"),
             server_url=d.get("server_url"),
         )
-        # Restore metadata that from_dict wouldn't set
-        if d.get("alias"):
-            s.alias = d["alias"]
-        if d.get("title"):
-            s.title = d["title"]
-        if d.get("description"):
-            s.description = d["description"]
-        if d.get("visibility"):
-            s.visibility = d["visibility"]
+        s._update_metadata_fields(
+            alias=d.get("alias"),
+            title=d.get("title"),
+            description=d.get("description"),
+            visibility=d.get("visibility"),
+        )
         return s
 
     @staticmethod
@@ -840,6 +630,15 @@ class Study(Base):
         parts.append(f"    server_url={self.server_url!r}")
         args = ",\n".join(parts)
         return f"from edsl.study import Study\nstudy = Study(\n{args},\n)"
+
+    def __repr__(self) -> str:
+        import os
+        if os.environ.get("EDSL_RUNNING_DOCTESTS") == "True":
+            return self._eval_repr_()
+        return self._summary_repr()
+
+    def __str__(self) -> str:
+        return self._eval_repr_()
 
     def _eval_repr_(self) -> str:
         parts = [f"name={self.name!r}"]

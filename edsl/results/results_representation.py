@@ -55,8 +55,6 @@ class ResultsRepresentation:
 
     def summary_repr(self, max_text_preview: int = 60, max_items: int = 500) -> str:
         """Generate a summary representation of the Results as a Rich table."""
-        from ..utilities.summary_table import ColumnDef, render_summary_table
-
         r = self._results
 
         num_obs = len(r)
@@ -66,53 +64,18 @@ class ResultsRepresentation:
         num_questions = len(r.survey.questions) if r.survey and hasattr(r.survey, "questions") else 0
 
         title = (
-            f"Results ({num_obs} observation{'s' if num_obs != 1 else ''}, "
-            f"{num_questions} question{'s' if num_questions != 1 else ''})"
+            f"Results (observations: {num_obs}, questions: {num_questions}, "
+            f"agents: {num_agents}, models: {num_models}, scenarios: {num_scenarios})"
         )
 
-        columns = [
-            ColumnDef("Component", style="bold green", no_wrap=True),
-            ColumnDef("Count", style="dim", no_wrap=True, justify="right"),
-            ColumnDef("Details"),
-        ]
-
-        rows: list[tuple] = []
-
-        # Questions
-        if r.survey and hasattr(r.survey, "questions"):
-            names = [q.question_name for q in r.survey.questions]
-            rows.append(("Questions", str(num_questions), ", ".join(names)))
-
-        # Agents
-        agent_detail = ""
-        if num_agents > 0:
-            trait_keys = [k for k in r.agent_keys if not k.startswith("agent_")]
-            if trait_keys:
-                agent_detail = f"traits: {', '.join(trait_keys)}"
-        rows.append(("Agents", str(num_agents), agent_detail))
-
-        # Models
-        model_names = []
-        for m in set(r.models):
-            model_names.append(getattr(m, "model", getattr(m, "_model_", "unknown")))
-        rows.append(("Models", str(num_models), ", ".join(sorted(set(model_names)))))
-
-        # Scenarios
-        scenario_detail = ""
-        if num_scenarios > 0:
-            field_keys = [k for k in r.scenario_keys if not k.startswith("scenario_")]
-            if field_keys:
-                scenario_detail = f"keys: {', '.join(field_keys)}"
-        rows.append(("Scenarios", str(num_scenarios), scenario_detail))
+        ds = r.to_dataset()
 
         caption_parts: list[str] = []
         if r.created_columns:
             caption_parts.append(f"created_columns: {r.created_columns}")
 
-        return render_summary_table(
+        return ds._summary_repr(
             title=title,
-            columns=columns,
-            rows=rows,
             caption=", ".join(caption_parts) if caption_parts else None,
         )
 

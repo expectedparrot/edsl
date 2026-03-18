@@ -416,7 +416,7 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
         """
         return f"Dataset({self.data})"
 
-    def _summary_repr(self, max_rows: int = 500, max_cols: int = 10) -> str:
+    def _summary_repr(self, max_rows: int = 500, max_cols: int = 10, title: str | None = None, caption: str | None = None) -> str:
         """Generate a summary representation of the Dataset as a Rich table.
 
         One column per dataset key, one row per observation.
@@ -424,18 +424,21 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
         Args:
             max_rows: Maximum number of rows to show before truncating.
             max_cols: Maximum number of data columns to show before truncating.
+            title: Optional custom title. If not provided, a default is generated.
+            caption: Optional caption appended after any truncation note.
         """
         from ..utilities.summary_table import ColumnDef, render_summary_table
 
         if not self.data:
-            title = "Dataset (0 rows, 0 columns)"
+            title = title or "Dataset (0 rows, 0 columns)"
             return render_summary_table(
                 title=title, columns=[], rows=[], max_rows=max_rows,
             )
 
         num_obs = len(self)
         num_cols = len(self.keys())
-        title = f"Dataset ({num_obs} row{'s' if num_obs != 1 else ''}, {num_cols} column{'s' if num_cols != 1 else ''})"
+        if title is None:
+            title = f"Dataset ({num_obs} row{'s' if num_obs != 1 else ''}, {num_cols} column{'s' if num_cols != 1 else ''})"
 
         headers, tabular_rows = self._tabular()
 
@@ -452,14 +455,18 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
             visible_vals = row[:max_cols] if truncated else row
             rows.append(tuple([str(idx)] + [repr(v) for v in visible_vals]))
 
-        caption = (
-            f"{hidden_count} more column{'s' if hidden_count != 1 else ''} not shown. "
-            f"Use .select() to pick columns or .long() to see all."
-        ) if truncated else None
+        caption_parts = []
+        if truncated:
+            caption_parts.append(
+                f"{hidden_count} more column{'s' if hidden_count != 1 else ''} not shown. "
+                f"Use .select() to pick columns or .long() to see all."
+            )
+        if caption:
+            caption_parts.append(caption)
 
         return render_summary_table(
             title=title, columns=columns, rows=rows, max_rows=max_rows,
-            caption=caption,
+            caption="; ".join(caption_parts) if caption_parts else None,
         )
 
     def write(self, filename: str, **kwargs) -> None:

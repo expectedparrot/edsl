@@ -434,8 +434,8 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
     def info(self) -> list:
         """Return display sections as (title, Dataset) pairs.
 
-        Produces a summary table (Components/Count/Details) and the data
-        table, mirroring what ``summary_repr`` shows in the terminal.
+        The Summary section uses Field/Value columns so the base class
+        can fold it into the data table title.
         """
         from edsl.dataset import Dataset
 
@@ -449,58 +449,16 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
             else 0
         )
 
-        components = []
-        counts = []
-        details = []
+        # Build compact summary values
+        fields = ["Observations", "Questions", "Agents", "Models", "Scenarios"]
+        values = [str(num_obs), str(num_questions), str(num_agents), str(num_models), str(num_scenarios)]
 
-        # Questions
-        if self.survey and hasattr(self.survey, "questions"):
-            names = [q.question_name for q in self.survey.questions]
-            components.append("Questions")
-            counts.append(str(num_questions))
-            details.append(", ".join(names))
-
-        # Agents
-        agent_detail = ""
-        if num_agents > 0:
-            trait_keys = [k for k in self.agent_keys if not k.startswith("agent_")]
-            if trait_keys:
-                agent_detail = f"traits: {', '.join(trait_keys)}"
-        components.append("Agents")
-        counts.append(str(num_agents))
-        details.append(agent_detail)
-
-        # Models
-        model_names = []
-        for m in set(self.models):
-            model_names.append(
-                getattr(m, "model", getattr(m, "_model_", "unknown"))
-            )
-        components.append("Models")
-        counts.append(str(num_models))
-        details.append(", ".join(sorted(set(model_names))))
-
-        # Scenarios
-        scenario_detail = ""
-        if num_scenarios > 0:
-            field_keys = [
-                k for k in self.scenario_keys if not k.startswith("scenario_")
-            ]
-            if field_keys:
-                scenario_detail = f"keys: {', '.join(field_keys)}"
-        components.append("Scenarios")
-        counts.append(str(num_scenarios))
-        details.append(scenario_detail)
-
-        summary = Dataset(
-            [
-                {"Component": components},
-                {"Count": counts},
-                {"Details": details},
-            ]
+        summary_ds = Dataset(
+            [{"Field": fields}, {"Value": values}]
         )
+
         data = self.to_dataset()
-        return [("Summary", summary), ("Data", data)]
+        return [("Summary", summary_ds), ("Results", data)]
 
     def table(
         self,

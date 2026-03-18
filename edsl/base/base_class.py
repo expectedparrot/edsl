@@ -907,6 +907,59 @@ class RepresentationMixin:
         c.print(t, end="")
         return c.file.getvalue()
 
+    @staticmethod
+    def _summary_to_title(class_name: str, ds) -> str | None:
+        """Convert a Field/Value summary Dataset into an inline title string.
+
+        Returns None if the dataset doesn't have Field/Value columns.
+
+        E.g. 'AgentList (2 agents, traits: age, hair, height)'
+        """
+        try:
+            keys = ds.keys() if hasattr(ds, "keys") else []
+            if not (set(keys) >= {"Field", "Value"}):
+                return None
+            fields = [col for d in ds.data for k, v in d.items() if k == "Field" for col in v]
+            values = [col for d in ds.data for k, v in d.items() if k == "Value" for col in v]
+        except (AttributeError, TypeError):
+            return None
+
+        if not fields:
+            return None
+
+        parts = []
+        for f, v in zip(fields, values):
+            parts.append(f"{f.lower()}: {v}")
+        return f"{class_name} ({', '.join(parts)})"
+
+    def _render_info_sections(self, sections: list) -> str:
+        """Render info() sections, folding a Summary into the data table title."""
+        class_name = self.__class__.__name__
+
+        # Check if the first section is a Summary with Field/Value columns
+        summary_ds = None
+        data_sections = []
+        for title, ds in sections:
+            if title == "Summary" and summary_ds is None:
+                inline_title = self._summary_to_title(class_name, ds)
+                if inline_title is not None:
+                    summary_ds = ds
+                    continue
+            data_sections.append((title, ds))
+
+        # If we extracted a summary and there are data sections, use inline title
+        if summary_ds is not None and data_sections:
+            parts = []
+            for _title, ds in data_sections:
+                parts.append(ds._summary_repr(title=inline_title))
+            return "\n".join(parts)
+
+        # Fallback: render all sections as separate tables
+        parts = []
+        for title, ds in sections:
+            parts.append(ds._summary_repr())
+        return "\n".join(parts)
+
     def __repr__(self):
         """Return a string representation of the object.
 
@@ -933,10 +986,8 @@ class RepresentationMixin:
 
         # Use info() when overridden, else legacy _summary_repr()
         if type(self).info is not RepresentationMixin.info:
-            parts = []
-            for title, ds in self.info():
-                parts.append(ds._summary_repr())
-            result = "\n".join(parts)
+            sections = self.info()
+            result = self._render_info_sections(sections)
         else:
             result = self._summary_repr()
 

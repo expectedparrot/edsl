@@ -3,11 +3,13 @@
 import json
 import os
 import subprocess
-from unittest.mock import MagicMock, patch
+from pathlib import Path
+from unittest.mock import MagicMock, patch, call
 
 import pytest
 
 from edsl.study import Study
+from edsl.study.client import StudyClient, _get_api_key, _resolve_server_url, authed_remote_url
 from edsl.study.exceptions import (
     StudyAuthError,
     StudyError,
@@ -37,6 +39,118 @@ def study(tmp_parent):
         directory_location=tmp_parent,
         server_url="https://test.example.com",
     )
+
+
+# ------------------------------------------------------------------
+# client module helpers
+# ------------------------------------------------------------------
+
+
+class TestClientHelpers:
+    def test_resolve_server_url_explicit(self):
+        assert _resolve_server_url("https://foo.com/") == "https://foo.com"
+
+    def test_resolve_server_url_none_fallback(self):
+        url = _resolve_server_url(None)
+        assert url.startswith("http")
+
+    def test_get_api_key(self):
+        assert _get_api_key() == API_KEY
+
+    def test_get_api_key_missing(self):
+        with patch.dict(os.environ, {}, clear=True):
+            with pytest.raises(StudyAuthError):
+                _get_api_key()
+
+    def test_authed_remote_url(self):
+        url = authed_remote_url(
+            "https://gitlab.example.com/bot/uuid-here", "glpat-token123"
+        )
+        assert "oauth2:glpat-token123@gitlab.example.com" in url
+
+    def test_authed_remote_url_preserves_port(self):
+        url = authed_remote_url(
+            "https://gitlab.example.com:8443/bot/uuid", "tok"
+        )
+        assert "oauth2:tok@gitlab.example.com:8443" in url
+
+
+# ------------------------------------------------------------------
+# StudyClient
+# ------------------------------------------------------------------
+
+
+class TestStudyClient:
+    def test_headers(self):
+        client = StudyClient("https://test.example.com")
+        assert client._headers["Authorization"] == f"Bearer {API_KEY}"
+
+    @patch("edsl.study.client.requests.request")
+    def test_push_request(self, mock_req):
+        mock_resp = MagicMock()
+        mock_resp.status_code = 201
+        mock_resp.ok = True
+        mock_resp.json.return_value = {"uuid": "u1", "token": "t", "gitlab_url": "g"}
+        mock_req.return_value = mock_resp
+
+        client = StudyClient("https://test.example.com")
+        data = client.push_request({"uuid": None})
+        assert data["uuid"] == "u1"
+
+    @patch("edsl.study.client.requests.request")
+    def test_push_request_409(self, mock_req):
+        mock_resp = MagicMock()
+        mock_resp.status_code = 409
+        mock_resp.ok = False
+        mock_req.return_value = mock_resp
+
+        client = StudyClient("https://test.example.com")
+        with pytest.raises(StudyServerError, match="Alias already taken"):
+            client.push_request({"alias": "taken"})
+
+    @patch("edsl.study.client.requests.request")
+    def test_pull_request(self, mock_req):
+        mock_resp = MagicMock()
+        mock_resp.ok = True
+        mock_resp.json.return_value = {"token": "t", "gitlab_url": "g"}
+        mock_req.return_value = mock_resp
+
+        client = StudyClient("https://test.example.com")
+        data = client.pull_request("uuid-1")
+        assert data["token"] == "t"
+
+    @patch("edsl.study.client.requests.request")
+    def test_clone_request_404(self, mock_req):
+        mock_resp = MagicMock()
+        mock_resp.status_code = 404
+        mock_resp.ok = False
+        mock_resp.json.return_value = {"error": "not_found"}
+        mock_req.return_value = mock_resp
+
+        client = StudyClient("https://test.example.com")
+        with pytest.raises(StudyServerError, match="not found"):
+            client.clone_request(uuid="nope")
+
+    @patch("edsl.study.client.requests.request")
+    def test_list_repos(self, mock_req):
+        mock_resp = MagicMock()
+        mock_resp.ok = True
+        mock_resp.json.return_value = {"repos": [{"uuid": "u1"}]}
+        mock_req.return_value = mock_resp
+
+        client = StudyClient("https://test.example.com")
+        repos = client.list_repos()
+        assert len(repos) == 1
+
+    @patch("edsl.study.client.requests.request")
+    def test_update_metadata(self, mock_req):
+        mock_resp = MagicMock()
+        mock_resp.ok = True
+        mock_req.return_value = mock_resp
+
+        client = StudyClient("https://test.example.com")
+        client.update_metadata("uuid-1", {"title": "New"})
+        mock_req.assert_called_once()
 
 
 # ------------------------------------------------------------------
@@ -110,8 +224,44 @@ class TestConstruction:
         assert "temptest" in s.path
 
     def test_no_cryptography_imports(self, study):
-        # Ensure no Ed25519 key management
         assert not hasattr(study, "_private_key")
+
+
+# ------------------------------------------------------------------
+# Scaffold
+# ------------------------------------------------------------------
+
+
+class TestScaffold:
+    def test_default_scaffold(self, tmp_parent):
+        s = Study("scaffolded", directory_location=tmp_parent, scaffold=True)
+        p = Path(s.path)
+        assert (p / "data" / ".gitkeep").is_file()
+        assert (p / "analysis" / ".gitkeep").is_file()
+        assert (p / "writeup" / ".gitkeep").is_file()
+        assert (p / "writeup" / "plots" / ".gitkeep").is_file()
+        assert (p / "writeup" / "tables" / ".gitkeep").is_file()
+        assert (p / "writeup" / "report.md").is_file()
+        assert "# Report" in (p / "writeup" / "report.md").read_text()
+        assert (p / "Makefile").is_file()
+        assert ".PHONY" in (p / "Makefile").read_text()
+
+    def test_no_scaffold_by_default(self, tmp_parent):
+        s = Study("bare", directory_location=tmp_parent)
+        p = Path(s.path)
+        assert not (p / "data").exists()
+        assert not (p / "Makefile").exists()
+
+    def test_custom_scaffold(self, tmp_parent):
+        custom = {
+            "src": {"type": "dir"},
+            "README.md": {"type": "file", "content": "# Hello\n"},
+        }
+        s = Study("custom", directory_location=tmp_parent, scaffold=custom)
+        p = Path(s.path)
+        assert (p / "src" / ".gitkeep").is_file()
+        assert (p / "README.md").read_text() == "# Hello\n"
+        assert not (p / "data").exists()
 
 
 # ------------------------------------------------------------------
@@ -168,15 +318,15 @@ class TestSerialization:
 
 
 class TestAuth:
-    def test_headers_include_bearer(self, study):
-        h = study._headers
+    def test_client_headers_include_bearer(self):
+        client = StudyClient("https://test.example.com")
+        h = client._headers
         assert h["Authorization"] == f"Bearer {API_KEY}"
 
-    def test_missing_api_key_raises(self, study):
+    def test_missing_api_key_raises(self):
         with patch.dict(os.environ, {}, clear=True):
-            with patch("edsl.study.study.Study._get_api_key", side_effect=StudyAuthError("No API key found.")):
-                with pytest.raises(StudyAuthError):
-                    study._headers
+            with pytest.raises(StudyAuthError):
+                _get_api_key()
 
 
 # ------------------------------------------------------------------
@@ -205,113 +355,37 @@ class TestAddFile:
 
 
 # ------------------------------------------------------------------
-# Inspection methods
+# command()
 # ------------------------------------------------------------------
 
 
-class TestInspection:
-    def test_pwd(self, study):
-        assert study.pwd() == study.path
+class TestCommand:
+    def test_ls(self, study):
+        study.command("ls")
 
-    def test_ls_excludes_dotfiles(self, study):
-        files = study.ls()
-        assert ".git" not in files
-        assert ".study.json" not in files
-        assert ".gitignore" not in files
+    def test_pwd(self, study, capsys):
+        study.command("pwd")
+        captured = capsys.readouterr()
+        assert study.path in captured.out
 
-    def test_ls_all_includes_dotfiles(self, study):
-        files = study.ls(all=True)
-        assert ".gitignore" in files
-        assert ".git" in files
+    def test_git_status(self, study, capsys):
+        study.command("git status")
+        captured = capsys.readouterr()
+        assert "branch" in captured.out.lower() or "On branch" in captured.out
 
-    def test_ls_shows_regular_files(self, study, tmp_path):
-        src = tmp_path / "readme.txt"
-        src.write_text("hello")
-        study.add_file(str(src))
-        files = study.ls()
-        assert "readme.txt" in files
+    def test_git_log(self, study, capsys):
+        study.command("git log --oneline")
+        captured = capsys.readouterr()
+        assert "gitignore" in captured.out.lower() or len(captured.out) > 0
 
-    def test_ls_subdirectory(self, study, tmp_path):
-        src = tmp_path / "data.csv"
-        src.write_text("a,b\n1,2")
-        study.add_file(str(src), destination_path="data")
-        files = study.ls("data")
-        assert "data.csv" in files
+    def test_cat(self, study, capsys):
+        study.command("cat .gitignore")
+        captured = capsys.readouterr()
+        assert ".study.json" in captured.out
 
-    def test_tree(self, study, tmp_path):
-        src = tmp_path / "readme.txt"
-        src.write_text("hello")
-        study.add_file(str(src))
-        src2 = tmp_path / "notes.txt"
-        src2.write_text("notes")
-        study.add_file(str(src2), destination_path="docs")
-        output = study.tree()
-        assert "readme.txt" in output
-        assert "docs" in output
-
-    def test_tree_max_depth(self, study, tmp_path):
-        src = tmp_path / "deep.txt"
-        src.write_text("deep")
-        study.add_file(str(src), destination_path="a/b/c")
-        output = study.tree(max_depth=1)
-        # Should show "a" but not descend fully
-        assert "a" in output
-
-    def test_status(self, study):
-        output = study.status()
-        assert isinstance(output, str)
-
-    def test_log(self, study):
-        output = study.log()
-        # Should have at least the .gitignore commit
-        assert "gitignore" in output.lower() or len(output) > 0
-
-    def test_diff_empty_on_clean(self, study):
-        assert study.diff() == ""
-
-    def test_diff_shows_changes(self, study):
-        filepath = os.path.join(study.path, ".gitignore")
-        with open(filepath, "a") as f:
-            f.write("*.tmp\n")
-        output = study.diff()
-        assert "*.tmp" in output
-
-    def test_branches(self, study):
-        branches = study.branches()
-        assert len(branches) >= 1
-
-    def test_current_branch(self, study):
-        branch = study.current_branch()
-        assert isinstance(branch, str)
-        assert len(branch) > 0
-
-    def test_du(self, study):
-        output = study.du()
-        assert any(unit in output for unit in ("B", "KB", "MB", "GB"))
-
-    def test_wc(self, study, tmp_path):
-        src = tmp_path / "lines.txt"
-        src.write_text("line1\nline2\nline3\n")
-        study.add_file(str(src))
-        counts = study.wc()
-        assert counts["files"] >= 1
-        assert counts["lines"] >= 3
-
-    def test_cat(self, study):
-        content = study.cat(".gitignore")
-        assert ".study.json" in content
-
-    def test_cat_nonexistent(self, study):
-        with pytest.raises(StudyError, match="Not a file"):
-            study.cat("nonexistent.txt")
-
-    def test_head(self, study, tmp_path):
-        src = tmp_path / "long.txt"
-        src.write_text("\n".join(f"line {i}" for i in range(100)))
-        study.add_file(str(src))
-        output = study.head("long.txt", n=5)
-        assert output.count("\n") <= 5
-        assert "line 0" in output
+    def test_failed_command_raises(self, study):
+        with pytest.raises(StudyError, match="Command failed"):
+            study.command("false")
 
 
 # ------------------------------------------------------------------
@@ -331,25 +405,20 @@ class TestGitClean:
 
 
 # ------------------------------------------------------------------
-# Push (mocked HTTP)
+# Push (mocked client)
 # ------------------------------------------------------------------
 
 
 class TestPush:
-    @patch("edsl.study.study.requests.post")
+    @patch.object(StudyClient, "push_request")
     @patch.object(Study, "_git_run")
     @patch.object(Study, "_check_git_clean")
-    def test_first_push_creates_uuid(self, mock_clean, mock_git, mock_post, study):
-        mock_resp = MagicMock()
-        mock_resp.status_code = 201
-        mock_resp.ok = True
-        mock_resp.json.return_value = {
+    def test_first_push_creates_uuid(self, mock_clean, mock_git, mock_push, study):
+        mock_push.return_value = {
             "uuid": "new-uuid-123",
             "token": "glpat-xxxx",
             "gitlab_url": "https://gitlab.com/bot/new-uuid-123",
-            "expires_at": "2026-03-19",
         }
-        mock_post.return_value = mock_resp
 
         study.push()
 
@@ -357,20 +426,15 @@ class TestPush:
         assert study._gitlab_url == "https://gitlab.com/bot/new-uuid-123"
         mock_git.assert_called_once()
 
-    @patch("edsl.study.study.requests.post")
+    @patch.object(StudyClient, "push_request")
     @patch.object(Study, "_git_run")
     @patch.object(Study, "_check_git_clean")
-    def test_push_with_metadata(self, mock_clean, mock_git, mock_post, study):
-        mock_resp = MagicMock()
-        mock_resp.status_code = 201
-        mock_resp.ok = True
-        mock_resp.json.return_value = {
+    def test_push_with_metadata(self, mock_clean, mock_git, mock_push, study):
+        mock_push.return_value = {
             "uuid": "uuid-1",
             "token": "glpat-xxxx",
             "gitlab_url": "https://gitlab.com/bot/uuid-1",
-            "expires_at": "2026-03-19",
         }
-        mock_post.return_value = mock_resp
 
         study.push(alias="cool-study", title="Cool", description="desc", visibility="public")
 
@@ -378,60 +442,45 @@ class TestPush:
         assert study.title == "Cool"
         assert study.visibility == "public"
 
-    @patch("edsl.study.study.requests.post")
+    @patch.object(StudyClient, "push_request")
     @patch.object(Study, "_git_run")
     @patch.object(Study, "_check_git_clean")
-    def test_subsequent_push(self, mock_clean, mock_git, mock_post, study):
+    def test_subsequent_push(self, mock_clean, mock_git, mock_push, study):
         study._uuid = "existing-uuid"
         study._gitlab_url = "https://gitlab.com/bot/existing-uuid"
 
-        mock_resp = MagicMock()
-        mock_resp.status_code = 200
-        mock_resp.ok = True
-        mock_resp.json.return_value = {
+        mock_push.return_value = {
             "uuid": "existing-uuid",
             "token": "glpat-yyyy",
             "gitlab_url": "https://gitlab.com/bot/existing-uuid",
-            "expires_at": "2026-03-19",
         }
-        mock_post.return_value = mock_resp
 
         study.push()
 
-        call_body = mock_post.call_args[1]["json"]
+        call_body = mock_push.call_args[0][0]
         assert call_body["uuid"] == "existing-uuid"
 
-    @patch("edsl.study.study.requests.post")
+    @patch.object(StudyClient, "push_request", side_effect=StudyServerError("Alias already taken."))
     @patch.object(Study, "_check_git_clean")
-    def test_push_409_alias_taken(self, mock_clean, mock_post, study):
-        mock_resp = MagicMock()
-        mock_resp.status_code = 409
-        mock_resp.ok = False
-        mock_post.return_value = mock_resp
-
+    def test_push_409_alias_taken(self, mock_clean, mock_push, study):
         with pytest.raises(StudyServerError, match="Alias already taken"):
             study.push(alias="taken")
 
 
 # ------------------------------------------------------------------
-# Pull (mocked HTTP)
+# Pull (mocked client)
 # ------------------------------------------------------------------
 
 
 class TestPull:
-    @patch("edsl.study.study.requests.post")
+    @patch.object(StudyClient, "pull_request")
     @patch.object(Study, "_git_run")
-    def test_pull_success(self, mock_git, mock_post, study):
+    def test_pull_success(self, mock_git, mock_pull, study):
         study._uuid = "test-uuid"
-        mock_resp = MagicMock()
-        mock_resp.status_code = 200
-        mock_resp.ok = True
-        mock_resp.json.return_value = {
+        mock_pull.return_value = {
             "token": "glpat-read",
             "gitlab_url": "https://gitlab.com/bot/test-uuid",
-            "expires_at": "2026-03-19",
         }
-        mock_post.return_value = mock_resp
 
         study.pull()
 
@@ -443,24 +492,22 @@ class TestPull:
 
 
 # ------------------------------------------------------------------
-# set_metadata (mocked HTTP)
+# set_metadata (mocked client)
 # ------------------------------------------------------------------
 
 
 class TestSetMetadata:
-    @patch("edsl.study.study.requests.patch")
-    def test_set_metadata(self, mock_patch, study):
+    @patch.object(StudyClient, "update_metadata")
+    def test_set_metadata(self, mock_update, study):
         study._uuid = "test-uuid"
-        mock_resp = MagicMock()
-        mock_resp.status_code = 200
-        mock_resp.ok = True
-        mock_resp.json.return_value = {"uuid": "test-uuid"}
-        mock_patch.return_value = mock_resp
 
         study.set_metadata(alias="new-alias", title="New Title")
 
         assert study.alias == "new-alias"
         assert study.title == "New Title"
+        mock_update.assert_called_once_with(
+            "test-uuid", {"alias": "new-alias", "title": "New Title"}
+        )
 
     def test_set_metadata_before_push_raises(self, study):
         with pytest.raises(StudyError, match="not been pushed"):
@@ -473,46 +520,30 @@ class TestSetMetadata:
 
 
 # ------------------------------------------------------------------
-# Study.clone (mocked HTTP + git)
+# Study.clone (mocked client + git)
 # ------------------------------------------------------------------
 
 
 class TestClone:
-    @patch("edsl.study.study.requests.post")
-    def test_clone_by_uuid(self, mock_post, tmp_path):
-        mock_resp = MagicMock()
-        mock_resp.status_code = 200
-        mock_resp.ok = True
-        mock_resp.json.return_value = {
+    @patch.object(StudyClient, "clone_request")
+    def test_clone_by_uuid(self, mock_clone_req, tmp_path):
+        mock_clone_req.return_value = {
             "uuid": "clone-uuid",
             "token": "glpat-clone",
             "gitlab_url": "https://gitlab.com/bot/clone-uuid.git",
-            "expires_at": "2026-03-19",
         }
-        mock_post.return_value = mock_resp
 
         # Pre-create directory to simulate git clone
-        clone_path = tmp_path / "clone-uuid-1"  # first 12 chars
-        clone_path.mkdir(parents=True, exist_ok=True)
-        subprocess.run(["git", "init"], cwd=str(clone_path), check=True, capture_output=True)
+        clone_dir = tmp_path / "clone-uuid"
+        clone_dir.mkdir(exist_ok=True)
+        subprocess.run(["git", "init"], cwd=str(clone_dir), check=True, capture_output=True)
 
-        # Mock only the git clone subprocess call
         real_run = subprocess.run
 
         def fake_run(cmd, **kwargs):
             if cmd[0] == "git" and cmd[1] == "clone":
                 return MagicMock(returncode=0)
             return real_run(cmd, **kwargs)
-
-        with patch("edsl.study.study.subprocess.run", side_effect=fake_run):
-            # The dir_name will be uuid[:12] = "clone-uuid-1" (first 12 of "clone-uuid")
-            # Actually clone-uuid[:12] = "clone-uuid-1" — let me check
-            pass
-
-        # Simpler: just mock subprocess globally and create the dir
-        clone_dir = tmp_path / "clone-uuid"
-        clone_dir.mkdir(exist_ok=True)
-        subprocess.run(["git", "init"], cwd=str(clone_dir), check=True, capture_output=True)
 
         with patch("edsl.study.study.subprocess.run", side_effect=fake_run):
             s = Study.clone(
@@ -524,14 +555,8 @@ class TestClone:
         assert s._uuid == "clone-uuid"
         assert os.path.isfile(os.path.join(s.path, ".study.json"))
 
-    @patch("edsl.study.study.requests.post")
-    def test_clone_not_found(self, mock_post):
-        mock_resp = MagicMock()
-        mock_resp.status_code = 404
-        mock_resp.ok = False
-        mock_resp.json.return_value = {"error": "not_found"}
-        mock_post.return_value = mock_resp
-
+    @patch.object(StudyClient, "clone_request", side_effect=StudyServerError("Study not found or not yet pushed: not_found"))
+    def test_clone_not_found(self, mock_clone_req):
         with pytest.raises(StudyServerError, match="not found"):
             Study.clone(uuid="nope", server_url="https://test.example.com")
 
@@ -541,30 +566,24 @@ class TestClone:
 
 
 # ------------------------------------------------------------------
-# Study.list (mocked HTTP)
+# Study.list (mocked client)
 # ------------------------------------------------------------------
 
 
 class TestList:
-    @patch("edsl.study.study.requests.get")
-    def test_list_returns_scenario_list(self, mock_get):
-        mock_resp = MagicMock()
-        mock_resp.status_code = 200
-        mock_resp.ok = True
-        mock_resp.json.return_value = {
-            "repos": [
-                {
-                    "uuid": "uuid-1",
-                    "alias": "study-a",
-                    "title": "Study A",
-                    "description": "desc",
-                    "visibility": "private",
-                    "created_at": "2026-03-18T00:00:00Z",
-                    "provisioned": 1,
-                },
-            ]
-        }
-        mock_get.return_value = mock_resp
+    @patch.object(StudyClient, "list_repos")
+    def test_list_returns_scenario_list(self, mock_list):
+        mock_list.return_value = [
+            {
+                "uuid": "uuid-1",
+                "alias": "study-a",
+                "title": "Study A",
+                "description": "desc",
+                "visibility": "private",
+                "created_at": "2026-03-18T00:00:00Z",
+                "provisioned": 1,
+            },
+        ]
 
         result = Study.list(server_url="https://test.example.com")
 
@@ -573,14 +592,8 @@ class TestList:
         assert len(result) == 1
         assert result[0]["alias"] == "study-a"
 
-    @patch("edsl.study.study.requests.get")
-    def test_list_empty(self, mock_get):
-        mock_resp = MagicMock()
-        mock_resp.status_code = 200
-        mock_resp.ok = True
-        mock_resp.json.return_value = {"repos": []}
-        mock_get.return_value = mock_resp
-
+    @patch.object(StudyClient, "list_repos", return_value=[])
+    def test_list_empty(self, mock_list):
         result = Study.list(server_url="https://test.example.com")
         assert len(result) == 0
 
@@ -629,22 +642,27 @@ class TestFromRepo:
 
 
 # ------------------------------------------------------------------
-# Authed URL construction
+# _new_bare
 # ------------------------------------------------------------------
 
 
-class TestAuthedUrl:
-    def test_injects_token(self):
-        url = Study._authed_remote_url(
-            "https://gitlab.example.com/bot/uuid-here", "glpat-token123"
-        )
-        assert "oauth2:glpat-token123@gitlab.example.com" in url
+class TestNewBare:
+    def test_creates_instance_without_init(self, tmp_path):
+        path = tmp_path / "bare_study"
+        path.mkdir()
+        subprocess.run(["git", "init"], cwd=str(path), check=True, capture_output=True)
 
-    def test_preserves_port(self):
-        url = Study._authed_remote_url(
-            "https://gitlab.example.com:8443/bot/uuid", "tok"
+        s = Study._new_bare(
+            "bare_study", str(path), "https://test.example.com",
+            uuid="u1", gitlab_url="https://gitlab.com/u1",
         )
-        assert "oauth2:tok@gitlab.example.com:8443" in url
+
+        assert s.name == "bare_study"
+        assert s._uuid == "u1"
+        assert s._gitlab_url == "https://gitlab.com/u1"
+        assert s.alias is None
+        assert s.title is None
+        assert s.visibility == "private"
 
 
 # ------------------------------------------------------------------
