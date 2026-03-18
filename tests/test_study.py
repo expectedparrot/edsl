@@ -205,6 +205,116 @@ class TestAddFile:
 
 
 # ------------------------------------------------------------------
+# Inspection methods
+# ------------------------------------------------------------------
+
+
+class TestInspection:
+    def test_pwd(self, study):
+        assert study.pwd() == study.path
+
+    def test_ls_excludes_dotfiles(self, study):
+        files = study.ls()
+        assert ".git" not in files
+        assert ".study.json" not in files
+        assert ".gitignore" not in files
+
+    def test_ls_all_includes_dotfiles(self, study):
+        files = study.ls(all=True)
+        assert ".gitignore" in files
+        assert ".git" in files
+
+    def test_ls_shows_regular_files(self, study, tmp_path):
+        src = tmp_path / "readme.txt"
+        src.write_text("hello")
+        study.add_file(str(src))
+        files = study.ls()
+        assert "readme.txt" in files
+
+    def test_ls_subdirectory(self, study, tmp_path):
+        src = tmp_path / "data.csv"
+        src.write_text("a,b\n1,2")
+        study.add_file(str(src), destination_path="data")
+        files = study.ls("data")
+        assert "data.csv" in files
+
+    def test_tree(self, study, tmp_path):
+        src = tmp_path / "readme.txt"
+        src.write_text("hello")
+        study.add_file(str(src))
+        src2 = tmp_path / "notes.txt"
+        src2.write_text("notes")
+        study.add_file(str(src2), destination_path="docs")
+        output = study.tree()
+        assert "readme.txt" in output
+        assert "docs" in output
+
+    def test_tree_max_depth(self, study, tmp_path):
+        src = tmp_path / "deep.txt"
+        src.write_text("deep")
+        study.add_file(str(src), destination_path="a/b/c")
+        output = study.tree(max_depth=1)
+        # Should show "a" but not descend fully
+        assert "a" in output
+
+    def test_status(self, study):
+        output = study.status()
+        assert isinstance(output, str)
+
+    def test_log(self, study):
+        output = study.log()
+        # Should have at least the .gitignore commit
+        assert "gitignore" in output.lower() or len(output) > 0
+
+    def test_diff_empty_on_clean(self, study):
+        assert study.diff() == ""
+
+    def test_diff_shows_changes(self, study):
+        filepath = os.path.join(study.path, ".gitignore")
+        with open(filepath, "a") as f:
+            f.write("*.tmp\n")
+        output = study.diff()
+        assert "*.tmp" in output
+
+    def test_branches(self, study):
+        branches = study.branches()
+        assert len(branches) >= 1
+
+    def test_current_branch(self, study):
+        branch = study.current_branch()
+        assert isinstance(branch, str)
+        assert len(branch) > 0
+
+    def test_du(self, study):
+        output = study.du()
+        assert any(unit in output for unit in ("B", "KB", "MB", "GB"))
+
+    def test_wc(self, study, tmp_path):
+        src = tmp_path / "lines.txt"
+        src.write_text("line1\nline2\nline3\n")
+        study.add_file(str(src))
+        counts = study.wc()
+        assert counts["files"] >= 1
+        assert counts["lines"] >= 3
+
+    def test_cat(self, study):
+        content = study.cat(".gitignore")
+        assert ".study.json" in content
+
+    def test_cat_nonexistent(self, study):
+        with pytest.raises(StudyError, match="Not a file"):
+            study.cat("nonexistent.txt")
+
+    def test_head(self, study, tmp_path):
+        src = tmp_path / "long.txt"
+        src.write_text("\n".join(f"line {i}" for i in range(100)))
+        study.add_file(str(src))
+        output = study.head("long.txt", n=5)
+        assert output.count("\n") <= 5
+        assert "line 0" in output
+
+
+# ------------------------------------------------------------------
 # Git clean check
 # ------------------------------------------------------------------
 

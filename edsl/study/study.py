@@ -573,6 +573,187 @@ class Study(Base):
         return str(dest)
 
     # ------------------------------------------------------------------
+    # Inspection (read-only shell / git commands)
+    # ------------------------------------------------------------------
+
+    def pwd(self) -> str:
+        """Return the absolute path to the study directory."""
+        return self.path
+
+    def ls(self, path: str = ".", all: bool = False) -> "list[str]":
+        """List files in the study directory (or a subdirectory).
+
+        Args:
+            path: Relative path within the study. Defaults to root.
+            all: If True, include hidden files (dotfiles).
+
+        Returns:
+            Sorted list of filenames.
+        """
+        target = Path(self.path) / path
+        if not target.is_dir():
+            raise StudyError(f"Not a directory: {target}")
+        entries = sorted(target.iterdir())
+        if not all:
+            entries = [e for e in entries if not e.name.startswith(".")]
+        return [e.name for e in entries]
+
+    def tree(self, path: str = ".", max_depth: int | None = None) -> str:
+        """Return a tree-style listing of the study directory.
+
+        Excludes ``.git`` and ``.study.json``. Uses ``tree`` if available,
+        otherwise falls back to a simple Python implementation.
+
+        Args:
+            path: Relative path within the study. Defaults to root.
+            max_depth: Maximum depth to display.
+        """
+        target = Path(self.path) / path
+        if not target.is_dir():
+            raise StudyError(f"Not a directory: {target}")
+
+        # Try the system tree command
+        cmd = ["tree", str(target), "-I", ".git|.study.json", "--noreport"]
+        if max_depth is not None:
+            cmd.extend(["-L", str(max_depth)])
+        try:
+            result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+            return result.stdout.rstrip()
+        except (FileNotFoundError, subprocess.CalledProcessError):
+            pass
+
+        # Fallback: simple Python tree
+        return self._python_tree(target, max_depth=max_depth)
+
+    @staticmethod
+    def _python_tree(root: Path, prefix: str = "", max_depth: int | None = None, _depth: int = 0) -> str:
+        SKIP = {".git", ".study.json"}
+        if max_depth is not None and _depth > max_depth:
+            return ""
+        lines = [str(root.name) + "/"] if _depth == 0 else []
+        entries = sorted(
+            [e for e in root.iterdir() if e.name not in SKIP],
+            key=lambda e: (not e.is_dir(), e.name),
+        )
+        for i, entry in enumerate(entries):
+            is_last = i == len(entries) - 1
+            connector = "└── " if is_last else "├── "
+            lines.append(f"{prefix}{connector}{entry.name}")
+            if entry.is_dir() and (max_depth is None or _depth + 1 < max_depth):
+                extension = "    " if is_last else "│   "
+                subtree = Study._python_tree(
+                    entry, prefix=prefix + extension,
+                    max_depth=max_depth, _depth=_depth + 1,
+                )
+                if subtree:
+                    lines.append(subtree)
+        return "\n".join(lines)
+
+    def status(self) -> str:
+        """Return ``git status`` output."""
+        result = self._git_run("status")
+        return result.stdout.rstrip()
+
+    def log(self, n: int = 10) -> str:
+        """Return recent git log (oneline format).
+
+        Args:
+            n: Number of commits to show.
+        """
+        result = self._git_run("log", "--oneline", f"-{n}")
+        return result.stdout.rstrip()
+
+    def diff(self, staged: bool = False) -> str:
+        """Return ``git diff`` output.
+
+        Args:
+            staged: If True, show staged (cached) changes instead of unstaged.
+        """
+        args = ["diff"]
+        if staged:
+            args.append("--cached")
+        result = self._git_run(*args)
+        return result.stdout.rstrip()
+
+    def branches(self) -> "list[str]":
+        """Return list of local branch names."""
+        result = self._git_run("branch", "--format=%(refname:short)")
+        return [b for b in result.stdout.strip().splitlines() if b]
+
+    def current_branch(self) -> str:
+        """Return the name of the current branch."""
+        result = self._git_run("rev-parse", "--abbrev-ref", "HEAD")
+        return result.stdout.strip()
+
+    def du(self) -> str:
+        """Return disk usage of the study directory (excluding .git).
+
+        Returns a human-readable size string.
+        """
+        total = 0
+        git_dir = Path(self.path) / ".git"
+        for f in Path(self.path).rglob("*"):
+            if f.is_file() and not str(f).startswith(str(git_dir)):
+                total += f.stat().st_size
+        # Human-readable
+        for unit in ("B", "KB", "MB", "GB"):
+            if total < 1024:
+                return f"{total:.1f} {unit}"
+            total /= 1024
+        return f"{total:.1f} TB"
+
+    def wc(self, path: str = ".") -> dict:
+        """Count files, directories, and total lines in the study.
+
+        Args:
+            path: Relative path within the study. Defaults to root.
+
+        Returns:
+            Dict with ``files``, ``dirs``, ``lines`` keys.
+        """
+        target = Path(self.path) / path
+        files = dirs = lines = 0
+        git_dir = Path(self.path) / ".git"
+        for entry in target.rglob("*"):
+            if str(entry).startswith(str(git_dir)):
+                continue
+            if entry.name == _METADATA_FILE:
+                continue
+            if entry.is_dir():
+                dirs += 1
+            elif entry.is_file():
+                files += 1
+                try:
+                    lines += len(entry.read_text(errors="ignore").splitlines())
+                except (OSError, UnicodeDecodeError):
+                    pass
+        return {"files": files, "dirs": dirs, "lines": lines}
+
+    def cat(self, path: str) -> str:
+        """Return the contents of a file in the study.
+
+        Args:
+            path: Relative path within the study.
+        """
+        target = Path(self.path) / path
+        if not target.is_file():
+            raise StudyError(f"Not a file: {target}")
+        return target.read_text()
+
+    def head(self, path: str, n: int = 10) -> str:
+        """Return the first ``n`` lines of a file.
+
+        Args:
+            path: Relative path within the study.
+            n: Number of lines.
+        """
+        target = Path(self.path) / path
+        if not target.is_file():
+            raise StudyError(f"Not a file: {target}")
+        with open(target) as f:
+            return "".join(f.readline() for _ in range(n))
+
+    # ------------------------------------------------------------------
     # Git helpers
     # ------------------------------------------------------------------
 
