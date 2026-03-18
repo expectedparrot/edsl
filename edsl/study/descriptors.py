@@ -1,32 +1,21 @@
-"""Descriptors for validated Study fields.
-
-Each descriptor enforces field-specific rules on assignment. All allow None
-for lazy initialisation.
-"""
+"""Descriptors for validated Study fields."""
 
 import re
 
 from edsl.study.exceptions import StudyError
 
-# Shared slug: lowercase alphanumeric, hyphens, underscores; 1-128 chars;
-# must start with a letter or digit.
-_SLUG_RE = re.compile(r"^[a-z0-9][a-z0-9_-]{0,127}$")
-
-# Name is a bit stricter: no leading digits (must start with a letter).
+# Name: lowercase letter start, alphanumeric/hyphens/underscores, 1-128 chars.
 _NAME_RE = re.compile(r"^[a-z][a-z0-9_-]{0,127}$")
 
-# Owner allows dots for org-style names like "acme.corp".
-_OWNER_RE = re.compile(r"^[a-z0-9][a-z0-9_.-]{0,127}$")
-
-# Topic allows slashes for hierarchical versioning like "rag/v2".
-_TOPIC_RE = re.compile(r"^[a-z0-9][a-z0-9_/.-]{0,127}$")
+# Alias: letters, numbers, hyphens only (matching Coop pattern), 1-128 chars.
+_ALIAS_RE = re.compile(r"^[a-zA-Z0-9-]{1,128}$")
 
 
 class _BaseField:
     """Base descriptor for validated string fields on Study."""
 
     pattern: re.Pattern
-    hint: str  # human-readable description of what's allowed
+    hint: str
 
     def __set_name__(self, owner, name):
         self.field_name = name
@@ -53,8 +42,7 @@ class _BaseField:
 
 
 class NameField(_BaseField):
-    """Study name. Must start with a lowercase letter; allows lowercase
-    alphanumeric, hyphens, underscores. 1-128 chars."""
+    """Study name (directory basename). Must start with a lowercase letter."""
 
     pattern = _NAME_RE
     hint = (
@@ -63,34 +51,8 @@ class NameField(_BaseField):
     )
 
 
-class OwnerField(_BaseField):
-    """Owner identifier (person or org). Allows lowercase alphanumeric,
-    hyphens, underscores, and dots. 1-128 chars."""
+class AliasField(_BaseField):
+    """Human-readable alias. Letters, numbers, and hyphens only."""
 
-    pattern = _OWNER_RE
-    hint = (
-        "Must be 1-128 chars, lowercase alphanumeric, hyphens, underscores, "
-        "or dots, starting with a letter or digit."
-    )
-
-
-class ProjectField(_BaseField):
-    """Project identifier. Allows lowercase alphanumeric, hyphens,
-    underscores. 1-128 chars."""
-
-    pattern = _SLUG_RE
-    hint = (
-        "Must be 1-128 chars, lowercase alphanumeric, hyphens, or underscores, "
-        "starting with a letter or digit."
-    )
-
-
-class TopicField(_BaseField):
-    """Topic or version tag. Allows lowercase alphanumeric, hyphens,
-    underscores, dots, and forward slashes. 1-128 chars."""
-
-    pattern = _TOPIC_RE
-    hint = (
-        "Must be 1-128 chars, lowercase alphanumeric, hyphens, underscores, "
-        "dots, or slashes, starting with a letter or digit."
-    )
+    pattern = _ALIAS_RE
+    hint = "Must be 1-128 chars, letters, numbers, or hyphens only."

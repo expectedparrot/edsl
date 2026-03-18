@@ -20,12 +20,6 @@ class StudyServerError(StudyError):
 
 
 class StudyAuthError(StudyError):
-    """Signature or key issue."""
-
-    pass
-
-
-class StudyNotRegisteredError(StudyError):
-    """Operation attempted before registering the study with the server."""
+    """API key missing or unauthorized."""
 
     pass
