@@ -56,3 +56,5 @@ edsl/assistants/examples/*
 benchmark_logs/*
 performance.yml
 edsl/assistants/edsl_output/
+cas_editor/
+git_server/
