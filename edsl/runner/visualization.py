@@ -6,7 +6,7 @@ and queue depths.
 """
 
 from datetime import datetime
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 from .models import TaskStatus
 from .storage import StorageProtocol

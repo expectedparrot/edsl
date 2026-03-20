@@ -321,8 +321,11 @@ class RenderService:
             self._profile_counts.get("render_calls", 0) + 1
         )
 
+        system_prompt = str(prompts.get("system_prompt", ""))
+        if getattr(question, "question_type", None) == "thinking":
+            system_prompt = getattr(question, "_system_prompt", "")
         return {
-            "system_prompt": str(prompts.get("system_prompt", "")),
+            "system_prompt": system_prompt,
             "user_prompt": str(prompts.get("user_prompt", "")),
             "files_list": prompts.get("files_list"),
         }
@@ -365,8 +368,11 @@ class RenderService:
             self._profile_counts.get("render_calls", 0) + 1
         )
 
+        system_prompt = str(prompts.get("system_prompt", ""))
+        if getattr(question, "question_type", None) == "thinking":
+            system_prompt = getattr(question, "_system_prompt", "")
         return {
-            "system_prompt": str(prompts.get("system_prompt", "")),
+            "system_prompt": system_prompt,
             "user_prompt": str(prompts.get("user_prompt", "")),
             "files_list": prompts.get("files_list"),
         }

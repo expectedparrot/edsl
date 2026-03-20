@@ -98,9 +98,7 @@ class DataTypeCacheManager:
         """
         if self._columns_cache is None or self._cache_dirty:
             column_names = [f"{v}.{k}" for k, v in self.key_to_data_type.items()]
-            from ..utilities.PrettyList import PrettyList
-
-            self._columns_cache = PrettyList(sorted(column_names))
+            self._columns_cache = sorted(column_names)
 
         return self._columns_cache
 

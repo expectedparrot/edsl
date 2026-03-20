@@ -70,5 +70,5 @@ class SimpleAskMixin:
 
         if model is None:
             model = Model()
-        response = model.simple_ask(self, system_prompt, top_logprobs)
+        response = model.simple_ask(self, system_prompt, top_logprobs)  # type: ignore[union-attr]
         return format_output(response)

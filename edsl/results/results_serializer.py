@@ -3,16 +3,45 @@
 This module provides the ResultsSerializer class which handles serialization and
 deserialization operations for Results objects, including dictionary conversion,
 object reconstruction, shelve operations, and disk persistence.
+
+Inline JSONL format:
+  - Line 1: header (``__header__: true``, class name, version, format)
+  - Line 2: manifest (created_columns, name, n_survey_lines)
+  - Lines 3..S+2: Survey JSONL lines (inline)
+  - Lines S+3..: Result rows (one Result.to_dict() per line, appendable)
 """
 
-from typing import TYPE_CHECKING, Any, Dict
+import json
+from pathlib import Path
+from typing import Iterable, Optional, Union, TYPE_CHECKING, Any, Dict
 from ..utilities import remove_edsl_version
 
 if TYPE_CHECKING:
     from .results import Results
-    from .result import Result
 
 from .exceptions import ResultsDeserializationError
+
+
+def _open_lines(source: Union[str, Path, Iterable[str]]) -> Iterable[str]:
+    """Normalise *source* into an iterable of lines."""
+    if isinstance(source, Path):
+        with open(source, "r") as fh:
+            yield from fh
+        return
+
+    if isinstance(source, str):
+        if "\n" not in source.rstrip("\n"):
+            candidate = Path(source)
+            try:
+                if candidate.is_file():
+                    with open(candidate, "r") as fh:
+                        yield from fh
+                    return
+            except OSError:
+                pass
+        yield from source.splitlines()
+    else:
+        yield from source
 
 
 class ResultsSerializer:
@@ -170,5 +199,118 @@ class ResultsSerializer:
                 results.append(result)
         except Exception as e:
             raise ResultsDeserializationError(f"Error in Results.from_dict: {e}")
+        return results
+
+    # ------------------------------------------------------------------
+    # Inline JSONL serialization
+    # ------------------------------------------------------------------
+
+    def to_jsonl_rows(self, blob_writer=None):
+        """Yield JSONL rows for inline format.
+
+        Format:
+          - Line 1: header
+          - Line 2: manifest (line counts + metadata)
+          - Survey lines (from Survey.to_jsonl_rows())
+          - Result rows (one Result.to_dict() per line)
+        """
+        from .. import __version__
+
+        # Collect survey rows first to get count
+        survey_rows = list(self.results.survey.to_jsonl_rows(blob_writer=blob_writer))
+
+        # Header
+        yield json.dumps({
+            "__header__": True,
+            "edsl_class_name": "Results",
+            "edsl_version": __version__,
+            "format": "inline",
+        })
+
+        # Manifest
+        yield json.dumps({
+            "created_columns": self.results.created_columns,
+            "name": self.results.name,
+            "n_survey_lines": len(survey_rows),
+        })
+
+        # Survey lines
+        yield from survey_rows
+
+        # Result rows
+        for result in self.results.data:
+            yield json.dumps(result.to_dict(add_edsl_version=True))
+
+    def to_jsonl(
+        self,
+        filename: Union[str, Path, None] = None,
+        **kwargs,
+    ) -> Optional[str]:
+        """Export as inline JSONL.
+
+        Format:
+          - Line 1: header
+          - Line 2: manifest (line counts + metadata)
+          - Survey lines inline
+          - Result rows
+        """
+        content = "\n".join(self.to_jsonl_rows()) + "\n"
+
+        if filename is not None:
+            with open(filename, "w") as f:
+                f.write(content)
+            return None
+        return content
+
+    @staticmethod
+    def from_jsonl(
+        source: Union[str, Path, Iterable[str]], **kwargs
+    ) -> "Results":
+        """Create a Results instance from an inline JSONL source.
+
+        Reads the manifest to determine line counts for Survey and Cache
+        sections, then parses each section from the inline content.
+        """
+        from .results import Results
+        from .result import Result
+        from ..surveys import Survey
+        from ..caching import Cache
+        from ..tasks import TaskHistory
+
+        lines = [l.rstrip("\n") for l in _open_lines(source) if l.strip()]
+
+        _header = json.loads(lines[0])
+        manifest = json.loads(lines[1])
+
+        n_survey = manifest["n_survey_lines"]
+
+        # Survey section starts at line index 2
+        survey_lines = lines[2 : 2 + n_survey]
+        survey = Survey.from_jsonl(survey_lines)
+
+        cache = Cache()
+
+        created_columns = manifest.get("created_columns", [])
+        name = manifest.get("name", None)
+
+        # Result rows
+        result_start = 2 + n_survey
+        results_data = [
+            Result.from_dict(json.loads(line))
+            for line in lines[result_start:]
+            if line.strip()
+        ]
+
+        results = Results(
+            survey=survey,
+            data=[],
+            created_columns=created_columns,
+            cache=cache,
+            task_history=TaskHistory(interviews=[]),
+            name=name,
+        )
+        for result in results_data:
+            results.append(result)
+
         return results
 

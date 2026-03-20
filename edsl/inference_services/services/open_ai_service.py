@@ -9,7 +9,6 @@ from .service_enums import OPENAI_REASONING_MODELS
 
 # Use TYPE_CHECKING to avoid circular imports at runtime
 if TYPE_CHECKING:
-    import openai as _openai_mod
     from ...language_models import LanguageModel
 
 rate_limits = {}
@@ -79,6 +78,7 @@ class OpenAIService(InferenceServiceABC):
     _inference_service_ = "openai"
     _env_key_name_ = "OPENAI_API_KEY"
     _base_url_ = None
+    _supports_files_api_ = True
 
     _sync_client_ = None  # resolved lazily via _get_openai()
     _async_client_ = None  # resolved lazily via _get_openai()
@@ -248,12 +248,11 @@ class OpenAIService(InferenceServiceABC):
                 Returns:
                     Filtered parameters dictionary with service-specific adjustments
                 """
-                # XAI service specific filtering
+                # XAI service specific filtering — most grok models
+                # don't support penalty parameters
                 if self._inference_service_ == "xai":
-                    if "grok-4" in self.model:
-                        # Grok-4 models don't support penalty parameters
-                        params.pop("presence_penalty", None)
-                        params.pop("frequency_penalty", None)
+                    params.pop("presence_penalty", None)
+                    params.pop("frequency_penalty", None)
 
                 # Add additional service-specific filtering logic here as needed
                 # Example:
@@ -293,43 +292,15 @@ class OpenAIService(InferenceServiceABC):
                     dict: The model's response as a dictionary
                 """
 
-                # Check if we should use remote proxy
-                if self.remote_proxy:
-                    # Use remote proxy mode
-                    from .remote_proxy_handler import RemoteProxyHandler
-
-                    handler = RemoteProxyHandler(
-                        model=self.model,
-                        inference_service=self._inference_service_,
-                        job_uuid=getattr(self, "job_uuid", None),
-                    )
-
-                    # Get fresh parameter
-                    fresh_value = getattr(self, "fresh", False)
-
-                    return await handler.execute_model_call(
-                        user_prompt=user_prompt,
-                        system_prompt=system_prompt,
-                        files_list=files_list,
-                        cache_key=cache_key,
-                        temperature=self.temperature,
-                        max_tokens=self.max_tokens,
-                        top_p=self.top_p,
-                        frequency_penalty=self.frequency_penalty,
-                        presence_penalty=self.presence_penalty,
-                        logprobs=self.logprobs,
-                        top_logprobs=self.top_logprobs,
-                        omit_system_prompt_if_empty=self.omit_system_prompt_if_empty,
-                        fresh=fresh_value,  # Pass fresh parameter
-                    )
-
                 # Use MessageBuilder to construct messages
+                supports_files_api = getattr(cls, "_supports_files_api_", True)
                 message_builder = MessageBuilder(
                     model=self.model,
                     files_list=files_list,
                     user_prompt=user_prompt,
                     system_prompt=system_prompt,
                     omit_system_prompt_if_empty=self.omit_system_prompt_if_empty,
+                    supports_files_api=supports_files_api,
                 )
 
                 client = self.async_client()

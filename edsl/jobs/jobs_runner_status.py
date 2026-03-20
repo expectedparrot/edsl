@@ -116,7 +116,7 @@ class JobsRunnerStatusBase(ABC):
         if endpoint_url is None:
             endpoint_url = os.getenv("EXPECTED_PARROT_URL", "http://localhost:8000")
 
-        self.base_url = f"{endpoint_url}"
+        self.base_url = endpoint_url.rstrip("/")
         self.refresh_rate = refresh_rate
         self.statistics = [
             "elapsed_time",

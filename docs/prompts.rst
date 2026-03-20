@@ -18,8 +18,8 @@ There are two types of prompts:
 * A `user_prompt` contains the instructions for a question.
 * A `system_prompt` contains the instructions for the agent. 
 
-*Note: Some models do not support system prompts, e.g., OpenAI's o1 models. 
-When using these models the system prompts will be ignored.*
+*Note: Some models do not support system prompts (e.g., OpenAI's o1/o3 reasoning models, smaller models like Gemma).
+See* :ref:`prompt-plans` *below for how to handle these models.*
 
 
 Methods 
@@ -442,6 +442,90 @@ Output:
      - 0
      - gpt-4o
      - 0.00084
+
+
+.. _prompt-plans:
+
+Prompt plans
+------------
+
+By default, EDSL places agent-related content (instructions and persona/traits) in the **system prompt** and question-related content (question text, response format instructions, and memory of prior questions) in the **user prompt**.
+This works well for most models, but some models do not support system prompts at all — for example, OpenAI's reasoning models (o1, o3) and many smaller or local models (Gemma, Phi, etc.).
+
+For these models you can use a ``PromptPlan`` to control how prompt components are arranged.
+Pass it to a ``Model`` via the ``prompt_plan`` parameter:
+
+.. code-block:: python
+
+   from edsl import Model
+   from edsl.invigilators.prompt_helpers import PromptPlan
+
+   # Put everything in the user prompt (empty system prompt)
+   m = Model("gpt-4o", prompt_plan=PromptPlan.user_prompt_only())
+
+
+There are two built-in convenience constructors:
+
+* ``PromptPlan.default()`` — the standard arrangement (agent info in system prompt, question info in user prompt). This is the same as not specifying a ``prompt_plan``.
+* ``PromptPlan.user_prompt_only()`` — all four components go in the user prompt, producing an empty system prompt.
+
+You can also create custom arrangements by specifying which components go where:
+
+.. code-block:: python
+
+   from edsl.invigilators.prompt_helpers import PromptPlan, PromptComponent
+
+   # Custom: everything except prior memory in the system prompt
+   pp = PromptPlan(
+      system_prompt_order=(
+         PromptComponent.AGENT_INSTRUCTIONS,
+         PromptComponent.AGENT_PERSONA,
+         PromptComponent.QUESTION_INSTRUCTIONS,
+      ),
+      user_prompt_order=(
+         PromptComponent.PRIOR_QUESTION_MEMORY,
+      ),
+   )
+
+   m = Model("gpt-4o", prompt_plan=pp)
+
+
+The four prompt components are:
+
+- ``AGENT_INSTRUCTIONS`` — directives for how the agent should behave (e.g., "You are answering questions as if you were a human.")
+- ``AGENT_PERSONA`` — the agent's traits (e.g., age, occupation)
+- ``QUESTION_INSTRUCTIONS`` — the question text and response format instructions
+- ``PRIOR_QUESTION_MEMORY`` — context from previous questions in a survey
+
+Every component must appear in exactly one of the two prompts.
+
+
+Verifying prompt arrangement
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+You can verify how a prompt plan affects your prompts using the ``prompts()`` method:
+
+.. code-block:: python
+
+   from edsl import QuestionFreeText, Survey, Agent, Model
+   from edsl.invigilators.prompt_helpers import PromptPlan
+
+   q = QuestionFreeText(question_name="q", question_text="Say hi")
+   a = Agent(traits={"persona": "a chef"})
+   m = Model("gpt-4o", prompt_plan=PromptPlan.user_prompt_only())
+
+   prompts = Survey([q]).by(a).by(m).prompts()
+   prompts.select("system_prompt", "user_prompt")
+
+
+With ``user_prompt_only()``, the system prompt column will be empty and the user prompt will contain all agent and question content.
+
+
+Serialization
+^^^^^^^^^^^^^
+
+The ``prompt_plan`` is included in the model's serialized form (``to_dict()``), so it persists when saving and loading models.
+Models saved without a ``prompt_plan`` are fully backward-compatible — they use the default arrangement.
 
 
 Modifying prompts

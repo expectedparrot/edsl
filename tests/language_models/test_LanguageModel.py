@@ -161,5 +161,45 @@ class TestLanguageModel(unittest.TestCase):
     #     assert m.has_valid_api_key()
 
 
+class TestUnknownParameterWarning(unittest.TestCase):
+    def test_unknown_param_emits_warning(self):
+        import warnings
+        from edsl import Model
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            m = Model("test", totally_fake=42)
+            user_warnings = [x for x in w if issubclass(x.category, UserWarning) and "Unknown parameter" in str(x.message)]
+            self.assertEqual(len(user_warnings), 1)
+            self.assertIn("totally_fake", str(user_warnings[0].message))
+
+    def test_known_param_no_warning(self):
+        import warnings
+        from edsl import Model
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            m = Model("test", temperature=0.5)
+            user_warnings = [x for x in w if issubclass(x.category, UserWarning) and "Unknown parameter" in str(x.message)]
+            self.assertEqual(len(user_warnings), 0)
+
+    def test_internal_kwarg_no_warning(self):
+        import warnings
+        from edsl import Model
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            m = Model("test", canned_response="hello")
+            user_warnings = [x for x in w if issubclass(x.category, UserWarning) and "Unknown parameter" in str(x.message)]
+            self.assertEqual(len(user_warnings), 0)
+
+    def test_serialization_roundtrip_no_warning(self):
+        import warnings
+        m = LanguageModel.example(test_model=True, canned_response="test")
+        d = m.to_dict()
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            m2 = LanguageModel.from_dict(d)
+            user_warnings = [x for x in w if issubclass(x.category, UserWarning) and "Unknown parameter" in str(x.message)]
+            self.assertEqual(len(user_warnings), 0, f"Unexpected warnings: {[str(x.message) for x in user_warnings]}")
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -265,8 +265,8 @@ class QuestionNumerical(QuestionBase):
     """
 
     question_type = "numerical"
-    min_value: Optional[float] = NumericalOrNoneDescriptor()
-    max_value: Optional[float] = NumericalOrNoneDescriptor()
+    min_value = NumericalOrNoneDescriptor()
+    max_value = NumericalOrNoneDescriptor()
 
     _response_model = None
     response_validator_class = NumericalResponseValidator

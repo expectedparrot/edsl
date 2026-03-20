@@ -74,12 +74,15 @@ class TestBaseModels:
         methods = [
             "example",
             "to_dict",
-            "from_dict",
             "code",
         ]
         for method in methods:
             with pytest.raises(BaseNotImplementedError):
                 getattr(Base, method)()
+
+        # from_dict requires a positional argument
+        with pytest.raises(BaseNotImplementedError):
+            Base.from_dict({})
 
 
 def create_test_function(child_class):

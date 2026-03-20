@@ -25,11 +25,9 @@ from .exceptions import (
     DatasetKeyError,
     DatasetValueError,
     DatasetTypeError,
-    DatasetExportError,
 )
 
 if TYPE_CHECKING:
-    from docx import Document
     from .dataset import Dataset
     from ..scenarios import ScenarioList
     from ..jobs import Job  # noqa: F401
@@ -64,8 +62,6 @@ class DataOperationsBase:
     4. Analysis:
        - SQL-based querying with `sql()`
        - Aggregation with `tally()`
-       - Tree-based exploration
-
     These operations are designed to be applied fluently in sequence, enabling
     expressive data manipulation pipelines.
     """
@@ -603,6 +599,10 @@ class DataOperationsBase:
             result_entries.append({col: [row[i] for row in rows]})
         return Dataset(result_entries)
 
+    def to_pandas_for_display(self):
+        """Convert to a pandas DataFrame for notebook display."""
+        return self.to_pandas()
+
     def to_pandas(self, remove_prefix: bool = False, lists_as_strings=False):
         """Convert the results to a pandas DataFrame, ensuring that lists remain as lists.
 
@@ -676,19 +676,6 @@ class DataOperationsBase:
         csv_string = self.to_csv(remove_prefix=remove_prefix).text
         df = pl.read_csv(io.StringIO(csv_string))
         return df
-
-    def tree(self, node_order: Optional[List[str]] = None):
-        """Convert the results to a Tree.
-
-        Args:
-            node_order: The order of the nodes.
-
-        Returns:
-            A Tree object.
-        """
-        from .dataset_tree import Tree
-
-        return Tree(self, node_order=node_order)
 
     def to_scenario_list(self, remove_prefix: bool = True) -> "ScenarioList":
         """Convert the results to a list of dictionaries, one per scenario.
@@ -1401,8 +1388,6 @@ class DatasetOperationsMixin(DataOperationsBase):
     4. Analysis:
        - SQL queries with `sql()`
        - Aggregation with `tally()`
-       - Tree-based exploration with `tree()`
-
     This mixin is designed for fluent method chaining, allowing complex data manipulation
     pipelines to be built in an expressive and readable way.
     """

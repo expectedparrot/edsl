@@ -276,17 +276,11 @@ class CacheEntry(RepresentationMixin):
         return True
 
     def __repr__(self) -> str:
-        """
-        Returns a string representation of this cache entry.
+        """Return an eval-able string representation of this cache entry."""
+        return self._eval_repr_()
 
-        This method creates a string representation that displays all fields
-        of the cache entry in a format that can be evaluated to recreate
-        the object.
-
-        Returns:
-            A string representation that can be passed to eval() to recreate
-            this cache entry
-        """
+    def _eval_repr_(self) -> str:
+        """Return an eval-able string representation of the CacheEntry."""
         return (
             f"CacheEntry(model={repr(self.model)}, "
             f"parameters={self.parameters}, "
@@ -299,18 +293,30 @@ class CacheEntry(RepresentationMixin):
             f"validated={self.validated})"
         )
 
-    def _eval_repr_(self) -> str:
-        """
-        Return an eval-able string representation of the CacheEntry object.
+    def _summary_repr(self) -> str:
+        """Generate a summary representation of the CacheEntry as a Rich table."""
+        from ..utilities.summary_table import ColumnDef, render_summary_table
 
-        This representation can be used with eval() to recreate the CacheEntry object.
-        Used primarily for doctests and debugging.
+        title = f"CacheEntry ({self.model})"
 
-        Returns:
-            A string representation that can be passed to eval() to recreate
-            this cache entry
-        """
-        return self.__repr__()
+        columns = [
+            ColumnDef("Field", style="bold green", no_wrap=True),
+            ColumnDef("Value"),
+        ]
+
+        rows: list[tuple] = [
+            ("model", repr(self.model)),
+            ("service", repr(self.service)),
+            ("parameters", repr(self.parameters)),
+            ("system_prompt", repr(self.system_prompt)),
+            ("user_prompt", repr(self.user_prompt)),
+            ("output", repr(self.output)),
+            ("iteration", str(self.iteration)),
+            ("timestamp", str(self.timestamp)),
+            ("validated", str(self.validated)),
+        ]
+
+        return render_summary_table(title=title, columns=columns, rows=rows)
 
     @classmethod
     def example(cls, randomize: bool = False) -> CacheEntry:

@@ -54,16 +54,15 @@ from typing import (
 )
 import warnings
 import csv
-import random
 import os
-from collections.abc import Iterable, MutableSequence
-from functools import wraps
+from collections.abc import MutableSequence
+from pathlib import Path
 import json
 
 
 # Import for refactoring to Source classes
 
-from ..dataset.display.table_display import SUPPORTED_TABLE_FORMATS
+from ..dataset.dataset import SUPPORTED_TABLE_FORMATS
 
 try:
     from typing import TypeAlias
@@ -73,11 +72,10 @@ except ImportError:
 
 if TYPE_CHECKING:
     from ..dataset import Dataset
-    from ..jobs import Jobs, Job
+    from ..jobs import Jobs
     from ..surveys import Survey
     from ..questions import QuestionBase, Question
     from ..agents import Agent
-    from typing import Sequence
 
 
 
@@ -88,15 +86,21 @@ from ..utilities import (
     is_valid_variable_name,
     dict_hash,
     memory_profile,
-    list_split,
 )
-from ..utilities.display_utils import smart_truncate
 from ..dataset import ScenarioListOperationsMixin
 
 from .exceptions import ScenarioError
 from .scenario import Scenario
-from .scenario_list_transformer import ScenarioListTransformer
-from .scenario_list_joiner import ScenarioListJoiner
+from .transforms.transformer import ScenarioListTransformer
+from .join.scenario_list_joiner import ScenarioListJoiner
+
+
+def _delegate_doc(source_method):
+    """Decorator that copies __doc__ from source_method without altering the signature."""
+    def decorator(method):
+        method.__doc__ = source_method.__doc__
+        return method
+    return decorator
 
 
 if TYPE_CHECKING:
@@ -117,6 +121,7 @@ TableFormat: TypeAlias = Literal[
     "latex_raw",
     "latex_booktabs",
     "tsv",
+    "rich",
 ]
 
 
@@ -145,13 +150,13 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         self,
         data: Optional[list | str] = None,
         codebook: Optional[dict[str, str]] = None,
-        data_class: Optional[type] = data_class,
+        data_class: type = data_class,
     ):
         """Initialize a new ScenarioList with optional data and codebook."""
         self._data_class = data_class
         self.data = self._data_class([])
         if data is not None and isinstance(data, str):
-            sl = ScenarioList.pull(data)
+            sl: ScenarioList = ScenarioList.pull(data)  # type: ignore[assignment]
             if codebook is not None:
                 raise ValueError(
                     "Codebook cannot be provided when pulling from a remote source"
@@ -412,15 +417,15 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         """Sum the values of a field across all scenarios."""
         return sum(scenario[field] for scenario in self)
 
-    @wraps(ScenarioListTransformer.unique)
+    @_delegate_doc(ScenarioListTransformer.unique)
     def unique(self) -> ScenarioList:
         return self._transformer.unique()
 
-    @wraps(ScenarioListTransformer.uniquify)
+    @_delegate_doc(ScenarioListTransformer.uniquify)
     def uniquify(self, field: str) -> "ScenarioList":
         return self._transformer.uniquify(field)
 
-    @wraps(ScenarioListTransformer.to_agent_traits)
+    @_delegate_doc(ScenarioListTransformer.to_agent_traits)
     def to_agent_traits(self, agent_name: Optional[str] = None) -> "Agent":
         return self._transformer.to_agent_traits(agent_name)
 
@@ -482,7 +487,7 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             converted_sl.append(scenario._convert_jinja_braces())
         return converted_sl
 
-    def give_valid_names(self, existing_codebook: dict = None) -> ScenarioList:
+    def give_valid_names(self, existing_codebook: Optional[dict] = None) -> ScenarioList:
         """Give valid names to the scenario keys, using an existing codebook if provided.
 
         Args:
@@ -526,7 +531,7 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
 
         return new_scenarios
 
-    @wraps(ScenarioListTransformer.unpivot)
+    @_delegate_doc(ScenarioListTransformer.unpivot)
     def unpivot(
         self,
         id_vars: Optional[List[str]] = None,
@@ -534,7 +539,7 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
     ) -> ScenarioList:
         return self._transformer.unpivot(id_vars, value_vars)
 
-    @wraps(ScenarioListTransformer.apply)
+    @_delegate_doc(ScenarioListTransformer.apply)
     def apply(
         self, func: Callable, field: str, new_name: Optional[str], replace: bool = False
     ) -> ScenarioList:
@@ -760,16 +765,16 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
     #             new_sl.append(scenario)
     #     return new_sl
 
-    @wraps(ScenarioListTransformer.pivot)
+    @_delegate_doc(ScenarioListTransformer.pivot)
     def pivot(
         self,
-        id_vars: List[str] = None,
-        var_name="variable",
-        value_name="value",
+        id_vars: Optional[List[str]] = None,
+        var_name: str = "variable",
+        value_name: str = "value",
     ) -> ScenarioList:
         return self._transformer.pivot(id_vars, var_name, value_name)
 
-    @wraps(ScenarioListTransformer.group_by)
+    @_delegate_doc(ScenarioListTransformer.group_by)
     def group_by(
         self, id_vars: List[str], variables: List[str], func: Callable
     ) -> ScenarioList:
@@ -802,7 +807,7 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         """
         return dict_hash(self.to_dict(sort=True, add_edsl_version=False))
 
-    def to_scenario_list(self) -> "ScenarioList":
+    def to_scenario_list(self, remove_prefix: bool = True) -> "ScenarioList":
         """Convert the ScenarioList to a ScenarioList.
 
         This is useful when the user calls to_scenario_list on an object that is already a ScenarioList but they don't know it.
@@ -860,86 +865,60 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
     #     result = gen.generate_scenarios(description)
     #     return cls([Scenario(scenario) for scenario in result["scenarios"]])
 
-    def _summary_repr(self, MAX_SCENARIOS: int = 10, MAX_FIELDS: int = 500) -> str:
-        """Generate a summary representation of the ScenarioList with Rich formatting.
+    def info(self) -> list:
+        """Return display sections as (title, Dataset) pairs."""
+        from edsl.dataset import Dataset
+
+        all_keys = sorted(self.parameters) if self.parameters else []
+
+        # Summary section
+        summary_ds = Dataset([
+            {"Field": ["Scenarios", "Parameters"]},
+            {"Value": [
+                str(len(self.data)),
+                ", ".join(all_keys) if all_keys else "(none)",
+            ]},
+        ])
+
+        if not all_keys:
+            return [("Summary", summary_ds)]
+
+        # Data section
+        columns: dict[str, list] = {k: [] for k in all_keys}
+        for scenario in self.data:
+            for k in all_keys:
+                v = scenario.get(k)
+                columns[k].append("" if v is None else str(v))
+        data = [{k: v} for k, v in columns.items()]
+        return [("Summary", summary_ds), ("Scenarios", Dataset(data))]
+
+    def _summary_repr(self, max_rows: int = 500) -> str:
+        """Generate a summary representation of the ScenarioList as a Rich table.
+
+        One column per scenario key, one row per scenario.
 
         Args:
-            MAX_SCENARIOS: Maximum number of scenarios to show (default: 10)
-            MAX_FIELDS: Maximum number of fields to show per scenario (default: 500)
+            max_rows: Maximum number of scenario rows to show before truncating.
         """
-        from rich.console import Console
-        from rich.text import Text
-        import io
-        import shutil
-        from edsl.config import RICH_STYLES
+        from ..utilities.summary_table import ColumnDef, render_summary_table
 
-        # Get terminal width
-        terminal_width = shutil.get_terminal_size().columns
+        num_scenarios = len(self)
+        title = f"ScenarioList ({num_scenarios} scenario{'s' if num_scenarios != 1 else ''})"
 
-        # Build the Rich text
-        output = Text()
-        output.append("ScenarioList(\n", style=RICH_STYLES["primary"])
-        output.append(f"    num_scenarios={len(self)},\n", style=RICH_STYLES["default"])
-        output.append("    scenarios=[\n", style=RICH_STYLES["default"])
+        all_keys = sorted(self.parameters) if self.parameters else []
 
-        # Show the first MAX_SCENARIOS scenarios
-        num_to_show = min(MAX_SCENARIOS, len(self))
-        for i, scenario in enumerate(self.data[:num_to_show]):
-            # Get scenario representation with limited fields
-            scenario_data = dict(list(scenario.items())[:MAX_FIELDS])
+        columns = [
+            ColumnDef("#", style="dim", no_wrap=True, justify="right"),
+        ] + [ColumnDef(key, style="bold green") for key in all_keys]
 
-            # Check if we need to indicate truncation
-            num_fields = len(scenario)
-            was_truncated = num_fields > MAX_FIELDS
+        rows = []
+        for idx, scenario in enumerate(self.data):
+            row = [str(idx)] + [repr(scenario.get(k, "")) for k in all_keys]
+            rows.append(tuple(row))
 
-            # Build scenario repr with indentation
-            output.append("        Scenario(\n", style=RICH_STYLES["primary"])
-            output.append(
-                f"            num_keys={num_fields},\n", style=RICH_STYLES["default"]
-            )
-            output.append("            data={\n", style=RICH_STYLES["default"])
-
-            # Show fields
-            for key, value in scenario_data.items():
-                # Format the value with smart truncation if needed
-                max_value_length = max(terminal_width - 30, 50)
-                value_repr = repr(value)
-                if len(value_repr) > max_value_length:
-                    value_repr = smart_truncate(value_repr, max_value_length)
-
-                output.append("                ", style=RICH_STYLES["default"])
-                output.append(f"'{key}'", style=RICH_STYLES["key"])
-                output.append(f": {value_repr},\n", style=RICH_STYLES["default"])
-
-            if was_truncated:
-                output.append(
-                    f"                ... ({num_fields - MAX_FIELDS} more fields)\n",
-                    style=RICH_STYLES["dim"],
-                )
-
-            output.append("            }\n", style=RICH_STYLES["default"])
-            output.append("        )", style=RICH_STYLES["primary"])
-
-            # Add comma and newline unless it's the last one
-            if i < num_to_show - 1:
-                output.append(",\n", style=RICH_STYLES["default"])
-            else:
-                output.append("\n", style=RICH_STYLES["default"])
-
-        # Add ellipsis if there are more scenarios
-        if len(self) > MAX_SCENARIOS:
-            output.append(
-                f"        ... ({len(self) - MAX_SCENARIOS} more scenarios)\n",
-                style=RICH_STYLES["dim"],
-            )
-
-        output.append("    ]\n", style=RICH_STYLES["default"])
-        output.append(")", style=RICH_STYLES["primary"])
-
-        # Render to string
-        console = Console(file=io.StringIO(), force_terminal=True, width=terminal_width)
-        console.print(output, end="")
-        return console.file.getvalue()
+        return render_summary_table(
+            title=title, columns=columns, rows=rows, max_rows=max_rows,
+        )
 
     def __mul__(self, other: ScenarioList) -> ScenarioList:
         """Takes the cross product of two ScenarioLists.
@@ -978,7 +957,7 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         warnings.warn("times is deprecated, use * instead", DeprecationWarning)
         return self.__mul__(other)
 
-    @wraps(ScenarioListTransformer.shuffle)
+    @_delegate_doc(ScenarioListTransformer.shuffle)
     def shuffle(self, seed: Optional[str] = None) -> ScenarioList:
         return self._transformer.shuffle(seed)
 
@@ -991,22 +970,22 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         else:
             return ScenarioList(data=other.data, codebook=other.codebook)
 
-    @wraps(ScenarioListTransformer.sample)
+    @_delegate_doc(ScenarioListTransformer.sample)
     def sample(self, n: int, seed: Optional[str] = None) -> ScenarioList:
         return self._transformer.sample(n, seed)
 
-    @wraps(ScenarioListTransformer.split)
+    @_delegate_doc(ScenarioListTransformer.split)
     def split(
         self, frac_left: float = 0.5, seed: Optional[int] = None
     ) -> tuple[ScenarioList, ScenarioList]:
         return self._transformer.split(frac_left, seed)
 
 #
-    @wraps(ScenarioListTransformer.expand)
+    @_delegate_doc(ScenarioListTransformer.expand)
     def expand(self, *expand_fields: str, number_field: bool = False) -> ScenarioList:
         return self._transformer.expand(*expand_fields, number_field=number_field)
 
-    @wraps(ScenarioListTransformer._concatenate)
+    @_delegate_doc(ScenarioListTransformer._concatenate)
     def _concatenate(
         self,
         fields: List[str],
@@ -1025,7 +1004,7 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             new_field_name=new_field_name,
         )
 
-    @wraps(ScenarioListTransformer.concatenate)
+    @_delegate_doc(ScenarioListTransformer.concatenate)
     def concatenate(
         self,
         fields: List[str],
@@ -1042,7 +1021,7 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             new_field_name=new_field_name,
         )
 
-    @wraps(ScenarioListTransformer.concatenate_to_list)
+    @_delegate_doc(ScenarioListTransformer.concatenate_to_list)
     def concatenate_to_list(
         self,
         fields: List[str],
@@ -1057,7 +1036,7 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             new_field_name=new_field_name,
         )
 
-    @wraps(ScenarioListTransformer.concatenate_to_set)
+    @_delegate_doc(ScenarioListTransformer.concatenate_to_set)
     def concatenate_to_set(
         self,
         fields: List[str],
@@ -1072,29 +1051,29 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             new_field_name=new_field_name,
         )
 
-    @wraps(ScenarioListTransformer.unpack_dict)
+    @_delegate_doc(ScenarioListTransformer.unpack_dict)
     def unpack_dict(
         self, field: str, prefix: Optional[str] = None, drop_field: bool = False
     ) -> ScenarioList:
         return self._transformer.unpack_dict(field, prefix, drop_field)
 
-    @wraps(ScenarioListTransformer.transform)
+    @_delegate_doc(ScenarioListTransformer.transform)
     def transform(
         self, field: str, func: Callable, new_name: Optional[str] = None
     ) -> ScenarioList:
         return self._transformer.transform(field, func, new_name)
 
-    @wraps(ScenarioListTransformer.mutate)
+    @_delegate_doc(ScenarioListTransformer.mutate)
     def mutate(
         self, new_var_string: str, functions_dict: Optional[dict[str, Callable]] = None
     ) -> ScenarioList:
         return self._transformer.mutate(new_var_string, functions_dict)
 
-    @wraps(ScenarioListTransformer.order_by)
+    @_delegate_doc(ScenarioListTransformer.order_by)
     def order_by(self, *fields: str, reverse: bool = False) -> ScenarioList:
         return self._transformer.order_by(list(fields), reverse)
 
-    def duplicate(self) -> ScenarioList:
+    def duplicate(self, add_edsl_version=False) -> ScenarioList:
         """Return a copy of the ScenarioList using streaming to avoid loading everything into memory.
 
         >>> sl = ScenarioList.example()
@@ -1145,13 +1124,13 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         return self.data == other.data
 
     @memory_profile
-    @wraps(ScenarioListTransformer.filter)
+    @_delegate_doc(ScenarioListTransformer.filter)
     def filter(self, expression: str) -> ScenarioList:
         return self._transformer.filter(expression)
 
     @classmethod
     def from_urls(
-        cls, urls: list[str], field_name: Optional[str] = "text"
+        cls, urls: list[str], field_name: str = "text"
     ) -> ScenarioList:
         from .scenario_source import URLSource
 
@@ -1170,19 +1149,19 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
 
         return ListSource(field_name, values, use_indexes).to_scenario_list()
 
-    @wraps(ScenarioListTransformer.select)
+    @_delegate_doc(ScenarioListTransformer.select)
     def select(self, *fields: str) -> ScenarioList:
         return self._transformer.select(*fields)
 
-    @wraps(ScenarioListTransformer.drop)
+    @_delegate_doc(ScenarioListTransformer.drop)
     def drop(self, *fields: str) -> ScenarioList:
         return self._transformer.drop(*fields)
 
-    @wraps(ScenarioListTransformer.keep)
+    @_delegate_doc(ScenarioListTransformer.keep)
     def keep(self, *fields: str) -> ScenarioList:
         return self._transformer.keep(*fields)
 
-    @wraps(ScenarioListTransformer.numberify)
+    @_delegate_doc(ScenarioListTransformer.numberify)
     def numberify(self) -> ScenarioList:
         return self._transformer.numberify()
 
@@ -1270,7 +1249,7 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         *fields: str,
         tablefmt: Optional[TableFormat] = "rich",
         pretty_labels: Optional[dict[str, str]] = None,
-    ) -> str:
+    ) -> "Dataset":
         """Return the ScenarioList as a table."""
 
         if tablefmt is not None and tablefmt not in SUPPORTED_TABLE_FORMATS:
@@ -1282,12 +1261,12 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             *fields, tablefmt=tablefmt, pretty_labels=pretty_labels
         )
 
-    def tree(self, node_list: Optional[List[str]] = None) -> str:
+    def tree(self, node_list: Optional[List[str]] = None) -> Any:
         """Return the ScenarioList as a tree.
 
         :param node_list: The list of nodes to include in the tree.
         """
-        return self.to_dataset().tree(node_list)
+        return self.to_dataset().tree(node_list)  # type: ignore[attr-defined]
 
     def _summary(self) -> dict:
         """Return a summary of the ScenarioList.
@@ -1301,7 +1280,7 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         }
         return d
 
-    @wraps(ScenarioListTransformer.reorder_keys)
+    @_delegate_doc(ScenarioListTransformer.reorder_keys)
     def reorder_keys(self, new_order: List[str]) -> ScenarioList:
         return self._transformer.reorder_keys(new_order)
 
@@ -1358,17 +1337,17 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         ]
         return Dataset(data)
 
-    @wraps(ScenarioListTransformer.to_scenario_of_lists)
+    @_delegate_doc(ScenarioListTransformer.to_scenario_of_lists)
     def to_scenario_of_lists(self) -> "Scenario":
         return self._transformer.to_scenario_of_lists()
 
-    @wraps(ScenarioListTransformer.unpack)
+    @_delegate_doc(ScenarioListTransformer.unpack)
     def unpack(
         self, field: str, new_names: Optional[List[str]] = None, keep_original=True
     ) -> ScenarioList:
         return self._transformer.unpack(field, new_names, keep_original)
 
-    @wraps(ScenarioListTransformer.add_list)
+    @_delegate_doc(ScenarioListTransformer.add_list)
     def add_list(self, name: str, values: List[Any]) -> ScenarioList:
         return self._transformer.add_list(name, values)
 
@@ -1386,23 +1365,23 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         """
         return ScenarioList([Scenario({}) for _ in range(n)])
 
-    @wraps(ScenarioListTransformer.add_value)
+    @_delegate_doc(ScenarioListTransformer.add_value)
     def add_value(self, name: str, value: Any) -> ScenarioList:
         return self._transformer.add_value(name, value)
 
-    @wraps(ScenarioListTransformer.tack_on)
+    @_delegate_doc(ScenarioListTransformer.tack_on)
     def tack_on(self, replacements: dict[str, Any], index: int = -1) -> "ScenarioList":
         return self._transformer.tack_on(replacements, index)
 
-    @wraps(ScenarioListTransformer.rename)
+    @_delegate_doc(ScenarioListTransformer.rename)
     def rename(self, replacement_dict: dict) -> ScenarioList:
         return self._transformer.rename(replacement_dict)
 
-    @wraps(ScenarioListTransformer.snakify)
+    @_delegate_doc(ScenarioListTransformer.snakify)
     def snakify(self) -> ScenarioList:
         return self._transformer.snakify()
 
-    @wraps(ScenarioListTransformer.replace_names)
+    @_delegate_doc(ScenarioListTransformer.replace_names)
     def replace_names(self, new_names: list) -> ScenarioList:
         return self._transformer.replace_names(new_names)
 
@@ -1423,17 +1402,17 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         else:
             return {scenario[field]: scenario[value] for scenario in self}
 
-    @wraps(ScenarioListJoiner.left_join)
+    @_delegate_doc(ScenarioListJoiner.left_join)
     def left_join(self, other: ScenarioList, by: Union[str, list[str]]) -> ScenarioList:
         return self._joiner.left_join(other, by)
 
-    @wraps(ScenarioListJoiner.inner_join)
+    @_delegate_doc(ScenarioListJoiner.inner_join)
     def inner_join(
         self, other: ScenarioList, by: Union[str, list[str]]
     ) -> ScenarioList:
         return self._joiner.inner_join(other, by)
 
-    @wraps(ScenarioListJoiner.right_join)
+    @_delegate_doc(ScenarioListJoiner.right_join)
     def right_join(
         self, other: ScenarioList, by: Union[str, list[str]]
     ) -> ScenarioList:
@@ -1465,7 +1444,7 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         else:
             data = self
 
-        d = {"scenarios": [s.to_dict(add_edsl_version=add_edsl_version) for s in data]}
+        d: dict[str, Any] = {"scenarios": [s.to_dict(add_edsl_version=add_edsl_version) for s in data]}
 
         # Add codebook if it exists
         if hasattr(self, "codebook") and self.codebook:
@@ -1527,8 +1506,8 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             return survey.by(self)
 
     def for_n(
-        self, target: Union["Question", "Survey", "Job"], iterations: int
-    ) -> "Jobs":
+        self, target: Union["Question", "Survey", "Jobs"], iterations: int
+    ):
         """Execute a target multiple times, feeding each iteration's output
         into the next.
 
@@ -1580,9 +1559,9 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             print(enriched_personas.select("persona"))
         """
 
-        intermediate_result = self
+        intermediate_result: Any = self
         for i in range(iterations):
-            clean_target = target.duplicate()
+            clean_target = target.duplicate()  # type: ignore[union-attr]
             new_jobs = clean_target.by(intermediate_result)
             intermediate_result = new_jobs.run()
         return intermediate_result
@@ -1600,6 +1579,60 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
         from .scenario import Scenario
 
         return cls([Scenario(s) for s in scenario_dicts_list])
+
+    def to_jsonl(self, filename=None, blob_writer=None, offload_filestores=False):
+        """Export the ScenarioList as JSONL.
+
+        Args:
+            filename: Optional file path to write to. Returns string if None.
+            blob_writer: Callback ``(base64_content) -> hash`` for externalizing
+                FileStore blobs.  When provided, base64 content is replaced with
+                sentinel references in the JSONL output.
+            offload_filestores: When True and *filename* is given, automatically
+                create a sidecar directory (``<filename>.blobs/``) to store
+                extracted FileStore blobs.
+
+        >>> sl = ScenarioList([Scenario({'food': 'pizza'}), Scenario({'food': 'tacos'})])
+        >>> sl2 = ScenarioList.from_jsonl(sl.to_jsonl())
+        >>> sl == sl2
+        True
+        """
+        from .serialization.scenario_list_serializer import ScenarioListSerializer, SidecarBlobStore
+
+        if offload_filestores and blob_writer is None:
+            if filename is None:
+                raise ValueError(
+                    "offload_filestores=True requires a filename (sidecar "
+                    "directory cannot be created for a string return)"
+                )
+            sidecar = SidecarBlobStore(Path(str(filename) + ".blobs"))
+            blob_writer = sidecar.write_blob
+
+        return ScenarioListSerializer(self).to_jsonl(
+            filename=filename, blob_writer=blob_writer,
+        )
+
+    def to_jsonl_rows(self, blob_writer=None):
+        from .serialization.scenario_list_serializer import ScenarioListSerializer
+        return ScenarioListSerializer(self).to_jsonl_rows(blob_writer=blob_writer)
+
+    @classmethod
+    def from_jsonl(cls, source, blob_reader=None):
+        """Create a ScenarioList from a JSONL source (file path, string, or iterable).
+
+        If *source* is a file path and a sidecar ``.blobs/`` directory exists
+        alongside it, blob references are automatically resolved from there.
+        """
+        from .serialization.scenario_list_serializer import ScenarioListSerializer, SidecarBlobStore
+
+        # Auto-detect sidecar directory for file paths
+        if blob_reader is None and isinstance(source, (str, Path)):
+            candidate = Path(str(source))
+            sidecar_dir = Path(str(candidate) + ".blobs")
+            if sidecar_dir.is_dir():
+                blob_reader = SidecarBlobStore(sidecar_dir).read_blob
+
+        return ScenarioListSerializer.from_jsonl(source, blob_reader=blob_reader)
 
     @classmethod
     @remove_edsl_version
@@ -1653,7 +1686,7 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             s = s.add_list(key, list_of_values)
         return s
 
-    def code(self) -> str:
+    def code(self) -> list[str]:
         """Create the Python code representation of a survey."""
         header_lines = [
             "from edsl.scenarios import Scenario",
@@ -1709,7 +1742,7 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
                 # Fallback to empty scenario
                 return Scenario({})
 
-    def to_agent_list(self):
+    def to_agent_list(self, remove_prefix: bool = True):
         """Convert the ScenarioList to an AgentList.
 
         This method supports special fields that map to Agent parameters:
@@ -1750,7 +1783,7 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
 
         return AgentList.from_scenario_list(self)
 
-    @wraps(ScenarioListTransformer.chunk)
+    @_delegate_doc(ScenarioListTransformer.chunk)
     def chunk(
         self,
         field,
@@ -1767,7 +1800,7 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             hash_original=hash_original,
         )
 
-    @wraps(ScenarioListTransformer.choose_k)
+    @_delegate_doc(ScenarioListTransformer.choose_k)
     def choose_k(self, k: int, order_matters: bool = False) -> "ScenarioList":
         return self._transformer.choose_k(k, order_matters)
 
@@ -1791,7 +1824,7 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             dimension_description_field: Optional field name for the dimension description.
             dimension_probs_field: Optional field name for probability weights.
         """
-        from .agent_blueprint import AgentBlueprint
+        from .contrib.agent_blueprint import AgentBlueprint
 
         return AgentBlueprint.from_scenario_list(
             self,
@@ -1803,7 +1836,7 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             dimension_probs_field=dimension_probs_field,
         )
 
-    @wraps(ScenarioListTransformer.collapse)
+    @_delegate_doc(ScenarioListTransformer.collapse)
     def collapse(
         self,
         field: str,
@@ -1820,7 +1853,7 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             add_count=add_count,
         )
 
-    @wraps(ScenarioListTransformer.create_comparisons)
+    @_delegate_doc(ScenarioListTransformer.create_comparisons)
     def create_comparisons(
         self,
         bidirectional: bool = False,
@@ -1835,15 +1868,15 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
             use_alphabet=use_alphabet,
         )
 
-    @wraps(ScenarioListTransformer.replace_values)
+    @_delegate_doc(ScenarioListTransformer.replace_values)
     def replace_values(self, replacements: dict) -> "ScenarioList":
         return self._transformer.replace_values(replacements)
 
-    @wraps(ScenarioListTransformer.fillna)
+    @_delegate_doc(ScenarioListTransformer.fillna)
     def fillna(self, value: Any = "", inplace: bool = False) -> "ScenarioList":
         return self._transformer.fillna(value, inplace)
 
-    @wraps(ScenarioListTransformer.filter_na)
+    @_delegate_doc(ScenarioListTransformer.filter_na)
     def filter_na(self, fields: Union[str, List[str]] = "*") -> "ScenarioList":
         return self._transformer.filter_na(fields)
 

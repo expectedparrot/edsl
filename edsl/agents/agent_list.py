@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 # csv import moved to agent_list_factories.py
-import sys
 import warnings
 import logging
 from collections import defaultdict
@@ -17,7 +16,7 @@ from typing import Any, Callable, Generator, Iterable, List, Optional, Union, TY
 # simpleeval imports moved to agent_list_filter.py
 
 from ..base import Base
-from ..utilities import is_notebook, remove_edsl_version, dict_hash
+from ..utilities import remove_edsl_version, dict_hash
 from ..dataset.dataset_operations_mixin import AgentListOperationsMixin
 from .agent import Agent
 from .agent_list_builder import AgentListBuilder
@@ -413,7 +412,7 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
     def _apply_names(
         self,
         agent_list_data: list["Agent"],
-        trait_keys: tuple[str],
+        trait_keys: "tuple[str, ...] | list[str]",
         remove_traits: bool = True,
         separator: str = ",",
         force_name: bool = False,
@@ -635,12 +634,15 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
         )
 
     @wraps(AgentListSerializer.to_jsonl)
-    def to_jsonl(self, filename: Union[str, Path, None] = None) -> Optional[str]:
+    def to_jsonl(self, filename: Union[str, Path, None] = None, **kwargs) -> Optional[str]:
         return self._agent_list_serializer.to_jsonl(filename=filename)
+
+    def to_jsonl_rows(self, blob_writer=None):
+        return self._agent_list_serializer.to_jsonl_rows()
 
     @classmethod
     @wraps(AgentListSerializer.from_jsonl)
-    def from_jsonl(cls, source: Union[str, Path, Iterable[str]]) -> AgentList:
+    def from_jsonl(cls, source: Union[str, Path, Iterable[str]], **kwargs) -> AgentList:
         return AgentListSerializer.from_jsonl(source)
 
     @classmethod
@@ -655,13 +657,52 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
             sorted=True, add_edsl_version=False
         )
 
-    @wraps(AgentListRepresentation.repr)
     def __repr__(self):
-        return self._agent_list_representation.repr()
+        from edsl.base.base_class import RepresentationMixin
+        return RepresentationMixin.__repr__(self)
 
     @wraps(AgentListRepresentation.eval_repr)
     def _eval_repr_(self) -> str:
         return self._agent_list_representation.eval_repr()
+
+    def info(self) -> list:
+        """Return display sections as (title, Dataset) pairs."""
+        from edsl.dataset import Dataset
+
+        all_keys = sorted(self.trait_keys) if self.trait_keys else []
+        has_names = any(agent.name is not None for agent in self.data)
+
+        # Summary section
+        summary_fields = ["Agents", "Traits"]
+        summary_values = [
+            str(len(self.data)),
+            ", ".join(all_keys) if all_keys else "(none)",
+        ]
+        if has_names:
+            named_count = sum(1 for a in self.data if a.name is not None)
+            summary_fields.append("Named")
+            summary_values.append(str(named_count))
+
+        summary_ds = Dataset(
+            [{"Field": summary_fields}, {"Value": summary_values}]
+        )
+
+        # Data section
+        columns: dict[str, list] = {}
+        if has_names:
+            columns["name"] = []
+        for k in all_keys:
+            columns[k] = []
+
+        for agent in self.data:
+            if has_names:
+                columns["name"].append(str(agent.name) if agent.name else "")
+            for k in all_keys:
+                v = agent.traits.get(k, "")
+                columns[k].append(str(v) if v != "" else "")
+
+        data = [{k: v} for k, v in columns.items()]
+        return [("Summary", summary_ds), ("Agents", Dataset(data))]
 
     @wraps(AgentListRepresentation.summary_repr)
     def _summary_repr(self, MAX_AGENTS: int = 10, MAX_TRAITS: int = 10) -> str:
@@ -678,12 +719,7 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
         pretty_labels: Optional[dict] = None,
     ) -> Any:
         if len(self) == 0:
-            e = AgentListError("Cannot create a table from an empty AgentList.")
-            if is_notebook():
-                print(e, file=sys.stderr)
-                return None
-            else:
-                raise e
+            raise AgentListError("Cannot create a table from an empty AgentList.")
         return (
             self.to_scenario_list()
             .to_dataset()
@@ -821,9 +857,10 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
         return AgentListCodeGenerator.generate_code(self, string=string)
 
     @classmethod
-    @wraps(AgentListFactories.from_scenario_list)
     def from_scenario_list(cls, scenario_list: "ScenarioList") -> "AgentList":
         return AgentListFactories.from_scenario_list(scenario_list)
+
+    from_scenario_list.__doc__ = AgentListFactories.from_scenario_list.__doc__
 
 
 

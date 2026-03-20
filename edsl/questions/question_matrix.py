@@ -299,6 +299,21 @@ class MatrixResponseValidator(ResponseValidatorABC):
                 print("Response has no answer field, cannot fix")
             return response
 
+        # Coerce answer values to match option types (e.g., int 3 -> str '3')
+        answer = response.get("answer")
+        if isinstance(answer, dict) and self.question_options:
+            option_type = type(self.question_options[0])
+            coerced = {}
+            for k, v in answer.items():
+                if not isinstance(v, option_type):
+                    try:
+                        coerced[k] = option_type(v)
+                    except (ValueError, TypeError):
+                        coerced[k] = v
+                else:
+                    coerced[k] = v
+            response["answer"] = coerced
+
         # Strategy 1: If we have generated_tokens, try to parse them as JSON
         if "generated_tokens" in response and response["generated_tokens"]:
             try:
@@ -763,10 +778,10 @@ class QuestionMatrix(QuestionBase):
     """
 
     question_type = "matrix"
-    question_text: str = QuestionTextDescriptor()
-    question_items: List[str] = QuestionOptionsDescriptor()
-    question_options: List[Union[int, str, float]] = QuestionOptionsDescriptor()
-    option_labels: Optional[Dict[Union[int, str, float], str]] = OptionLabelDescriptor()
+    question_text = QuestionTextDescriptor()
+    question_items = QuestionOptionsDescriptor()
+    question_options = QuestionOptionsDescriptor()
+    option_labels = OptionLabelDescriptor()
 
     _response_model = None
     response_validator_class = MatrixResponseValidator

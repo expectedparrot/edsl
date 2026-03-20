@@ -6,7 +6,7 @@ drop operations with proper codebook and trait_categories management.
 """
 
 from __future__ import annotations
-from typing import Union, List, Optional, Any, TYPE_CHECKING
+from typing import Union, List, Optional, Any, cast, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .agent import Agent
@@ -71,19 +71,22 @@ class AgentOperations:
         if not fields_to_drop:
             raise AgentErrors("No field names provided to drop")
 
-        d = agent.to_dict()
+        d: dict[str, Any] = agent.to_dict()
+        traits = cast(dict[str, Any], d.get("traits", {}))
+        codebook = cast(dict[str, Any], d.get("codebook", {}))
+        trait_categories = cast(dict[str, list[str]], d.get("trait_categories", {}))
 
         # Check that all fields exist before dropping any
         missing_fields = []
         for field_name in fields_to_drop:
-            if field_name not in d.get("traits", {}) and field_name not in d:
+            if field_name not in traits and field_name not in d:
                 missing_fields.append(field_name)
 
         if missing_fields:
             raise AgentErrors(
                 f"Field(s) {missing_fields} not found in agent. "
                 f"Available fields: {list(d.keys())}. "
-                f"Available traits: {list(d.get('traits', {}).keys())}"
+                f"Available traits: {list(traits.keys())}"
             )
 
         # Track which traits are being dropped for codebook cleanup
@@ -91,32 +94,32 @@ class AgentOperations:
 
         # Drop all the fields
         for field_name in fields_to_drop:
-            if field_name in d.get("traits", {}):
-                d["traits"].pop(field_name)
+            if field_name in traits:
+                traits.pop(field_name)
                 dropped_traits.append(field_name)
             elif field_name in d:
                 d.pop(field_name)
 
         # Fix: Clean up codebook entries for dropped traits
-        if "codebook" in d and dropped_traits:
+        if codebook and dropped_traits:
             for trait in dropped_traits:
-                d["codebook"].pop(trait, None)
+                codebook.pop(trait, None)
             # Remove codebook entirely if it's now empty
-            if not d["codebook"]:
+            if not codebook:
                 d.pop("codebook", None)
 
         # Fix: Clean up trait_categories for dropped traits
-        if "trait_categories" in d and dropped_traits:
-            for category, trait_list in list(d["trait_categories"].items()):
+        if trait_categories and dropped_traits:
+            for category, trait_list in list(trait_categories.items()):
                 # Remove dropped traits from category lists
                 updated_list = [t for t in trait_list if t not in dropped_traits]
                 if updated_list:
-                    d["trait_categories"][category] = updated_list
+                    trait_categories[category] = updated_list
                 else:
                     # Remove empty categories
-                    d["trait_categories"].pop(category)
+                    trait_categories.pop(category)
             # Remove trait_categories entirely if it's now empty
-            if not d["trait_categories"]:
+            if not trait_categories:
                 d.pop("trait_categories", None)
 
         from .agent import Agent
@@ -177,20 +180,23 @@ class AgentOperations:
         if not fields_to_keep:
             raise AgentErrors("No field names provided to keep")
 
-        d = agent.to_dict()
+        d: dict[str, Any] = agent.to_dict()
+        traits = cast(dict[str, Any], d.get("traits", {}))
+        codebook = cast(dict[str, Any], d.get("codebook", {}))
+        trait_categories = cast(dict[str, list[str]], d.get("trait_categories", {}))
 
         # Check that all requested fields exist
-        available_fields = set(d.keys()) | set(d.get("traits", {}).keys())
+        available_fields = set(d.keys()) | set(traits.keys())
         missing_fields = set(fields_to_keep) - available_fields
         if missing_fields:
             raise AgentErrors(
                 f"Field(s) {missing_fields} not found in agent. "
                 f"Available fields: {list(d.keys())}. "
-                f"Available traits: {list(d.get('traits', {}).keys())}"
+                f"Available traits: {list(traits.keys())}"
             )
 
         # Create new dictionary with only the requested fields
-        new_d = {}
+        new_d: dict[str, Any] = {}
 
         # Keep top-level fields that were requested
         for field_name in fields_to_keep:
@@ -198,24 +204,24 @@ class AgentOperations:
                 new_d[field_name] = d[field_name]
 
         # Handle traits separately
-        requested_traits = [f for f in fields_to_keep if f in d.get("traits", {})]
+        requested_traits = [f for f in fields_to_keep if f in traits]
         if requested_traits:
-            new_d["traits"] = {trait: d["traits"][trait] for trait in requested_traits}
+            new_d["traits"] = {trait: traits[trait] for trait in requested_traits}
 
         # Fix: Keep only relevant codebook entries
-        if "codebook" in d and requested_traits:
+        if codebook and requested_traits:
             relevant_codebook = {
-                trait: d["codebook"][trait]
+                trait: codebook[trait]
                 for trait in requested_traits
-                if trait in d["codebook"]
+                if trait in codebook
             }
             if relevant_codebook:
                 new_d["codebook"] = relevant_codebook
 
         # Fix: Keep only relevant trait_categories
-        if "trait_categories" in d and requested_traits:
+        if trait_categories and requested_traits:
             relevant_categories = {}
-            for category, trait_list in d["trait_categories"].items():
+            for category, trait_list in trait_categories.items():
                 # Keep traits that are both in the category and requested
                 kept_traits = [t for t in trait_list if t in requested_traits]
                 if kept_traits:
@@ -280,6 +286,8 @@ class AgentOperations:
             return AgentOperations._rename_dict(agent, old_name_or_dict)
 
         if isinstance(old_name_or_dict, str):
+            if new_name is None:
+                raise AgentErrors("new_name is required when old_name_or_dict is a string")
             return AgentOperations._rename_single(agent, old_name_or_dict, new_name)
 
         raise AgentErrors("Something is not right with Agent renaming")

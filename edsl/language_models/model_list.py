@@ -52,48 +52,53 @@ class ModelList(Base, UserList):
 
         return f"ModelList({UserList.__repr__(self)})"
 
-    def _summary_repr(self, max_items: int = 5) -> str:
-        """Generate a summary representation of the ModelList with Rich formatting.
+    def info(self) -> list:
+        """Return display sections as (title, Dataset) pairs."""
+        from edsl.dataset import Dataset
+
+        models = []
+        services = []
+        for model in self:
+            models.append(str(getattr(model, "model", getattr(model, "_model_", "unknown"))))
+            services.append(str(getattr(model, "_inference_service_", "unknown")))
+
+        unique_services = sorted(set(services))
+        summary_ds = Dataset([
+            {"Field": ["Models", "Services"]},
+            {"Value": [
+                str(len(self)),
+                ", ".join(unique_services) if unique_services else "(none)",
+            ]},
+        ])
+
+        return [("Summary", summary_ds), ("Models", Dataset([{"model": models}, {"service": services}]))]
+
+    def _summary_repr(self, max_rows: int = 500) -> str:
+        """Generate a summary representation of the ModelList as a Rich table.
 
         Args:
-            max_items: Maximum number of items to show in lists before truncating
+            max_rows: Maximum number of model rows to show before truncating.
         """
-        from rich.console import Console
-        from rich.text import Text
-        import io
-        from edsl.config import RICH_STYLES
+        from ..utilities.summary_table import ColumnDef, render_summary_table
 
-        # Build the Rich text
-        output = Text()
-        output.append("ModelList(\n", style=RICH_STYLES["primary"])
-        output.append(f"    num_models={len(self)},\n", style=RICH_STYLES["default"])
+        num_models = len(self)
+        title = f"ModelList ({num_models} model{'s' if num_models != 1 else ''})"
 
-        if len(self) > 0:
-            # Collect model information
-            model_info = []
-            for model in list(self):
-                model_name = getattr(
-                    model, "model", getattr(model, "_model_", "unknown")
-                )
-                service_name = getattr(model, "_inference_service_", "unknown")
-                model_info.append(f"{model_name} ({service_name})")
+        columns = [
+            ColumnDef("#", style="dim", no_wrap=True, justify="right"),
+            ColumnDef("Model", style="bold green", no_wrap=True),
+            ColumnDef("Service", style="dim", no_wrap=True),
+        ]
 
-            output.append("    models: [\n", style=RICH_STYLES["default"])
-            for info in model_info:
-                output.append("        ", style=RICH_STYLES["default"])
-                output.append(f"{info}", style=RICH_STYLES["secondary"])
-                output.append(",\n", style=RICH_STYLES["default"])
+        rows = []
+        for idx, model in enumerate(self):
+            model_name = getattr(model, "model", getattr(model, "_model_", "unknown"))
+            service = getattr(model, "_inference_service_", "unknown")
+            rows.append((str(idx), str(model_name), str(service)))
 
-            output.append("    ]\n", style=RICH_STYLES["default"])
-        else:
-            output.append("    models: []\n", style=RICH_STYLES["dim"])
-
-        output.append(")", style=RICH_STYLES["primary"])
-
-        # Render to string
-        console = Console(file=io.StringIO(), force_terminal=True, width=120)
-        console.print(output, end="")
-        return console.file.getvalue()
+        return render_summary_table(
+            title=title, columns=columns, rows=rows, max_rows=max_rows,
+        )
 
     def _summary(self):
         return {"models": len(self)}
@@ -134,15 +139,7 @@ class ModelList(Base, UserList):
     ):
         """
         >>> ModelList.example().table('model_name')
-        +------------+
-        | model_name |
-        +------------+
-        | gpt-4o     |
-        +------------+
-        | gpt-4o     |
-        +------------+
-        | gpt-4o     |
-        +------------+
+        Dataset([{'model_name': ['gpt-4o', 'gpt-4o', 'gpt-4o']}])
         """
         return (
             self.to_scenario_list()
@@ -175,6 +172,29 @@ class ModelList(Base, UserList):
             d["edsl_class_name"] = "ModelList"
 
         return d
+
+    def to_jsonl(self, filename=None, **kwargs):
+        """Export the ModelList as JSONL.
+
+        >>> ml = ModelList.example()
+        >>> ml2 = ModelList.from_jsonl(ml.to_jsonl())
+        >>> ml == ml2
+        True
+        """
+        from .model_list_serializer import ModelListSerializer
+
+        return ModelListSerializer(self).to_jsonl(filename=filename)
+
+    def to_jsonl_rows(self, blob_writer=None):
+        from .model_list_serializer import ModelListSerializer
+        return ModelListSerializer(self).to_jsonl_rows()
+
+    @classmethod
+    def from_jsonl(cls, source, **kwargs):
+        """Create a ModelList from a JSONL source (file path, string, or iterable)."""
+        from .model_list_serializer import ModelListSerializer
+
+        return ModelListSerializer.from_jsonl(source)
 
     @classmethod
     def from_names(self, *args, **kwargs):

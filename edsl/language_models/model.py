@@ -54,9 +54,20 @@ class Model(metaclass=Meta):
         default_model: The default model name to use when none is specified.
 
     Examples:
-        model = Model()  # Uses default model
-        model = Model('gpt-4', temperature=0.7)
-        model = Model('claude-3', service_name='anthropic')
+        Basic usage::
+
+            model = Model()  # Uses default model
+            model = Model('gpt-4o', temperature=0.7)
+            model = Model('claude-3', service_name='anthropic')
+
+        Using a custom prompt plan for models without system prompt support::
+
+            from edsl.invigilators.prompt_helpers import PromptPlan
+
+            # All prompt components go in the user prompt (empty system prompt)
+            model = Model('o1', prompt_plan=PromptPlan.user_prompt_only())
+
+        See :class:`~edsl.invigilators.prompt_helpers.PromptPlan` for details.
     """
 
     default_model = CONFIG.get("EDSL_DEFAULT_MODEL")
@@ -102,6 +113,13 @@ class Model(metaclass=Meta):
             service_name: Optional service name to use for the model.
             *args: Additional positional arguments passed to the model constructor.
             **kwargs: Additional keyword arguments passed to the model constructor.
+                Notable keyword arguments include:
+
+                - **temperature** (float): Sampling temperature for the model.
+                - **prompt_plan** (:class:`~edsl.invigilators.prompt_helpers.PromptPlan`):
+                  Controls how prompt components are arranged between system and user
+                  prompts. Use ``PromptPlan.user_prompt_only()`` for models that don't
+                  support system prompts.
 
         Returns:
             A language model instance, or None if an error occurs in notebook environment.

@@ -561,6 +561,46 @@ class TestSurvey(unittest.TestCase):
             self.assertNotIn("{{ user_name.answer }}", text)
 
 
+class TestPinnedOptions(unittest.TestCase):
+    def test_draw_with_pinned_options(self):
+        from edsl import QuestionMultipleChoice, Survey
+
+        q = QuestionMultipleChoice(
+            question_name="q1",
+            question_text="Pick one.",
+            question_options=["Red", "Blue", "Green", "Other"],
+        )
+        survey = Survey([q])
+        survey.questions_to_randomize = ["q1"]
+        survey.options_to_pin = {"q1": ["Other"]}
+
+        # Draw multiple times and verify "Other" stays at index 3
+        for seed in range(10):
+            # Reset the survey seed so draw() reseeds each time
+            survey._seed = seed
+            import random as _random
+            _random.seed(seed)
+            drawn = survey.draw()
+            assert drawn.questions[0].question_options[-1] == "Other", \
+                f"'Other' should stay at end, got {drawn.questions[0].question_options}"
+
+    def test_draw_pinned_serialization_roundtrip(self):
+        from edsl import QuestionMultipleChoice, Survey
+
+        q = QuestionMultipleChoice(
+            question_name="q1",
+            question_text="Pick.",
+            question_options=["A", "B", "C"],
+        )
+        survey = Survey([q])
+        survey.questions_to_randomize = ["q1"]
+        survey.options_to_pin = {"q1": ["C"]}
+
+        d = survey.to_dict()
+        s2 = Survey.from_dict(d)
+        assert s2.options_to_pin == {"q1": ["C"]}
+
+
 if __name__ == "__main__":
     unittest.main()
     # s = TestSurvey().gen_survey()

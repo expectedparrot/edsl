@@ -486,9 +486,9 @@ class TestInferenceServiceRegistry:
         """Test default source preferences."""
         registry = InferenceServiceRegistry()
         expected_sources = (
+            "archive",
             "coop_working",
             "coop",
-            "archive",
             "local",
             "default_models",
         )

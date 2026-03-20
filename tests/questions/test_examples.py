@@ -8,6 +8,7 @@ def test_individual_questions(question_type):
         q = Question.example(question_type)
         r = q.example_results()
         _ = hash(r)
+        pandas = pytest.importorskip("pandas")
         _ = r._repr_html_()
     else:
         pytest.skip("Skipping functional question type")

@@ -1,6 +1,8 @@
 """This module provides a Config class that loads environment variables from a .env file and sets them as class attributes."""
 
 import os
+import sys
+import io
 import platformdirs
 from dotenv import load_dotenv, find_dotenv
 from ..base import BaseException
@@ -137,6 +139,10 @@ CONFIG_MAP = {
         "info": "This config var determines the default table renderer for displaying datasets in notebooks (options: 'pandas', 'datatables', 'rich', 'tabulator').",
         "valid_values": EDSL_TABLE_RENDERERS,
     },
+    "EDSL_CAS_URL": {
+        "default": "http://localhost:8000",
+        "info": "Base URL of the CAS editor service for push/pull operations.",
+    },
 }
 
 
@@ -183,7 +189,20 @@ class Config(RepresentationMixin):
             override = False
         else:
             override = True
-        _ = load_dotenv(dotenv_path=find_dotenv(usecwd=True), override=override)
+        dotenv_path = find_dotenv(usecwd=True)
+        # Capture stderr to detect parse errors from python-dotenv
+        old_stderr = sys.stderr
+        sys.stderr = captured = io.StringIO()
+        try:
+            _ = load_dotenv(dotenv_path=dotenv_path, override=override)
+        finally:
+            sys.stderr = old_stderr
+        parse_errors = captured.getvalue().strip()
+        if parse_errors:
+            raise InvalidEnvironmentVariableError(
+                f"Failed to parse .env file at '{dotenv_path}': {parse_errors}. "
+                f"Please check the file for syntax errors (each line should be KEY=VALUE)."
+            )
 
     def __contains__(self, env_var: str) -> bool:
         """
@@ -216,6 +235,22 @@ class Config(RepresentationMixin):
                         f"Invalid value '{value}' for {env_var}. "
                         f"Valid values are: {', '.join(valid_values)}"
                     )
+                # Strip trailing slashes from URL values to prevent double-slash issues
+                if env_var.endswith("_URL"):
+                    value = value.rstrip("/")
+                    # Warn if EXPECTED_PARROT_URL uses http instead of https
+                    # Allow http for localhost and Docker-internal hostnames (no dot in host)
+                    _host = value.split("://", 1)[-1].split("/", 1)[0].split(":", 1)[0]
+                    _is_internal = "localhost" in value or "." not in _host
+                    if (
+                        env_var == "EXPECTED_PARROT_URL"
+                        and value.startswith("http://")
+                        and not _is_internal
+                    ):
+                        raise InvalidEnvironmentVariableError(
+                            f"EXPECTED_PARROT_URL uses 'http://' but the server requires 'https://'. "
+                            f"Got: {value}. Change to: {value.replace('http://', 'https://')}"
+                        )
                 setattr(self, env_var, value)
             # otherwise, if EDSL_RUN_MODE == "production" set it to its default value
             elif self.EDSL_RUN_MODE == "production":

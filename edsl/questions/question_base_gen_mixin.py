@@ -102,7 +102,7 @@ class TemplateRenderer:
                 should_render = self.has_unrendered_variables(result)
 
             return result
-        except exception_class:
+        except exception_class:  # type: ignore[misc]
             raise
         except Exception:
             import warnings
@@ -158,6 +158,7 @@ class QuestionBaseGenMixin:
         self,
         random_seed: Optional[int] = None,
         random_instance: Optional["random.Random"] = None,
+        pin_options: Optional[List] = None,
     ) -> "QuestionBase":
         """Return a new question with a randomly selected permutation of the options.
 
@@ -167,6 +168,8 @@ class QuestionBaseGenMixin:
             random_seed: Optional seed for reproducible randomization
             random_instance: Optional random.Random instance for randomization.
                 If both random_seed and random_instance are provided, random_instance takes precedence.
+            pin_options: Optional list of option values that should remain at their
+                original positions and not be shuffled.
 
         >>> from edsl.questions import QuestionMultipleChoice as Q
         >>> q = Q.example()
@@ -189,9 +192,28 @@ class QuestionBaseGenMixin:
             rng = random
 
         question = copy.deepcopy(self)
-        question.question_options = list(
-            rng.sample(self.question_options, len(self.question_options))
-        )
+
+        if pin_options:
+            # Record positions of pinned options
+            pinned = {i: v for i, v in enumerate(self.question_options) if v in pin_options}
+            # Collect non-pinned options
+            non_pinned = [v for v in self.question_options if v not in pin_options]
+            # Shuffle only non-pinned options
+            non_pinned = list(rng.sample(non_pinned, len(non_pinned)))
+            # Reconstruct full list with pinned options at their original indices
+            result = [None] * len(self.question_options)
+            for idx, val in pinned.items():
+                result[idx] = val
+            non_pinned_iter = iter(non_pinned)
+            for i in range(len(result)):
+                if result[i] is None:
+                    result[i] = next(non_pinned_iter)
+            question.question_options = result
+        else:
+            question.question_options = list(
+                rng.sample(self.question_options, len(self.question_options))
+            )
+
         return question
 
     def loop(
@@ -315,7 +337,7 @@ class QuestionBaseGenMixin:
 
         # Create render function that uses the template renderer
         def render_string(value: str) -> str:
-            return template_renderer.render_string(
+            return template_renderer.render_string(  # type: ignore[union-attr]
                 value,
                 strings_only_replacement_dict,
                 exception_class=self.MaxTemplateNestingExceeded,

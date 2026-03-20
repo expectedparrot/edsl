@@ -22,7 +22,6 @@ try:
     from .storage_sqlalchemy import reset_db_stats, get_db_stats
 except ImportError:
     # sqlalchemy not installed — provide no-op stubs
-    import time as _time
 
     def reset_db_stats():
         pass
@@ -33,13 +32,11 @@ except ImportError:
 
 from .models import (
     JobDefinition,
-    JobStatus,
     JobState,
     InterviewDefinition,
     InterviewStatus,
     InterviewState,
     TaskDefinition,
-    TaskState,
     TaskStatus,
     Answer,
     RetryPolicy,
@@ -54,7 +51,6 @@ from ..surveys.base import EndOfSurvey
 from ..results import Result, Results
 from ..agents import Agent
 from ..scenarios import Scenario
-from ..questions import QuestionBase
 
 if TYPE_CHECKING:
     # Avoid circular import - these would be EDSL types
@@ -79,6 +75,7 @@ class JobService:
         self._original_models: dict[
             str, dict[str, Any]
         ] = {}  # job_id -> {model_id -> model_obj}
+        self._interview_callbacks: dict[str, Any] = {}  # job_id -> callable(job_id, interview_id)
 
     @property
     def jobs(self) -> JobStore:
@@ -95,6 +92,15 @@ class JobService:
     @property
     def answers(self) -> AnswerStore:
         return self._answers
+
+    def register_interview_callback(self, job_id: str, callback) -> None:
+        """Register a callback invoked when an interview completes.
+
+        The callback receives ``(job_id, interview_id)`` and is called
+        from ``on_task_completed`` / ``on_tasks_completed_batch`` once
+        all tasks for the interview are done.
+        """
+        self._interview_callbacks[job_id] = callback
 
     def get_model_for_task(self, job_id: str, model_id: str) -> Any:
         """
@@ -189,6 +195,35 @@ class JobService:
             q_name = self._get_question_name(q)
             question_name_to_id[q_name] = q_id
 
+        # Detect QuestionThinking questions that carry their own model.
+        # Register those models in the model store and build a mapping
+        # from question_name -> model_id so tasks use the question's model.
+        question_model_overrides: dict[str, str] = {}  # q_name -> model_id
+        extra_models: dict[str, Any] = {}  # model_id -> model obj (NOT in cross-product)
+        extra_models_batch: dict[str, dict] = {}
+        for q in questions:
+            if hasattr(q, "_model") and getattr(q, "question_type", None) == "thinking":
+                q_name = self._get_question_name(q)
+                qm = q._model
+                # Check if this model object is already registered (by identity)
+                existing_id = None
+                for mid, mobj in model_map.items():
+                    if mobj is qm:
+                        existing_id = mid
+                        break
+                if existing_id is None:
+                    for mid, mobj in extra_models.items():
+                        if mobj is qm:
+                            existing_id = mid
+                            break
+                if existing_id:
+                    question_model_overrides[q_name] = existing_id
+                else:
+                    qm_id = self._get_or_create_id(qm)
+                    question_model_overrides[q_name] = qm_id
+                    extra_models[qm_id] = qm
+                    extra_models_batch[qm_id] = self._to_dict(qm)
+
         logger.info(
             f"[SUBMIT {job_id[:8]}] extract_components: {(time.time() - t0)*1000:.1f}ms "
             f"(scenarios={len(scenarios)}, agents={len(agents)}, models={len(models)}, questions={len(questions)})"
@@ -223,9 +258,13 @@ class JobService:
 
         t0 = time.time()
         models_batch = {m_id: self._to_dict(m) for m_id, m in model_map.items()}
+        # Include any extra models from QuestionThinking questions
+        models_batch.update(extra_models_batch)
         self._jobs.write_models_batch(job_id, models_batch)
         # Keep original model objects for local execution (func/closures don't serialize)
-        self._original_models[job_id] = dict(model_map)
+        all_models = dict(model_map)
+        all_models.update(extra_models)
+        self._original_models[job_id] = all_models
         logger.info(
             f"[SUBMIT {job_id[:8]}] write_models_batch ({len(models_batch)}): {(time.time() - t0)*1000:.1f}ms"
         )
@@ -292,6 +331,7 @@ class JobService:
                     iteration=iteration,
                     agent=agent_obj,
                     scenario=scenario_obj,
+                    question_model_overrides=question_model_overrides,
                 )
                 total_tasks_created += len(task_ids)
                 all_task_definitions.extend(task_defs)
@@ -410,6 +450,7 @@ class JobService:
         iteration: int = 0,
         agent: Any = None,
         scenario: Any = None,
+        question_model_overrides: dict[str, str] | None = None,
     ) -> tuple[list[str], list[dict]]:
         """
         Create all tasks for an interview.
@@ -464,6 +505,11 @@ class JobService:
             # Detect execution type (llm, agent_direct, or functional)
             execution_type = detect_execution_type(agent, q)
 
+            # Use the question's own model for QuestionThinking
+            task_model_id = model_id
+            if question_model_overrides and q_name in question_model_overrides:
+                task_model_id = question_model_overrides[q_name]
+
             task_def = TaskDefinition(
                 task_id=task_id,
                 job_id=job_id,
@@ -472,7 +518,7 @@ class JobService:
                 question_id=q_id,
                 question_name=q_name,
                 agent_id=agent_id,
-                model_id=model_id,
+                model_id=task_model_id,
                 depends_on=task_depends_on[task_id],
                 dependents=task_dependents[task_id],
                 iteration=iteration,
@@ -596,7 +642,7 @@ class JobService:
         # First question is never skipped
         if question_index == 0:
             if debug:
-                print(f"  [skip] First question - not skipping")
+                print("  [skip] First question - not skipping")
             return False, None
 
         # OPTIMIZATION: If survey has no user-defined skip rules, skip evaluation entirely
@@ -803,6 +849,10 @@ class JobService:
         if interview_state != InterviewState.RUNNING:
             had_failures = interview_state == InterviewState.COMPLETED_WITH_FAILURES
             self._jobs.mark_interview_completed(job_id, interview_id, had_failures)
+            # Notify CAS streaming callback (if registered)
+            cb = self._interview_callbacks.get(job_id)
+            if cb:
+                cb(job_id, interview_id)
         _dt_finalize = (_time.monotonic() - _t) * 1000
 
         _dt_total = (_time.monotonic() - _t_total) * 1000
@@ -925,10 +975,13 @@ class JobService:
 
         # Check which interviews are done and update job
         interview_states = self._interviews.get_states_batch(interview_ids)
+        cb = self._interview_callbacks.get(job_id)
         for iid, state in interview_states.items():
             if state != InterviewState.RUNNING:
                 had_failures = state == InterviewState.COMPLETED_WITH_FAILURES
                 self._jobs.mark_interview_completed(job_id, iid, had_failures)
+                if cb:
+                    cb(job_id, iid)
         _t_finalize = (_t.time() - _t0) * 1000
 
         _total = (_t.time() - _batch_t0) * 1000
@@ -968,6 +1021,9 @@ class JobService:
         if interview_state != InterviewState.RUNNING:
             had_failures = interview_state == InterviewState.COMPLETED_WITH_FAILURES
             self._jobs.mark_interview_completed(job_id, interview_id, had_failures)
+            cb = self._interview_callbacks.get(job_id)
+            if cb:
+                cb(job_id, interview_id)
 
     def on_task_failed(
         self,
@@ -1018,6 +1074,9 @@ class JobService:
         if interview_state != InterviewState.RUNNING:
             had_failures = True  # We just had a failure
             self._jobs.mark_interview_completed(job_id, interview_id, had_failures)
+            cb = self._interview_callbacks.get(job_id)
+            if cb:
+                cb(job_id, interview_id)
 
     def _propagate_failure(
         self, job_id: str, interview_id: str, dependent_ids: list[str]
@@ -2192,7 +2251,6 @@ class JobService:
         - Dict format: {"from": "{{ q1.answer }}", "add": ["Other"]}
         - Non-template values (lists, None): returned as-is
         """
-        import re
 
         # Dict format: {"from": "{{ q1.answer }}", "add": ["Option X"]}
         if isinstance(options, dict) and "from" in options:
