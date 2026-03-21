@@ -125,15 +125,15 @@ class PriceManager:
             instance = super(PriceManager, cls).__new__(cls)
             instance._price_lookup = {}  # Instance-specific attribute
             instance._is_initialized = False
+            instance._prices_loaded = False
             cls._instance = instance  # Store the instance directly
             return instance
         return cls._instance
 
     def __init__(self):
-        """Initialize the singleton instance only once."""
+        """Initialize the singleton instance only once (prices are loaded lazily)."""
         if not self._is_initialized:
             self._is_initialized = True
-            self.refresh_prices()
 
     @classmethod
     def get_instance(cls):
@@ -148,6 +148,7 @@ class PriceManager:
         cls._instance = None
         cls._is_initialized = False
         cls._price_lookup = {}
+        cls._prices_loaded = False
 
     def __del__(self):
         """Ensure proper cleanup when the instance is garbage collected."""
@@ -158,7 +159,13 @@ class PriceManager:
 
     @property
     def price_retriever(self):
+        self._ensure_prices_loaded()
         return PriceRetriever(self._price_lookup)
+
+    def _ensure_prices_loaded(self) -> None:
+        """Lazily load prices on first access."""
+        if not self._prices_loaded:
+            self.refresh_prices()
 
     def refresh_prices(self) -> None:
         """Fetch fresh prices and update the internal price lookup."""
@@ -169,13 +176,16 @@ class PriceManager:
             self._price_lookup = c.fetch_prices()
         except Exception as e:
             print(f"Error fetching prices: {str(e)}")
+        self._prices_loaded = True
 
     def get_price(self, inference_service: str, model: str) -> Dict:
         """Get the price information for a specific service and model."""
+        self._ensure_prices_loaded()
         return self.price_retriever.get_price(inference_service, model)
 
     def get_all_prices(self) -> Dict[Tuple[str, str], Dict]:
         """Get the complete price lookup dictionary."""
+        self._ensure_prices_loaded()
         return self._price_lookup.copy()
 
     def get_price_per_million_tokens(

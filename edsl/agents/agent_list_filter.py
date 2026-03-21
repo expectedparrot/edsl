@@ -1,11 +1,9 @@
 """AgentList filtering operations module."""
 
 from __future__ import annotations
-import sys
 from typing import TYPE_CHECKING
 
 from simpleeval import EvalWithCompoundTypes, NameNotDefined
-from ..utilities import is_notebook
 
 if TYPE_CHECKING:
     from .agent_list import AgentList
@@ -80,15 +78,9 @@ class AgentListFilter:
                 if create_evaluator(agent).eval(expression)
             ]
         except NameNotDefined:
-            e = AgentListError(f"'{expression}' is not a valid expression.")
-            if is_notebook():
-                print(e, file=sys.stderr)
-            else:
-                raise e
-
-            return EmptyAgentList()
+            raise AgentListError(f"'{expression}' is not a valid expression.")
 
         if len(new_data) == 0:
-            return EmptyAgentList()
+            return AgentList([])
 
         return AgentList(new_data)

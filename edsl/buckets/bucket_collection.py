@@ -7,7 +7,7 @@ API rate limits are respected while allowing models from the same service to
 share the same rate limit buckets.
 """
 
-from typing import TYPE_CHECKING, Dict, List
+from typing import TYPE_CHECKING, List
 from collections import UserDict
 from threading import RLock
 
@@ -40,12 +40,10 @@ class BucketCollection(UserDict):
         infinity_buckets (bool): If True, all buckets have infinite capacity and refill rate
         models_to_services (dict): Maps model names to their service provider names
         services_to_buckets (dict): Maps service names to their ModelBuckets instances
-        remote_url (str, optional): URL for remote token bucket server if using distributed mode
-
     Example:
         >>> from edsl import Model
         >>> bucket_collection = BucketCollection()
-        >>> model = Model('gpt-4')
+        >>> model = Model('test')
         >>> bucket_collection.add_model(model)
         >>> # Now rate limits for the model are being tracked
     """
@@ -74,15 +72,6 @@ class BucketCollection(UserDict):
         self.services_to_buckets = {}  # Maps service names to ModelBuckets
         self._lock = RLock()
 
-        # Check for remote token bucket server URL in environment
-        import os
-
-        url = os.environ.get("EDSL_REMOTE_TOKEN_BUCKET_URL", None)
-
-        if url == "None" or url is None:
-            self.remote_url = None
-        else:
-            self.remote_url = url
 
     @classmethod
     def from_models(
@@ -104,7 +93,7 @@ class BucketCollection(UserDict):
 
         Example:
             >>> from edsl import Model
-            >>> models = [Model('gpt-4'), Model('gpt-3.5-turbo')]
+            >>> models = [Model('test'), Model('test')]
             >>> collection = BucketCollection.from_models(models)
         """
         bucket_collection = cls(infinity_buckets=infinity_buckets)
@@ -166,7 +155,7 @@ class BucketCollection(UserDict):
 
         Example:
             >>> from edsl import Model
-            >>> model = Model('gpt-4')
+            >>> model = Model('test')
             >>> bucket_collection = BucketCollection()
             >>> bucket_collection.add_model(model)
         """
@@ -190,7 +179,6 @@ class BucketCollection(UserDict):
                     bucket_type="requests",
                     capacity=RPS,
                     refill_rate=RPS,
-                    remote_url=self.remote_url,
                 )
 
                 # Create token rate limiting bucket
@@ -199,7 +187,6 @@ class BucketCollection(UserDict):
                     bucket_type="tokens",
                     capacity=TPS,
                     refill_rate=TPS,
-                    remote_url=self.remote_url,
                 )
 
                 # Store the buckets for this service
@@ -249,8 +236,7 @@ class BucketCollection(UserDict):
                         bucket_type="requests",
                         capacity=new_rps,
                         refill_rate=new_rps,
-                        remote_url=self.remote_url,
-                    )
+                        )
                     self.services_to_buckets[service].requests_bucket = (
                         new_requests_bucket
                     )
@@ -263,8 +249,7 @@ class BucketCollection(UserDict):
                         bucket_type="tokens",
                         capacity=new_tps,
                         refill_rate=new_tps,
-                        remote_url=self.remote_url,
-                    )
+                        )
                     self.services_to_buckets[service].tokens_bucket = new_tokens_bucket
 
 
@@ -280,23 +265,19 @@ if __name__ == "__main__":
 
         >>> from edsl import Model
         >>> # Create models
-        >>> gpt4 = Model('gpt-4')
-        >>> gpt35 = Model('gpt-3.5-turbo')
-        >>> claude = Model('claude-3-opus-20240229')
+        >>> m1 = Model('test')
+        >>> m2 = Model('test')
         >>>
         >>> # Create bucket collection
         >>> collection = BucketCollection()
         >>>
         >>> # Add models to the collection
-        >>> collection.add_model(gpt4)
-        >>> collection.add_model(gpt35)
-        >>> collection.add_model(claude)
+        >>> collection.add_model(m1)
+        >>> collection.add_model(m2)
         >>>
         >>> # Models from the same service share rate limits
-        >>> print(collection[gpt4] is collection[gpt35])  # Both OpenAI
+        >>> print(collection[m1] is collection[m2])  # Same service
         True
-        >>> print(collection[gpt4] is collection[claude])  # Different services
-        False
         >>>
         >>> # Visualize rate limits
         >>> # plots = collection.visualize()

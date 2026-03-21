@@ -103,6 +103,7 @@ class GoogleService(InferenceServiceABC):
                 "topK": 1,
                 "maxOutputTokens": 2048,
                 "stopSequences": [],
+                "thinking_budget": None,
             }
 
             model = None
@@ -110,7 +111,20 @@ class GoogleService(InferenceServiceABC):
             _cached_api_token = None
             _client_lock = None
 
+            # Map common/generic parameter names to Google-specific names
+            _parameter_aliases_ = {
+                "max_output_tokens": "maxOutputTokens",
+                "max_tokens": "maxOutputTokens",
+                "top_p": "topP",
+                "top_k": "topK",
+                "stop_sequences": "stopSequences",
+            }
+
             def __init__(self, *args, **kwargs):
+                # Translate generic parameter names to Google-specific names
+                for generic, google_name in self._parameter_aliases_.items():
+                    if generic in kwargs and google_name not in kwargs:
+                        kwargs[google_name] = kwargs.pop(generic)
                 super().__init__(*args, **kwargs)
                 if self._client_lock is None:
                     import asyncio
@@ -131,7 +145,6 @@ class GoogleService(InferenceServiceABC):
                     user_prompt: The user message or input prompt
                     system_prompt: The system message or context
                     files_list: Optional list of files to include
-                    remote_proxy: Optional flag to use remote proxy instead of direct API call
                 """
                 # import time
 
@@ -139,33 +152,6 @@ class GoogleService(InferenceServiceABC):
 
                 if files_list is None:
                     files_list = []
-
-                # Check if we should use remote proxy
-                if self.remote_proxy:
-                    # Use remote proxy mode
-                    from .remote_proxy_handler import RemoteProxyHandler
-
-                    handler = RemoteProxyHandler(
-                        model=self.model,
-                        inference_service=self._inference_service_,
-                        job_uuid=getattr(self, "job_uuid", None),
-                    )
-
-                    # Get fresh parameter
-                    fresh_value = getattr(self, "fresh", False)
-
-                    return await handler.execute_model_call(
-                        user_prompt=user_prompt,
-                        system_prompt=system_prompt,
-                        files_list=files_list,
-                        cache_key=cache_key,
-                        temperature=self.temperature,
-                        topP=self.topP,
-                        topK=self.topK,
-                        maxOutputTokens=self.maxOutputTokens,
-                        stopSequences=self.stopSequences,
-                        fresh=fresh_value,  # Pass fresh parameter
-                    )
 
                 # Get or create cached client (thread-safe)
                 # client_start = time.time()
@@ -253,7 +239,7 @@ class GoogleService(InferenceServiceABC):
                 # config_start = time.time()
                 types = _get_types()
 
-                generation_config = types.GenerateContentConfig(
+                config_kwargs = dict(
                     temperature=self.temperature,
                     top_p=self.topP,
                     top_k=self.topK,
@@ -268,6 +254,13 @@ class GoogleService(InferenceServiceABC):
                     ],
                     system_instruction=system_instruction,
                 )
+
+                if self.thinking_budget is not None:
+                    config_kwargs["thinking_config"] = types.ThinkingConfig(
+                        thinking_budget=self.thinking_budget,
+                    )
+
+                generation_config = types.GenerateContentConfig(**config_kwargs)
                 # config_time = time.time() - config_start
                 # print(f"Configuration creation took {config_time:.3f}s", flush=True)
 

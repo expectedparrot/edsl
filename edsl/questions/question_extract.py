@@ -374,7 +374,7 @@ class QuestionExtract(QuestionBase):
     """
 
     question_type = "extract"
-    answer_template: dict[str, Any] = AnswerTemplateDescriptor()
+    answer_template = AnswerTemplateDescriptor()
     _response_model = None
     response_validator_class = ExtractResponseValidator
 
@@ -383,8 +383,8 @@ class QuestionExtract(QuestionBase):
         question_text: str,
         answer_template: dict[str, Any],
         question_name: str,
-        answering_instructions: str = None,
-        question_presentation: str = None,
+        answering_instructions: Optional[str] = None,
+        question_presentation: Optional[str] = None,
     ):
         """
         Initialize the extraction question.

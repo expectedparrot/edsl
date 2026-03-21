@@ -1,6 +1,9 @@
 from __future__ import annotations
 from typing import Any, List, Optional, Dict, NewType, TYPE_CHECKING
+import logging
 import os
+
+logger = logging.getLogger(__name__)
 
 from ..inference_service_abc import InferenceServiceABC
 from ..decorators import report_errors_async
@@ -8,7 +11,6 @@ from .service_enums import OPENAI_REASONING_MODELS
 
 # Use TYPE_CHECKING to avoid circular imports at runtime
 if TYPE_CHECKING:
-    import openai as _openai_mod
     from ...language_models import LanguageModel
 
 # from ..rate_limits_cache import rate_limits
@@ -27,6 +29,7 @@ APIToken = NewType("APIToken", str)
 def _get_openai():
     """Lazy import of the openai package."""
     import openai
+
     return openai
 
 
@@ -147,9 +150,10 @@ class OpenAIServiceV2(InferenceServiceABC):
             output_token_name = cls.output_token_name
             _inference_service_ = cls._inference_service_
             _model_ = model_name
+            _is_reasoning = any(tag in model_name for tag in OPENAI_REASONING_MODELS)
             _parameters_ = {
                 "temperature": 0.5,
-                "max_tokens": 2000,
+                "max_tokens": 16000 if _is_reasoning else 2000,
                 "top_p": 1,
                 "frequency_penalty": 0,
                 "presence_penalty": 0,
@@ -196,31 +200,6 @@ class OpenAIServiceV2(InferenceServiceABC):
                 invigilator: Optional[InvigilatorAI] = None,
                 cache_key: Optional[str] = None,  # Cache key for tracking
             ) -> dict[str, Any]:
-                # Check if we should use remote proxy
-                if self.remote_proxy:
-                    # Use remote proxy mode
-                    from .remote_proxy_handler import RemoteProxyHandler
-
-                    handler = RemoteProxyHandler(
-                        model=self.model,
-                        inference_service=self._inference_service_,
-                        job_uuid=getattr(self, "job_uuid", None),
-                    )
-
-                    return await handler.execute_model_call(
-                        user_prompt=user_prompt,
-                        system_prompt=system_prompt,
-                        files_list=files_list,
-                        cache_key=cache_key,
-                        temperature=self.temperature,
-                        max_tokens=self.max_tokens,
-                        top_p=self.top_p,
-                        frequency_penalty=self.frequency_penalty,
-                        presence_penalty=self.presence_penalty,
-                        logprobs=self.logprobs,
-                        top_logprobs=self.top_logprobs,
-                    )
-
                 content = user_prompt
                 if files_list:
                     # embed files as separate inputs for Responses API
@@ -352,7 +331,18 @@ class OpenAIServiceV2(InferenceServiceABC):
                     params["temperature"] = 1
 
                 client = self.async_client()
+                logger.info(
+                    f"[OpenAI_V2] Calling responses.create: model={params.get('model')}, "
+                    f"max_output_tokens={params.get('max_output_tokens')}, "
+                    f"temperature={params.get('temperature')}, "
+                    f"is_reasoning={is_reasoning_model}, "
+                    f"base_url={getattr(client, 'base_url', 'N/A')}"
+                )
                 response = await client.responses.create(**params)
+                logger.info(
+                    f"[OpenAI_V2] Response received: model={params.get('model')}, "
+                    f"status={getattr(response, 'status', 'N/A')}"
+                )
                 # convert to dict
                 response_dict = response.model_dump()
                 return response_dict

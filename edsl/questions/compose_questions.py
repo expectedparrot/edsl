@@ -1,5 +1,7 @@
 """Compose two questions where the answer to q1 is used as an input to q2."""
 
+from typing import Optional
+
 from .question_functional import QuestionFunctional
 from .question_base import QuestionBase
 from ..scenarios import Scenario
@@ -7,7 +9,7 @@ from .exceptions import QuestionValueError
 
 
 def compose_questions(
-    q1: QuestionBase, q2: QuestionBase, question_name: str = None
+    q1: QuestionBase, q2: QuestionBase, question_name: Optional[str] = None
 ) -> QuestionFunctional:
     """
     Compose two questions where the answer to q1 is used as an input to q2.
@@ -26,7 +28,7 @@ def compose_questions(
         )
 
     def combo(
-        scenario: Scenario, agent_traits: dict[str, str] = None
+        scenario: Scenario, agent_traits: Optional[dict[str, str]] = None
     ) -> QuestionFunctional:
         """Return the answer to the second question given the answer to the first question."""
         # get the answer to the first question

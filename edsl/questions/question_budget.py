@@ -413,8 +413,8 @@ class QuestionBudget(QuestionBase):
     """
 
     question_type = "budget"
-    budget_sum: int = IntegerDescriptor(none_allowed=False)
-    question_options: list[str] = QuestionOptionsDescriptor(q_budget=True)
+    budget_sum = IntegerDescriptor(none_allowed=False)
+    question_options = QuestionOptionsDescriptor(q_budget=True)
     _response_model = None
     response_validator_class = BudgetResponseValidator
 

@@ -3,7 +3,7 @@ from typing import Optional
 
 from uuid import uuid4
 
-from pydantic import model_validator, field_validator, BaseModel, ValidationError
+from pydantic import model_validator, field_validator, BaseModel
 
 
 from .question_base import QuestionBase

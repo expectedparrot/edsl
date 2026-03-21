@@ -452,16 +452,6 @@ class Notebook(Base):
         )
         return lines
 
-    def to_latex(self, filename: str):
-        """
-        Convert notebook to LaTeX and create a folder with all necessary components.
-
-        :param filename: Name of the output folder and main tex file (without extension)
-        """
-        from .notebook_to_latex import NotebookToLaTeX
-
-        NotebookToLaTeX(self).convert(filename)
-
     def _eval_repr_(self) -> str:
         """Return an eval-able string representation of the Notebook."""
         return f'Notebook(data={self.data}, name="""{self.name}""", lint={self.lint})'

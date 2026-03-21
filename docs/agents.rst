@@ -195,6 +195,32 @@ For example, if you have a trait "age" and you want to provide more context abou
         )
 
 
+Hidden traits (metadata)
+""""""""""""""""""""""""
+
+Traits whose keys start with an underscore (``_``) are treated as hidden metadata.
+They are stored and serialized with the agent but are **not included in LLM prompts**.
+This is useful for attaching internal IDs, scores, or other metadata that should not
+influence the model's responses:
+
+.. code-block:: python
+
+   from edsl import Agent
+
+   a = Agent(traits={
+      "age": 30,
+      "occupation": "teacher",
+      "_respondent_id": "R-12345",   # hidden from LLM
+      "_wave": 3                      # hidden from LLM
+   })
+
+   a.visible_traits   # {'age': 30, 'occupation': 'teacher'}
+   a.traits           # includes all traits, including hidden ones
+
+Hidden traits are not included in LLM prompts or results columns.
+They can still be accessed directly via ``agent.traits`` when needed.
+
+
 Special instructions can also be passed to modify the default instructions that are used with agent traits in the system prompt.
 For example, if you want all agents to answer in German, you could use the `instructions` parameter to specify that:
 

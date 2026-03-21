@@ -2,10 +2,7 @@
 
 from __future__ import annotations
 
-import io
 import os
-import shutil
-import textwrap
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -41,7 +38,11 @@ class AgentListRepresentation:
         except (NameError, ImportError):
             pass
 
-        return self.summary_repr()
+        result = self.summary_repr()
+        info = self._agent_list._store_info_line()
+        if info:
+            result = result.rstrip() + "\n" + info
+        return result
 
     def eval_repr(self) -> str:
         """Return an eval-able string representation of the AgentList.
@@ -51,102 +52,53 @@ class AgentListRepresentation:
         """
         return f"AgentList({self._agent_list.data})"
 
-    def summary_repr(self, MAX_AGENTS: int = 10, MAX_TRAITS: int = 10) -> str:
-        """Generate a summary representation of the AgentList with Rich formatting.
+    def summary_repr(self, MAX_AGENTS: int = 500, MAX_TRAITS: int = 500) -> str:
+        """Generate a summary representation of the AgentList as a Rich table.
+
+        One column per trait key, one row per agent.
 
         Args:
-            MAX_AGENTS: Maximum number of agents to show (default: 10).
-            MAX_TRAITS: Maximum number of traits to show per agent (default: 10).
+            MAX_AGENTS: Maximum number of agent rows to show (default: 10).
+            MAX_TRAITS: (unused, kept for API compat)
         """
-        from rich.console import Console
-        from rich.text import Text
-        from ..config import RICH_STYLES
+        from ..utilities.summary_table import ColumnDef, render_summary_table
 
-        terminal_width = shutil.get_terminal_size().columns
+        al = self._agent_list
+        num_agents = len(al)
+        title = f"AgentList ({num_agents} agent{'s' if num_agents != 1 else ''})"
 
-        output = Text()
-        output.append("AgentList(\n", style=RICH_STYLES["primary"])
-        output.append(
-            f"    num_agents={len(self._agent_list)},\n",
-            style=RICH_STYLES["default"],
+        all_keys = sorted(al.trait_keys)
+
+        has_names = any(agent.name is not None for agent in al.data)
+
+        columns: list[ColumnDef] = [
+            ColumnDef("#", style="dim", no_wrap=True, justify="right"),
+        ]
+        if has_names:
+            columns.append(ColumnDef("Name", style="bold cyan", no_wrap=True))
+        columns.extend(ColumnDef(k, style="bold green") for k in all_keys)
+
+        rows = []
+        for idx, agent in enumerate(al.data):
+            row: list[str] = [str(idx)]
+            if has_names:
+                row.append(repr(agent.name) if agent.name is not None else "")
+            row.extend(repr(agent.traits.get(k, "")) for k in all_keys)
+            rows.append(tuple(row))
+
+        caption_parts: list[str] = []
+        if al._codebook:
+            caption_parts.append(f"codebook: {len(al._codebook)} entries")
+        if al._traits_presentation_template:
+            caption_parts.append("custom traits template")
+
+        return render_summary_table(
+            title=title,
+            columns=columns,
+            rows=rows,
+            caption=", ".join(caption_parts) if caption_parts else None,
+            max_rows=MAX_AGENTS,
         )
-        output.append("    agents=[\n", style=RICH_STYLES["default"])
-
-        num_to_show = min(MAX_AGENTS, len(self._agent_list))
-        for i, agent in enumerate(self._agent_list.data[:num_to_show]):
-            agent_traits = dict(list(agent.traits.items())[:MAX_TRAITS])
-            num_traits = len(agent.traits)
-            was_truncated = num_traits > MAX_TRAITS
-
-            output.append("        Agent(\n", style=RICH_STYLES["primary"])
-            output.append(
-                f"            num_traits={num_traits},\n",
-                style=RICH_STYLES["default"],
-            )
-
-            if agent.name is not None:
-                output.append(
-                    f"            name={repr(agent.name)},\n",
-                    style=RICH_STYLES["default"],
-                )
-
-            output.append("            traits={\n", style=RICH_STYLES["default"])
-
-            for key, value in agent_traits.items():
-                max_value_length = max(terminal_width - 30, 50)
-                value_repr = repr(value)
-
-                output.append("                ", style=RICH_STYLES["default"])
-                output.append(f"'{key}'", style=RICH_STYLES["secondary"])
-                output.append(": ", style=RICH_STYLES["default"])
-
-                if len(value_repr) > max_value_length:
-                    wrapped_lines = textwrap.wrap(
-                        value_repr,
-                        width=max_value_length,
-                        break_long_words=True,
-                        break_on_hyphens=False,
-                    )
-                    for line_idx, line in enumerate(wrapped_lines):
-                        if line_idx == 0:
-                            output.append(f"{line}\n", style=RICH_STYLES["default"])
-                        else:
-                            output.append(
-                                f"                    {line}\n",
-                                style=RICH_STYLES["default"],
-                            )
-                    output._text[-1] = output._text[-1].rstrip("\n") + ",\n"
-                else:
-                    output.append(f"{value_repr},\n", style=RICH_STYLES["default"])
-
-            if was_truncated:
-                output.append(
-                    f"                ... ({num_traits - MAX_TRAITS} more traits)\n",
-                    style=RICH_STYLES["dim"],
-                )
-
-            output.append("            }\n", style=RICH_STYLES["default"])
-            output.append("        )", style=RICH_STYLES["primary"])
-
-            if i < num_to_show - 1:
-                output.append(",\n", style=RICH_STYLES["default"])
-            else:
-                output.append("\n", style=RICH_STYLES["default"])
-
-        if len(self._agent_list) > MAX_AGENTS:
-            output.append(
-                f"        ... ({len(self._agent_list) - MAX_AGENTS} more agents)\n",
-                style=RICH_STYLES["dim"],
-            )
-
-        output.append("    ]\n", style=RICH_STYLES["default"])
-        output.append(")", style=RICH_STYLES["primary"])
-
-        console = Console(
-            file=io.StringIO(), force_terminal=True, width=terminal_width
-        )
-        console.print(output, end="")
-        return console.file.getvalue()
 
     def summary(self) -> dict:
         """Return a brief summary dict of the AgentList."""

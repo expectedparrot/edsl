@@ -82,6 +82,28 @@ pyodide-wheel: ## Build wheel and copy it into the Pyodide REPL folder
 	cp "$$wheel" "$(PYODIDE_DIR)/$$wheel_name"; \
 	echo "$$wheel_name" > "$(PYODIDE_DIR)/$(PYODIDE_WHEEL_INDEX)"
 
+GH_REPO ?= expectedparrot/edsl
+WASM_BRANCH ?= wasm-assets
+
+deploy-wheel: ## Build wheel, push to wasm-assets branch, print CORS-friendly CDN URL
+	@poetry build -f wheel
+	@wheel=$$(ls -t dist/*.whl | head -1); \
+	wheel_name=$$(basename "$$wheel"); \
+	echo "Deploying $$wheel_name to branch $(WASM_BRANCH) ..."; \
+	tmpdir=$$(mktemp -d); \
+	git clone --depth 1 --single-branch \
+		"https://github.com/$(GH_REPO).git" "$$tmpdir" -b $(WASM_BRANCH) 2>/dev/null \
+	|| ( git clone --depth 1 "https://github.com/$(GH_REPO).git" "$$tmpdir" && \
+	     cd "$$tmpdir" && git checkout --orphan $(WASM_BRANCH) && git rm -rf . ); \
+	cp "$$wheel" "$$tmpdir/$$wheel_name"; \
+	cd "$$tmpdir" && git add "$$wheel_name" && \
+		git commit -m "Update wheel: $$wheel_name" --allow-empty && \
+		git push origin $(WASM_BRANCH) --force; \
+	rm -rf "$$tmpdir"; \
+	url="https://cdn.jsdelivr.net/gh/$(GH_REPO)@$(WASM_BRANCH)/$$wheel_name"; \
+	echo ""; \
+	echo "$$url"
+
 pyodide-repl: pyodide-wheel ## Serve a browser REPL with the wheel installed (open http://localhost:$(PYODIDE_PORT))
 	@echo "Starting Pyodide REPL at http://localhost:$(PYODIDE_PORT)"
 	@python -m http.server --directory $(PYODIDE_DIR) $(PYODIDE_PORT)
@@ -376,6 +398,28 @@ typing-report:
 	python scripts/typing_report.py --source edsl --output typing_report
 	open typing_report/index.html
 
+TYPECHECK_FILES := \
+	edsl/scenarios/scenario.py \
+	edsl/scenarios/scenario_list.py \
+	edsl/scenarios/scenario_combinator.py
+
+typecheck: ## Run ty type-checker on all tracked files
+	@for f in $(TYPECHECK_FILES); do \
+		printf "%-50s " "$$f"; \
+		output=$$(poetry run ty check $$f 2>&1); \
+		if [ $$? -eq 0 ]; then echo "OK"; else echo "FAIL"; echo "$$output"; fi; \
+	done
+
+typecheck-file: ## Run ty type-checker on a specific file. Use 'make typecheck-file FILE'
+	@if [ -n "$(filter-out $@,$(MAKECMDGOALS))" ]; then \
+		target="$(filter-out $@,$(MAKECMDGOALS))"; \
+		echo "Running ty on: $$target"; \
+		poetry run ty check $$target; \
+	else \
+		echo "Usage: make typecheck-file <file>"; \
+		echo "Example: make typecheck-file edsl/scenarios/scenario.py"; \
+	fi
+
 format: ## Run code autoformatters (black).
 	poetry run black edsl/
 	@bash scripts/mark_check_complete.sh BLACK
@@ -423,15 +467,18 @@ visualize: ## Visualize the repo structure
 ###############
 ##@Testing 🐛
 ###############
-github-tests-locally: ## Run tests on GitHub Actions (with only committed files)
+ACT_PYTHON_VERSION ?= 3.12
+ACT_FLAGS ?= --matrix python-version:$(ACT_PYTHON_VERSION) -j test
+
+github-tests-locally: ## Run tests on GitHub Actions (with only committed files). Use ACT_PYTHON_VERSION=3.11 or ACT_FLAGS to customize.
 	@echo "Cleaning up Docker before starting..."
 	@docker stop $$(docker ps -q -f "name=act-") 2>/dev/null || true
 	@docker rm $$(docker ps -aq -f "name=act-") 2>/dev/null || true
 	@docker system prune -f --volumes
 	@echo "Stashing uncommitted changes..."
 	@git stash push -u -m "Temporary stash for github-tests-locally"
-	@echo "Running tests with act..."
-	@act; \
+	@echo "Running tests with act (Python $(ACT_PYTHON_VERSION))..."
+	@act push $(ACT_FLAGS); \
 	EXIT_CODE=$$?; \
 	echo "Restoring uncommitted changes..."; \
 	git stash pop; \

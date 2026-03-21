@@ -377,40 +377,16 @@ class TestSelector(unittest.TestCase):
                         mock_fetch.assert_called_once_with(to_fetch)
                         mock_dataset.assert_called_once_with(mock_data)
 
-    @patch("edsl.utilities.is_notebook")
-    @patch("sys.stderr")
-    def test_select_error_handling_notebook(self, mock_stderr, mock_is_notebook):
-        """Test error handling in notebook environment."""
-        mock_is_notebook.return_value = True
-        
-        # Mock _get_columns_to_fetch to raise an error
-        with patch.object(
-            self.selector, 
-            '_normalize_columns', 
-            side_effect=ResultsColumnNotFoundError("Column 'nonexistent' not found")
-        ):
-            # This should print an error message and return None
-            result = self.selector.select("nonexistent")
-            
-            # Verify that None was returned
-            self.assertIsNone(result)
-
-    @patch("edsl.utilities.is_notebook")
-    def test_select_error_handling_non_notebook(self, mock_is_notebook):
-        """Test error handling in non-notebook environment."""
-        mock_is_notebook.return_value = False
-
-        # Mock _get_columns_to_fetch to raise an error
+    def test_select_error_handling(self):
+        """Test that select raises ResultsColumnNotFoundError for missing columns."""
         with patch.object(
             self.selector,
-            '_get_columns_to_fetch',
+            '_normalize_columns',
             side_effect=ResultsColumnNotFoundError("Column 'nonexistent' not found")
         ):
-            # This should raise an exception
             with self.assertRaises(ResultsColumnNotFoundError) as context:
                 self.selector.select("nonexistent")
 
-            # Verify the error message
             self.assertIn("not found", str(context.exception))
 
     def test_match_wildcard_pattern_suffix(self):

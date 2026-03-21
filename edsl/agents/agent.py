@@ -156,6 +156,11 @@ class Agent(Base):
     # Optional name identifier for the agent
     name = NameDescriptor()
 
+    # CAS store support
+    _store_class_name = "Agent"
+    from edsl.base.store_accessor import StoreDescriptor
+    store = StoreDescriptor()
+
     # Default values for function-related attributes
     answer_question_directly_function_name = ""
 
@@ -686,6 +691,24 @@ class Agent(Base):
         """Set traits using the unified traits manager."""
         self.traits_manager.set_traits_safely(traits)
 
+    @property
+    def visible_traits(self) -> dict[str, Any]:
+        """Get traits excluding hidden ones (prefixed with '_').
+
+        Traits whose keys start with '_' are treated as hidden metadata.
+        They are stored and serialized but excluded from LLM prompts
+        by default.
+
+        Returns:
+            dict: Dictionary of visible agent traits
+
+        Examples:
+            >>> a = Agent(traits={"age": 10, "_internal_id": "xyz"})
+            >>> a.visible_traits
+            {'age': 10}
+        """
+        return {k: v for k, v in self.traits.items() if not k.startswith("_")}
+
     def to(self, target: Union["QuestionBase", "Jobs", "Survey"]) -> "Jobs":
         """Send the agent to a question, job, or survey.
 
@@ -827,6 +850,7 @@ class Agent(Base):
         iteration: int = 1,
         raise_validation_errors: bool = True,
         key_lookup: Optional["KeyLookup"] = None,
+        prompt_plan=None,
     ) -> "InvigilatorBase":
         """Create an Invigilator.
 
@@ -845,6 +869,7 @@ class Agent(Base):
             iteration: The iteration number
             raise_validation_errors: Whether to raise validation errors
             key_lookup: The key lookup for API credentials
+            prompt_plan: Optional custom prompt plan for prompt construction
 
         Returns:
             An InvigilatorBase instance for handling the question
@@ -870,6 +895,7 @@ class Agent(Base):
             iteration=iteration,
             raise_validation_errors=raise_validation_errors,
             key_lookup=key_lookup,
+            prompt_plan=prompt_plan,
         )
 
     async def async_answer_question(
@@ -1010,11 +1036,11 @@ class Agent(Base):
         return AgentOperations.select(self, *traits)
 
     def add(
-        self: A,
-        other_agent: Optional[A] = None,
+        self,
+        other_agent: Optional["Agent"] = None,
         *,
         conflict_strategy: str = "numeric",
-    ) -> A:
+    ) -> "Agent":
         """Combine *self* with *other_agent* and return a new Agent.
 
         Parameters
@@ -1240,95 +1266,62 @@ class Agent(Base):
         ]
         return f"{class_name}({', '.join(items)})"
 
-    def _summary_repr(self, max_traits: int = 5) -> str:
-        """Generate a summary representation of the Agent with Rich formatting.
+    def info(self) -> list:
+        """Return display sections as (title, Dataset) pairs."""
+        from edsl.dataset import Dataset
+
+        traits = self.traits
+        if not traits:
+            return [("Agent", Dataset([{"trait": []}, {"value": []}]))]
+        keys = list(traits.keys())
+        values = [repr(v) for v in traits.values()]
+        return [("Agent", Dataset([{"trait": keys}, {"value": values}]))]
+
+    def _summary_repr(self, max_traits: int = 500) -> str:
+        """Generate a summary representation of the Agent as a Rich table.
 
         Args:
-            max_traits: Maximum number of traits to show before truncating
+            max_traits: Maximum number of trait rows to show before truncating.
         """
-        from rich.console import Console
-        from rich.text import Text
-        import io
-        from edsl.config import RICH_STYLES
+        from ..utilities.summary_table import ColumnDef, render_summary_table
 
-        # Build the Rich text
-        output = Text()
-        class_name = self.__class__.__name__
-
-        output.append(f"{class_name}(\n", style=RICH_STYLES["primary"])
-
-        # Name (if present)
-        if self.name:
-            output.append("    name=", style=RICH_STYLES["default"])
-            output.append(f'"{self.name}"', style=RICH_STYLES["key"])
-            output.append(",\n", style=RICH_STYLES["default"])
-
-        # Traits
         traits = self.traits
         num_traits = len(traits)
-        output.append(f"    num_traits={num_traits}", style=RICH_STYLES["default"])
 
-        if num_traits > 0:
-            output.append(",\n    traits={\n", style=RICH_STYLES["default"])
+        parts = []
+        if self.name:
+            parts.append(f'name="{self.name}"')
+        parts.append(f"{num_traits} trait{'s' if num_traits != 1 else ''}")
+        title = f"Agent ({', '.join(parts)})"
 
-            for i, (key, value) in enumerate(list(traits.items())[:max_traits]):
-                value_repr = repr(value)
-                if len(value_repr) > 40:
-                    value_repr = value_repr[:37] + "..."
+        columns = [
+            ColumnDef("Trait", style="bold green", no_wrap=True),
+            ColumnDef("Value"),
+        ]
 
-                output.append("        ", style=RICH_STYLES["default"])
-                output.append(f"'{key}'", style=RICH_STYLES["secondary"])
-                output.append(f": {value_repr},\n", style=RICH_STYLES["default"])
+        rows = [(k, repr(v)) for k, v in traits.items()]
 
-            if num_traits > max_traits:
-                output.append(
-                    f"        ... ({num_traits - max_traits} more)\n",
-                    style=RICH_STYLES["dim"],
-                )
-
-            output.append("    }", style=RICH_STYLES["default"])
-
-        # Codebook (if present)
+        caption_parts: list[str] = []
         if self.codebook:
-            num_codebook = len(self.codebook)
-            output.append(",\n    ", style=RICH_STYLES["default"])
-            output.append(
-                f"num_codebook_entries={num_codebook}", style=RICH_STYLES["highlight"]
-            )
-
-        # Instruction (if custom)
+            caption_parts.append(f"codebook: {len(self.codebook)} entries")
         if self.instruction != self.default_instruction:
-            instruction_text = self.instruction
-            if len(instruction_text) > 50:
-                instruction_text = instruction_text[:47] + "..."
-            output.append(",\n    instruction=", style=RICH_STYLES["default"])
-            output.append(f'"{instruction_text}"', style=RICH_STYLES["key"])
-
-        # Dynamic traits function (if present)
+            caption_parts.append("custom instruction")
+        if hasattr(self, "_traits_presentation_template") and getattr(self, "set_traits_presentation_template", False):
+            caption_parts.append("custom traits template")
         if self.has_dynamic_traits_function:
-            func_name = self.dynamic_traits_function_name or "anonymous"
-            output.append(",\n    ", style=RICH_STYLES["default"])
-            output.append(
-                f"dynamic_traits_function='{func_name}'", style=RICH_STYLES["key"]
-            )
-
-        # Direct answering method (if present)
+            name = self.dynamic_traits_function_name or "anonymous"
+            caption_parts.append(f"dynamic_traits_function={name}")
         if hasattr(self, "answer_question_directly"):
-            func_name = getattr(
-                self, "answer_question_directly_function_name", "anonymous"
-            )
-            output.append(",\n    ", style=RICH_STYLES["default"])
-            output.append(
-                f"direct_answer_method='{func_name}'", style=RICH_STYLES["key"]
-            )
+            name = getattr(self, "answer_question_directly_function_name", "anonymous")
+            caption_parts.append(f"direct_answer_method={name}")
 
-        output.append("\n)", style=RICH_STYLES["primary"])
-
-        # Render to string
-        string_io = io.StringIO()
-        console = Console(file=string_io, force_terminal=True, width=120)
-        console.print(output, end="")
-        return string_io.getvalue()
+        return render_summary_table(
+            title=title,
+            columns=columns,
+            rows=rows,
+            caption=", ".join(caption_parts) if caption_parts else None,
+            max_rows=max_traits,
+        )
 
     @property
     def data(self) -> dict:
@@ -1420,6 +1413,56 @@ class Agent(Base):
         from .agent_serialization import AgentSerialization
 
         return AgentSerialization.from_dict(agent_dict)
+
+    def to_jsonl(self, blob_writer=None, **kwargs) -> str:
+        """Serialize to JSONL with one line per field (header + one line per field).
+
+        The first line is a header; subsequent lines are ``{"field": ..., "value": ...}`` pairs.
+
+        >>> a = Agent(name="Steve", traits={"age": 30})
+        >>> import json; json.loads(a.to_jsonl().splitlines()[0])["__header__"]
+        True
+        """
+        import json
+        import edsl
+
+        d = self.to_dict(add_edsl_version=False)
+        header = {
+            "__header__": True,
+            "edsl_class_name": "Agent",
+            "edsl_version": edsl.__version__,
+        }
+        lines = [json.dumps(header)]
+        for field, value in d.items():
+            lines.append(json.dumps({"field": field, "value": value}))
+        return "\n".join(lines)
+
+    def to_jsonl_rows(self, blob_writer=None):
+        return iter(self.to_jsonl().splitlines())
+
+    @classmethod
+    def from_jsonl(cls, source, blob_reader=None, **kwargs) -> "Agent":
+        """Deserialize from JSONL produced by :meth:`to_jsonl`.
+
+        *source* may be a JSONL string or an iterable of lines.
+
+        >>> a = Agent(name="Steve", traits={"age": 30})
+        >>> a2 = Agent.from_jsonl(a.to_jsonl())
+        >>> a2.name == a.name and a2.traits == a.traits
+        True
+        """
+        import json
+
+        if isinstance(source, str):
+            lines = source.strip().splitlines()
+        else:
+            lines = list(source)
+        # skip header line
+        fields = {}
+        for line in lines[1:]:
+            row = json.loads(line)
+            fields[row["field"]] = row["value"]
+        return cls.from_dict(fields)
 
     def table(self) -> "Dataset":
         """Create a tabular representation of the agent's traits.

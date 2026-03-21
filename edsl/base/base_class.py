@@ -135,12 +135,6 @@ class PersistenceMixin:
         """
         return self.from_dict(self.to_dict(add_edsl_version=False))
 
-    def store(self, container_dict: dict, name: Optional[str] = None):
-        if name is None:
-            name = hash(self)
-        container_dict[name] = self
-        return self
-
     def push(
         self,
         description: Optional[str] = None,
@@ -820,6 +814,19 @@ class RepresentationMixin:
                 display_dict[key] = value
         return display_dict
 
+    def info(self) -> list:
+        """Return display sections as a list of (title, Dataset) pairs.
+
+        Override this method to control what is shown in both terminal and
+        Jupyter representations.  The base implementation converts
+        ``display_dict()`` into a single Key/Value Dataset section.
+        """
+        from edsl.dataset import Dataset
+
+        d = self.display_dict()
+        ds = Dataset([{"Key": list(d.keys())}, {"Value": list(d.values())}])
+        return [(self.__class__.__name__, ds)]
+
     def print(self, format="rich"):
         """Print a formatted table representation of this object.
 
@@ -842,45 +849,63 @@ class RepresentationMixin:
         console = Console(record=True)
         console.print(table)
 
-    def _repr_html_(self, include_class_info: bool = True):
-        """Generate an HTML representation for Jupyter notebooks.
+    def _mime_(self):
+        """Marimo display protocol — returns an interactive table.
 
-        This method is automatically called by Jupyter to render the object
-        as HTML in notebook cells.
+        Marimo checks for ``_mime_()`` before ``_repr_html_()``, so when
+        running inside a Marimo notebook the object renders as a live,
+        interactive pandas table (sortable, searchable, downloadable).
+        """
+        import marimo as mo
+
+        return mo.ui.table(
+            self.to_dataset().to_pandas(), selection=None, pagination=True
+        )._mime_()
+
+    def _repr_html_(self):
+        """Generate an HTML representation for Jupyter notebooks.
 
         Returns:
             str: HTML representation of the object
         """
-        from edsl.dataset.display.table_display import TableDisplay
+        return self.to_dataset().to_pandas()._repr_html_()
 
-        if hasattr(self, "_summary"):
-            summary_dict = self._summary()
-            summary_line = "".join([f" {k}: {v};" for k, v in summary_dict.items()])
-            class_name = self.__class__.__name__
-            docs = getattr(self, "__documentation__", "")
-            table = self.table()
-            table_html = table._repr_html_() if table is not None else ""
-            if include_class_info:
-                return (
-                    "<p>"
-                    + f"<a href='{docs}'>{class_name}</a>"
-                    + summary_line
-                    + "</p>"
-                    + table_html
-                )
-            else:
-                return table_html
-        else:
-            class_name = self.__class__.__name__
-            documentation = getattr(self, "__documentation__", "")
-            summary_line = (
-                "<p>" + f"<a href='{documentation}'>{class_name}</a>" + "</p>"
-            )
-            display_dict = self.display_dict()
-            return (
-                summary_line
-                + TableDisplay.from_dictionary_wide(display_dict)._repr_html_()
-            )
+    def _store_info_line(self) -> str:
+        """Build a dim store-metadata line if this object has been saved."""
+        accessor = self.__dict__.get("_store_accessor")
+        if accessor is None or getattr(accessor, "uuid", None) is None:
+            return ""
+        parts: list[str] = [f"uuid: {accessor.uuid[:8]}"]
+        if accessor.current_branch:
+            parts.append(f"branch: {accessor.current_branch}")
+        if accessor.commit:
+            parts.append(f"commit: {accessor.commit[:8]}")
+        try:
+            from edsl.object_store import ObjectStore
+
+            meta = ObjectStore()._index.get(accessor.uuid)
+            if meta:
+                for field in ("title", "alias", "visibility"):
+                    val = meta.get(field)
+                    if val:
+                        parts.append(f"{field}: {val}")
+                lm = meta.get("last_modified")
+                if lm:
+                    parts.append(f"modified: {str(lm)[:10]}")
+        except Exception:
+            pass
+        raw = " | ".join(parts)
+        import io
+        import shutil
+
+        from rich.console import Console
+        from rich.text import Text
+
+        width = shutil.get_terminal_size().columns
+        t = Text(raw, style="dim italic")
+        c = Console(file=io.StringIO(), force_terminal=True, width=width)
+        c.print(t, end="")
+        return c.file.getvalue()
 
     def __repr__(self):
         """Return a string representation of the object.
@@ -897,19 +922,28 @@ class RepresentationMixin:
         if os.environ.get("EDSL_RUNNING_DOCTESTS") == "True":
             return self._eval_repr_()
 
-        # Check if we're in a Jupyter notebook environment
-        # If so, return minimal representation since _repr_html_ will handle display
         try:
             from IPython import get_ipython
 
             ipy = get_ipython()
             if ipy is not None and "IPKernelApp" in ipy.config:
-                # We're in a Jupyter notebook/kernel, not IPython terminal
                 return f"{self.__class__.__name__}(...)"
         except (NameError, ImportError):
             pass
 
-        return self._summary_repr()
+        # Use info() when overridden, else legacy _summary_repr()
+        if type(self).info is not RepresentationMixin.info:
+            parts = []
+            for title, ds in self.info():
+                parts.append(ds._summary_repr())
+            result = "\n".join(parts)
+        else:
+            result = self._summary_repr()
+
+        info = self._store_info_line()
+        if info:
+            result = result.rstrip() + "\n" + info
+        return result
 
     def __str__(self):
         """Return the string representation of the object.
@@ -985,6 +1019,9 @@ class Base(
     All EDSL classes should inherit from this class to ensure consistent behavior
     and capabilities across the framework.
     """
+
+    from .store_accessor import StoreDescriptor
+    store = StoreDescriptor()
 
     def get_uuid(self) -> str:
         """
@@ -1158,24 +1195,9 @@ class Base(
         func(comment)
         return self
 
-    def store(self, d: dict, key_name: Optional[str] = None):
-        """Store this object in a dictionary with an optional key.
-
-        Args:
-            d: The dictionary in which to store the object
-            key_name: Optional key to use (defaults to the length of the dictionary)
-
-        Returns:
-            None
-        """
-        if key_name is None:
-            index = len(d)
-        else:
-            index = key_name
-        d[index] = self
-
+    @classmethod
     @abstractmethod
-    def from_dict():
+    def from_dict(cls, d: dict):
         """Create an instance from a dictionary.
 
         This class method must be implemented by all subclasses to provide a

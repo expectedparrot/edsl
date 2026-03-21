@@ -7,7 +7,6 @@ that users run large-scale experiments or simulations in EDSL.
 """
 
 from __future__ import annotations
-import asyncio
 from importlib import import_module
 from typing import (
     Optional,
@@ -1045,6 +1044,17 @@ class Jobs(Base):
 
     def _prepare_to_run(self) -> None:
         """Prepare the job to run and ensure keys are in place for a remote job."""
+        # Check for collisions between agent trait keys and question names
+        from .exceptions import JobsValueError
+        question_names = {q.question_name for q in self.survey.questions}
+        for agent in self.agents:
+            conflicting = set(agent.traits.keys()) & question_names
+            if conflicting:
+                raise JobsValueError(
+                    f"Agent trait key(s) {conflicting} conflict with question name(s). "
+                    f"Please rename the trait(s) or question(s) to avoid collisions. "
+                    f"For example: agent.rename({{{repr(list(conflicting)[0])}: 'agent_{list(conflicting)[0]}'}})"
+                )
         CheckSurveyScenarioCompatibility(self.survey, self.scenarios).check()
 
     def _check_if_remote_keys_ok(self) -> None:
@@ -1223,14 +1233,6 @@ class Jobs(Base):
             f"final results count: {len(results) if results else 0}"
         )
 
-        # Clear file cache after job completion
-        if self.run_config.parameters.use_api_proxy:
-            from ..inference_services.services.remote_proxy_handler import (
-                RemoteProxyHandler,
-            )
-
-            await RemoteProxyHandler.clear_file_cache()
-
         return results
 
     @property
@@ -1284,13 +1286,6 @@ class Jobs(Base):
         import time
 
         start_time = time.time()
-
-        # Reset balance error flag for new job
-        from ..inference_services.services.remote_proxy_handler import (
-            reset_balance_error_flag,
-        )
-
-        reset_balance_error_flag()
 
         self._logger.info("Starting job configuration transfer")
         # Apply configuration from input config to self.run_config
@@ -1363,55 +1358,23 @@ class Jobs(Base):
                 f"Remote key check completed in {time.time() - key_check_start:.3f}s"
             )
 
-            # Pre-flight balance check with cost estimation
-            balance_check_start = time.time()
-            self._logger.info("Performing pre-flight balance check")
-            insufficient_balance_reason = self._check_balance_before_execution()
-            if insufficient_balance_reason:
-                self._logger.info(
-                    f"Pre-flight balance check failed: {insufficient_balance_reason}"
-                )
-                return None, insufficient_balance_reason
-            self._logger.info(
-                f"Pre-flight balance check completed in {time.time() - balance_check_start:.3f}s"
-            )
-
-            # Configure remote proxy and fresh parameter for all models when remote inference is enabled
-            proxy_config_start = time.time()
-            self._logger.info("Configuring remote proxy and fresh parameter for models")
-            for model in self.models:
-                # Only set to True if it's not already explicitly set to False
-                if (
-                    not hasattr(model, "remote_proxy")
-                    or model.remote_proxy is not False
-                ):
-                    model.remote_proxy = True
-                    self._logger.debug(f"Enabled remote proxy for model: {model.model}")
-                else:
-                    self._logger.debug(
-                        f"Remote proxy disabled by user for model: {model.model}"
-                    )
-
-                # Pass fresh parameter to model
+            # Pass fresh parameter to all models
+            all_models = list(self.models)
+            for q in getattr(self.survey, 'questions', []):
+                if hasattr(q, '_model') and getattr(q, 'question_type', None) == 'thinking':
+                    all_models.append(q._model)
+            for model in all_models:
                 model.fresh = self.run_config.parameters.fresh
                 self._logger.debug(f"Set fresh={model.fresh} for model: {model.model}")
-            self._logger.info(
-                f"Remote proxy configuration completed in {time.time() - proxy_config_start:.3f}s"
-            )
         else:
-            # When API proxy is disabled, ensure remote proxy is also disabled
-            proxy_config_start = time.time()
-            self._logger.info("Disabling remote proxy for models (API proxy disabled)")
-            for model in self.models:
-                model.remote_proxy = False
-                self._logger.debug(f"Disabled remote proxy for model: {model.model}")
-
-                # Pass fresh parameter to model
+            # Pass fresh parameter to all models
+            all_models = list(self.models)
+            for q in getattr(self.survey, 'questions', []):
+                if hasattr(q, '_model') and getattr(q, 'question_type', None) == 'thinking':
+                    all_models.append(q._model)
+            for model in all_models:
                 model.fresh = self.run_config.parameters.fresh
                 self._logger.debug(f"Set fresh={model.fresh} for model: {model.model}")
-            self._logger.info(
-                f"Remote proxy disable completed in {time.time() - proxy_config_start:.3f}s"
-            )
 
         # Setup caching
         cache_start = time.time()
@@ -1485,88 +1448,6 @@ class Jobs(Base):
         )
 
         return None, reason
-
-    def _check_balance_before_execution(self) -> Optional[str]:
-        """Check if user has sufficient balance to run the job.
-
-        Returns:
-            None if balance is sufficient, error message string if insufficient
-        """
-        try:
-            # Only check balance for remote proxy jobs
-            if not any(getattr(model, "remote_proxy", False) for model in self.models):
-                return None
-
-            # Estimate job cost
-            self._logger.info("Estimating job cost...")
-            try:
-                cost_estimate = self.estimate_job_cost(
-                    iterations=self.run_config.parameters.n
-                )
-                estimated_cost_usd = cost_estimate.get("estimated_total_cost_usd", 0)
-
-                # Get the proper minicredits from the cost estimate
-                estimated_cost_minicredits = cost_estimate.get("total_credits_hold", 0)
-
-                self._logger.info(
-                    f"Estimated job cost: ${estimated_cost_usd:.6f} USD ({estimated_cost_minicredits:.2f} minicredits)"
-                )
-            except Exception as e:
-                print(f"   ⚠️  Could not estimate job cost: {e}")
-                self._logger.warning(
-                    f"Could not estimate job cost: {e}. Proceeding without balance check."
-                )
-                return None
-
-            # Check user balance via Coop
-            self._logger.info("Checking user balance...")
-            try:
-                import time
-                from ..coop import Coop
-
-                balance_check_start = time.time()
-                coop = Coop()
-                balance_data = coop.get_balance()
-                balance_check_time = time.time() - balance_check_start
-
-                # Extract balance from Coop response
-                current_balance = balance_data.get("minicredits", 0)
-                balance_string = f"{current_balance} minicredits"
-
-                # Convert minicredits to dollars for display (1000 minicredits = 1 credit = 1 cent, so 100,000 minicredits = $1 USD)
-                balance_dollars = current_balance / 100000
-
-                self._logger.info(
-                    f"Current user balance: {balance_string} (${balance_dollars:.3f} USD) - fetched in {balance_check_time:.3f}s"
-                )
-
-                # Compare estimated cost with balance
-                if current_balance <= 0:
-                    return f"insufficient funds: Current balance is {balance_string} (${balance_dollars:.3f} USD). Please add credits to your account."
-
-                if estimated_cost_minicredits > current_balance:
-                    estimated_cost_dollars = estimated_cost_minicredits / 100000
-                    return (
-                        f"insufficient funds: Estimated job cost ({estimated_cost_minicredits:.0f} minicredits / ${estimated_cost_dollars:.3f} USD) "
-                        f"exceeds current balance ({balance_string} / ${balance_dollars:.3f} USD). Please add credits to your account."
-                    )
-
-                self._logger.info(
-                    f"Balance check passed: {balance_string} >= {estimated_cost_minicredits:.2f} minicredits needed"
-                )
-                return None
-
-            except Exception as e:
-                self._logger.warning(
-                    f"Could not check user balance: {e}. Proceeding without balance check."
-                )
-                return None
-
-        except Exception as e:
-            self._logger.error(
-                f"Error during balance check: {e}. Proceeding without balance check."
-            )
-            return None
 
     def then(self, method_name, *args, **kwargs) -> "Jobs":
         """Schedule a method to be called on the results object after the job runs.
@@ -1723,9 +1604,10 @@ class Jobs(Base):
             n=self.run_config.parameters.n,
             cache=self.run_config.environment.cache,
             stop_on_exception=self.run_config.parameters.stop_on_exception,
+            stream_to_cas=True,
         )
         return handle.results(
-            show_progress=True,
+            show_progress=self.run_config.parameters.progress_bar,
         )
 
     @with_config
@@ -2210,8 +2092,12 @@ class Jobs(Base):
 
         if os.environ.get("EDSL_RUNNING_DOCTESTS") == "True":
             return self._eval_repr_()
-        else:
-            return self._summary_repr()
+
+        result = self._summary_repr()
+        info = self._store_info_line()
+        if info:
+            result = result.rstrip() + "\n" + info
+        return result
 
     def _eval_repr_(self) -> str:
         """Return an eval-able string representation of the Jobs instance.
@@ -2243,103 +2129,112 @@ class Jobs(Base):
 
         return f"Jobs(survey={survey_repr}, agents={agents_repr}, models={models_repr}, scenarios={scenarios_repr})"
 
-    def _summary_repr(self, max_items: int = 3) -> str:
-        """Generate a summary representation of the Jobs with Rich formatting.
+    def info(self) -> list:
+        """Return display sections as (title, Dataset) pairs."""
+        from edsl.dataset import Dataset
 
-        Args:
-            max_items: Maximum number of items to show in lists before truncating
-        """
-        from rich.console import Console
-        from rich.text import Text
-        import io
-        from edsl.config import RICH_STYLES
+        components = []
+        counts = []
+        details = []
 
-        # Build the Rich text
-        output = Text()
-        output.append("Jobs(\n", style=RICH_STYLES["primary"])
-        output.append(
-            f"    num_interviews={self.num_interviews},\n", style=RICH_STYLES["default"]
-        )
-
-        # Survey information
         if self.survey:
-            num_questions = len(self.survey.questions)
-            output.append(
-                f"    survey: {num_questions} question{'s' if num_questions != 1 else ''},\n",
-                style=RICH_STYLES["secondary"],
-            )
+            names = [q.question_name for q in self.survey.questions]
+            components.append("Survey")
+            counts.append(str(len(self.survey.questions)))
+            details.append(", ".join(names) if names else "")
 
-            # Show first few question names
-            if num_questions > 0:
-                question_names = [
-                    q.question_name for q in self.survey.questions[:max_items]
-                ]
-                if num_questions > max_items:
-                    question_names.append(f"... ({num_questions - max_items} more)")
-                output.append(
-                    f"        questions: {question_names},\n", style=RICH_STYLES["dim"]
-                )
-
-        # Agents information
         num_agents = len(self.agents) if self.agents else 0
-        output.append(
-            f"    agents: {num_agents} agent{'s' if num_agents != 1 else ''},\n",
-            style=RICH_STYLES["key"],
-        )
-
+        agent_detail = ""
         if num_agents > 0 and hasattr(self.agents, "trait_keys"):
-            trait_keys = self.agents.trait_keys[:max_items]
-            if len(self.agents.trait_keys) > max_items:
-                trait_keys.append(
-                    f"... ({len(self.agents.trait_keys) - max_items} more)"
-                )
-            if trait_keys:
-                output.append(
-                    f"        traits: {trait_keys},\n", style=RICH_STYLES["dim"]
-                )
+            keys = sorted(self.agents.trait_keys)
+            if keys:
+                agent_detail = f"traits: {', '.join(keys)}"
+        components.append("Agents")
+        counts.append(str(num_agents))
+        details.append(agent_detail)
 
-        # Models information
         num_models = len(self.models) if self.models else 0
-        output.append(
-            f"    models: {num_models} model{'s' if num_models != 1 else ''},\n",
-            style=RICH_STYLES["secondary"],
-        )
-
+        model_names = []
         if num_models > 0:
-            model_names = []
-            for model in list(self.models)[:max_items]:
-                model_name = getattr(
-                    model, "model", getattr(model, "_model_", "unknown")
+            for model in list(self.models):
+                model_names.append(
+                    str(getattr(model, "model", getattr(model, "_model_", "unknown")))
                 )
-                model_names.append(model_name)
-            if num_models > max_items:
-                model_names.append(f"... ({num_models - max_items} more)")
-            output.append(f"        models: {model_names},\n", style=RICH_STYLES["dim"])
+        components.append("Models")
+        counts.append(str(num_models))
+        details.append(", ".join(model_names))
 
-        # Scenarios information
         num_scenarios = len(self.scenarios) if self.scenarios else 0
-        output.append(
-            f"    scenarios: {num_scenarios} scenario{'s' if num_scenarios != 1 else ''},\n",
-            style=RICH_STYLES["secondary"],
-        )
-
+        scenario_detail = ""
         if num_scenarios > 0 and hasattr(self.scenarios, "parameters"):
-            params = list(self.scenarios.parameters)[:max_items]
-            if len(self.scenarios.parameters) > max_items:
-                params.append(
-                    f"... ({len(self.scenarios.parameters) - max_items} more)"
-                )
+            params = sorted(self.scenarios.parameters)
             if params:
-                output.append(
-                    f"        parameters: {params},\n", style=RICH_STYLES["dim"]
+                scenario_detail = f"keys: {', '.join(params)}"
+        components.append("Scenarios")
+        counts.append(str(num_scenarios))
+        details.append(scenario_detail)
+
+        summary = Dataset([
+            {"Component": components},
+            {"Count": counts},
+            {"Details": details},
+        ])
+        return [("Jobs", summary)]
+
+    def _summary_repr(self) -> str:
+        """Generate a summary representation of the Jobs as a Rich table."""
+        from ..utilities.summary_table import ColumnDef, render_summary_table
+
+        num_interviews = self.num_interviews
+        title = f"Jobs ({num_interviews} interview{'s' if num_interviews != 1 else ''})"
+
+        columns = [
+            ColumnDef("Component", style="bold green", no_wrap=True),
+            ColumnDef("Count", style="dim", no_wrap=True, justify="right"),
+            ColumnDef("Details"),
+        ]
+
+        rows: list[tuple] = []
+
+        # Survey
+        if self.survey:
+            num_q = len(self.survey.questions)
+            names = [q.question_name for q in self.survey.questions]
+            rows.append((
+                "Survey",
+                str(num_q),
+                ", ".join(names) if names else "",
+            ))
+
+        # Agents
+        num_agents = len(self.agents) if self.agents else 0
+        agent_detail = ""
+        if num_agents > 0 and hasattr(self.agents, "trait_keys"):
+            keys = sorted(self.agents.trait_keys)
+            if keys:
+                agent_detail = f"traits: {', '.join(keys)}"
+        rows.append(("Agents", str(num_agents), agent_detail))
+
+        # Models
+        num_models = len(self.models) if self.models else 0
+        model_names = []
+        if num_models > 0:
+            for model in list(self.models):
+                model_names.append(
+                    getattr(model, "model", getattr(model, "_model_", "unknown"))
                 )
+        rows.append(("Models", str(num_models), ", ".join(model_names)))
 
-        output.append(")", style=RICH_STYLES["primary"])
+        # Scenarios
+        num_scenarios = len(self.scenarios) if self.scenarios else 0
+        scenario_detail = ""
+        if num_scenarios > 0 and hasattr(self.scenarios, "parameters"):
+            params = sorted(self.scenarios.parameters)
+            if params:
+                scenario_detail = f"keys: {', '.join(params)}"
+        rows.append(("Scenarios", str(num_scenarios), scenario_detail))
 
-        # Render to string
-        console = Console(file=io.StringIO(), force_terminal=True, width=120)
-        console.print(output, end="")
-        return console.file.getvalue()
+        return render_summary_table(title=title, columns=columns, rows=rows)
 
     def _summary(self):
         return {
@@ -2447,6 +2342,22 @@ class Jobs(Base):
 
         """
         return Jobs.from_dict(self.to_dict())
+
+    def to_jsonl(self, filename=None, root=None, message="", **kwargs):
+        """Export as JSONL with CAS pointers to component objects.
+
+        Components are auto-saved to the store if not already saved.
+        """
+        from .jobs_serializer import JobsSerializer
+
+        return JobsSerializer(self).to_jsonl(filename=filename, root=root, message=message)
+
+    @classmethod
+    def from_jsonl(cls, source, root=None, **kwargs):
+        """Load a Jobs from a JSONL file with CAS pointers."""
+        from .jobs_serializer import JobsSerializer
+
+        return JobsSerializer.from_jsonl(source, root=root)
 
     def to_dict(self, add_edsl_version=True, full_dict=None):
         """Convert the Jobs instance to a dictionary representation.

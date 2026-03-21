@@ -6,7 +6,7 @@ appropriate invigilator type and handling question answering workflows.
 """
 
 from __future__ import annotations
-from typing import Optional, Type, TYPE_CHECKING
+from typing import Optional, Type, cast, TYPE_CHECKING
 
 from ..utilities import sync_wrapper
 
@@ -76,7 +76,9 @@ class AgentInvigilator:
             InvigilatorAI,
         )
 
-        if hasattr(question, "answer_question_directly"):
+        if hasattr(question, "_invigilator_class"):
+            return question._invigilator_class
+        elif hasattr(question, "answer_question_directly"):
             return InvigilatorFunctional
         elif hasattr(self.agent, "answer_question_directly"):
             return InvigilatorHuman
@@ -95,6 +97,7 @@ class AgentInvigilator:
         iteration: int = 0,
         raise_validation_errors: bool = True,
         key_lookup: Optional["KeyLookup"] = None,
+        prompt_plan=None,
     ) -> "InvigilatorBase":
         """Create an Invigilator for handling question answering.
 
@@ -123,7 +126,7 @@ class AgentInvigilator:
         from ..language_models import Model
         from ..scenarios import Scenario
 
-        model = model or Model()
+        model = model or cast("LanguageModel", Model())
         scenario = scenario or Scenario()
 
         if cache is None:
@@ -145,6 +148,7 @@ class AgentInvigilator:
             cache=cache,
             raise_validation_errors=raise_validation_errors,
             key_lookup=key_lookup,
+            prompt_plan=prompt_plan,
         )
         return invigilator
 
@@ -161,6 +165,7 @@ class AgentInvigilator:
         iteration: int = 1,
         raise_validation_errors: bool = True,
         key_lookup: Optional["KeyLookup"] = None,
+        prompt_plan=None,
     ) -> "InvigilatorBase":
         """Create an Invigilator with full context setup.
 
@@ -199,7 +204,7 @@ class AgentInvigilator:
 
         # Set the current question context
         self.agent.current_question = question
-        model = model or Model()
+        model = model or cast("LanguageModel", Model())
         scenario = scenario or Scenario()
 
         invigilator = self.create_invigilator(
@@ -213,6 +218,7 @@ class AgentInvigilator:
             cache=cache,
             raise_validation_errors=raise_validation_errors,
             key_lookup=key_lookup,
+            prompt_plan=prompt_plan,
         )
 
         # Transfer response validation settings if they exist

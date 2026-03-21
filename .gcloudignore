@@ -1,0 +1,39 @@
+# Cloud Build ignore file
+# (Overrides .gitignore for gcloud builds submit)
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+
+# Virtual environments
+venv/
+tenv/
+.venv/
+
+# Node modules (rebuilt in Docker)
+cas_editor/frontend/node_modules/
+
+# Frontend build output (rebuilt in Docker)
+cas_editor/frontend/dist/
+
+# Git
+.git/
+
+# IDE
+.vscode/
+.idea/
+
+# Local data
+cas_editor/objects/
+*.db
+.server_secret
+
+# Misc
+*.zip
+*.ipynb
+.claude/
+logs_*.zip

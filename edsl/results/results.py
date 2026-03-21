@@ -39,7 +39,7 @@ from __future__ import annotations
 import json
 import warnings
 from functools import wraps
-from typing import Optional, Callable, Any, Union, List, TYPE_CHECKING
+from typing import Optional, Any, Union, List, TYPE_CHECKING
 from collections.abc import MutableSequence
 
 from ..base import Base
@@ -420,9 +420,8 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         return super()._repr_html_()
 
     @ensure_ready
-    @wraps(ResultsRepresentation.repr)
     def __repr__(self) -> str:
-        return self._representation.repr()
+        return super().__repr__()
 
     @wraps(ResultsRepresentation.eval_repr)
     def _eval_repr_(self) -> str:
@@ -431,6 +430,77 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
     @wraps(ResultsRepresentation.summary_repr)
     def _summary_repr(self, max_text_preview: int = 60, max_items: int = 25) -> str:
         return self._representation.summary_repr(max_text_preview, max_items)
+
+    def info(self) -> list:
+        """Return display sections as (title, Dataset) pairs.
+
+        Produces a summary table (Components/Count/Details) and the data
+        table, mirroring what ``summary_repr`` shows in the terminal.
+        """
+        from edsl.dataset import Dataset
+
+        num_obs = len(self)
+        num_agents = len(set(self.agents))
+        num_models = len(set(self.models))
+        num_scenarios = len(set(self.scenarios))
+        num_questions = (
+            len(self.survey.questions)
+            if self.survey and hasattr(self.survey, "questions")
+            else 0
+        )
+
+        components = []
+        counts = []
+        details = []
+
+        # Questions
+        if self.survey and hasattr(self.survey, "questions"):
+            names = [q.question_name for q in self.survey.questions]
+            components.append("Questions")
+            counts.append(str(num_questions))
+            details.append(", ".join(names))
+
+        # Agents
+        agent_detail = ""
+        if num_agents > 0:
+            trait_keys = [k for k in self.agent_keys if not k.startswith("agent_")]
+            if trait_keys:
+                agent_detail = f"traits: {', '.join(trait_keys)}"
+        components.append("Agents")
+        counts.append(str(num_agents))
+        details.append(agent_detail)
+
+        # Models
+        model_names = []
+        for m in set(self.models):
+            model_names.append(
+                getattr(m, "model", getattr(m, "_model_", "unknown"))
+            )
+        components.append("Models")
+        counts.append(str(num_models))
+        details.append(", ".join(sorted(set(model_names))))
+
+        # Scenarios
+        scenario_detail = ""
+        if num_scenarios > 0:
+            field_keys = [
+                k for k in self.scenario_keys if not k.startswith("scenario_")
+            ]
+            if field_keys:
+                scenario_detail = f"keys: {', '.join(field_keys)}"
+        components.append("Scenarios")
+        counts.append(str(num_scenarios))
+        details.append(scenario_detail)
+
+        summary = Dataset(
+            [
+                {"Component": components},
+                {"Count": counts},
+                {"Details": details},
+            ]
+        )
+        data = self.to_dataset()
+        return [("Summary", summary), ("Data", data)]
 
     def table(
         self,
@@ -496,6 +566,19 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
             include_cache_info=include_cache_info,
             offload_scenarios=offload_scenarios,
         )
+
+    def to_jsonl_rows(self, blob_writer=None):
+        """Yield JSONL rows for CAS storage."""
+        return self._results_serializer.to_jsonl_rows(blob_writer=blob_writer)
+
+    def to_jsonl(self, filename=None, **kwargs):
+        """Export as inline JSONL."""
+        return self._results_serializer.to_jsonl(filename=filename)
+
+    @classmethod
+    def from_jsonl(cls, source, **kwargs):
+        """Load a Results from an inline JSONL source."""
+        return ResultsSerializer.from_jsonl(source)
 
     def initialize_cache_from_results(self):
         from ..caching import Cache, CacheEntry
@@ -716,12 +799,12 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         transformer = ResultsTransformer(self)
         return transformer.mutate(new_var_string, functions_dict)
 
-    def long_view(
+    def long(
         self,
         scenario_fields: Optional[List[str]] = None,
         agent_fields: Optional[List[str]] = None,
         model_fields: Optional[List[str]] = None,
-    ) -> Results:
+    ) -> ScenarioList:
         """Return a long view of the results.
 
         The columns are: agent_index, scenario_index, question_name, question_text, answer.
@@ -879,7 +962,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         self,
         n: Optional[int] = None,
         frac: Optional[float] = None,
-        with_replacement: bool = True,
+        with_replacement: bool = False,
         seed: Optional[str] = None,
     ) -> Results:
         """Return a random sample of the results.
@@ -1073,6 +1156,53 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
             disable_remote_inference=True,
         )
         return results
+
+    def long_view(self, scenario_fields=None, agent_fields=None):
+        """Return a ScenarioList with one row per result-question combination.
+
+        By default each row contains scenario_index, agent_index,
+        question_name, question_text, and answer.  When *scenario_fields*
+        or *agent_fields* are provided the corresponding index column is
+        replaced by the requested field values.
+
+        Args:
+            scenario_fields: List of scenario keys to include (replaces scenario_index).
+            agent_fields: List of agent keys to include (replaces agent_index).
+
+        Returns:
+            ScenarioList
+        """
+        from ..scenarios import Scenario, ScenarioList
+
+        rows = []
+        for idx, result in enumerate(self.data):
+            agent = result["agent"]
+            scenario = result["scenario"]
+            answer_dict = result.sub_dicts.get("answer", {})
+
+            for qname, answer_val in answer_dict.items():
+                row = {}
+
+                # Scenario identification
+                if scenario_fields:
+                    for sf in scenario_fields:
+                        row[f"scenario.{sf}"] = scenario.get(sf)
+                else:
+                    row["scenario_index"] = idx
+
+                # Agent identification
+                if agent_fields:
+                    for af in agent_fields:
+                        row[f"agent.{af}"] = getattr(agent, af, agent.traits.get(af))
+                else:
+                    row["agent_index"] = idx
+
+                row["question_name"] = qname
+                row["question_text"] = result.get_question_text(qname)
+                row["answer"] = answer_val
+                rows.append(Scenario(row))
+
+        return ScenarioList(rows)
 
     def rich_print(self):
         """Display an object as a table."""

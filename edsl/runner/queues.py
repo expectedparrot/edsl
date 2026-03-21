@@ -9,7 +9,6 @@ Components:
 """
 
 from dataclasses import dataclass, field
-from typing import Any
 import time
 import heapq
 import threading
@@ -520,7 +519,6 @@ def load_queues_from_env(
     Returns mapping of service -> queue_id for the primary queue.
     """
     import os
-    from pathlib import Path
 
     if env_path:
         # Load from specific file

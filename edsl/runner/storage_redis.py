@@ -13,7 +13,6 @@ Features:
 """
 
 import json
-import fnmatch
 from typing import Any
 
 try:

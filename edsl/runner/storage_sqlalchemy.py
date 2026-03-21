@@ -49,14 +49,13 @@ from sqlalchemy import (
     Column,
     String,
     Integer,
-    Float,
     LargeBinary,
     Text,
     Index,
     UniqueConstraint,
     event,
 )
-from sqlalchemy.orm import declarative_base, sessionmaker, Session, scoped_session
+from sqlalchemy.orm import declarative_base, sessionmaker, Session
 from sqlalchemy.pool import StaticPool, NullPool, QueuePool
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert

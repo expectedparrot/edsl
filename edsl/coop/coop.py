@@ -513,7 +513,6 @@ class Coop(CoopFunctionsMixin):
             # print(response.text)
             if "The API key you provided is invalid" in message and check_api_key:
                 import secrets
-                from ..utilities.utilities import write_api_key_to_env
 
                 self._logger.info("Invalid API key detected, starting login flow")
                 edsl_auth_token = secrets.token_urlsafe(16)
@@ -533,15 +532,9 @@ class Coop(CoopFunctionsMixin):
                 print("\n✨ API key retrieved.")
                 self._logger.info("API key successfully retrieved via login")
 
-                if self.ep_key_handler.ask_to_store(api_key):
-                    pass
-                else:
-                    path_to_env = write_api_key_to_env(api_key)
-                    print(
-                        "\n✨ API key retrieved and written to .env file at the following path:"
-                    )
-                    print(f"    {path_to_env}")
-                    print("Rerun your code to try again with a valid API key.")
+                self.ep_key_handler.store_ep_api_key(api_key)
+                print("\n✨ API key stored in .env file.")
+                print("Rerun your code to try again with a valid API key.")
                 return
 
             elif "Authorization" in message:
@@ -4103,11 +4096,6 @@ class Coop(CoopFunctionsMixin):
             except ImportError:
                 in_marimo = False
 
-        # Debug output
-        print(
-            f"DEBUG: in_marimo={in_marimo}, console.is_terminal={console.is_terminal}"
-        )
-
         description = (
             link_description
             if link_description
@@ -4123,20 +4111,7 @@ class Coop(CoopFunctionsMixin):
         </div>
         """
 
-        if in_marimo and mo is not None:
-            # marimo: use mo.callout with markdown link
-            callout = mo.callout(
-                mo.md(
-                    f"""
-{description}
-
-[🔗 Log in and automatically store key]({url})
-                """
-                ),
-                kind="info",
-            )
-            return callout
-        elif console.is_terminal:
+        if console.is_terminal:
             # Running in a standard terminal, show the full URL
             if link_description:
                 rich_print(
@@ -4144,9 +4119,18 @@ class Coop(CoopFunctionsMixin):
                 )
             else:
                 rich_print(f"[#38bdf8][link={url}]{url}[/link][/#38bdf8]")
+        elif in_marimo and mo is not None:
+            # marimo notebook (not terminal): use mo.callout with markdown link
+            callout = mo.callout(
+                mo.md(
+                    f"{description}\n\n"
+                    f"[🔗 Log in and automatically store key]({url})"
+                ),
+                kind="info",
+            )
+            return callout
         else:
             # Running in an interactive environment (e.g., Jupyter Notebook)
-            # Use IPython HTML display if available, otherwise fall back to plain text
             try:
                 from IPython.display import HTML, display
 
@@ -4184,7 +4168,6 @@ class Coop(CoopFunctionsMixin):
         """
         import secrets
         from dotenv import load_dotenv
-        from ..utilities.utilities import write_api_key_to_env
 
         edsl_auth_token = secrets.token_urlsafe(16)
 
@@ -4204,12 +4187,11 @@ class Coop(CoopFunctionsMixin):
 
             raise CoopTimeoutError("Timed out waiting for login. Please try again.")
 
-        path_to_env = write_api_key_to_env(api_key)
-        print("\n✨ API key retrieved and written to .env file at the following path:")
-        print(f"    {path_to_env}")
+        from .ep_key_handling import ExpectedParrotKeyHandler
 
-        # Add API key to environment
+        ExpectedParrotKeyHandler().store_ep_api_key(api_key)
         load_dotenv()
+        print("\n✨ API key retrieved and stored in .env file.")
 
     def login_streamlit(self, timeout: int = 120):
         """
@@ -4255,7 +4237,6 @@ class Coop(CoopFunctionsMixin):
         import secrets
         from dotenv import load_dotenv
         from .ep_key_handling import ExpectedParrotKeyHandler
-        from ..utilities.utilities import write_api_key_to_env
 
         # ------------------------------------------------------------------
         # 1. Prepare auth-token and store state across reruns
@@ -4319,12 +4300,9 @@ class Coop(CoopFunctionsMixin):
         # 4. Key received – persist it and notify user
         # ------------------------------------------------------------------
         ExpectedParrotKeyHandler().store_ep_api_key(api_key)
-        os.environ["EXPECTED_PARROT_API_KEY"] = api_key
-        path_to_env = write_api_key_to_env(api_key)
         load_dotenv()
 
         st.success("API-key retrieved and stored. You are now logged-in! 🎉")
-        st.caption(f"Key saved to `{path_to_env}`.")
 
         return api_key
 
@@ -4600,7 +4578,6 @@ class Coop(CoopFunctionsMixin):
         import secrets
         from dotenv import load_dotenv
         from .ep_key_handling import ExpectedParrotKeyHandler
-        from ..utilities.utilities import write_api_key_to_env
 
         # ------------------------------------------------------------------
         # 1. Prepare auth-token
@@ -4647,13 +4624,8 @@ class Coop(CoopFunctionsMixin):
                 if api_key:
                     # Persist and expose the key
                     ExpectedParrotKeyHandler().store_ep_api_key(api_key)
-                    os.environ["EXPECTED_PARROT_API_KEY"] = api_key
-                    path_to_env = write_api_key_to_env(api_key)
                     load_dotenv()
-                    success_msg = (
-                        "API-key retrieved and stored 🎉\n\n"
-                        f"Key saved to `{path_to_env}`."
-                    )
+                    success_msg = "API-key retrieved and stored 🎉"
                     return (
                         success_msg,
                         _button_update(interactive=False, visible=False),

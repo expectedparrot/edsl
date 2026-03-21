@@ -24,7 +24,6 @@ from typing import Union, List, Optional, TYPE_CHECKING, Dict, Any, Iterable, Ma
 
 from ..base import Base
 from .exceptions import ScenarioError
-from ..utilities.display_utils import smart_truncate
 
 if TYPE_CHECKING:
     from .scenario_list import ScenarioList
@@ -33,7 +32,7 @@ if TYPE_CHECKING:
     from ..jobs import Jobs
     from ..questions import QuestionBase as Question
     from ..surveys import Survey
-    from .qr_code import QRCodeList
+    from .contrib.qr_code import QRCodeList
 
 
 class Scenario(Base, UserDict):
@@ -76,6 +75,11 @@ class Scenario(Base, UserDict):
     """
 
     __documentation__ = "https://docs.expectedparrot.com/en/latest/scenarios.html"
+
+    # CAS store support
+    _store_class_name = "Scenario"
+    from edsl.base.store_accessor import StoreDescriptor
+    store = StoreDescriptor()
 
     def __init__(
         self,
@@ -128,7 +132,7 @@ class Scenario(Base, UserDict):
         super().__init__()
         self.data = data if data is not None else {}
         # Merge kwargs into data, with kwargs taking precedence
-        self.data.update(kwargs)
+        self.data.update(dict(kwargs))
         self.name = name
 
     def __mul__(
@@ -157,9 +161,9 @@ class Scenario(Base, UserDict):
         from .scenario_list import ScenarioList
 
         if isinstance(scenario_list_or_scenario, ScenarioList):
-            return scenario_list_or_scenario * self
+            return scenario_list_or_scenario * self  # type: ignore[operator]
         elif isinstance(scenario_list_or_scenario, Scenario):
-            return ScenarioList([self]) * scenario_list_or_scenario
+            return ScenarioList([self]) * scenario_list_or_scenario  # type: ignore[operator]
         else:
             raise TypeError(
                 f"Cannot multiply Scenario with {type(scenario_list_or_scenario)}"
@@ -437,7 +441,7 @@ class Scenario(Base, UserDict):
 
         return target
 
-    def table(self, tablefmt: str = "grid") -> str:
+    def table(self, tablefmt: str = "grid") -> "Dataset":
         """Display a scenario as a formatted table.
 
         Args:
@@ -518,7 +522,7 @@ class Scenario(Base, UserDict):
             ValueError: If no uploadable content found or content is offloaded
             requests.RequestException: If any upload fails
         """
-        from .scenario_gcs import ScenarioGCS
+        from .contrib.scenario_gcs import ScenarioGCS
 
         return ScenarioGCS(self).save_to_gcs_bucket(signed_url_or_dict)
 
@@ -540,7 +544,7 @@ class Scenario(Base, UserDict):
 
 
         """
-        from .scenario_gcs import ScenarioGCS
+        from .contrib.scenario_gcs import ScenarioGCS
 
         return ScenarioGCS(self).get_filestore_info()
 
@@ -628,7 +632,7 @@ class Scenario(Base, UserDict):
             - URLs are extracted using regex pattern matching
             - Supports http://, https://, and ftp:// protocols
         """
-        from .qr_code import QRCode, QRCodeList, extract_urls_from_scenario
+        from .contrib.qr_code import QRCode, QRCodeList, extract_urls_from_scenario
 
         urls = extract_urls_from_scenario(self)
 
@@ -658,7 +662,7 @@ class Scenario(Base, UserDict):
         {'food': 'wood chips'}
 
         """
-        from .scenario_serializer import ScenarioSerializer
+        from edsl.scenarios.serialization.scenario_serializer import ScenarioSerializer
 
         return ScenarioSerializer(self).to_dict(add_edsl_version, offload_base64)
 
@@ -676,7 +680,7 @@ class Scenario(Base, UserDict):
             return self._cached_hash
 
         # Compute hash for first time and cache it in the object
-        from .scenario_serializer import ScenarioSerializer
+        from edsl.scenarios.serialization.scenario_serializer import ScenarioSerializer
 
         serializer = ScenarioSerializer(self)
         self._cached_hash = serializer.compute_hash()
@@ -690,64 +694,60 @@ class Scenario(Base, UserDict):
         """
         return "Scenario(" + repr(self.data) + ")"
 
-    def _summary_repr(
-        self, max_items: int = 100, max_value_length: Optional[int] = None
-    ) -> str:
-        """Generate a summary representation of the Scenario with Rich formatting.
+    @staticmethod
+    def _type_label(value: Any) -> str:
+        """Return a concise type label for a scenario value."""
+        if isinstance(value, str):
+            return "str"
+        if isinstance(value, bool):
+            return "bool"
+        if isinstance(value, int):
+            return "int"
+        if isinstance(value, float):
+            return "float"
+        if isinstance(value, list):
+            return f"list[{len(value)}]"
+        if isinstance(value, dict):
+            return f"dict[{len(value)}]"
+        return type(value).__name__
+
+    def info(self) -> list:
+        """Return display sections as (title, Dataset) pairs."""
+        from edsl.dataset import Dataset
+
+        keys = list(self.data.keys())
+        values = [repr(v) for v in self.data.values()]
+        types = [self._type_label(v) for v in self.data.values()]
+        return [("Scenario", Dataset([{"key": keys}, {"value": values}, {"type": types}]))]
+
+    def _summary_repr(self, max_items: int = 500) -> str:
+        """Generate a summary representation of the Scenario as a Rich table.
+
+        Values wrap naturally to fit the terminal width rather than being
+        truncated.
 
         Args:
-            max_items: Maximum number of key-value pairs to show before truncating
-            max_value_length: Maximum length of a value before truncating. If None, uses terminal width.
+            max_items: Maximum number of key-value pairs to show before
+                       collapsing the remainder into a single row.
         """
-        from edsl.config import RICH_STYLES
-        from rich.console import Console
-        from rich.text import Text
-        import io
-        import shutil
-
-        # Get terminal width
-        terminal_width = shutil.get_terminal_size().columns
-
-        # Use terminal width for max_value_length if not specified
-        # Reserve some space for the key name and formatting (about 20 chars)
-        if max_value_length is None:
-            max_value_length = max(terminal_width - 20, 50)
-
-        # Build the Rich text
-        output = Text()
-        output.append("Scenario(\n", style=RICH_STYLES["primary"])
+        from ..utilities.summary_table import ColumnDef, render_summary_table
 
         num_keys = len(self.data)
-        if num_keys > 0:
-            output.append(f"    num_keys={num_keys},\n", style=RICH_STYLES["default"])
-            output.append("    data={\n", style=RICH_STYLES["default"])
+        title = f"Scenario ({num_keys} key{'s' if num_keys != 1 else ''})"
 
-            for i, (key, value) in enumerate(list(self.data.items())[:max_items]):
-                # Format the value with smart truncation if needed
-                value_repr = repr(value)
-                if len(value_repr) > max_value_length:
-                    value_repr = smart_truncate(value_repr, max_value_length)
+        columns = [
+            ColumnDef("Key", style="bold green", no_wrap=True),
+            ColumnDef("Value"),
+            ColumnDef("Type", style="dim", no_wrap=True),
+        ]
+        rows = [
+            (key, repr(value), self._type_label(value))
+            for key, value in self.data.items()
+        ]
 
-                output.append("        ", style=RICH_STYLES["default"])
-                output.append(f"'{key}'", style=RICH_STYLES["secondary"])
-                output.append(f": {value_repr},\n", style=RICH_STYLES["default"])
-
-            if num_keys > max_items:
-                output.append(
-                    f"        ... ({num_keys - max_items} more)\n",
-                    style=RICH_STYLES["dim"],
-                )
-
-            output.append("    }\n", style=RICH_STYLES["default"])
-        else:
-            output.append("    data={}\n", style=RICH_STYLES["dim"])
-
-        output.append(")", style=RICH_STYLES["primary"])
-
-        # Render to string using actual terminal width
-        console = Console(file=io.StringIO(), force_terminal=True, width=terminal_width)
-        console.print(output, end="")
-        return console.file.getvalue()
+        return render_summary_table(
+            title=title, columns=columns, rows=rows, max_rows=max_items
+        )
 
     def __getattr__(self, name: str) -> Any:
         """Allow accessing scenario values using dot notation.
@@ -787,9 +787,17 @@ class Scenario(Base, UserDict):
         >>> s.to_dataset()
         Dataset([{'key': ['food']}, {'value': ['wood chips']}])
         """
-        from .scenario_serializer import ScenarioSerializer
+        from edsl.scenarios.serialization.scenario_serializer import ScenarioSerializer
 
         return ScenarioSerializer(self).to_dataset()
+
+    def to_pandas(self):
+        """Convert to a pandas DataFrame."""
+        return self.to_dataset().to_pandas()
+
+    def to_pandas_for_display(self):
+        """Convert to a pandas DataFrame for notebook display."""
+        return self.to_pandas()
 
     def select(self, *args: Union[str, Iterable[str]]) -> "Scenario":
         """Select a subset of keys from a scenario.
@@ -1350,7 +1358,7 @@ class Scenario(Base, UserDict):
         )
 
     @classmethod
-    def from_dict(cls, d: Dict[str, Any]) -> "Scenario":
+    def from_dict(cls, d: dict) -> "Scenario":
         """
         Creates a Scenario from a dictionary, with special handling for FileStore objects.
 
@@ -1381,9 +1389,63 @@ class Scenario(Base, UserDict):
             - EDSL version information is automatically removed by the @remove_edsl_version decorator
             - This method is commonly used when deserializing scenarios from JSON or other formats
         """
-        from .scenario_serializer import ScenarioSerializer
+        from edsl.scenarios.serialization.scenario_serializer import ScenarioSerializer
 
         return ScenarioSerializer.from_dict(d)
+
+    def to_jsonl(self, blob_writer=None, **kwargs) -> str:
+        """Serialize to JSONL with one line per key-value field.
+
+        The first line is a header; subsequent lines are ``{"field": ..., "value": ...}`` pairs,
+        one per scenario key.
+
+        >>> import json
+        >>> s = Scenario({"food": "wood chips", "drink": "water"})
+        >>> lines = s.to_jsonl().splitlines()
+        >>> json.loads(lines[0])["__header__"]
+        True
+        >>> json.loads(lines[1])["field"]
+        'food'
+        """
+        import json
+        import edsl
+
+        d = self.to_dict(add_edsl_version=False)
+        header = {
+            "__header__": True,
+            "edsl_class_name": "Scenario",
+            "edsl_version": edsl.__version__,
+        }
+        lines = [json.dumps(header)]
+        for field, value in d.items():
+            lines.append(json.dumps({"field": field, "value": value}))
+        return "\n".join(lines)
+
+    def to_jsonl_rows(self, blob_writer=None):
+        return iter(self.to_jsonl().splitlines())
+
+    @classmethod
+    def from_jsonl(cls, source, blob_reader=None, **kwargs) -> "Scenario":
+        """Deserialize from JSONL produced by :meth:`to_jsonl`.
+
+        *source* may be a JSONL string or an iterable of lines.
+
+        >>> s = Scenario({"food": "wood chips", "drink": "water"})
+        >>> s2 = Scenario.from_jsonl(s.to_jsonl())
+        >>> s2["food"] == s["food"] and s2["drink"] == s["drink"]
+        True
+        """
+        import json
+
+        if isinstance(source, str):
+            lines = source.strip().splitlines()
+        else:
+            lines = list(source)
+        fields = {}
+        for line in lines[1:]:
+            row = json.loads(line)
+            fields[row["field"]] = row["value"]
+        return cls.from_dict(fields)
 
     def _table(self) -> tuple[List[Dict[str, str]], List[str]]:
         """Prepare generic table data for scenario attributes.

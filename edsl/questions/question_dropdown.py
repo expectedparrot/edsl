@@ -230,9 +230,7 @@ class QuestionDropdown(QuestionBase):
 
     question_type = "dropdown"
     purpose = "When options are numerous and need to be searched"
-    question_options: Union[list[str], list[list], list[float], list[int]] = (
-        QuestionOptionsDescriptor()
-    )
+    question_options = QuestionOptionsDescriptor()
     _response_model = None
     response_validator_class = DropdownResponseValidator
 
@@ -476,7 +474,7 @@ class QuestionDropdown(QuestionBase):
 
         return [str(opt) for opt in top_options]
 
-    def create_response_model(self, replacement_dict: dict = None):
+    def create_response_model(self, replacement_dict: Optional[dict] = None):
         """
         Create the response model for validation.
 

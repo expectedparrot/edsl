@@ -1,6 +1,6 @@
 import textwrap
 from collections import defaultdict
-from typing import List, Optional, TYPE_CHECKING
+from typing import List, Optional, cast, TYPE_CHECKING
 
 from ..base import ItemCollection
 from .agent_list import AgentList
@@ -8,7 +8,7 @@ from .agent_list import AgentList
 if TYPE_CHECKING:
     from ..language_models import LanguageModel
     from ..surveys import Survey
-    from ..results import Results
+    from ..results import Results, ResultsList
 
 
 class PersonaGenerator:
@@ -165,7 +165,7 @@ class AgentListCollection(ItemCollection):
 
     def take_survey(
         self, survey: "Survey", model: Optional["LanguageModel"] = None
-    ) -> "Results":
+    ) -> "ResultsList":
         """All the agents in the collection are run through the survey.
 
         The results are returned as a ResultsList, with each Results object containing
@@ -182,7 +182,7 @@ class AgentListCollection(ItemCollection):
         from ..results import Results, ResultsList
 
         if model is None:
-            model = Model()
+            model = cast("LanguageModel", Model())
         results = survey.by(self.combined_agent_list()).by(model).run(verbose=False)
         d = defaultdict(list)
         for result in results:

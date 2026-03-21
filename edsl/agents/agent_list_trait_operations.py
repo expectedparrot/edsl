@@ -1,11 +1,9 @@
 """AgentList trait operations module."""
 
 from __future__ import annotations
-import sys
 from typing import Union, List, Any, TYPE_CHECKING
 from collections.abc import Iterable
 
-from ..utilities import is_notebook
 
 if TYPE_CHECKING:
     from .agent_list import AgentList
@@ -268,13 +266,9 @@ class AgentListTraitOperations:
             return AgentList(new_agents)
 
         if len(values) != len(self._agent_list):
-            e = AgentListError(
+            raise AgentListError(
                 "The passed values have to be the same length as the agent list."
             )
-            if is_notebook():
-                print(e, file=sys.stderr)
-            else:
-                raise e
         new_agents = []
         for agent, value in zip(self._agent_list.data, values):
             new_agents.append(agent.add_trait(trait, value))

@@ -15,7 +15,7 @@ import time
 import threading
 import logging
 
-from .queues import QueueRegistry, Queue
+from .queues import QueueRegistry
 from .render import RenderedPrompt
 
 if TYPE_CHECKING:
