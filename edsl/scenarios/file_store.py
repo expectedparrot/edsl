@@ -392,46 +392,35 @@ class FileStore(Scenario):
         from google.genai.types import UploadFileConfig  # ty: ignore[unresolved-import]
         import time
 
-        method_start = time.time()
 
         try:
             # Time client creation
-            client_start = time.time()
             google_api_key = os.getenv("GOOGLE_API_KEY")
             if google_api_key is None:
                 raise Exception("GOOGLE_API_KEY is not set.")
             client = genai.Client(api_key=google_api_key)
-            _client_time = time.time() - client_start
 
             # Time file upload
-            upload_start = time.time()
             google_file = client.files.upload(
                 file=self.path, config=UploadFileConfig(mime_type=self.mime_type)
             )
-            _upload_time = time.time() - upload_start
 
             self.external_locations["google"] = google_file.model_dump(mode="json")
 
             # Time polling for activation
-            polling_start = time.time()
             attempt = 0
             while True:
                 attempt += 1
-                status_start = time.time()
                 file_metadata = client.files.get(name=google_file.name)
                 file_state = file_metadata.state
-                _status_time = time.time() - status_start
 
                 if file_state == "ACTIVE":
-                    _polling_time = time.time() - polling_start
-                    _total_time = time.time() - method_start
                     break
                 elif file_state == "FAILED":
                     break
                 # Add a small delay to prevent busy-wait
                 time.sleep(0.5)
         except Exception:
-            _total_time = time.time() - method_start
             raise
 
     async def async_upload_google(self, refresh: bool = False) -> dict:
@@ -460,11 +449,9 @@ class FileStore(Scenario):
 
         import time
 
-        method_start = time.time()
 
         try:
             # Get or create cached client (async method)
-            client_start = time.time()
             google_api_key = os.getenv("GOOGLE_API_KEY")
             if google_api_key is None:
                 raise Exception("GOOGLE_API_KEY is not set.")
@@ -480,42 +467,25 @@ class FileStore(Scenario):
                     FileStore._cached_client is None
                     or FileStore._cached_api_key != google_api_key
                 ):
-                    creation_start = time.time()
                     FileStore._cached_client = genai.Client(api_key=google_api_key)
                     FileStore._cached_api_key = google_api_key
-                    _creation_time = time.time() - creation_start
-                    _client_time = time.time() - client_start
-                else:
-                    _client_time = time.time() - client_start
 
             client = FileStore._cached_client
 
             # Upload file using native async API
-            upload_start = time.time()
             google_file = await client.aio.files.upload(
                 file=self.path, config=UploadFileConfig(mime_type=self.mime_type)
             )
-            _upload_time = time.time() - upload_start
-            # print(f"Async file upload completed in {_upload_time:.3f}s", flush=True)
 
             google_file_dict = google_file.model_dump(mode="json")
-            
+
             # Poll for file activation with exponential backoff using native async API
-            polling_start = time.time()
             max_attempts = 30
             for attempt in range(max_attempts):
-                status_start = time.time()
                 file_metadata = await client.aio.files.get(name=google_file.name)
-                _status_time = time.time() - status_start
                 file_state = file_metadata.state
 
                 if file_state == "ACTIVE":
-                    _polling_time = time.time() - polling_start
-                    _total_time = time.time() - method_start
-                    # print(
-                    #     f"File {self.name} activated after {attempt+1} attempts in {_polling_time:.3f}s (total: {_total_time:.3f}s)",
-                    #     flush=True,
-                    # )
                     self.external_locations["google"] = google_file_dict
                     return google_file_dict
                 elif file_state == "FAILED":
@@ -526,11 +496,9 @@ class FileStore(Scenario):
                 await asyncio.sleep(wait_time)
 
             # If we've exhausted all attempts
-            _total_time = time.time() - method_start
             raise Exception(f"File upload timed out after {max_attempts} attempts")
 
         except Exception:
-            _total_time = time.time() - method_start
             raise
 
     @classmethod
