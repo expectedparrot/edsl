@@ -85,6 +85,23 @@ class BaseFileError(BaseException):
         super().__init__(message, **kwargs)
 
 
+class MissingOptionalDependencyError(BaseException):
+    """
+    A required optional dependency is not installed.
+
+    Install it with pip, e.g.: pip install edsl[file-formats]
+    """
+
+    relevant_doc = "https://docs.expectedparrot.com/en/latest/installation.html"
+
+    def __init__(self, package: str, extras_group: str = "full", **kwargs):
+        message = (
+            f"The '{package}' package is required for this feature but is not installed. "
+            f"Install it with: pip install edsl[{extras_group}]"
+        )
+        super().__init__(message, **kwargs)
+
+
 class BaseTypeError(BaseException):
     """
     Exception raised for type-related errors in base module operations.

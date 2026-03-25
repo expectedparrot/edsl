@@ -273,7 +273,7 @@ class QuestionEDSLObject(QuestionBase):
         """Get the expected object type."""
         return self._expected_object_type
 
-    def _validate_answer(self, answer: dict, replacement_dict: dict = None) -> dict:
+    def _validate_answer(self, answer: dict, replacement_dict: Optional[dict] = None) -> dict:
         """
         Validate a raw answer against this question's constraints.
 

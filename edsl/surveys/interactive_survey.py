@@ -40,85 +40,6 @@ class InteractiveSurvey:
         # Internal dict used for rule evaluation: "q.answer" -> answer
         self._rule_answers: Dict[str, Any] = {}
 
-    # Notebook detection and widget path
-    def _in_notebook(self) -> bool:
-        try:
-            from IPython import get_ipython  # type: ignore
-
-            ip = get_ipython()
-            if ip is None:
-                return False
-            # ZMQInteractiveShell is used by Jupyter
-            return ip.__class__.__name__ == "ZMQInteractiveShell"
-        except Exception:
-            return False
-
-    def _can_use_widget(self) -> bool:
-        if not self._in_notebook():
-            return False
-        try:
-            # Verify widget infra is available
-            from ..widgets.survey_widget import SurveyWidget  # noqa: F401
-            from IPython.display import display  # noqa: F401
-
-            return True
-        except Exception:
-            return False
-
-    def _run_in_notebook_blocking(self) -> Dict[str, Any]:
-        """Display anywidget SurveyWidget and block until completion, then return answers.
-
-        Falls back to terminal mode on any error.
-        """
-        try:
-            from ..widgets.survey_widget import SurveyWidget
-            from IPython.display import display
-            import asyncio
-
-            widget = SurveyWidget(self.survey)
-            display(widget)
-
-            # Await completion using IPython's asyncio runner if available.
-            from IPython import get_ipython  # type: ignore
-
-            ip = get_ipython()
-            runner = getattr(getattr(ip, "kernel", None), "_asyncio_runner", None)
-
-            async def _wait_until_complete():
-                # Wait until the widget reports completion, yielding control to the event loop.
-                while not bool(getattr(widget, "is_complete", False)):
-                    await asyncio.sleep(0.05)
-
-            if runner is not None and hasattr(runner, "run"):
-                # Run the coroutine in the kernel's event loop from sync code
-                runner.run(_wait_until_complete())
-            else:
-                # As a fallback, try to use the current event loop directly if possible
-                try:
-                    loop = asyncio.get_event_loop()
-                    if loop.is_running():
-                        # Cannot block properly without runner; raise to inform environment limitations
-                        raise RuntimeError(
-                            "Notebook detected but cannot block until widget completes (no IPython asyncio runner). "
-                            "Please update ipykernel/JupyterLab or use the non-blocking widget and read answers later."
-                        )
-                    else:
-                        loop.run_until_complete(_wait_until_complete())
-                except Exception:
-                    raise
-
-            answers = dict(getattr(widget, "answers", {}))
-            # Mirror internal bookkeeping used by terminal mode
-            self.answers = answers
-            self._rule_answers = {f"{k}.answer": v for k, v in answers.items()}
-            return answers
-        except KeyboardInterrupt:
-            # Allow user to interrupt; return whatever answers collected so far
-            return dict(getattr(self, "answers", {}))
-        except Exception:
-            # If anything goes wrong, fall back to terminal mode
-            return self._run_in_terminal()
-
     # Terminal (Rich) path split into its own helper so we can fall back cleanly
     def _run_in_terminal(self) -> Dict[str, Any]:
         # Ensure we can import Rich only at runtime
@@ -515,10 +436,6 @@ class InteractiveSurvey:
         Returns:
             dict[str, Any]: Mapping from question name to user-entered answer.
         """
-        # Prefer notebook widget experience when available
-        if self._can_use_widget():
-            return self._run_in_notebook_blocking()
-        # Fallback to terminal (Rich) experience
         return self._run_in_terminal()
 
 

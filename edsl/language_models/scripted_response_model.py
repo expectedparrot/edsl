@@ -75,13 +75,12 @@ class ScriptedResponseLanguageModel(LanguageModel):
         Raises:
             ValueError: If no scripted response is found for the agent-question combination
         """
-        # Extract agent name and question name from invigilator
+        # Extract agent name and question name from invigilator or kwargs
         if invigilator is not None:
             agent_name = invigilator.agent.name
             question_name = invigilator.question.question_name
         else:
-            # Fallback if no invigilator provided
-            agent_name = "default"
+            agent_name = kwargs.get("agent_name", "default")
             if question_name is None:
                 question_name = "default"
 

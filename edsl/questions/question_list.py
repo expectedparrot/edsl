@@ -58,7 +58,7 @@ def convert_string(s: str) -> Union[float, int, str, dict]:
 
 def create_model(
     min_list_items: Optional[int], max_list_items: Optional[int], permissive: bool
-) -> "ListResponse":
+) -> "ListResponse":  # type: ignore[valid-type]
     from pydantic import BaseModel
 
     if permissive or (max_list_items is None and min_list_items is None):
@@ -256,7 +256,7 @@ class ListResponseValidator(ResponseValidatorABC):
         raw_edsl_answer_dict: dict,
         fix=False,
         verbose=False,
-        replacement_dict: dict = None,
+        replacement_dict: Optional[dict] = None,
     ) -> dict:
         """Override validate to handle missing answer key properly."""
         # Check for missing answer key
@@ -283,6 +283,10 @@ class ListResponseValidator(ResponseValidatorABC):
                 model=self.response_model,
                 pydantic_error=validation_error,
             )
+
+        # Convert empty string to empty list (LLMs like o3 sometimes return "")
+        if raw_edsl_answer_dict.get("answer") == "":
+            raw_edsl_answer_dict["answer"] = []
 
         # Check if answer is not a list
         if "answer" in raw_edsl_answer_dict and not isinstance(
@@ -437,8 +441,8 @@ class QuestionList(QuestionBase):
     """This question prompts the agent to answer by providing a list of items as comma-separated strings."""
 
     question_type = "list"
-    max_list_items: int = IntegerOrNoneDescriptor()
-    min_list_items: int = IntegerOrNoneDescriptor()
+    max_list_items = IntegerOrNoneDescriptor()
+    min_list_items = IntegerOrNoneDescriptor()
     _response_model = None
     response_validator_class = ListResponseValidator
 
@@ -485,6 +489,12 @@ class QuestionList(QuestionBase):
 
     def create_response_model(self):
         return create_model(self.min_list_items, self.max_list_items, self.permissive)
+
+    def _simulate_answer(self, human_readable: bool = False) -> dict:
+        """Generate a simulated list answer."""
+        min_items = self.min_list_items or 2
+        items = [f"Item {i+1}" for i in range(min_items)]
+        return {"answer": items, "comment": "Simulated answer"}
 
     @property
     def question_html_content(self) -> str:

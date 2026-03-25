@@ -78,7 +78,7 @@ class GoogleDocSource(Source):
                 temp_filename = temp_file.name
 
             # Use the DocxScenario class to process the temporary file
-            from ..DocxScenario import DocxScenario
+            from ..docx_scenario import DocxScenario
 
             # Create a scenario from the DOCX file
             docx_scenario = DocxScenario(temp_filename)

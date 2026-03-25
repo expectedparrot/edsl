@@ -226,7 +226,7 @@ def is_notebook() -> bool:
 
 def file_notice(file_name):
     """Print a notice about the file being created."""
-    from ..display import file_notice as display_file_notice
+    from .display_utils import file_notice as display_file_notice
 
     display_file_notice(file_name, link_text="Download file")
 
@@ -340,6 +340,40 @@ def is_valid_variable_name(name, allow_name=True):
         return (
             name.isidentifier() and not keyword.iskeyword(name) and not name == "name"
         )
+
+
+def make_valid_variable_name(name: str) -> str:
+    """Convert a string to a valid Python identifier.
+
+    Replaces spaces, hyphens, and other invalid characters with underscores.
+    Strips leading/trailing whitespace. Prepends '_' if the name starts with a digit.
+
+    >>> make_valid_variable_name("First Name")
+    'first_name'
+    >>> make_valid_variable_name("age (years)")
+    'age_years'
+    >>> make_valid_variable_name("2nd-choice")
+    '_2nd_choice'
+    >>> make_valid_variable_name("already_valid")
+    'already_valid'
+    """
+    import re
+    name = name.strip().lower()
+    # Replace common separators with underscore
+    name = re.sub(r'[\s\-/\.]+', '_', name)
+    # Remove any remaining non-alphanumeric/underscore characters
+    name = re.sub(r'[^a-z0-9_]', '', name)
+    # Collapse multiple underscores
+    name = re.sub(r'_+', '_', name)
+    # Strip leading/trailing underscores
+    name = name.strip('_')
+    # Prepend underscore if starts with digit
+    if name and name[0].isdigit():
+        name = '_' + name
+    # Fallback for empty result
+    if not name:
+        name = '_unnamed'
+    return name
 
 
 def create_valid_var_name(s, transform_func: Callable = lambda x: x.lower()) -> str:

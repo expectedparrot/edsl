@@ -22,25 +22,18 @@ class AgentListCodeGenerator:
         """Return code to construct an AgentList.
 
         Args:
-            agent_list: The AgentList to generate code for
-            string: Whether to return code as a string (True) or list of lines (False)
+            agent_list: The AgentList to generate code for.
+            string: Whether to return code as a string (True) or list of lines (False).
 
         Returns:
-            Union[str, list[str]]: Python code to recreate the AgentList
+            Union[str, list[str]]: Python code to recreate the AgentList.
 
-        Examples:
-            >>> from edsl import AgentList
-            >>> from edsl.agents.agent_list_code_generator import AgentListCodeGenerator
-            >>> al = AgentList.example()
-            >>> code_lines = AgentListCodeGenerator.generate_code(al, string=False)
-            >>> len(code_lines)
-            3
-            >>> code_lines[0]
-            'from edsl import Agent'
-            >>> code_lines[1]
-            'from edsl import AgentList'
-            >>> 'agent_list = AgentList([' in code_lines[2]
-            True
+        >>> from edsl import AgentList
+        >>> al = AgentList.example()
+        >>> print(al.code())
+        from edsl import Agent
+        from edsl import AgentList
+        agent_list = AgentList([Agent(traits = {'age': 22, 'hair': 'brown', 'height': 5.5}), Agent(traits = {'age': 22, 'hair': 'brown', 'height': 5.5})])
         """
         lines = [
             "from edsl import Agent",

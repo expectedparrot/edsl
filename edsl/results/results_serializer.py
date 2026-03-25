@@ -3,16 +3,45 @@
 This module provides the ResultsSerializer class which handles serialization and
 deserialization operations for Results objects, including dictionary conversion,
 object reconstruction, shelve operations, and disk persistence.
+
+Inline JSONL format:
+  - Line 1: header (``__header__: true``, class name, version, format)
+  - Line 2: manifest (created_columns, name, n_survey_lines)
+  - Lines 3..S+2: Survey JSONL lines (inline)
+  - Lines S+3..: Result rows (one Result.to_dict() per line, appendable)
 """
 
-from typing import TYPE_CHECKING, Any, Dict
+import json
+from pathlib import Path
+from typing import Iterable, Optional, Union, TYPE_CHECKING, Any, Dict
 from ..utilities import remove_edsl_version
 
 if TYPE_CHECKING:
     from .results import Results
-    from .result import Result
 
-from .exceptions import ResultsDeserializationError, ResultsError
+from .exceptions import ResultsDeserializationError
+
+
+def _open_lines(source: Union[str, Path, Iterable[str]]) -> Iterable[str]:
+    """Normalise *source* into an iterable of lines."""
+    if isinstance(source, Path):
+        with open(source, "r") as fh:
+            yield from fh
+        return
+
+    if isinstance(source, str):
+        if "\n" not in source.rstrip("\n"):
+            candidate = Path(source)
+            try:
+                if candidate.is_file():
+                    with open(candidate, "r") as fh:
+                        yield from fh
+                    return
+            except OSError:
+                pass
+        yield from source.splitlines()
+    else:
+        yield from source
 
 
 class ResultsSerializer:
@@ -42,6 +71,7 @@ class ResultsSerializer:
         include_task_history: bool = False,
         include_cache_info: bool = True,
         offload_scenarios: bool = True,
+        full_dict: bool = False,
     ) -> Dict[str, Any]:
         """Convert the Results object to a dictionary representation.
 
@@ -54,7 +84,7 @@ class ResultsSerializer:
             offload_scenarios: Whether to optimize scenarios before serialization
 
         Returns:
-            Dict[str, Any]: Dictionary representation of the Results object
+            dict[str, Any]: Dictionary representation of the Results object
         """
         from ..caching import Cache
 
@@ -125,11 +155,12 @@ class ResultsSerializer:
             ResultsDeserializationError: If there's an error during deserialization
 
         Examples:
-            >>> # This would typically be used internally
-            >>> # r = Results.example()
-            >>> # d = ResultsSerializer(r).to_dict()
-            >>> # r2 = ResultsSerializer.from_dict(d)
-            >>> # r == r2
+            >>> from edsl.results import Results
+            >>> r = Results.example()
+            >>> d = r.to_dict()
+            >>> r2 = Results.from_dict(d)
+            >>> r == r2
+            True
         """
         # Import here to avoid circular imports
         from .results import Results
@@ -170,264 +201,116 @@ class ResultsSerializer:
             raise ResultsDeserializationError(f"Error in Results.from_dict: {e}")
         return results
 
-    def shelve_result(self, result: "Result") -> str:
-        """Store a Result object in persistent storage using its hash as the key.
+    # ------------------------------------------------------------------
+    # Inline JSONL serialization
+    # ------------------------------------------------------------------
 
-        Args:
-            result: A Result object to store
+    def to_jsonl_rows(self, blob_writer=None):
+        """Yield JSONL rows for inline format.
 
-        Returns:
-            str: The hash key for retrieving the result later
-
-        Raises:
-            ResultsError: If there's an error storing the Result
+        Format:
+          - Line 1: header
+          - Line 2: manifest (line counts + metadata)
+          - Survey lines (from Survey.to_jsonl_rows())
+          - Result rows (one Result.to_dict() per line)
         """
-        import shelve
+        from .. import __version__
 
-        key = str(hash(result))
-        try:
-            with shelve.open(self.results._shelve_path) as shelf:
-                shelf[key] = result.to_dict()
-                self.results._shelf_keys.add(key)
-            return key
-        except Exception as e:
-            raise ResultsError(f"Error storing Result in shelve database: {str(e)}")
+        # Collect survey rows first to get count
+        survey_rows = list(self.results.survey.to_jsonl_rows(blob_writer=blob_writer))
 
-    def get_shelved_result(self, key: str) -> "Result":
-        """Retrieve a Result object from persistent storage.
+        # Header
+        yield json.dumps({
+            "__header__": True,
+            "edsl_class_name": "Results",
+            "edsl_version": __version__,
+            "format": "inline",
+        })
 
-        Args:
-            key: The hash key of the Result to retrieve
+        # Manifest
+        yield json.dumps({
+            "created_columns": self.results.created_columns,
+            "name": self.results.name,
+            "n_survey_lines": len(survey_rows),
+        })
 
-        Returns:
-            Result: The stored Result object
+        # Survey lines
+        yield from survey_rows
 
-        Raises:
-            ResultsError: If the key doesn't exist or if there's an error retrieving the Result
+        # Result rows
+        for result in self.results.data:
+            yield json.dumps(result.to_dict(add_edsl_version=True))
+
+    def to_jsonl(
+        self,
+        filename: Union[str, Path, None] = None,
+        **kwargs,
+    ) -> Optional[str]:
+        """Export as inline JSONL.
+
+        Format:
+          - Line 1: header
+          - Line 2: manifest (line counts + metadata)
+          - Survey lines inline
+          - Result rows
         """
-        import shelve
+        content = "\n".join(self.to_jsonl_rows()) + "\n"
+
+        if filename is not None:
+            with open(filename, "w") as f:
+                f.write(content)
+            return None
+        return content
+
+    @staticmethod
+    def from_jsonl(
+        source: Union[str, Path, Iterable[str]], **kwargs
+    ) -> "Results":
+        """Create a Results instance from an inline JSONL source.
+
+        Reads the manifest to determine line counts for Survey and Cache
+        sections, then parses each section from the inline content.
+        """
+        from .results import Results
         from .result import Result
-
-        if key not in self.results._shelf_keys:
-            raise ResultsError(f"No result found with key: {key}")
-
-        try:
-            with shelve.open(self.results._shelve_path) as shelf:
-                return Result.from_dict(shelf[key])
-        except Exception as e:
-            raise ResultsError(
-                f"Error retrieving Result from shelve database: {str(e)}"
-            )
-
-    @property
-    def shelf_keys(self) -> set:
-        """Return a copy of the set of shelved result keys."""
-        return self.results._shelf_keys.copy()
-
-    def insert_from_shelf(self) -> None:
-        """Move all shelved results into memory using insert_sorted method.
-        Clears the shelf after successful insertion.
-
-        This method preserves the original order of results by using their 'order'
-        attribute if available, which ensures consistent ordering even after
-        serialization/deserialization.
-
-        Raises:
-            ResultsError: If there's an error accessing or clearing the shelf
-        """
-        import shelve
-        from .result import Result
-
-        if not self.results._shelf_keys:
-            return
-
-        try:
-            # First collect all results from shelf
-            with shelve.open(self.results._shelve_path) as shelf:
-                # Get and insert all results first
-                for key in self.results._shelf_keys:
-                    result_dict = shelf[key]
-                    result = Result.from_dict(result_dict)
-                    self.results.insert_sorted(result)
-
-                # Now clear the shelf
-                for key in self.results._shelf_keys:
-                    del shelf[key]
-
-            # Clear the tracking set
-            self.results._shelf_keys.clear()
-
-        except Exception as e:
-            raise ResultsError(f"Error moving results from shelf to memory: {str(e)}")
-
-    def to_disk(self, filepath: str) -> None:
-        """Serialize the Results object to a zip file, preserving the SQLite database.
-
-        This method creates a zip file containing:
-        1. The SQLite database file from the data container
-        2. A metadata.json file with the survey, created_columns, and other non-data info
-        3. The cache data if present
-
-        Args:
-            filepath: Path where the zip file should be saved
-
-        Raises:
-            ResultsError: If there's an error during serialization
-        """
-        import zipfile
-        import json
-        import os
-        import tempfile
-        from pathlib import Path
-        import shutil
-        from .utilities import ResultsSQLList
-
-        data_class = ResultsSQLList
-
-        try:
-            # Create a temporary directory to store files before zipping
-            with tempfile.TemporaryDirectory() as temp_dir:
-                temp_path = Path(temp_dir)
-
-                # 1. Handle the SQLite database
-                db_path = temp_path / "results.db"
-
-                if isinstance(self.results.data, list):
-                    # If data is a list, create a new SQLiteList
-                    new_db = data_class()
-                    new_db.extend(self.results.data)
-                    shutil.copy2(new_db.db_path, db_path)
-                elif hasattr(self.results.data, "db_path") and os.path.exists(
-                    self.results.data.db_path
-                ):
-                    # If data is already a SQLiteList, copy its database
-                    shutil.copy2(self.results.data.db_path, db_path)
-                else:
-                    # If no database exists, create a new one
-                    new_db = data_class()
-                    new_db.extend(self.results.data)
-                    shutil.copy2(new_db.db_path, db_path)
-
-                # 2. Create metadata.json
-                metadata = {
-                    "survey": (
-                        self.results.survey.to_dict() if self.results.survey else None
-                    ),
-                    "created_columns": self.results.created_columns,
-                    "cache": (
-                        self.results.cache.to_dict()
-                        if hasattr(self.results, "cache")
-                        else None
-                    ),
-                    "task_history": (
-                        self.results.task_history.to_dict()
-                        if hasattr(self.results, "task_history")
-                        else None
-                    ),
-                    "completed": self.results.completed,
-                    "job_uuid": (
-                        self.results._job_uuid
-                        if hasattr(self.results, "_job_uuid")
-                        else None
-                    ),
-                    "total_results": (
-                        self.results._total_results
-                        if hasattr(self.results, "_total_results")
-                        else None
-                    ),
-                }
-
-                metadata_path = temp_path / "metadata.json"
-                metadata_path.write_text(json.dumps(metadata, indent=4))
-
-                # 3. Create the zip file
-                with zipfile.ZipFile(filepath, "w", zipfile.ZIP_DEFLATED) as zipf:
-                    # Add all files from temp directory to zip
-                    for file in temp_path.glob("*"):
-                        zipf.write(file, file.name)
-
-        except Exception as e:
-            raise ResultsError(f"Error saving Results to disk: {str(e)}")
-
-    @classmethod
-    def from_disk(cls, filepath: str) -> "Results":
-        """Load a Results object from a zip file.
-
-        This method:
-        1. Extracts the SQLite database file
-        2. Loads the metadata
-        3. Creates a new Results instance with the restored data
-
-        Args:
-            filepath: Path to the zip file containing the serialized Results
-
-        Returns:
-            Results: A new Results instance with the restored data
-
-        Raises:
-            ResultsError: If there's an error during deserialization
-        """
-        import zipfile
-        import json
-        import tempfile
-        from pathlib import Path
         from ..surveys import Survey
         from ..caching import Cache
         from ..tasks import TaskHistory
-        from .utilities import ResultsSQLList
 
-        data_class = ResultsSQLList
+        lines = [l.rstrip("\n") for l in _open_lines(source) if l.strip()]
 
-        try:
-            # Import here to avoid circular imports
-            from .results import Results
+        _header = json.loads(lines[0])
+        manifest = json.loads(lines[1])
 
-            # Create a temporary directory to extract files
-            with tempfile.TemporaryDirectory() as temp_dir:
-                temp_path = Path(temp_dir)
+        n_survey = manifest["n_survey_lines"]
 
-                # Extract the zip file
-                with zipfile.ZipFile(filepath, "r") as zipf:
-                    zipf.extractall(temp_path)
+        # Survey section starts at line index 2
+        survey_lines = lines[2 : 2 + n_survey]
+        survey = Survey.from_jsonl(survey_lines)
 
-                # 1. Load metadata
-                metadata_path = temp_path / "metadata.json"
-                metadata = json.loads(metadata_path.read_text())
+        cache = Cache()
 
-                # 2. Create a new Results instance
-                results = Results(
-                    survey=(
-                        Survey.from_dict(metadata["survey"])
-                        if metadata["survey"]
-                        else None
-                    ),
-                    created_columns=metadata["created_columns"],
-                    cache=(
-                        Cache.from_dict(metadata["cache"])
-                        if metadata["cache"]
-                        else None
-                    ),
-                    task_history=(
-                        TaskHistory.from_dict(metadata["task_history"])
-                        if metadata["task_history"]
-                        else None
-                    ),
-                    job_uuid=metadata["job_uuid"],
-                    total_results=metadata["total_results"],
-                )
+        created_columns = manifest.get("created_columns", [])
+        name = manifest.get("name", None)
 
-                # 3. Set the SQLite database path if it exists
-                db_path = temp_path / "results.db"
-                if db_path.exists():
-                    # Create a new ResultsSQLList instance
-                    new_db = data_class()
-                    # Copy data from the source database - convert Path to string
-                    new_db.copy_from(str(db_path))
-                    # Set the new database as the results data
-                    results.data = new_db
+        # Result rows
+        result_start = 2 + n_survey
+        results_data = [
+            Result.from_dict(json.loads(line))
+            for line in lines[result_start:]
+            if line.strip()
+        ]
 
-                results.completed = metadata["completed"]
-                return results
+        results = Results(
+            survey=survey,
+            data=[],
+            created_columns=created_columns,
+            cache=cache,
+            task_history=TaskHistory(interviews=[]),
+            name=name,
+        )
+        for result in results_data:
+            results.append(result)
 
-        except Exception as e:
-            raise ResultsError(f"Error loading Results from disk: {str(e)}")
+        return results
+

@@ -537,7 +537,7 @@ class QuestionPydantic(QuestionBase):
 
         return schema
 
-    def _validate_answer(self, answer: dict, replacement_dict: dict = None) -> dict:
+    def _validate_answer(self, answer: dict, replacement_dict: Optional[dict] = None) -> dict:
         """
         Validate a raw answer against this question's constraints.
 

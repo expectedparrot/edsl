@@ -135,118 +135,6 @@ class PersistenceMixin:
         """
         return self.from_dict(self.to_dict(add_edsl_version=False))
 
-    def store(self, container_dict: dict, name: Optional[str] = None):
-        if name is None:
-            name = hash(self)
-        container_dict[name] = self
-        return self
-
-    @classmethod
-    def help(cls):
-        """Display the class documentation string.
-
-        This is a convenience method to quickly access the docstring of the class.
-
-        Returns:
-            None, but prints the class docstring to stdout
-        """
-        from ..widgets.object_docs_viewer import ObjectDocsViewerWidget
-
-        return ObjectDocsViewerWidget(cls.example())
-        # print(cls.__doc__)
-
-    @classmethod
-    def vibe_help(
-        cls,
-        question: str,
-        *,
-        model: str = "gpt-4o",
-        temperature: float = 0.1,
-        include_source: bool = False,
-        return_string: bool = False,
-    ):
-        """
-        Answer questions about how to use this class's methods using introspection.
-
-        This method uses inspect to analyze the class and its methods, then uses an LLM
-        to provide helpful explanations and code examples based on the user's question.
-
-        Parameters:
-            question: Natural language question about class usage.
-                Examples:
-                - "How do I filter data?"
-                - "What methods are available for data manipulation?"
-                - "How do I convert to different formats?"
-                - "Show me examples of working with this class"
-            model: OpenAI model to use for generating the response (default: "gpt-4o")
-            temperature: Temperature for generation (default: 0.1 for consistent responses)
-            include_source: If True, includes actual source code in the analysis
-            return_string: If True, always return a string instead of rendered markdown
-
-        Returns:
-            In Jupyter notebooks: Displays rendered markdown and returns None
-            In other environments: Returns markdown-formatted string
-
-        Examples:
-            >>> from edsl.dataset import Dataset
-            >>> Dataset.vibe_help("How do I select specific columns?", return_string=True)
-            >>>
-            >>> from edsl.questions import QuestionMultipleChoice
-            >>> QuestionMultipleChoice.vibe_help("How do I create a multiple choice question?")
-
-        Notes:
-            - Requires OPENAI_API_KEY environment variable to be set
-            - Uses inspect module to gather method signatures and docstrings
-            - In Jupyter: Renders as rich markdown with syntax highlighting
-            - In terminal: Returns formatted string
-            - Works with any EDSL class that inherits from Base
-        """
-        from ..dataset.vibes.vibe_help import VibeHelp
-
-        # Create an example instance to provide context
-        try:
-            example_instance = cls.example()
-        except:
-            # If example() fails, create a minimal context
-            example_instance = None
-
-        # Create the help generator
-        help_gen = VibeHelp(
-            model=model, temperature=temperature, include_source=include_source
-        )
-
-        # Generate the help response using the class directly
-        response = help_gen.get_help_for_class(question, cls, example_instance)
-
-        # Check display environment and render appropriately
-        if not return_string:
-            from ..utilities.is_notebook import is_notebook
-
-            if is_notebook():
-                # We're in a notebook environment, use IPython display
-                try:
-                    from IPython.display import Markdown, display
-
-                    display(Markdown(response))
-                    return None
-                except (NameError, ImportError):
-                    pass
-            else:
-                # We're in a terminal, use Rich markdown formatting
-                try:
-                    from rich.console import Console
-                    from rich.markdown import Markdown
-
-                    console = Console()
-                    console.print(Markdown(response))
-                    return None
-                except ImportError:
-                    # Rich not available, fall back to plain text
-                    pass
-
-        # Return the string for non-Jupyter environments or when explicitly requested
-        return response
-
     def push(
         self,
         description: Optional[str] = None,
@@ -926,6 +814,19 @@ class RepresentationMixin:
                 display_dict[key] = value
         return display_dict
 
+    def info(self) -> list:
+        """Return display sections as a list of (title, Dataset) pairs.
+
+        Override this method to control what is shown in both terminal and
+        Jupyter representations.  The base implementation converts
+        ``display_dict()`` into a single Key/Value Dataset section.
+        """
+        from edsl.dataset import Dataset
+
+        d = self.display_dict()
+        ds = Dataset([{"Key": list(d.keys())}, {"Value": list(d.values())}])
+        return [(self.__class__.__name__, ds)]
+
     def print(self, format="rich"):
         """Print a formatted table representation of this object.
 
@@ -948,45 +849,63 @@ class RepresentationMixin:
         console = Console(record=True)
         console.print(table)
 
-    def _repr_html_(self, include_class_info: bool = True):
-        """Generate an HTML representation for Jupyter notebooks.
+    def _mime_(self):
+        """Marimo display protocol — returns an interactive table.
 
-        This method is automatically called by Jupyter to render the object
-        as HTML in notebook cells.
+        Marimo checks for ``_mime_()`` before ``_repr_html_()``, so when
+        running inside a Marimo notebook the object renders as a live,
+        interactive pandas table (sortable, searchable, downloadable).
+        """
+        import marimo as mo
+
+        return mo.ui.table(
+            self.to_dataset().to_pandas(), selection=None, pagination=True
+        )._mime_()
+
+    def _repr_html_(self):
+        """Generate an HTML representation for Jupyter notebooks.
 
         Returns:
             str: HTML representation of the object
         """
-        from edsl.dataset.display.table_display import TableDisplay
+        return self.to_dataset().to_pandas()._repr_html_()
 
-        if hasattr(self, "_summary"):
-            summary_dict = self._summary()
-            summary_line = "".join([f" {k}: {v};" for k, v in summary_dict.items()])
-            class_name = self.__class__.__name__
-            docs = getattr(self, "__documentation__", "")
-            table = self.table()
-            table_html = table._repr_html_() if table is not None else ""
-            if include_class_info:
-                return (
-                    "<p>"
-                    + f"<a href='{docs}'>{class_name}</a>"
-                    + summary_line
-                    + "</p>"
-                    + table_html
-                )
-            else:
-                return table_html
-        else:
-            class_name = self.__class__.__name__
-            documentation = getattr(self, "__documentation__", "")
-            summary_line = (
-                "<p>" + f"<a href='{documentation}'>{class_name}</a>" + "</p>"
-            )
-            display_dict = self.display_dict()
-            return (
-                summary_line
-                + TableDisplay.from_dictionary_wide(display_dict)._repr_html_()
-            )
+    def _store_info_line(self) -> str:
+        """Build a dim store-metadata line if this object has been saved."""
+        accessor = self.__dict__.get("_store_accessor")
+        if accessor is None or getattr(accessor, "uuid", None) is None:
+            return ""
+        parts: list[str] = [f"uuid: {accessor.uuid[:8]}"]
+        if accessor.current_branch:
+            parts.append(f"branch: {accessor.current_branch}")
+        if accessor.commit:
+            parts.append(f"commit: {accessor.commit[:8]}")
+        try:
+            from edsl.object_store import ObjectStore
+
+            meta = ObjectStore()._index.get(accessor.uuid)
+            if meta:
+                for field in ("title", "alias", "visibility"):
+                    val = meta.get(field)
+                    if val:
+                        parts.append(f"{field}: {val}")
+                lm = meta.get("last_modified")
+                if lm:
+                    parts.append(f"modified: {str(lm)[:10]}")
+        except Exception:
+            pass
+        raw = " | ".join(parts)
+        import io
+        import shutil
+
+        from rich.console import Console
+        from rich.text import Text
+
+        width = shutil.get_terminal_size().columns
+        t = Text(raw, style="dim italic")
+        c = Console(file=io.StringIO(), force_terminal=True, width=width)
+        c.print(t, end="")
+        return c.file.getvalue()
 
     def __repr__(self):
         """Return a string representation of the object.
@@ -1003,19 +922,28 @@ class RepresentationMixin:
         if os.environ.get("EDSL_RUNNING_DOCTESTS") == "True":
             return self._eval_repr_()
 
-        # Check if we're in a Jupyter notebook environment
-        # If so, return minimal representation since _repr_html_ will handle display
         try:
             from IPython import get_ipython
 
             ipy = get_ipython()
             if ipy is not None and "IPKernelApp" in ipy.config:
-                # We're in a Jupyter notebook/kernel, not IPython terminal
                 return f"{self.__class__.__name__}(...)"
         except (NameError, ImportError):
             pass
 
-        return self._summary_repr()
+        # Use info() when overridden, else legacy _summary_repr()
+        if type(self).info is not RepresentationMixin.info:
+            parts = []
+            for title, ds in self.info():
+                parts.append(ds._summary_repr())
+            result = "\n".join(parts)
+        else:
+            result = self._summary_repr()
+
+        info = self._store_info_line()
+        if info:
+            result = result.rstrip() + "\n" + info
+        return result
 
     def __str__(self):
         """Return the string representation of the object.
@@ -1091,6 +1019,9 @@ class Base(
     All EDSL classes should inherit from this class to ensure consistent behavior
     and capabilities across the framework.
     """
+
+    from .store_accessor import StoreDescriptor
+    store = StoreDescriptor()
 
     def get_uuid(self) -> str:
         """
@@ -1264,24 +1195,9 @@ class Base(
         func(comment)
         return self
 
-    def store(self, d: dict, key_name: Optional[str] = None):
-        """Store this object in a dictionary with an optional key.
-
-        Args:
-            d: The dictionary in which to store the object
-            key_name: Optional key to use (defaults to the length of the dictionary)
-
-        Returns:
-            None
-        """
-        if key_name is None:
-            index = len(d)
-        else:
-            index = key_name
-        d[index] = self
-
+    @classmethod
     @abstractmethod
-    def from_dict():
+    def from_dict(cls, d: dict):
         """Create an instance from a dictionary.
 
         This class method must be implemented by all subclasses to provide a
@@ -1382,36 +1298,6 @@ class Base(
         results = q.run()
         return results.select("description").first()
 
-    def inspect(self):
-        """Create an interactive inspector widget for this object.
-
-        This method uses the InspectorWidget registry system to find the appropriate
-        inspector widget class for this object's type and returns an instance of it.
-
-        Returns:
-            InspectorWidget subclass instance: Interactive widget for inspecting this object
-
-        Raises:
-            KeyError: If no inspector widget is registered for this object's class
-            ImportError: If the widgets module cannot be imported
-        """
-        try:
-            from ..widgets.inspector_widget import InspectorWidget
-        except ImportError as e:
-            raise ImportError(
-                "Inspector widgets are not available. Make sure the widgets module is installed."
-            ) from e
-
-        try:
-            return InspectorWidget.create_inspector_for(self)
-        except KeyError as e:
-            available_classes = InspectorWidget.get_registered_classes()
-            raise KeyError(
-                f"No inspector widget found for {self.__class__.__name__}. "
-                f"Available inspectors: {available_classes}. "
-                f"To create a custom inspector, define a class that inherits from InspectorWidget "
-                f"with associated_class = '{self.__class__.__name__}'."
-            ) from e
 
 
 class BaseDiffCollection(UserList):

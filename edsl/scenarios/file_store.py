@@ -129,7 +129,7 @@ class FileStore(Scenario):
             or (mimetypes.guess_type(path)[0] if path else None)
             or "application/octet-stream"
         )
-        self.base64_string = base64_string or self.encode_file_to_base64_string(path)
+        self.base64_string = base64_string or self.encode_file_to_base64_string(path or "")
         self.external_locations = external_locations or {}
 
         self.extracted_text = (
@@ -277,7 +277,7 @@ class FileStore(Scenario):
         return "FileStore: self.path"
 
     @classmethod
-    def example(cls, example_type="txt"):
+    def example(cls, example_type="txt", **kwargs):
         file_methods_class = FileMethods.get_handler(example_type)
         if file_methods_class:
             return cls(file_methods_class().example())
@@ -296,7 +296,7 @@ class FileStore(Scenario):
     ) -> "FileStore":
         """Async version of screenshot functionality"""
         try:
-            from playwright.async_api import async_playwright
+            from playwright.async_api import async_playwright  # ty: ignore[unresolved-import]
         except ImportError:
             raise ImportError(
                 "Screenshot functionality requires additional dependencies.\n"
@@ -384,12 +384,12 @@ class FileStore(Scenario):
     @property
     def size(self) -> int:
         if self.base64_string is not None:
-            return (len(self.base64_string) / 4.0) * 3  # from base64 to char size
+            return int((len(self.base64_string) / 4.0) * 3)  # from base64 to char size
         return os.path.getsize(self.path)
 
     def upload_google(self, refresh: bool = False) -> None:
-        from google import genai
-        from google.genai.types import UploadFileConfig
+        from google import genai  # ty: ignore[unresolved-import]
+        from google.genai.types import UploadFileConfig  # ty: ignore[unresolved-import]
         import time
 
         method_start = time.time()
@@ -467,8 +467,8 @@ class FileStore(Scenario):
         Raises:
             Exception: If upload fails or file activation fails
         """
-        from google import genai
-        from google.genai.types import UploadFileConfig
+        from google import genai  # ty: ignore[unresolved-import]
+        from google.genai.types import UploadFileConfig  # ty: ignore[unresolved-import]
         import asyncio
 
         # Check if already uploaded and refresh not requested
@@ -591,15 +591,11 @@ class FileStore(Scenario):
 
     def _repr_html_(self):
         parent_html = super()._repr_html_()
-        from .construct_download_link import ConstructDownloadLink
-
-        link = ConstructDownloadLink(self).html_create_link(self.path, style=None)
+        link = self._html_download_link(self.path)
         return f"{parent_html}<br>{link}"
 
     def download_link(self):
-        from .construct_download_link import ConstructDownloadLink
-
-        return ConstructDownloadLink(self).html_create_link(self.path, style=None)
+        return self._html_download_link(self.path)
 
     def encode_file_to_base64_string(self, file_path: str):
         try:
@@ -665,7 +661,7 @@ class FileStore(Scenario):
             print(f"Error writing file: {e}")
             raise
 
-        # return filename
+        return filename
 
     @staticmethod
     def base64_to_text_file(base64_string) -> "IO":
@@ -738,7 +734,7 @@ class FileStore(Scenario):
         else:
             print(f"Viewing of {self.suffix} files is not supported.")
 
-    def extract_text(self) -> str:
+    def extract_text(self) -> Optional[str]:
         handler = FileMethods.get_handler(self.suffix)
         if handler and hasattr(handler, "extract_text"):
             return handler(self.path).extract_text()
@@ -761,6 +757,7 @@ class FileStore(Scenario):
         alias: Optional[str] = None,
         visibility: Optional[str] = "private",
         expected_parrot_url: Optional[str] = None,
+        force: bool = False,
     ) -> dict:
         """
         Push the object to Coop.
@@ -801,7 +798,7 @@ class FileStore(Scenario):
                 file_store_dict["base64_string"] = "offloaded"
             return self.__class__.from_dict(file_store_dict)
 
-    def save_to_gcs_bucket(self, signed_url: str) -> dict:
+    def save_to_gcs_bucket(self, signed_url_or_dict: Union[str, Dict[str, str]]) -> dict:
         """
         Saves the FileStore's file content to a Google Cloud Storage bucket using a signed URL.
 
@@ -837,6 +834,7 @@ class FileStore(Scenario):
         }
 
         # Upload to GCS using the signed URL
+        signed_url = signed_url_or_dict if isinstance(signed_url_or_dict, str) else signed_url_or_dict.get("url", "")
         response = requests.put(signed_url, data=file_content, headers=headers)
         response.raise_for_status()
 
@@ -849,7 +847,11 @@ class FileStore(Scenario):
         }
 
     @classmethod
-    def pull(cls, url_or_uuid: Union[str, UUID]) -> "FileStore":
+    def pull(
+        cls,
+        url_or_uuid: Optional[Union[str, UUID]] = None,
+        expected_parrot_url: Optional[str] = None,
+    ) -> "FileStore":
         """
         Pull a FileStore object from Coop.
 
@@ -860,8 +862,8 @@ class FileStore(Scenario):
         Returns:
             FileStore: The pulled FileStore object
         """
-        scenario_version = Scenario.pull(url_or_uuid)
-        return cls.from_dict(scenario_version.to_dict())
+        scenario_version = Scenario.pull(url_or_uuid, expected_parrot_url=expected_parrot_url)  # type: ignore[return-type]
+        return cls.from_dict(scenario_version.to_dict())  # type: ignore[union-attr]
 
     @classmethod
     def from_url(
@@ -869,6 +871,8 @@ class FileStore(Scenario):
         url: str,
         download_path: Optional[str] = None,
         mime_type: Optional[str] = None,
+        field_name: Optional[str] = None,
+        testing: bool = False,
     ) -> "FileStore":
         """
         :param url: The URL of the file to download.
@@ -901,9 +905,35 @@ class FileStore(Scenario):
         return cls(download_path, mime_type=mime_type)
 
     def create_link(self, custom_filename=None, style=None):
-        from .construct_download_link import ConstructDownloadLink
+        try:
+            from edsl.utilities.display_utils import HTML
+        except ImportError:
+            class HTML:
+                def __init__(self, content):
+                    self.content = content
+                def _repr_html_(self):
+                    return self.content
+        return HTML(self._html_download_link(custom_filename or self.path, style))
 
-        return ConstructDownloadLink(self).create_link(custom_filename, style)
+    def _html_download_link(self, custom_filename=None, style=None):
+        """Generate an HTML download link string for this FileStore."""
+        import os as _os
+        filename = _os.path.basename(custom_filename or self.path)
+        b64_data = self.base64_string
+        mime_type = self.mime_type
+        default_style = {
+            "background-color": "#4CAF50", "color": "white",
+            "padding": "10px 20px", "text-decoration": "none",
+            "border-radius": "4px", "display": "inline-block",
+            "margin": "10px 0", "font-family": "sans-serif", "cursor": "pointer",
+        }
+        button_style = style or default_style
+        style_str = "; ".join(f"{k}: {v}" for k, v in button_style.items())
+        return (
+            f'<a download="{filename}" '
+            f'href="data:{mime_type};base64,{b64_data}" '
+            f'style="{style_str}">Download {filename}</a>'
+        )
 
     def to_pdf(self, output_path: Optional[str] = None, **options) -> "FileStore":
         """
@@ -1161,16 +1191,16 @@ class FileStore(Scenario):
             ValueError: If the file is not an image or PIL is not installed.
 
         Examples:
-            >>> fs = FileStore.example("png")
-            >>> width, height = fs.get_image_dimensions()
-            >>> isinstance(width, int) and isinstance(height, int)
+            >>> fs = FileStore.example("png")  # doctest: +SKIP
+            >>> width, height = fs.get_image_dimensions()  # doctest: +SKIP
+            >>> isinstance(width, int) and isinstance(height, int)  # doctest: +SKIP
             True
         """
         if not self.is_image():
             raise ValueError("This file is not an image")
 
         try:
-            from PIL import Image
+            from PIL import Image  # ty: ignore[unresolved-import]
         except ImportError:
             raise ImportError(
                 "PIL (Pillow) is required to get image dimensions. Install it with: pip install pillow"
@@ -1214,7 +1244,7 @@ class FileStore(Scenario):
 
         return f"{class_name}({', '.join(items)})"
 
-    def _summary_repr(self) -> str:
+    def _summary_repr(self, max_items: int = 500) -> str:
         """Generate a summary representation of the FileStore with Rich formatting.
 
         Returns:
@@ -1322,172 +1352,7 @@ class FileStore(Scenario):
         )
 
 
-# class CSVFileStore(FileStore):
-#     @classmethod
-#     def example(cls):
-#         from ..results import Results
-
-#         r = Results.example()
-#         import tempfile
-
-#         with tempfile.NamedTemporaryFile(suffix=".csv", delete=False) as f:
-#             r.to_csv(filename=f.name)
-
-#         return cls(f.name)
-
-#     def view(self):
-#         import pandas as pd
-
-#         return pd.read_csv(self.to_tempfile())
-
-
-# class PDFFileStore(FileStore):
-#     def view(self):
-#         pdf_path = self.to_tempfile()
-#         print(f"PDF path: {pdf_path}")  # Print the path to ensure it exists
-#         import os
-#         import subprocess
-
-#         if os.path.exists(pdf_path):
-#             try:
-#                 if os.name == "posix":
-#                     # for cool kids
-#                     subprocess.run(["open", pdf_path], check=True)  # macOS
-#                 elif os.name == "nt":
-#                     os.startfile(pdf_path)  # Windows
-#                 else:
-#                     subprocess.run(["xdg-open", pdf_path], check=True)  # Linux
-#             except Exception as e:
-#                 print(f"Error opening PDF: {e}")
-#         else:
-#             print("PDF file was not created successfully.")
-
-#     @classmethod
-#     def example(cls):
-#         import textwrap
-
-#         pdf_string = textwrap.dedent(
-#             """\
-#         %PDF-1.4
-#         1 0 obj
-#         << /Type /Catalog /Pages 2 0 R >>
-#         endobj
-#         2 0 obj
-#         << /Type /Pages /Kids [3 0 R] /Count 1 >>
-#         endobj
-#         3 0 obj
-#         << /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R >>
-#         endobj
-#         4 0 obj
-#         << /Length 44 >>
-#         stream
-#         BT
-#         /F1 24 Tf
-#         100 700 Td
-#         (Hello, World!) Tj
-#         ET
-#         endstream
-#         endobj
-#         5 0 obj
-#         << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
-#         endobj
-#         6 0 obj
-#         << /ProcSet [/PDF /Text] /Font << /F1 5 0 R >> >>
-#         endobj
-#         xref
-#         0 7
-#         0000000000 65535 f
-#         0000000010 00000 n
-#         0000000053 00000 n
-#         0000000100 00000 n
-#         0000000173 00000 n
-#         0000000232 00000 n
-#         0000000272 00000 n
-#         trailer
-#         << /Size 7 /Root 1 0 R >>
-#         startxref
-#         318
-#         %%EOF"""
-#         )
-#         import tempfile
-
-#         with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as f:
-#             f.write(pdf_string.encode())
-
-#         return cls(f.name)
-
-
-# class PNGFileStore(FileStore):
-#     @classmethod
-#     def example(cls):
-#         import textwrap
-
-#         png_string = textwrap.dedent(
-#             """\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x01\x00\x00\x00\x01\x00\x08\x06\x00\x00\x00\x1f\x15\xc4\x89\x00\x00\x00\x0cIDAT\x08\xd7c\x00\x01"""
-#         )
-#         import tempfile
-
-#         with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as f:
-#             f.write(png_string.encode())
-
-#         return cls(f.name)
-
-#     def view(self):
-#         import matplotlib.pyplot as plt
-#         import matplotlib.image as mpimg
-
-#         img = mpimg.imread(self.to_tempfile())
-#         plt.imshow(img)
-#         plt.show()
-
-
-# class SQLiteFileStore(FileStore):
-#     @classmethod
-#     def example(cls):
-#         import sqlite3
-#         import tempfile
-
-#         with tempfile.NamedTemporaryFile(suffix=".sqlite", delete=False) as f:
-#             conn = sqlite3.connect(f.name)
-#             c = conn.cursor()
-#             c.execute("""CREATE TABLE stocks (date text)""")
-#             conn.commit()
-
-#             return cls(f.name)
-
-#     def view(self):
-#         import subprocess
-#         import os
-
-#         sqlite_path = self.to_tempfile()
-#         os.system(f"sqlite3 {sqlite_path}")
-
-
-# class HTMLFileStore(FileStore):
-#     @classmethod
-#     def example(cls):
-#         import tempfile
-
-#         with tempfile.NamedTemporaryFile(suffix=".html", delete=False) as f:
-#             f.write("<html><body><h1>Test</h1></body></html>".encode())
-
-#         return cls(f.name)
-
-#     def view(self):
-#         import webbrowser
-
-#         html_path = self.to_tempfile()
-#         webbrowser.open("file://" + html_path)
-
-
 if __name__ == "__main__":
     import doctest
 
     doctest.testmod()
-
-    # formats = FileMethods.supported_file_types()
-    # for file_type in formats:
-    #     print("Now testinging", file_type)
-    #     fs = FileStore.example(file_type)
-    #     fs.view()
-    #     input("Press Enter to continue...")

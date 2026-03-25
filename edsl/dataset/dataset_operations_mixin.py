@@ -25,11 +25,9 @@ from .exceptions import (
     DatasetKeyError,
     DatasetValueError,
     DatasetTypeError,
-    DatasetExportError,
 )
 
 if TYPE_CHECKING:
-    from docx import Document
     from .dataset import Dataset
     from ..scenarios import ScenarioList
     from ..jobs import Job  # noqa: F401
@@ -64,8 +62,6 @@ class DataOperationsBase:
     4. Analysis:
        - SQL-based querying with `sql()`
        - Aggregation with `tally()`
-       - Tree-based exploration
-
     These operations are designed to be applied fluently in sequence, enabling
     expressive data manipulation pipelines.
     """
@@ -133,8 +129,6 @@ class DataOperationsBase:
     ):
         """
         Create visualizations using R's ggplot2 library.
-
-        This is an alias for the ggplot2 method, provided for symmetry with vibe_plot.
 
         Parameters:
             ggplot_code: R code string containing ggplot2 commands
@@ -238,154 +232,6 @@ class DataOperationsBase:
 
         # Return 0 for empty datasets instead of None
         return _num_observations if _num_observations is not None else 0
-
-    def vibe_plot(
-        self,
-        description: str,
-        show_code: bool = True,
-        show_expression: bool = False,
-        height: float = 4,
-        width: float = 6,
-    ):
-        """
-        Generate and display a ggplot2 visualization using natural language description.
-
-        Parameters:
-            description: Natural language description of the desired plot
-            show_code: If True, displays the generated R code alongside the plot
-            show_expression: If True, prints the R code used (alias for show_code)
-            height: Plot height in inches (default: 4)
-            width: Plot width in inches (default: 6)
-
-        Returns:
-            A plot object that renders in Jupyter notebooks
-
-        Examples:
-            >>> from edsl.results import Results
-            >>> r = Results.example()
-            >>> # Generate a plot from a description (requires R/ggplot2):
-            >>> # plot = r.vibe_plot("bar chart of how_feeling")
-            >>> # Display with R code shown:
-            >>> # plot = r.vibe_plot("bar chart of how_feeling", show_expression=True)
-            >>> # Custom dimensions:
-            >>> # plot = r.vibe_plot("scatter plot of age vs income", height=8, width=10)
-        """
-        from .vibes.vibe_viz import GGPlotGenerator
-
-        gen = GGPlotGenerator(model="gpt-4o", temperature=0.1)
-
-        # Either show_code or show_expression will trigger displaying the code
-        should_show = show_code or show_expression
-
-        if should_show:
-            # Get the code display object
-            code_display = gen.make_plot_code(
-                self.to_pandas(remove_prefix=True),
-                description,
-                return_display=True,
-                show_code=True,
-            )
-            # Extract the actual code string for ggplot2
-            r_code = code_display.code
-
-            # Display the code (in Jupyter it will show with copy button, in terminal just the code)
-            try:
-                from IPython.display import display
-                from ..utilities.utilities import is_notebook
-
-                if is_notebook():
-                    display(code_display)
-                else:
-                    print(r_code)
-            except ImportError:
-                # Not in a notebook environment
-                print(r_code)
-        else:
-            # Get just the code string
-            r_code = gen.make_plot_code(self.to_pandas(remove_prefix=True), description)
-
-        return self.ggplot2(r_code, height=height, width=width)
-
-    def vibe_sql(
-        self,
-        description: str,
-        show_code: bool = True,
-        show_expression: bool = False,
-        transpose: bool = None,
-        transpose_by: str = None,
-        remove_prefix: bool = True,
-        shape: str = "wide",
-    ):
-        """
-        Generate and execute a SQL query using natural language description.
-
-        Parameters:
-            description: Natural language description of the desired query
-            show_code: If True, displays the generated SQL query with copy button
-            show_expression: If True, displays the generated SQL query (alias for show_code)
-            transpose: Whether to transpose the resulting table (rows become columns)
-            transpose_by: Column to use as the new index when transposing
-            remove_prefix: Whether to remove type prefixes from column names
-            shape: Data shape to use ("wide" or "long")
-
-        Returns:
-            A Dataset object containing the query results
-
-        Examples:
-            >>> from edsl.results import Results
-            >>> r = Results.example()
-            >>> # Generate and execute a query from a description:
-            >>> # result = r.vibe_sql("Show all people over 30")
-            >>> # With query shown:
-            >>> # result = r.vibe_sql("Count by occupation", show_expression=True)
-            >>> # Aggregation query:
-            >>> # result = r.vibe_sql("Average age by city")
-        """
-        from .vibes.vibe_sql import VibeSQLGenerator
-
-        gen = VibeSQLGenerator(model="gpt-4o", temperature=0.1)
-
-        # Either show_code or show_expression will trigger displaying the code
-        should_show = show_code or show_expression
-
-        if should_show:
-            # Get the SQL query with display object
-            query_display = gen.make_sql_query(
-                self.to_pandas(remove_prefix=remove_prefix),
-                description,
-                return_display=True,
-                show_code=True,
-            )
-            # Extract the actual SQL query string
-            sql_query = query_display.code
-
-            # Display the code (in Jupyter it will show with copy button, in terminal just the query)
-            try:
-                from IPython.display import display
-                from ..utilities.utilities import is_notebook
-
-                if is_notebook():
-                    display(query_display)
-                else:
-                    print(sql_query)
-            except ImportError:
-                # Not in a notebook environment
-                print("Generated SQL query:")
-                print(sql_query)
-        else:
-            # Get just the SQL query string without display
-            sql_query = gen.make_sql_query(
-                self.to_pandas(remove_prefix=remove_prefix), description
-            )
-
-        # Execute the query and return the result
-        return self.sql(
-            sql_query,
-            transpose=transpose,
-            transpose_by=transpose_by,
-            remove_prefix=remove_prefix,
-            shape=shape,
-        )
 
     def chart(self):
         """
@@ -596,48 +442,74 @@ class DataOperationsBase:
             shape: The shape of the data in the database ("wide" or "long")
 
         Returns:
-            A database connection
+            A sqlite3 connection
 
         Examples:
-            >>> from sqlalchemy import text
             >>> from edsl import Results
-            >>> engine = Results.example()._db()
-            >>> len(engine.execute(text("SELECT * FROM self")).fetchall())
+            >>> conn = Results.example()._db()
+            >>> len(conn.execute("SELECT * FROM self").fetchall())
             4
-            >>> engine = Results.example()._db(shape = "long")
-            >>> len(engine.execute(text("SELECT * FROM self")).fetchall())
+            >>> conn = Results.example()._db(shape = "long")
+            >>> len(conn.execute("SELECT * FROM self").fetchall())
             200
         """
-        # Import needed for database connection
-        from sqlalchemy import create_engine
+        import csv
+        import sqlite3
 
-        engine = create_engine("sqlite:///:memory:")
-        if remove_prefix and shape == "wide":
-            df = self.remove_prefix().to_pandas(lists_as_strings=True)
-        else:
-            df = self.to_pandas(lists_as_strings=True)
+        # Use to_csv to serialize all data to strings (handles complex objects)
+        csv_string = self.to_csv(
+            remove_prefix=(remove_prefix and shape == "wide")
+        ).text
+        reader = csv.reader(io.StringIO(csv_string))
+        columns = next(reader)
+        rows = list(reader)
+
+        conn = sqlite3.connect(":memory:")
 
         if shape == "long":
-            # Melt the dataframe to convert it to long format
-            df = df.melt(var_name="key", value_name="value")
-            # Add a row number column for reference
-            df.insert(0, "row_number", range(1, len(df) + 1))
-
-            # Split the key into data_type and key
-            df["data_type"] = df["key"].apply(
-                lambda x: x.split(".")[0] if "." in x else None
+            conn.execute(
+                "CREATE TABLE self (row_number INTEGER, key TEXT, value TEXT, data_type TEXT)"
             )
-            df["key"] = df["key"].apply(
-                lambda x: ".".join(x.split(".")[1:]) if "." in x else x
-            )
+            row_num = 1
+            for col_name in columns:
+                col_idx = columns.index(col_name)
+                if "." in col_name:
+                    data_type = col_name.split(".")[0]
+                    key = ".".join(col_name.split(".")[1:])
+                else:
+                    data_type = None
+                    key = col_name
+                for row in rows:
+                    val = row[col_idx] if row[col_idx] != "" else None
+                    conn.execute(
+                        "INSERT INTO self VALUES (?, ?, ?, ?)",
+                        (row_num, key, val, data_type),
+                    )
+                    row_num += 1
+        else:
+            quoted_cols = [f'"{c}"' for c in columns]
+            conn.execute(f"CREATE TABLE self ({', '.join(quoted_cols)})")
+            placeholders = ", ".join(["?"] * len(columns))
+            for row in rows:
+                # Try to convert numeric strings back to numbers
+                typed_row = []
+                for val in row:
+                    if val == "":
+                        typed_row.append(None)
+                    else:
+                        try:
+                            typed_row.append(int(val))
+                        except ValueError:
+                            try:
+                                typed_row.append(float(val))
+                            except ValueError:
+                                typed_row.append(val)
+                conn.execute(
+                    f"INSERT INTO self VALUES ({placeholders})", typed_row
+                )
 
-        df.to_sql(
-            "self",
-            engine,
-            index=False,
-            if_exists="replace",
-        )
-        return engine.connect()
+        conn.commit()
+        return conn
 
     def sql(
         self,
@@ -693,22 +565,43 @@ class DataOperationsBase:
             >>> len(r.sql("SELECT * FROM self", shape="long"))
             200
         """
-        import pandas as pd
-
         conn = self._db(remove_prefix=remove_prefix, shape=shape)
-        df = pd.read_sql_query(query, conn)
-
-        # Transpose the DataFrame if transpose is True
-        if transpose or transpose_by:
-            df = pd.DataFrame(df)
-            if transpose_by:
-                df = df.set_index(transpose_by)
-            else:
-                df = df.set_index(df.columns[0])
-            df = df.transpose()
+        cursor = conn.execute(query)
+        col_names = [desc[0] for desc in cursor.description]
+        rows = cursor.fetchall()
         from .dataset import Dataset
 
-        return Dataset.from_pandas_dataframe(df)
+        if transpose or transpose_by:
+            # Determine which column to use as the index
+            index_col = transpose_by if transpose_by else col_names[0]
+            idx_pos = col_names.index(index_col)
+            value_cols = [c for c in col_names if c != index_col]
+
+            # Index values become the new column names
+            index_values = [row[idx_pos] for row in rows]
+
+            # Each new column corresponds to one old row;
+            # each new row corresponds to one old value column
+            result_entries = []
+            for idx_val in index_values:
+                col_data = []
+                row_for_val = next(r for r in rows if r[idx_pos] == idx_val)
+                for vc in value_cols:
+                    vc_pos = col_names.index(vc)
+                    col_data.append(row_for_val[vc_pos])
+                result_entries.append({str(idx_val): col_data})
+
+            return Dataset(result_entries)
+
+        # Standard (non-transpose) case
+        result_entries = []
+        for i, col in enumerate(col_names):
+            result_entries.append({col: [row[i] for row in rows]})
+        return Dataset(result_entries)
+
+    def to_pandas_for_display(self):
+        """Convert to a pandas DataFrame for notebook display."""
+        return self.to_pandas()
 
     def to_pandas(self, remove_prefix: bool = False, lists_as_strings=False):
         """Convert the results to a pandas DataFrame, ensuring that lists remain as lists.
@@ -730,16 +623,21 @@ class DataOperationsBase:
             remove_prefix: Whether to remove the prefix from the column names.
 
         Examples:
-            >>> from edsl.results import Results
-            >>> r = Results.example()
-            >>> r.select('how_feeling').to_pandas()
+            >>> from edsl.results import Results  # doctest: +SKIP
+            >>> r = Results.example()  # doctest: +SKIP
+            >>> r.select('how_feeling').to_pandas()  # doctest: +SKIP
               answer.how_feeling
             0                 OK
             1              Great
             2           Terrible
             3                 OK
         """
-        import pandas as pd
+        try:
+            import pandas as pd
+        except ImportError:
+            from ..base.exceptions import MissingOptionalDependencyError
+
+            raise MissingOptionalDependencyError("pandas", "file-formats")
 
         # Handle empty dataset case
         if not self.data:
@@ -778,19 +676,6 @@ class DataOperationsBase:
         csv_string = self.to_csv(remove_prefix=remove_prefix).text
         df = pl.read_csv(io.StringIO(csv_string))
         return df
-
-    def tree(self, node_order: Optional[List[str]] = None):
-        """Convert the results to a Tree.
-
-        Args:
-            node_order: The order of the nodes.
-
-        Returns:
-            A Tree object.
-        """
-        from .dataset_tree import Tree
-
-        return Tree(self, node_order=node_order)
 
     def to_scenario_list(self, remove_prefix: bool = True) -> "ScenarioList":
         """Convert the results to a list of dictionaries, one per scenario.
@@ -955,810 +840,6 @@ class DataOperationsBase:
 
         if return_link:
             return filename
-
-    def _prepare_report_data(
-        self,
-        *fields: Optional[str],
-        top_n: Optional[int] = None,
-        header_fields: Optional[List[str]] = None,
-    ) -> tuple:
-        """Prepares data for report generation in various formats.
-
-        Args:
-            *fields: The fields to include in the report. If none provided, all fields are used.
-            top_n: Optional limit on the number of observations to include.
-            header_fields: Optional list of fields to include in the main header instead of as sections.
-
-        Returns:
-            A tuple containing (field_data, num_obs, fields, header_fields)
-        """
-        # If no fields specified, use all columns
-        if not fields:
-            fields = self.relevant_columns()
-
-        # Initialize header_fields if not provided
-        if header_fields is None:
-            header_fields = []
-
-        # Validate all fields
-        all_fields = list(fields) + [f for f in header_fields if f not in fields]
-        for field in all_fields:
-            if field not in self.relevant_columns():
-                raise DatasetKeyError(f"Field '{field}' not found in dataset")
-
-        # Get data for each field
-        field_data = {}
-        for field in all_fields:
-            for entry in self:
-                if field in entry:
-                    field_data[field] = entry[field]
-                    break
-
-        # Number of observations to process
-        num_obs = self.num_observations()
-        if top_n is not None:
-            num_obs = min(num_obs, top_n)
-
-        return field_data, num_obs, fields, header_fields
-
-    def _report_markdown(
-        self, field_data, num_obs, fields, header_fields, divider: bool = True
-    ) -> str:
-        """Generates a markdown report from the prepared data.
-
-        Args:
-            field_data: Dictionary mapping field names to their values
-            num_obs: Number of observations to include
-            fields: Fields to include as sections
-            header_fields: Fields to include in the observation header
-            divider: If True, adds a horizontal rule between observations
-
-        Returns:
-            A string containing the markdown report
-        """
-        report_lines = []
-        for i in range(num_obs):
-            # Create header with observation number and any header fields
-            header = f"# Observation: {i+1}"
-            if header_fields:
-                header_parts = []
-                for field in header_fields:
-                    value = field_data[field][i]
-                    # Get the field name without prefix for cleaner display
-                    display_name = field.split(".")[-1] if "." in field else field
-                    # Format with backticks for monospace
-                    header_parts.append(f"`{display_name}`: {value}")
-                if header_parts:
-                    header += f" ({', '.join(header_parts)})"
-            report_lines.append(header)
-
-            # Add the remaining fields
-            for field in fields:
-                if field not in header_fields:
-                    report_lines.append(f"## {field}")
-                    value = field_data[field][i]
-                    if isinstance(value, list) or isinstance(value, dict):
-                        import json
-
-                        report_lines.append(f"```\n{json.dumps(value, indent=2)}\n```")
-                    else:
-                        report_lines.append(str(value))
-
-            # Add divider between observations if requested
-            if divider and i < num_obs - 1:
-                report_lines.append("\n---\n")
-            else:
-                report_lines.append("")  # Empty line between observations
-
-        return "\n".join(report_lines)
-
-    def _report_docx(self, field_data, num_obs, fields, header_fields) -> "Document":
-        """Generates a Word document report from the prepared data.
-
-        Args:
-            field_data: Dictionary mapping field names to their values
-            num_obs: Number of observations to include
-            fields: Fields to include as sections
-            header_fields: Fields to include in the observation header
-
-        Returns:
-            A docx.Document object containing the report
-        """
-        try:
-            from docx import Document
-            from docx.shared import Pt
-            import json
-        except ImportError:
-            from .exceptions import DatasetImportError
-
-            raise DatasetImportError(
-                "The python-docx package is required for DOCX export. Install it with 'pip install python-docx'."
-            )
-
-        doc = Document()
-
-        for i in range(num_obs):
-            # Create header with observation number and any header fields
-            header_text = f"Observation: {i+1}"
-            if header_fields:
-                header_parts = []
-                for field in header_fields:
-                    value = field_data[field][i]
-                    # Get the field name without prefix for cleaner display
-                    display_name = field.split(".")[-1] if "." in field else field
-                    header_parts.append(f"{display_name}: {value}")
-                if header_parts:
-                    header_text += f" ({', '.join(header_parts)})"
-
-            doc.add_heading(header_text, level=1)
-
-            # Add the remaining fields
-            for field in fields:
-                if field not in header_fields:
-                    doc.add_heading(field, level=2)
-                    value = field_data[field][i]
-
-                    if isinstance(value, (list, dict)):
-                        # Format structured data with indentation
-                        formatted_value = json.dumps(value, indent=2)
-                        p = doc.add_paragraph()
-                        p.add_run(formatted_value).font.name = "Courier New"
-                        p.add_run().font.size = Pt(10)
-                    else:
-                        doc.add_paragraph(str(value))
-
-            # Add page break between observations except for the last one
-            if i < num_obs - 1:
-                doc.add_page_break()
-
-        return doc
-
-    def report(
-        self,
-        *fields: Optional[str],
-        top_n: Optional[int] = None,
-        header_fields: Optional[List[str]] = None,
-        divider: bool = True,
-        return_string: bool = False,
-        format: str = "markdown",
-        filename: Optional[str] = None,
-    ) -> Optional[Union[str, "Document"]]:
-        """Generates a report of the results by iterating through rows.
-
-        Args:
-            *fields: The fields to include in the report. If none provided, all fields are used.
-            top_n: Optional limit on the number of observations to include.
-            header_fields: Optional list of fields to include in the main header instead of as sections.
-            divider: If True, adds a horizontal rule between observations (markdown only).
-            return_string: If True, returns the markdown string. If False (default in notebooks),
-                          only displays the markdown without returning.
-            format: Output format - either "markdown" or "docx".
-            filename: If provided and format is "docx", saves the document to this file.
-
-        Returns:
-            Depending on format and return_string:
-            - For markdown: A string if return_string is True, otherwise None (displays in notebook)
-            - For docx: A docx.Document object, or None if filename is provided (saves to file)
-
-        Examples:
-            >>> from edsl.results import Results
-            >>> r = Results.example()
-            >>> report = r.select('how_feeling').report(return_string=True)
-            >>> "# Observation: 1" in report
-            True
-            >>> doc = r.select('how_feeling').report(format="docx")
-            >>> isinstance(doc, object)
-            True
-        """
-        from ..utilities.utilities import is_notebook
-
-        # Prepare the data for the report
-        field_data, num_obs, fields, header_fields = self._prepare_report_data(
-            *fields, top_n=top_n, header_fields=header_fields
-        )
-
-        # Generate the report in the requested format
-        if format.lower() == "markdown":
-            report_text = self._report_markdown(
-                field_data, num_obs, fields, header_fields, divider
-            )
-
-            # In notebooks, display as markdown
-            is_nb = is_notebook()
-            if is_nb and not return_string:
-                from IPython.display import Markdown, display
-
-                display(Markdown(report_text))
-                return None
-
-            # Return the string if requested or if not in a notebook
-            return report_text
-
-        elif format.lower() == "docx":
-            doc = self._report_docx(field_data, num_obs, fields, header_fields)
-
-            # Save to file if filename is provided
-            if filename:
-                doc.save(filename)
-                print(f"Report saved to {filename}")
-                return None
-
-            return doc
-
-        else:
-            raise DatasetExportError(
-                f"Unsupported format: {format}. Use 'markdown' or 'docx'."
-            )
-
-    def confusion_matrix(
-        self, actual_field: str, predicted_field: str, normalize: Optional[str] = None
-    ) -> "Dataset":
-        """
-        Create a confusion matrix comparing two categorical fields.
-
-        A confusion matrix is a table that shows the frequency of actual vs predicted values,
-        useful for evaluating classification results. Rows typically represent actual values
-        and columns represent predicted values.
-
-        Parameters:
-            actual_field: The field containing actual/true values
-            predicted_field: The field containing predicted values
-            normalize: Optional normalization mode:
-                - None (default): Show raw counts
-                - "true": Normalize over true (row) conditions
-                - "pred": Normalize over predicted (column) conditions
-                - "all": Normalize over all observations
-
-        Returns:
-            A Dataset object with the confusion matrix where:
-            - First column contains the unique values from actual_field
-            - Additional columns contain counts for each unique value in predicted_field
-            - Column names are the unique values from predicted_field
-            - Optionally normalized based on the normalize parameter
-
-        Notes:
-            - Field names can be specified with or without prefixes (e.g., 'field' or 'answer.field')
-            - Missing values (None) are included as a separate category
-            - The resulting Dataset can be displayed as a table using .table()
-            - Results are sorted by the actual_field values
-
-        Examples:
-            >>> from edsl.dataset import Dataset
-            >>> d = Dataset([
-            ...     {'actual': ['cat', 'cat', 'dog', 'dog', 'dog']},
-            ...     {'predicted': ['cat', 'dog', 'dog', 'dog', 'cat']}
-            ... ])
-            >>> cm = d.confusion_matrix('actual', 'predicted')
-            >>> sorted(cm.keys())
-            ['actual', 'cat', 'dog']
-
-            >>> # With normalization over rows (true conditions)
-            >>> cm_norm = d.confusion_matrix('actual', 'predicted', normalize='true')
-            >>> sorted(cm_norm.keys())
-            ['actual', 'cat', 'dog']
-        """
-        # Validate normalize parameter
-        if normalize not in [None, "true", "pred", "all"]:
-            raise DatasetValueError(
-                f"normalize must be None, 'true', 'pred', or 'all', got '{normalize}'"
-            )
-
-        # Get the values for both fields
-        actual_values = self._key_to_value(actual_field)
-        predicted_values = self._key_to_value(predicted_field)
-
-        if len(actual_values) != len(predicted_values):
-            raise DatasetValueError(
-                f"Fields must have the same length. "
-                f"{actual_field} has {len(actual_values)} values, "
-                f"{predicted_field} has {len(predicted_values)} values."
-            )
-
-        # Get unique values for both fields (sorted for consistency)
-        unique_actual = sorted(set(actual_values), key=lambda x: (x is None, x))
-        unique_predicted = sorted(set(predicted_values), key=lambda x: (x is None, x))
-
-        # Build the confusion matrix as a dictionary of counts
-        matrix = {}
-        for actual_val in unique_actual:
-            matrix[actual_val] = {}
-            for pred_val in unique_predicted:
-                matrix[actual_val][pred_val] = 0
-
-        # Count occurrences
-        for actual_val, pred_val in zip(actual_values, predicted_values):
-            matrix[actual_val][pred_val] += 1
-
-        # Apply normalization if requested
-        if normalize == "true":
-            # Normalize by row (actual values)
-            for actual_val in unique_actual:
-                row_sum = sum(matrix[actual_val].values())
-                if row_sum > 0:
-                    for pred_val in unique_predicted:
-                        matrix[actual_val][pred_val] /= row_sum
-        elif normalize == "pred":
-            # Normalize by column (predicted values)
-            col_sums = {pred_val: 0 for pred_val in unique_predicted}
-            for actual_val in unique_actual:
-                for pred_val in unique_predicted:
-                    col_sums[pred_val] += matrix[actual_val][pred_val]
-            for actual_val in unique_actual:
-                for pred_val in unique_predicted:
-                    if col_sums[pred_val] > 0:
-                        matrix[actual_val][pred_val] /= col_sums[pred_val]
-        elif normalize == "all":
-            # Normalize by total count
-            total = sum(
-                matrix[actual_val][pred_val]
-                for actual_val in unique_actual
-                for pred_val in unique_predicted
-            )
-            if total > 0:
-                for actual_val in unique_actual:
-                    for pred_val in unique_predicted:
-                        matrix[actual_val][pred_val] /= total
-
-        # Convert to Dataset format
-        # First column is the actual values
-        dataset_data = [{actual_field: unique_actual}]
-
-        # Add a column for each predicted value
-        for pred_val in unique_predicted:
-            col_name = str(pred_val) if pred_val is not None else "None"
-            col_values = [matrix[actual_val][pred_val] for actual_val in unique_actual]
-            dataset_data.append({col_name: col_values})
-
-        from ..dataset import Dataset
-
-        result = Dataset(dataset_data)
-        # Mark this as a confusion matrix for validation in perplexity()
-        result._is_confusion_matrix = True
-        result._confusion_matrix_metadata = {
-            "actual_field": actual_field,
-            "predicted_values": unique_predicted,
-            "actual_values": unique_actual,
-            "normalize": normalize,
-        }
-        return result
-
-    def perplexity(self, per_class: bool = False) -> Union[float, "Dataset"]:
-        """
-        Calculate perplexity from a confusion matrix.
-
-        Perplexity measures the uncertainty or "confusion" of a classifier based on the
-        cross-entropy of predictions. It's calculated as exp(average negative log-likelihood)
-        where the log-likelihood is computed from the probability assigned to the correct
-        class. Lower perplexity indicates better model performance.
-
-        This method can only be called on a Dataset that was created by the confusion_matrix()
-        method. For each actual class, we look at the probability assigned to predicting that
-        correct class (the diagonal of the confusion matrix). The overall perplexity is the
-        weighted average across all classes.
-
-        Args:
-            per_class: If True, returns a Dataset with per-class perplexity values.
-                      If False (default), returns the overall weighted perplexity as a float.
-
-        Returns:
-            If per_class=False: A float representing the weighted average perplexity
-            If per_class=True: A Dataset with perplexity for each actual class
-
-        Raises:
-            DatasetNotConfusionMatrixError: If called on a Dataset that is not a confusion matrix
-
-        Notes:
-            - Perplexity of 1.0 means perfect prediction (100% accuracy)
-            - Perplexity of N means random guessing (uniform distribution over N classes)
-            - Uses natural logarithm (ln) for calculation: perplexity = exp(-ln(p_correct))
-            - For raw count matrices, rows are normalized to probabilities
-            - Weighted average accounts for class imbalance in the data
-
-        Examples:
-            >>> from edsl.dataset import Dataset
-            >>> d = Dataset([
-            ...     {'actual': ['cat', 'cat', 'dog', 'dog', 'dog']},
-            ...     {'predicted': ['cat', 'dog', 'dog', 'dog', 'cat']}
-            ... ])
-            >>> cm = d.confusion_matrix('actual', 'predicted')
-            >>> perp = cm.perplexity()
-            >>> isinstance(perp, float)
-            True
-            >>> perp >= 1.0
-            True
-
-            >>> # Get per-class perplexity
-            >>> per_class_perp = cm.perplexity(per_class=True)
-            >>> 'actual' in per_class_perp.keys()
-            True
-            >>> 'perplexity' in per_class_perp.keys()
-            True
-        """
-        import math
-        from .exceptions import DatasetNotConfusionMatrixError
-
-        # Check if this is a confusion matrix
-        if not hasattr(self, "_is_confusion_matrix") or not self._is_confusion_matrix:
-            raise DatasetNotConfusionMatrixError(
-                "perplexity() can only be called on a Dataset created by confusion_matrix(). "
-                "Create a confusion matrix first using: dataset.confusion_matrix(actual_field, predicted_field)"
-            )
-
-        # Get metadata
-        metadata = self._confusion_matrix_metadata
-        actual_field = metadata["actual_field"]
-        actual_values = metadata["actual_values"]
-
-        # Get the data as a pandas DataFrame for easier manipulation
-        df = self.to_pandas()
-
-        # Calculate perplexity for each actual class (row)
-        # We need both the per-class perplexity and the sample counts for weighting
-        perplexities = []
-        sample_counts = []
-
-        for i, actual_val in enumerate(actual_values):
-            # Get the row for this actual value
-            row = df[df[actual_field] == actual_val]
-
-            if len(row) == 0:
-                continue
-
-            # Extract probability values (all columns except the actual_field column)
-            prob_cols = [col for col in df.columns if col != actual_field]
-            probs = row[prob_cols].values[0]
-
-            # Normalize if needed (convert counts to probabilities)
-            row_sum = sum(probs)
-            if row_sum > 0:
-                probs = [p / row_sum for p in probs]
-            else:
-                # Handle edge case of all zeros
-                probs = [1.0 / len(probs) for _ in probs]
-
-            # Get the probability of the correct prediction (diagonal element)
-            # The correct prediction is at the same index as the actual value
-            p_correct = probs[i] if i < len(probs) else 0.0
-
-            # Avoid log(0) by using a small epsilon
-            if p_correct <= 0:
-                p_correct = 1e-10
-
-            # Calculate perplexity for this class: exp(-ln(p_correct))
-            # This is equivalent to: perplexity = 1 / p_correct, but we use exp(-log(p))
-            # for numerical stability and to match the standard definition
-            perplexity_val = math.exp(-math.log(p_correct))
-
-            perplexities.append(perplexity_val)
-            sample_counts.append(row_sum)
-
-        if per_class:
-            # Return a Dataset with per-class perplexity
-            from ..dataset import Dataset
-
-            return Dataset(
-                [{actual_field: list(actual_values)}, {"perplexity": perplexities}]
-            )
-        else:
-            # Return weighted average perplexity
-            # Weight by the number of samples in each class
-            total_samples = sum(sample_counts)
-            if total_samples == 0:
-                return 0.0
-
-            # Calculate weighted average of log probabilities, then exp()
-            weighted_log_sum = sum(
-                count * math.log(1.0 / perp)
-                for count, perp in zip(sample_counts, perplexities)
-            )
-            average_log_prob = weighted_log_sum / total_samples
-
-            return math.exp(-average_log_prob)
-
-    def true_positive_count(self, per_class: bool = False) -> Union[int, "Dataset"]:
-        """
-        Get the count of true positives from a confusion matrix.
-
-        True positives are the correctly predicted instances for each class,
-        represented by the diagonal elements of the confusion matrix.
-
-        This method can only be called on a Dataset that was created by the confusion_matrix()
-        method.
-
-        Args:
-            per_class: If True, returns a Dataset with true positive counts for each class.
-                      If False (default), returns the total count of true positives as an int.
-
-        Returns:
-            If per_class=False: An integer representing the total count of correct predictions
-            If per_class=True: A Dataset with true positive counts for each actual class
-
-        Raises:
-            DatasetNotConfusionMatrixError: If called on a Dataset that is not a confusion matrix
-
-        Notes:
-            - True positives are the diagonal elements of the confusion matrix
-            - Total true positives equals the number of correct predictions
-            - For multi-class problems, this sums all diagonal elements
-
-        Examples:
-            >>> from edsl.dataset import Dataset
-            >>> d = Dataset([
-            ...     {'actual': ['cat', 'cat', 'dog', 'dog', 'dog']},
-            ...     {'predicted': ['cat', 'dog', 'dog', 'dog', 'cat']}
-            ... ])
-            >>> cm = d.confusion_matrix('actual', 'predicted')
-            >>> tp = cm.true_positive_count()
-            >>> isinstance(tp, int)
-            True
-            >>> tp
-            3
-
-            >>> # Get per-class counts
-            >>> per_class_tp = cm.true_positive_count(per_class=True)
-            >>> 'actual' in per_class_tp.keys()
-            True
-            >>> 'true_positive_count' in per_class_tp.keys()
-            True
-        """
-        from .exceptions import DatasetNotConfusionMatrixError
-
-        # Check if this is a confusion matrix
-        if not hasattr(self, "_is_confusion_matrix") or not self._is_confusion_matrix:
-            raise DatasetNotConfusionMatrixError(
-                "true_positive_count() can only be called on a Dataset created by confusion_matrix(). "
-                "Create a confusion matrix first using: dataset.confusion_matrix(actual_field, predicted_field)"
-            )
-
-        # Get metadata
-        metadata = self._confusion_matrix_metadata
-        actual_field = metadata["actual_field"]
-        actual_values = metadata["actual_values"]
-
-        # Get the data as a pandas DataFrame
-        df = self.to_pandas()
-
-        # Extract true positive counts (diagonal elements)
-        tp_counts = []
-        for i, actual_val in enumerate(actual_values):
-            row = df[df[actual_field] == actual_val]
-            if len(row) == 0:
-                tp_counts.append(0)
-                continue
-
-            # Get the column name for this class
-            # Columns are ordered as they appear in predicted_values
-            prob_cols = [col for col in df.columns if col != actual_field]
-            if i < len(prob_cols):
-                col_name = prob_cols[i]
-                tp_count = int(row[col_name].values[0])
-                tp_counts.append(tp_count)
-            else:
-                tp_counts.append(0)
-
-        if per_class:
-            # Return a Dataset with per-class counts
-            from ..dataset import Dataset
-
-            return Dataset(
-                [
-                    {actual_field: list(actual_values)},
-                    {"true_positive_count": tp_counts},
-                ]
-            )
-        else:
-            # Return total count
-            return sum(tp_counts)
-
-    def false_negative_count(self, per_class: bool = False) -> Union[int, "Dataset"]:
-        """
-        Get the count of false negatives from a confusion matrix.
-
-        False negatives are instances of a class that were incorrectly predicted as
-        a different class. For each actual class, this is the sum of all off-diagonal
-        elements in that row.
-
-        This method can only be called on a Dataset that was created by the confusion_matrix()
-        method.
-
-        Args:
-            per_class: If True, returns a Dataset with false negative counts for each class.
-                      If False (default), returns the total count of false negatives as an int.
-
-        Returns:
-            If per_class=False: An integer representing the total count of false negatives
-            If per_class=True: A Dataset with false negative counts for each actual class
-
-        Raises:
-            DatasetNotConfusionMatrixError: If called on a Dataset that is not a confusion matrix
-
-        Notes:
-            - False negatives = instances of a class predicted as something else
-            - For each class: FN = row_sum - true_positives
-            - High false negatives indicate the model often misses that class
-
-        Examples:
-            >>> from edsl.dataset import Dataset
-            >>> d = Dataset([
-            ...     {'actual': ['cat', 'cat', 'dog', 'dog', 'dog']},
-            ...     {'predicted': ['cat', 'dog', 'dog', 'dog', 'cat']}
-            ... ])
-            >>> cm = d.confusion_matrix('actual', 'predicted')
-            >>> fn = cm.false_negative_count()
-            >>> isinstance(fn, int)
-            True
-            >>> fn
-            2
-
-            >>> # Get per-class counts
-            >>> per_class_fn = cm.false_negative_count(per_class=True)
-            >>> 'actual' in per_class_fn.keys()
-            True
-            >>> 'false_negative_count' in per_class_fn.keys()
-            True
-        """
-        from .exceptions import DatasetNotConfusionMatrixError
-
-        # Check if this is a confusion matrix
-        if not hasattr(self, "_is_confusion_matrix") or not self._is_confusion_matrix:
-            raise DatasetNotConfusionMatrixError(
-                "false_negative_count() can only be called on a Dataset created by confusion_matrix(). "
-                "Create a confusion matrix first using: dataset.confusion_matrix(actual_field, predicted_field)"
-            )
-
-        # Get metadata
-        metadata = self._confusion_matrix_metadata
-        actual_field = metadata["actual_field"]
-        actual_values = metadata["actual_values"]
-
-        # Get the data as a pandas DataFrame
-        df = self.to_pandas()
-
-        # Extract false negative counts (row sum - diagonal)
-        fn_counts = []
-        for i, actual_val in enumerate(actual_values):
-            row = df[df[actual_field] == actual_val]
-            if len(row) == 0:
-                fn_counts.append(0)
-                continue
-
-            # Get all prediction columns
-            prob_cols = [col for col in df.columns if col != actual_field]
-            row_values = [int(row[col].values[0]) for col in prob_cols]
-
-            # Row sum
-            row_sum = sum(row_values)
-
-            # True positive (diagonal element)
-            tp = row_values[i] if i < len(row_values) else 0
-
-            # False negatives = row_sum - tp
-            fn_count = row_sum - tp
-            fn_counts.append(fn_count)
-
-        if per_class:
-            # Return a Dataset with per-class counts
-            from ..dataset import Dataset
-
-            return Dataset(
-                [
-                    {actual_field: list(actual_values)},
-                    {"false_negative_count": fn_counts},
-                ]
-            )
-        else:
-            # Return total count
-            return sum(fn_counts)
-
-    def percent_correctly_predicted(
-        self, per_class: bool = False
-    ) -> Union[float, "Dataset"]:
-        """
-        Calculate the percentage of correctly predicted instances from a confusion matrix.
-
-        This is the overall accuracy of the classifier (for per_class=False) or the
-        per-class recall/sensitivity (for per_class=True).
-
-        This method can only be called on a Dataset that was created by the confusion_matrix()
-        method.
-
-        Args:
-            per_class: If True, returns a Dataset with accuracy for each class (recall).
-                      If False (default), returns the overall accuracy as a percentage.
-
-        Returns:
-            If per_class=False: A float representing the overall accuracy percentage (0-100)
-            If per_class=True: A Dataset with per-class accuracy (recall) percentages
-
-        Raises:
-            DatasetNotConfusionMatrixError: If called on a Dataset that is not a confusion matrix
-
-        Notes:
-            - Overall accuracy = (sum of diagonal) / (total predictions) * 100
-            - Per-class accuracy (recall) = true_positives / (true_positives + false_negatives) * 100
-            - This is also known as accuracy (overall) or recall/sensitivity (per-class)
-
-        Examples:
-            >>> from edsl.dataset import Dataset
-            >>> d = Dataset([
-            ...     {'actual': ['cat', 'cat', 'dog', 'dog', 'dog']},
-            ...     {'predicted': ['cat', 'dog', 'dog', 'dog', 'cat']}
-            ... ])
-            >>> cm = d.confusion_matrix('actual', 'predicted')
-            >>> acc = cm.percent_correctly_predicted()
-            >>> isinstance(acc, float)
-            True
-            >>> 0 <= acc <= 100
-            True
-
-            >>> # Get per-class accuracy (recall)
-            >>> per_class_acc = cm.percent_correctly_predicted(per_class=True)
-            >>> 'actual' in per_class_acc.keys()
-            True
-            >>> 'percent_correct' in per_class_acc.keys()
-            True
-        """
-        from .exceptions import DatasetNotConfusionMatrixError
-
-        # Check if this is a confusion matrix
-        if not hasattr(self, "_is_confusion_matrix") or not self._is_confusion_matrix:
-            raise DatasetNotConfusionMatrixError(
-                "percent_correctly_predicted() can only be called on a Dataset created by confusion_matrix(). "
-                "Create a confusion matrix first using: dataset.confusion_matrix(actual_field, predicted_field)"
-            )
-
-        # Get metadata
-        metadata = self._confusion_matrix_metadata
-        actual_field = metadata["actual_field"]
-        actual_values = metadata["actual_values"]
-
-        # Get the data as a pandas DataFrame
-        df = self.to_pandas()
-
-        # Calculate per-class percentages
-        percentages = []
-        total_correct = 0
-        total_samples = 0
-
-        for i, actual_val in enumerate(actual_values):
-            row = df[df[actual_field] == actual_val]
-            if len(row) == 0:
-                percentages.append(0.0)
-                continue
-
-            # Get all prediction columns
-            prob_cols = [col for col in df.columns if col != actual_field]
-            row_values = [int(row[col].values[0]) for col in prob_cols]
-
-            # Row sum (total instances of this class)
-            row_sum = sum(row_values)
-
-            # True positive (diagonal element)
-            tp = row_values[i] if i < len(row_values) else 0
-
-            # Calculate percentage for this class
-            if row_sum > 0:
-                percentage = (tp / row_sum) * 100
-            else:
-                percentage = 0.0
-
-            percentages.append(percentage)
-            total_correct += tp
-            total_samples += row_sum
-
-        if per_class:
-            # Return a Dataset with per-class percentages
-            from ..dataset import Dataset
-
-            return Dataset(
-                [{actual_field: list(actual_values)}, {"percent_correct": percentages}]
-            )
-        else:
-            # Return overall accuracy
-            if total_samples > 0:
-                return (total_correct / total_samples) * 100
-            else:
-                return 0.0
 
     def tally(
         self, *fields: Optional[str], top_n: Optional[int] = None, output="Dataset"
@@ -2170,110 +1251,6 @@ class DataOperationsBase:
 
         return Dataset(new_data)
 
-    def report_from_template(
-        self,
-        template: str,
-        *fields: Optional[str],
-        top_n: Optional[int] = None,
-        remove_prefix: bool = True,
-        return_string: bool = False,
-        format: str = "text",
-        filename: Optional[str] = None,
-        separator: str = "\n\n",
-        observation_title_template: Optional[str] = None,
-        explode: bool = False,
-        filestore: bool = False,
-    ) -> Optional[Union[str, "Document", List, "FileStore"]]:
-        """Generates a report using a Jinja2 template for each row in the dataset.
-
-        This method renders a user-provided Jinja2 template for each observation in the dataset,
-        with template variables populated from the row data. This allows for completely customized
-        report formatting using pandoc for advanced output formats.
-
-        Args:
-            template: Jinja2 template string to render for each row
-            *fields: The fields to include in template context. If none provided, all fields are used.
-            top_n: Optional limit on the number of observations to include.
-            remove_prefix: Whether to remove type prefixes (e.g., "answer.") from field names in template context.
-            return_string: If True, returns the rendered content. If False (default in notebooks),
-                          only displays the content without returning.
-            format: Output format - one of "text", "html", "pdf", or "docx". Formats other than "text" require pandoc.
-            filename: If provided, saves the rendered content to this file. For exploded output,
-                     this becomes a template (e.g., "report_{index}.html").
-            separator: String to use between rendered templates for each row (ignored when explode=True).
-            observation_title_template: Optional Jinja2 template for observation titles.
-                                       Defaults to "Observation {index}" where index is 1-based.
-                                       Template has access to all row data plus 'index' and 'index0' variables.
-            explode: If True, creates separate files for each observation instead of one combined file.
-            filestore: If True, wraps the generated file(s) in FileStore object(s). If no filename is provided,
-                      creates temporary files. For exploded output, returns a list of FileStore objects.
-
-        Returns:
-            Depending on explode, format, return_string, and filestore:
-            - For text format: String content or None (if displayed in notebook)
-            - For html format: HTML string content or None (if displayed in notebook)
-            - For docx format: Document object or None (if saved to file)
-            - For pdf format: PDF bytes or None (if saved to file)
-            - If explode=True: List of created filenames (when filename provided) or list of documents/content
-            - If filestore=True: FileStore object(s) containing the generated file(s)
-
-        Notes:
-            - Pandoc is required for HTML, PDF, and DOCX output formats
-            - Templates are treated as Markdown for all non-text formats
-            - PDF output uses XeLaTeX engine through pandoc
-            - HTML output includes standalone document structure
-
-        Examples:
-            >>> from edsl.results import Results
-            >>> r = Results.example()
-            >>> template = "Person feels: {{ how_feeling }}"
-            >>> report = r.select('how_feeling').report_from_template(template, return_string=True)
-            >>> "Person feels: OK" in report
-            True
-            >>> "Person feels: Great" in report
-            True
-
-            # Custom observation titles
-            >>> custom_title = "Response {{ index }}: {{ how_feeling }}"
-            >>> report = r.select('how_feeling').report_from_template(
-            ...     template, observation_title_template=custom_title, return_string=True)
-            >>> "Response 1: OK" in report
-            True
-
-            # HTML output (requires pandoc)
-            >>> html_report = r.select('how_feeling').report_from_template(
-            ...     template, format="html", return_string=True)  # doctest: +SKIP
-            >>> # Creates HTML with proper document structure
-
-            # PDF output (requires pandoc with XeLaTeX)
-            >>> pdf_report = r.select('how_feeling').report_from_template(
-            ...     template, format="pdf")  # doctest: +SKIP
-            >>> # Returns PDF bytes
-
-            # Basic template functionality
-            >>> template2 = "Feeling: {{ how_feeling }}, Index: {{ index }}"
-            >>> report2 = r.select('how_feeling').report_from_template(
-            ...     template2, return_string=True, top_n=2)
-            >>> "Feeling: OK, Index: 1" in report2
-            True
-        """
-        from .report_from_template import TemplateReportGenerator
-
-        generator = TemplateReportGenerator(self)
-        return generator.generate_report(
-            template,
-            *fields,
-            top_n=top_n,
-            remove_prefix=remove_prefix,
-            return_string=return_string,
-            format=format,
-            filename=filename,
-            separator=separator,
-            observation_title_template=observation_title_template,
-            explode=explode,
-            filestore=filestore,
-        )
-
 
 def to_dataset(func):
     """
@@ -2348,6 +1325,9 @@ def decorate_methods_from_mixin(cls, mixin_cls):
         if not attr_name.startswith("_"):
             attr_value = getattr(mixin_cls, attr_name)
             if callable(attr_value):
+                # Respect explicit definitions on the class itself
+                if attr_name in cls.__dict__:
+                    continue
                 # Check if the method is already defined in the class's MRO
                 # but skip DataOperationsBase methods
                 for base in cls.__mro__[1:]:  # Skip the class itself
@@ -2408,8 +1388,6 @@ class DatasetOperationsMixin(DataOperationsBase):
     4. Analysis:
        - SQL queries with `sql()`
        - Aggregation with `tally()`
-       - Tree-based exploration with `tree()`
-
     This mixin is designed for fluent method chaining, allowing complex data manipulation
     pipelines to be built in an expressive and readable way.
     """
@@ -2448,70 +1426,6 @@ class ScenarioListOperationsMixin(DataOperationsBase):
     ScenarioList objects are converted to Dataset objects before method execution
     via the to_dataset decorator applied in __init_subclass__.
     """
-
-    def kl_divergence(
-        self,
-        group_field: str,
-        value_field: str,
-        from_group: Optional[str] = None,
-        to_group: Optional[str] = None,
-        bins: Optional[Union[int, str]] = None,
-        base: float = 2.0,
-        laplace_smooth: float = 1e-10,
-    ) -> Union[float, dict]:
-        """
-        Compute KL divergence between distributions defined by groups.
-
-        Measures how much one probability distribution diverges from another.
-        Useful for comparing distributions across experimental conditions, agent
-        personas, prompt variations, etc.
-
-        Parameters:
-            group_field: Field that defines the groups (e.g., 'condition', 'persona')
-            value_field: Field containing values to compare distributions of
-            from_group: The reference group (P in KL(P||Q)). If None, compute all pairs.
-            to_group: The comparison group (Q in KL(P||Q)). Required if from_group specified.
-            bins: For continuous data - number of bins or 'auto' (default: None = categorical)
-            base: Logarithm base (2=bits, e=nats, 10=dits, default: 2)
-            laplace_smooth: Small value to avoid log(0) (default: 1e-10)
-
-        Returns:
-            float: KL divergence value if from_group and to_group specified
-            dict: All pairwise KL divergences if groups not specified
-
-        Examples:
-            >>> from edsl.scenarios import Scenario, ScenarioList
-            >>> sl = ScenarioList([
-            ...     Scenario({'condition': 'control', 'response': 'positive'}),
-            ...     Scenario({'condition': 'control', 'response': 'positive'}),
-            ...     Scenario({'condition': 'control', 'response': 'neutral'}),
-            ...     Scenario({'condition': 'treatment', 'response': 'negative'}),
-            ...     Scenario({'condition': 'treatment', 'response': 'neutral'}),
-            ... ])
-            >>> # Compare two specific groups
-            >>> kl = sl.kl_divergence('condition', 'response', 'control', 'treatment')  # doctest: +SKIP
-            >>> # Get all pairwise comparisons
-            >>> kl_all = sl.kl_divergence('condition', 'response')  # doctest: +SKIP
-
-        Notes:
-            - KL divergence is asymmetric: KL(P||Q) ≠ KL(Q||P)
-            - KL(P||Q) measures how much P diverges from Q
-            - For categorical data, leave bins=None
-            - For continuous data, set bins to number or 'auto'
-            - Use base=2 for bits, base=e for nats
-        """
-        from .kl_divergence import kl_divergence
-
-        return kl_divergence(
-            self,
-            group_field=group_field,
-            value_field=value_field,
-            from_group=from_group,
-            to_group=to_group,
-            bins=bins,
-            base=base,
-            laplace_smooth=laplace_smooth,
-        )
 
     def __init_subclass__(cls, **kwargs):
         """

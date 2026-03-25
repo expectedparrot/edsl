@@ -3,7 +3,7 @@ from typing import Union, Optional, List, Any
 
 from jinja2 import Template
 from pydantic import BaseModel, Field
-from rank_bm25 import BM25Okapi
+from ..utilities.bm25 import BM25Okapi
 
 from .question_base import QuestionBase
 from .descriptors import QuestionOptionsDescriptor
@@ -230,9 +230,7 @@ class QuestionDropdown(QuestionBase):
 
     question_type = "dropdown"
     purpose = "When options are numerous and need to be searched"
-    question_options: Union[list[str], list[list], list[float], list[int]] = (
-        QuestionOptionsDescriptor()
-    )
+    question_options = QuestionOptionsDescriptor()
     _response_model = None
     response_validator_class = DropdownResponseValidator
 
@@ -350,7 +348,6 @@ class QuestionDropdown(QuestionBase):
         # Get the base data
         exclude_list = [
             "question_type",
-            "_fake_data_factory",
             "_model_instructions",
             "_bm25_index",  # Exclude BM25 index from serialization
             "_search_corpus",  # Exclude search corpus from serialization
@@ -375,39 +372,6 @@ class QuestionDropdown(QuestionBase):
                 d[clean_key] = value
 
         return d
-
-    @property
-    def fake_data_factory(self):
-        """Override fake_data_factory to provide deterministic, valid options for testing."""
-        if not hasattr(self, "_fake_data_factory"):
-            from polyfactory.factories.pydantic_factory import ModelFactory
-
-            # Capture self reference for closure
-            question_self = self
-
-            class DropdownFakeData(ModelFactory[self.response_model]):
-                @classmethod
-                def build_answer(cls):
-                    # Always return a list with the first option for deterministic testing
-                    if question_self.use_code:
-                        return [0]  # First option index as list
-                    else:
-                        return [
-                            str(question_self.question_options[0])
-                        ]  # First option text as list
-
-                @classmethod
-                def build_comment(cls):
-                    # Consistent comment for testing
-                    return "Deterministic test comment"
-
-                @classmethod
-                def build_generated_tokens(cls):
-                    # Consistent generated tokens for testing
-                    return None
-
-            self._fake_data_factory = DropdownFakeData
-        return self._fake_data_factory
 
     def _simulate_answer(self, human_readable: bool = False) -> dict:
         """
@@ -510,7 +474,7 @@ class QuestionDropdown(QuestionBase):
 
         return [str(opt) for opt in top_options]
 
-    def create_response_model(self, replacement_dict: dict = None):
+    def create_response_model(self, replacement_dict: Optional[dict] = None):
         """
         Create the response model for validation.
 

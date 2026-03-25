@@ -49,15 +49,64 @@ _LAZY_MODULES = {
     "instructions",
     "jobs",
     "base",
-    "conversation",
     "extensions",
     "macros",
-    "comparisons",
-    "assistants",
+    "study",
+    "store",
 }
 
 # Cache for lazy-loaded modules
 _module_cache = {}
+
+# Direct mapping of common exports to their module — avoids importing
+# every module in random set order just to find one class.
+_EXPORT_TO_MODULE = {
+    # questions
+    "QuestionFreeText": "questions",
+    "QuestionMultipleChoice": "questions",
+    "QuestionCheckBox": "questions",
+    "QuestionLinearScale": "questions",
+    "QuestionNumerical": "questions",
+    "QuestionYesNo": "questions",
+    "QuestionList": "questions",
+    "QuestionRank": "questions",
+    "QuestionBudget": "questions",
+    "QuestionExtract": "questions",
+    "QuestionMatrix": "questions",
+    "QuestionTopK": "questions",
+    "QuestionFunctional": "questions",
+    "QuestionBase": "questions",
+    # surveys
+    "Survey": "surveys",
+    # agents
+    "Agent": "agents",
+    "AgentList": "agents",
+    # scenarios
+    "Scenario": "scenarios",
+    "ScenarioList": "scenarios",
+    "FileStore": "scenarios",
+    # language_models
+    "Model": "language_models",
+    "ModelList": "language_models",
+    "LanguageModel": "language_models",
+    # results
+    "Results": "results",
+    # dataset
+    "Dataset": "dataset",
+    # coop
+    "Coop": "coop",
+    # jobs
+    "Jobs": "jobs",
+    # caching
+    "Cache": "caching",
+    "CacheEntry": "caching",
+    # instructions
+    "Instruction": "instructions",
+    # study
+    "Study": "study",
+    # notebooks
+    "Notebook": "notebooks",
+}
 
 
 def __getattr__(name):
@@ -71,7 +120,16 @@ def __getattr__(name):
     if name in current_module_dict:
         return current_module_dict[name]
 
-    # Check if it's a module we should lazy-load
+    # Fast path: direct lookup for known exports
+    if name in _EXPORT_TO_MODULE:
+        module_name = _EXPORT_TO_MODULE[name]
+        module = _module_cache.get(module_name)
+        if module is None:
+            module = importlib.import_module(f".{module_name}", package="edsl")
+            _module_cache[module_name] = module
+        return getattr(module, name)
+
+    # Slow path: search all modules for unknown exports
     for module_name in _LAZY_MODULES:
         try:
             module = _module_cache.get(module_name)
@@ -133,7 +191,14 @@ def _is_notebook_environment() -> bool:
     Returns:
         bool: True if running in a notebook, False otherwise
     """
-    # Check for marimo first
+    import sys
+
+    # If stdout is a real terminal, we're not in a notebook even if
+    # marimo or IPython happen to be importable.
+    if hasattr(sys.stdout, "isatty") and sys.stdout.isatty():
+        return False
+
+    # Check for marimo
     try:
         import marimo as mo
 
@@ -144,7 +209,6 @@ def _is_notebook_environment() -> bool:
 
     # Check for Jupyter/IPython notebook
     try:
-        # Check if IPython is available and we're in a notebook
         from IPython import get_ipython
 
         ipython = get_ipython()
@@ -313,21 +377,16 @@ def _poll_for_api_key_notebook(coop, edsl_auth_token: str, timeout: int = 120):
         time.sleep(1)  # Check every second instead of 5 seconds for better UX
 
 
-def login(timeout: int = 120) -> None:
+def login(timeout: int = 120, force: bool = False) -> None:
     """
     Start the Expected Parrot login process to obtain and store an API key.
 
-    This function creates a Coop instance and initiates the login flow, which will:
-    1. Generate a temporary authentication token
-    2. Display a login URL for the user to visit (with enhanced notebook UI)
-    3. Poll for the API key once the user completes the login
-    4. Store the API key locally for future use
-
-    In Jupyter/IPython notebooks, this will display a styled HTML interface
-    with a clickable button that opens the login page in a new tab.
+    If a valid key already exists, reports the current user and returns
+    unless ``force=True`` is passed to re-authenticate.
 
     Args:
         timeout: Maximum time to wait for login completion, in seconds (default: 120)
+        force: If True, skip the existing-key check and always start a new login flow.
 
     Raises:
         CoopTimeoutError: If login times out
@@ -335,11 +394,31 @@ def login(timeout: int = 120) -> None:
 
     Example:
         >>> from edsl import login
-        >>> login()  # Shows styled button interface in notebooks
+        >>> login()           # uses existing key if valid
+        >>> login(force=True) # always starts a new login flow
     """
     from edsl.coop import Coop
     import secrets
     from edsl.config import CONFIG
+
+    # If the user already has a key, check if it works
+    if not force:
+        existing_key = os.environ.get("EXPECTED_PARROT_API_KEY")
+        if existing_key:
+            try:
+                coop = Coop(api_key=existing_key)
+                profile = coop.get_profile()
+                username = (
+                    profile.get("username", "unknown")
+                    if isinstance(profile, dict)
+                    else getattr(profile, "username", "unknown")
+                )
+                print(f"Already logged in as {username}.")
+                print("To re-authenticate, use login(force=True).")
+                return
+            except Exception:
+                # Key is invalid — fall through to login flow
+                pass
 
     # If we're in a notebook, handle the UI specially
     if _is_notebook_environment():

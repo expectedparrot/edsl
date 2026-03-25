@@ -29,9 +29,11 @@ class TestPriceFetcher:
 
     @pytest.fixture(autouse=True)
     def reset_singleton(self):
-        """Reset the singleton instance before each test"""
+        """Reset the singleton instance and bypass disk cache before each test"""
         PriceFetcher._instance = None
-        yield
+        with patch("edsl.coop.price_fetcher.PriceFetcher._read_disk_cache", side_effect=FileNotFoundError), \
+             patch("edsl.coop.price_fetcher.PriceFetcher._write_disk_cache"):
+            yield
 
     def test_singleton_pattern(self):
         """Test that PriceFetcher maintains singleton behavior"""

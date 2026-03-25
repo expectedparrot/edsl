@@ -66,6 +66,14 @@ from ..key_management import KeyLookupCollection
 from .registry import RegisterLanguageModelsMeta
 from .raw_response_handler import RawResponseHandler
 
+_INTERNAL_KWARGS = frozenset({
+    "model", "parameters", "inference_service",
+    "edsl_version", "edsl_class_name", "original_model",
+    "skip_api_key_check", "canned_response", "throw_exception",
+    "exception_probability", "func", "fail_at_number", "never_ending",
+    "prompt_plan",
+})
+
 
 def handle_key_error(func: Callable):
     """Decorator to catch and provide user-friendly error messages for KeyError exceptions.
@@ -158,9 +166,9 @@ class LanguageModel(
     """
 
     _model_: str = None
-    key_sequence: tuple[str, ...] = (
-        None  # This should be something like ["choices", 0, "message", "content"]
-    )
+    key_sequence: tuple[
+        str, ...
+    ] = None  # This should be something like ["choices", 0, "message", "content"]
 
     DEFAULT_RPM = 300
     DEFAULT_TPM = 1000000
@@ -192,6 +200,7 @@ class LanguageModel(
         rpm: Optional[float] = None,
         omit_system_prompt_if_empty_string: bool = True,
         key_lookup: Optional["KeyLookup"] = None,
+        prompt_plan=None,
         **kwargs,
     ):
         """Initialize a new language model instance.
@@ -201,6 +210,12 @@ class LanguageModel(
             rpm: Optional requests per minute rate limit override
             omit_system_prompt_if_empty_string: Whether to omit the system prompt when empty
             key_lookup: Optional custom key lookup for API credentials
+            prompt_plan: Optional :class:`~edsl.invigilators.prompt_helpers.PromptPlan`
+                controlling how prompt components are distributed between the system
+                and user prompts. If ``None`` (the default), the standard arrangement
+                is used (agent info in system prompt, question info in user prompt).
+                Use ``PromptPlan.user_prompt_only()`` for models that don't support
+                system prompts (e.g., reasoning models like o1/o3).
             **kwargs: Additional parameters to pass to the model provider
 
         The initialization process:
@@ -220,13 +235,26 @@ class LanguageModel(
         parameters = self._overide_default_parameters(kwargs, default_parameters)
         self.parameters = parameters
 
+        # Warn about unknown parameters
+        known_params = set(parameters.keys()) | _INTERNAL_KWARGS
+        unknown_params = {k for k in kwargs if k not in known_params}
+        if unknown_params:
+            import warnings
+            warnings.warn(
+                f"Unknown parameter(s) for model '{self.model}': {', '.join(sorted(unknown_params))}. "
+                f"Known parameters: {', '.join(sorted(parameters.keys()))}. "
+                f"Unknown parameters will still be set but may have no effect.",
+                UserWarning,
+                stacklevel=2,
+            )
+
         # Initialize basic settings
         self.remote = False
-        self.remote_proxy = True  # Default to using remote proxy when available
         self.job_uuid = (
             None  # Job UUID for progress tracking, set when progress bar is enabled
         )
         self.omit_system_prompt_if_empty = omit_system_prompt_if_empty_string
+        self.prompt_plan = prompt_plan
 
         # Set up API key lookup and fetch model information
         self.key_lookup = self._set_key_lookup(key_lookup)
@@ -253,9 +281,17 @@ class LanguageModel(
             # Skip the API key check. Sometimes this is useful for testing.
             self._api_token = None
 
-        # Add canned response to parameters
-        if "canned_response" in kwargs:
-            self.parameters["canned_response"] = kwargs["canned_response"]
+        # Add test model parameters that need to survive serialization
+        # Only add if value is truthy (non-default) to avoid polluting parameters
+        for test_param in (
+            "canned_response",
+            "fail_at_number",
+            "never_ending",
+            "throw_exception",
+            "exception_probability",
+        ):
+            if test_param in kwargs and kwargs[test_param]:
+                self.parameters[test_param] = kwargs[test_param]
 
     def _set_key_lookup(self, key_lookup: Optional["KeyLookup"] = None) -> "KeyLookup":
         """Set up the API key lookup mechanism.
@@ -786,6 +822,8 @@ class LanguageModel(
         invigilator: Optional["InvigilatorBase"] = None,
         response_schema: Optional[dict] = None,
         response_schema_name: Optional[str] = None,
+        question_name: Optional[str] = None,
+        agent_name: Optional[str] = None,
     ) -> ModelResponse:
         """Handle model calls with caching for efficiency.
 
@@ -893,12 +931,21 @@ class LanguageModel(
                 "cache_key": cache_key,  # Pass cache key for tracking
             }
             # Add question_name parameter for test models
-            if self.model == "test" and invigilator:
-                params["question_name"] = invigilator.question.question_name
+            if self.model == "test":
+                if invigilator:
+                    params["question_name"] = invigilator.question.question_name
+                elif question_name:
+                    params["question_name"] = question_name
 
-            # Add invigilator parameter for scripted models
-            if hasattr(self, "agent_question_responses") and invigilator:
-                params["invigilator"] = invigilator
+            # Add invigilator or agent_name/question_name for scripted models
+            if hasattr(self, "agent_question_responses"):
+                if invigilator:
+                    params["invigilator"] = invigilator
+                else:
+                    if agent_name:
+                        params["agent_name"] = agent_name
+                    if question_name:
+                        params["question_name"] = question_name
 
             # Add response schema if provided (for structured output)
             if response_schema is not None:
@@ -1003,6 +1050,14 @@ class LanguageModel(
         if "invigilator" in kwargs:
             params.update({"invigilator": kwargs["invigilator"]})
 
+        # Add question_name if provided (for test models with dict canned_response)
+        if "question_name" in kwargs:
+            params.update({"question_name": kwargs["question_name"]})
+
+        # Add agent_name if provided (for scripted response models)
+        if "agent_name" in kwargs:
+            params.update({"agent_name": kwargs["agent_name"]})
+
         # Add response schema if provided (for QuestionPydantic)
         if "response_schema" in kwargs:
             params.update({"response_schema": kwargs["response_schema"]})
@@ -1080,15 +1135,28 @@ class LanguageModel(
         # Build the base dictionary with essential model information
         parameters = self.parameters.copy()
 
-        # For test models, ensure canned_response is included in serialization
-        if self.model == "test" and hasattr(self, "canned_response"):
-            parameters["canned_response"] = self.canned_response
+        # For test models, ensure test parameters are included in serialization
+        # Only add if truthy to avoid polluting parameters with defaults
+        if self.model == "test":
+            for test_param in (
+                "canned_response",
+                "fail_at_number",
+                "never_ending",
+                "throw_exception",
+                "exception_probability",
+            ):
+                if hasattr(self, test_param) and getattr(self, test_param):
+                    parameters[test_param] = getattr(self, test_param)
 
         d = {
             "model": self.model,
             "parameters": parameters,
             "inference_service": self._inference_service_,
         }
+
+        # Include prompt_plan if set
+        if self.prompt_plan is not None:
+            d["prompt_plan"] = self.prompt_plan.to_dict()
 
         # Add EDSL version and class information if requested
         if add_edsl_version:
@@ -1116,31 +1184,39 @@ class LanguageModel(
         from ..inference_services.inference_service_registry import (
             InferenceServiceRegistry,
         )
+        from ..invigilators.prompt_helpers import PromptPlan
+
+        # Extract and reconstruct prompt_plan if present
+        prompt_plan_data = data.pop("prompt_plan", None)
+        if prompt_plan_data is not None:
+            data["prompt_plan"] = PromptPlan.from_dict(prompt_plan_data)
 
         # Create and use the inference service registry to create the language model
         registry = InferenceServiceRegistry()
         model_name = data["model"]
         service_name = data.get("inference_service", None)
 
-        # Handle canned_response in parameters for test models
-        if (
-            model_name == "test"
-            and "parameters" in data
-            and "canned_response" in data["parameters"]
-        ):
-            # Extract canned_response from parameters to set as a direct attribute
-            canned_response = data["parameters"]["canned_response"]
-            params_copy = data.copy()
-
-            # Add it as a top-level parameter for model initialization
-            if isinstance(params_copy, dict) and "parameters" in params_copy:
-                params_copy["canned_response"] = canned_response
-
-            # Create the instance using the registry (which returns a model class)
-            model_class = registry.create_language_model(
-                model_name, service_name=service_name
-            )
-            return model_class(**params_copy)
+        # Handle test model parameters that need to be passed as kwargs
+        test_param_names = (
+            "canned_response",
+            "fail_at_number",
+            "never_ending",
+            "throw_exception",
+            "exception_probability",
+        )
+        if model_name == "test" and "parameters" in data:
+            test_params = {
+                k: data["parameters"][k]
+                for k in test_param_names
+                if k in data["parameters"]
+            }
+            if test_params:
+                params_copy = data.copy()
+                params_copy.update(test_params)
+                model_class = registry.create_language_model(
+                    model_name, service_name=service_name
+                )
+                return model_class(**params_copy)
 
         try:
             model_class = registry.create_language_model(
@@ -1157,9 +1233,9 @@ class LanguageModel(
                 )
                 test_data = data.copy()
                 test_data["model"] = "test"  # Test model expects "test" as model name
-                test_data["original_model"] = (
-                    model_name  # Preserve original for debugging
-                )
+                test_data[
+                    "original_model"
+                ] = model_name  # Preserve original for debugging
                 return test_model_class(**test_data)
             else:
                 raise
@@ -1167,24 +1243,59 @@ class LanguageModel(
     def __repr__(self) -> str:
         """Generate a string representation of the model.
 
-        This representation includes the model identifier and all parameters,
-        providing a clear picture of how the model is configured.
-
-        Returns:
-            str: A string representation of the model
+        Uses the rich table format in terminals, falls back to eval-style
+        repr during doctests and in Jupyter notebooks.
         """
-        # Format the parameters as a string
-        param_string = ", ".join(
-            f'{key} = """{value}"""' if key == "canned_response" else f"{key} = {value}"
-            for key, value in self.parameters.items()
-        )
+        import os
 
-        # Combine model name and parameters
-        return (
-            f"Model(model_name = '{self.model}', service_name = '{self._inference_service_}'"
-            + (f", {param_string}" if param_string else "")
-            + ")"
-        )
+        if os.environ.get("EDSL_RUNNING_DOCTESTS") == "True":
+            return self._eval_repr_()
+
+        try:
+            from IPython import get_ipython
+
+            ipy = get_ipython()
+            if ipy is not None and "IPKernelApp" in ipy.config:
+                return f"Model('{self.model}')"
+        except (NameError, ImportError):
+            pass
+
+        result = self._summary_repr()
+        info = self._store_info_line()
+        if info:
+            result = result.rstrip() + "\n" + info
+        return result
+
+    def info(self) -> list:
+        """Return display sections as (title, Dataset) pairs."""
+        from edsl.dataset import Dataset
+
+        keys = ["model", "service"]
+        values = [str(self.model), str(self._inference_service_)]
+        for k, v in self.parameters.items():
+            keys.append(k)
+            values.append(repr(v))
+        return [("Model", Dataset([{"parameter": keys}, {"value": values}]))]
+
+    def _summary_repr(self) -> str:
+        """Generate a summary representation of the Model as a Rich table."""
+        from ..utilities.summary_table import ColumnDef, render_summary_table
+
+        title = f"Model ({self._inference_service_})"
+
+        columns = [
+            ColumnDef("Parameter", style="bold green", no_wrap=True),
+            ColumnDef("Value"),
+        ]
+
+        rows: list[tuple] = [
+            ("model", repr(self.model)),
+            ("service", repr(self._inference_service_)),
+        ]
+        for key, value in self.parameters.items():
+            rows.append((key, repr(value)))
+
+        return render_summary_table(title=title, columns=columns, rows=rows)
 
     def _eval_repr_(self) -> str:
         """Generate a clean, eval-able string representation of the model.

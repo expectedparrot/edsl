@@ -91,7 +91,7 @@ class Question(metaclass=Meta):
             is_uuid = len(url_or_uuid) == 36 and url_or_uuid.count("-") == 4
             if not is_uuid and "/" in url_or_uuid:
                 # Looks like shorthand format "username/alias"
-                url_or_uuid = f"{CONFIG.EXPECTED_PARROT_URL}/content/{url_or_uuid}"
+                url_or_uuid = f"{CONFIG.EXPECTED_PARROT_URL}/content/{url_or_uuid}"  # type: ignore[union-attr]
 
         coop = Coop()
         return coop.pull(url_or_uuid, "question")
@@ -124,7 +124,7 @@ class Question(metaclass=Meta):
 
         >>> from edsl import Question
         >>> Question.list_question_types()
-        ['checkbox', 'compute', 'demand', 'dict', 'dropdown', 'edsl_object', 'extract', 'file_upload', 'free_text', 'functional', 'interview', 'likert_five', 'linear_scale', 'list', 'markdown', 'matrix', 'multiple_choice', 'multiple_choice_with_other', 'numerical', 'pydantic', 'random', 'rank', 'top_k', 'yes_no']
+        ['checkbox', 'compute', 'demand', 'dict', 'dropdown', 'edsl_object', 'extract', 'file_upload', 'free_text', 'functional', 'interview', 'likert_five', 'linear_scale', 'list', 'markdown', 'matrix', 'multiple_choice', 'multiple_choice_with_other', 'numerical', 'pydantic', 'random', 'rank', 'thinking', 'top_k', 'yes_no']
         """
         return [
             q
@@ -135,7 +135,7 @@ class Question(metaclass=Meta):
         ]
 
     @classmethod
-    def available(cls, show_class_names: bool = False) -> Union[list, dict]:
+    def available(cls, show_class_names: bool = False):
         """Return a list of available question types.
 
         :param show_class_names: If True, return a dictionary of question types to class names. If False, return a set of question types.
@@ -169,47 +169,6 @@ class Question(metaclass=Meta):
                 print_parameters={"containerHeight": "auto"},
             )
 
-    @classmethod
-    def from_vibes(
-        cls,
-        description: str,
-        *,
-        model: str = "gpt-4o",
-        temperature: float = 0.7,
-    ):
-        """Generate a question from a natural language description.
-
-        This method uses an LLM to generate an appropriate EDSL question based on a
-        description of what the question should ask. It automatically selects appropriate
-        question types and formats.
-
-        Args:
-            description: Natural language description of what the question should ask
-            model: OpenAI model to use for generation (default: "gpt-4o")
-            temperature: Temperature for generation (default: 0.7)
-
-        Returns:
-            QuestionBase: A new Question instance with the appropriate type
-
-        Examples:
-            >>> from edsl import Question
-            >>> q = Question.from_vibes("Ask what their favorite color is")  # doctest: +SKIP
-            >>> print(q.question_name, q.question_type)  # doctest: +SKIP
-            favorite_color multiple_choice
-
-            >>> q = Question.from_vibes("Find out how satisfied they are with the product")  # doctest: +SKIP
-            >>> print(q.question_type)  # doctest: +SKIP
-            multiple_choice
-
-            >>> q = Question.from_vibes("Ask if they would recommend this to a friend")  # doctest: +SKIP
-            >>> print(q.question_type)  # doctest: +SKIP
-            yes_no
-        """
-        from .vibes import generate_question_from_vibes
-
-        return generate_question_from_vibes(
-            cls, description, model=model, temperature=temperature
-        )
 
 
 def get_question_class(question_type):

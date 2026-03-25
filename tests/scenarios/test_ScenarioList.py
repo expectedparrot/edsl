@@ -12,6 +12,7 @@ def test_expand():
 
 
 def test_exports():
+    pytest.importorskip("pandas")
     # just test coverts do not throw exceptions
     s = ScenarioList.example()
     _ = s.to_pandas()

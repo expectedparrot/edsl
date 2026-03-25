@@ -1,8 +1,9 @@
 import gc
 import os
 import pytest
-import psutil
-import numpy as np
+
+psutil = pytest.importorskip("psutil")
+np = pytest.importorskip("numpy")
 from edsl.scenarios import Scenario, ScenarioList
 
 

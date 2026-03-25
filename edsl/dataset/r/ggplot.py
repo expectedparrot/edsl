@@ -185,19 +185,13 @@ class GGPlotMethod:
     def _display_plot(self, filename: str, width: float, height: float):
         """Display the plot in the notebook or open in system viewer if running from terminal."""
         try:
-            # Try to import IPython-related modules
-            import matplotlib.pyplot as plt
-            import matplotlib.image as mpimg
             from IPython import get_ipython
 
-            # Check if we're in a notebook environment
             if get_ipython() is not None:
                 if filename.endswith(".png"):
-                    img = mpimg.imread(filename)
-                    plt.figure(figsize=(width, height))
-                    plt.imshow(img)
-                    plt.axis("off")
-                    plt.show()
+                    from IPython.display import Image, display
+
+                    display(Image(filename=filename, width=int(width * 100), height=int(height * 100)))
                 elif filename.endswith(".svg"):
                     from IPython.display import SVG, display
 

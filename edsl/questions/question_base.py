@@ -83,6 +83,7 @@ if TYPE_CHECKING:
     from ..surveys import Survey
 
 if TYPE_CHECKING:
+    from rich.text import Text
     from .response_validator_abc import ResponseValidatorABC
     from ..language_models import LanguageModel
     from ..results import Results
@@ -195,8 +196,13 @@ class QuestionBase(
         - Questions can be used independently or as part of surveys
     """
 
-    question_name: str = QuestionNameDescriptor()
-    question_text: str = QuestionTextDescriptor()
+    question_name: str = QuestionNameDescriptor()  # type: ignore[assignment]
+    question_text: str = QuestionTextDescriptor()  # type: ignore[assignment]
+
+    _store_class_name = "QuestionBase"
+
+    from edsl.base.store_accessor import StoreDescriptor
+    store = StoreDescriptor()
 
     _answering_instructions = None
     _question_presentation = None
@@ -289,88 +295,34 @@ class QuestionBase(
 
         return duplicated
 
-    @property
-    def fake_data_factory(self):
-        """
-        Create and return a factory for generating fake response data.
-
-        This property lazily creates a factory class based on Pydantic's ModelFactory
-        that can generate fake data conforming to the question's response model.
-        The factory is cached after first creation for efficiency.
-
-        Returns:
-            ModelFactory: A factory class that can generate fake data for this question type.
-
-        Notes:
-            - Uses polyfactory to generate valid fake data instances
-            - The response model for the question defines the structure of the generated data
-            - Primarily used for testing and simulation purposes
-        """
-        if not hasattr(self, "_fake_data_factory"):
-            from polyfactory.factories.pydantic_factory import ModelFactory
-            from random import randint, uniform
-
-            class FakeData(ModelFactory[self.response_model]):
-                # Add customization for specific question types
-                if hasattr(self, "question_type") and self.question_type == "numerical":
-
-                    @classmethod
-                    def build_answer(cls):
-                        min_val = getattr(self, "min_value", None)
-                        max_val = getattr(self, "max_value", None)
-
-                        # Default values if none provided
-                        min_val = 0 if min_val is None else min_val
-                        max_val = 100 if max_val is None else max_val
-
-                        # Ensure values are within bounds
-                        if isinstance(min_val, int) and isinstance(max_val, int):
-                            return randint(min_val, max_val)
-                        else:
-                            return uniform(min_val, max_val)
-
-            self._fake_data_factory = FakeData
-        return self._fake_data_factory
-
     def _simulate_answer(self, human_readable: bool = False) -> dict:
         """
         Generate a simulated valid answer for this question.
-
-        This method creates a plausible answer that would pass validation for this
-        question type. It's primarily used for testing, examples, and debugging purposes.
-
-        Args:
-            human_readable: If True, converts code-based answers to their human-readable
-                           text equivalents for multiple choice and similar questions.
-
-        Returns:
-            dict: A dictionary containing a simulated valid answer with appropriate
-                 structure for this question type.
 
         Examples:
             >>> from edsl import QuestionFreeText as Q
             >>> answer = Q.example()._simulate_answer()
             >>> "answer" in answer and "generated_tokens" in answer
             True
-
-        Notes:
-            - Free text questions have special handling with a predefined response
-            - Other question types use the fake_data_factory to generate valid responses
-            - For questions with options, the human_readable parameter determines whether
-              indices or actual text options are returned
         """
+        import random
+
         if self.question_type == "free_text":
             return {
                 "answer": "Hello, how are you?",
                 "generated_tokens": "Hello, how are you?",
             }
 
-        simulated_answer = self.fake_data_factory.build().dict()
-        if human_readable and hasattr(self, "question_options") and self.use_code:
-            simulated_answer["answer"] = [
-                self.question_options[index] for index in simulated_answer["answer"]
-            ]
-        return simulated_answer
+        if hasattr(self, "question_options") and self.question_options:
+            if self.use_code:
+                answer = random.randint(0, len(self.question_options) - 1)
+                if human_readable:
+                    answer = self.question_options[answer]
+            else:
+                answer = random.choice(self.question_options)
+            return {"answer": answer, "comment": "Simulated answer"}
+
+        return {"answer": "Simulated answer", "comment": "Simulated answer"}
 
     class ValidatedAnswer(TypedDict):
         """
@@ -391,7 +343,7 @@ class QuestionBase(
         generated_tokens: Optional[str]
 
     def _validate_answer(
-        self, answer: dict, replacement_dict: dict = None
+        self, answer: dict, replacement_dict: Optional[dict] = None
     ) -> ValidatedAnswer:
         """
         Validate a raw answer against this question's constraints.
@@ -478,13 +430,13 @@ class QuestionBase(
         exclude_list = [
             "question_type",
             # "_include_comment",
-            "_fake_data_factory",
             # "_use_code",
             "_model_instructions",
+            "_store_accessor",
         ]
         only_if_not_na_list = ["_answering_instructions", "_question_presentation"]
 
-        only_if_not_default_list = {"_include_comment": True, "_use_code": False}
+        only_if_not_default_list = {"_include_comment": True, "_use_code": False, "_enumeration": "none"}
 
         def ok(key, value):
             if not key.startswith("_"):
@@ -595,8 +547,7 @@ class QuestionBase(
             question_class = get_question_class(question_type)
         except ValueError:
             raise QuestionSerializationError(
-                f"No question registered with question_type {question_type}",
-                "The passed in dictionary was: " + str(data),
+                f"No question registered with question_type {question_type}. The passed in dictionary was: {data}",
             )
         except Exception as e:
             raise QuestionSerializationError(
@@ -611,8 +562,68 @@ class QuestionBase(
 
         return question_class(**local_data)
 
+    def to_jsonl(self, blob_writer=None, **kwargs) -> str:
+        """Serialize to JSONL with one line per field (header + one line per field).
+
+        The first line is a header with edsl_class_name, question_type, and edsl_version.
+        Subsequent lines are ``{"field": ..., "value": ...}`` pairs.
+
+        >>> from edsl.questions import QuestionFreeText
+        >>> jsonl = QuestionFreeText.example().to_jsonl()
+        >>> lines = jsonl.splitlines()
+        >>> import json; json.loads(lines[0])["__header__"]
+        True
+        """
+        import json
+        import edsl
+
+        d = self.to_dict(add_edsl_version=False)
+        question_type = d.pop("question_type")
+        header = {
+            "__header__": True,
+            "edsl_class_name": type(self).__name__,
+            "question_type": question_type,
+            "edsl_version": edsl.__version__,
+        }
+        lines = [json.dumps(header)]
+        for field, value in d.items():
+            lines.append(json.dumps({"field": field, "value": value}))
+        return "\n".join(lines)
+
+    def to_jsonl_rows(self, blob_writer=None):
+        return iter(self.to_jsonl().splitlines())
+
     @classmethod
-    def _get_test_model(cls, canned_response: Optional[str] = None) -> "LanguageModel":
+    def from_jsonl(cls, source, blob_reader=None, **kwargs) -> "QuestionBase":
+        """Deserialize from JSONL produced by :meth:`to_jsonl`.
+
+        *source* may be a JSONL string or an iterable of lines.
+
+        >>> from edsl.questions import QuestionFreeText
+        >>> q = QuestionFreeText.example()
+        >>> q2 = QuestionFreeText.from_jsonl(q.to_jsonl())
+        >>> q.question_text == q2.question_text
+        True
+        """
+        import json
+        from .register_questions_meta import RegisterQuestionsMeta
+
+        if isinstance(source, str):
+            lines = source.strip().splitlines()
+        else:
+            lines = list(source)
+        header = json.loads(lines[0])
+        question_type = header["question_type"]
+        registry = RegisterQuestionsMeta.question_types_to_classes()
+        target_cls = registry[question_type]
+        fields = {}
+        for line in lines[1:]:
+            row = json.loads(line)
+            fields[row["field"]] = row["value"]
+        return target_cls(**fields)
+
+    @classmethod
+    def _get_test_model(cls, canned_response: str = "Hello world") -> "LanguageModel":
         """
         Create a test language model with optional predefined response.
 
@@ -680,7 +691,7 @@ class QuestionBase(
         if model is None:
             from ..language_models import Model
 
-            model = Model()
+            model = Model()  # type: ignore[assignment]
         results = (
             cls.example(**kwargs)
             .by(model)
@@ -835,169 +846,86 @@ class QuestionBase(
             formatted_items = ",\n\t".join(items)
             return f"Question('{question_type}',\n\t{formatted_items}\n)"
 
-    def _summary_repr(
-        self, max_text_length: int = 10_000, max_options: int = 50
-    ) -> str:
-        """Generate a summary representation of the Question with Rich formatting.
-
-        Args:
-            max_text_length: Maximum length of question text before truncating
-            max_options: Maximum number of options to show before truncating
-        """
-        MAX_OPTION_LENGTH_VALUE = 160
-        from rich.console import Console
-        from rich.text import Text
-        import io
-        from edsl.config import RICH_STYLES
-
-        # Build the Rich text
-        output = Text()
-        question_type = self.to_dict().get("question_type", "unknown")
-        output.append("Question(", style=RICH_STYLES["primary"])
-        output.append(f"'{question_type}'", style=RICH_STYLES["secondary"])
-        output.append(",\n", style=RICH_STYLES["primary"])
-
-        # Question name
-        output.append("    question_name=", style=RICH_STYLES["default"])
-        output.append(f'"{self.question_name}"', style=RICH_STYLES["key"])
-        output.append(",\n", style=RICH_STYLES["default"])
-
-        # Question text with Jinja2 and angle bracket highlighting (no truncation)
+    @staticmethod
+    def _highlight_template(text: str) -> "Text":
+        """Return a ``rich.text.Text`` with ``{{ }}`` and ``< >`` spans highlighted."""
         import re
+        from rich.text import Text
 
-        question_text = self.question_text
-
-        output.append("    question_text=", style=RICH_STYLES["default"])
-
-        # Build a separate Text object for the question text to preserve styling
-        question_text_styled = Text()
-        question_text_styled.append('"', style=RICH_STYLES["default"])
-
-        # Parse and highlight both Jinja2 variables and angle brackets
-        # Pattern captures {{ }}, < >, or regular text
-        combined_pattern = r"(\{\{.*?\}\}|<[^>]+>)"
-        parts = re.split(combined_pattern, question_text)
-
+        styled = Text()
+        parts = re.split(r"(\{\{.*?\}\}|<[^>]+>)", text)
         for part in parts:
-            if not part:  # Skip empty strings from split
+            if not part:
                 continue
-            elif part.startswith("{{") and part.endswith("}}"):
-                # Replace spaces with non-breaking spaces to prevent wrapping inside variables
-                part_no_break = part.replace(" ", "\u00a0")
-                # Highlight Jinja2 variables with primary style (bold blue)
-                question_text_styled.append(part_no_break, style=RICH_STYLES["primary"])
+            if part.startswith("{{") and part.endswith("}}"):
+                styled.append(part.replace(" ", "\u00a0"), style="bold blue")
             elif part.startswith("<") and part.endswith(">"):
-                # Replace spaces with non-breaking spaces in angle brackets too
-                part_no_break = part.replace(" ", "\u00a0")
-                # Highlight angle bracket tags in secondary style
-                question_text_styled.append(
-                    part_no_break, style=RICH_STYLES["secondary"]
-                )
+                styled.append(part.replace(" ", "\u00a0"), style="bold green")
             else:
-                # Regular text in green style
-                question_text_styled.append(part, style=RICH_STYLES["secondary"])
+                styled.append(part)
+        return styled
 
-        question_text_styled.append('"', style=RICH_STYLES["default"])
+    def info(self) -> list:
+        """Return display sections as (title, Dataset) pairs.
 
-        # Append the styled question text as a complete unit
-        output.append(question_text_styled)
+        Uses the question's ``to_dict()`` fields as columns, same approach
+        as Survey.info() but for a single question.
+        """
+        from edsl.dataset import Dataset
 
-        # Question options (if present)
-        if hasattr(self, "question_options"):
-            num_options = len(self.question_options)
+        d = self.to_dict(add_edsl_version=False)
+        keys = list(d.keys())
+        values = []
+        for v in d.values():
+            if v is None:
+                values.append("")
+            elif isinstance(v, list):
+                values.append(", ".join(str(o) for o in v))
+            elif isinstance(v, dict):
+                values.append(", ".join(f"{k}: {val}" for k, val in v.items()))
+            else:
+                values.append(str(v))
+        return [("Question", Dataset([{"field": keys}, {"value": values}]))]
 
-            if num_options > 0:
-                output.append(",\n", style=RICH_STYLES["default"])
-                output.append("    question_options=[\n", style=RICH_STYLES["default"])
+    def _summary_repr(self) -> str:
+        """Generate a summary representation of the Question as a Rich table."""
+        from ..utilities.summary_table import ColumnDef, render_summary_table
 
-                for i, option in enumerate(list(self.question_options)[:max_options]):
-                    option_str = str(option)
-                    if len(option_str) > MAX_OPTION_LENGTH_VALUE:
-                        option_str = option_str[: MAX_OPTION_LENGTH_VALUE - 3] + "..."
-                    output.append("        ", style=RICH_STYLES["default"])
-                    output.append(f'"{option_str}"', style=RICH_STYLES["secondary"])
-                    output.append(",\n", style=RICH_STYLES["default"])
+        q_dict = self.to_dict(add_edsl_version=False)
+        question_type = q_dict.get("question_type", "unknown")
+        title = f"Question ({question_type})"
 
-                if num_options > max_options:
-                    output.append(
-                        f"        ... ({num_options - max_options} more)\n",
-                        style=RICH_STYLES["dim"],
-                    )
+        columns = [
+            ColumnDef("Attribute", style="bold green", no_wrap=True),
+            ColumnDef("Value"),
+        ]
 
-                output.append("    ]", style=RICH_STYLES["default"])
+        rows: list[tuple] = [
+            ("question_name", repr(self.question_name)),
+            ("question_text", self._highlight_template(self.question_text)),
+        ]
 
-        # Numerical constraints (for QuestionNumerical)
-        if hasattr(self, "min_value") and self.min_value is not None:
-            output.append(",\n", style=RICH_STYLES["default"])
-            output.append(
-                f"    min_value={self.min_value}", style=RICH_STYLES["default"]
-            )
+        if hasattr(self, "question_options") and self.question_options:
+            rows.append(("question_options", ", ".join(str(o) for o in self.question_options)))
 
-        if hasattr(self, "max_value") and self.max_value is not None:
-            output.append(",\n", style=RICH_STYLES["default"])
-            output.append(
-                f"    max_value={self.max_value}", style=RICH_STYLES["default"]
-            )
-
-        # Selection constraints (for QuestionCheckBox, QuestionRank)
-        if hasattr(self, "min_selections") and self.min_selections is not None:
-            output.append(",\n", style=RICH_STYLES["default"])
-            output.append(
-                f"    min_selections={self.min_selections}",
-                style=RICH_STYLES["default"],
-            )
-
-        if hasattr(self, "max_selections") and self.max_selections is not None:
-            output.append(",\n", style=RICH_STYLES["default"])
-            output.append(
-                f"    max_selections={self.max_selections}",
-                style=RICH_STYLES["default"],
-            )
-
-        if hasattr(self, "num_selections") and self.num_selections is not None:
-            output.append(",\n", style=RICH_STYLES["default"])
-            output.append(
-                f"    num_selections={self.num_selections}",
-                style=RICH_STYLES["default"],
-            )
-
-        # Option labels (for QuestionLinearScale)
         if hasattr(self, "option_labels") and self.option_labels:
-            output.append(",\n", style=RICH_STYLES["default"])
-            output.append("    option_labels={", style=RICH_STYLES["default"])
-            labels_str = ", ".join(f"{k}: '{v}'" for k, v in self.option_labels.items())
-            if len(labels_str) > 50:
-                labels_str = labels_str[:47] + "..."
-            output.append(labels_str, style=RICH_STYLES["highlight"])
-            output.append("}", style=RICH_STYLES["default"])
+            labels = ", ".join(f"{k}: {v!r}" for k, v in self.option_labels.items())
+            rows.append(("option_labels", f"{{{labels}}}"))
 
-        # Weight (for QuestionLinearScale)
-        if hasattr(self, "weight") and self.weight is not None:
-            output.append(",\n", style=RICH_STYLES["default"])
-            output.append(f"    weight={self.weight}", style=RICH_STYLES["default"])
+        for attr in ("min_value", "max_value", "min_selections", "max_selections",
+                      "num_selections", "max_list_items", "weight"):
+            if hasattr(self, attr) and getattr(self, attr) is not None:
+                rows.append((attr, repr(getattr(self, attr))))
 
-        # Boolean flags - check both .data and direct attributes
         data_dict = self.data
-
-        if "use_code" in data_dict and data_dict["use_code"]:
-            output.append(",\n", style=RICH_STYLES["default"])
-            output.append("    use_code=True", style=RICH_STYLES["default"])
-
-        # permissive is stored without underscore, so check attribute directly
+        if data_dict.get("use_code"):
+            rows.append(("use_code", "True"))
         if hasattr(self, "permissive") and self.permissive:
-            output.append(",\n", style=RICH_STYLES["default"])
-            output.append("    permissive=True", style=RICH_STYLES["default"])
-
+            rows.append(("permissive", "True"))
         if "include_comment" in data_dict and not data_dict["include_comment"]:
-            output.append(",\n", style=RICH_STYLES["default"])
-            output.append("    include_comment=False", style=RICH_STYLES["default"])
+            rows.append(("include_comment", "False"))
 
-        output.append("\n)", style=RICH_STYLES["primary"])
-
-        # Render to string
-        console = Console(file=io.StringIO(), force_terminal=True, width=120)
-        console.print(output, end="")
-        return console.file.getvalue()
+        return render_summary_table(title=title, columns=columns, rows=rows)
 
     def __eq__(self, other: Union[Any, Type[QuestionBase]]) -> bool:
         """Check if two questions are equal. Equality is defined as having the .to_dict().
@@ -1161,28 +1089,6 @@ class QuestionBase(
             options,
         )
         return table
-
-    def inspect(self):
-        """Create an interactive inspector widget for this question.
-
-        This method uses the InspectorWidget registry system to find the appropriate
-        inspector widget class for questions and returns an instance of it.
-
-        Returns:
-            QuestionInspectorWidget instance: Interactive widget for inspecting this question
-
-        Raises:
-            KeyError: If no question inspector widget is available
-            ImportError: If the widgets module cannot be imported
-        """
-        try:
-            from ..widgets.question_inspector import QuestionInspectorWidget
-        except ImportError as e:
-            raise ImportError(
-                "Question inspector widget is not available. Make sure the widgets module is installed."
-            ) from e
-
-        return QuestionInspectorWidget(self)
 
     def code(self):
         """Display the code representation of this question with syntax highlighting and copy button.

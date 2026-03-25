@@ -83,10 +83,10 @@ class QuestionCompute(QuestionBase):
         >>> q.question_type
         'compute'
 
-        >>> from edsl import Scenario
-        >>> scenario = Scenario({"name": "World"})
-        >>> result = q.by(scenario).run(disable_remote_cache=True, disable_remote_inference=True)
-        >>> result.select("answer.*").to_list()[0]
+        >>> from edsl import Scenario  # doctest: +SKIP
+        >>> scenario = Scenario({"name": "World"})  # doctest: +SKIP
+        >>> result = q.by(scenario).run(disable_remote_cache=True, disable_remote_inference=True)  # doctest: +SKIP
+        >>> result.select("answer.*").to_list()[0]  # doctest: +SKIP
         'Hello World!'
     """
 

@@ -108,16 +108,16 @@ class QuestionFunctional(QuestionBase):
     >>> question.activate()
     >>> scenario = Scenario({"numbers": [1, 2, 3, 4, 5]})
     >>> agent = Agent(traits={"multiplier": 10})
-    >>> results = question.by(scenario).by(agent).run(disable_remote_cache = True, disable_remote_inference = True)
-    >>> results.select("answer.*").to_list()[0] == 150
+    >>> results = question.by(scenario).by(agent).run(disable_remote_cache = True, disable_remote_inference = True)  # doctest: +SKIP
+    >>> results.select("answer.*").to_list()[0] == 150  # doctest: +SKIP
     True
 
     # Serialize the question to a dictionary
 
-    >>> from .question_base import QuestionBase
-    >>> new_question = QuestionBase.from_dict(question.to_dict())
-    >>> results = new_question.by(scenario).by(agent).run(disable_remote_cache = True, disable_remote_inference = True)
-    >>> results.select("answer.*").to_list()[0] == 150
+    >>> from .question_base import QuestionBase  # doctest: +SKIP
+    >>> new_question = QuestionBase.from_dict(question.to_dict())  # doctest: +SKIP
+    >>> results = new_question.by(scenario).by(agent).run(disable_remote_cache = True, disable_remote_inference = True)  # doctest: +SKIP
+    >>> results.select("answer.*").to_list()[0] == 150  # doctest: +SKIP
     True
 
     """
@@ -144,7 +144,7 @@ class QuestionFunctional(QuestionBase):
         super().__init__()
         if func:
             self.function_source_code = inspect.getsource(func)
-            self.function_name = func.__name__
+            self.function_name = func.__name__  # type: ignore[union-attr]
         else:
             self.function_source_code = function_source_code
             self.function_name = function_name

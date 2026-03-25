@@ -28,12 +28,10 @@ class JpegMethods(FileMethods):
         display(Image(filename=self.path))
 
     def example(self):
-        import matplotlib.pyplot as plt
-        import numpy as np
+        import shutil
+        from importlib import resources
 
-        x = np.linspace(0, 10, 100)
-        y = np.sin(x)
-        plt.plot(x, y)
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".jpeg") as f:
-            plt.savefig(f.name)
-        return f.name
+        logo_path = str(resources.files("edsl").parent / "static" / "logo.png")
+        tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".jpeg")
+        shutil.copy2(logo_path, tmp.name)
+        return tmp.name

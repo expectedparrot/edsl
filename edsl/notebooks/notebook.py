@@ -90,7 +90,11 @@ class Notebook(Base):
         to ensure all outputs (especially graphics) are captured. Jupyter only saves cell outputs
         to the .ipynb file when you save the notebook.
         """
-        import nbformat
+        try:
+            import nbformat
+            _has_nbformat = True
+        except ImportError:
+            _has_nbformat = False
 
         # Load current notebook path as fallback (VS Code only)
         current_notebook_path = globals().get("__vsc_ipynb_file__")
@@ -99,14 +103,25 @@ class Notebook(Base):
         self._source_path = None
 
         if path is not None:
+            if not _has_nbformat:
+                raise ImportError(
+                    "nbformat is required to load notebooks from files. "
+                    "Install with: pip install edsl[notebook]"
+                )
             self._source_path = path
             with open(path, mode="r", encoding="utf-8") as f:
                 data = nbformat.read(f, as_version=4)
             self.data = json.loads(json.dumps(data))
         elif data is not None:
-            nbformat.validate(data)
+            if _has_nbformat:
+                nbformat.validate(data)
             self.data = data
         elif current_notebook_path is not None:
+            if not _has_nbformat:
+                raise ImportError(
+                    "nbformat is required to load notebooks from files. "
+                    "Install with: pip install edsl[notebook]"
+                )
             self._source_path = current_notebook_path
             with open(current_notebook_path, mode="r", encoding="utf-8") as f:
                 data = nbformat.read(f, as_version=4)
@@ -436,16 +451,6 @@ class Notebook(Base):
             f'nb = Notebook(data={self.data}, name="""{self.name}""", lint={self.lint})'
         )
         return lines
-
-    def to_latex(self, filename: str):
-        """
-        Convert notebook to LaTeX and create a folder with all necessary components.
-
-        :param filename: Name of the output folder and main tex file (without extension)
-        """
-        from .notebook_to_latex import NotebookToLaTeX
-
-        NotebookToLaTeX(self).convert(filename)
 
     def _eval_repr_(self) -> str:
         """Return an eval-able string representation of the Notebook."""

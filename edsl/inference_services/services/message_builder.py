@@ -17,12 +17,14 @@ class MessageBuilder:
         user_prompt: str = "",
         system_prompt: str = "",
         omit_system_prompt_if_empty: bool = True,
+        supports_files_api: bool = True,
     ):
         self.model = model
         self.files_list = files_list or []
         self.user_prompt = user_prompt
         self.system_prompt = system_prompt
         self.omit_system_prompt_if_empty = omit_system_prompt_if_empty
+        self.supports_files_api = supports_files_api
 
         # Model type detection
         self.is_reasoning_model = "o1" in self.model or "o3" in self.model
@@ -277,7 +279,12 @@ class MessageBuilder:
     def _process_pdf_for_regular_model(
         self, file_entry: "Files", sync_client=None
     ) -> Dict[str, Any]:
-        """Process PDF files for regular models using file upload."""
+        """Process PDF files for regular models using file upload or base64 inline."""
+        # For services that don't support the OpenAI Files API (e.g., xAI),
+        # send the PDF as base64-encoded document content inline.
+        if not self.supports_files_api:
+            return self._process_pdf_as_base64(file_entry)
+
         try:
             # Convert base64 back to bytes for upload
             pdf_bytes = base64.b64decode(file_entry.base64_string)
@@ -297,18 +304,25 @@ class MessageBuilder:
                 },
             }
         except Exception as e:
-            # Fallback approach: Try base64 PDF format (some users report this working)
-            try:
-                return {
-                    "type": "text",
-                    "text": f"Here is a PDF document (base64): data:application/pdf;base64,{file_entry.base64_string[:100]}... [truncated for brevity]",
-                }
-            except Exception as fallback_error:
-                # Final fallback: add error message explaining the issue
-                return {
-                    "type": "text",
-                    "text": f"[PDF file could not be processed. Upload error: {str(e)}. Fallback error: {str(fallback_error)}. Please ensure the file is a valid PDF and OpenAI API supports PDF uploads.]",
-                }
+            # Fallback to base64 inline
+            return self._process_pdf_as_base64(file_entry)
+
+    def _process_pdf_as_base64(self, file_entry: "Files") -> Dict[str, Any]:
+        """Send a PDF as base64-encoded content for services without Files API support."""
+        try:
+            return {
+                "type": "image_url",
+                "image_url": {
+                    "url": f"data:application/pdf;base64,{file_entry.base64_string}",
+                },
+            }
+        except Exception:
+            # Final fallback: extract text if possible
+            filename = getattr(file_entry, "filename", "document.pdf")
+            return {
+                "type": "text",
+                "text": f"[PDF file '{filename}' could not be processed.]",
+            }
 
     def _process_text_for_regular_model(self, file_entry: "Files") -> Dict[str, Any]:
         """Process text files for regular models by including their content as text."""

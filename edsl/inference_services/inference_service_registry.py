@@ -125,9 +125,9 @@ class InferenceServiceRegistry:
     # Use lazy loading - discover service modules without importing them
     _default_service_module_map = discover_service_modules()
     _default_source_preferences = (
+        "archive",
         "coop_working",
         "coop",
-        "archive",
         "local",
         "default_models",
     )
@@ -225,8 +225,11 @@ class InferenceServiceRegistry:
 
                 return service_class
             except ImportError as e:
-                raise ImportError(
-                    f"Failed to import service '{service_name}' from {module_name}: {e}"
+                from .exceptions import InferenceServiceDependencyError
+
+                raise InferenceServiceDependencyError(
+                    f"Failed to import service '{service_name}': {e}. "
+                    f"Install provider SDKs with: pip install edsl[inference]"
                 )
 
         # Service not found anywhere

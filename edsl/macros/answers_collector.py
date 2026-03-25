@@ -12,19 +12,12 @@ class AnswersCollector:
             )
 
         answers = None
-        # Prefer Textual TUI if installed
         try:
-            from ..surveys.textual_interactive_survey import run_textual_survey  # type: ignore
+            from ..surveys import InteractiveSurvey  # type: ignore
 
-            answers = run_textual_survey(app.initial_survey, title=app.application_name)
-        except Exception:
-            # Fallback to existing Rich-based flow
-            try:
-                from ..surveys import InteractiveSurvey  # type: ignore
-
-                answers = InteractiveSurvey(app.initial_survey).run()
-            except Exception as e:
-                raise e
+            answers = InteractiveSurvey(app.initial_survey).run()
+        except Exception as e:
+            raise e
 
         # Normalize file uploads to FileStore
         try:

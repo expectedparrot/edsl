@@ -98,9 +98,7 @@ class DataTypeCacheManager:
         """
         if self._columns_cache is None or self._cache_dirty:
             column_names = [f"{v}.{k}" for k, v in self.key_to_data_type.items()]
-            from ..utilities.PrettyList import PrettyList
-
-            self._columns_cache = PrettyList(sorted(column_names))
+            self._columns_cache = sorted(column_names)
 
         return self._columns_cache
 
@@ -124,3 +122,23 @@ class DataTypeCacheManager:
             self._fetch_list_cache[cache_key] = returned_list
 
         return self._fetch_list_cache[cache_key]
+
+    def get_answers(self, question_name: str) -> list:
+        """Get the answers for a given question name.
+
+        Args:
+            question_name: The name of the question to fetch answers for.
+
+        Returns:
+            list: A list of answers, one from each result in the data.
+
+        Examples:
+            >>> from edsl.results import Results
+            >>> r = Results.example()
+            >>> answers = r.get_answers('how_feeling')
+            >>> isinstance(answers, list)
+            True
+            >>> len(answers) == len(r)
+            True
+        """
+        return self.fetch_list("answer", question_name)

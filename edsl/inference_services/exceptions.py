@@ -149,3 +149,21 @@ class InferenceServiceEnvironmentError(InferenceServiceError):
     """
 
     relevant_doc = "https://docs.expectedparrot.com/en/latest/api_keys.html"
+
+
+class InferenceServiceDependencyError(InferenceServiceError):
+    """
+    Exception raised when a required provider SDK is not installed.
+
+    This exception occurs when trying to use an inference service whose
+    Python SDK is not installed. Provider SDKs are optional dependencies
+    that can be installed with: pip install edsl[inference]
+
+    Examples:
+        ```python
+        # OpenAI SDK not installed
+        model = Model("gpt-4")  # Raises InferenceServiceDependencyError
+        ```
+    """
+
+    relevant_doc = "https://docs.expectedparrot.com/en/latest/language_models.html"

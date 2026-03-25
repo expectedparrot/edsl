@@ -45,23 +45,6 @@ class TokenLimitError(BucketError):
     relevant_doc = "https://docs.expectedparrot.com/"
 
 
-class TokenBucketClientError(BucketError):
-    """
-    Exception raised when there's an error communicating with a remote token bucket.
-
-    This exception occurs when the client cannot connect to the token bucket service,
-    receives an unexpected response, or encounters other client-related issues.
-
-    Examples:
-        ```python
-        client = TokenBucketClient(url="invalid_url")
-        client.get_tokens(10)  # May raise TokenBucketClientError
-        ```
-    """
-
-    relevant_doc = "https://docs.expectedparrot.com/"
-
-
 class BucketConfigurationError(BucketError):
     """
     Exception raised when there's an issue with bucket configuration.
@@ -79,35 +62,3 @@ class BucketConfigurationError(BucketError):
     relevant_doc = "https://docs.expectedparrot.com/"
 
 
-class BucketNotFoundError(BucketError):
-    """
-    Exception raised when a requested bucket cannot be found.
-
-    This exception occurs when attempting to access a bucket that doesn't exist
-    in the system or has been removed.
-
-    Examples:
-        ```python
-        # Attempting to access a non-existent bucket:
-        bucket_collection.get_bucket("non_existent_bucket")  # Would raise BucketNotFoundError
-        ```
-    """
-
-    relevant_doc = "https://docs.expectedparrot.com/"
-
-
-class InvalidBucketParameterError(BucketConfigurationError):
-    """
-    Exception raised when an invalid parameter is provided for bucket operations.
-
-    This exception occurs when providing invalid parameters to bucket methods,
-    such as negative token amounts, invalid capacity values, etc.
-
-    Examples:
-        ```python
-        # Attempting to use invalid parameters:
-        bucket.add_tokens(-100)  # Would raise InvalidBucketParameterError
-        ```
-    """
-
-    relevant_doc = "https://docs.expectedparrot.com/"

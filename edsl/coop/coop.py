@@ -260,9 +260,9 @@ class Coop(CoopFunctionsMixin):
             if "json_string" in log_payload and log_payload["json_string"]:
                 json_str = log_payload["json_string"]
                 if len(json_str) > 200:
-                    log_payload["json_string"] = (
-                        f"{json_str[:200]}... (truncated, total length: {len(json_str)})"
-                    )
+                    log_payload[
+                        "json_string"
+                    ] = f"{json_str[:200]}... (truncated, total length: {len(json_str)})"
             self._logger.info(f"Request payload: {log_payload}")
 
         try:
@@ -513,7 +513,6 @@ class Coop(CoopFunctionsMixin):
             # print(response.text)
             if "The API key you provided is invalid" in message and check_api_key:
                 import secrets
-                from ..utilities.utilities import write_api_key_to_env
 
                 self._logger.info("Invalid API key detected, starting login flow")
                 edsl_auth_token = secrets.token_urlsafe(16)
@@ -533,15 +532,9 @@ class Coop(CoopFunctionsMixin):
                 print("\n✨ API key retrieved.")
                 self._logger.info("API key successfully retrieved via login")
 
-                if self.ep_key_handler.ask_to_store(api_key):
-                    pass
-                else:
-                    path_to_env = write_api_key_to_env(api_key)
-                    print(
-                        "\n✨ API key retrieved and written to .env file at the following path:"
-                    )
-                    print(f"    {path_to_env}")
-                    print("Rerun your code to try again with a valid API key.")
+                self.ep_key_handler.store_ep_api_key(api_key)
+                print("\n✨ API key stored in .env file.")
+                print("Rerun your code to try again with a valid API key.")
                 return
 
             elif "Authorization" in message:
@@ -763,6 +756,21 @@ class Coop(CoopFunctionsMixin):
         except Timeout:
             return {}
 
+    @staticmethod
+    def _is_widget_short_name_valid(short_name: str) -> tuple:
+        """Check if a widget short name is valid (lowercase letters, digits, underscores, starts with letter)."""
+        if not short_name:
+            return False, "Widget short name cannot be empty."
+        if not short_name[0].isalpha():
+            return False, "Widget short name must start with a lowercase letter."
+        for char in short_name:
+            if not (char.islower() or char.isdigit() or char == "_"):
+                return (
+                    False,
+                    f"Widget short name contains invalid character '{char}'. Only lowercase letters, digits, and underscores are allowed.",
+                )
+        return True, None
+
     def _get_widget_javascript(self, widget_name: str) -> str:
         """
         Fetches the javascript for a widget from the server using cached singleton.
@@ -806,9 +814,7 @@ class Coop(CoopFunctionsMixin):
         Raises:
             CoopServerResponseError: If there's an error communicating with the server
         """
-        from ..widgets.base_widget import EDSLBaseWidget
-
-        short_name_is_valid, error_message = EDSLBaseWidget.is_widget_short_name_valid(
+        short_name_is_valid, error_message = self._is_widget_short_name_valid(
             short_name
         )
         if not short_name_is_valid:
@@ -989,12 +995,10 @@ class Coop(CoopFunctionsMixin):
         """
         payload = {}
         if short_name is not None:
-            from ..widgets.base_widget import EDSLBaseWidget
-
             (
                 short_name_is_valid,
                 error_message,
-            ) = EDSLBaseWidget.is_widget_short_name_valid(short_name)
+            ) = self._is_widget_short_name_valid(short_name)
             if not short_name_is_valid:
                 raise CoopValueError(error_message)
             payload["short_name"] = short_name
@@ -1177,13 +1181,16 @@ class Coop(CoopFunctionsMixin):
                     byte_data = pretty_json_string.encode("utf-8")
                 # Lint python files prior to upload
                 elif file_store_metadata["suffix"] == "py":
-                    import black
-
                     file_store_bytes = base64.b64decode(object_dict["base64_string"])
                     python_string = file_store_bytes.decode("utf-8")
-                    formatted_python_string = black.format_str(
-                        python_string, mode=black.Mode()
-                    )
+                    try:
+                        import black
+
+                        formatted_python_string = black.format_str(
+                            python_string, mode=black.Mode()
+                        )
+                    except ImportError:
+                        formatted_python_string = python_string
                     byte_data = formatted_python_string.encode("utf-8")
                 else:
                     byte_data = base64.b64decode(object_dict["base64_string"])
@@ -2142,6 +2149,50 @@ class Coop(CoopFunctionsMixin):
                 "latest_job_run_details": latest_job_run_details,
             }
         )
+
+    def remote_inference_results_manifest(
+        self,
+        job_uuid: str,
+        page_size: int = 100,
+    ) -> dict:
+        """
+        Get the manifest for paginated results fetching from the runner.
+
+        Returns:
+            dict with keys: job_id, status, total_interviews, page_size,
+            page_count, interview_ids
+        """
+        response = self._send_server_request(
+            uri=f"api/v0/remote-inference/job/{job_uuid}/results/manifest",
+            method="GET",
+            params={"page_size": page_size},
+        )
+        self._resolve_server_response(response)
+        return response.json()
+
+    def remote_inference_results_page(
+        self,
+        job_uuid: str,
+        page: int = 0,
+        page_size: int = 100,
+    ) -> dict:
+        """
+        Get a page of raw interview data from the runner.
+
+        Each interview contains raw dicts (agent, scenario, model, answers)
+        that the EDSL client uses to build Result objects locally.
+
+        Returns:
+            dict with keys: job_id, page, page_size, total_on_page,
+            interviews (list of raw interview dicts), timing_ms
+        """
+        response = self._send_server_request(
+            uri=f"api/v0/remote-inference/job/{job_uuid}/results/page",
+            method="GET",
+            params={"page": page, "page_size": page_size},
+        )
+        self._resolve_server_response(response)
+        return response.json()
 
     def new_remote_inference_get(
         self,
@@ -3954,7 +4005,9 @@ class Coop(CoopFunctionsMixin):
                     value_type = (
                         "inf"
                         if math.isinf(value)
-                        else "nan" if math.isnan(value) else "invalid"
+                        else "nan"
+                        if math.isnan(value)
+                        else "invalid"
                     )
                     error_msg += f"  • {path}: {value} ({value_type})\n"
 
@@ -4043,11 +4096,6 @@ class Coop(CoopFunctionsMixin):
             except ImportError:
                 in_marimo = False
 
-        # Debug output
-        print(
-            f"DEBUG: in_marimo={in_marimo}, console.is_terminal={console.is_terminal}"
-        )
-
         description = (
             link_description
             if link_description
@@ -4063,20 +4111,7 @@ class Coop(CoopFunctionsMixin):
         </div>
         """
 
-        if in_marimo and mo is not None:
-            # marimo: use mo.callout with markdown link
-            callout = mo.callout(
-                mo.md(
-                    f"""
-{description}
-
-[🔗 Log in and automatically store key]({url})
-                """
-                ),
-                kind="info",
-            )
-            return callout
-        elif console.is_terminal:
+        if console.is_terminal:
             # Running in a standard terminal, show the full URL
             if link_description:
                 rich_print(
@@ -4084,12 +4119,27 @@ class Coop(CoopFunctionsMixin):
                 )
             else:
                 rich_print(f"[#38bdf8][link={url}]{url}[/link][/#38bdf8]")
+        elif in_marimo and mo is not None:
+            # marimo notebook (not terminal): use mo.callout with markdown link
+            callout = mo.callout(
+                mo.md(
+                    f"{description}\n\n"
+                    f"[🔗 Log in and automatically store key]({url})"
+                ),
+                kind="info",
+            )
+            return callout
         else:
             # Running in an interactive environment (e.g., Jupyter Notebook)
-            # Use IPython HTML display
-            from IPython.display import HTML, display
+            try:
+                from IPython.display import HTML, display
 
-            display(HTML(html_content))
+                display(HTML(html_content))
+            except ImportError:
+                if link_description:
+                    print(f"{link_description}\n{url}")
+                else:
+                    print(url)
 
         print("Logging in will activate the following features:")
         print("  - Remote inference: Runs jobs remotely on the Expected Parrot server.")
@@ -4118,7 +4168,6 @@ class Coop(CoopFunctionsMixin):
         """
         import secrets
         from dotenv import load_dotenv
-        from ..utilities.utilities import write_api_key_to_env
 
         edsl_auth_token = secrets.token_urlsafe(16)
 
@@ -4138,12 +4187,11 @@ class Coop(CoopFunctionsMixin):
 
             raise CoopTimeoutError("Timed out waiting for login. Please try again.")
 
-        path_to_env = write_api_key_to_env(api_key)
-        print("\n✨ API key retrieved and written to .env file at the following path:")
-        print(f"    {path_to_env}")
+        from .ep_key_handling import ExpectedParrotKeyHandler
 
-        # Add API key to environment
+        ExpectedParrotKeyHandler().store_ep_api_key(api_key)
         load_dotenv()
+        print("\n✨ API key retrieved and stored in .env file.")
 
     def login_streamlit(self, timeout: int = 120):
         """
@@ -4189,7 +4237,6 @@ class Coop(CoopFunctionsMixin):
         import secrets
         from dotenv import load_dotenv
         from .ep_key_handling import ExpectedParrotKeyHandler
-        from ..utilities.utilities import write_api_key_to_env
 
         # ------------------------------------------------------------------
         # 1. Prepare auth-token and store state across reruns
@@ -4253,12 +4300,9 @@ class Coop(CoopFunctionsMixin):
         # 4. Key received – persist it and notify user
         # ------------------------------------------------------------------
         ExpectedParrotKeyHandler().store_ep_api_key(api_key)
-        os.environ["EXPECTED_PARROT_API_KEY"] = api_key
-        path_to_env = write_api_key_to_env(api_key)
         load_dotenv()
 
         st.success("API-key retrieved and stored. You are now logged-in! 🎉")
-        st.caption(f"Key saved to `{path_to_env}`.")
 
         return api_key
 
@@ -4404,119 +4448,6 @@ class Coop(CoopFunctionsMixin):
         self._resolve_server_response(response)
         return response.json()
 
-    def execute_firecrawl_request(self, request_dict: Dict[str, Any]) -> Any:
-        """
-        Execute a Firecrawl request through the Extension Gateway.
-
-        This method sends a Firecrawl request dictionary to the Extension Gateway's
-        /firecrawl/execute endpoint, which processes it using FirecrawlScenario
-        and returns EDSL Scenario/ScenarioList objects.
-
-        Parameters:
-            request_dict (Dict[str, Any]): A dictionary containing the Firecrawl request.
-                Must include:
-                - method: The Firecrawl method to execute (scrape, crawl, search, extract, map_urls)
-                - api_key: Optional if provided via environment or this method will add it
-                - Other method-specific parameters (url_or_urls, query_or_queries, etc.)
-
-        Returns:
-            Any: The result from FirecrawlScenario execution:
-                - For scrape/extract with single URL: Scenario object
-                - For scrape/extract with multiple URLs: ScenarioList object
-                - For crawl/search/map_urls: ScenarioList object
-
-        Raises:
-            httpx.HTTPError: If the request to the Extension Gateway fails
-            ValueError: If the request_dict is missing required fields
-            Exception: If the Firecrawl execution fails
-
-        Example:
-            >>> # Scrape a single URL
-            >>> result = coop.execute_firecrawl_request({
-            ...     "method": "scrape",
-            ...     "url_or_urls": "https://example.com",
-            ...     "kwargs": {"formats": ["markdown"]}
-            ... })
-
-            >>> # Search the web
-            >>> results = coop.execute_firecrawl_request({
-            ...     "method": "search",
-            ...     "query_or_queries": "AI research papers",
-            ...     "kwargs": {"limit": 10}
-            ... })
-
-            >>> # Extract structured data
-            >>> result = coop.execute_firecrawl_request({
-            ...     "method": "extract",
-            ...     "url_or_urls": "https://shop.example.com/product",
-            ...     "schema": {"title": "string", "price": "number"},
-            ... })
-        """
-        import httpx
-        from ..config import CONFIG
-
-        # Validate request_dict
-        if not request_dict or not isinstance(request_dict, dict):
-            raise ValueError("request_dict must be a non-empty dictionary")
-
-        if "method" not in request_dict:
-            raise ValueError("request_dict must contain 'method' field")
-
-        # Initialize the Extension Gateway client
-        gateway_url = CONFIG.get_extension_gateway_url()
-
-        # Prepare headers with the Coop API key for authentication
-        headers = {
-            "Authorization": f"Bearer {self.api_key}",
-            "Content-Type": "application/json",
-        }
-        # Make the request to the Extension Gateway
-        try:
-            with httpx.Client(timeout=300.0) as client:
-                response = client.post(
-                    f"{gateway_url}/firecrawl/execute",
-                    json=request_dict,
-                    headers=headers,
-                )
-
-                # Check for errors
-                if response.status_code == 400:
-                    error_detail = response.json().get("detail", "Bad request")
-                    raise ValueError(f"Firecrawl request failed: {error_detail}")
-                elif response.status_code == 401:
-                    error_detail = response.json().get("detail", "Unauthorized")
-                    raise ValueError(f"Authentication failed: {error_detail}")
-                elif response.status_code == 500:
-                    error_detail = response.json().get("detail", "Internal error")
-                    raise Exception(f"Firecrawl execution error: {error_detail}")
-
-                response.raise_for_status()
-
-                # Parse the response
-                response_data = response.json()
-
-                if not response_data.get("success", False):
-                    raise Exception(f"Firecrawl request failed: {response_data}")
-
-                # Return the result
-                # The gateway should have already converted it to proper EDSL objects
-                result = response_data.get("result")
-                if "scenarios" in result:
-                    from ..scenarios import ScenarioList
-
-                    return ScenarioList.from_dict(result)
-                else:
-                    from ..scenarios import Scenario
-
-                    return Scenario.from_dict(result)
-
-        except httpx.HTTPError as e:
-            self._logger.error(f"HTTP error calling Extension Gateway: {e}")
-            raise
-        except Exception as e:
-            self._logger.error(f"Error executing Firecrawl request: {e}")
-            raise
-
     async def report_error(self, error: Exception) -> None:
         """
         Report an error for debugging purposes.
@@ -4647,7 +4578,6 @@ class Coop(CoopFunctionsMixin):
         import secrets
         from dotenv import load_dotenv
         from .ep_key_handling import ExpectedParrotKeyHandler
-        from ..utilities.utilities import write_api_key_to_env
 
         # ------------------------------------------------------------------
         # 1. Prepare auth-token
@@ -4694,13 +4624,8 @@ class Coop(CoopFunctionsMixin):
                 if api_key:
                     # Persist and expose the key
                     ExpectedParrotKeyHandler().store_ep_api_key(api_key)
-                    os.environ["EXPECTED_PARROT_API_KEY"] = api_key
-                    path_to_env = write_api_key_to_env(api_key)
                     load_dotenv()
-                    success_msg = (
-                        "API-key retrieved and stored 🎉\n\n"
-                        f"Key saved to `{path_to_env}`."
-                    )
+                    success_msg = "API-key retrieved and stored 🎉"
                     return (
                         success_msg,
                         _button_update(interactive=False, visible=False),

@@ -6,10 +6,9 @@ from collections import UserList
 
 from ..results import Results
 from ..dataset import Dataset
-from ..dataset.display.table_display import TableDisplay
 from ..scenarios import ScenarioList, FileStore
 from ..scenarios import Scenario
-from ..scenarios.agent_blueprint import AgentBlueprint
+from ..scenarios.contrib.agent_blueprint import AgentBlueprint
 from ..surveys import Survey
 from ..agents import AgentList as AgentListImport
 
@@ -18,13 +17,11 @@ relevant_classes = {
         "to_scenario_list",
         "select",
         "table",
-        "report_from_template",
         "long_view",
         "augment_agents",
         "agents",
     ],
-    Dataset: ["table", "expand", "to_markdown", "to_list"],
-    TableDisplay: ["flip", "to_string"],
+    Dataset: ["table", "expand", "to_markdown", "to_list", "flip", "to_string"],
     FileStore: ["view", "to_docx", "save"],
     Survey: ["to_scenario_list", "table", "add_weighted_linear_scale_sum"],
     ScenarioList: [
@@ -139,7 +136,6 @@ ALLOWED_OUTPUT_TYPES = {
     "AgentBlueprint": AgentBlueprint,
     "Results": Results,
     "Dataset": Dataset,
-    "TableDisplay": TableDisplay,
     "FileStore": FileStore,
 }
 

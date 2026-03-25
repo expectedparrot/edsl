@@ -16,7 +16,6 @@ class TokenBucket:
     and replenished at a constant rate over time.
 
     Features:
-    - Supports both local and remote operation via factory method
     - Thread-safe implementation
     - Configurable capacity and refill rates
     - Ability to track usage patterns
@@ -42,59 +41,6 @@ class TokenBucket:
         58.33
     """
 
-    def __new__(
-        cls,
-        *,
-        bucket_name: str,
-        bucket_type: str,
-        capacity: Union[int, float],
-        refill_rate: Union[int, float],
-        remote_url: Optional[str] = None,
-    ):
-        """Factory method to create either a local or remote token bucket.
-
-        This method determines whether to create a local TokenBucket instance or
-        a remote TokenBucketClient instance based on the provided parameters.
-
-        Args:
-            bucket_name: Name of the bucket for identification
-            bucket_type: Type of the bucket (e.g., 'api', 'database', etc.)
-            capacity: Maximum number of tokens the bucket can hold
-            refill_rate: Rate at which tokens are refilled (tokens per second)
-            remote_url: If provided, creates a remote token bucket client
-
-        Returns:
-            Either a TokenBucket instance (local) or a TokenBucketClient instance (remote)
-
-        Example:
-            >>> # Local bucket
-            >>> local_bucket = TokenBucket(
-            ...     bucket_name="local-rate-limit",
-            ...     bucket_type="api",
-            ...     capacity=100,
-            ...     refill_rate=10
-            ... )
-            >>> isinstance(local_bucket, TokenBucket)
-            True
-            >>> local_bucket.bucket_name
-            'local-rate-limit'
-        """
-        if remote_url is not None:
-            # Import the client directly from its module to avoid circular imports
-            from .token_bucket_client import TokenBucketClient
-
-            return TokenBucketClient(
-                bucket_name=bucket_name,
-                bucket_type=bucket_type,
-                capacity=capacity,
-                refill_rate=refill_rate,
-                api_base_url=remote_url,
-            )
-
-        # Create a local token bucket
-        instance = super(TokenBucket, cls).__new__(cls)
-        return instance
-
     def __init__(
         self,
         *,
@@ -102,7 +48,6 @@ class TokenBucket:
         bucket_type: str,
         capacity: Union[int, float],
         refill_rate: Union[int, float],
-        remote_url: Optional[str] = None,
     ):
         """Initialize a new token bucket instance.
 
@@ -113,7 +58,6 @@ class TokenBucket:
             bucket_type: Type of the bucket (e.g., 'api', 'database', etc.)
             capacity: Maximum number of tokens the bucket can hold
             refill_rate: Rate at which tokens are refilled (tokens per second)
-            remote_url: If provided, initialization is skipped (handled by __new__)
 
         Note:
             - The bucket starts full (tokens = capacity)
@@ -127,10 +71,6 @@ class TokenBucket:
             >>> bucket.target_rate == bucket.capacity * 60  # Target rate in tokens per minute
             True
         """
-        # Skip initialization if this is a remote bucket
-        if remote_url is not None:
-            return
-
         self.bucket_name = bucket_name
         self.bucket_type = bucket_type
         self.capacity = capacity
@@ -418,41 +358,6 @@ class TokenBucket:
             True
         """
         return self.log
-
-    def visualize(self):
-        """Visualize the token bucket usage over time as a line chart.
-
-        Creates and displays a matplotlib plot showing token levels over time.
-        This can be useful for analyzing rate limit behavior and usage patterns.
-
-        Note:
-            Requires matplotlib to be installed
-
-        Example:
-            >>> bucket = TokenBucket(bucket_name="api", bucket_type="test", capacity=100, refill_rate=10)
-            >>> # In practice, you would use the bucket and then visualize:
-            >>> # import asyncio
-            >>> # for i in range(5):
-            >>> #     asyncio.run(bucket.get_tokens(10))
-            >>> #     asyncio.sleep(0.2)
-            >>> # bucket.visualize()  # This would display a matplotlib chart
-        """
-        times, tokens = zip(*self.get_log())
-        start_time = times[0]
-        times = [t - start_time for t in times]  # Normalize time to start from 0
-        from matplotlib import pyplot as plt
-
-        plt.figure(figsize=(10, 6))
-        plt.plot(times, tokens, label="Tokens Available")
-        plt.xlabel("Time (seconds)", fontsize=12)
-        plt.ylabel("Number of Tokens", fontsize=12)
-        details = f"{self.bucket_name} ({self.bucket_type}) Bucket Usage Over Time\nCapacity: {self.capacity:.1f}, Refill Rate: {self.refill_rate:.1f}/second"
-        plt.title(details, fontsize=14)
-
-        plt.legend()
-        plt.grid(True)
-        plt.tight_layout()
-        plt.show()
 
     def get_throughput(self, time_window: Optional[float] = None) -> float:
         """Calculate the empirical bucket throughput in tokens per minute.

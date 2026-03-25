@@ -2,10 +2,9 @@
 
 from abc import ABC, abstractmethod
 import re
-from typing import Any, Callable, List
+from typing import Any, Callable, List, Optional
 from .exceptions import (
     QuestionCreationValidationError,
-    QuestionAnswerValidationError,
 )
 from .settings import Settings
 
@@ -96,12 +95,12 @@ class IntegerDescriptor(BaseDescriptor):
         """Validate the value is an integer."""
         if self.none_allowed:
             if not (isinstance(value, int) or value is None):
-                raise QuestionAnswerValidationError(
+                raise QuestionCreationValidationError(
                     f"Expected an integer or None (got {value})."
                 )
         else:
             if not isinstance(value, int):
-                raise QuestionAnswerValidationError(
+                raise QuestionCreationValidationError(
                     f"Expected an integer (got {value})."
                 )
 
@@ -131,7 +130,7 @@ class NumericalOrNoneDescriptor(BaseDescriptor):
                     f"Dynamic numerical values must have jinja2 braces - instead received: {value}."
                 )
         if not is_number_or_none(value):
-            raise QuestionAnswerValidationError(
+            raise QuestionCreationValidationError(
                 f"Expected a number or None (got {value})."
             )
 
@@ -178,11 +177,11 @@ class NumSelectionsDescriptor(BaseDescriptor):
                 f"`num_selections` must be an integer (got {value})."
             )
         if value > len(instance.question_options):
-            raise QuestionAnswerValidationError(
+            raise QuestionCreationValidationError(
                 f"`num_selections` must be less than the number of options (got {value})."
             )
         if value < 1:
-            raise QuestionAnswerValidationError(
+            raise QuestionCreationValidationError(
                 f"`num_selections` must a positive integer (got {value})."
             )
 
@@ -284,7 +283,7 @@ class QuestionOptionsDescriptor(BaseDescriptor):
 
     def __init__(
         self,
-        num_choices: int = None,
+        num_choices: Optional[int] = None,
         linear_scale: bool = False,
         q_budget: bool = False,
         q_demand: bool = False,

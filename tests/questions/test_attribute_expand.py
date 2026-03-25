@@ -56,21 +56,10 @@ def test_multiple_choice_options_from_nested_scenario():
 def test_checkbox_options_from_prior_answers():
     from edsl.questions import QuestionList, QuestionCheckBox
 
-    def two_responses_closure():
-
-        num_calls = 0
-
-        def two_responses(user_prompt, system_prompt, files_list):
-            nonlocal num_calls
-            if num_calls == 0:
-                num_calls += 1
-                return """["Red", "Blue", "Green", "Yellow", "Orange"]"""
-            else:
-                return "Red, Blue, Yellow"
-
-        return two_responses
-
-    m = Model("test", func=two_responses_closure())
+    m = Model("test", canned_response={
+        "colors": '["Red", "Blue", "Green", "Yellow", "Orange"]',
+        "primary": "Red, Blue, Yellow",
+    })
 
     q1 = QuestionList(question_name="colors", question_text="Draft a list of colors.")
 
@@ -139,21 +128,10 @@ def test_numerical_min_max_from_nested_scenario():
 
 
 def test_numerical_min_from_prior_answers():
-    def two_responses_closure():
-
-        num_calls = 0
-
-        def two_responses(user_prompt, system_prompt, files_list):
-            nonlocal num_calls
-            if num_calls == 0:
-                num_calls += 1
-                return """12"""
-            else:
-                return """36"""
-
-        return two_responses
-
-    m = Model("test", func=two_responses_closure())
+    m = Model("test", canned_response={
+        "eggs_in_dozen": "12",
+        "eggs_in_three_dozen": "36",
+    })
 
     q1 = QuestionMultipleChoice(
         question_name="eggs_in_dozen",

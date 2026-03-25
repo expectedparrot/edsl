@@ -3,10 +3,14 @@
 # edsl.__version__
 
 
-def test_version_numbers():
-    import edsl
-    from toml import load
+import sys
+import pytest
 
-    with open("pyproject.toml", "r") as f:
-        pyproject = load(f)
+@pytest.mark.skipif(sys.version_info < (3, 11), reason="tomllib requires Python 3.11+")
+def test_version_numbers():
+    import tomllib
+    import edsl
+
+    with open("pyproject.toml", "rb") as f:
+        pyproject = tomllib.load(f)
     assert edsl.__version__ == pyproject["tool"]["poetry"]["version"]
