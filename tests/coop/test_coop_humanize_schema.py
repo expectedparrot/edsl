@@ -7,7 +7,12 @@ from edsl.coop.coop_humanize_schema import (
 )
 from edsl.coop.exceptions import HumanizeSchemaValidationError
 from edsl.instructions import Instruction
-from edsl.questions import QuestionDemand, QuestionFreeText, QuestionMultipleChoice
+from edsl.questions import (
+    QuestionDemand,
+    QuestionFreeText,
+    QuestionMultipleChoice,
+    QuestionNumerical,
+)
 from edsl.surveys import Survey
 
 
@@ -73,6 +78,47 @@ class TestValidateHumanizeSchema:
             },
         }
         validate_humanize_schema(survey, humanize_schema)
+
+    @pytest.mark.parametrize(
+        "slider_config, expected_error_snippet",
+        [
+            (
+                {"type": "slider", "min": 5, "max": 5, "step": 1},
+                "minimum must be less than maximum",
+            ),
+            (
+                {"type": "slider", "min": 0, "max": 10, "step": 0},
+                "step must be positive",
+            ),
+            (
+                {"type": "slider", "min": 0, "max": 10, "step": 11},
+                "step must not exceed (max - min)",
+            ),
+        ],
+    )
+    def test_numerical_slider_invalid_bounds_raise(
+        self, slider_config, expected_error_snippet
+    ):
+        """Numerical slider rejects invalid min/max/step combinations."""
+        survey = Survey(
+            [
+                QuestionNumerical(
+                    question_name="num_q",
+                    question_text="How many units?",
+                ),
+            ]
+        )
+        humanize_schema = {
+            "questions": {
+                "num_q": {
+                    "optional": False,
+                    "format": slider_config,
+                }
+            }
+        }
+        with pytest.raises(HumanizeSchemaValidationError) as exc_info:
+            validate_humanize_schema(survey, humanize_schema)
+        assert expected_error_snippet in str(exc_info.value)
 
     def test_question_not_in_survey_raises(self):
         """Humanize schema referencing a question not in the survey raises."""
