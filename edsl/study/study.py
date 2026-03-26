@@ -5,6 +5,7 @@ import os
 import shutil
 import subprocess
 import tempfile
+from dataclasses import dataclass
 from pathlib import Path
 
 from edsl.study.client import StudyClient, _resolve_server_url, authed_remote_url
@@ -15,6 +16,23 @@ from edsl.study.exceptions import (
 )
 
 _METADATA_FILE = ".study.json"
+
+
+@dataclass
+class PushResult:
+    """Returned by :meth:`Study.push`."""
+    uuid: str
+    url: str
+    branch: str
+    created: bool
+
+
+@dataclass
+class PullResult:
+    """Returned by :meth:`Study.pull`."""
+    uuid: str
+    url: str
+    branch: str
 
 # Default scaffold for new studies. Each entry is either:
 #   {"type": "dir"}  — creates the directory with a .gitkeep
@@ -260,11 +278,14 @@ class Study:
         description: str | None = None,
         visibility: str | None = None,
         verbose: bool = False,
-    ):
+    ) -> PushResult:
         """Push the local git repo to GitLab via the meta-server.
 
         On the first push, creates a UUID and GitLab project. Subsequent
         pushes just mint a new token and push.
+
+        Returns a :class:`PushResult` with the study UUID, remote URL,
+        branch, and whether this was the first push.
         """
         self._update_metadata_fields(
             alias=alias, title=title, description=description, visibility=visibility,
@@ -296,8 +317,19 @@ class Study:
         self._git_push_with_retry(remote, branch, verbose=verbose)
         _log(verbose, "Push complete.")
 
-    def pull(self, branch: str = "main", *, verbose: bool = False):
-        """Pull from GitLab via the meta-server."""
+        return PushResult(
+            uuid=self._uuid,
+            url=self._gitlab_url,
+            branch=branch,
+            created=is_first_push,
+        )
+
+    def pull(self, branch: str = "main", *, verbose: bool = False) -> PullResult:
+        """Pull from GitLab via the meta-server.
+
+        Returns a :class:`PullResult` with the study UUID, remote URL,
+        and branch.
+        """
         if self._uuid is None:
             raise StudyError("Study has not been pushed yet.")
 
@@ -310,6 +342,12 @@ class Study:
         self._git_run("fetch", remote, branch, capture_output=True)
         self._git_run("merge", "FETCH_HEAD")
         _log(verbose, "Pull complete.")
+
+        return PullResult(
+            uuid=self._uuid,
+            url=self._gitlab_url,
+            branch=branch,
+        )
 
     def view(self):
         """Open the GitLab repository page in the default browser."""

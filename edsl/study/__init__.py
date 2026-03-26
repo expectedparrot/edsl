@@ -1,3 +1,3 @@
-from edsl.study.study import Study
+from edsl.study.study import Study, PushResult, PullResult
 
-__all__ = ["Study"]
+__all__ = ["Study", "PushResult", "PullResult"]
