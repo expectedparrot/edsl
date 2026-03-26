@@ -7,7 +7,7 @@ import requests
 
 from edsl.study.exceptions import StudyAuthError, StudyServerError
 
-_DEFAULT_SERVER_URL = "https://study.expectedparrot.com"
+_DEFAULT_SERVER_URL = "http://localhost:1234/api/v0/gitlab"
 
 
 def _resolve_server_url(server_url: str | None) -> str:
@@ -16,6 +16,7 @@ def _resolve_server_url(server_url: str | None) -> str:
         return server_url.rstrip("/")
     try:
         from edsl.config import CONFIG
+
         return CONFIG.get("EDSL_STUDY_SERVER_URL")
     except Exception:
         return _DEFAULT_SERVER_URL
@@ -27,6 +28,7 @@ def _get_api_key() -> str:
     if not key:
         try:
             from edsl.coop.ep_key_handling import ExpectedParrotKeyHandler
+
             key = ExpectedParrotKeyHandler().get_ep_api_key()
         except Exception:
             pass
@@ -90,7 +92,9 @@ class StudyClient:
             )
         return resp.json()
 
-    def clone_request(self, *, uuid: str | None = None, alias: str | None = None) -> dict:
+    def clone_request(
+        self, *, uuid: str | None = None, alias: str | None = None
+    ) -> dict:
         body = {}
         if uuid is not None:
             body["uuid"] = uuid

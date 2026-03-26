@@ -144,7 +144,7 @@ CONFIG_MAP = {
         "info": "Base URL of the CAS editor service for push/pull operations.",
     },
     "EDSL_STUDY_SERVER_URL": {
-        "default": "https://study.expectedparrot.com",
+        "default": "http://localhost:1234/api/v0/gitlab",
         "info": "Base URL of the Study meta-server for git-backed study sync.",
     },
 }
@@ -243,7 +243,11 @@ class Config(RepresentationMixin):
                 if env_var.endswith("_URL"):
                     value = value.rstrip("/")
                     # Warn if EXPECTED_PARROT_URL uses http instead of https
-                    if env_var == "EXPECTED_PARROT_URL" and value.startswith("http://") and "localhost" not in value:
+                    if (
+                        env_var == "EXPECTED_PARROT_URL"
+                        and value.startswith("http://")
+                        and "localhost" not in value
+                    ):
                         raise InvalidEnvironmentVariableError(
                             f"EXPECTED_PARROT_URL uses 'http://' but the server requires 'https://'. "
                             f"Got: {value}. Change to: {value.replace('http://', 'https://')}"
