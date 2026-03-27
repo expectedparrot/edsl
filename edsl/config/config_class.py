@@ -243,10 +243,13 @@ class Config(RepresentationMixin):
                 if env_var.endswith("_URL"):
                     value = value.rstrip("/")
                     # Warn if EXPECTED_PARROT_URL uses http instead of https
+                    # Allow http for localhost and Docker-internal hostnames (no dot in host)
+                    _host = value.split("://", 1)[-1].split("/", 1)[0].split(":", 1)[0]
+                    _is_internal = "localhost" in value or "." not in _host
                     if (
                         env_var == "EXPECTED_PARROT_URL"
                         and value.startswith("http://")
-                        and "localhost" not in value
+                        and not _is_internal
                     ):
                         raise InvalidEnvironmentVariableError(
                             f"EXPECTED_PARROT_URL uses 'http://' but the server requires 'https://'. "

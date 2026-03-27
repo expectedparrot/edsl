@@ -603,6 +603,7 @@ class TestList:
 # ------------------------------------------------------------------
 
 
+@pytest.mark.skipif(os.environ.get("CI") == "true", reason="CI lacks git user identity")
 class TestFromRepo:
     def test_wraps_existing_repo(self, tmp_path):
         repo_dir = tmp_path / "myrepo"

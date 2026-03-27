@@ -1,6 +1,9 @@
 from __future__ import annotations
 from typing import Any, List, Optional, Dict, NewType, TYPE_CHECKING
+import logging
 import os
+
+logger = logging.getLogger(__name__)
 
 from ..inference_service_abc import InferenceServiceABC
 from ..decorators import report_errors_async
@@ -26,6 +29,7 @@ APIToken = NewType("APIToken", str)
 def _get_openai():
     """Lazy import of the openai package."""
     import openai
+
     return openai
 
 
@@ -146,9 +150,10 @@ class OpenAIServiceV2(InferenceServiceABC):
             output_token_name = cls.output_token_name
             _inference_service_ = cls._inference_service_
             _model_ = model_name
+            _is_reasoning = any(tag in model_name for tag in OPENAI_REASONING_MODELS)
             _parameters_ = {
                 "temperature": 0.5,
-                "max_tokens": 2000,
+                "max_tokens": 16000 if _is_reasoning else 2000,
                 "top_p": 1,
                 "frequency_penalty": 0,
                 "presence_penalty": 0,
@@ -326,7 +331,18 @@ class OpenAIServiceV2(InferenceServiceABC):
                     params["temperature"] = 1
 
                 client = self.async_client()
+                logger.info(
+                    f"[OpenAI_V2] Calling responses.create: model={params.get('model')}, "
+                    f"max_output_tokens={params.get('max_output_tokens')}, "
+                    f"temperature={params.get('temperature')}, "
+                    f"is_reasoning={is_reasoning_model}, "
+                    f"base_url={getattr(client, 'base_url', 'N/A')}"
+                )
                 response = await client.responses.create(**params)
+                logger.info(
+                    f"[OpenAI_V2] Response received: model={params.get('model')}, "
+                    f"status={getattr(response, 'status', 'N/A')}"
+                )
                 # convert to dict
                 response_dict = response.model_dump()
                 return response_dict

@@ -267,6 +267,7 @@ Links
    :hidden:
 
    results
+   comparison
    dataset
    data
    exceptions
