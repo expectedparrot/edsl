@@ -9,12 +9,12 @@ from unittest.mock import MagicMock, patch, call
 import pytest
 
 from edsl.study import Study
-from edsl.study.client import StudyClient, _get_api_key, _resolve_server_url, authed_remote_url
+from edsl.coop import Coop
+from edsl.coop.exceptions import CoopServerResponseError
+from edsl.study.client import StudyClient, _resolve_server_url, authed_remote_url
 from edsl.study.exceptions import (
-    StudyAuthError,
     StudyError,
     StudyGitError,
-    StudyServerError,
 )
 
 # All tests mock the API key
@@ -54,14 +54,6 @@ class TestClientHelpers:
         url = _resolve_server_url(None)
         assert url.startswith("http")
 
-    def test_get_api_key(self):
-        assert _get_api_key() == API_KEY
-
-    def test_get_api_key_missing(self):
-        with patch.dict(os.environ, {}, clear=True):
-            with pytest.raises(StudyAuthError):
-                _get_api_key()
-
     def test_authed_remote_url(self):
         url = authed_remote_url(
             "https://gitlab.example.com/bot/uuid-here", "glpat-token123"
@@ -81,76 +73,104 @@ class TestClientHelpers:
 
 
 class TestStudyClient:
-    def test_headers(self):
-        client = StudyClient("https://test.example.com")
-        assert client._headers["Authorization"] == f"Bearer {API_KEY}"
-
-    @patch("edsl.study.client.requests.request")
-    def test_push_request(self, mock_req):
+    def test_push_request(self):
         mock_resp = MagicMock()
         mock_resp.status_code = 201
         mock_resp.ok = True
+        mock_resp.headers = {}
         mock_resp.json.return_value = {"uuid": "u1", "token": "t", "gitlab_url": "g"}
-        mock_req.return_value = mock_resp
-
-        client = StudyClient("https://test.example.com")
-        data = client.push_request({"uuid": None})
+        coop = Coop(api_key=API_KEY, url="https://test.example.com")
+        with patch.object(coop, "_send_server_request", return_value=mock_resp):
+            client = StudyClient(coop=coop)
+            data = client.push_request(uuid=None)
         assert data["uuid"] == "u1"
 
-    @patch("edsl.study.client.requests.request")
-    def test_push_request_409(self, mock_req):
+    def test_push_request_409(self):
         mock_resp = MagicMock()
         mock_resp.status_code = 409
         mock_resp.ok = False
-        mock_req.return_value = mock_resp
+        mock_resp.headers = {}
+        mock_resp.json.return_value = {"detail": "Alias already taken."}
+        coop = Coop(api_key=API_KEY, url="https://test.example.com")
+        with patch.object(coop, "_send_server_request", return_value=mock_resp):
+            client = StudyClient(coop=coop)
+            with pytest.raises(CoopServerResponseError, match="Alias already taken"):
+                client.push_request(alias="taken")
 
-        client = StudyClient("https://test.example.com")
-        with pytest.raises(StudyServerError, match="Alias already taken"):
-            client.push_request({"alias": "taken"})
-
-    @patch("edsl.study.client.requests.request")
-    def test_pull_request(self, mock_req):
+    def test_push_request_400_alias_conflict(self):
         mock_resp = MagicMock()
-        mock_resp.ok = True
-        mock_resp.json.return_value = {"token": "t", "gitlab_url": "g"}
-        mock_req.return_value = mock_resp
+        mock_resp.status_code = 400
+        mock_resp.ok = False
+        mock_resp.headers = {}
+        mock_resp.json.return_value = {
+            "detail": "You already have a repo with the alias 'taken'."
+        }
+        coop = Coop(api_key=API_KEY, url="https://test.example.com")
+        with patch.object(coop, "_send_server_request", return_value=mock_resp):
+            client = StudyClient(coop=coop)
+            with pytest.raises(
+                CoopServerResponseError, match="already have a repo with the alias"
+            ):
+                client.push_request(alias="taken")
 
-        client = StudyClient("https://test.example.com")
-        data = client.pull_request("uuid-1")
+    def test_pull_request(self):
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.ok = True
+        mock_resp.headers = {}
+        mock_resp.json.return_value = {"token": "t", "gitlab_url": "g"}
+        coop = Coop(api_key=API_KEY, url="https://test.example.com")
+        with patch.object(coop, "_send_server_request", return_value=mock_resp):
+            client = StudyClient(coop=coop)
+            data = client.pull_request("uuid-1")
         assert data["token"] == "t"
 
-    @patch("edsl.study.client.requests.request")
-    def test_clone_request_404(self, mock_req):
+    def test_clone_request_404(self):
         mock_resp = MagicMock()
         mock_resp.status_code = 404
         mock_resp.ok = False
-        mock_resp.json.return_value = {"error": "not_found"}
-        mock_req.return_value = mock_resp
+        mock_resp.headers = {}
+        mock_resp.json.return_value = {
+            "detail": "The requested repository was not found."
+        }
+        coop = Coop(api_key=API_KEY, url="https://test.example.com")
+        with patch.object(coop, "_send_server_request", return_value=mock_resp):
+            client = StudyClient(coop=coop)
+            with pytest.raises(CoopServerResponseError, match="not found"):
+                client.clone_request(uuid="nope")
 
-        client = StudyClient("https://test.example.com")
-        with pytest.raises(StudyServerError, match="not found"):
-            client.clone_request(uuid="nope")
-
-    @patch("edsl.study.client.requests.request")
-    def test_list_repos(self, mock_req):
+    def test_list_repos(self):
         mock_resp = MagicMock()
+        mock_resp.status_code = 200
         mock_resp.ok = True
+        mock_resp.headers = {}
         mock_resp.json.return_value = {"repos": [{"uuid": "u1"}]}
-        mock_req.return_value = mock_resp
-
-        client = StudyClient("https://test.example.com")
-        repos = client.list_repos()
+        coop = Coop(api_key=API_KEY, url="https://test.example.com")
+        with patch.object(coop, "_send_server_request", return_value=mock_resp):
+            client = StudyClient(coop=coop)
+            repos = client.list_repos()
         assert len(repos) == 1
 
-    @patch("edsl.study.client.requests.request")
-    def test_update_metadata(self, mock_req):
+    def test_update_metadata(self):
         mock_resp = MagicMock()
+        mock_resp.status_code = 200
         mock_resp.ok = True
-        mock_req.return_value = mock_resp
+        mock_resp.headers = {}
+        coop = Coop(api_key=API_KEY, url="https://test.example.com")
+        with patch.object(coop, "_send_server_request", return_value=mock_resp):
+            client = StudyClient(coop=coop)
+            client.update_metadata("uuid-1", title="New")
 
-        client = StudyClient("https://test.example.com")
-        client.update_metadata("uuid-1", {"title": "New"})
-        mock_req.assert_called_once()
+    def test_study_client_accepts_coop_instance(self):
+        coop = Coop(api_key=API_KEY, url="https://test.example.com")
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.ok = True
+        mock_resp.headers = {}
+        mock_resp.json.return_value = {"repos": []}
+        with patch.object(coop, "_send_server_request", return_value=mock_resp):
+            client = StudyClient(coop=coop)
+            assert client.list_repos() == []
 
 
 # ------------------------------------------------------------------
@@ -318,15 +338,14 @@ class TestSerialization:
 
 
 class TestAuth:
-    def test_client_headers_include_bearer(self):
-        client = StudyClient("https://test.example.com")
-        h = client._headers
-        assert h["Authorization"] == f"Bearer {API_KEY}"
+    def test_study_client_passes_url_to_coop(self):
+        with patch("edsl.study.client.Coop") as mock_coop_cls:
+            StudyClient("https://example.org")
+            mock_coop_cls.assert_called_once_with(url="https://example.org")
 
-    def test_missing_api_key_raises(self):
-        with patch.dict(os.environ, {}, clear=True):
-            with pytest.raises(StudyAuthError):
-                _get_api_key()
+    def test_study_client_coop_uses_api_key_from_env(self):
+        client = StudyClient("https://test.example.com")
+        assert client._coop.api_key == API_KEY
 
 
 # ------------------------------------------------------------------
@@ -457,13 +476,12 @@ class TestPush:
 
         study.push()
 
-        call_body = mock_push.call_args[0][0]
-        assert call_body["uuid"] == "existing-uuid"
+        assert mock_push.call_args.kwargs["uuid"] == "existing-uuid"
 
-    @patch.object(StudyClient, "push_request", side_effect=StudyServerError("Alias already taken."))
+    @patch.object(StudyClient, "push_request", side_effect=CoopServerResponseError("Alias already taken."))
     @patch.object(Study, "_check_git_clean")
     def test_push_409_alias_taken(self, mock_clean, mock_push, study):
-        with pytest.raises(StudyServerError, match="Alias already taken"):
+        with pytest.raises(CoopServerResponseError, match="Alias already taken"):
             study.push(alias="taken")
 
 
@@ -506,7 +524,11 @@ class TestSetMetadata:
         assert study.alias == "new-alias"
         assert study.title == "New Title"
         mock_update.assert_called_once_with(
-            "test-uuid", {"alias": "new-alias", "title": "New Title"}
+            "test-uuid",
+            alias="new-alias",
+            title="New Title",
+            description=None,
+            visibility=None,
         )
 
     def test_set_metadata_before_push_raises(self, study):
@@ -555,9 +577,9 @@ class TestClone:
         assert s._uuid == "clone-uuid"
         assert os.path.isfile(os.path.join(s.path, ".study.json"))
 
-    @patch.object(StudyClient, "clone_request", side_effect=StudyServerError("Study not found or not yet pushed: not_found"))
+    @patch.object(StudyClient, "clone_request", side_effect=CoopServerResponseError("Study not found or not yet pushed: not_found"))
     def test_clone_not_found(self, mock_clone_req):
-        with pytest.raises(StudyServerError, match="not found"):
+        with pytest.raises(CoopServerResponseError, match="not found"):
             Study.clone(uuid="nope", server_url="https://test.example.com")
 
     def test_clone_requires_uuid_or_alias(self):

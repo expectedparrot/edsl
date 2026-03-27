@@ -1,43 +1,30 @@
-"""HTTP client for the Study meta-server."""
+"""HTTP client for GitLab-backed studies via the Coop API."""
 
-import os
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Optional
 from urllib.parse import urlparse, urlunparse
 
-import requests
+from edsl.coop.utils import VisibilityType
 
-from edsl.study.exceptions import StudyAuthError, StudyServerError
-
-_DEFAULT_SERVER_URL = "http://localhost:1234/api/v0/gitlab"
+if TYPE_CHECKING:
+    from edsl.coop import Coop
 
 
 def _resolve_server_url(server_url: str | None) -> str:
-    """Return a normalized server URL, falling back to config or the built-in default."""
+    """Return the Coop frontend base URL (trailing slash stripped).
+
+    Passed to :class:`~edsl.coop.Coop` so ``api_url`` matches other Coop
+    traffic. If omitted, uses ``EXPECTED_PARROT_URL`` from config.
+    """
     if server_url is not None:
         return server_url.rstrip("/")
     try:
         from edsl.config import CONFIG
 
-        return CONFIG.get("EDSL_STUDY_SERVER_URL")
+        return str(CONFIG.EXPECTED_PARROT_URL).rstrip("/")
     except Exception:
-        return _DEFAULT_SERVER_URL
-
-
-def _get_api_key() -> str:
-    """Retrieve the Expected Parrot API key from the environment."""
-    key = os.environ.get("EXPECTED_PARROT_API_KEY")
-    if not key:
-        try:
-            from edsl.coop.ep_key_handling import ExpectedParrotKeyHandler
-
-            key = ExpectedParrotKeyHandler().get_ep_api_key()
-        except Exception:
-            pass
-    if not key:
-        raise StudyAuthError(
-            "No API key found. Set EXPECTED_PARROT_API_KEY or run edsl.login()."
-        )
-    # Strip surrounding quotes if present (from .env files)
-    return key.strip("'\"")
+        return "https://www.expectedparrot.com"
 
 
 def authed_remote_url(gitlab_url: str, token: str) -> str:
@@ -51,78 +38,86 @@ def authed_remote_url(gitlab_url: str, token: str) -> str:
 
 
 class StudyClient:
-    """Thin HTTP wrapper for the study meta-server.
+    """Thin adapter over :class:`~edsl.coop.Coop` GitLab study endpoints.
 
-    All methods raise ``StudyServerError`` on transport failures and return
-    parsed JSON (or raise on HTTP error status).
+    Uses the same ``api_url`` and API key as Coop. Study Coop methods call
+    :meth:`~edsl.coop.Coop._resolve_server_response` on the raw response, so
+    failures surface as :class:`~edsl.coop.exceptions.CoopServerResponseError`
+    (and transport errors from ``requests``).
     """
 
-    def __init__(self, server_url: str | None = None):
-        self.server_url = _resolve_server_url(server_url)
+    def __init__(self, server_url: str | None = None, coop: Optional["Coop"] = None):
+        from edsl.coop import Coop
 
-    @property
-    def _headers(self) -> dict:
-        return {"Authorization": f"Bearer {_get_api_key()}"}
+        self._coop = (
+            coop if coop is not None else Coop(url=_resolve_server_url(server_url))
+        )
 
-    def _request(self, method: str, endpoint: str, **kwargs) -> requests.Response:
-        kwargs.setdefault("headers", self._headers)
-        kwargs.setdefault("timeout", 30)
-        try:
-            return requests.request(method, f"{self.server_url}{endpoint}", **kwargs)
-        except requests.RequestException as exc:
-            raise StudyServerError(f"Failed to contact server: {exc}")
+    def push_request(
+        self,
+        *,
+        uuid: Optional[str] = None,
+        alias: Optional[str] = None,
+        title: Optional[str] = None,
+        description: Optional[str] = None,
+        visibility: VisibilityType = "private",
+    ) -> dict:
+        """Create or refresh a study on the server and return token payload.
 
-    def push_request(self, body: dict) -> dict:
-        resp = self._request("POST", "/push-req", json=body)
-        if resp.status_code == 409:
-            raise StudyServerError("Alias already taken.")
-        if resp.status_code == 403:
-            raise StudyServerError("Not authorized to push to this study.")
-        if not resp.ok:
-            raise StudyServerError(
-                f"Push request failed ({resp.status_code}): {resp.text}"
-            )
-        return resp.json()
+        Wraps :meth:`~edsl.coop.Coop.push_study`. On success, the parsed JSON
+        includes ``uuid``, ``token``, ``gitlab_url``, and ``expires_at``.
+        """
+        return self._coop.push_study(
+            uuid=uuid,
+            alias=alias,
+            title=title,
+            description=description,
+            visibility=visibility,
+        )
 
     def pull_request(self, uuid: str) -> dict:
-        resp = self._request("POST", "/pull-event", json={"uuid": uuid})
-        if not resp.ok:
-            raise StudyServerError(
-                f"Pull request failed ({resp.status_code}): {resp.text}"
-            )
-        return resp.json()
+        """Mint a read token for pulling an existing study repo.
+
+        Wraps :meth:`~edsl.coop.Coop.pull_study`.
+        """
+        return self._coop.pull_study(uuid)
 
     def clone_request(
-        self, *, uuid: str | None = None, alias: str | None = None
+        self, *, uuid: Optional[str] = None, alias: Optional[str] = None
     ) -> dict:
-        body = {}
-        if uuid is not None:
-            body["uuid"] = uuid
-        if alias is not None:
-            body["alias"] = alias
-        resp = self._request("POST", "/clone-req", json=body, timeout=60)
-        if resp.status_code == 404:
-            error = resp.json().get("error", "not_found")
-            raise StudyServerError(f"Study not found or not yet pushed: {error}")
-        if resp.status_code == 403:
-            raise StudyServerError("Not authorized to access this study.")
-        if not resp.ok:
-            raise StudyServerError(
-                f"Clone request failed ({resp.status_code}): {resp.text}"
-            )
-        return resp.json()
+        """Obtain clone credentials by repository UUID or alias.
 
-    def update_metadata(self, uuid: str, body: dict) -> None:
-        resp = self._request("PATCH", f"/repos/{uuid}", json=body)
-        if not resp.ok:
-            raise StudyServerError(
-                f"Metadata update failed ({resp.status_code}): {resp.text}"
-            )
+        Wraps :meth:`~edsl.coop.Coop.clone_study`.
+        """
+        return self._coop.clone_study(uuid=uuid, alias=alias)
+
+    def update_metadata(
+        self,
+        uuid: str,
+        *,
+        alias: Optional[str] = None,
+        title: Optional[str] = None,
+        description: Optional[str] = None,
+        visibility: Optional[VisibilityType] = None,
+    ) -> None:
+        """Patch server-side metadata for a study you own.
+
+        Wraps :meth:`~edsl.coop.Coop.update_study_metadata`. ``None`` values
+        are omitted from the request payload by the Coop client.
+        """
+        self._coop.update_study_metadata(
+            uuid,
+            alias=alias,
+            title=title,
+            description=description,
+            visibility=visibility,
+        )
 
     def list_repos(self) -> list[dict]:
-        resp = self._request("GET", "/repos")
-        if not resp.ok:
-            raise StudyServerError(
-                f"List request failed ({resp.status_code}): {resp.text}"
-            )
-        return resp.json().get("repos", [])
+        """List study repos for the current user.
+
+        Wraps :meth:`~edsl.coop.Coop.list_study_repos`. Returns the ``repos``
+        array from the JSON body.
+        """
+        data = self._coop.list_study_repos()
+        return data.get("repos", [])

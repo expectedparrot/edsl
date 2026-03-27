@@ -260,9 +260,9 @@ class Coop(CoopFunctionsMixin):
             if "json_string" in log_payload and log_payload["json_string"]:
                 json_str = log_payload["json_string"]
                 if len(json_str) > 200:
-                    log_payload[
-                        "json_string"
-                    ] = f"{json_str[:200]}... (truncated, total length: {len(json_str)})"
+                    log_payload["json_string"] = (
+                        f"{json_str[:200]}... (truncated, total length: {len(json_str)})"
+                    )
             self._logger.info(f"Request payload: {log_payload}")
 
         try:
@@ -309,6 +309,169 @@ class Coop(CoopFunctionsMixin):
             raise
 
         return response
+
+    ################
+    # GitLab-backed studies (Study meta-server on Coop API)
+    ################
+
+    def push_study(
+        self,
+        *,
+        uuid: Optional[str] = None,
+        alias: Optional[str] = None,
+        title: Optional[str] = None,
+        description: Optional[str] = None,
+        visibility: VisibilityType = "private",
+    ) -> dict[str, Any]:
+        """Create or update a GitLab-backed study repo and obtain a short-lived push token.
+
+        Calls ``POST /api/v0/gitlab/push-req``. If ``uuid`` is omitted, the server
+        creates a new study record and GitLab project (first push). If ``uuid`` is
+        set, the server verifies ownership and mints a write token for an existing
+        repo.
+
+        Args:
+            uuid: Study repository id returned from a previous push, or ``None``
+                on first push.
+            alias: Unique handle for the study within your account (typically
+                required on first push).
+            title: Display title stored with the study.
+            description: Longer description stored with the study.
+            visibility: ``"private"``, ``"public"``, or ``"unlisted"``.
+
+        Returns:
+            Parsed JSON body. On success, includes ``uuid``, ``token``,
+            ``gitlab_url``, and ``expires_at`` (and status 201 on first push creation).
+        """
+        payload: dict[str, Any] = {
+            "uuid": uuid,
+            "alias": alias,
+            "title": title,
+            "description": description,
+            "visibility": visibility,
+        }
+        response = self._send_server_request(
+            "api/v0/gitlab/push-req",
+            "POST",
+            payload=payload,
+            timeout=30,
+        )
+        self._resolve_server_response(response)
+        return response.json()
+
+    def pull_study(self, uuid: str) -> dict[str, Any]:
+        """Mint a read-only GitLab token for pulling a study repository.
+
+        Calls ``POST /api/v0/gitlab/pull-event``. The server enforces visibility:
+        private repos are only accessible to the owner.
+
+        Args:
+            uuid: Study repository id to pull.
+
+        Returns:
+            Parsed JSON body. On success, includes ``token``,
+            ``gitlab_url``, and ``expires_at``.
+        """
+        response = self._send_server_request(
+            "api/v0/gitlab/pull-event",
+            "POST",
+            payload={"uuid": uuid},
+            timeout=30,
+        )
+        self._resolve_server_response(response)
+        return response.json()
+
+    def clone_study(
+        self, *, uuid: Optional[str] = None, alias: Optional[str] = None
+    ) -> dict[str, Any]:
+        """Obtain GitLab credentials to clone a study by id or by alias.
+
+        Calls ``POST /api/v0/gitlab/clone-req``. Provide exactly one of ``uuid`` or
+        ``alias`` (alias lookup is limited to the authenticated user's studies).
+        Owners receive a write token; non-owners receive a read token when visibility
+        allows access.
+
+        Args:
+            uuid: Study repository id.
+            alias: Study alias (mutually exclusive with ``uuid`` in normal use).
+
+        Returns:
+            Parsed JSON body. On success, includes ``uuid``, ``token``,
+            ``gitlab_url``, and ``expires_at``.
+        """
+        body: dict[str, str] = {}
+        if uuid is not None:
+            body["uuid"] = uuid
+        if alias is not None:
+            body["alias"] = alias
+        response = self._send_server_request(
+            "api/v0/gitlab/clone-req",
+            "POST",
+            payload=body,
+            timeout=60,
+        )
+        self._resolve_server_response(response)
+        return response.json()
+
+    def update_study_metadata(
+        self,
+        repo_uuid: str,
+        *,
+        alias: Optional[str] = None,
+        title: Optional[str] = None,
+        description: Optional[str] = None,
+        visibility: Optional[VisibilityType] = None,
+    ) -> dict[str, Any]:
+        """Patch metadata for a study repo you own.
+
+        Calls ``PATCH /api/v0/gitlab/repos/{repo_uuid}``. At least one of the
+        optional fields should be non-``None`` or the API returns an error.
+
+        Args:
+            repo_uuid: Study repository id.
+            alias: New alias, if changing.
+            title: New title, if changing.
+            description: New description, if changing.
+            visibility: New visibility, if changing.
+
+        Returns:
+            Parsed JSON body. On success, typically includes ``uuid``.
+        """
+        payload: dict[str, Any] = {}
+        if alias is not None:
+            payload["alias"] = alias
+        if title is not None:
+            payload["title"] = title
+        if description is not None:
+            payload["description"] = description
+        if visibility is not None:
+            payload["visibility"] = visibility
+        response = self._send_server_request(
+            f"api/v0/gitlab/repos/{repo_uuid}",
+            "PATCH",
+            payload=payload,
+            timeout=30,
+        )
+        self._resolve_server_response(response)
+        return response.json()
+
+    def list_study_repos(self) -> dict[str, Any]:
+        """List GitLab-backed study repos owned by the authenticated user.
+
+        Calls ``GET /api/v0/gitlab/repos``.
+
+        Returns:
+            Parsed JSON body. On success, has a ``repos`` key holding
+            a list of repository metadata dicts.
+        """
+        response = self._send_server_request(
+            "api/v0/gitlab/repos",
+            "GET",
+            payload=None,
+            timeout=30,
+        )
+        self._resolve_server_response(response)
+        return response.json()
 
     def _get_latest_stable_version(self, version: str) -> str:
         """
@@ -4005,9 +4168,7 @@ class Coop(CoopFunctionsMixin):
                     value_type = (
                         "inf"
                         if math.isinf(value)
-                        else "nan"
-                        if math.isnan(value)
-                        else "invalid"
+                        else "nan" if math.isnan(value) else "invalid"
                     )
                     error_msg += f"  • {path}: {value} ({value_type})\n"
 

@@ -21,6 +21,7 @@ _METADATA_FILE = ".study.json"
 @dataclass
 class PushResult:
     """Returned by :meth:`Study.push`."""
+
     uuid: str
     url: str
     branch: str
@@ -30,9 +31,11 @@ class PushResult:
 @dataclass
 class PullResult:
     """Returned by :meth:`Study.pull`."""
+
     uuid: str
     url: str
     branch: str
+
 
 # Default scaffold for new studies. Each entry is either:
 #   {"type": "dir"}  — creates the directory with a .gitkeep
@@ -53,10 +56,10 @@ DEFAULT_SCAFFOLD = {
             ".PHONY: all clean\n"
             "\n"
             "all:\n"
-            "\t@echo \"Run analysis and build report\"\n"
+            '\t@echo "Run analysis and build report"\n'
             "\n"
             "clean:\n"
-            "\t@echo \"Clean generated files\"\n"
+            '\t@echo "Clean generated files"\n'
         ),
     },
 }
@@ -72,6 +75,7 @@ def _log(verbose: bool, msg: str):
 def _spinner(message: str):
     """Return a rich stderr spinner context manager."""
     from rich.console import Console
+
     return Console(stderr=True).status(message, spinner="dots")
 
 
@@ -290,24 +294,29 @@ class Study:
         branch, and whether this was the first push.
         """
         self._update_metadata_fields(
-            alias=alias, title=title, description=description, visibility=visibility,
+            alias=alias,
+            title=title,
+            description=description,
+            visibility=visibility,
         )
         self._check_git_clean()
 
-        body = {
-            "uuid": self._uuid,
-            "alias": self.alias,
-            "title": self.title,
-            "description": self.description,
-            "visibility": self.visibility or "private",
-        }
-
         is_first_push = self._uuid is None
-        spinner_msg = "[bold cyan]Creating study..." if is_first_push else "[bold cyan]Requesting push token..."
+        spinner_msg = (
+            "[bold cyan]Creating study..."
+            if is_first_push
+            else "[bold cyan]Requesting push token..."
+        )
 
         client = StudyClient(self.server_url)
         with _spinner(spinner_msg):
-            data = client.push_request(body)
+            data = client.push_request(
+                uuid=self._uuid,
+                alias=self.alias,
+                title=self.title,
+                description=self.description,
+                visibility=self.visibility or "private",
+            )
 
         if self._uuid is None:
             self._uuid = data["uuid"]
@@ -375,18 +384,19 @@ class Study:
         if self._uuid is None:
             raise StudyError("Study has not been pushed yet.")
 
-        body = {}
-        for field in _METADATA_FIELDS:
-            value = locals()[field]
-            if value is not None:
-                body[field] = value
-
+        patch = {
+            "alias": alias,
+            "title": title,
+            "description": description,
+            "visibility": visibility,
+        }
+        body = {k: v for k, v in patch.items() if v is not None}
         if not body:
             raise StudyError("Provide at least one field to update.")
 
         _log(verbose, f"Updating metadata for {self._uuid}...")
         client = StudyClient(self.server_url)
-        client.update_metadata(self._uuid, body)
+        client.update_metadata(self._uuid, **patch)
 
         self._update_metadata_fields(**body)
         self._save_metadata()
@@ -446,8 +456,12 @@ class Study:
 
             status.update("[bold cyan]Setting up study...")
             study = cls._new_bare(
-                dir_name, clone_path, url,
-                alias=alias, uuid=repo_uuid, gitlab_url=gitlab_url,
+                dir_name,
+                clone_path,
+                url,
+                alias=alias,
+                uuid=repo_uuid,
+                gitlab_url=gitlab_url,
             )
             study._write_gitignore()
             study._save_metadata()
@@ -508,15 +522,17 @@ class Study:
         _log(verbose, f"Found {len(repos)} studies.")
 
         scenarios = [
-            Scenario({
-                "uuid": r["uuid"],
-                "alias": r.get("alias"),
-                "title": r.get("title"),
-                "description": r.get("description"),
-                "visibility": r.get("visibility"),
-                "created_at": r.get("created_at"),
-                "provisioned": bool(r.get("provisioned")),
-            })
+            Scenario(
+                {
+                    "uuid": r["uuid"],
+                    "alias": r.get("alias"),
+                    "title": r.get("title"),
+                    "description": r.get("description"),
+                    "visibility": r.get("visibility"),
+                    "created_at": r.get("created_at"),
+                    "provisioned": bool(r.get("provisioned")),
+                }
+            )
             for r in repos
         ]
         return ScenarioList(scenarios)
@@ -620,10 +636,14 @@ class Study:
                 self._git_run("push", remote, f"HEAD:{branch}", capture_output=True)
                 return
             except StudyGitError as exc:
-                is_auth_error = "Access denied" in str(exc) or "Authentication failed" in str(exc)
+                is_auth_error = "Access denied" in str(
+                    exc
+                ) or "Authentication failed" in str(exc)
                 if is_auth_error and attempt < max_retries - 1:
                     wait = 5 * (attempt + 1)
-                    with _spinner("[bold cyan]Waiting for GitLab token to propagate...") as status:
+                    with _spinner(
+                        "[bold cyan]Waiting for GitLab token to propagate..."
+                    ) as status:
                         for remaining in range(wait, 0, -1):
                             status.update(
                                 f"[bold cyan]Waiting for GitLab token to propagate... [white]{remaining}s"
@@ -657,6 +677,7 @@ class Study:
         }
         if add_edsl_version:
             from edsl import __version__
+
             d["edsl_version"] = __version__
             d["edsl_class_name"] = "Study"
         return d
@@ -689,6 +710,7 @@ class Study:
 
     def __repr__(self) -> str:
         import os
+
         if os.environ.get("EDSL_RUNNING_DOCTESTS") == "True":
             return self._eval_repr_()
         return self._summary_repr()
