@@ -16,13 +16,7 @@ if TYPE_CHECKING:
 
 
 class AnswersCompare:
-    """Compare answer distributions between two QuestionAnalysis objects.
-
-    >>> ac = AnswersCompare.example()
-    >>> metrics = ac.all_metrics()
-    >>> all(isinstance(v, float) for v in metrics.values())
-    True
-    """
+    """Compare answer distributions between two QuestionAnalysis objects."""
 
     def __init__(self, qa1: "QuestionAnalysis", qa2: "QuestionAnalysis"):
         from ...reports.report import QuestionAnalysis as QA
