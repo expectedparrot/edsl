@@ -171,6 +171,7 @@ class Study:
         if not os.path.isdir(self.path):
             os.makedirs(self.path, exist_ok=True)
             self._git_run("init")
+            self._ensure_git_identity()
             self._write_gitignore()
             if self._scaffold:
                 tree = DEFAULT_SCAFFOLD if self._scaffold is True else self._scaffold
@@ -181,6 +182,7 @@ class Study:
         else:
             if not os.path.isdir(os.path.join(self.path, ".git")):
                 self._git_run("init")
+            self._ensure_git_identity()
             self._write_gitignore()
             self._save_metadata()
 
@@ -576,6 +578,22 @@ class Study:
     # ------------------------------------------------------------------
     # Git helpers
     # ------------------------------------------------------------------
+
+    def _ensure_git_identity(self):
+        """Set a local git identity if none is configured (global or local).
+
+        CI environments often lack a git user config, which causes commits to
+        fail.  This sets repo-local ``user.name`` / ``user.email`` only when
+        neither a global nor a local value is already present.
+        """
+        for key, fallback in [
+            ("user.name", "EDSL Study"),
+            ("user.email", "study@expectedparrot.com"),
+        ]:
+            try:
+                self._git_run("config", key)
+            except StudyGitError:
+                self._git_run("config", key, fallback)
 
     def _git_run(self, *args, capture_output=True) -> subprocess.CompletedProcess:
         try:
