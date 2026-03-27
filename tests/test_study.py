@@ -339,7 +339,7 @@ class TestSerialization:
 
 class TestAuth:
     def test_study_client_passes_url_to_coop(self):
-        with patch("edsl.study.client.Coop") as mock_coop_cls:
+        with patch("edsl.coop.Coop") as mock_coop_cls:
             StudyClient("https://example.org")
             mock_coop_cls.assert_called_once_with(url="https://example.org")
 
