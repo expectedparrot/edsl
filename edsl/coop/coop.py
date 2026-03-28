@@ -3584,10 +3584,31 @@ class Coop(CoopFunctionsMixin):
             dict: The modified object_dict with offloaded FileStores
         """
         import base64
+        import sys
         from copy import deepcopy
 
         # Create a deep copy to avoid modifying the original dict structure
         modified_dict = deepcopy(object_dict)
+
+        # Pre-scan to count total FileStores that need uploading
+        def _count_filestores(d):
+            if not isinstance(d, dict):
+                return 0
+            if self._scenario_is_file_store(d):
+                b64 = d.get("base64_string", "")
+                return 1 if b64 and b64 != "offloaded" else 0
+            count = 0
+            for v in d.values():
+                if isinstance(v, dict):
+                    count += _count_filestores(v)
+                elif isinstance(v, list):
+                    for item in v:
+                        if isinstance(item, dict):
+                            count += _count_filestores(item)
+            return count
+
+        _total_files = _count_filestores(modified_dict)
+        _uploaded = [0]  # mutable for nested function access
 
         def process_dict_recursive(d: dict, path: str = ""):
             """Recursively process dictionaries looking for FileStore objects."""
@@ -3642,6 +3663,14 @@ class Coop(CoopFunctionsMixin):
 
                     # Check if upload was successful
                     if upload_response.status_code in (200, 201):
+                        _uploaded[0] += 1
+                        if _total_files > 0:
+                            print(
+                                f"\rUploading files to GCS: {_uploaded[0]}/{_total_files}",
+                                end="",
+                                flush=True,
+                            )
+
                         # Upload successful, offload the FileStore
                         d["base64_string"] = "offloaded"
 
@@ -3766,7 +3795,10 @@ class Coop(CoopFunctionsMixin):
 
             return d
 
-        return process_dict_recursive(modified_dict)
+        result = process_dict_recursive(modified_dict)
+        if _uploaded[0] > 0:
+            print(flush=True)  # newline after progress
+        return result
 
     def _upload_filestore(self, filestore: "FileStore") -> None:
         """
