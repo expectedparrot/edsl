@@ -3584,221 +3584,189 @@ class Coop(CoopFunctionsMixin):
             dict: The modified object_dict with offloaded FileStores
         """
         import base64
-        import sys
+        from concurrent.futures import ThreadPoolExecutor, as_completed
         from copy import deepcopy
+        from threading import Lock
 
         # Create a deep copy to avoid modifying the original dict structure
         modified_dict = deepcopy(object_dict)
 
-        # Pre-scan to count total FileStores that need uploading
-        def _count_filestores(d):
-            if not isinstance(d, dict):
-                return 0
+        # Phase 1: Collect all FileStore dicts that need uploading
+        pending_uploads: list[tuple[dict, str]] = []  # (filestore_dict, path)
+
+        def _collect_filestores(d: dict, path: str = ""):
             if self._scenario_is_file_store(d):
                 b64 = d.get("base64_string", "")
-                return 1 if b64 and b64 != "offloaded" else 0
-            count = 0
-            for v in d.values():
-                if isinstance(v, dict):
-                    count += _count_filestores(v)
-                elif isinstance(v, list):
-                    for item in v:
-                        if isinstance(item, dict):
-                            count += _count_filestores(item)
-            return count
+                if b64 and b64 != "offloaded" and isinstance(b64, str):
+                    pending_uploads.append((d, path))
+            else:
+                for key, value in d.items():
+                    if isinstance(value, dict):
+                        _collect_filestores(
+                            value, f"{path}.{key}" if path else key
+                        )
+                    elif isinstance(value, list):
+                        for i, item in enumerate(value):
+                            if isinstance(item, dict):
+                                _collect_filestores(
+                                    item, f"{path}.{key}[{i}]"
+                                )
 
-        _total_files = _count_filestores(modified_dict)
-        _uploaded = [0]  # mutable for nested function access
+        _collect_filestores(modified_dict)
 
-        def process_dict_recursive(d: dict, path: str = ""):
-            """Recursively process dictionaries looking for FileStore objects."""
-            if self._scenario_is_file_store(d):
-                # This is a FileStore object
-                base64_string = d.get("base64_string", "")
+        if not pending_uploads:
+            return modified_dict
 
-                # Skip if already offloaded
-                if base64_string == "offloaded":
-                    return d
+        _total = len(pending_uploads)
+        _done = [0]
+        _lock = Lock()
 
-                # Skip if no content to upload
-                if not base64_string or not isinstance(base64_string, str):
-                    return d
+        # Phase 2: Upload a single FileStore (runs in thread pool)
+        def _upload_one(d: dict) -> dict | None:
+            """Upload one FileStore to GCS. Returns {file_uuid, ...} on success."""
+            file_name = d.get("path", "unknown")
+            mime_type = d.get("mime_type", "application/octet-stream")
+            suffix = d.get("suffix", "bin")
 
-                # Get FileStore metadata
-                file_name = d.get("path", "unknown")
-                mime_type = d.get("mime_type", "application/octet-stream")
-                suffix = d.get("suffix", "bin")
+            response = self._send_server_request(
+                uri="api/v0/filestore/upload-url",
+                method="POST",
+                payload={
+                    "file_name": file_name,
+                    "mime_type": mime_type,
+                    "suffix": suffix,
+                },
+            )
+            response_data = response.json()
+            file_uuid = response_data.get("file_uuid")
+            upload_url = response_data.get("upload_url")
 
-                # Request upload URL from backend
+            if not file_uuid or not upload_url:
+                return None
+
+            file_content = base64.b64decode(d["base64_string"])
+
+            upload_response = requests.put(
+                upload_url,
+                data=file_content,
+                headers={
+                    "Content-Type": mime_type,
+                    "Content-Length": str(len(file_content)),
+                },
+            )
+
+            if upload_response.status_code in (200, 201):
+                with _lock:
+                    _done[0] += 1
+                    print(
+                        f"\rUploading files to GCS: {_done[0]}/{_total}",
+                        end="",
+                        flush=True,
+                    )
+                return {"file_uuid": file_uuid}
+
+            return None
+
+        # Phase 3: Run uploads concurrently
+        max_workers = min(10, _total)
+        results_map: dict[int, dict | None] = {}
+
+        with ThreadPoolExecutor(max_workers=max_workers) as pool:
+            future_to_idx = {
+                pool.submit(_upload_one, d): idx
+                for idx, (d, _path) in enumerate(pending_uploads)
+            }
+            for future in as_completed(future_to_idx):
+                idx = future_to_idx[future]
                 try:
-                    response = self._send_server_request(
-                        uri="api/v0/filestore/upload-url",
-                        method="POST",
-                        payload={
-                            "file_name": file_name,
-                            "mime_type": mime_type,
-                            "suffix": suffix,
-                        },
+                    results_map[idx] = future.result()
+                except Exception as e:
+                    print(f"\nWarning: FileStore upload failed: {e}")
+                    results_map[idx] = None
+
+        if _done[0] > 0:
+            print(flush=True)  # newline after progress
+
+        # Phase 4: Patch the dict and original objects with upload results
+        from ..scenarios.file_store import FileStore
+
+        for idx, (d, path) in enumerate(pending_uploads):
+            upload_result = results_map.get(idx)
+            if upload_result is None:
+                continue
+
+            file_uuid = upload_result["file_uuid"]
+
+            # Update the serialized dict
+            d["base64_string"] = "offloaded"
+            if "external_locations" not in d:
+                d["external_locations"] = {}
+            d["external_locations"]["gcs"] = {
+                "file_uuid": file_uuid,
+                "uploaded": True,
+                "offloaded": True,
+            }
+
+            # Update the original in-memory FileStore object
+            if original_object is not None and path:
+                try:
+                    clean_path = path.lstrip(".")
+                    keys = (
+                        clean_path.split(".")
+                        if "." in clean_path
+                        else [clean_path]
                     )
-                    response_data = response.json()
-                    file_uuid = response_data.get("file_uuid")
-                    upload_url = response_data.get("upload_url")
+                    keys = [k for k in keys if k]
+                    current_obj = original_object
 
-                    if not file_uuid or not upload_url:
-                        # If backend didn't return proper response, skip upload
-                        return d
+                    if keys and "[" in keys[0]:
+                        first_key_name = keys[0].split("[")[0]
+                        if (
+                            first_key_name
+                            and hasattr(original_object, "__iter__")
+                            and not hasattr(original_object, first_key_name)
+                        ):
+                            bracket_part = "[" + keys[0].split("[", 1)[1]
+                            keys[0] = bracket_part
 
-                    # Decode base64 content
-                    file_content = base64.b64decode(base64_string)
+                    for key in keys:
+                        if "[" in key:
+                            key_name, idx_str = key.split("[")
+                            idx_val = int(idx_str.rstrip("]"))
+                            if key_name:
+                                if hasattr(current_obj, key_name):
+                                    current_obj = getattr(current_obj, key_name)[idx_val]
+                                else:
+                                    current_obj = current_obj[key_name][idx_val]
+                            else:
+                                current_obj = current_obj[idx_val]
+                        elif key.isdigit():
+                            current_obj = current_obj[int(key)]
+                        else:
+                            if hasattr(current_obj, key):
+                                current_obj = getattr(current_obj, key)
+                            else:
+                                current_obj = current_obj[key]
 
-                    # Upload to GCS
-                    upload_response = requests.put(
-                        upload_url,
-                        data=file_content,
-                        headers={
-                            "Content-Type": mime_type,
-                            "Content-Length": str(len(file_content)),
-                        },
-                    )
-
-                    # Check if upload was successful
-                    if upload_response.status_code in (200, 201):
-                        _uploaded[0] += 1
-                        if _total_files > 0:
-                            print(
-                                f"\rUploading files to GCS: {_uploaded[0]}/{_total_files}",
-                                end="",
-                                flush=True,
-                            )
-
-                        # Upload successful, offload the FileStore
-                        d["base64_string"] = "offloaded"
-
-                        # Add file_uuid to external_locations
-                        if "external_locations" not in d:
-                            d["external_locations"] = {}
-
-                        d["external_locations"]["gcs"] = {
+                    if isinstance(current_obj, FileStore):
+                        current_obj.base64_string = "offloaded"
+                        current_obj["base64_string"] = "offloaded"
+                        if "external_locations" not in current_obj:
+                            current_obj["external_locations"] = {}
+                        current_obj["external_locations"]["gcs"] = {
                             "file_uuid": file_uuid,
                             "uploaded": True,
                             "offloaded": True,
                         }
-
-                        # Also update the original FileStore object if we have access to it
-                        if original_object is not None and path:
-                            try:
-                                # Navigate to the FileStore in the original object
-                                from ..scenarios.file_store import FileStore
-
-                                # Clean up the path: remove leading dots and split
-                                clean_path = path.lstrip(".")
-                                keys = (
-                                    clean_path.split(".")
-                                    if "." in clean_path
-                                    else [clean_path]
-                                )
-                                # Filter out empty strings that might result from splitting
-                                keys = [k for k in keys if k]
-                                current_obj = original_object
-
-                                # For list-like objects (ScenarioList, AgentList), the first key in the path
-                                # might be the serialization wrapper (e.g., 'scenarios', 'agents')
-                                # which doesn't exist as an attribute on the object itself.
-                                # We need to transform 'scenarios[0]' to just '[0]' for list-like objects.
-                                if keys and "[" in keys[0]:
-                                    first_key_name = keys[0].split("[")[0]
-                                    if (
-                                        first_key_name
-                                        and hasattr(original_object, "__iter__")
-                                        and not hasattr(original_object, first_key_name)
-                                    ):
-                                        # Remove the key name but keep the bracket part
-                                        # e.g., 'scenarios[0]' becomes '[0]'
-                                        bracket_part = "[" + keys[0].split("[", 1)[1]
-                                        keys[0] = bracket_part
-
-                                # Navigate through nested structures
-                                for key in keys:
-                                    if (
-                                        "[" in key
-                                    ):  # Handle bracket-style list indexing: "items[0]"
-                                        key_name, idx = key.split("[")
-                                        idx = int(idx.rstrip("]"))
-                                        # Handle empty key_name (means root object is a list)
-                                        if key_name:
-                                            # Try attribute access first, fall back to dict-style
-                                            if hasattr(current_obj, key_name):
-                                                current_obj = getattr(current_obj, key_name)[idx]
-                                            else:
-                                                current_obj = current_obj[key_name][idx]
-                                        else:
-                                            current_obj = current_obj[idx]
-                                    elif (
-                                        key.isdigit()
-                                    ):  # Handle numeric string keys for list access: "0", "1", etc.
-                                        # Convert string index to integer for list-like objects
-                                        current_obj = current_obj[int(key)]
-                                    else:
-                                        # Try attribute access first, fall back to dict-style
-                                        if hasattr(current_obj, key):
-                                            current_obj = getattr(current_obj, key)
-                                        else:
-                                            current_obj = current_obj[key]
-
-                                # Update the FileStore object directly
-                                if isinstance(current_obj, FileStore):
-                                    current_obj.base64_string = "offloaded"
-                                    current_obj["base64_string"] = "offloaded"
-
-                                    if "external_locations" not in current_obj:
-                                        current_obj["external_locations"] = {}
-
-                                    current_obj["external_locations"]["gcs"] = {
-                                        "file_uuid": file_uuid,
-                                        "uploaded": True,
-                                        "offloaded": True,
-                                    }
-                                    current_obj.external_locations = current_obj[
-                                        "external_locations"
-                                    ]
-                            except Exception as update_error:
-                                # If we can't update the original object, that's okay
-                                # The serialized dict is still correctly offloaded
-                                print(
-                                    f"Warning: Could not update original FileStore at path '{path}': {update_error}"
-                                )
-                    else:
-                        # Upload failed, keep FileStore as-is with full base64
-                        pass
-
-                except Exception as e:
-                    # If upload fails, keep the FileStore as-is (with full base64)
-                    # This ensures backward compatibility
-                    print(f"Warning: FileStore upload failed: {e}")
-
-            else:
-                # Not a FileStore, recursively process nested dicts
-                for key, value in d.items():
-                    if isinstance(value, dict):
-                        d[key] = process_dict_recursive(
-                            value, f"{path}.{key}" if path else key
-                        )
-                    elif isinstance(value, list):
-                        d[key] = [
-                            (
-                                process_dict_recursive(item, f"{path}.{key}[{i}]")
-                                if isinstance(item, dict)
-                                else item
-                            )
-                            for i, item in enumerate(value)
+                        current_obj.external_locations = current_obj[
+                            "external_locations"
                         ]
+                except Exception as update_error:
+                    print(
+                        f"Warning: Could not update original FileStore at path '{path}': {update_error}"
+                    )
 
-            return d
-
-        result = process_dict_recursive(modified_dict)
-        if _uploaded[0] > 0:
-            print(flush=True)  # newline after progress
-        return result
+        return modified_dict
 
     def _upload_filestore(self, filestore: "FileStore") -> None:
         """
