@@ -3697,7 +3697,11 @@ class Coop(CoopFunctionsMixin):
                                         idx = int(idx.rstrip("]"))
                                         # Handle empty key_name (means root object is a list)
                                         if key_name:
-                                            current_obj = current_obj[key_name][idx]
+                                            # Try attribute access first, fall back to dict-style
+                                            if hasattr(current_obj, key_name):
+                                                current_obj = getattr(current_obj, key_name)[idx]
+                                            else:
+                                                current_obj = current_obj[key_name][idx]
                                         else:
                                             current_obj = current_obj[idx]
                                     elif (
@@ -3706,8 +3710,11 @@ class Coop(CoopFunctionsMixin):
                                         # Convert string index to integer for list-like objects
                                         current_obj = current_obj[int(key)]
                                     else:
-                                        # Regular dictionary-style key access
-                                        current_obj = current_obj[key]
+                                        # Try attribute access first, fall back to dict-style
+                                        if hasattr(current_obj, key):
+                                            current_obj = getattr(current_obj, key)
+                                        else:
+                                            current_obj = current_obj[key]
 
                                 # Update the FileStore object directly
                                 if isinstance(current_obj, FileStore):
