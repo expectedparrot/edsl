@@ -638,6 +638,21 @@ class RenderWorker:
         direct_answer_tasks = []
         _skip_logic_time = 0.0
 
+        # Pre-compute whether the survey has any user-defined skip rules ONCE.
+        # non_default_rules is a @property that iterates ALL rules each call (O(N)).
+        # With 8000 questions = 8000 default rules, calling it per-task =
+        # 64M iterations = 18s wasted. Checking once = ~0s.
+        _has_skip_rules = False
+        if (
+            cached_survey is not None
+            and hasattr(cached_survey, "rule_collection")
+            and cached_survey.rule_collection is not None
+        ):
+            non_default = getattr(
+                cached_survey.rule_collection, "non_default_rules", None
+            )
+            _has_skip_rules = non_default is not None and len(non_default) > 0
+
         for task_id in task_ids:
             task_def = all_task_defs.get(task_id)
             if not task_def:
@@ -652,8 +667,8 @@ class RenderWorker:
                 direct_answer_tasks.append(task_id)
                 continue
 
-            # Check skip logic if JobService is available
-            if self._job_service is not None:
+            # Check skip logic only if survey has user-defined skip rules
+            if self._job_service is not None and _has_skip_rules:
                 _, interview_id = locations[task_id]
 
                 # Get cached answers for this interview
