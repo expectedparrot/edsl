@@ -160,6 +160,7 @@ class OpenAIServiceV2(InferenceServiceABC):
                 "logprobs": False,
                 "top_logprobs": 3,
                 "reasoning": None,
+                "reasoning_effort": None,
             }
 
             def sync_client(self):
@@ -320,6 +321,10 @@ class OpenAIServiceV2(InferenceServiceABC):
                     reasoning_params = {"summary": "auto"}
                     if isinstance(self.reasoning, dict):
                         reasoning_params.update(self.reasoning)
+                    # Support reasoning_effort shorthand (e.g. "none", "low", "medium", "high")
+                    effort = getattr(self, "reasoning_effort", None)
+                    if effort is not None:
+                        reasoning_params["effort"] = effort
                     params["reasoning"] = reasoning_params
 
                 # For all models using the responses API, use max_output_tokens
