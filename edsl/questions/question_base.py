@@ -561,7 +561,6 @@ class QuestionBase(
         # Extract thinking_question wrapper data before constructing
         thinking_model_data = local_data.pop("thinking_model", None)
         thinking_system_prompt = local_data.pop("thinking_system_prompt", "")
-        local_data.pop("is_thinking_question", None)
 
         if "model_instructions" in local_data:
             model_instructions = local_data.pop("model_instructions")

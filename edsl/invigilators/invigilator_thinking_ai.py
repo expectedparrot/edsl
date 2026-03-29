@@ -1,6 +1,7 @@
 """Hybrid invigilator: uses question's own model and system_prompt,
 but keeps full prompt construction and validation from InvigilatorAI."""
 
+import copy
 from typing import Dict, Any, TYPE_CHECKING
 
 from .invigilators import InvigilatorAI
@@ -36,6 +37,14 @@ class InvigilatorThinkingAI(InvigilatorAI):
             "system_prompt": prompts["system_prompt"].text,
         }
 
+        if "encoded_image" in prompts:
+            params["encoded_image"] = prompts["encoded_image"]
+            from .exceptions import InvigilatorNotImplementedError
+
+            raise InvigilatorNotImplementedError(
+                "encoded_image not implemented for thinking_question wrapper"
+            )
+
         if "files_list" in prompts:
             params["files_list"] = prompts["files_list"]
 
@@ -46,7 +55,9 @@ class InvigilatorThinkingAI(InvigilatorAI):
         params.update({"iteration": self.iteration, "cache": self.cache})
         params.update({"invigilator": self})
 
-        question_model = self.question._model
+        # Shallow-copy the model so set_key_lookup doesn't mutate the shared
+        # question object (which persists across runs / concurrent executions).
+        question_model = copy.copy(self.question._model)
         if self.key_lookup:
             question_model.set_key_lookup(self.key_lookup)
 
