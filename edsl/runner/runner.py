@@ -514,10 +514,14 @@ class Runner:
             if existing:
                 continue
             api_key = getattr(model, "api_token", None) or "local"
+            rpm = getattr(model, "rpm", None)
+            tpm = getattr(model, "tpm", None)
             self._registry.register_queue(
                 service=service,
                 model=model_name,
                 api_key=api_key,
+                rpm_limit=rpm,
+                tpm_limit=tpm,
             )
 
     def execute_job(
