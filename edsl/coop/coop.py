@@ -4137,12 +4137,20 @@ class Coop(CoopFunctionsMixin):
             )
             return callout
         else:
-            # Running in an interactive environment (e.g., Jupyter Notebook)
-            try:
-                from IPython.display import HTML, display
+            # Running in an interactive environment — only use HTML display in notebooks
+            from ..utilities.is_notebook import is_notebook
 
-                display(HTML(html_content))
-            except ImportError:
+            if is_notebook():
+                try:
+                    from IPython.display import HTML, display
+
+                    display(HTML(html_content))
+                except ImportError:
+                    if link_description:
+                        print(f"{link_description}\n{url}")
+                    else:
+                        print(url)
+            else:
                 if link_description:
                     print(f"{link_description}\n{url}")
                 else:
