@@ -202,7 +202,7 @@ class JobService:
         extra_models: dict[str, Any] = {}  # model_id -> model obj (NOT in cross-product)
         extra_models_batch: dict[str, dict] = {}
         for q in questions:
-            if hasattr(q, "_model") and getattr(q, "question_type", None) == "thinking":
+            if hasattr(q, "_model"):
                 q_name = self._get_question_name(q)
                 qm = q._model
                 # Check if this model object is already registered (by identity)

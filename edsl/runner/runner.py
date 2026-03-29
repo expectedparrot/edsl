@@ -496,15 +496,34 @@ class Runner:
 
         return JobHandle(job_id, self)
 
+    @staticmethod
+    def _clear_async_clients() -> None:
+        """Clear cached async HTTP clients that are bound to a now-closed event loop.
+
+        OpenAIService (and subclasses) cache AsyncOpenAI clients at the class
+        level.  Each client holds an aiohttp session tied to the event loop in
+        which it was created.  When ``asyncio.run()`` closes that loop the
+        session becomes unusable, so we must discard the cached clients before
+        starting a new loop.
+        """
+        try:
+            from ..inference_services.services.open_ai_service import OpenAIService
+        except Exception:
+            return
+        OpenAIService._async_client_instances.clear()
+        for subcls in OpenAIService.__subclasses__():
+            if hasattr(subcls, "_async_client_instances"):
+                subcls._async_client_instances.clear()
+
     def _ensure_queues_for_job(self, job: Any) -> None:
         """Register queues for all models used in this job."""
         models = list(job.models) if hasattr(job, "models") else []
 
-        # Also include models embedded in QuestionThinking questions
+        # Also include models embedded in thinking questions
         survey = job.survey if hasattr(job, "survey") else getattr(job, "_survey", None)
         if survey:
             for q in getattr(survey, "questions", []):
-                if hasattr(q, "_model") and getattr(q, "question_type", None) == "thinking":
+                if hasattr(q, "_model"):
                     models.append(q._model)
 
         for model in models:
@@ -570,6 +589,9 @@ class Runner:
             nest_asyncio.apply()
             loop.run_until_complete(coro)
         else:
+            # Clear cached async clients — they hold aiohttp sessions bound
+            # to the previous event loop which asyncio.run() will have closed.
+            self._clear_async_clients()
             asyncio.run(coro)
 
         return stats
