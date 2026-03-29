@@ -11,7 +11,7 @@ def is_notebook() -> bool:
 
             if mo.running_in_notebook():
                 return True
-        except (ImportError, AttributeError, Exception):
+        except (ImportError, AttributeError):
             pass
 
     try:
