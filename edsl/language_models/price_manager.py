@@ -304,6 +304,10 @@ class PriceManager:
 
         thinking_tokens = self._extract_thinking_tokens(usage, thinking_token_sequence)
 
+        # For OpenAI v2, we have to subtract the thinking tokens from the output tokens
+        if inference_service == "openai_v2" and thinking_tokens is not None:
+            output_tokens = output_tokens - thinking_tokens
+
         try:
             total_cost = self._calculate_total_cost(
                 relevant_prices,
