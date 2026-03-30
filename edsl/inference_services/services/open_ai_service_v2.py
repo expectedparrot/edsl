@@ -353,10 +353,6 @@ class OpenAIServiceV2(InferenceServiceABC):
                 # convert to dict
                 response_dict = response.model_dump()
 
-                from pprint import pprint
-
-                pprint(response_dict)
-
                 return response_dict
 
         LLM.__name__ = model_class_name
