@@ -179,7 +179,7 @@ print(f"Recent errors: {error_stats['total']}")
 
 ### Export and Sharing
 
-Export filtered logs or share via Coop:
+Export filtered logs or share via Expected Parrot:
 
 ```python expandable
 from pathlib import Path
@@ -193,7 +193,7 @@ count = log_manager.export_filtered_logs(
 )
 print(f"Exported {count} entries to {export_path}")
 
-# Share logs via Coop
+# Share logs via Expected Parrot
 from edsl.coop import Coop
 coop = Coop()
 
@@ -375,7 +375,7 @@ def monitor_system_health():
     )
 
     if critical:
-        # Send alert via Coop
+        # Send alert via Expected Parrot
         from edsl.coop import Coop
         coop = Coop()
         alert_result = coop.send_log(
@@ -565,7 +565,7 @@ Represents a parsed log entry.
 1. Filter recent errors: `get_filtered_entries(level='ERROR', since_hours=24)`
 2. Convert to scenarios for analysis: `to_scenario_list()`
 3. Use EDSL questions to categorize and analyze
-4. Export findings or share via Coop
+4. Export findings or share via Expected Parrot
 
 **Regular Maintenance:**
 

@@ -6,7 +6,7 @@ description: "API keys are required to access large language models. To use EDSL
 In addition to providing access to available models, your Expected Parrot key also allows you to post and share content for free.
 
 This page shows how to store and select keys to use when running surveys on your own computer (*local inference*) or at the Expected Parrot server (*remote inference*). 
-For instructions on using your Expected Parrot key only for accessing Coop, please see the [Coop section](/en/latest/coop) of the documentation.
+For instructions on using your Expected Parrot key only for accessing the platform, please see the [this section](/en/latest/coop) of the documentation.
 
 **Special note for Colab users**: If you are using EDSL in a Colab notebook, please see [special instructions](/en/latest/colab_setup) on storing API keys as “secrets” ([Colab Setup](/en/latest/colab_setup)).
 
@@ -20,7 +20,7 @@ There are three methods for storing and managing keys (details on each below):
 
 <Steps>
   <Step>
-  Manage keys from your Coop account (*recommended*)
+  Manage keys from your Expected Parrot account (*recommended*)
   </Step>
   <Step>
   Store keys in a local file on your computer
@@ -32,7 +32,7 @@ There are three methods for storing and managing keys (details on each below):
 
 ### 1. Manage keys from your account
 
-This method provides a secure way to store your keys and the most flexibility in choosing how to use them. It requires a Coop account ([log in/sign up here](https://www.expectedparrot.com/login)) and works with remote-inference.
+This method provides a secure way to store your keys and the most flexibility in choosing how to use them. It requires an Expected Parrot account ([log in/sign up here](https://www.expectedparrot.com/login)) and works with remote-inference.
 
 *If you are only running surveys locally, see method 2. below for instructions on storing keys on your computer.*
 
@@ -52,7 +52,7 @@ You can review the current prioritization of your keys at the **Key priority** s
 
 ### 2. Store keys in a local file
 
-This method allows you to store keys in a private file on your computer and make them available for any surveys that you run, locally or remotely. It also allows you to post local content to Coop.
+This method allows you to store keys in a private file on your computer and make them available for any surveys that you run, locally or remotely. It also allows you to post local content to Expected Parrot.
 
 To use this method:
 
@@ -67,7 +67,7 @@ Create a file named .env
 Add your keys to the file in the following format (omit any keys that you do not have or do not want to use):
 
 ```bash expandable
-EXPECTED_PARROT_API_KEY = 'your_key_here' # This key is required for remote inference and interacting with Coop
+EXPECTED_PARROT_API_KEY = 'your_key_here' # This key is required for remote inference and interacting with Expected Parrot
 
 ANTHROPIC_API_KEY = 'your_key_here'
 DEEP_INFRA_API_KEY = 'your_key_here'
@@ -94,7 +94,7 @@ Your Expected Parrot key can also be found at the [Keys](http://www.expectedparr
 ![EP key](/images/en/latest/home-ep-key.png)
 </Frame>
 
-This key allows you to access all available models at once and use remote-inference to run surveys at the Expected Parrot server. It also allows you to post content to Coop, and to interact with other content that is public or shared with you.
+This key allows you to access all available models at once and use remote-inference to run surveys at the Expected Parrot server. It also allows you to post content to the platform, and to interact with other content that is public or shared with you.
 
 If you are using Azure or Bedrock, see a notebook of examples for setting up your keys [here](/en/latest/edsl_with_cloud_providers).
 

@@ -3,7 +3,7 @@ title: "Data labeling with LLMs, validating with humans"
 description: "This notebook provides example [EDSL](https://github.com/expectedparrot/edsl) code for conducting a data labeling task with large language models and validating responses with humans."
 ---
 
-The example below consists of the following steps, which can be conducted entirely in EDSL code or interactively at your [Coop account](https://www.expectedparrot.com/):
+The example below consists of the following steps, which can be conducted entirely in EDSL code or interactively at your [Expected Parrot account](https://www.expectedparrot.com/):
 
 - Construct questions about a dataset, using a placeholder in each question for the individual piece of data to be labeled (each answer is a “label” for a piece of data)
 - Combine the questions in a survey to administer them together
@@ -69,7 +69,7 @@ models = ModelList([
 results = survey.by(scenarios).by(agents).by(models).run()
 ```
 
-Results are accessible at your Coop account and at your workspace. We can inspect a list of all the components of the results:
+Results are accessible at your Expected Parrot account and at your workspace. We can inspect a list of all the components of the results:
 
 [3]:
 
@@ -88,7 +88,7 @@ results.select("model", "persona", "characters_0", "years_0", "characters_1", "y
 
 ## Run the survey with human respondents
 
-We can validate some of all of the responses with human respondents by calling the `humanize()` method on the version of the survey that we want to validate with humans. This method generates a shareable URL for a web-based version of the survey that you can distribute, together with a URL for tracking the responses at your Coop account.
+We can validate some of all of the responses with human respondents by calling the `humanize()` method on the version of the survey that we want to validate with humans. This method generates a shareable URL for a web-based version of the survey that you can distribute, together with a URL for tracking the responses at your Expected Parrot account.
 
 Here we create a new version of the survey to add some screening/information questions of the humans that answer it:
 
@@ -123,7 +123,7 @@ human_survey = Survey(questions + new_questions)
 human_survey.humanize()
 ```
 
-Responses automatically appear at your Coop account, and you can import them into your workspace using `Coop` methods:
+Responses automatically appear at your Expected Parrot account, and you can import them into your workspace using `Coop` methods:
 
 [7]:
 

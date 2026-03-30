@@ -5,7 +5,7 @@ description: "This notebook provides sample [EDSL](/en/latest/index) code for co
 
 ## Technical setup
 
-Before running the code below, please ensure that you have [installed the EDSL library](/en/latest/installation) and either [activated remote inference](/en/latest/remote_inference) from your [Coop account](/en/latest/coop) or [stored API keys](/en/latest/api_keys) for the language models that you want to use with EDSL. Please also see our [documentation page](/en/latest/index) for tips and tutorials on getting started using EDSL.
+Before running the code below, please ensure that you have [installed the EDSL library](/en/latest/installation) and either [activated remote inference](/en/latest/remote_inference) from your [Expected Parrot account](/en/latest/coop) or [stored API keys](/en/latest/api_keys) for the language models that you want to use with EDSL. Please also see our [documentation page](/en/latest/index) for tips and tutorials on getting started using EDSL.
 
 ## Constructing questions about the data
 
@@ -54,7 +54,7 @@ survey = Survey([q_name, q_email, q_questions, q_requests])
 
 ## Adding context to questions
 
-Next we import a dataset of transcripts to add to the questions, creating a `Scenario` dictionary for each transcript. [EDSL provides methods for importing content from many different data sources](/en/latest/scenarios), including PDFs, CSVs, docs, images, tables, lists, dicts, etc. Here we use a CSV of texts, [retrieved from the Coop](https://www.expectedparrot.com/content/01474c60-d02b-4874-a577-953e870d8bff):
+Next we import a dataset of transcripts to add to the questions, creating a `Scenario` dictionary for each transcript. [EDSL provides methods for importing content from many different data sources](/en/latest/scenarios), including PDFs, CSVs, docs, images, tables, lists, dicts, etc. Here we use a CSV of texts, [retrieved from Expected Parrot](https://www.expectedparrot.com/content/01474c60-d02b-4874-a577-953e870d8bff):
 
 ```python
 from edsl import FileStore
@@ -512,7 +512,7 @@ File written to customer_calls_analysis.csv
 
 Please see our [documentation page](/en/latest/index) for examples of other methods and use cases!
 
-## Posting content to the Coop
+## Posting content to Expected Parrot
 
 ```python
 

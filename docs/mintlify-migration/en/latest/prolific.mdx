@@ -1,6 +1,6 @@
 ---
 title: "Prolific studies"
-description: "EDSL allows you to launch surveys with human participants using Prolific, a platform for recruiting participants for research studies. You can choose whether to create and manage Prolific studies directly in your EDSL code or interactivately at your Coop account, enabling you to gather human responses to your surveys alongside AI-generated responses. The steps below outline both methods (code-based and interactive). A clickable demo of interactive steps is available [here](https://www.expectedparrot.com/getting-started/build), and example code below on this page is also available at a downloadable [notebook at Coop](https://www.expectedparrot.com/content/RobinHorton/coop-project-example)."
+description: "EDSL allows you to launch surveys with human participants using Prolific, a platform for recruiting participants for research studies. You can choose whether to create and manage Prolific studies directly in your EDSL code or interactivately at your Expected Parrot account, enabling you to gather human responses to your surveys alongside AI-generated responses. The steps below outline both methods (code-based and interactive). A clickable demo of interactive steps is available [here](https://www.expectedparrot.com/getting-started/build), and example code below on this page is also available at a downloadable [notebook at Expected Parrot](https://www.expectedparrot.com/content/RobinHorton/coop-project-example)."
 ---
 
 More information about the humanize method for generating a shareable web version of your survey for human respondents is available at the [Humanize](/en/latest/humanize) page. This method allows you to collect responses from your own respondents. The responses can then be combined with AI-generated responses (and Prolific responses) for analysis.
@@ -22,14 +22,14 @@ Create a survey in EDSL:
 - Specify [Language Models](/en/latest/language_models) to generate responses.
 - Use the run method to administer a survey with desired agents and models.
 
-This generates a formatted dataset of [Results](/en/latest/results) that you can analyze with built-in methods. The survey, agents and results are also automatically added to your Coop account, where you can access them interactively.
+This generates a formatted dataset of [Results](/en/latest/results) that you can analyze with built-in methods. The survey, agents and results are also automatically added to your Expected Parrot account, where you can access them interactively.
 </Step>
 <Step title="Use humanize to generate a project and web surveys">
 Use the humanize method to generate a Project for your survey and a shareable web version. You can optionally pass a project_name, survey_description and survey_alias to customize the project details (see example below).
 </Step>
-<Step title="Use Coop to launch Prolific studies">
+<Step title="Use Expected Parrot to launch Prolific studies">
 
-Create a Coop client object to access your account. Then use Coop methods to create a Prolific study for your survey and gather human responses:
+Create a `Coop` client object to access your account. Then use `Coop` methods to create a Prolific study for your survey and gather human responses:
 
 - create_prolific_study: Create a new study for the project_uuid and specify the study details (name, description, num_participant, estimated_completion_time (minutes), participant_payment_cents), and optional filters for targeting specific demographics and Prolific participants (IDs list).
 - get_prolific_study: Retrieve the study details for the project_uuid and study_id.
@@ -156,7 +156,7 @@ Use the humanize method to create a project for the survey and a web version tha
 project = survey.humanize(
     project_name = "Vehicle Ownership Survey",  # optional, defaults to the survey name
     survey_description = "A survey on vehicle ownership and driving habits.",  # optional
-    survey_alias = "vehicle-ownership-survey"  # optional, used to create a unique URL in addition to the Coop UUID URL
+    survey_alias = "vehicle-ownership-survey"  # optional, used to create a unique URL in addition to Expected Parrot UUID URL
 )
 
 # Inspect the project details
@@ -177,7 +177,7 @@ The respondent_url can be shared with any human respondents (it is the same link
 **Create a study for the project to launch studies on Prolific:**
 
 ```python
-# Create a Coop instance
+# Create an Expected Parrot client instance
 from edsl import Coop
 coop = Coop()
 

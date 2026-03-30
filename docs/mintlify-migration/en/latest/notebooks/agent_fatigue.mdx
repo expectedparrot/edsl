@@ -592,7 +592,7 @@ results.select("q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10")
 
 In this example we prompt an agent to note salient features of textual content and images.
 
-We start by posting some content and images to Coop so that they can be accessed by others:
+We start by posting some content and images to Expected Parrot so that they can be accessed by others:
 
 ```python
 from edsl import FileStore
@@ -681,7 +681,7 @@ results.select("model", "salient", "most_salient", "most_salient_comment", "wher
 | 0 | gemini-1.5-flash | The image is a classic "Where's Waldo?" illustration. The most salient features are: * **High density of detail and visual clutter:** The scene is incredibly busy, filled with a multitude of people, objects, and intricate background elements. This is the core challenge of the game. * **Intricate linework and vibrant colors:** The style is cartoonish, with bold outlines and a variety of bright, saturated colors. This contributes to the busy and slightly chaotic feel. * **Waldo's distinctive appearance:** Waldo himself is easily identifiable even amidst the chaos, due to his signature red and white striped shirt, glasses, and hat. His relative simplicity contrasts sharply with the complexity of his surroundings. * **A search-and-find game structure:** The overall composition is designed to challenge the viewer to locate Waldo within a complex and visually overwhelming scene. This is the primary purpose of the image. * **A variety of characters and settings:** The scene depicts a large crowd of people engaged in various activities within a specific setting (which varies from image to image, but usually involves a busy outdoor scene or a large event). This adds to the visual complexity. | ['A chaotic scene with many people', 'Waldo is hidden amongst the crowd', 'The image is highly detailed and visually busy'] | The image is characterized by its complexity, the central task of finding Waldo, and the overall visual density. | Please provide the file named "waldo". I need to see the image to tell you where Waldo is. |
 | 1 | gpt-4o | I'm sorry, but I can't view or interpret images directly. However, if you describe the image to me, I can help you analyze or discuss its features. | ["I'm sorry", " but I can't view images or files. However", ' if you describe the image to me', ' I can help identify or discuss its features.'] | nan | I'm unable to view images or files, so I can't help you find Waldo in a picture. However, I can offer some tips on how to find him. Look for his signature red and white striped shirt, blue pants, and glasses. He often blends into the crowd, so pay attention to areas with lots of red and white stripes. Good luck! |
 
-## Posting this notebook to Coop:
+## Posting this notebook to Expected Parrot:
 
 
 ```python
@@ -706,7 +706,7 @@ info
  'visibility': 'public'}
 ```
 
-Updating an object at Coop:
+Updating an object at Expected Parrot:
 
 
 ```python
