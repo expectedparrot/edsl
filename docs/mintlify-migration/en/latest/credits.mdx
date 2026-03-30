@@ -1,17 +1,17 @@
 ---
 title: "Credits"
-description: "Credits are required in order to run surveys with models using your Expected Parrot API key. They can be purchased at your Coop account (see details below). Credits are deducted to cover API call costs, which depend on token rates set by language model service providers. You can view current pricing for available models at the [model pricing page](https://www.expectedparrot.com/getting-started/coop-pricing)."
+description: "Credits are required in order to run surveys with models using your Expected Parrot API key. They can be purchased at your Expected Parrot account (see details below). Credits are deducted to cover API call costs, which depend on token rates set by language model service providers. You can view current pricing for available models at the [model pricing page](https://www.expectedparrot.com/getting-started/coop-pricing)."
 ---
 
 Credits must be purchased in advance and are consumed when surveys are run. If your balance is insufficient, you will be prompted to purchase more credits. Details on credit consumption are provided below.
 
 <Note>
-*Note:* Credits are *not* required to run surveys with your own keys from service providers or to post and share content at [Coop](https://www.expectedparrot.com/content/explore). When using your own keys, cost estimates are based on the prices listed in the [model pricing page](https://www.expectedparrot.com/getting-started/coop-pricing), but your actual charges may vary depending on service providers’ terms.
+*Note:* Credits are *not* required to run surveys with your own keys from service providers or to post and share content at [Expected Parrot](https://www.expectedparrot.com/content/explore). When using your own keys, cost estimates are based on the prices listed in the [model pricing page](https://www.expectedparrot.com/getting-started/coop-pricing), but your actual charges may vary depending on service providers’ terms.
 </Note>
 
 ## Free credits
 
-Your Coop account comes with free credits that you can use to run surveys with your Expected Parrot key.
+Your Expected Parrot account comes with free credits that you can use to run surveys with your Expected Parrot key.
 
 **Are you using EDSL for a research project?**
 
@@ -111,17 +111,17 @@ The total cost of the response is calculated based on the token rates set by Goo
 = 0.01 credits (rounded up to the nearest 1/100th credit)
 ```
 
-This translates to a total of 0.06 credits consumed for the survey. We can see this number of credits consumed at the remote inference page of our Coop account:
+This translates to a total of 0.06 credits consumed for the survey. We can see this number of credits consumed at the remote inference page of our Expected Parrot account:
 
 <Frame>
-![Coop remote inference jobs page](/images/en/latest/credits_2.png)
+![Expected Parrot remote inference jobs page](/images/en/latest/credits_2.png)
 </Frame>
 
 
 We can also navigate to the results page and select the same columns of the results to display:
 
 <Frame>
-![Coop remote inference jobs page](/images/en/latest/credits_3.png)
+![Expected Parrot remote inference jobs page](/images/en/latest/credits_3.png)
 </Frame>
 
 
@@ -137,13 +137,13 @@ Before running a survey, you can estimate the tokens and costs (in USD and credi
 
 This will return the total estimated cost in USD, the total estimated input and output tokens, and estimated costs and tokens for each inference service and model used.
 
-- Call the remote_inference_cost() method on a Coop client object and pass it the job.
+- Call the remote_inference_cost() method on a `Coop` client object and pass it the job.
 
 This will return the estimated cost in credits and USD. (Credits are required to run surveys remotely.)
 
 ### Example
 
-Here we create a survey and agent, select a model and combine them to create a job. Then we call the above-mentioned methods for estimating costs and show the underlying calculations. The steps below can also be accessed as a notebook at the Coop web app ([notebook view](https://www.expectedparrot.com/content/c379241a-7039-4505-8d42-4c909a54c6e0)).
+Here we create a survey and agent, select a model and combine them to create a job. Then we call the above-mentioned methods for estimating costs and show the underlying calculations. The steps below can also be accessed as a notebook at the Expected Parrot platform ([notebook view](https://www.expectedparrot.com/content/c379241a-7039-4505-8d42-4c909a54c6e0)).
 
 ```python expandable
 from edsl import QuestionFreeText, Survey, Agent, Model
@@ -184,7 +184,7 @@ Output:
 
 The estimated_total_cost is the total cost in USD to run the job, and the estimated_total_input_tokens and estimated_total_output_tokens are the estimated total input and output tokens, respectively for all the prompts in the survey.
 
-To get the estimated cost in credits to run the job remotely we can call the remote_inference_cost() method on a Coop client object and pass it the job:
+To get the estimated cost in credits to run the job remotely we can call the remote_inference_cost() method on a `Coop` client object and pass it the job:
 
 ```python
 from edsl import Coop

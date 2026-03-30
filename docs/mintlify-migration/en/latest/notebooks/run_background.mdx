@@ -3,7 +3,7 @@ title: "Run a job in the background"
 description: "You can run a remote survey in the background by passing a parameter `background=True` to the `run()` method. This allows you to continue working (or stop working) while your survey job completes."
 ---
 
-You can check the progress of the job by opening the **Progress Bar** page view, and use the **Job UUID** to identify the job at your Coop account. If you also passed a `remote_inference_description` and/or `remote_inference_visibility` setting to the `run()` method (as we do below) you can also use those to identify the job at Coop. See the Job UUID and URL that are returned in the job status table (this table is returned when any job is run remotely). Note that the Results UUID and Results URL are *not* automatically updated when the job completes:
+You can check the progress of the job by opening the **Progress Bar** page view, and use the **Job UUID** to identify the job at your Expected Parrot account. If you also passed a `remote_inference_description` and/or `remote_inference_visibility` setting to the `run()` method (as we do below) you can also use those to identify the job at Expected Parrot. See the Job UUID and URL that are returned in the job status table (this table is returned when any job is run remotely). Note that the Results UUID and Results URL are *not* automatically updated when the job completes:
 
 ```python
 from edsl import QuestionFreeText, Model
@@ -55,7 +55,7 @@ r.select("model", "answer.*")
 | :--- | :--- | :--- |
 | 0 | gemini-1.5-flash | The world is hushed, a winter's grace, But in my heart, a sunlit space. Where thoughts of you, a warming fire, Ignite a love, a pure desire. No diamond's gleam, no rose's hue, Can match the joy I find in you. Your laughter's song, a sweet refrain, Erases sorrow, heals all pain. Your gentle touch, a whispered plea, Awakens depths I long to see. Within your eyes, a universe, Where love's own story finds its verse. So let this day, with hearts entwined, A testament to love we find. A bond so strong, a sacred vow, My love for you, I pledge it now. And as the stars begin to gleam, I whisper softly, "My sweet dream, My Valentine, my heart's delight, You fill my world with purest light." |
 
-Here we post/update this notebook at Coop:
+Here we post/update this notebook at Expected Parrot:
 
 ```python
 

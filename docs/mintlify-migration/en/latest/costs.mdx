@@ -16,7 +16,7 @@ When you create a survey, you can estimate the cost of running it before actuall
 There are 2 methods of estimating costs (in USD and credits):
 
 - Call the estimate_job_cost() method on a Job object (a survey combined with one or more models). This will return the total estimated cost in USD, the estimated input and output tokens, and estimated costs and tokens for each inference service and model used. It will also show the number of credits that will be placed on hold if the survey job is run remotely. Once the job has completed the credits are released and final calculated credits are deducted from your account.
-- Call the remote_inference_cost() method on a Coop client object and pass it the job. This will return the total estimated cost in in USD and credits.
+- Call the remote_inference_cost() method on a `Coop` client object and pass it the job. This will return the total estimated cost in in USD and credits.
 
 *Credits are required to run surveys remotely. Learn more about using credits in the `Credits </en/latest/credits>`_ section of the docs.*
 
@@ -78,7 +78,7 @@ This will return:
 'credits_hold': 0.01}]}
 ```
 
-Using the Coop client object instead:
+Using the `Coop` client object instead:
 
 ```python
 from edsl import Coop
@@ -125,7 +125,7 @@ After running a survey job, you can track the actual token costs incurred for ea
 - **raw_model_response.&lt;question_name&gt;_output_tokens**: The number of output tokens for the relevant question for the relevant model.
 - **raw_model_response.&lt;question_name&gt;_raw_model_response**: The raw model response for the relevant question.
 
-Details can also be viewed at the [Jobs](https://www.expectedparrot.com/home/remote-inference) and [Transactions](https://www.expectedparrot.com/home/transactions) pages of your Coop account.
+Details can also be viewed at the [Jobs](https://www.expectedparrot.com/home/remote-inference) and [Transactions](https://www.expectedparrot.com/home/transactions) pages of your Expected Parrot account.
 
 For example, here we inspect the costs of running the job from above:
 
@@ -148,7 +148,7 @@ Output:
 | gemini-1.5-flash | Have you read any books about `{{ scenario.topic }}` ? | On a scale from 1 to 5, how important to you is `{{ scenario.topic }}` ? | 0.075000 | 59 | 0.300000 | 35180.304746 | `{‘candidates’: [{‘content’: {‘parts’: [{‘text’: “3nnHonestly, it’s something I think about, but it’s not my biggest concern. I mean, a nice place to live is great, but my career and family take precedence. Plus, I have people who handle that kind of thing for me, thankfully!n”}], ‘role’: ‘model’}, ‘finish_reason’: 1, ‘safety_ratings’: [{‘category’: 8, ‘probability’: 1, ‘blocked’: False}, {‘category’: 10, ‘probability’: 1, ‘blocked’: False}, {‘category’: 7, ‘probability’: 1, ‘blocked’: False}, {‘category’: 9, ‘probability’: 1, ‘blocked’: False}], ‘avg_logprobs’: -0.2841725430246127, ‘token_count’: 0, ‘grounding_attributions’: []}], ‘usage_metadata’: {‘prompt_token_count’: 128, ‘candidates_token_count’: 59, ‘total_token_count’: 187, ‘cached_content_token_count’: 0}, ‘model_version’: ‘gemini-1.5-flash’}` | 0.075000 | 95 | `{‘candidates’: [{‘content’: {‘parts’: [{‘text’: “YesnnI mean, honestly, who *hasn’t* been obsessed with the housing market lately? It’s practically a national pastime at this point! I’ve skimmed a few, mostly for research for a role, but let’s be real, the real estate market is its own kind of wild, unpredictable drama.n”}], ‘role’: ‘model’}, ‘finish_reason’: 1, ‘safety_ratings’: [{‘category’: 8, ‘probability’: 1, ‘blocked’: False}, {‘category’: 10, ‘probability’: 1, ‘blocked’: False}, {‘category’: 7, ‘probability’: 1, ‘blocked’: False}, {‘category’: 9, ‘probability’: 1, ‘blocked’: False}], ‘avg_logprobs’: -0.33602206807740975, ‘token_count’: 0, ‘grounding_attributions’: []}], ‘usage_metadata’: {‘prompt_token_count’: 95, ‘candidates_token_count’: 71, ‘total_token_count’: 166, ‘cached_content_token_count’: 0}, ‘model_version’: ‘gemini-1.5-flash’}` | 36630.042024 | 0.300000 | 0.000028 | 71 | 128 | 0.000027 |
 | gpt-4o | Have you read any books about `{{ scenario.topic }}` ? | On a scale from 1 to 5, how important to you is `{{ scenario.topic }}` ? | 2.500000 | 31 | 10.000000 | 1904.761905 | `{‘id’: ‘chatcmpl-BQaCRYMuhgJBDz0LtE0dX5Nil89RL’, ‘choices’: [{‘finish_reason’: ‘stop’, ‘index’: 0, ‘logprobs’: None, ‘message’: {‘content’: “3 nAs a celebrity, I have an interest in real estate both as an investment and for personal living spaces, but it’s not my primary focus.”, ‘refusal’: None, ‘role’: ‘assistant’, ‘audio’: None, ‘function_call’: None, ‘tool_calls’: None, ‘annotations’: []}}` ], ‘created’: 1745675379, ‘model’: ‘gpt-4o-2024-08-06’, ‘object’: ‘chat.completion’, ‘service_tier’: ‘default’, ‘system_fingerprint’: ‘fp_d8864f8b6b’, ‘usage’: `{‘completion_tokens’: 31, ‘prompt_tokens’: 133, ‘total_tokens’: 164, ‘completion_tokens_details’: {‘accepted_prediction_tokens’: 0, ‘audio_tokens’: 0, ‘reasoning_tokens’: 0, ‘rejected_prediction_tokens’: 0}, ‘prompt_tokens_details’: {‘audio_tokens’: 0, ‘cached_tokens’: 0}}` }` | 2.500000 | 98 | `{‘id’: ‘chatcmpl-BQaCRamWhwJssHEfAOQCBR6UdQlcj’, ‘choices’: [{‘finish_reason’: ‘stop’, ‘index’: 0, ‘logprobs’: None, ‘message’: {‘content’: “No nI haven’t read any books specifically about house prices, but I’ve definitely heard a lot about the market through various conversations and media.”, ‘refusal’: None, ‘role’: ‘assistant’, ‘audio’: None, ‘function_call’: None, ‘tool_calls’: None, ‘annotations’: []}}` ], ‘created’: 1745675379, ‘model’: ‘gpt-4o-2024-08-06’, ‘object’: ‘chat.completion’, ‘service_tier’: ‘default’, ‘system_fingerprint’: ‘fp_d8864f8b6b’, ‘usage’: `{‘completion_tokens’: 28, ‘prompt_tokens’: 98, ‘total_tokens’: 126, ‘completion_tokens_details’: {‘accepted_prediction_tokens’: 0, ‘audio_tokens’: 0, ‘reasoning_tokens’: 0, ‘rejected_prediction_tokens’: 0}, ‘prompt_tokens_details’: {‘audio_tokens’: 0, ‘cached_tokens’: 0}}` }` | 1556.420233 | 10.000000 | 0.000525 | 28 | 133 | 0.000642 |
 
-We can see the details at Coop as well. Your [Jobs page](https://www.expectedparrot.com/home/remote-inference) will show the actual costs of each survey job.
+We can see the details at Expected Parrot as well. Your [Jobs page](https://www.expectedparrot.com/home/remote-inference) will show the actual costs of each survey job.
 
 
 Your [Transactions page](https://www.expectedparrot.com/home/transactions) will show the additional information about credits on hold based on cost estimates together with actual costs of each survey job.

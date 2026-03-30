@@ -1,25 +1,25 @@
 ---
 title: "Using data with surveys: FileStore"
-description: "This notebook provides example [EDSL](https://github.com/expectedparrot/edsl) code for methods for using data with an EDSL survey. In the steps below we show how to use the [FileStore](/en/latest/filestore) module to upload, share and retrieve data files at the [Coop](/en/latest/coop), and then create [Scenario](/en/latest/scenarios) objects for the data to use it with a survey."
+description: "This notebook provides example [EDSL](https://github.com/expectedparrot/edsl) code for methods for using data with an EDSL survey. In the steps below we show how to use the [FileStore](/en/latest/filestore) module to upload, share and retrieve data files at the [Expected Parrot](/en/latest/coop), and then create [Scenario](/en/latest/scenarios) objects for the data to use it with a survey."
 ---
 
-[EDSL is an open-source library](https://github.com/expectedparrot/edsl) for simulating surveys, experiments and other research with AI agents and large language models. Before running the code below, please ensure that you have [installed the EDSL library](/en/latest/installation) and either [activated remote inference](/en/latest/remote_inference) from your [Coop account](/en/latest/coop) or [stored API keys](/en/latest/api_keys) for the language models that you want to use with EDSL. Please also see our [documentation page](/en/latest/index) for tips and tutorials on getting started using EDSL.
+[EDSL is an open-source library](https://github.com/expectedparrot/edsl) for simulating surveys, experiments and other research with AI agents and large language models. Before running the code below, please ensure that you have [installed the EDSL library](/en/latest/installation) and either [activated remote inference](/en/latest/remote_inference) from your [Expected Parrot account](/en/latest/coop) or [stored API keys](/en/latest/api_keys) for the language models that you want to use with EDSL. Please also see our [documentation page](/en/latest/index) for tips and tutorials on getting started using EDSL.
 
 ## What is a *Scenario*?
 
 A `Scenario` is a dictionary of one or more key/value pairs representing data or content to be added to questions; a `ScenarioList` is a list of *Scenario* objects. Scenario keys are used as question parameters that get replaced with the values when the scenarios are added to the questions, allowing you to create variants of questions efficiently. Learn more about creating and working with scenarios [here](/en/latest/scenarios) and [here](/en/latest/notebooks/question_loop_scenarios).
 
-## What is the *Coop*?
+## What is Expected Parrot?
 
-[Coop](/en/latest/coop) is a platform for creating, storing and sharing LLM-based research. It is fully integrated with EDSL, allowing you to post, download and update objects directly from your workspace and at the [Coop web app](https://www.expectedparrot.com/login). The Coop also provides access to features for working with EDSL remotely at the Expected Parrot server. Learn more about these features in the [remote inference](/en/latest/remote_inference) and [remote caching](/en/latest/remote_caching) sections of the [documentation page](/en/latest/index).
+[Expected Parrot](/en/latest/coop) is a platform for creating, storing and sharing LLM-based research. It is fully integrated with EDSL, allowing you to post, download and update objects directly from your workspace and at the [Expected Parrot platform](https://www.expectedparrot.com/login). Expected Parrot also provides access to features for working with EDSL remotely at the Expected Parrot server. Learn more about these features in the [remote inference](/en/latest/remote_inference) and [remote caching](/en/latest/remote_caching) sections of the [documentation page](/en/latest/index).
 
 ## What is FileStore?
 
-`FileStore` is a [module for storing and sharing data files at the Coop](/en/latest/filestore) to use in EDSL projects, such as survey data, PDFs, CSVs or images. In particular, it is designed for storing files to be used as as scenarios, and allows you to include code for easily retrieving and processing the files in your EDSL project, as we do in the examples below!
+`FileStore` is a [module for storing and sharing data files at Expected Parrot](/en/latest/filestore) to use in EDSL projects, such as survey data, PDFs, CSVs or images. In particular, it is designed for storing files to be used as as scenarios, and allows you to include code for easily retrieving and processing the files in your EDSL project, as we do in the examples below!
 
 ## Example
 
-In the example below we create scenarios for some data (a table at a Wikipedia page) and inspect them. Then we store the scenarios as a CSV and post it to Coop using FileStore. Then we retrieve the file and recreate the scenarios, and use them in a survey. We also post the survey, results and this notebook to Coop for reference.
+In the example below we create scenarios for some data (a table at a Wikipedia page) and inspect them. Then we store the scenarios as a CSV and post it to Expected Parrot using FileStore. Then we retrieve the file and recreate the scenarios, and use them in a survey. We also post the survey, results and this notebook to Expected Parrot for reference.
 
 We start by creating importing the tools that we will use:
 
@@ -105,15 +105,15 @@ s.to_csv("billboard_100_1980s.csv")
 
 File written to billboard_100_1980s.csv
 
-### Posting data to Coop
+### Posting data to Expected Parrot
 
-Here we post the CSV to Coop using `FileStore` (note that the file type is automatically inferred):
+Here we post the CSV to Expected Parrot using `FileStore` (note that the file type is automatically inferred):
 
 ```python
 fs = FileStore("billboard_100_1980s.csv")
 ```
 
-We can post a `FileStore` object to the Coop by calling the `push()` method on it. We can optionally pass a `description` and a `visibility` setting - *public*, *unlisted* (by default) or *private*:
+We can post a `FileStore` object to Expected Parrot by calling the `push()` method on it. We can optionally pass a `description` and a `visibility` setting - *public*, *unlisted* (by default) or *private*:
 
 ```python
 info = fs.push(
@@ -123,7 +123,7 @@ info = fs.push(
 )
 ```
 
-We can print the details of the posted object, including the URL and Coop uuid that we will need to retrieve it later:
+We can print the details of the posted object, including the URL and uuid that we will need to retrieve it later:
 
 ```python
 info
@@ -284,9 +284,9 @@ results.sort_by("weeks", reverse=True).select("weeks", "song", "artists", "senti
 | 12 | 6 | "Say, Say, Say" | Paul McCartney and Michael Jackson | Romantic | ['Love', 'Struggle'] | nan |
 | 13 | 6 | "Like a Virgin" | Madonna | Romantic | ['Love', 'Celebration'] | nan |
 
-### Posting a notebook to the Coop
+### Posting a notebook to Expected Parrot
 
-Here we post the contents of this notebook to the Coop for anyone to access:
+Here we post the contents of this notebook to Expected Parrot for anyone to access:
 
 ```python
 from edsl import Notebook
@@ -297,14 +297,14 @@ n = Notebook(path = "scenarios_filestore_example.ipynb")
 
 ```python
 n.push(
-    description = "Example code for using data files for scenarios via FileStore and Coop",
+    description = "Example code for using data files for scenarios via FileStore and Expected Parrot",
     alias = "my-scenario-image-notebook",
     visibility = "public"
 )
 ```
 
 ```json
-{'description': 'Example code for using data files for scenarios via FileStore and Coop',
+{'description': 'Example code for using data files for scenarios via FileStore and Expected Parrot',
  'object_type': 'notebook',
  'url': 'https://www.expectedparrot.com/content/0f21a6ba-45b2-4cf2-9bea-87929855797f',
  'uuid': '0f21a6ba-45b2-4cf2-9bea-87929855797f',

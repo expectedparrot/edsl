@@ -72,22 +72,22 @@ Sample output:
 ['colab_to_coop.ipynb']
 ```
 
-## 6. Post a notebook to Coop
+## 6. Post a notebook to Expected Parrot
 
-Now that you have your notebook ready, you can post it to Coop using the Notebook object. Modify the path to your notebook file path in your Google Drive as needed:
+Now that you have your notebook ready, you can post it to Expected Parrot using the Notebook object. Modify the path to your notebook file path in your Google Drive as needed:
 
 ```python
 from edsl import Notebook
 
 notebook = Notebook(path="/content/drive/MyDrive/ColabNotebooks/colab_to_coop.ipynb")
 
-notebook.push(description="Posting a Colab notebook to Coop")
+notebook.push(description="Posting a Colab notebook to Expected Parrot")
 ```
 
 Example output:
 
 ```json
-{'description': 'Posting a Colab notebook to Coop',
+{'description': 'Posting a Colab notebook to Expected Parrot',
 'object_type': 'notebook',
 'url': 'https://www.expectedparrot.com/content/a878656a-317a-4181-a496-3c49f12e38d7',
 'uuid': 'a878656a-317a-4181-a496-3c49f12e38d7',
@@ -95,7 +95,7 @@ Example output:
 'visibility': 'unlisted'}
 ```
 
-## 7. Update or edit a notebook at Coop
+## 7. Update or edit a notebook at Expected Parrot
 
 ```python
 from edsl import Notebook
@@ -118,6 +118,6 @@ Output:
 ## Example Colab code
 
 <Frame>
-![Posting a Colab notebook to Coop](/images/en/latest/colab_notebooks_2.png)
+![Posting a Colab notebook to Expected Parrot](/images/en/latest/colab_notebooks_2.png)
 </Frame>
 

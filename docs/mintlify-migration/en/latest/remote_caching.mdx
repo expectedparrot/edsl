@@ -4,7 +4,7 @@ description: "Remote caching allows you to store responses from language models 
 ---
 
 <Note>
-*Note: You must have a Coop account in order to use remote inference and caching. By using remote inference you agree to any terms of use of service providers, which Expected Parrot may accept on your behalf and enforce in accordance with our terms of use.*
+*Note: You must have a Expected Parrot account in order to use remote inference and caching. By using remote inference you agree to any terms of use of service providers, which Expected Parrot may accept on your behalf and enforce in accordance with our terms of use.*
 </Note>
 
 ## Activate remote caching
@@ -35,7 +35,7 @@ The universal remote cache offers the following features:
 - **Multiple responses:** If a fresh response is generated for a question that is different from a response already stored in the universal remote cache, the new response is added with an iteration index.
 - **No deletions:** You cannot delete entries from the universal remote cache.
 - **No manual additions:** You cannot manually add entries. The only way to add responses to the universal remote cache is by running a survey remotely at the Expected Parrot server.
-- **Sharing & reproducibility:** A new cache is automatically attached to each results object, which can be posted and shared with other users at the Coop.
+- **Sharing & reproducibility:** A new cache is automatically attached to each results object, which can be posted and shared with other users at Expected Parrot.
 - **Privacy:** It is not queryable, and no user information is available. You must run a survey to retrieve responses from the universal remote cache.
 
 <Note>
@@ -54,7 +54,7 @@ When you run a question you will retrieve a stored response by default if it exi
 </Accordion>
 
 <Accordion title="How do I know whether I will retrieve a stored response?">
-Results that were generated at the Expected Parrot server will show a verified checkmark ✓ at Coop. If you rerun a survey with verified results you will retrieve stored responses.
+Results that were generated at the Expected Parrot server will show a verified checkmark ✓ at Expected Parrot. If you rerun a survey with verified results you will retrieve stored responses.
 </Accordion>
 
 <Accordion title="Is the universal remote cache queryable? Can I check whether there is a stored response for a question?">
@@ -106,7 +106,7 @@ Responses to questions that you ran remotely prior to the launch of the universa
 
 You can view and search all of your remote cache entries and logs at your [Cache](https://www.expectedparrot.com/home/remote-cache) page. These entries include all of the responses to questions that you have run remotely and generated or retrieved from the universal remote cache, and all the logs of your remote surveys.
 
-For example, here we run a survey with remote caching activated, and pass a description to readily identify the job at Coop:
+For example, here we run a survey with remote caching activated, and pass a description to readily identify the job at Expected Parrot:
 
 ```python
 from edsl import Model, QuestionFreeText, Survey
@@ -130,12 +130,12 @@ results = survey.by(m).run(
 We can see the job has been added:
 
 <Frame>
-![Page displaying a remote cache at the Coop web app](/images/en/latest/home-remote-cache-logs.png)
+![Page displaying a remote cache at the Expected Parrot platform](/images/en/latest/home-remote-cache-logs.png)
 </Frame>
 
 ### Reproducing results
 
-When you share a results object (e.g., post it publicly at Coop or share it privately with other users) the cache attached to it is automatically shared with it. This can be useful if you want to share a specific historic cache for a survey or project (e.g., to allow other users to reproduce your results). You can inspect the cache for a results object by calling the cache property on a results object.
+When you share a results object (e.g., post it publicly at Expected Parrot or share it privately with other users) the cache attached to it is automatically shared with it. This can be useful if you want to share a specific historic cache for a survey or project (e.g., to allow other users to reproduce your results). You can inspect the cache for a results object by calling the cache property on a results object.
 
 For example, here we inspect the cache for the survey that we ran above:
 
@@ -266,7 +266,7 @@ CoopServerResponseError: If there’s an error communicating with the server
 
 > #### create_project(*survey: [Survey](/en/latest/surveys#survey-class "edsl.surveys.Survey")*, *scenario_list: [ScenarioList](/en/latest/scenarios#scenariolist-class "edsl.scenarios.ScenarioList") | None = None*, *scenario_list_method: Literal['randomize', 'loop', 'single_scenario', 'ordered'] | None = None*, *project_name: str = 'Project'*, *survey_description: str | None = None*, *survey_alias: str | None = None*, *survey_visibility: Literal['private', 'public', 'unlisted'] | None = 'unlisted'*, *scenario_list_description: str | None = None*, *scenario_list_alias: str | None = None*, *scenario_list_visibility: Literal['private', 'public', 'unlisted'] | None = 'unlisted'*)[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/coop/coop.py)
 
-Create a survey object on Coop, then create a project from the survey.
+Create a survey object on Expected Parrot, then create a project from the survey.
 
 > #### create_project_run(*project_uuid: str*, *name: str | None = None*, *scenario_list_uuid: str | UUID | None = None*, *scenario_list_method: Literal['randomize', 'loop', 'single_scenario', 'ordered'] | None = None*) → dict[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/coop/coop.py)
 
@@ -336,7 +336,7 @@ CoopServerResponseError: If there’s an error communicating with the server
 
 > #### *property* edsl_settings*: dict*[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/coop/coop.py)
 
-Retrieve and return the EDSL settings stored on Coop. If no response is received within 5 seconds, return an empty dict.
+Retrieve and return the EDSL settings stored on Expected Parrot. If no response is received within 5 seconds, return an empty dict.
 
 > #### execute_firecrawl_request(*request_dict: Dict[str, Any]*) → Any[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/coop/coop.py)
 
@@ -476,13 +476,13 @@ ValueError: If the EDSL_FETCH_TOKEN_PRICES configuration setting is invalid
 
 > #### fetch_rate_limit_config_vars() → dict[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/coop/coop.py)
 
-Fetch a dict of rate limit config vars from Coop.
+Fetch a dict of rate limit config vars from Expected Parrot.
 
 The dict keys are RPM and TPM variables like EDSL_SERVICE_RPM_OPENAI.
 
 > #### fetch_working_models() → List[dict][[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/coop/coop.py)
 
-Fetch a list of working models from Coop.
+Fetch a list of working models from Expected Parrot.
 
 > **Example output:**
 
@@ -591,7 +591,7 @@ CoopServerResponseError: If there’s an error communicating with the server
 
 > #### get_project(*project_uuid: str*) → dict[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/coop/coop.py)
 
-Get a project from Coop.
+Get a project from Expected Parrot.
 
 > #### get_project_human_responses(*project_uuid: str*, *project_run_uuid: str | None = None*) → [Results](/en/latest/results#result-class "edsl.results.Results") | [ScenarioList](/en/latest/scenarios#scenariolist-class "edsl.scenarios.ScenarioList")[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/coop/coop.py)
 
