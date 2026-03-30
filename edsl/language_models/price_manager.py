@@ -342,7 +342,7 @@ class PriceManager:
                 usage, thinking_token_sequence
             )
             return int(extracted_thinking_tokens)
-        except (ValueError, TypeError):
+        except Exception:
             # Keep thinking tokens unset when the path is missing or invalid.
             return None
 
