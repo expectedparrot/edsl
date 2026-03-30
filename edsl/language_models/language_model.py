@@ -177,9 +177,9 @@ class LanguageModel(
     """
 
     _model_: str = None
-    key_sequence: tuple[
-        str, ...
-    ] = None  # This should be something like ["choices", 0, "message", "content"]
+    key_sequence: tuple[str, ...] = (
+        None  # This should be something like ["choices", 0, "message", "content"]
+    )
 
     DEFAULT_RPM = 300
     DEFAULT_TPM = 1000000
@@ -1125,7 +1125,11 @@ class LanguageModel(
             usage=usage,
             input_token_name=self.input_token_name,
             output_token_name=self.output_token_name,
-            thinking_token_name=getattr(self, "thinking_token_name", None),
+            thinking_token_sequence=getattr(
+                self,
+                "thinking_token_sequence",
+                None,
+            ),
         )
 
     def to_dict(self, add_edsl_version: bool = True) -> dict[str, Any]:
@@ -1247,9 +1251,9 @@ class LanguageModel(
                 )
                 test_data = data.copy()
                 test_data["model"] = "test"  # Test model expects "test" as model name
-                test_data[
-                    "original_model"
-                ] = model_name  # Preserve original for debugging
+                test_data["original_model"] = (
+                    model_name  # Preserve original for debugging
+                )
                 return test_model_class(**test_data)
             else:
                 raise

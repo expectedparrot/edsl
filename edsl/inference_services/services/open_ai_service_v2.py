@@ -53,6 +53,7 @@ class OpenAIServiceV2(InferenceServiceABC):
     reasoning_sequence = ["output", 0, "summary"]
     input_token_name = "input_tokens"
     output_token_name = "output_tokens"
+    thinking_token_sequence = ["output_tokens_details", "reasoning_tokens"]
 
     available_models_url = "https://platform.openai.com/docs/models/gp"
 
@@ -148,6 +149,7 @@ class OpenAIServiceV2(InferenceServiceABC):
             reasoning_sequence = cls.reasoning_sequence
             input_token_name = cls.input_token_name
             output_token_name = cls.output_token_name
+            thinking_token_sequence = cls.thinking_token_sequence
             _inference_service_ = cls._inference_service_
             _model_ = model_name
             _is_reasoning = any(tag in model_name for tag in OPENAI_REASONING_MODELS)
@@ -350,6 +352,7 @@ class OpenAIServiceV2(InferenceServiceABC):
                 )
                 # convert to dict
                 response_dict = response.model_dump()
+
                 return response_dict
 
         LLM.__name__ = model_class_name
