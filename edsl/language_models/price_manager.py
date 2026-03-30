@@ -1,6 +1,7 @@
 from dataclasses import dataclass
-from typing import Dict, Literal, Tuple, Union
+from typing import Dict, Literal, Tuple, Union, Optional
 from collections import namedtuple
+from .raw_response_handler import _extract_item_from_raw_response
 
 
 @dataclass
@@ -259,7 +260,7 @@ class PriceManager:
         usage: Dict[str, Union[str, int]],
         input_token_name: str,
         output_token_name: str,
-        thinking_token_name: str = None,
+        thinking_token_sequence: Optional[list[str]] = None,
     ) -> ResponseCost:
         """
         Calculate the cost and token usage for a model response.
@@ -301,12 +302,7 @@ class PriceManager:
                 total_cost=f"Could not compute price per million tokens: {e}",
             )
 
-        thinking_tokens = None
-        if thinking_token_name and thinking_token_name in usage:
-            try:
-                thinking_tokens = int(usage[thinking_token_name])
-            except (ValueError, TypeError):
-                pass
+        thinking_tokens = self._extract_thinking_tokens(usage, thinking_token_sequence)
 
         try:
             total_cost = self._calculate_total_cost(
@@ -318,7 +314,7 @@ class PriceManager:
         except Exception as e:
             return ResponseCost(total_cost=f"{e}")
 
-        return ResponseCost(
+        response_cost = ResponseCost(
             input_tokens=input_tokens,
             output_tokens=output_tokens,
             input_price_per_million_tokens=input_price_per_million_tokens,
@@ -326,6 +322,25 @@ class PriceManager:
             total_cost=total_cost,
             thinking_tokens=thinking_tokens,
         )
+        # print(response_cost)
+        return response_cost
+
+    @staticmethod
+    def _extract_thinking_tokens(
+        usage: Dict[str, Union[str, int]],
+        thinking_token_sequence: Optional[list[str]],
+    ) -> Optional[int]:
+        """Extract thinking token count from usage via a nested sequence path."""
+        if not thinking_token_sequence:
+            return None
+        try:
+            extracted_thinking_tokens = _extract_item_from_raw_response(
+                usage, thinking_token_sequence
+            )
+            return int(extracted_thinking_tokens)
+        except (ValueError, TypeError):
+            # Keep thinking tokens unset when the path is missing or invalid.
+            return None
 
     @property
     def is_initialized(self) -> bool:
