@@ -3,7 +3,7 @@ title: "Using images in a survey"
 descrition: "This notebook provides sample code for using images with an [EDSL](/en/latest/index) survey."
 ---
 
-[EDSL is an open-source library](https://github.com/expectedparrot/edsl) for simulating surveys, experiments and other research with AI agents and large language models. Before running the code below, please ensure that you have [installed the EDSL library](/en/latest/installation) and either [activated remote inference](/en/latest/remote_inference) from your [Expected Parrot account](/en/latest/coop) or [stored API keys](/en/latest/api_keys) for the language models that you want to use with EDSL. Please also see our [documentation page](/en/latest/index) for tips and tutorials on getting started using EDSL and Expected Parrot.
+[EDSL is an open-source library](https://github.com/expectedparrot/edsl) for simulating surveys, experiments and other research with AI agents and large language models. Before running the code below, please ensure that you have [installed the EDSL library](/en/latest/installation) and either [activated remote inference](/en/latest/remote_inference) from your [Expected Parrot account](/en/latest/coop) or [stored API keys](/en/latest/api_keys) for the language models that you want to use with EDSL. Please also see our [documentation page](/en/latest/index) for tips and tutorials on getting started using EDSL and the platform.
 
 ## Scenarios
 
@@ -21,7 +21,7 @@ When using images with questions it is necessary to specify a vision model, and 
 
 ### Creating a scenario
 
-We start by creating a `Scenario` for an image. For purposes of demonstration, we use the `FileStore` module to post a PNG image to Expected Parrot, and then retrieve it and pass it to a `Scenario` (this can be done by [any user with a Expected Parrot account](https://www.expectedparrot.com/login)). Note that `FileStore` can be used to post and retrieve all types of files, and will automatically infer the file type.
+We start by creating a `Scenario` for an image. For purposes of demonstration, we use the `FileStore` module to post a PNG image to Expected Parrot, and then retrieve it and pass it to a `Scenario` (this can be done by [any user with an Expected Parrot account](https://www.expectedparrot.com/login)). Note that `FileStore` can be used to post and retrieve all types of files, and will automatically infer the file type.
 
 Here we post a file to Expected Parrot:
 
@@ -135,7 +135,7 @@ results.select("model", "filename", "animal", "identify", "colors", "colors_comm
 
 ## Posting to Expected Parrot
 
-The results of the survey were automatically posted to Expected Parrot using remote inference (see link in the job summary above). Here we also post this notebook, as we can any local objects that we want to push to Expected Parrot:
+The results of the survey were automatically posted to Expected Parrot using remote inference (see link in the job summary above). Here we also post them to the platform:
 
 
 ```python

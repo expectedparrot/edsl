@@ -186,7 +186,7 @@ q = QuestionMultipleChoice(
     question_options = [0, 1, 2, 3]
 )
 ```
-We can administer the question to a language model by calling the `run` method on it. If you have activated remote inference and stored your Expected Parrot API key (see instructions above), the question will be run remotely at the Expected Parrot server. Results are stored at an unlisted Expected Parrot page by default; we can also set the visibility to `public` or `private` either when we run it or by updating the object (demonstrated in later examples). We can also view a progress report for the job:
+We can administer the question to a language model by calling the `run` method on it. If you have activated remote inference and stored your Expected Parrot API key (see instructions above), the question will be run remotely at the Expected Parrot server. Results are stored at an unlisted page by default; we can also set the visibility to `public` or `private` either when we run it or by updating the object (demonstrated in later examples). We can also view a progress report for the job:
 
 ```python
 results = q.run()
@@ -828,7 +828,7 @@ human_results
 
 ## Posting to Expected Parrot
 
-[Expected Parrot](https://www.expectedparrot.com/content/explore) is a platform for creating, storing and sharing LLM-based research. It is fully integrated with EDSL and accessible from your workspace or Expected Parrot account page. Learn more about [creating an account](https://www.expectedparrot.com/login) and [using Expected Parrot](/en/latest/coop).
+[Expected Parrot](https://www.expectedparrot.com/content/explore) is a platform for creating, storing and sharing LLM-based research. It is fully integrated with EDSL and accessible from your workspace or Expected Parrot account page. Learn more about [creating an account](https://www.expectedparrot.com/login) and [the platform](/en/latest/coop).
 
 We can post any EDSL object to Expected Parrot by call the `push` method on it, optionally passing a `description` for the object, a convenient `alias` for the URL, and a `visibility` status (*public*, *private* or *unlisted* by default).
 

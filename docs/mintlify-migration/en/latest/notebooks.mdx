@@ -81,7 +81,7 @@ For now, this method only works if you are using the VS Code IDE.
 
 A notebook can be posted to Expected Parrot in the same ways as other EDSL objects: by calling the push() method on the object or calling the create method on a `Coop` client object and passing it the notebook.
 
-Here we create a Notebook object and use the push() method to post it to Expected Parrot. You can optionally pass a description, a convenient alias for the Expected Parrot URL and a visibility setting (*public*, *private* or *unlisted* by default) to the push() method:
+Here we create a Notebook object and use the push() method to post it to Expected Parrot. You can optionally pass a description, a convenient alias URL and a visibility setting (*public*, *private* or *unlisted* by default) to the push() method:
 
 ```python
 from edsl import Notebook
@@ -184,7 +184,7 @@ This allows you to edit and run the notebook on your local machine.
 
 ### Deleting a notebook from Expected Parrot
 
-A notebook can be deleted from Expected Parrot in the same ways as other EDSL objects: by calling the delete() method on the constructor and passing it the uuid of the notebook to be deleted. You can also delete a notebook manually from your Expected Parrot account.
+A notebook can be deleted from the platform in the same ways as other EDSL objects: by calling the delete() method on the constructor and passing it the uuid of the notebook to be deleted. You can also delete a notebook manually from your Expected Parrot account.
 
 Here we delete a notebook using the Notebook object:
 

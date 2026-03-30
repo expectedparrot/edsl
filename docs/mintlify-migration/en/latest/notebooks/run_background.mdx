@@ -3,7 +3,7 @@ title: "Run a job in the background"
 description: "You can run a remote survey in the background by passing a parameter `background=True` to the `run()` method. This allows you to continue working (or stop working) while your survey job completes."
 ---
 
-You can check the progress of the job by opening the **Progress Bar** page view, and use the **Job UUID** to identify the job at your Expected Parrot account. If you also passed a `remote_inference_description` and/or `remote_inference_visibility` setting to the `run()` method (as we do below) you can also use those to identify the job at Expected Parrot. See the Job UUID and URL that are returned in the job status table (this table is returned when any job is run remotely). Note that the Results UUID and Results URL are *not* automatically updated when the job completes:
+You can check the progress of the job by opening the **Progress Bar** page view, and use the **Job UUID** to identify the job at your Expected Parrot account. If you also passed a `remote_inference_description` and/or `remote_inference_visibility` setting to the `run()` method (as we do below) you can also use those to identify the job on the platform. See the Job UUID and URL that are returned in the job status table (this table is returned when any job is run remotely). Note that the Results UUID and Results URL are *not* automatically updated when the job completes:
 
 ```python
 from edsl import QuestionFreeText, Model
