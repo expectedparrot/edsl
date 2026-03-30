@@ -50,6 +50,7 @@ from __future__ import annotations
 from abc import ABC
 from typing import (
     Any,
+    Dict,
     Type,
     Optional,
     Union,
@@ -995,6 +996,7 @@ class QuestionBase(
         survey_description: Optional[str] = None,
         survey_alias: Optional[str] = None,
         survey_visibility: Optional["VisibilityType"] = "private",
+        humanize_schema: Optional[Dict[str, Any]] = None,
     ) -> dict:
         """
         Turn a single question into a survey and send the survey to Coop.
@@ -1003,7 +1005,11 @@ class QuestionBase(
         """
         s = self.to_survey()
         human_survey_details = s.humanize(
-            human_survey_name, survey_description, survey_alias, survey_visibility
+            human_survey_name=human_survey_name,
+            survey_description=survey_description,
+            survey_alias=survey_alias,
+            survey_visibility=survey_visibility,
+            humanize_schema=humanize_schema,
         )
         return human_survey_details
 
