@@ -66,13 +66,24 @@ from ..key_management import KeyLookupCollection
 from .registry import RegisterLanguageModelsMeta
 from .raw_response_handler import RawResponseHandler
 
-_INTERNAL_KWARGS = frozenset({
-    "model", "parameters", "inference_service",
-    "edsl_version", "edsl_class_name", "original_model",
-    "skip_api_key_check", "canned_response", "throw_exception",
-    "exception_probability", "func", "fail_at_number", "never_ending",
-    "prompt_plan",
-})
+_INTERNAL_KWARGS = frozenset(
+    {
+        "model",
+        "parameters",
+        "inference_service",
+        "edsl_version",
+        "edsl_class_name",
+        "original_model",
+        "skip_api_key_check",
+        "canned_response",
+        "throw_exception",
+        "exception_probability",
+        "func",
+        "fail_at_number",
+        "never_ending",
+        "prompt_plan",
+    }
+)
 
 
 def handle_key_error(func: Callable):
@@ -240,6 +251,7 @@ class LanguageModel(
         unknown_params = {k for k in kwargs if k not in known_params}
         if unknown_params:
             import warnings
+
             warnings.warn(
                 f"Unknown parameter(s) for model '{self.model}': {', '.join(sorted(unknown_params))}. "
                 f"Known parameters: {', '.join(sorted(parameters.keys()))}. "
@@ -976,6 +988,7 @@ class LanguageModel(
             input_price_per_million_tokens=cost.input_price_per_million_tokens,
             output_price_per_million_tokens=cost.output_price_per_million_tokens,
             total_cost=cost.total_cost,
+            thinking_tokens=cost.thinking_tokens,
         )
         return response
 
@@ -1112,6 +1125,7 @@ class LanguageModel(
             usage=usage,
             input_token_name=self.input_token_name,
             output_token_name=self.output_token_name,
+            thinking_token_name=getattr(self, "thinking_token_name", None),
         )
 
     def to_dict(self, add_edsl_version: bool = True) -> dict[str, Any]:

@@ -75,7 +75,9 @@ class JobService:
         self._original_models: dict[
             str, dict[str, Any]
         ] = {}  # job_id -> {model_id -> model_obj}
-        self._interview_callbacks: dict[str, Any] = {}  # job_id -> callable(job_id, interview_id)
+        self._interview_callbacks: dict[
+            str, Any
+        ] = {}  # job_id -> callable(job_id, interview_id)
 
     @property
     def jobs(self) -> JobStore:
@@ -199,7 +201,9 @@ class JobService:
         # Register those models in the model store and build a mapping
         # from question_name -> model_id so tasks use the question's model.
         question_model_overrides: dict[str, str] = {}  # q_name -> model_id
-        extra_models: dict[str, Any] = {}  # model_id -> model obj (NOT in cross-product)
+        extra_models: dict[
+            str, Any
+        ] = {}  # model_id -> model obj (NOT in cross-product)
         extra_models_batch: dict[str, dict] = {}
         for q in questions:
             if hasattr(q, "_model") and getattr(q, "question_type", None) == "thinking":
@@ -785,6 +789,7 @@ class JobService:
         user_prompt: str | None = None,
         input_price_per_million_tokens: float | None = None,
         output_price_per_million_tokens: float | None = None,
+        thinking_tokens: int | None = None,
         cache_key: str | None = None,
         validated: bool | None = None,
         reasoning_summary: str | None = None,
@@ -814,6 +819,7 @@ class JobService:
             cached=cached,
             input_tokens=input_tokens,
             output_tokens=output_tokens,
+            thinking_tokens=thinking_tokens,
             raw_model_response=raw_model_response,
             generated_tokens=generated_tokens,
             model_id=task_def.model_id,
@@ -1792,6 +1798,9 @@ class JobService:
             raw_model_response_dict[
                 f"{a.question_name}_output_tokens"
             ] = a.output_tokens
+            raw_model_response_dict[f"{a.question_name}_thinking_tokens"] = getattr(
+                a, "thinking_tokens", None
+            )
             raw_model_response_dict[
                 f"{a.question_name}_input_price_per_million_tokens"
             ] = a.input_price_per_million_tokens
@@ -1799,12 +1808,14 @@ class JobService:
                 f"{a.question_name}_output_price_per_million_tokens"
             ] = a.output_price_per_million_tokens
             # Calculate cost and one_usd_buys like EDSL does
+            # Thinking tokens are charged at the output token rate
             total_cost = None
             if a.input_tokens is not None and a.output_tokens is not None:
                 input_price = a.input_price_per_million_tokens or 0
                 output_price = a.output_price_per_million_tokens or 0
+                thinking = getattr(a, "thinking_tokens", None) or 0
                 total_cost = (input_price / 1_000_000 * a.input_tokens) + (
-                    output_price / 1_000_000 * a.output_tokens
+                    output_price / 1_000_000 * (a.output_tokens + thinking)
                 )
             raw_model_response_dict[f"{a.question_name}_cost"] = total_cost
             one_usd_buys = (

@@ -63,6 +63,7 @@ class InvigilatorThinking(InvigilatorBase):
             "exception_occurred": None,
             "input_tokens": agent_response_dict.model_outputs.input_tokens,
             "output_tokens": agent_response_dict.model_outputs.output_tokens,
+            "thinking_tokens": agent_response_dict.model_outputs.thinking_tokens,
             "input_price_per_million_tokens": agent_response_dict.model_outputs.input_price_per_million_tokens,
             "output_price_per_million_tokens": agent_response_dict.model_outputs.output_price_per_million_tokens,
             "total_cost": agent_response_dict.model_outputs.total_cost,

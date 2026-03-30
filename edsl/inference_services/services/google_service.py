@@ -61,6 +61,7 @@ class GoogleService(InferenceServiceABC):
     usage_sequence = ["usage_metadata"]
     input_token_name = "prompt_token_count"
     output_token_name = "candidates_token_count"
+    thinking_token_name = "thoughts_token_count"
 
     available_models_url = (
         "https://cloud.google.com/vertex-ai/generative-ai/docs/learn/models"
@@ -95,6 +96,7 @@ class GoogleService(InferenceServiceABC):
             usage_sequence = cls.usage_sequence
             input_token_name = cls.input_token_name
             output_token_name = cls.output_token_name
+            thinking_token_name = cls.thinking_token_name
             _inference_service_ = cls._inference_service_
 
             _parameters_ = {

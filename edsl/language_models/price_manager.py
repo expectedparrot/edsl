@@ -17,6 +17,7 @@ class ResponseCost:
     input_price_per_million_tokens: Union[float, None] = None
     output_price_per_million_tokens: Union[float, None] = None
     total_cost: Union[float, str, None] = None
+    thinking_tokens: Union[int, None] = None
 
 
 class PriceRetriever:
@@ -205,9 +206,12 @@ class PriceManager:
         relevant_prices: Dict,
         input_tokens: int,
         output_tokens: int,
+        thinking_tokens: int = 0,
     ) -> float:
         """
-        Calculate the total cost for a model usage based on input and output tokens.
+        Calculate the total cost for a model usage based on input, output, and thinking tokens.
+
+        Thinking tokens are charged at the output token rate (per provider pricing).
 
         Returns:
             float: Total cost
@@ -236,12 +240,13 @@ class PriceManager:
             except Exception as e:
                 raise Exception(f"Could not compute input price - {e}")
 
-        # Calculate output cost
+        # Calculate output cost (includes thinking tokens at the same rate)
+        total_output_tokens = output_tokens + thinking_tokens
         if inverse_output_price == "infinity":
             output_cost = 0
         else:
             try:
-                output_cost = output_tokens / float(inverse_output_price)
+                output_cost = total_output_tokens / float(inverse_output_price)
             except Exception as e:
                 raise Exception(f"Could not compute output price - {e}")
 
@@ -254,6 +259,7 @@ class PriceManager:
         usage: Dict[str, Union[str, int]],
         input_token_name: str,
         output_token_name: str,
+        thinking_token_name: str = None,
     ) -> ResponseCost:
         """
         Calculate the cost and token usage for a model response.
@@ -295,9 +301,19 @@ class PriceManager:
                 total_cost=f"Could not compute price per million tokens: {e}",
             )
 
+        thinking_tokens = None
+        if thinking_token_name and thinking_token_name in usage:
+            try:
+                thinking_tokens = int(usage[thinking_token_name])
+            except (ValueError, TypeError):
+                pass
+
         try:
             total_cost = self._calculate_total_cost(
-                relevant_prices, input_tokens, output_tokens
+                relevant_prices,
+                input_tokens,
+                output_tokens,
+                thinking_tokens=thinking_tokens or 0,
             )
         except Exception as e:
             return ResponseCost(total_cost=f"{e}")
@@ -308,6 +324,7 @@ class PriceManager:
             input_price_per_million_tokens=input_price_per_million_tokens,
             output_price_per_million_tokens=output_price_per_million_tokens,
             total_cost=total_cost,
+            thinking_tokens=thinking_tokens,
         )
 
     @property
