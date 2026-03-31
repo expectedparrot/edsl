@@ -16,7 +16,7 @@ When you create a survey, you can estimate the cost of running it before actuall
 There are 2 methods of estimating costs (in USD and credits):
 
 - Call the estimate_job_cost() method on a Job object (a survey combined with one or more models). This will return the total estimated cost in USD, the estimated input and output tokens, and estimated costs and tokens for each inference service and model used. It will also show the number of credits that will be placed on hold if the survey job is run remotely. Once the job has completed the credits are released and final calculated credits are deducted from your account.
-- Call the remote_inference_cost() method on a `Coop` client object and pass it the job. This will return the total estimated cost in in USD and credits.
+- Call the remote_inference_cost() method on a `Coop` client object and pass it the job. This will return the total estimated cost in USD and credits.
 
 *Credits are required to run surveys remotely. Learn more about using credits in the `Credits </en/latest/credits>`_ section of the docs.*
 

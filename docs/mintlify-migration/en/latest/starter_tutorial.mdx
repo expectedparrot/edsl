@@ -398,7 +398,7 @@ survey = Survey([q1, q2])
 results = survey.run()
 ```
 
-We can check the user_prompt for the prime question to verify that that the answer to the random_number question was piped into it:
+We can check the user_prompt for the prime question to verify that the answer to the random_number question was piped into it:
 
 ```python
 results.select("random_number", "prime_user_prompt", "prime", "prime_comment")
