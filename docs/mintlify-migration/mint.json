@@ -192,11 +192,8 @@
         "en/latest/contributing",
         "en/latest/logging",
         "en/latest/jobs",
-        "en/latest/interviews",
-        "en/latest/answers",
         "en/latest/enums",
-        "en/latest/base",
-        "en/latest/polly"
+        "en/latest/base"
       ]
     }
   ],
