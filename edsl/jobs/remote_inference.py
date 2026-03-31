@@ -709,6 +709,9 @@ class JobsRemoteInferenceHandler:
                     raw_model_response_dict[f"{qname}_output_tokens"] = a.get(
                         "output_tokens"
                     )
+                    raw_model_response_dict[f"{qname}_thinking_tokens"] = a.get(
+                        "thinking_tokens"
+                    )
                     raw_model_response_dict[
                         f"{qname}_input_price_per_million_tokens"
                     ] = a.get("input_price_per_million_tokens")
@@ -716,15 +719,16 @@ class JobsRemoteInferenceHandler:
                         f"{qname}_output_price_per_million_tokens"
                     ] = a.get("output_price_per_million_tokens")
 
-                    # Calculate cost
+                    # Calculate cost (thinking tokens charged at output rate)
                     total_cost = None
                     input_tokens = a.get("input_tokens")
                     output_tokens = a.get("output_tokens")
+                    thinking_tokens = a.get("thinking_tokens") or 0
                     if input_tokens is not None and output_tokens is not None:
                         input_price = a.get("input_price_per_million_tokens") or 0
                         output_price = a.get("output_price_per_million_tokens") or 0
                         total_cost = (input_price / 1_000_000 * input_tokens) + (
-                            output_price / 1_000_000 * output_tokens
+                            output_price / 1_000_000 * (output_tokens + thinking_tokens)
                         )
                     raw_model_response_dict[f"{qname}_cost"] = total_cost
                     one_usd_buys = (
