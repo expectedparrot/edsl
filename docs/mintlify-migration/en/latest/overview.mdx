@@ -12,6 +12,8 @@ Survey research is slow and expensive. Running the same study across different d
 
 EDSL was built for researchers who want to work programmatically with language models without becoming AI engineers. Rather than writing loops over agents, questions, and models, you describe your survey once and EDSL handles parallel execution, conditional logic, model calls, and result organization.
 
+Because results are cached on the Expected Parrot server, sharing your research is simple: anyone who runs your published code retrieves your original outputs instantly, without re-calling any models or needing API keys. The platform records what prompts were run, which models were used, and when — providing verifiable provenance for your results. EDSL is also the only open-source library designed specifically for this kind of LLM-based survey research.
+
 ## Key concepts
 
 At its core, EDSL is built on the concept of a Question being answered by an AI Agent, using a large language Model to generate a response that is returned as a formatted Result. These results can be analyzed, visualized, shared, or further utilized to refine subsequent questions. EDSL supports various question types (free text, multiple choice, etc.) that can be grouped into a Survey that operates either in parallel or based on specific rules and conditional logic.
@@ -58,7 +60,7 @@ The following concepts form the basic classes of the EDSL package, described in 
 
 **Human validation:** Distribute surveys to real respondents via a web link; combine AI and human responses in a single results object.
 
-**Remote execution and storage:** Run surveys on the Expected Parrot server without managing local API keys; results are automatically cached and shareable.
+**Reproducible, shareable results:** Results are automatically cached. Publish your code and anyone can retrieve your exact outputs at no cost — no re-running, no API keys, no setup. The platform records prompts, models, and timestamps, providing verifiable provenance for your research.
 
 **Open source:** Available under the MIT License. Use, modify, and extend freely.
 
