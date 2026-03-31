@@ -485,11 +485,15 @@ class JobsRemoteInferenceHandler:
 
                 output_price_per_million_tokens = output_key[3]
                 output_tokens = raw_response[f"{question_name}_output_tokens"]
+                thinking_tokens = (
+                    raw_response.get(f"{question_name}_thinking_tokens") or 0
+                )
+                total_output_tokens = output_tokens + thinking_tokens
                 output_cost = (
                     output_price_per_million_tokens / 1_000_000
-                ) * output_tokens
+                ) * total_output_tokens
 
-                expenses[output_key]["tokens"] += output_tokens
+                expenses[output_key]["tokens"] += total_output_tokens
                 expenses[output_key]["cost_usd"] += output_cost
 
                 if not cache_used:
