@@ -208,7 +208,7 @@ from edsl import QuestionLinearScale, ScenarioList, Scenario
 
 q6 = QuestionMultipleChoice(
    question_name = "primary_news_source",
-   question_text = "What is your primary source of news about {{ topic }}?",
+   question_text = "What is your primary source of news about {{ scenario.topic }}?",
    question_options = [
       "Television",
       "Online news websites",
@@ -220,7 +220,7 @@ q6 = QuestionMultipleChoice(
 )
 q7 = QuestionLinearScale(
    question_name = "optimistic",
-   question_text = "On a scale from 1 to 10, how optimistic do you feel about {{ topic }}?",
+   question_text = "On a scale from 1 to 10, how optimistic do you feel about {{ scenario.topic }}?",
    question_options = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
    option_labels = {1:"Not at all optimistic", 10:"Very optimistic"}
 )

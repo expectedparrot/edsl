@@ -43,7 +43,7 @@ from edsl import QuestionMultipleChoice
 ```python
 q_satisfied = QuestionMultipleChoice(
     question_name = "satisfied",
-    question_text = "How satisfied are you with the following experience with our company: {{ experience }}",
+    question_text = "How satisfied are you with the following experience with our company: {{ scenario.experience }}",
     question_options = [
         "Extremely satisfied",
         "Moderately satisfied",

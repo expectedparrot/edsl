@@ -54,8 +54,8 @@ def get_next_question(subject, researcher, dialog_so_far):
     meta_q = QuestionFreeText(
         question_name="next_question",
         question_text="""
-        These are the biographic details of the interview subject: {{ subject }}
-        This is your current dialog with the interview subject: {{ dialog_so_far }}
+        These are the biographic details of the interview subject: {{ scenario.subject }}
+        This is your current dialog with the interview subject: {{ scenario.dialog_so_far }}
         What question you would ask the interview subject next?
         """,
     )
