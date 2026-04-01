@@ -18,12 +18,12 @@
   "topbarLinks": [
     {
       "name": "Support",
-      "url": "mailto:support@expectedparrot.com"
+      "url": "mailto:info@expectedparrot.com"
     }
   ],
   "topbarCtaButton": {
     "name": "Dashboard",
-    "url": "https://www.expectedparrot.com"
+    "url": "https://www.expectedparrot.com/login"
   },
   "tabs": [
     {
