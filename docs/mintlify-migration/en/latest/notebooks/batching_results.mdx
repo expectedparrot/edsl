@@ -117,7 +117,7 @@ ScenarioList scenarios: 20; keys: ['character'];
 
 ## Running a survey
 
-We run the survey by adding any agent personas that we have created to answer the questions (in this example, none) and specifying language models to generate the responses. If no model is specified the default model (currently, GPT-4o) is used. Here we specify it for demonstration purposes, and then call the `run()` method to administer the survey. This generates a dataset of `Results` that we can access with [built-in methods for analysis](/en/latest/results).
+We run the survey by adding any agent personas that we have created to answer the questions (in this example, none) and specifying language models to generate the responses. If no model is specified the default model (currently, gpt-5.2) is used. Here we specify it for demonstration purposes, and then call the `run()` method to administer the survey. This generates a dataset of `Results` that we can access with [built-in methods for analysis](/en/latest/results).
 
 ```python
 from edsl import Model
@@ -251,7 +251,7 @@ results.select("model", "character", "name", "year", "book")
 
 ## Posting to Expected Parrot
 
-[Expected Parrot](https://www.expectedparrot.com/content/explore) is a platform for creating, storing and sharing LLM-based research. It is fully integrated with EDSL and accessible from your workspace or Expected Parrot account page. Learn more about [creating an account](https://www.expectedparrot.com/login) and [the platform](/en/latest/coop).
+[Expected Parrot](https://www.expectedparrot.com/login) is a platform for creating, storing and sharing LLM-based research. It is fully integrated with EDSL and accessible from your workspace or Expected Parrot account page. Learn more about [creating an account](https://www.expectedparrot.com/login) and [the platform](/en/latest/coop).
 
 Here we post the scenarios, survey and results from above, and this notebook:
 

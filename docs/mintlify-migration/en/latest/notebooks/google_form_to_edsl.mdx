@@ -92,7 +92,7 @@ survey = Survey(questions = [q1, q2, q3, q4]).set_full_memory_mode()
 
 Next we create a `Scenario` object for the contents of a (non-EDSL) survey to be inserted in the first question. This allows us to reuse the questions with other content. [Learn more about using scenarios](/en/latest/scenarios) to scale data labeling and other tasks.
 
-Here we create a scenario for a [Google Form](https://forms.gle/GufjVVs5PfxUeyoj7) (a customer feedback survey) that we have stored as a publicly-accessible PDF at [Expected Parrot](https://www.expectedparrot.com/content/explore).
+Here we create a scenario for a [Google Form](https://forms.gle/GufjVVs5PfxUeyoj7) (a customer feedback survey) that we have stored as a publicly-accessible PDF at [Expected Parrot](https://www.expectedparrot.com/login).
 
 Code for posting a PDF to Expected Parrot (rerun with your own file):
 
@@ -410,7 +410,7 @@ q_personas = QuestionList(
 )
 ```
 
-If we do not specify a model to use in running the question, the default model GPT 4 preview is used:
+If we do not specify a model to use in running the question, the default model gpt-5.2 is used:
 
 
 ```python
@@ -490,7 +490,7 @@ new_results = new_survey.by(agents).by(models).run()
 
 ## Posting to Expected Parrot
 
-[Expected Parrot](https://www.expectedparrot.com/content/explore) is a platform for creating, storing and sharing LLM-based research. It is fully integrated with EDSL and accessible from your workspace or Expected Parrot account page. Learn more about [creating an account](https://www.expectedparrot.com/login) and [the platform](/en/latest/coop).
+[Expected Parrot](https://www.expectedparrot.com/login) is a platform for creating, storing and sharing LLM-based research. It is fully integrated with EDSL and accessible from your workspace or Expected Parrot account page. Learn more about [creating an account](https://www.expectedparrot.com/login) and [the platform](/en/latest/coop).
 
 Here we demonstrate how to post this notebook:
 
