@@ -16,7 +16,7 @@ EDSL makes it easy to conduct computational social science and market research w
 
 4. Run the <a href="https://docs.expectedparrot.com/en/latest/starter_tutorial.html" target="_blank" rel="noopener noreferrer">starter tutorial</a> and explore other demo notebooks for a variety of use cases. 
 
-5. Share workflows and survey results at <a href="https://www.expectedparrot.com/content/explore" target="_blank" rel="noopener noreferrer">Coop</a>: a free platform for creating and sharing AI research.
+5. Share workflows and survey results at <a href="https://www.expectedparrot.com/login" target="_blank" rel="noopener noreferrer">Coop</a>: a free platform for creating and sharing AI research.
 
 6. Join our <a href="https://discord.com/invite/mxAYkjfy9m" target="_blank" rel="noopener noreferrer">Discord</a> for updates and discussions! 
 
@@ -33,7 +33,7 @@ See instructions on <a href="https://docs.expectedparrot.com/en/latest/api_keys.
 ## Coop
 An integrated platform for running experiments, sharing workflows and launching hybrid human/AI surveys.
 - <a href="https://www.expectedparrot.com/login" target="_blank" rel="noopener noreferrer">Login / Signup</a>
-- <a href="https://www.expectedparrot.com/content/explore" target="_blank" rel="noopener noreferrer">Explore</a>
+- <a href="https://www.expectedparrot.com/login" target="_blank" rel="noopener noreferrer">Login / Explore</a>
 
 ## Community
 - <a href="https://blog.expectedparrot.com" target="_blank" rel="noopener noreferrer">Blog</a>
@@ -48,7 +48,7 @@ An integrated platform for running experiments, sharing workflows and launching 
 ## Features 
 
 **Declarative design**: 
-Specified <a href="https://docs.expectedparrot.con/en/latest/questions.html" target="_blank" rel="noopener noreferrer">question types</a> ensure consistent results without requiring a JSON schema (<a href="https://www.expectedparrot.com/content/2a848a0e-f9de-46bc-98d0-a13b9a1caf11" target="_blank" rel="noopener noreferrer">view at Coop</a>):
+Specified <a href="https://docs.expectedparrot.com/en/latest/questions.html" target="_blank" rel="noopener noreferrer">question types</a> ensure consistent results without requiring a JSON schema (<a href="https://www.expectedparrot.com/content/2a848a0e-f9de-46bc-98d0-a13b9a1caf11" target="_blank" rel="noopener noreferrer">view at Coop</a>):
 
 ```python
 from edsl import QuestionMultipleChoice
