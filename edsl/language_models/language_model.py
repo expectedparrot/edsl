@@ -809,7 +809,12 @@ class LanguageModel(
         return cls.response_handler.get_usage_dict(raw_response)
 
     @classmethod
-    def parse_response(cls, raw_response: dict[str, Any]) -> EDSLOutput:
+    def parse_response(
+        cls,
+        raw_response: dict[str, Any],
+        *,
+        is_free_text: bool = False,
+    ) -> EDSLOutput:
         """Parse the raw API response into a standardized EDSL output format.
 
         This method processes the model's response to extract the generated content
@@ -818,11 +823,15 @@ class LanguageModel(
 
         Args:
             raw_response: The complete response dictionary from the model API
+            is_free_text: If True, the full model text is the answer (no
+                COMMENT:/newline splitting). Used for ``free_text`` questions.
 
         Returns:
             EDSLOutput: Standardized output structure with answer and optional comment
         """
-        return cls.response_handler.parse_response(raw_response)
+        return cls.response_handler.parse_response(
+            raw_response, is_free_text=is_free_text
+        )
 
     async def _async_get_intended_model_call_outcome(
         self,
@@ -1045,7 +1054,9 @@ class LanguageModel(
             cache: The cache object to use for storing/retrieving responses
             iteration: The iteration number (default: 1)
             files_list: Optional list of files to include in the prompt
-            **kwargs: Additional parameters (invigilator, response_schema can be provided here)
+            **kwargs: Additional parameters (invigilator, response_schema,
+                question_type, etc.). For ``question_type="free_text"``,
+                ``parse_response`` is called with ``is_free_text=True``.
 
         Returns:
             AgentResponseDict: Complete response object with inputs, raw outputs, and parsed data
@@ -1077,6 +1088,8 @@ class LanguageModel(
         if "response_schema_name" in kwargs:
             params.update({"response_schema_name": kwargs["response_schema_name"]})
 
+        is_free_text = kwargs.get("question_type") == "free_text"
+
         # Create structured input record
         model_inputs = ModelInputs(user_prompt=user_prompt, system_prompt=system_prompt)
         # Get model response (using cache if available)
@@ -1085,7 +1098,10 @@ class LanguageModel(
         )
 
         # Parse the response into EDSL's standard format
-        edsl_dict: EDSLOutput = self.parse_response(model_outputs.response)
+        edsl_dict: EDSLOutput = self.parse_response(
+            model_outputs.response,
+            is_free_text=is_free_text,
+        )
 
         # Combine everything into a complete response object
         agent_response_dict = AgentResponseDict(

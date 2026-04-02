@@ -41,6 +41,7 @@ class InvigilatorThinking(InvigilatorBase):
             cache=self.cache,
             iteration=self.iteration,
             invigilator=self,
+            question_type=getattr(self.question, "question_type", None),
         )
 
         self.raw_model_response = agent_response_dict.model_outputs.response

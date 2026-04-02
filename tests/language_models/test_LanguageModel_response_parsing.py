@@ -175,3 +175,17 @@ def test_parse_response_legacy_no_delimiter():
         model_response.comment == "These are my comments."
         or model_response.comment is None
     )
+
+
+def test_parse_response_free_text_no_split():
+    """Free-text answers keep newlines; no answer/comment split."""
+    m = LanguageModel.example(
+        test_model=True,
+        canned_response="Line one\nLine two\nCOMMENT: not a delimiter split",
+    )
+    raw_model_response = m.execute_model_call("", "")
+    model_response = m.parse_response(raw_model_response, is_free_text=True)
+    assert model_response.answer == (
+        "Line one\nLine two\nCOMMENT: not a delimiter split"
+    )
+    assert model_response.comment is None
