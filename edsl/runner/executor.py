@@ -248,6 +248,7 @@ class ExecutionWorker:
                 files_list=task.files_list,
                 question_name=task.question_name,
                 agent_name=task.agent_name,
+                question_type=task.question_type,
             )
 
             # Extract answer and tokens from the response

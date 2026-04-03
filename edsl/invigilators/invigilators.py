@@ -304,6 +304,7 @@ class InvigilatorAI(InvigilatorBase):
 
         params.update({"iteration": self.iteration, "cache": self.cache})
         params.update({"invigilator": self})
+        params["question_type"] = getattr(self.question, "question_type", None)
 
         if self.key_lookup:
             self.model.set_key_lookup(self.key_lookup)
