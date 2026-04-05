@@ -7,8 +7,19 @@ def is_notebook() -> bool:
         return True
 
     try:
-        shell = get_ipython().__class__.__name__
+        from IPython import get_ipython
+
+        ipy = get_ipython()
+        if ipy is None:
+            return False
+
+        shell = ipy.__class__.__name__
         if shell == "ZMQInteractiveShell":
+            # Jupyter console can use ZMQInteractiveShell but behaves like a terminal.
+            # If stdout is a TTY, avoid notebook-only HTML displays.
+            stdout = getattr(sys, "stdout", None)
+            if stdout is not None and hasattr(stdout, "isatty") and stdout.isatty():
+                return False
             return True  # Jupyter notebook or qtconsole
         elif shell == "Shell":  # Google Colab's shell class
             if "google.colab" in sys.modules:
@@ -18,5 +29,5 @@ def is_notebook() -> bool:
             return False  # Terminal running IPython
         else:
             return False  # Other type
-    except NameError:
+    except (ImportError, NameError):
         return False  # Probably standard Python interpreter
