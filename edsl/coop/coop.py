@@ -215,6 +215,11 @@ class Coop(CoopFunctionsMixin):
     # BASIC METHODS
     ################
     @property
+    def has_api_key(self) -> bool:
+        """True if a non-empty API key is set (constructor arg, class default, or env/config)."""
+        return bool(self.api_key)
+
+    @property
     def headers(self) -> dict:
         """
         Return the headers for the request.
@@ -260,9 +265,9 @@ class Coop(CoopFunctionsMixin):
             if "json_string" in log_payload and log_payload["json_string"]:
                 json_str = log_payload["json_string"]
                 if len(json_str) > 200:
-                    log_payload[
-                        "json_string"
-                    ] = f"{json_str[:200]}... (truncated, total length: {len(json_str)})"
+                    log_payload["json_string"] = (
+                        f"{json_str[:200]}... (truncated, total length: {len(json_str)})"
+                    )
             self._logger.info(f"Request payload: {log_payload}")
 
         try:
@@ -3632,15 +3637,11 @@ class Coop(CoopFunctionsMixin):
             else:
                 for key, value in d.items():
                     if isinstance(value, dict):
-                        _collect_filestores(
-                            value, f"{path}.{key}" if path else key
-                        )
+                        _collect_filestores(value, f"{path}.{key}" if path else key)
                     elif isinstance(value, list):
                         for i, item in enumerate(value):
                             if isinstance(item, dict):
-                                _collect_filestores(
-                                    item, f"{path}.{key}[{i}]"
-                                )
+                                _collect_filestores(item, f"{path}.{key}[{i}]")
 
         _collect_filestores(modified_dict)
 
@@ -3741,11 +3742,7 @@ class Coop(CoopFunctionsMixin):
             if original_object is not None and path:
                 try:
                     clean_path = path.lstrip(".")
-                    keys = (
-                        clean_path.split(".")
-                        if "." in clean_path
-                        else [clean_path]
-                    )
+                    keys = clean_path.split(".") if "." in clean_path else [clean_path]
                     keys = [k for k in keys if k]
                     current_obj = original_object
 
@@ -3765,7 +3762,9 @@ class Coop(CoopFunctionsMixin):
                             idx_val = int(idx_str.rstrip("]"))
                             if key_name:
                                 if hasattr(current_obj, key_name):
-                                    current_obj = getattr(current_obj, key_name)[idx_val]
+                                    current_obj = getattr(current_obj, key_name)[
+                                        idx_val
+                                    ]
                                 else:
                                     current_obj = current_obj[key_name][idx_val]
                             else:
@@ -4012,9 +4011,7 @@ class Coop(CoopFunctionsMixin):
                     value_type = (
                         "inf"
                         if math.isinf(value)
-                        else "nan"
-                        if math.isnan(value)
-                        else "invalid"
+                        else "nan" if math.isnan(value) else "invalid"
                     )
                     error_msg += f"  • {path}: {value} ({value_type})\n"
 
@@ -4137,12 +4134,20 @@ class Coop(CoopFunctionsMixin):
             )
             return callout
         else:
-            # Running in an interactive environment (e.g., Jupyter Notebook)
-            try:
-                from IPython.display import HTML, display
+            # Running in an interactive environment — only use HTML display in notebooks
+            from ..utilities.is_notebook import is_notebook
 
-                display(HTML(html_content))
-            except ImportError:
+            if is_notebook():
+                try:
+                    from IPython.display import HTML, display
+
+                    display(HTML(html_content))
+                except ImportError:
+                    if link_description:
+                        print(f"{link_description}\n{url}")
+                    else:
+                        print(url)
+            else:
                 if link_description:
                     print(f"{link_description}\n{url}")
                 else:
@@ -4462,6 +4467,7 @@ class Coop(CoopFunctionsMixin):
         This method provides a non-blocking way to report errors that occur during
         EDSL operations. It sends error reports to the server for monitoring and
         debugging purposes, while also printing to stderr for immediate feedback.
+        If no API key is configured, returns immediately without contacting the server.
 
         Duplicate errors (same error type and message) are not reported if they
         occurred within the past minute to prevent spam.
@@ -4476,6 +4482,9 @@ class Coop(CoopFunctionsMixin):
             ... except Exception as e:
             ...     await coop.report_error(e)
         """
+        if not self.has_api_key:
+            return
+
         import sys
         import traceback
         import httpx

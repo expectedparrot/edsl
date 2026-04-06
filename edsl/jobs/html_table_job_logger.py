@@ -10,10 +10,21 @@ from .jobs_status_enums import JobsStatus
 class HTMLTableJobLogger(JobLogger):
     def __init__(self, verbose=True, **kwargs):
         super().__init__(verbose=verbose)
+        import io
+        import contextlib
         from IPython.display import display, HTML
 
         self._HTML = HTML
-        self.display_handle = display(HTML(""), display_id=True)  # None outside notebooks
+        # Suppress stdout during initial display() call to prevent
+        # "<IPython.core.display.HTML object>" leaking in non-notebook environments
+        with contextlib.redirect_stdout(io.StringIO()):
+            self.display_handle = display(HTML(""), display_id=True)
+        if self.display_handle is None:
+            # Running outside notebook — create a no-op stub
+            class _Stub:
+                def update(self, *a, **kw):
+                    pass
+            self.display_handle = _Stub()
         self.current_message = None
         self.log_id = str(uuid.uuid4())
         self.is_expanded = True
