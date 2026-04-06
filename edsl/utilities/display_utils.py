@@ -15,21 +15,9 @@ except ImportError:
 
 def is_notebook_environment():
     """Check if code is running in a Jupyter notebook or similar interactive environment."""
-    try:
-        shell = get_ipython().__class__.__name__
-        if shell == "ZMQInteractiveShell":
-            return True
-        elif shell == "Shell":
-            import sys
-            if "google.colab" in sys.modules:
-                return True
-            return False
-        elif shell == "TerminalInteractiveShell":
-            return False
-        else:
-            return False
-    except (NameError, ImportError):
-        return False
+    from .is_notebook import is_notebook
+
+    return is_notebook()
 
 
 class HTML:
@@ -98,7 +86,14 @@ def smart_truncate(text, max_length, ellipsis="..."):
 
 
 def display_html(html_content, width=None, height=None, as_iframe=False):
-    """Display HTML content, optionally within an iframe."""
+    """Display HTML content, optionally within an iframe.
+
+    In non-notebook environments, prints a plain-text notice instead.
+    """
+    if not is_notebook_environment():
+        print("[HTML content cannot be displayed in this environment]")
+        return
+
     from html import escape
 
     if as_iframe:
