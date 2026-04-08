@@ -10,7 +10,7 @@ import pytest
 
 from edsl.study import Study
 from edsl.coop import Coop
-from edsl.coop.exceptions import CoopServerResponseError
+from edsl.coop.exceptions import CoopResponseError, CoopServerResponseError
 from edsl.study.client import StudyClient, _resolve_server_url, authed_remote_url
 from edsl.study.exceptions import (
     StudyError,
@@ -72,17 +72,53 @@ class TestClientHelpers:
 
 class TestStudyClient:
     def test_push_request(self):
-        mock_resp = MagicMock()
-        mock_resp.status_code = 201
-        mock_resp.ok = True
-        mock_resp.headers = {}
-        mock_resp.json.return_value = {"uuid": "u1", "token": "t", "gitlab_url": "g"}
+        """Exercise real ``Coop.push`` wiring: signed URL, GCS PUT, confirm-upload."""
+        push_resp = MagicMock()
+        push_resp.status_code = 200
+        push_resp.ok = True
+        push_resp.headers = {}
+        push_resp.json.return_value = {
+            "signed_url": "https://storage.example.com/fake-upload",
+            "object_uuid": "u1",
+            "owner_username": "tester",
+            "alias": None,
+            "description": None,
+            "visibility": "private",
+            "gitlab_url": "g",
+            "gitlab_token": "t",
+        }
+
+        confirm_resp = MagicMock()
+        confirm_resp.status_code = 200
+        confirm_resp.ok = True
+        confirm_resp.headers = {}
+
+        gcs_resp = MagicMock()
+        gcs_resp.status_code = 200
+        gcs_resp.ok = True
+        gcs_resp.text = ""
+
+        def fake_send(uri, method, payload=None, params=None, timeout=None):
+            if uri == "api/v0/object/push":
+                return push_resp
+            if uri == "api/v0/object/confirm-upload":
+                return confirm_resp
+            raise AssertionError(f"unexpected _send_server_request uri: {uri!r}")
+
         coop = Coop(api_key=API_KEY, url="https://test.example.com")
-        with patch.object(coop, "_send_server_request", return_value=mock_resp):
-            client = StudyClient(coop=coop)
-            study = Study._new_bare()
-            data = client.push_request(study, uuid=None)
+        study = Study._new_bare(
+            name="Study",
+            path="/",
+            server_url="https://test.example.com",
+        )
+        with patch.object(coop, "_send_server_request", side_effect=fake_send):
+            with patch("edsl.coop.coop.requests.put", return_value=gcs_resp):
+                client = StudyClient(coop=coop)
+                data = client.push_request(value=study, uuid=None)
+
         assert data["uuid"] == "u1"
+        assert data["gitlab_url"] == "g"
+        assert data["gitlab_token"] == "t"
 
     def test_push_request_409(self):
         mock_resp = MagicMock()
@@ -90,12 +126,17 @@ class TestStudyClient:
         mock_resp.ok = False
         mock_resp.headers = {}
         mock_resp.json.return_value = {"detail": "Alias already taken."}
+        mock_resp.text = '{"detail": "Alias already taken."}'
         coop = Coop(api_key=API_KEY, url="https://test.example.com")
         with patch.object(coop, "_send_server_request", return_value=mock_resp):
             client = StudyClient(coop=coop)
-            with pytest.raises(CoopServerResponseError, match="Alias already taken"):
-                study = Study._new_bare()
-                client.push_request(study, alias="taken")
+            study = Study._new_bare(
+                name="Study",
+                path="/",
+                server_url="https://test.example.com",
+            )
+            with pytest.raises(CoopResponseError, match="Alias already taken"):
+                client.push_request(value=study, alias="taken")
 
     def test_push_request_400_alias_conflict(self):
         mock_resp = MagicMock()
@@ -105,14 +146,21 @@ class TestStudyClient:
         mock_resp.json.return_value = {
             "detail": "You already have a repo with the alias 'taken'."
         }
+        mock_resp.text = (
+            '{"detail": "You already have a repo with the alias \'taken\'."}'
+        )
         coop = Coop(api_key=API_KEY, url="https://test.example.com")
         with patch.object(coop, "_send_server_request", return_value=mock_resp):
             client = StudyClient(coop=coop)
+            study = Study._new_bare(
+                name="Study",
+                path="/",
+                server_url="https://test.example.com",
+            )
             with pytest.raises(
-                CoopServerResponseError, match="already have a repo with the alias"
+                CoopResponseError, match="already have a repo with the alias"
             ):
-                study = Study._new_bare()
-                client.push_request(study, alias="taken")
+                client.push_request(value=study, alias="taken")
 
     def test_pull_request(self):
         mock_resp = MagicMock()
@@ -436,7 +484,7 @@ class TestPush:
     def test_first_push_creates_uuid(self, mock_clean, mock_git, mock_push, study):
         mock_push.return_value = {
             "uuid": "new-uuid-123",
-            "token": "glpat-xxxx",
+            "gitlab_token": "glpat-xxxx",
             "gitlab_url": "https://gitlab.com/bot/new-uuid-123",
         }
 
@@ -452,7 +500,7 @@ class TestPush:
     def test_push_with_metadata(self, mock_clean, mock_git, mock_push, study):
         mock_push.return_value = {
             "uuid": "uuid-1",
-            "token": "glpat-xxxx",
+            "gitlab_token": "glpat-xxxx",
             "gitlab_url": "https://gitlab.com/bot/uuid-1",
         }
 
@@ -473,7 +521,7 @@ class TestPush:
 
         mock_push.return_value = {
             "uuid": "existing-uuid",
-            "token": "glpat-yyyy",
+            "gitlab_token": "glpat-yyyy",
             "gitlab_url": "https://gitlab.com/bot/existing-uuid",
         }
 
@@ -503,7 +551,7 @@ class TestPull:
     def test_pull_success(self, mock_git, mock_pull, study):
         study._uuid = "test-uuid"
         mock_pull.return_value = {
-            "token": "glpat-read",
+            "gitlab_token": "glpat-read",
             "gitlab_url": "https://gitlab.com/bot/test-uuid",
         }
 
