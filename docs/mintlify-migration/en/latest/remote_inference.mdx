@@ -1,10 +1,10 @@
 ---
 title: "Remote Inference"
-description: "Remote inference allows you to run surveys at the Expected Parrot server instead of locally on your own machine, and to use [Remote Caching](/en/latest/remote_caching) to store survey results and logs at your Coop account."
+description: "Remote inference allows you to run surveys at the Expected Parrot server instead of locally on your own machine, and to use [Remote Caching](/en/latest/remote_caching) to store survey results and logs at your account."
 ---
 
 <Note>
-*Note: You must have a Coop account in order to use remote inference and caching. By using remote inference you agree to any terms of use of service providers, which Expected Parrot may accept on your behalf and enforce in accordance with our terms of use.*
+*Note: You must have an Expected Parrot account in order to use remote inference and caching. By using remote inference you agree to any terms of use of service providers, which Expected Parrot may accept on your behalf and enforce in accordance with our terms of use.*
 </Note>
 
 ## How it works
@@ -15,24 +15,24 @@ By default, a remote cache is used to retrieve responses to any questions that h
 
 ## Activating remote inference
 
-[Log in](https://www.expectedparrot.com/login) to your Coop account and navigate to your [Settings](https://www.expectedparrot.com/home/settings) page. Toggle on the remote inference setting:
+[Log in](https://www.expectedparrot.com/login) to your Expected Parrot account and navigate to your [Settings](https://www.expectedparrot.com/home/settings) page. Enable the **Run surveys remotely** toggle under Remote Execution:
 
 <Frame>
-![Toggle on remote inference](/images/en/latest/home-settings.png)
+![Settings page showing Remote Execution and Remote Error Logging toggles](/images/en/latest/home-settings.png)
 </Frame>
 
 ## Managing keys
 
-An Expected Parrot key is required to use remote inference and to interact with Coop. Your key can be viewed (and reset) at the [Keys](https://www.expectedparrot.com/home/keys) page of your account:
+An Expected Parrot key is required to use remote inference and to interact with the platform. Your key can be viewed (and reset) at the [Keys](https://www.expectedparrot.com/home/keys) page of your account, which also shows the `.env` format for using it locally:
 
 <Frame>
-![EP key](/images/en/latest/home-ep-key.png)
+![Keys page showing Expected Parrot API Key and local .env configuration](/images/en/latest/home-ep-key.png)
 </Frame>
 
-You canalso select options for adding keys, sharing them with other users and prioritizing them for use with your surveys at this page:
+You can also add your own LLM keys, grant access to other users, and set key priority at this page:
 
 <Frame>
-![Stored keys](/images/en/latest/home-keys.png)
+![Keys page showing LLM Keys and key management options](/images/en/latest/home-keys.png)
 </Frame>
 
 See the [Managing Keys](/en/latest/api_keys) section for more details on methods for storing and managing keys.
@@ -74,19 +74,19 @@ results = survey.by(m).run(
 Output (details will be unique to your job):
 
 ```bash
-✓ Current Status: Job completed and Results stored on Coop: http://www.expectedparrot.com/content/cfc51a12-63fe-41cf-b441-66d78ba47fb0
+✓ Current Status: Job completed and Results stored on Expected Parrot: http://www.expectedparrot.com/content/cfc51a12-63fe-41cf-b441-66d78ba47fb0
 ```
 
 When the job has finished, it will appear with a status of *Completed*:
 
 <Frame>
-![Remote inference page on the Coop web app. There is one job shown, and it has a status of "Completed."](/images/en/latest/home-remote-inference-job-completed.png)
+![Remote inference page on the Expected Parrot platform. There is one job shown, and it has a status of "Completed."](/images/en/latest/home-remote-inference-job-completed.png)
 </Frame>
 
 We can view the results of the job:
 
 <Frame>
-![Remote inference results page on the Coop web app. There is one result shown.](/images/en/latest/coop-content-results-view.png)
+![Remote inference results page on the Expected Parrot platform. There is one result shown.](/images/en/latest/coop-content-results-view.png)
 </Frame>
 
 ## Job details and costs
@@ -126,7 +126,7 @@ Output:
   'estimated_output_tokens': 4}]}
 ```
 
-We can also estimate the cost in credits to run the job remotely by passing the job to the remote_inference_cost() method of a Coop client object:
+We can also estimate the cost in credits to run the job remotely by passing the job to the remote_inference_cost() method of a `Coop` client object:
 
 ```python
 from edsl import Coop
@@ -158,7 +158,7 @@ You can also check the details of a job using the remote_inference_get() method 
 You can click on any job to view its history. When a job fails, the job history logs will describe the error that caused the failure. The job history also shows which key was used to run each job (your own key, a key that has been share with you or your Expected Parrot API key):
 
 <Frame>
-![A screenshot of job history logs on the Coop web app. The job has been run using a key that has been prioritized.](/images/en/latest/home-remote-cache-job-history-details.png)
+![A screenshot of job history logs on the Expected Parrot platform. The job has been run using a key that has been prioritized.](/images/en/latest/home-remote-cache-job-history-details.png)
 </Frame>
 
 

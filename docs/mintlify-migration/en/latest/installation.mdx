@@ -1,6 +1,6 @@
 ---
 title: "Installation"
-description: "EDSL is an open-source Python library. It is compatible with Python 3.9 - 3.12 and available at [PyPI](https://pypi.org/project/edsl/) and [GitHub](https://github.com/expectedparrot/edsl)."
+description: "EDSL is an open-source Python library. It is compatible with Python 3.9 - 3.13 and available at [PyPI](https://pypi.org/project/edsl/) and [GitHub](https://github.com/expectedparrot/edsl)."
 ---
 
 <Note>
@@ -17,21 +17,13 @@ You can use [pip](https://pip.pypa.io/en/stable/installation/) to install EDSL o
 
 ## Quickstart Installation
 
-Open your terminal and verify that you have not previously installed EDSL by running the following command:
+Check whether EDSL is already installed:
 
 ```bash
 pip show edsl
 ```
 
-If EDSL is already installed, you will see the following output, including the actual version number:
-
-```bash
-Name: edsl
-Version: 1.0.###
-...
-```
-
-If EDSL is not installed (WARNING: Package(s) not found: edsl), you can run either of the following commands to install the latest version using pip:
+If installed, you will see the version number in the output. If not installed, run either of the following:
 
 ```bash
 pip install edsl
@@ -61,7 +53,7 @@ If you want to install EDSL from source, you can clone the repository from GitHu
 pip install git+https://github.com/expectedparrot/edsl.git@main
 ```
 
-This allows you to pull the latest changes from the repository (which may not be in the latest version available at PyPI) and install them on your system.
+This gives you the latest development changes ahead of PyPI releases.
 
 ## Updating your version
 
@@ -75,7 +67,7 @@ pip install --upgrade edsl
 
 ## Advanced installation
 
-The steps above will install EDSL globally on your system. Sometimes, you may face problems with conflicts between EDSL and other libraries. To avoid such problems, we recommend that you use a virtual environment.
+The steps above install EDSL globally. To avoid library conflicts, use a virtual environment.
 
 To create a virtual environment, open your terminal and run the following command:
 

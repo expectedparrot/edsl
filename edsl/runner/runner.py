@@ -496,6 +496,41 @@ class Runner:
 
         return JobHandle(job_id, self)
 
+    @staticmethod
+    def _clear_async_clients() -> None:
+        """Clear cached async HTTP clients that are bound to a now-closed event loop.
+
+        OpenAIService, OpenAIServiceV2, and their subclasses cache AsyncOpenAI
+        clients at the class level.  Each client holds an aiohttp session tied
+        to the event loop in which it was created.  When ``asyncio.run()``
+        closes that loop the session becomes unusable, so we must discard the
+        cached clients before starting a new loop.
+        """
+
+        def _all_subclasses(cls):
+            for sub in cls.__subclasses__():
+                yield sub
+                yield from _all_subclasses(sub)
+
+        services_to_clear = []
+        try:
+            from ..inference_services.services.open_ai_service import OpenAIService
+
+            services_to_clear.append(OpenAIService)
+            services_to_clear.extend(_all_subclasses(OpenAIService))
+        except Exception:
+            pass
+        try:
+            from ..inference_services.services.open_ai_service_v2 import OpenAIServiceV2
+
+            services_to_clear.append(OpenAIServiceV2)
+            services_to_clear.extend(_all_subclasses(OpenAIServiceV2))
+        except Exception:
+            pass
+        for svc in services_to_clear:
+            if hasattr(svc, "_async_client_instances"):
+                svc._async_client_instances.clear()
+
     def _ensure_queues_for_job(self, job: Any) -> None:
         """Register queues for all models used in this job."""
         models = list(job.models) if hasattr(job, "models") else []
@@ -514,10 +549,14 @@ class Runner:
             if existing:
                 continue
             api_key = getattr(model, "api_token", None) or "local"
+            rpm = getattr(model, "rpm", None)
+            tpm = getattr(model, "tpm", None)
             self._registry.register_queue(
                 service=service,
                 model=model_name,
                 api_key=api_key,
+                rpm_limit=rpm,
+                tpm_limit=tpm,
             )
 
     def execute_job(
@@ -570,6 +609,9 @@ class Runner:
             nest_asyncio.apply()
             loop.run_until_complete(coro)
         else:
+            # Clear cached async clients — they hold aiohttp sessions bound
+            # to the previous event loop which asyncio.run() will have closed.
+            self._clear_async_clients()
             asyncio.run(coro)
 
         return stats

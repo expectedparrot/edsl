@@ -489,6 +489,7 @@ class Answer:
     cached: bool = False
     input_tokens: int | None = None
     output_tokens: int | None = None
+    thinking_tokens: int | None = None
     raw_model_response: dict | None = None
     generated_tokens: str | None = None
 
@@ -524,6 +525,7 @@ class Answer:
             "cached": self.cached,
             "input_tokens": self.input_tokens,
             "output_tokens": self.output_tokens,
+            "thinking_tokens": self.thinking_tokens,
             "raw_model_response": self.raw_model_response,
             "generated_tokens": self.generated_tokens,
             "model_id": self.model_id,
@@ -550,6 +552,7 @@ class Answer:
             cached=data.get("cached", False),
             input_tokens=data.get("input_tokens"),
             output_tokens=data.get("output_tokens"),
+            thinking_tokens=data.get("thinking_tokens"),
             raw_model_response=data.get("raw_model_response"),
             generated_tokens=data.get("generated_tokens"),
             model_id=data.get("model_id"),

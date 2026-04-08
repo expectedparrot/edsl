@@ -451,15 +451,13 @@ class DataOperationsBase:
             4
             >>> conn = Results.example()._db(shape = "long")
             >>> len(conn.execute("SELECT * FROM self").fetchall())
-            200
+            208
         """
         import csv
         import sqlite3
 
         # Use to_csv to serialize all data to strings (handles complex objects)
-        csv_string = self.to_csv(
-            remove_prefix=(remove_prefix and shape == "wide")
-        ).text
+        csv_string = self.to_csv(remove_prefix=(remove_prefix and shape == "wide")).text
         reader = csv.reader(io.StringIO(csv_string))
         columns = next(reader)
         rows = list(reader)
@@ -504,9 +502,7 @@ class DataOperationsBase:
                                 typed_row.append(float(val))
                             except ValueError:
                                 typed_row.append(val)
-                conn.execute(
-                    f"INSERT INTO self VALUES ({placeholders})", typed_row
-                )
+                conn.execute(f"INSERT INTO self VALUES ({placeholders})", typed_row)
 
         conn.commit()
         return conn
@@ -563,7 +559,7 @@ class DataOperationsBase:
 
             # Using long format
             >>> len(r.sql("SELECT * FROM self", shape="long"))
-            200
+            208
         """
         conn = self._db(remove_prefix=remove_prefix, shape=shape)
         cursor = conn.execute(query)

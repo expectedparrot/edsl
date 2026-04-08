@@ -1,11 +1,11 @@
 ---
 title: "Notebooks"
-description: "The Notebook object allows you to share your notebooks and scripts (*.ipynb* and *.py* files) by uploading them to Coop. You can also view and pull notebooks that other users have shared publicly or privately with you."
+description: "The Notebook object allows you to share your notebooks and scripts (*.ipynb* and *.py* files) by uploading them to Expected Parrot. You can also view and pull notebooks that other users have shared publicly or privately with you."
 ---
 
 ## Special note for Colab users
 
-If you are using EDSL in a Colab notebook, please see [special instructions](/en/latest/colab_notebooks) on posting Colab notebooks to Coop ([Colab Notebooks](/en/latest/colab_notebooks#colab-notebooks)).
+If you are using EDSL in a Colab notebook, please see [special instructions](/en/latest/colab_notebooks) on posting Colab notebooks to Expected Parrot ([Colab Notebooks](/en/latest/colab_notebooks#colab-notebooks)).
 
 ### Creating a Notebook object
 
@@ -77,11 +77,11 @@ notebook = Notebook()
 For now, this method only works if you are using the VS Code IDE.
 </Warning>
 
-### Uploading a notebook to Coop
+### Uploading a notebook to Expected Parrot
 
-A notebook can be posted to Coop in the same ways as other EDSL objects: by calling the push() method on the object or calling the create method on a Coop object and passing it the notebook.
+A notebook can be posted to Expected Parrot in the same ways as other EDSL objects: by calling the push() method on the object or calling the create method on a `Coop` client object and passing it the notebook.
 
-Here we create a Notebook object and use the push() method to post it to Coop. You can optionally pass a description, a convenient alias for the Coop URL and a visibility setting (*public*, *private* or *unlisted* by default) to the push() method:
+Here we create a Notebook object and use the push() method to post it to Expected Parrot. You can optionally pass a description, a convenient alias URL and a visibility setting (*public*, *private* or *unlisted* by default) to the push() method:
 
 ```python
 from edsl import Notebook
@@ -95,7 +95,7 @@ notebook.push(
 )
 ```
 
-These can also be modified at Coop later on. We can see that the notebook has been posted publicly with a description and an alias URL (you can retrieve and refer to the object by either the UUID or URL):
+These can also be modified at Expected Parrot later on. We can see that the notebook has been posted publicly with a description and an alias URL (you can retrieve and refer to the object by either the UUID or URL):
 
 ```json
 {'description': 'This is a demo notebook',
@@ -107,7 +107,7 @@ These can also be modified at Coop later on. We can see that the notebook has be
 'visibility': 'public'}
 ```
 
-Here we alternatively use the Coop client object to post the notebook:
+Here we alternatively use the `Coop` client object to post the notebook:
 
 ```python
 from edsl import Coop, Notebook
@@ -122,12 +122,12 @@ coop.create(notebook, description="This is a demo notebook", visibility="public"
 <Note>
 **Note**:
 
-(Note that we cannot reuse the alias unless we delete the object.) This will return a message with information about the object that was posted, and you will be able to view your notebook at the Coop: [Content](https://www.expectedparrot.com/home/content).
+(Note that we cannot reuse the alias unless we delete the object.) This will return a message with information about the object that was posted, and you will be able to view your notebook at Expected Parrot: [Content](https://www.expectedparrot.com/home/content).
 </Note>
 
-### Updating a notebook on Coop
+### Updating a notebook on Expected Parrot
 
-A notebook can be updated on Coop in the same ways as other EDSL objects: by calling the patch() method on the object or calling the update method on a Coop object and passing it the parameters to be modified.
+A notebook can be updated on Expected Parrot in the same ways as other EDSL objects: by calling the patch() method on the object or calling the update method on a `Coop` client object and passing it the parameters to be modified.
 
 Here we update the description of a notebook that we have already posted:
 
@@ -142,7 +142,7 @@ notebook.patch(
     )
 ```
 
-Here we alternatively use the Coop client object:
+Here we alternatively use the `Coop` client object:
 
 ```python
 from edsl import Coop
@@ -166,11 +166,11 @@ notebook.patch(
     )
 ```
 
-### Saving a Coop notebook to file
+### Saving a notebook to file
 
-You can access notebooks that other users have posted publicly at the Coop [Content](https://www.expectedparrot.com/content/explore) page.
+You can access notebooks that other users have posted publicly at Expected Parrot [Content](https://www.expectedparrot.com/login) page.
 
-Notebooks can be copied and downloaded the same way as other EDSL objects: by calling the pull() method on the Notebook constructor or the get method on a Coop client object and passing the notebook’s uuid. You can also use the to_file() method to save the notebook to a file:
+Notebooks can be copied and downloaded the same way as other EDSL objects: by calling the pull() method on the Notebook constructor or the get method on a `Coop` client object and passing the notebook’s uuid. You can also use the to_file() method to save the notebook to a file:
 
 ```python
 from edsl import Notebook
@@ -182,9 +182,9 @@ notebook.to_file("new_demo_notebook.ipynb")
 
 This allows you to edit and run the notebook on your local machine.
 
-### Deleting a notebook from Coop
+### Deleting a notebook from Expected Parrot
 
-A notebook can be deleted from Coop in the same ways as other EDSL objects: by calling the delete() method on the constructor and passing it the uuid of the notebook to be deleted. You can also delete a notebook manually from your Coop account.
+A notebook can be deleted from the platform in the same ways as other EDSL objects: by calling the delete() method on the constructor and passing it the uuid of the notebook to be deleted. You can also delete a notebook manually from your Expected Parrot account.
 
 Here we delete a notebook using the Notebook object:
 

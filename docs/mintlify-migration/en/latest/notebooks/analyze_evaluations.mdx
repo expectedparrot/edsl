@@ -98,7 +98,7 @@ agent = Agent(traits={"persona": persona}, instruction=instruction)
 
 [EDSL works with many popular language models](/en/latest/language_models) that we can use to generate responses for our survey. A current list of available models, performance and pricing is available [here](https://www.expectedparrot.com/models).
 
-We select models to use with a survey by creating `Model` objects for them (if no model is specified, gpt-4o is currently used by default):
+We select models to use with a survey by creating `Model` objects for them (if no model is specified, gpt-5.2 is currently used by default):
 
 ```python
 from edsl import Model
@@ -541,11 +541,11 @@ wide_themes.tally("theme")
 
 Please check out the [EDSL Docs](/en/latest/index) for examples of other methods and templates for use cases!
 
-## Posting to the Coop
+## Posting to Expected Parrot
 
-The [Coop](https://www.expectedparrot.com/content/explore) is a platform for creating, storing and sharing LLM-based research. It is fully integrated with EDSL and accessible from your workspace or Coop account page. Learn more about [creating an account](https://www.expectedparrot.com/login) and [using Coop](/en/latest/coop).
+[Expected Parrot](https://www.expectedparrot.com/login) is a platform for creating, storing and sharing LLM-based research. It is fully integrated with EDSL and accessible from your workspace or Expected Parrot account page. Learn more about [creating an account](https://www.expectedparrot.com/login) and [the platform](/en/latest/coop).
 
-We can post any EDSL object to the Coop by calling the `push()` method on it, including this notebook:
+We can post any EDSL object to Expected Parrot by calling the `push()` method on it, including this notebook:
 
 ```python
 # from edsl import Notebook
@@ -559,7 +559,7 @@ We can post any EDSL object to the Coop by calling the `push()` method on it, in
 # )
 ```
 
-To upate an object at Coop:
+To upate an object at Expected Parrot:
 
 ```python
 from edsl import Notebook

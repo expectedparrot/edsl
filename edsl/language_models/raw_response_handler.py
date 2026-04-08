@@ -286,13 +286,21 @@ class RawResponseHandler:
     # can reference the single source of truth.
     COMMENT_DELIMITERS = ["COMMENT:", "CORRECTION:"]
 
-    def parse_response(self, raw_response: dict[str, Any]) -> Any:
+    def parse_response(
+        self,
+        raw_response: dict[str, Any],
+        *,
+        is_free_text: bool = False,
+    ) -> Any:
         """Parses the API response and returns the response text.
 
         The comment is separated from the answer by looking for known
         delimiters (COMMENT:, CORRECTION:) on their own line.  If no
         delimiter is found, falls back to splitting on the last newline
         for backwards compatibility with cached responses.
+
+        When *is_free_text* is True, the full generated string is kept as
+        the answer and no comment is inferred from newlines or delimiters.
         """
 
         from edsl.data_transfer_models import EDSLOutput
@@ -304,9 +312,12 @@ class RawResponseHandler:
 
         reasoning_summary = self.get_reasoning_summary(raw_response)
 
-        answer_text, comment_text = self._split_answer_and_comment(
-            generated_token_string
-        )
+        if is_free_text:
+            answer_text, comment_text = generated_token_string.strip(), None
+        else:
+            answer_text, comment_text = self._split_answer_and_comment(
+                generated_token_string
+            )
 
         edsl_dict = {
             "answer": self.convert_answer(answer_text),
@@ -333,7 +344,7 @@ class RawResponseHandler:
         # Strategy 1: look for known comment delimiters (COMMENT:, CORRECTION:)
         # Match the last line starting with any recognized delimiter.
         delimiter_alts = "|".join(re.escape(d) for d in cls.COMMENT_DELIMITERS)
-        pattern = r'(?m)^[ \t]*(?:' + delimiter_alts + r')[ \t]*(.*)'
+        pattern = r"(?m)^[ \t]*(?:" + delimiter_alts + r")[ \t]*(.*)"
         matches = list(re.finditer(pattern, generated_token_string, re.IGNORECASE))
         if matches:
             last_match = matches[-1]
@@ -341,8 +352,7 @@ class RawResponseHandler:
             # Combine the rest-of-line after the delimiter with any
             # subsequent lines to form the full comment.
             comment_part = (
-                last_match.group(1)
-                + generated_token_string[last_match.end() :]
+                last_match.group(1) + generated_token_string[last_match.end() :]
             ).strip()
             if not answer_part:
                 # Edge case: the entire string started with COMMENT:

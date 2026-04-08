@@ -66,13 +66,24 @@ from ..key_management import KeyLookupCollection
 from .registry import RegisterLanguageModelsMeta
 from .raw_response_handler import RawResponseHandler
 
-_INTERNAL_KWARGS = frozenset({
-    "model", "parameters", "inference_service",
-    "edsl_version", "edsl_class_name", "original_model",
-    "skip_api_key_check", "canned_response", "throw_exception",
-    "exception_probability", "func", "fail_at_number", "never_ending",
-    "prompt_plan",
-})
+_INTERNAL_KWARGS = frozenset(
+    {
+        "model",
+        "parameters",
+        "inference_service",
+        "edsl_version",
+        "edsl_class_name",
+        "original_model",
+        "skip_api_key_check",
+        "canned_response",
+        "throw_exception",
+        "exception_probability",
+        "func",
+        "fail_at_number",
+        "never_ending",
+        "prompt_plan",
+    }
+)
 
 
 def handle_key_error(func: Callable):
@@ -166,9 +177,9 @@ class LanguageModel(
     """
 
     _model_: str = None
-    key_sequence: tuple[
-        str, ...
-    ] = None  # This should be something like ["choices", 0, "message", "content"]
+    key_sequence: tuple[str, ...] = (
+        None  # This should be something like ["choices", 0, "message", "content"]
+    )
 
     DEFAULT_RPM = 300
     DEFAULT_TPM = 1000000
@@ -240,6 +251,7 @@ class LanguageModel(
         unknown_params = {k for k in kwargs if k not in known_params}
         if unknown_params:
             import warnings
+
             warnings.warn(
                 f"Unknown parameter(s) for model '{self.model}': {', '.join(sorted(unknown_params))}. "
                 f"Known parameters: {', '.join(sorted(parameters.keys()))}. "
@@ -797,7 +809,12 @@ class LanguageModel(
         return cls.response_handler.get_usage_dict(raw_response)
 
     @classmethod
-    def parse_response(cls, raw_response: dict[str, Any]) -> EDSLOutput:
+    def parse_response(
+        cls,
+        raw_response: dict[str, Any],
+        *,
+        is_free_text: bool = False,
+    ) -> EDSLOutput:
         """Parse the raw API response into a standardized EDSL output format.
 
         This method processes the model's response to extract the generated content
@@ -806,11 +823,15 @@ class LanguageModel(
 
         Args:
             raw_response: The complete response dictionary from the model API
+            is_free_text: If True, the full model text is the answer (no
+                COMMENT:/newline splitting). Used for ``free_text`` questions.
 
         Returns:
             EDSLOutput: Standardized output structure with answer and optional comment
         """
-        return cls.response_handler.parse_response(raw_response)
+        return cls.response_handler.parse_response(
+            raw_response, is_free_text=is_free_text
+        )
 
     async def _async_get_intended_model_call_outcome(
         self,
@@ -976,6 +997,7 @@ class LanguageModel(
             input_price_per_million_tokens=cost.input_price_per_million_tokens,
             output_price_per_million_tokens=cost.output_price_per_million_tokens,
             total_cost=cost.total_cost,
+            thinking_tokens=cost.thinking_tokens,
         )
         return response
 
@@ -1032,7 +1054,9 @@ class LanguageModel(
             cache: The cache object to use for storing/retrieving responses
             iteration: The iteration number (default: 1)
             files_list: Optional list of files to include in the prompt
-            **kwargs: Additional parameters (invigilator, response_schema can be provided here)
+            **kwargs: Additional parameters (invigilator, response_schema,
+                question_type, etc.). For ``question_type="free_text"``,
+                ``parse_response`` is called with ``is_free_text=True``.
 
         Returns:
             AgentResponseDict: Complete response object with inputs, raw outputs, and parsed data
@@ -1064,6 +1088,8 @@ class LanguageModel(
         if "response_schema_name" in kwargs:
             params.update({"response_schema_name": kwargs["response_schema_name"]})
 
+        is_free_text = kwargs.get("question_type") == "free_text"
+
         # Create structured input record
         model_inputs = ModelInputs(user_prompt=user_prompt, system_prompt=system_prompt)
         # Get model response (using cache if available)
@@ -1072,7 +1098,10 @@ class LanguageModel(
         )
 
         # Parse the response into EDSL's standard format
-        edsl_dict: EDSLOutput = self.parse_response(model_outputs.response)
+        edsl_dict: EDSLOutput = self.parse_response(
+            model_outputs.response,
+            is_free_text=is_free_text,
+        )
 
         # Combine everything into a complete response object
         agent_response_dict = AgentResponseDict(
@@ -1112,6 +1141,11 @@ class LanguageModel(
             usage=usage,
             input_token_name=self.input_token_name,
             output_token_name=self.output_token_name,
+            thinking_token_sequence=getattr(
+                self,
+                "thinking_token_sequence",
+                None,
+            ),
         )
 
     def to_dict(self, add_edsl_version: bool = True) -> dict[str, Any]:
@@ -1233,9 +1267,9 @@ class LanguageModel(
                 )
                 test_data = data.copy()
                 test_data["model"] = "test"  # Test model expects "test" as model name
-                test_data[
-                    "original_model"
-                ] = model_name  # Preserve original for debugging
+                test_data["original_model"] = (
+                    model_name  # Preserve original for debugging
+                )
                 return test_model_class(**test_data)
             else:
                 raise

@@ -48,6 +48,7 @@ class RenderedPrompt:
         0  # Which iteration this task belongs to (for cache key differentiation)
     )
     agent_name: str | None = None
+    question_type: str | None = None
 
 
 class RenderService:
@@ -190,6 +191,9 @@ class RenderService:
             service_name=model_data.get("inference_service") if model_data else None,
             iteration=task_def.iteration,
             agent_name=agent_data.get("name") if agent_data else None,
+            question_type=(
+                question_data.get("question_type") if question_data else None
+            ),
         )
 
     def _get_current_answers(
@@ -638,6 +642,21 @@ class RenderWorker:
         direct_answer_tasks = []
         _skip_logic_time = 0.0
 
+        # Pre-compute whether the survey has any user-defined skip rules ONCE.
+        # non_default_rules is a @property that iterates ALL rules each call (O(N)).
+        # With 8000 questions = 8000 default rules, calling it per-task =
+        # 64M iterations = 18s wasted. Checking once = ~0s.
+        _has_skip_rules = False
+        if (
+            cached_survey is not None
+            and hasattr(cached_survey, "rule_collection")
+            and cached_survey.rule_collection is not None
+        ):
+            non_default = getattr(
+                cached_survey.rule_collection, "non_default_rules", None
+            )
+            _has_skip_rules = non_default is not None and len(non_default) > 0
+
         for task_id in task_ids:
             task_def = all_task_defs.get(task_id)
             if not task_def:
@@ -652,8 +671,8 @@ class RenderWorker:
                 direct_answer_tasks.append(task_id)
                 continue
 
-            # Check skip logic if JobService is available
-            if self._job_service is not None:
+            # Check skip logic only if survey has user-defined skip rules
+            if self._job_service is not None and _has_skip_rules:
                 _, interview_id = locations[task_id]
 
                 # Get cached answers for this interview
@@ -1015,6 +1034,7 @@ class RenderWorker:
                     else None,
                     iteration=task_def.iteration,
                     agent_name=agent_data.get("name") if agent_data else None,
+                    question_type=getattr(question, "question_type", None),
                 )
             )
             _append_time += _time.time() - _t_ap

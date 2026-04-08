@@ -304,6 +304,7 @@ class InvigilatorAI(InvigilatorBase):
 
         params.update({"iteration": self.iteration, "cache": self.cache})
         params.update({"invigilator": self})
+        params["question_type"] = getattr(self.question, "question_type", None)
 
         if self.key_lookup:
             self.model.set_key_lookup(self.key_lookup)
@@ -435,6 +436,7 @@ class InvigilatorAI(InvigilatorBase):
                 "exception_occurred": exception_occurred,
                 "input_tokens": agent_response_dict.model_outputs.input_tokens,
                 "output_tokens": agent_response_dict.model_outputs.output_tokens,
+                "thinking_tokens": agent_response_dict.model_outputs.thinking_tokens,
                 "input_price_per_million_tokens": agent_response_dict.model_outputs.input_price_per_million_tokens,
                 "output_price_per_million_tokens": agent_response_dict.model_outputs.output_price_per_million_tokens,
                 "total_cost": agent_response_dict.model_outputs.total_cost,
@@ -524,6 +526,7 @@ class InvigilatorAI(InvigilatorBase):
                 "exception_occurred": exception_occurred,
                 "input_tokens": agent_response_dict.model_outputs.input_tokens,
                 "output_tokens": agent_response_dict.model_outputs.output_tokens,
+                "thinking_tokens": agent_response_dict.model_outputs.thinking_tokens,
                 "input_price_per_million_tokens": agent_response_dict.model_outputs.input_price_per_million_tokens,
                 "output_price_per_million_tokens": agent_response_dict.model_outputs.output_price_per_million_tokens,
                 "total_cost": agent_response_dict.model_outputs.total_cost,

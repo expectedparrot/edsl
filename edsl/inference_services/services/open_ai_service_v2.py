@@ -53,6 +53,7 @@ class OpenAIServiceV2(InferenceServiceABC):
     reasoning_sequence = ["output", 0, "summary"]
     input_token_name = "input_tokens"
     output_token_name = "output_tokens"
+    thinking_token_sequence = ["output_tokens_details", "reasoning_tokens"]
 
     available_models_url = "https://platform.openai.com/docs/models/gp"
 
@@ -148,6 +149,7 @@ class OpenAIServiceV2(InferenceServiceABC):
             reasoning_sequence = cls.reasoning_sequence
             input_token_name = cls.input_token_name
             output_token_name = cls.output_token_name
+            thinking_token_sequence = cls.thinking_token_sequence
             _inference_service_ = cls._inference_service_
             _model_ = model_name
             _is_reasoning = any(tag in model_name for tag in OPENAI_REASONING_MODELS)
@@ -160,6 +162,7 @@ class OpenAIServiceV2(InferenceServiceABC):
                 "logprobs": False,
                 "top_logprobs": 3,
                 "reasoning": None,
+                "reasoning_effort": None,
             }
 
             def sync_client(self):
@@ -320,6 +323,10 @@ class OpenAIServiceV2(InferenceServiceABC):
                     reasoning_params = {"summary": "auto"}
                     if isinstance(self.reasoning, dict):
                         reasoning_params.update(self.reasoning)
+                    # Support reasoning_effort shorthand (e.g. "none", "low", "medium", "high")
+                    effort = getattr(self, "reasoning_effort", None)
+                    if effort is not None:
+                        reasoning_params["effort"] = effort
                     params["reasoning"] = reasoning_params
 
                 # For all models using the responses API, use max_output_tokens
@@ -345,6 +352,7 @@ class OpenAIServiceV2(InferenceServiceABC):
                 )
                 # convert to dict
                 response_dict = response.model_dump()
+
                 return response_dict
 
         LLM.__name__ = model_class_name

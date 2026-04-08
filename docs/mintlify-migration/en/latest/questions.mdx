@@ -31,7 +31,7 @@ The following question types are available:
 
 ### Base parameters
 
-All question types require a question_name and question_text. The question_name is a unique Pythonic identifier for a question (e.g., “favorite_color”). The question_text is the text of the question itself written as a string (e.g., “What is your favorite color?”). Question types other than free text also require a question_options list of possible answer options. The question_options list can be a list of strings, floats, integers, dictionaries, lists or other data types depending on the question type. (See a [demo notebook](https://www.expectedparrot.com/content/a8f39497-3e6e-4d40-aeaf-2b7f78cf4721) of allowed question options types at Coop.)
+All question types require a question_name and question_text. The question_name is a unique Pythonic identifier for a question (e.g., “favorite_color”). The question_text is the text of the question itself written as a string (e.g., “What is your favorite color?”). Question types other than free text also require a question_options list of possible answer options. The question_options list can be a list of strings, floats, integers, dictionaries, lists or other data types depending on the question type. (See a [demo notebook](https://www.expectedparrot.com/content/a8f39497-3e6e-4d40-aeaf-2b7f78cf4721) of allowed question options types at Expected Parrot.)
 
 For example, to create a multiple choice question where the response should be a single option selected from a list of colors, we import the QuestionMultipleChoice class and create an instance of it with the required fields:
 
@@ -898,9 +898,9 @@ Print the question in a human readable format.
 
 > #### humanize(*project_name: str = 'Project'*, *survey_description: str | None = None*, *survey_alias: str | None = None*, *survey_visibility: Literal['private', 'public', 'unlisted'] | None = 'unlisted'*) → dict [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/questions.py)
 
-Turn a single question into a survey and send the survey to Coop.
+Turn a single question into a survey and send the survey to Expected Parrot.
 
-Then, create a project on Coop so you can share the survey with human respondents.
+Then, create a project on Expected Parrot so you can share the survey with human respondents.
 
 > #### inspect() [[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/questions.py)
 

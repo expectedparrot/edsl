@@ -1,6 +1,6 @@
 ---
 title: "Overview"
-description: "*Expected Parrot Domain-Specific Language* (EDSL) is an open-source  package for conducting AI-powered research. EDSL simplifies the creation and execution of surveys, experiments, data labeling tasks, and other research activities involving large numbers of AI agents and language models. Its primary goal is to facilitate complex AI-based research tasks with ease and efficiency."
+description: "*Expected Parrot Domain-Specific Language* (EDSL) is an open-source package for conducting AI-powered research. EDSL simplifies the creation and execution of surveys, experiments, data labeling tasks, and other research activities involving large numbers of AI agents and language models."
 ---
 
 
@@ -8,9 +8,11 @@ EDSL is developed by [Expected Parrot](https://www.expectedparrot.com/) and avai
 
 ## Why EDSL?
 
-Most new software for large language models (LLMs) focuses on tools for constructing agents and real-time systems, such as chatbots. Less attention is being paid to efficiently managing large-scale tasks such as complex surveys or data labeling that involve varying agent behaviors and model parameters. These tasks often include intricate dependencies, such as agent memory or conditional logic, which complicates execution. EDSL addresses this gap by offering robust tools for designing, executing, and managing data-intensive tasks using LLMs, particularly in social science research.
+Survey research is slow and expensive. Running the same study across different demographic groups, testing how question wording affects responses, or coding thousands of open-ended answers manually — these are common bottlenecks. EDSL addresses this by letting you administer surveys to AI agents that simulate diverse respondents, at scale and at a fraction of the cost of traditional fieldwork.
 
-Initially developed for our internal research needs, EDSL quickly proved invaluable for broader applications within this domain. Recognizing the limitations of procedural coding (looping through agents, questions, and models), we shifted towards a declarative domain-specific language. This approach enhances expressiveness, allowing users to achieve more with minimal code.
+EDSL was built for researchers who want to work programmatically with language models without becoming AI engineers. Rather than writing loops over agents, questions, and models, you describe your survey once and EDSL handles parallel execution, conditional logic, model calls, and result organization.
+
+Because results are cached on the Expected Parrot server, sharing your research is simple: anyone who runs your published code retrieves your original outputs instantly, without re-calling any models or needing API keys. The platform records what prompts were run, which models were used, and when — providing verifiable provenance for your results. EDSL is also the only open-source library designed specifically for this kind of LLM-based survey research.
 
 ## Key concepts
 
@@ -20,66 +22,69 @@ A question can also be parameterized with a Scenario to provide contextual data 
 
 EDSL surveys can also be executed with multiple agents and models concurrently, offering diverse and rich response types, essential for robust data analysis and application.
 
+## A note on AI agents as survey respondents
+
+EDSL uses language models to simulate survey respondents — it does not collect responses from real people unless you explicitly distribute a survey to human participants (see [Humanize](/en/latest/humanize)).
+
+AI-simulated responses reflect patterns in model training data, not the actual opinions or behaviors of any individual or group. They are useful for rapid prototyping, hypothesis generation, pre-testing instruments, and exploring what patterns *might* emerge — but they are not a substitute for human survey data when the goal is to measure real-world attitudes or behaviors.
+
+Best practice is to use AI simulation alongside human data: iterate quickly with EDSL, then validate key findings with actual respondents.
+
 ## Key components
 
-The following concepts form the basic classes of the EDSL package, and are described in detail in the linked pages:
+The following concepts form the basic classes of the EDSL package, described in detail in the linked pages:
 
-<
-[Questions](/en/latest/questions): A Question serves as the foundational element for research design in EDSL. It allows users to choose from various question types, such as free text or multiple choice, depending on the desired formats of the responses.
+[Questions](/en/latest/questions): Choose from question types like free text, multiple choice, linear scale, and more to define the format of responses.
 
-[Surveys](/en/latest/surveys): A Survey aggregates multiple questions, which can be administered either asynchronously (by default) or according to predefined rules. Surveys are versatile, supporting different agents and models to yield varied responses. They can also incorporate diverse “scenarios” that supply context and data, enhancing the depth and relevance of the questions posed.
+[Surveys](/en/latest/surveys): Combine questions into a survey administered asynchronously or according to rules. Surveys support multiple agents and models, and can incorporate scenarios for context and data.
 
-[Agents](/en/latest/agents): An Agent represents an AI entity programmed to respond to the questions. Each agent can possess unique traits that influence their responses, including their background, expertise, or memory of previous interactions within the survey.
+[Agents](/en/latest/agents): AI entities with unique traits—background, expertise, memory—that shape their responses to questions.
 
-[Language Models](/en/latest/language_models): A Model refers to a large language model that generates answers to the questions. EDSL is designed to be model-agnostic, enabling the integration of multiple models to facilitate response comparison and selection.
+[Language Models](/en/latest/language_models): EDSL is model-agnostic, supporting multiple models for generating and comparing responses.
 
-scenarios: A Scenario provides specific context or data to a question at the time of its execution. This feature allows for dynamic parameterization of questions, enabling the same question to be adapted and asked across varied contexts efficiently.
+[Scenarios](/en/latest/scenarios): Key/value pairs that dynamically parameterize questions, allowing the same question to be asked across varied contexts or datasets.
 
-[Results](/en/latest/results): A Result is the direct output obtained from executing a question. Results include information about the question, agent, model, prompts, generated tokens and the raw and formatted responses. They can be analyzed, visualized, shared, and utilized to refine further inquiries or enhance the structure of subsequent surveys.
+[Results](/en/latest/results): The output of running a survey—including question, agent, model, prompts, tokens, and raw responses—available for analysis, visualization, and sharing.
 
 ## Key features
 
-EDSL offers a range of features that make it a powerful tool for conducting AI-powered research:
+**Any question format:** Free text, multiple choice, linear scale, checkbox, rank, numerical — EDSL supports a wide range of question types out of the box.
 
-**Declarative Design:** EDSL’s declarative design simplifies the creation and execution of complex research tasks, enabling users to achieve more with less code.
+**Run at scale:** Administer surveys to any number of agents, scenarios, and models in parallel. No manual loops required.
 
-**Flexible Survey Construction:** Users can create surveys with multiple questions, rules, and conditional logic, and administer them to diverse agents and models simultaneously.
+**Simulate diverse respondents:** Define agents with demographic traits, personas, or any combination of attributes that matter for your study.
 
-**Parameterized Questions:** Questions can be parameterized with scenarios to provide context or data, facilitating the administration of multiple versions of questions at once.
+**Cross-model comparison:** Run the same survey with multiple language models and compare responses side by side.
 
-**Agent and Model Selection:** EDSL supports the design of AI agents with unique traits and the selection of language models to generate responses, enabling diverse and rich response types.
+**Built-in analysis:** Filter, sort, and pivot results using pandas-style methods; export to CSV, JSON, or DataFrame.
 
-**Built-in Data Analysis:** EDSL provides built-in methods for analyzing and visualizing survey results, making it easy to explore and interpret research outcomes.
+**Human validation:** Distribute surveys to real respondents via a web link; combine AI and human responses in a single results object.
 
-**Remote Caching and Inference:** EDSL offers remote caching and inference features to store and share survey results and offload processing tasks to the Expected Parrot server.
+**Reproducible, shareable results:** Results are automatically cached. Publish your code and anyone can retrieve your exact outputs at no cost — no re-running, no API keys, no setup. The platform records prompts, models, and timestamps, providing verifiable provenance for your research.
 
-** Integration:** EDSL leverages ’s robust ecosystem, seamlessly integrating with existing  tools. It is ideally used within a notebook environment, facilitating the execution and detailed analysis of research outcomes.
+**Open source:** Available under the MIT License. Use, modify, and extend freely.
 
-**Model Agnosticism:** The framework’s design allows for the application of diverse language models and agents to the same set of questions, enabling comparative analysis across different models.
+## Expected Parrot Platform
 
-**Open Source Flexibility:** EDSL is open-source under a permissive license, offering the freedom to use, modify, and extend it for personal or commercial projects.
-
-## Coop: Collaborative Research Platform
-
-**Enhancing Research Collaboration:** EDSL promotes not only the creation of research but also the sharing of insights, code and results. coop is a new platform designed to enhance collaborative research efforts by providing a centralized location for storing and sharing EDSL content and AI research. It provides a range of features, including:
+[Expected Parrot](https://www.expectedparrot.com) is the platform behind EDSL. It enhances collaborative research by providing a centralized location for storing and sharing EDSL content and AI research, including:
 
 **Automatic Caching and Versioning:** Automatically store survey results and API calls on the Expected Parrot server to ensure that all aspects of your research are tracked and retrievable.
 
 **Remote Inference:** Run jobs on the Expected Parrot server to offload processing tasks, avoid the need to manage local resources and API keys, and speed up research execution.
 
-See the coop section for more information on how to use these features.
+See the [Remote Inference](/en/latest/remote_inference) and [Remote Caching](/en/latest/remote_caching) sections for more information.
 
 ## Use cases
 
-EDSL is adept at handling a broad spectrum of research tasks that benefit from the integration of AI agents and language models. Potential applications include:
+**Pre-testing survey instruments:** Test question clarity, identify ambiguous wording, and refine response options before fielding to human participants.
 
-**Survey Simulation and Experimental Research:** Create and simulate detailed surveys and experiments.
+**Simulating survey experiments:** Run factorial designs across hundreds of simulated respondents with varying demographic profiles to generate hypotheses or pilot results.
 
-**Data Labeling and Classification:** Efficiently label and classify large datasets.
+**Data labeling and content analysis:** Apply consistent coding schemes to large text datasets — news articles, social media posts, open-ended responses — at scale.
 
-**Data Augmentation:** Enhance datasets by generating synthetic, yet realistic, data additions.
+**Extending existing survey data:** Augment limited human samples with AI-simulated responses to explore patterns or fill demographic gaps.
 
-**Synthetic Data Generation:** Produce completely new data sets that mimic real-world data for training and testing models.
+**Cross-model benchmarking:** Compare how different language models respond to the same questions to understand model-specific biases or variation.
 
 ## How it works
 
@@ -203,7 +208,7 @@ from edsl import QuestionLinearScale, ScenarioList, Scenario
 
 q6 = QuestionMultipleChoice(
    question_name = "primary_news_source",
-   question_text = "What is your primary source of news about {{ topic }}?",
+   question_text = "What is your primary source of news about {{ scenario.topic }}?",
    question_options = [
       "Television",
       "Online news websites",
@@ -215,7 +220,7 @@ q6 = QuestionMultipleChoice(
 )
 q7 = QuestionLinearScale(
    question_name = "optimistic",
-   question_text = "On a scale from 1 to 10, how optimistic do you feel about {{ topic }}?",
+   question_text = "On a scale from 1 to 10, how optimistic do you feel about {{ scenario.topic }}?",
    question_options = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
    option_labels = {1:"Not at all optimistic", 10:"Very optimistic"}
 )
@@ -244,34 +249,3 @@ Example output:
 
 EDSL comes with built-in methods for data analysis and visualization, making it easy to explore and interpret the results of your research. Examples of these methods are provided in the [Results](/en/latest/results#results) section.
 
-## Getting help
-
-EDSL objects have built-in help methods that provide information on their attributes and methods:
-
-```python
-help(object)
-
-object.example()
-```
-
-For example, to see an example of a multiple choice question, you can run:
-
-```python
-QuestionMultipleChoice.example()
-```
-
-See our [Starter Tutorial](/en/latest/starter_tutorial#starter-tutorial), how-to guides and notebooks for examples as well.
-
-## Links
-
-- Download the latest version of EDSL on [PyPI](https://pypi.org/project/edsl).
-- Get the latest EDSL updates on [GitHub](https://github.com/expectedparrot/edsl).
-- Create a [Coop account](https://www.expectedparrot.com/login).
-- Join our [Discord channel](https://discord.com/invite/mxAYkjfy9m) to discuss AI research.
-- Follow us on social media:
-
-<Columns cols={2}>
-<Card title="Twitter/X" icon="twitter" horizontal href="https://twitter.com/expectedparrot" />
-<Card title="LinkedIn" icon="linkedin" horizontal href="https://www.linkedin.com/company/expectedparrot" />
-<Card title="Blog" icon="newspaper" horizontal href="https://blog.expectedparrot.com/" />
-</Columns>

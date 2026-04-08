@@ -503,7 +503,7 @@ This will return a table of the flattened results:
 
 ## Retrieving results
 
-We can retrieve details about results posted to Coop by calling the list() method on the Results class. For example, the following code will return information about the 10 most recent results posted to Coop:
+We can retrieve details about results posted to Expected Parrot by calling the list() method on the Results class. For example, the following code will return information about the 10 most recent results posted to the platform:
 
 ```python
 from edsl import Results
@@ -580,7 +580,7 @@ from edsl import Results
 results = Results.list().fetch()
 ```
 
-The list() method can also be called on Agent and Jobs objects, and the Coop client object (to retrieve details of objects of any type).
+The list() method can also be called on Agent and Jobs objects, and the `Coop` client object (to retrieve details of objects of any type).
 
 ## Generating a report
 
@@ -1134,7 +1134,7 @@ dict: The parsed JSON content
 
 > #### *classmethod* patch_cls(*url_or_uuid: str | UUID*, *description: str | None = None*, *value: Any | None = None*, *visibility: str | None = None*)[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/results.py)
 
-Patch an uploaded object’s attributes (class method version). - description changes the description of the object on Coop - value changes the value of the object on Coop. **has to be an EDSL object** - visibility changes the visibility of the object on Coop
+Patch an uploaded object’s attributes (class method version). - description changes the description of the object on Expected Parrot - value changes the value of the object on Expected Parrot. **has to be an EDSL object** - visibility changes the visibility of the object on Expected Parrot
 
 > #### *property* polly_commands[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/results.py)
 
@@ -2390,7 +2390,7 @@ True
 
 > #### *classmethod* patch_cls(*url_or_uuid: str | UUID*, *description: str | None = None*, *value: Any | None = None*, *visibility: str | None = None*)[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/results.py)
 
-Patch an uploaded object’s attributes (class method version). - description changes the description of the object on Coop - value changes the value of the object on Coop. **has to be an EDSL object** - visibility changes the visibility of the object on Coop
+Patch an uploaded object’s attributes (class method version). - description changes the description of the object on Expected Parrot - value changes the value of the object on Expected Parrot. **has to be an EDSL object** - visibility changes the visibility of the object on Expected Parrot
 
 > #### *property* polly_commands[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/results.py)
 

@@ -48,6 +48,7 @@ class ExecutionResult:
     # Pricing info (to match EDSL Result structure)
     input_price_per_million_tokens: float | None = None
     output_price_per_million_tokens: float | None = None
+    thinking_tokens: int | None = None
     # Cache and validation info
     cache_key: str | None = None
     validated: bool | None = None
@@ -171,6 +172,7 @@ class ExecutionWorker:
                         user_prompt=result.user_prompt,
                         input_price_per_million_tokens=result.input_price_per_million_tokens,
                         output_price_per_million_tokens=result.output_price_per_million_tokens,
+                        thinking_tokens=result.thinking_tokens,
                         cache_key=result.cache_key,
                         validated=result.validated,
                         reasoning_summary=result.reasoning_summary,
@@ -246,6 +248,7 @@ class ExecutionWorker:
                 files_list=task.files_list,
                 question_name=task.question_name,
                 agent_name=task.agent_name,
+                question_type=task.question_type,
             )
 
             # Extract answer and tokens from the response
@@ -304,6 +307,11 @@ class ExecutionWorker:
                 if hasattr(model_outputs, "output_price_per_million_tokens")
                 else None
             )
+            thinking_tokens = (
+                model_outputs.thinking_tokens
+                if hasattr(model_outputs, "thinking_tokens")
+                else None
+            )
 
             return ExecutionResult(
                 task_id=task.task_id,
@@ -321,6 +329,7 @@ class ExecutionWorker:
                 user_prompt=task.user_prompt,
                 input_price_per_million_tokens=input_price,
                 output_price_per_million_tokens=output_price,
+                thinking_tokens=thinking_tokens,
                 cache_key=cache_key,
                 validated=validated,
                 reasoning_summary=reasoning_summary,
