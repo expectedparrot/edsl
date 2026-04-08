@@ -15,6 +15,7 @@ from ..questions import QuestionBase
 if TYPE_CHECKING:
     from ..language_models import ModelList
     from ..language_models import LanguageModel
+    from ..study import Study
 
 EDSLObject = Union[
     Agent,
@@ -27,6 +28,7 @@ EDSLObject = Union[
     Results,
     Scenario,
     ScenarioList,
+    "Study",
     Survey,
     Macro,
     CompositeMacro,
@@ -43,6 +45,7 @@ ObjectType = Literal[
     "results",
     "scenario",
     "scenario_list",
+    "study",
     "survey",
     "macro",
     "composite_macro",
@@ -89,8 +92,9 @@ class ObjectRegistry:
 
     @classmethod
     def _get_objects(cls):
-        """Lazy import of language models to avoid circular imports"""
+        """Lazy import of language models and study to avoid circular imports"""
         from ..language_models import LanguageModel, ModelList
+        from ..study import Study
 
         return [
             {"object_type": "agent", "edsl_class": Agent},
@@ -103,6 +107,7 @@ class ObjectRegistry:
             {"object_type": "results", "edsl_class": Results},
             {"object_type": "scenario", "edsl_class": Scenario},
             {"object_type": "scenario_list", "edsl_class": ScenarioList},
+            {"object_type": "study", "edsl_class": Study},
             {"object_type": "survey", "edsl_class": Survey},
             {"object_type": "macro", "edsl_class": Macro},
             {"object_type": "composite_macro", "edsl_class": CompositeMacro},

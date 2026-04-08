@@ -311,9 +311,9 @@ class Study:
         client = StudyClient(self.server_url)
         with _spinner(spinner_msg):
             data = client.push_request(
+                value=self,
                 uuid=self._uuid,
                 alias=self.alias,
-                title=self.title,
                 description=self.description,
                 visibility=self.visibility or "private",
             )
@@ -324,7 +324,7 @@ class Study:
         self._gitlab_url = data.get("gitlab_url", self._gitlab_url)
         self._save_metadata()
 
-        remote = authed_remote_url(data["gitlab_url"], data["token"])
+        remote = authed_remote_url(data["gitlab_url"], data["gitlab_token"])
         self._git_push_with_retry(remote, branch, verbose=verbose)
         _log(verbose, "Push complete.")
 
@@ -348,7 +348,7 @@ class Study:
         client = StudyClient(self.server_url)
         data = client.pull_request(self._uuid)
 
-        remote = authed_remote_url(data["gitlab_url"], data["token"])
+        remote = authed_remote_url(data["gitlab_url"], data["gitlab_token"])
         _log(verbose, "Fetching...")
         self._git_run("fetch", remote, branch, capture_output=True)
         self._git_run("merge", "FETCH_HEAD")

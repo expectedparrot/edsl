@@ -9,6 +9,7 @@ from edsl.coop.utils import VisibilityType
 
 if TYPE_CHECKING:
     from edsl.coop import Coop
+    from edsl.study.study import Study
 
 
 def _resolve_server_url(server_url: str | None) -> str:
@@ -56,24 +57,22 @@ class StudyClient:
     def push_request(
         self,
         *,
+        value: "Study",
         uuid: Optional[str] = None,
         alias: Optional[str] = None,
-        title: Optional[str] = None,
         description: Optional[str] = None,
         visibility: VisibilityType = "private",
     ) -> dict:
         """Create or refresh a study on the server and return token payload.
 
-        Wraps :meth:`~edsl.coop.Coop.push_study`. On success, the parsed JSON
-        includes ``uuid``, ``token``, ``gitlab_url``, and ``expires_at``.
+        Uses ``Coop.push`` when ``uuid`` is missing, and ``Coop.patch`` when
+        ``uuid`` is provided. On success, the parsed JSON includes ``uuid``,
+        ``token``, ``gitlab_url``, and ``expires_at``.
         """
-        return self._coop.push(
-            uuid=uuid,
-            alias=alias,
-            title=title,
-            description=description,
-            visibility=visibility,
-        )
+        request_data = {"description": description, "alias": alias, "visibility": visibility}
+        if uuid is not None:
+            return self._coop.patch(url_or_uuid=uuid, value=value, **request_data)
+        return self._coop.push(object=value, **request_data)
 
     def pull_request(self, uuid: str) -> dict:
         """Mint a read token for pulling an existing study repo.

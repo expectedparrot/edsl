@@ -4038,6 +4038,7 @@ class Coop(CoopFunctionsMixin):
         self._validate_alias(alias)
 
         object_type = ObjectRegistry.get_object_type_by_edsl_class(object)
+        request_timeout = 30 if object_type == "study" else 10
         object_dict = object.to_dict()
         object_hash = object.get_hash() if hasattr(object, "get_hash") else None
 
@@ -4058,6 +4059,7 @@ class Coop(CoopFunctionsMixin):
                 "object_hash": object_hash,
                 "version": self._edsl_version,
             },
+            timeout=request_timeout,
         )
         response_json = response.json()
         if response_json.get("signed_url") is not None:
