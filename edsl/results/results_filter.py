@@ -4,6 +4,7 @@ This module provides the ResultsFilter class which handles filtering operations
 on Results objects, including expression validation and evaluation.
 """
 
+import re
 import warnings
 from typing import TYPE_CHECKING
 
@@ -99,6 +100,61 @@ class ResultsFilter:
 
         return ""
 
+    def _expand_wildcards(self, expression: str) -> str:
+        """Expand wildcard patterns in filter expressions to OR'd conditions.
+
+        Finds patterns like ``question_text.*`` in the expression and replaces
+        them with all matching column names joined by ``or``.
+
+        For example, if columns are ``['question_text.q1', 'question_text.q2']``:
+            ``question_text.* == 'Hello'``
+        becomes:
+            ``(question_text.q1 == 'Hello' or question_text.q2 == 'Hello')``
+
+        Args:
+            expression: The filter expression potentially containing wildcards.
+
+        Returns:
+            The expression with wildcards expanded, or the original if none found.
+        """
+        columns = self.results.columns
+
+        # Match wildcard references like data_type.* or data_type.*suffix
+        wildcard_pattern = re.compile(r'(\w+\.\*[\w]*)')
+        wildcards = wildcard_pattern.findall(expression)
+
+        if not wildcards:
+            return expression
+
+        from fnmatch import fnmatch
+
+        for wc in set(wildcards):
+            matching_cols = [c for c in columns if fnmatch(c, wc)]
+            if not matching_cols:
+                continue
+
+            # Build the rest of the expression around the wildcard
+            # Find the full comparison containing this wildcard
+            # e.g. "question_text.* == 'Hello'" or "question_text.* in ['a', 'b']"
+            escaped_wc = re.escape(wc)
+            comparison_pattern = re.compile(
+                rf'{escaped_wc}\s*(==|!=|>=|<=|>|<|in\b|not\s+in\b)\s*(.+?)(?:\s+(?:and|or)\s+|$)'
+            )
+            match = comparison_pattern.search(expression)
+            if not match:
+                continue
+
+            operator = match.group(1)
+            value = match.group(2).strip()
+            full_match = match.group(0).strip()
+
+            expanded_parts = [f"{col} {operator} {value}" for col in matching_cols]
+            expanded = "(" + " or ".join(expanded_parts) + ")"
+
+            expression = expression.replace(full_match, expanded)
+
+        return expression
+
     @staticmethod
     def has_single_equals(expression: str) -> bool:
         """Check if an expression contains a single equals sign not part of ==, >=, or <=.
@@ -191,6 +247,9 @@ class ResultsFilter:
             raise ResultsFilterError(
                 "You must use '==' instead of '=' in the filter expression."
             )
+
+        # Expand wildcard patterns (e.g. question_text.* == 'Hello')
+        normalized_expression = self._expand_wildcards(normalized_expression)
 
         try:
             # Create new Results object with same class as original but empty data
