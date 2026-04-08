@@ -61,9 +61,7 @@ class TestClientHelpers:
         assert "oauth2:glpat-token123@gitlab.example.com" in url
 
     def test_authed_remote_url_preserves_port(self):
-        url = authed_remote_url(
-            "https://gitlab.example.com:8443/bot/uuid", "tok"
-        )
+        url = authed_remote_url("https://gitlab.example.com:8443/bot/uuid", "tok")
         assert "oauth2:tok@gitlab.example.com:8443" in url
 
 
@@ -82,7 +80,8 @@ class TestStudyClient:
         coop = Coop(api_key=API_KEY, url="https://test.example.com")
         with patch.object(coop, "_send_server_request", return_value=mock_resp):
             client = StudyClient(coop=coop)
-            data = client.push_request(uuid=None)
+            study = Study._new_bare()
+            data = client.push_request(study, uuid=None)
         assert data["uuid"] == "u1"
 
     def test_push_request_409(self):
@@ -95,7 +94,8 @@ class TestStudyClient:
         with patch.object(coop, "_send_server_request", return_value=mock_resp):
             client = StudyClient(coop=coop)
             with pytest.raises(CoopServerResponseError, match="Alias already taken"):
-                client.push_request(alias="taken")
+                study = Study._new_bare()
+                client.push_request(study, alias="taken")
 
     def test_push_request_400_alias_conflict(self):
         mock_resp = MagicMock()
@@ -111,7 +111,8 @@ class TestStudyClient:
             with pytest.raises(
                 CoopServerResponseError, match="already have a repo with the alias"
             ):
-                client.push_request(alias="taken")
+                study = Study._new_bare()
+                client.push_request(study, alias="taken")
 
     def test_pull_request(self):
         mock_resp = MagicMock()
@@ -455,7 +456,9 @@ class TestPush:
             "gitlab_url": "https://gitlab.com/bot/uuid-1",
         }
 
-        study.push(alias="cool-study", title="Cool", description="desc", visibility="public")
+        study.push(
+            alias="cool-study", title="Cool", description="desc", visibility="public"
+        )
 
         assert study.alias == "cool-study"
         assert study.title == "Cool"
@@ -478,7 +481,11 @@ class TestPush:
 
         assert mock_push.call_args.kwargs["uuid"] == "existing-uuid"
 
-    @patch.object(StudyClient, "push_request", side_effect=CoopServerResponseError("Alias already taken."))
+    @patch.object(
+        StudyClient,
+        "push_request",
+        side_effect=CoopServerResponseError("Alias already taken."),
+    )
     @patch.object(Study, "_check_git_clean")
     def test_push_409_alias_taken(self, mock_clean, mock_push, study):
         with pytest.raises(CoopServerResponseError, match="Alias already taken"):
@@ -558,7 +565,9 @@ class TestClone:
         # Pre-create directory to simulate git clone
         clone_dir = tmp_path / "clone-uuid"
         clone_dir.mkdir(exist_ok=True)
-        subprocess.run(["git", "init"], cwd=str(clone_dir), check=True, capture_output=True)
+        subprocess.run(
+            ["git", "init"], cwd=str(clone_dir), check=True, capture_output=True
+        )
 
         real_run = subprocess.run
 
@@ -577,7 +586,13 @@ class TestClone:
         assert s._uuid == "clone-uuid"
         assert os.path.isfile(os.path.join(s.path, ".study.json"))
 
-    @patch.object(StudyClient, "clone_request", side_effect=CoopServerResponseError("Study not found or not yet pushed: not_found"))
+    @patch.object(
+        StudyClient,
+        "clone_request",
+        side_effect=CoopServerResponseError(
+            "Study not found or not yet pushed: not_found"
+        ),
+    )
     def test_clone_not_found(self, mock_clone_req):
         with pytest.raises(CoopServerResponseError, match="not found"):
             Study.clone(uuid="nope", server_url="https://test.example.com")
@@ -610,6 +625,7 @@ class TestList:
         result = Study.list(server_url="https://test.example.com")
 
         from edsl.scenarios import ScenarioList
+
         assert isinstance(result, ScenarioList)
         assert len(result) == 1
         assert result[0]["alias"] == "study-a"
@@ -630,10 +646,22 @@ class TestFromRepo:
     def test_wraps_existing_repo(self, tmp_path):
         repo_dir = tmp_path / "myrepo"
         repo_dir.mkdir()
-        subprocess.run(["git", "init"], cwd=str(repo_dir), check=True, capture_output=True)
+        subprocess.run(
+            ["git", "init"], cwd=str(repo_dir), check=True, capture_output=True
+        )
         (repo_dir / "README.md").write_text("hello")
-        subprocess.run(["git", "add", "README.md"], cwd=str(repo_dir), check=True, capture_output=True)
-        subprocess.run(["git", "commit", "-m", "init"], cwd=str(repo_dir), check=True, capture_output=True)
+        subprocess.run(
+            ["git", "add", "README.md"],
+            cwd=str(repo_dir),
+            check=True,
+            capture_output=True,
+        )
+        subprocess.run(
+            ["git", "commit", "-m", "init"],
+            cwd=str(repo_dir),
+            check=True,
+            capture_output=True,
+        )
 
         s = Study.from_repo(str(repo_dir), server_url="https://test.example.com")
 
@@ -651,15 +679,27 @@ class TestFromRepo:
     def test_preserves_existing_commits(self, tmp_path):
         repo_dir = tmp_path / "hashistory"
         repo_dir.mkdir()
-        subprocess.run(["git", "init"], cwd=str(repo_dir), check=True, capture_output=True)
+        subprocess.run(
+            ["git", "init"], cwd=str(repo_dir), check=True, capture_output=True
+        )
         (repo_dir / "a.txt").write_text("a")
-        subprocess.run(["git", "add", "a.txt"], cwd=str(repo_dir), check=True, capture_output=True)
-        subprocess.run(["git", "commit", "-m", "first"], cwd=str(repo_dir), check=True, capture_output=True)
+        subprocess.run(
+            ["git", "add", "a.txt"], cwd=str(repo_dir), check=True, capture_output=True
+        )
+        subprocess.run(
+            ["git", "commit", "-m", "first"],
+            cwd=str(repo_dir),
+            check=True,
+            capture_output=True,
+        )
 
         s = Study.from_repo(str(repo_dir))
         result = subprocess.run(
-            ["git", "log", "--oneline"], cwd=s.path,
-            check=True, capture_output=True, text=True,
+            ["git", "log", "--oneline"],
+            cwd=s.path,
+            check=True,
+            capture_output=True,
+            text=True,
         )
         assert "first" in result.stdout
 
@@ -676,8 +716,11 @@ class TestNewBare:
         subprocess.run(["git", "init"], cwd=str(path), check=True, capture_output=True)
 
         s = Study._new_bare(
-            "bare_study", str(path), "https://test.example.com",
-            uuid="u1", gitlab_url="https://gitlab.com/u1",
+            "bare_study",
+            str(path),
+            "https://test.example.com",
+            uuid="u1",
+            gitlab_url="https://gitlab.com/u1",
         )
 
         assert s.name == "bare_study"
