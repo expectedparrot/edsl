@@ -318,52 +318,6 @@ class Coop(CoopFunctionsMixin):
     ################
     # GitLab-backed studies (Study meta-server on Coop API)
     ################
-
-    def push_study(
-        self,
-        *,
-        uuid: Optional[str] = None,
-        alias: Optional[str] = None,
-        title: Optional[str] = None,
-        description: Optional[str] = None,
-        visibility: VisibilityType = "private",
-    ) -> dict[str, Any]:
-        """Create or update a GitLab-backed study repo and obtain a short-lived push token.
-
-        Calls ``POST /api/v0/gitlab/push-req``. If ``uuid`` is omitted, the server
-        creates a new study record and GitLab project (first push). If ``uuid`` is
-        set, the server verifies ownership and mints a write token for an existing
-        repo.
-
-        Args:
-            uuid: Study repository id returned from a previous push, or ``None``
-                on first push.
-            alias: Unique handle for the study within your account (typically
-                required on first push).
-            title: Display title stored with the study.
-            description: Longer description stored with the study.
-            visibility: ``"private"``, ``"public"``, or ``"unlisted"``.
-
-        Returns:
-            Parsed JSON body. On success, includes ``uuid``, ``token``,
-            ``gitlab_url``, and ``expires_at`` (and status 201 on first push creation).
-        """
-        payload: dict[str, Any] = {
-            "uuid": uuid,
-            "alias": alias,
-            "title": title,
-            "description": description,
-            "visibility": visibility,
-        }
-        response = self._send_server_request(
-            "api/v0/gitlab/push-req",
-            "POST",
-            payload=payload,
-            timeout=30,
-        )
-        self._resolve_server_response(response)
-        return response.json()
-
     def pull_study(self, uuid: str) -> dict[str, Any]:
         """Mint a read-only GitLab token for pulling a study repository.
 
@@ -4147,6 +4101,17 @@ class Coop(CoopFunctionsMixin):
                         "uuid": metadata.get("uuid"),
                         "version": self._edsl_version,
                         "visibility": metadata.get("visibility"),
+                        **(
+                            {
+                                "gitlab_url": metadata.get("gitlab_url"),
+                                "gitlab_token": metadata.get("gitlab_token"),
+                                "gitlab_token_expires_at": metadata.get(
+                                    "gitlab_token_expires_at"
+                                ),
+                            }
+                            if object_type == "study"
+                            else {}
+                        ),
                     }
                 )
 
@@ -4235,6 +4200,17 @@ class Coop(CoopFunctionsMixin):
                 "uuid": object_uuid,
                 "version": self._edsl_version,
                 "visibility": response_json.get("visibility"),
+                **(
+                    {
+                        "gitlab_url": response_json.get("gitlab_url"),
+                        "gitlab_token": response_json.get("gitlab_token"),
+                        "gitlab_token_expires_at": response_json.get(
+                            "gitlab_token_expires_at"
+                        ),
+                    }
+                    if object_type == "study"
+                    else {}
+                ),
             }
         )
 

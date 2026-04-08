@@ -67,7 +67,7 @@ class StudyClient:
         Wraps :meth:`~edsl.coop.Coop.push_study`. On success, the parsed JSON
         includes ``uuid``, ``token``, ``gitlab_url``, and ``expires_at``.
         """
-        return self._coop.push_study(
+        return self._coop.push(
             uuid=uuid,
             alias=alias,
             title=title,
