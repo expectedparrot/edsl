@@ -72,8 +72,9 @@ class MemoryPlan(UserDict):
             return Prompt("")
 
         q_and_a_pairs = [
-            (self.name_to_text[question_name], answers.get(question_name, None))
+            (self.name_to_text[question_name], answers[question_name])
             for question_name in self[focal_question]
+            if question_name in answers
         ]
 
         base_prompt_text = """
