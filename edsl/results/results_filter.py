@@ -138,7 +138,7 @@ class ResultsFilter:
             # e.g. "question_text.* == 'Hello'" or "question_text.* in ['a', 'b']"
             escaped_wc = re.escape(wc)
             comparison_pattern = re.compile(
-                rf'{escaped_wc}\s*(==|!=|>=|<=|>|<|in\b|not\s+in\b)\s*(.+?)(?:\s+(?:and|or)\s+|$)'
+                rf'{escaped_wc}\s*(==|!=|>=|<=|>|<|in\b|not\s+in\b)\s*(.+?)(?=\s+(?:and|or)\s+|$)'
             )
             match = comparison_pattern.search(expression)
             if not match:
@@ -146,7 +146,7 @@ class ResultsFilter:
 
             operator = match.group(1)
             value = match.group(2).strip()
-            full_match = match.group(0).strip()
+            full_match = match.group(0)
 
             expanded_parts = [f"{col} {operator} {value}" for col in matching_cols]
             expanded = "(" + " or ".join(expanded_parts) + ")"
