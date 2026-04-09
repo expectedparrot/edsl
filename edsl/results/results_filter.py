@@ -111,6 +111,11 @@ class ResultsFilter:
         becomes:
             ``(question_text.q1 == 'Hello' or question_text.q2 == 'Hello')``
 
+        Compound expressions are preserved:
+            ``question_text.* == 'Hello' and answer.* == 'Yes'``
+        becomes:
+            ``(question_text.q1 == 'Hello' or question_text.q2 == 'Hello') and (answer.q1 == 'Yes' or answer.q2 == 'Yes')``
+
         Args:
             expression: The filter expression potentially containing wildcards.
 
@@ -120,7 +125,7 @@ class ResultsFilter:
         columns = self.results.columns
 
         # Match wildcard references like data_type.* or data_type.*suffix
-        wildcard_pattern = re.compile(r'(\w+\.\*[\w]*)')
+        wildcard_pattern = re.compile(r'\w+\.\*[\w]*')
         wildcards = wildcard_pattern.findall(expression)
 
         if not wildcards:
@@ -133,25 +138,34 @@ class ResultsFilter:
             if not matching_cols:
                 continue
 
-            # Build the rest of the expression around the wildcard
-            # Find the full comparison containing this wildcard
-            # e.g. "question_text.* == 'Hello'" or "question_text.* in ['a', 'b']"
             escaped_wc = re.escape(wc)
+            # Capture the operator and the value (which may contain brackets, quotes, etc.)
+            # Use a lookahead for and/or boundaries so we don't consume the connective.
+            # The value group uses a greedy match but stops before an unquoted and/or keyword.
             comparison_pattern = re.compile(
-                rf'{escaped_wc}\s*(==|!=|>=|<=|>|<|in\b|not\s+in\b)\s*(.+?)(?=\s+(?:and|or)\s+|$)'
+                rf"""({escaped_wc}"""
+                rf"""\s*(?:==|!=|>=|<=|>|<|not\s+in\b|in\b)"""
+                rf"""\s*(?:'[^']*'|"[^"]*"|\[[^\]]*\]|\S+))"""
             )
             match = comparison_pattern.search(expression)
             if not match:
                 continue
 
-            operator = match.group(1)
-            value = match.group(2).strip()
-            full_match = match.group(0)
+            full_match = match.group(1)
+            # Extract operator and value by removing the wildcard prefix
+            remainder = full_match[len(wc):].strip()
+            # Split on first space after operator
+            op_match = re.match(r'(==|!=|>=|<=|>|<|not\s+in|in)\s*(.*)', remainder)
+            if not op_match:
+                continue
+
+            operator = op_match.group(1)
+            value = op_match.group(2).strip()
 
             expanded_parts = [f"{col} {operator} {value}" for col in matching_cols]
             expanded = "(" + " or ".join(expanded_parts) + ")"
 
-            expression = expression.replace(full_match, expanded)
+            expression = expression.replace(full_match, expanded, 1)
 
         return expression
 
