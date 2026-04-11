@@ -490,24 +490,6 @@ class Coop(CoopFunctionsMixin):
         self._resolve_server_response(response)
         return response.json()
 
-    def list_study_repos(self) -> dict[str, Any]:
-        """List GitLab-backed study repos owned by the authenticated user.
-
-        Calls ``GET /api/v0/gitlab/repos``.
-
-        Returns:
-            Parsed JSON body. On success, has a ``repos`` key holding
-            a list of repository metadata dicts.
-        """
-        response = self._send_server_request(
-            "api/v0/gitlab/repos",
-            "GET",
-            payload=None,
-            timeout=30,
-        )
-        self._resolve_server_response(response)
-        return response.json()
-
     def _get_latest_stable_version(self, version: str) -> str:
         """
         Extract the latest stable PyPI version from a version string.

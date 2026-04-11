@@ -672,11 +672,9 @@ class TestList:
             {
                 "uuid": "uuid-1",
                 "alias": "study-a",
-                "title": "Study A",
                 "description": "desc",
                 "visibility": "private",
                 "created_at": "2026-03-18T00:00:00Z",
-                "provisioned": 1,
             },
         ]
 

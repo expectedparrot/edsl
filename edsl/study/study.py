@@ -576,11 +576,9 @@ class Study:
                 {
                     "uuid": r["uuid"],
                     "alias": r.get("alias"),
-                    "title": r.get("title"),
                     "description": r.get("description"),
                     "visibility": r.get("visibility"),
-                    "created_at": r.get("created_at"),
-                    "provisioned": bool(r.get("provisioned")),
+                    "created_ts": r.get("created_ts"),
                 }
             )
             for r in repos

@@ -69,7 +69,11 @@ class StudyClient:
         :meth:`~edsl.coop.Coop.patch_study` when ``uuid`` is set. GitLab write
         credentials come from ``POST /api/v0/gitlab/study-write-token``.
         """
-        request_data = {"description": description, "alias": alias, "visibility": visibility}
+        request_data = {
+            "description": description,
+            "alias": alias,
+            "visibility": visibility,
+        }
         if uuid is not None:
             return self._coop.patch_study(url_or_uuid=uuid, value=value, **request_data)
         return self._coop.push_study(object=value, **request_data)
@@ -118,5 +122,5 @@ class StudyClient:
         Wraps :meth:`~edsl.coop.Coop.list_study_repos`. Returns the ``repos``
         array from the JSON body.
         """
-        data = self._coop.list_study_repos()
-        return data.get("repos", [])
+        data = self._coop.list(object_type="study")
+        return data
