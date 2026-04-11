@@ -65,14 +65,14 @@ class StudyClient:
     ) -> dict:
         """Create or refresh a study on the server and return token payload.
 
-        Uses ``Coop.push`` when ``uuid`` is missing, and ``Coop.patch`` when
-        ``uuid`` is provided. On success, the parsed JSON includes ``uuid``,
-        ``token``, ``gitlab_url``, and ``expires_at``.
+        Uses :meth:`~edsl.coop.Coop.push_study` for the first upload and
+        :meth:`~edsl.coop.Coop.patch_study` when ``uuid`` is set. GitLab write
+        credentials come from ``POST /api/v0/gitlab/study-write-token``.
         """
         request_data = {"description": description, "alias": alias, "visibility": visibility}
         if uuid is not None:
-            return self._coop.patch(url_or_uuid=uuid, value=value, **request_data)
-        return self._coop.push(object=value, **request_data)
+            return self._coop.patch_study(url_or_uuid=uuid, value=value, **request_data)
+        return self._coop.push_study(object=value, **request_data)
 
     def pull_request(self, uuid: str) -> dict:
         """Mint a read token for pulling an existing study repo.

@@ -340,6 +340,82 @@ class Coop(CoopFunctionsMixin):
         self._resolve_server_response(response)
         return response.json()
 
+    def mint_study_write_token(self, object_uuid: Union[str, UUID]) -> dict[str, Any]:
+        """Mint GitLab write credentials for a study object on Coop.
+
+        Calls ``POST /api/v0/gitlab/study-write-token`` with the Coop object UUID.
+        Only the study owner may mint a write token.
+
+        Returns:
+            Parsed JSON body with ``gitlab_url``, ``gitlab_token``, and
+            ``gitlab_token_expires_at``.
+        """
+        response = self._send_server_request(
+            "api/v0/gitlab/study-write-token",
+            "POST",
+            payload={"uuid": str(object_uuid)},
+            timeout=30,
+        )
+        self._resolve_server_response(response)
+        return response.json()
+
+    def push_study(
+        self,
+        object: EDSLObject,
+        description: Optional[str] = None,
+        alias: Optional[str] = None,
+        visibility: Optional[VisibilityType] = "private",
+        force: bool = False,
+    ) -> "Scenario":
+        """Upload a study object via :meth:`push`, then attach GitLab write credentials.
+
+        The object push API no longer returns GitLab fields; this method calls
+        :meth:`mint_study_write_token` after a successful push.
+        """
+        scenario = self.push(
+            object=object,
+            description=description,
+            alias=alias,
+            visibility=visibility,
+            force=force,
+        )
+        object_uuid = scenario.get("uuid")
+        if not object_uuid:
+            from .exceptions import CoopResponseError
+
+            raise CoopResponseError(
+                "Push did not return an object uuid; cannot mint study write token."
+            )
+        token_payload = self.mint_study_write_token(object_uuid)
+        scenario.update(token_payload)
+        return scenario
+
+    def patch_study(
+        self,
+        url_or_uuid: Union[str, UUID],
+        description: Optional[str] = None,
+        alias: Optional[str] = None,
+        value: Optional[EDSLObject] = None,
+        visibility: Optional[VisibilityType] = None,
+    ) -> dict[str, Any]:
+        """Patch a study object on Coop, then mint GitLab write credentials."""
+        result = self.patch(
+            url_or_uuid=url_or_uuid,
+            description=description,
+            alias=alias,
+            value=value,
+            visibility=visibility,
+        )
+        study_uuid = result.get("uuid") or result.get("object_uuid")
+        if not study_uuid:
+            study_uuid, _, _ = self._resolve_uuid_or_alias(url_or_uuid)
+        if not study_uuid:
+            raise CoopValueError("Could not determine study UUID after patch.")
+        token_payload = self.mint_study_write_token(study_uuid)
+        merged: dict[str, Any] = {**result, **token_payload}
+        merged.setdefault("uuid", str(study_uuid))
+        return merged
+
     def clone_study(
         self, *, uuid: Optional[str] = None, alias: Optional[str] = None
     ) -> dict[str, Any]:
@@ -4103,17 +4179,6 @@ class Coop(CoopFunctionsMixin):
                         "uuid": metadata.get("uuid"),
                         "version": self._edsl_version,
                         "visibility": metadata.get("visibility"),
-                        **(
-                            {
-                                "gitlab_url": metadata.get("gitlab_url"),
-                                "gitlab_token": metadata.get("gitlab_token"),
-                                "gitlab_token_expires_at": metadata.get(
-                                    "gitlab_token_expires_at"
-                                ),
-                            }
-                            if object_type == "study"
-                            else {}
-                        ),
                     }
                 )
 
@@ -4202,17 +4267,6 @@ class Coop(CoopFunctionsMixin):
                 "uuid": object_uuid,
                 "version": self._edsl_version,
                 "visibility": response_json.get("visibility"),
-                **(
-                    {
-                        "gitlab_url": response_json.get("gitlab_url"),
-                        "gitlab_token": response_json.get("gitlab_token"),
-                        "gitlab_token_expires_at": response_json.get(
-                            "gitlab_token_expires_at"
-                        ),
-                    }
-                    if object_type == "study"
-                    else {}
-                ),
             }
         )
 
