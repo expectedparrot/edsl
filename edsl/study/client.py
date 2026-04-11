@@ -9,6 +9,7 @@ from edsl.coop.utils import VisibilityType
 
 if TYPE_CHECKING:
     from edsl.coop import Coop
+    from edsl.coop.coop_regular_objects import CoopRegularObjects
     from edsl.study.study import Study
 
 
@@ -116,11 +117,6 @@ class StudyClient:
             visibility=visibility,
         )
 
-    def list_repos(self) -> list[dict]:
-        """List study repos for the current user.
-
-        Wraps :meth:`~edsl.coop.Coop.list_study_repos`. Returns the ``repos``
-        array from the JSON body.
-        """
-        data = self._coop.list(object_type="study")
-        return data
+    def list_repos(self) -> "CoopRegularObjects":
+        """List study objects for the current user via :meth:`~edsl.coop.Coop.list`."""
+        return self._coop.list(object_type="study")

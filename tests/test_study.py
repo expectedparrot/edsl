@@ -203,12 +203,32 @@ class TestStudyClient:
         mock_resp.status_code = 200
         mock_resp.ok = True
         mock_resp.headers = {}
-        mock_resp.json.return_value = {"repos": [{"uuid": "u1"}]}
+        mock_resp.json.return_value = {
+            "objects": [
+                {
+                    "uuid": "u1",
+                    "object_type": "study",
+                    "alias": None,
+                    "owner_username": "tester",
+                    "description": None,
+                    "visibility": "private",
+                    "version": "1.0",
+                    "last_updated_ts": None,
+                    "created_ts": None,
+                }
+            ],
+            "current_page": 1,
+            "total_pages": 1,
+            "page_size": 10,
+            "total_count": 1,
+        }
         coop = Coop(api_key=API_KEY, url="https://test.example.com")
         with patch.object(coop, "_send_server_request", return_value=mock_resp):
             client = StudyClient(coop=coop)
             repos = client.list_repos()
         assert len(repos) == 1
+        assert repos[0]["uuid"] == "u1"
+        assert repos[0]["object_type"] == "study"
 
     def test_update_metadata(self):
         mock_resp = MagicMock()
@@ -226,10 +246,16 @@ class TestStudyClient:
         mock_resp.status_code = 200
         mock_resp.ok = True
         mock_resp.headers = {}
-        mock_resp.json.return_value = {"repos": []}
+        mock_resp.json.return_value = {
+            "objects": [],
+            "current_page": 1,
+            "total_pages": 1,
+            "page_size": 10,
+            "total_count": 0,
+        }
         with patch.object(coop, "_send_server_request", return_value=mock_resp):
             client = StudyClient(coop=coop)
-            assert client.list_repos() == []
+            assert len(client.list_repos()) == 0
 
 
 # ------------------------------------------------------------------
