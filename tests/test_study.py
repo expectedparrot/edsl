@@ -72,7 +72,7 @@ class TestClientHelpers:
 
 class TestStudyClient:
     def test_push_request(self):
-        """Exercise real ``Coop.push`` wiring: signed URL, GCS PUT, confirm-upload."""
+        """Exercise ``Coop.push_study``: push + ``study-write-token`` (and GCS upload)."""
         push_resp = MagicMock()
         push_resp.status_code = 200
         push_resp.ok = True
@@ -84,8 +84,16 @@ class TestStudyClient:
             "alias": None,
             "description": None,
             "visibility": "private",
+        }
+
+        token_resp = MagicMock()
+        token_resp.status_code = 200
+        token_resp.ok = True
+        token_resp.headers = {}
+        token_resp.json.return_value = {
             "gitlab_url": "g",
             "gitlab_token": "t",
+            "gitlab_token_expires_at": "2099-01-01T00:00:00Z",
         }
 
         confirm_resp = MagicMock()
@@ -103,6 +111,8 @@ class TestStudyClient:
                 return push_resp
             if uri == "api/v0/object/confirm-upload":
                 return confirm_resp
+            if uri == "api/v0/gitlab/study-write-token":
+                return token_resp
             raise AssertionError(f"unexpected _send_server_request uri: {uri!r}")
 
         coop = Coop(api_key=API_KEY, url="https://test.example.com")

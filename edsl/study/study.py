@@ -275,24 +275,18 @@ class Study:
     def is_pushed(self) -> bool:
         return self._uuid is not None
 
-    def push(
+    def _sync_to_remote(
         self,
-        branch: str = "main",
+        branch: str,
         *,
-        alias: str | None = None,
-        title: str | None = None,
-        description: str | None = None,
-        visibility: str | None = None,
-        verbose: bool = False,
+        alias: str | None,
+        title: str | None,
+        description: str | None,
+        visibility: str | None,
+        verbose: bool,
+        spinner_msg: str,
     ) -> PushResult:
-        """Push the local git repo to GitLab via the meta-server.
-
-        On the first push, creates a UUID and GitLab project. Subsequent
-        pushes just mint a new token and push.
-
-        Returns a :class:`PushResult` with the study UUID, remote URL,
-        branch, and whether this was the first push.
-        """
+        """Coop upload/patch, mint GitLab token, then ``git push``."""
         self._update_metadata_fields(
             alias=alias,
             title=title,
@@ -301,13 +295,7 @@ class Study:
         )
         self._check_git_clean()
 
-        is_first_push = self._uuid is None
-        spinner_msg = (
-            "[bold cyan]Creating study..."
-            if is_first_push
-            else "[bold cyan]Requesting push token..."
-        )
-
+        was_new = self._uuid is None
         client = StudyClient(self.server_url)
         with _spinner(spinner_msg):
             data = client.push_request(
@@ -332,7 +320,69 @@ class Study:
             uuid=self._uuid,
             url=self._gitlab_url,
             branch=branch,
-            created=is_first_push,
+            created=was_new,
+        )
+
+    def push(
+        self,
+        branch: str = "main",
+        *,
+        alias: str | None = None,
+        title: str | None = None,
+        description: str | None = None,
+        visibility: str | None = None,
+        verbose: bool = False,
+    ) -> PushResult:
+        """Push the local git repo to GitLab via the meta-server.
+
+        On the first push, creates a UUID and GitLab project. Subsequent
+        pushes just mint a new token and push.
+
+        Returns a :class:`PushResult` with the study UUID, remote URL,
+        branch, and whether this was the first push.
+        """
+        spinner_msg = (
+            "[bold cyan]Creating study..."
+            if self._uuid is None
+            else "[bold cyan]Requesting push token..."
+        )
+        return self._sync_to_remote(
+            branch,
+            alias=alias,
+            title=title,
+            description=description,
+            visibility=visibility,
+            verbose=verbose,
+            spinner_msg=spinner_msg,
+        )
+
+    def patch(
+        self,
+        branch: str = "main",
+        *,
+        alias: str | None = None,
+        title: str | None = None,
+        description: str | None = None,
+        visibility: str | None = None,
+        verbose: bool = False,
+    ) -> PushResult:
+        """Sync an already-pushed study: patch object on Coop, mint token, ``git push``.
+
+        Same flow as :meth:`push` after the first upload; requires
+        :attr:`uuid` to be set (use :meth:`push` to create the remote study).
+        """
+        if self._uuid is None:
+            raise StudyError(
+                "Study has not been pushed yet. Use push() to create it on the server."
+            )
+        return self._sync_to_remote(
+            branch,
+            alias=alias,
+            title=title,
+            description=description,
+            visibility=visibility,
+            verbose=verbose,
+            spinner_msg="[bold cyan]Patching study...",
         )
 
     def pull(self, branch: str = "main", *, verbose: bool = False) -> PullResult:
