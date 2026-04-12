@@ -952,23 +952,21 @@ class AnswerStore:
         key = answer.storage_key()
         data = answer.to_dict()
 
-        # Both stores - persistent for durability, volatile for fast reads
-        self._storage.write_persistent(key, data)
         self._storage.write_volatile(key, data)
+        if not getattr(self._storage, "_all_redis", False):
+            self._storage.write_persistent(key, data)
 
     def store_batch(self, answers: list[Answer]) -> None:
         """Write multiple answers in a single batch operation."""
         if not answers:
             return
-        persistent_items = {}
-        volatile_items = {}
+        items = {}
         for answer in answers:
             key = answer.storage_key()
-            data = answer.to_dict()
-            persistent_items[key] = data
-            volatile_items[key] = data
-        self._storage.batch_write_persistent(persistent_items)
-        self._storage.batch_write_volatile(volatile_items)
+            items[key] = answer.to_dict()
+        self._storage.batch_write_volatile(items)
+        if not getattr(self._storage, "_all_redis", False):
+            self._storage.batch_write_persistent(items)
 
     # Read operations
 
