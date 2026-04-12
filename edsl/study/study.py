@@ -87,8 +87,9 @@ class Study:
     (``EXPECTED_PARROT_API_KEY``).
 
     Only ``name`` is required at construction (defaults to ``"study"``).
-    Metadata like ``alias``, ``title``, ``description``, and ``visibility``
-    can be set at push time or updated later.
+    Metadata like ``alias``, ``title`` (local / serialized only), ``description``, and ``visibility``
+    can be set at push time or updated later. Server-side metadata updates
+    (via :meth:`set_metadata`) cover alias, description, and visibility only.
     """
 
     name = NameField()
@@ -435,18 +436,21 @@ class Study:
         self,
         *,
         alias: str | None = None,
-        title: str | None = None,
         description: str | None = None,
         visibility: str | None = None,
         verbose: bool = False,
     ):
-        """Update metadata on the server for an already-pushed study."""
+        """Update Coop object metadata for an already-pushed study.
+
+        Only ``alias``, ``description``, and ``visibility`` are sent to the
+        server. Use :meth:`push` / :meth:`patch` with ``title=`` to change the
+        title stored in the study object blob and ``.study.json``.
+        """
         if self._uuid is None:
             raise StudyError("Study has not been pushed yet.")
 
         patch = {
             "alias": alias,
-            "title": title,
             "description": description,
             "visibility": visibility,
         }

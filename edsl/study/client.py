@@ -84,19 +84,18 @@ class StudyClient:
         uuid: str,
         *,
         alias: Optional[str] = None,
-        title: Optional[str] = None,
         description: Optional[str] = None,
         visibility: Optional[VisibilityType] = None,
     ) -> None:
-        """Patch server-side metadata for a study you own.
+        """Patch Coop object metadata for a study (no JSON content change).
 
-        Wraps :meth:`~edsl.coop.Coop.update_study_metadata`. ``None`` values
-        are omitted from the request payload by the Coop client.
+        Wraps :meth:`~edsl.coop.Coop.patch_metadata` (``PATCH api/v0/object``).
+        At least one of ``alias``, ``description``, or ``visibility`` must be
+        non-``None`` or the Coop client raises :class:`~edsl.coop.exceptions.CoopPatchError`.
         """
-        self._coop.update_study_metadata(
+        self._coop.patch_metadata(
             uuid,
             alias=alias,
-            title=title,
             description=description,
             visibility=visibility,
         )

@@ -448,48 +448,6 @@ class Coop(CoopFunctionsMixin):
         self._resolve_server_response(response)
         return response.json()
 
-    def update_study_metadata(
-        self,
-        repo_uuid: str,
-        *,
-        alias: Optional[str] = None,
-        title: Optional[str] = None,
-        description: Optional[str] = None,
-        visibility: Optional[VisibilityType] = None,
-    ) -> dict[str, Any]:
-        """Patch metadata for a study repo you own.
-
-        Calls ``PATCH /api/v0/gitlab/repos/{repo_uuid}``. At least one of the
-        optional fields should be non-``None`` or the API returns an error.
-
-        Args:
-            repo_uuid: Study repository id.
-            alias: New alias, if changing.
-            title: New title, if changing.
-            description: New description, if changing.
-            visibility: New visibility, if changing.
-
-        Returns:
-            Parsed JSON body. On success, typically includes ``uuid``.
-        """
-        payload: dict[str, Any] = {}
-        if alias is not None:
-            payload["alias"] = alias
-        if title is not None:
-            payload["title"] = title
-        if description is not None:
-            payload["description"] = description
-        if visibility is not None:
-            payload["visibility"] = visibility
-        response = self._send_server_request(
-            f"api/v0/gitlab/repos/{repo_uuid}",
-            "PATCH",
-            payload=payload,
-            timeout=30,
-        )
-        self._resolve_server_response(response)
-        return response.json()
-
     def _get_latest_stable_version(self, version: str) -> str:
         """
         Extract the latest stable PyPI version from a version string.
@@ -1837,6 +1795,52 @@ class Coop(CoopFunctionsMixin):
         self._resolve_server_response(response)
         return response.json()
 
+    def patch_metadata(
+        self,
+        obj_uuid: Union[str, UUID],
+        *,
+        description: Optional[str] = None,
+        alias: Optional[str] = None,
+        visibility: Optional[VisibilityType] = None,
+    ) -> dict[str, Any]:
+        """Update Coop object metadata without changing stored JSON content.
+
+        Sends ``PATCH api/v0/object`` with ``json_string`` set to ``None`` so
+        only ``description``, ``alias``, and ``visibility`` are applied. Used
+        for new-format (GCS) objects that upload content via a separate flow.
+
+        Args:
+            obj_uuid: Object UUID on Coop.
+            description: New description, if changing.
+            alias: New alias, if changing.
+            visibility: New visibility, if changing.
+
+        Returns:
+            Parsed JSON response body.
+
+        Raises:
+            CoopPatchError: If no metadata field is provided.
+        """
+        if description is None and alias is None and visibility is None:
+            from .exceptions import CoopPatchError
+
+            raise CoopPatchError("Nothing to patch.")
+        if alias is not None:
+            self._validate_alias(alias)
+        metadata_response = self._send_server_request(
+            uri="api/v0/object",
+            method="PATCH",
+            params={"uuid": str(obj_uuid)},
+            payload={
+                "description": description,
+                "alias": alias,
+                "json_string": None,
+                "visibility": visibility,
+            },
+        )
+        self._resolve_server_response(metadata_response)
+        return metadata_response.json()
+
     def _patch_new_format_object(
         self,
         obj_uuid: UUID,
@@ -1850,18 +1854,12 @@ class Coop(CoopFunctionsMixin):
         """
         # Step 1: Update metadata only (no json_string)
         if description is not None or alias is not None or visibility is not None:
-            metadata_response = self._send_server_request(
-                uri="api/v0/object",
-                method="PATCH",
-                params={"uuid": obj_uuid},
-                payload={
-                    "description": description,
-                    "alias": alias,
-                    "json_string": None,  # Don't send content to traditional endpoint
-                    "visibility": visibility,
-                },
+            self.patch_metadata(
+                obj_uuid,
+                description=description,
+                alias=alias,
+                visibility=visibility,
             )
-            self._resolve_server_response(metadata_response)
 
         # Step 2: Get signed upload URL for content update
         upload_url_response = self._send_server_request(
