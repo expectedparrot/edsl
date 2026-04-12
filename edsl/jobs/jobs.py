@@ -669,7 +669,9 @@ class Jobs(Base):
             JobsFlowVisualization(self).show_flow(filename=filename)
         else:
             # Fallback to survey flow visualisation
-            from ..surveys.extras.survey_flow_visualization import SurveyFlowVisualization
+            from ..surveys.extras.survey_flow_visualization import (
+                SurveyFlowVisualization,
+            )
 
             scenario = self.scenarios[0] if self.scenarios else None
             SurveyFlowVisualization(
@@ -1046,6 +1048,7 @@ class Jobs(Base):
         """Prepare the job to run and ensure keys are in place for a remote job."""
         # Check for collisions between agent trait keys and question names
         from .exceptions import JobsValueError
+
         question_names = {q.question_name for q in self.survey.questions}
         for agent in self.agents:
             conflicting = set(agent.traits.keys()) & question_names
@@ -1360,8 +1363,11 @@ class Jobs(Base):
 
             # Pass fresh parameter to all models
             all_models = list(self.models)
-            for q in getattr(self.survey, 'questions', []):
-                if hasattr(q, '_model') and getattr(q, 'question_type', None) == 'thinking':
+            for q in getattr(self.survey, "questions", []):
+                if (
+                    hasattr(q, "_model")
+                    and getattr(q, "question_type", None) == "thinking"
+                ):
                     all_models.append(q._model)
             for model in all_models:
                 model.fresh = self.run_config.parameters.fresh
@@ -1369,8 +1375,11 @@ class Jobs(Base):
         else:
             # Pass fresh parameter to all models
             all_models = list(self.models)
-            for q in getattr(self.survey, 'questions', []):
-                if hasattr(q, '_model') and getattr(q, 'question_type', None) == 'thinking':
+            for q in getattr(self.survey, "questions", []):
+                if (
+                    hasattr(q, "_model")
+                    and getattr(q, "question_type", None) == "thinking"
+                ):
                     all_models.append(q._model)
             for model in all_models:
                 model.fresh = self.run_config.parameters.fresh
@@ -1594,6 +1603,31 @@ class Jobs(Base):
                     results.append(r)
         return Results(survey=self.survey, data=results)
 
+    @staticmethod
+    def _cleanup_async_clients() -> None:
+        """Close cached async HTTP clients to prevent 'Unclosed client session' warnings."""
+        import asyncio
+
+        async def _close():
+            from ..inference_services.services.open_ai_service import OpenAIService
+            from ..inference_services.services.open_ai_service_v2 import OpenAIServiceV2
+
+            for svc_cls in [OpenAIService, OpenAIServiceV2]:
+                for client in list(svc_cls._async_client_instances.values()):
+                    try:
+                        await client.close()
+                    except Exception:
+                        pass
+                svc_cls._async_client_instances = {}
+
+        try:
+            asyncio.run(_close())
+        except RuntimeError:
+            # Event loop already running or closed — fall back to new loop
+            loop = asyncio.new_event_loop()
+            loop.run_until_complete(_close())
+            loop.close()
+
     def _execute_with_runner(self) -> "Results":
         """Execute job locally using the Runner engine."""
         from ..runner.runner import Runner
@@ -1731,6 +1765,9 @@ class Jobs(Base):
 
         self._logger.info("Starting local execution with Runner")
         results = self._execute_with_runner()
+
+        # Close cached async HTTP clients to avoid 'Unclosed client session' warnings
+        self._cleanup_async_clients()
 
         self._logger.info("Applying post-run methods to results")
         final_results = self._apply_post_run_methods(results)
@@ -2174,11 +2211,13 @@ class Jobs(Base):
         counts.append(str(num_scenarios))
         details.append(scenario_detail)
 
-        summary = Dataset([
-            {"Component": components},
-            {"Count": counts},
-            {"Details": details},
-        ])
+        summary = Dataset(
+            [
+                {"Component": components},
+                {"Count": counts},
+                {"Details": details},
+            ]
+        )
         return [("Jobs", summary)]
 
     def _summary_repr(self) -> str:
@@ -2200,11 +2239,13 @@ class Jobs(Base):
         if self.survey:
             num_q = len(self.survey.questions)
             names = [q.question_name for q in self.survey.questions]
-            rows.append((
-                "Survey",
-                str(num_q),
-                ", ".join(names) if names else "",
-            ))
+            rows.append(
+                (
+                    "Survey",
+                    str(num_q),
+                    ", ".join(names) if names else "",
+                )
+            )
 
         # Agents
         num_agents = len(self.agents) if self.agents else 0
@@ -2350,7 +2391,9 @@ class Jobs(Base):
         """
         from .jobs_serializer import JobsSerializer
 
-        return JobsSerializer(self).to_jsonl(filename=filename, root=root, message=message)
+        return JobsSerializer(self).to_jsonl(
+            filename=filename, root=root, message=message
+        )
 
     @classmethod
     def from_jsonl(cls, source, root=None, **kwargs):

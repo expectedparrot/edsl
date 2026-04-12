@@ -63,6 +63,14 @@ class OpenAIServiceV2(InferenceServiceABC):
         cls._async_client_instances = {}
 
     @classmethod
+    async def close_async_clients(cls):
+        """Close all cached async clients to avoid 'Unclosed client session' warnings."""
+        for client in cls._async_client_instances.values():
+            if hasattr(client, "close"):
+                await client.close()
+        cls._async_client_instances = {}
+
+    @classmethod
     def _resolve_clients(cls):
         """Resolve lazy client classes on first use."""
         if cls._sync_client_ is None:
