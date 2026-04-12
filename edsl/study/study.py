@@ -264,6 +264,8 @@ class Study:
             value = kwargs.get(field)
             if value is not None:
                 setattr(self, field, value)
+        if kwargs.get("expected_parrot_url") is not None:
+            self.expected_parrot_url = kwargs.get("expected_parrot_url")
 
     # ------------------------------------------------------------------
     # Public API
@@ -315,6 +317,7 @@ class Study:
             alias=data.get("alias"),
             description=data.get("description"),
             visibility=data.get("visibility"),
+            expected_parrot_url=client._coop.url,
         )
         self._gitlab_url = data.get("gitlab_url", self._gitlab_url)
         self._save_metadata()
@@ -720,7 +723,7 @@ class Study:
         d = {
             "name": self.name,
             "directory_location": self._directory_location,
-            "server_url": self.expected_parrot_url,
+            "expected_parrot_url": self.expected_parrot_url,
             "uuid": self._uuid,
             "alias": self.alias,
             "title": self.title,
@@ -739,7 +742,7 @@ class Study:
         s = cls(
             name=d.get("name", "study"),
             directory_location=d.get("directory_location"),
-            expected_parrot_url=d.get("server_url"),
+            expected_parrot_url=d.get("expected_parrot_url"),
         )
         s._update_metadata_fields(
             alias=d.get("alias"),
