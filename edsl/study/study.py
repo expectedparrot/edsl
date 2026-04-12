@@ -497,12 +497,12 @@ class Study:
         with _spinner("[bold cyan]Requesting clone token...") as status:
             data = client.clone_request(uuid=uuid, alias=alias)
 
-            token = data["token"]
+            token = data["gitlab_token"]
             gitlab_url = data["gitlab_url"]
-            repo_uuid = data["uuid"]
+            study_uuid = data["uuid"]
 
             authed_url = authed_remote_url(gitlab_url, token)
-            dir_name = (alias or repo_uuid[:12]).replace("/", "-")
+            dir_name = (alias or study_uuid[:12]).replace("/", "-")
 
             if directory_location is None:
                 directory_location = tempfile.mkdtemp(prefix=f"edsl_study_{dir_name}_")
@@ -527,14 +527,21 @@ class Study:
                 dir_name,
                 clone_path,
                 expected_parrot_url,
-                alias=alias,
-                uuid=repo_uuid,
+                uuid=study_uuid,
                 gitlab_url=gitlab_url,
             )
+
+            study._update_metadata_fields(
+                alias=data.get("alias"),
+                description=data.get("description"),
+                visibility=data.get("visibility"),
+                expected_parrot_url=client._coop.url,
+            )
+
             study._write_gitignore()
             study._save_metadata()
 
-        _log(verbose, f"Clone complete. uuid={repo_uuid}")
+        _log(verbose, f"Clone complete. uuid={study_uuid}")
         return study
 
     @classmethod
