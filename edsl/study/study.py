@@ -305,6 +305,9 @@ class Study:
 
         was_new = self._uuid is None
         client = StudyClient(self.expected_parrot_url)
+        self._update_metadata_fields(
+            expected_parrot_url=client._coop.url,
+        )
         with _spinner(spinner_msg):
             data = client.push_request(
                 value=self,
@@ -321,7 +324,6 @@ class Study:
             alias=data.get("alias"),
             description=data.get("description"),
             visibility=data.get("visibility"),
-            expected_parrot_url=client._coop.url,
         )
         self._gitlab_url = data.get("gitlab_url", self._gitlab_url)
         self._save_metadata()
