@@ -228,10 +228,11 @@ class TestStudyClient:
         mock_resp.status_code = 200
         mock_resp.ok = True
         mock_resp.headers = {}
+        mock_resp.json.return_value = {}
         coop = Coop(api_key=API_KEY, url="https://test.example.com")
         with patch.object(coop, "_send_server_request", return_value=mock_resp):
             client = StudyClient(coop=coop)
-            client.update_metadata("uuid-1", title="New")
+            client.update_metadata("uuid-1", description="New")
 
     def test_study_client_accepts_coop_instance(self):
         coop = Coop(api_key=API_KEY, url="https://test.example.com")
@@ -403,6 +404,19 @@ class TestSerialization:
         assert d["name"] == "my_study"
         assert d["edsl_class_name"] == "Study"
         assert "uuid" in d
+
+    def test_to_dict_omit_metadata(self, study):
+        study._uuid = "study-uuid-123"
+        study.alias = "a"
+        study.title = "t"
+        study.description = "d"
+        study.visibility = "public"
+        slim = study.to_dict(include_metadata=False)
+        for key in ("uuid", "alias", "description", "visibility"):
+            assert key not in slim
+        assert slim["title"] == "t"
+        assert slim["name"] == "my_study"
+        assert "directory_location" in slim
 
     def test_from_dict_roundtrip(self, study):
         d = study.to_dict()
@@ -603,15 +617,14 @@ class TestSetMetadata:
     def test_set_metadata(self, mock_update, study):
         study._uuid = "test-uuid"
 
-        study.set_metadata(alias="new-alias", title="New Title")
+        study.set_metadata(alias="new-alias", description="New desc")
 
         assert study.alias == "new-alias"
-        assert study.title == "New Title"
+        assert study.description == "New desc"
         mock_update.assert_called_once_with(
             "test-uuid",
             alias="new-alias",
-            title="New Title",
-            description=None,
+            description="New desc",
             visibility=None,
         )
 

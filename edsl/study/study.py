@@ -66,6 +66,9 @@ DEFAULT_SCAFFOLD = {
 
 _METADATA_FIELDS = ("alias", "title", "description", "visibility")
 
+# Keys dropped from :meth:`Study.to_dict` when ``include_metadata=False`` (Coop JSON body).
+_COOP_METADATA_FIELDS = ("uuid", "alias", "description", "visibility")
+
 
 def _log(verbose: bool, msg: str):
     if verbose:
@@ -723,17 +726,28 @@ class Study:
     # Serialization / representation
     # ------------------------------------------------------------------
 
-    def to_dict(self, add_edsl_version=True) -> dict:
+    def to_dict(self, add_edsl_version=True, *, include_metadata: bool = True) -> dict:
+        """Serialize this study to a dict.
+
+        Args:
+            add_edsl_version: If True, include ``edsl_version`` and ``edsl_class_name``.
+            include_metadata: If False, omit keys in :data:`_COOP_METADATA_FIELDS` (values
+                mirrored on the Coop object / request). Used when pushing so they are not
+                repeated inside the stored JSON.
+        """
         d = {
             "name": self.name,
             "directory_location": self._directory_location,
             "expected_parrot_url": self.expected_parrot_url,
+            "title": self.title,
             "uuid": self._uuid,
             "alias": self.alias,
-            "title": self.title,
             "description": self.description,
             "visibility": self.visibility,
         }
+        if not include_metadata:
+            for key in _COOP_METADATA_FIELDS:
+                d.pop(key, None)
         if add_edsl_version:
             from edsl import __version__
 

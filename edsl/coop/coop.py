@@ -1782,7 +1782,7 @@ class Coop(CoopFunctionsMixin):
                 "alias": alias,
                 "json_string": (
                     json.dumps(
-                        value.to_dict(),
+                        self.to_dict_for_coop(value),
                         default=self._json_handle_none,
                         allow_nan=False,
                     )
@@ -1876,7 +1876,7 @@ class Coop(CoopFunctionsMixin):
             raise CoopServerResponseError("Failed to get signed upload URL")
 
         json_content = json.dumps(
-            value.to_dict(),
+            self.to_dict_for_coop(value),
             default=self._json_handle_none,
             allow_nan=False,
         )
@@ -4060,6 +4060,18 @@ class Coop(CoopFunctionsMixin):
             filestore["base64_string"] = "offloaded"
             filestore["external_locations"] = filestore.external_locations
 
+    @staticmethod
+    def to_dict_for_coop(obj: EDSLObject) -> dict:
+        """Serialize ``obj`` for JSON stored on Coop (push / patch body).
+
+        Studies omit duplicate metadata keys; other types use ``to_dict()`` as-is.
+        """
+        from ..study.study import Study
+
+        if isinstance(obj, Study):
+            return obj.to_dict(include_metadata=False)
+        return obj.to_dict()
+
     def push(
         self,
         object: EDSLObject,
@@ -4095,7 +4107,7 @@ class Coop(CoopFunctionsMixin):
 
         object_type = ObjectRegistry.get_object_type_by_edsl_class(object)
         request_timeout = 30 if object_type == "study" else 10
-        object_dict = object.to_dict()
+        object_dict = self.to_dict_for_coop(object)
         object_hash = object.get_hash() if hasattr(object, "get_hash") else None
 
         # Process FileStore objects: upload to GCS and offload
