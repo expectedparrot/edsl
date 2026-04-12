@@ -271,6 +271,42 @@ class JobStore:
 
         self._maybe_finalize(job_id)
 
+    def mark_interviews_completed_batch(
+        self,
+        job_id: str,
+        interview_ids: list[str],
+        had_failures_ids: set[str] | None = None,
+    ) -> None:
+        """Batch version of mark_interview_completed using a single SADD + pipeline.
+
+        1. Single SADD to add all interview_ids to the counted set.
+        2. Single pipeline for all counter increments.
+        3. One finalization check at the end.
+        """
+        if not interview_ids:
+            return
+        had_failures_ids = had_failures_ids or set()
+
+        # Atomically add all to counted set — returns count of newly added
+        set_key = f"job:{job_id}:counted_interviews"
+        self._storage.add_multiple_to_set(set_key, interview_ids)
+
+        # Build increment map for completed/failed counters
+        completed_key = f"job:{job_id}:completed_interviews"
+        failed_key = f"job:{job_id}:failed_interviews"
+        completed_count = sum(1 for iid in interview_ids if iid not in had_failures_ids)
+        failed_count = len(interview_ids) - completed_count
+
+        increments = {}
+        if completed_count > 0:
+            increments[completed_key] = completed_count
+        if failed_count > 0:
+            increments[failed_key] = failed_count
+        if increments:
+            self._storage.batch_increment_volatile(increments)
+
+        self._maybe_finalize(job_id)
+
     def _maybe_finalize(self, job_id: str) -> None:
         """Check if job is done and update state accordingly."""
         definition = self.get_definition(job_id)
@@ -526,11 +562,18 @@ class InterviewStore:
             new_state = status.compute_state(definition.total_tasks)
             self.set_state(interview_id, new_state)
 
+    def set_states_batch(self, states: dict[str, "InterviewState"]) -> None:
+        """Set multiple interview states in a single pipeline."""
+        if not states:
+            return
+        items = {f"interview:{iid}:state": state.value for iid, state in states.items()}
+        self._storage.batch_write_volatile(items)
+
     def finalize_batch(self, job_id: str, interview_ids: list[str]) -> None:
         """Check if multiple interviews are done and update states accordingly.
 
-        Uses batch reads to check all interviews at once, then individually
-        updates any that are finalized.
+        Uses batch reads to check all interviews at once, then a single
+        batch write for all state updates.
         """
         if not interview_ids:
             return
@@ -539,14 +582,17 @@ class InterviewStore:
         definitions = self.get_definitions_batch(job_id, interview_ids)
         statuses = self.get_statuses_batch(interview_ids)
 
+        new_states: dict[str, InterviewState] = {}
         for interview_id in interview_ids:
             defn = definitions.get(interview_id)
             status = statuses.get(interview_id)
             if defn is None or status is None:
                 continue
             if status.is_done(defn.total_tasks):
-                new_state = status.compute_state(defn.total_tasks)
-                self.set_state(interview_id, new_state)
+                new_states[interview_id] = status.compute_state(defn.total_tasks)
+
+        if new_states:
+            self.set_states_batch(new_states)
 
 
 class TaskStore:
@@ -819,6 +865,39 @@ class TaskStore:
             _timing["deserialize"] = (_time.time() - _t0) * 1000
             _timing["n"] = len(task_ids)
 
+        return result
+
+    def get_definitions_flat_batch(
+        self,
+        job_id: str,
+        task_interview_map: dict[str, str],
+    ) -> dict[str, "TaskDefinition | None"]:
+        """Get task definitions for tasks across multiple interviews in one call.
+
+        Args:
+            job_id: The job ID.
+            task_interview_map: dict mapping task_id -> interview_id.
+
+        Returns:
+            dict mapping task_id -> TaskDefinition (or None).
+        """
+        if not task_interview_map:
+            return {}
+
+        keys = [
+            f"job:{job_id}:interview:{iid}:task:{tid}"
+            for tid, iid in task_interview_map.items()
+        ]
+        values = self._storage.batch_read_persistent(keys)
+
+        result = {}
+        for tid, iid in task_interview_map.items():
+            key = f"job:{job_id}:interview:{iid}:task:{tid}"
+            data = values.get(key)
+            if data:
+                result[tid] = TaskDefinition.from_dict(tid, job_id, iid, data)
+            else:
+                result[tid] = None
         return result
 
     def set_statuses_batch(self, task_ids: list[str], status: TaskStatus) -> None:
