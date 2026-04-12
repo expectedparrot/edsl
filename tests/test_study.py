@@ -648,7 +648,7 @@ class TestClone:
     def test_clone_by_uuid(self, mock_clone_req, tmp_path):
         mock_clone_req.return_value = {
             "uuid": "clone-uuid",
-            "token": "glpat-clone",
+            "gitlab_token": "glpat-clone",
             "gitlab_url": "https://gitlab.com/bot/clone-uuid.git",
         }
 
