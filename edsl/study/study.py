@@ -311,6 +311,11 @@ class Study:
         if self._uuid is None:
             self._uuid = data["uuid"]
             _log(verbose, f"Created study uuid={self._uuid}")
+        self._update_metadata_fields(
+            alias=data.get("alias"),
+            description=data.get("description"),
+            visibility=data.get("visibility"),
+        )
         self._gitlab_url = data.get("gitlab_url", self._gitlab_url)
         self._save_metadata()
 

@@ -738,7 +738,9 @@ class TestFromRepo:
             capture_output=True,
         )
 
-        s = Study.from_repo(str(repo_dir), expected_parrot_url="https://test.example.com")
+        s = Study.from_repo(
+            str(repo_dir), expected_parrot_url="https://test.example.com"
+        )
 
         assert s.name == "myrepo"
         assert s.path == str(repo_dir)

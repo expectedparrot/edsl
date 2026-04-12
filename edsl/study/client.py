@@ -32,12 +32,12 @@ class StudyClient:
     (and transport errors from ``requests``).
     """
 
-    def __init__(self, expected_parrot_url: str | None = None, coop: Optional["Coop"] = None):
+    def __init__(
+        self, expected_parrot_url: str | None = None, coop: Optional["Coop"] = None
+    ):
         from edsl.coop import Coop
 
-        self._coop = (
-            coop if coop is not None else Coop(url=expected_parrot_url)
-        )
+        self._coop = coop if coop is not None else Coop(url=expected_parrot_url)
 
     def push_request(
         self,
