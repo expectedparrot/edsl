@@ -13,22 +13,6 @@ if TYPE_CHECKING:
     from edsl.study.study import Study
 
 
-def _resolve_server_url(server_url: str | None) -> str:
-    """Return the Coop frontend base URL (trailing slash stripped).
-
-    Passed to :class:`~edsl.coop.Coop` so ``api_url`` matches other Coop
-    traffic. If omitted, uses ``EXPECTED_PARROT_URL`` from config.
-    """
-    if server_url is not None:
-        return server_url.rstrip("/")
-    try:
-        from edsl.config import CONFIG
-
-        return str(CONFIG.EXPECTED_PARROT_URL).rstrip("/")
-    except Exception:
-        return "https://www.expectedparrot.com"
-
-
 def authed_remote_url(gitlab_url: str, token: str) -> str:
     """Inject ``oauth2:{token}@`` into a GitLab URL."""
     parsed = urlparse(gitlab_url)
@@ -48,11 +32,11 @@ class StudyClient:
     (and transport errors from ``requests``).
     """
 
-    def __init__(self, server_url: str | None = None, coop: Optional["Coop"] = None):
+    def __init__(self, expected_parrot_url: str | None = None, coop: Optional["Coop"] = None):
         from edsl.coop import Coop
 
         self._coop = (
-            coop if coop is not None else Coop(url=_resolve_server_url(server_url))
+            coop if coop is not None else Coop(url=expected_parrot_url)
         )
 
     def push_request(

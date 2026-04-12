@@ -8,7 +8,7 @@ import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 
-from edsl.study.client import StudyClient, _resolve_server_url, authed_remote_url
+from edsl.study.client import StudyClient, authed_remote_url
 from edsl.study.descriptors import NameField, AliasField
 from edsl.study.exceptions import (
     StudyError,
@@ -99,14 +99,14 @@ class Study:
         name: str = "study",
         *,
         directory_location: str | None = None,
-        server_url: str | None = None,
+        expected_parrot_url: str | None = None,
         scaffold: dict | bool = False,
     ):
         """
         Args:
             name: Directory basename for the study.
             directory_location: Parent directory. Defaults to a temp directory.
-            server_url: Meta-server URL. Defaults to config or built-in fallback.
+            expected_parrot_url: Meta-server URL. Defaults to config or built-in fallback.
             scaffold: If ``True``, populate with ``DEFAULT_SCAFFOLD``. If a dict,
                 use it as a custom scaffold. If ``False`` (default), no scaffolding.
         """
@@ -123,7 +123,7 @@ class Study:
         self.path = os.path.join(self._directory_location, name)
 
         # Server
-        self.server_url = _resolve_server_url(server_url)
+        self.expected_parrot_url = expected_parrot_url
 
         # Internal state loaded from .study.json
         self._uuid: str | None = None
@@ -141,7 +141,7 @@ class Study:
         cls,
         name: str,
         path: str,
-        server_url: str,
+        expected_parrot_url: str,
         *,
         alias: str | None = None,
         uuid: str | None = None,
@@ -160,7 +160,7 @@ class Study:
         study.visibility = "private"
         study._directory_location = str(Path(path).parent)
         study.path = path
-        study.server_url = server_url
+        study.expected_parrot_url = expected_parrot_url
         study._uuid = uuid
         study._gitlab_url = gitlab_url
         return study
@@ -237,7 +237,7 @@ class Study:
             "title": self.title,
             "description": self.description,
             "visibility": self.visibility,
-            "server_url": self.server_url,
+            "expected_parrot_url": self.expected_parrot_url,
         }
         metadata_path = os.path.join(self.path, _METADATA_FILE)
         with open(metadata_path, "w") as f:
@@ -254,7 +254,9 @@ class Study:
         self.title = data.get("title")
         self.description = data.get("description")
         self.visibility = data.get("visibility", "private")
-        self.server_url = data.get("server_url", self.server_url)
+        self.expected_parrot_url = data.get(
+            "expected_parrot_url", self.expected_parrot_url
+        )
 
     def _update_metadata_fields(self, **kwargs):
         """Set any non-None metadata kwargs on self."""
@@ -296,7 +298,7 @@ class Study:
         self._check_git_clean()
 
         was_new = self._uuid is None
-        client = StudyClient(self.server_url)
+        client = StudyClient(self.expected_parrot_url)
         with _spinner(spinner_msg):
             data = client.push_request(
                 value=self,
@@ -395,7 +397,7 @@ class Study:
             raise StudyError("Study has not been pushed yet.")
 
         _log(verbose, "Requesting pull token...")
-        client = StudyClient(self.server_url)
+        client = StudyClient(self.expected_parrot_url)
         data = client.pull_request(self._uuid)
 
         remote = authed_remote_url(data["gitlab_url"], data["gitlab_token"])
@@ -445,7 +447,7 @@ class Study:
             raise StudyError("Provide at least one field to update.")
 
         _log(verbose, f"Updating metadata for {self._uuid}...")
-        client = StudyClient(self.server_url)
+        client = StudyClient(self.expected_parrot_url)
         client.update_metadata(self._uuid, **patch)
 
         self._update_metadata_fields(**body)
@@ -459,7 +461,7 @@ class Study:
         uuid: str | None = None,
         alias: str | None = None,
         directory_location: str | None = None,
-        server_url: str | None = None,
+        expected_parrot_url: str | None = None,
         verbose: bool = False,
     ) -> "Study":
         """Clone a study from the server.
@@ -473,8 +475,7 @@ class Study:
         if uuid is not None and alias is not None:
             raise StudyError("Provide uuid or alias, not both.")
 
-        url = _resolve_server_url(server_url)
-        client = StudyClient(url)
+        client = StudyClient(expected_parrot_url)
 
         with _spinner("[bold cyan]Requesting clone token...") as status:
             data = client.clone_request(uuid=uuid, alias=alias)
@@ -508,7 +509,7 @@ class Study:
             study = cls._new_bare(
                 dir_name,
                 clone_path,
-                url,
+                expected_parrot_url,
                 alias=alias,
                 uuid=repo_uuid,
                 gitlab_url=gitlab_url,
@@ -525,7 +526,7 @@ class Study:
         repo_path: str,
         *,
         name: str | None = None,
-        server_url: str | None = None,
+        expected_parrot_url: str | None = None,
         verbose: bool = False,
     ) -> "Study":
         """Wrap an existing git repository as a Study.
@@ -541,10 +542,9 @@ class Study:
         if name is None:
             name = os.path.basename(repo_path)
 
-        url = _resolve_server_url(server_url)
         _log(verbose, f"Wrapping {repo_path} as study '{name}'...")
 
-        study = cls._new_bare(name, repo_path, url)
+        study = cls._new_bare(name, repo_path, expected_parrot_url)
         study._write_gitignore()
         study._save_metadata()
 
@@ -555,7 +555,7 @@ class Study:
     def list(
         cls,
         *,
-        server_url: str | None = None,
+        expected_parrot_url: str | None = None,
         verbose: bool = False,
     ):
         """List all studies for the authenticated user.
@@ -564,10 +564,9 @@ class Study:
         """
         from edsl.scenarios import Scenario, ScenarioList
 
-        url = _resolve_server_url(server_url)
-        client = StudyClient(url)
+        client = StudyClient(expected_parrot_url)
 
-        _log(verbose, f"Listing studies from {url}...")
+        _log(verbose, f"Listing studies...")
         repos = client.list_repos()
         _log(verbose, f"Found {len(repos)} studies.")
 
@@ -716,7 +715,7 @@ class Study:
         d = {
             "name": self.name,
             "directory_location": self._directory_location,
-            "server_url": self.server_url,
+            "server_url": self.expected_parrot_url,
             "uuid": self._uuid,
             "alias": self.alias,
             "title": self.title,
@@ -735,7 +734,7 @@ class Study:
         s = cls(
             name=d.get("name", "study"),
             directory_location=d.get("directory_location"),
-            server_url=d.get("server_url"),
+            expected_parrot_url=d.get("server_url"),
         )
         s._update_metadata_fields(
             alias=d.get("alias"),
@@ -752,7 +751,7 @@ class Study:
     def code(self) -> str:
         parts = [f"    name={self.name!r}"]
         parts.append(f"    directory_location={self._directory_location!r}")
-        parts.append(f"    server_url={self.server_url!r}")
+        parts.append(f"    expected_parrot_url={self.expected_parrot_url!r}")
         args = ",\n".join(parts)
         return f"from edsl.study import Study\nstudy = Study(\n{args},\n)"
 
@@ -787,7 +786,7 @@ class Study:
         table.add_row("description", self.description or "(not set)")
         table.add_row("visibility", self.visibility or "private")
         table.add_row("path", self.path)
-        table.add_row("server_url", self.server_url)
+        table.add_row("expected_parrot_url", self.expected_parrot_url)
         table.add_row("uuid", self._uuid or "(not pushed)")
 
         try:

@@ -143,10 +143,6 @@ CONFIG_MAP = {
         "default": "http://localhost:8000",
         "info": "Base URL of the CAS editor service for push/pull operations.",
     },
-    "EDSL_STUDY_SERVER_URL": {
-        "default": "http://localhost:1234/api/v0/gitlab",
-        "info": "Base URL of the Study meta-server for git-backed study sync.",
-    },
 }
 
 

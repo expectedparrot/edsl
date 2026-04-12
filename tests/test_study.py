@@ -11,7 +11,7 @@ import pytest
 from edsl.study import Study
 from edsl.coop import Coop
 from edsl.coop.exceptions import CoopResponseError, CoopServerResponseError
-from edsl.study.client import StudyClient, _resolve_server_url, authed_remote_url
+from edsl.study.client import StudyClient, authed_remote_url
 from edsl.study.exceptions import (
     StudyError,
     StudyGitError,
@@ -37,7 +37,7 @@ def study(tmp_parent):
     return Study(
         "my_study",
         directory_location=tmp_parent,
-        server_url="https://test.example.com",
+        expected_parrot_url="https://test.example.com",
     )
 
 
@@ -47,13 +47,6 @@ def study(tmp_parent):
 
 
 class TestClientHelpers:
-    def test_resolve_server_url_explicit(self):
-        assert _resolve_server_url("https://foo.com/") == "https://foo.com"
-
-    def test_resolve_server_url_none_fallback(self):
-        url = _resolve_server_url(None)
-        assert url.startswith("http")
-
     def test_authed_remote_url(self):
         url = authed_remote_url(
             "https://gitlab.example.com/bot/uuid-here", "glpat-token123"
@@ -119,7 +112,7 @@ class TestStudyClient:
         study = Study._new_bare(
             name="Study",
             path="/",
-            server_url="https://test.example.com",
+            expected_parrot_url="https://test.example.com",
         )
         with patch.object(coop, "_send_server_request", side_effect=fake_send):
             with patch("edsl.coop.coop.requests.put", return_value=gcs_resp):
@@ -143,7 +136,7 @@ class TestStudyClient:
             study = Study._new_bare(
                 name="Study",
                 path="/",
-                server_url="https://test.example.com",
+                expected_parrot_url="https://test.example.com",
             )
             with pytest.raises(CoopResponseError, match="Alias already taken"):
                 client.push_request(value=study, alias="taken")
@@ -165,7 +158,7 @@ class TestStudyClient:
             study = Study._new_bare(
                 name="Study",
                 path="/",
-                server_url="https://test.example.com",
+                expected_parrot_url="https://test.example.com",
             )
             with pytest.raises(
                 CoopResponseError, match="already have a repo with the alias"
@@ -664,7 +657,7 @@ class TestClone:
             s = Study.clone(
                 uuid="clone-uuid",
                 directory_location=str(tmp_path),
-                server_url="https://test.example.com",
+                expected_parrot_url="https://test.example.com",
             )
 
         assert s._uuid == "clone-uuid"
@@ -679,11 +672,11 @@ class TestClone:
     )
     def test_clone_not_found(self, mock_clone_req):
         with pytest.raises(CoopServerResponseError, match="not found"):
-            Study.clone(uuid="nope", server_url="https://test.example.com")
+            Study.clone(uuid="nope", expected_parrot_url="https://test.example.com")
 
     def test_clone_requires_uuid_or_alias(self):
         with pytest.raises(StudyError, match="uuid or alias"):
-            Study.clone(server_url="https://test.example.com")
+            Study.clone(expected_parrot_url="https://test.example.com")
 
 
 # ------------------------------------------------------------------
@@ -704,7 +697,7 @@ class TestList:
             },
         ]
 
-        result = Study.list(server_url="https://test.example.com")
+        result = Study.list(expected_parrot_url="https://test.example.com")
 
         from edsl.scenarios import ScenarioList
 
@@ -714,7 +707,7 @@ class TestList:
 
     @patch.object(StudyClient, "list_repos", return_value=[])
     def test_list_empty(self, mock_list):
-        result = Study.list(server_url="https://test.example.com")
+        result = Study.list(expected_parrot_url="https://test.example.com")
         assert len(result) == 0
 
 
@@ -745,7 +738,7 @@ class TestFromRepo:
             capture_output=True,
         )
 
-        s = Study.from_repo(str(repo_dir), server_url="https://test.example.com")
+        s = Study.from_repo(str(repo_dir), expected_parrot_url="https://test.example.com")
 
         assert s.name == "myrepo"
         assert s.path == str(repo_dir)
