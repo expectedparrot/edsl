@@ -92,6 +92,32 @@ class AgentListRepresentation:
         if al._traits_presentation_template:
             caption_parts.append("custom traits template")
 
+        # Check for custom instructions (non-default)
+        default_instruction = """You are answering questions as if you were a human. Do not break character."""
+        custom_instructions = [
+            agent.instruction
+            for agent in al.data
+            if agent.instruction != default_instruction
+        ]
+        if custom_instructions:
+            caption_parts.append("custom instruction")
+
+        # Check for dynamic traits functions
+        dynamic_functions = [
+            agent.dynamic_traits_function
+            for agent in al.data
+            if agent.dynamic_traits_function is not None
+        ]
+        if dynamic_functions:
+            caption_parts.append("dynamic_traits_function")
+
+        # Check for direct answer methods
+        direct_methods = [
+            agent for agent in al.data if hasattr(agent, "answer_question_directly")
+        ]
+        if direct_methods:
+            caption_parts.append("direct_answer_method")
+
         return render_summary_table(
             title=title,
             columns=columns,
