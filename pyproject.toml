@@ -118,3 +118,22 @@ unresolved-import = "ignore"
 
 [tool.tomlsort.overrides."tool.poetry.dependencies"]
 table_keys = false
+
+[tool.ruff]
+preview = true  # required to enable DOC rules
+
+[tool.ruff.lint]
+select = [
+    "D",    # pydocstyle — presence and formatting
+    "DOC",  # pydoclint — args/returns match signatures
+]
+extend-ignore = [
+    "D105",  # missing docstring in magic method
+    "D107",  # missing docstring in __init__
+]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["D"]  
