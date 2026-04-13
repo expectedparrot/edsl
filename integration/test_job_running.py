@@ -1,5 +1,3 @@
-
-
 def test_handle_model_exception():
     from edsl.language_models.LanguageModel import LanguageModel
     from edsl.enums import LanguageModelType, InferenceServiceType
@@ -40,7 +38,7 @@ def test_handle_model_exception():
             )
             survey.add_question(q)
             if i > 0 and chained:
-                survey.add_targeted_memory(f"question_{i}", f"question_{i-1}")
+                survey.add_targeted_memory(f"question_{i}", f"question_{i - 1}")
         return survey
 
     ### Tasks are Not Chained
@@ -51,15 +49,15 @@ def test_handle_model_exception():
         target_exception, fail_at_number=FAIL_AT_NUMBER
     )
     survey = create_survey(num_questions=20, chained=False)
-    print(f"Not chained - only single failure at {FAIL_AT_NUMBER -1}")
+    print(f"Not chained - only single failure at {FAIL_AT_NUMBER - 1}")
     results = survey.by(model).run()
-    assert results.select(f"answer.question_{FAIL_AT_NUMBER -1}").first() is None
+    assert results.select(f"answer.question_{FAIL_AT_NUMBER - 1}").first() is None
     assert results.select(f"answer.question_{FAIL_AT_NUMBER + 1}").first() == "SPAM!"
 
     ### Tasks are Chained
     ### If there is a failure, it should cascade to all follow-on tasks
     FAIL_AT_NUMBER = 10
-    print(f"Chained - everything after {FAIL_AT_NUMBER -1} should fail")
+    print(f"Chained - everything after {FAIL_AT_NUMBER - 1} should fail")
     target_exception = ConnectionNotAvailable
     target_exception = ValueError
     model = create_exception_throwing_model(
@@ -68,7 +66,7 @@ def test_handle_model_exception():
     survey = create_survey(num_questions=20, chained=True)
     results = survey.by(model).run()
     # results.print_long()
-    assert results[0]["answer"][f"question_{FAIL_AT_NUMBER -1}"] is None
+    assert results[0]["answer"][f"question_{FAIL_AT_NUMBER - 1}"] is None
 
     ## TODO: This should fail. Need to re-factor Interview to handle this.
     assert results[0]["answer"][f"question_{FAIL_AT_NUMBER}"] is None

@@ -58,7 +58,8 @@ for question_type in types_to_test:
         results = survey.by(models).run(cache=True, skip_retry=True)
 
         all_answers = (
-            results.select("answer.*")
+            results
+            .select("answer.*")
             .to_scenario_list()
             .unpivot()
             .select("value")

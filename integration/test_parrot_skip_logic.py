@@ -1,5 +1,3 @@
-
-
 def test_example():
     from edsl.questions import (
         QuestionMultipleChoice,

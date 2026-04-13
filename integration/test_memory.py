@@ -76,9 +76,9 @@ def test_without_memory():
     if verbose:
         results.select("coin_flip_observed", "q2").print()
     try:
-        assert all(
-            [result == "I don't know" for result in results.select("q2").to_list()]
-        )
+        assert all([
+            result == "I don't know" for result in results.select("q2").to_list()
+        ])
     except AssertionError:
         breakpoint()
     c_no_memory.write_jsonl("coin_flip_cache_no_memory.jsonl")

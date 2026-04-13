@@ -13,23 +13,22 @@ def get_git_hash():
     Get the current git commit hash.
     """
     try:
-        result = subprocess.run(['git', 'rev-parse', 'HEAD'], 
-                              capture_output=True, 
-                              text=True, 
-                              check=True)
+        result = subprocess.run(
+            ["git", "rev-parse", "HEAD"], capture_output=True, text=True, check=True
+        )
         return result.stdout.strip()
     except subprocess.CalledProcessError:
         return "no_git_hash"
 
 
-def get_execution_history(history_file='notebook_execution_history.csv'):
+def get_execution_history(history_file="notebook_execution_history.csv"):
     """
     Read the execution history from CSV file.
     Returns a set of (commit_hash, notebook_name) tuples.
     """
     history = set()
     if os.path.exists(history_file):
-        with open(history_file, 'r') as f:
+        with open(history_file, "r") as f:
             reader = csv.reader(f)
             next(reader, None)  # Skip header
             for row in reader:
@@ -38,15 +37,17 @@ def get_execution_history(history_file='notebook_execution_history.csv'):
     return history
 
 
-def record_successful_execution(notebook_name, commit_hash, history_file='notebook_execution_history.csv'):
+def record_successful_execution(
+    notebook_name, commit_hash, history_file="notebook_execution_history.csv"
+):
     """
     Record successful notebook execution in the history file.
     """
     file_exists = os.path.exists(history_file)
-    with open(history_file, 'a', newline='') as f:
+    with open(history_file, "a", newline="") as f:
         writer = csv.writer(f)
         if not file_exists:
-            writer.writerow(['commit_hash', 'notebook_name'])
+            writer.writerow(["commit_hash", "notebook_name"])
         writer.writerow([commit_hash, notebook_name])
 
 
@@ -110,12 +111,12 @@ def test_notebook_execution(notebook_path):
     commit_hash = get_git_hash()
     notebook_name = os.path.basename(notebook_path)
     history = get_execution_history()
-    
+
     if (commit_hash, notebook_name) in history:
         pytest.skip(f"Notebook {notebook_name} already passed for commit {commit_hash}")
-    
+
     print(f"Executing {notebook_path}...")
     execute_notebook(notebook_path)
-    
+
     # Record successful execution
     record_successful_execution(notebook_name, commit_hash)
