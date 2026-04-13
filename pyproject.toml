@@ -136,4 +136,4 @@ extend-ignore = [
 convention = "google"
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**" = ["D"]  
+"tests/**" = ["D"]
