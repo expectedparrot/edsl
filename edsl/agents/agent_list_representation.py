@@ -93,11 +93,11 @@ class AgentListRepresentation:
             caption_parts.append("custom traits template")
 
         # Check for custom instructions (non-default)
-        default_instruction = """You are answering questions as if you were a human. Do not break character."""
+        default_instruction = al.data[0].__class__.default_instruction if al.data else ""
         custom_instructions = [
             agent.instruction
             for agent in al.data
-            if agent.instruction != default_instruction
+            if agent.instruction != agent.default_instruction
         ]
         if custom_instructions:
             caption_parts.append("custom instruction")
