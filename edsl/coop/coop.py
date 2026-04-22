@@ -3977,11 +3977,12 @@ class Coop(CoopFunctionsMixin):
                 # Return in the same format as push
                 return Scenario(
                     {
-                        "description": metadata.get("description"),
                         "object_type": object_type,
                         "url": metadata.get("url"),
+                        "alias": alias,
                         "alias_url": metadata.get("alias_url"),
                         "uuid": metadata.get("uuid"),
+                        "description": metadata.get("description"),
                         "version": self._edsl_version,
                         "visibility": metadata.get("visibility"),
                     }
@@ -4064,12 +4065,12 @@ class Coop(CoopFunctionsMixin):
 
         return Scenario(
             {
-                "description": response_json.get("description"),
                 "object_type": object_type,
                 "url": f"{self.url}/content/{object_uuid}",
                 "alias": object_alias,
                 "alias_url": self._get_alias_url(owner_username, object_alias),
                 "uuid": object_uuid,
+                "description": response_json.get("description"),
                 "version": self._edsl_version,
                 "visibility": response_json.get("visibility"),
             }
