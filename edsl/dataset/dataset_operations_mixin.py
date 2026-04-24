@@ -257,18 +257,23 @@ class DataOperationsBase:
         (['How are you feeling'], [['OK'], ['Great'], ['Terrible'], ['OK']])
         """
 
-        def create_dict_from_list_of_dicts(list_of_dicts):
-            for entry in list_of_dicts:
-                key, list_of_values = list(entry.items())[0]
-                yield key, list_of_values
+        # Preserve one list per column entry. Using dict(column_name -> list) is wrong
+        # when the same name appears more than once (later lists overwrite earlier ones)
+        # while full_header still references every column — keys/values then misalign.
+        columns: list[tuple[str, list]] = []
+        for entry in self.data:
+            key, list_of_values = list(entry.items())[0]
+            columns.append((key, list_of_values))
 
-        tabular_repr = dict(create_dict_from_list_of_dicts(self.data))
-
-        full_header = [list(x.keys())[0] for x in self]
+        full_header = [name for name, _ in columns]
 
         rows = []
         for i in range(self.num_observations()):
-            row = [tabular_repr[h][i] for h in full_header]
+            row = []
+            for _, list_of_values in columns:
+                row.append(
+                    list_of_values[i] if i < len(list_of_values) else None
+                )
             rows.append(row)
 
         if remove_prefix:

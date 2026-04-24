@@ -678,7 +678,7 @@ class Jobs(Base):
                 self.survey, scenario=scenario, agent=None
             ).show_flow(filename=filename)
 
-    def push(self, *args, **kwargs) -> None:
+    def push(self, *args, **kwargs):
         """Push the job to the remote server, in pieces."""
         from ..agents import AgentList
         from ..scenarios import ScenarioList

@@ -3896,24 +3896,21 @@ class Coop(CoopFunctionsMixin):
         force: bool = False,
     ) -> "Scenario":
         """
-        Generate a signed URL for pushing an object directly to Google Cloud Storage.
-
-        This method gets a signed URL that allows direct upload access to Google Cloud Storage,
-        which is more efficient for large files.
+        Upload an EDSL object to Coop via a signed GCS URL (PUT), then confirm the upload.
 
         Parameters:
-            object_type (ObjectType): The type of object to be uploaded
+            object: The EDSL object to upload (e.g. Survey, Scenario).
 
         Returns:
-            dict: A response containing the signed_url for direct upload and optionally a job_id
+            Scenario: Coop upload metadata as a ``Scenario`` so notebooks/terminals keep
+            Rich table formatting; it is dict-like (``response["uuid"]``, ``response.get("url")``, …).
 
         Raises:
             CoopServerResponseError: If there's an error communicating with the server
 
         Example:
-            >>> response = coop.push("scenario")
-            >>> print(f"Upload URL: {response['signed_url']}")
-            >>> # Use the signed_url to upload the object directly
+            >>> # coop.push(some_survey)  # doctest: +SKIP
+            >>> # Scenario({'uuid': ..., 'url': ..., ...})
         """
         from ..scenarios import Scenario
 
@@ -3974,7 +3971,7 @@ class Coop(CoopFunctionsMixin):
                 # Get complete metadata after the patch
                 metadata = self.get_metadata(alias_url)
 
-                # Return in the same format as push
+                # Return as Scenario for Rich table repr (dict alone loses notebook formatting).
                 return Scenario(
                     {
                         "object_type": object_type,
@@ -4053,7 +4050,7 @@ class Coop(CoopFunctionsMixin):
         if object_uuid is None:
             from .exceptions import CoopResponseError
 
-            raise CoopResponseError("No object uuid was provided received")
+            raise CoopResponseError("No object_uuid was returned from the push request")
 
         # Confirm the upload completion
         confirm_response = self._send_server_request(
