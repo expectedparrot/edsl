@@ -27,6 +27,12 @@ class QuestionItemProcessor(QuestionAttributeProcessor):
         """
         Try to get items from scenario data.
 
+        >>> from edsl import Scenario
+        >>> scenario = Scenario({"items": ["Item 1", "Item 2"]})
+        >>> processor = QuestionItemProcessor(scenario, {})
+        >>> processor._get_items_from_scenario(scenario, ("items",))
+        ['Item 1', 'Item 2']
+
         Returns:
             list | None: List of items if found in scenario, None otherwise
         """
@@ -38,6 +44,17 @@ class QuestionItemProcessor(QuestionAttributeProcessor):
     ) -> Union[list, None]:
         """
         Try to get items from prior answers.
+
+        >>> from edsl import QuestionList as Q
+        >>> q = Q.example()
+        >>> q.answer = ["Item 1", "Item 2"]
+        >>> prior_answers = {"items": q}
+        >>> from edsl import Scenario
+        >>> processor = QuestionItemProcessor(Scenario({}), prior_answers)
+        >>> processor._get_items_from_prior_answers(prior_answers, ("items",))
+        ['Item 1', 'Item 2']
+        >>> processor._get_items_from_prior_answers(prior_answers, ("wrong_key",)) is None
+        True
 
         Returns:
             list | None: List of items if found in prior answers, None otherwise
@@ -58,6 +75,47 @@ class QuestionItemProcessor(QuestionAttributeProcessor):
         Returns:
             list: List of question items. Returns default placeholders if no valid
                 items are found.
+
+        >>> class MockPromptConstructor:
+        ...     pass
+        >>> mpc = MockPromptConstructor()
+        >>> from edsl import Scenario
+        >>> mpc.scenario = Scenario({"items": ["Item 1", "Item 2"]})
+        >>> class MockQuestion:
+        ...     pass
+        >>> q0 = MockQuestion()
+        >>> q0.answer = ["Item 1", "Item 2"]
+        >>> mpc.prior_answers_dict = lambda: {"q0": q0}
+        >>> processor = QuestionItemProcessor.from_prompt_constructor(mpc)
+
+        The basic case where items are directly provided:
+
+        >>> question_data = {"question_items": ["Item 1", "Item 2"]}
+        >>> processor.get_question_items(question_data)
+        ['Item 1', 'Item 2']
+
+        The case where items are provided as a template string:
+
+        >>> question_data = {"question_items": "{{ scenario.items }}"}
+        >>> processor.get_question_items(question_data)
+        ['Item 1', 'Item 2']
+
+        The case where there is a template string in the prior answers:
+
+        >>> question_data = {"question_items": "{{ q0.answer }}"}
+        >>> processor.get_question_items(question_data)
+        ['Item 1', 'Item 2']
+
+        The case where no items are found:
+
+        >>> processor.get_question_items({"question_items": "{{ missing }}"})
+        ['<< Item 1 - Placeholder >>', '<< Item 2 - Placeholder >>', '<< Item 3 - Placeholder >>']
+
+        The case where items are piped with additional static items:
+
+        >>> question_data = {"question_items": {"from": "{{ q0.answer }}", "add": ["Item 3", "Item 4"]}}
+        >>> processor.get_question_items(question_data)
+        ['Item 1', 'Item 2', 'Item 3', 'Item 4']
         """
         items_entry = question_data.get("question_items")
 
@@ -122,3 +180,8 @@ class QuestionItemProcessor(QuestionAttributeProcessor):
 
         return self._get_default_items()
 
+
+if __name__ == "__main__":
+    import doctest
+
+    doctest.testmod()
