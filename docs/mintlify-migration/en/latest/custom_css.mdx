@@ -6,7 +6,7 @@ sidebarTitle: "Custom CSS"
 
 Every question component supported by humanize has `edsl-*` CSS classes so you can customise the survey appearance.
 
-## HTML structure by question type
+## Question-specific HTML
 
 ### Budget
 
@@ -512,3 +512,14 @@ Every question component supported by humanize has `edsl-*` CSS classes so you c
 ```
   </Tab>
 </Tabs>
+
+## Comment field
+
+If a question has `comment` configured in the humanize schema, an additional comment input is rendered under that question.
+
+```html
+<div class="edsl-comment-field">
+  <label class="edsl-question-text">Why did you choose this answer?</label>
+  <textarea class="edsl-textarea" rows="2"></textarea>
+</div>
+```

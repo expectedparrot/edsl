@@ -34,6 +34,18 @@ When creating a human survey or preview (e.g. `survey.humanize()` or `survey.pre
         </ParamField>
       </Expandable>
     </ParamField>
+    <ParamField path="questions.question_name.comment" type="dict" required={false}>
+      Optional comment input shown with the question.
+      Submitted comment text appears in survey results under `comment.{question_name}_comment`.
+
+      **Supported question types:** `free_text`, `budget`, `checkbox`, `likert_five`, `linear_scale`, `list`, `matrix`, `multiple_choice`, `multiple_choice_with_other`, `numerical`, `rank`, `top_k`, `yes_no`.
+
+      <Expandable title="properties">
+        <ParamField path="questions.question_name.comment.label" type="string" required={true}>
+          Label text displayed for the comment field.
+        </ParamField>
+      </Expandable>
+    </ParamField>
   </Expandable>
 </ParamField>
 
@@ -52,18 +64,25 @@ When creating a human survey or preview (e.g. `survey.humanize()` or `survey.pre
 from edsl import Survey, QuestionFreeText, QuestionMultipleChoice
 
 survey = Survey([
-    QuestionFreeText(question_name="feedback", question_text="Any feedback?"),
     QuestionMultipleChoice(
         question_name="rating",
         question_text="Rate your experience.",
         question_options=["Good", "OK", "Bad"],
     ),
+    QuestionFreeText(
+        question_name="feedback",
+        question_text="Any additional feedback you'd like to share?",
+    ),
 ])
 
 humanize_schema = {
     "questions": {
+        "rating": {
+            "optional": False,
+            "format": {"type": "dropdown"},
+            "comment": {"label": "Why did you choose this rating?"},
+        },
         "feedback": {"optional": True},
-        "rating": {"optional": False, "format": {"type": "dropdown"}, "custom_validation": {"select_exact_answer": "Good"}},
     },
     "survey": {"custom_css": None},
 }

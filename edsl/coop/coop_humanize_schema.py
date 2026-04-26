@@ -33,22 +33,31 @@ class SurveyHumanizeSchema(HumanizeSchemaBase):
     custom_css: Optional[str] = None
 
 
+class CommentConfig(HumanizeSchemaBase):
+    """Configuration for the optional comment field on a question."""
+
+    label: str
+
+
 class FreeTextHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the free text question type."""
 
     optional: bool = False
+    comment: Optional[CommentConfig] = None
 
 
 class BudgetHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the budget question type."""
 
     optional: bool = False
+    comment: Optional[CommentConfig] = None
 
 
 class CheckboxHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the checkbox question type."""
 
     optional: bool = False
+    comment: Optional[CommentConfig] = None
 
 
 class ComputeHumanizeSchema(HumanizeSchemaBase):
@@ -68,6 +77,7 @@ class LikertHumanizeSchema(HumanizeSchemaBase):
 
     optional: bool = False
     format: MCSubclassFormatSchema = Field(default_factory=MCSubclassFormatSchema)
+    comment: Optional[CommentConfig] = None
 
 
 class LinearScaleHumanizeSchema(HumanizeSchemaBase):
@@ -75,18 +85,21 @@ class LinearScaleHumanizeSchema(HumanizeSchemaBase):
 
     optional: bool = False
     format: MCSubclassFormatSchema = Field(default_factory=MCSubclassFormatSchema)
+    comment: Optional[CommentConfig] = None
 
 
 class ListHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the list question type."""
 
     optional: bool = False
+    comment: Optional[CommentConfig] = None
 
 
 class MatrixHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the matrix question type."""
 
     optional: bool = False
+    comment: Optional[CommentConfig] = None
 
 
 class MultipleChoiceCustomValidation(HumanizeSchemaBase):
@@ -101,12 +114,14 @@ class MultipleChoiceHumanizeSchema(HumanizeSchemaBase):
     optional: bool = False
     format: MCSubclassFormatSchema = Field(default_factory=MCSubclassFormatSchema)
     custom_validation: Optional[MultipleChoiceCustomValidation] = None
+    comment: Optional[CommentConfig] = None
 
 
 class MultipleChoiceWithOtherHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the multiple choice with other question type."""
 
     optional: bool = False
+    comment: Optional[CommentConfig] = None
 
 
 class NumericalFormatInputSchema(HumanizeSchemaBase):
@@ -145,18 +160,21 @@ class NumericalHumanizeSchema(HumanizeSchemaBase):
 
     optional: bool = False
     format: NumericalFormatSchema = Field(default_factory=NumericalFormatInputSchema)
+    comment: Optional[CommentConfig] = None
 
 
 class RankHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the rank question type."""
 
     optional: bool = False
+    comment: Optional[CommentConfig] = None
 
 
 class TopKHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the top k question type."""
 
     optional: bool = False
+    comment: Optional[CommentConfig] = None
 
 
 class YesNoHumanizeSchema(HumanizeSchemaBase):
@@ -164,6 +182,7 @@ class YesNoHumanizeSchema(HumanizeSchemaBase):
 
     optional: bool = False
     format: MCSubclassFormatSchema = Field(default_factory=MCSubclassFormatSchema)
+    comment: Optional[CommentConfig] = None
 
 
 HumanizeQuestionSchema = Union[
