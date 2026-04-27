@@ -83,6 +83,46 @@ def test_checkbox_options_from_prior_answers():
     ]
 
 
+def test_multiple_choice_options_from_prior_answer_dict_lookup():
+    m = Model("test", canned_response={
+        "letter": "b",
+        "fruit": "Banana",
+    })
+
+    q1 = QuestionMultipleChoice(
+        question_name="letter",
+        question_text="Pick a letter.",
+        question_options=["a", "b", "c", "d"],
+    )
+
+    q2 = QuestionMultipleChoice(
+        question_name="fruit",
+        question_text="Pick a fruit.",
+        question_options="{{ scenario.fruits[letter.answer] }}",
+    )
+
+    survey = Survey([q1, q2])
+    scenario = Scenario({
+        "fruits": {
+            "a": ["Apple", "Apricot"],
+            "b": ["Banana", "Boysenberry"],
+            "c": ["Cherry", "Clementine"],
+            "d": ["Date", "Dragonfruit"],
+        }
+    })
+
+    results = survey.by(scenario).by(m).run(
+        stop_on_exception=True,
+        disable_remote_inference=True,
+    )
+
+    assert results.select("question_options.fruit_question_options").to_list()[0] == [
+        "Banana",
+        "Boysenberry",
+    ]
+    assert results.select("answer.fruit").to_list()[0] == "Banana"
+
+
 def test_numerical_min_max_from_scenario():
     # Create the multiple choice question
     q = QuestionNumerical(
