@@ -326,7 +326,7 @@ class RenderService:
         )
 
         system_prompt = str(prompts.get("system_prompt", ""))
-        if getattr(question, "question_type", None) == "thinking":
+        if getattr(question, "question_type", None) == "thinking" or getattr(question, "_is_thinking_question", False):
             system_prompt = getattr(question, "_system_prompt", "")
         return {
             "system_prompt": system_prompt,
@@ -373,7 +373,7 @@ class RenderService:
         )
 
         system_prompt = str(prompts.get("system_prompt", ""))
-        if getattr(question, "question_type", None) == "thinking":
+        if getattr(question, "question_type", None) == "thinking" or getattr(question, "_is_thinking_question", False):
             system_prompt = getattr(question, "_system_prompt", "")
         return {
             "system_prompt": system_prompt,

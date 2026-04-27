@@ -433,6 +433,10 @@ class QuestionBase(
             # "_use_code",
             "_model_instructions",
             "_store_accessor",
+            "_model",                  # live Model object; serialized via _thinking_model
+            "_invigilator_class",      # runtime-only; restored by thinking_question()
+            "_system_prompt",          # serialized via _thinking_system_prompt
+            "_is_thinking_question",   # serialized via from_dict detection
         ]
         only_if_not_na_list = ["_answering_instructions", "_question_presentation"]
 
@@ -554,13 +558,25 @@ class QuestionBase(
                 f"Error in deserialization: {str(e)}. The passed in dictionary was: {data}"
             )
 
+        # Extract thinking_question wrapper data before constructing
+        thinking_model_data = local_data.pop("thinking_model", None)
+        thinking_system_prompt = local_data.pop("thinking_system_prompt", "")
+
         if "model_instructions" in local_data:
             model_instructions = local_data.pop("model_instructions")
             new_q = question_class(**local_data)
             new_q.model_instructions = model_instructions
-            return new_q
+        else:
+            new_q = question_class(**local_data)
 
-        return question_class(**local_data)
+        # Re-wrap as thinking question if needed
+        if thinking_model_data is not None:
+            from .question_thinking import thinking_question
+            new_q = thinking_question(
+                new_q, model=thinking_model_data, system_prompt=thinking_system_prompt
+            )
+
+        return new_q
 
     def to_jsonl(self, blob_writer=None, **kwargs) -> str:
         """Serialize to JSONL with one line per field (header + one line per field).
