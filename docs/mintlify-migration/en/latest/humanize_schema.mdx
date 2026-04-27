@@ -9,14 +9,7 @@ When creating a human survey or preview (e.g. `survey.humanize()` or `survey.pre
 ## Fields
 
 <ParamField path="questions" type="dict" required={false}>
-  Map of question name (string) → question config. Each value is a dict with the following properties.
-  <Expandable title="properties">
-    <ParamField path="questions.question_name.optional" type="boolean" default={false}>
-      Whether the question is optional. Default is `false` when omitted.
-      
-      **Supported question types:** `free_text`, `budget`, `checkbox`, `interview`, `likert_five`, `linear_scale`, `list`, `matrix`, `multiple_choice`, `multiple_choice_with_other`, `numerical`, `rank`, `top_k`, `yes_no`.
-    </ParamField>
-  </Expandable>
+  Map of question name (string) -> `HumanizeQuestionSchema`.
 </ParamField>
 
 <ParamField path="survey" type="dict" required={false}>
@@ -28,24 +21,74 @@ When creating a human survey or preview (e.g. `survey.humanize()` or `survey.pre
   </Expandable>
 </ParamField>
 
+## HumanizeQuestionSchema (per question)
+
+Each `questions[question_name]` value is a `HumanizeQuestionSchema` object.
+
+<ParamField path="optional" type="boolean" default={false}>
+  Whether the question is optional. Default is `false` when omitted.
+
+  **Supported question types:** `free_text`, `budget`, `checkbox`, `interview`, `likert_five`, `linear_scale`, `list`, `matrix`, `multiple_choice`, `multiple_choice_with_other`, `numerical`, `rank`, `top_k`, `yes_no`.
+
+  Note: `optional` currently has no effect for `interview` and `rank`.
+</ParamField>
+
+<ParamField path="format" type="dict" required={false}>
+  Display format. Varies by question type:
+
+  - **MC-style** (`likert_five`, `linear_scale`, `multiple_choice`, `yes_no`): `"radio"` (list of radio buttons) or `"dropdown"` (single `<select>`). Default is `"radio"`. Use `{"type": "radio"}` or `{"type": "dropdown"}`.
+  - **Numerical** (`numerical`): `"input"` (number input field) or `"slider"` (range slider). Default is `"input"`. Use `{"type": "input"}` or `{"type": "slider", "min": 0, "max": 100, "step": 1}`. For slider, `min` must be less than `max`, `step` must be positive and not exceed `(max - min)`.
+
+  Other question types do not support `format`.
+</ParamField>
+
+<ParamField path="custom_validation" type="dict" required={false}>
+  **Multiple choice only** (`multiple_choice`). Optional custom validation rules.
+  <Expandable title="properties">
+    <ParamField path="select_exact_answer" type="string" required={false}>
+      If set, the human survey will require the respondent to select this exact option. Use for attention checks or forcing a particular choice. Omit or set to `null` to allow any selection.
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField path="comment" type="dict" required={false}>
+  Optional comment input shown with the question.
+  Submitted comment text appears in survey results under `comment.{question_name}_comment`.
+
+  **Supported question types:** `free_text`, `budget`, `checkbox`, `likert_five`, `linear_scale`, `list`, `matrix`, `multiple_choice`, `multiple_choice_with_other`, `numerical`, `rank`, `top_k`, `yes_no`.
+
+  <Expandable title="properties">
+    <ParamField path="label" type="string" required={true}>
+      Label text displayed for the comment field.
+    </ParamField>
+  </Expandable>
+</ParamField>
+
 ## Example
 
 ```python
 from edsl import Survey, QuestionFreeText, QuestionMultipleChoice
 
 survey = Survey([
-    QuestionFreeText(question_name="feedback", question_text="Any feedback?"),
     QuestionMultipleChoice(
         question_name="rating",
         question_text="Rate your experience.",
         question_options=["Good", "OK", "Bad"],
     ),
+    QuestionFreeText(
+        question_name="feedback",
+        question_text="Any additional feedback you'd like to share?",
+    ),
 ])
 
 humanize_schema = {
     "questions": {
+        "rating": {
+            "optional": False,
+            "format": {"type": "dropdown"},
+            "comment": {"label": "Why did you choose this rating?"},
+        },
         "feedback": {"optional": True},
-        "rating": {"optional": False},
     },
     "survey": {"custom_css": None},
 }
