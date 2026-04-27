@@ -92,7 +92,7 @@ class DirectAnswerRegistry:
         if isinstance(result, dict) and "answer" in result:
             return {
                 "answer": result["answer"],
-                "comment": result.get("comment", None),
+            "comment": result.get("comment"),
                 "cached": False,
                 "input_tokens": 0,
                 "output_tokens": 0,
