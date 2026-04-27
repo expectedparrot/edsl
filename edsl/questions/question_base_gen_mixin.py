@@ -4,6 +4,7 @@ import itertools
 import random
 from typing import Optional, List, Callable, TYPE_CHECKING, Union
 from jinja2 import Environment, meta
+from jinja2.nativetypes import NativeEnvironment
 
 if TYPE_CHECKING:
     from .question_base import QuestionBase
@@ -343,10 +344,29 @@ class QuestionBaseGenMixin:
                 exception_class=self.MaxTemplateNestingExceeded,
             )
 
+        def render_native(value: str):
+            native_env = NativeEnvironment()
+            return native_env.from_string(value).render(strings_only_replacement_dict)
+
+        rendered_dict = self._apply_function_dict(render_string)
+
+        original_question_options = self.data.get("question_options")
+        if isinstance(original_question_options, str):
+            try:
+                native_question_options = render_native(original_question_options)
+                if isinstance(native_question_options, tuple):
+                    native_question_options = list(native_question_options)
+                if isinstance(native_question_options, list):
+                    rendered_dict["question_options"] = native_question_options
+            except Exception:
+                pass
+
         if return_dict:
-            return self._apply_function_dict(render_string)
+            return rendered_dict
         else:
-            return self.apply_function(render_string)
+            from .question_base import QuestionBase
+
+            return QuestionBase.from_dict(rendered_dict)
 
     def apply_function(
         self, func: Callable, exclude_components: Optional[List[str]] = None

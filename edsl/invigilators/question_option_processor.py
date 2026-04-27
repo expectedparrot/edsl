@@ -1,4 +1,7 @@
-from typing import Union, TYPE_CHECKING
+from ast import literal_eval
+from typing import Any, Union, TYPE_CHECKING
+
+from jinja2.nativetypes import NativeEnvironment
 
 
 # import edsl.scenarios.scenario  # noqa: F401
@@ -72,6 +75,19 @@ class QuestionOptionProcessor(QuestionAttributeProcessor):
             if isinstance(prior_answer.answer, list):
                 return prior_answer.answer
         return None
+
+    def _render_template_to_native_value(self, template_string: str) -> Any:
+        """Render a template string and preserve native Python values when possible."""
+        scenario_namespace = {
+            k: v for k, v in self.scenario.items() if not str(k).startswith("_")
+        }
+        render_context = {
+            **self.scenario,
+            **self.prior_answers_dict,
+            "scenario": scenario_namespace,
+        }
+        env = NativeEnvironment()
+        return env.from_string(template_string).render(render_context)
 
     def get_question_options(self, question_data: dict) -> list:
         """
@@ -167,6 +183,25 @@ class QuestionOptionProcessor(QuestionAttributeProcessor):
         """
         if not template_string:
             return self._get_default_options()
+
+        try:
+            rendered_options = self._render_template_to_native_value(template_string)
+            if isinstance(rendered_options, list):
+                return rendered_options
+            if isinstance(rendered_options, tuple):
+                return list(rendered_options)
+            if isinstance(rendered_options, str):
+                try:
+                    parsed_options = literal_eval(rendered_options)
+                except (SyntaxError, ValueError):
+                    parsed_options = None
+                if isinstance(parsed_options, list):
+                    return parsed_options
+                if isinstance(parsed_options, tuple):
+                    return list(parsed_options)
+        except Exception:
+            # Fall back to the older simple-path logic below.
+            pass
 
         # Parse template to get variable name
         raw_option_key = self._parse_template_variable(template_string)
