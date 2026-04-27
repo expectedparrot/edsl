@@ -890,22 +890,16 @@ class JobService:
 
         _batch_t0 = _t.time()
 
-        # 1. Group tasks by interview_id for batch lookups
-        tasks_by_interview: dict[str, list[dict]] = {}
+        # 1. Build task_id -> interview_id map for flat batch lookup
+        task_interview_map: dict[str, str] = {}
         for task_info in tasks:
-            iid = task_info["interview_id"]
-            if iid not in tasks_by_interview:
-                tasks_by_interview[iid] = []
-            tasks_by_interview[iid].append(task_info)
+            task_interview_map[task_info["task_id"]] = task_info["interview_id"]
 
-        # 2. Batch get all task definitions (grouped by interview)
-        all_task_defs: dict[str, "TaskDefinition"] = {}
-        for iid, itasks in tasks_by_interview.items():
-            task_ids = [t["task_id"] for t in itasks]
-            defs = self._tasks.get_definitions_batch(job_id, iid, task_ids)
-            for tid, td in defs.items():
-                if td is not None:
-                    all_task_defs[tid] = td
+        # 2. Single batch read for ALL task definitions across all interviews
+        all_task_defs = self._tasks.get_definitions_flat_batch(
+            job_id, task_interview_map
+        )
+        all_task_defs = {tid: td for tid, td in all_task_defs.items() if td is not None}
         _t_defs = (_t.time() - _batch_t0) * 1000
 
         # 3. Build and batch-store all answers
@@ -974,30 +968,40 @@ class JobService:
         self._interviews.increment_completed_batch(interview_counts)
         _t_incr = (_t.time() - _t0) * 1000
 
-        # 7. Batch finalize interviews and job
+        # 7. Batch finalize interviews and mark completed on job
         _t0 = _t.time()
         interview_ids = list(interview_counts.keys())
         self._interviews.finalize_batch(job_id, interview_ids)
 
-        # Check which interviews are done and update job
+        # Batch read states, then batch-update the job for all completed interviews
         interview_states = self._interviews.get_states_batch(interview_ids)
+        completed_iids = []
+        had_failures_iids: set[str] = set()
         cb = self._interview_callbacks.get(job_id)
         for iid, state in interview_states.items():
             if state != InterviewState.RUNNING:
-                had_failures = state == InterviewState.COMPLETED_WITH_FAILURES
-                self._jobs.mark_interview_completed(job_id, iid, had_failures)
+                completed_iids.append(iid)
+                if state == InterviewState.COMPLETED_WITH_FAILURES:
+                    had_failures_iids.add(iid)
                 if cb:
                     cb(job_id, iid)
+
+        if completed_iids:
+            self._jobs.mark_interviews_completed_batch(
+                job_id, completed_iids, had_failures_iids
+            )
         _t_finalize = (_t.time() - _t0) * 1000
 
         _total = (_t.time() - _batch_t0) * 1000
-        logger.info(
+        print(
             f"[on_tasks_completed_batch] {len(tasks)} tasks, "
-            f"{len(interview_counts)} interviews: "
+            f"{len(interview_counts)} interviews, "
+            f"{len(completed_iids)} finalized: "
             f"defs={_t_defs:.0f}ms, answers={_t_answers:.0f}ms, "
             f"status={_t_status:.0f}ms, deps={_t_deps:.0f}ms, "
             f"incr={_t_incr:.0f}ms, finalize={_t_finalize:.0f}ms, "
-            f"total={_total:.0f}ms"
+            f"total={_total:.0f}ms",
+            flush=True,
         )
 
     def on_task_skipped(
