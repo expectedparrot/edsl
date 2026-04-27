@@ -111,11 +111,13 @@ def test_direct_question_answering_method_with_comment():
 
     a.add_direct_question_answering_method(f)
 
-    q = QuestionFreeText(question_name="q1", question_text="What is your favorite color?")
+    q = QuestionFreeText(
+        question_name="q1", question_text="What is your favorite color?"
+    )
     results = Survey([q]).by(a).by(m).run(disable_remote_inference=True)
 
     assert results.select("answer.q1").first() == "blue"
-    assert results.select("answer.q1_comment").first() == "my reasoning here"
+    assert results.select("comment.q1_comment").first() == "my reasoning here"
 
 
 # Invigilator creation tests moved to test_AgentInvigilator.py
@@ -155,5 +157,13 @@ def test_agent_dynamic_traits_answering():
 
     q = QuestionFreeText(question_name="age", question_text="How old are you?")
     m = Model("test")
-    results = q.by(m).by(a).run(disable_remote_inference=True, disable_remote_cache=True, stop_on_exception=True)
+    results = (
+        q.by(m)
+        .by(a)
+        .run(
+            disable_remote_inference=True,
+            disable_remote_cache=True,
+            stop_on_exception=True,
+        )
+    )
     assert results.select("answer.age").to_list()
