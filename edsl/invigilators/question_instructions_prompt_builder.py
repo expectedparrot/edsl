@@ -160,7 +160,6 @@ class QuestionInstructionPromptBuilder:
         # Append survey instructions
         final_prompt = self._append_survey_instructions(rendered_prompt)
         _t5 = _time.time()
-
         with _build_timing_lock:
             _build_timing_accum["create_base_prompt"] += _t1 - _t0
             _build_timing_accum["enrich_options"] += _t2 - _t1
@@ -212,6 +211,14 @@ class QuestionInstructionPromptBuilder:
         Returns:
             Dict: Question data with processed question options
         """
+        if "question_items" in question_data:
+            from .question_item_processor import QuestionItemProcessor
+
+            question_items = QuestionItemProcessor(
+                scenario, prior_answers_dict
+            ).get_question_items(question_data=question_data)
+            question_data["question_items"] = question_items
+
         if "question_options" in question_data:
             from .question_option_processor import QuestionOptionProcessor
 
@@ -250,10 +257,10 @@ class QuestionInstructionPromptBuilder:
         Returns:
             Dict: Enriched prompt data
         """
-        prompt_data[
-            "data"
-        ] = QuestionInstructionPromptBuilder._process_question_options(
-            prompt_data["data"], scenario, prior_answers_dict
+        prompt_data["data"] = (
+            QuestionInstructionPromptBuilder._process_question_options(
+                prompt_data["data"], scenario, prior_answers_dict
+            )
         )
         return prompt_data
 
