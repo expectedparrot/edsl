@@ -142,12 +142,9 @@ class PersistenceMixin:
         visibility: Optional[str] = "private",
         expected_parrot_url: Optional[str] = None,
         force: bool = False,
-    ) -> dict:
+    ) -> "Scenario":
         """
-        Get a signed URL for directly uploading an object to Google Cloud Storage.
-
-        This method provides a more efficient way to upload objects compared to the push() method,
-        especially for large files, by generating a direct signed URL to the storage bucket.
+        Upload this object to Coop (signed GCS URL + confirm).
 
         Args:
             description: Optional text description of the object
@@ -157,14 +154,15 @@ class PersistenceMixin:
             force: If True, patch existing object instead of creating new one when alias conflicts occur.
 
         Returns:
-            dict: A response containing the signed_url for direct upload and optionally a job_id
+            Scenario: Coop metadata (uuid, url, alias, …) wrapped in a ``Scenario`` for
+            Rich table display in terminals and notebooks; use ``response['uuid']`` or
+            ``response.to_dict()`` as needed.
 
         Example:
             >>> from edsl.surveys import Survey
             >>> survey = Survey(...)
             >>> response = survey.push()
-            >>> print(f"Upload URL: {response['signed_url']}")
-            >>> # Use the signed_url to upload the object directly
+            >>> _ = response["uuid"]
         """
         from edsl.coop import Coop
 

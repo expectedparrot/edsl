@@ -309,7 +309,9 @@ class BaseMacro(Base, MacroMixin, ABC):
 
         if macro_uuid is None:
             print("Deploying macro with no UUID, pushing to server...")
-            info = self.push(overwrite=overwrite)
+            # Coop / Base.push use ``force`` (patch on alias conflict); do not pass
+            # ``overwrite`` — PersistenceMixin.push does not accept that keyword.
+            info = self.push(force=overwrite)
             macro_uuid = info["uuid"]
             print(f"Deployed macro with UUID: {macro_uuid}")
 
