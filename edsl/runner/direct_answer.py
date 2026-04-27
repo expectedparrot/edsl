@@ -83,11 +83,22 @@ class DirectAnswerRegistry:
         Execute agent-level direct answering.
 
         The agent has an `answer_question_directly(question, scenario)` method
-        that returns the answer directly without LLM involvement.
+        that returns either the answer directly or a dict with "answer" and
+        optional "comment" keys.
         """
-        answer = entry.agent.answer_question_directly(entry.question, entry.scenario)
+        result = entry.agent.answer_question_directly(entry.question, entry.scenario)
+        # Handle dicts with answer and comment keys - this is used for humanize
+        # to turn responses into results
+        if isinstance(result, dict) and "answer" in result:
+            return {
+                "answer": result["answer"],
+                "comment": result.get("comment", None),
+                "cached": False,
+                "input_tokens": 0,
+                "output_tokens": 0,
+            }
         return {
-            "answer": answer,
+            "answer": result,
             "comment": "Direct answer from agent method",
             "cached": False,
             "input_tokens": 0,
