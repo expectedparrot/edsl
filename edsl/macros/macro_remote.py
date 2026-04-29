@@ -9,7 +9,7 @@ class MacroRemote:
     @staticmethod
     def push(
         macro: Any,
-        visibility: Optional[str] = "unlisted",
+        visibility: Optional[str] = "private",
         description: Optional[str] = None,
         alias: Optional[str] = None,
     ):

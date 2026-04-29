@@ -1,7 +1,6 @@
 import tempfile
 from typing import List, Optional, Dict
 import ast
-import black
 import subprocess
 import sys
 from importlib import util
@@ -77,6 +76,11 @@ class PyMethods(FileMethods):
 
     def format_python(self) -> bool:
         """Format the Python file using black."""
+        try:
+            import black
+        except ImportError:
+            return False
+
         try:
             with open(self.path, "r", encoding="utf-8") as f:
                 content = f.read()

@@ -82,32 +82,6 @@ class AwsBedrockService(InferenceServiceABC):
             ) -> dict[str, Any]:
                 """Calls the AWS Bedrock API and returns the API response."""
 
-                # Check if we should use remote proxy
-                if self.remote_proxy:
-                    # Use remote proxy mode
-                    from .remote_proxy_handler import RemoteProxyHandler
-
-                    handler = RemoteProxyHandler(
-                        model=self.model,
-                        inference_service=self._inference_service_,
-                        job_uuid=getattr(self, "job_uuid", None),
-                    )
-
-                    # Get fresh parameter
-                    fresh_value = getattr(self, "fresh", False)
-
-                    return await handler.execute_model_call(
-                        user_prompt=user_prompt,
-                        system_prompt=system_prompt,
-                        files_list=files_list,
-                        cache_key=cache_key,
-                        temperature=self.temperature,
-                        max_tokens=self.max_tokens,
-                        top_p=self.top_p,
-                        omit_system_prompt_if_empty=self.omit_system_prompt_if_empty,
-                        fresh=fresh_value,  # Pass fresh parameter
-                    )
-
                 # Ensure credentials are available
                 _ = self.api_token  # call to check if env variables are set.
 

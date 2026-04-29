@@ -521,10 +521,10 @@ class QuestionDict(QuestionBase):
     """
 
     question_type = "dict"
-    question_text: str = QuestionTextDescriptor()
-    answer_keys: List[str] = AnswerKeysDescriptor()
-    value_types: Optional[List[str]] = ValueTypesDescriptor()
-    value_descriptions: Optional[List[str]] = ValueDescriptionsDescriptor()
+    question_text = QuestionTextDescriptor()
+    answer_keys = AnswerKeysDescriptor()
+    value_types = ValueTypesDescriptor()
+    value_descriptions = ValueDescriptionsDescriptor()
 
     _response_model = None
     response_validator_class = DictResponseValidator

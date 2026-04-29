@@ -1,13 +1,10 @@
 """
 The notebooks module provides tools for working with Jupyter notebooks.
 
-It includes classes for notebook creation, manipulation, and conversion
-to other formats such as LaTeX.
+It includes classes for notebook creation and manipulation.
 """
 
 from .notebook import Notebook
-
-# from .notebook_to_latex import NotebookToLaTeX
 from .exceptions import (
     NotebookError,
     NotebookValueError,
@@ -18,7 +15,6 @@ from .exceptions import (
 
 __all__ = [
     "Notebook",
-    # "NotebookToLaTeX",
     "NotebookError",
     "NotebookValueError",
     "NotebookFormatError",

@@ -216,9 +216,9 @@ class QuestionLinearScale(QuestionMultipleChoice):
     """This question prompts the agent to respond to a statement on a linear scale."""
 
     question_type = "linear_scale"
-    option_labels: Optional[dict[int, str]] = OptionLabelDescriptor()
+    option_labels = OptionLabelDescriptor()
     question_options = QuestionOptionsDescriptor(linear_scale=True)
-    weight: Optional[float] = WeightDescriptor()
+    weight = WeightDescriptor()
     response_validator_class = LinearScaleResponseValidator
 
     def __init__(

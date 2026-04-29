@@ -82,6 +82,7 @@ class FetchInvigilator:
             cache=self._cache,
             raise_validation_errors=self._raise_validation_errors,
             key_lookup=self.key_lookup,
+            prompt_plan=getattr(self._model, 'prompt_plan', None),
         )
         return invigilator
 

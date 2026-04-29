@@ -1,6 +1,8 @@
-from typing import Optional, Literal, TYPE_CHECKING, Any
+from typing import Optional, Literal, TYPE_CHECKING, Any, List
 from dataclasses import dataclass, asdict
 from collections import UserDict
+
+from pydantic import BaseModel, Field
 
 from ..data_transfer_models import EDSLResultObjectInput
 from ..base import Base
@@ -15,6 +17,19 @@ if TYPE_CHECKING:
     from ..caching import Cache
 
 VisibilityType = Literal["private", "public", "unlisted"]
+
+
+class WebhookConfig(BaseModel):
+    """Config for a single completion webhook."""
+
+    url: str
+
+
+class AlertOnCompletionConfig(BaseModel):
+    """Config for job completion alerts (email and/or webhooks)."""
+
+    email: bool = False
+    webhooks: List[WebhookConfig] = Field(default_factory=list, max_length=3)
 
 
 @dataclass
@@ -60,7 +75,7 @@ class RunParameters(Base):
         remote_cache_description (str, optional): Description for entries in the remote cache
         remote_inference_description (str, optional): Description for the remote inference job
         remote_inference_results_visibility (VisibilityType): Visibility setting for results
-            on Coop: "private", "public", or "unlisted" (default is "unlisted")
+            on Coop: "private", "public", or "unlisted" (default is "private")
         skip_retry (bool): Whether to skip retry attempts for failed interviews, default is False
         raise_validation_errors (bool): Whether to raise validation errors, default is False
         background (bool): Whether to run in background mode, default is False
@@ -72,6 +87,7 @@ class RunParameters(Base):
         job_uuid (str, optional): UUID for the job, used for tracking
         fresh (bool): If True, ignore cache and generate new results, default is False
         new_format (bool): If True, uses remote_inference_create method, if False uses old_remote_inference_create method, default is True
+        alert_on_completion_config (dict, optional): Config for job completion alerts (email and/or webhooks). Dict with "email" (bool) and "webhooks" (list of {"url": str}, max 3).
     """
 
     n: int = 1
@@ -82,7 +98,7 @@ class RunParameters(Base):
     print_exceptions: bool = True
     remote_cache_description: Optional[str] = None
     remote_inference_description: Optional[str] = None
-    remote_inference_results_visibility: Optional[VisibilityType] = "unlisted"
+    remote_inference_results_visibility: Optional[VisibilityType] = "private"
     skip_retry: bool = False
     raise_validation_errors: bool = False
     background: bool = False
@@ -106,6 +122,7 @@ class RunParameters(Base):
     expected_parrot_api_key: Optional[str] = (
         None  # Custom EXPECTED_PARROT_API_KEY to use for this job run
     )
+    alert_on_completion_config: Optional[dict] = None
 
     def to_dict(self, add_edsl_version=False) -> dict:
         d = asdict(self)

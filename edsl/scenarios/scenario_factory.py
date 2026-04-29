@@ -239,7 +239,7 @@ class ScenarioFactory:
             - The extraction process parses the PDF to maintain structure where possible
         """
         try:
-            from edsl.scenarios.PdfExtractor import PdfExtractor
+            from edsl.scenarios.pdf_extractor import PdfExtractor
 
             extractor = PdfExtractor(pdf_path)
 
@@ -482,7 +482,7 @@ class ScenarioFactory:
             - The extraction process attempts to maintain document structure
             - Requires the python-docx library to be installed
         """
-        from edsl.scenarios.DocxScenario import DocxScenario
+        from edsl.scenarios.docx_scenario import DocxScenario
 
         # Import here to avoid circular imports
         try:

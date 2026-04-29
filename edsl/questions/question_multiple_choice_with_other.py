@@ -45,7 +45,7 @@ def create_response_model_with_other(choices: List[str], permissive: bool = Fals
             A model for multiple choice with other responses with strict validation.
             """
 
-            answer: Literal[choice_tuple] = Field(description="Selected choice")
+            answer: Literal[choice_tuple] = Field(description="Selected choice")  # type: ignore[valid-type]
 
             model_config = {
                 "json_schema_extra": {"properties": {"answer": {"enum": choices}}}
@@ -323,10 +323,8 @@ class QuestionMultipleChoiceWithOther(QuestionBase):
 
     question_type = "multiple_choice_with_other"
     purpose = "When options are known but you want to allow for custom responses"
-    question_options: Union[list[str], list[list], list[float], list[int]] = (
-        QuestionOptionsDescriptor()
-    )
-    other_option_text: str = OtherOptionTextDescriptor()
+    question_options = QuestionOptionsDescriptor()
+    other_option_text = OtherOptionTextDescriptor()
     _response_model = None
     response_validator_class = MultipleChoiceWithOtherResponseValidator
 
@@ -465,7 +463,7 @@ class QuestionMultipleChoiceWithOther(QuestionBase):
         self.question_presentation = question_presentation
         self.permissive = permissive
 
-    def create_response_model(self, replacement_dict: dict = None):
+    def create_response_model(self, replacement_dict: Optional[dict] = None):
         """Create a response model that allows for the 'Other' option."""
         if replacement_dict is None:
             replacement_dict = {}
@@ -480,7 +478,7 @@ class QuestionMultipleChoiceWithOther(QuestionBase):
 
         if self.use_code:
             return create_response_model_with_other(
-                list(range(len(options))), self.permissive
+                [str(x) for x in range(len(options))], self.permissive
             )
         else:
             return create_response_model_with_other(options, self.permissive)

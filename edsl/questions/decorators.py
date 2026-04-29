@@ -13,9 +13,9 @@ def inject_exception(func: Callable[..., T]) -> Callable[..., T]:
     ) -> T:
         base_instance = func(cls, *args, **kwargs)
         if exception_to_throw:
-            base_instance.exception_to_throw = exception_to_throw
+            base_instance.exception_to_throw = exception_to_throw  # type: ignore[attr-defined]
         if override_answer:
-            base_instance.override_answer = override_answer
+            base_instance.override_answer = override_answer  # type: ignore[attr-defined]
         return base_instance
 
     return wrapper

@@ -7,7 +7,7 @@ deserialization of Agent instances to/from dictionary representations.
 from __future__ import annotations
 import copy
 import inspect
-from typing import Union, TYPE_CHECKING
+from typing import Any, Union, TYPE_CHECKING
 
 from ..utilities import remove_edsl_version
 
@@ -70,7 +70,7 @@ class AgentSerialization:
 
     @classmethod
     @remove_edsl_version
-    def from_dict(cls, agent_dict: dict[str, Union[dict, bool, str]]) -> "Agent":
+    def from_dict(cls, agent_dict: dict[str, Any]) -> "Agent":
         """Deserialize from a dictionary.
 
         Args:

@@ -49,7 +49,6 @@ class ResultsSampler:
             survey=self.results.survey,
             data=[],
             created_columns=self.results.created_columns,
-            data_class=self.results._data_class,
         )
 
         # First pass: copy data while tracking indices
@@ -104,7 +103,6 @@ class ResultsSampler:
             survey=self.results.survey,
             data=[],
             created_columns=self.results.created_columns,
-            data_class=self.results._data_class,
         )
 
         if with_replacement:

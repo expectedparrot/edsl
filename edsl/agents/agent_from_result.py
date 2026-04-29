@@ -153,7 +153,7 @@ class AgentFromResult:
                 try:
                     rendered_qtext = (
                         Prompt(text=qtext_template)
-                        .render(result.scenario)  # scenario provides replacement vars
+                        .render(dict(result.scenario))  # scenario provides replacement vars
                         .text
                     )
                 except Exception:

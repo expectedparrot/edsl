@@ -2,8 +2,6 @@ from __future__ import annotations
 from typing import Any, List, Optional, Dict, NewType, TYPE_CHECKING
 import os
 
-import openai
-
 from ..inference_service_abc import InferenceServiceABC
 from .message_builder import MessageBuilder
 from ..decorators import report_errors_async
@@ -23,6 +21,13 @@ if TYPE_CHECKING:
 APIToken = NewType("APIToken", str)
 
 
+def _get_openai():
+    """Lazy import of the openai package."""
+    import openai
+
+    return openai
+
+
 class OpenAIParameterBuilder:
     """Helper class to construct API parameters based on model type."""
 
@@ -32,13 +37,18 @@ class OpenAIParameterBuilder:
 
         default_max_tokens = model_params.get("max_tokens", 1000)
         default_temperature = model_params.get("temperature", 0.5)
+        default_reasoning_effort = model_params.get("reasoning_effort", "medium")
         if model in OPENAI_REASONING_MODELS:
             # For reasoning models, use much higher completion tokens to allow for reasoning + response
             max_tokens = max(default_max_tokens, 5000)
             temperature = 1
+            # If no reasoning effort is provided, use "medium" as the default
+            # Some models (e.g. gpt-5) do not support null values for reasoning_effort
+            reasoning_effort = default_reasoning_effort or "medium"
         else:
             max_tokens = default_max_tokens
             temperature = default_temperature
+            reasoning_effort = None
 
         # Base parameters
         params = {
@@ -57,6 +67,9 @@ class OpenAIParameterBuilder:
             ),
         }
 
+        if model in OPENAI_REASONING_MODELS:
+            params["reasoning_effort"] = reasoning_effort
+
         return params
 
 
@@ -66,17 +79,19 @@ class OpenAIService(InferenceServiceABC):
     _inference_service_ = "openai"
     _env_key_name_ = "OPENAI_API_KEY"
     _base_url_ = None
+    _supports_files_api_ = True
 
-    _sync_client_ = openai.OpenAI
-    _async_client_ = openai.AsyncOpenAI
+    _sync_client_ = None  # resolved lazily via _get_openai()
+    _async_client_ = None  # resolved lazily via _get_openai()
 
-    _sync_client_instances: Dict[APIToken, openai.OpenAI] = {}
-    _async_client_instances: Dict[APIToken, openai.AsyncOpenAI] = {}
+    _sync_client_instances: Dict[str, Any] = {}
+    _async_client_instances: Dict[str, Any] = {}
 
     key_sequence = ["choices", 0, "message", "content"]
     usage_sequence = ["usage"]
     input_token_name = "prompt_tokens"
     output_token_name = "completion_tokens"
+    thinking_token_sequence = ["completion_tokens_details", "reasoning_tokens"]
 
     available_models_url = "https://platform.openai.com/docs/models/gp"
 
@@ -87,7 +102,24 @@ class OpenAIService(InferenceServiceABC):
         cls._async_client_instances = {}
 
     @classmethod
+    async def close_async_clients(cls):
+        """Close all cached async clients to avoid 'Unclosed client session' warnings."""
+        for client in cls._async_client_instances.values():
+            if hasattr(client, "close"):
+                await client.close()
+        cls._async_client_instances = {}
+
+    @classmethod
+    def _resolve_clients(cls):
+        """Resolve lazy client classes on first use."""
+        if cls._sync_client_ is None:
+            openai = _get_openai()
+            cls._sync_client_ = openai.OpenAI
+            cls._async_client_ = openai.AsyncOpenAI
+
+    @classmethod
     def sync_client(cls, api_key):
+        cls._resolve_clients()
         if api_key not in cls._sync_client_instances:
             client = cls._sync_client_(
                 api_key=api_key,
@@ -99,10 +131,14 @@ class OpenAIService(InferenceServiceABC):
 
     @classmethod
     def async_client(cls, api_key):
+        cls._resolve_clients()
         if api_key not in cls._async_client_instances:
+            from openai import DefaultAioHttpClient
+
             client = cls._async_client_(
                 api_key=api_key,
                 base_url=cls._base_url_,
+                http_client=DefaultAioHttpClient(),
             )
             cls._async_client_instances[api_key] = client
         client = cls._async_client_instances[api_key]
@@ -153,6 +189,7 @@ class OpenAIService(InferenceServiceABC):
             usage_sequence = cls.usage_sequence
             input_token_name = cls.input_token_name
             output_token_name = cls.output_token_name
+            thinking_token_sequence = cls.thinking_token_sequence
 
             _inference_service_ = cls._inference_service_
             _model_ = model_name
@@ -168,6 +205,7 @@ class OpenAIService(InferenceServiceABC):
                 "presence_penalty": 0,
                 "logprobs": False,
                 "top_logprobs": 3,
+                "reasoning_effort": None,
             }
 
             def sync_client(self):
@@ -222,12 +260,11 @@ class OpenAIService(InferenceServiceABC):
                 Returns:
                     Filtered parameters dictionary with service-specific adjustments
                 """
-                # XAI service specific filtering
+                # XAI service specific filtering — most grok models
+                # don't support penalty parameters
                 if self._inference_service_ == "xai":
-                    if "grok-4" in self.model:
-                        # Grok-4 models don't support penalty parameters
-                        params.pop("presence_penalty", None)
-                        params.pop("frequency_penalty", None)
+                    params.pop("presence_penalty", None)
+                    params.pop("frequency_penalty", None)
 
                 # Add additional service-specific filtering logic here as needed
                 # Example:
@@ -267,43 +304,15 @@ class OpenAIService(InferenceServiceABC):
                     dict: The model's response as a dictionary
                 """
 
-                # Check if we should use remote proxy
-                if self.remote_proxy:
-                    # Use remote proxy mode
-                    from .remote_proxy_handler import RemoteProxyHandler
-
-                    handler = RemoteProxyHandler(
-                        model=self.model,
-                        inference_service=self._inference_service_,
-                        job_uuid=getattr(self, "job_uuid", None),
-                    )
-
-                    # Get fresh parameter
-                    fresh_value = getattr(self, "fresh", False)
-
-                    return await handler.execute_model_call(
-                        user_prompt=user_prompt,
-                        system_prompt=system_prompt,
-                        files_list=files_list,
-                        cache_key=cache_key,
-                        temperature=self.temperature,
-                        max_tokens=self.max_tokens,
-                        top_p=self.top_p,
-                        frequency_penalty=self.frequency_penalty,
-                        presence_penalty=self.presence_penalty,
-                        logprobs=self.logprobs,
-                        top_logprobs=self.top_logprobs,
-                        omit_system_prompt_if_empty=self.omit_system_prompt_if_empty,
-                        fresh=fresh_value,  # Pass fresh parameter
-                    )
-
                 # Use MessageBuilder to construct messages
+                supports_files_api = getattr(cls, "_supports_files_api_", True)
                 message_builder = MessageBuilder(
                     model=self.model,
                     files_list=files_list,
                     user_prompt=user_prompt,
                     system_prompt=system_prompt,
                     omit_system_prompt_if_empty=self.omit_system_prompt_if_empty,
+                    supports_files_api=supports_files_api,
                 )
 
                 client = self.async_client()
@@ -320,6 +329,7 @@ class OpenAIService(InferenceServiceABC):
                     presence_penalty=self.presence_penalty,
                     logprobs=self.logprobs,
                     top_logprobs=self.top_logprobs,
+                    reasoning_effort=self.reasoning_effort,
                 )
 
                 # Add structured output support if response_schema is provided
@@ -338,6 +348,7 @@ class OpenAIService(InferenceServiceABC):
                 params = self._filter_parameters_for_service(params)
 
                 response = await client.chat.completions.create(**params)
+
                 return response.model_dump()
 
         # Ensure the class name is "LanguageModel" for proper serialization

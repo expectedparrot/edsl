@@ -427,7 +427,7 @@ class QuestionRank(QuestionBase):
     """
 
     question_type = "rank"
-    question_options: list[str] = QuestionOptionsDescriptor()
+    question_options = QuestionOptionsDescriptor()
     num_selections = NumSelectionsDescriptor()
 
     _response_model = None
@@ -488,7 +488,7 @@ class QuestionRank(QuestionBase):
         )
 
     def _translate_answer_code_to_answer(
-        self, answer_codes, scenario: Scenario = None
+        self, answer_codes, scenario: Optional[Scenario] = None
     ) -> list[str]:
         """
         Translate numeric answer codes to the actual option text.

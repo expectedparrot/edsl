@@ -4,7 +4,9 @@ Test script to investigate garbage collection behavior with ScenarioList.
 
 import gc
 import os
-import psutil
+import pytest
+
+psutil = pytest.importorskip("psutil")
 import pickle
 import tracemalloc
 from typing import Dict, List, Any

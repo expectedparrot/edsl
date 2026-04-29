@@ -35,6 +35,7 @@ from .exceptions import (
     CoopNoUUIDError,
     CoopServerResponseError,
     CoopValueError,
+    CoopObjectTypeError,
 )
 from .utils import (
     EDSLObject,
@@ -44,6 +45,7 @@ from .utils import (
     VisibilityType,
 )
 
+from ..jobs.data_structures import AlertOnCompletionConfig
 from .coop_functions import CoopFunctionsMixin
 from .coop_regular_objects import CoopRegularObjects
 from .coop_jobs_objects import CoopJobsObjects
@@ -213,6 +215,11 @@ class Coop(CoopFunctionsMixin):
     # BASIC METHODS
     ################
     @property
+    def has_api_key(self) -> bool:
+        """True if a non-empty API key is set (constructor arg, class default, or env/config)."""
+        return bool(self.api_key)
+
+    @property
     def headers(self) -> dict:
         """
         Return the headers for the request.
@@ -258,9 +265,9 @@ class Coop(CoopFunctionsMixin):
             if "json_string" in log_payload and log_payload["json_string"]:
                 json_str = log_payload["json_string"]
                 if len(json_str) > 200:
-                    log_payload[
-                        "json_string"
-                    ] = f"{json_str[:200]}... (truncated, total length: {len(json_str)})"
+                    log_payload["json_string"] = (
+                        f"{json_str[:200]}... (truncated, total length: {len(json_str)})"
+                    )
             self._logger.info(f"Request payload: {log_payload}")
 
         try:
@@ -511,7 +518,6 @@ class Coop(CoopFunctionsMixin):
             # print(response.text)
             if "The API key you provided is invalid" in message and check_api_key:
                 import secrets
-                from ..utilities.utilities import write_api_key_to_env
 
                 self._logger.info("Invalid API key detected, starting login flow")
                 edsl_auth_token = secrets.token_urlsafe(16)
@@ -531,15 +537,9 @@ class Coop(CoopFunctionsMixin):
                 print("\n✨ API key retrieved.")
                 self._logger.info("API key successfully retrieved via login")
 
-                if self.ep_key_handler.ask_to_store(api_key):
-                    pass
-                else:
-                    path_to_env = write_api_key_to_env(api_key)
-                    print(
-                        "\n✨ API key retrieved and written to .env file at the following path:"
-                    )
-                    print(f"    {path_to_env}")
-                    print("Rerun your code to try again with a valid API key.")
+                self.ep_key_handler.store_ep_api_key(api_key)
+                print("\n✨ API key stored in .env file.")
+                print("Rerun your code to try again with a valid API key.")
                 return
 
             elif "Authorization" in message:
@@ -761,6 +761,21 @@ class Coop(CoopFunctionsMixin):
         except Timeout:
             return {}
 
+    @staticmethod
+    def _is_widget_short_name_valid(short_name: str) -> tuple:
+        """Check if a widget short name is valid (lowercase letters, digits, underscores, starts with letter)."""
+        if not short_name:
+            return False, "Widget short name cannot be empty."
+        if not short_name[0].isalpha():
+            return False, "Widget short name must start with a lowercase letter."
+        for char in short_name:
+            if not (char.islower() or char.isdigit() or char == "_"):
+                return (
+                    False,
+                    f"Widget short name contains invalid character '{char}'. Only lowercase letters, digits, and underscores are allowed.",
+                )
+        return True, None
+
     def _get_widget_javascript(self, widget_name: str) -> str:
         """
         Fetches the javascript for a widget from the server using cached singleton.
@@ -804,9 +819,7 @@ class Coop(CoopFunctionsMixin):
         Raises:
             CoopServerResponseError: If there's an error communicating with the server
         """
-        from ..widgets.base_widget import EDSLBaseWidget
-
-        short_name_is_valid, error_message = EDSLBaseWidget.is_widget_short_name_valid(
+        short_name_is_valid, error_message = self._is_widget_short_name_valid(
             short_name
         )
         if not short_name_is_valid:
@@ -987,12 +1000,10 @@ class Coop(CoopFunctionsMixin):
         """
         payload = {}
         if short_name is not None:
-            from ..widgets.base_widget import EDSLBaseWidget
-
             (
                 short_name_is_valid,
                 error_message,
-            ) = EDSLBaseWidget.is_widget_short_name_valid(short_name)
+            ) = self._is_widget_short_name_valid(short_name)
             if not short_name_is_valid:
                 raise CoopValueError(error_message)
             payload["short_name"] = short_name
@@ -1067,7 +1078,7 @@ class Coop(CoopFunctionsMixin):
         object: EDSLObject,
         description: Optional[str] = None,
         alias: Optional[str] = None,
-        visibility: Optional[VisibilityType] = "unlisted",
+        visibility: Optional[VisibilityType] = "private",
     ) -> dict:
         """
         Store an EDSL object in the Expected Parrot cloud service.
@@ -1175,13 +1186,16 @@ class Coop(CoopFunctionsMixin):
                     byte_data = pretty_json_string.encode("utf-8")
                 # Lint python files prior to upload
                 elif file_store_metadata["suffix"] == "py":
-                    import black
-
                     file_store_bytes = base64.b64decode(object_dict["base64_string"])
                     python_string = file_store_bytes.decode("utf-8")
-                    formatted_python_string = black.format_str(
-                        python_string, mode=black.Mode()
-                    )
+                    try:
+                        import black
+
+                        formatted_python_string = black.format_str(
+                            python_string, mode=black.Mode()
+                        )
+                    except ImportError:
+                        formatted_python_string = python_string
                     byte_data = formatted_python_string.encode("utf-8")
                 else:
                     byte_data = base64.b64decode(object_dict["base64_string"])
@@ -1790,10 +1804,12 @@ class Coop(CoopFunctionsMixin):
         job: "Jobs",
         description: Optional[str] = None,
         status: RemoteJobStatus = "queued",
-        visibility: Optional[VisibilityType] = "unlisted",
-        initial_results_visibility: Optional[VisibilityType] = "unlisted",
+        visibility: Optional[VisibilityType] = "private",
+        initial_results_visibility: Optional[VisibilityType] = "private",
+        initial_results_description: Optional[str] = None,
         iterations: Optional[int] = 1,
         fresh: Optional[bool] = False,
+        alert_on_completion_config: Optional[Any] = None,
     ) -> RemoteInferenceCreationInfo:
         """
         Create a remote inference job for execution in the Expected Parrot cloud.
@@ -1815,6 +1831,8 @@ class Coop(CoopFunctionsMixin):
             initial_results_visibility (VisibilityType): Access level for the job results
             iterations (int): Number of times to run each interview (default: 1)
             fresh (bool): If True, ignore existing cache entries and generate new results
+            alert_on_completion_config (dict, optional): Config for job completion alerts
+                (email and/or webhooks). Dict with "email" (bool) and "webhooks" (list of {"url": str}, max 3).
 
         Returns:
             RemoteInferenceCreationInfo: Information about the created job including:
@@ -1843,19 +1861,25 @@ class Coop(CoopFunctionsMixin):
             f"Creating remote inference job with description: {description}"
         )
 
+        payload = {
+            "json_string": "offloaded",
+            "description": description,
+            "status": status,
+            "iterations": iterations,
+            "visibility": visibility,
+            "version": self._edsl_version,
+            "initial_results_visibility": initial_results_visibility,
+            "fresh": fresh,
+        }
+        if alert_on_completion_config is not None:
+            validated = AlertOnCompletionConfig.model_validate(
+                alert_on_completion_config
+            )
+            payload["alert_on_completion_config"] = validated.model_dump()
         response = self._send_server_request(
             uri="api/v0/new-remote-inference",
             method="POST",
-            payload={
-                "json_string": "offloaded",
-                "description": description,
-                "status": status,
-                "iterations": iterations,
-                "visibility": visibility,
-                "version": self._edsl_version,
-                "initial_results_visibility": initial_results_visibility,
-                "fresh": fresh,
-            },
+            payload=payload,
         )
         self._resolve_server_response(response)
         response_json = response.json()
@@ -1888,6 +1912,7 @@ class Coop(CoopFunctionsMixin):
                 "job_uuid": job_uuid,
                 "message": "Job uploaded successfully",
                 "nr_questions": job.nr_questions,
+                "initial_results_description": initial_results_description,
             },
         )
         response_json = response.json()
@@ -1908,13 +1933,34 @@ class Coop(CoopFunctionsMixin):
             }
         )
 
+    def cancel_remote_inference_job(self, job_uuid: str) -> None:
+        """
+        Request cancellation of a queued or running remote inference job.
+
+        Calls the server to mark the job as cancelling. The job may not stop
+        immediately; poll with new_remote_inference_get(job_uuid) to see status.
+
+        Parameters:
+            job_uuid (str): The UUID of the remote job to cancel.
+
+        Raises:
+            CoopServerResponseError: If the server returns an error (e.g. not found, forbidden).
+        """
+        response = self._send_server_request(
+            uri="api/v0/remote-inference/update-status",
+            method="POST",
+            payload={"job_uuid": str(job_uuid), "status": "cancelling"},
+        )
+        self._resolve_server_response(response)
+        return response.json()
+
     def old_remote_inference_create(
         self,
         job: "Jobs",
         description: Optional[str] = None,
         status: RemoteJobStatus = "queued",
-        visibility: Optional[VisibilityType] = "unlisted",
-        initial_results_visibility: Optional[VisibilityType] = "unlisted",
+        visibility: Optional[VisibilityType] = "private",
+        initial_results_visibility: Optional[VisibilityType] = "private",
         iterations: Optional[int] = 1,
         fresh: Optional[bool] = False,
     ) -> RemoteInferenceCreationInfo:
@@ -2108,6 +2154,50 @@ class Coop(CoopFunctionsMixin):
                 "latest_job_run_details": latest_job_run_details,
             }
         )
+
+    def remote_inference_results_manifest(
+        self,
+        job_uuid: str,
+        page_size: int = 100,
+    ) -> dict:
+        """
+        Get the manifest for paginated results fetching from the runner.
+
+        Returns:
+            dict with keys: job_id, status, total_interviews, page_size,
+            page_count, interview_ids
+        """
+        response = self._send_server_request(
+            uri=f"api/v0/remote-inference/job/{job_uuid}/results/manifest",
+            method="GET",
+            params={"page_size": page_size},
+        )
+        self._resolve_server_response(response)
+        return response.json()
+
+    def remote_inference_results_page(
+        self,
+        job_uuid: str,
+        page: int = 0,
+        page_size: int = 100,
+    ) -> dict:
+        """
+        Get a page of raw interview data from the runner.
+
+        Each interview contains raw dicts (agent, scenario, model, answers)
+        that the EDSL client uses to build Result objects locally.
+
+        Returns:
+            dict with keys: job_id, page, page_size, total_on_page,
+            interviews (list of raw interview dicts), timing_ms
+        """
+        response = self._send_server_request(
+            uri=f"api/v0/remote-inference/job/{job_uuid}/results/page",
+            method="GET",
+            params={"page": page, "page_size": page_size},
+        )
+        self._resolve_server_response(response)
+        return response.json()
 
     def new_remote_inference_get(
         self,
@@ -2429,10 +2519,11 @@ class Coop(CoopFunctionsMixin):
         human_survey_name: str = "New survey",
         survey_description: Optional[str] = None,
         survey_alias: Optional[str] = None,
-        survey_visibility: Optional[VisibilityType] = "unlisted",
+        survey_visibility: Optional[VisibilityType] = "private",
         scenario_list_description: Optional[str] = None,
         scenario_list_alias: Optional[str] = None,
-        scenario_list_visibility: Optional[VisibilityType] = "unlisted",
+        scenario_list_visibility: Optional[VisibilityType] = "private",
+        humanize_schema: Optional[Dict[str, Any]] = None,
     ):
         """
         Create a human survey on Coop, first creating the survey and scenario list (if scenarios are used).
@@ -2445,6 +2536,8 @@ class Coop(CoopFunctionsMixin):
             raise CoopValueError(
                 "You must specify both a scenario list and a scenario list method to use scenarios with your survey."
             )
+        if humanize_schema is not None:
+            self.validate_human_survey_humanize_schema(survey, humanize_schema)
         survey_details = self.push(
             object=survey,
             description=survey_description,
@@ -2462,17 +2555,20 @@ class Coop(CoopFunctionsMixin):
             scenario_list_uuid = scenario_list_details.get("uuid")
         else:
             scenario_list_uuid = None
+        payload: Dict[str, Any] = {
+            "human_survey_name": human_survey_name,
+            "survey_uuid": str(survey_uuid),
+            "scenario_list_uuid": (
+                str(scenario_list_uuid) if scenario_list_uuid is not None else None
+            ),
+            "scenario_list_method": scenario_list_method,
+        }
+        if humanize_schema is not None:
+            payload["humanize_schema"] = humanize_schema
         response = self._send_server_request(
             uri="api/v0/human-surveys",
             method="POST",
-            payload={
-                "human_survey_name": human_survey_name,
-                "survey_uuid": str(survey_uuid),
-                "scenario_list_uuid": (
-                    str(scenario_list_uuid) if scenario_list_uuid is not None else None
-                ),
-                "scenario_list_method": scenario_list_method,
-            },
+            payload=payload,
         )
         self._resolve_server_response(response)
         response_json = response.json()
@@ -2508,6 +2604,53 @@ class Coop(CoopFunctionsMixin):
             "survey_uuid": response_json.get("survey_uuid"),
             "scenario_list_uuid": response_json.get("scenario_list_uuid"),
         }
+
+    def get_survey_preview_url(
+        self,
+        survey: "Survey",
+        humanize_schema: Optional[Dict[str, Any]] = None,
+    ) -> str:
+        """
+        Create or update the survey preview for the authenticated user and return its URL.
+
+        Posts the survey JSON to the preview endpoint, then returns the URL where the
+        preview can be viewed.
+        """
+
+        from ..surveys import Survey
+
+        if not isinstance(survey, Survey):
+            raise CoopObjectTypeError("This is not a survey.")
+        if humanize_schema is not None:
+            self.validate_human_survey_humanize_schema(survey, humanize_schema)
+        survey_dict = survey.to_dict()
+        payload: Dict[str, Any] = {"survey_json": survey_dict}
+        if humanize_schema is not None:
+            payload["humanize_schema"] = humanize_schema
+        response = self._send_server_request(
+            uri="api/v0/human-surveys/preview",
+            method="POST",
+            payload=payload,
+        )
+        self._resolve_server_response(response)
+        response_json = response.json()
+        preview_uuid = response_json.get("preview_uuid")
+        return f"{self.url}/home/human-surveys/preview/{preview_uuid}"
+
+    def validate_human_survey_humanize_schema(
+        self,
+        survey: "Survey",
+        humanize_schema: Dict[str, Any],
+    ) -> None:
+        """
+        Validate a humanize schema and its alignment with the survey's questions.
+
+        Raises HumanizeSchemaValidationError if the schema is invalid or does
+        not match the survey. Valid schemas complete without error.
+        """
+        from .coop_humanize_schema import validate_humanize_schema
+
+        validate_humanize_schema(survey, humanize_schema)
 
     def _turn_human_responses_into_results(
         self,
@@ -3476,182 +3619,183 @@ class Coop(CoopFunctionsMixin):
             dict: The modified object_dict with offloaded FileStores
         """
         import base64
+        from concurrent.futures import ThreadPoolExecutor, as_completed
         from copy import deepcopy
+        from threading import Lock
 
         # Create a deep copy to avoid modifying the original dict structure
         modified_dict = deepcopy(object_dict)
 
-        def process_dict_recursive(d: dict, path: str = ""):
-            """Recursively process dictionaries looking for FileStore objects."""
+        # Phase 1: Collect all FileStore dicts that need uploading
+        pending_uploads: list[tuple[dict, str]] = []  # (filestore_dict, path)
+
+        def _collect_filestores(d: dict, path: str = ""):
             if self._scenario_is_file_store(d):
-                # This is a FileStore object
-                base64_string = d.get("base64_string", "")
+                b64 = d.get("base64_string", "")
+                if b64 and b64 != "offloaded" and isinstance(b64, str):
+                    pending_uploads.append((d, path))
+            else:
+                for key, value in d.items():
+                    if isinstance(value, dict):
+                        _collect_filestores(value, f"{path}.{key}" if path else key)
+                    elif isinstance(value, list):
+                        for i, item in enumerate(value):
+                            if isinstance(item, dict):
+                                _collect_filestores(item, f"{path}.{key}[{i}]")
 
-                # Skip if already offloaded
-                if base64_string == "offloaded":
-                    return d
+        _collect_filestores(modified_dict)
 
-                # Skip if no content to upload
-                if not base64_string or not isinstance(base64_string, str):
-                    return d
+        if not pending_uploads:
+            return modified_dict
 
-                # Get FileStore metadata
-                file_name = d.get("path", "unknown")
-                mime_type = d.get("mime_type", "application/octet-stream")
-                suffix = d.get("suffix", "bin")
+        _total = len(pending_uploads)
+        _done = [0]
+        _lock = Lock()
 
-                # Request upload URL from backend
+        # Phase 2: Upload a single FileStore (runs in thread pool)
+        def _upload_one(d: dict) -> dict | None:
+            """Upload one FileStore to GCS. Returns {file_uuid, ...} on success."""
+            file_name = d.get("path", "unknown")
+            mime_type = d.get("mime_type", "application/octet-stream")
+            suffix = d.get("suffix", "bin")
+
+            response = self._send_server_request(
+                uri="api/v0/filestore/upload-url",
+                method="POST",
+                payload={
+                    "file_name": file_name,
+                    "mime_type": mime_type,
+                    "suffix": suffix,
+                },
+            )
+            response_data = response.json()
+            file_uuid = response_data.get("file_uuid")
+            upload_url = response_data.get("upload_url")
+
+            if not file_uuid or not upload_url:
+                return None
+
+            file_content = base64.b64decode(d["base64_string"])
+
+            upload_response = requests.put(
+                upload_url,
+                data=file_content,
+                headers={
+                    "Content-Type": mime_type,
+                    "Content-Length": str(len(file_content)),
+                },
+            )
+
+            if upload_response.status_code in (200, 201):
+                with _lock:
+                    _done[0] += 1
+                    print(
+                        f"\rUploading files to GCS: {_done[0]}/{_total}",
+                        end="",
+                        flush=True,
+                    )
+                return {"file_uuid": file_uuid}
+
+            return None
+
+        # Phase 3: Run uploads concurrently
+        max_workers = min(10, _total)
+        results_map: dict[int, dict | None] = {}
+
+        with ThreadPoolExecutor(max_workers=max_workers) as pool:
+            future_to_idx = {
+                pool.submit(_upload_one, d): idx
+                for idx, (d, _path) in enumerate(pending_uploads)
+            }
+            for future in as_completed(future_to_idx):
+                idx = future_to_idx[future]
                 try:
-                    response = self._send_server_request(
-                        uri="api/v0/filestore/upload-url",
-                        method="POST",
-                        payload={
-                            "file_name": file_name,
-                            "mime_type": mime_type,
-                            "suffix": suffix,
-                        },
-                    )
-                    response_data = response.json()
-                    file_uuid = response_data.get("file_uuid")
-                    upload_url = response_data.get("upload_url")
+                    results_map[idx] = future.result()
+                except Exception as e:
+                    print(f"\nWarning: FileStore upload failed: {e}")
+                    results_map[idx] = None
 
-                    if not file_uuid or not upload_url:
-                        # If backend didn't return proper response, skip upload
-                        return d
+        if _done[0] > 0:
+            print(flush=True)  # newline after progress
 
-                    # Decode base64 content
-                    file_content = base64.b64decode(base64_string)
+        # Phase 4: Patch the dict and original objects with upload results
+        from ..scenarios.file_store import FileStore
 
-                    # Upload to GCS
-                    upload_response = requests.put(
-                        upload_url,
-                        data=file_content,
-                        headers={
-                            "Content-Type": mime_type,
-                            "Content-Length": str(len(file_content)),
-                        },
-                    )
+        for idx, (d, path) in enumerate(pending_uploads):
+            upload_result = results_map.get(idx)
+            if upload_result is None:
+                continue
 
-                    # Check if upload was successful
-                    if upload_response.status_code in (200, 201):
-                        # Upload successful, offload the FileStore
-                        d["base64_string"] = "offloaded"
+            file_uuid = upload_result["file_uuid"]
 
-                        # Add file_uuid to external_locations
-                        if "external_locations" not in d:
-                            d["external_locations"] = {}
+            # Update the serialized dict
+            d["base64_string"] = "offloaded"
+            if "external_locations" not in d:
+                d["external_locations"] = {}
+            d["external_locations"]["gcs"] = {
+                "file_uuid": file_uuid,
+                "uploaded": True,
+                "offloaded": True,
+            }
 
-                        d["external_locations"]["gcs"] = {
+            # Update the original in-memory FileStore object
+            if original_object is not None and path:
+                try:
+                    clean_path = path.lstrip(".")
+                    keys = clean_path.split(".") if "." in clean_path else [clean_path]
+                    keys = [k for k in keys if k]
+                    current_obj = original_object
+
+                    if keys and "[" in keys[0]:
+                        first_key_name = keys[0].split("[")[0]
+                        if (
+                            first_key_name
+                            and hasattr(original_object, "__iter__")
+                            and not hasattr(original_object, first_key_name)
+                        ):
+                            bracket_part = "[" + keys[0].split("[", 1)[1]
+                            keys[0] = bracket_part
+
+                    for key in keys:
+                        if "[" in key:
+                            key_name, idx_str = key.split("[")
+                            idx_val = int(idx_str.rstrip("]"))
+                            if key_name:
+                                if hasattr(current_obj, key_name):
+                                    current_obj = getattr(current_obj, key_name)[
+                                        idx_val
+                                    ]
+                                else:
+                                    current_obj = current_obj[key_name][idx_val]
+                            else:
+                                current_obj = current_obj[idx_val]
+                        elif key.isdigit():
+                            current_obj = current_obj[int(key)]
+                        else:
+                            if hasattr(current_obj, key):
+                                current_obj = getattr(current_obj, key)
+                            else:
+                                current_obj = current_obj[key]
+
+                    if isinstance(current_obj, FileStore):
+                        current_obj.base64_string = "offloaded"
+                        current_obj["base64_string"] = "offloaded"
+                        if "external_locations" not in current_obj:
+                            current_obj["external_locations"] = {}
+                        current_obj["external_locations"]["gcs"] = {
                             "file_uuid": file_uuid,
                             "uploaded": True,
                             "offloaded": True,
                         }
-
-                        # Also update the original FileStore object if we have access to it
-                        if original_object is not None and path:
-                            try:
-                                # Navigate to the FileStore in the original object
-                                from ..scenarios.file_store import FileStore
-
-                                # Clean up the path: remove leading dots and split
-                                clean_path = path.lstrip(".")
-                                keys = (
-                                    clean_path.split(".")
-                                    if "." in clean_path
-                                    else [clean_path]
-                                )
-                                # Filter out empty strings that might result from splitting
-                                keys = [k for k in keys if k]
-                                current_obj = original_object
-
-                                # For list-like objects (ScenarioList, AgentList), the first key in the path
-                                # might be the serialization wrapper (e.g., 'scenarios', 'agents')
-                                # which doesn't exist as an attribute on the object itself.
-                                # We need to transform 'scenarios[0]' to just '[0]' for list-like objects.
-                                if keys and "[" in keys[0]:
-                                    first_key_name = keys[0].split("[")[0]
-                                    if (
-                                        first_key_name
-                                        and hasattr(original_object, "__iter__")
-                                        and not hasattr(original_object, first_key_name)
-                                    ):
-                                        # Remove the key name but keep the bracket part
-                                        # e.g., 'scenarios[0]' becomes '[0]'
-                                        bracket_part = "[" + keys[0].split("[", 1)[1]
-                                        keys[0] = bracket_part
-
-                                # Navigate through nested structures
-                                for key in keys:
-                                    if (
-                                        "[" in key
-                                    ):  # Handle bracket-style list indexing: "items[0]"
-                                        key_name, idx = key.split("[")
-                                        idx = int(idx.rstrip("]"))
-                                        # Handle empty key_name (means root object is a list)
-                                        if key_name:
-                                            current_obj = current_obj[key_name][idx]
-                                        else:
-                                            current_obj = current_obj[idx]
-                                    elif (
-                                        key.isdigit()
-                                    ):  # Handle numeric string keys for list access: "0", "1", etc.
-                                        # Convert string index to integer for list-like objects
-                                        current_obj = current_obj[int(key)]
-                                    else:
-                                        # Regular dictionary-style key access
-                                        current_obj = current_obj[key]
-
-                                # Update the FileStore object directly
-                                if isinstance(current_obj, FileStore):
-                                    current_obj.base64_string = "offloaded"
-                                    current_obj["base64_string"] = "offloaded"
-
-                                    if "external_locations" not in current_obj:
-                                        current_obj["external_locations"] = {}
-
-                                    current_obj["external_locations"]["gcs"] = {
-                                        "file_uuid": file_uuid,
-                                        "uploaded": True,
-                                        "offloaded": True,
-                                    }
-                                    current_obj.external_locations = current_obj[
-                                        "external_locations"
-                                    ]
-                            except Exception as update_error:
-                                # If we can't update the original object, that's okay
-                                # The serialized dict is still correctly offloaded
-                                print(
-                                    f"Warning: Could not update original FileStore at path '{path}': {update_error}"
-                                )
-                    else:
-                        # Upload failed, keep FileStore as-is with full base64
-                        pass
-
-                except Exception as e:
-                    # If upload fails, keep the FileStore as-is (with full base64)
-                    # This ensures backward compatibility
-                    print(f"Warning: FileStore upload failed: {e}")
-
-            else:
-                # Not a FileStore, recursively process nested dicts
-                for key, value in d.items():
-                    if isinstance(value, dict):
-                        d[key] = process_dict_recursive(
-                            value, f"{path}.{key}" if path else key
-                        )
-                    elif isinstance(value, list):
-                        d[key] = [
-                            (
-                                process_dict_recursive(item, f"{path}.{key}[{i}]")
-                                if isinstance(item, dict)
-                                else item
-                            )
-                            for i, item in enumerate(value)
+                        current_obj.external_locations = current_obj[
+                            "external_locations"
                         ]
+                except Exception as update_error:
+                    print(
+                        f"Warning: Could not update original FileStore at path '{path}': {update_error}"
+                    )
 
-            return d
-
-        return process_dict_recursive(modified_dict)
+        return modified_dict
 
     def _upload_filestore(self, filestore: "FileStore") -> None:
         """
@@ -3748,7 +3892,7 @@ class Coop(CoopFunctionsMixin):
         object: EDSLObject,
         description: Optional[str] = None,
         alias: Optional[str] = None,
-        visibility: Optional[VisibilityType] = "unlisted",
+        visibility: Optional[VisibilityType] = "private",
         force: bool = False,
     ) -> "Scenario":
         """
@@ -3867,9 +4011,7 @@ class Coop(CoopFunctionsMixin):
                     value_type = (
                         "inf"
                         if math.isinf(value)
-                        else "nan"
-                        if math.isnan(value)
-                        else "invalid"
+                        else "nan" if math.isnan(value) else "invalid"
                     )
                     error_msg += f"  • {path}: {value} ({value_type})\n"
 
@@ -3958,11 +4100,6 @@ class Coop(CoopFunctionsMixin):
             except ImportError:
                 in_marimo = False
 
-        # Debug output
-        print(
-            f"DEBUG: in_marimo={in_marimo}, console.is_terminal={console.is_terminal}"
-        )
-
         description = (
             link_description
             if link_description
@@ -3978,20 +4115,7 @@ class Coop(CoopFunctionsMixin):
         </div>
         """
 
-        if in_marimo and mo is not None:
-            # marimo: use mo.callout with markdown link
-            callout = mo.callout(
-                mo.md(
-                    f"""
-{description}
-
-[🔗 Log in and automatically store key]({url})
-                """
-                ),
-                kind="info",
-            )
-            return callout
-        elif console.is_terminal:
+        if console.is_terminal:
             # Running in a standard terminal, show the full URL
             if link_description:
                 rich_print(
@@ -3999,12 +4123,35 @@ class Coop(CoopFunctionsMixin):
                 )
             else:
                 rich_print(f"[#38bdf8][link={url}]{url}[/link][/#38bdf8]")
+        elif in_marimo and mo is not None:
+            # marimo notebook (not terminal): use mo.callout with markdown link
+            callout = mo.callout(
+                mo.md(
+                    f"{description}\n\n"
+                    f"[🔗 Log in and automatically store key]({url})"
+                ),
+                kind="info",
+            )
+            return callout
         else:
-            # Running in an interactive environment (e.g., Jupyter Notebook)
-            # Use IPython HTML display
-            from IPython.display import HTML, display
+            # Running in an interactive environment — only use HTML display in notebooks
+            from ..utilities.is_notebook import is_notebook
 
-            display(HTML(html_content))
+            if is_notebook():
+                try:
+                    from IPython.display import HTML, display
+
+                    display(HTML(html_content))
+                except ImportError:
+                    if link_description:
+                        print(f"{link_description}\n{url}")
+                    else:
+                        print(url)
+            else:
+                if link_description:
+                    print(f"{link_description}\n{url}")
+                else:
+                    print(url)
 
         print("Logging in will activate the following features:")
         print("  - Remote inference: Runs jobs remotely on the Expected Parrot server.")
@@ -4033,7 +4180,6 @@ class Coop(CoopFunctionsMixin):
         """
         import secrets
         from dotenv import load_dotenv
-        from ..utilities.utilities import write_api_key_to_env
 
         edsl_auth_token = secrets.token_urlsafe(16)
 
@@ -4053,12 +4199,11 @@ class Coop(CoopFunctionsMixin):
 
             raise CoopTimeoutError("Timed out waiting for login. Please try again.")
 
-        path_to_env = write_api_key_to_env(api_key)
-        print("\n✨ API key retrieved and written to .env file at the following path:")
-        print(f"    {path_to_env}")
+        from .ep_key_handling import ExpectedParrotKeyHandler
 
-        # Add API key to environment
+        ExpectedParrotKeyHandler().store_ep_api_key(api_key)
         load_dotenv()
+        print("\n✨ API key retrieved and stored in .env file.")
 
     def login_streamlit(self, timeout: int = 120):
         """
@@ -4104,7 +4249,6 @@ class Coop(CoopFunctionsMixin):
         import secrets
         from dotenv import load_dotenv
         from .ep_key_handling import ExpectedParrotKeyHandler
-        from ..utilities.utilities import write_api_key_to_env
 
         # ------------------------------------------------------------------
         # 1. Prepare auth-token and store state across reruns
@@ -4168,12 +4312,9 @@ class Coop(CoopFunctionsMixin):
         # 4. Key received – persist it and notify user
         # ------------------------------------------------------------------
         ExpectedParrotKeyHandler().store_ep_api_key(api_key)
-        os.environ["EXPECTED_PARROT_API_KEY"] = api_key
-        path_to_env = write_api_key_to_env(api_key)
         load_dotenv()
 
         st.success("API-key retrieved and stored. You are now logged-in! 🎉")
-        st.caption(f"Key saved to `{path_to_env}`.")
 
         return api_key
 
@@ -4319,119 +4460,6 @@ class Coop(CoopFunctionsMixin):
         self._resolve_server_response(response)
         return response.json()
 
-    def execute_firecrawl_request(self, request_dict: Dict[str, Any]) -> Any:
-        """
-        Execute a Firecrawl request through the Extension Gateway.
-
-        This method sends a Firecrawl request dictionary to the Extension Gateway's
-        /firecrawl/execute endpoint, which processes it using FirecrawlScenario
-        and returns EDSL Scenario/ScenarioList objects.
-
-        Parameters:
-            request_dict (Dict[str, Any]): A dictionary containing the Firecrawl request.
-                Must include:
-                - method: The Firecrawl method to execute (scrape, crawl, search, extract, map_urls)
-                - api_key: Optional if provided via environment or this method will add it
-                - Other method-specific parameters (url_or_urls, query_or_queries, etc.)
-
-        Returns:
-            Any: The result from FirecrawlScenario execution:
-                - For scrape/extract with single URL: Scenario object
-                - For scrape/extract with multiple URLs: ScenarioList object
-                - For crawl/search/map_urls: ScenarioList object
-
-        Raises:
-            httpx.HTTPError: If the request to the Extension Gateway fails
-            ValueError: If the request_dict is missing required fields
-            Exception: If the Firecrawl execution fails
-
-        Example:
-            >>> # Scrape a single URL
-            >>> result = coop.execute_firecrawl_request({
-            ...     "method": "scrape",
-            ...     "url_or_urls": "https://example.com",
-            ...     "kwargs": {"formats": ["markdown"]}
-            ... })
-
-            >>> # Search the web
-            >>> results = coop.execute_firecrawl_request({
-            ...     "method": "search",
-            ...     "query_or_queries": "AI research papers",
-            ...     "kwargs": {"limit": 10}
-            ... })
-
-            >>> # Extract structured data
-            >>> result = coop.execute_firecrawl_request({
-            ...     "method": "extract",
-            ...     "url_or_urls": "https://shop.example.com/product",
-            ...     "schema": {"title": "string", "price": "number"},
-            ... })
-        """
-        import httpx
-        from ..config import CONFIG
-
-        # Validate request_dict
-        if not request_dict or not isinstance(request_dict, dict):
-            raise ValueError("request_dict must be a non-empty dictionary")
-
-        if "method" not in request_dict:
-            raise ValueError("request_dict must contain 'method' field")
-
-        # Initialize the Extension Gateway client
-        gateway_url = CONFIG.get_extension_gateway_url()
-
-        # Prepare headers with the Coop API key for authentication
-        headers = {
-            "Authorization": f"Bearer {self.api_key}",
-            "Content-Type": "application/json",
-        }
-        # Make the request to the Extension Gateway
-        try:
-            with httpx.Client(timeout=300.0) as client:
-                response = client.post(
-                    f"{gateway_url}/firecrawl/execute",
-                    json=request_dict,
-                    headers=headers,
-                )
-
-                # Check for errors
-                if response.status_code == 400:
-                    error_detail = response.json().get("detail", "Bad request")
-                    raise ValueError(f"Firecrawl request failed: {error_detail}")
-                elif response.status_code == 401:
-                    error_detail = response.json().get("detail", "Unauthorized")
-                    raise ValueError(f"Authentication failed: {error_detail}")
-                elif response.status_code == 500:
-                    error_detail = response.json().get("detail", "Internal error")
-                    raise Exception(f"Firecrawl execution error: {error_detail}")
-
-                response.raise_for_status()
-
-                # Parse the response
-                response_data = response.json()
-
-                if not response_data.get("success", False):
-                    raise Exception(f"Firecrawl request failed: {response_data}")
-
-                # Return the result
-                # The gateway should have already converted it to proper EDSL objects
-                result = response_data.get("result")
-                if "scenarios" in result:
-                    from ..scenarios import ScenarioList
-
-                    return ScenarioList.from_dict(result)
-                else:
-                    from ..scenarios import Scenario
-
-                    return Scenario.from_dict(result)
-
-        except httpx.HTTPError as e:
-            self._logger.error(f"HTTP error calling Extension Gateway: {e}")
-            raise
-        except Exception as e:
-            self._logger.error(f"Error executing Firecrawl request: {e}")
-            raise
-
     async def report_error(self, error: Exception) -> None:
         """
         Report an error for debugging purposes.
@@ -4439,6 +4467,7 @@ class Coop(CoopFunctionsMixin):
         This method provides a non-blocking way to report errors that occur during
         EDSL operations. It sends error reports to the server for monitoring and
         debugging purposes, while also printing to stderr for immediate feedback.
+        If no API key is configured, returns immediately without contacting the server.
 
         Duplicate errors (same error type and message) are not reported if they
         occurred within the past minute to prevent spam.
@@ -4453,6 +4482,9 @@ class Coop(CoopFunctionsMixin):
             ... except Exception as e:
             ...     await coop.report_error(e)
         """
+        if not self.has_api_key:
+            return
+
         import sys
         import traceback
         import httpx
@@ -4562,7 +4594,6 @@ class Coop(CoopFunctionsMixin):
         import secrets
         from dotenv import load_dotenv
         from .ep_key_handling import ExpectedParrotKeyHandler
-        from ..utilities.utilities import write_api_key_to_env
 
         # ------------------------------------------------------------------
         # 1. Prepare auth-token
@@ -4609,13 +4640,8 @@ class Coop(CoopFunctionsMixin):
                 if api_key:
                     # Persist and expose the key
                     ExpectedParrotKeyHandler().store_ep_api_key(api_key)
-                    os.environ["EXPECTED_PARROT_API_KEY"] = api_key
-                    path_to_env = write_api_key_to_env(api_key)
                     load_dotenv()
-                    success_msg = (
-                        "API-key retrieved and stored 🎉\n\n"
-                        f"Key saved to `{path_to_env}`."
-                    )
+                    success_msg = "API-key retrieved and stored 🎉"
                     return (
                         success_msg,
                         _button_update(interactive=False, visible=False),

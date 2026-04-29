@@ -33,6 +33,7 @@ from .invigilators import InvigilatorAI
 from .invigilators import InvigilatorHuman
 from .invigilator_base import InvigilatorBase
 from .invigilators import InvigilatorFunctional
+from .invigilator_thinking import InvigilatorThinking
 from .prompt_constructor import PromptConstructor
 
 __all__ = [
@@ -40,5 +41,6 @@ __all__ = [
     "InvigilatorHuman",
     "InvigilatorBase",
     "InvigilatorFunctional",
+    "InvigilatorThinking",
     "PromptConstructor",
 ]

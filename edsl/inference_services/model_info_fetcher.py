@@ -4,9 +4,27 @@ from collections import UserDict
 import datetime
 import os
 
+import platformdirs
+
 if TYPE_CHECKING:
     from .inference_service_registry import InferenceServiceRegistry
     from .model_info import ModelInfo
+
+
+def _default_cache_dir() -> str:
+    """Return the platform-appropriate cache directory for EDSL."""
+    return platformdirs.user_cache_dir("edsl")
+
+
+def _default_archive_path() -> str:
+    """Return the default archive file path inside the platform cache dir."""
+    return os.path.join(_default_cache_dir(), "model_archive.json")
+
+
+# Default TTL for cached model info (seconds). Override with env var.
+_MODEL_CACHE_TTL_SECONDS = int(
+    os.environ.get("EDSL_MODEL_CACHE_TTL_SECONDS", "86400")
+)
 
 
 class ModelInfoFetcherABC(UserDict, ABC):
@@ -227,17 +245,23 @@ class ModelInfoFetcherABC(UserDict, ABC):
 
         return instance
 
-    def write_to_archive(self, archive_path: str = ".edsl_model_archive.json") -> None:
+    def write_to_archive(self, archive_path: Optional[str] = None) -> None:
         """
-        Write the current data to a Python archive file.
+        Write the current data to a JSON archive file.
 
-        Creates a Python file with the current timestamp and data that can be
-        imported and used by the ModelInfoArchive fetcher.
+        Creates a JSON file with the current timestamp and data that can be
+        loaded by the ModelInfoArchive fetcher.
 
         Args:
-            archive_path: Path where to write the archive file (default: ".edsl_model_archive.json")
+            archive_path: Path where to write the archive file (default: platform cache dir)
         """
         import json
+
+        if archive_path is None:
+            archive_path = _default_archive_path()
+
+        # Ensure the parent directory exists
+        os.makedirs(os.path.dirname(archive_path), exist_ok=True)
 
         # Get current timestamp
         timestamp = datetime.datetime.now().isoformat()
@@ -462,41 +486,75 @@ class ModelInfoArchive(ModelInfoFetcherABC):
         registry: "InferenceServiceRegistry",
         verbose: bool = False,
         data: Optional[Dict[str, List["ModelInfo"]]] = None,
-        archive_path: str = ".edsl_model_archive.json",
+        archive_path: Optional[str] = None,
     ):
         super().__init__(registry, verbose, data)
-        self.archive_path = archive_path
+        self.archive_path = archive_path or _default_archive_path()
 
     def _fetch(self, **kwargs) -> Dict[str, List["ModelInfo"]]:
         """
         Load model information from the archive file.
 
-        Args:
-            **kwargs: Additional arguments:
-                - archive_path: Override the default archive path
+        Raises if the archive is missing or older than the configured TTL
+        (EDSL_MODEL_CACHE_TTL_SECONDS, default 24 h), so that
+        SourcePreferenceHandler falls through to the next source.
 
         Returns:
             Dict[str, List["ModelInfo"]] - Dictionary mapping service names to lists of ModelInfo objects loaded from archive
 
         Raises:
             FileNotFoundError: If archive file doesn't exist
-            ImportError: If archive file can't be imported
-            AttributeError: If archive file doesn't have required 'data' attribute
+            ValueError: If archive data is stale (older than TTL)
         """
         import json
         from .model_info import ModelInfo
 
-        try:
-            with open(self.archive_path, "r", encoding="utf-8") as f:
-                data = json.load(f)
-        except FileNotFoundError:
-            raise FileNotFoundError(f"Archive file not found at {self.archive_path}")
-        except json.JSONDecodeError:
-            raise json.JSONDecodeError(
-                f"Invalid JSON in archive file {self.archive_path}"
+        # Also check legacy CWD path for backward compatibility
+        paths_to_try = [self.archive_path]
+        legacy_path = ".edsl_model_archive.json"
+        if legacy_path != self.archive_path and os.path.exists(legacy_path):
+            paths_to_try.append(legacy_path)
+
+        data = None
+        used_path = None
+        for path in paths_to_try:
+            try:
+                with open(path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                used_path = path
+                break
+            except (FileNotFoundError, json.JSONDecodeError):
+                continue
+
+        if data is None:
+            raise FileNotFoundError(
+                f"Archive file not found at {self.archive_path}"
             )
-        except Exception as e:
-            raise Exception(f"Error loading archive file {self.archive_path}: {e}")
+
+        # --- TTL staleness check ---
+        created_at_str = data.get("created_at")
+        if created_at_str:
+            try:
+                created_at = datetime.datetime.fromisoformat(created_at_str)
+                age_seconds = (
+                    datetime.datetime.now() - created_at
+                ).total_seconds()
+                if age_seconds > _MODEL_CACHE_TTL_SECONDS:
+                    if self.verbose:
+                        print(
+                            f"[MODEL_FETCHER_ARCHIVE] Archive is {age_seconds:.0f}s old "
+                            f"(TTL={_MODEL_CACHE_TTL_SECONDS}s), treating as stale"
+                        )
+                    raise ValueError(
+                        f"Archive is stale ({age_seconds:.0f}s > TTL {_MODEL_CACHE_TTL_SECONDS}s)"
+                    )
+            except ValueError:
+                raise  # re-raise staleness ValueError
+            except Exception:
+                pass  # if we can't parse the timestamp, use the data anyway
+
+        if self.verbose:
+            print(f"[MODEL_FETCHER_ARCHIVE] Loaded archive from {used_path}")
 
         # Convert archived data (which may be strings) to ModelInfo objects
         converted_data = {}

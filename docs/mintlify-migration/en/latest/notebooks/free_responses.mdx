@@ -3,7 +3,7 @@ title: "Exploring free text responses"
 description: "This notebook provide sample [EDSL](/en/latest/index) code demonstrating ways of modifying instructions for free response questions."
 ---
 
-[EDSL is an open-source library](https://github.com/expectedparrot/edsl) for simulating surveys, experiments and other research with AI agents and large language models. Before running the code below, please ensure that you have [installed the EDSL library](/en/latest/installation) and either [activated remote inference](/en/latest/remote_inference) from your [Coop account](/en/latest/coop) or [stored API keys](/en/latest/api_keys) for the language models that you want to use with EDSL. Please also see our [documentation page](/en/latest/index) for tips and tutorials on getting started using EDSL.
+[EDSL is an open-source library](https://github.com/expectedparrot/edsl) for simulating surveys, experiments and other research with AI agents and large language models. Before running the code below, please ensure that you have [installed the EDSL library](/en/latest/installation) and either [activated remote inference](/en/latest/remote_inference) from your [Expected Parrot account](/en/latest/coop) or [stored API keys](/en/latest/api_keys) for the language models that you want to use with EDSL. Please also see our [documentation page](/en/latest/index) for tips and tutorials on getting started using EDSL.
 
 ## Creating free text questions
 
@@ -100,7 +100,7 @@ results = survey.by(scenarios).by(agents).by(models).run()
 | 7 | gpt-4o | You are middle-aged. | You are providing answers verbally to a researcher in a live interview. | 1 | Be concise! | Reading historical fiction. | I love visiting the serene landscapes of the Scottish Highlands. |
 | 8 | gpt-4o | You are middle-aged. | You are typing answers in an online survey. | 1 | Be concise! | Reading historical novels. | Italy. |
 
-## Posting to Coop
+## Posting to Expected Parrot
 
 ```python
 from edsl import Notebook

@@ -63,10 +63,12 @@ class RawResponseHandler:
         key_sequence: list,
         usage_sequence: Optional[list] = None,
         reasoning_sequence: Optional[list] = None,
+        inference_service: Optional[str] = None,
     ):
         self.key_sequence = key_sequence
         self.usage_sequence = usage_sequence
         self.reasoning_sequence = reasoning_sequence
+        self.inference_service = inference_service
 
     def get_generated_token_string(self, raw_response):
         try:
@@ -80,14 +82,16 @@ class RawResponseHandler:
             # For non-reasoning models or reasoning models with different response formats,
             # try to extract text directly from common response formats
             if isinstance(raw_response, dict):
-                # Responses API format for non-reasoning models
+                # Responses API format — scan all output items for a message block
                 if "output" in raw_response and isinstance(
                     raw_response["output"], list
                 ):
-                    # Try to get first message content
-                    if len(raw_response["output"]) > 0:
-                        item = raw_response["output"][0]
-                        if isinstance(item, dict) and "content" in item:
+                    for item in raw_response["output"]:
+                        if (
+                            isinstance(item, dict)
+                            and item.get("type") == "message"
+                            and "content" in item
+                        ):
                             if (
                                 isinstance(item["content"], list)
                                 and len(item["content"]) > 0
@@ -100,6 +104,16 @@ class RawResponseHandler:
                                     return first_content["text"]
                             elif isinstance(item["content"], str):
                                 return item["content"]
+                    # No message block found — response may be incomplete
+                    # (e.g., reasoning model used all tokens on thinking)
+                    status = raw_response.get("status")
+                    incomplete = raw_response.get("incomplete_details") or {}
+                    if status == "incomplete":
+                        reason = incomplete.get("reason", "unknown")
+                        raise LanguageModelBadResponseError(
+                            message=f"Response incomplete: {reason}. The model used all output tokens on reasoning with no text generated. Try increasing max_tokens.",
+                            response_json=raw_response,
+                        )
 
                 # OpenAI completions format
                 if (
@@ -117,6 +131,20 @@ class RawResponseHandler:
                             and "content" in choice["message"]
                         ):
                             return choice["message"]["content"]
+
+                # Anthropic reasoning completions format
+                text_blocks = []
+                if "content" in raw_response and isinstance(
+                    raw_response["content"], list
+                ):
+                    for item in raw_response["content"]:
+                        if (
+                            isinstance(item, dict)
+                            and "type" in item
+                            and item["type"] == "text"
+                        ):
+                            text_blocks.append(item["text"])
+                    return "\n\n".join(text_blocks)
 
                 # Text directly in response
                 if "text" in raw_response:
@@ -168,32 +196,54 @@ class RawResponseHandler:
         """
         Extract reasoning summary from the model response.
 
-        Handles various response structures:
-        1. Standard path extraction using self.reasoning_sequence
-        2. Direct access to output[0]['summary'] for OpenAI responses
-        3. List responses where the first item contains the output structure
+        When inference_service is None, returns None (skip).
+        When set, uses the path for that service only; other services return None.
+
+        Paths:
+        - anthropic: reasoning_sequence ["content"] then filter type='thinking' blocks
+        - openai / openai_v2: reasoning_sequence or output[0]['summary'] fallback
+        - other: return None
         """
-        if self.reasoning_sequence is None:
+        if self.inference_service is None:
             return None
 
-        try:
-            # First try the standard extraction path
-            summary_data = _extract_item_from_raw_response(
-                raw_response, self.reasoning_sequence
-            )
+        # Anthropic: use reasoning_sequence to get content, then filter thinking blocks
+        if self.inference_service == "anthropic":
+            if self.reasoning_sequence is not None:
+                try:
+                    summary_data = _extract_item_from_raw_response(
+                        raw_response, self.reasoning_sequence
+                    )
+                    if isinstance(summary_data, list):
+                        thinking_parts = [
+                            item["thinking"]
+                            for item in summary_data
+                            if isinstance(item, dict)
+                            and item.get("type") == "thinking"
+                            and "thinking" in item
+                        ]
+                        if thinking_parts:
+                            return "\n\n".join(thinking_parts)
+                except Exception:
+                    pass
+            return None
 
-            # If summary_data is a list of dictionaries with 'text' and 'type' fields
-            # (as in OpenAI's response format), combine them into a single string
-            if isinstance(summary_data, list) and all(
-                isinstance(item, dict) and "text" in item for item in summary_data
-            ):
-                return "\n\n".join(item["text"] for item in summary_data)
-
-            return summary_data
-        except Exception:
-            # Fallback approaches for different response structures
+        # OpenAI-style: reasoning_sequence or output/summary fallbacks
+        if self.inference_service in ("openai", "openai_v2"):
+            if self.reasoning_sequence is not None:
+                try:
+                    summary_data = _extract_item_from_raw_response(
+                        raw_response, self.reasoning_sequence
+                    )
+                    if isinstance(summary_data, list) and all(
+                        isinstance(item, dict) and "text" in item
+                        for item in summary_data
+                    ):
+                        return "\n\n".join(item["text"] for item in summary_data)
+                    return summary_data
+                except Exception:
+                    pass
             try:
-                # Case 1: Direct dict with 'output' field (common OpenAI format)
                 if isinstance(raw_response, dict) and "output" in raw_response:
                     output = raw_response["output"]
                     if (
@@ -207,8 +257,6 @@ class RawResponseHandler:
                             for item in summary_data
                         ):
                             return "\n\n".join(item["text"] for item in summary_data)
-
-                # Case 2: List where the first item is a dict with 'output' field
                 if isinstance(raw_response, list) and len(raw_response) > 0:
                     first_item = raw_response[0]
                     if isinstance(first_item, dict) and "output" in first_item:
@@ -228,11 +276,32 @@ class RawResponseHandler:
                                 )
             except Exception:
                 pass
-
             return None
 
-    def parse_response(self, raw_response: dict[str, Any]) -> Any:
-        """Parses the API response and returns the response text."""
+        # Other inference service: don't try anything
+        return None
+
+    # Delimiter used in prompt templates and for parsing the comment from
+    # the generated text.  Kept as a class attribute so templates and tests
+    # can reference the single source of truth.
+    COMMENT_DELIMITERS = ["COMMENT:", "CORRECTION:"]
+
+    def parse_response(
+        self,
+        raw_response: dict[str, Any],
+        *,
+        is_free_text: bool = False,
+    ) -> Any:
+        """Parses the API response and returns the response text.
+
+        The comment is separated from the answer by looking for known
+        delimiters (COMMENT:, CORRECTION:) on their own line.  If no
+        delimiter is found, falls back to splitting on the last newline
+        for backwards compatibility with cached responses.
+
+        When *is_free_text* is True, the full generated string is kept as
+        the answer and no comment is inferred from newlines or delimiters.
+        """
 
         from edsl.data_transfer_models import EDSLOutput
 
@@ -240,25 +309,71 @@ class RawResponseHandler:
         # Ensure generated_token_string is a string before using string methods
         if not isinstance(generated_token_string, str):
             generated_token_string = str(generated_token_string)
-        last_newline = generated_token_string.rfind("\n")
+
         reasoning_summary = self.get_reasoning_summary(raw_response)
 
-        if last_newline == -1:
-            # There is no comment
-            edsl_dict = {
-                "answer": self.convert_answer(generated_token_string),
-                "generated_tokens": generated_token_string,
-                "comment": None,
-                "reasoning_summary": reasoning_summary,
-            }
+        if is_free_text:
+            answer_text, comment_text = generated_token_string.strip(), None
         else:
-            edsl_dict = {
-                "answer": self.convert_answer(generated_token_string[:last_newline]),
-                "comment": generated_token_string[last_newline + 1 :].strip(),
-                "generated_tokens": generated_token_string,
-                "reasoning_summary": reasoning_summary,
-            }
+            answer_text, comment_text = self._split_answer_and_comment(
+                generated_token_string
+            )
+
+        # Free-text answers should remain literal text; do not JSON-coerce.
+        parsed_answer = (
+            answer_text if is_free_text else self.convert_answer(answer_text)
+        )
+
+        edsl_dict = {
+            "answer": parsed_answer,
+            "generated_tokens": generated_token_string,
+            "comment": comment_text,
+            "reasoning_summary": reasoning_summary,
+        }
         return EDSLOutput(**edsl_dict)
+
+    @classmethod
+    def _split_answer_and_comment(cls, generated_token_string: str):
+        """Split *generated_token_string* into (answer, comment).
+
+        Strategy (in order):
+        1. Look for the **last** occurrence of ``COMMENT:`` (case-insensitive)
+           on its own line (possibly preceded by whitespace).  Everything
+           before that line is the answer; everything after the delimiter
+           keyword is the comment.  Multi-line comments are supported.
+        2. Fall back to the legacy ``rfind("\\n")`` approach so that older
+           cached responses still parse correctly.
+        """
+        import re
+
+        # Strategy 1: look for known comment delimiters (COMMENT:, CORRECTION:)
+        # Match the last line starting with any recognized delimiter.
+        delimiter_alts = "|".join(re.escape(d) for d in cls.COMMENT_DELIMITERS)
+        pattern = r"(?m)^[ \t]*(?:" + delimiter_alts + r")[ \t]*(.*)"
+        matches = list(re.finditer(pattern, generated_token_string, re.IGNORECASE))
+        if matches:
+            last_match = matches[-1]
+            answer_part = generated_token_string[: last_match.start()].strip()
+            # Combine the rest-of-line after the delimiter with any
+            # subsequent lines to form the full comment.
+            comment_part = (
+                last_match.group(1) + generated_token_string[last_match.end() :]
+            ).strip()
+            if not answer_part:
+                # Edge case: the entire string started with COMMENT:
+                # Treat the whole thing as the answer with no comment.
+                return generated_token_string.strip(), None
+            return answer_part, comment_part or None
+
+        # Strategy 2: split on first newline — answer is the first line,
+        # everything after is the comment (preserving multi-line comments)
+        first_newline = generated_token_string.find("\n")
+        if first_newline == -1:
+            return generated_token_string, None
+        else:
+            answer_part = generated_token_string[:first_newline].strip()
+            comment_part = generated_token_string[first_newline + 1 :].strip()
+            return answer_part, comment_part or None
 
     @staticmethod
     def convert_answer(response_part):

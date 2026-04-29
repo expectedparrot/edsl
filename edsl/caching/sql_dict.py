@@ -9,11 +9,11 @@ making it a drop-in replacement for regular dictionaries but with database persi
 
 from __future__ import annotations
 import json
+import sqlite3
 from typing import Any, Generator, Optional, Union, Dict, TypeVar
 
 from ..config import CONFIG
 from .cache_entry import CacheEntry
-from .orm import Data
 
 T = TypeVar("T")
 
@@ -33,8 +33,7 @@ class SQLiteDict:
 
     Attributes:
         db_path (str): Path to the SQLite database file
-        engine: SQLAlchemy engine instance for database access
-        Session: SQLAlchemy sessionmaker for creating database sessions
+        _conn: sqlite3 connection instance
 
     Example:
         >>> temp_db_path = SQLiteDict._get_temp_path()
@@ -69,20 +68,22 @@ class SQLiteDict:
             True
             >>> import os; os.unlink(temp_db_path)  # Clean up the temp file after the test
         """
-        from sqlalchemy.exc import SQLAlchemyError
-        from sqlalchemy.orm import sessionmaker
-        from sqlalchemy import create_engine
-
         self.db_path = db_path or CONFIG.get("EDSL_DATABASE_PATH")
-        if not self.db_path.startswith("sqlite:///"):
-            self.db_path = f"sqlite:///{self.db_path}"
-        try:
-            from .orm import Base
+        # Strip the sqlite:/// prefix for sqlite3 module
+        raw_path = self.db_path
+        if raw_path.startswith("sqlite:///"):
+            raw_path = raw_path[len("sqlite:///"):]
+        else:
+            # Ensure db_path keeps the prefix for repr compatibility
+            self.db_path = f"sqlite:///{raw_path}"
 
-            self.engine = create_engine(self.db_path, echo=False, future=True)
-            Base.metadata.create_all(self.engine)
-            self.Session = sessionmaker(bind=self.engine)
-        except SQLAlchemyError as e:
+        try:
+            self._conn = sqlite3.connect(raw_path, check_same_thread=False)
+            self._conn.execute(
+                "CREATE TABLE IF NOT EXISTS data (key TEXT PRIMARY KEY, value TEXT)"
+            )
+            self._conn.commit()
+        except sqlite3.Error as e:
             from .exceptions import CacheError
 
             raise CacheError(
@@ -130,19 +131,15 @@ class SQLiteDict:
             raise CacheValueError(
                 f"Value must be a CacheEntry object (got {type(value)})."
             )
-        with self.Session() as db:
-            from .orm import Data
-
-            db.merge(Data(key=key, value=json.dumps(value.to_dict())))
-            db.commit()
+        self._conn.execute(
+            "INSERT OR REPLACE INTO data (key, value) VALUES (?, ?)",
+            (key, json.dumps(value.to_dict())),
+        )
+        self._conn.commit()
 
     def __getitem__(self, key: str) -> CacheEntry:
         """
         Retrieves a CacheEntry object for the specified key.
-
-        This method retrieves a CacheEntry object from the database using
-        the specified key. The stored JSON value is deserialized into a
-        CacheEntry object.
 
         Args:
             key: The key to retrieve the value for
@@ -159,23 +156,18 @@ class SQLiteDict:
             >>> d["foo"] == CacheEntry.example()
             True
         """
-        with self.Session() as db:
-            from .orm import Data
+        row = self._conn.execute(
+            "SELECT value FROM data WHERE key = ?", (key,)
+        ).fetchone()
+        if not row:
+            from .exceptions import CacheKeyError
 
-            value = db.query(Data).filter_by(key=key).first()
-            if not value:
-                from .exceptions import CacheKeyError
-
-                raise CacheKeyError(f"Key '{key}' not found.")
-            return CacheEntry.from_dict(json.loads(value.value))
+            raise CacheKeyError(f"Key '{key}' not found.")
+        return CacheEntry.from_dict(json.loads(row[0]))
 
     def get(self, key: str, default: Optional[Any] = None) -> Union[CacheEntry, Any]:
         """
         Retrieves a value for the specified key with a default fallback.
-
-        This method attempts to retrieve a CacheEntry for the specified key,
-        returning a default value if the key is not found. This provides a
-        safer alternative to __getitem__ when the key might not exist.
 
         Args:
             key: The key to retrieve the value for
@@ -200,10 +192,6 @@ class SQLiteDict:
         """
         Always returns True for SQLiteDict instances.
 
-        This special method ensures that SQLiteDict objects are always truthy
-        in boolean contexts, which allows patterns like `cache = cache or SQLiteDict()`
-        to work as expected.
-
         Returns:
             Always True for any SQLiteDict instance
         """
@@ -217,10 +205,6 @@ class SQLiteDict:
     ) -> None:
         """
         Updates the dictionary with values from another dictionary or SQLiteDict.
-
-        This method adds entries from another dictionary or SQLiteDict to this
-        SQLiteDict. It optionally overwrites existing entries and uses batched
-        transactions for efficiency when updating many entries.
 
         Args:
             new_d: The dictionary or SQLiteDict containing entries to add
@@ -237,10 +221,6 @@ class SQLiteDict:
             >>> d.update({"foo": CacheEntry.example()})
             >>> d["foo"] == CacheEntry.example()
             True
-
-        Note:
-            For large updates, the batched transaction approach helps prevent
-            the database from being locked for too long.
         """
         if not (isinstance(new_d, dict) or isinstance(new_d, SQLiteDict)):
             from .exceptions import CacheValueError
@@ -249,16 +229,17 @@ class SQLiteDict:
                 f"new_d must be a dict or SQLiteDict object (got {type(new_d)})"
             )
         current_batch = 0
-        with self.Session() as db:
-            for key, value in new_d.items():
-                if current_batch == max_batch_size:
-                    db.commit()
-                    current_batch = 0
-                current_batch += 1
-                # Only merge if key doesn't exist or overwrite is True
-                if (key in self and overwrite) or key not in self:
-                    db.merge(Data(key=key, value=json.dumps(value.to_dict())))
-            db.commit()
+        for key, value in new_d.items():
+            if current_batch == max_batch_size:
+                self._conn.commit()
+                current_batch = 0
+            current_batch += 1
+            if (key in self and overwrite) or key not in self:
+                self._conn.execute(
+                    "INSERT OR REPLACE INTO data (key, value) VALUES (?, ?)",
+                    (key, json.dumps(value.to_dict())),
+                )
+        self._conn.commit()
 
     def values(self) -> Generator[CacheEntry, None, None]:
         """
@@ -269,9 +250,8 @@ class SQLiteDict:
         >>> list(d.values()) == [CacheEntry.example()]
         True
         """
-        with self.Session() as db:
-            for instance in db.query(Data).all():
-                yield CacheEntry.from_dict(json.loads(instance.value))
+        for row in self._conn.execute("SELECT value FROM data").fetchall():
+            yield CacheEntry.from_dict(json.loads(row[0]))
 
     def items(self) -> Generator[tuple[str, CacheEntry], None, None]:
         """
@@ -282,9 +262,8 @@ class SQLiteDict:
         >>> list(d.items()) == [("foo", CacheEntry.example())]
         True
         """
-        with self.Session() as db:
-            for instance in db.query(Data).all():
-                yield (instance.key, CacheEntry.from_dict(json.loads(instance.value)))
+        for row in self._conn.execute("SELECT key, value FROM data").fetchall():
+            yield (row[0], CacheEntry.from_dict(json.loads(row[1])))
 
     def to_dict(self):
         """
@@ -307,15 +286,12 @@ class SQLiteDict:
         >>> d.get("foo", "missing")
         'missing'
         """
-        with self.Session() as db:
-            instance = db.query(Data).filter_by(key=key).one_or_none()
-            if instance:
-                db.delete(instance)
-                db.commit()
-            else:
-                from .exceptions import CacheKeyError
+        cursor = self._conn.execute("DELETE FROM data WHERE key = ?", (key,))
+        self._conn.commit()
+        if cursor.rowcount == 0:
+            from .exceptions import CacheKeyError
 
-                raise CacheKeyError(f"Key '{key}' not found.")
+            raise CacheKeyError(f"Key '{key}' not found.")
 
     def __contains__(self, key: str) -> bool:
         """
@@ -328,8 +304,10 @@ class SQLiteDict:
         >>> "bar" in d
         False
         """
-        with self.Session() as db:
-            return db.query(Data).filter_by(key=key).first() is not None
+        row = self._conn.execute(
+            "SELECT 1 FROM data WHERE key = ?", (key,)
+        ).fetchone()
+        return row is not None
 
     def __iter__(self) -> Generator[str, None, None]:
         """
@@ -340,9 +318,8 @@ class SQLiteDict:
         >>> list(iter(d)) == ["foo"]
         True
         """
-        with self.Session() as db:
-            for instance in db.query(Data).all():
-                yield instance.key
+        for row in self._conn.execute("SELECT key FROM data").fetchall():
+            yield row[0]
 
     def __len__(self) -> int:
         """
@@ -355,8 +332,8 @@ class SQLiteDict:
         >>> len(d)
         1
         """
-        with self.Session() as db:
-            return db.query(Data).count()
+        row = self._conn.execute("SELECT COUNT(*) FROM data").fetchone()
+        return row[0]
 
     def keys(self) -> Generator[str, None, None]:
         """
@@ -373,38 +350,24 @@ class SQLiteDict:
         return f"{self.__class__.__name__}(db_path={self.db_path!r})"
 
     def close(self):
-        """Close database connections and clean up resources.
-
-        This method properly disposes of the SQLAlchemy engine,
-        closing all connections in the pool to prevent memory leaks.
-        """
+        """Close database connection and clean up resources."""
         try:
-            if hasattr(self, "engine") and self.engine:
-                self.engine.dispose()
+            if hasattr(self, "_conn") and self._conn:
+                self._conn.close()
         except Exception:
-            # Silently ignore errors during cleanup to prevent issues during garbage collection
             pass
 
     def __del__(self):
-        """Destructor for proper resource cleanup.
-
-        Ensures SQLAlchemy connections are properly closed when the
-        object is garbage collected.
-        """
+        """Destructor for proper resource cleanup."""
         try:
             self.close()
         except Exception:
-            # Silently ignore errors during garbage collection
             pass
 
     @classmethod
     def example(cls) -> SQLiteDict:
         """
         Creates an in-memory SQLiteDict for examples and testing.
-
-        This factory method creates a SQLiteDict that uses an in-memory SQLite
-        database, making it suitable for examples, testing, and demonstrations
-        without creating persistent files.
 
         Returns:
             A new SQLiteDict instance using an in-memory SQLite database
@@ -419,14 +382,6 @@ class SQLiteDict:
 def main() -> None:
     """
     Demonstrates SQLiteDict functionality for interactive testing.
-
-    This function demonstrates the key features of the SQLiteDict class,
-    including creating, retrieving, updating, and deleting entries. It
-    provides a practical example of how to use SQLiteDict in code.
-
-    Note:
-        This function is intended to be run in an interactive Python session
-        for exploration and testing, not as part of normal code execution.
     """
     from .cache_entry import CacheEntry
     from .sql_dict import SQLiteDict

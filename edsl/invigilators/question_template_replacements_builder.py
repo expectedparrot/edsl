@@ -8,6 +8,9 @@ _template_variables_cache = {}
 _scenario_file_keys_cache = {}
 _file_keys_extraction_cache = {}
 
+# Module-level cached environment for template variable extraction
+_JINJA_ENV = Environment()
+
 if TYPE_CHECKING:
     from .prompt_constructor import PromptConstructor
     from ..questions import QuestionBase
@@ -95,14 +98,17 @@ class QuestionTemplateReplacementsBuilder:
         Returns:
         Set[str]: A set of variable names found in the template
         """
+        # FAST PATH: no Jinja syntax means no variables
+        if "{{" not in template_str and "{%" not in template_str:
+            return set()
+
         # Check cache first
         if template_str in _template_variables_cache:
             return _template_variables_cache[template_str]
 
-        # Parse template for the first time
-        env = Environment()
+        # Parse template for the first time (use cached module-level env)
         try:
-            ast = env.parse(template_str)
+            ast = _JINJA_ENV.parse(template_str)
         except TemplateSyntaxError:
             print(f"Error parsing template: {template_str}")
             raise
@@ -263,6 +269,10 @@ class QuestionTemplateReplacementsBuilder:
         >>> q.by(s).prompts().select('user_prompt')
         Dataset([{'user_prompt': [Prompt(text=\"""How are you john?\""")]}])
         """
+        # FAST PATH: empty scenario means no scenario replacements needed
+        if not self.scenario:
+            return {"scenario": {"all": ""}}
+
         # OPTIMIZATION: Only process files that are actually referenced in the question
         referenced_file_keys = self.question_file_keys()  # Only files used in question
 
@@ -329,12 +339,15 @@ class QuestionTemplateReplacementsBuilder:
         >>> from edsl import QuestionMultipleChoice
         >>> q = QuestionMultipleChoice(question_text="Do you like school?", question_name = "q0", question_options = ["yes", "no"])
         >>> QuestionTemplateReplacementsBuilder._question_data_replacements(q, q.data)
-        {'use_code': False, 'include_comment': True, 'question_name': 'q0', 'question_text': 'Do you like school?', 'question_options': ['yes', 'no']}
+        {'use_code': False, 'include_comment': True, 'enumeration': 'none', 'question_name': 'q0', 'question_text': 'Do you like school?', 'question_options': ['yes', 'no']}
 
         """
+        enumeration = getattr(question, "_enumeration", None)
+        enumeration_value = enumeration.value if enumeration is not None else "none"
         question_settings = {
             "use_code": getattr(question, "_use_code", True),
             "include_comment": getattr(question, "_include_comment", False),
+            "enumeration": enumeration_value,
         }
         return {**question_settings, **question_data}
 

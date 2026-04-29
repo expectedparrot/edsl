@@ -3,8 +3,16 @@ def is_notebook() -> bool:
     import sys
 
     # Check for marimo first (doesn't use IPython)
+    # Note: just checking sys.modules is not enough — marimo may be imported
+    # without actually running in a marimo notebook.
     if "marimo" in sys.modules:
-        return True
+        try:
+            import marimo as mo
+
+            if mo.running_in_notebook():
+                return True
+        except (ImportError, AttributeError):
+            pass
 
     try:
         shell = get_ipython().__class__.__name__

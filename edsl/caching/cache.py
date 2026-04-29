@@ -452,23 +452,9 @@ class Cache(Base):
             self.new_entries_to_write_later.update(new_data)
 
     def add_from_jsonl(self, filename: str, write_now: Optional[bool] = True) -> None:
-        """
-        Add entries to the cache from a JSONL.
-
-        :param write_now: Whether to write to the cache immediately (similar to `immediate_write`).
-        """
-        from .cache_entry import CacheEntry
-
-        with open(filename, "a+") as f:
-            f.seek(0)
-            lines = f.readlines()
-        new_data = {}
-        for line in lines:
-            d = json.loads(line)
-            key = list(d.keys())[0]
-            value = list(d.values())[0]
-            new_data[key] = CacheEntry(**value)
-        self.add_from_dict(new_data=new_data, write_now=write_now)
+        """Add entries to the cache from a CAS-format JSONL file."""
+        loaded = Cache.from_jsonl(filename)
+        self.add_from_dict(new_data=loaded.data, write_now=write_now)
 
     def add_from_sqlite(self, db_path: str, write_now: Optional[bool] = True):
         """
@@ -503,31 +489,48 @@ class Cache(Base):
         return cls.from_sqlite_db(path)
 
     @classmethod
-    def from_jsonl(cls, jsonlfile: str, db_path: Optional[str] = None) -> Cache:
+    def from_jsonl(cls, source, **kwargs) -> "Cache":
+        """Reconstruct a Cache from CAS-compatible JSONL content.
+
+        Accepts a raw JSONL string, a file path, or an iterable of lines.
         """
-        Construct a Cache from a JSONL file.
+        from .cache_entry import CacheEntry
+        from pathlib import Path
 
-        :param jsonlfile: The path to the JSONL file of cache entries.
-        :param db_path: The path to the SQLite database used to store the cache.
-
-        * If `db_path` is None, the cache will be stored in memory, as a dictionary.
-        * If `db_path` is provided, the cache will be stored in an SQLite database.
-        """
-        # if a file doesn't exist at jsonfile, throw an error
-        from .sql_dict import SQLiteDict
-        from .exceptions import CacheFileNotFoundError
-
-        if not os.path.exists(jsonlfile):
-            raise CacheFileNotFoundError(f"File {jsonlfile} not found")
-
-        if db_path is None:
-            data = {}
+        # Normalise source to text content
+        if isinstance(source, (str, Path)):
+            source_str = str(source)
+            # Single-line string that doesn't start with '{' — treat as file path
+            if "\n" not in source_str.rstrip("\n") and not source_str.lstrip().startswith("{"):
+                p = Path(source_str)
+                try:
+                    if p.is_file():
+                        source_str = p.read_text()
+                    else:
+                        from .exceptions import CacheFileNotFoundError
+                        raise CacheFileNotFoundError(f"File {source_str} not found")
+                except OSError:
+                    pass
+            lines = source_str.strip().splitlines()
         else:
-            data = SQLiteDict(db_path)
+            lines = [l.strip() for l in source if l.strip()]
 
-        cache = Cache(data=data)
-        cache.add_from_jsonl(jsonlfile)
-        return cache
+        if not lines:
+            return cls(data={})
+
+        # Skip header line
+        first = json.loads(lines[0])
+        if isinstance(first, dict) and first.get("__header__"):
+            lines = lines[1:]
+
+        data = {}
+        for line in lines:
+            line = line.strip()
+            if not line:
+                continue
+            row = json.loads(line)
+            data[row["key"]] = CacheEntry.from_dict(row["entry"])
+        return cls(data=data)
 
     def write_sqlite_db(self, db_path: str) -> None:
         """
@@ -555,13 +558,44 @@ class Cache(Base):
             raise CacheError("Invalid file extension. Must be .jsonl or .db")
 
     def write_jsonl(self, filename: str) -> None:
+        """Write the cache to a CAS-format JSONL file."""
+        self.to_jsonl(filename=filename)
+
+    # ------------------------------------------------------------------
+    # CAS-compatible JSONL serialization
+    # ------------------------------------------------------------------
+
+    def to_jsonl_rows(self, blob_writer=None):
+        """Yield JSONL rows for CAS storage.
+
+        Each row is a JSON string (without trailing newline).
         """
-        Write the cache to a JSONL file.
+        from .. import __version__
+
+        yield json.dumps({
+            "__header__": True,
+            "edsl_class_name": "Cache",
+            "edsl_version": __version__,
+            "n_entries": len(self.data),
+        })
+        for key, entry in self.data.items():
+            yield json.dumps({"key": key, "entry": entry.to_dict()})
+
+    def to_jsonl(self, filename=None, **kwargs) -> Optional[str]:
+        """Export as CAS-compatible JSONL string or write to *filename*.
+
+        Format:
+          - Line 1: header with ``__header__: true`` and metadata
+          - Lines 2–N+1: one ``{"key": "...", "entry": {...}}`` per CacheEntry
         """
-        path = os.path.join(os.getcwd(), filename)
-        with open(path, "w") as f:
-            for key, value in self.data.items():
-                f.write(json.dumps({key: value.to_dict()}) + "\n")
+        content = "\n".join(self.to_jsonl_rows()) + "\n"
+
+        if filename is not None:
+            with open(filename, "w") as f:
+                f.write(content)
+            return None
+        return content
+
 
     def to_scenario_list(self):
         from ..scenarios import ScenarioList, Scenario
@@ -654,7 +688,7 @@ class Cache(Base):
             - Deferred entries (new_entries_to_write_later) are written to the main data store
             - If a filename was provided at initialization, cache is persisted to that file
             - Persistence format is determined by the filename extension (.jsonl or .db)
-            - SQLAlchemy resources are properly disposed when the context is exited
+            - Database connections are properly closed when the context is exited
         """
         # Write any deferred entries to the main data store
         for key, entry in self.new_entries_to_write_later.items():
@@ -729,45 +763,13 @@ class Cache(Base):
     def to_dataset(self):
         return self.to_scenario_list().to_dataset()
 
-    def _repr_html_(self):
-        """Generate an HTML representation for Jupyter notebooks.
+    def to_pandas(self):
+        """Convert to a pandas DataFrame."""
+        return self.to_dataset().to_pandas()
 
-        This method is automatically called by Jupyter to render the object
-        as HTML in notebook cells. It handles empty caches gracefully.
-
-        Returns:
-            str: HTML representation of the object
-        """
-        # Get class name and documentation link
-        class_name = self.__class__.__name__
-        docs = getattr(self, "__documentation__", "")
-
-        # Create header with link to documentation
-        header = f"<a href='{docs}'>{class_name}</a>"
-
-        # Add summary if available
-        if hasattr(self, "_summary"):
-            summary_dict = self._summary()
-            summary_line = "".join([f" {k}: {v};" for k, v in summary_dict.items()])
-            header = f"<p>{header}{summary_line}</p>"
-        else:
-            header = f"<p>{header}</p>"
-
-        # Handle empty cache
-        if len(self.data) == 0:
-            return f"{header}<p><em>Empty cache</em></p>"
-
-        # For non-empty caches, render the table as usual
-        from edsl.dataset.display.table_display import TableDisplay
-
-        try:
-            return header + self.table()._repr_html_()
-        except Exception:
-            # Fallback if table() fails - display as dictionary
-            display_dict = {"entries": len(self.data)}
-            return (
-                header + TableDisplay.from_dictionary_wide(display_dict)._repr_html_()
-            )
+    def to_pandas_for_display(self):
+        """Convert to a pandas DataFrame for notebook display."""
+        return self.to_pandas()
 
     @classmethod
     @remove_edsl_version
@@ -834,15 +836,13 @@ class Cache(Base):
     def close(self):
         """Explicitly close and clean up resources.
 
-        This method properly disposes of any SQLAlchemy engines and
-        connections to prevent memory leaks.
+        This method properly closes any database connections
+        to prevent memory leaks.
         """
         try:
             # Clean up SQLiteDict resources if present
-            if not isinstance(self.data, dict):
-                # Handle SQLiteDict or other database-backed storage
-                if hasattr(self.data, "engine") and self.data.engine:
-                    self.data.engine.dispose()
+            if hasattr(self.data, "close"):
+                self.data.close()
         except Exception:
             # Silently ignore errors during cleanup to prevent issues during garbage collection
             pass
@@ -850,7 +850,7 @@ class Cache(Base):
     def __del__(self):
         """Destructor for proper resource cleanup.
 
-        Ensures SQLAlchemy connections are properly closed when the Cache
+        Ensures database connections are properly closed when the Cache
         object is garbage collected.
         """
         try:
@@ -860,12 +860,30 @@ class Cache(Base):
             pass
 
     def __repr__(self):
+        """Return a string representation of the Cache object.
+
+        Routes to _summary_repr for terminal display, _eval_repr_ during
+        doctests and in Jupyter notebooks.
         """
-        Return a string representation of the Cache object.
-        """
-        return (
-            f"Cache(data = {repr(self.data)}, immediate_write={self.immediate_write})"
-        )
+        import os
+
+        if os.environ.get("EDSL_RUNNING_DOCTESTS") == "True":
+            return self._eval_repr_()
+
+        try:
+            from IPython import get_ipython
+
+            ipy = get_ipython()
+            if ipy is not None and "IPKernelApp" in ipy.config:
+                return self._eval_repr_()
+        except (NameError, ImportError):
+            pass
+
+        result = self._summary_repr()
+        info = self._store_info_line()
+        if info:
+            result = result.rstrip() + "\n" + info
+        return result
 
     ####################
     # EXAMPLES
@@ -985,30 +1003,80 @@ class Cache(Base):
         """
         return f"Cache(data={{{len(self.data)} entries}})"
 
+    def info(self) -> list:
+        """Return display sections as (title, Dataset) pairs."""
+        from edsl.dataset import Dataset
+
+        def _trunc(s: str, n: int = 60) -> str:
+            return s if len(s) <= n else s[: n - 1] + "…"
+
+        keys = []
+        models = []
+        services = []
+        system_prompts = []
+        user_prompts = []
+        outputs = []
+        for key, entry in self.data.items():
+            keys.append(key[:12] + "…")
+            models.append(getattr(entry, "model", ""))
+            services.append(getattr(entry, "service", "") or "")
+            system_prompts.append(_trunc(getattr(entry, "system_prompt", "")))
+            user_prompts.append(_trunc(getattr(entry, "user_prompt", "")))
+            outputs.append(_trunc(getattr(entry, "output", "")))
+
+        data = [
+            {"key": keys},
+            {"model": models},
+            {"service": services},
+            {"system_prompt": system_prompts},
+            {"user_prompt": user_prompts},
+            {"output": outputs},
+        ]
+        return [("Cache", Dataset(data))]
+
     def _summary_repr(self) -> str:
-        """Generate a summary representation of the Cache with Rich formatting.
+        """Generate a summary representation of the Cache as a Rich table."""
+        from ..utilities.summary_table import ColumnDef, render_summary_table
 
-        Returns:
-            str: A formatted summary representation of the Cache
-        """
-        from rich.console import Console
-        from rich.text import Text
-        import io
-        from edsl.config import RICH_STYLES
+        num_entries = len(self.data)
+        title = f"Cache ({num_entries} entr{'y' if num_entries == 1 else 'ies'})"
 
-        output = Text()
-        output.append("Cache(", style=RICH_STYLES["primary"])
-        output.append(f"entries={len(self.data)}", style=RICH_STYLES["default"])
+        columns = [
+            ColumnDef("Key", style="dim", no_wrap=True),
+            ColumnDef("Model", style="bold green", no_wrap=True),
+            ColumnDef("Service", style="dim", no_wrap=True),
+            ColumnDef("System Prompt"),
+            ColumnDef("User Prompt"),
+            ColumnDef("Output"),
+        ]
 
+        def _trunc(s: str, n: int = 60) -> str:
+            return s if len(s) <= n else s[: n - 1] + "…"
+
+        rows = []
+        for key, entry in self.data.items():
+            rows.append((
+                key[:12] + "…",
+                getattr(entry, "model", ""),
+                getattr(entry, "service", "") or "",
+                _trunc(getattr(entry, "system_prompt", "")),
+                _trunc(getattr(entry, "user_prompt", "")),
+                _trunc(getattr(entry, "output", "")),
+            ))
+
+        caption_parts: list[str] = []
         if hasattr(self, "filename") and self.filename:
-            output.append(", ", style=RICH_STYLES["default"])
-            output.append(f'filename="{self.filename}"', style=RICH_STYLES["key"])
+            caption_parts.append(f'filename="{self.filename}"')
+        if self.immediate_write:
+            caption_parts.append("immediate_write=True")
 
-        output.append(")", style=RICH_STYLES["primary"])
-
-        console = Console(file=io.StringIO(), force_terminal=True, width=120)
-        console.print(output, end="")
-        return console.file.getvalue()
+        return render_summary_table(
+            title=title,
+            columns=columns,
+            rows=rows,
+            caption=", ".join(caption_parts) if caption_parts else None,
+            max_rows=500,
+        )
 
 
 if __name__ == "__main__":

@@ -91,6 +91,19 @@ class TestService(InferenceServiceABC):
 
                         raise InferenceServiceIntendedError("This is a test error")
 
+                # Support fail_at_number parameter (survives serialization)
+                if hasattr(self, "fail_at_number") and self.fail_at_number is not None:
+                    try:
+                        question_number = int(user_prompt.split("XX")[1])
+                    except (IndexError, ValueError):
+                        question_number = -1
+                    if hasattr(self, "never_ending") and self.never_ending:
+                        await asyncio.sleep(float("inf"))
+                    if question_number == self.fail_at_number:
+                        raise ValueError(
+                            f"Intentional test failure at question {question_number}"
+                        )
+
                 if hasattr(self, "func"):
                     return {
                         "message": [

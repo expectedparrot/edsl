@@ -314,7 +314,7 @@ class QuestionDemand(QuestionBase):
     """
 
     question_type = "demand"
-    prices: List[Union[int, float]] = QuestionOptionsDescriptor(q_demand=True)
+    prices = QuestionOptionsDescriptor(q_demand=True)
     _response_model = None
     response_validator_class = DemandResponseValidator
 

@@ -1,5 +1,5 @@
 from importlib import resources
-from typing import Optional, TYPE_CHECKING
+from typing import Any, Optional, TYPE_CHECKING
 from functools import lru_cache
 
 from .exceptions import QuestionAnswerValidationError
@@ -26,9 +26,9 @@ class TemplateManager:
                 resources.files(f"edsl.questions.templates.{question_type}")
                 / template_name
             )
-            self._template_cache[(question_type, template_name)] = (
-                template_file.read_text()
-            )
+            self._template_cache[
+                (question_type, template_name)
+            ] = template_file.read_text()
         return self._template_cache[(question_type, template_name)]
 
 
@@ -111,7 +111,7 @@ class QuestionBasePromptsMixin:
 
     @classmethod
     def path_to_folder(cls) -> str:
-        return resources.files("edsl.questions.templates", cls.question_type)
+        return resources.files("edsl.questions.templates") / cls.question_type  # type: ignore[operator]
 
     @property
     def response_model(self) -> type["BaseModel"]:
@@ -180,11 +180,14 @@ class QuestionBasePromptsMixin:
         self._question_presentation = value
 
     def prompt_preview(self, scenario=None, agent=None):
+        enumeration = getattr(self, "_enumeration", None)
+        enumeration_value = enumeration.value if enumeration is not None else "none"
         return self.new_default_instructions.render(
             self.data
             | {
                 "include_comment": getattr(self, "_include_comment", True),
                 "use_code": getattr(self, "_use_code", True),
+                "enumeration": enumeration_value,
             }
             | ({"scenario": scenario} or {})
             | ({"agent": agent} or {})
@@ -292,13 +295,9 @@ class QuestionBasePromptsMixin:
         env = Environment()
         # Parse the template
         txt = self._all_text()
-        # txt = self.question_text
-        # if hasattr(self, "question_options"):
-        #    txt += " ".join(self.question_options)
         parsed_content = env.parse(txt)
         # Extract undeclared variables
         variables = meta.find_undeclared_variables(parsed_content)
-        # Return as a list
         return set(variables)
 
     def get_instructions(self, model: Optional[str] = None) -> type["PromptBase"]:
@@ -317,7 +316,7 @@ class QuestionBasePromptsMixin:
                 return self.applicable_prompts(model)[0]()
 
     @staticmethod
-    def sequence_in_dict(d: dict, path: tuple[str, ...]) -> tuple[bool, any]:
+    def sequence_in_dict(d: dict, path: tuple[str, ...]) -> tuple[bool, Any]:
         """Check if a sequence of nested keys exists in a dictionary and return the value.
 
         Args:

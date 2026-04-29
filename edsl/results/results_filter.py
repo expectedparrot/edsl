@@ -31,6 +31,74 @@ class ResultsFilter:
         """
         self.results = results
 
+    def _get_empty_filter_hint(self, expression: str) -> str:
+        """Generate a hint when a filter returns no results, checking for type mismatches."""
+        hints = []
+        try:
+            columns = self.results.columns
+            for col in columns:
+                if col in expression:
+                    values = [
+                        r.get_value(col.split(".", 1)[0], col.split(".", 1)[1])
+                        for r in self.results.data[:20]
+                        if r.get_value(col.split(".", 1)[0], col.split(".", 1)[1]) is not None
+                    ]
+                    if values:
+                        sample_type = type(values[0]).__name__
+                        unique_vals = list(set(repr(v) for v in values))[:5]
+                        hints.append(
+                            f"Column '{col}' contains {sample_type} values "
+                            f"(e.g., {', '.join(unique_vals)})."
+                        )
+                        # Detect bool vs string mismatch
+                        if sample_type == "bool" and (
+                            "'true'" in expression.lower()
+                            or "'false'" in expression.lower()
+                            or '"true"' in expression.lower()
+                            or '"false"' in expression.lower()
+                        ):
+                            hints.append(
+                                "Hint: You're comparing a bool column against a string. "
+                                "Use True/False (without quotes) instead of 'true'/'false'."
+                            )
+        except Exception:
+            pass
+        return " ".join(hints) if hints else "Check that your filter values match the actual data types and values."
+
+    def _get_filter_hint(self, expression: str, error: Exception) -> str:
+        """Generate a helpful hint based on the error and actual data types.
+
+        Detects common mistakes like using 'true'/'false' instead of True/False,
+        or comparing against a string when the column contains booleans (or vice versa).
+        """
+        error_str = str(error)
+
+        # Detect 'true'/'false' not defined — user likely meant True/False
+        if "'true' is not defined" in error_str or "'false' is not defined" in error_str:
+            return "Hint: Use Python boolean literals True/False (capitalized), not true/false."
+
+        # Try to detect type mismatches by inspecting the column values
+        try:
+            columns = self.results.columns
+            for col in columns:
+                if col in expression:
+                    values = [
+                        r.get_value(col.split(".", 1)[0], col.split(".", 1)[1])
+                        for r in self.results.data[:5]
+                        if r.get_value(col.split(".", 1)[0], col.split(".", 1)[1]) is not None
+                    ]
+                    if values:
+                        sample_type = type(values[0]).__name__
+                        sample_vals = list(set(repr(v) for v in values[:3]))
+                        return (
+                            f"Hint: Column '{col}' contains {sample_type} values "
+                            f"(e.g., {', '.join(sample_vals)}). Check for type mismatches."
+                        )
+        except Exception:
+            pass
+
+        return ""
+
     @staticmethod
     def has_single_equals(expression: str) -> bool:
         """Check if an expression contains a single equals sign not part of ==, >=, or <=.
@@ -63,7 +131,7 @@ class ResultsFilter:
     def filter(self, expression: str) -> "Results":
         """Filter results based on a boolean expression.
 
-        This method evaluates a boolean expression against each Result object in the
+        Evaluates a boolean expression against each Result object in the
         collection and returns a new Results object containing only those that match.
         The expression can reference any column in the data and supports standard
         Python operators and syntax.
@@ -91,6 +159,22 @@ class ResultsFilter:
             - You can use string methods like '.startswith()', '.contains()', etc.
             - The expression can be a multi-line string for improved readability
             - You can use template-style syntax with double curly braces: {{ field }}
+
+        Examples:
+            >>> from edsl.results import Results
+            >>> r = Results.example()
+
+            >>> # Simple equality filter
+            >>> r.filter("how_feeling == 'Great'").select('how_feeling')
+            Dataset([{'answer.how_feeling': ['Great']}])
+
+            >>> # Using OR condition
+            >>> r.filter("how_feeling == 'Great' or how_feeling == 'Terrible'").select('how_feeling')
+            Dataset([{'answer.how_feeling': ['Great', 'Terrible']}])
+
+            >>> # Filter on agent properties
+            >>> r.filter("agent.status == 'Joyful'").select('agent.status')
+            Dataset([{'agent.status': ['Joyful', 'Joyful']}])
         """
         # Import here to avoid circular imports
         from .results import Results
@@ -114,7 +198,6 @@ class ResultsFilter:
                 survey=self.results.survey,
                 data=[],  # Empty data list
                 created_columns=self.results.created_columns,
-                data_class=self.results._data_class,  # Preserve the original data class
             )
 
             # Process one result at a time
@@ -129,22 +212,26 @@ class ResultsFilter:
                     )  # Use append method to add matching results
 
             if len(filtered_results) == 0:
-                warnings.warn("No results remain after applying the filter.")
+                hint = self._get_empty_filter_hint(normalized_expression)
+                warnings.warn(
+                    f"No results remain after applying the filter: {expression}\n{hint}"
+                )
 
             return filtered_results
 
         except ValueError as e:
             raise ResultsFilterError(
-                f"Error in filter. Exception:{e}",
-                f"The expression you provided was: {expression}",
-                "See https://docs.expectedparrot.com/en/latest/results.html#filtering-results for more details.",
+                f"Error in filter expression: {expression}\n"
+                f"Exception: {e}\n"
+                f"See https://docs.expectedparrot.com/en/latest/results.html#filtering-results for more details."
             )
         except Exception as e:
+            hint = self._get_filter_hint(normalized_expression, e)
             raise ResultsFilterError(
-                f"Error in filter. Exception:{e}.",
-                f"The expression you provided was: {expression}.",
-                "Please make sure that the expression is a valid Python expression that evaluates to a boolean.",
-                'For example, \'how_feeling == "Great"\' is a valid expression, as is \'how_feeling in ["Great", "Terrible"]\'.',
-                "However, 'how_feeling = \"Great\"' is not a valid expression.",
-                "See https://docs.expectedparrot.com/en/latest/results.html#filtering-results for more details.",
+                f"Error in filter expression: {expression}\n"
+                f"Exception: {e}\n"
+                f"{hint}\n"
+                f"Make sure the expression is a valid Python expression that evaluates to a boolean.\n"
+                f'For example, \'how_feeling == "Great"\' or \'how_feeling in ["Great", "Terrible"]\'.\n'
+                f"See https://docs.expectedparrot.com/en/latest/results.html#filtering-results for more details."
             )

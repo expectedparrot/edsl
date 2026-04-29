@@ -1,5 +1,5 @@
 import json
-from typing import Any
+from typing import Any, Optional
 from pydantic import ValidationError
 
 from ..base import BaseException
@@ -210,10 +210,10 @@ class QuestionInitializationError(QuestionErrors):
     def __init__(
         self,
         message: str,
-        question_type: str = None,
-        invalid_parameter: str = None,
-        valid_parameters: list = None,
-        suggested_fix: str = None,
+        question_type: Optional[str] = None,
+        invalid_parameter: Optional[str] = None,
+        valid_parameters: Optional[list] = None,
+        suggested_fix: Optional[str] = None,
         **kwargs,
     ):
         self.question_type = question_type
@@ -243,7 +243,7 @@ class QuestionInitializationError(QuestionErrors):
 
         super().__init__(formatted_msg, **kwargs)
 
-    def _find_closest_parameter(self, invalid_param: str, valid_params: list) -> str:
+    def _find_closest_parameter(self, invalid_param: str, valid_params: list) -> Optional[str]:
         """Find the closest matching parameter name using simple string similarity."""
         if not invalid_param or not valid_params:
             return None

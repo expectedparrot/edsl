@@ -5,15 +5,12 @@ from .exceptions import AgentNameError, AgentTraitKeyError
 
 
 def convert_agent_name(x):
-    # potentially a numpy int64
-    import numpy as np
-
-    if isinstance(x, np.int64):
-        return int(x)
-    elif x is None:
+    if x is None:
         return None
     elif isinstance(x, int):
-        return x
+        return int(x)
+    elif hasattr(x, '__int__') and type(x).__module__ == 'numpy':
+        return int(x)
     else:
         return str(x)
 
@@ -75,13 +72,20 @@ class Codebook(dict):
     def __setitem__(self, key: str, value: str):
         super().__setitem__(key, value)
 
+    def _mime_(self):
+        """Marimo display protocol — returns an interactive table."""
+        from ..scenarios import ScenarioList, Scenario
+
+        sl = ScenarioList(Scenario({"key": k, "value": v}) for k, v in self.items())
+        return sl._mime_()
+
     def _repr_html_(self):
         from ..scenarios import ScenarioList, Scenario
 
         sl = ScenarioList()
         for key, value in self.items():
             sl.append(Scenario({"key": key, "value": value}))
-        return sl._repr_html_(include_class_info=False)
+        return sl._repr_html_()
 
 
 class CodebookDescriptor:

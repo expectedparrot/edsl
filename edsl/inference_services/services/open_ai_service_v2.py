@@ -1,8 +1,9 @@
 from __future__ import annotations
 from typing import Any, List, Optional, Dict, NewType, TYPE_CHECKING
+import logging
 import os
 
-import openai
+logger = logging.getLogger(__name__)
 
 from ..inference_service_abc import InferenceServiceABC
 from ..decorators import report_errors_async
@@ -25,6 +26,13 @@ if TYPE_CHECKING:
 APIToken = NewType("APIToken", str)
 
 
+def _get_openai():
+    """Lazy import of the openai package."""
+    import openai
+
+    return openai
+
+
 class OpenAIServiceV2(InferenceServiceABC):
     """OpenAI service class using the Responses API."""
 
@@ -32,19 +40,20 @@ class OpenAIServiceV2(InferenceServiceABC):
     _env_key_name_ = "OPENAI_API_KEY"
     _base_url_ = None
 
-    _sync_client_ = openai.OpenAI
-    _async_client_ = openai.AsyncOpenAI
+    _sync_client_ = None  # resolved lazily via _get_openai()
+    _async_client_ = None  # resolved lazily via _get_openai()
 
-    _sync_client_instances: Dict[APIToken, openai.OpenAI] = {}
-    _async_client_instances: Dict[APIToken, openai.AsyncOpenAI] = {}
+    _sync_client_instances: Dict[str, Any] = {}
+    _async_client_instances: Dict[str, Any] = {}
 
     # sequence to extract text from response.output
     key_sequence = ["output", 1, "content", 0, "text"]
     usage_sequence = ["usage"]
     # sequence to extract reasoning summary from response.output
     reasoning_sequence = ["output", 0, "summary"]
-    input_token_name = "prompt_tokens"
-    output_token_name = "completion_tokens"
+    input_token_name = "input_tokens"
+    output_token_name = "output_tokens"
+    thinking_token_sequence = ["output_tokens_details", "reasoning_tokens"]
 
     available_models_url = "https://platform.openai.com/docs/models/gp"
 
@@ -54,7 +63,24 @@ class OpenAIServiceV2(InferenceServiceABC):
         cls._async_client_instances = {}
 
     @classmethod
-    def sync_client(cls, api_key: str) -> openai.OpenAI:
+    async def close_async_clients(cls):
+        """Close all cached async clients to avoid 'Unclosed client session' warnings."""
+        for client in cls._async_client_instances.values():
+            if hasattr(client, "close"):
+                await client.close()
+        cls._async_client_instances = {}
+
+    @classmethod
+    def _resolve_clients(cls):
+        """Resolve lazy client classes on first use."""
+        if cls._sync_client_ is None:
+            openai = _get_openai()
+            cls._sync_client_ = openai.OpenAI
+            cls._async_client_ = openai.AsyncOpenAI
+
+    @classmethod
+    def sync_client(cls, api_key: str):
+        cls._resolve_clients()
         if api_key not in cls._sync_client_instances:
             client = cls._sync_client_(
                 api_key=api_key,
@@ -64,7 +90,8 @@ class OpenAIServiceV2(InferenceServiceABC):
         return cls._sync_client_instances[api_key]
 
     @classmethod
-    def async_client(cls, api_key: str) -> openai.AsyncOpenAI:
+    def async_client(cls, api_key: str):
+        cls._resolve_clients()
         if api_key not in cls._async_client_instances:
             client = cls._async_client_(
                 api_key=api_key,
@@ -130,22 +157,26 @@ class OpenAIServiceV2(InferenceServiceABC):
             reasoning_sequence = cls.reasoning_sequence
             input_token_name = cls.input_token_name
             output_token_name = cls.output_token_name
+            thinking_token_sequence = cls.thinking_token_sequence
             _inference_service_ = cls._inference_service_
             _model_ = model_name
+            _is_reasoning = any(tag in model_name for tag in OPENAI_REASONING_MODELS)
             _parameters_ = {
                 "temperature": 0.5,
-                "max_tokens": 2000,
+                "max_tokens": 16000 if _is_reasoning else 2000,
                 "top_p": 1,
                 "frequency_penalty": 0,
                 "presence_penalty": 0,
                 "logprobs": False,
                 "top_logprobs": 3,
+                "reasoning": None,
+                "reasoning_effort": None,
             }
 
-            def sync_client(self) -> openai.OpenAI:
+            def sync_client(self):
                 return cls.sync_client(api_key=self.api_token)
 
-            def async_client(self) -> openai.AsyncOpenAI:
+            def async_client(self):
                 return cls.async_client(api_key=self.api_token)
 
             @classmethod
@@ -180,31 +211,6 @@ class OpenAIServiceV2(InferenceServiceABC):
                 invigilator: Optional[InvigilatorAI] = None,
                 cache_key: Optional[str] = None,  # Cache key for tracking
             ) -> dict[str, Any]:
-                # Check if we should use remote proxy
-                if self.remote_proxy:
-                    # Use remote proxy mode
-                    from .remote_proxy_handler import RemoteProxyHandler
-
-                    handler = RemoteProxyHandler(
-                        model=self.model,
-                        inference_service=self._inference_service_,
-                        job_uuid=getattr(self, "job_uuid", None),
-                    )
-
-                    return await handler.execute_model_call(
-                        user_prompt=user_prompt,
-                        system_prompt=system_prompt,
-                        files_list=files_list,
-                        cache_key=cache_key,
-                        temperature=self.temperature,
-                        max_tokens=self.max_tokens,
-                        top_p=self.top_p,
-                        frequency_penalty=self.frequency_penalty,
-                        presence_penalty=self.presence_penalty,
-                        logprobs=self.logprobs,
-                        top_logprobs=self.top_logprobs,
-                    )
-
                 content = user_prompt
                 if files_list:
                     # embed files as separate inputs for Responses API
@@ -286,7 +292,7 @@ class OpenAIServiceV2(InferenceServiceABC):
                                     )
                 # build input sequence
                 messages: Any
-                if system_prompt and not self.omit_system_prompt_if_empty:
+                if system_prompt:
                     # For Responses API, system content should also be properly formatted
                     system_content = (
                         system_prompt
@@ -298,7 +304,13 @@ class OpenAIServiceV2(InferenceServiceABC):
                         {"role": "user", "content": content},
                     ]
                 else:
-                    messages = [{"role": "user", "content": content}]
+                    if self.omit_system_prompt_if_empty:
+                        messages = [{"role": "user", "content": content}]
+                    else:
+                        messages = [
+                            {"role": "system", "content": system_prompt},
+                            {"role": "user", "content": content},
+                        ]
 
                 # All OpenAI models with the responses API use these base parameters
                 params = {
@@ -316,7 +328,14 @@ class OpenAIServiceV2(InferenceServiceABC):
 
                 # Only add reasoning parameter for reasoning models
                 if is_reasoning_model:
-                    params["reasoning"] = {"summary": "auto"}
+                    reasoning_params = {"summary": "auto"}
+                    if isinstance(self.reasoning, dict):
+                        reasoning_params.update(self.reasoning)
+                    # Support reasoning_effort shorthand (e.g. "none", "low", "medium", "high")
+                    effort = getattr(self, "reasoning_effort", None)
+                    if effort is not None:
+                        reasoning_params["effort"] = effort
+                    params["reasoning"] = reasoning_params
 
                 # For all models using the responses API, use max_output_tokens
                 # instead of max_tokens (which is for the completions API)
@@ -327,9 +346,21 @@ class OpenAIServiceV2(InferenceServiceABC):
                     params["temperature"] = 1
 
                 client = self.async_client()
+                logger.info(
+                    f"[OpenAI_V2] Calling responses.create: model={params.get('model')}, "
+                    f"max_output_tokens={params.get('max_output_tokens')}, "
+                    f"temperature={params.get('temperature')}, "
+                    f"is_reasoning={is_reasoning_model}, "
+                    f"base_url={getattr(client, 'base_url', 'N/A')}"
+                )
                 response = await client.responses.create(**params)
+                logger.info(
+                    f"[OpenAI_V2] Response received: model={params.get('model')}, "
+                    f"status={getattr(response, 'status', 'N/A')}"
+                )
                 # convert to dict
                 response_dict = response.model_dump()
+
                 return response_dict
 
         LLM.__name__ = model_class_name

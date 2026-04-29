@@ -26,7 +26,12 @@ class PromptList(UserList):
         >>> p.reduce()
         Prompt(text=\"""You are a happy-go lucky agent.You are an agent with the following persona: {'age': 22, 'hair': 'brown', 'height': 5.5}\""")
 
+        >>> PromptList([]).reduce()
+        Prompt(text=\"""\""")
+
         """
+        if len(self) == 0:
+            return self.Prompt("")
         p = self[0]
         for prompt in self[1:]:
             if len(prompt) > 0:
@@ -35,10 +40,39 @@ class PromptList(UserList):
 
 
 class PromptPlan:
-    """A plan for constructing prompts for the LLM call.
-    Every prompt plan has a user prompt order and a system prompt order.
-    It must contain each of the values in the PromptComponent enum.
+    """A plan for how prompt components are distributed between system and user prompts.
 
+    Every LLM call in EDSL has four prompt components (see :class:`PromptComponent`):
+
+    - **agent_instructions**: Directives for how the agent should behave.
+    - **agent_persona**: The agent's traits (age, occupation, etc.).
+    - **question_instructions**: The question text and response format instructions.
+    - **prior_question_memory**: Context from previous questions in a survey.
+
+    A ``PromptPlan`` specifies which of these components go into the system prompt
+    and which go into the user prompt. Every component must appear in exactly one
+    of the two prompts.
+
+    By default, agent-related components go in the system prompt and
+    question-related components go in the user prompt. For models that don't
+    support system prompts (e.g., reasoning models like o1/o3, or smaller models
+    like Gemma), use :meth:`user_prompt_only` to put everything in the user prompt.
+
+    A ``PromptPlan`` can be passed to a ``Model`` via the ``prompt_plan`` parameter::
+
+        from edsl import Model
+        from edsl.invigilators.prompt_helpers import PromptPlan
+
+        # All prompt components in the user prompt (no system prompt)
+        m = Model("gpt-4o", prompt_plan=PromptPlan.user_prompt_only())
+
+        # Default behavior (same as omitting prompt_plan)
+        m = Model("gpt-4o", prompt_plan=PromptPlan.default())
+
+    The plan is serialized with the model, so it persists through
+    ``to_dict()`` / ``from_dict()`` roundtrips.
+
+    Examples:
 
     >>> p = PromptPlan(user_prompt_order=(PromptComponent.AGENT_INSTRUCTIONS, PromptComponent.AGENT_PERSONA),system_prompt_order=(PromptComponent.QUESTION_INSTRUCTIONS, PromptComponent.PRIOR_QUESTION_MEMORY))
     >>> p._is_valid_plan()
@@ -60,7 +94,21 @@ class PromptPlan:
         user_prompt_order: Optional[tuple] = None,
         system_prompt_order: Optional[tuple] = None,
     ):
-        """Initialize the PromptPlan."""
+        """Initialize the PromptPlan.
+
+        Args:
+            user_prompt_order: Tuple of :class:`PromptComponent` values (or their
+                string names) specifying which components appear in the user prompt
+                and in what order. Defaults to ``(QUESTION_INSTRUCTIONS, PRIOR_QUESTION_MEMORY)``.
+            system_prompt_order: Tuple of :class:`PromptComponent` values (or their
+                string names) specifying which components appear in the system prompt
+                and in what order. Defaults to ``(AGENT_INSTRUCTIONS, AGENT_PERSONA)``.
+
+        Raises:
+            InvigilatorValueError: If the combined tuples don't contain each
+                PromptComponent exactly once.
+            InvigilatorTypeError: If either argument is not a tuple.
+        """
 
         if user_prompt_order is None:
             user_prompt_order = (
@@ -133,6 +181,88 @@ class PromptPlan:
             [kwargs[component.value] for component in self.system_prompt_order]
         )
         return {"user_prompt": user_prompt, "system_prompt": system_prompt}
+
+    @classmethod
+    def default(cls) -> "PromptPlan":
+        """Create the default prompt plan.
+
+        System prompt gets agent instructions and persona;
+        user prompt gets question instructions and prior memory.
+
+        This is equivalent to calling ``PromptPlan()`` with no arguments, and
+        matches the behavior when no ``prompt_plan`` is specified on a ``Model``.
+
+        Returns:
+            A PromptPlan with the default component arrangement.
+
+        Example:
+
+        >>> pp = PromptPlan.default()
+        >>> pp.system_prompt_order
+        (<PromptComponent.AGENT_INSTRUCTIONS: 'agent_instructions'>, <PromptComponent.AGENT_PERSONA: 'agent_persona'>)
+        """
+        return cls()
+
+    @classmethod
+    def user_prompt_only(cls) -> "PromptPlan":
+        """Create a prompt plan that puts all components in the user prompt.
+
+        The system prompt will be empty. This is useful for models that don't
+        support system prompts, such as:
+
+        - OpenAI reasoning models (o1, o3)
+        - Small/local models (Gemma, Phi, etc.)
+        - Any model where you want full control over a single prompt
+
+        Returns:
+            A PromptPlan with all four components in the user prompt.
+
+        Example:
+
+        >>> pp = PromptPlan.user_prompt_only()
+        >>> pp.system_prompt_order
+        ()
+        >>> len(pp.user_prompt_order)
+        4
+        """
+        return cls(
+            user_prompt_order=(
+                PromptComponent.AGENT_INSTRUCTIONS,
+                PromptComponent.AGENT_PERSONA,
+                PromptComponent.QUESTION_INSTRUCTIONS,
+                PromptComponent.PRIOR_QUESTION_MEMORY,
+            ),
+            system_prompt_order=(),
+        )
+
+    def to_dict(self) -> dict:
+        """Serialize the prompt plan to a dictionary."""
+        return {
+            "user_prompt_order": [c.value for c in self.user_prompt_order],
+            "system_prompt_order": [c.value for c in self.system_prompt_order],
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "PromptPlan":
+        """Create a PromptPlan from a dictionary."""
+        return cls(
+            user_prompt_order=tuple(data["user_prompt_order"]),
+            system_prompt_order=tuple(data["system_prompt_order"]),
+        )
+
+    def __eq__(self, other):
+        if not isinstance(other, PromptPlan):
+            return NotImplemented
+        return (
+            self.user_prompt_order == other.user_prompt_order
+            and self.system_prompt_order == other.system_prompt_order
+        )
+
+    def __repr__(self):
+        return (
+            f"PromptPlan(user_prompt_order={self.user_prompt_order}, "
+            f"system_prompt_order={self.system_prompt_order})"
+        )
 
     def get_prompts(self, **kwargs) -> Dict[str, "Prompt"]:
         """Get both prompts for the LLM call."""

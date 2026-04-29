@@ -136,7 +136,7 @@ def create_checkbox_response_model(
             """Checkbox response model with choices validation but no count constraints."""
 
             answer: Annotated[
-                List[Literal[choice_tuple]],
+                List[Literal[choice_tuple]],  # type: ignore[valid-type]
                 Field(description="List of selected choices"),
             ]
 
@@ -172,7 +172,7 @@ def create_checkbox_response_model(
             """Checkbox response model with both choice and count constraints."""
 
             answer: Annotated[
-                List[Literal[choice_tuple]],
+                List[Literal[choice_tuple]],  # type: ignore[valid-type]
                 Field(description="List of selected choices"),
             ]
 
@@ -607,7 +607,7 @@ class QuestionCheckBox(QuestionBase):
 
     question_type = "checkbox"
     purpose = "When options are known and limited"
-    question_options: list[str] = QuestionOptionsDescriptor()
+    question_options = QuestionOptionsDescriptor()
     min_selections = IntegerDescriptor(none_allowed=True)
     max_selections = IntegerDescriptor(none_allowed=True)
 
@@ -721,7 +721,7 @@ class QuestionCheckBox(QuestionBase):
             )
 
     def _translate_answer_code_to_answer(
-        self, answer_codes, scenario: "Scenario" = None
+        self, answer_codes, scenario: "Optional[Scenario]" = None
     ):
         """
         Translate the answer codes to the actual answer text.

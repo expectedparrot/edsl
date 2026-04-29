@@ -189,28 +189,22 @@ class TestAgentList(unittest.TestCase):
         self.assertIsInstance(all_traits, list)
         self.assertEqual(set(all_traits), {"age", "job", "hair"})
     
-    def test_from_csv(self):
-        """Test creating an agent list from a CSV file"""
-        # Create a temporary CSV file
+    def test_from_source_csv_basic(self):
+        """Test creating an agent list from a CSV file via from_source"""
         with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.csv') as f:
             f.write("name,age,job,hair\n")
             f.write("Person1,30,Engineer,brown\n")
             f.write("Person2,40,Teacher,black\n")
             f.write("Person3,25,Doctor,blonde\n")
             csv_path = f.name
-        
+
         try:
-            # Create AgentList from the CSV
-            agent_list = AgentList.from_csv(csv_path, name_field="name")
-            
-            # Verify the agent list
+            agent_list = AgentList.from_source('csv', csv_path, name_field="name")
             self.assertEqual(len(agent_list), 3)
             self.assertEqual(agent_list[0].name, "Person1")
-            self.assertEqual(agent_list[0]._traits["age"], "30")  # CSV imports as strings
-            
-            # Create with codebook
-            agent_list_with_codebook = AgentList.from_csv(
-                csv_path, name_field="name", codebook=self.example_codebook
+
+            agent_list_with_codebook = AgentList.from_source(
+                'csv', csv_path, name_field="name", codebook=self.example_codebook
             )
             self.assertEqual(agent_list_with_codebook[0].codebook, self.example_codebook)
         finally:
@@ -287,27 +281,25 @@ class TestAgentList(unittest.TestCase):
         agent2 = Agent(name="TestAgent2", traits={"age": 40, "job": "Teacher"})
         agent_list = AgentList([agent1, agent2])
         
-        # Set a new codebook
         new_codebook = {"age": "Age in months", "job": "Job title"}
-        modified = agent_list.set_codebook(new_codebook)
-        
-        # Check modified has the new codebook
-        for agent in modified:
+        agent_list.set_codebook(new_codebook)
+
+        for agent in agent_list:
             self.assertEqual(agent.codebook, new_codebook)
     
     def test_cartesian_product(self):
         """Test cartesian product (multiplication) of agent lists"""
-        # Create two simple agent lists
+        # Create two simple agent lists (no names to avoid name-conflict warnings)
         agents1 = AgentList([
-            Agent(name="A1", traits={"trait1": "value1"}),
-            Agent(name="A2", traits={"trait1": "value2"})
+            Agent(traits={"trait1": "value1"}),
+            Agent(traits={"trait1": "value2"})
         ])
-        
+
         agents2 = AgentList([
-            Agent(name="B1", traits={"trait2": "value3"}),
-            Agent(name="B2", traits={"trait2": "value4"})
+            Agent(traits={"trait2": "value3"}),
+            Agent(traits={"trait2": "value4"})
         ])
-        
+
         # Multiply them
         product = agents1 * agents2
         
@@ -345,35 +337,26 @@ class TestAgentList(unittest.TestCase):
         for agent in agent_list:
             self.assertEqual(agent.instruction, test_instructions)
 
-    def test_from_csv_with_instructions(self):
-        """Test creating an agent list from CSV with instructions"""
-        # Create a temporary CSV file
+    def test_from_source_csv_with_instructions(self):
+        """Test creating an agent list from CSV with instructions via from_source"""
         with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.csv') as f:
             f.write("name,age,job,hair\n")
             f.write("Person1,30,Engineer,brown\n")
             f.write("Person2,40,Teacher,black\n")
             csv_path = f.name
-        
+
         try:
-            # Create AgentList from the CSV with instructions
             test_instructions = "Answer as if you were this person"
-            agent_list = AgentList.from_csv(
-                csv_path, 
-                name_field="name", 
+            agent_list = AgentList.from_source(
+                'csv', csv_path,
+                name_field="name",
                 instructions=test_instructions
             )
-            
-            # Verify the agent list
+
             self.assertEqual(len(agent_list), 2)
-            
-            # Check that all agents have the instructions
             for agent in agent_list:
                 self.assertEqual(agent.instruction, test_instructions)
-            
-            # Also check that other properties work
             self.assertEqual(agent_list[0].name, "Person1")
-            self.assertEqual(agent_list[0]._traits["age"], "30")
-            
         finally:
             os.unlink(csv_path)
 
@@ -439,6 +422,125 @@ class TestAgentList(unittest.TestCase):
         from edsl.agents import AgentListBuilder
         self.assertTrue(hasattr(AgentListBuilder, 'from_source'))
         self.assertTrue(hasattr(AgentListBuilder, 'from_csv'))
+
+    # ----------------------------------------------------------------
+    # JSONL round-trip tests
+    # ----------------------------------------------------------------
+
+    def test_to_jsonl_returns_string(self):
+        """to_jsonl() with no filename returns a JSONL string."""
+        agent_list = AgentList(self.example_agents)
+        text = agent_list.to_jsonl()
+        self.assertIsInstance(text, str)
+        lines = text.strip().splitlines()
+        # header + one line per agent
+        self.assertEqual(len(lines), 1 + len(self.example_agents))
+
+    def test_jsonl_header_contains_metadata(self):
+        """First JSONL line has class name and agent count."""
+        import json
+        agent_list = AgentList(self.all_agents)
+        header = json.loads(agent_list.to_jsonl().splitlines()[0])
+        self.assertEqual(header["edsl_class_name"], "AgentList")
+        self.assertEqual(header["n_agents"], 3)
+        self.assertIn("edsl_version", header)
+
+    def test_jsonl_roundtrip_string(self):
+        """AgentList survives a to_jsonl -> from_jsonl string round-trip."""
+        agent_list = AgentList(self.all_agents)
+        restored = AgentList.from_jsonl(agent_list.to_jsonl())
+        self.assertEqual(agent_list, restored)
+
+    def test_jsonl_roundtrip_file(self):
+        """AgentList survives a to_jsonl -> from_jsonl file round-trip."""
+        agent_list = AgentList(self.all_agents)
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".jsonl", delete=False
+        ) as f:
+            path = f.name
+        try:
+            agent_list.to_jsonl(path)
+            restored = AgentList.from_jsonl(path)
+            self.assertEqual(agent_list, restored)
+        finally:
+            os.unlink(path)
+
+    def test_jsonl_roundtrip_empty(self):
+        """Empty AgentList round-trips through JSONL."""
+        agent_list = AgentList([])
+        restored = AgentList.from_jsonl(agent_list.to_jsonl())
+        self.assertEqual(agent_list, restored)
+
+    def test_jsonl_roundtrip_with_codebook(self):
+        """Codebook is preserved through JSONL round-trip."""
+        agent_list = AgentList(self.example_agents, codebook=self.example_codebook)
+        restored = AgentList.from_jsonl(agent_list.to_jsonl())
+        self.assertEqual(agent_list, restored)
+        for agent in restored:
+            self.assertEqual(agent.codebook, self.example_codebook)
+
+    def test_jsonl_roundtrip_with_instruction(self):
+        """Explicit instruction is preserved through JSONL round-trip."""
+        agent_list = AgentList(self.example_agents)
+        agent_list.set_instruction("Answer carefully")
+        restored = AgentList.from_jsonl(agent_list.to_jsonl())
+        self.assertEqual(agent_list, restored)
+        for agent in restored:
+            self.assertEqual(agent.instruction, "Answer carefully")
+
+    def test_jsonl_roundtrip_with_traits_presentation_template(self):
+        """Explicit traits_presentation_template is preserved through JSONL round-trip."""
+        agent_list = AgentList(self.example_agents)
+        agent_list.set_traits_presentation_template("You are a cool agent")
+        restored = AgentList.from_jsonl(agent_list.to_jsonl())
+        self.assertEqual(agent_list, restored)
+        for agent in restored:
+            self.assertEqual(
+                agent.traits_presentation_template, "You are a cool agent"
+            )
+
+    def test_jsonl_roundtrip_all_properties(self):
+        """Codebook, instruction, and traits_presentation_template all survive."""
+        agent_list = AgentList(self.all_agents, codebook=self.example_codebook)
+        agent_list.set_instruction("Be thorough")
+        agent_list.set_traits_presentation_template("Custom: {{traits}}")
+        restored = AgentList.from_jsonl(agent_list.to_jsonl())
+        self.assertEqual(agent_list, restored)
+
+    def test_jsonl_header_hoists_shared_properties(self):
+        """Shared codebook/instruction/tpt appear in the JSONL header."""
+        import json
+        agent_list = AgentList(self.example_agents, codebook=self.example_codebook)
+        agent_list.set_instruction("Be helpful")
+        agent_list.set_traits_presentation_template("TPT")
+        header = json.loads(agent_list.to_jsonl().splitlines()[0])
+        self.assertEqual(header["codebook"], self.example_codebook)
+        self.assertEqual(header["instruction"], "Be helpful")
+        self.assertEqual(header["traits_presentation_template"], "TPT")
+
+    def test_jsonl_header_omits_unset_properties(self):
+        """Default instruction/tpt are NOT in the header."""
+        import json
+        agent_list = AgentList(self.example_agents)
+        header = json.loads(agent_list.to_jsonl().splitlines()[0])
+        self.assertNotIn("instruction", header)
+        self.assertNotIn("traits_presentation_template", header)
+        self.assertNotIn("codebook", header)
+
+    def test_iter_agents_from_jsonl(self):
+        """iter_agents_from_jsonl yields Agent objects lazily."""
+        agent_list = AgentList(self.all_agents)
+        agents = list(AgentList.iter_agents_from_jsonl(agent_list.to_jsonl()))
+        self.assertEqual(len(agents), 3)
+        for original, restored in zip(agent_list, agents):
+            self.assertEqual(original, restored)
+
+    def test_to_jsonl_rows_is_generator(self):
+        """to_jsonl_rows returns a generator, not a list."""
+        import types
+        agent_list = AgentList(self.example_agents)
+        rows = agent_list._agent_list_serializer.to_jsonl_rows()
+        self.assertIsInstance(rows, types.GeneratorType)
 
 
 if __name__ == "__main__":

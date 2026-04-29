@@ -99,7 +99,7 @@ class ResponseValidatorABC(ABC):
         raw_edsl_answer_dict: "RawEdslAnswerDict",
         fix=False,
         verbose=False,
-        replacement_dict: dict = None,
+        replacement_dict: Optional[dict] = None,
     ) -> "EdslAnswerDict":
         """This is the main validation function.
 
@@ -126,7 +126,7 @@ class ResponseValidatorABC(ABC):
             return self._handle_exception(e, raw_edsl_answer_dict)
 
     def human_explanation(self, e: QuestionAnswerValidationError):
-        explanation = ExceptionExplainer(e, model_response=e.data).explain()
+        explanation = ExceptionExplainer(e, model_response=str(e.data)).explain()
         return explanation
 
     def _handle_exception(self, e: Exception, raw_edsl_answer_dict) -> "EdslAnswerDict":
@@ -153,7 +153,7 @@ class ResponseValidatorABC(ABC):
             model=self.response_model,
         )
 
-    def _check_constraints(self, pydantic_edsl_answer: BaseModel) -> dict:
+    def _check_constraints(self, pydantic_edsl_answer: BaseModel) -> Optional[dict]:
         pass
 
     def _extract_answer(self, response: BaseModel) -> "EdslAnswerDict":

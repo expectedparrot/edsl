@@ -108,7 +108,7 @@ class AgentPrompt:
         if not self.agent.set_traits_presentation_template and self.agent.codebook:
             # Create a template that uses the codebook descriptions
             traits_lines = []
-            for trait_key in self.agent.traits.keys():
+            for trait_key in self.agent.visible_traits.keys():
                 if trait_key in self.agent.codebook:
                     # Use codebook description if available
                     traits_lines.append(
@@ -123,10 +123,11 @@ class AgentPrompt:
                 traits_lines
             )
 
-        # Create a dictionary with traits, a reference to all traits, and the codebook
+        # Create a dictionary with visible traits, a reference to visible traits, and the codebook
+        # Traits prefixed with '_' are hidden metadata and excluded from prompts
         replacement_dict = (
-            self.agent.traits
-            | {"traits": self.agent.traits}
+            self.agent.visible_traits
+            | {"traits": self.agent.visible_traits}
             | {"codebook": self.agent.codebook}
         )
 
@@ -214,7 +215,7 @@ class AgentPrompt:
             if self.agent.codebook:
                 # Create a template that uses the codebook descriptions
                 traits_lines = []
-                for trait_key in self.agent.traits.keys():
+                for trait_key in self.agent.visible_traits.keys():
                     if trait_key in self.agent.codebook:
                         # Use codebook description if available
                         traits_lines.append(

@@ -80,22 +80,9 @@ class QuestionFileUpload(QuestionBase):
     _response_model = FileUploadResponse
     response_validator_class = FileUploadResponseValidator
 
-    @property
-    def fake_data_factory(self):
-        """Override fake_data_factory to generate valid file paths for testing."""
-        if not hasattr(self, "_fake_data_factory"):
-            from polyfactory.factories.pydantic_factory import ModelFactory
-
-            class FakeFileUploadData(ModelFactory[self.response_model]):
-                __model__ = FileUploadResponse
-
-                @classmethod
-                def answer(cls):
-                    # Return the path to this current file as it's guaranteed to exist
-                    return __file__
-
-            self._fake_data_factory = FakeFileUploadData
-        return self._fake_data_factory
+    def _simulate_answer(self, human_readable: bool = False) -> dict:
+        """Generate a simulated file upload answer."""
+        return {"answer": __file__, "comment": "Simulated file upload"}
 
     def __init__(
         self,

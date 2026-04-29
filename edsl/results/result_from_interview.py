@@ -219,7 +219,7 @@ class ResultFromInterview:
             if model_class and hasattr(model_class, "reasoning_sequence"):
                 from ..language_models.raw_response_handler import RawResponseHandler
 
-                # Create a handler with the model's reasoning sequence
+                # Create a handler with the model's sequences and inference service
                 handler = RawResponseHandler(
                     key_sequence=(
                         model_class.key_sequence
@@ -231,7 +231,8 @@ class ResultFromInterview:
                         if hasattr(model_class, "usage_sequence")
                         else None
                     ),
-                    reasoning_sequence=model_class.reasoning_sequence,
+                    reasoning_sequence=getattr(model_class, "reasoning_sequence", None),
+                    inference_service=getattr(model_class, "_inference_service_", None),
                 )
 
                 # Try to extract the reasoning summary
@@ -258,12 +259,12 @@ class ResultFromInterview:
         """Create dictionary of prompts for each question."""
         prompt_dictionary = {}
         for answer_key_name in answer_key_names:
-            prompt_dictionary[answer_key_name + "_user_prompt"] = (
-                question_name_to_prompts[answer_key_name]["user_prompt"]
-            )
-            prompt_dictionary[answer_key_name + "_system_prompt"] = (
-                question_name_to_prompts[answer_key_name]["system_prompt"]
-            )
+            prompt_dictionary[
+                answer_key_name + "_user_prompt"
+            ] = question_name_to_prompts[answer_key_name]["user_prompt"]
+            prompt_dictionary[
+                answer_key_name + "_system_prompt"
+            ] = question_name_to_prompts[answer_key_name]["system_prompt"]
         return prompt_dictionary
 
     def _get_raw_model_results_and_cache_used_dictionary(self, model_response_objects):
@@ -272,14 +273,17 @@ class ResultFromInterview:
         cache_used_dictionary = {}
         for result in model_response_objects:
             question_name = result.question_name
-            raw_model_results_dictionary[question_name + "_raw_model_response"] = (
-                result.raw_model_response
-            )
-            raw_model_results_dictionary[question_name + "_input_tokens"] = (
-                result.input_tokens
-            )
-            raw_model_results_dictionary[question_name + "_output_tokens"] = (
-                result.output_tokens
+            raw_model_results_dictionary[
+                question_name + "_raw_model_response"
+            ] = result.raw_model_response
+            raw_model_results_dictionary[
+                question_name + "_input_tokens"
+            ] = result.input_tokens
+            raw_model_results_dictionary[
+                question_name + "_output_tokens"
+            ] = result.output_tokens
+            raw_model_results_dictionary[question_name + "_thinking_tokens"] = getattr(
+                result, "thinking_tokens", None
             )
             raw_model_results_dictionary[
                 question_name + "_input_price_per_million_tokens"

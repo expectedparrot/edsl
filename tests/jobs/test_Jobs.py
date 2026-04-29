@@ -127,13 +127,14 @@ def test_agent_info():
 
 
 def test_jobs_by_models():
+    import warnings
     q = QuestionMultipleChoice(
         question_text="How are you?",
         question_options=["Good", "Great", "OK", "Bad"],
         question_name="how_feeling",
     )
     survey = Survey(name="Test Survey", questions=[q])
-    
+
     # Use example models for reliable testing
     example_models = ModelList.example()
     model1 = example_models[0]
@@ -150,8 +151,12 @@ def test_jobs_by_models():
     job = survey.by((model1, model2))
     assert job.models == ModelList([model1, model2])
     assert len(job) == 2
-    # by with existing models
-    job = survey.by(model1).by(model2)
+    # by with existing models - should warn that one model replaces another
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter("always")
+        job = survey.by(model1).by(model2)
+        model_warnings = [x for x in w if "one model is replacing another" in str(x.message)]
+        assert len(model_warnings) == 1, "Expected a warning about model replacement"
     assert job.models == ModelList([model2])
     assert len(job) == 1
 

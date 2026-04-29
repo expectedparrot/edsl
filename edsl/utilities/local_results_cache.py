@@ -3,9 +3,6 @@ from pathlib import Path
 import tempfile
 from typing import Optional
 
-# Reuse the generic loader we just implemented
-from .edsl_load import load as _load_edsl_obj
-
 
 @contextmanager
 def object_disk_cache(
@@ -22,7 +19,7 @@ def object_disk_cache(
        ``<hash>.json.gz`` inside the cache directory (defaults to
        ``$TMPDIR/edsl_job_cache``).
     2. If that file exists attempt to load it with
-       :pyfunc:`edsl.utilities.edsl_load.load`.
+       :pyfunc:`edsl.base.base_class.Base.load`.
     3. On success yield the cached object (cache *hit*).  On failure (corrupt or
        incompatible file) fall back to re-running the job.
     4. After running the job save the returned object back to the same path so
@@ -66,7 +63,7 @@ def object_disk_cache(
     # ------------------------------------------------------------------
     if cache_path.exists():
         try:
-            cached_obj = _load_edsl_obj(str(cache_path))
+            cached_obj = Base.load(str(cache_path))
             if verbose:
                 print("[cache] hit – loaded object from disk")
             yield cached_obj

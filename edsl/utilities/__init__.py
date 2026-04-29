@@ -1,13 +1,8 @@
 # Core utilities - used across the codebase
 from .template_loader import TemplateLoader
-from .PrettyList import PrettyList
 from .restricted_python import create_restricted_function
-from .remove_edsl_version import remove_edsl_version
 from .ast_utilities import extract_variable_names
 from .local_results_cache import object_disk_cache
-from .edsl_load import load as edsl_load
-
-# from .show_diff import show_diff  # Not used in this module
 
 # Functions from utilities.py
 from .utilities import (
@@ -23,7 +18,7 @@ from .utilities import (
 )
 
 # Decorator utilities
-from .decorators import sync_wrapper, jupyter_nb_handler, memory_profile
+from .decorators import sync_wrapper, jupyter_nb_handler, memory_profile, remove_edsl_version
 
 # Spinner utilities
 from .spinner import with_spinner, silent_spinner
@@ -34,11 +29,8 @@ from .is_valid_variable_name import is_valid_variable_name
 from .naming_utilities import sanitize_string
 from .list_split import list_split
 
-# Interface module - note: print_results_long is imported directly in results.py
-
 __all__ = [
     "TemplateLoader",
-    "PrettyList",
     "create_restricted_function",
     "remove_edsl_version",
     "extract_variable_names",
@@ -60,6 +52,5 @@ __all__ = [
     "is_valid_variable_name",
     "sanitize_string",
     "object_disk_cache",
-    "edsl_load",
     "list_split",
 ]

@@ -1,9 +1,9 @@
 ---
 title: Surveys
-description: "A Survey is collection of [Questions](/en/latest/questions) that can be administered to one or more AI [Agents](/en/latest/agents) and [Language Models](/en/latest/language_models) at once. Survey questions can be administered asynchronously (by default), or according to rules such as skip and stop logic, and with or without context of other questions in a survey."
+description: "A Survey is a collection of [Questions](/en/latest/questions) administered to one or more AI [Agents](/en/latest/agents) and [Language Models](/en/latest/language_models). Questions run asynchronously by default, or according to rules like skip/stop logic, with optional memory of prior answers."
 ---
 
-Surveys can be used to collect data, generate content or perform other tasks. The results of a survey are stored in a Results object, which can be used to analyze the responses and other components of the survey. By default, the results object also has a cache of the responses that can be reused, which are also added to your local cache or the remote cache if you are running a survey remotely. Learn more about built-in methods for working with Results objects in the [Results](/en/latest/results) section and caching responses in the sections on data and [Remote Caching](/en/latest/remote_caching).
+Surveys collect data, generate content, or perform other tasks. Results are stored in a Results object for analysis, with responses cached locally or remotely for reuse. See the [Results](/en/latest/results) and [Remote Caching](/en/latest/remote_caching) sections for details.
 
 ## Key steps
 
@@ -222,7 +222,7 @@ There are optional parameters that can be passed to the run() method, including:
 - disable_remote_inference - A boolean value to indicate whether to run the survey locally while remote inference is activated (default is False). Example: run(disable_remote_inference=True).
 - remote_cache_description - A string value to describe the entries in the remote cache when the survey is run remotely. This description will be displayed on the Expected Parrot server and can be used to provide context for the survey. Example: run(remote_cache_description=”This is a survey about local news consumption.”).
 - remote_inference_description - A string value to describe the survey when it is run remotely. This description will be displayed on the Expected Parrot server and can be used to provide context for the survey. Example: run(remote_inference_description=”This is a survey about local news consumption.”).
-- remote_inference_results_visibility - A string value to indicate the visibility of the results on the Expected Parrot server, when a survey is being run remotely. Possible values are “public”, “unlisted” or “private” (default is “unlisted”). Visibility can also be modified at the Coop web app. Example: run(remote_inference_results_visibility=”public”).
+- remote_inference_results_visibility - A string value to indicate the visibility of the results on the Expected Parrot server, when a survey is being run remotely. Possible values are “public”, “unlisted” or “private” (default is “unlisted”). Visibility can also be modified on the platform. Example: run(remote_inference_results_visibility=”public”).
 - progress_bar=True - This parameter can be used to view a Progress Report locally. A link to a Progress Report will automatically be provided when you run a survey remotely.
 - background=True - This parameter can be used to run a survey in the background, allowing you to continue working (or stop working) while your job completes.
 - polling_interval - This parameter can be used to specify the interval (in seconds) at which to check for results when running a survey in the background. The default is 1.0 seconds. Example: run(polling_interval=5.0) will check for results every 5 seconds.
@@ -671,7 +671,7 @@ Before running a survey, you can estimate the cost of running the survey in USD 
 
 ### Estimated costs
 
-Before running a survey, you can estimate the cost in USD of running the survey by calling the estimate_job_cost() method on a Job object (a survey combined with one or more models). This method returns a dictionary with the estimated costs and tokens for each model used with the survey. You can also estimate credits needed to run a survey remotely at the Expected Parrot server by passing the job to the remote_inference_cost() method of a Coop client object.
+Before running a survey, you can estimate the cost in USD of running the survey by calling the estimate_job_cost() method on a Job object (a survey combined with one or more models). This method returns a dictionary with the estimated costs and tokens for each model used with the survey. You can also estimate credits needed to run a survey remotely at the Expected Parrot server by passing the job to the remote_inference_cost() method of a `Coop` client object.
 
 Example:
 
@@ -1533,9 +1533,9 @@ DEPRECATED: Use [`to_html()`](/en/latest/#edsl.surveys.Survey.to_html "edsl.surv
 
 > #### humanize(*project_name: str = 'Project'*, *survey_description: str | None = None*, *survey_alias: str | None = None*, *survey_visibility: 'VisibilityType' | None = 'unlisted'*) → dict[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/surveys.py)
 
-Send the survey to Coop.
+Send the survey to Expected Parrot.
 
-Then, create a project on Coop so you can share the survey with human respondents.
+Then, create a project on Expected Parrot so you can share the survey with human respondents.
 
 > #### inspect()[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/surveys.py)
 

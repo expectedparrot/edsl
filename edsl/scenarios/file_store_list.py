@@ -5,18 +5,10 @@ import tempfile
 
 from .scenario_list import ScenarioList
 from .file_store import FileStore
-from ..config import CONFIG
-
 if TYPE_CHECKING:
     pass
 
-# Use the same data class logic as ScenarioList
-if use_sqlite := CONFIG.get("EDSL_USE_SQLITE_FOR_SCENARIO_LIST").lower() == "true":
-    from .scenario_sqlite_list import ScenarioSQLiteList
-
-    data_class = ScenarioSQLiteList
-else:
-    data_class = list
+data_class = list
 
 
 class FileStoreList(ScenarioList):

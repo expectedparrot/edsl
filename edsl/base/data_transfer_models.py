@@ -36,6 +36,7 @@ class ModelResponse(NamedTuple):
     input_price_per_million_tokens: Optional[float] = None
     output_price_per_million_tokens: Optional[float] = None
     total_cost: Optional[Union[float, str]] = None
+    thinking_tokens: Optional[int] = None
 
 
 class AgentResponseDict(NamedTuple):
@@ -62,6 +63,7 @@ class EDSLResultObjectInput(NamedTuple):
     input_price_per_million_tokens: Optional[float] = None
     output_price_per_million_tokens: Optional[float] = None
     total_cost: Optional[Union[float, str]] = None
+    thinking_tokens: Optional[int] = None
 
 
 @dataclass

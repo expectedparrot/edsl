@@ -1,6 +1,7 @@
 from dataclasses import dataclass
-from typing import Dict, Literal, Tuple, Union
+from typing import Dict, Literal, Tuple, Union, Optional
 from collections import namedtuple
+from .raw_response_handler import _extract_item_from_raw_response
 
 
 @dataclass
@@ -17,6 +18,7 @@ class ResponseCost:
     input_price_per_million_tokens: Union[float, None] = None
     output_price_per_million_tokens: Union[float, None] = None
     total_cost: Union[float, str, None] = None
+    thinking_tokens: Union[int, None] = None
 
 
 class PriceRetriever:
@@ -125,15 +127,15 @@ class PriceManager:
             instance = super(PriceManager, cls).__new__(cls)
             instance._price_lookup = {}  # Instance-specific attribute
             instance._is_initialized = False
+            instance._prices_loaded = False
             cls._instance = instance  # Store the instance directly
             return instance
         return cls._instance
 
     def __init__(self):
-        """Initialize the singleton instance only once."""
+        """Initialize the singleton instance only once (prices are loaded lazily)."""
         if not self._is_initialized:
             self._is_initialized = True
-            self.refresh_prices()
 
     @classmethod
     def get_instance(cls):
@@ -148,6 +150,7 @@ class PriceManager:
         cls._instance = None
         cls._is_initialized = False
         cls._price_lookup = {}
+        cls._prices_loaded = False
 
     def __del__(self):
         """Ensure proper cleanup when the instance is garbage collected."""
@@ -158,7 +161,13 @@ class PriceManager:
 
     @property
     def price_retriever(self):
+        self._ensure_prices_loaded()
         return PriceRetriever(self._price_lookup)
+
+    def _ensure_prices_loaded(self) -> None:
+        """Lazily load prices on first access."""
+        if not self._prices_loaded:
+            self.refresh_prices()
 
     def refresh_prices(self) -> None:
         """Fetch fresh prices and update the internal price lookup."""
@@ -169,13 +178,16 @@ class PriceManager:
             self._price_lookup = c.fetch_prices()
         except Exception as e:
             print(f"Error fetching prices: {str(e)}")
+        self._prices_loaded = True
 
     def get_price(self, inference_service: str, model: str) -> Dict:
         """Get the price information for a specific service and model."""
+        self._ensure_prices_loaded()
         return self.price_retriever.get_price(inference_service, model)
 
     def get_all_prices(self) -> Dict[Tuple[str, str], Dict]:
         """Get the complete price lookup dictionary."""
+        self._ensure_prices_loaded()
         return self._price_lookup.copy()
 
     def get_price_per_million_tokens(
@@ -195,9 +207,12 @@ class PriceManager:
         relevant_prices: Dict,
         input_tokens: int,
         output_tokens: int,
+        thinking_tokens: int = 0,
     ) -> float:
         """
-        Calculate the total cost for a model usage based on input and output tokens.
+        Calculate the total cost for a model usage based on input, output, and thinking tokens.
+
+        Thinking tokens are charged at the output token rate (per provider pricing).
 
         Returns:
             float: Total cost
@@ -226,12 +241,13 @@ class PriceManager:
             except Exception as e:
                 raise Exception(f"Could not compute input price - {e}")
 
-        # Calculate output cost
+        # Calculate output cost (includes thinking tokens at the same rate)
+        total_output_tokens = output_tokens + thinking_tokens
         if inverse_output_price == "infinity":
             output_cost = 0
         else:
             try:
-                output_cost = output_tokens / float(inverse_output_price)
+                output_cost = total_output_tokens / float(inverse_output_price)
             except Exception as e:
                 raise Exception(f"Could not compute output price - {e}")
 
@@ -244,6 +260,7 @@ class PriceManager:
         usage: Dict[str, Union[str, int]],
         input_token_name: str,
         output_token_name: str,
+        thinking_token_sequence: Optional[list[str]] = None,
     ) -> ResponseCost:
         """
         Calculate the cost and token usage for a model response.
@@ -285,20 +302,49 @@ class PriceManager:
                 total_cost=f"Could not compute price per million tokens: {e}",
             )
 
+        thinking_tokens = self._extract_thinking_tokens(usage, thinking_token_sequence)
+
+        # For OpenAI services, we have to subtract the thinking tokens from the output tokens
+        if inference_service in ["openai", "openai_v2"] and thinking_tokens is not None:
+            output_tokens = output_tokens - thinking_tokens
+
         try:
             total_cost = self._calculate_total_cost(
-                relevant_prices, input_tokens, output_tokens
+                relevant_prices,
+                input_tokens,
+                output_tokens,
+                thinking_tokens=thinking_tokens or 0,
             )
         except Exception as e:
             return ResponseCost(total_cost=f"{e}")
 
-        return ResponseCost(
+        response_cost = ResponseCost(
             input_tokens=input_tokens,
             output_tokens=output_tokens,
             input_price_per_million_tokens=input_price_per_million_tokens,
             output_price_per_million_tokens=output_price_per_million_tokens,
             total_cost=total_cost,
+            thinking_tokens=thinking_tokens,
         )
+        # print(response_cost)
+        return response_cost
+
+    @staticmethod
+    def _extract_thinking_tokens(
+        usage: Dict[str, Union[str, int]],
+        thinking_token_sequence: Optional[list[str]],
+    ) -> Optional[int]:
+        """Extract thinking token count from usage via a nested sequence path."""
+        if not thinking_token_sequence:
+            return None
+        try:
+            extracted_thinking_tokens = _extract_item_from_raw_response(
+                usage, thinking_token_sequence
+            )
+            return int(extracted_thinking_tokens)
+        except Exception:
+            # Keep thinking tokens unset when the path is missing or invalid.
+            return None
 
     @property
     def is_initialized(self) -> bool:

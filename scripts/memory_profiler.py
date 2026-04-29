@@ -280,8 +280,6 @@ def run_memory_profiling(
             
             # Analyze the scenario_list.py file where most memory is allocated
             scenario_list_path = "/Users/johnhorton/tools/ep/edsl/edsl/scenarios/scenario_list.py"
-            sqlite_list_path = "/Users/johnhorton/tools/ep/edsl/edsl/db_list/sqlite_list.py"
-            
             # Show the contents of the key functions
             print("\n1. ScenarioList.filter - contains the main memory allocation point at line 109")
             with open(scenario_list_path, 'r') as f:
@@ -290,21 +288,7 @@ def run_memory_profiling(
                         prefix = ">>> " if i == 109 else "    "
                         print(f"{prefix}{i}: {line.rstrip()}")
             
-            print("\n2. SQLiteList.__len__ - significant memory allocation at line 70")
-            with open(sqlite_list_path, 'r') as f:
-                for i, line in enumerate(f, 1):
-                    if 65 <= i <= 75:
-                        prefix = ">>> " if i == 70 else "    "
-                        print(f"{prefix}{i}: {line.rstrip()}")
-                        
-            print("\n3. SQLiteList.__insert - significant memory allocation at line 148")  
-            with open(sqlite_list_path, 'r') as f:
-                for i, line in enumerate(f, 1):
-                    if 143 <= i <= 153:
-                        prefix = ">>> " if i == 148 else "    "
-                        print(f"{prefix}{i}: {line.rstrip()}")
-                        
-            print("\n4. ScenarioList.filter - allocation at lines 918-926 (scenario copying)")
+            print("\n2. ScenarioList.filter - allocation at lines 918-926 (scenario copying)")
             with open(scenario_list_path, 'r') as f:
                 for i, line in enumerate(f, 1):
                     if 913 <= i <= 931:

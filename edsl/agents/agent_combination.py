@@ -6,13 +6,10 @@ Agent instances with different conflict resolution strategies for overlapping tr
 
 from __future__ import annotations
 import copy
-from typing import Optional, TypeVar, TYPE_CHECKING
+from typing import Collection, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .agent import Agent
-
-# Type variable for the Agent class
-A = TypeVar("A", bound="Agent")
 
 
 class AgentCombination:
@@ -25,11 +22,11 @@ class AgentCombination:
 
     @staticmethod
     def add(
-        first_agent: A,
-        other_agent: Optional[A] = None,
+        first_agent: "Agent",
+        other_agent: "Optional[Agent]" = None,
         *,
         conflict_strategy: str = "numeric",
-    ) -> A:
+    ) -> "Agent":
         """Combine first_agent with other_agent and return a new Agent.
 
         Args:
@@ -78,7 +75,7 @@ class AgentCombination:
             return first_agent
 
         if conflict_strategy not in {"numeric", "error", "repeated_observation"}:
-            raise ValueError(
+            raise AgentCombinationError(
                 "conflict_strategy must be 'numeric', 'error', or 'repeated_observation', got "
                 f"{conflict_strategy!r}"
             )
@@ -97,7 +94,7 @@ class AgentCombination:
         combined_traits: dict = dict(first_agent.traits)
         combined_codebook: dict = copy.deepcopy(first_agent.codebook)
 
-        def _unique_name(base_name: str, existing_keys: set[str]) -> str:
+        def _unique_name(base_name: str, existing_keys: "Collection[str]") -> str:
             """Return base_name or base_name_N to avoid duplicates."""
             if base_name not in existing_keys:
                 return base_name

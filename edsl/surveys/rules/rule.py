@@ -135,6 +135,9 @@ class Rule:
                 f"Rule expression: '{expression}'"
             )
 
+        # Store extracted question names for minimal serialization
+        self._extracted_question_names = extracted_question_names
+
         # get the indices of the questions mentioned in the expression
         self.named_questions_by_index = [
             question_name_to_index[q]
@@ -203,6 +206,11 @@ class Rule:
 
         if "before_rule" not in rule_dict:
             rule_dict["before_rule"] = False
+
+        # Handle backwards compatibility for older serialized rules
+        # that may not have question_name_to_index
+        if "question_name_to_index" not in rule_dict:
+            rule_dict["question_name_to_index"] = {}
 
         return Rule(
             current_q=rule_dict["current_q"],
@@ -346,28 +354,13 @@ class Rule:
                     # print("jinja dict: ", jinja_dict)
                     continue
 
-                # print("On to question keys")
-                for question_name in self.question_name_to_index.keys():
-                    # print("question_name: ", question_name)
-                    if question_name in key:
-                        if question_name == key:
-                            # print("question name is key; it's an answer")
-                            jinja_dict[question_name]["answer"] = formatted_value
-                            # print("jinja dict: ", jinja_dict)
-                            continue
-                        else:
-                            # print("question name is not key; it's a sub-type")
-                            if "." in key:
-                                passed_name, value_type = key.split(".")
-                                # print("passed_name: ", passed_name)
-                                # print("value_type: ", value_type)
-                                if passed_name == question_name:
-                                    # print("passed name is question name; it's a sub-type")
-                                    jinja_dict[question_name][
-                                        value_type
-                                    ] = formatted_value
-                                    # print("jinja dict: ", jinja_dict)
-                                    continue
+                # O(1) lookup instead of O(n) scan over all question names
+                if key in self.question_name_to_index:
+                    jinja_dict[key]["answer"] = formatted_value
+                elif "." in key:
+                    passed_name, value_type = key.split(".", 1)
+                    if passed_name in self.question_name_to_index:
+                        jinja_dict[passed_name][value_type] = formatted_value
 
             return jinja_dict
 

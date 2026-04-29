@@ -102,8 +102,8 @@ report_template = """
 """
 
 output_formatter = OutputFormatter(
-    description="Report From Template", output_type="docx"
-).report_from_template(template=report_template, format="docx", filestore=True)
+    description="Report From Template", output_type="table"
+)
 
 macro = Macro(
     short_description="Generate academic referee reports.",

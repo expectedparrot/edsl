@@ -19,6 +19,7 @@ class AnthropicService(InferenceServiceABC):
     _env_key_name_ = "ANTHROPIC_API_KEY"
     key_sequence = ["content", 0, "text"]
     usage_sequence = ["usage"]
+    reasoning_sequence = ["content"]
     input_token_name = "input_tokens"
     output_token_name = "output_tokens"
     available_models_url = "https://docs.anthropic.com/en/docs/about-claude/models"
@@ -52,6 +53,7 @@ class AnthropicService(InferenceServiceABC):
 
             key_sequence = cls.key_sequence
             usage_sequence = cls.usage_sequence
+            reasoning_sequence = cls.reasoning_sequence
             input_token_name = cls.input_token_name
             output_token_name = cls.output_token_name
 
@@ -65,6 +67,8 @@ class AnthropicService(InferenceServiceABC):
                 "presence_penalty": 0,
                 "logprobs": False,
                 "top_logprobs": 3,
+                "thinking": None,
+                "output_config": None,
             }
 
             def __init__(self, *args, **kwargs):
@@ -86,35 +90,6 @@ class AnthropicService(InferenceServiceABC):
                     files_list: Optional list of files to include
                     cache_key: Optional cache key for tracking
                 """
-
-                # Check if we should use remote proxy
-                if self.remote_proxy:
-                    # Use remote proxy mode
-                    from .remote_proxy_handler import RemoteProxyHandler
-
-                    handler = RemoteProxyHandler(
-                        model=self.model,
-                        inference_service=self._inference_service_,
-                        job_uuid=getattr(self, "job_uuid", None),
-                    )
-
-                    # Get fresh parameter
-                    fresh_value = getattr(self, "fresh", False)
-
-                    return await handler.execute_model_call(
-                        user_prompt=user_prompt,
-                        system_prompt=system_prompt,
-                        files_list=files_list,
-                        cache_key=cache_key,
-                        temperature=self.temperature,
-                        max_tokens=self.max_tokens,
-                        top_p=self.top_p,
-                        frequency_penalty=self.frequency_penalty,
-                        presence_penalty=self.presence_penalty,
-                        logprobs=self.logprobs,
-                        top_logprobs=self.top_logprobs,
-                        fresh=fresh_value,  # Pass fresh parameter
-                    )
 
                 messages = [
                     {
@@ -174,14 +149,21 @@ class AnthropicService(InferenceServiceABC):
                             )
                 client = AsyncAnthropic(api_key=self.api_token)
 
-                response = await client.messages.create(
+                create_kwargs = dict(
                     model=model_name,
                     max_tokens=self.max_tokens,
                     temperature=self.temperature,
                     system=system_prompt,  # note that the Anthropic API uses "system" parameter rather than put it in the message
                     messages=messages,
                 )
-                return response.model_dump()
+                if self.thinking is not None:
+                    create_kwargs["thinking"] = self.thinking
+                if self.output_config is not None:
+                    create_kwargs["output_config"] = self.output_config
+
+                response = await client.messages.create(**create_kwargs)
+                response_model = response.model_dump()
+                return response_model
 
         LLM.__name__ = model_class_name
 

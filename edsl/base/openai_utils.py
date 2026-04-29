@@ -7,7 +7,10 @@ properly handle missing API keys and provide user-friendly error messages.
 
 import os
 from typing import Optional
-from openai import OpenAI, OpenAIError
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from openai import OpenAI
 
 
 def create_openai_client(api_key: Optional[str] = None, **kwargs) -> OpenAI:
@@ -47,6 +50,7 @@ def create_openai_client(api_key: Optional[str] = None, **kwargs) -> OpenAI:
     >>> # With additional options
     >>> client = create_openai_client(timeout=30.0)
     """
+    from openai import OpenAI, OpenAIError
     from ..key_management.exceptions import KeyManagementMissingKeyError
 
     # Check if API key is available

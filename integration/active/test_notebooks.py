@@ -2,8 +2,10 @@ import os
 import pytest
 import glob
 
-import nbformat
-from nbconvert.preprocessors import ExecutePreprocessor, CellExecutionError
+nbformat = pytest.importorskip("nbformat")
+nbconvert_preprocessors = pytest.importorskip("nbconvert.preprocessors")
+ExecutePreprocessor = nbconvert_preprocessors.ExecutePreprocessor
+CellExecutionError = nbconvert_preprocessors.CellExecutionError
 
 
 class SkipTaggedCells(ExecutePreprocessor):

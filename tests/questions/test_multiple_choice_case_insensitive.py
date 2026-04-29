@@ -161,7 +161,7 @@ class TestMultipleChoiceCaseInsensitive:
         
         validator = q.response_validator
         
-        # The issue: gemini-1.5-flash returned "Grapefruit" instead of "grapefruit"
+        # The issue: gemini-2.5-flash returned "Grapefruit" instead of "grapefruit"
         response = {"answer": "Grapefruit"}
         result = validator.validate(response)
         

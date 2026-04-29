@@ -107,10 +107,20 @@ class JobLogger(ABC):
 
 class HTMLTableJobLogger(JobLogger):
     def __init__(self, verbose=True, **kwargs):
+        import io
+        import contextlib
         from IPython.display import display, HTML
 
         super().__init__(verbose=verbose)
-        self.display_handle = display(HTML(""), display_id=True)
+        # Suppress stdout during initial display() call to prevent
+        # "<IPython.core.display.HTML object>" leaking in non-notebook environments
+        with contextlib.redirect_stdout(io.StringIO()):
+            self.display_handle = display(HTML(""), display_id=True)
+        if self.display_handle is None:
+            class _Stub:
+                def update(self, *a, **kw):
+                    pass
+            self.display_handle = _Stub()
         self.current_message = None
         self.log_id = str(uuid.uuid4())
         self.is_expanded = True
@@ -217,13 +227,23 @@ class StdOutJobLogger(JobLogger):
 
 class JupyterJobLogger(JobLogger):
     def __init__(self, verbose=True, **kwargs):
+        import io
+        import contextlib
         from IPython.display import display, HTML
 
         super().__init__(verbose=verbose)
         self.messages = []
         self.log_id = str(uuid.uuid4())
         self.is_expanded = True
-        self.display_handle = display(HTML(""), display_id=True)
+        # Suppress stdout during initial display() call to prevent
+        # "<IPython.core.display.HTML object>" leaking in non-notebook environments
+        with contextlib.redirect_stdout(io.StringIO()):
+            self.display_handle = display(HTML(""), display_id=True)
+        if self.display_handle is None:
+            class _Stub:
+                def update(self, *a, **kw):
+                    pass
+            self.display_handle = _Stub()
 
     def _linkify(self, text):
         url_pattern = r'(https?://[^\s<>"]+|www\.[^\s<>"]+)'

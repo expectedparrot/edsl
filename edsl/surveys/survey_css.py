@@ -1,5 +1,5 @@
 from typing import Optional
-from ..utilities.remove_edsl_version import remove_edsl_version
+from ..utilities import remove_edsl_version
 
 
 class CSSRuleMeta(type):
