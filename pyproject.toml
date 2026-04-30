@@ -1,22 +1,21 @@
 [build-system]
 build-backend = "poetry.core.masonry.api"
-requires = ["poetry-core", "setuptools<72.0"]
+requires = [ "poetry-core", "setuptools<72.0",]
 
 [tool.poetry]
-authors = ["John Horton <info@expectedparrot.com>"]
-classifiers = ["Topic :: Scientific/Engineering :: Artificial Intelligence", "Topic :: Software Development :: Libraries :: Application Frameworks", "Topic :: Software Development :: Libraries :: Python Modules"]
+authors = [ "John Horton <info@expectedparrot.com>",]
+classifiers = [ "Topic :: Scientific/Engineering :: Artificial Intelligence", "Topic :: Software Development :: Libraries :: Application Frameworks", "Topic :: Software Development :: Libraries :: Python Modules",]
 description = "Create and analyze LLM-based surveys"
 documentation = "https://docs.expectedparrot.com"
 homepage = "https://www.expectedparrot.com/"
-include = ["edsl/questions/templates/**/*", "edsl/assistants/EDSL_SPECIFICATION.md"]
-keywords = ["LLM", "social science", "surveys", "user research"]
+include = [ "edsl/questions/templates/**/*", "edsl/assistants/EDSL_SPECIFICATION.md",]
+keywords = [ "LLM", "social science", "surveys", "user research",]
 license = "MIT"
 name = "edsl"
 readme = "README.md"
-version = "1.0.7.dev1"
+version = "1.0.8.dev1"
 
 [tool.poetry.dependencies]
-# Required
 python = ">=3.10,<3.14"
 aiohttp = "^3.9.1"
 httpx = ">=0.24.0"
@@ -32,54 +31,143 @@ restrictedpython = "^7.0"
 rich = "^13.7.0"
 simpleeval = "^0.9.13"
 tenacity = "^8.2.3"
-# Optional: inference provider SDKs (install with edsl[inference])
-openai = {version = "^1.4.0", extras = ["aiohttp"], optional = true}
-anthropic = {version = "^0.80.0", optional = true}
-azure-ai-inference = {version = "^1.0.0b3", optional = true}
-boto3 = {version = "^1.34.161", optional = true}
-google-genai = {version = "^1.30.0", optional = true}
-groq = {version = "0.23.1", optional = true}
-mistralai = {version = "^1.0.2", optional = true}
-# Optional: file format handlers (install with edsl[file-formats])
-openpyxl = {version = "^3.1.5", optional = true}
-pypdf2 = {version = "^3.0.1", optional = true}
-python-docx = {version = "^1.1.0", optional = true}
-python-pptx = {version = "^1.0.2", optional = true}
-# Optional: other
-black = {version = "^24.4.2", optional = true}
-pydot = {version = "^2.0.0", optional = true}
-sqlalchemy = {version = "^2.0.23", optional = true}
-pandas = {version = ">=2.1.4,<4", optional = true}
-altair = {version = "^5.0.0", optional = true}
-fastapi = {version = "^0.112.1", optional = true}
-google-cloud-storage = {version = ">=2.14.0", optional = true}
-nbclient = {version = "^0.10.0", optional = true}
-nbformat = {version = "^5.0.0", optional = true}
-playwright = {version = "^1.40.0", optional = true}
 psutil = "^6.1.0"
-qrcode = {version = "^8.0", extras = ["pil"], optional = true}
-redis = {version = ">=5.0.0", optional = true}
-seaborn = {version = "^0.13.2", optional = true}
-sentence-transformers = {version = "^2.2.2", optional = true}
-termplotlib = {version = "^0.3.9", optional = true}
-uvicorn = {version = "^0.30.6", optional = true}
-
-[tool.poetry.dependencies.typer]
-extras = ["all"]
-version = "^0.9.0"
 
 [tool.poetry.extras]
-inference = ["openai", "groq", "boto3", "anthropic", "azure-ai-inference", "google-genai", "mistralai", "sqlalchemy"]
-file-formats = ["python-docx", "openpyxl", "pypdf2", "python-pptx", "pandas"]
-full = ["openai", "groq", "boto3", "anthropic", "azure-ai-inference", "google-genai", "mistralai", "sqlalchemy", "black", "pydot", "python-docx", "openpyxl", "pypdf2", "python-pptx", "playwright", "fastapi", "uvicorn", "altair", "nbformat", "nbclient", "psutil", "sentence-transformers", "seaborn", "termplotlib", "qrcode", "pandas"]
-notebook = ["nbformat", "nbclient", "psutil"]
-screenshots = ["playwright"]
-services = ["fastapi", "uvicorn"]
-viz = ["altair", "nbformat", "nbclient", "termplotlib", "pydot"]
-agent_building = ["sentence-transformers", "seaborn"]
-runner = ["redis", "sqlalchemy"]
-runner-gcp = ["google-cloud-storage"]
-gcp = ["google-cloud-storage"]
+inference = [ "openai", "groq", "boto3", "anthropic", "azure-ai-inference", "google-genai", "mistralai", "sqlalchemy",]
+file-formats = [ "python-docx", "openpyxl", "pypdf2", "python-pptx", "pandas",]
+full = [ "openai", "groq", "boto3", "anthropic", "azure-ai-inference", "google-genai", "mistralai", "sqlalchemy", "black", "pydot", "python-docx", "openpyxl", "pypdf2", "python-pptx", "playwright", "fastapi", "uvicorn", "altair", "nbformat", "nbclient", "psutil", "sentence-transformers", "seaborn", "termplotlib", "qrcode", "pandas",]
+notebook = [ "nbformat", "nbclient", "psutil",]
+screenshots = [ "playwright",]
+services = [ "fastapi", "uvicorn",]
+viz = [ "altair", "nbformat", "nbclient", "termplotlib", "pydot",]
+agent_building = [ "sentence-transformers", "seaborn",]
+runner = [ "redis", "sqlalchemy",]
+runner-gcp = [ "google-cloud-storage",]
+gcp = [ "google-cloud-storage",]
+
+[tool.poetry.scripts]
+edsl = "edsl.__main__:main"
+
+[tool.ty.rules]
+unresolved-import = "ignore"
+
+[tool.poetry.dependencies.openai]
+version = "^1.4.0"
+extras = [ "aiohttp",]
+optional = true
+
+[tool.poetry.dependencies.anthropic]
+version = "^0.80.0"
+optional = true
+
+[tool.poetry.dependencies.azure-ai-inference]
+version = "^1.0.0b3"
+optional = true
+
+[tool.poetry.dependencies.boto3]
+version = "^1.34.161"
+optional = true
+
+[tool.poetry.dependencies.google-genai]
+version = "^1.30.0"
+optional = true
+
+[tool.poetry.dependencies.groq]
+version = "0.23.1"
+optional = true
+
+[tool.poetry.dependencies.mistralai]
+version = "^1.0.2"
+optional = true
+
+[tool.poetry.dependencies.openpyxl]
+version = "^3.1.5"
+optional = true
+
+[tool.poetry.dependencies.pypdf2]
+version = "^3.0.1"
+optional = true
+
+[tool.poetry.dependencies.python-docx]
+version = "^1.1.0"
+optional = true
+
+[tool.poetry.dependencies.python-pptx]
+version = "^1.0.2"
+optional = true
+
+[tool.poetry.dependencies.black]
+version = "^24.4.2"
+optional = true
+
+[tool.poetry.dependencies.pydot]
+version = "^2.0.0"
+optional = true
+
+[tool.poetry.dependencies.sqlalchemy]
+version = "^2.0.23"
+optional = true
+
+[tool.poetry.dependencies.pandas]
+version = ">=2.1.4,<4"
+optional = true
+
+[tool.poetry.dependencies.altair]
+version = "^5.0.0"
+optional = true
+
+[tool.poetry.dependencies.fastapi]
+version = "^0.112.1"
+optional = true
+
+[tool.poetry.dependencies.google-cloud-storage]
+version = ">=2.14.0"
+optional = true
+
+[tool.poetry.dependencies.nbclient]
+version = "^0.10.0"
+optional = true
+
+[tool.poetry.dependencies.nbformat]
+version = "^5.0.0"
+optional = true
+
+[tool.poetry.dependencies.playwright]
+version = "^1.40.0"
+optional = true
+
+[tool.poetry.dependencies.qrcode]
+version = "^8.0"
+extras = [ "pil",]
+optional = true
+
+[tool.poetry.dependencies.redis]
+version = ">=5.0.0"
+optional = true
+
+[tool.poetry.dependencies.seaborn]
+version = "^0.13.2"
+optional = true
+
+[tool.poetry.dependencies.sentence-transformers]
+version = "^2.2.2"
+optional = true
+
+[tool.poetry.dependencies.termplotlib]
+version = "^0.3.9"
+optional = true
+
+[tool.poetry.dependencies.uvicorn]
+version = "^0.30.6"
+optional = true
+
+[tool.poetry.dependencies.typer]
+extras = [ "all",]
+version = "^0.9.0"
+
+[tool.tomlsort.overrides."tool.poetry.dependencies"]
+table_keys = false
 
 [tool.poetry.group.dev.dependencies]
 mypy = "^1.7.1"
@@ -109,12 +197,3 @@ pytest-mock = "^3.12.0"
 pytest-profiling = "^1.7.0"
 pytest-xdist = "^3.5.0"
 numpy = "^1.24.0"
-
-[tool.poetry.scripts]
-edsl = "edsl.__main__:main"
-
-[tool.tomlsort.overrides."tool.poetry.dependencies"]
-table_keys = false
-
-[tool.ty.rules]
-unresolved-import = "ignore"
