@@ -25,10 +25,12 @@ from ..caching import CacheEntry
 from ..logger import get_logger
 
 if TYPE_CHECKING:
+    from ..agents import AgentList
     from ..jobs import Jobs
     from ..scenarios import Scenario, ScenarioList
     from ..surveys import Survey
     from ..results import Results
+    from .coop_humanize_notifications import DeliveryMap
 
 from .exceptions import (
     CoopInvalidURLError,
@@ -2524,9 +2526,16 @@ class Coop(CoopFunctionsMixin):
         scenario_list_alias: Optional[str] = None,
         scenario_list_visibility: Optional[VisibilityType] = "private",
         humanize_schema: Optional[Dict[str, Any]] = None,
+        agent_list: Optional["AgentList"] = None,
+        agent_list_description: Optional[str] = None,
+        agent_list_alias: Optional[str] = None,
+        agent_list_visibility: Optional[VisibilityType] = "private",
+        delivery_map: Optional[Union["DeliveryMap", Dict[str, Any]]] = None,
+        send_immediately: bool = True,
     ):
         """
-        Create a human survey on Coop, first creating the survey and scenario list (if scenarios are used).
+        Create a human survey on Coop, first creating any linked agent list,
+        then the survey and scenario list (if scenarios are used).
         """
         if scenario_list is None and scenario_list_method is not None:
             raise CoopValueError(
@@ -2538,6 +2547,27 @@ class Coop(CoopFunctionsMixin):
             )
         if humanize_schema is not None:
             self.validate_human_survey_humanize_schema(survey, humanize_schema)
+        if delivery_map is not None:
+            from .coop_humanize_notifications import DeliveryMap
+
+            if isinstance(delivery_map, DeliveryMap):
+                delivery_map_payload = delivery_map.model_dump(exclude_none=True)
+            else:
+                delivery_map_payload = DeliveryMap.model_validate(
+                    delivery_map
+                ).model_dump(exclude_none=True)
+        else:
+            delivery_map_payload = None
+        if agent_list is not None:
+            agent_list_details = self.push(
+                object=agent_list,
+                description=agent_list_description,
+                alias=agent_list_alias,
+                visibility=agent_list_visibility,
+            )
+            agent_list_uuid = agent_list_details.get("uuid")
+        else:
+            agent_list_uuid = None
         survey_details = self.push(
             object=survey,
             description=survey_description,
@@ -2558,10 +2588,15 @@ class Coop(CoopFunctionsMixin):
         payload: Dict[str, Any] = {
             "human_survey_name": human_survey_name,
             "survey_uuid": str(survey_uuid),
+            "agent_list_uuid": (
+                str(agent_list_uuid) if agent_list_uuid is not None else None
+            ),
             "scenario_list_uuid": (
                 str(scenario_list_uuid) if scenario_list_uuid is not None else None
             ),
             "scenario_list_method": scenario_list_method,
+            "delivery_map": delivery_map_payload,
+            "send_immediately": send_immediately,
         }
         if humanize_schema is not None:
             payload["humanize_schema"] = humanize_schema
@@ -2579,6 +2614,7 @@ class Coop(CoopFunctionsMixin):
             "respondent_url": f"{self.url}/respond/human-surveys/{response_json.get('uuid')}",
             "n_responses": response_json.get("n_responses"),
             "survey_uuid": response_json.get("survey_uuid"),
+            "agent_list_uuid": response_json.get("agent_list_uuid"),
             "scenario_list_uuid": response_json.get("scenario_list_uuid"),
         }
 
@@ -2602,6 +2638,7 @@ class Coop(CoopFunctionsMixin):
             "respondent_url": f"{self.url}/respond/human-surveys/{response_json.get('uuid')}",
             "n_responses": response_json.get("n_responses"),
             "survey_uuid": response_json.get("survey_uuid"),
+            "agent_list_uuid": response_json.get("agent_list_uuid"),
             "scenario_list_uuid": response_json.get("scenario_list_uuid"),
         }
 
