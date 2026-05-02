@@ -4,6 +4,7 @@ import json
 import os
 import requests
 import time
+from datetime import datetime
 
 from typing import (
     Any,
@@ -2641,6 +2642,90 @@ class Coop(CoopFunctionsMixin):
             "agent_list_uuid": response_json.get("agent_list_uuid"),
             "scenario_list_uuid": response_json.get("scenario_list_uuid"),
         }
+
+    def create_human_survey_delivery(
+        self,
+        human_survey_uuid: Union[str, UUID],
+    ) -> dict:
+        """
+        Trigger a new email delivery job for a human survey's agent list.
+
+        The survey must have an agent list with an email delivery channel configured.
+
+        Returns:
+            dict: ``{"delivery_uuid": "<uuid string>"}`` from the server response.
+        """
+        response = self._send_server_request(
+            uri=f"api/v0/human-surveys/{human_survey_uuid}/deliveries",
+            method="POST",
+        )
+        self._resolve_server_response(response)
+        response_json = response.json()
+        return {
+            "delivery_uuid": response_json.get("delivery_uuid"),
+        }
+
+    def create_human_survey_one_time_schedule(
+        self,
+        human_survey_uuid: Union[str, UUID],
+        next_run_at: Union[str, datetime],
+    ) -> dict:
+        """
+        Create a one-time delivery schedule for a human survey's agent list.
+
+        ``next_run_at`` may be a timezone-aware ``datetime`` or an ISO 8601 string.
+
+        Returns:
+            dict: Server fields ``schedule_uuid``, ``schedule_type``, ``next_run_at``,
+            ``cron_expression``, and ``is_active``.
+        """
+        next_run_serialized = (
+            next_run_at.isoformat()
+            if isinstance(next_run_at, datetime)
+            else next_run_at
+        )
+        payload = {"next_run_at": next_run_serialized}
+        response = self._send_server_request(
+            uri=f"api/v0/human-surveys/{human_survey_uuid}/schedules/one-time",
+            method="POST",
+            payload=payload,
+        )
+        self._resolve_server_response(response)
+        return response.json()
+
+    def create_human_survey_recurring_schedule(
+        self,
+        human_survey_uuid: Union[str, UUID],
+        cron_expression: str,
+        next_run_at: Optional[Union[str, datetime]] = None,
+        termination: Optional[Dict[str, Any]] = None,
+    ) -> dict:
+        """
+        Create a recurring delivery schedule for a human survey's agent list.
+
+        ``cron_expression`` uses standard cron syntax (e.g. ``\"0 9 * * MON\"``).
+        ``next_run_at`` is optional and may be a ``datetime`` or ISO 8601 string.
+
+        Returns:
+            dict: Server fields ``schedule_uuid``, ``schedule_type``, ``next_run_at``,
+            ``cron_expression``, and ``is_active``.
+        """
+        payload: Dict[str, Any] = {"cron_expression": cron_expression}
+        if next_run_at is not None:
+            payload["next_run_at"] = (
+                next_run_at.isoformat()
+                if isinstance(next_run_at, datetime)
+                else next_run_at
+            )
+        if termination is not None:
+            payload["termination"] = termination
+        response = self._send_server_request(
+            uri=f"api/v0/human-surveys/{human_survey_uuid}/schedules/recurring",
+            method="POST",
+            payload=payload,
+        )
+        self._resolve_server_response(response)
+        return response.json()
 
     def get_survey_preview_url(
         self,
