@@ -31,7 +31,6 @@ if TYPE_CHECKING:
     from ..scenarios import Scenario, ScenarioList
     from ..surveys import Survey
     from ..results import Results
-    from .coop_humanize_notifications import DeliveryMap
 
 from .exceptions import (
     CoopInvalidURLError,
@@ -54,6 +53,12 @@ from .coop_regular_objects import CoopRegularObjects
 from .coop_jobs_objects import CoopJobsObjects
 from .coop_prolific_filters import CoopProlificFilters
 from .ep_key_handling import ExpectedParrotKeyHandler
+from .coop_humanize_notifications import (
+    DeliveryMap,
+    ScheduleTerminationAfterNJobs,
+    ScheduleTerminationByDeadline,
+    parse_schedule_termination,
+)
 
 # from ..inference_services.data_structures import ServiceToModelsMapping
 
@@ -2512,6 +2517,16 @@ class Coop(CoopFunctionsMixin):
     ################
     # HUMAN SURVEYS
     ################
+
+    @staticmethod
+    def _human_survey_datetime_must_be_tz_aware(dt: datetime, label: str) -> None:
+        if dt.tzinfo is None:
+            raise CoopValueError(
+                f"{label} must be a timezone-aware datetime (naive datetimes are not "
+                f"accepted). For example, use datetime.now(timezone.utc) or attach a "
+                f"tzinfo such as ZoneInfo('America/New_York')."
+            )
+
     def create_human_survey(
         self,
         survey: "Survey",
@@ -2531,7 +2546,7 @@ class Coop(CoopFunctionsMixin):
         agent_list_description: Optional[str] = None,
         agent_list_alias: Optional[str] = None,
         agent_list_visibility: Optional[VisibilityType] = "private",
-        delivery_map: Optional[Union["DeliveryMap", Dict[str, Any]]] = None,
+        delivery_map: Optional[Union[DeliveryMap, Dict[str, Any]]] = None,
         send_immediately: bool = True,
     ):
         """
@@ -2549,8 +2564,6 @@ class Coop(CoopFunctionsMixin):
         if humanize_schema is not None:
             self.validate_human_survey_humanize_schema(survey, humanize_schema)
         if delivery_map is not None:
-            from .coop_humanize_notifications import DeliveryMap
-
             if isinstance(delivery_map, DeliveryMap):
                 delivery_map_payload = delivery_map.model_dump(exclude_none=True)
             else:
@@ -2668,23 +2681,25 @@ class Coop(CoopFunctionsMixin):
     def create_human_survey_one_time_schedule(
         self,
         human_survey_uuid: Union[str, UUID],
-        next_run_at: Union[str, datetime],
+        run_at: Union[str, datetime],
     ) -> dict:
         """
         Create a one-time delivery schedule for a human survey's agent list.
 
-        ``next_run_at`` may be a timezone-aware ``datetime`` or an ISO 8601 string.
+        ``run_at`` may be a timezone-aware ``datetime`` or an ISO 8601 string. When a
+        ``datetime`` is passed, it must include timezone information (not naive).
 
         Returns:
-            dict: Server fields ``schedule_uuid``, ``schedule_type``, ``next_run_at``,
-            ``cron_expression``, and ``is_active``.
+            dict: Metadata for the created schedule as returned by the server (for
+            example identifiers, cadence fields, when the delivery is due to run, and
+            whether the schedule is active).
         """
-        next_run_serialized = (
-            next_run_at.isoformat()
-            if isinstance(next_run_at, datetime)
-            else next_run_at
+        if isinstance(run_at, datetime):
+            self._human_survey_datetime_must_be_tz_aware(run_at, "run_at")
+        run_at_serialized = (
+            run_at.isoformat() if isinstance(run_at, datetime) else run_at
         )
-        payload = {"next_run_at": next_run_serialized}
+        payload = {"run_at": run_at_serialized}
         response = self._send_server_request(
             uri=f"api/v0/human-surveys/{human_survey_uuid}/schedules/one-time",
             method="POST",
@@ -2697,28 +2712,49 @@ class Coop(CoopFunctionsMixin):
         self,
         human_survey_uuid: Union[str, UUID],
         cron_expression: str,
-        next_run_at: Optional[Union[str, datetime]] = None,
-        termination: Optional[Dict[str, Any]] = None,
+        timezone: str,
+        termination: Union[
+            Dict[str, Any],
+            ScheduleTerminationAfterNJobs,
+            ScheduleTerminationByDeadline,
+        ],
+        start_at: Optional[Union[str, datetime]] = None,
     ) -> dict:
         """
         Create a recurring delivery schedule for a human survey's agent list.
 
         ``cron_expression`` uses standard cron syntax (e.g. ``\"0 9 * * MON\"``).
-        ``next_run_at`` is optional and may be a ``datetime`` or ISO 8601 string.
+        ``timezone`` is an IANA or server-supported timezone name for the cron.
+        ``termination`` must match the server's discriminated union (``type`` field).
+        ``start_at`` is optional; if omitted, the server uses the current time as the
+        anchor for the first send implied by your cron rule. When a ``datetime`` is
+        passed, it must include timezone information (not naive). It may instead be
+        an ISO 8601 string.
 
         Returns:
-            dict: Server fields ``schedule_uuid``, ``schedule_type``, ``next_run_at``,
-            ``cron_expression``, and ``is_active``.
+            dict: Metadata for the created schedule as returned by the server (for
+            example identifiers, cadence fields, timing for upcoming sends, and whether
+            the schedule is active).
         """
-        payload: Dict[str, Any] = {"cron_expression": cron_expression}
-        if next_run_at is not None:
-            payload["next_run_at"] = (
-                next_run_at.isoformat()
-                if isinstance(next_run_at, datetime)
-                else next_run_at
+        termination_model = parse_schedule_termination(termination)
+        if isinstance(termination_model, ScheduleTerminationByDeadline):
+            self._human_survey_datetime_must_be_tz_aware(
+                termination_model.deadline,
+                "termination.deadline",
             )
-        if termination is not None:
-            payload["termination"] = termination
+        termination_payload = termination_model.model_dump(mode="json")
+
+        payload: Dict[str, Any] = {
+            "cron_expression": cron_expression,
+            "timezone": timezone,
+            "termination": termination_payload,
+        }
+        if start_at is not None:
+            if isinstance(start_at, datetime):
+                self._human_survey_datetime_must_be_tz_aware(start_at, "start_at")
+            payload["start_at"] = (
+                start_at.isoformat() if isinstance(start_at, datetime) else start_at
+            )
         response = self._send_server_request(
             uri=f"api/v0/human-surveys/{human_survey_uuid}/schedules/recurring",
             method="POST",
