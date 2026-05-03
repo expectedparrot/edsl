@@ -53,12 +53,7 @@ from .coop_regular_objects import CoopRegularObjects
 from .coop_jobs_objects import CoopJobsObjects
 from .coop_prolific_filters import CoopProlificFilters
 from .ep_key_handling import ExpectedParrotKeyHandler
-from .coop_humanize_notifications import (
-    DeliveryMap,
-    ScheduleTerminationAfterNJobs,
-    ScheduleTerminationByDeadline,
-    parse_schedule_termination,
-)
+from .coop_humanize_notifications import DeliveryMap
 
 # from ..inference_services.data_structures import ServiceToModelsMapping
 
@@ -2527,6 +2522,31 @@ class Coop(CoopFunctionsMixin):
                 f"tzinfo such as ZoneInfo('America/New_York')."
             )
 
+    def schedule_termination_payload(
+        self,
+        max_jobs: Optional[int],
+        deadline: Optional[datetime],
+        *,
+        require_exactly_one: bool,
+    ) -> Dict[str, Any]:
+        """
+        Build JSON fields for schedule termination (API: at most one of max_jobs, deadline).
+
+        When ``require_exactly_one`` is True (recurring create), both may not be omitted.
+        When False (recurring update), omitting both leaves termination unchanged on the server.
+        """
+        if max_jobs is not None and deadline is not None:
+            raise CoopValueError("Specify at most one of max_jobs or deadline.")
+        payload: Dict[str, Any] = {}
+        if max_jobs is not None:
+            payload["max_jobs"] = max_jobs
+        elif deadline is not None:
+            self._human_survey_datetime_must_be_tz_aware(deadline, "deadline")
+            payload["deadline"] = deadline.isoformat()
+        elif require_exactly_one:
+            raise CoopValueError("Provide either max_jobs or deadline.")
+        return payload
+
     def create_human_survey(
         self,
         survey: "Survey",
@@ -2713,41 +2733,39 @@ class Coop(CoopFunctionsMixin):
         human_survey_uuid: Union[str, UUID],
         cron_expression: str,
         timezone: str,
-        termination: Union[
-            Dict[str, Any],
-            ScheduleTerminationAfterNJobs,
-            ScheduleTerminationByDeadline,
-        ],
+        *,
+        max_jobs: Optional[int] = None,
+        deadline: Optional[datetime] = None,
         start_at: Optional[Union[str, datetime]] = None,
     ) -> dict:
         """
         Create a recurring delivery schedule for a human survey's agent list.
 
+        The survey must have an agent list with an email delivery channel configured.
+
         ``cron_expression`` uses standard cron syntax (e.g. ``\"0 9 * * MON\"``).
         ``timezone`` is an IANA or server-supported timezone name for the cron.
-        ``termination`` must match the server's discriminated union (``type`` field).
+        Provide exactly one of ``max_jobs`` (stop after that many delivery jobs) or
+        ``deadline`` (timezone-aware datetime when the schedule ends).
+
         ``start_at`` is optional; if omitted, the server uses the current time as the
-        anchor for the first send implied by your cron rule. When a ``datetime`` is
-        passed, it must include timezone information (not naive). It may instead be
-        an ISO 8601 string.
+        reference to compute ``next_run_at``. When a ``datetime`` is passed, it must be
+        timezone-aware, or use an ISO 8601 string.
 
         Returns:
-            dict: Metadata for the created schedule as returned by the server (for
-            example identifiers, cadence fields, timing for upcoming sends, and whether
-            the schedule is active).
+            dict: Server fields such as ``schedule_uuid``, ``schedule_type``,
+            ``next_run_at``, ``cron_expression``, ``timezone``, ``termination``,
+            ``is_active``.
         """
-        termination_model = parse_schedule_termination(termination)
-        if isinstance(termination_model, ScheduleTerminationByDeadline):
-            self._human_survey_datetime_must_be_tz_aware(
-                termination_model.deadline,
-                "termination.deadline",
-            )
-        termination_payload = termination_model.model_dump(mode="json")
-
+        term_payload = self.schedule_termination_payload(
+            max_jobs,
+            deadline,
+            require_exactly_one=True,
+        )
         payload: Dict[str, Any] = {
             "cron_expression": cron_expression,
             "timezone": timezone,
-            "termination": termination_payload,
+            **term_payload,
         }
         if start_at is not None:
             if isinstance(start_at, datetime):
@@ -2758,6 +2776,131 @@ class Coop(CoopFunctionsMixin):
         response = self._send_server_request(
             uri=f"api/v0/human-surveys/{human_survey_uuid}/schedules/recurring",
             method="POST",
+            payload=payload,
+        )
+        self._resolve_server_response(response)
+        return response.json()
+
+    def get_human_survey_schedule(
+        self,
+        human_survey_uuid: Union[str, UUID],
+        schedule_uuid: Union[str, UUID],
+    ) -> dict:
+        """
+        Fetch a delivery schedule by UUID for a human survey.
+
+        Returns:
+            dict: Fields such as ``schedule_uuid``, ``schedule_type``, ``next_run_at``,
+            ``cron_expression``, ``timezone``, ``termination``, ``is_active``,
+            ``jobs_spawned``.
+        """
+        response = self._send_server_request(
+            uri=(
+                f"api/v0/human-surveys/{human_survey_uuid}/schedules/{schedule_uuid}"
+            ),
+            method="GET",
+        )
+        self._resolve_server_response(response)
+        return response.json()
+
+    def set_human_survey_schedule_active(
+        self,
+        human_survey_uuid: Union[str, UUID],
+        schedule_uuid: Union[str, UUID],
+        is_active: bool,
+    ) -> dict:
+        """
+        Activate or deactivate a delivery schedule.
+
+        For one-time schedules, reactivation may be rejected if ``run_at`` is in the
+        past until you update ``run_at``. For recurring schedules, reactivation can
+        advance ``next_run_at`` to the next future occurrence if it has passed.
+        """
+        response = self._send_server_request(
+            uri=(
+                f"api/v0/human-surveys/{human_survey_uuid}/schedules/"
+                f"{schedule_uuid}/active"
+            ),
+            method="PATCH",
+            payload={"is_active": is_active},
+        )
+        self._resolve_server_response(response)
+        return response.json()
+
+    def update_human_survey_one_time_schedule(
+        self,
+        human_survey_uuid: Union[str, UUID],
+        schedule_uuid: Union[str, UUID],
+        run_at: Union[str, datetime],
+    ) -> dict:
+        """
+        Update the ``run_at`` time of a one-time delivery schedule (ISO 8601 or
+        timezone-aware datetime).
+        """
+        if isinstance(run_at, datetime):
+            self._human_survey_datetime_must_be_tz_aware(run_at, "run_at")
+        run_at_serialized = (
+            run_at.isoformat() if isinstance(run_at, datetime) else run_at
+        )
+        response = self._send_server_request(
+            uri=(
+                f"api/v0/human-surveys/{human_survey_uuid}/schedules/"
+                f"{schedule_uuid}/one-time"
+            ),
+            method="PATCH",
+            payload={"run_at": run_at_serialized},
+        )
+        self._resolve_server_response(response)
+        return response.json()
+
+    def update_human_survey_recurring_schedule(
+        self,
+        human_survey_uuid: Union[str, UUID],
+        schedule_uuid: Union[str, UUID],
+        *,
+        cron_expression: Optional[str] = None,
+        timezone: Optional[str] = None,
+        max_jobs: Optional[int] = None,
+        deadline: Optional[datetime] = None,
+        start_at: Optional[Union[str, datetime]] = None,
+    ) -> dict:
+        """
+        Update a recurring schedule's cron, timezone, termination, and/or anchor time.
+
+        If ``cron_expression``, ``timezone``, or ``start_at`` is provided,
+        ``next_run_at`` is recomputed on the server (with ``start_at`` defaulting to
+        "now" when recomputing if omitted).
+
+        At most one of ``max_jobs`` or ``deadline`` may be set in a single call; omit
+        both to leave termination unchanged.
+        """
+        term_payload = self.schedule_termination_payload(
+            max_jobs,
+            deadline,
+            require_exactly_one=False,
+        )
+        payload: Dict[str, Any] = {**term_payload}
+        if cron_expression is not None:
+            payload["cron_expression"] = cron_expression
+        if timezone is not None:
+            payload["timezone"] = timezone
+        if start_at is not None:
+            if isinstance(start_at, datetime):
+                self._human_survey_datetime_must_be_tz_aware(start_at, "start_at")
+            payload["start_at"] = (
+                start_at.isoformat() if isinstance(start_at, datetime) else start_at
+            )
+        if not payload:
+            raise CoopValueError(
+                "Provide at least one of cron_expression, timezone, max_jobs, "
+                "deadline, or start_at."
+            )
+        response = self._send_server_request(
+            uri=(
+                f"api/v0/human-surveys/{human_survey_uuid}/schedules/"
+                f"{schedule_uuid}/recurring"
+            ),
+            method="PATCH",
             payload=payload,
         )
         self._resolve_server_response(response)
