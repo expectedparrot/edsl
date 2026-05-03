@@ -3,13 +3,19 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import TYPE_CHECKING, Optional, Union
+from enum import Enum
+from typing import TYPE_CHECKING, Annotated, List, Literal, Optional, Union
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Discriminator, Field, Tag
 
 if TYPE_CHECKING:
     from .coop import Coop
+
+
+# ---------------------------------------------------------------------------
+# Delivery map (survey creation)
+# ---------------------------------------------------------------------------
 
 
 class ChannelConfig(BaseModel):
@@ -28,6 +34,111 @@ class DeliveryMap(BaseModel):
     email: Optional[ChannelConfig] = None
     ep_username: Optional[ChannelConfig] = None
     sms: Optional[ChannelConfig] = None
+
+
+# ---------------------------------------------------------------------------
+# Status enums (used in respondent filters)
+# ---------------------------------------------------------------------------
+
+
+class SendStatus(str, Enum):
+    pending = "pending"
+    sent = "sent"
+    failed = "failed"
+
+
+class DeliveryStatus(str, Enum):
+    pending = "pending"
+    delivered = "delivered"
+    bounced = "bounced"
+    failed = "failed"
+
+
+class ResponseStatus(str, Enum):
+    not_started = "not_started"
+    in_progress = "in_progress"
+    completed = "completed"
+    expired = "expired"
+
+
+class FilterOperator(str, Enum):
+    and_ = "and"
+    or_ = "or"
+
+
+# ---------------------------------------------------------------------------
+# Respondent filter (who receives a delivery)
+# ---------------------------------------------------------------------------
+
+
+class RespondentCondition(BaseModel):
+    """One clause in a respondent filter."""
+
+    respondent_uuids: Optional[List[str]] = None
+    response_status: Optional[List[ResponseStatus]] = None
+    never_contacted: Optional[bool] = None
+    any_send_status: Optional[List[SendStatus]] = None
+    any_delivery_status: Optional[List[DeliveryStatus]] = None
+    most_recent_send_status: Optional[List[SendStatus]] = None
+    most_recent_delivery_status: Optional[List[DeliveryStatus]] = None
+
+
+class HumanizeRespondentFilter(BaseModel):
+    """Filter that controls which respondents receive a delivery."""
+
+    operator: FilterOperator = FilterOperator.and_
+    conditions: List[RespondentCondition] = []
+
+
+# ---------------------------------------------------------------------------
+# Route configs (what channel/subtype each delivery leg uses)
+# ---------------------------------------------------------------------------
+
+
+class RespondentEmailRouteConfig(BaseModel):
+    """Email sent to each survey respondent."""
+
+    channel: Literal["email"] = "email"
+    subtype: Literal["respondent"] = "respondent"
+    delivery_template: Optional[str] = None
+    respondent_filter: Optional[HumanizeRespondentFilter] = None
+
+
+class OwnerEmailRouteConfig(BaseModel):
+    """Email sent to the survey owner."""
+
+    channel: Literal["email"] = "email"
+    subtype: Literal["owner"] = "owner"
+    delivery_template: Optional[str] = None
+
+
+class OwnerWebhookRouteConfig(BaseModel):
+    """Webhook fired to a URL the owner controls."""
+
+    channel: Literal["webhook"] = "webhook"
+    subtype: Literal["owner"] = "owner"
+    webhook_url: str
+    threshold: Optional[int] = None
+
+
+def _route_discriminator(v: "dict | object") -> str:
+    if isinstance(v, dict):
+        return f"{v.get('channel')}.{v.get('subtype')}"
+    return f"{v.channel}.{v.subtype}"
+
+
+RouteConfig = Annotated[
+    Union[
+        Annotated[RespondentEmailRouteConfig, Tag("email.respondent")],
+        Annotated[OwnerEmailRouteConfig, Tag("email.owner")],
+        Annotated[OwnerWebhookRouteConfig, Tag("webhook.owner")],
+    ],
+    Discriminator(_route_discriminator),
+]
+
+# ---------------------------------------------------------------------------
+# HumanSurveyNotificationHandler
+# ---------------------------------------------------------------------------
 
 
 class HumanSurveyNotificationHandler:
@@ -62,15 +173,23 @@ class HumanSurveyNotificationHandler:
     # Immediate delivery
     # ------------------------------------------------------------------
 
-    def trigger_delivery(self, name: str) -> dict:
+    def trigger_delivery(
+        self,
+        name: str,
+        routes: Optional[List[RouteConfig]] = None,
+    ) -> dict:
         """Trigger a new email delivery job for this human survey's agent list.
 
+        ``routes`` customises which channels are used; when omitted the server
+        defaults to a single ``respondent_email`` route.
+
         Returns:
-            dict: ``{"delivery_uuid": "<uuid>"}``
+            dict: ``{"delivery_uuid": "<uuid>", "routes": [...]}``
         """
         return self._coop.create_human_survey_delivery(
             human_survey_uuid=self.human_survey_uuid,
             name=name,
+            routes=routes,
         )
 
     # ------------------------------------------------------------------
@@ -81,15 +200,18 @@ class HumanSurveyNotificationHandler:
         self,
         name: str,
         run_at: Union[str, datetime],
+        routes: Optional[List[RouteConfig]] = None,
     ) -> dict:
         """Create a one-time delivery schedule.
 
         ``run_at`` may be an ISO 8601 string or a timezone-aware ``datetime``.
+        ``routes`` customises which channels are used; defaults to ``respondent_email``.
         """
         return self._coop.create_human_survey_one_time_schedule(
             human_survey_uuid=self.human_survey_uuid,
             name=name,
             run_at=run_at,
+            routes=routes,
         )
 
     def update_one_time_schedule(
@@ -117,12 +239,14 @@ class HumanSurveyNotificationHandler:
         max_jobs: Optional[int] = None,
         deadline: Optional[datetime] = None,
         start_at: Optional[Union[str, datetime]] = None,
+        routes: Optional[List[RouteConfig]] = None,
     ) -> dict:
         """Create a recurring delivery schedule.
 
         ``cron_expression`` uses standard cron syntax (e.g. ``"0 9 * * MON"``).
         ``timezone`` is an IANA timezone name.  Provide exactly one of
         ``max_jobs`` or ``deadline`` as the termination condition.
+        ``routes`` customises which channels are used; defaults to ``respondent_email``.
         """
         return self._coop.create_human_survey_recurring_schedule(
             human_survey_uuid=self.human_survey_uuid,
@@ -132,6 +256,7 @@ class HumanSurveyNotificationHandler:
             max_jobs=max_jobs,
             deadline=deadline,
             start_at=start_at,
+            routes=routes,
         )
 
     def update_recurring_schedule(
@@ -170,14 +295,76 @@ class HumanSurveyNotificationHandler:
             schedule_uuid=schedule_uuid,
         )
 
-    def set_schedule_active(
-        self,
-        schedule_uuid: Union[str, UUID],
-        is_active: bool,
-    ) -> dict:
-        """Activate or deactivate a delivery schedule."""
+    def activate_schedule(self, schedule_uuid: Union[str, UUID]) -> dict:
+        """Activate a delivery schedule."""
         return self._coop.set_human_survey_schedule_active(
             human_survey_uuid=self.human_survey_uuid,
             schedule_uuid=schedule_uuid,
-            is_active=is_active,
+            is_active=True,
+        )
+
+    def deactivate_schedule(self, schedule_uuid: Union[str, UUID]) -> dict:
+        """Deactivate a delivery schedule."""
+        return self._coop.set_human_survey_schedule_active(
+            human_survey_uuid=self.human_survey_uuid,
+            schedule_uuid=schedule_uuid,
+            is_active=False,
+        )
+
+    # ------------------------------------------------------------------
+    # Route management
+    # ------------------------------------------------------------------
+
+    def patch_respondent_email_route(
+        self,
+        schedule_uuid: Union[str, UUID],
+        route_uuid: Union[str, UUID],
+        *,
+        delivery_template: Optional[str] = None,
+        respondent_filter: Optional[HumanizeRespondentFilter] = None,
+    ) -> dict:
+        """Update the template and/or respondent filter on a respondent route.
+
+        Fields omitted are left unchanged on the server.
+        """
+        return self._coop.patch_human_survey_respondent_email_route(
+            human_survey_uuid=self.human_survey_uuid,
+            schedule_uuid=schedule_uuid,
+            route_uuid=route_uuid,
+            delivery_template=delivery_template,
+            respondent_filter=respondent_filter,
+        )
+
+    def add_schedule_route(
+        self,
+        schedule_uuid: Union[str, UUID],
+        route_config: RouteConfig,
+    ) -> dict:
+        """Add a new route to an existing schedule.
+
+        Returns:
+            dict: ``{"route_uuid": "<uuid>", "channel": "...", "subtype": "..."}``
+        """
+        return self._coop.add_human_survey_schedule_route(
+            human_survey_uuid=self.human_survey_uuid,
+            schedule_uuid=schedule_uuid,
+            route_config=route_config,
+        )
+
+    def delete_schedule_route(
+        self,
+        schedule_uuid: Union[str, UUID],
+        route_uuid: Union[str, UUID],
+    ) -> dict:
+        """Delete a route from a schedule.
+
+        The schedule itself is not affected.
+
+        Returns:
+            dict: ``{"deleted": "<route_uuid>"}``
+        """
+        return self._coop.delete_human_survey_schedule_route(
+            human_survey_uuid=self.human_survey_uuid,
+            schedule_uuid=schedule_uuid,
+            route_uuid=route_uuid,
         )
