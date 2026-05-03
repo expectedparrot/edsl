@@ -2679,11 +2679,15 @@ class Coop(CoopFunctionsMixin):
     def create_human_survey_delivery(
         self,
         human_survey_uuid: Union[str, UUID],
+        name: str,
     ) -> dict:
         """
         Trigger a new email delivery job for a human survey's agent list.
 
         The survey must have an agent list with an email delivery channel configured.
+
+        Args:
+            name: Label for this delivery job on the server.
 
         Returns:
             dict: ``{"delivery_uuid": "<uuid string>"}`` from the server response.
@@ -2691,6 +2695,7 @@ class Coop(CoopFunctionsMixin):
         response = self._send_server_request(
             uri=f"api/v0/human-surveys/{human_survey_uuid}/deliveries",
             method="POST",
+            payload={"name": name},
         )
         self._resolve_server_response(response)
         response_json = response.json()
@@ -2701,6 +2706,7 @@ class Coop(CoopFunctionsMixin):
     def create_human_survey_one_time_schedule(
         self,
         human_survey_uuid: Union[str, UUID],
+        name: str,
         run_at: Union[str, datetime],
     ) -> dict:
         """
@@ -2708,6 +2714,9 @@ class Coop(CoopFunctionsMixin):
 
         ``run_at`` may be a timezone-aware ``datetime`` or an ISO 8601 string. When a
         ``datetime`` is passed, it must include timezone information (not naive).
+
+        Args:
+            name: Label for this schedule on the server.
 
         Returns:
             dict: Metadata for the created schedule as returned by the server (for
@@ -2719,7 +2728,7 @@ class Coop(CoopFunctionsMixin):
         run_at_serialized = (
             run_at.isoformat() if isinstance(run_at, datetime) else run_at
         )
-        payload = {"run_at": run_at_serialized}
+        payload = {"name": name, "run_at": run_at_serialized}
         response = self._send_server_request(
             uri=f"api/v0/human-surveys/{human_survey_uuid}/schedules/one-time",
             method="POST",
@@ -2731,6 +2740,7 @@ class Coop(CoopFunctionsMixin):
     def create_human_survey_recurring_schedule(
         self,
         human_survey_uuid: Union[str, UUID],
+        name: str,
         cron_expression: str,
         timezone: str,
         *,
@@ -2742,6 +2752,9 @@ class Coop(CoopFunctionsMixin):
         Create a recurring delivery schedule for a human survey's agent list.
 
         The survey must have an agent list with an email delivery channel configured.
+
+        Args:
+            name: Label for this schedule on the server.
 
         ``cron_expression`` uses standard cron syntax (e.g. ``\"0 9 * * MON\"``).
         ``timezone`` is an IANA or server-supported timezone name for the cron.
@@ -2763,6 +2776,7 @@ class Coop(CoopFunctionsMixin):
             require_exactly_one=True,
         )
         payload: Dict[str, Any] = {
+            "name": name,
             "cron_expression": cron_expression,
             "timezone": timezone,
             **term_payload,
