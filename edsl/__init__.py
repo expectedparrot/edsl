@@ -5,6 +5,17 @@ EDSL is a Python library for conducting virtual social science experiments, surv
 and interviews with large language models.
 """
 
+import warnings
+
+# Suppress the FutureWarning emitted by the deprecated `google-generativeai` package.
+# EDSL uses `google-genai` (google.genai), but `google-generativeai` may still be
+# present in some environments as a transitive dependency and fires this warning on import.
+warnings.filterwarnings(
+    "ignore",
+    category=FutureWarning,
+    message=".*google\\.generativeai.*",
+)
+
 import os
 import time
 import importlib
