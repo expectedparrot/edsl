@@ -24,6 +24,7 @@ APIToken = NewType("APIToken", str)
 def _get_openai():
     """Lazy import of the openai package."""
     import openai
+
     return openai
 
 
@@ -90,6 +91,7 @@ class OpenAIService(InferenceServiceABC):
     usage_sequence = ["usage"]
     input_token_name = "prompt_tokens"
     output_token_name = "completion_tokens"
+    thinking_token_sequence = ["completion_tokens_details", "reasoning_tokens"]
 
     available_models_url = "https://platform.openai.com/docs/models/gp"
 
@@ -97,6 +99,14 @@ class OpenAIService(InferenceServiceABC):
         super().__init_subclass__(**kwargs)
         # so subclasses that use the OpenAI api key have to create their own instances of the clients
         cls._sync_client_instances = {}
+        cls._async_client_instances = {}
+
+    @classmethod
+    async def close_async_clients(cls):
+        """Close all cached async clients to avoid 'Unclosed client session' warnings."""
+        for client in cls._async_client_instances.values():
+            if hasattr(client, "close"):
+                await client.close()
         cls._async_client_instances = {}
 
     @classmethod
@@ -124,6 +134,7 @@ class OpenAIService(InferenceServiceABC):
         cls._resolve_clients()
         if api_key not in cls._async_client_instances:
             from openai import DefaultAioHttpClient
+
             client = cls._async_client_(
                 api_key=api_key,
                 base_url=cls._base_url_,
@@ -178,6 +189,7 @@ class OpenAIService(InferenceServiceABC):
             usage_sequence = cls.usage_sequence
             input_token_name = cls.input_token_name
             output_token_name = cls.output_token_name
+            thinking_token_sequence = cls.thinking_token_sequence
 
             _inference_service_ = cls._inference_service_
             _model_ = model_name
@@ -336,6 +348,7 @@ class OpenAIService(InferenceServiceABC):
                 params = self._filter_parameters_for_service(params)
 
                 response = await client.chat.completions.create(**params)
+
                 return response.model_dump()
 
         # Ensure the class name is "LanguageModel" for proper serialization

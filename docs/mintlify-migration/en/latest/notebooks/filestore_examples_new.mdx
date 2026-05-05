@@ -4,7 +4,7 @@ title: "FileStore examples"
 
 ## CSV example
 
-Here we create an example CSV file, post it to Coop using `FileStore`, and then retrieve it and use it to construct a `ScenarioList` and an `AgentList`.
+Here we create an example CSV file, post it to Expected Parrot using `FileStore`, and then retrieve it and use it to construct a `ScenarioList` and an `AgentList`.
 
 To create a CSV file (this step can be skipped and your own file replaced in the following steps):
 
@@ -77,7 +77,7 @@ These scenarios and agents can now be used with questions and surveys.
 
 ## PNG example
 
-Here we post an image file to Coop using `FileStore`, and then retrieve it and use it to construct a `Scenario`.
+Here we post an image file to Expected Parrot using `FileStore`, and then retrieve it and use it to construct a `Scenario`.
 
 <Note>
 **Note**:
@@ -87,7 +87,7 @@ Note that we need to specify the scenario key for the file when we create it (wh
 
 We also need to ensure that we have specified a vision model when running the survey (e.g., *gpt-4o*).
 
-Posting a local file to Coop (replace with your own):
+Posting a local file to Expected Parrot (replace with your own):
 
 
 ```python
@@ -154,7 +154,7 @@ results.select("model", "logo", "test")
 
 ## PDF example
 
-Here we save a PDF from the internet, then post it to Coop and retrieve it using `FileStore`, and then use it to construct a `ScenarioList`.
+Here we save a PDF from the internet, then post it to Expected Parrot and retrieve it using `FileStore`, and then use it to construct a `ScenarioList`.
 
 <Note>
 **Note**:
@@ -175,7 +175,7 @@ with open("automated_social_scientist.pdf", "wb") as file:
 ```
 
 
-Posting to Coop:
+Posting to Expected Parrot:
 
 
 ```python
@@ -184,7 +184,7 @@ from edsl import FileStore
 if refresh := False:
 fs = FileStore("automated_social_scientist.pdf")
 pdf_info = fs.push(description = "My example PDF file", alias = "my-example-pdf-file", visibility = "public")
-pdf_info # display the URL and Coop uuid of the stored file for retrieving it later
+pdf_info # display the URL and uuid of the stored file for retrieving it later
 ```
 
 
@@ -225,9 +225,9 @@ scenarios.parameters
 {'filename', 'page', 'text'}
 ```
 
-## Posting to Coop
+## Posting to Expected Parrot
 
-Here we post this notebook to Coop, and show how to update it:
+Here we post this notebook to Expected Parrot, and show how to update it:
 
 ```python
 from edsl import Notebook
@@ -247,7 +247,7 @@ info
  'visibility': 'public'}
 ```
 
-Use the `patch()` method to update an object at Coop:
+Use the `patch()` method to update an object at Expected Parrot:
 
 ```python
 n = Notebook(path = "filestore_examples_new.ipynb") # resave

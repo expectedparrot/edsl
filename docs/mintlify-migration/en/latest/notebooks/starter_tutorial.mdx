@@ -17,7 +17,7 @@ We begin with technical setup: instructions for installing the EDSL library and 
 
 ## Storing & sharing your work
 
-We also introduce [Coop](https://www.expectedparrot.com/content/explore): a platform for creating, storing and sharing AI-based research and launching hybrid human/AI surveys. Coop is fully integrated with EDSL and free to use. At the end of the tutorial we show how to use EDSL with Coop by posting content created in this tutorial for anyone to view at the web app and launching a web-based survey to compare LLM and human responses.
+We also introduce [Expected Parrot](https://www.expectedparrot.com/login): a platform for creating, storing and sharing AI-based research and launching hybrid human/AI surveys. Expected Parrot is fully integrated with EDSL and free to use. At the end of the tutorial we show how to use EDSL with Expected Parrot by posting content created in this tutorial for anyone to view at the web app and launching a web-based survey to compare LLM and human responses.
 
 ## Further reading & questions
 
@@ -186,7 +186,7 @@ q = QuestionMultipleChoice(
     question_options = [0, 1, 2, 3]
 )
 ```
-We can administer the question to a language model by calling the `run` method on it. If you have activated remote inference and stored your Expected Parrot API key (see instructions above), the question will be run remotely at the Expected Parrot server. Results are stored at an unlisted Coop page by default; we can also set the visibility to `public` or `private` either when we run it or by updating the object (demonstrated in later examples). We can also view a progress report for the job:
+We can administer the question to a language model by calling the `run` method on it. If you have activated remote inference and stored your Expected Parrot API key (see instructions above), the question will be run remotely at the Expected Parrot server. Results are stored at an unlisted page by default; we can also set the visibility to `public` or `private` either when we run it or by updating the object (demonstrated in later examples). We can also view a progress report for the job:
 
 ```python
 results = q.run()
@@ -422,7 +422,7 @@ survey = Survey([q1, q2])
 results = survey.run()
 ```
 
-We can check the `user_prompt` for the `prime` question to verify that that the answer to the `random_number` question was piped into it:
+We can check the `user_prompt` for the `prime` question to verify that the answer to the `random_number` question was piped into it:
 
 ```python
 results.select("random_number", "prime_user_prompt", "prime", "prime_comment")
@@ -544,7 +544,7 @@ from edsl import QuestionLinearScale, QuestionFreeText
 
 q_enjoy = QuestionLinearScale(
     question_name = "enjoy_{{ scenario.activity }}", # optional use of scenario key
-    question_text = "On a scale from 1 to 5, how much do you enjoy {{ activity }}?",
+    question_text = "On a scale from 1 to 5, how much do you enjoy {{ scenario.activity }}?",
     question_options = [1, 2, 3, 4, 5],
     option_labels = {{1:"Not at all", 5:"Very much"}
 )
@@ -793,7 +793,7 @@ order by 1,2,3
 
 ## Validating results with humans
 
-We can use the `humanize` method to launch a web-based version of a survey to collect responses from humans. Responses are immediately available at your Coop account, where you can launch surveys with LLMs and human responsents interactively.
+We can use the `humanize` method to launch a web-based version of a survey to collect responses from humans. Responses are immediately available at your Expected Parrot account, where you can launch surveys with LLMs and human responsents interactively.
 
 Here we use a method for generating a web-based version of the above survey, answer it, and then inspect the new results in code.
 
@@ -826,13 +826,13 @@ human_results = coop.get_project_human_responses(web_info["uuid"])
 human_results
 ```
 
-## Posting to Coop
+## Posting to Expected Parrot
 
-[Coop](https://www.expectedparrot.com/content/explore) is a platform for creating, storing and sharing LLM-based research. It is fully integrated with EDSL and accessible from your workspace or Coop account page. Learn more about [creating an account](https://www.expectedparrot.com/login) and [using Coop](/en/latest/coop).
+[Expected Parrot](https://www.expectedparrot.com/login) is a platform for creating, storing and sharing LLM-based research. It is fully integrated with EDSL and accessible from your workspace or Expected Parrot account page. Learn more about [creating an account](https://www.expectedparrot.com/login) and [the platform](/en/latest/coop).
 
-We can post any EDSL object to Coop by call the `push` method on it, optionally passing a `description` for the object, a convenient `alias` for the URL, and a `visibility` status (*public*, *private* or *unlisted* by default).
+We can post any EDSL object to Expected Parrot by call the `push` method on it, optionally passing a `description` for the object, a convenient `alias` for the URL, and a `visibility` status (*public*, *private* or *unlisted* by default).
 
-For example, the results above are already posted to Coop because they were generated using remote inference (see links). The following code will post them manually:
+For example, the results above are already posted to Expected Parrot because they were generated using remote inference (see links). The following code will post them manually:
 
 ```python
 results.push(

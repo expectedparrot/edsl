@@ -103,6 +103,7 @@ class ExecutionCoordinator:
             "model_id": rendered.model_id,
             "iteration": rendered.iteration,
             "agent_name": rendered.agent_name,
+            "question_type": rendered.question_type,
         }
 
         service = rendered.service_name or "openai"
@@ -277,6 +278,7 @@ class ExecutionCoordinator:
                     model_id=task.get("model_id"),
                     iteration=task.get("iteration", 0),
                     agent_name=task.get("agent_name"),
+                    question_type=task.get("question_type"),
                 )
 
                 return WorkAssignment(

@@ -36,7 +36,7 @@ r.select("model", "test")
 | :--- | :--- | :--- |
 | 0 | gemini-2.5-flash | This video is a trailer for **Tim Burton's The Nightmare Before Christmas**. It features a rapid montage of stop-motion animated scenes, showcasing the film's gothic and fantastical world. Viewers see various spooky characters, including skeletons, monsters, and the iconic Jack Skellington, in eerie and imaginative settings. The video is accompanied by dramatic music and a voiceover that hints at a dark, magical realm, concluding with the movie title and release information. |
 
-Here we post a video to Coop using the `FileStore` module. This allows us to retrieve it later and share it with others:
+Here we post a video to Expected Parrot using the `FileStore` module. This allows us to retrieve it later and share it with others:
 
 ```python
 fs = FileStore("Nightmare_Before_Christmas_(1993).mp4")
@@ -58,7 +58,7 @@ fs.push(
  'visibility': 'public'}
 ```
 
-Here we retrieve the video from Coop, inspect it, and create a `Scenario` for it:
+Here we retrieve the video from Expected Parrot, inspect it, and create a `Scenario` for it:
 
 ```python
 fs = FileStore.pull("https://www.expectedparrot.com/content/RobinHorton/nightmare-before-christmas-trailer-video")
@@ -109,7 +109,7 @@ r.select("model", "title", "year", "viewers")
 | :--- | :--- | :--- | :--- | :--- |
 | 0 | gemini-2.5-flash | Trailer for the Nightmare Before Christmas | 1993 | This movie, **Tim Burton's The Nightmare Before Christmas**, would be enjoyed by: * **Fans of Tim Burton's unique aesthetic:** If you appreciate his signature dark, gothic, and whimsical style (seen in films like *Beetlejuice*, *Edward Scissorhands*, or *Corpse Bride*), you'll likely love this. * **Enthusiasts of stop-motion animation:** The intricate and artistic stop-motion style is a major draw. * **People who enjoy dark fantasy and whimsical horror:** It blends spooky elements with a charming, imaginative story and characters. * **Fans of musicals with a unique twist:** The film is a musical, featuring memorable songs by Danny Elfman. * **Those who appreciate holiday films with an unconventional edge:** It's a Christmas movie and a Halloween movie rolled into one, offering a fresh take on holiday themes. * **Older children, teenagers, and adults:** While animated, its slightly macabre themes and visuals might be a bit intense for very young children, but it's generally enjoyed by a wide age range who appreciate its distinct style. |
 
-Here we post this notebook to Coop:
+Here we post this notebook to Expected Parrot:
 
 ```python
 from edsl import Notebook

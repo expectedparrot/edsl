@@ -25,7 +25,7 @@ This page provides information about EDSL code methods for launching surveys, ga
     **Share** the web survey with human respondents. (See the [Prolific studies](/en/latest/prolific) page for information about launching studies with Prolific participants.)
 </Step>
 <Step>
-    **Collect** the responses with Coop methods to gather the responses in a Results object.
+    **Collect** the responses using Expected Parrot methods to gather the responses in a Results object.
 </Step>
 <Step>
     **Analyze** your LLM and human results together.
@@ -35,7 +35,7 @@ This page provides information about EDSL code methods for launching surveys, ga
 
 ## Example
 
-Code and results for the example below are also accessible at a downloadable [notebook at Coop](https://www.expectedparrot.com/content/RobinHorton/human-results-example-notebook).
+Code and results for the example below are also accessible at a downloadable [notebook at Expected Parrot](https://www.expectedparrot.com/content/RobinHorton/human-results-example-notebook).
 
 ```python expandable
 # Import modules from EDSL
@@ -87,10 +87,10 @@ results = survey.by(agent).by(model).run()
 # Generate a web-based version of the survey for human respondents
 web_survey_info = survey.humanize()
 
-# Create a Coop instance
+# Create an Expected Parrot client instance
 coop = Coop()
 
-# Get human responses from Coop
+# Get human responses from Expected Parrot
 human_results = coop.get_project_human_responses(web_survey_info["uuid"])
 
 # Combine results (you can add Results objects for the same survey)

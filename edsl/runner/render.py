@@ -48,6 +48,7 @@ class RenderedPrompt:
         0  # Which iteration this task belongs to (for cache key differentiation)
     )
     agent_name: str | None = None
+    question_type: str | None = None
 
 
 class RenderService:
@@ -190,6 +191,9 @@ class RenderService:
             service_name=model_data.get("inference_service") if model_data else None,
             iteration=task_def.iteration,
             agent_name=agent_data.get("name") if agent_data else None,
+            question_type=(
+                question_data.get("question_type") if question_data else None
+            ),
         )
 
     def _get_current_answers(
@@ -1030,6 +1034,7 @@ class RenderWorker:
                     else None,
                     iteration=task_def.iteration,
                     agent_name=agent_data.get("name") if agent_data else None,
+                    question_type=getattr(question, "question_type", None),
                 )
             )
             _append_time += _time.time() - _t_ap

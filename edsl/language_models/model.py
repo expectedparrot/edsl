@@ -131,6 +131,9 @@ class Model(metaclass=Meta):
             # Model(...)
         """
         # Map index to the respective subclass
+        # Support `model=` kwarg as alias for model_name positional arg
+        if model_name is None:
+            model_name = kwargs.pop("model", None)
         if model_name is None:
             model_name = cls.default_model
             # Hard-wire service name for default model to avoid lookup issues

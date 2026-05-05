@@ -26,8 +26,8 @@ There are several methods available in the Jobs class to manage jobs, such as by
 
 - The by() method is used to add a model to the survey and create a job instance.
 - The run() method is used to execute the job.
-- The list() method is used to list details of jobs that have been posted to Coop.
-- The fetch() method is used to retrieve jobs that have been posted to Coop.
+- The list() method is used to list details of jobs that have been posted to Expected Parrot.
+- The fetch() method is used to retrieve jobs that have been posted to Expected Parrot.
 
 For example, to run the above job:
 
@@ -35,7 +35,7 @@ For example, to run the above job:
 job.run()
 ```
 
-To retrieve details about your 10 most recent jobs posted to Coop:
+To retrieve details about your 10 most recent jobs posted to Expected Parrot:
 
 ```python
 from edsl import Jobs
@@ -388,9 +388,9 @@ Return the HTML representations for each scenario.
 
 > #### humanize(*project_name: str = 'Project'*, *scenario_list_method: Literal['randomize', 'loop', 'single_scenario', 'ordered'] | None = None*, *survey_description: str | None = None*, *survey_alias: str | None = None*, *survey_visibility: Literal['private', 'public', 'unlisted'] | None = 'unlisted'*, *scenario_list_description: str | None = None*, *scenario_list_alias: str | None = None*, *scenario_list_visibility: Literal['private', 'public', 'unlisted'] | None = 'unlisted'*)[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/jobs.py)
 
-Send the survey and scenario list to Coop.
+Send the survey and scenario list to Expected Parrot.
 
-Then, create a project on Coop so you can share the survey with human respondents.
+Then, create a project on Expected Parrot so you can share the survey with human respondents.
 
 > #### inspect()[[source]](https://github.com/expectedparrot/edsl/blob/main/edsl/jobs.py)
 
@@ -494,7 +494,7 @@ Description for the remote inference job
 
 **remote_inference_results_visibilityVisibilityType, optional**
 
-Visibility of results on Coop (“private”, “public”, “unlisted”)
+Visibility of results on Expected Parrot (“private”, “public”, “unlisted”)
 
 **disable_remote_cachebool, optional**
 
@@ -617,7 +617,7 @@ Description for the remote inference job
 
 **remote_inference_results_visibilityVisibilityType, optional**
 
-Visibility of results on Coop (“private”, “public”, “unlisted”)
+Visibility of results on Expected Parrot (“private”, “public”, “unlisted”)
 
 **disable_remote_cachebool, optional**
 

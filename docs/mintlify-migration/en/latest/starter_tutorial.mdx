@@ -17,12 +17,12 @@ We begin with technical setup: instructions for installing the EDSL library and 
 
 **Storing & sharing your work**
 
-We also introduce [Coop](https://www.expectedparrot.com/content/explore): a platform for creating, storing and sharing AI-based research. Coop is fully integrated with EDSL and free to use. At the end of the tutorial we show how to use EDSL with Coop by posting content created in this tutorial for anyone to view at the web app. Learn more about how coop works in the EDSL documentation.
+We also introduce [Expected Parrot](https://www.expectedparrot.com/login): a platform for creating, storing and sharing AI-based research. Expected Parrot is fully integrated with EDSL and free to use. At the end of the tutorial we show how to post content created in this tutorial for anyone to view. Learn more in the [Expected Parrot documentation](/en/latest/coop).
 
 <Note>
 **Note:**
 
-You can also view and download the contents of this tutorial in a [notebook at Coop](https://www.expectedparrot.com/content/RobinHorton/starter-tutorial)
+You can also view and download the contents of this tutorial in a [notebook at Expected Parrot](https://www.expectedparrot.com/content/RobinHorton/starter-tutorial)
 </Note>
 
 **Further reading**
@@ -36,7 +36,7 @@ If you encounter any issues or have questions, please email us at [info@expected
 
 ## Pre-requisites
 
-EDSL is compatible with Python 3.9 - 3.12. Before starting this tutorial, please ensure that you have a Python environment set up on your machine or in a cloud-based environment, such as Google Colab. You can find instructions for installing Python at the [Python Software Foundation](https://www.python.org/downloads/).
+EDSL is compatible with Python 3.9 - 3.13. Before starting this tutorial, please ensure that you have a Python environment set up on your machine or in a cloud-based environment, such as Google Colab. You can find instructions for installing Python at the [Python Software Foundation](https://www.python.org/downloads/).
 
 ## Recommendations
 
@@ -398,7 +398,7 @@ survey = Survey([q1, q2])
 results = survey.run()
 ```
 
-We can check the user_prompt for the prime question to verify that that the answer to the random_number question was piped into it:
+We can check the user_prompt for the prime question to verify that the answer to the random_number question was piped into it:
 
 ```python
 results.select("random_number", "prime_user_prompt", "prime", "prime_comment")
@@ -477,14 +477,14 @@ from edsl import QuestionLinearScale, QuestionFreeText, Survey
 
 q_enjoy = QuestionLinearScale(
   question_name = "enjoy",
-  question_text = "On a scale from 1 to 5, how much do you enjoy {{ activity }}?",
+  question_text = "On a scale from 1 to 5, how much do you enjoy {{ scenario.activity }}?",
   question_options = [1, 2, 3, 4, 5],
   option_labels = {1:"Not at all", 5:"Very much"}
 )
 
 q_favorite_place = QuestionFreeText(
   question_name = "favorite_place",
-  question_text = "In a brief sentence, describe your favorite place for {{ activity }}."
+  question_text = "In a brief sentence, describe your favorite place for {{ scenario.activity }}."
 )
 
 survey = Survey([q_enjoy, q_favorite_place])
@@ -537,11 +537,11 @@ Output:
 
 ```
 
-## Posting to Coop
+## Posting to Expected Parrot
 
-The [Coop](https://www.expectedparrot.com/content/explore) is a platform for creating, storing and sharing LLM-based research. It is fully integrated with EDSL and accessible from your workspace or Coop account page. Learn more about [creating an account](https://www.expectedparrot.com/login) and [using Coop](/en/latest/coop).
+[Expected Parrot](https://www.expectedparrot.com/login) is a platform for creating, storing and sharing LLM-based research. It is fully integrated with EDSL and accessible from your workspace or Expected Parrot account page. Learn more about [creating an account](https://www.expectedparrot.com/login) and [posting content](/en/latest/coop).
 
-We can post any EDSL object to Coop by calling the push method on it, optionally passing a description, a convenient alias for the Coop URL that is created and a visibility status (*public*, *private* or *unlisted* by default):
+We can post any EDSL object to Expected Parrot by calling the push method on it, optionally passing a description, a convenient alias for the URL that is created and a visibility status (*public*, *private* or *unlisted* by default):
 
 ```python
 results.push(
@@ -574,4 +574,4 @@ notebook = Notebook(path="filename.ipynb")
 notebook.push(description="Starter Tutorial", alias = "example-notebook-new-alias", visibility="public")
 ```
 
-You can view and download a notebook for this tutorial [at Coop](https://www.expectedparrot.com/content/RobinHorton/starter-tutorial).
+You can view and download a notebook for this tutorial [at Expected Parrot](https://www.expectedparrot.com/content/RobinHorton/starter-tutorial).

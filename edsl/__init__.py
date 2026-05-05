@@ -246,16 +246,19 @@ def _display_notebook_login(login_url: str):
     </div>
     """
 
-    # Try IPython display (works in both Jupyter and marimo)
+    # Try IPython display (only in proper notebook environments)
     try:
-        from IPython.display import display, HTML
+        from .utilities.is_notebook import is_notebook
 
-        display(HTML(html_content))
-        return
+        if is_notebook():
+            from IPython.display import display, HTML
+
+            display(HTML(html_content))
+            return
     except ImportError:
         pass
 
-    # Fallback to regular print if neither is available
+    # Fallback to regular print for terminals and non-notebook environments
     print(f"Please visit this URL to log in: {login_url}")
 
 

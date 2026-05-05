@@ -7,12 +7,18 @@ from edsl.coop.coop_humanize_schema import (
 )
 from edsl.coop.exceptions import HumanizeSchemaValidationError
 from edsl.instructions import Instruction
-from edsl.questions import QuestionDemand, QuestionFreeText
+from edsl.questions import (
+    QuestionDemand,
+    QuestionFreeText,
+    QuestionInterview,
+    QuestionMultipleChoice,
+    QuestionNumerical,
+)
 from edsl.surveys import Survey
 
 
-class TestValidateHumanizeSchema:
-    """Test validate_humanize_schema with valid and invalid inputs."""
+class TestValidateHumanizeSchemaGeneral:
+    """General validate_humanize_schema behavior."""
 
     def test_valid_schema_passes(self):
         """Valid humanize schema for a survey completes without error."""
@@ -53,6 +59,24 @@ class TestValidateHumanizeSchema:
         humanize_schema = {
             "questions": {"q1": {"optional": False}},
             "survey": {"custom_css": None},
+        }
+        validate_humanize_schema(survey, humanize_schema)
+
+    def test_valid_schema_with_format_passes(self):
+        """Humanize schema with format (radio/dropdown) for supported question type passes."""
+        survey = Survey(
+            [
+                QuestionMultipleChoice(
+                    question_name="fruit",
+                    question_text="Which fruit do you prefer?",
+                    question_options=["Apple", "Banana", "Cherry"],
+                ),
+            ]
+        )
+        humanize_schema = {
+            "questions": {
+                "fruit": {"optional": False, "format": {"type": "dropdown"}},
+            },
         }
         validate_humanize_schema(survey, humanize_schema)
 
@@ -201,6 +225,120 @@ class TestValidateHumanizeSchema:
         }
         with pytest.raises(HumanizeSchemaValidationError):
             validate_humanize_schema(survey, humanize_schema)
+
+
+class TestValidateHumanizeSchemaNumerical:
+    """Numerical-specific validate_humanize_schema behavior."""
+
+    @pytest.mark.parametrize(
+        "slider_config, expected_error_snippet",
+        [
+            (
+                {"type": "slider", "min": 5, "max": 5, "step": 1},
+                "minimum must be less than maximum",
+            ),
+            (
+                {"type": "slider", "min": 0, "max": 10, "step": 0},
+                "step must be positive",
+            ),
+            (
+                {"type": "slider", "min": 0, "max": 10, "step": 11},
+                "step must not exceed (max - min)",
+            ),
+        ],
+    )
+    def test_numerical_slider_invalid_bounds_raise(
+        self, slider_config, expected_error_snippet
+    ):
+        """Numerical slider rejects invalid min/max/step combinations."""
+        survey = Survey(
+            [
+                QuestionNumerical(
+                    question_name="num_q",
+                    question_text="How many units?",
+                ),
+            ]
+        )
+        humanize_schema = {
+            "questions": {
+                "num_q": {
+                    "optional": False,
+                    "format": slider_config,
+                }
+            }
+        }
+        with pytest.raises(HumanizeSchemaValidationError) as exc_info:
+            validate_humanize_schema(survey, humanize_schema)
+        assert expected_error_snippet in str(exc_info.value)
+
+
+class TestValidateHumanizeSchemaComments:
+    """Comment-related validate_humanize_schema behavior."""
+
+    def test_valid_schema_with_comment_supported_type_passes(self):
+        """Comment config validates for a supported question type."""
+        survey = Survey(
+            [
+                QuestionFreeText(
+                    question_name="q1",
+                    question_text="How are you?",
+                ),
+            ]
+        )
+        humanize_schema = {
+            "questions": {
+                "q1": {
+                    "optional": True,
+                    "comment": {"label": "Anything else you'd like to share?"},
+                }
+            }
+        }
+        validate_humanize_schema(survey, humanize_schema)
+
+    def test_comment_label_required_raises(self):
+        """Comment config without required label raises."""
+        survey = Survey(
+            [
+                QuestionFreeText(
+                    question_name="q1",
+                    question_text="How are you?",
+                ),
+            ]
+        )
+        humanize_schema = {
+            "questions": {
+                "q1": {
+                    "optional": True,
+                    "comment": {},
+                }
+            }
+        }
+        with pytest.raises(HumanizeSchemaValidationError) as exc_info:
+            validate_humanize_schema(survey, humanize_schema)
+        assert "label" in str(exc_info.value).lower()
+
+    def test_comment_unsupported_question_type_raises(self):
+        """Comment config on unsupported-for-comment type raises."""
+        survey = Survey(
+            [
+                QuestionInterview(
+                    question_name="q1",
+                    question_text="Tell me about your experience.",
+                    interview_guide="Ask follow-up questions about details.",
+                ),
+            ]
+        )
+        humanize_schema = {
+            "questions": {
+                "q1": {
+                    "optional": True,
+                    "comment": {"label": "Extra context"},
+                }
+            }
+        }
+        with pytest.raises(HumanizeSchemaValidationError) as exc_info:
+            validate_humanize_schema(survey, humanize_schema)
+        assert "comment" in str(exc_info.value).lower()
 
 
 class TestHumanizeSchemaModel:

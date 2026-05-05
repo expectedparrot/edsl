@@ -16,14 +16,12 @@ def is_jupyter():
     """Check if code is running in a Jupyter notebook environment.
 
     Returns:
-        bool: True if running in Jupyter, False otherwise
+        bool: True if running in a Jupyter notebook, Colab, or marimo, False otherwise.
+        Returns False for plain IPython terminals.
     """
-    try:
-        from IPython import get_ipython
+    from .is_notebook import is_notebook
 
-        return get_ipython() is not None
-    except Exception:
-        return False
+    return is_notebook()
 
 
 @contextmanager
