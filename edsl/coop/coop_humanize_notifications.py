@@ -7,6 +7,8 @@ from enum import Enum
 from typing import TYPE_CHECKING, Annotated, List, Literal, Optional, Union
 from uuid import UUID
 
+CallbackType = Literal["human_survey_respondent.completed"]
+
 from pydantic import BaseModel, ConfigDict, Discriminator, Field, Tag, TypeAdapter
 
 if TYPE_CHECKING:
@@ -383,4 +385,89 @@ class HumanSurveyNotificationHandler:
             human_survey_uuid=self.human_survey_uuid,
             schedule_uuid=schedule_uuid,
             route_uuid=route_uuid,
+        )
+
+    # ------------------------------------------------------------------
+    # Delivery status
+    # ------------------------------------------------------------------
+
+    def get_delivery(self, delivery_uuid: Union[str, UUID]) -> dict:
+        """Fetch a delivery job by UUID.
+
+        Returns:
+            dict: ``{"delivery_uuid", "status", "total_respondents",
+            "processed_respondents", "sent_count", "failed_count",
+            "started_at", "completed_at"}``
+        """
+        return self._coop.get_human_survey_delivery(
+            human_survey_uuid=self.human_survey_uuid,
+            delivery_uuid=delivery_uuid,
+        )
+
+    # ------------------------------------------------------------------
+    # Callbacks
+    # ------------------------------------------------------------------
+
+    def create_callback(
+        self,
+        name: str,
+        callback_type: CallbackType,
+        routes: Optional[List[RouteConfig]] = None,
+        max_fires: Optional[int] = None,
+    ) -> dict:
+        """Create an event-triggered callback for this human survey.
+
+        Only ``"human_survey_respondent.completed"`` is supported: fires once
+        per respondent who completes the survey.  The survey must have an
+        agent list with an email delivery channel configured.
+
+        Returns:
+            dict: ``{"callback_uuid", "name", "callback_type", "event_config",
+            "is_active", "fired_count", "max_fires", "routes": [...]}``
+        """
+        return self._coop.create_human_survey_callback(
+            human_survey_uuid=self.human_survey_uuid,
+            name=name,
+            callback_type=callback_type,
+            routes=routes,
+            max_fires=max_fires,
+        )
+
+    def get_callback(self, callback_uuid: Union[str, UUID]) -> dict:
+        """Fetch a callback by UUID.
+
+        Returns:
+            dict: ``{"callback_uuid", "name", "callback_type", "event_config",
+            "is_active", "fired_count", "max_fires"}``
+        """
+        return self._coop.get_human_survey_callback(
+            human_survey_uuid=self.human_survey_uuid,
+            callback_uuid=callback_uuid,
+        )
+
+    def activate_callback(self, callback_uuid: Union[str, UUID]) -> dict:
+        """Activate a callback."""
+        return self._coop.set_human_survey_callback_active(
+            human_survey_uuid=self.human_survey_uuid,
+            callback_uuid=callback_uuid,
+            is_active=True,
+        )
+
+    def deactivate_callback(self, callback_uuid: Union[str, UUID]) -> dict:
+        """Deactivate a callback."""
+        return self._coop.set_human_survey_callback_active(
+            human_survey_uuid=self.human_survey_uuid,
+            callback_uuid=callback_uuid,
+            is_active=False,
+        )
+
+    def delete_callback(self, callback_uuid: Union[str, UUID]) -> dict:
+        """Delete a callback (and its routes).
+
+        Returns:
+            dict: ``{"deleted": "<callback_uuid>"}``
+        """
+        return self._coop.delete_human_survey_callback(
+            human_survey_uuid=self.human_survey_uuid,
+            callback_uuid=callback_uuid,
         )

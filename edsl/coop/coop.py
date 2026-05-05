@@ -3040,6 +3040,114 @@ class Coop(CoopFunctionsMixin):
         self._resolve_server_response(response)
         return response.json()
 
+    def get_human_survey_delivery(
+        self,
+        human_survey_uuid: Union[str, UUID],
+        delivery_uuid: Union[str, UUID],
+    ) -> dict:
+        """
+        Fetch a delivery job by UUID for a human survey.
+
+        Returns:
+            dict: ``{"delivery_uuid", "status", "total_respondents",
+            "processed_respondents", "sent_count", "failed_count",
+            "started_at", "completed_at"}``
+        """
+        response = self._send_server_request(
+            uri=f"api/v0/human-surveys/{human_survey_uuid}/deliveries/{delivery_uuid}",
+            method="GET",
+        )
+        self._resolve_server_response(response)
+        return response.json()
+
+    def create_human_survey_callback(
+        self,
+        human_survey_uuid: Union[str, UUID],
+        name: str,
+        callback_type: str,
+        routes: Optional[List] = None,
+        max_fires: Optional[int] = None,
+    ) -> dict:
+        """
+        Create an event-triggered callback for a human survey.
+
+        Only ``"human_survey_respondent.completed"`` is supported.
+        The survey must have an agent list with an email delivery channel configured.
+
+        Returns:
+            dict: ``{"callback_uuid", "name", "callback_type", "event_config",
+            "is_active", "fired_count", "max_fires", "routes": [...]}``
+        """
+        from .coop_humanize_notifications import serialize_routes
+
+        payload: Dict[str, Any] = {"name": name, "callback_type": callback_type}
+        if routes is not None:
+            payload["routes"] = serialize_routes(routes)
+        if max_fires is not None:
+            payload["max_fires"] = max_fires
+        response = self._send_server_request(
+            uri=f"api/v0/human-surveys/{human_survey_uuid}/callbacks",
+            method="POST",
+            payload=payload,
+        )
+        self._resolve_server_response(response)
+        return response.json()
+
+    def get_human_survey_callback(
+        self,
+        human_survey_uuid: Union[str, UUID],
+        callback_uuid: Union[str, UUID],
+    ) -> dict:
+        """
+        Fetch a callback by UUID for a human survey.
+
+        Returns:
+            dict: ``{"callback_uuid", "name", "callback_type", "event_config",
+            "is_active", "fired_count", "max_fires"}``
+        """
+        response = self._send_server_request(
+            uri=f"api/v0/human-surveys/{human_survey_uuid}/callbacks/{callback_uuid}",
+            method="GET",
+        )
+        self._resolve_server_response(response)
+        return response.json()
+
+    def set_human_survey_callback_active(
+        self,
+        human_survey_uuid: Union[str, UUID],
+        callback_uuid: Union[str, UUID],
+        is_active: bool,
+    ) -> dict:
+        """Activate or deactivate a callback."""
+        response = self._send_server_request(
+            uri=(
+                f"api/v0/human-surveys/{human_survey_uuid}/callbacks/"
+                f"{callback_uuid}/active"
+            ),
+            method="PATCH",
+            payload={"is_active": is_active},
+        )
+        self._resolve_server_response(response)
+        return response.json()
+
+    def delete_human_survey_callback(
+        self,
+        human_survey_uuid: Union[str, UUID],
+        callback_uuid: Union[str, UUID],
+    ) -> dict:
+        """
+        Delete a callback (and its routes, via cascade).
+
+        Returns:
+            dict: ``{"deleted": "<callback_uuid>"}``
+        """
+        response = self._send_server_request(
+            uri=f"api/v0/human-surveys/{human_survey_uuid}/callbacks/{callback_uuid}",
+            method="DELETE",
+        )
+        self._resolve_server_response(response)
+        return response.json()
+
     def get_survey_preview_url(
         self,
         survey: "Survey",
