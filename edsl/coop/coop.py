@@ -2567,7 +2567,6 @@ class Coop(CoopFunctionsMixin):
         agent_list_alias: Optional[str] = None,
         agent_list_visibility: Optional[VisibilityType] = "private",
         delivery_map: Optional[Union[DeliveryMap, Dict[str, Any]]] = None,
-        send_immediately: bool = True,
     ):
         """
         Create a human survey on Coop, first creating any linked agent list,
@@ -2630,7 +2629,6 @@ class Coop(CoopFunctionsMixin):
             ),
             "scenario_list_method": scenario_list_method,
             "delivery_map": delivery_map_payload,
-            "send_immediately": send_immediately,
         }
         if humanize_schema is not None:
             payload["humanize_schema"] = humanize_schema
@@ -2696,11 +2694,11 @@ class Coop(CoopFunctionsMixin):
         Returns:
             dict: ``{"delivery_uuid": "<uuid>", "routes": [...]}``
         """
-        from .coop_humanize_notifications import _serialize_routes
+        from .coop_humanize_notifications import serialize_routes
 
         payload: Dict[str, Any] = {"name": name}
         if routes is not None:
-            payload["routes"] = _serialize_routes(routes)
+            payload["routes"] = serialize_routes(routes)
         response = self._send_server_request(
             uri=f"api/v0/human-surveys/{human_survey_uuid}/deliveries",
             method="POST",
@@ -2730,7 +2728,7 @@ class Coop(CoopFunctionsMixin):
         Returns:
             dict: Metadata for the created schedule as returned by the server.
         """
-        from .coop_humanize_notifications import _serialize_routes
+        from .coop_humanize_notifications import serialize_routes
 
         if isinstance(run_at, datetime):
             self._human_survey_datetime_must_be_tz_aware(run_at, "run_at")
@@ -2739,7 +2737,7 @@ class Coop(CoopFunctionsMixin):
         )
         payload: Dict[str, Any] = {"name": name, "run_at": run_at_serialized}
         if routes is not None:
-            payload["routes"] = _serialize_routes(routes)
+            payload["routes"] = serialize_routes(routes)
         response = self._send_server_request(
             uri=f"api/v0/human-surveys/{human_survey_uuid}/schedules/one-time",
             method="POST",
@@ -2785,7 +2783,7 @@ class Coop(CoopFunctionsMixin):
             ``next_run_at``, ``cron_expression``, ``timezone``, ``termination``,
             ``is_active``.
         """
-        from .coop_humanize_notifications import _serialize_routes
+        from .coop_humanize_notifications import serialize_routes
 
         term_payload = self.schedule_termination_payload(
             max_jobs,
@@ -2805,7 +2803,7 @@ class Coop(CoopFunctionsMixin):
                 start_at.isoformat() if isinstance(start_at, datetime) else start_at
             )
         if routes is not None:
-            payload["routes"] = _serialize_routes(routes)
+            payload["routes"] = serialize_routes(routes)
         response = self._send_server_request(
             uri=f"api/v0/human-surveys/{human_survey_uuid}/schedules/recurring",
             method="POST",

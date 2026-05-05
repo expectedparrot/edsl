@@ -2605,7 +2605,6 @@ class Jobs(Base):
         scenario_list_visibility: Optional["VisibilityType"] = "private",
         humanize_schema: Optional[Dict[str, Any]] = None,
         delivery_map: Optional["DeliveryMap"] = None,
-        send_immediately: bool = True,
     ):
         """Send survey, scenarios, and agents to Coop.
 
@@ -2670,7 +2669,6 @@ class Jobs(Base):
             scenario_list_visibility=scenario_list_visibility,
             humanize_schema=humanize_schema,
             delivery_map=delivery_map,
-            send_immediately=send_immediately,
         )
         return Scenario(human_survey_details)
 

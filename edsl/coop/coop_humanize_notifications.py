@@ -7,7 +7,7 @@ from enum import Enum
 from typing import TYPE_CHECKING, Annotated, List, Literal, Optional, Union
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Discriminator, Field, Tag
+from pydantic import BaseModel, ConfigDict, Discriminator, Field, Tag, TypeAdapter
 
 if TYPE_CHECKING:
     from .coop import Coop
@@ -32,8 +32,6 @@ class DeliveryMap(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     email: Optional[ChannelConfig] = None
-    ep_username: Optional[ChannelConfig] = None
-    sms: Optional[ChannelConfig] = None
 
 
 # ---------------------------------------------------------------------------
@@ -136,6 +134,18 @@ RouteConfig = Annotated[
     Discriminator(_route_discriminator),
 ]
 
+
+def serialize_routes(routes: List) -> list[dict]:
+    """Serialize route configs to JSON-compatible dicts for Coop API requests.
+
+    Each item may be a ``RouteConfig`` model instance or a dict matching the
+    server's route schema.  Values are validated before serialization.
+    """
+    adapter = TypeAdapter(List[RouteConfig])
+    validated = adapter.validate_python(routes)
+    return [route.model_dump(mode="json") for route in validated]
+
+
 # ---------------------------------------------------------------------------
 # HumanSurveyNotificationHandler
 # ---------------------------------------------------------------------------
@@ -173,23 +183,29 @@ class HumanSurveyNotificationHandler:
     # Immediate delivery
     # ------------------------------------------------------------------
 
-    def trigger_delivery(
+    def send_respondent_email(
         self,
         name: str,
-        routes: Optional[List[RouteConfig]] = None,
+        delivery_template: Optional[str] = None,
+        respondent_filter: Optional[HumanizeRespondentFilter] = None,
     ) -> dict:
-        """Trigger a new email delivery job for this human survey's agent list.
+        """Trigger a respondent email delivery job for this human survey.
 
-        ``routes`` customises which channels are used; when omitted the server
-        defaults to a single ``respondent_email`` route.
+        Builds a ``RespondentEmailRouteConfig`` from the supplied options and
+        sends it immediately.  ``delivery_template`` and ``respondent_filter``
+        are passed through to the route; omit them to use the server defaults.
 
         Returns:
             dict: ``{"delivery_uuid": "<uuid>", "routes": [...]}``
         """
+        route = RespondentEmailRouteConfig(
+            delivery_template=delivery_template,
+            respondent_filter=respondent_filter,
+        )
         return self._coop.create_human_survey_delivery(
             human_survey_uuid=self.human_survey_uuid,
             name=name,
-            routes=routes,
+            routes=[route],
         )
 
     # ------------------------------------------------------------------
