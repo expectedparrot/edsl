@@ -51,6 +51,14 @@ Each `questions[question_name]` value is a `HumanizeQuestionSchema` object.
   </Expandable>
 </ParamField>
 
+<ParamField path="interview_mode" type="string" default="text">
+  **Interview only** (`interview`). Controls the input mode offered to respondents.
+
+  - `"text"` — text-based interview (default).
+  - `"voice"` — voice-based interview.
+  - `"both"` — respondent can choose between text and voice.
+</ParamField>
+
 <ParamField path="comment" type="dict" required={false}>
   Optional comment input shown with the question.
   Submitted comment text appears in survey results under `comment.{question_name}_comment`.
