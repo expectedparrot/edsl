@@ -1,8 +1,6 @@
 from ast import literal_eval
 from typing import Any, Union, TYPE_CHECKING
 
-from jinja2.nativetypes import NativeEnvironment
-
 
 # import edsl.scenarios.scenario  # noqa: F401
 from .question_attribute_processor import (
@@ -75,19 +73,6 @@ class QuestionOptionProcessor(QuestionAttributeProcessor):
             if isinstance(prior_answer.answer, list):
                 return prior_answer.answer
         return None
-
-    def _render_template_to_native_value(self, template_string: str) -> Any:
-        """Render a template string and preserve native Python values when possible."""
-        scenario_namespace = {
-            k: v for k, v in self.scenario.items() if not str(k).startswith("_")
-        }
-        render_context = {
-            **self.scenario,
-            **self.prior_answers_dict,
-            "scenario": scenario_namespace,
-        }
-        env = NativeEnvironment()
-        return env.from_string(template_string).render(render_context)
 
     def get_question_options(self, question_data: dict) -> list:
         """
