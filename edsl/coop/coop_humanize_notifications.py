@@ -74,6 +74,7 @@ class FilterOperator(str, Enum):
 class RespondentCondition(BaseModel):
     """One clause in a respondent filter."""
 
+    type: Literal["condition"] = "condition"
     respondent_uuids: Optional[List[str]] = None
     response_status: Optional[List[ResponseStatus]] = None
     never_contacted: Optional[bool] = None
@@ -84,10 +85,26 @@ class RespondentCondition(BaseModel):
 
 
 class HumanizeRespondentFilter(BaseModel):
-    """Filter that controls which respondents receive a delivery."""
+    """Filter that controls which respondents receive a delivery.
 
+    ``conditions`` accepts both leaf ``RespondentCondition`` nodes and nested
+    ``HumanizeRespondentFilter`` groups, allowing arbitrarily deep filter trees.
+    """
+
+    type: Literal["group"] = "group"
     operator: FilterOperator = FilterOperator.and_
-    conditions: List[RespondentCondition] = []
+    conditions: List["RespondentFilterNode"] = []
+
+
+RespondentFilterNode = Annotated[
+    Union[
+        Annotated[HumanizeRespondentFilter, Tag("group")],
+        Annotated[RespondentCondition, Tag("condition")],
+    ],
+    Field(discriminator="type"),
+]
+
+HumanizeRespondentFilter.model_rebuild()
 
 
 # ---------------------------------------------------------------------------
