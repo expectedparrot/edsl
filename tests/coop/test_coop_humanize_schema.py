@@ -272,6 +272,41 @@ class TestValidateHumanizeSchemaNumerical:
         assert expected_error_snippet in str(exc_info.value)
 
 
+class TestValidateHumanizeSchemaInterview:
+    """Interview-specific validate_humanize_schema behavior."""
+
+    def test_interview_mode_default_passes(self):
+        """interview_mode defaults to 'text' when omitted."""
+        survey = Survey(
+            [
+                QuestionInterview(
+                    question_name="q1",
+                    question_text="Tell me about your experience.",
+                    interview_guide="Ask follow-up questions about details.",
+                ),
+            ]
+        )
+        humanize_schema = {"questions": {"q1": {"optional": False}}}
+        validate_humanize_schema(survey, humanize_schema)
+
+    def test_interview_mode_invalid_value_raises(self):
+        """interview_mode with an unsupported value raises."""
+        survey = Survey(
+            [
+                QuestionInterview(
+                    question_name="q1",
+                    question_text="Tell me about your experience.",
+                    interview_guide="Ask follow-up questions about details.",
+                ),
+            ]
+        )
+        humanize_schema = {
+            "questions": {"q1": {"optional": False, "interview_mode": "video"}}
+        }
+        with pytest.raises(HumanizeSchemaValidationError):
+            validate_humanize_schema(survey, humanize_schema)
+
+
 class TestValidateHumanizeSchemaComments:
     """Comment-related validate_humanize_schema behavior."""
 
