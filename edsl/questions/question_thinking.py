@@ -1,6 +1,12 @@
-"""A question type that sends its text directly to a specified model, bypassing agent/persona."""
+"""A question type that sends its text directly to a specified model, bypassing agent/persona.
+
+Also provides ``thinking_question()``, a function that wraps any existing
+question to use a dedicated model and system prompt while keeping the
+original question type's validation, answering instructions, and options.
+"""
 
 from __future__ import annotations
+import copy
 from typing import Optional
 from uuid import uuid4
 
@@ -95,3 +101,48 @@ class QuestionThinking(QuestionBase):
             question_text=f"What is 2 + 2?{addition}",
             model="test",
         )
+
+
+def thinking_question(q: "QuestionBase", model=None, system_prompt: str = "") -> "QuestionBase":
+    """Wrap any question to use a dedicated model and system prompt.
+
+    The returned question keeps the original's type, options, validation,
+    answering instructions, and question presentation — but bypasses the
+    agent persona and uses its own model for inference.
+
+    Args:
+        q: Any QuestionBase instance.
+        model: Model name (str), Model instance, dict, or None for default.
+        system_prompt: Replaces the agent persona in the system prompt.
+
+    Returns:
+        A deep copy of *q* configured to use the specified model/system_prompt.
+    """
+    from ..language_models import Model, LanguageModel
+    from ..invigilators.invigilator_thinking_ai import InvigilatorThinkingAI
+
+    new_q = copy.deepcopy(q)
+
+    # Resolve the model
+    if model is None:
+        resolved_model = Model()
+    elif isinstance(model, str):
+        resolved_model = Model(model)
+    elif isinstance(model, dict):
+        resolved_model = LanguageModel.from_dict(model)
+    else:
+        resolved_model = model
+
+    new_q._model = resolved_model
+    new_q._system_prompt = system_prompt
+    new_q._is_thinking_question = True
+
+    # Store serializable form for to_dict round-trip
+    new_q._thinking_model = resolved_model.to_dict()
+    new_q._thinking_system_prompt = system_prompt
+
+    # Override invigilator selection — this attribute is checked first
+    # in agents/agent_invigilator.py get_invigilator_class()
+    new_q._invigilator_class = InvigilatorThinkingAI
+
+    return new_q
