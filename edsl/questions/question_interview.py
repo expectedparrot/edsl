@@ -178,9 +178,14 @@ class InterviewResponseValidator(ResponseValidatorABC):
                     role = item.get("role", "unknown")
                     processed_item["role"] = role
 
-                    # Convert text to content format
-                    text_content = item.get("text", "")
-                    processed_item["content"] = [{"type": "text", "text": text_content}]
+                    # Preserve already-normalized content payloads.
+                    if "content" in item and isinstance(item["content"], list):
+                        processed_item["content"] = item["content"]
+                    else:
+                        text_content = item.get("text", "")
+                        processed_item["content"] = [
+                            {"type": "text", "text": text_content}
+                        ]
                     processed_answer.append(processed_item)
                 else:
                     processed_answer.append(item)
@@ -301,6 +306,7 @@ class QuestionInterview(QuestionBase):
         question_name: str,
         question_text: str,
         interview_guide: str,
+        max_turns: int = 5,
         answering_instructions: Optional[str] = None,
         question_presentation: Optional[str] = None,
     ):
@@ -313,6 +319,7 @@ class QuestionInterview(QuestionBase):
             question_text: The overall research question or topic for the interview.
             interview_guide: Instructions, topics, or specific questions to guide
                            the interviewer during the conversation.
+            max_turns: Maximum number of interviewer turns to run before stopping.
             answering_instructions: Optional additional instructions for answering
                                     the question, overrides default instructions.
             question_presentation: Optional custom presentation template for the
@@ -332,8 +339,15 @@ class QuestionInterview(QuestionBase):
         self.question_name = question_name
         self.question_text = question_text
         self.interview_guide = interview_guide
+        self.max_turns = max_turns
         self.answering_instructions = answering_instructions
         self.question_presentation = question_presentation
+
+    @property
+    def _invigilator_class(self):
+        from ..invigilators.invigilator_interview import InvigilatorInterview
+
+        return InvigilatorInterview
 
     @property
     def question_html_content(self) -> str:
@@ -422,6 +436,7 @@ Respondent: [Your response...]"></textarea>
             question_name="customer_experience",
             question_text=f"Understanding customer satisfaction with our customer service{addition}",
             interview_guide="Ask about their recent interactions, what went well, areas for improvement, and overall satisfaction rating.",
+            max_turns=5,
         )
 
 

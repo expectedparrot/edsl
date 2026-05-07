@@ -18,8 +18,12 @@ from .models import TaskStatus, generate_id
 
 # EDSL imports - relative since this module lives inside edsl package
 from ..caching import Cache
+from ..agents import Agent
 from ..questions import QuestionBase
 from ..questions.exceptions import QuestionAnswerValidationError
+from ..scenarios import Scenario
+from ..surveys import Survey
+from ..surveys.memory import MemoryPlan
 
 if TYPE_CHECKING:
     from .worker_registry import WorkerRegistry, AsyncHeartbeatManager
@@ -238,6 +242,13 @@ class ExecutionWorker:
             else:
                 cache = self._cache  # Use provided cache
 
+            if task.question_id is not None:
+                question_data = self._job_service._jobs.get_question(
+                    task.job_id, task.question_id
+                )
+                if question_data and question_data.get("question_type") == "interview":
+                    return await self._execute_via_invigilator(task, model, cache)
+
             # Use model.async_get_response() like InvigilatorAI does
             # Pass iteration for cache key differentiation when n > 1
             response = await model.async_get_response(
@@ -349,6 +360,74 @@ class ExecutionWorker:
                 error_type=error_type,
                 error_message=str(e),
             )
+
+    async def _execute_via_invigilator(
+        self, task: Any, model: Any, cache: Cache
+    ) -> ExecutionResult:
+        """Execute question types that require their own invigilator flow."""
+        question_data = self._job_service._jobs.get_question(task.job_id, task.question_id)
+        if not question_data:
+            raise ValueError(f"Question {task.question_id} not found for task {task.task_id}")
+
+        question_data = self._resolve_question_templates(
+            question_data, task.job_id, task.interview_id
+        )
+        question = QuestionBase.from_dict(question_data)
+
+        interview_def = self._job_service._interviews.get_definition(
+            task.job_id, task.interview_id
+        )
+        if interview_def is None:
+            raise ValueError(
+                f"Interview {task.interview_id} not found for task {task.task_id}"
+            )
+
+        scenario_data = self._job_service._jobs.get_scenario(
+            task.job_id, interview_def.scenario_id
+        )
+        agent_data = self._job_service._jobs.get_agent(
+            task.job_id, interview_def.agent_id
+        )
+        scenario = Scenario.from_dict(scenario_data) if scenario_data else Scenario()
+        agent = Agent.from_dict(agent_data) if agent_data else Agent()
+        current_answers = self._get_interview_answers(task.job_id, task.interview_id)
+        survey = Survey([question])
+        memory_plan = MemoryPlan(survey=survey)
+
+        invigilator = agent.invigilator.create_invigilator(
+            question=question,
+            scenario=scenario,
+            model=model,
+            survey=survey,
+            memory_plan=memory_plan,
+            current_answers=current_answers,
+            iteration=task.iteration,
+            cache=cache,
+        )
+        result = await invigilator.async_answer_question()
+        prompts = result.prompts or {}
+
+        return ExecutionResult(
+            task_id=task.task_id,
+            job_id=task.job_id,
+            interview_id=task.interview_id,
+            success=True,
+            answer=result.answer,
+            comment=result.comment,
+            input_tokens=result.input_tokens,
+            output_tokens=result.output_tokens,
+            raw_model_response=result.raw_model_response,
+            generated_tokens=result.generated_tokens,
+            cached=bool(result.cache_used),
+            system_prompt=str(prompts.get("system_prompt", "")),
+            user_prompt=str(prompts.get("user_prompt", "")),
+            input_price_per_million_tokens=result.input_price_per_million_tokens,
+            output_price_per_million_tokens=result.output_price_per_million_tokens,
+            thinking_tokens=result.thinking_tokens,
+            cache_key=result.cache_key,
+            validated=result.validated,
+            reasoning_summary=result.reasoning_summary,
+        )
 
     def _validate_answer(
         self, task: Any, answer: Any, comment: str | None, generated_tokens: str | None
