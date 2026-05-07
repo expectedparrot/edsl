@@ -87,6 +87,7 @@ _EXPORT_TO_MODULE = {
     "FileStore": "scenarios",
     # language_models
     "Model": "language_models",
+    "HostedModel": "language_models",
     "ModelList": "language_models",
     "LanguageModel": "language_models",
     # results

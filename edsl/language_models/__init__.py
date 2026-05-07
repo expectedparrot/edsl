@@ -5,15 +5,23 @@ if TYPE_CHECKING:
     from .language_model import LanguageModel
     from .model import Model
     from .model_list import ModelList
+    from .hosted_model import HostedModel
     from .exceptions import LanguageModelBadResponseError
 
-__all__ = ["Model", "ModelList", "LanguageModelBadResponseError", "LanguageModel"]
+__all__ = [
+    "Model",
+    "ModelList",
+    "HostedModel",
+    "LanguageModelBadResponseError",
+    "LanguageModel",
+]
 
 # Lazy loading to avoid circular imports during Survey import
 _LAZY_IMPORTS = {
     "LanguageModel": ".language_model",
     "Model": ".model",
     "ModelList": ".model_list",
+    "HostedModel": ".hosted_model",
     "LanguageModelBadResponseError": ".exceptions",
 }
 

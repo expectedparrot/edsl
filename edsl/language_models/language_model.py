@@ -82,6 +82,7 @@ _INTERNAL_KWARGS = frozenset(
         "fail_at_number",
         "never_ending",
         "prompt_plan",
+        "api_token",
     }
 )
 
@@ -292,6 +293,9 @@ class LanguageModel(
         if kwargs.get("skip_api_key_check", False):
             # Skip the API key check. Sometimes this is useful for testing.
             self._api_token = None
+        elif "api_token" in kwargs and kwargs["api_token"] is not None:
+            # Allow callers to inject an explicit token without serializing it.
+            self._api_token = kwargs["api_token"]
 
         # Add test model parameters that need to survive serialization
         # Only add if value is truthy (non-default) to avoid polluting parameters
@@ -1224,6 +1228,20 @@ class LanguageModel(
         prompt_plan_data = data.pop("prompt_plan", None)
         if prompt_plan_data is not None:
             data["prompt_plan"] = PromptPlan.from_dict(prompt_plan_data)
+
+        parameters = data.get("parameters", {})
+        if parameters.get("hosted") and parameters.get("base_url"):
+            from .hosted_model import HostedModel
+
+            hosted_kwargs = parameters.copy()
+            base_url = hosted_kwargs.pop("base_url")
+            hosted_kwargs.pop("hosted", None)
+            hosted_kwargs.pop("protocol", None)
+            return HostedModel(
+                data["model"],
+                base_url=base_url,
+                **hosted_kwargs,
+            )
 
         # Create and use the inference service registry to create the language model
         registry = InferenceServiceRegistry()
