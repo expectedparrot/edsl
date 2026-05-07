@@ -306,7 +306,7 @@ class QuestionInterview(QuestionBase):
         question_name: str,
         question_text: str,
         interview_guide: str,
-        max_turns: int = 5,
+        max_turns: int = 10,
         answering_instructions: Optional[str] = None,
         question_presentation: Optional[str] = None,
     ):
@@ -437,7 +437,7 @@ Respondent: [Your response...]"></textarea>
             question_name="customer_experience",
             question_text=f"Understanding customer satisfaction with our customer service{addition}",
             interview_guide="Ask about their recent interactions, what went well, areas for improvement, and overall satisfaction rating.",
-            max_turns=5,
+            max_turns=10,
         )
 
 
