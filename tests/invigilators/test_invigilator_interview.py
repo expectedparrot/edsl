@@ -152,6 +152,19 @@ def test_interview_invigilator_stops_at_max_turns():
     assert state["respondent"] == 1
 
 
+def test_question_interview_preserves_max_turns_through_serialization():
+    question = QuestionInterview(
+        question_name="serialized_interview",
+        question_text="Verify turn limits survive serialization.",
+        interview_guide="Keep this interview short.",
+        max_turns=2,
+    )
+
+    restored = QuestionInterview.from_dict(question.to_dict())
+
+    assert restored.max_turns == 2
+
+
 def test_parse_interviewer_decision_accepts_fenced_json():
     decision = InvigilatorInterview._parse_interviewer_decision(
         """```json

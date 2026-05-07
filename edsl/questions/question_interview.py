@@ -401,8 +401,9 @@ Respondent: [Your response...]"></textarea>
         # Get the base data from parent class
         base_data = super().data
 
-        # Add interview_guide to the data
+        # Add interview-specific fields to the serialized data
         base_data["interview_guide"] = self.interview_guide
+        base_data["max_turns"] = self.max_turns
 
         return base_data
 
