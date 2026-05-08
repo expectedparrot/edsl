@@ -3148,6 +3148,86 @@ class Coop(CoopFunctionsMixin):
         self._resolve_server_response(response)
         return response.json()
 
+    def get_human_survey_agent_list(
+        self,
+        human_survey_uuid: Union[str, UUID],
+    ) -> dict:
+        """
+        Get the agent list config for a human survey.
+
+        Returns:
+            dict: ``{"agent_list_config": {"uuid", "description", "delivery_map",
+            "anonymous", "allow_resubmit"}}`` — ``agent_list_config`` is ``None``
+            when no agent list has been attached.
+        """
+        response = self._send_server_request(
+            uri=f"api/v0/human-surveys/{human_survey_uuid}/agent-list",
+            method="GET",
+        )
+        self._resolve_server_response(response)
+        return response.json()
+
+    def patch_human_survey_agent_list(
+        self,
+        human_survey_uuid: Union[str, UUID],
+        *,
+        delivery_map: Optional[Any] = None,
+        anonymous: Optional[bool] = None,
+        allow_resubmit: Optional[bool] = None,
+    ) -> dict:
+        """
+        Update delivery_map, anonymous, and/or allow_resubmit on the agent list config.
+
+        Fields omitted are left unchanged on the server.
+
+        ``delivery_map`` may be a ``DeliveryMap`` model instance or a plain dict.
+
+        Returns:
+            dict: ``{"uuid", "description", "delivery_map", "anonymous",
+            "allow_resubmit"}``
+        """
+        payload: Dict[str, Any] = {}
+        if delivery_map is not None:
+            payload["delivery_map"] = (
+                delivery_map.model_dump(mode="json")
+                if hasattr(delivery_map, "model_dump")
+                else delivery_map
+            )
+        if anonymous is not None:
+            payload["anonymous"] = anonymous
+        if allow_resubmit is not None:
+            payload["allow_resubmit"] = allow_resubmit
+        response = self._send_server_request(
+            uri=f"api/v0/human-surveys/{human_survey_uuid}/agent-list",
+            method="PATCH",
+            payload=payload,
+        )
+        self._resolve_server_response(response)
+        return response.json()
+
+    def get_human_survey_respondents(
+        self,
+        human_survey_uuid: Union[str, UUID],
+        *,
+        page: int = 1,
+        page_size: int = 50,
+    ) -> dict:
+        """
+        Get the paginated respondent list for a human survey.
+
+        Returns:
+            dict: ``{"respondents": [{"agent_index", "respondent_uuid", "url",
+            "response_status"}, ...], "total", "page", "page_size",
+            "total_pages"}``
+        """
+        response = self._send_server_request(
+            uri=f"api/v0/human-surveys/{human_survey_uuid}/respondents",
+            method="GET",
+            params={"page": page, "page_size": page_size},
+        )
+        self._resolve_server_response(response)
+        return response.json()
+
     def get_survey_preview_url(
         self,
         survey: "Survey",

@@ -405,6 +405,67 @@ class HumanSurveyNotificationHandler:
         )
 
     # ------------------------------------------------------------------
+    # Agent list
+    # ------------------------------------------------------------------
+
+    def get_agent_list(self) -> dict:
+        """Get the agent list config for this human survey.
+
+        Returns:
+            dict: ``{"agent_list_config": {"uuid", "description", "delivery_map",
+            "anonymous", "allow_resubmit"}}`` — ``agent_list_config`` is ``None``
+            when no agent list has been attached.
+        """
+        return self._coop.get_human_survey_agent_list(
+            human_survey_uuid=self.human_survey_uuid,
+        )
+
+    def patch_agent_list(
+        self,
+        *,
+        delivery_map: Optional["DeliveryMap"] = None,
+        anonymous: Optional[bool] = None,
+        allow_resubmit: Optional[bool] = None,
+    ) -> dict:
+        """Update the agent list config for this human survey.
+
+        Fields omitted are left unchanged on the server.
+
+        Returns:
+            dict: ``{"uuid", "description", "delivery_map", "anonymous",
+            "allow_resubmit"}``
+        """
+        return self._coop.patch_human_survey_agent_list(
+            human_survey_uuid=self.human_survey_uuid,
+            delivery_map=delivery_map,
+            anonymous=anonymous,
+            allow_resubmit=allow_resubmit,
+        )
+
+    # ------------------------------------------------------------------
+    # Respondents
+    # ------------------------------------------------------------------
+
+    def get_respondents(
+        self,
+        *,
+        page: int = 1,
+        page_size: int = 50,
+    ) -> dict:
+        """Get the paginated respondent list for this human survey.
+
+        Returns:
+            dict: ``{"respondents": [{"agent_index", "respondent_uuid", "url",
+            "response_status"}, ...], "total", "page", "page_size",
+            "total_pages"}``
+        """
+        return self._coop.get_human_survey_respondents(
+            human_survey_uuid=self.human_survey_uuid,
+            page=page,
+            page_size=page_size,
+        )
+
+    # ------------------------------------------------------------------
     # Delivery status
     # ------------------------------------------------------------------
 
