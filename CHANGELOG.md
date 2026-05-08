@@ -1,5 +1,35 @@
 # Changelog
 
+## [1.0.7] - 2026-04-29
+### Added
+- **EDSL Runner**: New in-process job runner that replaces remote-only execution. Uploads `FileStore` objects to GCS concurrently with a 10-thread executor (~15s → ~2-3s for 100 files), shows live `Uploading files to GCS: x/y` progress, and short-circuits per-task `should_skip_task()` when a survey has no skip rules. (#2396, #2422, #2456)
+- **Human survey previews**: Generate previewable human surveys from EDSL surveys, including support for the v1 humanize schema. (#2394, #2404, #2412)
+- **Humanize schema v1 features**: Dropdown rendering for `QuestionMultipleChoice` and its subclasses (yes/no, linear-scale, Likert), slider for numerical questions, `custom_validation.select_exact_answer` for attention-check questions, and per-question custom comment-field labels. (#2412)
+- **Job completion alerts**: New `alert_on_completion_config` lets users request an email or HTTP webhook when a remote job finishes. Users can also cancel a remote job from EDSL. (#2399)
+- **Anthropic thinking & effort**: Extended Anthropic integration to pass through reasoning/thinking parameters and effort settings. (#2395)
+- **OpenAI v2 reasoning_effort**: `reasoning_effort` is now a first-class parameter on `openai_v2` and maps to `reasoning.effort` in the Responses API. `Model(model='gpt-5.2', service_name='openai_v2', reasoning_effort='none')` works without warnings. (#2388, #2423)
+- **Thinking tokens in cost tracking**: Reasoning/thinking tokens (Anthropic, OpenAI o-series, Google Gemini) are now included in cost calculations at the output-token rate and surfaced in results. (#2423, #2438)
+- **Piped matrix items**: New `QuestionItemPipingProcessor` brings option-style piping to matrix question items, mirroring the patterns used by `QuestionOptionsProcessor` and `QuestionNumericalProcessor`. (#2457)
+- **Git-backed storage**: Initial scaffolding for storing objects in a git-based store. (#2419)
+
+### Improved
+- **Documentation overhaul**: Comprehensive rewrite of the Mintlify docs for a social-scientist audience, with reproducibility/provenance framing, an "AI agents are not real people" caveat, refreshed Settings/Keys/Credits screenshots, EP-branded favicon, fixed `/content/explore` → `/login` links across ~130 files, default-model references updated to `gpt-5.2`, Python version bumped to 3.13 in narrative, scenario placeholders normalized to `{{ scenario.topic }}`, and many small typo/grammar fixes. (#2433, #2434, #2436, #2437)
+- **Pandas version range**: Widened `pandas` dependency from `^2.1.4` to `>=2.1.4,<4` so EDSL installs cleanly into environments running pandas 3.x without forcing a downgrade. Verified against pandas 3.0.2 with the dataset/scenarios/results/surveys test suites. (#2460)
+- **Branding cleanup**: Replaced "Coop" platform references with "Expected Parrot" across docs and notebooks; renamed sidebar group "Coop" → "Platform"; removed empty Interviews/Answers/Polly pages. The Python `Coop` class name is preserved. (#2389, #2433, #2436)
+
+### Fixed
+- **OpenAI v2 system prompts & token accounting**: System prompts and agent traits are now actually applied for `openai_v2` models, and the input/output token names were corrected so usage is recorded against the correct fields in results. (#2388)
+- **Cost compute for Google models**: Google cost now includes thinking tokens, and `Model(model=...)` correctly aliases `model_name` instead of silently constructing a `gpt-4o` factory and patching the model name post-hoc. (#2423)
+- **Free-text JSON coercion**: Free-text responses (especially those containing math notation or `{...}` braces) are no longer mis-parsed as JSON. Strings like `"... the set {a, b} and a binary operation * defined as ..."` now round-trip as text instead of being collapsed to `{'follows': 'a * a = a'}`. (#2459)
+- **Free-text answer newlines**: Free-text answers are no longer incorrectly split at newlines (closes #2426). (#2438)
+- **Stale async clients on repeated `.run()`**: Calling `.run()` more than once in the same Python process no longer returns `None` for all answers after the first call. The `AsyncOpenAI` client cache is now cleared before each `asyncio.run()` so cached aiohttp sessions don't leak across event loops. (#2430)
+- **IPython HTML printing in terminals**: `<IPython.core.display.HTML object>` no longer leaks into terminal output. Fixes `is_notebook()` (marimo and Jupyter false-positives), routes `is_jupyter()` through the canonical detector, and gates `display(HTML(...))` calls behind `is_notebook()`. Four duplicate notebook-detection helpers consolidated. (#2428)
+- **Backwards-compatible survey deserialization**: Older serialized surveys and rules now load without errors. Missing or empty `question_name_to_index` mappings are auto-injected at the rule-collection level. (#2387)
+- **Skip rule round-trip**: Skip-rule definitions returned by the server are now correctly applied on EDSL response objects. (#2391)
+- **Local error reports without API key**: Stop sending local error reports when the user's API key isn't set — they were silently failing with 401s. (#2438)
+- **Dashboard topbar link**: Docs "Dashboard" button now points to `https://www.expectedparrot.com` instead of `/login`, letting already-logged-in users skip the login page. (#2447)
+- **Misc**: Backtick escaping in templates (#2393); spelling correction (#2450); doc cleanup (#2421, #2434); serialization test data refresh after the previous release (#2386); link/quote cleanup (#2389); code sync (#2390).
+
 ## [1.0.5] - 2025-12-08
 ### Added
 - **Results column visualization**: New `Results.show_columns()` method displays columns in hierarchical tree format using mermaid diagrams in Jupyter notebooks and ASCII trees in terminals, organized by data type (agent, answer, model, scenario, etc.).

@@ -319,8 +319,13 @@ class RawResponseHandler:
                 generated_token_string
             )
 
+        # Free-text answers should remain literal text; do not JSON-coerce.
+        parsed_answer = (
+            answer_text if is_free_text else self.convert_answer(answer_text)
+        )
+
         edsl_dict = {
-            "answer": self.convert_answer(answer_text),
+            "answer": parsed_answer,
             "generated_tokens": generated_token_string,
             "comment": comment_text,
             "reasoning_summary": reasoning_summary,

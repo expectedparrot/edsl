@@ -206,7 +206,7 @@ class JobService:
         ] = {}  # model_id -> model obj (NOT in cross-product)
         extra_models_batch: dict[str, dict] = {}
         for q in questions:
-            if hasattr(q, "_model") and getattr(q, "question_type", None) == "thinking":
+            if hasattr(q, "_model"):
                 q_name = self._get_question_name(q)
                 qm = q._model
                 # Check if this model object is already registered (by identity)
@@ -2291,7 +2291,28 @@ class JobService:
         template: str, answer_dict: dict, scenario: Any
     ) -> Any:
         """Resolve a single template string like '{{ q1.answer }}' or '{{ scenario.var }}'."""
+        from jinja2.nativetypes import NativeEnvironment
         import re
+
+        scenario_dict = dict(scenario) if scenario else {}
+        answer_context = {
+            question_name: {"answer": answer_value}
+            for question_name, answer_value in answer_dict.items()
+        }
+        render_context = {
+            **scenario_dict,
+            **answer_context,
+            "scenario": {
+                k: v for k, v in scenario_dict.items() if not str(k).startswith("_")
+            },
+        }
+
+        try:
+            rendered = NativeEnvironment().from_string(template).render(render_context)
+            if rendered != template:
+                return rendered
+        except Exception:
+            pass
 
         # Match {{ question_name.answer }}
         match = re.match(r"\{\{\s*(\w+)\.answer\s*\}\}", template.strip())

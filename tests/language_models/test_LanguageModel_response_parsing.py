@@ -144,7 +144,7 @@ class TestSplitAnswerAndComment:
 
     def test_list_answer_with_comment_delimiter(self):
         """List answer followed by a COMMENT: delimiter."""
-        text = '[1, 2, 3]\nCOMMENT: These are my choices.'
+        text = "[1, 2, 3]\nCOMMENT: These are my choices."
         answer, comment = RawResponseHandler._split_answer_and_comment(text)
         assert answer == "[1, 2, 3]"
         assert comment == "These are my choices."
@@ -188,4 +188,18 @@ def test_parse_response_free_text_no_split():
     assert model_response.answer == (
         "Line one\nLine two\nCOMMENT: not a delimiter split"
     )
+    assert model_response.comment is None
+
+
+def test_parse_response_free_text_does_not_json_coerce():
+    """Free-text parsing should preserve literal text and not run JSON coercion."""
+    expected_text = "Consider a magma with the set {a, b} and a binary operation * defined as follows: a * a = a, a * b = b, b * a = b, b * b = b."
+    m = LanguageModel.example(
+        test_model=True,
+        canned_response=expected_text,
+    )
+    raw_model_response = m.execute_model_call("", "")
+    model_response = m.parse_response(raw_model_response, is_free_text=True)
+    assert model_response.answer == expected_text
+    assert model_response.generated_tokens == expected_text
     assert model_response.comment is None
