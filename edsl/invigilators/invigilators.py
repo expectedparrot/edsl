@@ -447,36 +447,48 @@ class InvigilatorAI(InvigilatorBase):
 
         try:
             # if the question has jinja parameters, it is easier to make a new question with the parameters
-            if self.question.parameters:
+            question_data = self.question.data if hasattr(self.question, "data") else {}
+            has_dynamic_question_options = isinstance(
+                question_data.get("question_options"), (str, dict)
+            )
+            has_dynamic_numerical_bounds = any(
+                isinstance(question_data.get(key), str)
+                for key in ("min_value", "max_value")
+            )
+            if (
+                self.question.parameters
+                or has_dynamic_question_options
+                or has_dynamic_numerical_bounds
+            ):
                 prior_answers_dict = self.prompt_constructor.prior_answers_dict()
 
                 # question options have be treated differently because of dynamic question
                 # this logic is all in the prompt constructor
-                if "question_options" in self.question.data:
+                if "question_options" in question_data:
                     new_question_options = self.prompt_constructor.get_question_options(
-                        self.question.data
+                        question_data
                     )
-                    if new_question_options != self.question.data["question_options"]:
+                    if new_question_options != question_data["question_options"]:
                         # I don't love this direct writing but it seems to work
                         self.question.question_options = new_question_options
 
                 # the same treatment applies for min_value and max_value
-                if "min_value" in self.question.data:
+                if "min_value" in question_data:
                     new_min_value = (
                         self.prompt_constructor.get_question_numerical_value(
-                            self.question.data, key="min_value"
+                            question_data, key="min_value"
                         )
                     )
-                    if new_min_value != self.question.data["min_value"]:
+                    if new_min_value != question_data["min_value"]:
                         self.question.min_value = new_min_value
 
-                if "max_value" in self.question.data:
+                if "max_value" in question_data:
                     new_max_value = (
                         self.prompt_constructor.get_question_numerical_value(
-                            self.question.data, key="max_value"
+                            question_data, key="max_value"
                         )
                     )
-                    if new_max_value != self.question.data["max_value"]:
+                    if new_max_value != question_data["max_value"]:
                         self.question.max_value = new_max_value
 
                 replacement_dict = (
@@ -553,17 +565,23 @@ class InvigilatorHuman(InvigilatorBase):
         # Process question parameters (like dict-based question_options) before answering
         # Only process if the question has parameters AND needs option processing
         try:
+            question_data = self.question.data if hasattr(self.question, "data") else {}
+            has_dynamic_question_options = isinstance(
+                question_data.get("question_options"), (str, dict)
+            )
             if (
                 hasattr(self.question, "parameters")
-                and self.question.parameters
                 and hasattr(self.question, "data")
-                and isinstance(self.question.data, dict)
-                and "question_options" in self.question.data
+                and isinstance(question_data, dict)
+                and (
+                    self.question.parameters or has_dynamic_question_options
+                )
+                and "question_options" in question_data
             ):
                 new_question_options = self.prompt_constructor.get_question_options(
-                    self.question.data
+                    question_data
                 )
-                if new_question_options != self.question.data["question_options"]:
+                if new_question_options != question_data["question_options"]:
                     self.question.question_options = new_question_options
         except Exception:
             # If parameter processing fails, continue without it

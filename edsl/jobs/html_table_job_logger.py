@@ -134,7 +134,7 @@ class HTMLTableJobLogger(JobLogger):
         ]:
             self.is_expanded = False
 
-        if self.verbose:
+        if self.verbose and self.display_handle is not None:
             self.display_handle.update(self._HTML(self._get_html(status)))
         else:
             return None

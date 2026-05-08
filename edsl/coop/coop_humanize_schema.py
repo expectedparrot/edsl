@@ -70,6 +70,7 @@ class InterviewHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the interview question type."""
 
     optional: bool = False
+    interview_mode: Literal["text", "voice", "both"] = "text"
 
 
 class LikertHumanizeSchema(HumanizeSchemaBase):

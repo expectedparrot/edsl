@@ -134,6 +134,16 @@ class QuestionNumericalProcessor(QuestionAttributeProcessor):
                 else self._get_default_numerical_value()
             )
 
+        # Try NativeEnvironment first — handles complex expressions like
+        # {{ scenario.bounds[prior_answer.answer]['min'] }} that _parse_template_variable
+        # cannot represent.
+        try:
+            rendered = self._render_template_to_native_value(numerical_value)
+            if isinstance(rendered, (int, float)):
+                return rendered
+        except Exception:
+            pass
+
         # Parse template to get variable name
         raw_numerical_key = self._parse_template_variable(numerical_value)
 

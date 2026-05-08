@@ -39,7 +39,7 @@ class StoreDescriptor:
 
     def __get__(self, obj, objtype=None):
         if obj is None:
-            return ClassStoreAccessor()
+            return ClassStoreAccessor(objtype)
         # Cache the accessor so CAS state survives across accesses
         accessor = obj.__dict__.get("_store_accessor")
         if accessor is None:
@@ -66,6 +66,15 @@ class ClassStoreAccessor:
         >>> AgentList.store.delete(uid, root=root)
     """
 
+    def __init__(self, objtype=None):
+        self._objtype = objtype
+
+    @property
+    def _type_name(self) -> str | None:
+        if self._objtype is None:
+            return None
+        return getattr(self._objtype, "_store_class_name", None) or self._objtype.__name__
+
     def load(self, uuid: str, commit=None, branch=None, root=None):
         """Load an object by UUID from the store."""
         from ..object_store import ObjectStore
@@ -85,11 +94,21 @@ class ClassStoreAccessor:
         return StoreLogInfo(ObjectStore(root).log(uuid, commit=commit, branch=branch))
 
     def list(self, root=None):
-        """List all objects in the store."""
-        from ..object_store import ObjectStore
-        from ..object_store.store_info import StoreListInfo
+        """List all objects in the store, returned as a Dataset.
 
-        return StoreListInfo(ObjectStore(root).list())
+        When accessed via a specific class (e.g. ``AgentList.store.list()``),
+        only objects of that type are returned.
+        """
+        from ..object_store import ObjectStore
+        from ..dataset import Dataset
+
+        rows = ObjectStore(root).list()
+        if self._type_name:
+            rows = [r for r in rows if r.get("type") == self._type_name]
+        if not rows:
+            return Dataset([])
+        keys = list(rows[0].keys())
+        return Dataset([{k: [r.get(k) for r in rows]} for k in keys])
 
     def delete(self, uuid: str, root=None) -> None:
         """Delete an object from the store."""
@@ -160,12 +179,13 @@ class InstanceStoreAccessor(ClassStoreAccessor):
     """
 
     _ALLOWED_ATTRS = frozenset({
-        "_instance", "uuid", "commit", "current_branch",
+        "_instance", "_objtype", "uuid", "commit", "current_branch",
         "_title", "_alias", "_visibility", "_description",
         "title", "alias", "visibility", "description",
     })
 
     def __init__(self, instance) -> None:
+        self._objtype = type(instance)
         self._instance = instance
         self.uuid: Optional[str] = None
         self.commit: Optional[str] = None
