@@ -330,6 +330,34 @@ class HumanSurveyNotificationHandler:
             schedule_uuid=schedule_uuid,
         )
 
+    def list_schedules(
+        self,
+        *,
+        page: int = 1,
+        page_size: int = 50,
+    ) -> dict:
+        """List all delivery schedules for this human survey.
+
+        Returns:
+            dict: ``{"schedules": [...], "total", "page", "page_size", "total_pages"}``
+        """
+        return self._coop.list_human_survey_schedules(
+            human_survey_uuid=self.human_survey_uuid,
+            page=page,
+            page_size=page_size,
+        )
+
+    def delete_schedule(self, schedule_uuid: Union[str, UUID]) -> dict:
+        """Delete a delivery schedule and all its routes.
+
+        Returns:
+            dict: ``{"deleted": "<schedule_uuid>"}``
+        """
+        return self._coop.delete_human_survey_schedule(
+            human_survey_uuid=self.human_survey_uuid,
+            schedule_uuid=schedule_uuid,
+        )
+
     def activate_schedule(self, schedule_uuid: Union[str, UUID]) -> dict:
         """Activate a delivery schedule."""
         return self._coop.set_human_survey_schedule_active(
@@ -469,6 +497,23 @@ class HumanSurveyNotificationHandler:
     # Delivery status
     # ------------------------------------------------------------------
 
+    def list_deliveries(
+        self,
+        *,
+        page: int = 1,
+        page_size: int = 50,
+    ) -> dict:
+        """List all delivery jobs for this human survey, newest first.
+
+        Returns:
+            dict: ``{"deliveries": [...], "total", "page", "page_size", "total_pages"}``
+        """
+        return self._coop.list_human_survey_deliveries(
+            human_survey_uuid=self.human_survey_uuid,
+            page=page,
+            page_size=page_size,
+        )
+
     def get_delivery(self, delivery_uuid: Union[str, UUID]) -> dict:
         """Fetch a delivery job by UUID.
 
@@ -482,9 +527,59 @@ class HumanSurveyNotificationHandler:
             delivery_uuid=delivery_uuid,
         )
 
+    def list_delivery_tasks(
+        self,
+        delivery_uuid: Union[str, UUID],
+        *,
+        page: int = 1,
+        page_size: int = 50,
+    ) -> dict:
+        """List all delivery tasks for a specific delivery job.
+
+        Returns:
+            dict: ``{"tasks": [...], "total", "page", "page_size", "total_pages"}``
+        """
+        return self._coop.list_human_survey_delivery_tasks(
+            human_survey_uuid=self.human_survey_uuid,
+            delivery_uuid=delivery_uuid,
+            page=page,
+            page_size=page_size,
+        )
+
+    def get_delivery_task(self, task_uuid: Union[str, UUID]) -> dict:
+        """Get a single delivery task by UUID, including its full event log.
+
+        Returns:
+            dict: ``{"task_uuid", "job_uuid", "notification_subtype", "channel",
+            "identifier", "send_status", "delivery_status", "created_at",
+            optional "respondent": {"respondent_uuid", "agent_index",
+            "response_status"}}``
+        """
+        return self._coop.get_human_survey_delivery_task(
+            human_survey_uuid=self.human_survey_uuid,
+            task_uuid=task_uuid,
+        )
+
     # ------------------------------------------------------------------
     # Callbacks
     # ------------------------------------------------------------------
+
+    def list_callbacks(
+        self,
+        *,
+        page: int = 1,
+        page_size: int = 50,
+    ) -> dict:
+        """List all event-triggered callbacks for this human survey.
+
+        Returns:
+            dict: ``{"callbacks": [...], "total", "page", "page_size", "total_pages"}``
+        """
+        return self._coop.list_human_survey_callbacks(
+            human_survey_uuid=self.human_survey_uuid,
+            page=page,
+            page_size=page_size,
+        )
 
     def create_callback(
         self,
@@ -537,6 +632,78 @@ class HumanSurveyNotificationHandler:
             human_survey_uuid=self.human_survey_uuid,
             callback_uuid=callback_uuid,
             is_active=False,
+        )
+
+    def patch_callback(
+        self,
+        callback_uuid: Union[str, UUID],
+        *,
+        name: Optional[str] = None,
+    ) -> dict:
+        """Update patchable fields on a callback. Currently supports ``name``.
+
+        Returns:
+            dict: ``{"callback_uuid", "name"}``
+        """
+        return self._coop.patch_human_survey_callback(
+            human_survey_uuid=self.human_survey_uuid,
+            callback_uuid=callback_uuid,
+            name=name,
+        )
+
+    def add_callback_route(
+        self,
+        callback_uuid: Union[str, UUID],
+        route_config: RouteConfig,
+    ) -> dict:
+        """Add a new route to an existing callback.
+
+        Returns:
+            dict: ``{"route_uuid", "channel", "subtype"}``
+        """
+        return self._coop.add_human_survey_callback_route(
+            human_survey_uuid=self.human_survey_uuid,
+            callback_uuid=callback_uuid,
+            route_config=route_config,
+        )
+
+    def delete_callback_route(
+        self,
+        callback_uuid: Union[str, UUID],
+        route_uuid: Union[str, UUID],
+    ) -> dict:
+        """Delete a route from a callback. The callback itself is not affected.
+
+        Returns:
+            dict: ``{"deleted": "<route_uuid>"}``
+        """
+        return self._coop.delete_human_survey_callback_route(
+            human_survey_uuid=self.human_survey_uuid,
+            callback_uuid=callback_uuid,
+            route_uuid=route_uuid,
+        )
+
+    def patch_callback_respondent_email_route(
+        self,
+        callback_uuid: Union[str, UUID],
+        route_uuid: Union[str, UUID],
+        *,
+        delivery_template: Optional[str] = None,
+        respondent_filter: Optional[HumanizeRespondentFilter] = None,
+    ) -> dict:
+        """Update the template and/or respondent filter on a respondent_email route on a callback.
+
+        Fields omitted are left unchanged on the server.
+
+        Returns:
+            dict: ``{"route_uuid", "delivery_template", "respondent_filter"}``
+        """
+        return self._coop.patch_human_survey_callback_respondent_email_route(
+            human_survey_uuid=self.human_survey_uuid,
+            callback_uuid=callback_uuid,
+            route_uuid=route_uuid,
+            delivery_template=delivery_template,
+            respondent_filter=respondent_filter,
         )
 
     def delete_callback(self, callback_uuid: Union[str, UUID]) -> dict:
