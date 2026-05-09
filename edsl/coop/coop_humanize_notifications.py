@@ -41,14 +41,15 @@ class DeliveryMap(BaseModel):
 # ---------------------------------------------------------------------------
 
 
-class SendStatus(str, Enum):
+class DispatchStatus(str, Enum):
     pending = "pending"
-    sent = "sent"
+    dispatched = "dispatched"
     failed = "failed"
 
 
 class DeliveryStatus(str, Enum):
     pending = "pending"
+    sent = "sent"
     delivered = "delivered"
     bounced = "bounced"
     failed = "failed"
@@ -78,9 +79,9 @@ class RespondentCondition(BaseModel):
     respondent_uuids: Optional[List[str]] = None
     response_status: Optional[List[ResponseStatus]] = None
     never_contacted: Optional[bool] = None
-    any_send_status: Optional[List[SendStatus]] = None
+    any_dispatch_status: Optional[List[DispatchStatus]] = None
     any_delivery_status: Optional[List[DeliveryStatus]] = None
-    most_recent_send_status: Optional[List[SendStatus]] = None
+    most_recent_dispatch_status: Optional[List[DispatchStatus]] = None
     most_recent_delivery_status: Optional[List[DeliveryStatus]] = None
 
 
@@ -554,7 +555,7 @@ class HumanSurveyNotificationHandler:
 
         Returns:
             dict: ``{"task_uuid", "job_uuid", "notification_subtype", "channel",
-            "identifier", "send_status", "delivery_status", "created_at",
+            "identifier", "dispatch_status", "delivery_status", "created_at",
             optional "respondent": {"respondent_uuid", "agent_index",
             "response_status"}}``
         """

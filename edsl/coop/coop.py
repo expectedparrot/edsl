@@ -3572,7 +3572,7 @@ class Coop(CoopFunctionsMixin):
 
         Returns:
             dict: ``{"tasks": [{"task_uuid", "channel", "identifier",
-            "send_status", "delivery_status", "created_at"}, ...],
+            "dispatch_status", "delivery_status", "created_at"}, ...],
             "total", "page", "page_size", "total_pages"}``
         """
         response = self._send_server_request(
@@ -3599,7 +3599,7 @@ class Coop(CoopFunctionsMixin):
 
         Returns:
             dict: ``{"task_uuid", "job_uuid", "notification_subtype", "channel",
-            "identifier", "send_status", "delivery_status", "created_at",
+            "identifier", "dispatch_status", "delivery_status", "created_at",
             optional "respondent": {"respondent_uuid", "agent_index",
             "response_status"}}``
         """
@@ -3615,7 +3615,7 @@ class Coop(CoopFunctionsMixin):
             "notification_subtype": data.get("notification_subtype"),
             "channel": data.get("channel"),
             "identifier": data.get("identifier"),
-            "send_status": data.get("send_status"),
+            "dispatch_status": data.get("dispatch_status"),
             "delivery_status": data.get("delivery_status"),
             "created_at": data.get("created_at"),
         }
