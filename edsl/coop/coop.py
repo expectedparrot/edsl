@@ -2770,7 +2770,7 @@ class Coop(CoopFunctionsMixin):
         self._resolve_server_response(response)
         return self._parse_schedule_response(response.json())
 
-    def create_human_survey_recurring_schedule(
+    def create_human_survey_cron_schedule(
         self,
         human_survey_uuid: Union[str, UUID],
         name: str,
@@ -2783,7 +2783,7 @@ class Coop(CoopFunctionsMixin):
         routes: Optional[List] = None,
     ) -> dict:
         """
-        Create a recurring delivery schedule for a human survey's agent list.
+        Create a cron delivery schedule for a human survey's agent list.
 
         The survey must have an agent list with an email delivery channel configured.
 
@@ -2829,7 +2829,7 @@ class Coop(CoopFunctionsMixin):
         if routes is not None:
             payload["routes"] = serialize_routes(routes)
         response = self._send_server_request(
-            uri=f"api/v0/human-surveys/{human_survey_uuid}/schedules/recurring",
+            uri=f"api/v0/human-surveys/{human_survey_uuid}/schedules/cron",
             method="POST",
             payload=payload,
         )
@@ -2912,7 +2912,7 @@ class Coop(CoopFunctionsMixin):
         self._resolve_server_response(response)
         return self._parse_schedule_response(response.json())
 
-    def update_human_survey_recurring_schedule(
+    def update_human_survey_cron_schedule(
         self,
         human_survey_uuid: Union[str, UUID],
         schedule_uuid: Union[str, UUID],
@@ -2924,7 +2924,7 @@ class Coop(CoopFunctionsMixin):
         start_at: Optional[Union[str, datetime]] = None,
     ) -> dict:
         """
-        Update a recurring schedule's cron, timezone, termination, and/or anchor time.
+        Update a cron schedule's expression, timezone, termination, and/or anchor time.
 
         If ``cron_expression``, ``timezone``, or ``start_at`` is provided,
         ``next_run_at`` is recomputed on the server (with ``start_at`` defaulting to
@@ -2957,7 +2957,7 @@ class Coop(CoopFunctionsMixin):
         response = self._send_server_request(
             uri=(
                 f"api/v0/human-surveys/{human_survey_uuid}/schedules/"
-                f"{schedule_uuid}/recurring"
+                f"{schedule_uuid}/cron"
             ),
             method="PATCH",
             payload=payload,

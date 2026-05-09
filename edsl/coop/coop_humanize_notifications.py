@@ -266,7 +266,7 @@ class HumanSurveyNotificationHandler:
     # Recurring schedules
     # ------------------------------------------------------------------
 
-    def create_recurring_schedule(
+    def create_cron_schedule(
         self,
         name: str,
         cron_expression: str,
@@ -277,14 +277,14 @@ class HumanSurveyNotificationHandler:
         start_at: Optional[Union[str, datetime]] = None,
         routes: Optional[List[RouteConfig]] = None,
     ) -> dict:
-        """Create a recurring delivery schedule.
+        """Create a cron delivery schedule.
 
         ``cron_expression`` uses standard cron syntax (e.g. ``"0 9 * * MON"``).
         ``timezone`` is an IANA timezone name.  Provide exactly one of
         ``max_jobs`` or ``deadline`` as the termination condition.
         ``routes`` customises which channels are used; defaults to ``respondent_email``.
         """
-        return self._coop.create_human_survey_recurring_schedule(
+        return self._coop.create_human_survey_cron_schedule(
             human_survey_uuid=self.human_survey_uuid,
             name=name,
             cron_expression=cron_expression,
@@ -295,7 +295,7 @@ class HumanSurveyNotificationHandler:
             routes=routes,
         )
 
-    def update_recurring_schedule(
+    def update_cron_schedule(
         self,
         schedule_uuid: Union[str, UUID],
         *,
@@ -305,12 +305,12 @@ class HumanSurveyNotificationHandler:
         deadline: Optional[datetime] = None,
         start_at: Optional[Union[str, datetime]] = None,
     ) -> dict:
-        """Update a recurring delivery schedule.
+        """Update a cron delivery schedule.
 
         At most one of ``max_jobs`` or ``deadline`` may be set per call; omit
         both to leave the termination condition unchanged.
         """
-        return self._coop.update_human_survey_recurring_schedule(
+        return self._coop.update_human_survey_cron_schedule(
             human_survey_uuid=self.human_survey_uuid,
             schedule_uuid=schedule_uuid,
             cron_expression=cron_expression,
