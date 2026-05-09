@@ -119,6 +119,7 @@ class RespondentEmailRouteConfig(BaseModel):
     subtype: Literal["respondent"] = "respondent"
     delivery_template: Optional[str] = None
     respondent_filter: Optional[HumanizeRespondentFilter] = None
+    subject: Optional[str] = Field(default=None, min_length=1, max_length=200)
 
 
 class OwnerEmailRouteConfig(BaseModel):
@@ -385,8 +386,9 @@ class HumanSurveyNotificationHandler:
         *,
         delivery_template: Optional[str] = None,
         respondent_filter: Optional[HumanizeRespondentFilter] = None,
+        subject: Optional[str] = None,
     ) -> dict:
-        """Update the template and/or respondent filter on a respondent route.
+        """Update the template, respondent filter, and/or subject on a respondent route.
 
         Fields omitted are left unchanged on the server.
         """
@@ -396,6 +398,7 @@ class HumanSurveyNotificationHandler:
             route_uuid=route_uuid,
             delivery_template=delivery_template,
             respondent_filter=respondent_filter,
+            subject=subject,
         )
 
     def add_schedule_route(
@@ -690,13 +693,14 @@ class HumanSurveyNotificationHandler:
         *,
         delivery_template: Optional[str] = None,
         respondent_filter: Optional[HumanizeRespondentFilter] = None,
+        subject: Optional[str] = None,
     ) -> dict:
-        """Update the template and/or respondent filter on a respondent_email route on a callback.
+        """Update the template, respondent filter, and/or subject on a respondent_email route on a callback.
 
         Fields omitted are left unchanged on the server.
 
         Returns:
-            dict: ``{"route_uuid", "delivery_template", "respondent_filter"}``
+            dict: ``{"route_uuid", "delivery_template", "respondent_filter", "subject"}``
         """
         return self._coop.patch_human_survey_callback_respondent_email_route(
             human_survey_uuid=self.human_survey_uuid,
@@ -704,6 +708,7 @@ class HumanSurveyNotificationHandler:
             route_uuid=route_uuid,
             delivery_template=delivery_template,
             respondent_filter=respondent_filter,
+            subject=subject,
         )
 
     def delete_callback(self, callback_uuid: Union[str, UUID]) -> dict:

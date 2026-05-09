@@ -2973,9 +2973,10 @@ class Coop(CoopFunctionsMixin):
         *,
         delivery_template: Optional[str] = None,
         respondent_filter: Optional[Any] = None,
+        subject: Optional[str] = None,
     ) -> dict:
         """
-        Update the template and/or respondent filter on a respondent_email route.
+        Update the template, respondent filter, and/or subject on a respondent_email route.
 
         Fields omitted are left unchanged on the server.  Returns 400 if the
         route is not a ``respondent_email`` subtype.
@@ -2986,6 +2987,7 @@ class Coop(CoopFunctionsMixin):
             route_uuid: UUID of the route to patch.
             delivery_template: Optional new HTML template string.
             respondent_filter: Optional HumanizeRespondentFilter (or dict).
+            subject: Optional email subject line (1–200 characters).
         """
         payload: Dict[str, Any] = {}
         if delivery_template is not None:
@@ -2996,6 +2998,8 @@ class Coop(CoopFunctionsMixin):
                 if hasattr(respondent_filter, "model_dump")
                 else respondent_filter
             )
+        if subject is not None:
+            payload["subject"] = subject
         response = self._send_server_request(
             uri=(
                 f"api/v0/human-surveys/{human_survey_uuid}/schedules/"
@@ -3010,6 +3014,7 @@ class Coop(CoopFunctionsMixin):
             "route_uuid": data.get("route_uuid"),
             "delivery_template": data.get("delivery_template"),
             "respondent_filter": data.get("respondent_filter"),
+            "subject": data.get("subject"),
         }
 
     def add_human_survey_schedule_route(
@@ -3488,13 +3493,14 @@ class Coop(CoopFunctionsMixin):
         *,
         delivery_template: Optional[str] = None,
         respondent_filter: Optional[Any] = None,
+        subject: Optional[str] = None,
     ) -> dict:
-        """Update the template and/or respondent filter on a respondent_email route on a callback.
+        """Update the template, respondent filter, and/or subject on a respondent_email route on a callback.
 
         Fields omitted are left unchanged on the server.
 
         Returns:
-            dict: ``{"route_uuid", "delivery_template", "respondent_filter"}``
+            dict: ``{"route_uuid", "delivery_template", "respondent_filter", "subject"}``
         """
         payload: Dict[str, Any] = {}
         if delivery_template is not None:
@@ -3505,6 +3511,8 @@ class Coop(CoopFunctionsMixin):
                 if hasattr(respondent_filter, "model_dump")
                 else respondent_filter
             )
+        if subject is not None:
+            payload["subject"] = subject
         response = self._send_server_request(
             uri=(
                 f"api/v0/human-surveys/{human_survey_uuid}/callbacks/"
@@ -3519,6 +3527,7 @@ class Coop(CoopFunctionsMixin):
             "route_uuid": data.get("route_uuid"),
             "delivery_template": data.get("delivery_template"),
             "respondent_filter": data.get("respondent_filter"),
+            "subject": data.get("subject"),
         }
 
     def list_human_survey_deliveries(
