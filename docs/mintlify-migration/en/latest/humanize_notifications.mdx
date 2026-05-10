@@ -311,6 +311,29 @@ Each delivery or schedule sends email to survey respondents via a `RespondentEma
 | `respondent_filter` | `HumanizeRespondentFilter` to restrict which respondents receive the email. |
 | `subject` | Email subject line (1–200 characters). Uses the default subject when omitted. |
 
+### Template variables
+
+The `delivery_template` HTML string supports the following variables, which are filled in per-respondent at send time:
+
+| Variable | Value |
+|----------|-------|
+| `{{ survey_name }}` | The name of the human survey. |
+| `{{ url }}` | The respondent's unique survey link (includes their access token). |
+
+Example:
+
+```python
+handler.send_respondent_email(
+    name="Initial outreach",
+    subject="You're invited to take our survey",
+    delivery_template="""
+<p>Hi there,</p>
+<p>You've been invited to take <strong>{{ survey_name }}</strong>.</p>
+<p><a href="{{ url }}">Click here to begin</a></p>
+""",
+)
+```
+
 Update the subject and template on an existing respondent email route:
 
 ```python
