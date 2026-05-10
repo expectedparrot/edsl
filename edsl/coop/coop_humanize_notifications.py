@@ -209,12 +209,14 @@ class HumanSurveyNotificationHandler:
         name: str,
         delivery_template: Optional[str] = None,
         respondent_filter: Optional[HumanizeRespondentFilter] = None,
+        subject: Optional[str] = None,
     ) -> dict:
         """Trigger a respondent email delivery job for this human survey.
 
         Builds a ``RespondentEmailRouteConfig`` from the supplied options and
-        sends it immediately.  ``delivery_template`` and ``respondent_filter``
-        are passed through to the route; omit them to use the server defaults.
+        sends it immediately.  ``delivery_template``, ``respondent_filter``,
+        and ``subject`` are passed through to the route; omit them to use the
+        server defaults.
 
         Returns:
             dict: ``{"delivery_uuid": "<uuid>", "routes": [...]}``
@@ -222,6 +224,7 @@ class HumanSurveyNotificationHandler:
         route = RespondentEmailRouteConfig(
             delivery_template=delivery_template,
             respondent_filter=respondent_filter,
+            subject=subject,
         )
         return self._coop.create_human_survey_delivery(
             human_survey_uuid=self.human_survey_uuid,

@@ -79,7 +79,7 @@ print(result)
 # {"delivery_uuid": "...", "routes": [...]}
 ```
 
-Pass a custom HTML email body or restrict which respondents receive it:
+Pass a custom subject, HTML email body, or restrict which respondents receive it:
 
 ```python
 from edsl.coop.coop_humanize_notifications import (
@@ -96,6 +96,7 @@ respondent_filter = HumanizeRespondentFilter(conditions=[condition])
 
 result = handler.send_respondent_email(
     name="Reminder to non-starters",
+    subject="Don't forget to complete our survey",
     delivery_template="<p>Hi! Just a reminder to complete our survey.</p>",
     respondent_filter=respondent_filter,
 )
