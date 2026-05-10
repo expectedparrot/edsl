@@ -2850,9 +2850,7 @@ class Coop(CoopFunctionsMixin):
             ``jobs_spawned``.
         """
         response = self._send_server_request(
-            uri=(
-                f"api/v0/human-surveys/{human_survey_uuid}/schedules/{schedule_uuid}"
-            ),
+            uri=(f"api/v0/human-surveys/{human_survey_uuid}/schedules/{schedule_uuid}"),
             method="GET",
         )
         self._resolve_server_response(response)
@@ -3674,13 +3672,14 @@ class Coop(CoopFunctionsMixin):
         self,
         human_responses: List[dict],
         survey_uuid: str,
+        agent_list_uuid: Optional[str] = None,
     ) -> Union["Results", "ScenarioList"]:
         """
         Turn a list of human responses into a Results object.
 
         If generating the Results object fails, a ScenarioList will be returned instead.
         """
-        from ..agents import Agent
+        from ..agents import Agent, AgentList
         from ..caching import Cache
         from ..language_models import Model
         from ..scenarios import Scenario, ScenarioList
@@ -3688,25 +3687,45 @@ class Coop(CoopFunctionsMixin):
 
         try:
             survey = Survey.pull(survey_uuid)
+            agent_list = AgentList.pull(agent_list_uuid) if agent_list_uuid else None
 
             model = Model("test")
 
             results = None
 
             for response in human_responses:
-                response_uuid = response.get("response_uuid")
+                response_uuid: Optional[str] = response.get("response_uuid")
                 if response_uuid is None:
                     raise RuntimeError(
                         "One of your responses is missing a unique identifier."
                     )
 
-                response_dict = json.loads(response.get("response_json_string"))
-                agent_traits_json_string = response.get("agent_traits_json_string")
-                scenario_json_string = response.get("scenario_json_string")
+                response_dict: Dict[str, Any] = json.loads(
+                    response.get("response_json_string")
+                )
+                agent_traits_json_string: Optional[str] = response.get(
+                    "agent_traits_json_string"
+                )
+                scenario_json_string: Optional[str] = response.get(
+                    "scenario_json_string"
+                )
                 if agent_traits_json_string is not None:
-                    agent_traits = json.loads(agent_traits_json_string)
+                    agent_traits_raw: Dict[str, Any] = json.loads(
+                        agent_traits_json_string
+                    )
                 else:
-                    agent_traits = {}
+                    agent_traits_raw: Dict[str, Any] = {}
+
+                agent_traits = agent_traits_raw
+                if "respondent_uuid" in agent_traits_raw and agent_list is not None:
+                    # Look for agent in list (by index)
+                    agent_index: Optional[int] = agent_traits_raw.get("agent_index")
+                    source_agent: Optional["Agent"] = (
+                        agent_list[agent_index] if agent_index is not None else None
+                    )
+                    # Update traits with traits from the agent in the list
+                    if source_agent is not None:
+                        agent_traits = {**agent_traits_raw, **source_agent.traits}
 
                 a = Agent(name=response_uuid, instruction="", traits=agent_traits)
 
@@ -3773,8 +3792,11 @@ class Coop(CoopFunctionsMixin):
         response_json = response.json()
         responses = response_json.get("responses", [])
         survey_uuid = response_json.get("survey_uuid")
+        agent_list_uuid = response_json.get("agent_list_uuid")
 
-        return self._turn_human_responses_into_results(responses, survey_uuid)
+        return self._turn_human_responses_into_results(
+            responses, survey_uuid, agent_list_uuid
+        )
 
     def test_scenario_sampling(self, human_survey_uuid: str) -> List[int]:
         """
@@ -4176,8 +4198,11 @@ class Coop(CoopFunctionsMixin):
         response_json = response.json()
         human_responses = response_json.get("human_responses", [])
         survey_uuid = response_json.get("survey_uuid")
+        agent_list_uuid = response_json.get("agent_list_uuid")
 
-        return self._turn_human_responses_into_results(human_responses, survey_uuid)
+        return self._turn_human_responses_into_results(
+            human_responses, survey_uuid, agent_list_uuid
+        )
 
     def delete_prolific_study(
         self,
