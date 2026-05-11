@@ -154,7 +154,7 @@ def serialize_routes(routes: List) -> list[dict]:
     """
     adapter = TypeAdapter(List[RouteConfig])
     validated = adapter.validate_python(routes)
-    return [route.model_dump(mode="json") for route in validated]
+    return [route.model_dump(mode="json", exclude_none=True) for route in validated]
 
 
 # ---------------------------------------------------------------------------
