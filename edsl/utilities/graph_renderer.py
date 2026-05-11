@@ -111,11 +111,13 @@ class RenderedGraph:
         self,
         text: str | None = None,
         png_path: str | None = None,
+        svg_path: str | None = None,
         nodes: list[NodeDef] | None = None,
         edges: list[EdgeDef] | None = None,
     ):
         self._text = text
         self._png_path = png_path
+        self._svg_path = svg_path
         self._nodes = nodes or []
         self._edges = edges or []
         self._ascii = _render_ascii(self._nodes, self._edges) if self._nodes else None
@@ -128,6 +130,10 @@ class RenderedGraph:
     def png_path(self) -> str | None:
         return self._png_path
 
+    @property
+    def svg_path(self) -> str | None:
+        return self._svg_path
+
     def _repr_markdown_(self) -> str:
         """Markdown display for Jupyter notebooks (mermaid diagrams)."""
         if self._text is not None:
@@ -135,7 +141,10 @@ class RenderedGraph:
         return ""
 
     def _repr_html_(self) -> str:
-        """HTML display for Jupyter notebooks (PNG diagrams)."""
+        """HTML display for Jupyter notebooks."""
+        if self._svg_path is not None:
+            with open(self._svg_path, "r", encoding="utf-8") as f:
+                return f.read()
         if self._png_path is not None:
             import base64
 
@@ -158,8 +167,11 @@ class RenderedGraph:
             pass
         if self._text is not None:
             return self._ascii or self._text
-        if self._png_path is not None:
-            return f"RenderedGraph(png_path={self._png_path!r})"
+        if self._png_path is not None or self._svg_path is not None:
+            return (
+                f"RenderedGraph(png_path={self._png_path!r}, "
+                f"svg_path={self._svg_path!r})"
+            )
         return "RenderedGraph(empty)"
 
     def save(self, filename: str) -> None:
@@ -167,6 +179,10 @@ class RenderedGraph:
         if self._text is not None:
             with open(filename, "w") as f:
                 f.write(self._text)
+        elif filename.lower().endswith(".svg") and self._svg_path is not None:
+            import shutil
+
+            shutil.copy(self._svg_path, filename)
         elif self._png_path is not None:
             import shutil
             shutil.copy(self._png_path, filename)
@@ -389,7 +405,7 @@ def _mermaid_styles(nodes: list[NodeDef], subgraphs: list[SubgraphDef]) -> list[
 # ---------------------------------------------------------------------------
 
 class PydotRenderer:
-    """Render a graph as PNG via pydot/graphviz."""
+    """Render a graph as PNG and SVG via pydot/graphviz."""
 
     def render(
         self,
@@ -458,17 +474,19 @@ class PydotRenderer:
 
             graph.add_edge(pydot.Edge(edge.src, edge.dst, **attrs))
 
-        # Render to temp PNG
-        tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
+        # Render to temp PNG and SVG
+        tmp_png = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
+        tmp_svg = tempfile.NamedTemporaryFile(delete=False, suffix=".svg")
         try:
-            graph.write_png(tmp.name)
+            graph.write_png(tmp_png.name)
+            graph.write_svg(tmp_svg.name)
         except FileNotFoundError:
             print(
                 "Graphviz not found. Install with: brew install graphviz (macOS), "
                 "apt-get install graphviz (Ubuntu), or choco install graphviz (Windows)"
             )
             return RenderedGraph()
-        return RenderedGraph(png_path=tmp.name)
+        return RenderedGraph(png_path=tmp_png.name, svg_path=tmp_svg.name)
 
 
 # ---------------------------------------------------------------------------
