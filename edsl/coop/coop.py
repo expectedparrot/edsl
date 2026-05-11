@@ -3715,12 +3715,11 @@ class Coop(CoopFunctionsMixin):
                 scenario_json_string: Optional[str] = response.get(
                     "scenario_json_string"
                 )
+                agent_traits_raw: Dict[str, Any]
                 if agent_traits_json_string is not None:
-                    agent_traits_raw: Dict[str, Any] = json.loads(
-                        agent_traits_json_string
-                    )
+                    agent_traits_raw = json.loads(agent_traits_json_string)
                 else:
-                    agent_traits_raw: Dict[str, Any] = {}
+                    agent_traits_raw = {}
 
                 agent_traits = agent_traits_raw
                 if "respondent_uuid" in agent_traits_raw and agent_list is not None:
