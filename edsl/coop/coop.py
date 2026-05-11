@@ -3417,6 +3417,8 @@ class Coop(CoopFunctionsMixin):
         payload: Dict[str, Any] = {}
         if name is not None:
             payload["name"] = name
+        if not payload:
+            raise CoopValueError("Provide at least one of: name.")
         response = self._send_server_request(
             uri=f"api/v0/human-surveys/{human_survey_uuid}/callbacks/{callback_uuid}",
             method="PATCH",
@@ -3511,6 +3513,10 @@ class Coop(CoopFunctionsMixin):
             )
         if subject is not None:
             payload["subject"] = subject
+        if not payload:
+            raise CoopValueError(
+                "Provide at least one of: delivery_template, respondent_filter, subject."
+            )
         response = self._send_server_request(
             uri=(
                 f"api/v0/human-surveys/{human_survey_uuid}/callbacks/"
