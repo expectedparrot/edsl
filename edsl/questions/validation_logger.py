@@ -28,24 +28,22 @@ except Exception:
     LOG_DIR = DEFAULT_LOG_DIR
 VALIDATION_LOG_FILE = LOG_DIR / "validation_failures.log"
 
-# Create log directory if it doesn't exist
-os.makedirs(LOG_DIR, exist_ok=True)
-
-# Create file handler
-file_handler = logging.FileHandler(VALIDATION_LOG_FILE)
-file_handler.setLevel(logging.INFO)
-
-# Create formatter
-formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-file_handler.setFormatter(formatter)
-
-# Add handler to logger
-logger.addHandler(file_handler)
-
-# Touch the log file to make sure it exists
-if not os.path.exists(VALIDATION_LOG_FILE):
-    with open(VALIDATION_LOG_FILE, "a"):
-        pass
+_logging_enabled = False
+try:
+    os.makedirs(LOG_DIR, exist_ok=True)
+    file_handler = logging.FileHandler(VALIDATION_LOG_FILE)
+    file_handler.setLevel(logging.INFO)
+    formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+    file_handler.setFormatter(formatter)
+    logger.addHandler(file_handler)
+    if not os.path.exists(VALIDATION_LOG_FILE):
+        with open(VALIDATION_LOG_FILE, "a"):
+            pass
+    _logging_enabled = True
+except OSError:
+    # Logging should never make question imports fail. In restricted
+    # environments, validation logging is best-effort only.
+    _logging_enabled = False
 
 
 def log_validation_failure(
@@ -77,6 +75,9 @@ def log_validation_failure(
         "question_dict": question_dict,
         "traceback": traceback.format_exc(),
     }
+
+    if not _logging_enabled:
+        return
 
     # Log as JSON for easier parsing
     logger.info(json.dumps(log_entry))

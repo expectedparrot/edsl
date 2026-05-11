@@ -1032,6 +1032,12 @@ class Jobs(Base):
             else:
                 results, reason = jh.poll_remote_inference_job(job_info)
                 if results is not None:
+                    if self._remote_results_are_invalid(results):
+                        self._logger.warning(
+                            "Remote execution returned structurally invalid results; "
+                            "falling back to local execution."
+                        )
+                        return None, "invalid_remote_results"
                     return results, reason
                 # Remote was used but returned no results — don't fall back to local
                 if reason:
@@ -1043,6 +1049,45 @@ class Jobs(Base):
                 )
         else:
             return None, None
+
+    @staticmethod
+    def _remote_results_are_invalid(results: "Results") -> bool:
+        """Detect remote result payloads that look structurally complete but empty.
+
+        Some remote failures currently materialize as a Results object with the
+        expected interview rows, but with every answer set to ``None``, no raw model
+        responses, and no task-history evidence. Those should not count as a
+        successful remote run because downstream analysis will silently operate on
+        null data.
+        """
+        if len(results) == 0:
+            return False
+
+        task_history = getattr(results, "task_history", None)
+        task_history_dict = (
+            task_history.to_dict() if task_history and hasattr(task_history, "to_dict") else {}
+        )
+        interviews = task_history_dict.get("interviews") or []
+        if interviews:
+            return False
+
+        saw_any_non_null_answer = False
+        saw_any_raw_payload = False
+        for row in results:
+            answer_dict = getattr(row, "answer", None)
+            if isinstance(answer_dict, dict) and any(value is not None for value in answer_dict.values()):
+                saw_any_non_null_answer = True
+                break
+
+            try:
+                raw_payload = row["raw_model_response"]
+            except Exception:
+                raw_payload = None
+            if isinstance(raw_payload, dict) and any(value not in (None, {}, "") for value in raw_payload.values()):
+                saw_any_raw_payload = True
+                break
+
+        return not saw_any_non_null_answer and not saw_any_raw_payload
 
     def _prepare_to_run(self) -> None:
         """Prepare the job to run and ensure keys are in place for a remote job."""
