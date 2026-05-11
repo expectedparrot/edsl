@@ -3730,7 +3730,9 @@ class Coop(CoopFunctionsMixin):
                     # Look for agent in list (by index)
                     agent_index: Optional[int] = agent_traits_raw.get("agent_index")
                     source_agent: Optional["Agent"] = (
-                        agent_list[agent_index] if agent_index is not None else None
+                        agent_list[agent_index]
+                        if agent_index is not None and agent_index < len(agent_list)
+                        else None
                     )
                     # Update traits with traits from the agent in the list
                     if source_agent is not None:
