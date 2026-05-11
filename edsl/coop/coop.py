@@ -2998,6 +2998,10 @@ class Coop(CoopFunctionsMixin):
             )
         if subject is not None:
             payload["subject"] = subject
+        if not payload:
+            raise CoopValueError(
+                "Provide at least one of: delivery_template, respondent_filter, subject."
+            )
         response = self._send_server_request(
             uri=(
                 f"api/v0/human-surveys/{human_survey_uuid}/schedules/"
