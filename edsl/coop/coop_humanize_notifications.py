@@ -131,15 +131,6 @@ class OwnerEmailRouteConfig(BaseModel):
     delivery_template: Optional[str] = None
 
 
-class OwnerWebhookRouteConfig(BaseModel):
-    """Webhook fired to a URL the owner controls."""
-
-    channel: Literal["webhook"] = "webhook"
-    subtype: Literal["owner"] = "owner"
-    webhook_url: str
-    threshold: Optional[int] = None
-
-
 def _route_discriminator(v: "dict | object") -> str:
     if isinstance(v, dict):
         return f"{v.get('channel')}.{v.get('subtype')}"
@@ -150,7 +141,6 @@ RouteConfig = Annotated[
     Union[
         Annotated[RespondentEmailRouteConfig, Tag("email.respondent")],
         Annotated[OwnerEmailRouteConfig, Tag("email.owner")],
-        Annotated[OwnerWebhookRouteConfig, Tag("webhook.owner")],
     ],
     Discriminator(_route_discriminator),
 ]
