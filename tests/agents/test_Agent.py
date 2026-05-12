@@ -97,6 +97,29 @@ def test_adding_direct_question_answering_method():
         agent.add_direct_question_answering_method(bad_answer_question_directly)
 
 
+def test_direct_question_answering_method_with_comment():
+    """Returning {"answer": ..., "comment": ...} is backwards-compatible and surfaces the comment in results."""
+    from edsl.questions import QuestionFreeText
+    from edsl.surveys import Survey
+    from edsl.language_models import LanguageModel
+
+    m = LanguageModel.example(test_model=True)
+    a = Agent()
+
+    def f(self, question, scenario):
+        return {"answer": "blue", "comment": "my reasoning here"}
+
+    a.add_direct_question_answering_method(f)
+
+    q = QuestionFreeText(
+        question_name="q1", question_text="What is your favorite color?"
+    )
+    results = Survey([q]).by(a).by(m).run(disable_remote_inference=True)
+
+    assert results.select("answer.q1").first() == "blue"
+    assert results.select("comment.q1_comment").first() == "my reasoning here"
+
+
 # Invigilator creation tests moved to test_AgentInvigilator.py
 
 
@@ -134,5 +157,13 @@ def test_agent_dynamic_traits_answering():
 
     q = QuestionFreeText(question_name="age", question_text="How old are you?")
     m = Model("test")
-    results = q.by(m).by(a).run(disable_remote_inference=True, disable_remote_cache=True, stop_on_exception=True)
+    results = (
+        q.by(m)
+        .by(a)
+        .run(
+            disable_remote_inference=True,
+            disable_remote_cache=True,
+            stop_on_exception=True,
+        )
+    )
     assert results.select("answer.age").to_list()

@@ -2682,6 +2682,7 @@ class Coop(CoopFunctionsMixin):
                         "One of your responses is missing a unique identifier."
                     )
 
+                # Dict mapping question names to {"answer": ..., "comment": ...} dicts
                 response_dict = json.loads(response.get("response_json_string"))
                 agent_traits_json_string = response.get("agent_traits_json_string")
                 scenario_json_string = response.get("scenario_json_string")
