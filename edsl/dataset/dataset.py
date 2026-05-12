@@ -88,6 +88,8 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
         >>> len(d)
         4
         """
+        if not self.data:
+            return 0
         _, values = list(self.data[0].items())[0]
         return len(values)
 

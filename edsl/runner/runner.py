@@ -535,11 +535,11 @@ class Runner:
         """Register queues for all models used in this job."""
         models = list(job.models) if hasattr(job, "models") else []
 
-        # Also include models embedded in QuestionThinking questions
+        # Also include models embedded in thinking questions
         survey = job.survey if hasattr(job, "survey") else getattr(job, "_survey", None)
         if survey:
             for q in getattr(survey, "questions", []):
-                if hasattr(q, "_model") and getattr(q, "question_type", None) == "thinking":
+                if hasattr(q, "_model"):
                     models.append(q._model)
 
         for model in models:

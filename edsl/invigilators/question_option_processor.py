@@ -1,4 +1,5 @@
-from typing import Union, TYPE_CHECKING
+from ast import literal_eval
+from typing import Any, Union, TYPE_CHECKING
 
 
 # import edsl.scenarios.scenario  # noqa: F401
@@ -167,6 +168,25 @@ class QuestionOptionProcessor(QuestionAttributeProcessor):
         """
         if not template_string:
             return self._get_default_options()
+
+        try:
+            rendered_options = self._render_template_to_native_value(template_string)
+            if isinstance(rendered_options, list):
+                return rendered_options
+            if isinstance(rendered_options, tuple):
+                return list(rendered_options)
+            if isinstance(rendered_options, str):
+                try:
+                    parsed_options = literal_eval(rendered_options)
+                except (SyntaxError, ValueError):
+                    parsed_options = None
+                if isinstance(parsed_options, list):
+                    return parsed_options
+                if isinstance(parsed_options, tuple):
+                    return list(parsed_options)
+        except Exception:
+            # Fall back to the older simple-path logic below.
+            pass
 
         # Parse template to get variable name
         raw_option_key = self._parse_template_variable(template_string)

@@ -1,5 +1,6 @@
 from jinja2 import Environment
-from typing import List, Union
+from jinja2.nativetypes import NativeEnvironment
+from typing import Any, List, Union
 
 import edsl.scenarios.scenario  # noqa: F401
 
@@ -115,6 +116,18 @@ class QuestionAttributeProcessor:
         # new_scenario.update({'scenario': new_scenario})
         self.scenario = scenario
         self.prior_answers_dict = prior_answers_dict
+
+    def _render_template_to_native_value(self, template_string: str) -> Any:
+        """Render a Jinja2 template and return the native Python value."""
+        scenario_namespace = {
+            k: v for k, v in self.scenario.items() if not str(k).startswith("_")
+        }
+        render_context = {
+            **self.scenario,
+            **self.prior_answers_dict,
+            "scenario": scenario_namespace,
+        }
+        return NativeEnvironment().from_string(template_string).render(render_context)
 
     @staticmethod
     def _parse_template_variable(template_str: str) -> Union[str, tuple]:
