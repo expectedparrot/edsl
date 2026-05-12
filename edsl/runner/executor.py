@@ -391,8 +391,10 @@ class ExecutionWorker:
         scenario = Scenario.from_dict(scenario_data) if scenario_data else Scenario()
         agent = Agent.from_dict(agent_data) if agent_data else Agent()
         current_answers = self._get_interview_answers(task.job_id, task.interview_id)
-        survey = Survey([question])
-        memory_plan = MemoryPlan(survey=survey)
+        survey, memory_plan, question = self._build_invigilator_survey_context(
+            task.job_id, task.question_name, question
+        )
+        key_lookup = self._job_service.get_key_lookup_for_job(task.job_id)
 
         invigilator = agent.invigilator.create_invigilator(
             question=question,
@@ -403,15 +405,18 @@ class ExecutionWorker:
             current_answers=current_answers,
             iteration=task.iteration,
             cache=cache,
+            key_lookup=key_lookup,
         )
         result = await invigilator.async_answer_question()
         prompts = result.prompts or {}
+        exception_occurred = result.exception_occurred
+        success = exception_occurred is None
 
         return ExecutionResult(
             task_id=task.task_id,
             job_id=task.job_id,
             interview_id=task.interview_id,
-            success=True,
+            success=success,
             answer=result.answer,
             comment=result.comment,
             input_tokens=result.input_tokens,
@@ -427,7 +432,35 @@ class ExecutionWorker:
             cache_key=result.cache_key,
             validated=result.validated,
             reasoning_summary=result.reasoning_summary,
+            error_type=self._classify_error(exception_occurred)
+            if exception_occurred
+            else None,
+            error_message=str(exception_occurred) if exception_occurred else None,
         )
+
+    def _build_invigilator_survey_context(
+        self,
+        job_id: str,
+        question_name: str | None,
+        question: QuestionBase,
+    ) -> tuple[Survey, MemoryPlan, QuestionBase]:
+        """Build the survey and memory plan used by invigilator-based execution."""
+        survey_data = self._job_service._jobs.get_survey(job_id)
+        if not survey_data:
+            survey = Survey([question])
+            return survey, MemoryPlan(survey=survey), question
+
+        survey = Survey.from_dict(survey_data)
+        for index, survey_question in enumerate(survey.questions):
+            if survey_question.question_name == question.question_name:
+                survey.questions[index] = question
+                break
+            if question_name and survey_question.question_name == question_name:
+                survey.questions[index] = question
+                break
+
+        memory_plan = survey.memory_plan or MemoryPlan(survey=survey)
+        return survey, memory_plan, question
 
     def _validate_answer(
         self, task: Any, answer: Any, comment: str | None, generated_tokens: str | None
