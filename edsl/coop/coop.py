@@ -4,6 +4,7 @@ import json
 import os
 import requests
 import time
+from datetime import datetime
 
 from typing import (
     Any,
@@ -25,6 +26,7 @@ from ..caching import CacheEntry
 from ..logger import get_logger
 
 if TYPE_CHECKING:
+    from ..agents import AgentList
     from ..jobs import Jobs
     from ..scenarios import Scenario, ScenarioList
     from ..surveys import Survey
@@ -51,6 +53,7 @@ from .coop_regular_objects import CoopRegularObjects
 from .coop_jobs_objects import CoopJobsObjects
 from .coop_prolific_filters import CoopProlificFilters
 from .ep_key_handling import ExpectedParrotKeyHandler
+from .coop_humanize_notifications import DeliveryMap
 
 # from ..inference_services.data_structures import ServiceToModelsMapping
 
@@ -247,7 +250,7 @@ class Coop(CoopFunctionsMixin):
         if payload is None:
             timeout = 40
         elif (
-            (method.upper() == "POST" or method.upper() == "PATCH")
+            method.upper() in ("POST", "PATCH", "PUT")
             and "json_string" in payload
             and payload.get("json_string") is not None
         ):
@@ -275,7 +278,7 @@ class Coop(CoopFunctionsMixin):
                 response = requests.request(
                     method, url, params=params, headers=self.headers, timeout=timeout
                 )
-            elif method in ["POST", "PATCH"]:
+            elif method in ["POST", "PATCH", "PUT"]:
                 response = requests.request(
                     method,
                     url,
@@ -2509,6 +2512,41 @@ class Coop(CoopFunctionsMixin):
     ################
     # HUMAN SURVEYS
     ################
+
+    @staticmethod
+    def _human_survey_datetime_must_be_tz_aware(dt: datetime, label: str) -> None:
+        if dt.tzinfo is None:
+            raise CoopValueError(
+                f"{label} must be a timezone-aware datetime (naive datetimes are not "
+                f"accepted). For example, use datetime.now(timezone.utc) or attach a "
+                f"tzinfo such as ZoneInfo('America/New_York')."
+            )
+
+    def schedule_termination_payload(
+        self,
+        max_jobs: Optional[int],
+        deadline: Optional[datetime],
+        *,
+        require_exactly_one: bool,
+    ) -> Dict[str, Any]:
+        """
+        Build JSON fields for schedule termination (API: at most one of max_jobs, deadline).
+
+        When ``require_exactly_one`` is True (recurring create), both may not be omitted.
+        When False (recurring update), omitting both leaves termination unchanged on the server.
+        """
+        if max_jobs is not None and deadline is not None:
+            raise CoopValueError("Specify at most one of max_jobs or deadline.")
+        payload: Dict[str, Any] = {}
+        if max_jobs is not None:
+            payload["max_jobs"] = max_jobs
+        elif deadline is not None:
+            self._human_survey_datetime_must_be_tz_aware(deadline, "deadline")
+            payload["deadline"] = deadline.isoformat()
+        elif require_exactly_one:
+            raise CoopValueError("Provide either max_jobs or deadline.")
+        return payload
+
     def create_human_survey(
         self,
         survey: "Survey",
@@ -2524,9 +2562,15 @@ class Coop(CoopFunctionsMixin):
         scenario_list_alias: Optional[str] = None,
         scenario_list_visibility: Optional[VisibilityType] = "private",
         humanize_schema: Optional[Dict[str, Any]] = None,
+        agent_list: Optional["AgentList"] = None,
+        agent_list_description: Optional[str] = None,
+        agent_list_alias: Optional[str] = None,
+        agent_list_visibility: Optional[VisibilityType] = "private",
+        delivery_map: Optional[Union[DeliveryMap, Dict[str, Any]]] = None,
     ):
         """
-        Create a human survey on Coop, first creating the survey and scenario list (if scenarios are used).
+        Create a human survey on Coop, first creating any linked agent list,
+        then the survey and scenario list (if scenarios are used).
         """
         if scenario_list is None and scenario_list_method is not None:
             raise CoopValueError(
@@ -2538,6 +2582,25 @@ class Coop(CoopFunctionsMixin):
             )
         if humanize_schema is not None:
             self.validate_human_survey_humanize_schema(survey, humanize_schema)
+        if delivery_map is not None:
+            if isinstance(delivery_map, DeliveryMap):
+                delivery_map_payload = delivery_map.model_dump(exclude_none=True)
+            else:
+                delivery_map_payload = DeliveryMap.model_validate(
+                    delivery_map
+                ).model_dump(exclude_none=True)
+        else:
+            delivery_map_payload = None
+        if agent_list is not None:
+            agent_list_details = self.push(
+                object=agent_list,
+                description=agent_list_description,
+                alias=agent_list_alias,
+                visibility=agent_list_visibility,
+            )
+            agent_list_uuid = agent_list_details.get("uuid")
+        else:
+            agent_list_uuid = None
         survey_details = self.push(
             object=survey,
             description=survey_description,
@@ -2558,10 +2621,14 @@ class Coop(CoopFunctionsMixin):
         payload: Dict[str, Any] = {
             "human_survey_name": human_survey_name,
             "survey_uuid": str(survey_uuid),
+            "agent_list_uuid": (
+                str(agent_list_uuid) if agent_list_uuid is not None else None
+            ),
             "scenario_list_uuid": (
                 str(scenario_list_uuid) if scenario_list_uuid is not None else None
             ),
             "scenario_list_method": scenario_list_method,
+            "delivery_map": delivery_map_payload,
         }
         if humanize_schema is not None:
             payload["humanize_schema"] = humanize_schema
@@ -2579,6 +2646,7 @@ class Coop(CoopFunctionsMixin):
             "respondent_url": f"{self.url}/respond/human-surveys/{response_json.get('uuid')}",
             "n_responses": response_json.get("n_responses"),
             "survey_uuid": response_json.get("survey_uuid"),
+            "agent_list_uuid": response_json.get("agent_list_uuid"),
             "scenario_list_uuid": response_json.get("scenario_list_uuid"),
         }
 
@@ -2602,8 +2670,966 @@ class Coop(CoopFunctionsMixin):
             "respondent_url": f"{self.url}/respond/human-surveys/{response_json.get('uuid')}",
             "n_responses": response_json.get("n_responses"),
             "survey_uuid": response_json.get("survey_uuid"),
+            "agent_list_uuid": response_json.get("agent_list_uuid"),
             "scenario_list_uuid": response_json.get("scenario_list_uuid"),
         }
+
+    @staticmethod
+    def _parse_schedule_response(data: dict) -> dict:
+        result = {
+            "schedule_uuid": data.get("schedule_uuid"),
+            "name": data.get("name"),
+            "schedule_type": data.get("schedule_type"),
+            "is_active": data.get("is_active"),
+            "jobs_spawned": data.get("jobs_spawned"),
+        }
+        if data.get("schedule_type") == "one_time":
+            result["run_at"] = data.get("run_at")
+        else:
+            result["next_run_at"] = data.get("next_run_at")
+            result["cron_expression"] = data.get("cron_expression")
+            result["timezone"] = data.get("timezone")
+            result["termination"] = data.get("termination")
+        if "routes" in data:
+            result["routes"] = data.get("routes")
+        return result
+
+    def create_human_survey_delivery(
+        self,
+        human_survey_uuid: Union[str, UUID],
+        name: str,
+        routes: Optional[List] = None,
+    ) -> dict:
+        """
+        Trigger a new email delivery job for a human survey's agent list.
+
+        The survey must have an agent list with an email delivery channel configured.
+
+        Args:
+            name: Label for this delivery job on the server.
+            routes: Optional list of RouteConfig objects controlling which channels
+                are used. When omitted the server defaults to a single
+                ``respondent_email`` route.
+
+        Returns:
+            dict: ``{"delivery_uuid": "<uuid>", "routes": [...]}``
+        """
+        from .coop_humanize_notifications import serialize_routes
+
+        payload: Dict[str, Any] = {"name": name}
+        if routes is not None:
+            payload["routes"] = serialize_routes(routes)
+        response = self._send_server_request(
+            uri=f"api/v0/human-surveys/{human_survey_uuid}/deliveries",
+            method="POST",
+            payload=payload,
+        )
+        self._resolve_server_response(response)
+        data = response.json()
+        return {
+            "delivery_uuid": data.get("delivery_uuid"),
+            "routes": data.get("routes", []),
+        }
+
+    def create_human_survey_one_time_schedule(
+        self,
+        human_survey_uuid: Union[str, UUID],
+        name: str,
+        run_at: Union[str, datetime],
+        routes: Optional[List] = None,
+    ) -> dict:
+        """
+        Create a one-time delivery schedule for a human survey's agent list.
+
+        ``run_at`` may be a timezone-aware ``datetime`` or an ISO 8601 string. When a
+        ``datetime`` is passed, it must include timezone information (not naive).
+
+        Args:
+            name: Label for this schedule on the server.
+            routes: Optional list of RouteConfig objects. Defaults to
+                ``respondent_email`` when omitted.
+
+        Returns:
+            dict: Metadata for the created schedule as returned by the server.
+        """
+        from .coop_humanize_notifications import serialize_routes
+
+        if isinstance(run_at, datetime):
+            self._human_survey_datetime_must_be_tz_aware(run_at, "run_at")
+        run_at_serialized = (
+            run_at.isoformat() if isinstance(run_at, datetime) else run_at
+        )
+        payload: Dict[str, Any] = {"name": name, "run_at": run_at_serialized}
+        if routes is not None:
+            payload["routes"] = serialize_routes(routes)
+        response = self._send_server_request(
+            uri=f"api/v0/human-surveys/{human_survey_uuid}/schedules/one-time",
+            method="POST",
+            payload=payload,
+        )
+        self._resolve_server_response(response)
+        return self._parse_schedule_response(response.json())
+
+    def create_human_survey_cron_schedule(
+        self,
+        human_survey_uuid: Union[str, UUID],
+        name: str,
+        cron_expression: str,
+        timezone: str,
+        *,
+        max_jobs: Optional[int] = None,
+        deadline: Optional[datetime] = None,
+        start_at: Optional[Union[str, datetime]] = None,
+        routes: Optional[List] = None,
+    ) -> dict:
+        """
+        Create a cron delivery schedule for a human survey's agent list.
+
+        The survey must have an agent list with an email delivery channel configured.
+
+        Args:
+            name: Label for this schedule on the server.
+
+        ``cron_expression`` uses standard cron syntax (e.g. ``\"0 9 * * MON\"``).
+        ``timezone`` is an IANA or server-supported timezone name for the cron.
+        Provide exactly one of ``max_jobs`` (stop after that many delivery jobs) or
+        ``deadline`` (timezone-aware datetime when the schedule ends).
+
+        ``start_at`` is optional; if omitted, the server uses the current time as the
+        reference to compute ``next_run_at``. When a ``datetime`` is passed, it must be
+        timezone-aware, or use an ISO 8601 string.
+
+        ``routes`` is an optional list of RouteConfig objects. Defaults to
+        ``respondent_email`` when omitted.
+
+        Returns:
+            dict: Server fields such as ``schedule_uuid``, ``schedule_type``,
+            ``next_run_at``, ``cron_expression``, ``timezone``, ``termination``,
+            ``is_active``.
+        """
+        from .coop_humanize_notifications import serialize_routes
+
+        term_payload = self.schedule_termination_payload(
+            max_jobs,
+            deadline,
+            require_exactly_one=True,
+        )
+        payload: Dict[str, Any] = {
+            "name": name,
+            "cron_expression": cron_expression,
+            "timezone": timezone,
+            **term_payload,
+        }
+        if start_at is not None:
+            if isinstance(start_at, datetime):
+                self._human_survey_datetime_must_be_tz_aware(start_at, "start_at")
+            payload["start_at"] = (
+                start_at.isoformat() if isinstance(start_at, datetime) else start_at
+            )
+        if routes is not None:
+            payload["routes"] = serialize_routes(routes)
+        response = self._send_server_request(
+            uri=f"api/v0/human-surveys/{human_survey_uuid}/schedules/cron",
+            method="POST",
+            payload=payload,
+        )
+        self._resolve_server_response(response)
+        return self._parse_schedule_response(response.json())
+
+    def get_human_survey_schedule(
+        self,
+        human_survey_uuid: Union[str, UUID],
+        schedule_uuid: Union[str, UUID],
+    ) -> dict:
+        """
+        Fetch a delivery schedule by UUID for a human survey.
+
+        Returns:
+            dict: Fields such as ``schedule_uuid``, ``schedule_type``, ``next_run_at``,
+            ``cron_expression``, ``timezone``, ``termination``, ``is_active``,
+            ``jobs_spawned``.
+        """
+        response = self._send_server_request(
+            uri=(f"api/v0/human-surveys/{human_survey_uuid}/schedules/{schedule_uuid}"),
+            method="GET",
+        )
+        self._resolve_server_response(response)
+        return self._parse_schedule_response(response.json())
+
+    def set_human_survey_schedule_active(
+        self,
+        human_survey_uuid: Union[str, UUID],
+        schedule_uuid: Union[str, UUID],
+        is_active: bool,
+    ) -> dict:
+        """
+        Activate or deactivate a delivery schedule.
+
+        For one-time schedules, reactivation may be rejected if ``run_at`` is in the
+        past until you update ``run_at``. For recurring schedules, reactivation can
+        advance ``next_run_at`` to the next future occurrence if it has passed.
+        """
+        response = self._send_server_request(
+            uri=(
+                f"api/v0/human-surveys/{human_survey_uuid}/schedules/"
+                f"{schedule_uuid}/active"
+            ),
+            method="PATCH",
+            payload={"is_active": is_active},
+        )
+        self._resolve_server_response(response)
+        data = response.json()
+        return {
+            "schedule_uuid": data.get("schedule_uuid"),
+            "is_active": data.get("is_active"),
+        }
+
+    def update_human_survey_one_time_schedule(
+        self,
+        human_survey_uuid: Union[str, UUID],
+        schedule_uuid: Union[str, UUID],
+        run_at: Union[str, datetime],
+    ) -> dict:
+        """
+        Update the ``run_at`` time of a one-time delivery schedule (ISO 8601 or
+        timezone-aware datetime).
+        """
+        if isinstance(run_at, datetime):
+            self._human_survey_datetime_must_be_tz_aware(run_at, "run_at")
+        run_at_serialized = (
+            run_at.isoformat() if isinstance(run_at, datetime) else run_at
+        )
+        response = self._send_server_request(
+            uri=(
+                f"api/v0/human-surveys/{human_survey_uuid}/schedules/"
+                f"{schedule_uuid}/one-time"
+            ),
+            method="PATCH",
+            payload={"run_at": run_at_serialized},
+        )
+        self._resolve_server_response(response)
+        return self._parse_schedule_response(response.json())
+
+    def update_human_survey_cron_schedule(
+        self,
+        human_survey_uuid: Union[str, UUID],
+        schedule_uuid: Union[str, UUID],
+        *,
+        cron_expression: Optional[str] = None,
+        timezone: Optional[str] = None,
+        max_jobs: Optional[int] = None,
+        deadline: Optional[datetime] = None,
+        start_at: Optional[Union[str, datetime]] = None,
+    ) -> dict:
+        """
+        Update a cron schedule's expression, timezone, termination, and/or anchor time.
+
+        If ``cron_expression``, ``timezone``, or ``start_at`` is provided,
+        ``next_run_at`` is recomputed on the server (with ``start_at`` defaulting to
+        "now" when recomputing if omitted).
+
+        At most one of ``max_jobs`` or ``deadline`` may be set in a single call; omit
+        both to leave termination unchanged.
+        """
+        term_payload = self.schedule_termination_payload(
+            max_jobs,
+            deadline,
+            require_exactly_one=False,
+        )
+        payload: Dict[str, Any] = {**term_payload}
+        if cron_expression is not None:
+            payload["cron_expression"] = cron_expression
+        if timezone is not None:
+            payload["timezone"] = timezone
+        if start_at is not None:
+            if isinstance(start_at, datetime):
+                self._human_survey_datetime_must_be_tz_aware(start_at, "start_at")
+            payload["start_at"] = (
+                start_at.isoformat() if isinstance(start_at, datetime) else start_at
+            )
+        if not payload:
+            raise CoopValueError(
+                "Provide at least one of cron_expression, timezone, max_jobs, "
+                "deadline, or start_at."
+            )
+        response = self._send_server_request(
+            uri=(
+                f"api/v0/human-surveys/{human_survey_uuid}/schedules/"
+                f"{schedule_uuid}/cron"
+            ),
+            method="PATCH",
+            payload=payload,
+        )
+        self._resolve_server_response(response)
+        return self._parse_schedule_response(response.json())
+
+    def patch_human_survey_respondent_email_route(
+        self,
+        human_survey_uuid: Union[str, UUID],
+        schedule_uuid: Union[str, UUID],
+        route_uuid: Union[str, UUID],
+        *,
+        delivery_template: Optional[str] = None,
+        respondent_filter: Optional[Any] = None,
+        subject: Optional[str] = None,
+    ) -> dict:
+        """
+        Update the template, respondent filter, and/or subject on a respondent_email route.
+
+        Fields omitted are left unchanged on the server.  Returns 400 if the
+        route is not a ``respondent_email`` subtype.
+
+        Args:
+            human_survey_uuid: UUID of the human survey.
+            schedule_uuid: UUID of the schedule the route belongs to.
+            route_uuid: UUID of the route to patch.
+            delivery_template: Optional new HTML template string.
+            respondent_filter: Optional HumanizeRespondentFilter (or dict).
+            subject: Optional email subject line (1–200 characters).
+        """
+        payload: Dict[str, Any] = {}
+        if delivery_template is not None:
+            payload["delivery_template"] = delivery_template
+        if respondent_filter is not None:
+            payload["respondent_filter"] = (
+                respondent_filter.model_dump()
+                if hasattr(respondent_filter, "model_dump")
+                else respondent_filter
+            )
+        if subject is not None:
+            payload["subject"] = subject
+        if not payload:
+            raise CoopValueError(
+                "Provide at least one of: delivery_template, respondent_filter, subject."
+            )
+        response = self._send_server_request(
+            uri=(
+                f"api/v0/human-surveys/{human_survey_uuid}/schedules/"
+                f"{schedule_uuid}/routes/{route_uuid}/respondent-email"
+            ),
+            method="PATCH",
+            payload=payload,
+        )
+        self._resolve_server_response(response)
+        data = response.json()
+        return {
+            "route_uuid": data.get("route_uuid"),
+            "delivery_template": data.get("delivery_template"),
+            "respondent_filter": data.get("respondent_filter"),
+            "subject": data.get("subject"),
+        }
+
+    def add_human_survey_schedule_route(
+        self,
+        human_survey_uuid: Union[str, UUID],
+        schedule_uuid: Union[str, UUID],
+        route_config: Any,
+    ) -> dict:
+        """
+        Add a new route to an existing schedule.
+
+        Args:
+            human_survey_uuid: UUID of the human survey.
+            schedule_uuid: UUID of the schedule to add the route to.
+            route_config: A RouteConfig model instance (or dict) describing the
+                channel, subtype, and config.
+
+        Returns:
+            dict: ``{"route_uuid": "<uuid>", "channel": "...", "subtype": "..."}``
+        """
+        payload = (
+            route_config.model_dump(exclude_none=True)
+            if hasattr(route_config, "model_dump")
+            else route_config
+        )
+        response = self._send_server_request(
+            uri=(
+                f"api/v0/human-surveys/{human_survey_uuid}/schedules/"
+                f"{schedule_uuid}/routes"
+            ),
+            method="POST",
+            payload=payload,
+        )
+        self._resolve_server_response(response)
+        data = response.json()
+        return {
+            "route_uuid": data.get("route_uuid"),
+            "channel": data.get("channel"),
+            "subtype": data.get("subtype"),
+        }
+
+    def delete_human_survey_schedule_route(
+        self,
+        human_survey_uuid: Union[str, UUID],
+        schedule_uuid: Union[str, UUID],
+        route_uuid: Union[str, UUID],
+    ) -> dict:
+        """
+        Delete a route from a schedule. The schedule itself is not affected.
+
+        Args:
+            human_survey_uuid: UUID of the human survey.
+            schedule_uuid: UUID of the schedule the route belongs to.
+            route_uuid: UUID of the route to delete.
+
+        Returns:
+            dict: ``{"deleted": "<route_uuid>"}``
+        """
+        response = self._send_server_request(
+            uri=(
+                f"api/v0/human-surveys/{human_survey_uuid}/schedules/"
+                f"{schedule_uuid}/routes/{route_uuid}"
+            ),
+            method="DELETE",
+        )
+        self._resolve_server_response(response)
+        data = response.json()
+        return {"deleted": data.get("deleted")}
+
+    def get_human_survey_delivery(
+        self,
+        human_survey_uuid: Union[str, UUID],
+        delivery_uuid: Union[str, UUID],
+    ) -> dict:
+        """
+        Fetch a delivery job by UUID for a human survey.
+
+        Returns:
+            dict: ``{"delivery_uuid", "status", "total_respondents",
+            "processed_respondents", "sent_count", "failed_count",
+            "started_at", "completed_at"}``
+        """
+        response = self._send_server_request(
+            uri=f"api/v0/human-surveys/{human_survey_uuid}/deliveries/{delivery_uuid}",
+            method="GET",
+        )
+        self._resolve_server_response(response)
+        data = response.json()
+        return {
+            "delivery_uuid": data.get("delivery_uuid"),
+            "status": data.get("status"),
+            "total_respondents": data.get("total_respondents"),
+            "processed_respondents": data.get("processed_respondents"),
+            "sent_count": data.get("sent_count"),
+            "failed_count": data.get("failed_count"),
+            "started_at": data.get("started_at"),
+            "completed_at": data.get("completed_at"),
+        }
+
+    def create_human_survey_callback(
+        self,
+        human_survey_uuid: Union[str, UUID],
+        name: str,
+        callback_type: str,
+        routes: Optional[List] = None,
+        max_fires: Optional[int] = None,
+    ) -> dict:
+        """
+        Create an event-triggered callback for a human survey.
+
+        Only ``"human_survey_respondent.completed"`` is supported.
+        The survey must have an agent list with an email delivery channel configured.
+
+        Returns:
+            dict: ``{"callback_uuid", "name", "callback_type", "event_config",
+            "is_active", "fired_count", "max_fires", "routes": [...]}``
+        """
+        from .coop_humanize_notifications import serialize_routes
+
+        payload: Dict[str, Any] = {"name": name, "callback_type": callback_type}
+        if routes is not None:
+            payload["routes"] = serialize_routes(routes)
+        if max_fires is not None:
+            payload["max_fires"] = max_fires
+        response = self._send_server_request(
+            uri=f"api/v0/human-surveys/{human_survey_uuid}/callbacks",
+            method="POST",
+            payload=payload,
+        )
+        self._resolve_server_response(response)
+        data = response.json()
+        return {
+            "callback_uuid": data.get("callback_uuid"),
+            "name": data.get("name"),
+            "callback_type": data.get("callback_type"),
+            "event_config": data.get("event_config"),
+            "is_active": data.get("is_active"),
+            "fired_count": data.get("fired_count"),
+            "max_fires": data.get("max_fires"),
+            "routes": data.get("routes", []),
+        }
+
+    def get_human_survey_callback(
+        self,
+        human_survey_uuid: Union[str, UUID],
+        callback_uuid: Union[str, UUID],
+    ) -> dict:
+        """
+        Fetch a callback by UUID for a human survey.
+
+        Returns:
+            dict: ``{"callback_uuid", "name", "callback_type", "event_config",
+            "is_active", "fired_count", "max_fires"}``
+        """
+        response = self._send_server_request(
+            uri=f"api/v0/human-surveys/{human_survey_uuid}/callbacks/{callback_uuid}",
+            method="GET",
+        )
+        self._resolve_server_response(response)
+        data = response.json()
+        return {
+            "callback_uuid": data.get("callback_uuid"),
+            "name": data.get("name"),
+            "callback_type": data.get("callback_type"),
+            "event_config": data.get("event_config"),
+            "is_active": data.get("is_active"),
+            "fired_count": data.get("fired_count"),
+            "max_fires": data.get("max_fires"),
+            "routes": data.get("routes", []),
+        }
+
+    def set_human_survey_callback_active(
+        self,
+        human_survey_uuid: Union[str, UUID],
+        callback_uuid: Union[str, UUID],
+        is_active: bool,
+    ) -> dict:
+        """Activate or deactivate a callback."""
+        response = self._send_server_request(
+            uri=(
+                f"api/v0/human-surveys/{human_survey_uuid}/callbacks/"
+                f"{callback_uuid}/active"
+            ),
+            method="PATCH",
+            payload={"is_active": is_active},
+        )
+        self._resolve_server_response(response)
+        data = response.json()
+        return {
+            "callback_uuid": data.get("callback_uuid"),
+            "is_active": data.get("is_active"),
+        }
+
+    def delete_human_survey_callback(
+        self,
+        human_survey_uuid: Union[str, UUID],
+        callback_uuid: Union[str, UUID],
+    ) -> dict:
+        """
+        Delete a callback (and its routes, via cascade).
+
+        Returns:
+            dict: ``{"deleted": "<callback_uuid>"}``
+        """
+        response = self._send_server_request(
+            uri=f"api/v0/human-surveys/{human_survey_uuid}/callbacks/{callback_uuid}",
+            method="DELETE",
+        )
+        self._resolve_server_response(response)
+        data = response.json()
+        return {"deleted": data.get("deleted")}
+
+    def get_human_survey_agent_list(
+        self,
+        human_survey_uuid: Union[str, UUID],
+    ) -> dict:
+        """
+        Get the agent list config for a human survey.
+
+        Returns:
+            dict: ``{"agent_list_config": {"uuid", "description", "delivery_map",
+            "anonymous", "allow_resubmit"}}`` — ``agent_list_config`` is ``None``
+            when no agent list has been attached.
+        """
+        response = self._send_server_request(
+            uri=f"api/v0/human-surveys/{human_survey_uuid}/agent-list",
+            method="GET",
+        )
+        self._resolve_server_response(response)
+        data = response.json()
+        raw = data.get("agent_list_config")
+        agent_list_config = None
+        if raw is not None:
+            agent_list_config = {
+                "uuid": raw.get("uuid"),
+                "description": raw.get("description"),
+                "delivery_map": raw.get("delivery_map"),
+                "anonymous": raw.get("anonymous"),
+                "allow_resubmit": raw.get("allow_resubmit"),
+            }
+        return {"agent_list_config": agent_list_config}
+
+    def patch_human_survey_agent_list(
+        self,
+        human_survey_uuid: Union[str, UUID],
+        *,
+        delivery_map: Optional[Any] = None,
+        anonymous: Optional[bool] = None,
+        allow_resubmit: Optional[bool] = None,
+    ) -> dict:
+        """
+        Update delivery_map, anonymous, and/or allow_resubmit on the agent list config.
+
+        Fields omitted are left unchanged on the server.
+
+        ``delivery_map`` may be a ``DeliveryMap`` model instance or a plain dict.
+
+        Returns:
+            dict: ``{"uuid", "description", "delivery_map", "anonymous",
+            "allow_resubmit"}``
+        """
+        payload: Dict[str, Any] = {}
+        if delivery_map is not None:
+            payload["delivery_map"] = (
+                delivery_map.model_dump(mode="json")
+                if hasattr(delivery_map, "model_dump")
+                else delivery_map
+            )
+        if anonymous is not None:
+            payload["anonymous"] = anonymous
+        if allow_resubmit is not None:
+            payload["allow_resubmit"] = allow_resubmit
+        response = self._send_server_request(
+            uri=f"api/v0/human-surveys/{human_survey_uuid}/agent-list",
+            method="PATCH",
+            payload=payload,
+        )
+        self._resolve_server_response(response)
+        data = response.json()
+        return {
+            "uuid": data.get("uuid"),
+            "description": data.get("description"),
+            "delivery_map": data.get("delivery_map"),
+            "anonymous": data.get("anonymous"),
+            "allow_resubmit": data.get("allow_resubmit"),
+        }
+
+    def get_human_survey_respondents(
+        self,
+        human_survey_uuid: Union[str, UUID],
+        *,
+        page: int = 1,
+        page_size: int = 50,
+    ) -> dict:
+        """
+        Get the paginated respondent list for a human survey.
+
+        Returns:
+            dict: ``{"respondents": [{"agent_index", "respondent_uuid", "url",
+            "response_status"}, ...], "total", "page", "page_size",
+            "total_pages"}``
+        """
+        response = self._send_server_request(
+            uri=f"api/v0/human-surveys/{human_survey_uuid}/respondents",
+            method="GET",
+            params={"page": page, "page_size": page_size},
+        )
+        self._resolve_server_response(response)
+        data = response.json()
+        return {
+            "respondents": data.get("respondents", []),
+            "total": data.get("total"),
+            "page": data.get("page"),
+            "page_size": data.get("page_size"),
+            "total_pages": data.get("total_pages"),
+        }
+
+    def delete_human_survey_schedule(
+        self,
+        human_survey_uuid: Union[str, UUID],
+        schedule_uuid: Union[str, UUID],
+    ) -> dict:
+        """Delete a delivery schedule and all its routes.
+
+        Returns:
+            dict: ``{"deleted": "<schedule_uuid>"}``
+        """
+        response = self._send_server_request(
+            uri=f"api/v0/human-surveys/{human_survey_uuid}/schedules/{schedule_uuid}",
+            method="DELETE",
+        )
+        self._resolve_server_response(response)
+        data = response.json()
+        return {"deleted": data.get("deleted")}
+
+    def list_human_survey_schedules(
+        self,
+        human_survey_uuid: Union[str, UUID],
+        *,
+        page: int = 1,
+        page_size: int = 50,
+    ) -> dict:
+        """List all delivery schedules (one-time and recurring) for a human survey.
+
+        Returns:
+            dict: ``{"schedules": [...], "total", "page", "page_size", "total_pages"}``
+        """
+        response = self._send_server_request(
+            uri=f"api/v0/human-surveys/{human_survey_uuid}/schedules",
+            method="GET",
+            params={"page": page, "page_size": page_size},
+        )
+        self._resolve_server_response(response)
+        data = response.json()
+        return {
+            "schedules": data.get("schedules", []),
+            "total": data.get("total"),
+            "page": data.get("page"),
+            "page_size": data.get("page_size"),
+            "total_pages": data.get("total_pages"),
+        }
+
+    def list_human_survey_callbacks(
+        self,
+        human_survey_uuid: Union[str, UUID],
+        *,
+        page: int = 1,
+        page_size: int = 50,
+    ) -> dict:
+        """List all event-triggered callbacks for a human survey.
+
+        Returns:
+            dict: ``{"callbacks": [...], "total", "page", "page_size", "total_pages"}``
+        """
+        response = self._send_server_request(
+            uri=f"api/v0/human-surveys/{human_survey_uuid}/callbacks",
+            method="GET",
+            params={"page": page, "page_size": page_size},
+        )
+        self._resolve_server_response(response)
+        data = response.json()
+        return {
+            "callbacks": data.get("callbacks", []),
+            "total": data.get("total"),
+            "page": data.get("page"),
+            "page_size": data.get("page_size"),
+            "total_pages": data.get("total_pages"),
+        }
+
+    def patch_human_survey_callback(
+        self,
+        human_survey_uuid: Union[str, UUID],
+        callback_uuid: Union[str, UUID],
+        *,
+        name: Optional[str] = None,
+    ) -> dict:
+        """Update patchable fields on a callback. Currently supports ``name``.
+
+        Returns:
+            dict: ``{"callback_uuid", "name"}``
+        """
+        payload: Dict[str, Any] = {}
+        if name is not None:
+            payload["name"] = name
+        if not payload:
+            raise CoopValueError("Provide at least one of: name.")
+        response = self._send_server_request(
+            uri=f"api/v0/human-surveys/{human_survey_uuid}/callbacks/{callback_uuid}",
+            method="PATCH",
+            payload=payload,
+        )
+        self._resolve_server_response(response)
+        data = response.json()
+        return {
+            "callback_uuid": data.get("callback_uuid"),
+            "name": data.get("name"),
+        }
+
+    def add_human_survey_callback_route(
+        self,
+        human_survey_uuid: Union[str, UUID],
+        callback_uuid: Union[str, UUID],
+        route_config: Any,
+    ) -> dict:
+        """Add a new route to an existing callback.
+
+        Returns:
+            dict: ``{"route_uuid", "channel", "subtype"}``
+        """
+        payload = (
+            route_config.model_dump(exclude_none=True)
+            if hasattr(route_config, "model_dump")
+            else route_config
+        )
+        response = self._send_server_request(
+            uri=(
+                f"api/v0/human-surveys/{human_survey_uuid}/callbacks/"
+                f"{callback_uuid}/routes"
+            ),
+            method="POST",
+            payload=payload,
+        )
+        self._resolve_server_response(response)
+        data = response.json()
+        return {
+            "route_uuid": data.get("route_uuid"),
+            "channel": data.get("channel"),
+            "subtype": data.get("subtype"),
+        }
+
+    def delete_human_survey_callback_route(
+        self,
+        human_survey_uuid: Union[str, UUID],
+        callback_uuid: Union[str, UUID],
+        route_uuid: Union[str, UUID],
+    ) -> dict:
+        """Delete a route from a callback. The callback itself is not affected.
+
+        Returns:
+            dict: ``{"deleted": "<route_uuid>"}``
+        """
+        response = self._send_server_request(
+            uri=(
+                f"api/v0/human-surveys/{human_survey_uuid}/callbacks/"
+                f"{callback_uuid}/routes/{route_uuid}"
+            ),
+            method="DELETE",
+        )
+        self._resolve_server_response(response)
+        data = response.json()
+        return {"deleted": data.get("deleted")}
+
+    def patch_human_survey_callback_respondent_email_route(
+        self,
+        human_survey_uuid: Union[str, UUID],
+        callback_uuid: Union[str, UUID],
+        route_uuid: Union[str, UUID],
+        *,
+        delivery_template: Optional[str] = None,
+        respondent_filter: Optional[Any] = None,
+        subject: Optional[str] = None,
+    ) -> dict:
+        """Update the template, respondent filter, and/or subject on a respondent_email route on a callback.
+
+        Fields omitted are left unchanged on the server.
+
+        Returns:
+            dict: ``{"route_uuid", "delivery_template", "respondent_filter", "subject"}``
+        """
+        payload: Dict[str, Any] = {}
+        if delivery_template is not None:
+            payload["delivery_template"] = delivery_template
+        if respondent_filter is not None:
+            payload["respondent_filter"] = (
+                respondent_filter.model_dump()
+                if hasattr(respondent_filter, "model_dump")
+                else respondent_filter
+            )
+        if subject is not None:
+            payload["subject"] = subject
+        if not payload:
+            raise CoopValueError(
+                "Provide at least one of: delivery_template, respondent_filter, subject."
+            )
+        response = self._send_server_request(
+            uri=(
+                f"api/v0/human-surveys/{human_survey_uuid}/callbacks/"
+                f"{callback_uuid}/routes/{route_uuid}/respondent-email"
+            ),
+            method="PATCH",
+            payload=payload,
+        )
+        self._resolve_server_response(response)
+        data = response.json()
+        return {
+            "route_uuid": data.get("route_uuid"),
+            "delivery_template": data.get("delivery_template"),
+            "respondent_filter": data.get("respondent_filter"),
+            "subject": data.get("subject"),
+        }
+
+    def list_human_survey_deliveries(
+        self,
+        human_survey_uuid: Union[str, UUID],
+        *,
+        page: int = 1,
+        page_size: int = 50,
+    ) -> dict:
+        """List all delivery jobs for a human survey, newest first.
+
+        Returns:
+            dict: ``{"deliveries": [{"delivery_uuid", "name", "status",
+            "total_count", "sent_count", "failed_count", "started_at",
+            "completed_at", "created_at"}, ...], "total", "page",
+            "page_size", "total_pages"}``
+        """
+        response = self._send_server_request(
+            uri=f"api/v0/human-surveys/{human_survey_uuid}/deliveries",
+            method="GET",
+            params={"page": page, "page_size": page_size},
+        )
+        self._resolve_server_response(response)
+        data = response.json()
+        return {
+            "deliveries": data.get("deliveries", []),
+            "total": data.get("total"),
+            "page": data.get("page"),
+            "page_size": data.get("page_size"),
+            "total_pages": data.get("total_pages"),
+        }
+
+    def list_human_survey_delivery_tasks(
+        self,
+        human_survey_uuid: Union[str, UUID],
+        delivery_uuid: Union[str, UUID],
+        *,
+        page: int = 1,
+        page_size: int = 50,
+    ) -> dict:
+        """List all delivery tasks for a specific delivery job.
+
+        Returns:
+            dict: ``{"tasks": [{"task_uuid", "channel", "identifier",
+            "dispatch_status", "delivery_status", "created_at"}, ...],
+            "total", "page", "page_size", "total_pages"}``
+        """
+        response = self._send_server_request(
+            uri=f"api/v0/human-surveys/{human_survey_uuid}/deliveries/{delivery_uuid}/tasks",
+            method="GET",
+            params={"page": page, "page_size": page_size},
+        )
+        self._resolve_server_response(response)
+        data = response.json()
+        return {
+            "tasks": data.get("tasks", []),
+            "total": data.get("total"),
+            "page": data.get("page"),
+            "page_size": data.get("page_size"),
+            "total_pages": data.get("total_pages"),
+        }
+
+    def get_human_survey_delivery_task(
+        self,
+        human_survey_uuid: Union[str, UUID],
+        task_uuid: Union[str, UUID],
+    ) -> dict:
+        """Get a single delivery task by UUID, including its full event log.
+
+        Returns:
+            dict: ``{"task_uuid", "job_uuid", "notification_subtype", "channel",
+            "identifier", "dispatch_status", "delivery_status", "created_at",
+            optional "respondent": {"respondent_uuid", "agent_index",
+            "response_status"}}``
+        """
+        response = self._send_server_request(
+            uri=f"api/v0/human-surveys/{human_survey_uuid}/tasks/{task_uuid}",
+            method="GET",
+        )
+        self._resolve_server_response(response)
+        data = response.json()
+        result = {
+            "task_uuid": data.get("task_uuid"),
+            "job_uuid": data.get("job_uuid"),
+            "notification_subtype": data.get("notification_subtype"),
+            "channel": data.get("channel"),
+            "identifier": data.get("identifier"),
+            "dispatch_status": data.get("dispatch_status"),
+            "delivery_status": data.get("delivery_status"),
+            "created_at": data.get("created_at"),
+        }
+        if data.get("respondent") is not None:
+            result["respondent"] = data.get("respondent")
+        return result
 
     def get_survey_preview_url(
         self,
@@ -2656,13 +3682,14 @@ class Coop(CoopFunctionsMixin):
         self,
         human_responses: List[dict],
         survey_uuid: str,
+        agent_list_uuid: Optional[str] = None,
     ) -> Union["Results", "ScenarioList"]:
         """
         Turn a list of human responses into a Results object.
 
         If generating the Results object fails, a ScenarioList will be returned instead.
         """
-        from ..agents import Agent
+        from ..agents import Agent, AgentList
         from ..caching import Cache
         from ..language_models import Model
         from ..scenarios import Scenario, ScenarioList
@@ -2670,26 +3697,46 @@ class Coop(CoopFunctionsMixin):
 
         try:
             survey = Survey.pull(survey_uuid)
+            agent_list = AgentList.pull(agent_list_uuid) if agent_list_uuid else None
 
             model = Model("test")
 
             results = None
 
             for response in human_responses:
-                response_uuid = response.get("response_uuid")
+                response_uuid: Optional[str] = response.get("response_uuid")
                 if response_uuid is None:
                     raise RuntimeError(
                         "One of your responses is missing a unique identifier."
                     )
 
-                # Dict mapping question names to {"answer": ..., "comment": ...} dicts
-                response_dict = json.loads(response.get("response_json_string"))
-                agent_traits_json_string = response.get("agent_traits_json_string")
-                scenario_json_string = response.get("scenario_json_string")
+                response_dict: Dict[str, Any] = json.loads(
+                    response.get("response_json_string")
+                )
+                agent_traits_json_string: Optional[str] = response.get(
+                    "agent_traits_json_string"
+                )
+                scenario_json_string: Optional[str] = response.get(
+                    "scenario_json_string"
+                )
+                agent_traits_raw: Dict[str, Any]
                 if agent_traits_json_string is not None:
-                    agent_traits = json.loads(agent_traits_json_string)
+                    agent_traits_raw = json.loads(agent_traits_json_string)
                 else:
-                    agent_traits = {}
+                    agent_traits_raw = {}
+
+                agent_traits = agent_traits_raw
+                if "respondent_uuid" in agent_traits_raw and agent_list is not None:
+                    # Look for agent in list (by index)
+                    agent_index: Optional[int] = agent_traits_raw.get("agent_index")
+                    source_agent: Optional["Agent"] = (
+                        agent_list[agent_index]
+                        if agent_index is not None and agent_index < len(agent_list)
+                        else None
+                    )
+                    # Update traits with traits from the agent in the list
+                    if source_agent is not None:
+                        agent_traits = {**agent_traits_raw, **source_agent.traits}
 
                 a = Agent(name=response_uuid, instruction="", traits=agent_traits)
 
@@ -2756,8 +3803,11 @@ class Coop(CoopFunctionsMixin):
         response_json = response.json()
         responses = response_json.get("responses", [])
         survey_uuid = response_json.get("survey_uuid")
+        agent_list_uuid = response_json.get("agent_list_uuid")
 
-        return self._turn_human_responses_into_results(responses, survey_uuid)
+        return self._turn_human_responses_into_results(
+            responses, survey_uuid, agent_list_uuid
+        )
 
     def test_scenario_sampling(self, human_survey_uuid: str) -> List[int]:
         """
@@ -3159,8 +4209,11 @@ class Coop(CoopFunctionsMixin):
         response_json = response.json()
         human_responses = response_json.get("human_responses", [])
         survey_uuid = response_json.get("survey_uuid")
+        agent_list_uuid = response_json.get("agent_list_uuid")
 
-        return self._turn_human_responses_into_results(human_responses, survey_uuid)
+        return self._turn_human_responses_into_results(
+            human_responses, survey_uuid, agent_list_uuid
+        )
 
     def delete_prolific_study(
         self,

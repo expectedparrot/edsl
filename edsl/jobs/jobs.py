@@ -64,6 +64,7 @@ def get_interview():
 if TYPE_CHECKING:
     from ..agents import Agent
     from ..agents import AgentList
+    from ..coop.coop_humanize_notifications import DeliveryMap
     from ..language_models import LanguageModel
     from ..scenarios import Scenario, ScenarioList
     from ..surveys import Survey
@@ -2596,21 +2597,26 @@ class Jobs(Base):
         survey_description: Optional[str] = None,
         survey_alias: Optional[str] = None,
         survey_visibility: Optional["VisibilityType"] = "private",
+        agent_list_description: Optional[str] = None,
+        agent_list_alias: Optional[str] = None,
+        agent_list_visibility: Optional["VisibilityType"] = "private",
         scenario_list_description: Optional[str] = None,
         scenario_list_alias: Optional[str] = None,
         scenario_list_visibility: Optional["VisibilityType"] = "private",
         humanize_schema: Optional[Dict[str, Any]] = None,
+        delivery_map: Optional["DeliveryMap"] = None,
     ):
-        """Send the survey and scenario list to Coop.
+        """Send survey, scenarios, and agents to Coop.
 
         Then, create a project on Coop so you can share the survey with human respondents.
         """
         from edsl.coop import Coop
         from edsl.coop.exceptions import CoopValueError
         from ..scenarios import Scenario
+        from ..surveys import Survey
 
-        if len(self.agents) > 0 or len(self.models) > 0:
-            raise CoopValueError("We don't support humanize with agents or models yet.")
+        if len(self.models) > 0:
+            raise CoopValueError("We don't support humanize with models yet.")
 
         if len(self.scenarios) > 0 and scenario_list_method is None:
             raise CoopValueError(
@@ -2640,19 +2646,29 @@ class Jobs(Base):
         else:
             scenario_list = self.scenarios
 
+        if len(self.agents) == 0:
+            agent_list = None
+        else:
+            agent_list = self.agents
+
         c = Coop()
         human_survey_details = c.create_human_survey(
-            self.survey,
-            scenario_list,
-            scenario_list_method,
-            human_survey_name,
-            survey_description,
-            survey_alias,
-            survey_visibility,
-            scenario_list_description,
-            scenario_list_alias,
-            scenario_list_visibility,
+            survey=self.survey,
+            agent_list=agent_list,
+            scenario_list=scenario_list,
+            scenario_list_method=scenario_list_method,
+            human_survey_name=human_survey_name,
+            survey_description=survey_description,
+            survey_alias=survey_alias,
+            survey_visibility=survey_visibility,
+            agent_list_description=agent_list_description,
+            agent_list_alias=agent_list_alias,
+            agent_list_visibility=agent_list_visibility,
+            scenario_list_description=scenario_list_description,
+            scenario_list_alias=scenario_list_alias,
+            scenario_list_visibility=scenario_list_visibility,
             humanize_schema=humanize_schema,
+            delivery_map=delivery_map,
         )
         return Scenario(human_survey_details)
 
