@@ -1,0 +1,373 @@
+---
+title: "Survey notifications"
+description: "Send emails, schedule deliveries, and react to respondent events for human surveys."
+sidebarTitle: "Notifications"
+---
+
+Human surveys support email delivery to respondents, scheduled send campaigns, and event-triggered callbacks. All of these are managed through `HumanSurveyNotificationHandler`, a convenience wrapper that binds to a specific human survey so you don't have to pass the UUID on every call.
+
+<Note>
+The survey must have an agent list with an email delivery channel configured before any notifications can be sent. Set this up when calling `survey.humanize()` by passing `agent_list` and `delivery_map` arguments.
+</Note>
+
+## Getting a handler
+
+```python
+from edsl.coop import HumanSurveyNotificationHandler
+
+handler = HumanSurveyNotificationHandler("your-human-survey-uuid")
+```
+
+A `Coop` client is created automatically. Pass one explicitly if you need a specific API key or base URL:
+
+```python
+from edsl import Coop
+from edsl.coop import HumanSurveyNotificationHandler
+
+coop = Coop()
+handler = HumanSurveyNotificationHandler("your-human-survey-uuid", coop=coop)
+```
+
+---
+
+## Statuses
+
+Every delivery task moves through two independent status tracks.
+
+### Dispatch status
+
+Controls whether the platform has attempted to hand off the message to the downstream channel (e.g. the email provider).
+
+| Value | Meaning |
+|-------|---------|
+| `pending` | The task has been created but not yet processed. |
+| `dispatched` | The message was successfully handed off to the channel. |
+| `failed` | The dispatch attempt failed (e.g. missing address, provider error). |
+
+### Delivery status
+
+Reflects what the email provider reports back after dispatch.
+
+| Value | Meaning |
+|-------|---------|
+| `pending` | Waiting for a delivery event from the provider. |
+| `sent` | The provider accepted the message for delivery. |
+| `delivered` | The provider confirmed the message reached the recipient. |
+| `bounced` | The message was rejected by the recipient's mail server. |
+| `failed` | The provider reported an error sending the email. |
+
+### Response status
+
+Tracks whether a respondent has engaged with the survey itself.
+
+| Value | Meaning |
+|-------|---------|
+| `not_started` | The respondent has not opened the survey link. |
+| `completed` | The respondent submitted a complete response. |
+
+---
+
+## Quickstart examples
+
+### Send an email right now
+
+Trigger an immediate delivery to all respondents.
+
+```python
+result = handler.send_respondent_email(name="Initial outreach")
+print(result)
+# {"delivery_uuid": "...", "routes": [...]}
+```
+
+Pass a custom subject, HTML email body, or restrict which respondents receive it:
+
+```python
+from edsl.coop.coop_humanize_notifications import (
+    HumanizeRespondentFilter,
+    RespondentCondition,
+    ResponseStatus,
+)
+
+# Only email respondents who haven't started yet
+condition = RespondentCondition(
+    response_status=[ResponseStatus.not_started]
+)
+respondent_filter = HumanizeRespondentFilter(conditions=[condition])
+
+result = handler.send_respondent_email(
+    name="Reminder to non-starters",
+    subject="Don't forget to complete our survey",
+    delivery_template="<p>Hi! Just a reminder to complete our survey.</p>",
+    respondent_filter=respondent_filter,
+)
+```
+
+---
+
+### Schedule a one-time email
+
+Schedule a single delivery at a specific time. `run_at` must be a timezone-aware datetime or an ISO 8601 string.
+
+```python
+from datetime import datetime, timezone
+
+run_at = datetime(2026, 6, 1, 9, 0, tzinfo=timezone.utc)
+
+schedule = handler.create_one_time_schedule(
+    name="June 1st reminder",
+    run_at=run_at,
+)
+print(schedule["schedule_uuid"])
+```
+
+Update the time before it fires:
+
+```python
+handler.update_one_time_schedule(
+    schedule_uuid=schedule["schedule_uuid"],
+    run_at="2026-06-02T09:00:00+00:00",
+)
+```
+
+---
+
+### Schedule recurring emails (cron)
+
+Send emails on a repeating schedule using standard cron syntax. Provide either `max_jobs` (fire at most N times) or `deadline` (stop firing after this datetime) as the termination condition.
+
+```python
+from datetime import datetime, timezone
+
+# Every Monday at 9 AM Eastern, up to 4 times
+schedule = handler.create_cron_schedule(
+    name="Weekly Monday reminder",
+    cron_expression="0 9 * * MON",
+    timezone="America/New_York",
+    max_jobs=4,
+)
+```
+
+With a deadline instead:
+
+```python
+schedule = handler.create_cron_schedule(
+    name="Daily reminders through end of month",
+    cron_expression="0 8 * * *",
+    timezone="America/Chicago",
+    deadline=datetime(2026, 6, 30, 23, 59, tzinfo=timezone.utc),
+)
+```
+
+Pause and resume a schedule:
+
+```python
+handler.deactivate_schedule(schedule["schedule_uuid"])
+handler.activate_schedule(schedule["schedule_uuid"])
+```
+
+---
+
+### React when someone completes the survey (callback)
+
+Callbacks fire automatically when a respondent event occurs. The only supported event is `"human_survey_respondent.completed"`, which fires once per respondent who submits a complete response.
+
+```python
+callback = handler.create_callback(
+    name="Completion thank-you",
+    callback_type="human_survey_respondent.completed",
+)
+print(callback["callback_uuid"])
+```
+
+Limit how many times the callback fires (e.g. only notify for the first 100 completions):
+
+```python
+callback = handler.create_callback(
+    name="First 100 completions",
+    callback_type="human_survey_respondent.completed",
+    max_fires=100,
+)
+```
+
+Activate and deactivate:
+
+```python
+handler.deactivate_callback(callback["callback_uuid"])
+handler.activate_callback(callback["callback_uuid"])
+```
+
+---
+
+### Filter which respondents receive a delivery
+
+`HumanizeRespondentFilter` lets you compose conditions to target specific subsets of respondents. Conditions can be nested with `and` / `or` operators.
+
+```python
+from edsl.coop.coop_humanize_notifications import (
+    HumanizeRespondentFilter,
+    RespondentCondition,
+    DeliveryStatus,
+    DispatchStatus,
+    ResponseStatus,
+    FilterOperator,
+)
+
+# Target respondents who were never contacted
+never_contacted = RespondentCondition(never_contacted=True)
+
+# OR respondents whose last email bounced
+bounced = RespondentCondition(
+    most_recent_delivery_status=[DeliveryStatus.bounced]
+)
+
+# Combine: never contacted OR previously bounced
+respondent_filter = HumanizeRespondentFilter(
+    operator=FilterOperator.or_,
+    conditions=[never_contacted, bounced],
+)
+
+handler.send_respondent_email(
+    name="Re-engagement",
+    respondent_filter=respondent_filter,
+)
+```
+
+**Available condition fields:**
+
+| Field | Type | Filters to respondents where… |
+|-------|------|-------------------------------|
+| `respondent_uuids` | `list[str]` | UUID is in the provided list |
+| `response_status` | `list[ResponseStatus]` | Survey response status matches |
+| `never_contacted` | `bool` | Has never received a delivery |
+| `any_dispatch_status` | `list[DispatchStatus]` | Any past task has this dispatch status |
+| `any_delivery_status` | `list[DeliveryStatus]` | Any past task has this delivery status |
+| `most_recent_dispatch_status` | `list[DispatchStatus]` | Most recent task has this dispatch status |
+| `most_recent_delivery_status` | `list[DeliveryStatus]` | Most recent task has this delivery status |
+
+---
+
+### Check delivery status
+
+List all delivery jobs for the survey:
+
+```python
+deliveries = handler.list_deliveries()
+for d in deliveries["deliveries"]:
+    print(d["delivery_uuid"], d["status"], d["sent_count"], d["failed_count"])
+```
+
+Inspect a specific delivery job:
+
+```python
+delivery = handler.get_delivery(delivery_uuid="...")
+print(delivery)
+# {
+#   "delivery_uuid": "...",
+#   "status": "completed",
+#   "total_respondents": 50,
+#   "processed_respondents": 50,
+#   "sent_count": 48,
+#   "failed_count": 2,
+#   "started_at": "...",
+#   "completed_at": "..."
+# }
+```
+
+Drill into individual tasks (one per respondent per delivery):
+
+```python
+tasks = handler.list_delivery_tasks(delivery_uuid="...")
+for task in tasks["tasks"]:
+    print(task["identifier"], task["dispatch_status"], task["delivery_status"])
+```
+
+Get the full event log for a single task:
+
+```python
+task = handler.get_delivery_task(task_uuid="...")
+print(task)
+# {
+#   "task_uuid": "...",
+#   "channel": "email",
+#   "identifier": "respondent@example.com",
+#   "dispatch_status": "dispatched",
+#   "delivery_status": "delivered",
+#   "respondent": {"respondent_uuid": "...", "response_status": "completed"},
+#   ...
+# }
+```
+
+---
+
+## Route types
+
+Each delivery or schedule sends email to survey respondents via a `RespondentEmailRouteConfig` route. If no routes are passed, the server creates one automatically.
+
+`RespondentEmailRouteConfig` options:
+
+| Field | Description |
+|-------|-------------|
+| `delivery_template` | HTML string for the email body. Uses the default template when omitted. |
+| `respondent_filter` | `HumanizeRespondentFilter` to restrict which respondents receive the email. |
+| `subject` | Email subject line (1–200 characters). Uses the default subject when omitted. |
+
+### Template variables
+
+The `delivery_template` HTML string supports the following variables, which are filled in per-respondent at send time:
+
+| Variable | Value |
+|----------|-------|
+| `{{ survey_name }}` | The name of the human survey. |
+| `{{ url }}` | The respondent's unique survey link (includes their access token). |
+
+Example:
+
+```python
+handler.send_respondent_email(
+    name="Initial outreach",
+    subject="You're invited to take our survey",
+    delivery_template="""
+<p>Hi there,</p>
+<p>You've been invited to take <strong>{{ survey_name }}</strong>.</p>
+<p><a href="{{ url }}">Click here to begin</a></p>
+""",
+)
+```
+
+Update the subject and template on an existing respondent email route:
+
+```python
+handler.patch_respondent_email_route(
+    schedule_uuid="...",
+    route_uuid="...",
+    subject="A quick reminder about our survey",
+    delivery_template="<p>Hi! Please take a moment to complete our survey.</p>",
+)
+```
+
+---
+
+## Managing respondents
+
+List all respondents and their current response status:
+
+```python
+respondents = handler.get_respondents()
+for r in respondents["respondents"]:
+    print(r["respondent_uuid"], r["response_status"])
+```
+
+Check and update the agent list delivery configuration (the trait column that holds each respondent's email address):
+
+```python
+from edsl.coop.coop_humanize_notifications import ChannelConfig, DeliveryMap
+
+# See current config
+config = handler.get_agent_list()
+print(config["agent_list_config"])
+
+# Update the email column mapping
+handler.patch_agent_list(
+    delivery_map=DeliveryMap(email=ChannelConfig(col_name="email_address"))
+)
+```

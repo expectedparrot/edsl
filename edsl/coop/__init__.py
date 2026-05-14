@@ -13,13 +13,13 @@ The primary interface is the Coop class, which serves as a client for the
 Expected Parrot API. Most users will only need to interact with the Coop class directly.
 
 Examples:
-    
+
     ```python
     from edsl.coop import Coop
     coop = Coop()  # Uses API key from environment or stored location
     survey = my_survey.push()  # Uploads survey to Expected Parrot
     job_info = coop.remote_inference_create(my_job)  # Creates remote job
-    
+
     # Working with plugins
     from edsl.coop import get_available_plugins
     plugins = get_available_plugins()
@@ -30,9 +30,13 @@ Examples:
 from .utils import EDSLObject, ObjectType, VisibilityType, ObjectRegistry
 from .coop import Coop
 from .exceptions import CoopServerResponseError
+from .coop_humanize_notifications import (
+    HumanSurveyNotificationHandler,
+)
 
 __all__ = [
     "Coop",
+    "HumanSurveyNotificationHandler",
     "EDSLObject",
     "ObjectType",
     "VisibilityType",
