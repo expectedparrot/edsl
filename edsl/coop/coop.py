@@ -2977,7 +2977,7 @@ class Coop(CoopFunctionsMixin):
         self._resolve_server_response(response)
         return self._parse_schedule_response(response.json())
 
-    def patch_human_survey_respondent_email_route(
+    def patch_human_survey_schedule_respondent_email_route(
         self,
         human_survey_uuid: Union[str, UUID],
         schedule_uuid: Union[str, UUID],
