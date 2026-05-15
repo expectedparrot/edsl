@@ -2582,6 +2582,20 @@ class Coop(CoopFunctionsMixin):
             )
         if humanize_schema is not None:
             self.validate_human_survey_humanize_schema(survey, humanize_schema)
+            survey_entry = humanize_schema.get("survey") or {}
+            custom_css = survey_entry.get("custom_css")
+            if custom_css:
+                css_response = self._send_server_request(
+                    uri="api/v0/human-surveys/validate-css",
+                    method="POST",
+                    payload={"css": custom_css},
+                )
+                self._resolve_server_response(css_response)
+                css_result = css_response.json()
+                if not css_result.get("valid"):
+                    raise CoopValueError(
+                        f"Invalid custom CSS: {css_result.get('explanation')}"
+                    )
         if delivery_map is not None:
             if isinstance(delivery_map, DeliveryMap):
                 delivery_map_payload = delivery_map.model_dump(exclude_none=True)
