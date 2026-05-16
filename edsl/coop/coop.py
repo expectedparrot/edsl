@@ -29,6 +29,7 @@ if TYPE_CHECKING:
     from ..agents import AgentList
     from ..jobs import Jobs
     from ..scenarios import Scenario, ScenarioList
+    from ..scenarios.contrib.qr_code import QRCode
     from ..surveys import Survey
     from ..results import Results
 
@@ -2687,6 +2688,42 @@ class Coop(CoopFunctionsMixin):
             "agent_list_uuid": response_json.get("agent_list_uuid"),
             "scenario_list_uuid": response_json.get("scenario_list_uuid"),
         }
+
+    def get_human_survey_qr_code(
+        self,
+        human_survey_uuid: Union[str, UUID],
+    ) -> "QRCode":
+        """
+        Get a QR code for a human survey's respondent URL.
+
+        Generates the QR code locally using the optional ``qrcode`` dependency
+        (``pip install "edsl[full]"`` or ``pip install "qrcode[pil]"``).
+
+        Parameters:
+            human_survey_uuid: UUID of the human survey.
+
+        Returns:
+            QRCode: QR code for the survey respondent URL (displays in Jupyter).
+
+        Example::
+
+            coop = Coop()
+            qr = coop.get_human_survey_qr_code("your-human-survey-uuid")
+            qr.save("qr_code.png")
+        """
+        survey = self.get_human_survey(str(human_survey_uuid))
+
+        try:
+            import qrcode  # noqa: F401
+        except ImportError:
+            raise ImportError(
+                "qrcode library is required for QR code generation. "
+                'Install it with: pip install "edsl[full]" or pip install "qrcode[pil]"'
+            )
+
+        from ..scenarios.contrib.qr_code import QRCode
+
+        return QRCode(survey["respondent_url"])
 
     @staticmethod
     def _parse_schedule_response(data: dict) -> dict:

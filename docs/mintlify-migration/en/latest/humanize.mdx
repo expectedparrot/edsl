@@ -201,6 +201,21 @@ print(f"Responses received: {status['n_responses']}")
 
 ---
 
+## QR code
+
+Generate a QR code for the respondent link using `get_human_survey_qr_code()`. Requires the `qrcode` library (`pip install "edsl[full]"` or `pip install "qrcode[pil]"`).
+
+```python
+from edsl import Coop
+
+coop = Coop()
+
+qr = coop.get_human_survey_qr_code("your-human-survey-uuid")
+qr.save("qr_code.png")  # save to file
+```
+
+---
+
 ## Prolific integration
 
 For paid recruitment via Prolific, see the [Prolific studies](/en/latest/prolific) page. The short version:
