@@ -373,7 +373,7 @@ class HumanSurveyNotificationHandler:
     # Route management
     # ------------------------------------------------------------------
 
-    def patch_respondent_email_route(
+    def patch_schedule_respondent_email_route(
         self,
         schedule_uuid: Union[str, UUID],
         route_uuid: Union[str, UUID],
@@ -386,7 +386,7 @@ class HumanSurveyNotificationHandler:
 
         Fields omitted are left unchanged on the server.
         """
-        return self._coop.patch_human_survey_respondent_email_route(
+        return self._coop.patch_human_survey_schedule_respondent_email_route(
             human_survey_uuid=self.human_survey_uuid,
             schedule_uuid=schedule_uuid,
             route_uuid=route_uuid,

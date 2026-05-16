@@ -133,7 +133,7 @@ handler.update_one_time_schedule(
 
 ### Schedule recurring emails (cron)
 
-Send emails on a repeating schedule using standard cron syntax. Provide either `max_jobs` (fire at most N times) or `deadline` (stop firing after this datetime) as the termination condition.
+Send emails on a repeating schedule using standard cron syntax. Provide either `max_jobs` (fire at most N times) or `deadline` (stop firing after this datetime) as the termination condition. Use `start_at` to delay when the schedule begins firing; omit it to start immediately.
 
 ```python
 from datetime import datetime, timezone
@@ -155,6 +155,18 @@ schedule = handler.create_cron_schedule(
     cron_expression="0 8 * * *",
     timezone="America/Chicago",
     deadline=datetime(2026, 6, 30, 23, 59, tzinfo=timezone.utc),
+)
+```
+
+With a delayed start:
+
+```python
+schedule = handler.create_cron_schedule(
+    name="Weekly reminders starting next month",
+    cron_expression="0 9 * * MON",
+    timezone="America/New_York",
+    max_jobs=4,
+    start_at=datetime(2026, 6, 1, tzinfo=timezone.utc),
 )
 ```
 
@@ -281,7 +293,7 @@ for task in tasks["tasks"]:
     print(task["identifier"], task["dispatch_status"], task["delivery_status"])
 ```
 
-Get the full event log for a single task:
+Get a single delivery task by UUID:
 
 ```python
 task = handler.get_delivery_task(task_uuid="...")
@@ -309,7 +321,7 @@ Each delivery or schedule sends email to survey respondents via a `RespondentEma
 |-------|-------------|
 | `delivery_template` | HTML string for the email body. Uses the default template when omitted. |
 | `respondent_filter` | `HumanizeRespondentFilter` to restrict which respondents receive the email. |
-| `subject` | Email subject line (1–200 characters). Uses the default subject when omitted. |
+| `subject` | Email subject line (1-200 characters). Uses the default subject when omitted. |
 
 ### Template variables
 
@@ -334,14 +346,25 @@ handler.send_respondent_email(
 )
 ```
 
-Update the subject and template on an existing respondent email route:
+Update the subject and template on an existing respondent email route on a schedule:
 
 ```python
-handler.patch_respondent_email_route(
+handler.patch_schedule_respondent_email_route(
     schedule_uuid="...",
     route_uuid="...",
     subject="A quick reminder about our survey",
     delivery_template="<p>Hi! Please take a moment to complete our survey.</p>",
+)
+```
+
+Update the subject and template on an existing respondent email route on a callback:
+
+```python
+handler.patch_callback_respondent_email_route(
+    callback_uuid="...",
+    route_uuid="...",
+    subject="Thanks for completing our survey",
+    delivery_template="<p>Hi! Thank you for completing <strong>{{ survey_name }}</strong>.</p>",
 )
 ```
 
