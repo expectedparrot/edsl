@@ -3729,6 +3729,31 @@ class Coop(CoopFunctionsMixin):
 
         validate_humanize_schema(survey, humanize_schema)
 
+    def patch_human_survey_css(
+        self,
+        human_survey_uuid: Union[str, UUID],
+        css: Optional[str],
+    ) -> dict:
+        """
+        Set or clear the custom CSS in a human survey's humanize schema.
+
+        Pass ``css=None`` to remove any existing custom CSS.
+
+        Parameters:
+            human_survey_uuid: UUID of the human survey.
+            css: CSS string to apply, or ``None`` to clear it.
+
+        Returns:
+            dict: ``{"message": str}``
+        """
+        response = self._send_server_request(
+            uri=f"api/v0/human-surveys/{human_survey_uuid}/humanize-schema/css",
+            method="PATCH",
+            payload={"css": css},
+        )
+        self._resolve_server_response(response)
+        return response.json()
+
     def _turn_human_responses_into_results(
         self,
         human_responses: List[dict],
