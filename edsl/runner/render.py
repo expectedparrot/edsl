@@ -968,8 +968,12 @@ class RenderWorker:
                             )
                             questions_for_survey.append(stub)
                 questions_for_survey.append(question)
-                survey = Survey(questions_for_survey)
-                _survey_cache[survey_key] = (survey, MemoryPlan(survey=survey))
+                mini_survey = Survey(questions_for_survey)
+                memory_plan = MemoryPlan(survey=mini_survey)
+                # Use the full cached survey (with instructions) for prompt rendering;
+                # fall back to the mini survey if not available.
+                render_survey = cached_survey if cached_survey is not None else mini_survey
+                _survey_cache[survey_key] = (render_survey, memory_plan)
 
             survey, memory_plan = _survey_cache[survey_key]
             _survey_build_time += _time.time() - _t_survey
