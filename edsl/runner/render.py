@@ -435,8 +435,8 @@ class RenderWorker:
         Prefer the cached survey's plan (which carries set_full_memory_mode /
         add_targeted_memory settings) over a blank plan built from the mini survey.
         """
-        # if cached_survey is not None:
-        #     return cached_survey.memory_plan
+        if cached_survey is not None:
+            return cached_survey.memory_plan
         return MemoryPlan(survey=mini_survey)
 
     def render_ready_tasks(
