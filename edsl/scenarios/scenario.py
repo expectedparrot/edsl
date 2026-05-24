@@ -715,9 +715,10 @@ class Scenario(Base, UserDict):
         """Return display sections as (title, Dataset) pairs."""
         from edsl.dataset import Dataset
 
-        keys = list(self.data.keys())
-        values = [repr(v) for v in self.data.values()]
-        types = [self._type_label(v) for v in self.data.values()]
+        items = list(self.data.items())
+        keys = [k for k, _ in items]
+        values = [repr(v) for _, v in items]
+        types = [self._type_label(v) for _, v in items]
         return [("Scenario", Dataset([{"key": keys}, {"value": values}, {"type": types}]))]
 
     def _summary_repr(self, max_items: int = 500) -> str:

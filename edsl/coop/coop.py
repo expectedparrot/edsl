@@ -29,6 +29,7 @@ if TYPE_CHECKING:
     from ..agents import AgentList
     from ..jobs import Jobs
     from ..scenarios import Scenario, ScenarioList
+    from ..scenarios.contrib.qr_code import QRCode
     from ..surveys import Survey
     from ..results import Results
 
@@ -2582,6 +2583,20 @@ class Coop(CoopFunctionsMixin):
             )
         if humanize_schema is not None:
             self.validate_human_survey_humanize_schema(survey, humanize_schema)
+            survey_entry = humanize_schema.get("survey") or {}
+            custom_css = survey_entry.get("custom_css")
+            if custom_css:
+                css_response = self._send_server_request(
+                    uri="api/v0/human-surveys/validate-css",
+                    method="POST",
+                    payload={"css": custom_css},
+                )
+                self._resolve_server_response(css_response)
+                css_result = css_response.json()
+                if not css_result.get("valid"):
+                    raise CoopValueError(
+                        f"Invalid custom CSS: {css_result.get('explanation')}"
+                    )
         if delivery_map is not None:
             if isinstance(delivery_map, DeliveryMap):
                 delivery_map_payload = delivery_map.model_dump(exclude_none=True)
@@ -2673,6 +2688,42 @@ class Coop(CoopFunctionsMixin):
             "agent_list_uuid": response_json.get("agent_list_uuid"),
             "scenario_list_uuid": response_json.get("scenario_list_uuid"),
         }
+
+    def get_human_survey_qr_code(
+        self,
+        human_survey_uuid: Union[str, UUID],
+    ) -> "QRCode":
+        """
+        Get a QR code for a human survey's respondent URL.
+
+        Generates the QR code locally using the optional ``qrcode`` dependency
+        (``pip install "edsl[full]"`` or ``pip install "qrcode[pil]"``).
+
+        Parameters:
+            human_survey_uuid: UUID of the human survey.
+
+        Returns:
+            QRCode: QR code for the survey respondent URL (displays in Jupyter).
+
+        Example::
+
+            coop = Coop()
+            qr = coop.get_human_survey_qr_code("your-human-survey-uuid")
+            qr.save("qr_code.png")
+        """
+        survey = self.get_human_survey(str(human_survey_uuid))
+
+        try:
+            import qrcode  # noqa: F401
+        except ImportError:
+            raise ImportError(
+                "qrcode library is required for QR code generation. "
+                'Install it with: pip install "edsl[full]" or pip install "qrcode[pil]"'
+            )
+
+        from ..scenarios.contrib.qr_code import QRCode
+
+        return QRCode(survey["respondent_url"])
 
     @staticmethod
     def _parse_schedule_response(data: dict) -> dict:
@@ -2963,7 +3014,7 @@ class Coop(CoopFunctionsMixin):
         self._resolve_server_response(response)
         return self._parse_schedule_response(response.json())
 
-    def patch_human_survey_respondent_email_route(
+    def patch_human_survey_schedule_respondent_email_route(
         self,
         human_survey_uuid: Union[str, UUID],
         schedule_uuid: Union[str, UUID],
@@ -3677,6 +3728,31 @@ class Coop(CoopFunctionsMixin):
         from .coop_humanize_schema import validate_humanize_schema
 
         validate_humanize_schema(survey, humanize_schema)
+
+    def patch_human_survey_css(
+        self,
+        human_survey_uuid: Union[str, UUID],
+        css: Optional[str],
+    ) -> dict:
+        """
+        Set or clear the custom CSS in a human survey's humanize schema.
+
+        Pass ``css=None`` to remove any existing custom CSS.
+
+        Parameters:
+            human_survey_uuid: UUID of the human survey.
+            css: CSS string to apply, or ``None`` to clear it.
+
+        Returns:
+            dict: ``{"message": str}``
+        """
+        response = self._send_server_request(
+            uri=f"api/v0/human-surveys/{human_survey_uuid}/humanize-schema/css",
+            method="PATCH",
+            payload={"css": css},
+        )
+        self._resolve_server_response(response)
+        return response.json()
 
     def _turn_human_responses_into_results(
         self,
@@ -4950,24 +5026,21 @@ class Coop(CoopFunctionsMixin):
         force: bool = False,
     ) -> "Scenario":
         """
-        Generate a signed URL for pushing an object directly to Google Cloud Storage.
-
-        This method gets a signed URL that allows direct upload access to Google Cloud Storage,
-        which is more efficient for large files.
+        Upload an EDSL object to Coop via a signed GCS URL (PUT), then confirm the upload.
 
         Parameters:
-            object_type (ObjectType): The type of object to be uploaded
+            object: The EDSL object to upload (e.g. Survey, Scenario).
 
         Returns:
-            dict: A response containing the signed_url for direct upload and optionally a job_id
+            Scenario: Coop upload metadata as a ``Scenario`` so notebooks/terminals keep
+            Rich table formatting; it is dict-like (``response["uuid"]``, ``response.get("url")``, …).
 
         Raises:
             CoopServerResponseError: If there's an error communicating with the server
 
         Example:
-            >>> response = coop.push("scenario")
-            >>> print(f"Upload URL: {response['signed_url']}")
-            >>> # Use the signed_url to upload the object directly
+            >>> # coop.push(some_survey)  # doctest: +SKIP
+            >>> # Scenario({'uuid': ..., 'url': ..., ...})
         """
         from ..scenarios import Scenario
 
@@ -5028,14 +5101,15 @@ class Coop(CoopFunctionsMixin):
                 # Get complete metadata after the patch
                 metadata = self.get_metadata(alias_url)
 
-                # Return in the same format as push
+                # Return as Scenario for Rich table repr (dict alone loses notebook formatting).
                 return Scenario(
                     {
-                        "description": metadata.get("description"),
                         "object_type": object_type,
                         "url": metadata.get("url"),
+                        "alias": alias,
                         "alias_url": metadata.get("alias_url"),
                         "uuid": metadata.get("uuid"),
+                        "description": metadata.get("description"),
                         "version": self._edsl_version,
                         "visibility": metadata.get("visibility"),
                     }
@@ -5106,7 +5180,7 @@ class Coop(CoopFunctionsMixin):
         if object_uuid is None:
             from .exceptions import CoopResponseError
 
-            raise CoopResponseError("No object uuid was provided received")
+            raise CoopResponseError("No object_uuid was returned from the push request")
 
         # Confirm the upload completion
         confirm_response = self._send_server_request(
@@ -5118,12 +5192,12 @@ class Coop(CoopFunctionsMixin):
 
         return Scenario(
             {
-                "description": response_json.get("description"),
                 "object_type": object_type,
                 "url": f"{self.url}/content/{object_uuid}",
                 "alias": object_alias,
                 "alias_url": self._get_alias_url(owner_username, object_alias),
                 "uuid": object_uuid,
+                "description": response_json.get("description"),
                 "version": self._edsl_version,
                 "visibility": response_json.get("visibility"),
             }

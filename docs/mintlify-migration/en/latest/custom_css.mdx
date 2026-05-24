@@ -6,6 +6,83 @@ sidebarTitle: "Custom CSS"
 
 Every question component supported by humanize has `edsl-*` CSS classes so you can customise the survey appearance.
 
+## Applying custom CSS
+
+### When creating a human survey
+
+Pass your CSS string in the `humanize_schema` under `survey.custom_css`.
+
+```python
+from edsl import Survey, QuestionFreeText, QuestionMultipleChoice
+
+survey = Survey([
+    QuestionMultipleChoice(
+        question_name="rating",
+        question_text="Rate your experience.",
+        question_options=["Good", "OK", "Bad"],
+    ),
+    QuestionFreeText(
+        question_name="feedback",
+        question_text="Any additional feedback you'd like to share?",
+    ),
+])
+
+custom_css = """
+.edsl-survey-container { background-color: #f9f9f9; }
+.edsl-question-text { font-weight: bold; color: #333; }
+"""
+
+humanize_schema = {
+    "questions": {
+        "rating": {"format": {"type": "dropdown"}},
+        "feedback": {"optional": True},
+    },
+    "survey": {"custom_css": custom_css},
+}
+
+survey.humanize(humanize_schema=humanize_schema)
+```
+
+Pass `"survey": {"custom_css": None}` (or omit `custom_css`) to create the survey without any custom CSS.
+
+### Updating CSS on an existing human survey
+
+Use `Coop.patch_human_survey_css` to set or clear the CSS on a human survey that already exists.
+
+```python
+from edsl import Coop
+
+coop = Coop()
+
+# Set or replace CSS
+coop.patch_human_survey_css(
+    human_survey_uuid="your-human-survey-uuid",
+    css=".edsl-survey-container { background-color: #fff; }",
+)
+
+# Clear existing CSS
+coop.patch_human_survey_css(
+    human_survey_uuid="your-human-survey-uuid",
+    css=None,
+)
+```
+
+## Survey-level classes
+
+| Class | Element | Notes |
+|---|---|---|
+| `edsl-survey-container` | Outermost container of the entire survey | Use to set background color for the whole survey |
+
+## Common question classes
+
+These classes are present on every question regardless of type.
+
+| Class | Element | Notes |
+|---|---|---|
+| `edsl-question` | Outermost `<div>` of every question | Always present |
+| `edsl-question-text` | Question prompt `<div>` | Rendered from `question_text` |
+| `edsl-question-image` | `<img>` embedded in a question | Image blocks in question text |
+
 ## Question-specific HTML
 
 ### Budget

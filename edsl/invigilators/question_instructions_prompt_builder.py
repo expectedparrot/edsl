@@ -344,9 +344,9 @@ class QuestionInstructionPromptBuilder:
 
         preamble = Prompt(text="")
         for instruction in relevant_instructions:
-            preamble += instruction.text
+            preamble += instruction.preamble + "\n" + instruction.text + "\n"
 
-        return preamble + rendered_prompt
+        return preamble + "\n" + rendered_prompt
 
 
 if __name__ == "__main__":
