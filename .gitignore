@@ -25,6 +25,7 @@ _build/*
 .DS_Store
 .coverage
 .edsl_cache
+.edsl_objects/
 .env
 .ipynb_checkpoints/
 .mypy_cache
