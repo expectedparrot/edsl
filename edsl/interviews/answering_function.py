@@ -96,8 +96,8 @@ class SkipHandler:
             )
 
         combined_answers = dict(self._answers)
-        combined_answers.update(scenario_dict)
-        combined_answers.update(self._agent_traits)
+        combined_answers.update({f"scenario.{k}": v for k, v in scenario_dict.items()})
+        combined_answers.update({f"agent.{k}": v for k, v in self._agent_traits.items()})
 
         return self.skip_function(current_question_index, combined_answers)
 
