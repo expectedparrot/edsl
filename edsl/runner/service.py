@@ -724,6 +724,20 @@ class JobService:
         # 1-step lookahead) because before-rules and after-rules can chain: a
         # before-rule on question A can jump to D, skipping B and C in between.
         # Mirrors SurveyNavigator's traversal but only asks "do we visit Q?".
+        #
+        # PERFORMANCE NOTE — O(Q^2) per interview when skip rules exist.
+        # Each task at index Q triggers a walk of up to Q steps. Across the Q
+        # tasks of one interview, total work is ~Q^2 / 2 walk steps. For surveys
+        # WITHOUT user-defined skip rules this code is gated out at render.py
+        # (`_has_skip_rules`) and at service.py:649 (`if not has_skip_rules`),
+        # so the cost is zero. With skip rules:
+        #   - small/medium surveys (<100 Q): negligible (<10 ms per batch)
+        #   - large surveys (1000+ Q with rules): seconds per batch
+        # The walk is correct but un-cached. The intended optimization, when
+        # this becomes a bottleneck, is to compute the set of skipped indices
+        # ONCE per interview in render.py (before the task loop) and pass it
+        # via a new `cached_skipped_indices: frozenset[int]` kwarg, reducing
+        # the per-task check to O(1) and the per-batch cost to O(Q * I).
         rc = survey.rule_collection
         pos = 0
         guard = len(survey.questions) + 1  # cycle guard
