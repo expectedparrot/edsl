@@ -3,6 +3,7 @@ from edsl.agents import Agent
 from edsl.interviews import Interview
 from edsl.jobs import Jobs
 from edsl.questions import QuestionMultipleChoice, QuestionFreeText
+from edsl.results import Result, Results
 from edsl.scenarios import Scenario, ScenarioList
 from edsl.surveys import Survey
 from edsl.caching import Cache
@@ -191,6 +192,60 @@ def test_jobs_run(valid_job):
     assert len(results) == 1
     # with pytest.raises(JobsRunError):
     #    valid_job.run(method="invalid_method")
+
+
+def test_remote_results_invalid_when_all_answers_are_null() -> None:
+    survey = Survey(
+        questions=[
+            QuestionFreeText(question_text="What is your name?", question_name="name")
+        ]
+    )
+    results = Results(
+        survey=survey,
+        data=[
+            Result(
+                agent=Agent(),
+                scenario=Scenario(),
+                model=Model("test", canned_response="SPAM!"),
+                iteration=0,
+                answer={"name": None},
+                prompt={},
+                raw_model_response={},
+                survey=survey,
+                comments_dict={},
+                validated_dict={},
+            )
+        ],
+    )
+
+    assert Jobs._remote_results_are_invalid(results) is True
+
+
+def test_remote_results_valid_when_any_answer_is_present() -> None:
+    survey = Survey(
+        questions=[
+            QuestionFreeText(question_text="What is your name?", question_name="name")
+        ]
+    )
+    results = Results(
+        survey=survey,
+        data=[
+            Result(
+                agent=Agent(),
+                scenario=Scenario(),
+                model=Model("test", canned_response="SPAM!"),
+                iteration=0,
+                answer={"name": "SPAM!"},
+                prompt={},
+                raw_model_response={},
+                survey=survey,
+                comments_dict={},
+                validated_dict={"name_validated": True},
+            )
+        ],
+    )
+
+    assert Jobs._remote_results_are_invalid(results) is False
 
 
 def test_normal_run():

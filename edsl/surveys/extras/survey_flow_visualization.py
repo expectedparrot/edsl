@@ -3,6 +3,7 @@
 Supports both Mermaid (text-based, no dependencies) and pydot/graphviz backends.
 """
 
+import textwrap
 from typing import Optional, TYPE_CHECKING
 
 from edsl.surveys.base import RulePriority, EndOfSurvey
@@ -32,14 +33,22 @@ _QUESTION_TYPE_ICONS = {
 }
 
 
-def _question_label(question, max_text_len: int = 40) -> str:
-    """Build a rich label for a question node."""
+def _question_label(question, max_line_len: int = 44) -> str:
+    """Build a rich label for a question node without truncating question text."""
     icon = _QUESTION_TYPE_ICONS.get(getattr(question, "question_type", ""), "?")
     name = question.question_name
     text = getattr(question, "question_text", "") or ""
-    if len(text) > max_text_len:
-        text = text[:max_text_len] + "…"
-    return f"[{icon}] {name}\n<i>{text}</i>"
+    wrapped_text = "\n".join(
+        textwrap.wrap(
+            text,
+            width=max_line_len,
+            break_long_words=False,
+            break_on_hyphens=False,
+        )
+    )
+    if wrapped_text:
+        return f"[{icon}] {name}\n{wrapped_text}"
+    return f"[{icon}] {name}"
 
 
 class SurveyFlowVisualization:
