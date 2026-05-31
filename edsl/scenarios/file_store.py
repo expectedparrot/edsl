@@ -847,6 +847,64 @@ class FileStore(Scenario):
         }
 
     @classmethod
+    def from_file_upload_answer(
+        cls,
+        file_info: dict,
+        expected_parrot_url: Optional[str] = None,
+    ) -> "FileStore":
+        """
+        Create a FileStore from a single entry in a QuestionFileUpload answer.
+
+        Calls the Coop endpoint to obtain a signed download URL, then fetches
+        the file and wraps it in a FileStore.
+
+        Args:
+            file_info: A dict with at minimum a 'gcs_path' key, as returned in
+                       the answer list for a QuestionFileUpload question.
+                       Optionally includes 'name', 'mime_type', and 'extension'.
+            expected_parrot_url: Optional override for the Coop server URL.
+
+        Returns:
+            FileStore: The downloaded file.
+
+        Example::
+
+            answer = results[0]['answer']['my_upload_question']
+            for file_info in answer:
+                fs = FileStore.from_file_upload_answer(file_info)
+        """
+        from ..coop import Coop
+
+        coop = Coop(url=expected_parrot_url) if expected_parrot_url else Coop()
+        response = coop._send_server_request(
+            uri="api/v0/human-survey-file-uploads/download-url",
+            method="POST",
+            payload={"gcs_path": file_info["gcs_path"]},
+        )
+        response_data = response.json()
+        download_url = response_data.get("url")
+        if not download_url:
+            raise ValueError(
+                f"Server did not return a download URL. Response: {response_data}"
+            )
+
+        # Save under the original filename in a fresh temp dir so the suffix is
+        # correct and there's no collision if the same name appears in multiple uploads.
+        import tempfile
+
+        name = file_info.get("name") or ""
+        if not name:
+            extension = file_info.get("extension", "")
+            name = f"file.{extension}" if extension else "file"
+        download_path = os.path.join(tempfile.mkdtemp(), name)
+
+        return cls.from_url(
+            download_url,
+            download_path=download_path,
+            mime_type=file_info.get("mime_type"),
+        )
+
+    @classmethod
     def pull(
         cls,
         url_or_uuid: Optional[Union[str, UUID]] = None,
