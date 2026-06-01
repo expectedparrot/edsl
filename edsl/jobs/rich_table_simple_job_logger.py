@@ -166,6 +166,7 @@ class RichTableSimpleJobLogger(JobLogger):
             self.console.print(f"Results UUID: {self.jobs_info.results_uuid}")
         if self.jobs_info.results_url:
             self.console.print(f"Results URL: {self.jobs_info.results_url}")
+        # Note: `status` is intentionally unused; display state is handled by _stop_live_display.
 
     def __del__(self):
         """Cleanup when the logger is destroyed"""
