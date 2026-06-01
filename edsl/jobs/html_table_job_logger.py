@@ -126,18 +126,28 @@ class HTMLTableJobLogger(JobLogger):
             }
         )
 
-        # Auto-collapse when job completes
+        # Auto-collapse when job completes (keep expanded if Results UUID is shown)
         if status in [
             JobsStatus.COMPLETED,
             JobsStatus.FAILED,
             JobsStatus.PARTIALLY_FAILED,
         ]:
-            self.is_expanded = False
+            if status == JobsStatus.COMPLETED and self.jobs_info.results_uuid:
+                self.is_expanded = True
+            else:
+                self.is_expanded = False
 
         if self.verbose and self.display_handle is not None:
             self.display_handle.update(self._HTML(self._get_html(status)))
         else:
             return None
+
+    def job_completed(self, status: JobsStatus = JobsStatus.COMPLETED):
+        """Final refresh after all metadata (e.g. results UUID) has been logged."""
+        if self.jobs_info.results_uuid:
+            self.is_expanded = True
+        if self.verbose and self.display_handle is not None:
+            self.display_handle.update(self._HTML(self._get_html(status)))
 
     def _collapse(self, content_id: str, arrow_id: str) -> str:
         """Generate the onclick JavaScript for collapsible sections"""

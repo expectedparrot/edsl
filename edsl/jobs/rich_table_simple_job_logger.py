@@ -159,6 +159,14 @@ class RichTableSimpleJobLogger(JobLogger):
         """Explicitly stop the live display"""
         self._stop_live_display()
 
+    def job_completed(self, status: JobsStatus = JobsStatus.COMPLETED):
+        """Print Results UUID/URL after the live status line stops."""
+        self._stop_live_display()
+        if self.jobs_info.results_uuid:
+            self.console.print(f"Results UUID: {self.jobs_info.results_uuid}")
+        if self.jobs_info.results_url:
+            self.console.print(f"Results URL: {self.jobs_info.results_url}")
+
     def __del__(self):
         """Cleanup when the logger is destroyed"""
         try:
