@@ -1,7 +1,7 @@
 from __future__ import annotations
 from typing import Callable, TYPE_CHECKING
 
-from .token_estimate import QuestionTokenEstimate
+from .question_token_estimate import QuestionTokenEstimate
 
 if TYPE_CHECKING:
     from ...questions.question_base import QuestionBase
