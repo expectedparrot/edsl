@@ -9,6 +9,8 @@ from .file_store_estimator import FileStoreEstimator
 if TYPE_CHECKING:
     from ..jobs import Jobs
     from ...surveys.base import EndOfSurveyParent
+    from ...surveys import Survey
+    from ...interviews.interview import Interview
 
 
 # ------------------------------------------------------------------
@@ -16,9 +18,9 @@ if TYPE_CHECKING:
 
 
 def _compute_reach_probabilities(
-    survey,
+    survey: "Survey",
     branch_weights: dict[tuple, float],
-) -> dict[str, float]:
+) -> tuple[dict[str, float], list[str]]:
     """Derive per-question reach probabilities from branch weights.
 
     branch_weights keys are (from_question_name, to_question_name_or_EndOfSurvey).
@@ -63,7 +65,7 @@ def _compute_reach_probabilities(
 
 def _validate_branch_weights(
     branch_weights: dict[tuple, float],
-    survey,
+    survey: "Survey",
     warnings: list[str],
 ) -> None:
     """Warn if weights from the same question sum to > 1."""
@@ -214,9 +216,9 @@ class JobCostEstimator:
 
     def _estimate_interview(
         self,
-        interview,
+        interview: "Interview",
         interview_idx: int,
-        survey,
+        survey: "Survey",
         reach_probs: dict[str, float],
         token_overrides: dict[str, TokenEstimate],
         price_lookup: dict,

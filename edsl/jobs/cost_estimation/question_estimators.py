@@ -4,7 +4,8 @@ from typing import Callable, TYPE_CHECKING
 from .token_estimate import TokenEstimate
 
 if TYPE_CHECKING:
-    pass
+    from ...questions.question_base import QuestionBase
+    from ...language_models.language_model import LanguageModel
 
 CHARS_PER_TOKEN = 4
 
@@ -36,7 +37,12 @@ def _avg_option_tokens(question, chars_per_token: int = CHARS_PER_TOKEN) -> int:
 class ZeroCostEstimator:
     """For question types answered locally with no LLM call (compute, functional)."""
 
-    def __call__(self, question, prompts: dict, model=None) -> TokenEstimate:
+    def __call__(
+        self,
+        question: "QuestionBase",
+        prompts: dict,
+        model: "LanguageModel" | None = None,
+    ) -> TokenEstimate:
         return TokenEstimate(
             input_tokens=0,
             answer_tokens=0,
@@ -60,7 +66,12 @@ class FreeTextStyleEstimator:
     def __init__(self, output_ratio: float = DEFAULT_OUTPUT_RATIO):
         self.output_ratio = output_ratio
 
-    def __call__(self, question, prompts: dict, model=None) -> TokenEstimate:
+    def __call__(
+        self,
+        question: "QuestionBase",
+        prompts: dict,
+        model: "LanguageModel" | None = None,
+    ) -> TokenEstimate:
         input_tokens = _estimate_input_tokens(prompts)
         answer_tokens = max(1, int(input_tokens * self.output_ratio))
         return TokenEstimate(
@@ -88,7 +99,12 @@ class StructuredAnswerEstimator:
     def __init__(self, comment_ratio: float = DEFAULT_COMMENT_RATIO):
         self.comment_ratio = comment_ratio
 
-    def __call__(self, question, prompts: dict, model=None) -> TokenEstimate:
+    def __call__(
+        self,
+        question: "QuestionBase",
+        prompts: dict,
+        model: "LanguageModel" | None = None,
+    ) -> TokenEstimate:
         input_tokens = _estimate_input_tokens(prompts)
         answer_tokens = _avg_option_tokens(question)
         comment_tokens = max(0, int(input_tokens * self.comment_ratio))
@@ -110,7 +126,10 @@ class ThinkingEstimator:
     """
 
     def __call__(
-        self, question, prompts: dict, model=None
+        self,
+        question: "QuestionBase",
+        prompts: dict,
+        model: "LanguageModel" | None = None,
     ) -> tuple[TokenEstimate, list[str]]:
         input_tokens = _estimate_input_tokens(prompts)
         answer_tokens = max(1, int(input_tokens * 0.75))
@@ -147,7 +166,12 @@ class DefaultEstimator:
 
     DEFAULT_OUTPUT_RATIO = 0.75
 
-    def __call__(self, question, prompts: dict, model=None) -> TokenEstimate:
+    def __call__(
+        self,
+        question: "QuestionBase",
+        prompts: dict,
+        model: "LanguageModel" | None = None,
+    ) -> TokenEstimate:
         input_tokens = _estimate_input_tokens(prompts)
         return TokenEstimate(
             input_tokens=input_tokens,
@@ -215,7 +239,10 @@ class QuestionEstimator:
             self._registry.update(overrides)
 
     def estimate(
-        self, question, prompts: dict, model=None
+        self,
+        question: "QuestionBase",
+        prompts: dict,
+        model: "LanguageModel" | None = None,
     ) -> tuple[TokenEstimate, list[str]]:
         """Return (TokenEstimate, warnings) for the given question."""
         estimator = self._registry.get(question.question_type, _DEFAULT_ESTIMATOR)
