@@ -504,43 +504,6 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
             self.to_pandas(), selection=None, pagination=True
         )._mime_()
 
-    def _summary_html(self, max_rows: int = 500, max_cols: int = 10) -> str:
-        """Generate a styled HTML table of the Dataset for Jupyter notebooks."""
-        from ..utilities.summary_table import ColumnDef, render_summary_table_html
-
-        if not self.data:
-            return render_summary_table_html(
-                title="Dataset (0 rows, 0 columns)", columns=[], rows=[]
-            )
-
-        num_obs = len(self)
-        num_cols = len(self.keys())
-        title = f"Dataset ({num_obs} row{'s' if num_obs != 1 else ''}, {num_cols} column{'s' if num_cols != 1 else ''})"
-
-        headers, tabular_rows = self._tabular()
-
-        truncated = len(headers) > max_cols
-        visible_headers = headers[:max_cols] if truncated else headers
-        hidden_count = len(headers) - max_cols if truncated else 0
-
-        columns = [
-            ColumnDef("#", style="dim", no_wrap=True, justify="right"),
-        ] + [ColumnDef(h, style="bold green") for h in visible_headers]
-
-        rows = []
-        for idx, row in enumerate(tabular_rows):
-            visible_vals = row[:max_cols] if truncated else row
-            rows.append(tuple([str(idx)] + [str(v) for v in visible_vals]))
-
-        caption = (
-            f"{hidden_count} more column{'s' if hidden_count != 1 else ''} not shown. "
-            f"Use .select() to pick columns or .long() to see all."
-        ) if truncated else None
-
-        return render_summary_table_html(
-            title=title, columns=columns, rows=rows, max_rows=max_rows, caption=caption
-        )
-
     def _repr_html_(self):
         """Return an HTML representation of the dataset for Jupyter notebooks."""
         from .display.table_display import TableDisplay
