@@ -1,7 +1,7 @@
 from __future__ import annotations
 from typing import Callable, TYPE_CHECKING
 
-from .token_estimate import TokenEstimate
+from .token_estimate import QuestionTokenEstimate
 
 if TYPE_CHECKING:
     from ...questions.question_base import QuestionBase
@@ -42,8 +42,8 @@ class ZeroCostEstimator:
         question: "QuestionBase",
         prompts: dict,
         model: "LanguageModel" | None = None,
-    ) -> TokenEstimate:
-        return TokenEstimate(
+    ) -> QuestionTokenEstimate:
+        return QuestionTokenEstimate(
             input_tokens=0,
             answer_tokens=0,
             comment_tokens=0,
@@ -71,10 +71,10 @@ class FreeTextStyleEstimator:
         question: "QuestionBase",
         prompts: dict,
         model: "LanguageModel" | None = None,
-    ) -> TokenEstimate:
+    ) -> QuestionTokenEstimate:
         input_tokens = _estimate_input_tokens(prompts)
         answer_tokens = max(1, int(input_tokens * self.output_ratio))
-        return TokenEstimate(
+        return QuestionTokenEstimate(
             input_tokens=input_tokens,
             answer_tokens=answer_tokens,
             comment_tokens=0,
@@ -104,11 +104,11 @@ class StructuredAnswerEstimator:
         question: "QuestionBase",
         prompts: dict,
         model: "LanguageModel" | None = None,
-    ) -> TokenEstimate:
+    ) -> QuestionTokenEstimate:
         input_tokens = _estimate_input_tokens(prompts)
         answer_tokens = _avg_option_tokens(question)
         comment_tokens = max(0, int(input_tokens * self.comment_ratio))
-        return TokenEstimate(
+        return QuestionTokenEstimate(
             input_tokens=input_tokens,
             answer_tokens=answer_tokens,
             comment_tokens=comment_tokens,
@@ -130,7 +130,7 @@ class ThinkingEstimator:
         question: "QuestionBase",
         prompts: dict,
         model: "LanguageModel" | None = None,
-    ) -> tuple[TokenEstimate, list[str]]:
+    ) -> tuple[QuestionTokenEstimate, list[str]]:
         input_tokens = _estimate_input_tokens(prompts)
         answer_tokens = max(1, int(input_tokens * 0.75))
 
@@ -148,7 +148,7 @@ class ThinkingEstimator:
                 )
 
         return (
-            TokenEstimate(
+            QuestionTokenEstimate(
                 input_tokens=input_tokens,
                 answer_tokens=answer_tokens,
                 comment_tokens=0,
@@ -171,9 +171,9 @@ class DefaultEstimator:
         question: "QuestionBase",
         prompts: dict,
         model: "LanguageModel" | None = None,
-    ) -> TokenEstimate:
+    ) -> QuestionTokenEstimate:
         input_tokens = _estimate_input_tokens(prompts)
-        return TokenEstimate(
+        return QuestionTokenEstimate(
             input_tokens=input_tokens,
             answer_tokens=max(1, int(input_tokens * self.DEFAULT_OUTPUT_RATIO)),
             comment_tokens=0,
@@ -243,8 +243,8 @@ class QuestionEstimator:
         question: "QuestionBase",
         prompts: dict,
         model: "LanguageModel" | None = None,
-    ) -> tuple[TokenEstimate, list[str]]:
-        """Return (TokenEstimate, warnings) for the given question."""
+    ) -> tuple[QuestionTokenEstimate, list[str]]:
+        """Return (QuestionTokenEstimate, warnings) for the given question."""
         estimator = self._registry.get(question.question_type, _DEFAULT_ESTIMATOR)
 
         is_default = question.question_type not in self._registry

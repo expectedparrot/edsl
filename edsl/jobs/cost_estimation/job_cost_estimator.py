@@ -1,8 +1,8 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 
-from .token_estimate import TokenEstimate
-from .cost_estimate import CostEstimate
+from .token_estimate import QuestionTokenEstimate
+from .cost_estimate import JobCostEstimate
 from .question_estimators import QuestionEstimator
 from .file_store_estimator import FileStoreEstimator
 
@@ -103,7 +103,9 @@ def _compute_reach_probabilities(
             continue  # no respondents reach this question; nothing to distribute
 
         edges = outbound.get(q_name, [])
-        branch_total = sum(w for _, w in edges)  # total probability leaving via skip rules
+        branch_total = sum(
+            w for _, w in edges
+        )  # total probability leaving via skip rules
 
         # Distribute this question's reach across each skip destination proportionally to its weight.
         for dest_idx, weight in edges:
@@ -134,7 +136,7 @@ def _compute_reach_probabilities(
 
 
 def _compute_cost_usd(
-    estimate: TokenEstimate,
+    estimate: QuestionTokenEstimate,
     inference_service: str,
     model_name: str,
     price_lookup: dict,
@@ -176,15 +178,15 @@ class JobCostEstimator:
     def estimate_cost(
         self,
         job: "Jobs",
-        token_overrides: dict[str, TokenEstimate] | None = None,
+        token_overrides: dict[str, QuestionTokenEstimate] | None = None,
         branch_weights: dict[tuple, float] | None = None,
         price_lookup: dict | None = None,
-    ) -> CostEstimate:
+    ) -> JobCostEstimate:
         """Estimate the cost of running a job.
 
         Args:
             job: The Jobs instance to estimate.
-            token_overrides: Per-question-name TokenEstimate overrides. Only non-None
+            token_overrides: Per-question-name QuestionTokenEstimate overrides. Only non-None
                 fields are applied; others use the estimated value.
             branch_weights: dict keyed by (from_question_name, to_question_name) with
                 probability of taking that branch. Used to compute expected cost when
@@ -193,7 +195,7 @@ class JobCostEstimator:
                 fetched from Coop.
 
         Returns:
-            CostEstimate with .detail, .assumptions, and .warnings.
+            JobCostEstimate with .detail, .assumptions, and .warnings.
         """
         warnings: list[str] = []
 
@@ -209,7 +211,7 @@ class JobCostEstimator:
         # Build interview list
         interviews: list["Interview"] = list(job.generate_interviews())
         if not interviews:
-            return CostEstimate(
+            return JobCostEstimate(
                 rows=[], assumptions=self._build_assumptions(), warnings=warnings
             )
 
@@ -232,44 +234,46 @@ class JobCostEstimator:
                 "Pass branch_weights to estimate_cost() for surveys with skip logic."
             )
 
-        # Build agent/scenario lookup for detail rows
-        agent_lookup = {id(a): i for i, a in enumerate(job.agents)}
-        scenario_lookup = {id(s): i for i, s in enumerate(job.scenarios)}
+        # Map object identity -> position index so each detail row can record
+        # which agent/scenario it came from as a simple integer (0, 1, 2, ...)
+        # without an O(n) list scan per interview.
+        agent_index_lookup = {id(a): i for i, a in enumerate(job.agents)}
+        scenario_index_lookup = {id(s): i for i, s in enumerate(job.scenarios)}
 
         rows: list[dict] = []
 
         for interview_idx, interview in enumerate(interviews):
-            interview_rows, interview_warnings = self._estimate_interview(
+            interview_rows, interview_warnings = self._estimate_interview_cost(
                 interview=interview,
                 interview_idx=interview_idx,
                 survey=survey,
                 reach_probs=reach_probs,
                 token_overrides=token_overrides or {},
                 price_lookup=price_lookup,
-                agent_lookup=agent_lookup,
-                scenario_lookup=scenario_lookup,
+                agent_index_lookup=agent_index_lookup,
+                scenario_index_lookup=scenario_index_lookup,
             )
             rows.extend(interview_rows)
             warnings.extend(interview_warnings)
 
         assumptions = self._build_assumptions(token_overrides, branch_weights)
-        return CostEstimate(rows=rows, assumptions=assumptions, warnings=warnings)
+        return JobCostEstimate(rows=rows, assumptions=assumptions, warnings=warnings)
 
     # ------------------------------------------------------------------
 
-    def _estimate_interview(
+    def _estimate_interview_cost(
         self,
         interview: "Interview",
         interview_idx: int,
         survey: "Survey",
         reach_probs: dict[str, float],
-        token_overrides: dict[str, TokenEstimate],
+        token_overrides: dict[str, QuestionTokenEstimate],
         price_lookup: dict,
-        agent_lookup: dict,
-        scenario_lookup: dict,
+        agent_index_lookup: dict,
+        scenario_index_lookup: dict,
     ) -> tuple[list[dict], list[str]]:
         from ..fetch_invigilator import FetchInvigilator
-        from ...scenarios import FileStore
+        from ...surveys.memory.memory import Memory
 
         rows: list[dict] = []
         warnings: list[str] = []
@@ -299,21 +303,25 @@ class JobCostEstimator:
             # File tokens
             file_tokens = 0
             for fs in prompts.get("files_list", []):
-                if isinstance(fs, FileStore):
-                    ft, fw = self.file_estimator.estimate(fs, inference_service)
-                    file_tokens += ft
-                    warnings.extend(fw)
+                ft, fw = self.file_estimator.estimate(fs, inference_service)
+                file_tokens += ft
+                warnings.extend(fw)
 
             # Memory tokens (weighted by reach probability of prior questions)
             memory_entry = survey.memory_plan.get(q_name)
-            memory_qs = memory_entry.prior_questions if memory_entry else []
+            # Memory is a UserList of question name strings — iterate directly.
+            memory_qs = list(memory_entry) if isinstance(memory_entry, Memory) else []
+            # Each prior question contributes its estimated output tokens weighted
+            # by its reach probability — if a prior question was likely skipped,
+            # its memory contribution is proportionally smaller. Defaults to
+            # reach=1.0 (always asked) for questions not covered by branch_weights.
             memory_tokens = sum(
                 reach_probs.get(pq, 1.0) * output_estimates.get(pq, 0)
                 for pq in memory_qs
             )
 
             # Assemble full estimate
-            full_estimate = TokenEstimate(
+            full_estimate = QuestionTokenEstimate(
                 input_tokens=base_estimate.input_tokens,
                 file_tokens=file_tokens,
                 memory_tokens=int(memory_tokens),
@@ -327,7 +335,9 @@ class JobCostEstimator:
                 full_estimate = full_estimate.merge(token_overrides[q_name])
                 estimator_name = f"manual override (base: {estimator_name})"
 
-            # Store weighted output for downstream memory
+            # Store expected output tokens for use by downstream memory calculations.
+            # Scaled by reach probability so that a question only reached 30% of the
+            # time contributes proportionally less to later questions' memory overhead.
             reach = reach_probs.get(q_name, 1.0)
             output_estimates[q_name] = int(reach * full_estimate.total_output_tokens)
 
@@ -339,8 +349,8 @@ class JobCostEstimator:
             row = {
                 "interview_index": interview_idx,
                 "question_name": q_name,
-                "agent_index": agent_lookup.get(id(interview.agent), 0),
-                "scenario_index": scenario_lookup.get(id(interview.scenario), 0),
+                "agent_index": agent_index_lookup.get(id(interview.agent), 0),
+                "scenario_index": scenario_index_lookup.get(id(interview.scenario), 0),
                 "model": model_name,
                 "inference_service": inference_service,
                 "estimator_used": estimator_name,

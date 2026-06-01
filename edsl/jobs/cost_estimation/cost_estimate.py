@@ -5,7 +5,7 @@ if TYPE_CHECKING:
     from ...dataset import Dataset
 
 
-class CostEstimate:
+class JobCostEstimate:
     """Result of a job cost estimation.
 
     Three levels of detail:
@@ -45,7 +45,7 @@ class CostEstimate:
 
     def __repr__(self) -> str:
         return (
-            f"CostEstimate: ${self.total_cost_usd:.4f} "
+            f"JobCostEstimate: ${self.total_cost_usd:.4f} "
             f"({self.total_input_tokens:,} input tokens, "
             f"{self.total_output_tokens:,} output tokens "
             f"across {self.num_questions} questions)"

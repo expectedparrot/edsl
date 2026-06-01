@@ -3,7 +3,7 @@ from dataclasses import dataclass
 
 
 @dataclass
-class TokenEstimate:
+class QuestionTokenEstimate:
     """Token count breakdown for a single question estimation.
 
     All fields are optional — None means "use the estimated value" (relevant for
@@ -42,9 +42,9 @@ class TokenEstimate:
     def total_tokens(self) -> int:
         return self.total_input_tokens + self.total_output_tokens
 
-    def merge(self, override: "TokenEstimate") -> "TokenEstimate":
-        """Return a new TokenEstimate with non-None fields from override applied."""
-        return TokenEstimate(
+    def merge(self, override: "QuestionTokenEstimate") -> "QuestionTokenEstimate":
+        """Return a new QuestionTokenEstimate with non-None fields from override applied."""
+        return QuestionTokenEstimate(
             input_tokens=(
                 override.input_tokens
                 if override.input_tokens is not None
