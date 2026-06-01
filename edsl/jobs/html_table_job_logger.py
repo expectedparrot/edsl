@@ -126,16 +126,13 @@ class HTMLTableJobLogger(JobLogger):
             }
         )
 
-        # Auto-collapse when job completes (keep expanded if Results UUID is shown)
+        # Auto-collapse when job completes
         if status in [
             JobsStatus.COMPLETED,
             JobsStatus.FAILED,
             JobsStatus.PARTIALLY_FAILED,
         ]:
-            if status == JobsStatus.COMPLETED and self.jobs_info.results_uuid:
-                self.is_expanded = True
-            else:
-                self.is_expanded = False
+            self.is_expanded = False
 
         if self.verbose and self.display_handle is not None:
             self.display_handle.update(self._HTML(self._get_html(status)))
@@ -143,9 +140,8 @@ class HTMLTableJobLogger(JobLogger):
             return None
 
     def job_completed(self, status: JobsStatus = JobsStatus.COMPLETED):
-        """Final refresh after all metadata (e.g. results UUID) has been logged."""
-        if self.jobs_info.results_uuid:
-            self.is_expanded = True
+        """Final collapsed refresh after Results UUID/URL metadata has been logged."""
+        self.is_expanded = False
         if self.verbose and self.display_handle is not None:
             self.display_handle.update(self._HTML(self._get_html(status)))
 
