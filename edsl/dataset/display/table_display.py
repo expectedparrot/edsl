@@ -57,10 +57,10 @@ class TableDisplay:
         raw_data_set: "Dataset" = None,
         renderer_class: Optional[TableRenderer] = None,
     ):
-        if data:
-            assert len(headers) == len(
-                data[0]
-            )  # Check if headers and data are consistent
+        if data and len(headers) != len(data[0]):
+            raise ValueError(
+                f"headers length ({len(headers)}) must match row length ({len(data[0])})"
+            )
 
         self.headers = headers
         self.data = data
