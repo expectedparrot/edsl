@@ -628,11 +628,13 @@ class TabulatorRenderer(DataTablesRendererABC):
         </div>
         """
 
+        safe_data_json = json.dumps(data_rows).replace("</", "<\\/")
+        safe_columns_json = json.dumps(columns).replace("</", "<\\/")
         return html_template.format(
             table_id=table_id,
             js_id=js_id,
-            data_json=json.dumps(data_rows),
-            columns_json=json.dumps(columns),
+            data_json=safe_data_json,
+            columns_json=safe_columns_json,
         )
 
     @classmethod
