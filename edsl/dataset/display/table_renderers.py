@@ -355,7 +355,7 @@ class PandasStyleRenderer(DataTablesRendererABC):
         for row_idx, row in enumerate(self.table_data.data):
             html_parts.append("<tr>")
             for col_idx, cell in enumerate(row):
-                escaped_cell = escape_and_colorize_html(cell).replace("$", "\\$")
+                escaped_cell = escape_and_colorize_html(cell)
 
                 # Add data attribute if this is a numeric cell
                 data_attr = ""
