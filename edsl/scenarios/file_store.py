@@ -901,7 +901,7 @@ class FileStore(Scenario):
         # Save under the original filename in a fresh temp dir so the suffix is
         # correct and there's no collision if the same name appears in multiple uploads.
 
-        name = file_info.get("name") or ""
+        name = os.path.basename(file_info.get("name") or "")
         if not name:
             extension = file_info.get("extension", "")
             name = f"file.{extension}" if extension else "file"
