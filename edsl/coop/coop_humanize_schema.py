@@ -2,9 +2,16 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Dict, Literal, Optional, Type, Union
+from typing import TYPE_CHECKING, Annotated, Any, Dict, Literal, Optional, Type, Union
 
-from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    StringConstraints,
+    ValidationError,
+    model_validator,
+)
 
 from ..questions import QuestionBase
 
@@ -36,7 +43,7 @@ class SurveyHumanizeSchema(HumanizeSchemaBase):
 class CommentConfig(HumanizeSchemaBase):
     """Configuration for the optional comment field on a question."""
 
-    label: str
+    label: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
 
 
 class FreeTextHumanizeSchema(HumanizeSchemaBase):
@@ -64,6 +71,12 @@ class ComputeHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the compute question type (no optionality)."""
 
     pass
+
+
+class FileUploadHumanizeSchema(HumanizeSchemaBase):
+    """Humanize options for the file upload question type."""
+
+    optional: bool = False
 
 
 class InterviewHumanizeSchema(HumanizeSchemaBase):
@@ -191,6 +204,7 @@ HumanizeQuestionSchema = Union[
     BudgetHumanizeSchema,
     CheckboxHumanizeSchema,
     ComputeHumanizeSchema,
+    FileUploadHumanizeSchema,
     InterviewHumanizeSchema,
     LikertHumanizeSchema,
     LinearScaleHumanizeSchema,
@@ -220,6 +234,7 @@ QUESTION_TYPE_TO_HUMANIZE_CLASS: Dict[str, Type[BaseModel]] = {
     "budget": BudgetHumanizeSchema,
     "checkbox": CheckboxHumanizeSchema,
     "compute": ComputeHumanizeSchema,
+    "file_upload": FileUploadHumanizeSchema,
     "interview": InterviewHumanizeSchema,
     "likert_five": LikertHumanizeSchema,
     "linear_scale": LinearScaleHumanizeSchema,

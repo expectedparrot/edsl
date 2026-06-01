@@ -5,6 +5,7 @@ import tempfile
 
 from .scenario_list import ScenarioList
 from .file_store import FileStore
+
 if TYPE_CHECKING:
     pass
 
@@ -242,6 +243,36 @@ class FileStoreList(ScenarioList):
         """
         video_files = [fs for fs in self.data if fs.is_video()]
         return self.__class__(data=video_files, codebook=self.codebook)
+
+    @classmethod
+    def from_file_upload_answers(
+        cls,
+        files: list,
+        expected_parrot_url: Optional[str] = None,
+    ) -> "FileStoreList":
+        """
+        Create a FileStoreList from the answer list of a QuestionFileUpload question.
+
+        Args:
+            files: List of file-info dicts, each containing at minimum 'gcs_path',
+                   as returned in the answer for a QuestionFileUpload question.
+            expected_parrot_url: Optional override for the Coop server URL.
+
+        Returns:
+            FileStoreList: One FileStore per uploaded file.
+
+        Example::
+
+            answer = results[0]['answer']['my_upload_question']
+            fsl = FileStoreList.from_file_upload_answers(answer)
+        """
+        file_stores = [
+            FileStore.from_file_upload_answer(
+                f, expected_parrot_url=expected_parrot_url
+            )
+            for f in files
+        ]
+        return cls(data=file_stores)
 
     @classmethod
     def example(cls) -> "FileStoreList":
