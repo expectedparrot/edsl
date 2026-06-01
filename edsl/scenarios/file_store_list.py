@@ -5,6 +5,7 @@ import tempfile
 
 from .scenario_list import ScenarioList
 from .file_store import FileStore
+
 if TYPE_CHECKING:
     pass
 
@@ -247,7 +248,7 @@ class FileStoreList(ScenarioList):
     def from_file_upload_answers(
         cls,
         files: list,
-        expected_parrot_url: str = None,
+        expected_parrot_url: Optional[str] = None,
     ) -> "FileStoreList":
         """
         Create a FileStoreList from the answer list of a QuestionFileUpload question.
@@ -266,7 +267,9 @@ class FileStoreList(ScenarioList):
             fsl = FileStoreList.from_file_upload_answers(answer)
         """
         file_stores = [
-            FileStore.from_file_upload_answer(f, expected_parrot_url=expected_parrot_url)
+            FileStore.from_file_upload_answer(
+                f, expected_parrot_url=expected_parrot_url
+            )
             for f in files
         ]
         return cls(data=file_stores)
