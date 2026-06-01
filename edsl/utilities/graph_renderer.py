@@ -285,6 +285,7 @@ _MERMAID_SHAPES = {
     "box": ("[", "]"),
     "rectangle": ("[", "]"),
     "ellipse": ("([", "])"),
+    "stadium": ("([", "])"),
     "circle": ("((", "))"),
     "diamond": ("{", "}"),
     "hexagon": ("{{", "}}"),
@@ -380,6 +381,11 @@ def _mermaid_styles(nodes: list[NodeDef], subgraphs: list[SubgraphDef]) -> list[
         if sg.fill_color:
             hex_color = _COLOR_HEX.get(sg.fill_color, sg.fill_color)
             lines.append(f"style {sg.id} fill:{hex_color},stroke:#333")
+
+    # Enforce minimum width on question nodes for uniform appearance
+    question_nodes = [n for n in nodes if n.id.startswith("Q") and n.id[1:].isdigit()]
+    for node in question_nodes:
+        lines.append(f"style {node.id} min-width:220px")
 
     return lines
 
@@ -565,7 +571,14 @@ class DiGraph:
             result.save(filename)
             print(f"Graph saved to {filename}")
             return result
+        from edsl.utilities.is_notebook import is_notebook
+        in_notebook = is_notebook()
         result.show()
+        # Return None in notebook environments: the diagram was already sent to
+        # the cell output via IPython.display above, so returning the object
+        # would cause Jupyter to render it a second time as raw mermaid text.
+        if in_notebook:
+            return None
         return result
 
 
