@@ -566,12 +566,6 @@ class DiGraph:
             print(f"Graph saved to {filename}")
             return result
         result.show()
-        # Return None in notebook environments: the diagram was already sent to
-        # the cell output via IPython.display above, so returning the object
-        # would cause Jupyter to render it a second time as raw mermaid text.
-        from edsl.utilities.is_notebook import is_notebook
-        if is_notebook():
-            return None
         return result
 
 
