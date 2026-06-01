@@ -8,9 +8,9 @@ from .file_store_estimator import FileStoreEstimator
 
 if TYPE_CHECKING:
     from ..jobs import Jobs
-    from ...surveys.base import EndOfSurveyParent
     from ...surveys import Survey
     from ...interviews.interview import Interview
+    from ...invigilators.invigilators import InvigilatorBase
 
 
 # ------------------------------------------------------------------
@@ -23,65 +23,110 @@ def _compute_reach_probabilities(
 ) -> tuple[dict[str, float], list[str]]:
     """Derive per-question reach probabilities from branch weights.
 
-    branch_weights keys are (from_question_name, to_question_name_or_EndOfSurvey).
-    Processes in survey order so that compounding is correct.
+    Uses forward propagation: each question distributes its reach to successors.
+    Branch destinations get their weighted share; the default next question gets
+    the remainder. This correctly handles destinations reachable via multiple paths.
+
+    Simple skip:
+        {("q1", "q5"): 0.7}  →  q2/q3/q4 reach = 0.3, q5 reach = 1.0
+
+    Weights are conditional probabilities — the user specifies the fraction of
+    respondents *at that question* who take the branch, without needing to know
+    the question's reach. The algorithm multiplies reach by weight internally.
+
+        {("q1", "q4"): 0.9, ("q2", "q5"): 0.8}
+        q1 receives: 1.0 (initial);       sends: 1.0*0.9=0.9 to q4,  1.0*0.1=0.1 to q2
+        q2 receives: 0.1 (from q1);       sends: 0.1*0.8=0.08 to q5,  0.1*0.2=0.02 to q3
+        q3 receives: 0.02 (from q2);      sends: 0.02 to q4
+        q4 receives: 0.9+0.02=0.92;       sends: 0.92 to q5
+        q5 receives: 0.08+0.92=1.0        [terminal — all paths converge]
+
+    Returns:
+        reach: dict mapping question_name -> reach probability in [0.0, 1.0].
+        warnings: unrecognised names, destinations, or weight sums > 1.
     """
+    from collections import defaultdict
     from ...surveys.base import EndOfSurvey
 
-    question_names = [q.question_name for q in survey.questions]
+    question_names = survey.question_names  # cached property
+    name_to_idx = survey.question_name_to_index  # cached property
     n = len(question_names)
-    name_to_idx = {name: i for i, name in enumerate(question_names)}
-    reach = {name: 1.0 for name in question_names}
-
     warnings = []
 
-    # Sort by from_q position so probabilities compound correctly
-    def sort_key(item):
-        (from_q, _), _ = item
-        return name_to_idx.get(from_q, -1)
-
-    for (from_q, to_q), weight in sorted(branch_weights.items(), key=sort_key):
+    # Parse branch_weights into outbound edges per question.
+    # branch_weights is a flat dict of (from_q, to_q) -> weight edges. We regroup
+    # it into an adjacency list — outbound[q_name] = [(dest_idx, weight), ...] —
+    # so the propagation loop can look up all outgoing edges for a question in
+    # one call rather than scanning all of branch_weights on every iteration.
+    # dest_idx is the integer position of the destination in question_names,
+    # or n (past the end) if the destination is EndOfSurvey.
+    outbound: dict[str, list[tuple[int, float]]] = defaultdict(list)
+    for (from_q, to_q), weight in branch_weights.items():
         if from_q not in name_to_idx:
+            # User referenced a question name that doesn't exist in this survey.
             warnings.append(f"branch_weights: unknown question '{from_q}' — skipping.")
             continue
-
-        from_idx = name_to_idx[from_q]
-
         if to_q is EndOfSurvey or to_q == "EndOfSurvey":
-            end_idx = n
+            # EndOfSurvey has no index in question_names. We store n (one past
+            # the last valid index) so the propagation loop can check dest_idx < n
+            # to tell the difference between "forward to a question" and
+            # "the survey ends here" — and add the probability to eos_absorbed
+            # instead of forwarding it.
+            dest_idx = n
         elif to_q in name_to_idx:
-            end_idx = name_to_idx[to_q]
+            dest_idx = name_to_idx[to_q]
         else:
             warnings.append(
                 f"branch_weights: unknown destination '{to_q}' from '{from_q}' — skipping."
             )
             continue
+        outbound[from_q].append((dest_idx, weight))
 
-        for i in range(from_idx + 1, end_idx):
-            reach[question_names[i]] *= 1.0 - weight
-
-    return reach, warnings
-
-
-def _validate_branch_weights(
-    branch_weights: dict[tuple, float],
-    survey: "Survey",
-    warnings: list[str],
-) -> None:
-    """Warn if weights from the same question sum to > 1."""
-    from collections import defaultdict
-
-    question_names = set(q.question_name for q in survey.questions)
-    totals = defaultdict(float)
-    for (from_q, _), weight in branch_weights.items():
-        if from_q in question_names:
-            totals[from_q] += weight
-
-    for q_name, total in totals.items():
+    # Warn if weights from any single question sum to > 1.
+    for from_q, edges in outbound.items():
+        total = sum(w for _, w in edges)
         if total > 1.0:
             warnings.append(
-                f"branch_weights: weights from '{q_name}' sum to {total:.3f} > 1.0."
+                f"branch_weights: weights from '{from_q}' sum to {total:.3f} > 1.0."
             )
+
+    # Forward propagation: distribute reach from each question to its successors.
+    reach: dict[str, float] = {name: 0.0 for name in question_names}
+    if question_names:
+        reach[question_names[0]] = 1.0  # every respondent starts at the first question
+
+    eos_absorbed = 0.0  # probability absorbed by EndOfSurvey exits
+
+    for i, q_name in enumerate(question_names):
+        r = reach[q_name]
+        if r == 0.0:
+            continue  # no respondents reach this question; nothing to distribute
+
+        edges = outbound.get(q_name, [])
+        branch_total = sum(w for _, w in edges)  # total probability leaving via skip rules
+
+        # Distribute this question's reach across each skip destination proportionally to its weight.
+        for dest_idx, weight in edges:
+            if dest_idx < n:
+                reach[question_names[dest_idx]] += r * weight
+            else:
+                eos_absorbed += r * weight  # respondents who exit the survey here
+
+        # Whatever probability didn't go to a skip destination flows to the next
+        # question in sequence (the default path when no rule fires).
+        if i + 1 < n:
+            reach[question_names[i + 1]] += r * max(0.0, 1.0 - branch_total)
+
+    # Total across all terminal points (last question + EndOfSurvey exits) should be 1.0.
+    if question_names:
+        total = reach[question_names[-1]] + eos_absorbed
+        if abs(total - 1.0) > 1e-6:
+            warnings.append(
+                f"branch_weights: terminal probability sums to {total:.4f}, not 1.0 — "
+                f"weights may be inconsistent."
+            )
+
+    return reach, warnings
 
 
 # ------------------------------------------------------------------
@@ -162,7 +207,7 @@ class JobCostEstimator:
         job.replace_missing_objects()
 
         # Build interview list
-        interviews = list(job.generate_interviews())
+        interviews: list["Interview"] = list(job.generate_interviews())
         if not interviews:
             return CostEstimate(
                 rows=[], assumptions=self._build_assumptions(), warnings=warnings
@@ -173,16 +218,14 @@ class JobCostEstimator:
         # Validate and compute reach probabilities
         reach_probs = {q.question_name: 1.0 for q in survey.questions}
         if branch_weights:
-            _validate_branch_weights(branch_weights, survey, warnings)
             reach_probs, bw_warnings = _compute_reach_probabilities(
                 survey, branch_weights
             )
             warnings.extend(bw_warnings)
-            if branch_weights:
-                warnings.append(
-                    "branch_weights provided: estimates are expected costs weighted by reach probability. "
-                    "Questions not covered by branch_weights default to reach probability 1.0."
-                )
+            warnings.append(
+                "branch_weights provided: estimates are expected costs weighted by reach probability. "
+                "Questions not covered by branch_weights default to reach probability 0.0."
+            )
         else:
             warnings.append(
                 "No branch_weights provided: all questions assumed to be asked (upper bound). "
@@ -238,7 +281,7 @@ class JobCostEstimator:
 
         for question in survey.questions:
             q_name = question.question_name
-            invigilator = fetcher(question)
+            invigilator: "InvigilatorBase" = fetcher(question)
             prompts = invigilator.get_prompts()
             model = invigilator.model
             inference_service = model._inference_service_
