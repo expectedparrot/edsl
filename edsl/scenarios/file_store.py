@@ -891,6 +891,7 @@ class FileStore(Scenario):
             method="POST",
             payload={"gcs_path": file_info["gcs_path"]},
         )
+        response.raise_for_status()
         response_data = response.json()
         download_url = response_data.get("url")
         if not download_url:
