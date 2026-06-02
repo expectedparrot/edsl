@@ -112,6 +112,21 @@ class ModelList(Base, UserList):
         """
         return dict_hash(self.to_dict(sort=True, add_edsl_version=False))
 
+    def to_dataset(self):
+        return self.to_scenario_list().to_dataset()
+
+    def _repr_html_(self):
+        rows = "".join(
+            f"<tr><td>{getattr(m, 'model', getattr(m, '_model_', '?'))}</td>"
+            f"<td>{getattr(m, '_inference_service_', '?')}</td></tr>"
+            for m in self
+        )
+        return (
+            f'<div style="max-height:400px;overflow-y:auto">'
+            f"<table><thead><tr><th>model</th><th>service</th></tr></thead>"
+            f"<tbody>{rows}</tbody></table></div>"
+        )
+
     def to_scenario_list(self):
         from ..scenarios import ScenarioList
         from ..scenarios import Scenario
