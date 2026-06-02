@@ -1,3 +1,4 @@
+from html import escape
 from typing import Optional, List, TYPE_CHECKING
 from collections import UserList
 
@@ -117,8 +118,8 @@ class ModelList(Base, UserList):
 
     def _repr_html_(self):
         rows = "".join(
-            f"<tr><td>{getattr(m, 'model', getattr(m, '_model_', '?'))}</td>"
-            f"<td>{getattr(m, '_inference_service_', '?')}</td></tr>"
+            f"<tr><td>{escape(getattr(m, 'model', getattr(m, '_model_', '?')))}</td>"
+            f"<td>{escape(getattr(m, '_inference_service_', '?'))}</td></tr>"
             for m in self
         )
         return (

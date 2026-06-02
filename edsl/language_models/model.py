@@ -314,7 +314,7 @@ class Model(metaclass=Meta):
             output_format: Output format, either "model_list" (default) or "scenario_list".
             verbose: If True, print detailed logs from each source fetcher showing which
                 sources are tried, which services are queried, and how many models each returns.
-                Implies a cache refresh so fetchers actually run.
+                Only produces output when fetchers actually run (i.e. on a cold cache or with force_refresh=True).
 
         Returns:
             ModelList or ScenarioList with model_name and service_name fields
