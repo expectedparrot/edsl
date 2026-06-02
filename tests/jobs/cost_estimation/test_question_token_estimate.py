@@ -2,11 +2,11 @@ from edsl.jobs.cost_estimation.question_token_estimate import QuestionTokenEstim
 
 
 class TestTotals:
-    """total_prompt_tokens and total_output_tokens sum their respective fields, treating None as 0."""
+    """total_input_tokens and total_output_tokens sum their respective fields, treating None as 0."""
 
-    def test_total_prompt_tokens(self):
+    def test_total_input_tokens(self):
         e = QuestionTokenEstimate(prompt_tokens=10, file_tokens=5, memory_tokens=3)
-        assert e.total_prompt_tokens == 18
+        assert e.total_input_tokens == 18
 
     def test_total_output_tokens(self):
         e = QuestionTokenEstimate(
@@ -16,7 +16,7 @@ class TestTotals:
 
     def test_none_fields_count_as_zero(self):
         e = QuestionTokenEstimate(prompt_tokens=10)
-        assert e.total_prompt_tokens == 10
+        assert e.total_input_tokens == 10
         assert e.total_output_tokens == 0
 
     def test_total_tokens(self):
@@ -75,7 +75,7 @@ class TestToDetailRow:
     def test_includes_totals(self):
         e = QuestionTokenEstimate(prompt_tokens=10, answer_tokens=5)
         row = e.to_detail_row()
-        assert row["total_prompt_tokens"] == 10
+        assert row["total_input_tokens"] == 10
         assert row["total_output_tokens"] == 5
 
     def test_billable_included(self):
