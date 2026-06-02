@@ -84,26 +84,16 @@ class TestBillable:
     """Functional questions have tokens (for memory) but zero cost."""
 
     def test_functional_cost_is_zero(self):
-        q = QuestionFunctional(
-            question_name="q0",
-            question_text="Compute something.",
-            func=lambda scenario, agent, model: 42,
-        )
-        result = JobCostEstimator().estimate_cost(
-            make_job(q), price_lookup=PRICE_LOOKUP
-        )
+        func = lambda scenario, agent, model: 42  # noqa: E731
+        q = QuestionFunctional(question_name="q0", question_text="Compute something.", func=func)
+        result = JobCostEstimator().estimate_cost(make_job(q), price_lookup=PRICE_LOOKUP)
         assert result._rows[0]["cost_usd"] == 0.0
 
     def test_functional_tokens_still_estimated(self):
         """Tokens are tracked even when cost is zero — downstream memory needs them."""
-        q = QuestionFunctional(
-            question_name="q0",
-            question_text="Compute something.",
-            func=lambda scenario, agent, model: 42,
-        )
-        result = JobCostEstimator().estimate_cost(
-            make_job(q), price_lookup=PRICE_LOOKUP
-        )
+        func = lambda scenario, agent, model: 42  # noqa: E731
+        q = QuestionFunctional(question_name="q0", question_text="Compute something.", func=func)
+        result = JobCostEstimator().estimate_cost(make_job(q), price_lookup=PRICE_LOOKUP)
         row = result._rows[0]
         assert row["total_input_tokens"] > 0 or row["answer_tokens"] > 0
 
