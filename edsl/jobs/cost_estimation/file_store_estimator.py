@@ -1,10 +1,10 @@
 from __future__ import annotations
 from typing import Callable, TYPE_CHECKING
 
+from .cost_estimation_constants import EDSL_DEFAULT_CHARS_PER_TOKEN
+
 if TYPE_CHECKING:
     from ...scenarios import FileStore
-
-CHARS_PER_TOKEN = 4
 
 
 # ------------------------------------------------------------------
@@ -12,14 +12,15 @@ CHARS_PER_TOKEN = 4
 
 
 def _estimate_text_file(
-    filestore: "FileStore", inference_service: str
+    filestore: "FileStore",
+    inference_service: str,
+    chars_per_token: int = EDSL_DEFAULT_CHARS_PER_TOKEN,
 ) -> tuple[int, list[str]]:
     text = getattr(filestore, "extracted_text", None)
     if text:
-        return max(1, len(text) // CHARS_PER_TOKEN), []
-    # fallback: raw size
+        return max(1, len(text) // chars_per_token), []
     size = getattr(filestore, "size", 0) or 0
-    return max(1, size // CHARS_PER_TOKEN), []
+    return max(1, size // chars_per_token), []
 
 
 def _estimate_image_openai(
@@ -90,10 +91,12 @@ def _estimate_audio_video(
 
 
 def _estimate_offloaded(
-    filestore: "FileStore", inference_service: str
+    filestore: "FileStore",
+    inference_service: str,
+    chars_per_token: int = EDSL_DEFAULT_CHARS_PER_TOKEN,
 ) -> tuple[int, list[str]]:
     size = getattr(filestore, "size", 0) or 0
-    tokens = max(0, size // CHARS_PER_TOKEN)
+    tokens = max(0, size // chars_per_token)
     warnings = [
         f"File '{getattr(filestore, '_path', 'unknown')}' is offloaded — "
         f"estimating from file size ({size} bytes → {tokens} tokens)."
@@ -126,8 +129,22 @@ class FileStoreEstimator:
                    Merged over built-in dispatch; only the types you specify are changed.
     """
 
-    def __init__(self, overrides: dict[str, Callable] | None = None):
+    def __init__(
+        self,
+        overrides: dict[str, Callable] | None = None,
+        chars_per_token: int = EDSL_DEFAULT_CHARS_PER_TOKEN,
+    ):
         self._overrides = overrides or {}
+        self.chars_per_token = chars_per_token
+
+    @property
+    def chars_per_token_overrides(self) -> dict[str, int]:
+        return {
+            mime: est.chars_per_token
+            for mime, est in self._overrides.items()
+            if hasattr(est, "chars_per_token")
+            and est.chars_per_token != self.chars_per_token
+        }
 
     def estimate(
         self, filestore: "FileStore", inference_service: str
@@ -141,12 +158,16 @@ class FileStoreEstimator:
 
         # Offloaded content
         if getattr(filestore, "base64_string", None) == "offloaded":
-            return _estimate_offloaded(filestore, inference_service)
+            return _estimate_offloaded(
+                filestore, inference_service, self.chars_per_token
+            )
 
         # extracted_text covers text, PDF, Word, CSV, markdown, etc.
         extracted = getattr(filestore, "extracted_text", None)
         if extracted:
-            return _estimate_text_file(filestore, inference_service)
+            return _estimate_text_file(
+                filestore, inference_service, self.chars_per_token
+            )
 
         # Images
         if mime.startswith("image/"):
@@ -159,7 +180,7 @@ class FileStoreEstimator:
         # Binary files with no extracted text — fall back to size
         if getattr(filestore, "binary", False):
             size = getattr(filestore, "size", 0) or 0
-            tokens = max(0, size // CHARS_PER_TOKEN)
+            tokens = max(0, size // self.chars_per_token)
             warnings = [
                 f"File '{getattr(filestore, '_path', 'unknown')}' (binary, {mime}): "
                 f"estimating from file size → {tokens} tokens."

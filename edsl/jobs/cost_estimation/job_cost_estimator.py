@@ -1,6 +1,7 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 
+from .cost_estimation_constants import EDSL_DEFAULT_CHARS_PER_TOKEN
 from .file_store_estimator import FileStoreEstimator
 from .job_cost_estimate import JobCostEstimate
 from .question_estimators import QuestionEstimator
@@ -169,11 +170,17 @@ class JobCostEstimator:
 
     def __init__(
         self,
+        chars_per_token: int = EDSL_DEFAULT_CHARS_PER_TOKEN,
         question_estimator: QuestionEstimator | None = None,
         file_estimator: FileStoreEstimator | None = None,
     ):
-        self.question_estimator = question_estimator or QuestionEstimator()
-        self.file_estimator = file_estimator or FileStoreEstimator()
+        self.chars_per_token = chars_per_token
+        self.question_estimator = question_estimator or QuestionEstimator(
+            chars_per_token=chars_per_token
+        )
+        self.file_estimator = file_estimator or FileStoreEstimator(
+            chars_per_token=chars_per_token
+        )
 
     def estimate_cost(
         self,
@@ -230,8 +237,10 @@ class JobCostEstimator:
             )
         else:
             warnings.append(
-                "No branch_weights provided: all questions assumed to be asked (upper bound). "
-                "Pass branch_weights to estimate_cost() for surveys with skip logic."
+                "No branch_weights provided: skip logic in the survey is ignored and the survey "
+                "is assumed to proceed linearly with every question asked by every respondent. "
+                "This is a worst-case upper bound. Pass branch_weights to estimate_cost() "
+                "to account for skip logic."
             )
 
         # Map object identity -> position index so each detail row can record
@@ -367,8 +376,8 @@ class JobCostEstimator:
         token_overrides: dict | None = None,
         branch_weights: dict | None = None,
     ) -> dict:
-        return {
-            "chars_per_token": 4,
+        assumptions: dict = {
+            "chars_per_token": self.chars_per_token,
             "question_estimator": repr(self.question_estimator.__class__.__name__),
             "file_estimator": repr(self.file_estimator.__class__.__name__),
             "token_overrides_applied": (
@@ -376,3 +385,27 @@ class JobCostEstimator:
             ),
             "branch_weights_applied": bool(branch_weights),
         }
+
+        # Only report per-type/MIME deviations when a custom estimator was passed
+        # with a different chars_per_token than the top-level default.
+        q_cpt: int | None = getattr(self.question_estimator, "chars_per_token", None)
+        if q_cpt is not None and q_cpt != self.chars_per_token:
+            assumptions["chars_per_token_questions"] = q_cpt
+
+        per_type_overrides: dict[str, int] = getattr(
+            self.question_estimator, "chars_per_token_overrides", {}
+        )
+        if per_type_overrides:
+            assumptions["chars_per_token_question_type_overrides"] = per_type_overrides
+
+        f_cpt: int | None = getattr(self.file_estimator, "chars_per_token", None)
+        if f_cpt is not None and f_cpt != self.chars_per_token:
+            assumptions["chars_per_token_files"] = f_cpt
+
+        per_mime_overrides: dict[str, int] = getattr(
+            self.file_estimator, "chars_per_token_overrides", {}
+        )
+        if per_mime_overrides:
+            assumptions["chars_per_token_mime_overrides"] = per_mime_overrides
+
+        return assumptions
