@@ -340,6 +340,12 @@ class ModelInfoCoopRegular(ModelInfoFetcherABC):
                 for model_name in model_names
             ]
 
+        if self.verbose:
+            for svc, models in data.items():
+                sample = ", ".join(m.id for m in models[:3])
+                suffix = ", ..." if len(models) > 3 else ""
+                print(f"[COOP_REGULAR] '{svc}': {len(models)} models ({sample}{suffix})")
+
         return data
 
 
@@ -407,6 +413,12 @@ class ModelInfoCoopWorking(ModelInfoFetcherABC):
             )
             data[service_name].append(model_info)
 
+        if self.verbose:
+            for svc, models in data.items():
+                sample = ", ".join(m.id for m in models[:3])
+                suffix = ", ..." if len(models) > 3 else ""
+                print(f"[COOP_WORKING] '{svc}': {len(models)} models ({sample}{suffix})")
+
         return data
 
 
@@ -450,15 +462,21 @@ class ModelInfoServices(ModelInfoFetcherABC):
             registered_services = self.services_registry.list_registered_services()
 
         for service_name in registered_services:
+            if self.verbose:
+                print(f"[LOCAL_FETCHER] Querying '{service_name}'...")
             try:
                 # Load the service class (lazy loading)
                 service_entry = self.services_registry.get_service_class(service_name)
                 model_list = service_entry.get_model_list()
                 data[service_name] = model_list
+                if self.verbose:
+                    sample = ", ".join(m.id for m in model_list[:3])
+                    suffix = ", ..." if len(model_list) > 3 else ""
+                    print(f"[LOCAL_FETCHER] '{service_name}': {len(model_list)} models ({sample}{suffix})")
             except Exception as e:
                 if skip_errors:
                     if self.verbose:
-                        print(f"Error fetching model list for {service_name}: {e}")
+                        print(f"[LOCAL_FETCHER] '{service_name}': failed — {e}")
                     continue
                 else:
                     raise e

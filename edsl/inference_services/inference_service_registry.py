@@ -279,6 +279,7 @@ class InferenceServiceRegistry:
         self,
         source_preferences: Optional[List[str]] = None,
         service_name: Optional[str] = None,
+        verbose: bool = False,
     ) -> Dict[str, List["ModelInfo"]]:
         """
         Refreshes the model info data and rebuilds the model-to-service and service-to-model mappings, taking source preferences into account.
@@ -286,13 +287,14 @@ class InferenceServiceRegistry:
         Args:
             source_preferences: Optional list of source preferences to override the default
             service_name: Optional service name to fetch models only for that service
+            verbose: If True, print detailed logs from each source fetcher for this call only
 
         Returns:
             Dictionary mapping service names to lists of ModelInfo objects
         """
         if self._model_info_data is None:
             self._model_info_data = self._source_handler.fetch_model_info_data(
-                source_preferences, service_name=service_name
+                source_preferences, service_name=service_name, verbose=verbose
             )
 
         return self._model_info_data

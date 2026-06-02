@@ -301,6 +301,7 @@ class Model(metaclass=Meta):
         force_refresh: bool = False,
         local_only: bool = False,
         output_format: str = "model_list",
+        verbose: bool = False,
     ) -> Union["ModelList", "ScenarioList"]:
         """Get available models as a ModelList or ScenarioList.
 
@@ -311,6 +312,9 @@ class Model(metaclass=Meta):
             force_refresh: Whether to force refresh the model cache from services.
             local_only: If True, only return models from services with local API keys configured.
             output_format: Output format, either "model_list" (default) or "scenario_list".
+            verbose: If True, print detailed logs from each source fetcher showing which
+                sources are tried, which services are queried, and how many models each returns.
+                Implies a cache refresh so fetchers actually run.
 
         Returns:
             ModelList or ScenarioList with model_name and service_name fields
@@ -328,6 +332,10 @@ class Model(metaclass=Meta):
             # ModelList([...])
             Model.available(output_format="scenario_list")
             # ScenarioList([...])
+            Model.available(verbose=True)
+            # [SOURCE_HANDLER] Trying source: archive
+            # ...
+            # ModelList([...])
         """
         from ..scenarios import ScenarioList
 
@@ -337,10 +345,10 @@ class Model(metaclass=Meta):
             registry.refresh_model_info()
             if local_only:
                 registry.fetch_model_info_data(
-                    source_preferences=["local"], service_name=service_name
+                    source_preferences=["local"], service_name=service_name, verbose=verbose
                 )
             else:
-                registry.fetch_model_info_data(service_name=service_name)
+                registry.fetch_model_info_data(service_name=service_name, verbose=verbose)
 
         # Validate service_name if provided
         if service_name is not None:
