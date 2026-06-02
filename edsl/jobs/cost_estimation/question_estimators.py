@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 # Helpers
 
 
-def _estimate_input_tokens(
+def _estimate_prompt_tokens(
     prompts: dict, chars_per_token: int = EDSL_DEFAULT_CHARS_PER_TOKEN
 ) -> int:
     user_prompt = str(prompts.get("user_prompt", ""))
@@ -61,10 +61,10 @@ class ZeroCostEstimator:
         prompts: dict,
         model: "LanguageModel" | None = None,
     ) -> QuestionTokenEstimate:
-        input_tokens = _estimate_input_tokens(prompts, self.chars_per_token)
-        answer_tokens = max(0, _resolve_token_spec(self.answer, input_tokens))
+        prompt_tokens = _estimate_prompt_tokens(prompts, self.chars_per_token)
+        answer_tokens = max(0, _resolve_token_spec(self.answer, prompt_tokens))
         return QuestionTokenEstimate(
-            input_tokens=input_tokens,
+            prompt_tokens=prompt_tokens,
             answer_tokens=answer_tokens,
             comment_tokens=0,
             billable=False,
@@ -98,10 +98,10 @@ class FreeTextStyleEstimator:
         prompts: dict,
         model: "LanguageModel" | None = None,
     ) -> QuestionTokenEstimate:
-        input_tokens = _estimate_input_tokens(prompts, self.chars_per_token)
-        answer_tokens = max(1, _resolve_token_spec(self.output, input_tokens))
+        prompt_tokens = _estimate_prompt_tokens(prompts, self.chars_per_token)
+        answer_tokens = max(1, _resolve_token_spec(self.output, prompt_tokens))
         return QuestionTokenEstimate(
-            input_tokens=input_tokens,
+            prompt_tokens=prompt_tokens,
             answer_tokens=answer_tokens,
             comment_tokens=0,
         )
@@ -134,11 +134,11 @@ class StructuredAnswerEstimator:
         prompts: dict,
         model: "LanguageModel" | None = None,
     ) -> QuestionTokenEstimate:
-        input_tokens = _estimate_input_tokens(prompts, self.chars_per_token)
+        prompt_tokens = _estimate_prompt_tokens(prompts, self.chars_per_token)
         answer_tokens = _avg_option_tokens(question, self.chars_per_token)
-        comment_tokens = max(0, _resolve_token_spec(self.comment, input_tokens))
+        comment_tokens = max(0, _resolve_token_spec(self.comment, prompt_tokens))
         return QuestionTokenEstimate(
-            input_tokens=input_tokens,
+            prompt_tokens=prompt_tokens,
             answer_tokens=answer_tokens,
             comment_tokens=comment_tokens,
         )
@@ -170,12 +170,12 @@ class DemandEstimator:
         prompts: dict,
         model: "LanguageModel" | None = None,
     ) -> QuestionTokenEstimate:
-        input_tokens = _estimate_input_tokens(prompts, self.chars_per_token)
+        prompt_tokens = _estimate_prompt_tokens(prompts, self.chars_per_token)
         n_prices = len(getattr(question, "prices", []))
         answer_tokens = max(1, n_prices * self.tokens_per_price)
-        comment_tokens = max(0, _resolve_token_spec(self.comment, input_tokens))
+        comment_tokens = max(0, _resolve_token_spec(self.comment, prompt_tokens))
         return QuestionTokenEstimate(
-            input_tokens=input_tokens,
+            prompt_tokens=prompt_tokens,
             answer_tokens=answer_tokens,
             comment_tokens=comment_tokens,
         )
@@ -206,12 +206,12 @@ class MatrixEstimator:
         prompts: dict,
         model: "LanguageModel" | None = None,
     ) -> QuestionTokenEstimate:
-        input_tokens = _estimate_input_tokens(prompts, self.chars_per_token)
+        prompt_tokens = _estimate_prompt_tokens(prompts, self.chars_per_token)
         n_items = len(getattr(question, "question_items", []))
         answer_tokens = _avg_option_tokens(question, self.chars_per_token)
         comment_tokens = n_items * self.tokens_per_item
         return QuestionTokenEstimate(
-            input_tokens=input_tokens,
+            prompt_tokens=prompt_tokens,
             answer_tokens=answer_tokens,
             comment_tokens=comment_tokens,
         )
@@ -232,10 +232,10 @@ class DefaultEstimator:
         prompts: dict,
         model: "LanguageModel" | None = None,
     ) -> QuestionTokenEstimate:
-        input_tokens = _estimate_input_tokens(prompts, self.chars_per_token)
+        prompt_tokens = _estimate_prompt_tokens(prompts, self.chars_per_token)
         return QuestionTokenEstimate(
-            input_tokens=input_tokens,
-            answer_tokens=max(1, _resolve_token_spec(TokenRatio(1.0), input_tokens)),
+            prompt_tokens=prompt_tokens,
+            answer_tokens=max(1, _resolve_token_spec(TokenRatio(1.0), prompt_tokens)),
             comment_tokens=0,
         )
 

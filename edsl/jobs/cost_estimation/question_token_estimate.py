@@ -15,7 +15,7 @@ class QuestionTokenEstimate:
     memory calculations are accurate.
     """
 
-    input_tokens: int | None = None  # base prompt (user + system prompt)
+    prompt_tokens: int | None = None  # base prompt (user + system prompt)
     file_tokens: int | None = None  # from FileStore objects in the scenario
     memory_tokens: int | None = None  # from prior question answers (memory plan)
     answer_tokens: int | None = None  # the answer field in the model response
@@ -26,7 +26,7 @@ class QuestionTokenEstimate:
     @property
     def total_input_tokens(self) -> int:
         return (
-            (self.input_tokens or 0)
+            (self.prompt_tokens or 0)
             + (self.file_tokens or 0)
             + (self.memory_tokens or 0)
         )
@@ -46,10 +46,10 @@ class QuestionTokenEstimate:
     def merge(self, override: "QuestionTokenEstimate") -> "QuestionTokenEstimate":
         """Return a new QuestionTokenEstimate with non-None fields from override applied."""
         return QuestionTokenEstimate(
-            input_tokens=(
-                override.input_tokens
-                if override.input_tokens is not None
-                else self.input_tokens
+            prompt_tokens=(
+                override.prompt_tokens
+                if override.prompt_tokens is not None
+                else self.prompt_tokens
             ),
             file_tokens=(
                 override.file_tokens
@@ -82,7 +82,7 @@ class QuestionTokenEstimate:
     def to_detail_row(self) -> dict:
         """Return a flat dict for use in the detail Dataset, with None rendered as 0."""
         return {
-            "input_tokens": self.input_tokens or 0,
+            "prompt_tokens": self.prompt_tokens or 0,
             "file_tokens": self.file_tokens or 0,
             "memory_tokens": self.memory_tokens or 0,
             "answer_tokens": self.answer_tokens or 0,

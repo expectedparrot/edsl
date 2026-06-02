@@ -331,7 +331,7 @@ class JobCostEstimator:
 
             # Assemble full estimate
             full_estimate = QuestionTokenEstimate(
-                input_tokens=base_estimate.input_tokens,
+                prompt_tokens=base_estimate.prompt_tokens,
                 file_tokens=file_tokens,
                 memory_tokens=int(memory_tokens),
                 answer_tokens=base_estimate.answer_tokens,
