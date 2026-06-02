@@ -81,7 +81,7 @@ class TestDetailDataset:
 
     def test_detail_has_expected_columns(self):
         result = JobCostEstimate(rows=[make_row()], assumptions={}, warnings=[])
-        detail_keys = list(result.detail.to_dict().keys())
+        detail_keys = result.detail.keys()
         for col in self.EXPECTED_COLUMNS:
             assert col in detail_keys, f"Missing column: {col}"
 
