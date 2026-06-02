@@ -136,23 +136,30 @@ def _compute_reach_probabilities(
 # Cost conversion
 
 
-def _compute_cost_usd(
-    estimate: QuestionTokenEstimate,
+def _get_prices(
     inference_service: str,
     model_name: str,
     price_lookup: dict,
-) -> float:
+) -> tuple[float, float]:
+    """Return (input_price_per_million, output_price_per_million) for a model."""
     from ...language_models.price_manager import PriceRetriever
 
     retriever = PriceRetriever(price_lookup)
     prices = retriever.get_price(inference_service, model_name)
-
-    input_price = retriever.get_price_per_million_tokens(prices, "input") / 1_000_000
-    output_price = retriever.get_price_per_million_tokens(prices, "output") / 1_000_000
-
     return (
-        estimate.total_input_tokens * input_price
-        + estimate.total_output_tokens * output_price
+        retriever.get_price_per_million_tokens(prices, "input"),
+        retriever.get_price_per_million_tokens(prices, "output"),
+    )
+
+
+def _compute_cost_usd(
+    estimate: QuestionTokenEstimate,
+    input_price_per_million: float,
+    output_price_per_million: float,
+) -> float:
+    return (
+        estimate.total_input_tokens * input_price_per_million / 1_000_000
+        + estimate.total_output_tokens * output_price_per_million / 1_000_000
     )
 
 
@@ -352,9 +359,12 @@ class JobCostEstimator:
             output_estimates[q_name] = int(reach * full_estimate.total_output_tokens)
 
             # Cost — zero for non-billable questions (compute, functional)
+            input_price_per_million, output_price_per_million = _get_prices(
+                inference_service, model_name, price_lookup
+            )
             if full_estimate.billable:
                 cost_usd = _compute_cost_usd(
-                    full_estimate, inference_service, model_name, price_lookup
+                    full_estimate, input_price_per_million, output_price_per_million
                 )
             else:
                 cost_usd = 0.0
@@ -366,6 +376,8 @@ class JobCostEstimator:
                 "scenario_index": scenario_index_lookup.get(id(interview.scenario), 0),
                 "model": model_name,
                 "inference_service": inference_service,
+                "input_price_per_million": input_price_per_million,
+                "output_price_per_million": output_price_per_million,
                 "estimator_used": estimator_name,
                 "reach_probability": reach,
                 **full_estimate.to_detail_row(),

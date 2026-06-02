@@ -2,6 +2,12 @@ from __future__ import annotations
 from collections import defaultdict
 from typing import TYPE_CHECKING
 
+APP_CREDITS_PRICE_CENTS = 1  # 1 credit = 1 cent = $0.01
+
+
+def usd_to_credits(usd: float) -> float:
+    return usd * (100 / APP_CREDITS_PRICE_CENTS)
+
 if TYPE_CHECKING:
     from ...dataset import Dataset
 
@@ -45,6 +51,11 @@ class JobCostEstimate:
         return len(self._rows)
 
     @property
+    def total_credits(self) -> float:
+        """Total estimated cost in Expected Parrot credits (1 credit = $0.01)."""
+        return usd_to_credits(self.total_cost_usd)
+
+    @property
     def num_interviews(self) -> int:
         if not self._rows:
             return 0
@@ -52,10 +63,10 @@ class JobCostEstimate:
 
     def __repr__(self) -> str:
         return (
-            f"JobCostEstimate: ${self.total_cost_usd:.4f} "
-            f"({self.total_input_tokens:,} input tokens, "
+            f"JobCostEstimate: ${self.total_cost_usd:.4f} ({self.total_credits:,.2f} credits) "
+            f"— {self.total_input_tokens:,} input tokens, "
             f"{self.total_output_tokens:,} output tokens "
-            f"across {self.num_questions} questions)"
+            f"across {self.num_questions} questions"
         )
 
     # ------------------------------------------------------------------
@@ -89,7 +100,32 @@ class JobCostEstimate:
                 "avg_input_tokens": sum(r["total_input_tokens"] for r in rows) / n,
                 "avg_output_tokens": sum(r["total_output_tokens"] for r in rows) / n,
                 "total_cost_usd": q_cost,
+                "total_cost_credits": usd_to_credits(q_cost),
                 "cost_share": q_cost / total if total > 0 else 0.0,
+            })
+        return result
+
+    def summary_by_model(self) -> list[dict]:
+        """Aggregate detail rows by (model, inference_service).
+
+        Returns one dict per unique model with total tokens, total cost,
+        and the price per million tokens used for the estimate.
+        """
+        grouped: dict[tuple, list[dict]] = defaultdict(list)
+        for row in self._rows:
+            grouped[(row["inference_service"], row["model"])].append(row)
+
+        result = []
+        for (inference_service, model), rows in grouped.items():
+            result.append({
+                "inference_service": inference_service,
+                "model": model,
+                "input_price_per_million": rows[0]["input_price_per_million"],
+                "output_price_per_million": rows[0]["output_price_per_million"],
+                "total_input_tokens": sum(r["total_input_tokens"] for r in rows),
+                "total_output_tokens": sum(r["total_output_tokens"] for r in rows),
+                "total_cost_usd": sum(r["cost_usd"] for r in rows),
+                "total_cost_credits": usd_to_credits(sum(r["cost_usd"] for r in rows)),
             })
         return result
 
@@ -107,6 +143,19 @@ class JobCostEstimate:
         n_interviews = self.num_interviews
         unique_questions = len(set(r["question_name"] for r in self._rows)) if self._rows else 0
 
+        model_rows = [
+            {
+                "Model": f"{m['inference_service']} / {m['model']}",
+                "Input $/M": f"${m['input_price_per_million']:.2f}",
+                "Output $/M": f"${m['output_price_per_million']:.2f}",
+                "Total input": f"{m['total_input_tokens']:,}",
+                "Total output": f"{m['total_output_tokens']:,}",
+                "Total cost": f"${m['total_cost_usd']:.4f}",
+                "Credits": f"{m['total_cost_credits']:,.2f}",
+            }
+            for m in self.summary_by_model()
+        ]
+
         table_rows = [
             {
                 "Question": q["question_name"],
@@ -116,6 +165,7 @@ class JobCostEstimate:
                 "Avg input": f"{q['avg_input_tokens']:.0f}",
                 "Avg output": f"{q['avg_output_tokens']:.0f}",
                 "Total cost": f"${q['total_cost_usd']:.4f}",
+                "Credits": f"{q['total_cost_credits']:,.2f}",
                 "Cost share": f"{q['cost_share']:.1%}",
             }
             for q in self.summary_by_question()
@@ -127,11 +177,15 @@ class JobCostEstimate:
         md = "\n".join([
             "# Job Cost Estimate",
             "",
-            f"**Total cost:** ${self.total_cost_usd:.4f}  ",
+            f"**Total cost:** ${self.total_cost_usd:.4f} ({self.total_credits:,.2f} credits)  ",
             f"**Interviews:** {n_interviews}  ",
             f"**Questions per interview:** {unique_questions}  ",
             f"**Total input tokens:** {self.total_input_tokens:,}  ",
             f"**Total output tokens:** {self.total_output_tokens:,}  ",
+            "",
+            "## Cost by model",
+            "",
+            tabulate(model_rows, headers="keys", tablefmt="github"),
             "",
             "## Cost by question",
             "",
