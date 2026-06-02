@@ -77,6 +77,7 @@ class SourcePreferenceHandler:
             if _verbose:
                 print(f"[SOURCE_HANDLER] Trying source: {source}")
 
+            result = None
             try:
                 model_info_fetcher: ModelInfoFetcherABC = fetchers[source](
                     self.registry, verbose=_verbose
@@ -99,16 +100,7 @@ class SourcePreferenceHandler:
                             f"[SOURCE_HANDLER] Successfully fetched data from source: {source}"
                         )
                     self._used_source = source
-
-                    if source != "archive":
-                        if _verbose:
-                            print("[SOURCE_HANDLER] Writing to archive")
-                        model_info_fetcher.write_to_archive()
-
-                    return dict(model_info_fetcher)
-                else:
-                    if _verbose:
-                        print(f"[SOURCE_HANDLER] Source '{source}' returned empty data")
+                    result = dict(model_info_fetcher)
 
             except Exception as e:
                 if _verbose:
@@ -116,6 +108,20 @@ class SourcePreferenceHandler:
                         f"[SOURCE_HANDLER] Error fetching from source '{source}': {e}"
                     )
                 continue
+
+            if result is not None:
+                if source != "archive":
+                    if _verbose:
+                        print("[SOURCE_HANDLER] Writing to archive")
+                    try:
+                        model_info_fetcher.write_to_archive()
+                    except Exception as e:
+                        if _verbose:
+                            print(f"[SOURCE_HANDLER] Archive write failed (non-fatal): {e}")
+                return result
+            else:
+                if _verbose:
+                    print(f"[SOURCE_HANDLER] Source '{source}' returned empty data")
 
         # If we get here, no source worked
         available_sources = list(fetchers.keys())

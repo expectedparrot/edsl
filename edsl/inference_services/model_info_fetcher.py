@@ -285,9 +285,14 @@ class ModelInfoFetcherABC(UserDict, ABC):
             "data": serializable_data,
         }
 
+        def _default(obj):
+            if isinstance(obj, datetime.datetime):
+                return obj.isoformat()
+            raise TypeError(f"Object of type {type(obj).__name__} is not JSON serializable")
+
         # Write to file
         with open(archive_path, "w", encoding="utf-8") as f:
-            json.dump(archive_data, f, indent=4)
+            json.dump(archive_data, f, indent=4, default=_default)
 
         if self.verbose:
             print(
