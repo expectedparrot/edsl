@@ -1,8 +1,8 @@
 import pytest
 from edsl.jobs import Jobs
 from edsl.language_models import Model
-from edsl.questions import QuestionFreeText, QuestionMultipleChoice
-from edsl.questions.question_functional import QuestionFunctional
+from edsl.questions import QuestionFreeText
+from edsl.questions.question_compute import QuestionCompute
 from edsl.surveys import Survey
 from edsl.jobs.cost_estimation.job_cost_estimator import JobCostEstimator
 from edsl.jobs.cost_estimation.question_token_estimate import QuestionTokenEstimate
@@ -83,17 +83,25 @@ class TestBasicEstimate:
 class TestBillable:
     """Functional questions have tokens (for memory) but zero cost."""
 
-    def test_functional_cost_is_zero(self):
-        func = lambda scenario, agent, model: 42  # noqa: E731
-        q = QuestionFunctional(question_name="q0", question_text="Compute something.", func=func)
-        result = JobCostEstimator().estimate_cost(make_job(q), price_lookup=PRICE_LOOKUP)
+    def test_compute_cost_is_zero(self):
+        q = QuestionCompute(
+            question_name="q0",
+            question_text="Your lucky number is {{ [1,2,3,4,5,6,7,8,9,10] | random }}.",
+        )
+        result = JobCostEstimator().estimate_cost(
+            make_job(q), price_lookup=PRICE_LOOKUP
+        )
         assert result._rows[0]["cost_usd"] == 0.0
 
-    def test_functional_tokens_still_estimated(self):
+    def test_compute_tokens_still_estimated(self):
         """Tokens are tracked even when cost is zero — downstream memory needs them."""
-        func = lambda scenario, agent, model: 42  # noqa: E731
-        q = QuestionFunctional(question_name="q0", question_text="Compute something.", func=func)
-        result = JobCostEstimator().estimate_cost(make_job(q), price_lookup=PRICE_LOOKUP)
+        q = QuestionCompute(
+            question_name="q0",
+            question_text="Your lucky number is {{ [1,2,3,4,5,6,7,8,9,10] | random }}.",
+        )
+        result = JobCostEstimator().estimate_cost(
+            make_job(q), price_lookup=PRICE_LOOKUP
+        )
         row = result._rows[0]
         assert row["total_input_tokens"] > 0 or row["answer_tokens"] > 0
 
