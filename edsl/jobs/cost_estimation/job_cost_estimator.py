@@ -337,6 +337,7 @@ class JobCostEstimator:
                 answer_tokens=base_estimate.answer_tokens,
                 comment_tokens=base_estimate.comment_tokens,
                 thinking_tokens=base_estimate.thinking_tokens,
+                billable=base_estimate.billable,
             )
 
             # Apply token_overrides (partial — only non-None fields)
