@@ -2,7 +2,12 @@ from __future__ import annotations
 from typing import Callable, TYPE_CHECKING
 
 from .question_token_estimate import QuestionTokenEstimate
-from .cost_estimation_constants import EDSL_DEFAULT_CHARS_PER_TOKEN
+from .cost_estimation_constants import (
+    EDSL_DEFAULT_CHARS_PER_TOKEN,
+    TokenAmount,
+    TokenRatio,
+    _resolve_token_spec,
+)
 
 if TYPE_CHECKING:
     from ...questions.question_base import QuestionBase
@@ -36,43 +41,18 @@ def _avg_option_tokens(
 
 
 class ZeroCostEstimator:
-    """For question types answered locally with no LLM call (compute, functional)."""
+    """For question types answered locally with no LLM call (compute, functional).
 
-    def __init__(self, chars_per_token: int = EDSL_DEFAULT_CHARS_PER_TOKEN):
-        self.chars_per_token = chars_per_token
-
-    def __call__(
-        self,
-        question: "QuestionBase",
-        prompts: dict,
-        model: "LanguageModel" | None = None,
-    ) -> QuestionTokenEstimate:
-        return QuestionTokenEstimate(
-            input_tokens=0,
-            answer_tokens=0,
-            comment_tokens=0,
-        )
-
-    def __repr__(self) -> str:
-        return "ZeroCostEstimator"
-
-
-class FreeTextStyleEstimator:
-    """For free-form answer types where the output is open-ended text.
-
-    No comment field — all output is the answer.
-    Used for: free_text, extract, list, interview, markdown, edsl_object, dict,
-              pydantic, file_upload, demand.
+    Cost is zero (billable=False) but answer_tokens is estimated so downstream
+    questions that include this answer in memory get an accurate token count.
     """
-
-    DEFAULT_OUTPUT_RATIO = 0.75
 
     def __init__(
         self,
-        output_ratio: float = DEFAULT_OUTPUT_RATIO,
+        answer: TokenAmount | TokenRatio = TokenAmount(20),
         chars_per_token: int = EDSL_DEFAULT_CHARS_PER_TOKEN,
     ):
-        self.output_ratio = output_ratio
+        self.answer = answer
         self.chars_per_token = chars_per_token
 
     def __call__(
@@ -82,7 +62,44 @@ class FreeTextStyleEstimator:
         model: "LanguageModel" | None = None,
     ) -> QuestionTokenEstimate:
         input_tokens = _estimate_input_tokens(prompts, self.chars_per_token)
-        answer_tokens = max(1, int(input_tokens * self.output_ratio))
+        answer_tokens = max(0, _resolve_token_spec(self.answer, input_tokens))
+        return QuestionTokenEstimate(
+            input_tokens=input_tokens,
+            answer_tokens=answer_tokens,
+            comment_tokens=0,
+            billable=False,
+        )
+
+    def __repr__(self) -> str:
+        return f"ZeroCostEstimator(answer={self.answer})"
+
+
+class FreeTextStyleEstimator:
+    """For free-form answer types where the output is open-ended text.
+
+    No comment field — all output is the answer. Output defaults to TokenRatio(1.0)
+    (output ≈ input) since output length is unknown for these types.
+
+    Used for: free_text, extract, list, interview, markdown, edsl_object, dict,
+              pydantic, file_upload.
+    """
+
+    def __init__(
+        self,
+        output: TokenAmount | TokenRatio = TokenRatio(1.0),
+        chars_per_token: int = EDSL_DEFAULT_CHARS_PER_TOKEN,
+    ):
+        self.output = output
+        self.chars_per_token = chars_per_token
+
+    def __call__(
+        self,
+        question: "QuestionBase",
+        prompts: dict,
+        model: "LanguageModel" | None = None,
+    ) -> QuestionTokenEstimate:
+        input_tokens = _estimate_input_tokens(prompts, self.chars_per_token)
+        answer_tokens = max(1, _resolve_token_spec(self.output, input_tokens))
         return QuestionTokenEstimate(
             input_tokens=input_tokens,
             answer_tokens=answer_tokens,
@@ -90,27 +107,25 @@ class FreeTextStyleEstimator:
         )
 
     def __repr__(self) -> str:
-        return f"FreeTextStyleEstimator(output_ratio={self.output_ratio})"
+        return f"FreeTextStyleEstimator(output={self.output})"
 
 
 class StructuredAnswerEstimator:
     """For question types with a structured answer (one of N options) plus an optional comment.
 
-    Answer tokens are estimated from the actual option text; comment tokens use a
-    configurable ratio of the input.
+    Answer tokens are estimated from the actual option text; comment tokens are a
+    configurable flat amount or ratio.
 
     Used for: multiple_choice, yes_no, likert_five, dropdown, linear_scale, numerical,
-              rank, top_k, budget, checkbox, multiple_choice_with_other, matrix.
+              rank, top_k, budget, checkbox, multiple_choice_with_other.
     """
-
-    DEFAULT_COMMENT_RATIO = 0.3
 
     def __init__(
         self,
-        comment_ratio: float = DEFAULT_COMMENT_RATIO,
+        comment: TokenAmount | TokenRatio = TokenAmount(60),
         chars_per_token: int = EDSL_DEFAULT_CHARS_PER_TOKEN,
     ):
-        self.comment_ratio = comment_ratio
+        self.comment = comment
         self.chars_per_token = chars_per_token
 
     def __call__(
@@ -121,7 +136,7 @@ class StructuredAnswerEstimator:
     ) -> QuestionTokenEstimate:
         input_tokens = _estimate_input_tokens(prompts, self.chars_per_token)
         answer_tokens = _avg_option_tokens(question, self.chars_per_token)
-        comment_tokens = max(0, int(input_tokens * self.comment_ratio))
+        comment_tokens = max(0, _resolve_token_spec(self.comment, input_tokens))
         return QuestionTokenEstimate(
             input_tokens=input_tokens,
             answer_tokens=answer_tokens,
@@ -129,17 +144,24 @@ class StructuredAnswerEstimator:
         )
 
     def __repr__(self) -> str:
-        return f"StructuredAnswerEstimator(comment_ratio={self.comment_ratio})"
+        return f"StructuredAnswerEstimator(comment={self.comment})"
 
 
-class ThinkingEstimator:
-    """For question_type='thinking'.
+class DemandEstimator:
+    """For demand questions — answer is a compact bracket list of quantities, one per price point.
 
-    Uses model.parameters['budget_tokens'] as a conservative upper bound for
-    thinking_tokens. Emits a warning if budget_tokens is not set.
+    Answer tokens scale by number of prices (~1 token per value in the list).
+    Comment tokens are flat (same rationale as StructuredAnswerEstimator).
     """
 
-    def __init__(self, chars_per_token: int = EDSL_DEFAULT_CHARS_PER_TOKEN):
+    def __init__(
+        self,
+        tokens_per_price: int = 1,
+        comment: TokenAmount | TokenRatio = TokenAmount(60),
+        chars_per_token: int = EDSL_DEFAULT_CHARS_PER_TOKEN,
+    ):
+        self.tokens_per_price = tokens_per_price
+        self.comment = comment
         self.chars_per_token = chars_per_token
 
     def __call__(
@@ -147,41 +169,59 @@ class ThinkingEstimator:
         question: "QuestionBase",
         prompts: dict,
         model: "LanguageModel" | None = None,
-    ) -> tuple[QuestionTokenEstimate, list[str]]:
+    ) -> QuestionTokenEstimate:
         input_tokens = _estimate_input_tokens(prompts, self.chars_per_token)
-        answer_tokens = max(1, int(input_tokens * 0.75))
-
-        thinking_tokens = None
-        warnings = []
-
-        if model is not None:
-            budget = getattr(model, "parameters", {}).get("budget_tokens")
-            if budget is not None:
-                thinking_tokens = int(budget)
-            else:
-                warnings.append(
-                    f"Thinking question '{question.question_name}': budget_tokens not set on model "
-                    f"'{getattr(model, 'model', 'unknown')}' — thinking_tokens not estimated."
-                )
-
-        return (
-            QuestionTokenEstimate(
-                input_tokens=input_tokens,
-                answer_tokens=answer_tokens,
-                comment_tokens=0,
-                thinking_tokens=thinking_tokens or 0,
-            ),
-            warnings,
+        n_prices = len(getattr(question, "prices", []))
+        answer_tokens = max(1, n_prices * self.tokens_per_price)
+        comment_tokens = max(0, _resolve_token_spec(self.comment, input_tokens))
+        return QuestionTokenEstimate(
+            input_tokens=input_tokens,
+            answer_tokens=answer_tokens,
+            comment_tokens=comment_tokens,
         )
 
     def __repr__(self) -> str:
-        return "ThinkingEstimator"
+        return f"DemandEstimator(tokens_per_price={self.tokens_per_price}, comment={self.comment})"
+
+
+class MatrixEstimator:
+    """For matrix questions — scales comment tokens by number of rows (question_items).
+
+    Answer tokens come from average option text length (same as StructuredAnswerEstimator).
+    Comment tokens are estimated as tokens_per_item * n_items, since a respondent
+    commenting on a matrix is likely to say something about each row.
+    """
+
+    def __init__(
+        self,
+        tokens_per_item: int = 20,
+        chars_per_token: int = EDSL_DEFAULT_CHARS_PER_TOKEN,
+    ):
+        self.tokens_per_item = tokens_per_item
+        self.chars_per_token = chars_per_token
+
+    def __call__(
+        self,
+        question: "QuestionBase",
+        prompts: dict,
+        model: "LanguageModel" | None = None,
+    ) -> QuestionTokenEstimate:
+        input_tokens = _estimate_input_tokens(prompts, self.chars_per_token)
+        n_items = len(getattr(question, "question_items", []))
+        answer_tokens = _avg_option_tokens(question, self.chars_per_token)
+        comment_tokens = n_items * self.tokens_per_item
+        return QuestionTokenEstimate(
+            input_tokens=input_tokens,
+            answer_tokens=answer_tokens,
+            comment_tokens=comment_tokens,
+        )
+
+    def __repr__(self) -> str:
+        return f"MatrixEstimator(tokens_per_item={self.tokens_per_item})"
 
 
 class DefaultEstimator:
     """Fallback for unknown question types. Emits a warning."""
-
-    DEFAULT_OUTPUT_RATIO = 0.75
 
     def __init__(self, chars_per_token: int = EDSL_DEFAULT_CHARS_PER_TOKEN):
         self.chars_per_token = chars_per_token
@@ -195,7 +235,7 @@ class DefaultEstimator:
         input_tokens = _estimate_input_tokens(prompts, self.chars_per_token)
         return QuestionTokenEstimate(
             input_tokens=input_tokens,
-            answer_tokens=max(1, int(input_tokens * self.DEFAULT_OUTPUT_RATIO)),
+            answer_tokens=max(1, _resolve_token_spec(TokenRatio(1.0), input_tokens)),
             comment_tokens=0,
         )
 
@@ -213,36 +253,37 @@ def _build_default_registry(chars_per_token: int) -> dict[str, object]:
         # zero cost
         "compute": ZeroCostEstimator(chars_per_token=c),
         "functional": ZeroCostEstimator(chars_per_token=c),
-        # free-form output
-        "free_text": FreeTextStyleEstimator(output_ratio=0.75, chars_per_token=c),
-        "extract": FreeTextStyleEstimator(output_ratio=0.5, chars_per_token=c),
-        "list": FreeTextStyleEstimator(output_ratio=0.5, chars_per_token=c),
-        "interview": FreeTextStyleEstimator(output_ratio=0.75, chars_per_token=c),
-        "markdown": FreeTextStyleEstimator(output_ratio=0.75, chars_per_token=c),
-        "edsl_object": FreeTextStyleEstimator(output_ratio=0.5, chars_per_token=c),
-        "dict": FreeTextStyleEstimator(output_ratio=0.5, chars_per_token=c),
-        "pydantic": FreeTextStyleEstimator(output_ratio=0.5, chars_per_token=c),
-        "file_upload": FreeTextStyleEstimator(output_ratio=0.1, chars_per_token=c),
-        "demand": FreeTextStyleEstimator(output_ratio=0.5, chars_per_token=c),
+        # free-form output — output length is unknown; TokenRatio(1.0) (output ≈ input) is an
+        # honest conservative default. interview is the exception: format is fixed by the template.
+        "free_text": FreeTextStyleEstimator(output=TokenRatio(1.0), chars_per_token=c),
+        "extract": FreeTextStyleEstimator(output=TokenRatio(1.0), chars_per_token=c),
+        "list": FreeTextStyleEstimator(output=TokenRatio(1.0), chars_per_token=c),
+        "interview": FreeTextStyleEstimator(output=TokenAmount(500), chars_per_token=c),
+        "markdown": FreeTextStyleEstimator(output=TokenRatio(1.0), chars_per_token=c),
+        "edsl_object": FreeTextStyleEstimator(
+            output=TokenRatio(1.0), chars_per_token=c
+        ),
+        "dict": FreeTextStyleEstimator(output=TokenRatio(1.0), chars_per_token=c),
+        "pydantic": FreeTextStyleEstimator(output=TokenRatio(1.0), chars_per_token=c),
+        "file_upload": FreeTextStyleEstimator(
+            output=TokenRatio(1.0), chars_per_token=c
+        ),
         # structured answer + comment
-        "multiple_choice": StructuredAnswerEstimator(
-            comment_ratio=0.3, chars_per_token=c
-        ),
-        "yes_no": StructuredAnswerEstimator(comment_ratio=0.3, chars_per_token=c),
-        "likert_five": StructuredAnswerEstimator(comment_ratio=0.3, chars_per_token=c),
-        "dropdown": StructuredAnswerEstimator(comment_ratio=0.3, chars_per_token=c),
-        "linear_scale": StructuredAnswerEstimator(comment_ratio=0.3, chars_per_token=c),
-        "numerical": StructuredAnswerEstimator(comment_ratio=0.3, chars_per_token=c),
-        "rank": StructuredAnswerEstimator(comment_ratio=0.3, chars_per_token=c),
-        "top_k": StructuredAnswerEstimator(comment_ratio=0.3, chars_per_token=c),
-        "budget": StructuredAnswerEstimator(comment_ratio=0.3, chars_per_token=c),
-        "checkbox": StructuredAnswerEstimator(comment_ratio=0.3, chars_per_token=c),
-        "multiple_choice_with_other": StructuredAnswerEstimator(
-            comment_ratio=0.3, chars_per_token=c
-        ),
-        "matrix": StructuredAnswerEstimator(comment_ratio=0.0, chars_per_token=c),
-        # thinking
-        "thinking": ThinkingEstimator(chars_per_token=c),
+        "multiple_choice": StructuredAnswerEstimator(chars_per_token=c),
+        "yes_no": StructuredAnswerEstimator(chars_per_token=c),
+        "likert_five": StructuredAnswerEstimator(chars_per_token=c),
+        "dropdown": StructuredAnswerEstimator(chars_per_token=c),
+        "linear_scale": StructuredAnswerEstimator(chars_per_token=c),
+        "numerical": StructuredAnswerEstimator(chars_per_token=c),
+        "rank": StructuredAnswerEstimator(chars_per_token=c),
+        "top_k": StructuredAnswerEstimator(chars_per_token=c),
+        "budget": StructuredAnswerEstimator(chars_per_token=c),
+        "checkbox": StructuredAnswerEstimator(chars_per_token=c),
+        "multiple_choice_with_other": StructuredAnswerEstimator(chars_per_token=c),
+        "matrix": MatrixEstimator(chars_per_token=c),
+        "demand": DemandEstimator(chars_per_token=c),
+        # thinking — QuestionThinking is free-text; thinking_question() wrappers preserve original type
+        "thinking": FreeTextStyleEstimator(output=TokenRatio(0.75), chars_per_token=c),
     }
 
 
@@ -278,10 +319,10 @@ class QuestionEstimator:
     @property
     def chars_per_token_overrides(self) -> dict[str, int]:
         return {
-            qtype: est.chars_per_token
-            for qtype, est in self._registry.items()
-            if hasattr(est, "chars_per_token")
-            and est.chars_per_token != self.chars_per_token
+            qtype: estimator.chars_per_token
+            for qtype, estimator in self._registry.items()
+            if hasattr(estimator, "chars_per_token")
+            and estimator.chars_per_token != self.chars_per_token
         }
 
     def estimate(
@@ -300,10 +341,6 @@ class QuestionEstimator:
                 f"Question '{question.question_name}' (type '{question.question_type}'): "
                 f"no estimator registered — using DefaultEstimator."
             )
-
-        if isinstance(estimator, ThinkingEstimator):
-            result, think_warnings = estimator(question, prompts, model)
-            return result, warnings + think_warnings
 
         return estimator(question, prompts, model), warnings
 

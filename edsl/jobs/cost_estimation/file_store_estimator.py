@@ -140,10 +140,10 @@ class FileStoreEstimator:
     @property
     def chars_per_token_overrides(self) -> dict[str, int]:
         return {
-            mime: est.chars_per_token
-            for mime, est in self._overrides.items()
-            if hasattr(est, "chars_per_token")
-            and est.chars_per_token != self.chars_per_token
+            mime: estimator.chars_per_token
+            for mime, estimator in self._overrides.items()
+            if hasattr(estimator, "chars_per_token")
+            and estimator.chars_per_token != self.chars_per_token
         }
 
     def estimate(

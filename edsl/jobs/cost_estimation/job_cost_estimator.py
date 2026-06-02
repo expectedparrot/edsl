@@ -350,10 +350,13 @@ class JobCostEstimator:
             reach = reach_probs.get(q_name, 1.0)
             output_estimates[q_name] = int(reach * full_estimate.total_output_tokens)
 
-            # Cost
-            cost_usd = _compute_cost_usd(
-                full_estimate, inference_service, model_name, price_lookup
-            )
+            # Cost — zero for non-billable questions (compute, functional)
+            if full_estimate.billable:
+                cost_usd = _compute_cost_usd(
+                    full_estimate, inference_service, model_name, price_lookup
+                )
+            else:
+                cost_usd = 0.0
 
             row = {
                 "interview_index": interview_idx,
