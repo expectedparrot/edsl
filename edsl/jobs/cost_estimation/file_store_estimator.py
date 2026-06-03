@@ -8,6 +8,115 @@ if TYPE_CHECKING:
 
 
 # ------------------------------------------------------------------
+# OpenAI image estimator
+
+
+class OpenAIImageEstimator:
+    """Estimates token cost for images sent to OpenAI or Anthropic models.
+
+    Dispatches between patch-based (gpt-4.1-mini/nano, gpt-5-mini/nano, o4-mini)
+    and tile-based (gpt-4o, gpt-4.1, o1, o3, …) tokenization based on model name.
+    Falls back to GPT-4o defaults (85 base + 170/tile) when the model is unknown.
+
+    Reference: https://developers.openai.com/api/docs/guides/images-vision#calculating-costs
+    """
+
+    # Tile-based config: model_prefix -> (base_tokens, tile_tokens)
+    # Fit to 2048×2048 → scale shortest side to 768px → count 512px tiles
+    TILE_CONFIG: dict[str, tuple[int, int]] = {
+        "gpt-5-chat-latest": (70, 140),
+        "gpt-5": (70, 140),
+        "gpt-4.5": (85, 170),
+        "gpt-4.1": (85, 170),
+        "gpt-4o-mini": (2833, 5667),
+        "gpt-4o": (85, 170),
+        "o1": (75, 150),
+        "o3": (75, 150),
+        "computer-use-preview": (65, 129),
+    }
+
+    # Patch-based config: model_prefix -> (multiplier, patch_budget)
+    # Cover with 32px patches → shrink to fit budget → apply multiplier
+    PATCH_CONFIG: dict[str, tuple[float, int]] = {
+        "gpt-5.4-mini": (1.62, 1536),
+        "gpt-5.4-nano": (2.46, 1536),
+        "gpt-5-mini": (1.62, 1536),
+        "gpt-5-nano": (2.46, 1536),
+        "gpt-4.1-mini": (1.62, 1536),
+        "gpt-4.1-nano": (2.46, 1536),
+        "o4-mini": (1.72, 1536),
+    }
+
+    TILE_DEFAULT: tuple[int, int] = (85, 170)  # GPT-4o fallback
+
+    @classmethod
+    def _lookup(cls, model_name: str | None, config: dict) -> tuple | None:
+        """Longest-prefix match. Returns None if no match."""
+        if not model_name:
+            return None
+        if model_name in config:
+            return config[model_name]
+        for key in sorted(config, key=len, reverse=True):
+            if model_name.startswith(key):
+                return config[key]
+        return None
+
+    @staticmethod
+    def _tile_tokens(width: int, height: int, base: int, tile_cost: int) -> int:
+        import math
+
+        scale = min(1.0, 2048 / max(width, height))
+        w, h = int(width * scale), int(height * scale)
+        scale2 = 768 / min(w, h)
+        w, h = int(w * scale2), int(h * scale2)
+        tiles = math.ceil(w / 512) * math.ceil(h / 512)
+        return base + tile_cost * tiles
+
+    @staticmethod
+    def _patch_tokens(
+        width: int, height: int, multiplier: float, patch_budget: int
+    ) -> int:
+        import math
+
+        original = math.ceil(width / 32) * math.ceil(height / 32)
+        if original <= patch_budget:
+            resized = original
+        else:
+            shrink = math.sqrt((32**2 * patch_budget) / (width * height))
+            adjusted = shrink * min(
+                math.floor(width * shrink / 32) / (width * shrink / 32),
+                math.floor(height * shrink / 32) / (height * shrink / 32),
+            )
+            rw, rh = int(width * adjusted), int(height * adjusted)
+            resized = min(patch_budget, math.ceil(rw / 32) * math.ceil(rh / 32))
+        return round(resized * multiplier)
+
+    def estimate(self, width: int, height: int, model_name: str | None = None) -> int:
+        patch_cfg = self._lookup(model_name, self.PATCH_CONFIG)
+        if patch_cfg:
+            multiplier, patch_budget = patch_cfg
+            return self._patch_tokens(width, height, multiplier, patch_budget)
+        tile_cfg = self._lookup(model_name, self.TILE_CONFIG)
+        base, tile_cost = tile_cfg if tile_cfg else self.TILE_DEFAULT
+        return self._tile_tokens(width, height, base, tile_cost)
+
+    def describe(self, model_name: str | None = None) -> str:
+        patch_cfg = self._lookup(model_name, self.PATCH_CONFIG)
+        if patch_cfg:
+            multiplier, patch_budget = patch_cfg
+            return (
+                f"OpenAI patch formula: 32px patches, ×{multiplier} multiplier "
+                f"(budget: {patch_budget} patches)"
+            )
+        tile_cfg = self._lookup(model_name, self.TILE_CONFIG)
+        base, tile_cost = tile_cfg if tile_cfg else self.TILE_DEFAULT
+        return (
+            f"OpenAI tile formula: fit to 2048×2048 → shortest side 768px → "
+            f"512px tiles ({tile_cost} tokens/tile + {base} base)"
+        )
+
+
+# ------------------------------------------------------------------
 # Built-in MIME-type estimators
 
 
@@ -23,23 +132,14 @@ def _estimate_text_file(
     return max(1, size // chars_per_token), []
 
 
-def _openai_tile_tokens(width: int, height: int) -> int:
-    import math
-
-    scale = min(1.0, 2048 / max(width, height))
-    w = int(width * scale)
-    h = int(height * scale)
-    tiles = math.ceil(w / 512) * math.ceil(h / 512)
-    return 170 * tiles + 85
-
-
 def _estimate_image_openai(
-    filestore: "FileStore", inference_service: str
+    filestore: "FileStore",
+    inference_service: str,
+    model_name: str | None = None,
 ) -> tuple[int, list[str]]:
     warnings = []
     try:
         width, height = filestore.get_image_dimensions()
-        return _openai_tile_tokens(width, height), warnings
     except ImportError:
         warnings.append(
             f"Image '{getattr(filestore, '_path', 'unknown')}': PIL not available — "
@@ -52,6 +152,7 @@ def _estimate_image_openai(
             f"using fixed estimate of 1000 tokens."
         )
         return 1000, warnings
+    return OpenAIImageEstimator().estimate(width, height, model_name), warnings
 
 
 def _estimate_image_google(
@@ -71,10 +172,12 @@ def _estimate_image_default(
 
 
 def _estimate_image(
-    filestore: "FileStore", inference_service: str
+    filestore: "FileStore",
+    inference_service: str,
+    model_name: str | None = None,
 ) -> tuple[int, list[str]]:
     if inference_service in ("openai", "openai_v2", "anthropic"):
-        return _estimate_image_openai(filestore, inference_service)
+        return _estimate_image_openai(filestore, inference_service, model_name)
     elif inference_service == "google":
         return _estimate_image_google(filestore, inference_service)
     else:
@@ -122,12 +225,14 @@ def _estimate_unknown(
 class FileStoreEstimator:
     """Estimates input tokens contributed by a FileStore object.
 
-    Dispatches by MIME type. Receives inference_service so that image estimators
-    can apply the correct provider-specific formula.
+    Dispatches by MIME type. Receives inference_service and model_name so that
+    image estimators can apply the correct provider- and model-specific formula.
 
     Args:
         overrides: dict mapping mime_type -> callable(filestore, inference_service) -> (int, list[str]).
                    Merged over built-in dispatch; only the types you specify are changed.
+        restore_offloaded_files: if True, offloaded images are restored from GCS to get
+                   real dimensions. Set False to skip network calls and use a 1,000-token fallback.
     """
 
     def __init__(
@@ -153,7 +258,7 @@ class FileStoreEstimator:
     def describe(self) -> str:
         return (
             f"Text/document files: character count ÷ {self.chars_per_token} chars/token (from extracted content). "
-            "Images: provider tile formula (OpenAI/Anthropic) or flat rate (Google, 258 tokens/image). "
+            "Images: model-specific tile or patch formula (OpenAI/Anthropic) or flat rate (Google, 258 tokens/image). "
             "Audio/video: not estimated — 0 tokens (see warnings)."
         )
 
@@ -166,7 +271,10 @@ class FileStoreEstimator:
         return getattr(filestore, "_path", None)
 
     def _estimate_offloaded_image(
-        self, filestore: "FileStore", inference_service: str
+        self,
+        filestore: "FileStore",
+        inference_service: str,
+        model_name: str | None = None,
     ) -> tuple[int, list[str]]:
         path = getattr(filestore, "_path", "unknown")
         key = self._file_cache_key(filestore)
@@ -182,6 +290,7 @@ class FileStoreEstimator:
         else:
             try:
                 width, height = filestore.get_image_dimensions()
+                print(f"Restored offloaded image '{path}' from GCS ({width}×{height})")
                 if key is not None:
                     self._file_metadata[key] = {
                         "type": "image",
@@ -195,7 +304,7 @@ class FileStoreEstimator:
                 ]
 
         if inference_service in ("openai", "openai_v2", "anthropic"):
-            return _openai_tile_tokens(width, height), []
+            return OpenAIImageEstimator().estimate(width, height, model_name), []
         elif inference_service == "google":
             return 258, []
         else:
@@ -204,12 +313,17 @@ class FileStoreEstimator:
                 f"using fixed estimate of 1,000 tokens."
             ]
 
-    def describe_for(self, mime_type: str, inference_service: str) -> str:
+    def describe_for(
+        self,
+        mime_type: str,
+        inference_service: str,
+        model_name: str | None = None,
+    ) -> str:
         if mime_type in self._overrides:
             return "Custom estimator (override)"
         if mime_type.startswith("image/"):
             if inference_service in ("openai", "openai_v2", "anthropic"):
-                return "OpenAI tile formula: resized to 2048x2048, tiled at 512x512 (170 tokens/tile + 85 base)"
+                return OpenAIImageEstimator().describe(model_name)
             elif inference_service == "google":
                 return "Google flat rate: 258 tokens per image"
             else:
@@ -218,13 +332,18 @@ class FileStoreEstimator:
             return "Not estimated — 0 tokens (use token_overrides to set manually)"
         return f"Character count ÷ {self.chars_per_token} chars/token (from extracted text or file size)"
 
-    def describe_for_file(self, filestore: "FileStore", inference_service: str) -> str:
+    def describe_for_file(
+        self,
+        filestore: "FileStore",
+        inference_service: str,
+        model_name: str | None = None,
+    ) -> str:
         """Description of how this specific file was estimated (cache-aware)."""
         mime = getattr(filestore, "mime_type", "") or ""
         key = self._file_cache_key(filestore)
 
         if key and key in self._file_metadata:
-            return self.describe_for(mime, inference_service)
+            return self.describe_for(mime, inference_service, model_name)
 
         if getattr(filestore, "base64_string", None) == "offloaded":
             if mime.startswith("image/"):
@@ -235,10 +354,13 @@ class FileStoreEstimator:
                 return "fixed estimate: 1,000 tokens (offloaded — restore disabled)"
             return "estimated from file size (offloaded)"
 
-        return self.describe_for(mime, inference_service)
+        return self.describe_for(mime, inference_service, model_name)
 
     def estimate(
-        self, filestore: "FileStore", inference_service: str
+        self,
+        filestore: "FileStore",
+        inference_service: str,
+        model_name: str | None = None,
     ) -> tuple[int, list[str]]:
         """Return (token_count, warnings) for the given FileStore."""
         mime = getattr(filestore, "mime_type", "") or ""
@@ -250,7 +372,9 @@ class FileStoreEstimator:
         # Offloaded content
         if getattr(filestore, "base64_string", None) == "offloaded":
             if mime.startswith("image/"):
-                return self._estimate_offloaded_image(filestore, inference_service)
+                return self._estimate_offloaded_image(
+                    filestore, inference_service, model_name
+                )
             return _estimate_offloaded(
                 filestore, inference_service, self.chars_per_token
             )
@@ -264,7 +388,7 @@ class FileStoreEstimator:
 
         # Images
         if mime.startswith("image/"):
-            return _estimate_image(filestore, inference_service)
+            return _estimate_image(filestore, inference_service, model_name)
 
         # Audio / video
         if mime.startswith("audio/") or mime.startswith("video/"):

@@ -320,11 +320,13 @@ class JobCostEstimator:
             file_tokens = 0
             file_descriptions: list[str] = []
             for fs in prompts.get("files_list", []):
-                ft, fw = self.file_estimator.estimate(fs, inference_service)
+                ft, fw = self.file_estimator.estimate(fs, inference_service, model_name)
                 file_tokens += ft
                 warnings.extend(fw)
                 file_descriptions.append(
-                    self.file_estimator.describe_for_file(fs, inference_service)
+                    self.file_estimator.describe_for_file(
+                        fs, inference_service, model_name
+                    )
                 )
 
             # Memory tokens (weighted by reach probability of prior questions)
