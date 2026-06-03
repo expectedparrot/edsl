@@ -199,6 +199,30 @@ status = coop.get_human_survey("your-human-survey-uuid")
 print(f"Responses received: {status['n_responses']}")
 ```
 
+### Working with file upload responses
+
+If your survey includes a `QuestionFileUpload` question, each response's answer for that question is a list of file-info dicts. Use `FileStore.from_file_upload_answer` (single file) or `FileStoreList.from_file_upload_answers` (all files at once) to download and wrap them:
+
+```python
+from edsl import Coop
+from edsl.scenarios import FileStore, FileStoreList
+
+coop = Coop()
+
+results = coop.get_human_survey_responses("your-human-survey-uuid")
+
+# Each answer is a list of uploaded file dicts
+uploaded_files = results[0]["answer"]["my_upload_question"]
+
+# Download all files as a FileStoreList
+fsl = FileStoreList.from_file_upload_answers(uploaded_files)
+
+# Or download a single file
+fs = FileStore.from_file_upload_answer(uploaded_files[0])
+```
+
+The returned `FileStore` and `FileStoreList` objects behave like any other — you can inspect, filter, or pass them into further EDSL workflows.
+
 ---
 
 ## QR code

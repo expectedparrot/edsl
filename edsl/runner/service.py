@@ -643,12 +643,6 @@ class JobService:
                 f"  [skip] Q{question_index}: {task_def.question_name}, {len(survey.questions)} questions, {non_default_count} skip rules"
             )
 
-        # First question is never skipped
-        if question_index == 0:
-            if debug:
-                print("  [skip] First question - not skipping")
-            return False, None
-
         # OPTIMIZATION: If survey has no user-defined skip rules, skip evaluation entirely
         # Default rules just say "go to next question", so nothing to skip
         # This avoids expensive rule_collection.skip_question_before_running() calls (O(N) per task)
@@ -698,7 +692,14 @@ class JobService:
             scenario_data = self._jobs.get_scenario(job_id, task_def.scenario_id)
             fallback_ops["scenario"] = 1
         if scenario_data:
-            combined_answers.update(scenario_data)
+            # Keys MUST be prefixed with "scenario." so jinja_ize_dictionary in
+            # surveys/rules/rule.py recognizes {{ scenario.X }} references. Without
+            # the prefix the value is dropped and the rule evaluates against an empty
+            # context. Mirrors SkipHandler._current_info_env in
+            # interviews/answering_function.py.
+            combined_answers.update(
+                {f"scenario.{k}": v for k, v in scenario_data.items()}
+            )
 
         if cached_agent_data is not None:
             agent_data = cached_agent_data
@@ -706,7 +707,10 @@ class JobService:
             agent_data = self._jobs.get_agent(job_id, task_def.agent_id)
             fallback_ops["agent"] = 1
         if agent_data and "traits" in agent_data:
-            combined_answers.update(agent_data["traits"])
+            # Prefix with "agent." for the same reason as scenario keys above.
+            combined_answers.update(
+                {f"agent.{k}": v for k, v in agent_data["traits"].items()}
+            )
 
         # Debug: report any fallback operations
         if debug and any(v > 0 for v in fallback_ops.values()):
@@ -715,38 +719,64 @@ class JobService:
         if debug:
             print(f"  [skip] Combined answers: {len(combined_answers)} keys")
 
-        # Check "before" skip rules
-        before_skip = survey.rule_collection.skip_question_before_running(
+        # Simulate the survey's navigation from the start to see whether
+        # `question_index` is reached at all. We need a full walk (not a single
+        # 1-step lookahead) because before-rules and after-rules can chain: a
+        # before-rule on question A can jump to D, skipping B and C in between.
+        # Mirrors SurveyNavigator's traversal but only asks "do we visit Q?".
+        #
+        # PERFORMANCE NOTE — O(Q^2) per interview when skip rules exist.
+        # Each task at index Q triggers a walk of up to Q steps. Across the Q
+        # tasks of one interview, total work is ~Q^2 / 2 walk steps. For surveys
+        # WITHOUT user-defined skip rules this code is gated out at render.py
+        # (`_has_skip_rules`) and at service.py:649 (`if not has_skip_rules`),
+        # so the cost is zero. With skip rules:
+        #   - small/medium surveys (<100 Q): negligible (<10 ms per batch)
+        #   - large surveys (1000+ Q with rules): seconds per batch
+        # The walk is correct but un-cached. The intended optimization, when
+        # this becomes a bottleneck, is to compute the set of skipped indices
+        # ONCE per interview in render.py (before the task loop) and pass it
+        # via a new `cached_skipped_indices: frozenset[int]` kwarg, reducing
+        # the per-task check to O(1) and the per-batch cost to O(Q * I).
+        rc = survey.rule_collection
+        pos = 0
+        guard = len(survey.questions) + 1  # cycle guard
+        while guard > 0 and pos < question_index:
+            guard -= 1
+
+            # Does a before-rule at `pos` fire? If yes, follow the FIRST matching
+            # before-rule's next_q (its "jump target"); the questions in
+            # [pos, jump_target) are skipped.
+            jumped = False
+            for rule in rc.applicable_rules(pos, before_rule=True):
+                try:
+                    if rule.evaluate(combined_answers):
+                        pos = rule.next_q
+                        jumped = True
+                        break
+                except Exception:
+                    continue
+
+            if not jumped:
+                # No before-rule fired -> use after-rule navigation from pos
+                # (default rule sends pos -> pos+1).
+                try:
+                    nxt = rc.next_question(pos, combined_answers).next_q
+                except Exception:
+                    nxt = pos + 1
+                pos = nxt
+
+            if pos == EndOfSurvey:
+                return True, "EndOfSurvey reached during navigation"
+            if pos > question_index:
+                return True, f"Skip rule: navigation jumped past {question_index}"
+
+        # We arrived exactly at question_index. One last check: does Q itself
+        # have a before-rule that fires?
+        if pos == question_index and rc.skip_question_before_running(
             question_index, combined_answers
-        )
-        if debug:
-            print(
-                f"  [skip] skip_question_before_running({question_index}): {before_skip}"
-            )
-        if before_skip:
+        ):
             return True, "Skip rule evaluated to true before running"
-
-        # Check if previous question's rules skip past this question
-        prev_question_index = question_index - 1
-
-        next_q_info = survey.rule_collection.next_question(
-            prev_question_index, combined_answers
-        )
-        if debug:
-            print(
-                f"  [skip] next_question({prev_question_index}): next_q={next_q_info.next_q}, current={question_index}"
-            )
-
-        if next_q_info.next_q == EndOfSurvey:
-            # End of survey - all remaining questions should be skipped
-            return True, "EndOfSurvey reached"
-
-        if next_q_info.next_q > question_index:
-            # Rule says to jump past this question
-            return (
-                True,
-                f"Skip rule: jump from {prev_question_index} to {next_q_info.next_q}",
-            )
 
         if debug:
             print(f"  [skip] No skip condition met for {task_def.question_name}")
