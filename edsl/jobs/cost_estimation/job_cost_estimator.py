@@ -240,7 +240,7 @@ class JobCostEstimator:
                 "branch_weights provided: estimates are expected costs weighted by reach probability. "
                 "Questions not covered by branch_weights default to reach probability 0.0."
             )
-        else:
+        elif survey.rule_collection.non_default_rules:
             warnings.append(
                 "No branch_weights provided: skip logic in the survey is ignored and the survey "
                 "is assumed to proceed linearly with every question asked by every respondent. "

@@ -172,12 +172,22 @@ class TestTokenOverrides:
 class TestBranchWeights:
     """branch_weights adjusts reach probabilities and changes which warning is emitted."""
 
-    def test_no_branch_weights_emits_linear_warning(self):
+    def test_skip_logic_survey_without_branch_weights_warns(self):
+        q0 = QuestionFreeText(question_name="q0", question_text="Q0?")
+        q1 = QuestionFreeText(question_name="q1", question_text="Q1?")
+        q2 = QuestionFreeText(question_name="q2", question_text="Q2?")
+        s = Survey(questions=[q0, q1, q2]).add_rule(
+            "q0", "{{ q0.answer }} == 'yes'", "q2"
+        )
+        m = Model("test", canned_response="SPAM!")
+        job = Jobs(survey=s, models=[m])
+        result = JobCostEstimator().estimate_cost(job, price_lookup=PRICE_LOOKUP)
+        assert any("skip logic" in w.lower() for w in result.warnings)
+
+    def test_linear_survey_without_branch_weights_no_skip_warning(self):
         job = make_job(QuestionFreeText(question_name="q0", question_text="Hello?"))
         result = JobCostEstimator().estimate_cost(job, price_lookup=PRICE_LOOKUP)
-        assert any(
-            "skip logic" in w.lower() or "linear" in w.lower() for w in result.warnings
-        )
+        assert not any("skip logic" in w.lower() for w in result.warnings)
 
     def test_branch_weights_emits_expected_cost_warning(self):
         q0 = QuestionFreeText(question_name="q0", question_text="Q0?")
@@ -219,5 +229,3 @@ class TestMemory:
         result = JobCostEstimator().estimate_cost(job, price_lookup=PRICE_LOOKUP)
         rows = {r["question_name"]: r for r in result._rows}
         assert rows["q1"]["memory_tokens"] > 0
-
-

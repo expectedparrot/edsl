@@ -207,11 +207,17 @@ class JobCostEstimate:
             ]
         methodology_section = tabulate(methodology_rows, headers="keys", tablefmt="github")
 
-        warnings_lines = (
+        warnings_intro = (
+            "_Warnings flag places where the estimate used a fallback, approximation, "
+            "or ignored something (e.g. skip logic, unsupported file types). "
+            "Each warning identifies what was affected and how to address it._"
+        )
+        warnings_body = (
             "\n".join(f"- {w}" for w in self.warnings)
             if self.warnings
             else "No warnings."
         )
+        warnings_lines = f"{warnings_intro}\n\n{warnings_body}"
 
         md = "\n".join(
             [
