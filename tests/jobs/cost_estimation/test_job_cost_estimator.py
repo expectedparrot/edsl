@@ -163,10 +163,10 @@ class TestTokenOverrides:
             make_job(q0, q1), token_overrides=override, price_lookup=PRICE_LOOKUP
         )
         rows = {r["question_name"]: r for r in result._rows}
-        assert (
-            rows["q0"]["estimator_description"] == "Manual override: answer_tokens=50"
+        assert rows["q0"]["estimator_description"] == (
+            "Output estimated at 100% of prompt tokens; override: answer_tokens=50"
         )
-        assert "Manual override" not in rows["q1"]["estimator_description"]
+        assert "; override:" not in rows["q1"]["estimator_description"]
 
 
 class TestBranchWeights:

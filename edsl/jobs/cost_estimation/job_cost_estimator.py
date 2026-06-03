@@ -323,14 +323,9 @@ class JobCostEstimator:
                 ft, fw = self.file_estimator.estimate(fs, inference_service)
                 file_tokens += ft
                 warnings.extend(fw)
-                mime = getattr(fs, "mime_type", "") or ""
-                if getattr(fs, "base64_string", None) == "offloaded":
-                    if mime.startswith("image/"):
-                        file_descriptions.append("fixed estimate: 1,000 tokens (offloaded — dimensions unavailable)")
-                    else:
-                        file_descriptions.append("estimated from file size (offloaded — see warnings)")
-                else:
-                    file_descriptions.append(self.file_estimator.describe_for(mime, inference_service))
+                file_descriptions.append(
+                    self.file_estimator.describe_for_file(fs, inference_service)
+                )
 
             # Memory tokens (weighted by reach probability of prior questions)
             memory_entry = survey.memory_plan.get(q_name)
@@ -360,9 +355,7 @@ class JobCostEstimator:
             if q_name in token_overrides:
                 full_estimate = full_estimate.merge(token_overrides[q_name])
                 estimator_name = f"manual override (base: {estimator_name})"
-                estimator_description = (
-                    f"{estimator_description}; override: {token_overrides[q_name].describe()}"
-                )
+                estimator_description = f"{estimator_description}; override: {token_overrides[q_name].describe()}"
 
             # Store expected output tokens for use by downstream memory calculations.
             # Scaled by reach probability so that a question only reached 30% of the
@@ -401,4 +394,3 @@ class JobCostEstimator:
             rows.append(row)
 
         return rows, warnings
-
