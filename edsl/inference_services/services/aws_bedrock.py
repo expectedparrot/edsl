@@ -24,26 +24,176 @@ class AwsBedrockService(InferenceServiceABC):
 
     @classmethod
     def get_model_info(cls):
-        """Get raw model info from AWS Bedrock."""
+        """Get raw model info from AWS Bedrock — only the IDs the account can
+        actually invoke on-demand.
+
+        Two AWS Bedrock APIs together describe what's callable on-demand:
+
+        * ``list_inference_profiles`` — returns cross-region routing profiles
+          (``us.*``, ``global.*``, ``eu.*``, ``apac.*``). Most modern models
+          (Claude 3.5+, Llama 3.1+, etc.) can ONLY be invoked via one of
+          these; AWS rejects their bare foundation IDs with::
+
+              ValidationException: Invocation of model ID <id> with on-demand
+              throughput isn't supported. Retry your request with the ID or ARN
+              of an inference profile that contains this model.
+
+        * ``list_foundation_models`` — returns the regional catalog of every
+          model AWS hosts. Some models (notably the OpenAI ``gpt-oss-*``
+          family) support on-demand invocation with their BARE ID and have
+          no inference profile; for those, the foundation ID is the only
+          invocable form.
+
+        We return the union: all profile IDs, plus any foundation ID whose
+        ``inferenceTypesSupported`` includes ``ON_DEMAND`` AND that does not
+        already appear as a profile target. This avoids hiding the OpenAI
+        gpt-oss models (and any future on-demand-bare-ID models) while still
+        steering users to the profile ID for everything that requires one.
+        """
         region = os.getenv("AWS_REGION", "us-east-1")
         client = boto3.client("bedrock", region_name=region)
-        return client.list_foundation_models()["modelSummaries"]
 
-    # @classmethod
-    # def available(cls):
-    #     """Fetch available models from AWS Bedrock."""
+        # 1) Inference profiles (cross-region routing IDs).
+        profiles: list = []
+        try:
+            profiles = client.list_inference_profiles().get(
+                "inferenceProfileSummaries", []
+            )
+        except Exception:
+            pass
 
-    #     region = os.getenv("AWS_REGION", "us-east-1")
+        # Track the bare model IDs each profile contains so we can skip the
+        # bare entries in step 2 — the profile ID is the canonical form.
+        bare_ids_covered_by_profile: set = set()
+        for p in profiles:
+            for routed in p.get("models", []) or []:
+                arn = routed.get("modelArn", "")
+                # ARN tail looks like ".../foundation-model/<model-id>"
+                if "/" in arn:
+                    bare_ids_covered_by_profile.add(arn.rsplit("/", 1)[-1])
+            # Also strip the routing prefix from the profile ID itself; that's
+            # always the bare ID the profile fronts.
+            pid = p.get("inferenceProfileId", "")
+            for pref in cls._PROFILE_PREFERENCE:
+                if pid.startswith(pref):
+                    bare_ids_covered_by_profile.add(pid[len(pref) :])
+                    break
 
-    #     if not cls._models_list_cache:
-    #         client = boto3.client("bedrock", region_name=region)
-    #         all_models_ids = [
-    #             x["modelId"] for x in client.list_foundation_models()["modelSummaries"]
-    #         ]
-    #     else:
-    #         all_models_ids = cls._models_list_cache
+        # 2) Foundation models with ON_DEMAND inference (bare-ID invokable
+        #    and not already covered by a profile).
+        foundation_on_demand: list = []
+        try:
+            catalog = client.list_foundation_models().get("modelSummaries", [])
+            for m in catalog:
+                if "ON_DEMAND" not in (m.get("inferenceTypesSupported") or []):
+                    continue
+                if m.get("modelId") in bare_ids_covered_by_profile:
+                    continue
+                foundation_on_demand.append(m)
+        except Exception:
+            pass
 
-    #     return [m for m in all_models_ids if m not in cls.model_exclude_list]
+        # Reshape profiles to the {"modelId": ...} shape ModelInfo expects.
+        profile_entries = [
+            {
+                "modelId": p["inferenceProfileId"],
+                "providerName": p.get("inferenceProfileName", ""),
+                "inferenceProfileArn": p.get("inferenceProfileArn", ""),
+            }
+            for p in profiles
+        ]
+
+        result = profile_entries + foundation_on_demand
+        # If both APIs failed, fall back to whatever the catalog has so
+        # discovery isn't completely broken in degraded environments.
+        if not result:
+            try:
+                return client.list_foundation_models()["modelSummaries"]
+            except Exception:
+                return []
+        return result
+
+    # Cache: region -> {bare_model_id: profile_id}. Populated lazily on first
+    # resolve call per region and reused for the rest of the process.
+    _profile_cache_by_region: dict = {}
+
+    # Prefixes that mark an ID as already an inference profile (or ARN); these
+    # are passed through to the Converse API untouched.
+    _PROFILE_PREFIXES = ("us.", "global.", "eu.", "apac.", "arn:")
+
+    # Preference order when multiple cross-region profiles exist for the same
+    # bare model ID. US accounts typically have us.* granted; global.* exists
+    # for newer models; eu.*/apac.* for those regions.
+    _PROFILE_PREFERENCE = ("us.", "global.", "eu.", "apac.")
+
+    @classmethod
+    def _load_profile_map(cls, region: str) -> dict:
+        """Return {bare_model_id: profile_id} for `region`, caching per process.
+
+        Builds the map by listing all inference profiles in the region and
+        stripping the routing prefix from each profile ID. When several
+        profiles map to the same bare ID (e.g. both ``us.X`` and ``global.X``),
+        ``_PROFILE_PREFERENCE`` decides which one wins.
+        """
+        if region in cls._profile_cache_by_region:
+            return cls._profile_cache_by_region[region]
+
+        mapping: dict = {}
+        try:
+            client = boto3.client("bedrock", region_name=region)
+            profiles = client.list_inference_profiles().get(
+                "inferenceProfileSummaries", []
+            )
+            # Group bare-id -> [profile_id, ...] then pick by preference order.
+            by_bare: dict = {}
+            for p in profiles:
+                pid = p.get("inferenceProfileId", "")
+                for pref in cls._PROFILE_PREFERENCE:
+                    if pid.startswith(pref):
+                        bare = pid[len(pref) :]
+                        by_bare.setdefault(bare, []).append(pid)
+                        break
+            for bare, candidates in by_bare.items():
+                for pref in cls._PROFILE_PREFERENCE:
+                    match = next((c for c in candidates if c.startswith(pref)), None)
+                    if match:
+                        mapping[bare] = match
+                        break
+        except Exception:
+            # On failure leave the cache empty for this region; resolve() will
+            # return the original ID and AWS will produce its native error.
+            pass
+
+        cls._profile_cache_by_region[region] = mapping
+        return mapping
+
+    @classmethod
+    def _resolve_inference_profile(cls, model_id: str, region: str) -> str:
+        """Translate a bare Bedrock foundation-model ID into the inference
+        profile ID the account can invoke on-demand.
+
+        Restores the silent translation the deleted ``remote_proxy`` used to
+        perform server-side (removed in commit 04e6ffff, March 2026). Without
+        this, pre-existing user code like ``Model("meta.llama3-1-70b-instruct-v1:0",
+        service_name="bedrock")`` fails with::
+
+            ValidationException: Invocation of model ID <bare_id> with on-demand
+            throughput isn't supported. Retry your request with the ID or ARN
+            of an inference profile that contains this model.
+
+        Rules:
+          * IDs already starting with ``us.``/``global.``/``eu.``/``apac.`` or
+            ARNs are passed through unchanged.
+          * Otherwise the cached profile map for the region is consulted. The
+            preferred match (US first, then global, then EU, then APAC) is
+            returned.
+          * If no profile matches, the original ID is returned so AWS produces
+            its native error message (which is more informative than anything
+            EDSL could synthesize here).
+        """
+        if not model_id or model_id.startswith(cls._PROFILE_PREFIXES):
+            return model_id
+        return cls._load_profile_map(region).get(model_id, model_id)
 
     @classmethod
     def create_model(
@@ -86,6 +236,14 @@ class AwsBedrockService(InferenceServiceABC):
                 _ = self.api_token  # call to check if env variables are set.
 
                 region = os.getenv("AWS_REGION", "us-east-1")
+                # Translate a bare foundation-model ID (e.g.
+                # "meta.llama3-1-70b-instruct-v1:0") into the inference profile
+                # the account can actually invoke (e.g.
+                # "us.meta.llama3-1-70b-instruct-v1:0"). Profile IDs and ARNs
+                # pass through unchanged.
+                effective_model_id = cls._resolve_inference_profile(
+                    self._model_, region
+                )
                 client = boto3.client("bedrock-runtime", region_name=region)
 
                 # Build content array for the user message
@@ -156,7 +314,7 @@ class AwsBedrockService(InferenceServiceABC):
 
                 # Build converse parameters
                 converse_params = {
-                    "modelId": self._model_,
+                    "modelId": effective_model_id,
                     "messages": conversation,
                     "inferenceConfig": {
                         "maxTokens": self.max_tokens,
