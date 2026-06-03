@@ -315,6 +315,9 @@ class JobCostEstimator:
             estimator_name = self.question_estimator.estimator_name_for(
                 question.question_type
             )
+            estimator_description = self.question_estimator.description_for(
+                question.question_type
+            )
 
             # File tokens
             file_tokens = 0
@@ -351,6 +354,7 @@ class JobCostEstimator:
             if q_name in token_overrides:
                 full_estimate = full_estimate.merge(token_overrides[q_name])
                 estimator_name = f"manual override (base: {estimator_name})"
+                estimator_description = f"Manual override (base: {estimator_description})"
 
             # Store expected output tokens for use by downstream memory calculations.
             # Scaled by reach probability so that a question only reached 30% of the
@@ -372,6 +376,7 @@ class JobCostEstimator:
             row = {
                 "interview_index": interview_idx,
                 "question_name": q_name,
+                "question_type": question.question_type,
                 "agent_index": agent_index_lookup.get(id(interview.agent), 0),
                 "scenario_index": scenario_index_lookup.get(id(interview.scenario), 0),
                 "model": model_name,
@@ -379,6 +384,7 @@ class JobCostEstimator:
                 "input_price_per_million": input_price_per_million,
                 "output_price_per_million": output_price_per_million,
                 "estimator_used": estimator_name,
+                "estimator_description": estimator_description,
                 "reach_probability": reach,
                 **full_estimate.to_detail_row(),
                 "cost_usd": cost_usd,

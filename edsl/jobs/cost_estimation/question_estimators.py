@@ -70,6 +70,9 @@ class ZeroCostEstimator:
             billable=False,
         )
 
+    def describe(self) -> str:
+        return "No LLM call — answered locally (zero cost)"
+
     def __repr__(self) -> str:
         return f"ZeroCostEstimator(answer={self.answer})"
 
@@ -105,6 +108,12 @@ class FreeTextStyleEstimator:
             answer_tokens=answer_tokens,
             comment_tokens=0,
         )
+
+    def describe(self) -> str:
+        if isinstance(self.output, TokenAmount):
+            return f"Output fixed at {self.output.value} tokens"
+        pct = int(self.output.value * 100)
+        return f"Output estimated at {pct}% of input tokens"
 
     def __repr__(self) -> str:
         return f"FreeTextStyleEstimator(output={self.output})"
@@ -143,6 +152,15 @@ class StructuredAnswerEstimator:
             comment_tokens=comment_tokens,
         )
 
+    def describe(self) -> str:
+        if isinstance(self.comment, TokenAmount):
+            comment_str = f"{self.comment.value} comment tokens"
+        else:
+            comment_str = (
+                f"{int(self.comment.value * 100)}% of input tokens for comment"
+            )
+        return f"Answer from option text length + {comment_str}"
+
     def __repr__(self) -> str:
         return f"StructuredAnswerEstimator(comment={self.comment})"
 
@@ -180,6 +198,15 @@ class DemandEstimator:
             comment_tokens=comment_tokens,
         )
 
+    def describe(self) -> str:
+        if isinstance(self.comment, TokenAmount):
+            comment_str = f"{self.comment.value} comment tokens"
+        else:
+            comment_str = (
+                f"{int(self.comment.value * 100)}% of input tokens for comment"
+            )
+        return f"Answer scales with price point count ({self.tokens_per_price} token/price) + {comment_str}"
+
     def __repr__(self) -> str:
         return f"DemandEstimator(tokens_per_price={self.tokens_per_price}, comment={self.comment})"
 
@@ -216,6 +243,11 @@ class MatrixEstimator:
             comment_tokens=comment_tokens,
         )
 
+    def describe(self) -> str:
+        return (
+            f"Answer from option text + {self.tokens_per_item} comment tokens per row"
+        )
+
     def __repr__(self) -> str:
         return f"MatrixEstimator(tokens_per_item={self.tokens_per_item})"
 
@@ -238,6 +270,9 @@ class DefaultEstimator:
             answer_tokens=max(1, _resolve_token_spec(TokenRatio(1.0), prompt_tokens)),
             comment_tokens=0,
         )
+
+    def describe(self) -> str:
+        return "Unknown question type — output estimated at 100% of input tokens (fallback)"
 
     def __repr__(self) -> str:
         return "DefaultEstimator"
@@ -347,3 +382,7 @@ class QuestionEstimator:
     def estimator_name_for(self, question_type: str) -> str:
         estimator = self._registry.get(question_type, _DEFAULT_ESTIMATOR)
         return repr(estimator)
+
+    def description_for(self, question_type: str) -> str:
+        estimator = self._registry.get(question_type, _DEFAULT_ESTIMATOR)
+        return estimator.describe()

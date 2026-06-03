@@ -146,6 +146,27 @@ class FileStoreEstimator:
             and estimator.chars_per_token != self.chars_per_token
         }
 
+    def describe(self) -> str:
+        return (
+            f"Text/document files: character count ÷ {self.chars_per_token} chars/token (from extracted content). "
+            "Images: provider tile formula (OpenAI/Anthropic) or flat rate (Google, 258 tokens/image). "
+            "Audio/video: not estimated — 0 tokens (see warnings)."
+        )
+
+    def describe_for(self, mime_type: str, inference_service: str) -> str:
+        if mime_type in self._overrides:
+            return "Custom estimator (override)"
+        if mime_type.startswith("image/"):
+            if inference_service in ("openai", "openai_v2", "anthropic"):
+                return "OpenAI tile formula: resized to 2048x2048, tiled at 512x512 (170 tokens/tile + 85 base)"
+            elif inference_service == "google":
+                return "Google flat rate: 258 tokens per image"
+            else:
+                return "Fixed fallback: 1,000 tokens (no provider-specific formula)"
+        if mime_type.startswith("audio/") or mime_type.startswith("video/"):
+            return "Not estimated — 0 tokens (use token_overrides to set manually)"
+        return f"Character count ÷ {self.chars_per_token} chars/token (from extracted text or file size)"
+
     def estimate(
         self, filestore: "FileStore", inference_service: str
     ) -> tuple[int, list[str]]:

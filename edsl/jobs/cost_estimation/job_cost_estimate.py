@@ -8,6 +8,7 @@ APP_CREDITS_PRICE_CENTS = 1  # 1 credit = 1 cent = $0.01
 def usd_to_credits(usd: float) -> float:
     return usd * (100 / APP_CREDITS_PRICE_CENTS)
 
+
 if TYPE_CHECKING:
     from ...dataset import Dataset
 
@@ -92,17 +93,23 @@ class JobCostEstimate:
         for q_name, rows in grouped.items():
             n = len(rows)
             q_cost = sum(r["cost_usd"] for r in rows)
-            result.append({
-                "question_name": q_name,
-                "estimator_used": rows[0]["estimator_used"],
-                "billable": rows[0]["billable"],
-                "avg_reach_probability": sum(r["reach_probability"] for r in rows) / n,
-                "avg_input_tokens": sum(r["total_input_tokens"] for r in rows) / n,
-                "avg_output_tokens": sum(r["total_output_tokens"] for r in rows) / n,
-                "total_cost_usd": q_cost,
-                "total_cost_credits": usd_to_credits(q_cost),
-                "cost_share": q_cost / total if total > 0 else 0.0,
-            })
+            result.append(
+                {
+                    "question_name": q_name,
+                    "question_type": rows[0].get("question_type", ""),
+                    "estimator_used": rows[0]["estimator_used"],
+                    "estimator_description": rows[0].get("estimator_description", ""),
+                    "billable": rows[0]["billable"],
+                    "avg_reach_probability": sum(r["reach_probability"] for r in rows)
+                    / n,
+                    "avg_input_tokens": sum(r["total_input_tokens"] for r in rows) / n,
+                    "avg_output_tokens": sum(r["total_output_tokens"] for r in rows)
+                    / n,
+                    "total_cost_usd": q_cost,
+                    "total_cost_credits": usd_to_credits(q_cost),
+                    "cost_share": q_cost / total if total > 0 else 0.0,
+                }
+            )
         return result
 
     def summary_by_model(self) -> list[dict]:
@@ -117,16 +124,20 @@ class JobCostEstimate:
 
         result = []
         for (inference_service, model), rows in grouped.items():
-            result.append({
-                "inference_service": inference_service,
-                "model": model,
-                "input_price_per_million": rows[0]["input_price_per_million"],
-                "output_price_per_million": rows[0]["output_price_per_million"],
-                "total_input_tokens": sum(r["total_input_tokens"] for r in rows),
-                "total_output_tokens": sum(r["total_output_tokens"] for r in rows),
-                "total_cost_usd": sum(r["cost_usd"] for r in rows),
-                "total_cost_credits": usd_to_credits(sum(r["cost_usd"] for r in rows)),
-            })
+            result.append(
+                {
+                    "inference_service": inference_service,
+                    "model": model,
+                    "input_price_per_million": rows[0]["input_price_per_million"],
+                    "output_price_per_million": rows[0]["output_price_per_million"],
+                    "total_input_tokens": sum(r["total_input_tokens"] for r in rows),
+                    "total_output_tokens": sum(r["total_output_tokens"] for r in rows),
+                    "total_cost_usd": sum(r["cost_usd"] for r in rows),
+                    "total_cost_credits": usd_to_credits(
+                        sum(r["cost_usd"] for r in rows)
+                    ),
+                }
+            )
         return result
 
     # ------------------------------------------------------------------
@@ -141,7 +152,9 @@ class JobCostEstimate:
         from tabulate import tabulate
 
         n_interviews = self.num_interviews
-        unique_questions = len(set(r["question_name"] for r in self._rows)) if self._rows else 0
+        unique_questions = (
+            len(set(r["question_name"] for r in self._rows)) if self._rows else 0
+        )
 
         model_rows = [
             {
@@ -159,7 +172,7 @@ class JobCostEstimate:
         table_rows = [
             {
                 "Question": q["question_name"],
-                "Estimator": q["estimator_used"].split("(")[0],
+                "Type": q["question_type"],
                 "Billable": "yes" if q["billable"] else "no",
                 "Avg reach": f"{q['avg_reach_probability']:.2f}",
                 "Avg input": f"{q['avg_input_tokens']:.0f}",
@@ -171,34 +184,60 @@ class JobCostEstimate:
             for q in self.summary_by_question()
         ]
 
-        assumptions_lines = "\n".join(f"- **{k}:** {v}" for k, v in self.assumptions.items())
-        warnings_lines = "\n".join(f"- {w}" for w in self.warnings) if self.warnings else "No warnings."
+        # Methodology: group question names that share the same description
+        desc_to_names: dict[str, list[str]] = defaultdict(list)
+        for q in self.summary_by_question():
+            desc_to_names[q["estimator_description"]].append(q["question_name"])
+        methodology_rows = [
+            {"Questions": ", ".join(names), "Description": desc}
+            for desc, names in desc_to_names.items()
+        ]
+        methodology_section = tabulate(methodology_rows, headers="keys", tablefmt="github")
 
-        md = "\n".join([
-            "# Job Cost Estimate",
-            "",
-            f"**Total cost:** ${self.total_cost_usd:.4f} ({self.total_credits:,.2f} credits)  ",
-            f"**Interviews:** {n_interviews}  ",
-            f"**Questions per interview:** {unique_questions}  ",
-            f"**Total input tokens:** {self.total_input_tokens:,}  ",
-            f"**Total output tokens:** {self.total_output_tokens:,}  ",
-            "",
-            "## Cost by model",
-            "",
-            tabulate(model_rows, headers="keys", tablefmt="github"),
-            "",
-            "## Cost by question",
-            "",
-            tabulate(table_rows, headers="keys", tablefmt="github"),
-            "",
-            "## Assumptions",
-            "",
-            assumptions_lines,
-            "",
-            "## Warnings",
-            "",
-            warnings_lines,
-        ])
+        # Strip internal keys from assumptions display
+        _hidden_assumptions = {"question_estimator", "file_estimator"}
+        assumptions_lines = "\n".join(
+            f"- **{k}:** {v}"
+            for k, v in self.assumptions.items()
+            if k not in _hidden_assumptions
+        )
+        warnings_lines = (
+            "\n".join(f"- {w}" for w in self.warnings)
+            if self.warnings
+            else "No warnings."
+        )
+
+        md = "\n".join(
+            [
+                "# Job Cost Estimate",
+                "",
+                f"**Total cost:** ${self.total_cost_usd:.4f} ({self.total_credits:,.2f} credits)  ",
+                f"**Interviews:** {n_interviews}  ",
+                f"**Questions per interview:** {unique_questions}  ",
+                f"**Total input tokens:** {self.total_input_tokens:,}  ",
+                f"**Total output tokens:** {self.total_output_tokens:,}  ",
+                "",
+                "## Cost by model",
+                "",
+                tabulate(model_rows, headers="keys", tablefmt="github"),
+                "",
+                "## Cost by question",
+                "",
+                tabulate(table_rows, headers="keys", tablefmt="github"),
+                "",
+                "## How costs were estimated",
+                "",
+                methodology_section,
+                "",
+                "## Assumptions",
+                "",
+                assumptions_lines,
+                "",
+                "## Warnings",
+                "",
+                warnings_lines,
+            ]
+        )
 
         if path is not None:
             with open(path, "w", encoding="utf-8") as f:
