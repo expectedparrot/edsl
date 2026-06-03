@@ -131,6 +131,43 @@ class TestTokenOverrides:
             baseline._rows[0]["prompt_tokens"] == overridden._rows[0]["prompt_tokens"]
         )
 
+    def test_override_description_reflects_override(self):
+        q = QuestionFreeText(question_name="q0", question_text="What is your name?")
+        override = {"q0": QuestionTokenEstimate(answer_tokens=50)}
+        result = JobCostEstimator().estimate_cost(
+            make_job(q), token_overrides=override, price_lookup=PRICE_LOOKUP
+        )
+        assert (
+            result._rows[0]["estimator_description"]
+            == "Manual override: answer_tokens=50"
+        )
+
+    def test_override_description_lists_all_set_fields(self):
+        q = QuestionFreeText(question_name="q0", question_text="What is your name?")
+        override = {"q0": QuestionTokenEstimate(answer_tokens=50, comment_tokens=10)}
+        result = JobCostEstimator().estimate_cost(
+            make_job(q), token_overrides=override, price_lookup=PRICE_LOOKUP
+        )
+        assert (
+            result._rows[0]["estimator_description"]
+            == "Manual override: answer_tokens=50, comment_tokens=10"
+        )
+
+    def test_non_overridden_question_keeps_estimator_description(self):
+        q0 = QuestionFreeText(question_name="q0", question_text="What is your name?")
+        q1 = QuestionFreeText(
+            question_name="q1", question_text="What is your favorite color?"
+        )
+        override = {"q0": QuestionTokenEstimate(answer_tokens=50)}
+        result = JobCostEstimator().estimate_cost(
+            make_job(q0, q1), token_overrides=override, price_lookup=PRICE_LOOKUP
+        )
+        rows = {r["question_name"]: r for r in result._rows}
+        assert (
+            rows["q0"]["estimator_description"] == "Manual override: answer_tokens=50"
+        )
+        assert "Manual override" not in rows["q1"]["estimator_description"]
+
 
 class TestBranchWeights:
     """branch_weights adjusts reach probabilities and changes which warning is emitted."""

@@ -354,7 +354,9 @@ class JobCostEstimator:
             if q_name in token_overrides:
                 full_estimate = full_estimate.merge(token_overrides[q_name])
                 estimator_name = f"manual override (base: {estimator_name})"
-                estimator_description = f"Manual override (base: {estimator_description})"
+                estimator_description = (
+                    f"Manual override: {token_overrides[q_name].describe()}"
+                )
 
             # Store expected output tokens for use by downstream memory calculations.
             # Scaled by reach probability so that a question only reached 30% of the

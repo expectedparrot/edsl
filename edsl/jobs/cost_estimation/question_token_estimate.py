@@ -20,8 +20,12 @@ class QuestionTokenEstimate:
     memory_tokens: int | None = None  # from prior question answers (memory plan)
     answer_tokens: int | None = None  # the answer field in the model response
     comment_tokens: int | None = None  # the comment field (0 for free_text, etc.)
-    thinking_tokens: int | None = None  # internal reasoning tokens; charged at output rate
-    billable: bool = True  # False for compute/functional — tokens tracked but cost is zero
+    thinking_tokens: int | None = (
+        None  # internal reasoning tokens; charged at output rate
+    )
+    billable: bool = (
+        True  # False for compute/functional — tokens tracked but cost is zero
+    )
 
     @property
     def total_input_tokens(self) -> int:
@@ -42,6 +46,23 @@ class QuestionTokenEstimate:
     @property
     def total_tokens(self) -> int:
         return self.total_input_tokens + self.total_output_tokens
+
+    def describe(self) -> str:
+        """Describe the non-None token fields set on this estimate."""
+        _token_fields = (
+            "prompt_tokens",
+            "file_tokens",
+            "memory_tokens",
+            "answer_tokens",
+            "comment_tokens",
+            "thinking_tokens",
+        )
+        parts = [
+            f"{f}={getattr(self, f)}"
+            for f in _token_fields
+            if getattr(self, f) is not None
+        ]
+        return ", ".join(parts) if parts else "no token fields set"
 
     def merge(self, override: "QuestionTokenEstimate") -> "QuestionTokenEstimate":
         """Return a new QuestionTokenEstimate with non-None fields from override applied."""

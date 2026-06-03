@@ -54,6 +54,29 @@ class TestMerge:
         assert merged.billable is True
 
 
+class TestDescribe:
+    def test_single_field(self):
+        assert QuestionTokenEstimate(answer_tokens=50).describe() == "answer_tokens=50"
+
+    def test_multiple_fields(self):
+        assert QuestionTokenEstimate(answer_tokens=50, comment_tokens=10).describe() == "answer_tokens=50, comment_tokens=10"
+
+    def test_all_token_fields(self):
+        e = QuestionTokenEstimate(
+            prompt_tokens=100, file_tokens=20, memory_tokens=30,
+            answer_tokens=50, comment_tokens=10, thinking_tokens=5,
+        )
+        assert e.describe() == "prompt_tokens=100, file_tokens=20, memory_tokens=30, answer_tokens=50, comment_tokens=10, thinking_tokens=5"
+
+    def test_no_fields_set(self):
+        assert QuestionTokenEstimate().describe() == "no token fields set"
+
+    def test_none_fields_excluded(self):
+        desc = QuestionTokenEstimate(prompt_tokens=10).describe()
+        assert "file_tokens" not in desc
+        assert "answer_tokens" not in desc
+
+
 class TestToDetailRow:
     """to_detail_row() returns a flat dict suitable for a Dataset row."""
 
