@@ -113,7 +113,7 @@ class FreeTextStyleEstimator:
         if isinstance(self.output, TokenAmount):
             return f"Output fixed at {self.output.value} tokens"
         pct = int(self.output.value * 100)
-        return f"Output estimated at {pct}% of input tokens"
+        return f"Output estimated at {pct}% of prompt tokens"
 
     def __repr__(self) -> str:
         return f"FreeTextStyleEstimator(output={self.output})"
@@ -157,7 +157,7 @@ class StructuredAnswerEstimator:
             comment_str = f"{self.comment.value} comment tokens"
         else:
             comment_str = (
-                f"{int(self.comment.value * 100)}% of input tokens for comment"
+                f"{int(self.comment.value * 100)}% of prompt tokens for comment"
             )
         return f"Answer from option text length + {comment_str}"
 
@@ -203,7 +203,7 @@ class DemandEstimator:
             comment_str = f"{self.comment.value} comment tokens"
         else:
             comment_str = (
-                f"{int(self.comment.value * 100)}% of input tokens for comment"
+                f"{int(self.comment.value * 100)}% of prompt tokens for comment"
             )
         return f"Answer scales with price point count ({self.tokens_per_price} token/price) + {comment_str}"
 

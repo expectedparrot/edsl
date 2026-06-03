@@ -26,13 +26,13 @@ class TestDescribeMethods:
     def test_free_text_ratio_100(self):
         assert (
             FreeTextStyleEstimator(output=TokenRatio(1.0)).describe()
-            == "Output estimated at 100% of input tokens"
+            == "Output estimated at 100% of prompt tokens"
         )
 
     def test_free_text_ratio_75(self):
         assert (
             FreeTextStyleEstimator(output=TokenRatio(0.75)).describe()
-            == "Output estimated at 75% of input tokens"
+            == "Output estimated at 75% of prompt tokens"
         )
 
     def test_structured_answer_fixed_comment(self):
@@ -44,7 +44,7 @@ class TestDescribeMethods:
     def test_structured_answer_ratio_comment(self):
         assert (
             StructuredAnswerEstimator(comment=TokenRatio(0.5)).describe()
-            == "Answer from option text length + 50% of input tokens for comment"
+            == "Answer from option text length + 50% of prompt tokens for comment"
         )
 
     def test_demand_default(self):
@@ -74,7 +74,7 @@ class TestDescribeMethods:
     def test_default_estimator(self):
         assert (
             DefaultEstimator().describe()
-            == "Unknown question type — output estimated at 100% of input tokens (fallback)"
+            == "Unknown question type — output estimated at 100% of prompt tokens (fallback)"
         )
 
     def test_description_for_interview(self):
@@ -86,7 +86,7 @@ class TestDescribeMethods:
     def test_description_for_free_text(self):
         assert (
             QuestionEstimator().description_for("free_text")
-            == "Output estimated at 100% of input tokens"
+            == "Output estimated at 100% of prompt tokens"
         )
 
     def test_description_for_multiple_choice(self):
@@ -104,5 +104,5 @@ class TestDescribeMethods:
     def test_description_for_unknown_type(self):
         assert (
             QuestionEstimator().description_for("nonexistent_type")
-            == "Unknown question type — output estimated at 100% of input tokens (fallback)"
+            == "Unknown question type — output estimated at 100% of prompt tokens (fallback)"
         )

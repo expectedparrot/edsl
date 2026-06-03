@@ -171,10 +171,9 @@ class JobCostEstimate:
             {
                 "Question": q["question_name"],
                 "Type": q["question_type"],
-                "Billable": "yes" if q["billable"] else "no",
-                "Avg reach": f"{q['avg_reach_probability']:.2f}",
-                "Avg input": f"{q['avg_input_tokens']:.0f}",
-                "Avg output": f"{q['avg_output_tokens']:.0f}",
+                "Avg reach*": f"{q['avg_reach_probability']:.2f}",
+                "Avg input tokens": f"{q['avg_input_tokens']:.0f}",
+                "Avg output tokens": f"{q['avg_output_tokens']:.0f}",
                 "Total cost": f"${q['total_cost_usd']:.4f}",
                 "Credits": f"{q['total_cost_credits']:,.2f}",
                 "Cost share": f"{q['cost_share']:.1%}",
@@ -236,6 +235,10 @@ class JobCostEstimate:
                 "## Cost by question",
                 "",
                 tabulate(table_rows, headers="keys", tablefmt="github"),
+                "",
+                "_\\* Avg reach: estimated fraction of respondents who reach this question. "
+                "Always 1.0 for surveys with no skip rules; less than 1.0 when skip logic is present "
+                "and branch\\_weights were provided._",
                 "",
                 "## How costs were estimated",
                 "",
