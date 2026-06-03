@@ -325,7 +325,10 @@ class JobCostEstimator:
                 warnings.extend(fw)
                 mime = getattr(fs, "mime_type", "") or ""
                 if getattr(fs, "base64_string", None) == "offloaded":
-                    file_descriptions.append("estimated from file size (offloaded — see warnings)")
+                    if mime.startswith("image/"):
+                        file_descriptions.append("fixed estimate: 1,000 tokens (offloaded — dimensions unavailable)")
+                    else:
+                        file_descriptions.append("estimated from file size (offloaded — see warnings)")
                 else:
                     file_descriptions.append(self.file_estimator.describe_for(mime, inference_service))
 

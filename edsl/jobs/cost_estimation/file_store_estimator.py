@@ -95,13 +95,17 @@ def _estimate_offloaded(
     inference_service: str,
     chars_per_token: int = EDSL_DEFAULT_CHARS_PER_TOKEN,
 ) -> tuple[int, list[str]]:
+    mime = getattr(filestore, "mime_type", "") or ""
+    path = getattr(filestore, "_path", "unknown")
+    if mime.startswith("image/"):
+        return 1000, [
+            f"Image '{path}' is offloaded — dimensions unavailable, using fixed estimate of 1,000 tokens."
+        ]
     size = getattr(filestore, "size", 0) or 0
     tokens = max(0, size // chars_per_token)
-    warnings = [
-        f"File '{getattr(filestore, '_path', 'unknown')}' is offloaded — "
-        f"estimating from file size ({size} bytes → {tokens} tokens)."
+    return tokens, [
+        f"File '{path}' is offloaded — estimating from file size ({size} bytes → {tokens} tokens)."
     ]
-    return tokens, warnings
 
 
 def _estimate_unknown(
