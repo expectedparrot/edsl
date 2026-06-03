@@ -318,10 +318,16 @@ class JobCostEstimator:
 
             # File tokens
             file_tokens = 0
+            file_descriptions: list[str] = []
             for fs in prompts.get("files_list", []):
                 ft, fw = self.file_estimator.estimate(fs, inference_service)
                 file_tokens += ft
                 warnings.extend(fw)
+                mime = getattr(fs, "mime_type", "") or ""
+                if getattr(fs, "base64_string", None) == "offloaded":
+                    file_descriptions.append("estimated from file size (offloaded — see warnings)")
+                else:
+                    file_descriptions.append(self.file_estimator.describe_for(mime, inference_service))
 
             # Memory tokens (weighted by reach probability of prior questions)
             memory_entry = survey.memory_plan.get(q_name)
@@ -384,6 +390,7 @@ class JobCostEstimator:
                 "output_price_per_million": output_price_per_million,
                 "estimator_used": estimator_name,
                 "estimator_description": estimator_description,
+                "file_description": "; ".join(file_descriptions),
                 "reach_probability": reach,
                 **full_estimate.to_detail_row(),
                 "cost_usd": cost_usd,
