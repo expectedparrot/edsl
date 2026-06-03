@@ -186,10 +186,25 @@ class JobCostEstimate:
         desc_to_names: dict[str, list[str]] = defaultdict(list)
         for q in self.summary_by_question():
             desc_to_names[q["estimator_description"]].append(q["question_name"])
-        methodology_rows = [
-            {"Questions": ", ".join(names), "Description": desc}
-            for desc, names in desc_to_names.items()
-        ]
+
+        has_overrides = any("; override: " in desc for desc in desc_to_names)
+        if has_overrides:
+            methodology_rows = []
+            for desc, names in desc_to_names.items():
+                if "; override: " in desc:
+                    base, override = desc.split("; override: ", 1)
+                else:
+                    base, override = desc, ""
+                methodology_rows.append({
+                    "Questions": ", ".join(names),
+                    "Description": base,
+                    "Override": override,
+                })
+        else:
+            methodology_rows = [
+                {"Questions": ", ".join(names), "Description": desc}
+                for desc, names in desc_to_names.items()
+            ]
         methodology_section = tabulate(methodology_rows, headers="keys", tablefmt="github")
 
         warnings_lines = (

@@ -352,7 +352,7 @@ class JobCostEstimator:
                 full_estimate = full_estimate.merge(token_overrides[q_name])
                 estimator_name = f"manual override (base: {estimator_name})"
                 estimator_description = (
-                    f"Manual override: {token_overrides[q_name].describe()}"
+                    f"{estimator_description}; override: {token_overrides[q_name].describe()}"
                 )
 
             # Store expected output tokens for use by downstream memory calculations.

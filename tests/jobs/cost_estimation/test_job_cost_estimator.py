@@ -139,7 +139,7 @@ class TestTokenOverrides:
         )
         assert (
             result._rows[0]["estimator_description"]
-            == "Manual override: answer_tokens=50"
+            == "Output estimated at 100% of input tokens; override: answer_tokens=50"
         )
 
     def test_override_description_lists_all_set_fields(self):
@@ -150,7 +150,7 @@ class TestTokenOverrides:
         )
         assert (
             result._rows[0]["estimator_description"]
-            == "Manual override: answer_tokens=50, comment_tokens=10"
+            == "Output estimated at 100% of input tokens; override: answer_tokens=50, comment_tokens=10"
         )
 
     def test_non_overridden_question_keeps_estimator_description(self):
