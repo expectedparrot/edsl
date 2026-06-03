@@ -19,17 +19,15 @@ class JobCostEstimate:
     Three levels of detail:
     - repr: one-line summary
     - .detail: per-question breakdown as a Dataset
-    - .assumptions / .warnings: what the estimator assumed and where it approximated
+    - .warnings: where the estimator approximated or fell back
     """
 
     def __init__(
         self,
         rows: list[dict],
-        assumptions: dict,
         warnings: list[str],
     ):
         self._rows = rows
-        self.assumptions = assumptions
         self.warnings = warnings
 
     # ------------------------------------------------------------------
@@ -194,13 +192,6 @@ class JobCostEstimate:
         ]
         methodology_section = tabulate(methodology_rows, headers="keys", tablefmt="github")
 
-        # Strip internal keys from assumptions display
-        _hidden_assumptions = {"question_estimator", "file_estimator"}
-        assumptions_lines = "\n".join(
-            f"- **{k}:** {v}"
-            for k, v in self.assumptions.items()
-            if k not in _hidden_assumptions
-        )
         warnings_lines = (
             "\n".join(f"- {w}" for w in self.warnings)
             if self.warnings
@@ -212,8 +203,8 @@ class JobCostEstimate:
                 "# Job Cost Estimate",
                 "",
                 f"**Total cost:** ${self.total_cost_usd:.4f} ({self.total_credits:,.2f} credits)  ",
-                f"**Interviews:** {n_interviews}  ",
-                f"**Questions per interview:** {unique_questions}  ",
+                f"**Responses:** {n_interviews}  ",
+                f"**Questions per survey:** {unique_questions}  ",
                 f"**Total input tokens:** {self.total_input_tokens:,}  ",
                 f"**Total output tokens:** {self.total_output_tokens:,}  ",
                 "",
@@ -228,10 +219,6 @@ class JobCostEstimate:
                 "## How costs were estimated",
                 "",
                 methodology_section,
-                "",
-                "## Assumptions",
-                "",
-                assumptions_lines,
                 "",
                 "## Warnings",
                 "",

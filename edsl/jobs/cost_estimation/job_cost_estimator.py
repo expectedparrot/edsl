@@ -225,9 +225,7 @@ class JobCostEstimator:
         # Build interview list
         interviews: list["Interview"] = list(job.generate_interviews())
         if not interviews:
-            return JobCostEstimate(
-                rows=[], assumptions=self._build_assumptions(), warnings=warnings
-            )
+            return JobCostEstimate(rows=[], warnings=warnings)
 
         survey = interviews[0].survey
 
@@ -272,8 +270,7 @@ class JobCostEstimator:
             rows.extend(interview_rows)
             warnings.extend(interview_warnings)
 
-        assumptions = self._build_assumptions(token_overrides, branch_weights)
-        return JobCostEstimate(rows=rows, assumptions=assumptions, warnings=warnings)
+        return JobCostEstimate(rows=rows, warnings=warnings)
 
     # ------------------------------------------------------------------
 
@@ -395,41 +392,3 @@ class JobCostEstimator:
 
         return rows, warnings
 
-    def _build_assumptions(
-        self,
-        token_overrides: dict | None = None,
-        branch_weights: dict | None = None,
-    ) -> dict:
-        assumptions: dict = {
-            "chars_per_token": self.chars_per_token,
-            "question_estimator": repr(self.question_estimator.__class__.__name__),
-            "file_estimator": repr(self.file_estimator.__class__.__name__),
-            "token_overrides_applied": (
-                list(token_overrides.keys()) if token_overrides else []
-            ),
-            "branch_weights_applied": bool(branch_weights),
-        }
-
-        # Only report per-type/MIME deviations when a custom estimator was passed
-        # with a different chars_per_token than the top-level default.
-        q_cpt: int | None = getattr(self.question_estimator, "chars_per_token", None)
-        if q_cpt is not None and q_cpt != self.chars_per_token:
-            assumptions["chars_per_token_questions"] = q_cpt
-
-        per_type_overrides: dict[str, int] = getattr(
-            self.question_estimator, "chars_per_token_overrides", {}
-        )
-        if per_type_overrides:
-            assumptions["chars_per_token_question_type_overrides"] = per_type_overrides
-
-        f_cpt: int | None = getattr(self.file_estimator, "chars_per_token", None)
-        if f_cpt is not None and f_cpt != self.chars_per_token:
-            assumptions["chars_per_token_files"] = f_cpt
-
-        per_mime_overrides: dict[str, int] = getattr(
-            self.file_estimator, "chars_per_token_overrides", {}
-        )
-        if per_mime_overrides:
-            assumptions["chars_per_token_mime_overrides"] = per_mime_overrides
-
-        return assumptions

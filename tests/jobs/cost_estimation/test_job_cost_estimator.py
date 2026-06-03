@@ -221,30 +221,3 @@ class TestMemory:
         assert rows["q1"]["memory_tokens"] > 0
 
 
-class TestAssumptions:
-    """assumptions dict reflects the configuration used for the estimate."""
-
-    def test_chars_per_token_in_assumptions(self):
-        job = make_job(QuestionFreeText(question_name="q0", question_text="Hello?"))
-        result = JobCostEstimator(chars_per_token=8).estimate_cost(
-            job, price_lookup=PRICE_LOOKUP
-        )
-        assert result.assumptions["chars_per_token"] == 8
-
-    def test_token_overrides_listed_in_assumptions(self):
-        q = QuestionFreeText(question_name="q0", question_text="Hello?")
-        override = {"q0": QuestionTokenEstimate(answer_tokens=50)}
-        result = JobCostEstimator().estimate_cost(
-            make_job(q), token_overrides=override, price_lookup=PRICE_LOOKUP
-        )
-        assert "q0" in result.assumptions["token_overrides_applied"]
-
-    def test_branch_weights_flag_in_assumptions(self):
-        q0 = QuestionFreeText(question_name="q0", question_text="Q0?")
-        q1 = QuestionFreeText(question_name="q1", question_text="Q1?")
-        result = JobCostEstimator().estimate_cost(
-            make_job(q0, q1),
-            branch_weights={("q0", "q1"): 0.5},
-            price_lookup=PRICE_LOOKUP,
-        )
-        assert result.assumptions["branch_weights_applied"] is True
