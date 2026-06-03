@@ -168,6 +168,82 @@ class AwsBedrockService(InferenceServiceABC):
         return mapping
 
     @classmethod
+    def _build_inference_config(
+        cls, model_id: str, max_tokens, temperature, top_p
+    ) -> dict:
+        """Build a Converse ``inferenceConfig`` tuned to per-model restrictions.
+
+        AWS Bedrock validates ``inferenceConfig`` per model and rejects
+        parameters the target model doesn't accept. The known restrictions for
+        Anthropic Claude on Bedrock:
+
+        * **Claude (all)**: ``temperature`` and ``top_p`` cannot both be set.
+          AWS error: ``temperature and top_p cannot both be specified for this
+          model``. We send ``temperature`` only and omit ``topP``.
+        * **Claude Opus 4.7 / 4.8** (extended-thinking / reasoning variants):
+          ``temperature`` is deprecated entirely — the model hard-codes it.
+          AWS error: ``temperature is deprecated for this model``. We send
+          only ``maxTokens``.
+
+        Models not matched here get the full ``{maxTokens, temperature, topP}``
+        triple. ``_converse_with_param_retry`` is the safety net for models
+        whose restrictions we haven't enumerated yet.
+        """
+        cfg: dict = {"maxTokens": max_tokens}
+        mid = (model_id or "").lower()
+        is_claude = "anthropic" in mid or "claude" in mid
+        is_thinking = any(s in mid for s in ("opus-4-7", "opus-4-8"))
+
+        if is_thinking:
+            return cfg
+        if is_claude:
+            cfg["temperature"] = temperature
+            return cfg
+        cfg["temperature"] = temperature
+        cfg["topP"] = top_p
+        return cfg
+
+    @staticmethod
+    def _converse_with_param_retry(client, params):
+        """Call ``client.converse(**params)`` with a one-shot retry that prunes
+        inference-config params AWS reports as invalid.
+
+        AWS keeps tightening per-model parameter rules (most recently:
+        Claude Opus 4.7/4.8 deprecating ``temperature``). A static lookup in
+        ``_build_inference_config`` will inevitably miss future models, so this
+        safety net inspects the ValidationException message, drops the offending
+        param, and tries once more. If pruning would not change anything, the
+        original AWS error is re-raised so users still see the real message.
+        """
+        from botocore.exceptions import ClientError
+
+        try:
+            return client.converse(**params)
+        except ClientError as e:
+            err = e.response.get("Error", {}) if hasattr(e, "response") else {}
+            if err.get("Code") != "ValidationException":
+                raise
+            msg = (err.get("Message") or "").lower()
+            cfg = params.get("inferenceConfig", {})
+            before = dict(cfg)
+
+            # "`temperature` is deprecated for this model" -> drop temperature
+            if "temperature" in msg and "deprecated" in msg:
+                cfg.pop("temperature", None)
+            # "`top_p` is deprecated for this model" -> drop topP
+            if "top_p" in msg and "deprecated" in msg:
+                cfg.pop("topP", None)
+            # "temperature and top_p cannot both be specified" -> keep temperature
+            if "cannot both be specified" in msg:
+                if "temperature" in cfg and "topP" in cfg:
+                    cfg.pop("topP", None)
+
+            if cfg == before:
+                # Nothing we know how to fix; surface the original error.
+                raise
+            return client.converse(**params)
+
+    @classmethod
     def _resolve_inference_profile(cls, model_id: str, region: str) -> str:
         """Translate a bare Bedrock foundation-model ID into the inference
         profile ID the account can invoke on-demand.
@@ -312,15 +388,18 @@ class AwsBedrockService(InferenceServiceABC):
                     }
                 ]
 
-                # Build converse parameters
+                # Build converse parameters. inferenceConfig is tuned per model
+                # because some Bedrock models (Claude 4-family especially)
+                # reject specific params with ValidationException.
                 converse_params = {
                     "modelId": effective_model_id,
                     "messages": conversation,
-                    "inferenceConfig": {
-                        "maxTokens": self.max_tokens,
-                        "temperature": self.temperature,
-                        "topP": self.top_p,
-                    },
+                    "inferenceConfig": cls._build_inference_config(
+                        effective_model_id,
+                        self.max_tokens,
+                        self.temperature,
+                        self.top_p,
+                    ),
                     "additionalModelRequestFields": {},
                 }
 
@@ -328,7 +407,10 @@ class AwsBedrockService(InferenceServiceABC):
                 if system_prompt:
                     converse_params["system"] = [{"text": system_prompt}]
 
-                response = client.converse(**converse_params)
+                # Safety net: prune AWS-rejected inference-config params and
+                # retry once, so we survive future model-specific restrictions
+                # not yet enumerated in _build_inference_config.
+                response = cls._converse_with_param_retry(client, converse_params)
                 return response
 
             def _get_file_format(self, file_path: str) -> str:
