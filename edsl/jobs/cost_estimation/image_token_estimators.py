@@ -137,6 +137,7 @@ class GoogleImageEstimator:
         )
 
 
+
 class AnthropicImageEstimator:
     """Estimates token cost for images sent to Anthropic models.
 

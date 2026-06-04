@@ -1,4 +1,5 @@
 from __future__ import annotations
+import base64
 from abc import ABC, abstractmethod
 from typing import Callable, TYPE_CHECKING
 
@@ -8,6 +9,7 @@ from .image_token_estimators import (
     GoogleImageEstimator,
     OpenAIImageEstimator,
 )
+from .pdf_token_estimators import OpenAIPDFEstimator
 
 if TYPE_CHECKING:
     from ...scenarios import FileStore
@@ -141,6 +143,108 @@ class ImageEstimator(FileTypeEstimator):
         return "Fixed fallback: 1,000 tokens (no provider-specific formula)"
 
 
+class PdfEstimator(FileTypeEstimator):
+    def __init__(
+        self,
+        restore_offloaded: bool = True,
+        chars_per_token: int = EDSL_DEFAULT_CHARS_PER_TOKEN,
+    ):
+        self.restore_offloaded = restore_offloaded
+        self.chars_per_token = chars_per_token
+        self._page_count_cache: dict[str, int] = {}
+
+    def _cache_key(self, filestore: "FileStore") -> str | None:
+        ext = getattr(filestore, "external_locations", {}) or {}
+        uuid = (ext.get("gcs") or {}).get("file_uuid")
+        return str(uuid) if uuid else getattr(filestore, "_path", None)
+
+    def _get_page_count(self, filestore: "FileStore") -> int | None:
+        try:
+            from ...scenarios.handlers.pdf_file_store import count_pdf_pages_from_bytes
+
+            return count_pdf_pages_from_bytes(base64.b64decode(filestore.base64_string))
+        except Exception:
+            return None
+
+    def _tokens_from_pages(
+        self,
+        filestore: "FileStore",
+        inference_service: str,
+        model_name: str | None,
+        num_pages: int | None,
+    ) -> tuple[int, list[str]]:
+        extracted = getattr(filestore, "extracted_text", None)
+        if inference_service in ("openai", "openai_v2"):
+            tokens = OpenAIPDFEstimator().estimate(
+                model_name=model_name,
+                num_pages=num_pages,
+                extracted_text=extracted,
+                chars_per_token=self.chars_per_token,
+            )
+            return tokens, []
+        # Non-OpenAI: extracted text or size-based fallback
+        if extracted:
+            return max(1, len(extracted) // self.chars_per_token), []
+        size = getattr(filestore, "size", 0) or 0
+        return max(0, size // self.chars_per_token), []
+
+    def estimate_inline(self, filestore, inference_service, model_name=None):
+        key = self._cache_key(filestore)
+        if key and key in self._page_count_cache:
+            num_pages = self._page_count_cache[key]
+        else:
+            num_pages = self._get_page_count(filestore)
+            if key and num_pages is not None:
+                self._page_count_cache[key] = num_pages
+        return self._tokens_from_pages(
+            filestore, inference_service, model_name, num_pages
+        )
+
+    def estimate_offloaded(self, filestore, inference_service, model_name=None):
+        path = getattr(filestore, "_path", "unknown")
+        key = self._cache_key(filestore)
+
+        if key and key in self._page_count_cache:
+            return self._tokens_from_pages(
+                filestore, inference_service, model_name, self._page_count_cache[key]
+            )
+
+        if not self.restore_offloaded:
+            tokens, warnings = self._tokens_from_pages(
+                filestore, inference_service, model_name, None
+            )
+            return tokens, warnings + [
+                f"PDF '{path}' is offloaded — restore disabled, "
+                f"using default {OpenAIPDFEstimator.DEFAULT_PAGE_COUNT} pages."
+            ]
+
+        try:
+            _ = filestore.path  # triggers _restore_from_gcs
+            if getattr(filestore, "base64_string", None) != "offloaded":
+                num_pages = self._get_page_count(filestore)
+                if key and num_pages is not None:
+                    self._page_count_cache[key] = num_pages
+                print(f"Restored offloaded PDF '{path}' from GCS ({num_pages} pages)")
+                return self._tokens_from_pages(
+                    filestore, inference_service, model_name, num_pages
+                )
+        except Exception:
+            pass
+
+        tokens, warnings = self._tokens_from_pages(
+            filestore, inference_service, model_name, None
+        )
+        return tokens, warnings + [
+            f"PDF '{path}' is offloaded — GCS restore failed, "
+            f"using default {OpenAIPDFEstimator.DEFAULT_PAGE_COUNT} pages."
+        ]
+
+    def describe(self, inference_service: str, model_name: str | None = None) -> str:
+        if inference_service in ("openai", "openai_v2"):
+            return OpenAIPDFEstimator().describe(model_name=model_name)
+        return f"Character count / {self.chars_per_token} chars/token (from extracted text or file size)"
+
+
 class AudioVideoEstimator(FileTypeEstimator):
     def estimate_inline(self, filestore, inference_service, model_name=None):
         return self._warn(filestore)
@@ -185,6 +289,10 @@ class FileStoreEstimator:
         self.chars_per_token = chars_per_token
         self._text = TextEstimator(chars_per_token)
         self._image = ImageEstimator(restore_offloaded=restore_offloaded_files)
+        self._pdf = PdfEstimator(
+            restore_offloaded=restore_offloaded_files,
+            chars_per_token=chars_per_token,
+        )
         self._audio_video = AudioVideoEstimator()
 
     @property
@@ -198,8 +306,9 @@ class FileStoreEstimator:
 
     def describe(self) -> str:
         return (
-            f"Text/document files: character count ÷ {self.chars_per_token} chars/token (from extracted content). "
-            "Images: tile/patch formula (OpenAI), width x height ÷ 750 (Anthropic), or crop-unit tile formula (Google, 258 tokens/tile). "
+            f"Text/document files: character count / {self.chars_per_token} chars/token (from extracted content). "
+            "PDFs (OpenAI): pages x image formula (Files API) or extracted text (reasoning models). "
+            "Images: tile/patch formula (OpenAI), width x height / 750 (Anthropic), or crop-unit tile formula (Google). "
             "Audio/video: not estimated — 0 tokens (see warnings)."
         )
 
@@ -213,6 +322,8 @@ class FileStoreEstimator:
             return "Custom estimator (override)"
         if mime_type.startswith("image/"):
             return self._image.describe(inference_service, model_name)
+        if mime_type == "application/pdf":
+            return self._pdf.describe(inference_service, model_name)
         if mime_type.startswith("audio/") or mime_type.startswith("video/"):
             return "Not estimated — 0 tokens (use token_overrides to set manually)"
         return self._text.describe()
@@ -237,6 +348,11 @@ class FileStoreEstimator:
                         "fixed estimate: 1,000 tokens (offloaded — GCS restore failed)"
                     )
                 return "fixed estimate: 1,000 tokens (offloaded — restore disabled)"
+            if mime == "application/pdf":
+                return (
+                    self._pdf.describe(inference_service, model_name)
+                    + " (offloaded — default page count used)"
+                )
             return "estimated from file size (offloaded)"
 
         return self.describe_for(mime, inference_service, model_name)
@@ -256,10 +372,13 @@ class FileStoreEstimator:
         if mime.startswith("image/"):
             return self._image.estimate(filestore, inference_service, model_name)
 
+        if mime == "application/pdf":
+            return self._pdf.estimate(filestore, inference_service, model_name)
+
         if mime.startswith("audio/") or mime.startswith("video/"):
             return self._audio_video.estimate(filestore, inference_service, model_name)
 
-        # extracted_text covers text, PDF, Word, CSV, markdown, etc.
+        # extracted_text covers Word, CSV, markdown, etc. (non-PDF docs with text)
         extracted = getattr(filestore, "extracted_text", None)
         if extracted:
             return self._text.estimate(filestore, inference_service, model_name)
