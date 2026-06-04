@@ -9,7 +9,7 @@ from .image_token_estimators import (
     GoogleImageEstimator,
     OpenAIImageEstimator,
 )
-from .pdf_token_estimators import OpenAIPDFEstimator
+from .pdf_token_estimators import AnthropicPDFEstimator, OpenAIPDFEstimator
 
 if TYPE_CHECKING:
     from ...scenarios import FileStore
@@ -182,7 +182,9 @@ class PdfEstimator(FileTypeEstimator):
                 chars_per_token=self.chars_per_token,
             )
             return tokens, []
-        # Non-OpenAI: extracted text or size-based fallback
+        if inference_service == "anthropic":
+            return AnthropicPDFEstimator().estimate(num_pages=num_pages), []
+        # Other services: extracted text or size-based fallback
         if extracted:
             return max(1, len(extracted) // self.chars_per_token), []
         size = getattr(filestore, "size", 0) or 0
@@ -242,6 +244,8 @@ class PdfEstimator(FileTypeEstimator):
     def describe(self, inference_service: str, model_name: str | None = None) -> str:
         if inference_service in ("openai", "openai_v2"):
             return OpenAIPDFEstimator().describe(model_name=model_name)
+        if inference_service == "anthropic":
+            return AnthropicPDFEstimator().describe()
         return f"Character count / {self.chars_per_token} chars/token (from extracted text or file size)"
 
 

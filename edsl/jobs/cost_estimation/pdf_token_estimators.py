@@ -24,8 +24,8 @@ class OpenAIPDFEstimator:
     # Empirically derived per-page rates, keyed by model name prefix.
     # Longest-prefix match; falls back to DEFAULT_TOKENS_PER_PAGE.
     TOKENS_PER_PAGE: dict[str, int] = {
-        "gpt-5": 780,   # observed ~779, rounded up
-        "gpt-4": 80,    # observed ~77, rounded up
+        "gpt-5": 780,  # observed ~779, rounded up
+        "gpt-4": 80,  # observed ~77, rounded up
     }
     DEFAULT_TOKENS_PER_PAGE = 780
 
@@ -79,4 +79,39 @@ class OpenAIPDFEstimator:
         return (
             f"OpenAI PDF via Files API: {self.FIXED_OVERHEAD} fixed + "
             f"{pages} pages x {tpp} tokens/page{page_note}"
+        )
+
+
+class AnthropicPDFEstimator:
+    """Estimates token cost for PDFs sent to Anthropic models.
+
+    Anthropic processes PDFs as document content blocks. Each page is rendered
+    and charged at the vision formula rate (width x height / 750), capped at
+    1,568 tokens/page for standard models. Empirically, most pages hit the cap.
+
+    Empirically derived rates (all models consistent):
+        Fixed overhead:  40 tokens (document preamble, rounded up from ~37)
+        Per-page rate: 1,580 tokens/page (rounded up from ~1,574)
+
+    DEFAULT_PAGE_COUNT is used when page count cannot be determined.
+    """
+
+    FIXED_OVERHEAD = 40
+    TOKENS_PER_PAGE = 1580
+    DEFAULT_PAGE_COUNT = 5
+
+    def estimate(self, num_pages: int | None = None) -> int:
+        pages = num_pages if num_pages is not None else self.DEFAULT_PAGE_COUNT
+        return self.FIXED_OVERHEAD + pages * self.TOKENS_PER_PAGE
+
+    def describe(self, num_pages: int | None = None) -> str:
+        pages = num_pages if num_pages is not None else self.DEFAULT_PAGE_COUNT
+        page_note = (
+            ""
+            if num_pages is not None
+            else f" (page count unavailable; using default {self.DEFAULT_PAGE_COUNT})"
+        )
+        return (
+            f"Anthropic PDF: {self.FIXED_OVERHEAD} fixed + "
+            f"{pages} pages x {self.TOKENS_PER_PAGE} tokens/page{page_note}"
         )
