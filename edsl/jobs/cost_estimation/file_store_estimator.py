@@ -118,6 +118,69 @@ class OpenAIImageEstimator:
 
 
 # ------------------------------------------------------------------
+# Anthropic image estimator
+
+
+class AnthropicImageEstimator:
+    """Estimates token cost for images sent to Anthropic models.
+
+    Formula: tokens = round(width x height / 750), after scaling the long edge
+    down to the model's limit if needed, capped at the model's token maximum.
+
+    Two tiers:
+    - Opus 4.7 / 4.8+: long edge ≤ 2576px, cap at 4784 tokens
+    - All other models: long edge ≤ 1568px, cap at 1568 tokens
+
+    Reference: https://platform.claude.com/docs/en/build-with-claude/vision
+    """
+
+    # Models with high-resolution support (long-edge prefix match)
+    HIGH_RES_PREFIXES: tuple[str, ...] = ("claude-opus-4-7", "claude-opus-4-8")
+    HIGH_RES_MAX_LONG_EDGE = 2576
+    HIGH_RES_MAX_TOKENS = 4784
+
+    STANDARD_MAX_LONG_EDGE = 1568
+    STANDARD_MAX_TOKENS = 1568
+
+    def _is_high_res(self, model_name: str | None) -> bool:
+        if not model_name:
+            return False
+        return any(model_name.startswith(p) for p in self.HIGH_RES_PREFIXES)
+
+    def estimate(self, width: int, height: int, model_name: str | None = None) -> int:
+        if self._is_high_res(model_name):
+            max_long_edge, max_tokens = (
+                self.HIGH_RES_MAX_LONG_EDGE,
+                self.HIGH_RES_MAX_TOKENS,
+            )
+        else:
+            max_long_edge, max_tokens = (
+                self.STANDARD_MAX_LONG_EDGE,
+                self.STANDARD_MAX_TOKENS,
+            )
+
+        long_edge = max(width, height)
+        if long_edge > max_long_edge:
+            scale = max_long_edge / long_edge
+            width, height = int(width * scale), int(height * scale)
+
+        return min(round(width * height / 750), max_tokens)
+
+    def describe(self, model_name: str | None = None) -> str:
+        if self._is_high_res(model_name):
+            return (
+                f"Anthropic high-res formula: width x height ÷ 750, "
+                f"long edge capped at {self.HIGH_RES_MAX_LONG_EDGE}px, "
+                f"max {self.HIGH_RES_MAX_TOKENS} tokens"
+            )
+        return (
+            f"Anthropic standard formula: width x height ÷ 750, "
+            f"long edge capped at {self.STANDARD_MAX_LONG_EDGE}px, "
+            f"max {self.STANDARD_MAX_TOKENS} tokens"
+        )
+
+
+# ------------------------------------------------------------------
 # Per-type estimators
 
 
@@ -184,8 +247,10 @@ class ImageEstimator(FileTypeEstimator):
     def _tokens_from_dimensions(
         self, width: int, height: int, inference_service: str, model_name: str | None
     ) -> tuple[int, list[str]]:
-        if inference_service in ("openai", "openai_v2", "anthropic"):
+        if inference_service in ("openai", "openai_v2"):
             return OpenAIImageEstimator().estimate(width, height, model_name), []
+        elif inference_service == "anthropic":
+            return AnthropicImageEstimator().estimate(width, height, model_name), []
         elif inference_service == "google":
             return 258, []
         return 1000, [
@@ -234,8 +299,10 @@ class ImageEstimator(FileTypeEstimator):
         )
 
     def describe(self, inference_service: str, model_name: str | None = None) -> str:
-        if inference_service in ("openai", "openai_v2", "anthropic"):
+        if inference_service in ("openai", "openai_v2"):
             return OpenAIImageEstimator().describe(model_name)
+        elif inference_service == "anthropic":
+            return AnthropicImageEstimator().describe(model_name)
         elif inference_service == "google":
             return "Google flat rate: 258 tokens per image"
         return "Fixed fallback: 1,000 tokens (no provider-specific formula)"
@@ -299,7 +366,7 @@ class FileStoreEstimator:
     def describe(self) -> str:
         return (
             f"Text/document files: character count ÷ {self.chars_per_token} chars/token (from extracted content). "
-            "Images: model-specific tile or patch formula (OpenAI/Anthropic) or flat rate (Google, 258 tokens/image). "
+            "Images: tile/patch formula (OpenAI), width x height ÷ 750 (Anthropic), or flat rate (Google, 258 tokens/image). "
             "Audio/video: not estimated — 0 tokens (see warnings)."
         )
 
