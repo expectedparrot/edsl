@@ -187,7 +187,12 @@ class PdfEstimator(FileTypeEstimator):
             )
             return tokens, []
         if inference_service == "anthropic":
-            return AnthropicPDFEstimator().estimate(num_pages=num_pages), []
+            return (
+                AnthropicPDFEstimator().estimate(
+                    num_pages=num_pages, extracted_text=extracted
+                ),
+                [],
+            )
         if inference_service == "google":
             return GooglePDFEstimator().estimate(num_pages=num_pages), []
         # Other services: extracted text or size-based fallback
@@ -252,13 +257,18 @@ class PdfEstimator(FileTypeEstimator):
         inference_service: str,
         model_name: str | None = None,
         num_pages: int | None = None,
+        extracted_text: str | None = None,
     ) -> str:
         if inference_service in ("openai", "openai_v2"):
             return OpenAIPDFEstimator().describe(
-                model_name=model_name, num_pages=num_pages
+                model_name=model_name,
+                num_pages=num_pages,
+                extracted_text=extracted_text,
             )
         if inference_service == "anthropic":
-            return AnthropicPDFEstimator().describe(num_pages=num_pages)
+            return AnthropicPDFEstimator().describe(
+                num_pages=num_pages, extracted_text=extracted_text
+            )
         if inference_service == "google":
             return GooglePDFEstimator().describe(num_pages=num_pages)
         return f"Character count / {self.chars_per_token} chars/token (from extracted text or file size)"
@@ -359,8 +369,12 @@ class FileStoreEstimator:
         if mime == "application/pdf":
             key = self._pdf._cache_key(filestore)
             num_pages = self._pdf._page_count_cache.get(key) if key else None
+            extracted = getattr(filestore, "extracted_text", None)
             return self._pdf.describe(
-                inference_service, model_name, num_pages=num_pages
+                inference_service,
+                model_name,
+                num_pages=num_pages,
+                extracted_text=extracted,
             )
 
         key = self._image._cache_key(filestore)
