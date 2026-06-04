@@ -7,6 +7,7 @@ from datetime import datetime
 from .jobs_status_enums import JobsStatus
 from .jobs_remote_inference_logger import JobLogger, JobRunExceptionCounter, ModelCost
 from .exceptions import RemoteInferenceError
+from ..prompts import Prompt
 
 Seconds = NewType("Seconds", float)
 JobUUID = NewType("JobUUID", str)
@@ -698,12 +699,12 @@ class JobsRemoteInferenceHandler:
                 for a in answers_raw:
                     qname = a["question_name"]
                     answer_dict[qname] = a.get("answer")
-                    prompt_dict[f"{qname}_user_prompt"] = {
-                        "text": a.get("user_prompt") or ""
-                    }
-                    prompt_dict[f"{qname}_system_prompt"] = {
-                        "text": a.get("system_prompt") or ""
-                    }
+                    prompt_dict[f"{qname}_user_prompt"] = Prompt(
+                        text=a.get("user_prompt") or ""
+                    )
+                    prompt_dict[f"{qname}_system_prompt"] = Prompt(
+                        text=a.get("system_prompt") or ""
+                    )
                     raw_model_response_dict[f"{qname}_raw_model_response"] = a.get(
                         "raw_model_response"
                     )
