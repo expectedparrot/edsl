@@ -17,6 +17,8 @@ from .question_estimators import (
 )
 from .file_store_estimator import FileStoreEstimator
 from .job_cost_estimator import JobCostEstimator
+from .token_override import TokenOverride
+from .cost_estimate_calibration import calibrate_from_results
 
 __all__ = [
     "QuestionTokenEstimate",
@@ -34,4 +36,6 @@ __all__ = [
     "DEFAULT_ESTIMATORS",
     "FileStoreEstimator",
     "JobCostEstimator",
+    "TokenOverride",
+    "calibrate_from_results",
 ]

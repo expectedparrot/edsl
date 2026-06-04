@@ -6,6 +6,7 @@ from .file_store_estimator import FileStoreEstimator
 from .job_cost_estimate import JobCostEstimate
 from .question_estimators import QuestionEstimator
 from .question_token_estimate import QuestionTokenEstimate
+from .token_override import TokenOverride
 
 if TYPE_CHECKING:
     from ..jobs import Jobs
@@ -192,7 +193,7 @@ class JobCostEstimator:
     def estimate_cost(
         self,
         job: "Jobs",
-        token_overrides: dict[str, QuestionTokenEstimate] | None = None,
+        token_overrides: dict[str, TokenOverride | list[TokenOverride]] | None = None,
         branch_weights: dict[tuple, float] | None = None,
         price_lookup: dict | None = None,
     ) -> JobCostEstimate:
@@ -280,7 +281,7 @@ class JobCostEstimator:
         interview_idx: int,
         survey: "Survey",
         reach_probs: dict[str, float],
-        token_overrides: dict[str, QuestionTokenEstimate],
+        token_overrides: dict[str, TokenOverride | list[TokenOverride]],
         price_lookup: dict,
         agent_index_lookup: dict,
         scenario_index_lookup: dict,
@@ -353,11 +354,20 @@ class JobCostEstimator:
                 billable=base_estimate.billable,
             )
 
-            # Apply token_overrides (partial — only non-None fields)
-            if q_name in token_overrides:
-                full_estimate = full_estimate.merge(token_overrides[q_name])
-                estimator_name = f"manual override (base: {estimator_name})"
-                estimator_description = f"{estimator_description}; override: {token_overrides[q_name].describe()}"
+            # Apply token_overrides — find most specific match for this question/model
+            raw = token_overrides.get(q_name)
+            if raw is not None:
+                candidates = raw if isinstance(raw, list) else [raw]
+                matching = [
+                    o for o in candidates if o.matches(inference_service, model_name)
+                ]
+                if matching:
+                    override = max(matching, key=lambda o: o.specificity())
+                    full_estimate = full_estimate.apply_override(override)
+                    estimator_name = f"manual override (base: {estimator_name})"
+                    estimator_description = (
+                        f"{estimator_description}; override: {override.describe()}"
+                    )
 
             # Store expected output tokens for use by downstream memory calculations.
             # Scaled by reach probability so that a question only reached 30% of the

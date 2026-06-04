@@ -1,5 +1,9 @@
 from __future__ import annotations
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .token_override import TokenOverride
 
 
 @dataclass
@@ -98,6 +102,30 @@ class QuestionTokenEstimate:
                 else self.thinking_tokens
             ),
             billable=self.billable,  # non-billable status cannot be overridden
+        )
+
+    def apply_override(self, override: "TokenOverride") -> "QuestionTokenEstimate":
+        """Return a new estimate with non-None fields from a TokenOverride applied."""
+        return QuestionTokenEstimate(
+            prompt_tokens=self.prompt_tokens,
+            file_tokens=self.file_tokens,
+            memory_tokens=self.memory_tokens,
+            answer_tokens=(
+                override.answer_tokens
+                if override.answer_tokens is not None
+                else self.answer_tokens
+            ),
+            comment_tokens=(
+                override.comment_tokens
+                if override.comment_tokens is not None
+                else self.comment_tokens
+            ),
+            thinking_tokens=(
+                override.thinking_tokens
+                if override.thinking_tokens is not None
+                else self.thinking_tokens
+            ),
+            billable=self.billable,
         )
 
     def to_detail_row(self) -> dict:
