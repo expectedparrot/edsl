@@ -9,7 +9,11 @@ from .image_token_estimators import (
     GoogleImageEstimator,
     OpenAIImageEstimator,
 )
-from .pdf_token_estimators import AnthropicPDFEstimator, OpenAIPDFEstimator
+from .pdf_token_estimators import (
+    AnthropicPDFEstimator,
+    GooglePDFEstimator,
+    OpenAIPDFEstimator,
+)
 
 if TYPE_CHECKING:
     from ...scenarios import FileStore
@@ -184,6 +188,8 @@ class PdfEstimator(FileTypeEstimator):
             return tokens, []
         if inference_service == "anthropic":
             return AnthropicPDFEstimator().estimate(num_pages=num_pages), []
+        if inference_service == "google":
+            return GooglePDFEstimator().estimate(num_pages=num_pages), []
         # Other services: extracted text or size-based fallback
         if extracted:
             return max(1, len(extracted) // self.chars_per_token), []
@@ -241,11 +247,20 @@ class PdfEstimator(FileTypeEstimator):
             f"using default {OpenAIPDFEstimator.DEFAULT_PAGE_COUNT} pages."
         ]
 
-    def describe(self, inference_service: str, model_name: str | None = None) -> str:
+    def describe(
+        self,
+        inference_service: str,
+        model_name: str | None = None,
+        num_pages: int | None = None,
+    ) -> str:
         if inference_service in ("openai", "openai_v2"):
-            return OpenAIPDFEstimator().describe(model_name=model_name)
+            return OpenAIPDFEstimator().describe(
+                model_name=model_name, num_pages=num_pages
+            )
         if inference_service == "anthropic":
-            return AnthropicPDFEstimator().describe()
+            return AnthropicPDFEstimator().describe(num_pages=num_pages)
+        if inference_service == "google":
+            return GooglePDFEstimator().describe(num_pages=num_pages)
         return f"Character count / {self.chars_per_token} chars/token (from extracted text or file size)"
 
 
@@ -340,6 +355,14 @@ class FileStoreEstimator:
     ) -> str:
         """Description of how this specific file was estimated (cache-aware)."""
         mime = getattr(filestore, "mime_type", "") or ""
+
+        if mime == "application/pdf":
+            key = self._pdf._cache_key(filestore)
+            num_pages = self._pdf._page_count_cache.get(key) if key else None
+            return self._pdf.describe(
+                inference_service, model_name, num_pages=num_pages
+            )
+
         key = self._image._cache_key(filestore)
 
         if key and key in self._image._dimensions_cache:
@@ -352,11 +375,6 @@ class FileStoreEstimator:
                         "fixed estimate: 1,000 tokens (offloaded — GCS restore failed)"
                     )
                 return "fixed estimate: 1,000 tokens (offloaded — restore disabled)"
-            if mime == "application/pdf":
-                return (
-                    self._pdf.describe(inference_service, model_name)
-                    + " (offloaded — default page count used)"
-                )
             return "estimated from file size (offloaded)"
 
         return self.describe_for(mime, inference_service, model_name)

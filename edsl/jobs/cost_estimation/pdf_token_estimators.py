@@ -115,3 +115,32 @@ class AnthropicPDFEstimator:
             f"Anthropic PDF: {self.FIXED_OVERHEAD} fixed + "
             f"{pages} pages x {self.TOKENS_PER_PAGE} tokens/page{page_note}"
         )
+
+
+class GooglePDFEstimator:
+    """Estimates token cost for PDFs sent to Google Gemini models.
+
+    Empirically derived (model-independent — all Gemini models consistent):
+        No fixed overhead
+        535 tokens/page (observed ~532, rounded up)
+
+    DEFAULT_PAGE_COUNT is used when page count cannot be determined.
+    """
+
+    TOKENS_PER_PAGE = 535
+    DEFAULT_PAGE_COUNT = 5
+
+    def estimate(self, num_pages: int | None = None) -> int:
+        pages = num_pages if num_pages is not None else self.DEFAULT_PAGE_COUNT
+        return pages * self.TOKENS_PER_PAGE
+
+    def describe(self, num_pages: int | None = None) -> str:
+        pages = num_pages if num_pages is not None else self.DEFAULT_PAGE_COUNT
+        page_note = (
+            ""
+            if num_pages is not None
+            else f" (page count unavailable; using default {self.DEFAULT_PAGE_COUNT})"
+        )
+        return (
+            f"Google PDF: {pages} pages x {self.TOKENS_PER_PAGE} tokens/page{page_note}"
+        )
