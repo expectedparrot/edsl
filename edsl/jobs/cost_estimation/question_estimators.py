@@ -272,7 +272,7 @@ class DefaultEstimator:
         )
 
     def describe(self) -> str:
-        return "Unknown question type — output estimated at 100% of input tokens (fallback)"
+        return "Unknown question type — output estimated at 100% of prompt tokens (fallback)"
 
     def __repr__(self) -> str:
         return "DefaultEstimator"

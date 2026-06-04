@@ -1,4 +1,5 @@
 from __future__ import annotations
+from abc import ABC, abstractmethod
 from typing import Callable, TYPE_CHECKING
 
 from .cost_estimation_constants import EDSL_DEFAULT_CHARS_PER_TOKEN
@@ -117,105 +118,144 @@ class OpenAIImageEstimator:
 
 
 # ------------------------------------------------------------------
-# Built-in MIME-type estimators
+# Per-type estimators
 
 
-def _estimate_text_file(
-    filestore: "FileStore",
-    inference_service: str,
-    chars_per_token: int = EDSL_DEFAULT_CHARS_PER_TOKEN,
-) -> tuple[int, list[str]]:
-    text = getattr(filestore, "extracted_text", None)
-    if text:
-        return max(1, len(text) // chars_per_token), []
-    size = getattr(filestore, "size", 0) or 0
-    return max(1, size // chars_per_token), []
+class FileTypeEstimator(ABC):
+    """Base class for per-MIME-type token estimators."""
+
+    def estimate(
+        self,
+        filestore: "FileStore",
+        inference_service: str,
+        model_name: str | None = None,
+    ) -> tuple[int, list[str]]:
+        if getattr(filestore, "base64_string", None) == "offloaded":
+            return self.estimate_offloaded(filestore, inference_service, model_name)
+        return self.estimate_inline(filestore, inference_service, model_name)
+
+    @abstractmethod
+    def estimate_inline(
+        self,
+        filestore: "FileStore",
+        inference_service: str,
+        model_name: str | None = None,
+    ) -> tuple[int, list[str]]: ...
+
+    def estimate_offloaded(
+        self,
+        filestore: "FileStore",
+        inference_service: str,
+        model_name: str | None = None,
+    ) -> tuple[int, list[str]]:
+        path = getattr(filestore, "_path", "unknown")
+        size = getattr(filestore, "size", 0) or 0
+        tokens = max(0, size // EDSL_DEFAULT_CHARS_PER_TOKEN)
+        return tokens, [
+            f"File '{path}' is offloaded — estimating from file size ({size} bytes → {tokens} tokens)."
+        ]
 
 
-def _estimate_image_openai(
-    filestore: "FileStore",
-    inference_service: str,
-    model_name: str | None = None,
-) -> tuple[int, list[str]]:
-    warnings = []
-    try:
-        width, height = filestore.get_image_dimensions()
-    except ImportError:
-        warnings.append(
-            f"Image '{getattr(filestore, '_path', 'unknown')}': PIL not available — "
-            f"using fixed estimate of 1000 tokens."
+class TextEstimator(FileTypeEstimator):
+    def __init__(self, chars_per_token: int = EDSL_DEFAULT_CHARS_PER_TOKEN):
+        self.chars_per_token = chars_per_token
+
+    def estimate_inline(self, filestore, inference_service, model_name=None):
+        text = getattr(filestore, "extracted_text", None)
+        if text:
+            return max(1, len(text) // self.chars_per_token), []
+        size = getattr(filestore, "size", 0) or 0
+        return max(1, size // self.chars_per_token), []
+
+    def describe(self) -> str:
+        return f"Character count ÷ {self.chars_per_token} chars/token (from extracted text or file size)"
+
+
+class ImageEstimator(FileTypeEstimator):
+    def __init__(self, restore_offloaded: bool = True):
+        self.restore_offloaded = restore_offloaded
+        self._dimensions_cache: dict[str, tuple[int, int]] = {}
+
+    def _cache_key(self, filestore: "FileStore") -> str | None:
+        ext = getattr(filestore, "external_locations", {}) or {}
+        uuid = (ext.get("gcs") or {}).get("file_uuid")
+        return str(uuid) if uuid else getattr(filestore, "_path", None)
+
+    def _tokens_from_dimensions(
+        self, width: int, height: int, inference_service: str, model_name: str | None
+    ) -> tuple[int, list[str]]:
+        if inference_service in ("openai", "openai_v2", "anthropic"):
+            return OpenAIImageEstimator().estimate(width, height, model_name), []
+        elif inference_service == "google":
+            return 258, []
+        return 1000, [
+            f"No provider-specific image formula for '{inference_service}' — using 1,000 tokens."
+        ]
+
+    def estimate_inline(self, filestore, inference_service, model_name=None):
+        path = getattr(filestore, "_path", "unknown")
+        try:
+            width, height = filestore.get_image_dimensions()
+        except ImportError:
+            return 1000, [
+                f"Image '{path}': PIL not available — using fixed estimate of 1,000 tokens."
+            ]
+        except Exception as e:
+            return 1000, [
+                f"Image '{path}': could not get dimensions ({e}) — using fixed estimate of 1,000 tokens."
+            ]
+        return self._tokens_from_dimensions(
+            width, height, inference_service, model_name
         )
-        return 1000, warnings
-    except Exception as e:
-        warnings.append(
-            f"Image '{getattr(filestore, '_path', 'unknown')}': could not get dimensions ({e}) — "
-            f"using fixed estimate of 1000 tokens."
+
+    def estimate_offloaded(self, filestore, inference_service, model_name=None):
+        path = getattr(filestore, "_path", "unknown")
+        key = self._cache_key(filestore)
+
+        if key and key in self._dimensions_cache:
+            width, height = self._dimensions_cache[key]
+        elif not self.restore_offloaded:
+            return 1000, [
+                f"Image '{path}' is offloaded — restore disabled, using 1,000 tokens."
+            ]
+        else:
+            try:
+                width, height = filestore.get_image_dimensions()
+                print(f"Restored offloaded image '{path}' from GCS ({width}×{height})")
+                if key:
+                    self._dimensions_cache[key] = (width, height)
+            except Exception as e:
+                return 1000, [
+                    f"Image '{path}' is offloaded — GCS restore failed ({e}), using 1,000 tokens."
+                ]
+
+        return self._tokens_from_dimensions(
+            width, height, inference_service, model_name
         )
-        return 1000, warnings
-    return OpenAIImageEstimator().estimate(width, height, model_name), warnings
+
+    def describe(self, inference_service: str, model_name: str | None = None) -> str:
+        if inference_service in ("openai", "openai_v2", "anthropic"):
+            return OpenAIImageEstimator().describe(model_name)
+        elif inference_service == "google":
+            return "Google flat rate: 258 tokens per image"
+        return "Fixed fallback: 1,000 tokens (no provider-specific formula)"
 
 
-def _estimate_image_google(
-    filestore: "FileStore", inference_service: str
-) -> tuple[int, list[str]]:
-    return 258, []
+class AudioVideoEstimator(FileTypeEstimator):
+    def estimate_inline(self, filestore, inference_service, model_name=None):
+        return self._warn(filestore)
 
+    def estimate_offloaded(self, filestore, inference_service, model_name=None):
+        return self._warn(filestore)
 
-def _estimate_image_default(
-    filestore: "FileStore", inference_service: str
-) -> tuple[int, list[str]]:
-    warnings = [
-        f"Image '{getattr(filestore, '_path', 'unknown')}': no provider-specific image estimator "
-        f"for '{inference_service}' — using fixed estimate of 1000 tokens."
-    ]
-    return 1000, warnings
-
-
-def _estimate_image(
-    filestore: "FileStore",
-    inference_service: str,
-    model_name: str | None = None,
-) -> tuple[int, list[str]]:
-    if inference_service in ("openai", "openai_v2", "anthropic"):
-        return _estimate_image_openai(filestore, inference_service, model_name)
-    elif inference_service == "google":
-        return _estimate_image_google(filestore, inference_service)
-    else:
-        return _estimate_image_default(filestore, inference_service)
-
-
-def _estimate_audio_video(
-    filestore: "FileStore", inference_service: str
-) -> tuple[int, list[str]]:
-    warnings = [
-        f"File '{getattr(filestore, '_path', 'unknown')}' (type: {filestore.mime_type}): "
-        f"audio/video token estimation not supported — contributing 0 tokens. "
-        f"Use token_overrides to set manually."
-    ]
-    return 0, warnings
-
-
-def _estimate_offloaded(
-    filestore: "FileStore",
-    inference_service: str,
-    chars_per_token: int = EDSL_DEFAULT_CHARS_PER_TOKEN,
-) -> tuple[int, list[str]]:
-    path = getattr(filestore, "_path", "unknown")
-    size = getattr(filestore, "size", 0) or 0
-    tokens = max(0, size // chars_per_token)
-    return tokens, [
-        f"File '{path}' is offloaded — estimating from file size ({size} bytes → {tokens} tokens)."
-    ]
-
-
-def _estimate_unknown(
-    filestore: "FileStore", inference_service: str
-) -> tuple[int, list[str]]:
-    warnings = [
-        f"File '{getattr(filestore, '_path', 'unknown')}' has unknown MIME type "
-        f"'{filestore.mime_type}' — contributing 0 tokens."
-    ]
-    return 0, warnings
+    @staticmethod
+    def _warn(filestore) -> tuple[int, list[str]]:
+        path = getattr(filestore, "_path", "unknown")
+        mime = getattr(filestore, "mime_type", "unknown")
+        return 0, [
+            f"File '{path}' (type: {mime}): audio/video token estimation not supported — "
+            f"contributing 0 tokens. Use token_overrides to set manually."
+        ]
 
 
 # ------------------------------------------------------------------
@@ -243,8 +283,9 @@ class FileStoreEstimator:
     ):
         self._overrides = overrides or {}
         self.chars_per_token = chars_per_token
-        self.restore_offloaded_files = restore_offloaded_files
-        self._file_metadata: dict[str, dict] = {}
+        self._text = TextEstimator(chars_per_token)
+        self._image = ImageEstimator(restore_offloaded=restore_offloaded_files)
+        self._audio_video = AudioVideoEstimator()
 
     @property
     def chars_per_token_overrides(self) -> dict[str, int]:
@@ -262,57 +303,6 @@ class FileStoreEstimator:
             "Audio/video: not estimated — 0 tokens (see warnings)."
         )
 
-    def _file_cache_key(self, filestore: "FileStore") -> str | None:
-        ext = getattr(filestore, "external_locations", {}) or {}
-        gcs = ext.get("gcs", {}) or {}
-        uuid = gcs.get("file_uuid")
-        if uuid:
-            return str(uuid)
-        return getattr(filestore, "_path", None)
-
-    def _estimate_offloaded_image(
-        self,
-        filestore: "FileStore",
-        inference_service: str,
-        model_name: str | None = None,
-    ) -> tuple[int, list[str]]:
-        path = getattr(filestore, "_path", "unknown")
-        key = self._file_cache_key(filestore)
-
-        if key and key in self._file_metadata:
-            meta = self._file_metadata[key]
-            width, height = meta["width"], meta["height"]
-        elif not self.restore_offloaded_files:
-            return 1000, [
-                f"Image '{path}' is offloaded — restore_offloaded_files=False, "
-                f"using fixed estimate of 1,000 tokens."
-            ]
-        else:
-            try:
-                width, height = filestore.get_image_dimensions()
-                print(f"Restored offloaded image '{path}' from GCS ({width}×{height})")
-                if key is not None:
-                    self._file_metadata[key] = {
-                        "type": "image",
-                        "width": width,
-                        "height": height,
-                    }
-            except Exception as e:
-                return 1000, [
-                    f"Image '{path}' is offloaded — could not restore from GCS ({e}), "
-                    f"using fixed estimate of 1,000 tokens."
-                ]
-
-        if inference_service in ("openai", "openai_v2", "anthropic"):
-            return OpenAIImageEstimator().estimate(width, height, model_name), []
-        elif inference_service == "google":
-            return 258, []
-        else:
-            return 1000, [
-                f"Image '{path}': no provider-specific formula for '{inference_service}' — "
-                f"using fixed estimate of 1,000 tokens."
-            ]
-
     def describe_for(
         self,
         mime_type: str,
@@ -322,15 +312,10 @@ class FileStoreEstimator:
         if mime_type in self._overrides:
             return "Custom estimator (override)"
         if mime_type.startswith("image/"):
-            if inference_service in ("openai", "openai_v2", "anthropic"):
-                return OpenAIImageEstimator().describe(model_name)
-            elif inference_service == "google":
-                return "Google flat rate: 258 tokens per image"
-            else:
-                return "Fixed fallback: 1,000 tokens (no provider-specific formula)"
+            return self._image.describe(inference_service, model_name)
         if mime_type.startswith("audio/") or mime_type.startswith("video/"):
             return "Not estimated — 0 tokens (use token_overrides to set manually)"
-        return f"Character count ÷ {self.chars_per_token} chars/token (from extracted text or file size)"
+        return self._text.describe()
 
     def describe_for_file(
         self,
@@ -340,14 +325,14 @@ class FileStoreEstimator:
     ) -> str:
         """Description of how this specific file was estimated (cache-aware)."""
         mime = getattr(filestore, "mime_type", "") or ""
-        key = self._file_cache_key(filestore)
+        key = self._image._cache_key(filestore)
 
-        if key and key in self._file_metadata:
+        if key and key in self._image._dimensions_cache:
             return self.describe_for(mime, inference_service, model_name)
 
         if getattr(filestore, "base64_string", None) == "offloaded":
             if mime.startswith("image/"):
-                if self.restore_offloaded_files:
+                if self._image.restore_offloaded:
                     return (
                         "fixed estimate: 1,000 tokens (offloaded — GCS restore failed)"
                     )
@@ -365,43 +350,36 @@ class FileStoreEstimator:
         """Return (token_count, warnings) for the given FileStore."""
         mime = getattr(filestore, "mime_type", "") or ""
 
-        # Check overrides first
         if mime in self._overrides:
             return self._overrides[mime](filestore, inference_service)
 
-        # Offloaded content
-        if getattr(filestore, "base64_string", None) == "offloaded":
-            if mime.startswith("image/"):
-                return self._estimate_offloaded_image(
-                    filestore, inference_service, model_name
-                )
-            return _estimate_offloaded(
-                filestore, inference_service, self.chars_per_token
-            )
+        if mime.startswith("image/"):
+            return self._image.estimate(filestore, inference_service, model_name)
+
+        if mime.startswith("audio/") or mime.startswith("video/"):
+            return self._audio_video.estimate(filestore, inference_service, model_name)
 
         # extracted_text covers text, PDF, Word, CSV, markdown, etc.
         extracted = getattr(filestore, "extracted_text", None)
         if extracted:
-            return _estimate_text_file(
-                filestore, inference_service, self.chars_per_token
-            )
-
-        # Images
-        if mime.startswith("image/"):
-            return _estimate_image(filestore, inference_service, model_name)
-
-        # Audio / video
-        if mime.startswith("audio/") or mime.startswith("video/"):
-            return _estimate_audio_video(filestore, inference_service)
+            return self._text.estimate(filestore, inference_service, model_name)
 
         # Binary files with no extracted text — fall back to size
         if getattr(filestore, "binary", False):
             size = getattr(filestore, "size", 0) or 0
             tokens = max(0, size // self.chars_per_token)
-            warnings = [
+            return tokens, [
                 f"File '{getattr(filestore, '_path', 'unknown')}' (binary, {mime}): "
                 f"estimating from file size → {tokens} tokens."
             ]
-            return tokens, warnings
 
-        return _estimate_unknown(filestore, inference_service)
+        # Offloaded non-image, non-audio/video with no extracted text
+        if getattr(filestore, "base64_string", None) == "offloaded":
+            return self._text.estimate_offloaded(
+                filestore, inference_service, model_name
+            )
+
+        return 0, [
+            f"File '{getattr(filestore, '_path', 'unknown')}' has unknown MIME type "
+            f"'{mime}' — contributing 0 tokens."
+        ]
