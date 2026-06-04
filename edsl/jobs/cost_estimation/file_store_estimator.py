@@ -118,6 +118,41 @@ class OpenAIImageEstimator:
 
 
 # ------------------------------------------------------------------
+# Google image estimator
+
+
+class GoogleImageEstimator:
+    """Estimates token cost for images sent to Google Gemini models.
+
+    - Both dimensions ≤ 384px → 258 tokens (flat).
+    - Larger images are tiled: crop_unit = floor(min(w, h) / 1.5),
+      tiles = ceil(w / crop_unit) x ceil(h / crop_unit), cost = tiles x 258.
+
+    Example: 960 x 540 → crop_unit=360 → 3 x 2=6 tiles → 1,548 tokens.
+
+    Reference: https://ai.google.dev/gemini-api/docs/image-understanding#technical-details-image
+    """
+
+    TOKENS_PER_TILE = 258
+    SMALL_IMAGE_THRESHOLD = 384
+
+    def estimate(self, width: int, height: int) -> int:
+        import math
+
+        if width <= self.SMALL_IMAGE_THRESHOLD and height <= self.SMALL_IMAGE_THRESHOLD:
+            return self.TOKENS_PER_TILE
+        crop_unit = math.floor(min(width, height) / 1.5)
+        tiles = math.ceil(width / crop_unit) * math.ceil(height / crop_unit)
+        return tiles * self.TOKENS_PER_TILE
+
+    def describe(self) -> str:
+        return (
+            f"Google tile formula: images ≤ 384px → {self.TOKENS_PER_TILE} tokens; "
+            f"larger images tiled at crop_unit=floor(short_edge÷1.5), {self.TOKENS_PER_TILE} tokens/tile"
+        )
+
+
+# ------------------------------------------------------------------
 # Anthropic image estimator
 
 
@@ -252,7 +287,7 @@ class ImageEstimator(FileTypeEstimator):
         elif inference_service == "anthropic":
             return AnthropicImageEstimator().estimate(width, height, model_name), []
         elif inference_service == "google":
-            return 258, []
+            return GoogleImageEstimator().estimate(width, height), []
         return 1000, [
             f"No provider-specific image formula for '{inference_service}' — using 1,000 tokens."
         ]
@@ -304,7 +339,7 @@ class ImageEstimator(FileTypeEstimator):
         elif inference_service == "anthropic":
             return AnthropicImageEstimator().describe(model_name)
         elif inference_service == "google":
-            return "Google flat rate: 258 tokens per image"
+            return GoogleImageEstimator().describe()
         return "Fixed fallback: 1,000 tokens (no provider-specific formula)"
 
 
@@ -366,7 +401,7 @@ class FileStoreEstimator:
     def describe(self) -> str:
         return (
             f"Text/document files: character count ÷ {self.chars_per_token} chars/token (from extracted content). "
-            "Images: tile/patch formula (OpenAI), width x height ÷ 750 (Anthropic), or flat rate (Google, 258 tokens/image). "
+            "Images: tile/patch formula (OpenAI), width x height ÷ 750 (Anthropic), or crop-unit tile formula (Google, 258 tokens/tile). "
             "Audio/video: not estimated — 0 tokens (see warnings)."
         )
 
