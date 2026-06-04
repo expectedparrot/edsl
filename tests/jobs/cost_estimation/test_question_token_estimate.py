@@ -1,4 +1,5 @@
 from edsl.jobs.cost_estimation.question_token_estimate import QuestionTokenEstimate
+from edsl.jobs.cost_estimation.token_override import TokenOverride
 
 
 class TestTotals:
@@ -59,14 +60,24 @@ class TestDescribe:
         assert QuestionTokenEstimate(answer_tokens=50).describe() == "answer_tokens=50"
 
     def test_multiple_fields(self):
-        assert QuestionTokenEstimate(answer_tokens=50, comment_tokens=10).describe() == "answer_tokens=50, comment_tokens=10"
+        assert (
+            QuestionTokenEstimate(answer_tokens=50, comment_tokens=10).describe()
+            == "answer_tokens=50, comment_tokens=10"
+        )
 
     def test_all_token_fields(self):
         e = QuestionTokenEstimate(
-            prompt_tokens=100, file_tokens=20, memory_tokens=30,
-            answer_tokens=50, comment_tokens=10, thinking_tokens=5,
+            prompt_tokens=100,
+            file_tokens=20,
+            memory_tokens=30,
+            answer_tokens=50,
+            comment_tokens=10,
+            thinking_tokens=5,
         )
-        assert e.describe() == "prompt_tokens=100, file_tokens=20, memory_tokens=30, answer_tokens=50, comment_tokens=10, thinking_tokens=5"
+        assert (
+            e.describe()
+            == "prompt_tokens=100, file_tokens=20, memory_tokens=30, answer_tokens=50, comment_tokens=10, thinking_tokens=5"
+        )
 
     def test_no_fields_set(self):
         assert QuestionTokenEstimate().describe() == "no token fields set"
@@ -75,6 +86,40 @@ class TestDescribe:
         desc = QuestionTokenEstimate(prompt_tokens=10).describe()
         assert "file_tokens" not in desc
         assert "answer_tokens" not in desc
+
+
+class TestApplyOverride:
+    """apply_override() replaces only the output fields set on the TokenOverride."""
+
+    def test_overrides_answer_tokens(self):
+        base = QuestionTokenEstimate(prompt_tokens=10, answer_tokens=20)
+        result = base.apply_override(TokenOverride(answer_tokens=99))
+        assert result.answer_tokens == 99
+
+    def test_preserves_input_fields(self):
+        base = QuestionTokenEstimate(prompt_tokens=10, file_tokens=5, memory_tokens=3)
+        result = base.apply_override(TokenOverride(answer_tokens=99))
+        assert result.prompt_tokens == 10
+        assert result.file_tokens == 5
+        assert result.memory_tokens == 3
+
+    def test_none_override_fields_leave_base_unchanged(self):
+        base = QuestionTokenEstimate(answer_tokens=20, comment_tokens=5)
+        result = base.apply_override(TokenOverride(answer_tokens=99))
+        assert result.comment_tokens == 5
+
+    def test_overrides_comment_and_thinking_tokens(self):
+        base = QuestionTokenEstimate(comment_tokens=5, thinking_tokens=10)
+        result = base.apply_override(
+            TokenOverride(comment_tokens=50, thinking_tokens=100)
+        )
+        assert result.comment_tokens == 50
+        assert result.thinking_tokens == 100
+
+    def test_billable_preserved(self):
+        base = QuestionTokenEstimate(billable=False)
+        result = base.apply_override(TokenOverride(answer_tokens=99))
+        assert result.billable is False
 
 
 class TestToDetailRow:

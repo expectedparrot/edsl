@@ -6,6 +6,7 @@ from edsl.questions.question_compute import QuestionCompute
 from edsl.surveys import Survey
 from edsl.jobs.cost_estimation.job_cost_estimator import JobCostEstimator
 from edsl.jobs.cost_estimation.question_token_estimate import QuestionTokenEstimate
+from edsl.jobs.cost_estimation.token_override import TokenOverride
 
 
 # Price lookup that avoids live network calls. One USD buys one token for both
@@ -111,7 +112,7 @@ class TestTokenOverrides:
 
     def test_override_answer_tokens(self):
         q = QuestionFreeText(question_name="q0", question_text="What is your name?")
-        override = {"q0": QuestionTokenEstimate(answer_tokens=9999)}
+        override = {"q0": TokenOverride(answer_tokens=9999)}
         result = JobCostEstimator().estimate_cost(
             make_job(q), token_overrides=override, price_lookup=PRICE_LOOKUP
         )
@@ -122,18 +123,17 @@ class TestTokenOverrides:
         baseline = JobCostEstimator().estimate_cost(
             make_job(q), price_lookup=PRICE_LOOKUP
         )
-        override = {"q0": QuestionTokenEstimate(answer_tokens=9999)}
+        override = {"q0": TokenOverride(answer_tokens=9999)}
         overridden = JobCostEstimator().estimate_cost(
             make_job(q), token_overrides=override, price_lookup=PRICE_LOOKUP
         )
-        # prompt_tokens should be the same — only answer_tokens was overridden
         assert (
             baseline._rows[0]["prompt_tokens"] == overridden._rows[0]["prompt_tokens"]
         )
 
     def test_override_description_reflects_override(self):
         q = QuestionFreeText(question_name="q0", question_text="What is your name?")
-        override = {"q0": QuestionTokenEstimate(answer_tokens=50)}
+        override = {"q0": TokenOverride(answer_tokens=50)}
         result = JobCostEstimator().estimate_cost(
             make_job(q), token_overrides=override, price_lookup=PRICE_LOOKUP
         )
@@ -144,7 +144,7 @@ class TestTokenOverrides:
 
     def test_override_description_lists_all_set_fields(self):
         q = QuestionFreeText(question_name="q0", question_text="What is your name?")
-        override = {"q0": QuestionTokenEstimate(answer_tokens=50, comment_tokens=10)}
+        override = {"q0": TokenOverride(answer_tokens=50, comment_tokens=10)}
         result = JobCostEstimator().estimate_cost(
             make_job(q), token_overrides=override, price_lookup=PRICE_LOOKUP
         )
@@ -153,12 +153,20 @@ class TestTokenOverrides:
             == "Output estimated at 100% of prompt tokens; override: answer_tokens=50, comment_tokens=10"
         )
 
+    def test_override_note_appears_in_description(self):
+        q = QuestionFreeText(question_name="q0", question_text="What is your name?")
+        override = {"q0": TokenOverride(answer_tokens=50, note="from pilot")}
+        result = JobCostEstimator().estimate_cost(
+            make_job(q), token_overrides=override, price_lookup=PRICE_LOOKUP
+        )
+        assert "from pilot" in result._rows[0]["estimator_description"]
+
     def test_non_overridden_question_keeps_estimator_description(self):
         q0 = QuestionFreeText(question_name="q0", question_text="What is your name?")
         q1 = QuestionFreeText(
             question_name="q1", question_text="What is your favorite color?"
         )
-        override = {"q0": QuestionTokenEstimate(answer_tokens=50)}
+        override = {"q0": TokenOverride(answer_tokens=50)}
         result = JobCostEstimator().estimate_cost(
             make_job(q0, q1), token_overrides=override, price_lookup=PRICE_LOOKUP
         )
@@ -167,6 +175,50 @@ class TestTokenOverrides:
             "Output estimated at 100% of prompt tokens; override: answer_tokens=50"
         )
         assert "; override:" not in rows["q1"]["estimator_description"]
+
+    def test_specific_model_override_wins_over_global(self):
+        # make_job uses service="test", model="test"
+        q = QuestionFreeText(question_name="q0", question_text="What is your name?")
+        override = {
+            "q0": [
+                TokenOverride(answer_tokens=100),  # global
+                TokenOverride(
+                    answer_tokens=999, service="test", model="test"
+                ),  # specific
+            ]
+        }
+        result = JobCostEstimator().estimate_cost(
+            make_job(q), token_overrides=override, price_lookup=PRICE_LOOKUP
+        )
+        assert result._rows[0]["answer_tokens"] == 999
+
+    def test_global_override_applies_when_no_specific_match(self):
+        q = QuestionFreeText(question_name="q0", question_text="What is your name?")
+        override = {
+            "q0": [
+                TokenOverride(answer_tokens=100),  # global
+                TokenOverride(
+                    answer_tokens=999, service="other", model="other"
+                ),  # non-matching
+            ]
+        }
+        result = JobCostEstimator().estimate_cost(
+            make_job(q), token_overrides=override, price_lookup=PRICE_LOOKUP
+        )
+        assert result._rows[0]["answer_tokens"] == 100
+
+    def test_no_match_leaves_estimate_unchanged(self):
+        q = QuestionFreeText(question_name="q0", question_text="What is your name?")
+        baseline = JobCostEstimator().estimate_cost(
+            make_job(q), price_lookup=PRICE_LOOKUP
+        )
+        override = {
+            "q0": TokenOverride(answer_tokens=999, service="other", model="other")
+        }
+        result = JobCostEstimator().estimate_cost(
+            make_job(q), token_overrides=override, price_lookup=PRICE_LOOKUP
+        )
+        assert result._rows[0]["answer_tokens"] == baseline._rows[0]["answer_tokens"]
 
 
 class TestBranchWeights:
