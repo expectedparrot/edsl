@@ -104,7 +104,19 @@ class GitPackage:
         if message is None:
             git(self.path, "tag", name, error_cls=self.error_cls)
         else:
-            git(self.path, "tag", "-a", name, "-m", message, error_cls=self.error_cls)
+            git(
+                self.path,
+                "-c",
+                "user.name=EDSL",
+                "-c",
+                "user.email=edsl@example.invalid",
+                "tag",
+                "-a",
+                name,
+                "-m",
+                message,
+                error_cls=self.error_cls,
+            )
         return {
             "status": "ok",
             "path": str(self.path),
