@@ -164,7 +164,7 @@ optional = true
 
 [tool.poetry.dependencies.typer]
 extras = [ "all",]
-version = ">=0.12,<1"
+version = ">=0.9,<1"
 
 [tool.tomlsort.overrides."tool.poetry.dependencies"]
 table_keys = false
