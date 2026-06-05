@@ -30,7 +30,7 @@ def _local_git_server_path(tmp_path: Path) -> Path:
     for candidate in candidates:
         if (candidate / "local_app.py").exists():
             return candidate
-    raise FileNotFoundError("Could not find local EDSL git server checkout.")
+    pytest.skip("Could not find local EDSL git server checkout.")
 
 
 def test_agent_list_git_error_uses_edsl_exception_hierarchy():
@@ -664,8 +664,11 @@ def test_agent_list_git_push_unsaved_agent_list_auto_saves_and_pushes(tmp_path, 
 def test_agent_list_git_push_autostarts_temporary_local_server(tmp_path, monkeypatch):
     import socket
 
-    import edsl.agents.agent_list_git as git_module
+    from edsl.base import git_package as gitpkg
     from edsl.config import CONFIG
+
+    if gitpkg.temporary_git_server_directory() is None:
+        pytest.skip("Could not find local EDSL git server checkout.")
 
     sock = socket.socket()
     sock.bind(("127.0.0.1", 0))
@@ -691,11 +694,11 @@ def test_agent_list_git_push_autostarts_temporary_local_server(tmp_path, monkeyp
         assert manifest["remotes"]["origin"]["server_uuid"] in remote_url
         assert manifest["remotes"]["origin"]["remote_url"] == remote_url
     finally:
-        process = git_module._TEMPORARY_GIT_SERVER_PROCESS
+        process = gitpkg._TEMPORARY_GIT_SERVER_PROCESS
         if process is not None and process.poll() is None:
             process.terminate()
             process.wait(timeout=5)
-        git_module._TEMPORARY_GIT_SERVER_PROCESS = None
+        gitpkg._TEMPORARY_GIT_SERVER_PROCESS = None
 
 
 def test_agent_list_git_objects_lists_canonical_server_objects(tmp_path, monkeypatch):

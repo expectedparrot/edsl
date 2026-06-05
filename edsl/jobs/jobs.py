@@ -1048,6 +1048,12 @@ class Jobs(Base):
             if self.run_config.parameters.disable_remote_inference:
                 return None, None
 
+            explicit_parameters = getattr(
+                self.run_config.parameters, "_explicit_parameters", set()
+            )
+            if "offload_execution" not in explicit_parameters:
+                return None, None
+
             from .exceptions import JobsRunError
 
             raise JobsRunError(

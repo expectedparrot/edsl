@@ -10,6 +10,8 @@ from pathlib import Path
 from uuid import uuid4
 from typing import Callable, Optional, Type
 
+import platformdirs
+
 from .cas_repository import CASRepository
 from .exceptions import AmbiguousUUIDError
 from .fs_backend import FileSystemBackend
@@ -220,7 +222,7 @@ class ObjectStore:
     @staticmethod
     def default_root() -> Path:
         """Return the default local object store root for the current process."""
-        return Path.cwd() / ".edsl_objects"
+        return Path(platformdirs.user_data_dir("edsl")) / "objects"
 
     def __init__(
         self,

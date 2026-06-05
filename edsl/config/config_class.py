@@ -144,8 +144,8 @@ CONFIG_MAP = {
         "info": "Base URL of the CAS editor service for push/pull operations.",
     },
     "EDSL_GIT_SERVER_URL": {
-        "default": "http://localhost:8000",
-        "info": "TEMPORARY PROTOTYPE: Base URL of the local AgentList Git smart-HTTP server.",
+        "default": "http://localhost:8001",
+        "info": "TEMPORARY PROTOTYPE: Base URL of the local EDSL Git smart-HTTP server.",
     },
     "EDSL_GIT_SERVER_DIR": {
         "default": "None",

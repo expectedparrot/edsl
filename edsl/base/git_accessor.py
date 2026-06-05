@@ -87,8 +87,9 @@ class GitBackedClassAccessor:
                 stderr=f"Destination path already exists: {destination}",
             )
         gitpkg.run_git(
-            ["git", *gitpkg.http_auth_git_args(url, token), "clone", url, str(destination)],
+            ["git", "clone", url, str(destination)],
             error_cls=self._spec.error_cls,
+            env=gitpkg.http_auth_git_env(url, token),
         )
         loaded = self.load(destination.resolve(), ref=ref)
         return self._spec.clone_return(loaded) if self._spec.clone_return else loaded

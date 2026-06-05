@@ -68,6 +68,18 @@ def test_offload_execution_does_not_fallback_when_remote_unavailable(
         valid_job.run(cache=False, offload_execution=True)
 
 
+def test_remote_unavailable_falls_back_when_offload_not_explicit(
+    valid_job, monkeypatch
+):
+    monkeypatch.setattr(
+        "edsl.jobs.remote_inference.JobsRemoteInferenceHandler.use_remote_inference",
+        lambda self, disable_remote_inference: False,
+    )
+
+    results = valid_job.run(cache=False)
+    assert results is not None
+
+
 def test_disable_remote_inference_allows_local_execution(valid_job, monkeypatch):
     monkeypatch.setattr(
         "edsl.jobs.remote_inference.JobsRemoteInferenceHandler.use_remote_inference",

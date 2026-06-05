@@ -6,6 +6,7 @@ import base64
 import hashlib
 import json
 import shutil
+import sys
 import tarfile
 import tempfile
 from pathlib import Path
@@ -112,7 +113,10 @@ class _materialized_ref:
             error_cls=JobsGitError,
         )
         with tarfile.open(tar_path) as archive:
-            archive.extractall(temp_path / "tree")
+            if sys.version_info >= (3, 12):
+                archive.extractall(temp_path / "tree", filter="data")
+            else:
+                archive.extractall(temp_path / "tree")
         return temp_path / "tree"
 
     def __exit__(self, exc_type, exc, tb) -> None:

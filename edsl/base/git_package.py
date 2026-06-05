@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import atexit
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -171,12 +172,11 @@ class GitPackage:
         if remote is None:
             raise ValueError("No git remote configured for this EDSL package.")
         url = remote_url(self.path, remote, error_cls=self.error_cls)
-        ensure_temporary_git_server_for_remote(url)
-        auth_args = http_auth_git_args(url, token)
+        auth_env = http_auth_git_env(url, token)
         if branch is None:
-            git(self.path, *auth_args, "fetch", remote, error_cls=self.error_cls)
+            git(self.path, "fetch", remote, env=auth_env, error_cls=self.error_cls)
         else:
-            git(self.path, *auth_args, "fetch", remote, branch, error_cls=self.error_cls)
+            git(self.path, "fetch", remote, branch, env=auth_env, error_cls=self.error_cls)
         return {
             "status": "ok",
             "path": str(self.path),
@@ -199,12 +199,12 @@ class GitPackage:
         ensure_remote_metadata(self.path, remote, object_type=self.object_type, error_cls=self.error_cls)
 
         url = remote_url(self.path, remote, error_cls=self.error_cls)
-        ensure_temporary_git_server_for_remote(url)
-        auth_args = http_auth_git_args(url, token)
+        auth_env = http_auth_git_env(url, token)
         if upstream_branch(self.path):
-            git(self.path, *auth_args, "push", remote, branch, error_cls=self.error_cls)
+            git(self.path, "push", remote, branch, env=auth_env, error_cls=self.error_cls)
         else:
-            git(self.path, *auth_args, "push", "-u", remote, branch, error_cls=self.error_cls)
+            git(self.path, "push", "-u", remote, branch, env=auth_env, error_cls=self.error_cls)
+        update_local_bare_remote_head(url, branch, error_cls=self.error_cls)
 
         return {
             "status": "ok",
@@ -223,12 +223,11 @@ class GitPackage:
             raise ValueError("No git remote configured for this EDSL package.")
 
         url = remote_url(self.path, remote, error_cls=self.error_cls)
-        ensure_temporary_git_server_for_remote(url)
-        auth_args = http_auth_git_args(url, token)
+        auth_env = http_auth_git_env(url, token)
         if upstream_branch(self.path):
-            git(self.path, *auth_args, "pull", "--ff-only", error_cls=self.error_cls)
+            git(self.path, "pull", "--ff-only", env=auth_env, error_cls=self.error_cls)
         else:
-            git(self.path, *auth_args, "pull", "--ff-only", remote, branch, error_cls=self.error_cls)
+            git(self.path, "pull", "--ff-only", remote, branch, env=auth_env, error_cls=self.error_cls)
 
         return {
             "status": "ok",
@@ -291,16 +290,33 @@ def init_package(path: Path, *, error_cls: Type[Exception] = GitPackageError) ->
         git(path, "init", "-b", "main", error_cls=error_cls)
 
 
-def git(path: Path, *args: str, capture: bool = False, error_cls: Type[Exception] = GitPackageError) -> str:
-    completed = run_git(["git", "-C", str(path), *args], error_cls=error_cls)
+def git(
+    path: Path,
+    *args: str,
+    capture: bool = False,
+    error_cls: Type[Exception] = GitPackageError,
+    env: Optional[dict[str, str]] = None,
+) -> str:
+    completed = run_git(["git", "-C", str(path), *args], error_cls=error_cls, env=env)
     if capture:
         return completed.stdout
     return ""
 
 
-def run_git(command: list[str], *, error_cls: Type[Exception] = GitPackageError) -> subprocess.CompletedProcess:
+def run_git(
+    command: list[str],
+    *,
+    error_cls: Type[Exception] = GitPackageError,
+    env: Optional[dict[str, str]] = None,
+) -> subprocess.CompletedProcess:
     try:
-        return subprocess.run(command, check=True, text=True, capture_output=True)
+        return subprocess.run(
+            command,
+            check=True,
+            text=True,
+            capture_output=True,
+            env={**os.environ, **env} if env else None,
+        )
     except subprocess.CalledProcessError as exc:
         raise error_cls(command=command, stderr=exc.stderr or "", stdout=exc.stdout or "") from exc
 
@@ -315,13 +331,17 @@ def remote_url(path: Path, remote: str, *, error_cls: Type[Exception] = GitPacka
     return git(path, "remote", "get-url", remote, capture=True, error_cls=error_cls).strip()
 
 
-def http_auth_git_args(url: str, token: Optional[str] = None) -> list[str]:
+def http_auth_git_env(url: str, token: Optional[str] = None) -> dict[str, str]:
     if not url.startswith(("http://", "https://")):
-        return []
+        return {}
     token = token or expected_parrot_api_key()
     if token is None:
         raise ValueError("HTTP git remote requires EXPECTED_PARROT_API_KEY for bearer auth.")
-    return ["-c", f"http.extraHeader=Authorization: Bearer {token}"]
+    return {
+        "GIT_CONFIG_COUNT": "1",
+        "GIT_CONFIG_KEY_0": "http.extraHeader",
+        "GIT_CONFIG_VALUE_0": f"Authorization: Bearer {token}",
+    }
 
 
 def read_json_at_ref(path: Path, file_path: str, ref: str, *, error_cls: Type[Exception] = GitPackageError):
@@ -723,3 +743,29 @@ def server_url_from_remote_url(url: str) -> str:
     if not parsed.scheme or not parsed.netloc:
         return ""
     return f"{parsed.scheme}://{parsed.netloc}"
+
+
+def update_local_bare_remote_head(
+    url: str,
+    branch: str,
+    *,
+    error_cls: Type[Exception] = GitPackageError,
+) -> None:
+    """Point local bare test remotes at the branch we just pushed."""
+    parsed = urlparse(url)
+    if parsed.scheme and parsed.scheme != "file":
+        return
+    remote_path = Path(parsed.path if parsed.scheme == "file" else url).expanduser()
+    if not remote_path.is_dir():
+        return
+    result = subprocess.run(
+        ["git", "-C", str(remote_path), "config", "--get", "core.bare"],
+        text=True,
+        capture_output=True,
+    )
+    if result.returncode != 0 or result.stdout.strip() != "true":
+        return
+    run_git(
+        ["git", "-C", str(remote_path), "symbolic-ref", "HEAD", f"refs/heads/{branch}"],
+        error_cls=error_cls,
+    )
