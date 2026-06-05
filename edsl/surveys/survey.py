@@ -66,6 +66,7 @@ from .rules import RuleManager, RuleCollection
 from .survey_export import SurveyExport
 from .pseudo_indices import PseudoIndices
 from .survey_navigator import SurveyNavigator
+from .survey_git import SurveyGitDescriptor
 from .exceptions import (
     SurveyCreationError,
     SurveyError,
@@ -95,6 +96,8 @@ class Survey(Base):
     """
 
     __documentation__ = """https://docs.expectedparrot.com/en/latest/surveys.html"""
+
+    git = SurveyGitDescriptor()
 
     questions = QuestionsDescriptor()
     """A descriptor that manages the list of questions in the survey.

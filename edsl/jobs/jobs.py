@@ -28,6 +28,7 @@ from ..logger import get_logger
 # from ..surveys import Survey
 
 from .exceptions import JobsValueError, JobsImplementationError
+from .jobs_git import JobsGitDescriptor
 from .jobs_pricing_estimation import JobsPrompts
 from .remote_inference import JobsRemoteInferenceHandler
 from .jobs_checks import JobsChecks
@@ -107,6 +108,7 @@ class Jobs(Base):
 
     __documentation__ = "https://docs.expectedparrot.com/en/latest/jobs.html"
     _logger = get_logger(__name__)
+    git = JobsGitDescriptor()
 
     def __init__(
         self,

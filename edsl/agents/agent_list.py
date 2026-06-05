@@ -23,6 +23,7 @@ from .agent_list_builder import AgentListBuilder
 from .agent_list_code_generator import AgentListCodeGenerator
 from .agent_list_factories import AgentListFactories
 from .agent_list_filter import AgentListFilter
+from .agent_list_git import AgentListGitDescriptor
 from .agent_list_joiner import AgentListJoiner
 from .agent_list_representation import AgentListRepresentation
 from .agent_list_sampling import AgentListSampling
@@ -61,6 +62,8 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
     __documentation__ = (
         "https://docs.expectedparrot.com/en/latest/agents.html#agentlist-class"
     )
+
+    git = AgentListGitDescriptor()
 
     def __init__(
         self,

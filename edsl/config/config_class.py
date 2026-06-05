@@ -143,6 +143,18 @@ CONFIG_MAP = {
         "default": "http://localhost:8000",
         "info": "Base URL of the CAS editor service for push/pull operations.",
     },
+    "EDSL_GIT_SERVER_URL": {
+        "default": "http://localhost:8000",
+        "info": "TEMPORARY PROTOTYPE: Base URL of the local AgentList Git smart-HTTP server.",
+    },
+    "EDSL_GIT_SERVER_DIR": {
+        "default": "None",
+        "info": "TEMPORARY PROTOTYPE: Local path to the EDSL Git smart-HTTP server checkout.",
+    },
+    "EXPECTED_PARROT_API_KEY": {
+        "default": "None",
+        "info": "Expected Parrot API key used as a bearer token for remote services.",
+    },
 }
 
 

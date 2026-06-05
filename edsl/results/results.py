@@ -62,6 +62,7 @@ from ..dataset import ResultsOperationsMixin
 
 from .result import Result
 from .results_filter import ResultsFilter
+from .results_git import ResultsGitDescriptor
 from .results_serializer import ResultsSerializer
 from .utilities import ensure_ready
 from .job_cost_calculator import JobCostCalculator
@@ -134,6 +135,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
     """
 
     __documentation__ = "https://docs.expectedparrot.com/en/latest/results.html"
+    git = ResultsGitDescriptor()
 
     known_data_types = [
         "answer",
