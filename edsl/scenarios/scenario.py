@@ -76,11 +76,6 @@ class Scenario(Base, UserDict):
 
     __documentation__ = "https://docs.expectedparrot.com/en/latest/scenarios.html"
 
-    # CAS store support
-    _store_class_name = "Scenario"
-    from edsl.base.store_accessor import StoreDescriptor
-    store = StoreDescriptor()
-
     def __init__(
         self,
         data: Optional[Union[Dict[str, Any], Mapping[str, Any]]] = None,

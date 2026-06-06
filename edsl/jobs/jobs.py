@@ -1528,7 +1528,6 @@ class Jobs(Base):
             "concatenate",
             "collapse",
             "expand",
-            "store",
             "first",
             "last",
         }
@@ -2404,10 +2403,7 @@ class Jobs(Base):
         return Jobs.from_dict(self.to_dict())
 
     def to_jsonl(self, filename=None, root=None, message="", **kwargs):
-        """Export as JSONL with CAS pointers to component objects.
-
-        Components are auto-saved to the store if not already saved.
-        """
+        """Export as JSONL with an inline Jobs dictionary payload."""
         from .jobs_serializer import JobsSerializer
 
         return JobsSerializer(self).to_jsonl(
@@ -2416,7 +2412,7 @@ class Jobs(Base):
 
     @classmethod
     def from_jsonl(cls, source, root=None, **kwargs):
-        """Load a Jobs from a JSONL file with CAS pointers."""
+        """Load a Jobs from a JSONL file."""
         from .jobs_serializer import JobsSerializer
 
         return JobsSerializer.from_jsonl(source, root=root)

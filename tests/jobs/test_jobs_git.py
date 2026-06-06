@@ -193,6 +193,19 @@ def test_jobs_git_dependency_round_trip(tmp_path):
     assert loaded._post_run_methods == [("select", ("answer.name",), {})]
 
 
+def test_jobs_jsonl_inline_round_trip_with_dependency_and_post_run_methods():
+    base = simple_job("base")
+    dependent = simple_job("dependent")
+    dependent._depends_on = base
+    dependent._post_run_methods = [("select", ("answer.name",), {})]
+
+    loaded = Jobs.from_jsonl(dependent.to_jsonl())
+
+    assert loaded == dependent
+    assert loaded._depends_on == base
+    assert loaded._post_run_methods == [("select", ("answer.name",), {})]
+
+
 def test_jobs_git_embedded_scenario_filestore_round_trip(tmp_path):
     source_path = tmp_path / "source.txt"
     source_path.write_text("hello from jobs filestore\n")

@@ -199,11 +199,6 @@ class QuestionBase(
     question_name: str = QuestionNameDescriptor()  # type: ignore[assignment]
     question_text: str = QuestionTextDescriptor()  # type: ignore[assignment]
 
-    _store_class_name = "QuestionBase"
-
-    from edsl.base.store_accessor import StoreDescriptor
-    store = StoreDescriptor()
-
     _answering_instructions = None
     _question_presentation = None
 
@@ -432,7 +427,6 @@ class QuestionBase(
             # "_include_comment",
             # "_use_code",
             "_model_instructions",
-            "_store_accessor",
             "_model",                  # live Model object; serialized via _thinking_model
             "_invigilator_class",      # runtime-only; restored by thinking_question()
             "_system_prompt",          # serialized via _thinking_system_prompt
