@@ -137,10 +137,7 @@ class TestTokenOverrides:
         result = JobCostEstimator().estimate_cost(
             make_job(q), token_overrides=override, price_lookup=PRICE_LOOKUP
         )
-        assert (
-            result._rows[0]["estimator_description"]
-            == "Output estimated at 100% of prompt tokens; override: answer_tokens=50"
-        )
+        assert result._rows[0]["override_description"] == "answer_tokens=50"
 
     def test_override_description_lists_all_set_fields(self):
         q = QuestionFreeText(question_name="q0", question_text="What is your name?")
@@ -149,8 +146,8 @@ class TestTokenOverrides:
             make_job(q), token_overrides=override, price_lookup=PRICE_LOOKUP
         )
         assert (
-            result._rows[0]["estimator_description"]
-            == "Output estimated at 100% of prompt tokens; override: answer_tokens=50, comment_tokens=10"
+            result._rows[0]["override_description"]
+            == "answer_tokens=50, comment_tokens=10"
         )
 
     def test_override_note_appears_in_description(self):
@@ -159,7 +156,7 @@ class TestTokenOverrides:
         result = JobCostEstimator().estimate_cost(
             make_job(q), token_overrides=override, price_lookup=PRICE_LOOKUP
         )
-        assert "from pilot" in result._rows[0]["estimator_description"]
+        assert "from pilot" in result._rows[0]["override_description"]
 
     def test_non_overridden_question_keeps_estimator_description(self):
         q0 = QuestionFreeText(question_name="q0", question_text="What is your name?")
@@ -171,10 +168,8 @@ class TestTokenOverrides:
             make_job(q0, q1), token_overrides=override, price_lookup=PRICE_LOOKUP
         )
         rows = {r["question_name"]: r for r in result._rows}
-        assert rows["q0"]["estimator_description"] == (
-            "Output estimated at 100% of prompt tokens; override: answer_tokens=50"
-        )
-        assert "; override:" not in rows["q1"]["estimator_description"]
+        assert rows["q0"]["override_description"] == "answer_tokens=50"
+        assert not rows["q1"]["override_description"]
 
     def test_specific_model_override_wins_over_global(self):
         # make_job uses service="test", model="test"
