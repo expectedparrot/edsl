@@ -452,7 +452,7 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
         rows = []
         for idx, row in enumerate(tabular_rows):
             visible_vals = row[:max_cols] if truncated else row
-            rows.append(tuple([str(idx)] + [repr(v) for v in visible_vals]))
+            rows.append(tuple([str(idx)] + [str(v) for v in visible_vals]))
 
         caption = (
             f"{hidden_count} more column{'s' if hidden_count != 1 else ''} not shown. "
@@ -506,7 +506,9 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
 
     def _repr_html_(self):
         """Return an HTML representation of the dataset for Jupyter notebooks."""
-        return self.to_pandas_for_display()._repr_html_()
+        from .display.table_display import TableDisplay
+
+        return TableDisplay.from_dataset(self)._repr_html_()
 
     def _tabular(self) -> tuple[list[str], list[list[Any]]]:
         """Convert the dataset to a tabular format (headers and rows).

@@ -866,7 +866,9 @@ class RepresentationMixin:
         Returns:
             str: HTML representation of the object
         """
-        return self.to_dataset().to_pandas()._repr_html_()
+        from edsl.dataset.display.table_display import TableDisplay
+
+        return TableDisplay.from_dataset(self.to_dataset())._repr_html_()
 
     def _store_info_line(self) -> str:
         """Build a dim store-metadata line if this object has been saved."""

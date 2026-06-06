@@ -285,9 +285,14 @@ class ModelInfoFetcherABC(UserDict, ABC):
             "data": serializable_data,
         }
 
+        def _default(obj):
+            if isinstance(obj, datetime.datetime):
+                return obj.isoformat()
+            raise TypeError(f"Object of type {type(obj).__name__} is not JSON serializable")
+
         # Write to file
         with open(archive_path, "w", encoding="utf-8") as f:
-            json.dump(archive_data, f, indent=4)
+            json.dump(archive_data, f, indent=4, default=_default)
 
         if self.verbose:
             print(
@@ -339,6 +344,12 @@ class ModelInfoCoopRegular(ModelInfoFetcherABC):
                 ModelInfo.from_raw({"id": model_name}, service_name, model_name)
                 for model_name in model_names
             ]
+
+        if self.verbose:
+            for svc, models in data.items():
+                sample = ", ".join(m.id for m in models[:3])
+                suffix = ", ..." if len(models) > 3 else ""
+                print(f"[COOP_REGULAR] '{svc}': {len(models)} models ({sample}{suffix})")
 
         return data
 
@@ -407,6 +418,12 @@ class ModelInfoCoopWorking(ModelInfoFetcherABC):
             )
             data[service_name].append(model_info)
 
+        if self.verbose:
+            for svc, models in data.items():
+                sample = ", ".join(m.id for m in models[:3])
+                suffix = ", ..." if len(models) > 3 else ""
+                print(f"[COOP_WORKING] '{svc}': {len(models)} models ({sample}{suffix})")
+
         return data
 
 
@@ -450,15 +467,21 @@ class ModelInfoServices(ModelInfoFetcherABC):
             registered_services = self.services_registry.list_registered_services()
 
         for service_name in registered_services:
+            if self.verbose:
+                print(f"[LOCAL_FETCHER] Querying '{service_name}'...")
             try:
                 # Load the service class (lazy loading)
                 service_entry = self.services_registry.get_service_class(service_name)
                 model_list = service_entry.get_model_list()
                 data[service_name] = model_list
+                if self.verbose:
+                    sample = ", ".join(m.id for m in model_list[:3])
+                    suffix = ", ..." if len(model_list) > 3 else ""
+                    print(f"[LOCAL_FETCHER] '{service_name}': {len(model_list)} models ({sample}{suffix})")
             except Exception as e:
                 if skip_errors:
                     if self.verbose:
-                        print(f"Error fetching model list for {service_name}: {e}")
+                        print(f"[LOCAL_FETCHER] '{service_name}': failed — {e}")
                     continue
                 else:
                     raise e
