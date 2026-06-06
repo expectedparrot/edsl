@@ -8,6 +8,7 @@ import os
 import shutil
 import subprocess
 import sys
+import tempfile
 import time
 import warnings
 from pathlib import Path
@@ -321,6 +322,7 @@ def run_git(
     error_cls: Type[Exception] = GitPackageError,
     env: Optional[dict[str, str]] = None,
 ) -> subprocess.CompletedProcess:
+    auth_config_path = env.get("EDSL_GIT_AUTH_CONFIG") if env else None
     try:
         return subprocess.run(
             command,
@@ -331,6 +333,12 @@ def run_git(
         )
     except subprocess.CalledProcessError as exc:
         raise error_cls(command=command, stderr=exc.stderr or "", stdout=exc.stdout or "") from exc
+    finally:
+        if auth_config_path:
+            try:
+                Path(auth_config_path).unlink()
+            except FileNotFoundError:
+                pass
 
 
 def _display_git_command(command: list[str]) -> str:
@@ -349,10 +357,16 @@ def http_auth_git_env(url: str, token: Optional[str] = None) -> dict[str, str]:
     token = token or expected_parrot_api_key()
     if token is None:
         raise ValueError("HTTP git remote requires EXPECTED_PARROT_API_KEY for bearer auth.")
+    fd, path = tempfile.mkstemp(prefix="edsl-git-auth-", suffix=".gitconfig")
+    os.chmod(path, 0o600)
+    with os.fdopen(fd, "w") as config:
+        config.write("[http]\n")
+        config.write(f"\textraHeader = Authorization: Bearer {token}\n")
     return {
         "GIT_CONFIG_COUNT": "1",
-        "GIT_CONFIG_KEY_0": "http.extraHeader",
-        "GIT_CONFIG_VALUE_0": f"Authorization: Bearer {token}",
+        "GIT_CONFIG_KEY_0": "include.path",
+        "GIT_CONFIG_VALUE_0": path,
+        "EDSL_GIT_AUTH_CONFIG": path,
     }
 
 

@@ -12,6 +12,7 @@ from edsl.agents import AgentListGitNestedRepoWarning
 from edsl.agents.exceptions import AgentListError
 from edsl.agents.agent_list_git import AgentListGitError
 from edsl.base.base_exception import BaseException as EDSLBaseException
+from edsl.base import git_package as gitpkg
 
 
 pytestmark = pytest.mark.skipif(
@@ -38,6 +39,21 @@ def test_agent_list_git_error_uses_edsl_exception_hierarchy():
     assert issubclass(AgentListGitError, EDSLBaseException)
     assert ExportedAgentListGitError is AgentListGitError
     assert issubclass(AgentListGitNestedRepoWarning, UserWarning)
+
+
+def test_git_http_auth_env_uses_temp_config_and_cleans_up_token(tmp_path):
+    token = "secret-token-for-test"
+    env = gitpkg.http_auth_git_env("https://example.com/repo.git", token=token)
+
+    assert env["GIT_CONFIG_KEY_0"] == "include.path"
+    assert token not in " ".join(env.values())
+    auth_config_path = Path(env["EDSL_GIT_AUTH_CONFIG"])
+    assert auth_config_path.is_file()
+    assert token in auth_config_path.read_text()
+
+    gitpkg.run_git(["git", "--version"], env=env)
+
+    assert not auth_config_path.exists()
 
 
 def test_agent_list_git_save_creates_package_layout(tmp_path):
