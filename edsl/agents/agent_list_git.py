@@ -68,6 +68,25 @@ class AgentListGitPackage(gitpkg.GitPackage):
         errors = _validate_package(self.path)
         return {"status": "ok" if not errors else "invalid", "errors": errors}
 
+    def html(
+        self,
+        filename: str | Path | None = None,
+        *,
+        ref: str = "HEAD",
+        title: str = "AgentList",
+        include_prompts: bool = True,
+    ) -> str:
+        """Render this package as a standalone interactive HTML document."""
+        from .agent_list_html_renderer import AgentListHTMLRenderer
+
+        html = AgentListHTMLRenderer.from_package(self.path, ref=ref).render(
+            title=title,
+            include_prompts=include_prompts,
+        )
+        if filename is not None:
+            Path(filename).write_text(html, encoding="utf-8")
+        return html
+
 
 def _git_spec() -> GitObjectSpec:
     return GitObjectSpec(
@@ -121,6 +140,7 @@ def _write_agent_list(path: Path, agent_list: "AgentList", **_kwargs) -> dict:
     agent_ids = _agent_ids_for_agents(agent_list, existing_order, existing_agents)
     _write_manifest(path, agent_list, agent_ids)
     _write_agents(path, agent_list, agent_ids)
+    _write_readme(path, agent_list, agent_ids)
     return {}
 
 
@@ -268,6 +288,43 @@ def _write_agents(path: Path, agent_list: "AgentList", agent_ids: list[str]) -> 
     for existing in agents_dir.glob("*.json"):
         if existing.name not in live_files:
             existing.unlink()
+
+
+def _write_readme(path: Path, agent_list: "AgentList", agent_ids: list[str]) -> None:
+    title = _package_display_name(path)
+    trait_keys: list[str] = []
+    for agent in agent_list:
+        for key in agent.traits.keys():
+            if key not in trait_keys:
+                trait_keys.append(key)
+    lines = [
+        f"# {title}",
+        "",
+        "Git-backed EDSL AgentList package.",
+        "",
+        "## Contents",
+        "",
+        "- `manifest.json`: package metadata, ordering, and shared AgentList fields.",
+        "- `agents/*.json`: one JSON file per agent, ordered by `manifest.json`.",
+        "- `.git/`: normal Git repository metadata for history, branches, tags, and remotes.",
+        "",
+        "## Summary",
+        "",
+        f"- Agents: {len(agent_ids)}",
+        f"- Traits: {len(trait_keys)}",
+        f"- Trait keys: {', '.join(trait_keys) if trait_keys else '(none)'}",
+        "",
+        "## Python",
+        "",
+        "```python",
+        "from edsl import AgentList",
+        "",
+        f"al = AgentList.git.load({path.name!r})",
+        f"html = AgentList.git.open({path.name!r}).html()",
+        "```",
+        "",
+    ]
+    (path / "README.md").write_text("\n".join(lines), encoding="utf-8")
 
 
 def _shared_agent_value(agent_list: "AgentList", attr: str):
