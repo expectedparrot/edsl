@@ -8,6 +8,8 @@ You are helping a user estimate the cost of an EDSL job before running it. Your 
 from edsl.jobs.cost_estimation.job_cost_estimator import JobCostEstimator
 from edsl.jobs.cost_estimation.token_override import TokenOverride
 
+job = survey.by(agents).by(models).by(scenarios)
+
 estimate = JobCostEstimator().estimate_cost(job)
 print(estimate)                        # one-line summary: total cost, tokens
 estimate.to_markdown("estimate.md")    # full human-readable report
@@ -18,6 +20,7 @@ estimate.to_markdown("estimate.md")    # full human-readable report
 ## What the estimate produces
 
 `JobCostEstimate` gives you:
+
 - `estimate.total_cost_usd` — total estimated cost
 - `estimate.total_credits` — same in Expected Parrot credits (1 credit = $0.01)
 - `estimate.total_input_tokens` / `estimate.total_output_tokens`
@@ -31,19 +34,24 @@ If the user asks for more detail, generate the markdown report.
 **Output tokens** = answer_tokens + comment_tokens + thinking_tokens, estimated by question type:
 
 Zero cost — `billable=False`; no LLM call, but tokens tracked for downstream memory:
+
 - `compute`, `functional`
 
 Free-form output (answer only, no comment) — output = 100% of prompt tokens:
+
 - `free_text`, `extract`, `list`, `markdown`, `edsl_object`, `dict`, `pydantic`, `file_upload`
 
 Free-form output (answer only, no comment) — fixed or scaled output:
+
 - `interview` → fixed 500 answer tokens
 - `thinking` → 75% of prompt tokens
 
 Structured answer + ~60 comment tokens — answer estimated from average option text length:
+
 - `multiple_choice`, `yes_no`, `likert_five`, `dropdown`, `linear_scale`, `numerical`, `rank`, `top_k`, `budget`, `checkbox`, `multiple_choice_with_other`
 
 Special:
+
 - `matrix` → answer from option text + 20 comment tokens per row
 - `demand` → 1 token per price point + ~60 comment tokens
 
@@ -56,6 +64,7 @@ Unknown question types fall back to output = 100% of prompt tokens and emit a wa
 ## Reading the warnings
 
 Warnings are not errors — they tell you where the estimate is less precise. Examples of warnings you may encounter:
+
 - **"no branch_weights provided"**: survey has skip logic but was estimated as if every question is asked. This is a worst-case upper bound. Pass `branch_weights` to improve it.
 - **"audio/video not supported"**: those files contribute 0 tokens. Use `token_overrides` to set manually.
 - **"offloaded — using default N pages"**: a PDF or image was stored remotely and couldn't be introspected. The default page count was used.
@@ -63,79 +72,87 @@ Warnings are not errors — they tell you where the estimate is less precise. Ex
 
 ## Improving accuracy
 
-### When the user has pilot data (best option)
+### When the user has pilot data
 
-If the user has already run a small sample of their job, use `calibrate_from_results` to derive token overrides from actual output lengths:
+If the user has already run a small sample of their job, use `calibrate_from_results` to derive token overrides from actual output lengths. It calibrates both answer tokens and thinking tokens (when present), separately per model.
+
+Note: the output token count from results includes both answer and comment tokens combined, so the calibrated `answer_tokens` absorbs comments — `comment_tokens` from the estimator is effectively ignored for calibrated questions.
 
 ```python
 from edsl.jobs.cost_estimation.cost_estimate_calibration import calibrate_from_results
 
 overrides = calibrate_from_results(pilot_results, percentile=75)
-# percentile=75: conservative budget estimate
-# percentile=50: unbiased median estimate
-# by_model=True (default): separate calibration per model — use by_model=False to pool all models
+# percentile: the Nth percentile of observed output tokens from the pilot is used as the override.
+# Higher values (e.g. 75, 90) are more conservative — N% of pilot runs used fewer tokens than this.
+# Lower values (e.g. 50) are closer to the true expected cost but more likely to underestimate.
 
 estimate = JobCostEstimator().estimate_cost(job, token_overrides=overrides)
 ```
 
-### When the user knows expected output length
+### Using your own judgment to override defaults
+
+The default estimators don't read question content — they apply fixed rules by type. You can and should read the actual question text and override defaults when the question clearly implies a different output length.
+
+For example:
+- A `free_text` question asking "In one word, how would you describe your experience?" will produce a single word — far less than the 100% of prompt default.
+- A `free_text` question asking "Write a detailed summary of the following document" will produce a long answer — possibly more than the default.
+When you spot a mismatch, set `answer_tokens` (and `comment_tokens` if relevant) directly:
 
 ```python
 from edsl.jobs.cost_estimation.token_override import TokenOverride
 
 overrides = {
-    "q_summary": TokenOverride(answer_tokens=300),
+    "q_name": TokenOverride(answer_tokens=10, note="short name response"),
+    "q_summary": TokenOverride(answer_tokens=400, note="detailed document summary"),
     "q_rating": TokenOverride(answer_tokens=5, comment_tokens=80),
-    # scope to a specific model if needed:
+    # scope to a specific service:
     "q_essay": [
         TokenOverride(answer_tokens=800),                              # global default
-        TokenOverride(answer_tokens=1200, service="anthropic", model="claude-opus-4-8"),  # specific
+        TokenOverride(answer_tokens=1200, service="anthropic"),        # all Anthropic models
+    ],
+    # scope to a specific service + model:
+    "q_analysis": [
+        TokenOverride(answer_tokens=600),                              # global default
+        TokenOverride(answer_tokens=1500, service="anthropic", model="claude-opus-4-8"),  # specific
     ],
 }
 estimate = JobCostEstimator().estimate_cost(job, token_overrides=overrides)
 ```
 
-`TokenOverride` fields: `answer_tokens`, `comment_tokens`, `thinking_tokens`, `note`, `service`, `model`. Only set the fields you want to override — the rest use the estimator's values.
+`TokenOverride` fields: `answer_tokens`, `comment_tokens`, `thinking_tokens`, `note`, `service`, `model`. Only set the fields you want to override — the rest use the estimator's values. Always populate `note` with your reasoning so the user can see it in the report.
 
 ### When the survey has skip logic
 
+Without `branch_weights`, every question is assumed to be reached by every respondent — a worst-case upper bound. If significant portions of the survey are skippable, this can substantially overstate cost.
+
+Skip rules in EDSL are defined with `add_rule` using conditional expressions on actual answers. `branch_weights` is the cost estimator's counterpart — instead of a condition, you supply the *expected probability* that branch fires:
+
 ```python
-estimate = JobCostEstimator().estimate_cost(
-    job,
-    branch_weights={
-        ("q_screen", "q_end"): 0.4,   # 40% of respondents skip to the end after q_screen
-    }
-)
+from edsl.surveys.base import EndOfSurvey
+
+# The survey rule: if q_screen answer is 'no', end the survey immediately
+survey.add_rule("q_screen", "{{ q_screen.answer }} == 'no'", EndOfSurvey)
+
+# The cost estimate: 40% of respondents who reach q_screen will answer 'no' and exit
+branch_weights={("q_screen", EndOfSurvey): 0.4}
 ```
 
-`branch_weights` are conditional probabilities — fraction of respondents *at that question* who take the branch.
+```python
+# Multiple branches from the same question
+survey.add_rule("q_opinion", "{{ q_opinion.answer }} == 'strongly agree'", "q_followup")
+survey.add_rule("q_opinion", "{{ q_opinion.answer }} == 'strongly disagree'", EndOfSurvey)
 
-## What to tell the user
+branch_weights={("q_opinion", "q_followup"): 0.3, ("q_opinion", EndOfSurvey): 0.5}
+# remaining 20% continue to the next question in sequence
+```
 
-After running the estimate, always:
+Weights are conditional probabilities — the fraction of respondents *who reach that question* who take the branch. Weights from a single question should sum to ≤ 1.0; the remainder flows to the next question in sequence.
 
-1. **State the bottom line** — total cost in USD and credits, number of interviews × questions.
-2. **Flag the dominant cost driver** — is it a few expensive models? File tokens? A large number of questions?
-3. **Call out free-text questions without calibration** — they default to 100% of prompt and are often 2–5× the real cost. If the user has pilot data or knows output length, suggest overrides.
-4. **Explain any warnings** — offloaded files, skip logic, unknown question types.
-5. **Offer next steps**:
-   - Run a small pilot (5–10 rows) and calibrate with `calibrate_from_results`
-   - Add `token_overrides` for questions with predictable output
-   - Add `branch_weights` if skip logic is likely to exclude many respondents
+```python
+estimate = JobCostEstimator().estimate_cost(job, branch_weights={("q_screen", "q_end"): 0.4})
+```
 
-## Common patterns
+## Combining strategies
 
-**Survey with a few hundred respondents, no files:**
-Estimate is usually reliable. Free-text overrides matter most here.
+These strategies can be combined. For example, use `calibrate_from_results` as a base and then manually override specific questions where the pilot sample was small, the question changed, or your judgment suggests the calibrated value is off. `branch_weights` can be applied alongside either approach.
 
-**Survey with PDFs or images in scenarios:**
-File tokens often dominate. Show the per-question file token breakdown from the report. If page counts were unavailable (offloaded), note the default was used.
-
-**Survey with skip logic:**
-Worst-case estimate without `branch_weights`. Ask the user: "roughly what fraction of respondents reach each question?" Then use `branch_weights`.
-
-**Multi-model job:**
-The per-model table in the report shows cost split by model. Expensive models (Opus) on open-ended questions are usually the biggest lever.
-
-**Thinking/reasoning tokens:**
-If the model produces `thinking_tokens`, they're billed at the output rate and can be larger than the answer itself. Show the thinking column when non-zero.
