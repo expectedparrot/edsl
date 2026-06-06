@@ -35,7 +35,7 @@ from .data_structures import RunEnvironment, RunParameters, RunConfig
 from .check_survey_scenario_compatibility import CheckSurveyScenarioCompatibility
 from .decorators import with_config
 from ..coop.exceptions import CoopServerResponseError
-from .cost_estimation import JobCostEstimator, JobCostEstimate
+from .cost_estimation import JobCostEstimator, JobCostEstimate, TokenOverride
 
 
 def get_bucket_collection():
@@ -565,15 +565,15 @@ class Jobs(Base):
 
     def estimate_remote_job_cost(
         self,
-        token_overrides: dict | None = None,
-        branch_weights: dict | None = None,
+        token_overrides: dict[str, TokenOverride | list[TokenOverride]] | None = None,
+        branch_weights: dict[tuple, float] | None = None,
         price_lookup: dict | None = None,
         chars_per_token: int | None = None,
     ) -> "JobCostEstimate":
         """Estimate the cost of running this job using the new cost estimator.
 
         Args:
-            token_overrides: Per-question-name QuestionTokenEstimate overrides.
+            token_overrides: Per-question-name TokenOverride overrides.
                 Only non-None fields are applied; others use the estimated value.
             branch_weights: dict keyed by (from_question_name, to_question_name)
                 with probability of taking that branch. Used to compute expected
