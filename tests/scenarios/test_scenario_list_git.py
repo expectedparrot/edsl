@@ -16,6 +16,12 @@ pytestmark = pytest.mark.skipif(
 )
 
 
+def _filestore_bytes(value):
+    if isinstance(value, FileStore):
+        return base64.b64decode(value.base64_string)
+    return base64.b64decode(value["base64_string"])
+
+
 def test_scenario_list_git_error_uses_scenario_exception_hierarchy():
     assert issubclass(ScenarioListGitError, ScenarioError)
     assert issubclass(ScenarioListGitError, EDSLBaseException)
@@ -130,6 +136,69 @@ def test_scenario_list_git_loads_historical_filestore_blob(tmp_path):
     assert base64.b64decode(current[0]["document"].base64_string) == b"second file\n"
 
 
+def test_scenario_list_git_nested_filestore_refs_prune_and_round_trip(tmp_path):
+    first_source = tmp_path / "first.txt"
+    second_source = tmp_path / "second.txt"
+    first_source.write_text("first nested file\n")
+    second_source.write_text("second nested file\n")
+    package_path = tmp_path / "nested_files.scenario_list.ep"
+
+    scenario_list = ScenarioList(
+        [
+            Scenario(
+                {
+                    "payload": {
+                        "primary": FileStore(str(first_source)),
+                        "attachments": [FileStore(str(second_source))],
+                    }
+                }
+            )
+        ]
+    )
+    first = scenario_list.git.save(package_path, message="nested files")
+
+    scenario_json = json.loads((package_path / "scenarios" / "000001.json").read_text())
+    first_ref = scenario_json["payload"]["primary"]
+    second_ref = scenario_json["payload"]["attachments"][0]
+    assert first_ref["edsl_type"] == "FileStoreRef"
+    assert second_ref["edsl_type"] == "FileStoreRef"
+    assert first_ref["sha256"] != second_ref["sha256"]
+
+    scenario_list[0] = Scenario(
+        {
+            "payload": {
+                "primary": FileStore(str(second_source)),
+                "attachments": [],
+            }
+        }
+    )
+    second = scenario_list.git.save(message="remove nested file")
+
+    assert not (
+        package_path
+        / "files"
+        / "sha256"
+        / first_ref["sha256"][:2]
+        / first_ref["sha256"][2:]
+    ).exists()
+    assert (
+        package_path
+        / "files"
+        / "sha256"
+        / second_ref["sha256"][:2]
+        / second_ref["sha256"][2:]
+    ).is_file()
+    current = ScenarioList.git.load(package_path)
+    assert _filestore_bytes(current[0]["payload"]["primary"]) == b"second nested file\n"
+    assert current[0]["payload"]["attachments"] == []
+    historical = ScenarioList.git.load(package_path, ref=first["commit"])
+    assert _filestore_bytes(historical[0]["payload"]["primary"]) == b"first nested file\n"
+    assert _filestore_bytes(
+        historical[0]["payload"]["attachments"][0]
+    ) == b"second nested file\n"
+    assert second["commit"] != first["commit"]
+
+
 def test_scenario_list_git_loads_historical_commit_without_checkout(tmp_path):
     package_path = tmp_path / "scenarios.scenario_list.ep"
     first_list = ScenarioList.example()
@@ -144,6 +213,35 @@ def test_scenario_list_git_loads_historical_commit_without_checkout(tmp_path):
     assert old == first_list
     assert current == second_list
     assert current.git.commit == second["commit"]
+
+
+def test_scenario_list_git_mutation_save_cleans_stale_files_and_round_trips(tmp_path):
+    package_path = tmp_path / "scenarios.scenario_list.ep"
+    scenario_list = ScenarioList(
+        [
+            Scenario({"name": "removed"}),
+            Scenario({"name": "kept"}),
+        ]
+    )
+    first = scenario_list.git.save(package_path, message="initial scenarios")
+
+    scenario_list.pop(0)
+    scenario_list.append(Scenario({"name": "added"}))
+    second = scenario_list.git.save(message="mutated scenarios")
+
+    manifest = json.loads((package_path / "manifest.json").read_text())
+    assert manifest["scenario_order"] == ["000002", "000003"]
+    assert not (package_path / "scenarios" / "000001.json").exists()
+    assert (package_path / "scenarios" / "000002.json").is_file()
+    assert (package_path / "scenarios" / "000003.json").is_file()
+    assert ScenarioList.git.load(package_path) == scenario_list
+    assert ScenarioList.git.load(package_path, ref=first["commit"]) == ScenarioList(
+        [
+            Scenario({"name": "removed"}),
+            Scenario({"name": "kept"}),
+        ]
+    )
+    assert second["commit"] != first["commit"]
 
 
 def test_scenario_list_git_branch_tag_restore(tmp_path):

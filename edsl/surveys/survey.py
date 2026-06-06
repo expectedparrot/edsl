@@ -194,7 +194,9 @@ class Survey(Base):
         self.memory_plan = memory_plan or MemoryPlan(self)
 
         if question_groups is not None:
-            self.question_groups = question_groups
+            self.question_groups = {
+                name: tuple(indices) for name, indices in question_groups.items()
+            }
         else:
             self.question_groups = {}
 

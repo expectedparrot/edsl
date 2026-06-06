@@ -191,6 +191,65 @@ def test_agent_list_git_loads_historical_commit_without_checkout(tmp_path):
     assert current.git.commit == second["commit"]
 
 
+def test_agent_list_git_mutation_save_cleans_stale_files_and_round_trips(tmp_path):
+    package_path = tmp_path / "agents.agent_list.ep"
+    agent_list = AgentList(
+        [
+            Agent(name="alice", traits={"age": 22}),
+            Agent(name="bob", traits={"age": 30}),
+        ]
+    )
+    first = agent_list.git.save(package_path, message="initial agents")
+
+    agent_list.pop(0)
+    agent_list.append(Agent(name="carol", traits={"age": 41}))
+    second = agent_list.git.save(message="mutated agents")
+
+    manifest = json.loads((package_path / "manifest.json").read_text())
+    assert manifest["agent_order"] == ["000002", "000003"]
+    assert not (package_path / "agents" / "000001.json").exists()
+    assert (package_path / "agents" / "000002.json").is_file()
+    assert (package_path / "agents" / "000003.json").is_file()
+    assert AgentList.git.load(package_path) == agent_list
+    assert AgentList.git.load(package_path, ref=first["commit"]) == AgentList(
+        [
+            Agent(name="alice", traits={"age": 22}),
+            Agent(name="bob", traits={"age": 30}),
+        ]
+    )
+    assert second["commit"] != first["commit"]
+
+
+def test_agent_list_git_duplicate_agents_reorder_and_restore_round_trip(tmp_path):
+    package_path = tmp_path / "duplicates.agent_list.ep"
+    duplicate = Agent(name="same", traits={"age": 22, "city": "Boston"})
+    agent_list = AgentList(
+        [
+            duplicate,
+            Agent(name="unique", traits={"age": 30, "city": "Chicago"}),
+            duplicate,
+        ]
+    )
+    first = agent_list.git.save(package_path, message="duplicates")
+
+    agent_list.pop(1)
+    agent_list.insert(0, Agent(name="new", traits={"age": 41, "city": "Seattle"}))
+    second = agent_list.git.save(message="reordered duplicates")
+
+    manifest = json.loads((package_path / "manifest.json").read_text())
+    assert manifest["agent_order"] == ["000004", "000001", "000003"]
+    assert not (package_path / "agents" / "000002.json").exists()
+    assert AgentList.git.load(package_path) == agent_list
+    assert AgentList.git.load(package_path, ref=first["commit"]) == AgentList(
+        [
+            duplicate,
+            Agent(name="unique", traits={"age": 30, "city": "Chicago"}),
+            duplicate,
+        ]
+    )
+    assert second["commit"] != first["commit"]
+
+
 def test_agent_list_git_branch_checkout_and_commit(tmp_path):
     package_path = tmp_path / "agents.agent_list.ep"
     main_list = AgentList([Agent(name="alice", traits={"age": 22})])

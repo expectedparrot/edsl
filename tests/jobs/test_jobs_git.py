@@ -92,6 +92,39 @@ def test_jobs_git_loads_historical_commit_without_checkout(tmp_path):
     assert current.git.commit == second["commit"]
 
 
+def test_jobs_git_mutation_save_updates_embedded_components_and_round_trips(tmp_path):
+    package_path = tmp_path / "experiment.jobs.ep"
+    initial_models = ModelList(
+        [
+            Model("test", canned_response="removed"),
+            Model("test", canned_response="kept"),
+        ]
+    )
+    mutated_models = ModelList(
+        [
+            Model("test", canned_response="kept"),
+            Model("test", canned_response="added"),
+        ]
+    )
+    expected_initial = simple_job()
+    expected_initial.models = initial_models
+    job = simple_job()
+    job.models = initial_models
+    first = job.git.save(package_path, message="initial job")
+
+    job.models = mutated_models
+    second = job.git.save(message="mutated job")
+
+    model_manifest = json.loads((package_path / "models" / "manifest.json").read_text())
+    assert model_manifest["model_order"] == ["000002", "000003"]
+    assert not (package_path / "models" / "models" / "000001.json").exists()
+    assert (package_path / "models" / "models" / "000002.json").is_file()
+    assert (package_path / "models" / "models" / "000003.json").is_file()
+    assert Jobs.git.load(package_path) == job
+    assert Jobs.git.load(package_path, ref=first["commit"]) == expected_initial
+    assert second["commit"] != first["commit"]
+
+
 def test_jobs_git_branch_tag_restore(tmp_path):
     package_path = tmp_path / "experiment.jobs.ep"
     job = simple_job("main")

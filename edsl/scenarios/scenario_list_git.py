@@ -306,6 +306,8 @@ def _prune_unreferenced_filestore_blobs(path: Path, live_hashes: set[str]) -> No
 
 
 def _extract_filestore_blobs(path: Path, value: Any) -> Any:
+    if _is_filestore_instance(value):
+        return _write_filestore_ref(path, value.to_dict(add_edsl_version=False))
     if isinstance(value, list):
         return [_extract_filestore_blobs(path, item) for item in value]
     if not isinstance(value, dict):
@@ -313,6 +315,15 @@ def _extract_filestore_blobs(path: Path, value: Any) -> Any:
     if _is_serialized_filestore(value):
         return _write_filestore_ref(path, value)
     return {key: _extract_filestore_blobs(path, item) for key, item in value.items()}
+
+
+def _is_filestore_instance(value: Any) -> bool:
+    try:
+        from .file_store import FileStore
+
+        return isinstance(value, FileStore)
+    except Exception:
+        return False
 
 
 def _hydrate_filestore_refs(path: Path, value: Any, ref: str) -> Any:

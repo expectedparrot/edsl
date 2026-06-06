@@ -35,14 +35,18 @@ class MemoryPlan(UserDict):
         """Return a dictionary mapping question names to question texts."""
         return dict(zip(self.survey_question_names, self.question_texts))
 
-    def add_question(self, question: "QuestionBase") -> None:
+    def add_question(self, question: "QuestionBase", index: Optional[int] = None) -> None:
         """Add a question to the survey.
 
         :param question: A question to add to the survey
 
         """
-        self.survey_question_names.append(question.question_name)
-        self.question_texts.append(question.question_text)
+        if index is None:
+            self.survey_question_names.append(question.question_name)
+            self.question_texts.append(question.question_text)
+            return
+        self.survey_question_names.insert(index, question.question_name)
+        self.question_texts.insert(index, question.question_text)
 
     def _check_valid_question_name(self, question_name: str) -> None:
         """Ensure a passed question name is valid.

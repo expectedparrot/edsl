@@ -68,6 +68,35 @@ def test_model_list_git_loads_historical_commit_without_checkout(tmp_path):
     assert current.git.commit == second["commit"]
 
 
+def test_model_list_git_mutation_save_cleans_stale_files_and_round_trips(tmp_path):
+    package_path = tmp_path / "models.model_list.ep"
+    model_list = ModelList(
+        [
+            Model("test", canned_response="removed"),
+            Model("test", canned_response="kept"),
+        ]
+    )
+    first = model_list.git.save(package_path, message="initial models")
+
+    model_list.pop(0)
+    model_list.append(Model("test", canned_response="added"))
+    second = model_list.git.save(message="mutated models")
+
+    manifest = json.loads((package_path / "manifest.json").read_text())
+    assert manifest["model_order"] == ["000002", "000003"]
+    assert not (package_path / "models" / "000001.json").exists()
+    assert (package_path / "models" / "000002.json").is_file()
+    assert (package_path / "models" / "000003.json").is_file()
+    assert ModelList.git.load(package_path) == model_list
+    assert ModelList.git.load(package_path, ref=first["commit"]) == ModelList(
+        [
+            Model("test", canned_response="removed"),
+            Model("test", canned_response="kept"),
+        ]
+    )
+    assert second["commit"] != first["commit"]
+
+
 def test_model_list_git_branch_tag_restore(tmp_path):
     package_path = tmp_path / "models.model_list.ep"
     model_list = ModelList([Model("test", canned_response="main")])
