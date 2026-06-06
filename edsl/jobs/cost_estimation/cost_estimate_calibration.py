@@ -10,7 +10,7 @@ if TYPE_CHECKING:
 def calibrate_from_results(
     results: "Results",
     percentile: int = 75,
-    by_model: bool = False,
+    by_model: bool = True,
 ) -> dict[str, TokenOverride | list[TokenOverride]]:
     """Derive token overrides from a pilot Results object.
 
@@ -23,8 +23,9 @@ def calibrate_from_results(
         percentile: which percentile of observed output tokens to use (default 75).
                     Use 50 for median (unbiased cost projection) or a higher value
                     (75-90) for a conservative budget estimate.
-        by_model:   if True, return per-(service, model) overrides; if False, return
-                    one global override per question
+        by_model:   if True (default), return per-(service, model) overrides so each
+                    model gets its own calibrated estimate; if False, pool all models
+                    into one global override per question
 
     Returns:
         dict[str, TokenOverride | list[TokenOverride]] ready for token_overrides=
