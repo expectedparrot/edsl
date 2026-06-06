@@ -320,12 +320,18 @@ class JobCostEstimator:
             # File tokens
             file_tokens = 0
             file_descriptions: list[str] = []
+            file_breakdowns: list[dict] = []
             for fs in prompts.get("files_list", []):
                 ft, fw = self.file_estimator.estimate(fs, inference_service, model_name)
                 file_tokens += ft
                 warnings.extend(fw)
                 file_descriptions.append(
                     self.file_estimator.describe_for_file(
+                        fs, inference_service, model_name
+                    )
+                )
+                file_breakdowns.append(
+                    self.file_estimator.breakdown_for_file(
                         fs, inference_service, model_name
                     )
                 )
@@ -355,6 +361,7 @@ class JobCostEstimator:
             )
 
             # Apply token_overrides — find most specific match for this question/model
+            override_description = ""
             raw = token_overrides.get(q_name)
             if raw is not None:
                 candidates = raw if isinstance(raw, list) else [raw]
@@ -365,9 +372,7 @@ class JobCostEstimator:
                     override = max(matching, key=lambda o: o.specificity())
                     full_estimate = full_estimate.apply_override(override)
                     estimator_name = f"manual override (base: {estimator_name})"
-                    estimator_description = (
-                        f"{estimator_description}; override: {override.describe()}"
-                    )
+                    override_description = override.describe()
 
             # Store expected output tokens for use by downstream memory calculations.
             # Scaled by reach probability so that a question only reached 30% of the
@@ -398,7 +403,9 @@ class JobCostEstimator:
                 "output_price_per_million": output_price_per_million,
                 "estimator_used": estimator_name,
                 "estimator_description": estimator_description,
+                "override_description": override_description,
                 "file_description": "; ".join(file_descriptions),
+                "file_breakdowns": file_breakdowns,
                 "reach_probability": reach,
                 **full_estimate.to_detail_row(),
                 "cost_usd": cost_usd,

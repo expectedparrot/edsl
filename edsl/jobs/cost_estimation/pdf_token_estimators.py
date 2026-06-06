@@ -90,6 +90,95 @@ class OpenAIPDFEstimator:
             )
         return self.FIXED_OVERHEAD + page_component
 
+    def breakdown(
+        self,
+        model_name: str | None = None,
+        num_pages: int | None = None,
+        extracted_text: str | None = None,
+        chars_per_token: int = 4,
+    ) -> dict:
+        """Structured breakdown of token components for display."""
+        pages = num_pages if num_pages is not None else self.DEFAULT_PAGE_COUNT
+        note = (
+            ""
+            if num_pages is not None
+            else f"page count unavailable; using default {self.DEFAULT_PAGE_COUNT}"
+        )
+        if self._is_reasoning(model_name) and extracted_text:
+            n_chars = len(extracted_text)
+            tokens = max(1, n_chars // chars_per_token)
+            return {
+                "provider": "OpenAI PDF (reasoning — extracted text only)",
+                "components": [
+                    {
+                        "label": "extracted text",
+                        "value": f"{n_chars:,} chars ÷ {chars_per_token} chars/token",
+                        "tokens": tokens,
+                    },
+                ],
+                "total": tokens,
+                "note": note,
+            }
+        tpp = self._tokens_per_page(model_name)
+        page_tokens = pages * tpp
+        components = [
+            {
+                "label": "base overhead",
+                "value": f"{self.FIXED_OVERHEAD:,}",
+                "tokens": self.FIXED_OVERHEAD,
+            },
+        ]
+        if extracted_text:
+            cpt = self._text_chars_per_token(model_name)
+            n_chars = len(extracted_text)
+            text_tokens = int(n_chars / cpt)
+            if self._is_additive(model_name):
+                components.append(
+                    {
+                        "label": "page content",
+                        "value": f"{pages:,} pages × {tpp:,}/page",
+                        "tokens": page_tokens,
+                    }
+                )
+                components.append(
+                    {
+                        "label": "extracted text",
+                        "value": f"{n_chars:,} chars ÷ {cpt} chars/token",
+                        "tokens": text_tokens,
+                    }
+                )
+            elif text_tokens > page_tokens:
+                components.append(
+                    {
+                        "label": "extracted text",
+                        "value": f"{n_chars:,} chars ÷ {cpt} chars/token",
+                        "tokens": text_tokens,
+                    }
+                )
+            else:
+                components.append(
+                    {
+                        "label": "page content",
+                        "value": f"{pages:,} pages × {tpp:,}/page",
+                        "tokens": page_tokens,
+                    }
+                )
+        else:
+            components.append(
+                {
+                    "label": "page content",
+                    "value": f"{pages:,} pages × {tpp:,} tokens/page",
+                    "tokens": page_tokens,
+                }
+            )
+        total = sum(c["tokens"] for c in components)
+        return {
+            "provider": "OpenAI PDF",
+            "components": components,
+            "total": total,
+            "note": note,
+        }
+
     def describe(
         self,
         model_name: str | None = None,
@@ -97,38 +186,12 @@ class OpenAIPDFEstimator:
         extracted_text: str | None = None,
         chars_per_token: int = 4,
     ) -> str:
-        pages = num_pages if num_pages is not None else self.DEFAULT_PAGE_COUNT
-        page_note = (
-            ""
-            if num_pages is not None
-            else f" (page count unavailable; using default {self.DEFAULT_PAGE_COUNT})"
+        bd = self.breakdown(model_name, num_pages, extracted_text, chars_per_token)
+        parts = " + ".join(
+            f"{c['label']}: {c['value']} = {c['tokens']:,}" for c in bd["components"]
         )
-        if self._is_reasoning(model_name) and extracted_text:
-            return (
-                f"OpenAI reasoning PDF: extracted text "
-                f"({len(extracted_text)} chars / {chars_per_token} chars/token)"
-            )
-        tpp = self._tokens_per_page(model_name)
-        page_component = pages * tpp
-        if extracted_text:
-            cpt = self._text_chars_per_token(model_name)
-            text_component = int(len(extracted_text) / cpt)
-            if self._is_additive(model_name):
-                total = self.FIXED_OVERHEAD + page_component + text_component
-                return (
-                    f"OpenAI PDF: {self.FIXED_OVERHEAD} fixed + {pages} pages x {tpp}/page + "
-                    f"{len(extracted_text)} chars ÷ {cpt} = {total} tokens{page_note}"
-                )
-            if text_component > page_component:
-                text_total = self.FIXED_OVERHEAD + text_component
-                return (
-                    f"OpenAI PDF: extracted text ({len(extracted_text)} chars ÷ {cpt} "
-                    f"+ {self.FIXED_OVERHEAD} overhead = {text_total} tokens)"
-                )
-        return (
-            f"OpenAI PDF via Files API: {self.FIXED_OVERHEAD} fixed + "
-            f"{pages} pages x {tpp} tokens/page{page_note}"
-        )
+        note = f" ({bd['note']})" if bd["note"] else ""
+        return f"{bd['provider']}: {parts}{note}"
 
 
 class AnthropicPDFEstimator:
@@ -162,26 +225,56 @@ class AnthropicPDFEstimator:
             return self.FIXED_OVERHEAD + page_component + text_component
         return self.FIXED_OVERHEAD + page_component
 
+    def breakdown(
+        self, num_pages: int | None = None, extracted_text: str | None = None
+    ) -> dict:
+        """Structured breakdown of token components for display."""
+        pages = num_pages if num_pages is not None else self.DEFAULT_PAGE_COUNT
+        note = (
+            ""
+            if num_pages is not None
+            else f"page count unavailable; using default {self.DEFAULT_PAGE_COUNT}"
+        )
+        page_tokens = pages * self.TOKENS_PER_PAGE
+        components = [
+            {
+                "label": "base overhead",
+                "value": f"{self.FIXED_OVERHEAD:,}",
+                "tokens": self.FIXED_OVERHEAD,
+            },
+            {
+                "label": "page content",
+                "value": f"{pages:,} pages × {self.TOKENS_PER_PAGE:,}/page",
+                "tokens": page_tokens,
+            },
+        ]
+        if extracted_text:
+            n_chars = len(extracted_text)
+            text_tokens = int(n_chars / self.TEXT_CHARS_PER_TOKEN)
+            components.append(
+                {
+                    "label": "extracted text",
+                    "value": f"{n_chars:,} chars ÷ {self.TEXT_CHARS_PER_TOKEN} chars/token",
+                    "tokens": text_tokens,
+                }
+            )
+        total = sum(c["tokens"] for c in components)
+        return {
+            "provider": "Anthropic PDF",
+            "components": components,
+            "total": total,
+            "note": note,
+        }
+
     def describe(
         self, num_pages: int | None = None, extracted_text: str | None = None
     ) -> str:
-        pages = num_pages if num_pages is not None else self.DEFAULT_PAGE_COUNT
-        page_note = (
-            ""
-            if num_pages is not None
-            else f" (page count unavailable; using default {self.DEFAULT_PAGE_COUNT})"
+        bd = self.breakdown(num_pages, extracted_text)
+        parts = " + ".join(
+            f"{c['label']}: {c['value']} = {c['tokens']:,}" for c in bd["components"]
         )
-        if extracted_text:
-            text_component = int(len(extracted_text) / self.TEXT_CHARS_PER_TOKEN)
-            total = self.FIXED_OVERHEAD + pages * self.TOKENS_PER_PAGE + text_component
-            return (
-                f"Anthropic PDF: {self.FIXED_OVERHEAD} fixed + {pages} pages x {self.TOKENS_PER_PAGE}/page + "
-                f"{len(extracted_text)} chars ÷ {self.TEXT_CHARS_PER_TOKEN} = {total} tokens{page_note}"
-            )
-        return (
-            f"Anthropic PDF: {self.FIXED_OVERHEAD} fixed + "
-            f"{pages} pages x {self.TOKENS_PER_PAGE} tokens/page{page_note}"
-        )
+        note = f" ({bd['note']})" if bd["note"] else ""
+        return f"{bd['provider']}: {parts}{note}"
 
 
 class GooglePDFEstimator:
@@ -201,13 +294,32 @@ class GooglePDFEstimator:
         pages = num_pages if num_pages is not None else self.DEFAULT_PAGE_COUNT
         return pages * self.TOKENS_PER_PAGE
 
-    def describe(self, num_pages: int | None = None) -> str:
+    def breakdown(self, num_pages: int | None = None) -> dict:
+        """Structured breakdown of token components for display."""
         pages = num_pages if num_pages is not None else self.DEFAULT_PAGE_COUNT
-        page_note = (
+        note = (
             ""
             if num_pages is not None
-            else f" (page count unavailable; using default {self.DEFAULT_PAGE_COUNT})"
+            else f"page count unavailable; using default {self.DEFAULT_PAGE_COUNT}"
         )
-        return (
-            f"Google PDF: {pages} pages x {self.TOKENS_PER_PAGE} tokens/page{page_note}"
+        page_tokens = pages * self.TOKENS_PER_PAGE
+        return {
+            "provider": "Google PDF",
+            "components": [
+                {
+                    "label": "page content",
+                    "value": f"{pages:,} pages × {self.TOKENS_PER_PAGE:,} tokens/page",
+                    "tokens": page_tokens,
+                },
+            ],
+            "total": page_tokens,
+            "note": note,
+        }
+
+    def describe(self, num_pages: int | None = None) -> str:
+        bd = self.breakdown(num_pages)
+        parts = " + ".join(
+            f"{c['label']}: {c['value']} = {c['tokens']:,}" for c in bd["components"]
         )
+        note = f" ({bd['note']})" if bd["note"] else ""
+        return f"{bd['provider']}: {parts}{note}"

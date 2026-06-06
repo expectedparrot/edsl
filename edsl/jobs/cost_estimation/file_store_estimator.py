@@ -1,5 +1,6 @@
 from __future__ import annotations
 import base64
+import os
 from abc import ABC, abstractmethod
 from typing import Callable, TYPE_CHECKING
 
@@ -146,6 +147,45 @@ class ImageEstimator(FileTypeEstimator):
             return GoogleImageEstimator().describe()
         return "Fixed fallback: 1,000 tokens (no provider-specific formula)"
 
+    def breakdown_for_file(
+        self,
+        filestore: "FileStore",
+        inference_service: str,
+        model_name: str | None = None,
+    ) -> dict:
+        path = getattr(filestore, "_path", "unknown")
+        try:
+            width, height = filestore.get_image_dimensions()
+        except Exception:
+            tokens, _ = self.estimate(filestore, inference_service, model_name)
+            return {
+                "provider": "image (dimensions unavailable)",
+                "components": [
+                    {"label": "cost", "value": "fixed fallback", "tokens": tokens}
+                ],
+                "total": tokens,
+                "note": f"could not read dimensions for {path}",
+            }
+        if inference_service in ("openai", "openai_v2"):
+            return OpenAIImageEstimator().breakdown(width, height, model_name)
+        elif inference_service == "anthropic":
+            return AnthropicImageEstimator().breakdown(width, height, model_name)
+        elif inference_service == "google":
+            return GoogleImageEstimator().breakdown(width, height)
+        tokens, _ = self.estimate(filestore, inference_service, model_name)
+        return {
+            "provider": "image (unknown provider)",
+            "components": [
+                {
+                    "label": "cost",
+                    "value": "fixed fallback: 1,000 tokens",
+                    "tokens": tokens,
+                }
+            ],
+            "total": tokens,
+            "note": "",
+        }
+
 
 class PdfEstimator(FileTypeEstimator):
     def __init__(
@@ -273,6 +313,40 @@ class PdfEstimator(FileTypeEstimator):
             return GooglePDFEstimator().describe(num_pages=num_pages)
         return f"Character count / {self.chars_per_token} chars/token (from extracted text or file size)"
 
+    def breakdown(
+        self,
+        inference_service: str,
+        model_name: str | None = None,
+        num_pages: int | None = None,
+        extracted_text: str | None = None,
+    ) -> dict:
+        if inference_service in ("openai", "openai_v2"):
+            return OpenAIPDFEstimator().breakdown(
+                model_name=model_name,
+                num_pages=num_pages,
+                extracted_text=extracted_text,
+            )
+        if inference_service == "anthropic":
+            return AnthropicPDFEstimator().breakdown(
+                num_pages=num_pages, extracted_text=extracted_text
+            )
+        if inference_service == "google":
+            return GooglePDFEstimator().breakdown(num_pages=num_pages)
+        n_chars = len(extracted_text) if extracted_text else 0
+        tokens = max(1, n_chars // self.chars_per_token) if n_chars else 0
+        return {
+            "provider": "PDF (text extraction)",
+            "components": [
+                {
+                    "label": "extracted text",
+                    "value": f"{n_chars:,} chars ÷ {self.chars_per_token} chars/token",
+                    "tokens": tokens,
+                },
+            ],
+            "total": tokens,
+            "note": "",
+        }
+
 
 class AudioVideoEstimator(FileTypeEstimator):
     def estimate_inline(self, filestore, inference_service, model_name=None):
@@ -392,6 +466,47 @@ class FileStoreEstimator:
             return "estimated from file size (offloaded)"
 
         return self.describe_for(mime, inference_service, model_name)
+
+    def breakdown_for_file(
+        self,
+        filestore: "FileStore",
+        inference_service: str,
+        model_name: str | None = None,
+    ) -> dict:
+        """Structured breakdown of how this specific file was estimated (cache-aware)."""
+        mime = getattr(filestore, "mime_type", "") or ""
+        file_label = os.path.basename(getattr(filestore, "_path", "") or "") or "file"
+
+        if mime == "application/pdf":
+            key = self._pdf._cache_key(filestore)
+            num_pages = self._pdf._page_count_cache.get(key) if key else None
+            extracted = getattr(filestore, "extracted_text", None)
+            bd = self._pdf.breakdown(
+                inference_service,
+                model_name,
+                num_pages=num_pages,
+                extracted_text=extracted,
+            )
+            bd["file_label"] = file_label
+            return bd
+
+        if mime.startswith("image/"):
+            bd = self._image.breakdown_for_file(
+                filestore, inference_service, model_name
+            )
+            bd["file_label"] = file_label
+            return bd
+
+        # Fallback for text/binary files.
+        desc = self.describe_for_file(filestore, inference_service, model_name)
+        tokens, _ = self.estimate(filestore, inference_service, model_name)
+        return {
+            "provider": desc,
+            "components": [],
+            "total": tokens,
+            "note": "",
+            "file_label": file_label,
+        }
 
     def estimate(
         self,
