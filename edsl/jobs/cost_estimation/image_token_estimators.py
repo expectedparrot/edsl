@@ -209,7 +209,7 @@ class GoogleImageEstimator:
     def estimate(self, width: int, height: int) -> int:
         if width <= self.SMALL_IMAGE_THRESHOLD and height <= self.SMALL_IMAGE_THRESHOLD:
             return self.TOKENS_PER_TILE
-        crop_unit = math.floor(min(width, height) / 1.5)
+        crop_unit = max(1, math.floor(min(width, height) / 1.5))
         tiles = math.ceil(width / crop_unit) * math.ceil(height / crop_unit)
         return tiles * self.TOKENS_PER_TILE
 
@@ -232,7 +232,7 @@ class GoogleImageEstimator:
                 "total": self.TOKENS_PER_TILE,
                 "note": "",
             }
-        crop_unit = math.floor(min(width, height) / 1.5)
+        crop_unit = max(1, math.floor(min(width, height) / 1.5))
         tiles_w = math.ceil(width / crop_unit)
         tiles_h = math.ceil(height / crop_unit)
         tiles = tiles_w * tiles_h

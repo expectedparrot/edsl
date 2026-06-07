@@ -583,7 +583,7 @@ class Jobs(Base):
             chars_per_token: Override the default characters-per-token ratio.
 
         Returns:
-            JobCostEstimate with .total_cost_usd, .detail, .assumptions, .warnings,
+            JobCostEstimate with .total_cost_usd, .detail, .warnings,
             and .to_markdown() for a human-readable summary.
         """
         kwargs = {}

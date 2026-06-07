@@ -239,7 +239,9 @@ class JobCostEstimator:
             warnings.extend(bw_warnings)
             warnings.append(
                 "branch_weights provided: estimates are expected costs weighted by reach probability. "
-                "Questions not covered by branch_weights default to reach probability 0.0."
+                "Reach is computed via forward propagation — questions on default paths still receive "
+                "non-zero reach even if not explicitly listed in branch_weights. A reach of 0.0 "
+                "indicates a question is genuinely unreachable given the specified weights."
             )
         elif survey.rule_collection.non_default_rules:
             warnings.append(
@@ -342,8 +344,9 @@ class JobCostEstimator:
             memory_qs = list(memory_entry) if isinstance(memory_entry, Memory) else []
             # Each prior question contributes its estimated output tokens weighted
             # by its reach probability — if a prior question was likely skipped,
-            # its memory contribution is proportionally smaller. Defaults to
-            # reach=1.0 (always asked) for questions not covered by branch_weights.
+            # its memory contribution is proportionally smaller. Falls back to 1.0
+            # only as a safety default; reach_probs is fully populated for all
+            # questions when branch_weights is provided.
             memory_tokens = sum(
                 reach_probs.get(pq, 1.0) * output_estimates.get(pq, 0)
                 for pq in memory_qs

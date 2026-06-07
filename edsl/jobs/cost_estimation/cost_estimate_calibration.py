@@ -25,8 +25,8 @@ def calibrate_from_results(
     Args:
         results:    a completed Results object from a pilot run
         percentile: which percentile of observed output tokens to use (default 75).
-                    Use 50 for median (unbiased cost projection) or a higher value
-                    (75-90) for a conservative budget estimate.
+                    Use 50 for median or a higher value (75-90) for a conservative
+                    budget estimate.
         by_model:   if True (default), return per-(service, model) overrides so each
                     model gets its own calibrated estimate; if False, pool all models
                     into one global override per question
@@ -103,8 +103,32 @@ def calibrate_from_results(
 
 
 def _percentile(values: list[float], p: int) -> int:
+    """Return the p-th percentile of values using linear interpolation.
+
+    Computes a float index into the sorted list, then interpolates between
+    the two surrounding values. This matches numpy.percentile(method='linear')
+    and correctly returns the average of the two middle elements for even-length
+    lists at p=50 (e.g. [10, 20, 30, 40] -> 25, not 30).
+
+    Args:
+        values: list of numeric values
+        p:      percentile to compute, 0-100 inclusive
+
+    Returns:
+        Interpolated percentile value truncated to int, or 0 for an empty list.
+    """
     if not values:
         return 0
-    sorted_vals = sorted(values)
-    idx = min(int(len(sorted_vals) * p / 100), len(sorted_vals) - 1)
-    return int(sorted_vals[idx])
+    sorted_values = sorted(values)
+    count = len(sorted_values)
+    # A float index in [0, count-1] that maps p=0 to the first element
+    # and p=100 to the last, with fractional positions in between.
+    float_index = (count - 1) * p / 100
+    lower_idx = int(float_index)
+    upper_idx = min(lower_idx + 1, count - 1)
+    # How far float_index sits between lower_idx and upper_idx (0.0 to 1.0).
+    fraction = float_index - lower_idx
+    interpolated = sorted_values[lower_idx] + fraction * (
+        sorted_values[upper_idx] - sorted_values[lower_idx]
+    )
+    return int(interpolated)

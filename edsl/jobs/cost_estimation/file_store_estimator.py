@@ -126,7 +126,6 @@ class ImageEstimator(FileTypeEstimator):
         else:
             try:
                 width, height = filestore.get_image_dimensions()
-                print(f"Restored offloaded image '{path}' from GCS ({width}×{height})")
                 if key:
                     self._dimensions_cache[key] = (width, height)
             except Exception as e:
@@ -277,7 +276,6 @@ class PdfEstimator(FileTypeEstimator):
                 num_pages = self._get_page_count(filestore)
                 if key and num_pages is not None:
                     self._page_count_cache[key] = num_pages
-                print(f"Restored offloaded PDF '{path}' from GCS ({num_pages} pages)")
                 return self._tokens_from_pages(
                     filestore, inference_service, model_name, num_pages
                 )
