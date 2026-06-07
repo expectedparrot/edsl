@@ -55,7 +55,7 @@ class OpenAIImageEstimator:
     @staticmethod
     def _tile_tokens(width: int, height: int, base: int, tile_cost: int) -> int:
         scale = min(1.0, 2048 / max(width, height))
-        w, h = int(width * scale), int(height * scale)
+        w, h = max(1, int(width * scale)), max(1, int(height * scale))
         scale2 = 768 / min(w, h)
         w, h = int(w * scale2), int(h * scale2)
         tiles = math.ceil(w / 512) * math.ceil(h / 512)
@@ -130,7 +130,7 @@ class OpenAIImageEstimator:
         tile_cfg = self._lookup(model_name, self.TILE_CONFIG)
         base, tile_cost = tile_cfg if tile_cfg else self.TILE_DEFAULT
         scale1 = min(1.0, 2048 / max(width, height))
-        w1, h1 = int(width * scale1), int(height * scale1)
+        w1, h1 = max(1, int(width * scale1)), max(1, int(height * scale1))
         scale2 = 768 / min(w1, h1)
         w2, h2 = int(w1 * scale2), int(h1 * scale2)
         tiles_w = math.ceil(w2 / 512)

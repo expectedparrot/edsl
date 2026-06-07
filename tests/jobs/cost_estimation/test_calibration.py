@@ -26,7 +26,7 @@ def test_median_odd_length():
 
 
 def test_median_even_length():
-    # regression: old floor-index formula returned 30, correct answer is 25
+    # p=50 on an even-length list interpolates between the two middle elements
     assert _percentile([10, 20, 30, 40], 50) == 25
 
 

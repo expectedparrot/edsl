@@ -342,13 +342,12 @@ class JobCostEstimator:
             memory_entry = survey.memory_plan.get(q_name)
             # Memory is a UserList of question name strings — iterate directly.
             memory_qs = list(memory_entry) if isinstance(memory_entry, Memory) else []
-            # Each prior question contributes its estimated output tokens weighted
-            # by its reach probability — if a prior question was likely skipped,
-            # its memory contribution is proportionally smaller. Falls back to 1.0
-            # only as a safety default; reach_probs is fully populated for all
-            # questions when branch_weights is provided.
+            # output_estimates already encodes each question's reach probability
+            # (see line below where it is stored). No further reach weighting here —
+            # applying it again would square the probability for any prior question
+            # with reach < 1.
             memory_tokens = sum(
-                reach_probs.get(pq, 1.0) * output_estimates.get(pq, 0)
+                output_estimates.get(pq, 0)
                 for pq in memory_qs
             )
 

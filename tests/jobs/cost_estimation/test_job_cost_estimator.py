@@ -276,3 +276,33 @@ class TestMemory:
         result = JobCostEstimator().estimate_cost(job, price_lookup=PRICE_LOOKUP)
         rows = {r["question_name"]: r for r in result._rows}
         assert rows["q1"]["memory_tokens"] > 0
+
+    def test_memory_tokens_weighted_by_reach_of_prior_question(self):
+        # When branch_weights give a prior question reach < 1, its contribution
+        # to downstream memory should scale linearly with that reach.
+        #
+        # Survey: q0 --(50% skip)--> q2; default path q0->q1->q2.
+        # q1 reach = 0.5. q2 has memory of q1, pinned to 1000 output tokens.
+        # Expected memory contribution from q1: int(0.5 * 1000) = 500.
+        q0 = QuestionFreeText(question_name="q0", question_text="Q0?")
+        q1 = QuestionFreeText(question_name="q1", question_text="Q1?")
+        q2 = QuestionFreeText(question_name="q2", question_text="Q2?")
+        s = (
+            Survey(questions=[q0, q1, q2])
+            .add_rule("q0", "True", "q2")  # creates the skip rule
+            .add_targeted_memory("q2", "q1")
+        )
+        m = Model("test", canned_response="SPAM!")
+        job = Jobs(survey=s, models=[m])
+        overrides = {
+            "q1": TokenOverride(answer_tokens=1000, comment_tokens=0, thinking_tokens=0)
+        }
+        result = JobCostEstimator().estimate_cost(
+            job,
+            token_overrides=overrides,
+            branch_weights={("q0", "q2"): 0.5},
+            price_lookup=PRICE_LOOKUP,
+        )
+        rows = {r["question_name"]: r for r in result._rows}
+        assert rows["q1"]["reach_probability"] == 0.5
+        assert rows["q2"]["memory_tokens"] == 500
