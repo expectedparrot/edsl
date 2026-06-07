@@ -90,3 +90,13 @@ class TestWarnings:
             survey, {("q1", "q2"): 0.7, ("q1", "q3"): 0.6}
         )
         assert any("1.0" in w or "sum" in w.lower() for w in warnings)
+
+    def test_eos_branch_on_last_question_no_spurious_warning(self):
+        # A skip-to-EndOfSurvey on the last question is valid — the explicit exit
+        # and the natural fallthrough together account for 100% of its reach.
+        # The consistency check must not double-count the EOS fraction.
+        survey = make_survey(["q1", "q2"])
+        _, warnings = _compute_reach_probabilities(
+            survey, {("q2", EndOfSurvey): 0.7}
+        )
+        assert not any("inconsistent" in w for w in warnings)

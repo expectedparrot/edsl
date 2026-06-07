@@ -122,8 +122,15 @@ def _compute_reach_probabilities(
             reach[question_names[i + 1]] += r * max(0.0, 1.0 - branch_total)
 
     # Total across all terminal points (last question + EndOfSurvey exits) should be 1.0.
+    # Only the fraction of the last question's reach that exits naturally (no explicit
+    # rule fires) counts here — any portion routed to EndOfSurvey is already in eos_absorbed.
     if question_names:
-        total = reach[question_names[-1]] + eos_absorbed
+        last_q = question_names[-1]
+        last_q_eos_weight = sum(
+            w for dest_idx, w in outbound.get(last_q, []) if dest_idx == n
+        )
+        natural_terminal = reach[last_q] * (1.0 - last_q_eos_weight)
+        total = natural_terminal + eos_absorbed
         if abs(total - 1.0) > 1e-6:
             warnings.append(
                 f"branch_weights: terminal probability sums to {total:.4f}, not 1.0 — "
