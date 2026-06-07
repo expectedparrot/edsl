@@ -387,8 +387,11 @@ class JobCostEstimator:
                 inference_service, model_name, price_lookup
             )
             if full_estimate.billable:
-                cost_usd = _compute_cost_usd(
-                    full_estimate, input_price_per_million, output_price_per_million
+                cost_usd = (
+                    _compute_cost_usd(
+                        full_estimate, input_price_per_million, output_price_per_million
+                    )
+                    * reach
                 )
             else:
                 cost_usd = 0.0

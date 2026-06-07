@@ -261,6 +261,37 @@ class TestBranchWeights:
         rows = {r["question_name"]: r for r in result._rows}
         assert rows["q1"]["reach_probability"] == 0.0
 
+    def test_unreachable_question_contributes_zero_cost(self):
+        q0 = QuestionFreeText(question_name="q0", question_text="Q0?")
+        q1 = QuestionFreeText(question_name="q1", question_text="Q1?")
+        q2 = QuestionFreeText(question_name="q2", question_text="Q2?")
+        result = JobCostEstimator().estimate_cost(
+            make_job(q0, q1, q2),
+            branch_weights={("q0", "q2"): 1.0},
+            price_lookup=PRICE_LOOKUP,
+        )
+        rows = {r["question_name"]: r for r in result._rows}
+        assert rows["q1"]["reach_probability"] == 0.0
+        assert rows["q1"]["cost_usd"] == 0.0
+
+    def test_cost_scales_linearly_with_reach(self):
+        # A question with reach 0.5 should contribute exactly half the cost
+        # it would at reach 1.0 — verifying cost is proportional to reach.
+        q0 = QuestionFreeText(question_name="q0", question_text="Q0?")
+        q1 = QuestionFreeText(question_name="q1", question_text="Q1?")
+        q2 = QuestionFreeText(question_name="q2", question_text="Q2?")
+        job = make_job(q0, q1, q2)
+        linear = JobCostEstimator().estimate_cost(job, price_lookup=PRICE_LOOKUP)
+        weighted = JobCostEstimator().estimate_cost(
+            job,
+            branch_weights={("q0", "q2"): 0.5},
+            price_lookup=PRICE_LOOKUP,
+        )
+        linear_rows = {r["question_name"]: r for r in linear._rows}
+        weighted_rows = {r["question_name"]: r for r in weighted._rows}
+        assert weighted_rows["q1"]["reach_probability"] == 0.5
+        assert weighted_rows["q1"]["cost_usd"] == linear_rows["q1"]["cost_usd"] * 0.5
+
 
 class TestMemory:
     """Questions that include prior answers in their prompt get memory_tokens > 0."""
