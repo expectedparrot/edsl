@@ -83,6 +83,8 @@ def calibrate_from_results(
         else:
             df = results.select(output_col).to_pandas().dropna(subset=[output_col])
             output_vals = df[output_col].tolist()
+            if not output_vals:
+                continue
             thinking_tokens = None
             if thinking_col:
                 thinking_df = (
