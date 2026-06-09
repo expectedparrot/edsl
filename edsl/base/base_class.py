@@ -488,6 +488,134 @@ class PersistenceMixin:
             )
 
     @classmethod
+    def get_metadata(cls, url_or_uuid: Union[str, UUID]) -> dict:
+        """Get an object's metadata from Coop without downloading its content.
+
+        Args:
+            url_or_uuid: The UUID or URL of the object on Coop.
+
+        Returns:
+            dict: Metadata including uuid, object_type, description, visibility, url, etc.
+
+        Raises:
+            NotImplementedError: If called on Jobs.
+        """
+        from edsl.coop import Coop
+        from edsl.jobs import Jobs
+
+        if issubclass(cls, Jobs):
+            raise NotImplementedError(
+                "get_metadata is not supported for Jobs. Use remote_inference_get instead."
+            )
+
+        return Coop().get_metadata(url_or_uuid)
+
+    @classmethod
+    def patch_metadata(
+        cls,
+        url_or_uuid: Union[str, UUID],
+        description: Optional[str] = None,
+        alias: Optional[str] = None,
+        visibility: Optional[str] = None,
+    ) -> dict:
+        """Update an object's metadata (description, alias, visibility) without changing its content.
+
+        Args:
+            url_or_uuid: The UUID or URL of the object on Coop.
+            description: New description for the object.
+            alias: New alias for the object.
+            visibility: New visibility setting ("private", "public", "unlisted").
+
+        Raises:
+            NotImplementedError: If called on Jobs (use remote_inference methods instead).
+        """
+        from edsl.coop import Coop
+        from edsl.jobs import Jobs
+
+        if issubclass(cls, Jobs):
+            raise NotImplementedError(
+                "patch_metadata is not supported for Jobs. Use remote inference methods instead."
+            )
+
+        return Coop().patch_metadata(
+            url_or_uuid=url_or_uuid,
+            description=description,
+            alias=alias,
+            visibility=visibility,
+        )
+
+    @classmethod
+    def get_shared_users(cls, url_or_uuid: Union[str, UUID]) -> dict:
+        """List all users an object is currently shared with.
+
+        Args:
+            url_or_uuid: The UUID or URL of the object on Coop.
+
+        Returns:
+            dict: A dict with "shared_with" and "temp_shared_with" lists.
+
+        Raises:
+            NotImplementedError: If called on Jobs.
+        """
+        from edsl.coop import Coop
+        from edsl.jobs import Jobs
+
+        if issubclass(cls, Jobs):
+            raise NotImplementedError(
+                "get_shared_users is not supported for Jobs."
+            )
+
+        return Coop().get_object_shared_users(url_or_uuid)
+
+    @classmethod
+    def share(cls, url_or_uuid: Union[str, UUID], username_or_email: str) -> dict:
+        """Share an object with another Expected Parrot user.
+
+        Args:
+            url_or_uuid: The UUID or URL of the object on Coop.
+            username_or_email: The username or email of the recipient.
+
+        Returns:
+            dict: Confirmation with "message", "username", and "email" keys.
+
+        Raises:
+            NotImplementedError: If called on Jobs.
+        """
+        from edsl.coop import Coop
+        from edsl.jobs import Jobs
+
+        if issubclass(cls, Jobs):
+            raise NotImplementedError(
+                "share is not supported for Jobs."
+            )
+
+        return Coop().share_object(url_or_uuid, username_or_email)
+
+    @classmethod
+    def unshare(cls, url_or_uuid: Union[str, UUID], username_or_email: str) -> dict:
+        """Remove a user's access to an object.
+
+        Args:
+            url_or_uuid: The UUID or URL of the object on Coop.
+            username_or_email: The username or email of the user to remove.
+
+        Returns:
+            dict: Confirmation message.
+
+        Raises:
+            NotImplementedError: If called on Jobs.
+        """
+        from edsl.coop import Coop
+        from edsl.jobs import Jobs
+
+        if issubclass(cls, Jobs):
+            raise NotImplementedError(
+                "unshare is not supported for Jobs."
+            )
+
+        return Coop().unshare_object(url_or_uuid, username_or_email)
+
+    @classmethod
     def search(cls, query):
         """Search for objects on coop."""
         from edsl.coop import Coop

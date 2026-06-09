@@ -275,9 +275,18 @@ class Coop(CoopFunctionsMixin):
             self._logger.info(f"Request payload: {log_payload}")
 
         try:
-            if method in ["GET", "DELETE"]:
+            if method == "GET":
                 response = requests.request(
                     method, url, params=params, headers=self.headers, timeout=timeout
+                )
+            elif method == "DELETE":
+                response = requests.request(
+                    method,
+                    url,
+                    params=params,
+                    json=payload if payload else None,
+                    headers=self.headers,
+                    timeout=timeout,
                 )
             elif method in ["POST", "PATCH", "PUT"]:
                 response = requests.request(
@@ -1739,6 +1748,176 @@ class Coop(CoopFunctionsMixin):
             "object_uuid": str(obj_uuid),
             "processing_started": confirm_data.get("processing_started", False),
         }
+
+    def patch_metadata(
+        self,
+        url_or_uuid: Union[str, UUID],
+        description: Optional[str] = None,
+        alias: Optional[str] = None,
+        visibility: Optional[VisibilityType] = None,
+    ) -> dict:
+        """
+        Update an object's metadata without changing its content.
+
+        This is a lighter alternative to patch() for when you only want to update
+        description, alias, or visibility — no format detection or content upload needed.
+
+        Parameters:
+            url_or_uuid (Union[str, UUID]): The UUID or URL of the object.
+            description (str, optional): New description for the object.
+            alias (str, optional): New alias for the object.
+            visibility (VisibilityType, optional): New visibility ("private", "public", "unlisted").
+
+        Returns:
+            dict: The server response.
+
+        Raises:
+            CoopPatchError: If no fields to update are provided.
+            CoopServerResponseError: If the server returns an error.
+
+        Example:
+            >>> coop.patch_metadata("123e4567-...", description="Updated description", visibility="public")
+        """
+        self._validate_alias(alias)
+
+        if description is None and alias is None and visibility is None:
+            from .exceptions import CoopPatchError
+
+            raise CoopPatchError("Nothing to patch.")
+
+        obj_uuid, owner_username, obj_alias = self._resolve_uuid_or_alias(url_or_uuid)
+
+        if obj_uuid:
+            uri = "api/v0/object"
+            params = {"uuid": obj_uuid}
+        else:
+            uri = "api/v0/object/alias"
+            params = {"owner_username": owner_username, "alias": obj_alias}
+
+        response = self._send_server_request(
+            uri=uri,
+            method="PATCH",
+            params=params,
+            payload={
+                "description": description,
+                "alias": alias,
+                "visibility": visibility,
+                "json_string": None,
+            },
+        )
+        self._resolve_server_response(response)
+        return response.json()
+
+    ################
+    # Object Sharing
+    ################
+    def get_object_shared_users(self, url_or_uuid: Union[str, UUID]) -> dict:
+        """
+        List all users an object is currently shared with.
+
+        You must be the owner of the object to call this.
+
+        Parameters:
+            url_or_uuid (Union[str, UUID]): The UUID or URL of the object.
+
+        Returns:
+            dict: A dict with:
+                - shared_with: list of dicts with "username" and "email"
+                - temp_shared_with: list of dicts with "email" (for non-registered users)
+
+        Raises:
+            CoopServerResponseError: If the server returns an error.
+
+        Example:
+            >>> coop.get_object_shared_users("123e4567-e89b-12d3-a456-426614174000")
+            {'shared_with': [...], 'temp_shared_with': [...]}
+        """
+        obj_uuid, _, _ = self._resolve_uuid_or_alias(url_or_uuid)
+        response = self._send_server_request(
+            uri="api/v0/object/share",
+            method="GET",
+            params={"uuid": obj_uuid},
+        )
+        self._resolve_server_response(response)
+        content = response.json()
+        return {
+            "shared_with": content.get("shared_with", []),
+            "temp_shared_with": content.get("temp_shared_with", []),
+        }
+
+    def share_object(
+        self, url_or_uuid: Union[str, UUID], username_or_email: str
+    ) -> dict:
+        """
+        Share an object with another Expected Parrot user.
+
+        You must be the owner of the object. The recipient can be identified by
+        username or email address. If no account exists for the email, an invitation
+        is sent and access is granted when they sign up.
+
+        Parameters:
+            url_or_uuid (Union[str, UUID]): The UUID or URL of the object to share.
+            username_or_email (str): The username or email of the recipient.
+
+        Returns:
+            dict: A dict with:
+                - message: Confirmation message
+                - username: The recipient's username (if they have an account)
+                - email: The recipient's email
+
+        Raises:
+            CoopServerResponseError: If the server returns an error (e.g., object not
+                found, already shared, sharing with yourself).
+
+        Example:
+            >>> coop.share_object("123e4567-e89b-12d3-a456-426614174000", "alice")
+            {'message': 'Successfully shared with alice.', 'username': 'alice', 'email': '...'}
+        """
+        obj_uuid, _, _ = self._resolve_uuid_or_alias(url_or_uuid)
+        response = self._send_server_request(
+            uri="api/v0/object/share",
+            method="POST",
+            payload={"uuid": str(obj_uuid), "username_or_email": username_or_email},
+        )
+        self._resolve_server_response(response)
+        content = response.json()
+        return {
+            "message": content.get("message"),
+            "username": content.get("username"),
+            "email": content.get("email"),
+        }
+
+    def unshare_object(
+        self, url_or_uuid: Union[str, UUID], username_or_email: str
+    ) -> dict:
+        """
+        Remove a user's access to an object.
+
+        You must be the owner of the object. Accepts either a username or email address.
+
+        Parameters:
+            url_or_uuid (Union[str, UUID]): The UUID or URL of the object.
+            username_or_email (str): The username or email of the user to remove.
+
+        Returns:
+            dict: A dict with a "message" confirmation key.
+
+        Raises:
+            CoopServerResponseError: If the server returns an error (e.g., object not
+                shared with that user).
+
+        Example:
+            >>> coop.unshare_object("123e4567-e89b-12d3-a456-426614174000", "alice")
+            {'message': 'Removed access for alice.'}
+        """
+        obj_uuid, _, _ = self._resolve_uuid_or_alias(url_or_uuid)
+        response = self._send_server_request(
+            uri="api/v0/object/share",
+            method="DELETE",
+            payload={"uuid": str(obj_uuid), "username_or_email": username_or_email},
+        )
+        self._resolve_server_response(response)
+        return response.json()
 
     ################
     # Remote Cache
