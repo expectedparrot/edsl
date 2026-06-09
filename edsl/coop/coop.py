@@ -1749,6 +1749,46 @@ class Coop(CoopFunctionsMixin):
             "processing_started": confirm_data.get("processing_started", False),
         }
 
+    def list_human_surveys(
+        self,
+        page: int = 1,
+        page_size: int = 10,
+        search_query: Optional[str] = None,
+        sort_ascending: bool = False,
+    ) -> dict:
+        """
+        List human surveys owned by the authenticated user.
+
+        Parameters:
+            page (int): Page number (default: 1)
+            page_size (int): Number of results per page, max 100 (default: 10)
+            search_query (str, optional): Filter by name or UUID (partial matches supported)
+            sort_ascending (bool): If True, sort oldest first (default: False)
+
+        Returns:
+            dict: A dict with:
+                - human_surveys: list of dicts with uuid, name, visibility, created_ts, n_responses
+                - current_page, page_size, total_pages, total_count
+
+        Raises:
+            CoopServerResponseError: If the server returns an error.
+        """
+        params = {
+            "page": page,
+            "page_size": page_size,
+            "sort_ascending": sort_ascending,
+        }
+        if search_query is not None:
+            params["search_query"] = search_query
+
+        response = self._send_server_request(
+            uri="api/v0/human-surveys",
+            method="GET",
+            params=params,
+        )
+        self._resolve_server_response(response)
+        return response.json()
+
     def patch_metadata(
         self,
         url_or_uuid: Union[str, UUID],
