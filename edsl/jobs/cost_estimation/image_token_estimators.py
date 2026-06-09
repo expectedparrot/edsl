@@ -70,9 +70,15 @@ class OpenAIImageEstimator:
             resized = original
         else:
             shrink = math.sqrt((32**2 * patch_budget) / (width * height))
+            # fractional patch count per dimension after shrinking
+            ws, hs = width * shrink / 32, height * shrink / 32
+            # floor(x)/x snaps each dimension down to a whole number of patches.
+            # Clamp to 1 before flooring: if a dimension shrinks below one patch
+            # (x < 1), floor gives 0 and zeroes out the result entirely. One patch
+            # is the minimum meaningful unit, so we treat it as the floor.
             adjusted = shrink * min(
-                math.floor(width * shrink / 32) / (width * shrink / 32),
-                math.floor(height * shrink / 32) / (height * shrink / 32),
+                max(1, math.floor(ws)) / ws,
+                max(1, math.floor(hs)) / hs,
             )
             rw, rh = int(width * adjusted), int(height * adjusted)
             resized = min(patch_budget, math.ceil(rw / 32) * math.ceil(rh / 32))
@@ -100,9 +106,15 @@ class OpenAIImageEstimator:
                 shrink_note = ""
             else:
                 shrink = math.sqrt((32**2 * patch_budget) / (width * height))
+                # fractional patch count per dimension after shrinking
+                ws, hs = width * shrink / 32, height * shrink / 32
+                # floor(x)/x snaps each dimension down to a whole number of patches.
+                # Clamp to 1 before flooring: if a dimension shrinks below one patch
+                # (x < 1), floor gives 0 and zeroes out the result entirely. One patch
+                # is the minimum meaningful unit, so we treat it as the floor.
                 adjusted = shrink * min(
-                    math.floor(width * shrink / 32) / (width * shrink / 32),
-                    math.floor(height * shrink / 32) / (height * shrink / 32),
+                    max(1, math.floor(ws)) / ws,
+                    max(1, math.floor(hs)) / hs,
                 )
                 rw, rh = int(width * adjusted), int(height * adjusted)
                 resized = min(patch_budget, math.ceil(rw / 32) * math.ceil(rh / 32))
