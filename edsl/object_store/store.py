@@ -219,7 +219,10 @@ class ObjectStore:
         []
     """
 
-    DEFAULT_ROOT = Path(platformdirs.user_data_dir("edsl")) / "objects"
+    @staticmethod
+    def default_root() -> Path:
+        """Return the default local object store root for the current process."""
+        return Path(platformdirs.user_data_dir("edsl")) / "objects"
 
     def __init__(
         self,
@@ -227,7 +230,7 @@ class ObjectStore:
         backend_factory=None,
         metadata_index=None,
     ):
-        self.root = Path(root) if root else self.DEFAULT_ROOT
+        self.root = Path(root) if root else self.default_root()
         if backend_factory is None:
             self.root.mkdir(parents=True, exist_ok=True)
 

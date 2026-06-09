@@ -37,7 +37,7 @@ class RunnerCASIntegration:
         job_id: The runner job ID.
         survey: The Survey for this job (used to build the JSONL preamble).
         service: The JobService to register the callback on.
-        root: CAS directory root. Defaults to ObjectStore.DEFAULT_ROOT / uuid.
+        root: CAS directory root. Defaults to ObjectStore.default_root() / uuid.
         batch_size: Number of completed interviews to accumulate before
                     flushing a CAS commit.  Default 1 = commit per interview.
         uuid: Optional UUID for the CAS object. Auto-generated if omitted.
@@ -58,7 +58,7 @@ class RunnerCASIntegration:
         self._batch_size = batch_size
         self._pending_ids: list[str] = []  # interview IDs awaiting flush
 
-        cas_root = root or (ObjectStore.DEFAULT_ROOT / self._uuid)
+        cas_root = root or (ObjectStore.default_root() / self._uuid)
         self._backend = FileSystemBackend(cas_root)
         self._writer = StreamingCASWriter(self._backend, branch="main")
 

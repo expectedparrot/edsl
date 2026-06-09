@@ -8,11 +8,6 @@ if TYPE_CHECKING:
 
 
 class Instruction(RepresentationMixin):
-    # CAS store support
-    _store_class_name = "Instruction"
-    from edsl.base.store_accessor import StoreDescriptor
-    store = StoreDescriptor()
-
     def __init__(
         self, name, text, preamble="You were given the following instructions:"
     ):

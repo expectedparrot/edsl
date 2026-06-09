@@ -6,8 +6,16 @@ if TYPE_CHECKING:
     from .model import Model
     from .model_list import ModelList
     from .exceptions import LanguageModelBadResponseError
+    from .model_list_git import ModelListGitError, ModelListGitNestedRepoWarning
 
-__all__ = ["Model", "ModelList", "LanguageModelBadResponseError", "LanguageModel"]
+__all__ = [
+    "Model",
+    "ModelList",
+    "LanguageModelBadResponseError",
+    "LanguageModel",
+    "ModelListGitError",
+    "ModelListGitNestedRepoWarning",
+]
 
 # Lazy loading to avoid circular imports during Survey import
 _LAZY_IMPORTS = {
@@ -15,6 +23,8 @@ _LAZY_IMPORTS = {
     "Model": ".model",
     "ModelList": ".model_list",
     "LanguageModelBadResponseError": ".exceptions",
+    "ModelListGitError": ".model_list_git",
+    "ModelListGitNestedRepoWarning": ".model_list_git",
 }
 
 

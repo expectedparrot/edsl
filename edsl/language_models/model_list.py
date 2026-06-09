@@ -8,6 +8,7 @@ if TYPE_CHECKING:
     pass
 
 from ..utilities import remove_edsl_version, dict_hash
+from .model_list_git import ModelListGitDescriptor
 
 if TYPE_CHECKING:
     from ..inference_services.data_structures import AvailableModels
@@ -16,6 +17,7 @@ if TYPE_CHECKING:
 
 class ModelList(Base, UserList):
     __documentation__ = """https://docs.expectedparrot.com/en/latest/language_models.html#module-edsl.language_models.ModelList"""
+    git = ModelListGitDescriptor()
 
     def __init__(self, data: Optional["LanguageModel"] = None):
         """Initialize the ModelList class.

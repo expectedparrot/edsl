@@ -1,19 +1,31 @@
 import unittest
 import tempfile
 import os
+import json
 from edsl.agents import Agent
 from edsl.agents import AgentList
+
 
 class TestAgentList(unittest.TestCase):
     def setUp(self):
         # Create a list of agents with different traits for better testing
-        self.agent1 = Agent(name="Agent1", traits={"age": 30, "job": "Engineer", "hair": "brown"})
-        self.agent2 = Agent(name="Agent2", traits={"age": 40, "job": "Teacher", "hair": "black"})
-        self.agent3 = Agent(name="Agent3", traits={"age": 25, "job": "Doctor", "hair": "blonde"})
-        
+        self.agent1 = Agent(
+            name="Agent1", traits={"age": 30, "job": "Engineer", "hair": "brown"}
+        )
+        self.agent2 = Agent(
+            name="Agent2", traits={"age": 40, "job": "Teacher", "hair": "black"}
+        )
+        self.agent3 = Agent(
+            name="Agent3", traits={"age": 25, "job": "Doctor", "hair": "blonde"}
+        )
+
         self.example_agents = [self.agent1, self.agent2]
         self.all_agents = [self.agent1, self.agent2, self.agent3]
-        self.example_codebook = {"age": "Age in years", "hair": "Hair color", "job": "Current occupation"}
+        self.example_codebook = {
+            "age": "Age in years",
+            "hair": "Hair color",
+            "job": "Current occupation",
+        }
 
     def test_initialization_with_data(self):
         agent_list = AgentList(self.example_agents)
@@ -34,7 +46,7 @@ class TestAgentList(unittest.TestCase):
         result = agent_list.to_dict()
         self.assertIsInstance(result, dict)
         self.assertIn("agent_list", result)
-        
+
     def test_to_dict_with_codebook(self):
         agent_list = AgentList(self.example_agents, codebook=self.example_codebook)
         result = agent_list.to_dict()
@@ -53,7 +65,7 @@ class TestAgentList(unittest.TestCase):
     def test_from_dict_with_codebook(self):
         dict_representation = {
             "agent_list": [agent.to_dict() for agent in self.example_agents],
-            "codebook": self.example_codebook
+            "codebook": self.example_codebook,
         }
         agent_list = AgentList.from_dict(dict_representation)
         self.assertEqual(len(agent_list), 2)
@@ -63,7 +75,7 @@ class TestAgentList(unittest.TestCase):
     def test_example_method(self):
         example = AgentList.example()
         self.assertIsInstance(example, AgentList)
-        
+
     def test_example_method_with_codebook(self):
         example = AgentList.example(codebook=self.example_codebook)
         self.assertIsInstance(example, AgentList)
@@ -71,7 +83,9 @@ class TestAgentList(unittest.TestCase):
             self.assertEqual(agent.codebook, self.example_codebook)
 
     def test_from_list_method_with_codebook(self):
-        agent_list = AgentList.from_list("age", [22, 23], codebook=self.example_codebook)
+        agent_list = AgentList.from_list(
+            "age", [22, 23], codebook=self.example_codebook
+        )
         self.assertEqual(len(agent_list), 2)
         for agent in agent_list:
             self.assertEqual(agent.codebook, self.example_codebook)
@@ -84,114 +98,206 @@ class TestAgentList(unittest.TestCase):
         self.assertIn("from edsl import Agent", code_string)
         self.assertIn("from edsl import AgentList", code_string)
         self.assertIn("agent_list = AgentList(", code_string)
-        
+
         # Test with string=False
         code_lines = agent_list.code(string=False)
         self.assertIsInstance(code_lines, list)
-        self.assertEqual(len(code_lines), 3)  # Import Agent, import AgentList, agent_list declaration
-    
+        self.assertEqual(
+            len(code_lines), 3
+        )  # Import Agent, import AgentList, agent_list declaration
+
+    def test_to_html_standalone_artifact(self):
+        agent_list = AgentList(self.example_agents, codebook=self.example_codebook)
+        html = agent_list.to_html(title="Test Agents", include_prompts=False)
+
+        self.assertIn("<!doctype html>", html)
+        self.assertIn("Test Agents", html)
+        self.assertIn("Copy JSON", html)
+        self.assertIn("Current occupation", html)
+        self.assertIn("const DATA =", html)
+        self.assertIn("Expected Parrot", html)
+        self.assertIn("E[🦜]", html)
+        self.assertIn('id="toast"', html)
+        self.assertIn("JSON copied", html)
+        self.assertIn('class="brand-mark"', html)
+        self.assertIn('data-view-tab="agents"', html)
+        self.assertIn('data-view-tab="codebook"', html)
+        self.assertIn('data-view-tab="package"', html)
+        self.assertIn('id="diagnostic-summary"', html)
+        self.assertIn('id="view-package"', html)
+        self.assertIn("Git-backed object provenance", html)
+        self.assertIn('id="drawer-backdrop"', html)
+        self.assertIn('data-drawer-tab="traits"', html)
+        self.assertIn("No package or codebook issues detected", html)
+        self.assertNotIn("select-all-columns", html)
+        self.assertNotIn("columnStatHtml", html)
+        self.assertNotIn("column-modal", html)
+        self.assertNotIn("profileForColumn", html)
+        self.assertNotIn("data-column-profile", html)
+        self.assertNotIn("data-codebook-key", html)
+        payload = html.split("const DATA = ", 1)[1].split(";\nconst state", 1)[0]
+        data = json.loads(payload)
+        self.assertEqual(data["rows"][0]["traits"]["age"], 30)
+        self.assertIn('id="facts"', html)
+        self.assertNotIn('class="stats"', html)
+
+    def test_save_html_writes_file(self):
+        agent_list = AgentList(self.example_agents, codebook=self.example_codebook)
+
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".html") as f:
+            path = f.name
+
+        try:
+            returned_path = agent_list.save_html(
+                path, title="Saved Agents", include_prompts=False
+            )
+            self.assertEqual(str(returned_path), path)
+            with open(path, encoding="utf-8") as f:
+                html = f.read()
+            self.assertIn("Saved Agents", html)
+            self.assertIn("Git-backed object provenance", html)
+            self.assertIn('data-view-tab="agents"', html)
+        finally:
+            os.unlink(path)
+
+    def test_git_package_writes_readme_and_renders_html(self):
+        agent_list = AgentList(self.example_agents, codebook=self.example_codebook)
+
+        with tempfile.TemporaryDirectory() as d:
+            package_path = os.path.join(d, "agents.agent_list.ep")
+            agent_list.git.save(package_path)
+
+            readme_path = os.path.join(package_path, "README.md")
+            self.assertTrue(os.path.exists(readme_path))
+            with open(readme_path, encoding="utf-8") as f:
+                readme = f.read()
+            self.assertIn("Git-backed EDSL AgentList package", readme)
+            self.assertIn("- Agents: 2", readme)
+            self.assertIn("agents/*.json", readme)
+
+            html = AgentList.git.open(package_path).html(include_prompts=False)
+            self.assertIn("<!doctype html>", html)
+            self.assertIn("const DATA =", html)
+            self.assertIn("agents.agent_list.ep", html)
+            payload = html.split("const DATA = ", 1)[1].split(";\nconst state", 1)[0]
+            data = json.loads(payload)
+            self.assertEqual(data["provenance"]["path"], package_path)
+            self.assertEqual(data["manifest"]["edsl_class_name"], "AgentList")
+            self.assertEqual(data["rows"][0]["id"], "000001")
+            self.assertEqual(data["rows"][0]["traits"]["age"], 30)
+
+    def test_to_html_reports_inconsistent_codebooks(self):
+        agent1 = Agent(name="Agent1", traits={"age": 30}, codebook={"age": "Age"})
+        agent2 = Agent(name="Agent2", traits={"age": 40}, codebook={"age": "Years old"})
+        agent_list = AgentList([agent1, agent2])
+
+        html = agent_list.to_html(include_prompts=False)
+
+        self.assertIn("inconsistent", html)
+        self.assertIn("Inconsistent codebooks", html)
+
     def test_shuffle(self):
         """Test shuffling of agent list"""
         agent_list = AgentList(self.all_agents)
         shuffled = agent_list.shuffle(seed="test_seed")
-        
+
         # Ensure returned object is an AgentList
         self.assertIsInstance(shuffled, AgentList)
-        
+
         # Check length is the same
         self.assertEqual(len(shuffled), len(agent_list))
-        
+
         # Check all original agents are in the shuffled list (just in different order)
         for agent in agent_list:
             self.assertIn(agent, shuffled)
-    
+
     def test_sample(self):
         """Test sampling from an agent list"""
         agent_list = AgentList(self.all_agents)
-        
+
         # Test sampling 2 agents
         sampled = agent_list.sample(2, seed="test_seed")
         self.assertIsInstance(sampled, AgentList)
         self.assertEqual(len(sampled), 2)
-        
+
         # Make sure sampled agents are in the original list
         for agent in sampled:
             self.assertIn(agent, agent_list)
-        
+
         # Test sampling all agents
         sampled_all = agent_list.sample(3)
         self.assertEqual(len(sampled_all), 3)
-        
+
         # Test sampling with too large n
         with self.assertRaises(ValueError):
             agent_list.sample(4)
-    
+
     def test_duplicate(self):
         """Test duplicating an agent list"""
         agent_list = AgentList(self.example_agents)
         duplicate = agent_list.duplicate()
-        
+
         # Check it's a different object but equal in content
         self.assertIsNot(duplicate, agent_list)
         self.assertEqual(duplicate, agent_list)
-    
+
     def test_rename(self):
         """Test renaming traits in an agent list"""
         agent_list = AgentList(self.example_agents)
         renamed = agent_list.rename("job", "profession")
-        
+
         # Check original list is unchanged
         for agent in agent_list:
             self.assertIn("job", agent._traits)
             self.assertNotIn("profession", agent._traits)
-        
+
         # Check renamed list has the new trait
         for agent in renamed:
             self.assertNotIn("job", agent._traits)
             self.assertIn("profession", agent._traits)
-    
+
     def test_select(self):
         """Test selecting specific traits from an agent list"""
         agent_list = AgentList(self.all_agents)
         selected = agent_list.select("age", "hair")
-        
+
         # Check each agent in the selected list only has the selected traits
         for agent in selected:
             self.assertEqual(set(agent._traits.keys()), {"age", "hair"})
             self.assertNotIn("job", agent._traits)
-    
+
     def test_filter(self):
         """Test filtering an agent list"""
         agent_list = AgentList(self.all_agents)
-        
+
         # Filter agents by age
         filtered = agent_list.filter("age > 30")
         self.assertEqual(len(filtered), 1)
         self.assertEqual(filtered[0]._traits["age"], 40)
-        
+
         # Filter by job
         filtered_job = agent_list.filter("job == 'Engineer'")
         self.assertEqual(len(filtered_job), 1)
         self.assertEqual(filtered_job[0]._traits["job"], "Engineer")
-        
+
         # Complex filter
         filtered_complex = agent_list.filter("age < 35 and hair != 'black'")
         self.assertEqual(len(filtered_complex), 2)
-        
+
         # Invalid filter expression
         with self.assertRaises(Exception):  # Could be various exceptions
             agent_list.filter("invalid % expression")
-    
+
     def test_all_traits(self):
         """Test getting all traits from an agent list"""
         agent_list = AgentList(self.all_agents)
         all_traits = agent_list.all_traits  # It's a property, not a method
         self.assertIsInstance(all_traits, list)
         self.assertEqual(set(all_traits), {"age", "job", "hair"})
-    
+
     def test_from_source_csv_basic(self):
         """Test creating an agent list from a CSV file via from_source"""
-        with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.csv') as f:
+        with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".csv") as f:
             f.write("name,age,job,hair\n")
             f.write("Person1,30,Engineer,brown\n")
             f.write("Person2,40,Teacher,black\n")
@@ -199,125 +305,122 @@ class TestAgentList(unittest.TestCase):
             csv_path = f.name
 
         try:
-            agent_list = AgentList.from_source('csv', csv_path, name_field="name")
+            agent_list = AgentList.from_source("csv", csv_path, name_field="name")
             self.assertEqual(len(agent_list), 3)
             self.assertEqual(agent_list[0].name, "Person1")
 
             agent_list_with_codebook = AgentList.from_source(
-                'csv', csv_path, name_field="name", codebook=self.example_codebook
+                "csv", csv_path, name_field="name", codebook=self.example_codebook
             )
-            self.assertEqual(agent_list_with_codebook[0].codebook, self.example_codebook)
+            self.assertEqual(
+                agent_list_with_codebook[0].codebook, self.example_codebook
+            )
         finally:
             os.unlink(csv_path)
-            
+
     def test_translate_traits(self):
         """Test translating traits"""
         agent_list = AgentList(self.example_agents)
-        
+
         # Create a proper trait mapping - translate trait values, not keys
         trait_mapping = {
-            "hair": {
-                "brown": "brown_translated",
-                "black": "black_translated"
-            }
+            "hair": {"brown": "brown_translated", "black": "black_translated"}
         }
         translated = agent_list.translate_traits(trait_mapping)
-        
+
         # Check original is unchanged
         for agent in agent_list:
             if agent._traits["hair"] == "brown":
                 self.assertEqual(agent._traits["hair"], "brown")
             if agent._traits["hair"] == "black":
                 self.assertEqual(agent._traits["hair"], "black")
-        
+
         # Check translated values are updated
         for agent in translated:
             if "brown" in agent._traits.values():
                 self.fail("Original value 'brown' should be translated")
             if "black" in agent._traits.values():
                 self.fail("Original value 'black' should be translated")
-            
+
             # The structure of traits should be the same
             self.assertIn("hair", agent._traits)
-    
+
     def test_remove_trait(self):
         """Test removing a trait"""
         agent_list = AgentList(self.example_agents)
         modified = agent_list.remove_trait("age")
-        
+
         # Check original is unchanged
         for agent in agent_list:
             self.assertIn("age", agent._traits)
-        
+
         # Check modified has no age trait
         for agent in modified:
             self.assertNotIn("age", agent._traits)
             self.assertIn("job", agent._traits)
-    
+
     def test_add_trait(self):
         """Test adding a trait"""
         agent_list = AgentList(self.example_agents)
-        
+
         # Add a new trait
         values = ["tall", "short"]
         modified = agent_list.add_trait("height", values)
-        
+
         # Check original is unchanged
         for agent in agent_list:
             self.assertNotIn("height", agent._traits)
-        
+
         # Check modified has the new trait
         for i, agent in enumerate(modified):
             self.assertEqual(agent._traits["height"], values[i])
-        
+
         # Try adding with wrong number of values
         with self.assertRaises(Exception):
             agent_list.add_trait("height", ["single_value"])
-    
+
     def test_set_codebook(self):
         """Test setting a codebook"""
         # Create an agent list with agents that have no codebook
         agent1 = Agent(name="TestAgent1", traits={"age": 30, "job": "Engineer"})
         agent2 = Agent(name="TestAgent2", traits={"age": 40, "job": "Teacher"})
         agent_list = AgentList([agent1, agent2])
-        
+
         new_codebook = {"age": "Age in months", "job": "Job title"}
         agent_list.set_codebook(new_codebook)
 
         for agent in agent_list:
             self.assertEqual(agent.codebook, new_codebook)
-    
+
     def test_cartesian_product(self):
         """Test cartesian product (multiplication) of agent lists"""
         # Create two simple agent lists (no names to avoid name-conflict warnings)
-        agents1 = AgentList([
-            Agent(traits={"trait1": "value1"}),
-            Agent(traits={"trait1": "value2"})
-        ])
+        agents1 = AgentList(
+            [Agent(traits={"trait1": "value1"}), Agent(traits={"trait1": "value2"})]
+        )
 
-        agents2 = AgentList([
-            Agent(traits={"trait2": "value3"}),
-            Agent(traits={"trait2": "value4"})
-        ])
+        agents2 = AgentList(
+            [Agent(traits={"trait2": "value3"}), Agent(traits={"trait2": "value4"})]
+        )
 
         # Multiply them
         product = agents1 * agents2
-        
+
         # Check result
         self.assertEqual(len(product), 4)  # 2x2 = 4 combinations
-        
+
         # Check traits in the combined agents
         traits_in_product = [set(a._traits.keys()) for a in product]
         expected_traits = [{"trait1", "trait2"} for _ in range(4)]
         self.assertEqual(traits_in_product, expected_traits)
-        
+
         # Check all combinations exist
         trait_values = [(a._traits["trait1"], a._traits["trait2"]) for a in product]
         expected_values = [
             ("value1", "value3"),
             ("value1", "value4"),
             ("value2", "value3"),
-            ("value2", "value4")
+            ("value2", "value4"),
         ]
         for expected in expected_values:
             self.assertIn(expected, trait_values)
@@ -325,21 +428,21 @@ class TestAgentList(unittest.TestCase):
     def test_add_instructions_method(self):
         """Test the new add_instructions method"""
         agent_list = AgentList(self.example_agents)
-        
+
         # Apply instructions
         test_instructions = "Answer as if you were this person"
         modified = agent_list.add_instructions(test_instructions)
-        
+
         # Check that the method returns the same AgentList object (for chaining)
         self.assertIs(modified, agent_list)
-        
+
         # Check that all agents have the new instructions
         for agent in agent_list:
             self.assertEqual(agent.instruction, test_instructions)
 
     def test_from_source_csv_with_instructions(self):
         """Test creating an agent list from CSV with instructions via from_source"""
-        with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.csv') as f:
+        with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".csv") as f:
             f.write("name,age,job,hair\n")
             f.write("Person1,30,Engineer,brown\n")
             f.write("Person2,40,Teacher,black\n")
@@ -348,9 +451,7 @@ class TestAgentList(unittest.TestCase):
         try:
             test_instructions = "Answer as if you were this person"
             agent_list = AgentList.from_source(
-                'csv', csv_path,
-                name_field="name",
-                instructions=test_instructions
+                "csv", csv_path, name_field="name", instructions=test_instructions
             )
 
             self.assertEqual(len(agent_list), 2)
@@ -363,65 +464,60 @@ class TestAgentList(unittest.TestCase):
     def test_from_source_csv(self):
         """Test creating an agent list using from_source with CSV"""
         # Create a temporary CSV file
-        with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.csv') as f:
+        with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".csv") as f:
             f.write("name,age,job,hair\n")
             f.write("Person1,30,Engineer,brown\n")
             f.write("Person2,40,Teacher,black\n")
             csv_path = f.name
-        
+
         try:
             # Test basic from_source
-            agent_list = AgentList.from_source('csv', csv_path, name_field="name")
+            agent_list = AgentList.from_source("csv", csv_path, name_field="name")
             self.assertEqual(len(agent_list), 2)
             self.assertEqual(agent_list[0].name, "Person1")
-            
+
             # Test with instructions
             test_instructions = "Answer as the person described"
             agent_list_with_instructions = AgentList.from_source(
-                'csv', 
-                csv_path, 
-                name_field="name",
-                instructions=test_instructions
+                "csv", csv_path, name_field="name", instructions=test_instructions
             )
-            
+
             # Check that all agents have the instructions
             for agent in agent_list_with_instructions:
                 self.assertEqual(agent.instruction, test_instructions)
-            
+
             # Test with codebook
             test_codebook = {"age": "Age in years", "job": "Current profession"}
             agent_list_with_codebook = AgentList.from_source(
-                'csv',
-                csv_path,
-                name_field="name",
-                codebook=test_codebook
+                "csv", csv_path, name_field="name", codebook=test_codebook
             )
-            
+
             # Check that all agents have the codebook
             for agent in agent_list_with_codebook:
                 self.assertEqual(agent.codebook, test_codebook)
-            
+
             # Test with both instructions and codebook
             agent_list_both = AgentList.from_source(
-                'csv',
+                "csv",
                 csv_path,
                 name_field="name",
                 instructions=test_instructions,
-                codebook=test_codebook
+                codebook=test_codebook,
             )
-            
+
             for agent in agent_list_both:
                 self.assertEqual(agent.instruction, test_instructions)
                 self.assertEqual(agent.codebook, test_codebook)
-            
+
         finally:
             os.unlink(csv_path)
 
     def test_agent_list_builder_import(self):
         """Test that AgentListBuilder can be imported"""
         from edsl.agents import AgentListBuilder
-        self.assertTrue(hasattr(AgentListBuilder, 'from_source'))
-        self.assertTrue(hasattr(AgentListBuilder, 'from_csv'))
+
+        self.assertTrue(hasattr(AgentListBuilder, "from_source"))
+        self.assertTrue(hasattr(AgentListBuilder, "from_csv"))
 
     # ----------------------------------------------------------------
     # JSONL round-trip tests
@@ -439,6 +535,7 @@ class TestAgentList(unittest.TestCase):
     def test_jsonl_header_contains_metadata(self):
         """First JSONL line has class name and agent count."""
         import json
+
         agent_list = AgentList(self.all_agents)
         header = json.loads(agent_list.to_jsonl().splitlines()[0])
         self.assertEqual(header["edsl_class_name"], "AgentList")
@@ -454,9 +551,7 @@ class TestAgentList(unittest.TestCase):
     def test_jsonl_roundtrip_file(self):
         """AgentList survives a to_jsonl -> from_jsonl file round-trip."""
         agent_list = AgentList(self.all_agents)
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".jsonl", delete=False
-        ) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".jsonl", delete=False) as f:
             path = f.name
         try:
             agent_list.to_jsonl(path)
@@ -495,9 +590,7 @@ class TestAgentList(unittest.TestCase):
         restored = AgentList.from_jsonl(agent_list.to_jsonl())
         self.assertEqual(agent_list, restored)
         for agent in restored:
-            self.assertEqual(
-                agent.traits_presentation_template, "You are a cool agent"
-            )
+            self.assertEqual(agent.traits_presentation_template, "You are a cool agent")
 
     def test_jsonl_roundtrip_all_properties(self):
         """Codebook, instruction, and traits_presentation_template all survive."""
@@ -510,6 +603,7 @@ class TestAgentList(unittest.TestCase):
     def test_jsonl_header_hoists_shared_properties(self):
         """Shared codebook/instruction/tpt appear in the JSONL header."""
         import json
+
         agent_list = AgentList(self.example_agents, codebook=self.example_codebook)
         agent_list.set_instruction("Be helpful")
         agent_list.set_traits_presentation_template("TPT")
@@ -521,6 +615,7 @@ class TestAgentList(unittest.TestCase):
     def test_jsonl_header_omits_unset_properties(self):
         """Default instruction/tpt are NOT in the header."""
         import json
+
         agent_list = AgentList(self.example_agents)
         header = json.loads(agent_list.to_jsonl().splitlines()[0])
         self.assertNotIn("instruction", header)
@@ -538,6 +633,7 @@ class TestAgentList(unittest.TestCase):
     def test_to_jsonl_rows_is_generator(self):
         """to_jsonl_rows returns a generator, not a list."""
         import types
+
         agent_list = AgentList(self.example_agents)
         rows = agent_list._agent_list_serializer.to_jsonl_rows()
         self.assertIsInstance(rows, types.GeneratorType)

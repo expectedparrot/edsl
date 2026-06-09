@@ -90,6 +90,7 @@ from ..utilities import (
 from ..dataset import ScenarioListOperationsMixin
 
 from .exceptions import ScenarioError
+from .scenario_list_git import ScenarioListGitDescriptor
 from .scenario import Scenario
 from .transforms.transformer import ScenarioListTransformer
 from .join.scenario_list_joiner import ScenarioListJoiner
@@ -145,6 +146,8 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
     __documentation__ = (
         "https://docs.expectedparrot.com/en/latest/scenarios.html#scenariolist"
     )
+
+    git = ScenarioListGitDescriptor()
 
     def __init__(
         self,

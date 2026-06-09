@@ -36,7 +36,7 @@ psutil = "^6.1.0"
 [tool.poetry.extras]
 inference = [ "openai", "groq", "boto3", "anthropic", "azure-ai-inference", "google-genai", "mistralai", "sqlalchemy",]
 file-formats = [ "python-docx", "openpyxl", "pypdf2", "python-pptx", "pandas",]
-full = [ "openai", "groq", "boto3", "anthropic", "azure-ai-inference", "google-genai", "mistralai", "sqlalchemy", "black", "pydot", "python-docx", "openpyxl", "pypdf2", "python-pptx", "playwright", "fastapi", "uvicorn", "altair", "nbformat", "nbclient", "psutil", "sentence-transformers", "seaborn", "termplotlib", "qrcode", "pandas",]
+full = [ "openai", "groq", "boto3", "anthropic", "azure-ai-inference", "google-genai", "mistralai", "sqlalchemy", "black", "pydot", "python-docx", "openpyxl", "pypdf2", "python-pptx", "playwright", "fastapi", "uvicorn", "altair", "nbformat", "nbclient", "psutil", "seaborn", "termplotlib", "qrcode", "pandas",]
 notebook = [ "nbformat", "nbclient", "psutil",]
 screenshots = [ "playwright",]
 services = [ "fastapi", "uvicorn",]
@@ -164,7 +164,7 @@ optional = true
 
 [tool.poetry.dependencies.typer]
 extras = [ "all",]
-version = "^0.9.0"
+version = ">=0.9,<1"
 
 [tool.tomlsort.overrides."tool.poetry.dependencies"]
 table_keys = false

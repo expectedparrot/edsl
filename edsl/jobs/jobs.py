@@ -28,6 +28,7 @@ from ..logger import get_logger
 # from ..surveys import Survey
 
 from .exceptions import JobsValueError, JobsImplementationError
+from .jobs_git import JobsGitDescriptor
 from .jobs_pricing_estimation import JobsPrompts
 from .remote_inference import JobsRemoteInferenceHandler
 from .jobs_checks import JobsChecks
@@ -108,6 +109,7 @@ class Jobs(Base):
 
     __documentation__ = "https://docs.expectedparrot.com/en/latest/jobs.html"
     _logger = get_logger(__name__)
+    git = JobsGitDescriptor()
 
     def __init__(
         self,
@@ -1079,7 +1081,23 @@ class Jobs(Base):
                     "Remote execution completed but results could not be retrieved."
                 )
         else:
-            return None, None
+            if self.run_config.parameters.disable_remote_inference:
+                return None, None
+
+            explicit_parameters = getattr(
+                self.run_config.parameters, "_explicit_parameters", set()
+            )
+            if "offload_execution" not in explicit_parameters:
+                return None, None
+
+            from .exceptions import JobsRunError
+
+            raise JobsRunError(
+                "Remote execution was requested, but remote inference is not "
+                "available. Check EXPECTED_PARROT_URL, EXPECTED_PARROT_API_KEY, "
+                "and the remote inference setting. To run locally, pass "
+                "disable_remote_inference=True or offload_execution=False."
+            )
 
     def _prepare_to_run(self) -> None:
         """Prepare the job to run and ensure keys are in place for a remote job."""
@@ -1546,7 +1564,6 @@ class Jobs(Base):
             "concatenate",
             "collapse",
             "expand",
-            "store",
             "first",
             "last",
         }
@@ -2422,10 +2439,7 @@ class Jobs(Base):
         return Jobs.from_dict(self.to_dict())
 
     def to_jsonl(self, filename=None, root=None, message="", **kwargs):
-        """Export as JSONL with CAS pointers to component objects.
-
-        Components are auto-saved to the store if not already saved.
-        """
+        """Export as JSONL with an inline Jobs dictionary payload."""
         from .jobs_serializer import JobsSerializer
 
         return JobsSerializer(self).to_jsonl(
@@ -2434,7 +2448,7 @@ class Jobs(Base):
 
     @classmethod
     def from_jsonl(cls, source, root=None, **kwargs):
-        """Load a Jobs from a JSONL file with CAS pointers."""
+        """Load a Jobs from a JSONL file."""
         from .jobs_serializer import JobsSerializer
 
         return JobsSerializer.from_jsonl(source, root=root)
