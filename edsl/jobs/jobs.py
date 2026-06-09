@@ -1040,6 +1040,7 @@ class Jobs(Base):
             fresh=self.run_config.parameters.fresh,
             new_format=self.run_config.parameters.new_format,
             alert_on_completion_config=self.run_config.parameters.alert_on_completion_config,
+            results_description=self.run_config.parameters.results_description,
         )
         return job_info
 
@@ -1747,6 +1748,9 @@ class Jobs(Base):
         alert_on_completion_config : dict or AlertOnCompletionConfig, optional
             Config for job completion alerts (email and/or webhooks). Pass a dict with
             "email" (bool) and "webhooks" (list of {"url": str}, max 3 items).
+        results_description : str, optional
+            Description for the initial results object. Only used with remote inference
+            (offloaded execution).
 
         Returns
         -------
