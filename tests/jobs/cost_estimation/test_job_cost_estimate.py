@@ -57,6 +57,82 @@ class TestTotals:
         assert result.total_output_tokens == 0
         assert result.num_questions == 0
 
+    def test_total_input_tokens_reach_weighted(self):
+        # q1 reach=1.0 contributes 500 tokens; q2 reach=0.5 contributes 250
+        rows = [
+            make_row(question_name="q1", total_input_tokens=500, reach_probability=1.0),
+            make_row(question_name="q2", total_input_tokens=500, reach_probability=0.5),
+        ]
+        result = JobCostEstimate(rows=rows, warnings=[])
+        assert result.total_input_tokens == 750
+
+    def test_total_output_tokens_reach_weighted(self):
+        rows = [
+            make_row(
+                question_name="q1", total_output_tokens=100, reach_probability=1.0
+            ),
+            make_row(
+                question_name="q2", total_output_tokens=100, reach_probability=0.5
+            ),
+        ]
+        result = JobCostEstimate(rows=rows, warnings=[])
+        assert result.total_output_tokens == 150
+
+
+class TestSummaryByModel:
+    """summary_by_model token totals must be reach-weighted to match cost_usd."""
+
+    def _make_row(self, q_name, reach, input_tokens, output_tokens, cost_usd):
+        return make_row(
+            question_name=q_name,
+            reach_probability=reach,
+            total_input_tokens=input_tokens,
+            total_output_tokens=output_tokens,
+            cost_usd=cost_usd,
+            model="gpt-4o",
+            inference_service="openai",
+            input_price_per_million=1.0,
+            output_price_per_million=2.0,
+        )
+
+    def test_tokens_reach_weighted_in_summary(self):
+        # q1 reach=1.0, q2 reach=0.5 — raw totals would be 1000/200 but weighted are 750/150
+        rows = [
+            self._make_row("q1", 1.0, 500, 100, 0.0007),
+            self._make_row("q2", 0.5, 500, 100, 0.00035),
+        ]
+        result = JobCostEstimate(rows=rows, warnings=[])
+        summary = result.summary_by_model()
+        assert len(summary) == 1
+        m = summary[0]
+        assert m["total_input_tokens"] == 750
+        assert m["total_output_tokens"] == 150
+
+    def test_token_cost_equation_holds(self):
+        # With reach-weighted tokens, total_cost ≈ (input × $/M + output × $/M) / 1_000_000
+        rows = [
+            self._make_row("q1", 1.0, 500, 100, 0.0007),
+            self._make_row("q2", 0.5, 500, 100, 0.00035),
+        ]
+        result = JobCostEstimate(rows=rows, warnings=[])
+        m = result.summary_by_model()[0]
+        derived = (
+            m["total_input_tokens"] * m["input_price_per_million"] / 1_000_000
+            + m["total_output_tokens"] * m["output_price_per_million"] / 1_000_000
+        )
+        assert abs(derived - m["total_cost_usd"]) < 0.0001
+
+    def test_all_reach_one_unchanged(self):
+        # When reach is 1.0 everywhere the weighted sum equals the raw sum
+        rows = [
+            self._make_row("q1", 1.0, 500, 100, 0.0007),
+            self._make_row("q2", 1.0, 500, 100, 0.0007),
+        ]
+        result = JobCostEstimate(rows=rows, warnings=[])
+        m = result.summary_by_model()[0]
+        assert m["total_input_tokens"] == 1000
+        assert m["total_output_tokens"] == 200
+
 
 class TestDetailDataset:
     """detail property returns a Dataset with one entry per row and all expected columns."""

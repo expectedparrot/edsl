@@ -78,11 +78,15 @@ class JobCostEstimate:
 
     @property
     def total_input_tokens(self) -> int:
-        return sum(r["total_input_tokens"] for r in self._rows)
+        return round(
+            sum(r["total_input_tokens"] * r["reach_probability"] for r in self._rows)
+        )
 
     @property
     def total_output_tokens(self) -> int:
-        return sum(r["total_output_tokens"] for r in self._rows)
+        return round(
+            sum(r["total_output_tokens"] * r["reach_probability"] for r in self._rows)
+        )
 
     @property
     def num_questions(self) -> int:
@@ -178,8 +182,18 @@ class JobCostEstimate:
                     "model": model,
                     "input_price_per_million": rows[0]["input_price_per_million"],
                     "output_price_per_million": rows[0]["output_price_per_million"],
-                    "total_input_tokens": sum(r["total_input_tokens"] for r in rows),
-                    "total_output_tokens": sum(r["total_output_tokens"] for r in rows),
+                    "total_input_tokens": round(
+                        sum(
+                            r["total_input_tokens"] * r["reach_probability"]
+                            for r in rows
+                        )
+                    ),
+                    "total_output_tokens": round(
+                        sum(
+                            r["total_output_tokens"] * r["reach_probability"]
+                            for r in rows
+                        )
+                    ),
                     "total_cost_usd": sum(r["cost_usd"] for r in rows),
                     "total_cost_credits": usd_to_credits(
                         sum(r["cost_usd"] for r in rows)
