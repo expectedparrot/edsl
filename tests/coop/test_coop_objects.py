@@ -84,20 +84,20 @@ def coop_object_api_workflows(object_type, object_examples):
     assert updated_metadata.get("visibility") == "public"
 
     # 6. Test sharing
-    sharing_info = coop.get_shared_users(first_uuid)
+    sharing_info = coop.get_object_shared_users(first_uuid)
     assert sharing_info.get("shared_with") == []
     assert sharing_info.get("temp_shared_with") == []
 
     share_with_email = "b@b.b"
     coop.share_object(first_uuid, share_with_email)
 
-    sharing_info = coop.get_shared_users(first_uuid)
+    sharing_info = coop.get_object_shared_users(first_uuid)
     shared_emails = [u.get("email") for u in sharing_info.get("shared_with", [])]
     assert share_with_email in shared_emails
 
     coop.unshare_object(first_uuid, share_with_email)
 
-    sharing_info = coop.get_shared_users(first_uuid)
+    sharing_info = coop.get_object_shared_users(first_uuid)
     assert sharing_info.get("shared_with") == []
     assert sharing_info.get("temp_shared_with") == []
 

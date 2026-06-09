@@ -1749,6 +1749,25 @@ class Coop(CoopFunctionsMixin):
             "processing_started": confirm_data.get("processing_started", False),
         }
 
+    def _resolve_to_uuid(self, url_or_uuid: Union[str, UUID]) -> str:
+        """Resolve any supported identifier to a plain UUID string.
+
+        If _resolve_uuid_or_alias returns a UUID directly, use it. If it
+        returns an owner/alias pair (alias-style URL), resolve via
+        api/v0/object/alias/info — a lightweight call that returns only the
+        UUID without fetching the full object.
+        """
+        obj_uuid, owner_username, alias = self._resolve_uuid_or_alias(url_or_uuid)
+        if obj_uuid:
+            return str(obj_uuid)
+        response = self._send_server_request(
+            uri="api/v0/object/alias/info",
+            method="GET",
+            params={"owner_username": owner_username, "alias": alias},
+        )
+        self._resolve_server_response(response)
+        return str(response.json()["uuid"])
+
     def list_human_surveys(
         self,
         page: int = 1,
@@ -1872,7 +1891,7 @@ class Coop(CoopFunctionsMixin):
             >>> coop.get_object_shared_users("123e4567-e89b-12d3-a456-426614174000")
             {'shared_with': [...], 'temp_shared_with': [...]}
         """
-        obj_uuid, _, _ = self._resolve_uuid_or_alias(url_or_uuid)
+        obj_uuid = self._resolve_to_uuid(url_or_uuid)
         response = self._send_server_request(
             uri="api/v0/object/share",
             method="GET",
@@ -1913,11 +1932,11 @@ class Coop(CoopFunctionsMixin):
             >>> coop.share_object("123e4567-e89b-12d3-a456-426614174000", "alice")
             {'message': 'Successfully shared with alice.', 'username': 'alice', 'email': '...'}
         """
-        obj_uuid, _, _ = self._resolve_uuid_or_alias(url_or_uuid)
+        obj_uuid = self._resolve_to_uuid(url_or_uuid)
         response = self._send_server_request(
             uri="api/v0/object/share",
             method="POST",
-            payload={"uuid": str(obj_uuid), "username_or_email": username_or_email},
+            payload={"uuid": obj_uuid, "username_or_email": username_or_email},
         )
         self._resolve_server_response(response)
         content = response.json()
@@ -1950,11 +1969,11 @@ class Coop(CoopFunctionsMixin):
             >>> coop.unshare_object("123e4567-e89b-12d3-a456-426614174000", "alice")
             {'message': 'Removed access for alice.'}
         """
-        obj_uuid, _, _ = self._resolve_uuid_or_alias(url_or_uuid)
+        obj_uuid = self._resolve_to_uuid(url_or_uuid)
         response = self._send_server_request(
             uri="api/v0/object/share",
             method="DELETE",
-            payload={"uuid": str(obj_uuid), "username_or_email": username_or_email},
+            payload={"uuid": obj_uuid, "username_or_email": username_or_email},
         )
         self._resolve_server_response(response)
         return response.json()
