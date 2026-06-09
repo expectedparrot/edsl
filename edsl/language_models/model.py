@@ -344,12 +344,24 @@ class Model(metaclass=Meta):
 
         if force_refresh:
             registry.refresh_model_info()
-            if local_only:
-                registry.fetch_model_info_data(
-                    source_preferences=["local"], service_name=service_name, verbose=verbose
-                )
-            else:
-                registry.fetch_model_info_data(service_name=service_name, verbose=verbose)
+            # force_refresh=True means "actually go fetch" — skip the on-disk
+            # archive (which is the first default source and would short-circuit
+            # the chain with possibly-stale data). Match user intuition: anyone
+            # who explicitly asked to refresh expects to hit upstream sources,
+            # not be served from the cache they just told us to bypass.
+            #
+            # With local_only=True we narrow further to provider APIs only;
+            # otherwise re-pull from coop_working → coop → local → default_models.
+            sources = (
+                ["local"]
+                if local_only
+                else ["coop_working", "coop", "local", "default_models"]
+            )
+            registry.fetch_model_info_data(
+                source_preferences=sources,
+                service_name=service_name,
+                verbose=verbose,
+            )
 
         # Validate service_name if provided
         if service_name is not None:

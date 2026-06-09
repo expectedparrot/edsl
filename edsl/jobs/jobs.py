@@ -35,6 +35,7 @@ from .data_structures import RunEnvironment, RunParameters, RunConfig
 from .check_survey_scenario_compatibility import CheckSurveyScenarioCompatibility
 from .decorators import with_config
 from ..coop.exceptions import CoopServerResponseError
+from .cost_estimation import JobCostEstimator, JobCostEstimate, TokenOverride
 
 
 def get_bucket_collection():
@@ -561,6 +562,41 @@ class Jobs(Base):
         )
 
         return result
+
+    def estimate_remote_job_cost(
+        self,
+        token_overrides: dict[str, TokenOverride | list[TokenOverride]] | None = None,
+        branch_weights: dict[tuple, float] | None = None,
+        price_lookup: dict | None = None,
+        chars_per_token: int | None = None,
+    ) -> "JobCostEstimate":
+        """Estimate the cost of running this job using the new cost estimator.
+
+        Args:
+            token_overrides: Per-question-name TokenOverride overrides.
+                Only non-None fields are applied; others use the estimated value.
+            branch_weights: dict keyed by (from_question_name, to_question_name)
+                with probability of taking that branch. Used to compute expected
+                cost when the survey has skip logic.
+            price_lookup: Price dict keyed by (inference_service, model).
+                If None, fetched from Coop.
+            chars_per_token: Override the default characters-per-token ratio.
+
+        Returns:
+            JobCostEstimate with .total_cost_usd, .detail, .warnings,
+            and .to_markdown() for a human-readable summary.
+        """
+        kwargs = {}
+        if chars_per_token is not None:
+            kwargs["chars_per_token"] = chars_per_token
+
+        estimator = JobCostEstimator(**kwargs)
+        return estimator.estimate_cost(
+            self,
+            token_overrides=token_overrides,
+            branch_weights=branch_weights,
+            price_lookup=price_lookup,
+        )
 
     @staticmethod
     def compute_job_cost(job_results: Results) -> float:
