@@ -302,6 +302,7 @@ class PdfEstimator(FileTypeEstimator):
                 model_name=model_name,
                 num_pages=num_pages,
                 extracted_text=extracted_text,
+                chars_per_token=self.chars_per_token,
             )
         if inference_service == "anthropic":
             return AnthropicPDFEstimator().describe(
@@ -323,6 +324,7 @@ class PdfEstimator(FileTypeEstimator):
                 model_name=model_name,
                 num_pages=num_pages,
                 extracted_text=extracted_text,
+                chars_per_token=self.chars_per_token,
             )
         if inference_service == "anthropic":
             return AnthropicPDFEstimator().breakdown(
