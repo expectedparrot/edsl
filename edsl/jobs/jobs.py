@@ -1765,7 +1765,8 @@ class Jobs(Base):
         Notes
         -----
             - This method will first try to use remote inference if available
-            - If remote inference is not available, it will run locally
+            - If remote inference is unavailable (no EP API key, connection error, or setting disabled),
+              a JobsRunError is raised unless disable_remote_inference=True is explicitly passed
             - For long-running jobs, consider using progress_bar=True
             - For maximum performance, ensure appropriate caching is configured
 

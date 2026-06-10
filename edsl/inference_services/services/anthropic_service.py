@@ -43,25 +43,32 @@ class AnthropicService(InferenceServiceABC):
     def _requires_temperature_one(cls, model_name: str) -> bool:
         """Return whether Anthropic only accepts temperature=1.0 for this model."""
         model_name = model_name.lower()
-        date_match = re.search(r"(?<!\d)(\d{8})(?!\d)", model_name)
-        if date_match:
-            return int(date_match.group(1)) > cls._temperature_deprecation_date
 
         version_match = re.search(
             r"claude-(?P<family>opus|sonnet|haiku)-(?P<major>\d+)-(?P<minor>\d+)",
             model_name,
         )
+
+        if version_match:
+            version = (
+                int(version_match.group("major")),
+                int(version_match.group("minor")),
+            )
+            family = version_match.group("family")
+
+            if version > cls._temperature_deprecation_version:
+                return True
+            # Opus at the boundary version is exempt regardless of any date suffix
+            if version == cls._temperature_deprecation_version and family == "opus":
+                return False
+
+        date_match = re.search(r"(?<!\d)(\d{8})(?!\d)", model_name)
+        if date_match:
+            return int(date_match.group(1)) > cls._temperature_deprecation_date
+
         if not version_match:
             return False
 
-        version = (
-            int(version_match.group("major")),
-            int(version_match.group("minor")),
-        )
-        if version > cls._temperature_deprecation_version:
-            return True
-
-        family = version_match.group("family")
         return version == cls._temperature_deprecation_version and family != "opus"
 
     @classmethod

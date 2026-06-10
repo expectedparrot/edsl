@@ -9,7 +9,11 @@ def test_requires_temperature_one_for_models_after_opus_46():
     )
     assert AnthropicService._requires_temperature_one("claude-opus-4-7-20260416")
     assert AnthropicService._requires_temperature_one("claude-opus-4-7")
+    assert AnthropicService._requires_temperature_one("claude-sonnet-4-6")
+    assert not AnthropicService._requires_temperature_one("claude-opus-4-6")
     assert not AnthropicService._requires_temperature_one("claude-opus-4-6-20260205")
+    # Opus-4-6 is exempt even when the date suffix is after the cutoff
+    assert not AnthropicService._requires_temperature_one("claude-opus-4-6-20260206")
     assert not AnthropicService._requires_temperature_one("claude-opus-4-5-20251124")
     assert not AnthropicService._requires_temperature_one("claude-3-5-sonnet-20241022")
 
