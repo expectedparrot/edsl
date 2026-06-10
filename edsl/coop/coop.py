@@ -275,18 +275,9 @@ class Coop(CoopFunctionsMixin):
             self._logger.info(f"Request payload: {log_payload}")
 
         try:
-            if method == "GET":
+            if method in ["GET", "DELETE"]:
                 response = requests.request(
                     method, url, params=params, headers=self.headers, timeout=timeout
-                )
-            elif method == "DELETE":
-                response = requests.request(
-                    method,
-                    url,
-                    params=params,
-                    json=payload if payload else None,
-                    headers=self.headers,
-                    timeout=timeout,
                 )
             elif method in ["POST", "PATCH", "PUT"]:
                 response = requests.request(
@@ -1971,8 +1962,8 @@ class Coop(CoopFunctionsMixin):
         """
         obj_uuid = self._resolve_to_uuid(url_or_uuid)
         response = self._send_server_request(
-            uri="api/v0/object/share",
-            method="DELETE",
+            uri="api/v0/object/unshare",
+            method="POST",
             payload={"uuid": obj_uuid, "username_or_email": username_or_email},
         )
         self._resolve_server_response(response)

@@ -86,7 +86,7 @@ def coop_object_api_workflows(object_type, object_examples):
     # 6. Test sharing
     sharing_info = coop.get_object_shared_users(first_uuid)
     assert sharing_info.get("shared_with") == []
-    assert sharing_info.get("temp_shared_with") == []
+    assert sharing_info.get("unregistered_shared_with") == []
 
     share_with_email = "b@b.b"
     coop.share_object(first_uuid, share_with_email)
@@ -99,7 +99,7 @@ def coop_object_api_workflows(object_type, object_examples):
 
     sharing_info = coop.get_object_shared_users(first_uuid)
     assert sharing_info.get("shared_with") == []
-    assert sharing_info.get("temp_shared_with") == []
+    assert sharing_info.get("unregistered_shared_with") == []
 
     # 7. Cleanup
     for object in coop.list(object_type):
