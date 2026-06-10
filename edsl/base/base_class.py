@@ -552,7 +552,7 @@ class PersistenceMixin:
             url_or_uuid: The UUID or URL of the object on Coop.
 
         Returns:
-            dict: A dict with "shared_with" and "temp_shared_with" lists.
+            dict: A dict with "shared_with" and "unregistered_shared_with" lists.
 
         Raises:
             NotImplementedError: If called on Jobs.

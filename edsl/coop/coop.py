@@ -1882,14 +1882,14 @@ class Coop(CoopFunctionsMixin):
         Returns:
             dict: A dict with:
                 - shared_with: list of dicts with "username" and "email"
-                - temp_shared_with: list of dicts with "email" (for non-registered users)
+                - unregistered_shared_with: list of dicts with "email" (for non-registered users)
 
         Raises:
             CoopServerResponseError: If the server returns an error.
 
         Example:
             >>> coop.get_object_shared_users("123e4567-e89b-12d3-a456-426614174000")
-            {'shared_with': [...], 'temp_shared_with': [...]}
+            {'shared_with': [...], 'unregistered_shared_with': [...]}
         """
         obj_uuid = self._resolve_to_uuid(url_or_uuid)
         response = self._send_server_request(
@@ -1901,7 +1901,7 @@ class Coop(CoopFunctionsMixin):
         content = response.json()
         return {
             "shared_with": content.get("shared_with", []),
-            "temp_shared_with": content.get("temp_shared_with", []),
+            "unregistered_shared_with": content.get("unregistered_shared_with", []),
         }
 
     def share_object(
