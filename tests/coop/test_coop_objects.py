@@ -88,7 +88,7 @@ def coop_object_api_workflows(object_type, object_examples):
     assert sharing_info.get("shared_with") == []
     assert sharing_info.get("unregistered_shared_with") == []
 
-    share_with_email = "b@b.b"
+    share_with_email = "a@a.a"
     coop.share_object(first_uuid, share_with_email)
 
     sharing_info = coop.get_object_shared_users(first_uuid)
