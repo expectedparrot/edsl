@@ -140,6 +140,7 @@ class JobsRemoteInferenceHandler:
         fresh: Optional[bool] = False,
         new_format: Optional[bool] = True,
         alert_on_completion_config: Optional[Any] = None,
+        results_description: Optional[str] = None,
     ) -> RemoteJobInfo:
         """
         Create a remote inference job and return job information.
@@ -151,6 +152,7 @@ class JobsRemoteInferenceHandler:
             fresh: If True, ignore existing cache entries and generate new results
             new_format: If True, use pull method for result retrieval; if False, use legacy get method
             alert_on_completion_config: Optional config for job completion alerts (email and/or webhooks)
+            results_description: Optional description for the initial results object
 
         Returns:
             RemoteJobInfo: Information about the created job including UUID and logger
@@ -179,6 +181,7 @@ class JobsRemoteInferenceHandler:
                 initial_results_visibility=remote_inference_results_visibility,
                 fresh=fresh,
                 alert_on_completion_config=alert_on_completion_config,
+                initial_results_description=results_description,
             )
         else:
             remote_job_creation_data = coop.old_remote_inference_create(
