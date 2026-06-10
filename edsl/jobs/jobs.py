@@ -1079,7 +1079,17 @@ class Jobs(Base):
                     "Remote execution completed but results could not be retrieved."
                 )
         else:
-            return None, None
+            if self.run_config.parameters.disable_remote_inference:
+                return None, None
+
+            from .exceptions import JobsRunError
+
+            raise JobsRunError(
+                "Remote execution was requested, but remote inference is not "
+                "available. Check EXPECTED_PARROT_URL, EXPECTED_PARROT_API_KEY, "
+                "and the remote inference setting. To run locally, pass "
+                "disable_remote_inference=True or offload_execution=False."
+            )
 
     def _prepare_to_run(self) -> None:
         """Prepare the job to run and ensure keys are in place for a remote job."""
@@ -1755,7 +1765,8 @@ class Jobs(Base):
         Notes
         -----
             - This method will first try to use remote inference if available
-            - If remote inference is not available, it will run locally
+            - If remote inference is unavailable (no EP API key, connection error, or setting disabled),
+              a JobsRunError is raised unless disable_remote_inference=True is explicitly passed
             - For long-running jobs, consider using progress_bar=True
             - For maximum performance, ensure appropriate caching is configured
 
