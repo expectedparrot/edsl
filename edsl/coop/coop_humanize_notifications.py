@@ -16,6 +16,36 @@ if TYPE_CHECKING:
 
 
 # ---------------------------------------------------------------------------
+# Delivery templates
+# ---------------------------------------------------------------------------
+
+RespondentTemplateName = Literal["respondent_invitation", "respondent_transcript"]
+
+
+class InlineDeliveryTemplate(BaseModel):
+    """Custom HTML email body supplied inline by the caller."""
+
+    source: Literal["inline"] = "inline"
+    html: str
+
+
+class ExpectedParrotTemplate(BaseModel):
+    """Built-in server-side email template identified by name."""
+
+    source: Literal["expected_parrot"] = "expected_parrot"
+    name: RespondentTemplateName
+
+
+DeliveryTemplateInput = Annotated[
+    Union[
+        Annotated[InlineDeliveryTemplate, Tag("inline")],
+        Annotated[ExpectedParrotTemplate, Tag("expected_parrot")],
+    ],
+    Field(discriminator="source"),
+]
+
+
+# ---------------------------------------------------------------------------
 # Delivery map (survey creation)
 # ---------------------------------------------------------------------------
 
@@ -118,7 +148,7 @@ class RespondentEmailRouteConfig(BaseModel):
 
     channel: Literal["email"] = "email"
     subtype: Literal["respondent"] = "respondent"
-    delivery_template: Optional[str] = None
+    delivery_template: DeliveryTemplateInput
     respondent_filter: Optional[HumanizeRespondentFilter] = None
     subject: Optional[str] = Field(default=None, min_length=1, max_length=200)
 
@@ -204,15 +234,19 @@ class HumanSurveyNotificationHandler:
         """Trigger a respondent email delivery job for this human survey.
 
         Builds a ``RespondentEmailRouteConfig`` from the supplied options and
-        sends it immediately.  ``delivery_template``, ``respondent_filter``,
-        and ``subject`` are passed through to the route; omit them to use the
-        server defaults.
+        sends it immediately.  ``delivery_template`` accepts an HTML string;
+        when omitted, the default invitation template is used.
 
         Returns:
             dict: ``{"delivery_uuid": "<uuid>", "routes": [...]}``
         """
+        resolved_template = (
+            InlineDeliveryTemplate(html=delivery_template)
+            if delivery_template is not None
+            else ExpectedParrotTemplate(name="respondent_invitation")
+        )
         route = RespondentEmailRouteConfig(
-            delivery_template=delivery_template,
+            delivery_template=resolved_template,
             respondent_filter=respondent_filter,
             subject=subject,
         )
@@ -600,6 +634,30 @@ class HumanSurveyNotificationHandler:
             name=name,
             callback_type=callback_type,
             routes=routes,
+            max_fires=max_fires,
+        )
+
+    def create_transcript_callback(
+        self,
+        name: str,
+        max_fires: Optional[int] = None,
+    ) -> dict:
+        """Create a callback that emails each respondent their transcript on completion.
+
+        Uses the ``respondent_transcript`` template and fires on
+        ``human_survey_respondent.response_submitted``.
+
+        Returns:
+            dict: ``{"callback_uuid", "name", "callback_type", "event_config",
+            "is_active", "fired_count", "max_fires", "routes": [...]}``
+        """
+        route = RespondentEmailRouteConfig(
+            delivery_template=ExpectedParrotTemplate(name="respondent_transcript"),
+        )
+        return self.create_callback(
+            name=name,
+            callback_type="human_survey_respondent.response_submitted",
+            routes=[route],
             max_fires=max_fires,
         )
 
