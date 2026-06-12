@@ -24,9 +24,12 @@ if TYPE_CHECKING:
 # ---------------------------------------------------------------------------
 
 RespondentTemplateName = Literal["respondent_invitation", "respondent_transcript"]
-OwnerTemplateName = Literal["owner_response_received"]
+OwnerTemplateName = Literal["owner_response_received", "owner_transcript"]
 NotificationTemplateName = Literal[
-    "respondent_invitation", "respondent_transcript", "owner_response_received"
+    "respondent_invitation",
+    "respondent_transcript",
+    "owner_response_received",
+    "owner_transcript",
 ]
 
 
@@ -657,22 +660,34 @@ class HumanSurveyNotificationHandler:
         self,
         name: str,
         max_fires: Optional[int] = None,
+        *,
+        recipient: Literal["respondent", "owner"] = "respondent",
     ) -> dict:
-        """Create a callback that emails each respondent their transcript after each submission.
+        """Create a callback that emails a transcript after each response submission.
 
-        Uses the ``respondent_transcript`` template and fires on
-        ``human_survey_respondent.response_submitted``.
+        ``recipient="respondent"`` emails each respondent their own transcript;
+        fires on ``human_survey_respondent.response_submitted``.
+        ``recipient="owner"`` emails the survey owner a transcript on every
+        submission (including anonymous); fires on
+        ``human_survey.response_submitted``.
 
         Returns:
             dict: ``{"callback_uuid", "name", "callback_type", "event_config",
             "is_active", "fired_count", "max_fires", "routes": [...]}``
         """
-        route = RespondentEmailRouteConfig(
-            delivery_template=ExpectedParrotTemplate(name="respondent_transcript"),
-        )
+        if recipient == "owner":
+            route: RouteConfig = OwnerEmailRouteConfig(
+                delivery_template=ExpectedParrotTemplate(name="owner_transcript"),
+            )
+            callback_type: CallbackType = "human_survey.response_submitted"
+        else:
+            route = RespondentEmailRouteConfig(
+                delivery_template=ExpectedParrotTemplate(name="respondent_transcript"),
+            )
+            callback_type = "human_survey_respondent.response_submitted"
         return self.create_callback(
             name=name,
-            callback_type="human_survey_respondent.response_submitted",
+            callback_type=callback_type,
             routes=[route],
             max_fires=max_fires,
         )
