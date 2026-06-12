@@ -7,7 +7,11 @@ from enum import Enum
 from typing import TYPE_CHECKING, Annotated, List, Literal, Optional, Union
 from uuid import UUID
 
-CallbackType = Literal["human_survey_respondent.completed"]
+CallbackType = Literal[
+    "human_survey_respondent.completed",
+    "human_survey_respondent.response_submitted",
+    "human_survey.response_submitted",
+]
 
 from pydantic import BaseModel, ConfigDict, Discriminator, Field, Tag, TypeAdapter
 
@@ -19,7 +23,9 @@ if TYPE_CHECKING:
 # Delivery templates
 # ---------------------------------------------------------------------------
 
-RespondentTemplateName = Literal["respondent_invitation", "respondent_transcript"]
+RespondentTemplateName = Literal[
+    "respondent_invitation", "respondent_transcript", "owner_response_received"
+]
 
 
 class InlineDeliveryTemplate(BaseModel):
@@ -158,7 +164,8 @@ class OwnerEmailRouteConfig(BaseModel):
 
     channel: Literal["email"] = "email"
     subtype: Literal["owner"] = "owner"
-    delivery_template: Optional[str] = None
+    delivery_template: DeliveryTemplateInput
+    subject: Optional[str] = Field(default=None, min_length=1, max_length=200)
 
 
 def _route_discriminator(v: "dict | object") -> str:
@@ -621,9 +628,14 @@ class HumanSurveyNotificationHandler:
     ) -> dict:
         """Create an event-triggered callback for this human survey.
 
-        Only ``"human_survey_respondent.completed"`` is supported: fires once
-        per respondent who completes the survey.  The survey must have an
-        agent list with an email delivery channel configured.
+        Supported event types:
+
+        - ``"human_survey_respondent.completed"`` — fires once when a
+          respondent's status is set to completed.
+        - ``"human_survey_respondent.response_submitted"`` — fires each time a
+          respondent submits a response.
+        - ``"human_survey.response_submitted"`` — fires on any submission,
+          including anonymous responses.
 
         Returns:
             dict: ``{"callback_uuid", "name", "callback_type", "event_config",
@@ -657,6 +669,31 @@ class HumanSurveyNotificationHandler:
         return self.create_callback(
             name=name,
             callback_type="human_survey_respondent.response_submitted",
+            routes=[route],
+            max_fires=max_fires,
+        )
+
+    def create_owner_response_callback(
+        self,
+        name: str,
+        max_fires: Optional[int] = None,
+    ) -> dict:
+        """Create a callback that emails the survey owner on every new response.
+
+        Fires on ``human_survey.response_submitted``, which triggers for any
+        response including anonymous submissions (not just respondents in the
+        agent list).
+
+        Returns:
+            dict: ``{"callback_uuid", "name", "callback_type", "event_config",
+            "is_active", "fired_count", "max_fires", "routes": [...]}``
+        """
+        route = OwnerEmailRouteConfig(
+            delivery_template=ExpectedParrotTemplate(name="owner_response_received"),
+        )
+        return self.create_callback(
+            name=name,
+            callback_type="human_survey.response_submitted",
             routes=[route],
             max_fires=max_fires,
         )
