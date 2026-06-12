@@ -18,8 +18,12 @@ from .models import TaskStatus, generate_id
 
 # EDSL imports - relative since this module lives inside edsl package
 from ..caching import Cache
+from ..agents import Agent
 from ..questions import QuestionBase
 from ..questions.exceptions import QuestionAnswerValidationError
+from ..scenarios import Scenario
+from ..surveys import Survey
+from ..surveys.memory import MemoryPlan
 
 if TYPE_CHECKING:
     from .worker_registry import WorkerRegistry, AsyncHeartbeatManager
@@ -238,6 +242,13 @@ class ExecutionWorker:
             else:
                 cache = self._cache  # Use provided cache
 
+            if task.question_id is not None:
+                question_data = self._job_service._jobs.get_question(
+                    task.job_id, task.question_id
+                )
+                if question_data and question_data.get("question_type") == "interview":
+                    return await self._execute_via_invigilator(task, model, cache)
+
             # Use model.async_get_response() like InvigilatorAI does
             # Pass iteration for cache key differentiation when n > 1
             response = await model.async_get_response(
@@ -349,6 +360,107 @@ class ExecutionWorker:
                 error_type=error_type,
                 error_message=str(e),
             )
+
+    async def _execute_via_invigilator(
+        self, task: Any, model: Any, cache: Cache
+    ) -> ExecutionResult:
+        """Execute question types that require their own invigilator flow."""
+        question_data = self._job_service._jobs.get_question(task.job_id, task.question_id)
+        if not question_data:
+            raise ValueError(f"Question {task.question_id} not found for task {task.task_id}")
+
+        question_data = self._resolve_question_templates(
+            question_data, task.job_id, task.interview_id
+        )
+        question = QuestionBase.from_dict(question_data)
+
+        interview_def = self._job_service._interviews.get_definition(
+            task.job_id, task.interview_id
+        )
+        if interview_def is None:
+            raise ValueError(
+                f"Interview {task.interview_id} not found for task {task.task_id}"
+            )
+
+        scenario_data = self._job_service._jobs.get_scenario(
+            task.job_id, interview_def.scenario_id
+        )
+        agent_data = self._job_service._jobs.get_agent(
+            task.job_id, interview_def.agent_id
+        )
+        scenario = Scenario.from_dict(scenario_data) if scenario_data else Scenario()
+        agent = Agent.from_dict(agent_data) if agent_data else Agent()
+        current_answers = self._get_interview_answers(task.job_id, task.interview_id)
+        survey, memory_plan, question = self._build_invigilator_survey_context(
+            task.job_id, task.question_name, question
+        )
+        key_lookup = self._job_service.get_key_lookup_for_job(task.job_id)
+
+        invigilator = agent.invigilator.create_invigilator(
+            question=question,
+            scenario=scenario,
+            model=model,
+            survey=survey,
+            memory_plan=memory_plan,
+            current_answers=current_answers,
+            iteration=task.iteration,
+            cache=cache,
+            key_lookup=key_lookup,
+        )
+        result = await invigilator.async_answer_question()
+        prompts = result.prompts or {}
+        exception_occurred = result.exception_occurred
+        success = exception_occurred is None
+
+        return ExecutionResult(
+            task_id=task.task_id,
+            job_id=task.job_id,
+            interview_id=task.interview_id,
+            success=success,
+            answer=result.answer,
+            comment=result.comment,
+            input_tokens=result.input_tokens,
+            output_tokens=result.output_tokens,
+            raw_model_response=result.raw_model_response,
+            generated_tokens=result.generated_tokens,
+            cached=bool(result.cache_used),
+            system_prompt=str(prompts.get("system_prompt", "")),
+            user_prompt=str(prompts.get("user_prompt", "")),
+            input_price_per_million_tokens=result.input_price_per_million_tokens,
+            output_price_per_million_tokens=result.output_price_per_million_tokens,
+            thinking_tokens=result.thinking_tokens,
+            cache_key=result.cache_key,
+            validated=result.validated,
+            reasoning_summary=result.reasoning_summary,
+            error_type=self._classify_error(exception_occurred)
+            if exception_occurred
+            else None,
+            error_message=str(exception_occurred) if exception_occurred else None,
+        )
+
+    def _build_invigilator_survey_context(
+        self,
+        job_id: str,
+        question_name: str | None,
+        question: QuestionBase,
+    ) -> tuple[Survey, MemoryPlan, QuestionBase]:
+        """Build the survey and memory plan used by invigilator-based execution."""
+        survey_data = self._job_service._jobs.get_survey(job_id)
+        if not survey_data:
+            survey = Survey([question])
+            return survey, MemoryPlan(survey=survey), question
+
+        survey = Survey.from_dict(survey_data)
+        for index, survey_question in enumerate(survey.questions):
+            if survey_question.question_name == question.question_name:
+                survey.questions[index] = question
+                break
+            if question_name and survey_question.question_name == question_name:
+                survey.questions[index] = question
+                break
+
+        memory_plan = survey.memory_plan or MemoryPlan(survey=survey)
+        return survey, memory_plan, question
 
     def _validate_answer(
         self, task: Any, answer: Any, comment: str | None, generated_tokens: str | None
