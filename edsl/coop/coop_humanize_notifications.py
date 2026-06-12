@@ -23,7 +23,9 @@ if TYPE_CHECKING:
 # Delivery templates
 # ---------------------------------------------------------------------------
 
-RespondentTemplateName = Literal[
+RespondentTemplateName = Literal["respondent_invitation", "respondent_transcript"]
+OwnerTemplateName = Literal["owner_response_received"]
+NotificationTemplateName = Literal[
     "respondent_invitation", "respondent_transcript", "owner_response_received"
 ]
 
@@ -39,7 +41,7 @@ class ExpectedParrotTemplate(BaseModel):
     """Built-in server-side email template identified by name."""
 
     source: Literal["expected_parrot"] = "expected_parrot"
-    name: RespondentTemplateName
+    name: NotificationTemplateName
 
 
 DeliveryTemplateInput = Annotated[
