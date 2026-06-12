@@ -156,7 +156,9 @@ class RespondentEmailRouteConfig(BaseModel):
 
     channel: Literal["email"] = "email"
     subtype: Literal["respondent"] = "respondent"
-    delivery_template: DeliveryTemplateInput
+    delivery_template: DeliveryTemplateInput = Field(
+        default_factory=lambda: ExpectedParrotTemplate(name="respondent_invitation")
+    )
     respondent_filter: Optional[HumanizeRespondentFilter] = None
     subject: Optional[str] = Field(default=None, min_length=1, max_length=200)
 
@@ -656,7 +658,7 @@ class HumanSurveyNotificationHandler:
         name: str,
         max_fires: Optional[int] = None,
     ) -> dict:
-        """Create a callback that emails each respondent their transcript on completion.
+        """Create a callback that emails each respondent their transcript after each submission.
 
         Uses the ``respondent_transcript`` template and fires on
         ``human_survey_respondent.response_submitted``.

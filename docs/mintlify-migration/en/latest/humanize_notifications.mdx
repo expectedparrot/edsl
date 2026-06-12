@@ -219,7 +219,7 @@ print(callback["callback_uuid"])
 
 ### Send each respondent a transcript of their answers
 
-Use `create_transcript_callback` to automatically email each respondent a copy of their responses after they submit. This uses the built-in `respondent_transcript` template.
+Use `create_transcript_callback` to automatically email each respondent a copy of their responses each time they submit. This uses the built-in `respondent_transcript` template.
 
 ```python
 callback = handler.create_transcript_callback(name="Send transcript on submission")
