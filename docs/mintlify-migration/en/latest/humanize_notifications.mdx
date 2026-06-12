@@ -183,13 +183,12 @@ handler.activate_schedule(schedule["schedule_uuid"])
 
 A **respondent** is a person with a corresponding entry in the survey's agent list. Each respondent has a unique survey link and a tracked response status. Submissions from people outside the agent list (e.g. anonymous links) are not associated with a respondent.
 
-Callbacks fire automatically when a respondent event occurs. Three event types are supported:
+`create_callback` sends emails to respondents in your agent list. Two respondent event types are supported:
 
 | Event | When it fires |
 |-------|--------------|
 | `"human_survey_respondent.completed"` | When a respondent's status is set to completed. |
 | `"human_survey_respondent.response_submitted"` | Each time a respondent submits a response. |
-| `"human_survey.response_submitted"` | Each time any response is submitted, including anonymous responses. |
 
 ```python
 callback = handler.create_callback(
@@ -211,7 +210,7 @@ callback = handler.create_callback(
 
 ### Notify the owner on every new response
 
-Use `create_owner_response_callback` to email the survey owner each time a response is submitted. This fires for all responses, including anonymous ones.
+Use `create_owner_response_callback` to email the survey owner each time a response is submitted. This fires for all responses, including anonymous ones — not just respondents in the agent list.
 
 ```python
 callback = handler.create_owner_response_callback(name="New response notification")
