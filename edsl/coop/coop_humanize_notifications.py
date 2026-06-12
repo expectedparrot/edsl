@@ -7,12 +7,50 @@ from enum import Enum
 from typing import TYPE_CHECKING, Annotated, List, Literal, Optional, Union
 from uuid import UUID
 
-CallbackType = Literal["human_survey_respondent.completed"]
+CallbackType = Literal[
+    "human_survey_respondent.completed",
+    "human_survey_respondent.response_submitted",
+    "human_survey.response_submitted",
+]
 
 from pydantic import BaseModel, ConfigDict, Discriminator, Field, Tag, TypeAdapter
 
 if TYPE_CHECKING:
     from .coop import Coop
+
+
+# ---------------------------------------------------------------------------
+# Delivery templates
+# ---------------------------------------------------------------------------
+
+RespondentTemplateName = Literal["respondent_invitation", "respondent_transcript"]
+OwnerTemplateName = Literal["owner_response_received"]
+NotificationTemplateName = Literal[
+    "respondent_invitation", "respondent_transcript", "owner_response_received"
+]
+
+
+class InlineDeliveryTemplate(BaseModel):
+    """Custom HTML email body supplied inline by the caller."""
+
+    source: Literal["inline"] = "inline"
+    html: str
+
+
+class ExpectedParrotTemplate(BaseModel):
+    """Built-in server-side email template identified by name."""
+
+    source: Literal["expected_parrot"] = "expected_parrot"
+    name: NotificationTemplateName
+
+
+DeliveryTemplateInput = Annotated[
+    Union[
+        Annotated[InlineDeliveryTemplate, Tag("inline")],
+        Annotated[ExpectedParrotTemplate, Tag("expected_parrot")],
+    ],
+    Field(discriminator="source"),
+]
 
 
 # ---------------------------------------------------------------------------
@@ -118,7 +156,9 @@ class RespondentEmailRouteConfig(BaseModel):
 
     channel: Literal["email"] = "email"
     subtype: Literal["respondent"] = "respondent"
-    delivery_template: Optional[str] = None
+    delivery_template: DeliveryTemplateInput = Field(
+        default_factory=lambda: ExpectedParrotTemplate(name="respondent_invitation")
+    )
     respondent_filter: Optional[HumanizeRespondentFilter] = None
     subject: Optional[str] = Field(default=None, min_length=1, max_length=200)
 
@@ -128,7 +168,8 @@ class OwnerEmailRouteConfig(BaseModel):
 
     channel: Literal["email"] = "email"
     subtype: Literal["owner"] = "owner"
-    delivery_template: Optional[str] = None
+    delivery_template: DeliveryTemplateInput
+    subject: Optional[str] = Field(default=None, min_length=1, max_length=200)
 
 
 def _route_discriminator(v: "dict | object") -> str:
@@ -204,15 +245,19 @@ class HumanSurveyNotificationHandler:
         """Trigger a respondent email delivery job for this human survey.
 
         Builds a ``RespondentEmailRouteConfig`` from the supplied options and
-        sends it immediately.  ``delivery_template``, ``respondent_filter``,
-        and ``subject`` are passed through to the route; omit them to use the
-        server defaults.
+        sends it immediately.  ``delivery_template`` accepts an HTML string;
+        when omitted, the default invitation template is used.
 
         Returns:
             dict: ``{"delivery_uuid": "<uuid>", "routes": [...]}``
         """
+        resolved_template = (
+            InlineDeliveryTemplate(html=delivery_template)
+            if delivery_template is not None
+            else ExpectedParrotTemplate(name="respondent_invitation")
+        )
         route = RespondentEmailRouteConfig(
-            delivery_template=delivery_template,
+            delivery_template=resolved_template,
             respondent_filter=respondent_filter,
             subject=subject,
         )
@@ -587,9 +632,14 @@ class HumanSurveyNotificationHandler:
     ) -> dict:
         """Create an event-triggered callback for this human survey.
 
-        Only ``"human_survey_respondent.completed"`` is supported: fires once
-        per respondent who completes the survey.  The survey must have an
-        agent list with an email delivery channel configured.
+        Supported event types:
+
+        - ``"human_survey_respondent.completed"`` — fires once when a
+          respondent's status is set to completed.
+        - ``"human_survey_respondent.response_submitted"`` — fires each time a
+          respondent submits a response.
+        - ``"human_survey.response_submitted"`` — fires on any submission,
+          including anonymous responses.
 
         Returns:
             dict: ``{"callback_uuid", "name", "callback_type", "event_config",
@@ -600,6 +650,55 @@ class HumanSurveyNotificationHandler:
             name=name,
             callback_type=callback_type,
             routes=routes,
+            max_fires=max_fires,
+        )
+
+    def create_transcript_callback(
+        self,
+        name: str,
+        max_fires: Optional[int] = None,
+    ) -> dict:
+        """Create a callback that emails each respondent their transcript after each submission.
+
+        Uses the ``respondent_transcript`` template and fires on
+        ``human_survey_respondent.response_submitted``.
+
+        Returns:
+            dict: ``{"callback_uuid", "name", "callback_type", "event_config",
+            "is_active", "fired_count", "max_fires", "routes": [...]}``
+        """
+        route = RespondentEmailRouteConfig(
+            delivery_template=ExpectedParrotTemplate(name="respondent_transcript"),
+        )
+        return self.create_callback(
+            name=name,
+            callback_type="human_survey_respondent.response_submitted",
+            routes=[route],
+            max_fires=max_fires,
+        )
+
+    def create_owner_response_callback(
+        self,
+        name: str,
+        max_fires: Optional[int] = None,
+    ) -> dict:
+        """Create a callback that emails the survey owner on every new response.
+
+        Fires on ``human_survey.response_submitted``, which triggers for any
+        response including anonymous submissions (not just respondents in the
+        agent list).
+
+        Returns:
+            dict: ``{"callback_uuid", "name", "callback_type", "event_config",
+            "is_active", "fired_count", "max_fires", "routes": [...]}``
+        """
+        route = OwnerEmailRouteConfig(
+            delivery_template=ExpectedParrotTemplate(name="owner_response_received"),
+        )
+        return self.create_callback(
+            name=name,
+            callback_type="human_survey.response_submitted",
+            routes=[route],
             max_fires=max_fires,
         )
 
