@@ -36,6 +36,7 @@ from .data_structures import RunEnvironment, RunParameters, RunConfig
 from .check_survey_scenario_compatibility import CheckSurveyScenarioCompatibility
 from .decorators import with_config
 from ..coop.exceptions import CoopServerResponseError
+from .cost_estimation import JobCostEstimator, JobCostEstimate, TokenOverride
 
 
 def get_bucket_collection():
@@ -564,6 +565,41 @@ class Jobs(Base):
 
         return result
 
+    def estimate_remote_job_cost(
+        self,
+        token_overrides: dict[str, TokenOverride | list[TokenOverride]] | None = None,
+        branch_weights: dict[tuple, float] | None = None,
+        price_lookup: dict | None = None,
+        chars_per_token: int | None = None,
+    ) -> "JobCostEstimate":
+        """Estimate the cost of running this job using the new cost estimator.
+
+        Args:
+            token_overrides: Per-question-name TokenOverride overrides.
+                Only non-None fields are applied; others use the estimated value.
+            branch_weights: dict keyed by (from_question_name, to_question_name)
+                with probability of taking that branch. Used to compute expected
+                cost when the survey has skip logic.
+            price_lookup: Price dict keyed by (inference_service, model).
+                If None, fetched from Coop.
+            chars_per_token: Override the default characters-per-token ratio.
+
+        Returns:
+            JobCostEstimate with .total_cost_usd, .detail, .warnings,
+            and .to_markdown() for a human-readable summary.
+        """
+        kwargs = {}
+        if chars_per_token is not None:
+            kwargs["chars_per_token"] = chars_per_token
+
+        estimator = JobCostEstimator(**kwargs)
+        return estimator.estimate_cost(
+            self,
+            token_overrides=token_overrides,
+            branch_weights=branch_weights,
+            price_lookup=price_lookup,
+        )
+
     @staticmethod
     def compute_job_cost(job_results: Results) -> float:
         """Compute the cost of a completed job in USD."""
@@ -1006,6 +1042,7 @@ class Jobs(Base):
             fresh=self.run_config.parameters.fresh,
             new_format=self.run_config.parameters.new_format,
             alert_on_completion_config=self.run_config.parameters.alert_on_completion_config,
+            results_description=self.run_config.parameters.results_description,
         )
         return job_info
 
@@ -1728,6 +1765,9 @@ class Jobs(Base):
         alert_on_completion_config : dict or AlertOnCompletionConfig, optional
             Config for job completion alerts (email and/or webhooks). Pass a dict with
             "email" (bool) and "webhooks" (list of {"url": str}, max 3 items).
+        results_description : str, optional
+            Description for the initial results object. Only used with remote inference
+            (offloaded execution).
 
         Returns
         -------
@@ -1736,7 +1776,8 @@ class Jobs(Base):
         Notes
         -----
             - This method will first try to use remote inference if available
-            - If remote inference is not available, it will run locally
+            - If remote inference is unavailable (no EP API key, connection error, or setting disabled),
+              a JobsRunError is raised unless disable_remote_inference=True is explicitly passed
             - For long-running jobs, consider using progress_bar=True
             - For maximum performance, ensure appropriate caching is configured
 
