@@ -79,11 +79,25 @@ class FileUploadHumanizeSchema(HumanizeSchemaBase):
     optional: bool = False
 
 
+class TextInterviewConfig(HumanizeSchemaBase):
+    """Configuration specific to text-mode interviews."""
+
+    interviewer_name: Annotated[
+        Optional[str],
+        StringConstraints(strip_whitespace=True, min_length=1, max_length=200),
+    ] = None
+    end_interview_message: Annotated[
+        Optional[str],
+        StringConstraints(strip_whitespace=True, min_length=1, max_length=2500),
+    ] = None
+
+
 class InterviewHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the interview question type."""
 
     optional: bool = False
     interview_mode: Literal["text", "voice", "both"] = "text"
+    text_interview_config: Optional[TextInterviewConfig] = None
 
 
 class LikertHumanizeSchema(HumanizeSchemaBase):
