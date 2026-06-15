@@ -680,11 +680,13 @@ class HumanSurveyNotificationHandler:
                 delivery_template=ExpectedParrotTemplate(name="owner_transcript"),
             )
             callback_type: CallbackType = "human_survey.response_submitted"
-        else:
+        elif recipient == "respondent":
             route = RespondentEmailRouteConfig(
                 delivery_template=ExpectedParrotTemplate(name="respondent_transcript"),
             )
             callback_type = "human_survey_respondent.response_submitted"
+        else:
+            raise ValueError(f"recipient must be 'respondent' or 'owner', got {recipient!r}")
         return self.create_callback(
             name=name,
             callback_type=callback_type,
