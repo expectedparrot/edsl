@@ -4236,6 +4236,54 @@ class Coop(CoopFunctionsMixin):
             filter_scenarios.append(scenario)
         return CoopProlificFilters(filter_scenarios)
 
+    def calculate_prolific_study_cost(
+        self,
+        participant_payment_cents: int,
+        num_participants: int,
+        estimated_completion_time_minutes: int,
+    ) -> dict:
+        """
+        Calculate the total cost of a Prolific study.
+
+        Parameters:
+            participant_payment_cents (int): Reward per participant in cents.
+            num_participants (int): Number of participants.
+            estimated_completion_time_minutes (int): Expected completion time in minutes,
+                used to check that the effective hourly rate meets Prolific's minimum ($8/hr).
+
+        Returns:
+            dict: A dict with:
+                - cost_cents: Total cost in cents.
+                - cost_credits: Total cost in EP credits.
+                - is_underpayment: True if the effective hourly rate is below Prolific's minimum ($8.00/hr).
+                - underpayment_warning: A warning message if is_underpayment is True, otherwise None.
+
+        Raises:
+            CoopServerResponseError: If the server returns an error.
+        """
+        is_underpayment, cost_usd_per_hour = self._validate_prolific_study_cost(
+            estimated_completion_time_minutes, participant_payment_cents
+        )
+        response = self._send_server_request(
+            uri="api/v0/prolific-studies/calculate-cost",
+            method="POST",
+            payload={
+                "reward": participant_payment_cents,
+                "total_available_places": num_participants,
+            },
+        )
+        self._resolve_server_response(response)
+        data = response.json()
+        return {
+            "cost_cents": data["cost_cents"],
+            "cost_credits": data["cost_credits"],
+            "is_underpayment": is_underpayment,
+            "underpayment_warning": (
+                f"The current participant payment of ${cost_usd_per_hour:.2f} USD per hour "
+                "is below the minimum payment for using Prolific ($8.00 USD per hour)."
+            ) if is_underpayment else None,
+        }
+
     @staticmethod
     def _validate_prolific_study_cost(
         estimated_completion_time_minutes: int, participant_payment_cents: int
