@@ -217,12 +217,26 @@ callback = handler.create_owner_response_callback(name="New response notificatio
 print(callback["callback_uuid"])
 ```
 
-### Send each respondent a transcript of their answers
+### Send a transcript after each submission
 
-Use `create_transcript_callback` to automatically email each respondent a copy of their responses each time they submit. This uses the built-in `respondent_transcript` template.
+Use `create_transcript_callback` to automatically email a transcript each time a response is submitted. Pass `recipient` to control who receives it:
+
+- `"respondent"` (default) — emails each respondent a copy of their own answers.
+- `"owner"` — emails the survey owner a copy of the answers. Fires for all submissions, including anonymous ones.
 
 ```python
-callback = handler.create_transcript_callback(name="Send transcript on submission")
+# Email the respondent their own transcript
+callback = handler.create_transcript_callback(
+    name="Send respondent transcript on submission",
+    recipient="respondent",
+)
+
+# Email the owner a transcript on every submission
+callback = handler.create_transcript_callback(
+    name="Send owner transcript on submission",
+    recipient="owner",
+)
+
 print(callback["callback_uuid"])
 ```
 
