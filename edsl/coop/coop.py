@@ -4287,9 +4287,13 @@ class Coop(CoopFunctionsMixin):
             "cost_credits": data["cost_credits"],
             "is_underpayment": is_underpayment,
             "underpayment_warning": (
-                f"The current participant payment of ${cost_usd_per_hour:.2f} USD per hour "
-                "is below the minimum payment for using Prolific ($8.00 USD per hour)."
-            ) if is_underpayment else None,
+                (
+                    f"The current participant payment of ${cost_usd_per_hour:.2f} USD per hour "
+                    "is below the minimum payment for using Prolific ($8.00 USD per hour)."
+                )
+                if is_underpayment
+                else None
+            ),
         }
 
     @staticmethod
@@ -4301,6 +4305,8 @@ class Coop(CoopFunctionsMixin):
         Otherwise, return False.
         The second value in the tuple is the cost of the study in USD per hour.
         """
+        if estimated_completion_time_minutes <= 0:
+            raise CoopValueError("Estimated completion time must be greater than 0.")
         estimated_completion_time_hours = estimated_completion_time_minutes / 60
         participant_payment_usd = participant_payment_cents / 100
         cost_usd_per_hour = participant_payment_usd / estimated_completion_time_hours
