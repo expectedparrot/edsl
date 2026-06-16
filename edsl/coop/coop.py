@@ -2686,12 +2686,15 @@ class Coop(CoopFunctionsMixin):
 
         return CoopJobsObjects(jobs)
 
-    def get_error_report_markdown(self, job_uuid: Union[str, UUID]) -> str:
+    def get_error_report_markdown(
+        self, job_uuid: Union[str, UUID], save_path: Optional[str] = None
+    ) -> str:
         """
         Retrieve the markdown-rendered exception report for the most recent error on a job.
 
         Parameters:
             job_uuid (Union[str, UUID]): The UUID of the remote inference job.
+            save_path (str, optional): If provided, saves the markdown report to this file path.
 
         Returns:
             str: The error report rendered as a markdown string.
@@ -2702,13 +2705,18 @@ class Coop(CoopFunctionsMixin):
 
         Example:
             >>> print(coop.get_error_report_markdown(job_uuid))
+            >>> coop.get_error_report_markdown(job_uuid, save_path="error_report.md")
         """
         response = self._send_server_request(
             uri=f"api/v0/remote-inference/job/{job_uuid}/error-report",
             method="GET",
         )
         self._resolve_server_response(response)
-        return response.json()["report"]
+        report = response.json()["report"]
+        if save_path is not None:
+            with open(save_path, "w", encoding="utf-8") as f:
+                f.write(report)
+        return report
 
     def get_running_jobs(self) -> List[str]:
         """
