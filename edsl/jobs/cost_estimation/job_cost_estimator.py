@@ -353,10 +353,12 @@ class JobCostEstimator:
             # (see line below where it is stored). No further reach weighting here —
             # applying it again would square the probability for any prior question
             # with reach < 1.
-            memory_tokens = sum(
-                output_estimates.get(pq, 0)
-                for pq in memory_qs
-            )
+            memory_tokens = sum(output_estimates.get(pq, 0) for pq in memory_qs)
+            # For multi-call question types (e.g. interview), memory appears in every
+            # model call, not just once. Use memory_multiplier if the estimator exposes it.
+            estimator = self.question_estimator._registry.get(question.question_type)
+            if estimator is not None and hasattr(estimator, "memory_multiplier"):
+                memory_tokens *= estimator.memory_multiplier(question)
 
             # Assemble full estimate
             full_estimate = QuestionTokenEstimate(
