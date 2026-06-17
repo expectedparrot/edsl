@@ -1,6 +1,7 @@
 from types import SimpleNamespace
 from edsl.jobs.cost_estimation.question_estimators import (
     QuestionEstimator,
+    InterviewEstimator,
     FreeTextStyleEstimator,
     StructuredAnswerEstimator,
     ZeroCostEstimator,
@@ -57,13 +58,15 @@ class TestDispatch:
         result, _ = estimator.estimate(make_question("functional"), make_prompts())
         assert result.billable is False
 
-    def test_interview_uses_fixed_token_amount(self):
-        """interview answer is always 500 tokens regardless of prompt length."""
+    def test_interview_uses_turn_based_estimate(self):
+        """interview uses InterviewEstimator: answer_tokens = default_turns * (interviewer + respondent output)."""
         estimator = QuestionEstimator()
         result, _ = estimator.estimate(
             make_question("interview"), make_prompts(user="x" * 400)
         )
-        assert result.answer_tokens == 500
+        # default_turns=5, interviewer_output=50, respondent_output=100
+        assert result.answer_tokens == 5 * (50 + 100)
+        assert result.billable is True
 
     def test_free_text_answer_scales_with_prompt(self):
         # 400 chars / 4 = 100 prompt tokens; free_text uses TokenRatio(1.0)
