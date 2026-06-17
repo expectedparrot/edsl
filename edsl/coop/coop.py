@@ -2686,12 +2686,15 @@ class Coop(CoopFunctionsMixin):
 
         return CoopJobsObjects(jobs)
 
-    def get_error_report_markdown(self, job_uuid: Union[str, UUID]) -> str:
+    def get_error_report_markdown(
+        self, job_uuid: Union[str, UUID], save_path: Optional[str] = None
+    ) -> str:
         """
         Retrieve the markdown-rendered exception report for the most recent error on a job.
 
         Parameters:
             job_uuid (Union[str, UUID]): The UUID of the remote inference job.
+            save_path (str, optional): If provided, saves the markdown report to this file path.
 
         Returns:
             str: The error report rendered as a markdown string.
@@ -2702,13 +2705,18 @@ class Coop(CoopFunctionsMixin):
 
         Example:
             >>> print(coop.get_error_report_markdown(job_uuid))
+            >>> coop.get_error_report_markdown(job_uuid, save_path="error_report.md")
         """
         response = self._send_server_request(
             uri=f"api/v0/remote-inference/job/{job_uuid}/error-report",
             method="GET",
         )
         self._resolve_server_response(response)
-        return response.json()["report"]
+        report = response.json()["report"]
+        if save_path is not None:
+            with open(save_path, "w", encoding="utf-8") as f:
+                f.write(report)
+        return report
 
     def get_running_jobs(self) -> List[str]:
         """
@@ -4236,6 +4244,58 @@ class Coop(CoopFunctionsMixin):
             filter_scenarios.append(scenario)
         return CoopProlificFilters(filter_scenarios)
 
+    def calculate_prolific_study_cost(
+        self,
+        participant_payment_cents: int,
+        num_participants: int,
+        estimated_completion_time_minutes: int,
+    ) -> dict:
+        """
+        Calculate the total cost of a Prolific study.
+
+        Parameters:
+            participant_payment_cents (int): Reward per participant in cents.
+            num_participants (int): Number of participants.
+            estimated_completion_time_minutes (int): Expected completion time in minutes,
+                used to check that the effective hourly rate meets Prolific's minimum ($8/hr).
+
+        Returns:
+            dict: A dict with:
+                - cost_cents: Total cost in cents.
+                - cost_credits: Total cost in EP credits.
+                - is_underpayment: True if the effective hourly rate is below Prolific's minimum ($8.00/hr).
+                - underpayment_warning: A warning message if is_underpayment is True, otherwise None.
+
+        Raises:
+            CoopServerResponseError: If the server returns an error.
+        """
+        is_underpayment, cost_usd_per_hour = self._validate_prolific_study_cost(
+            estimated_completion_time_minutes, participant_payment_cents
+        )
+        response = self._send_server_request(
+            uri="api/v0/prolific-studies/calculate-cost",
+            method="POST",
+            payload={
+                "reward": participant_payment_cents,
+                "total_available_places": num_participants,
+            },
+        )
+        self._resolve_server_response(response)
+        data = response.json()
+        return {
+            "cost_cents": data["cost_cents"],
+            "cost_credits": data["cost_credits"],
+            "is_underpayment": is_underpayment,
+            "underpayment_warning": (
+                (
+                    f"The current participant payment of ${cost_usd_per_hour:.2f} USD per hour "
+                    "is below the minimum payment for using Prolific ($8.00 USD per hour)."
+                )
+                if is_underpayment
+                else None
+            ),
+        }
+
     @staticmethod
     def _validate_prolific_study_cost(
         estimated_completion_time_minutes: int, participant_payment_cents: int
@@ -4245,6 +4305,8 @@ class Coop(CoopFunctionsMixin):
         Otherwise, return False.
         The second value in the tuple is the cost of the study in USD per hour.
         """
+        if estimated_completion_time_minutes <= 0:
+            raise CoopValueError("Estimated completion time must be greater than 0.")
         estimated_completion_time_hours = estimated_completion_time_minutes / 60
         participant_payment_usd = participant_payment_cents / 100
         cost_usd_per_hour = participant_payment_usd / estimated_completion_time_hours
