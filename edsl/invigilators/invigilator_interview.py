@@ -48,9 +48,11 @@ class InvigilatorInterview(InvigilatorBase):
         }
 
     def _replacement_dict(self) -> dict[str, Any]:
-        return self.scenario | self.prompt_constructor.prior_answers_dict() | {
-            "agent": self.agent.traits
-        }
+        return (
+            self.scenario
+            | self.prompt_constructor.prior_answers_dict()
+            | {"agent": self.agent.traits}
+        )
 
     def _rendered_question(self):
         replacement_dict = self._replacement_dict()
@@ -108,7 +110,9 @@ class InvigilatorInterview(InvigilatorBase):
                 else:
                     return {
                         "done": bool(parsed.get("done", False)),
-                        "acknowledgment": str(parsed.get("acknowledgment", "") or "").strip(),
+                        "acknowledgment": str(
+                            parsed.get("acknowledgment", "") or ""
+                        ).strip(),
                         "question": str(parsed.get("question", "") or "").strip(),
                     }
 
@@ -118,7 +122,11 @@ class InvigilatorInterview(InvigilatorBase):
             return {"done": False, "acknowledgment": "", "question": stripped}
 
         if not isinstance(parsed, dict):
-            return {"done": False, "acknowledgment": "", "question": str(parsed).strip()}
+            return {
+                "done": False,
+                "acknowledgment": "",
+                "question": str(parsed).strip(),
+            }
 
         return {
             "done": bool(parsed.get("done", False)),
@@ -157,7 +165,7 @@ class InvigilatorInterview(InvigilatorBase):
             '- "acknowledgment": string\n'
             '- "question": string\n\n'
             "If the interview has covered the guide sufficiently, set done to true and "
-            'leave question empty. Otherwise set done to false and provide one natural next '
+            "leave question empty. Otherwise set done to false and provide one natural next "
             "interviewer utterance. Keep acknowledgment brief and professional."
         )
 
@@ -350,8 +358,16 @@ class InvigilatorInterview(InvigilatorBase):
             "thinking_tokens": self._sum_numeric(
                 [trace.model_outputs.thinking_tokens for trace in traces]
             ),
-            "input_price_per_million_tokens": None,
-            "output_price_per_million_tokens": None,
+            "input_price_per_million_tokens": (
+                traces[0].model_outputs.input_price_per_million_tokens
+                if traces
+                else None
+            ),
+            "output_price_per_million_tokens": (
+                traces[0].model_outputs.output_price_per_million_tokens
+                if traces
+                else None
+            ),
             "total_cost": self._sum_numeric(
                 [trace.model_outputs.total_cost for trace in traces]
             ),
