@@ -8,6 +8,7 @@ from edsl.surveys import Survey
 from edsl.caching import Cache
 
 from edsl.agents import AgentList
+from edsl.jobs.exceptions import JobsRunError
 from edsl.language_models import ModelList, Model, LanguageModel
 
 
@@ -53,6 +54,28 @@ def test_jobs_simple_stuf(valid_job):
     # serialize and de-serialize an empty job
     empty_job = Jobs(survey=Survey(questions=[valid_job.survey._questions[0]]))
     assert Jobs.from_dict(empty_job.to_dict()).to_dict() == empty_job.to_dict()
+
+
+def test_offload_execution_does_not_fallback_when_remote_unavailable(
+    valid_job, monkeypatch
+):
+    monkeypatch.setattr(
+        "edsl.jobs.remote_inference.JobsRemoteInferenceHandler.use_remote_inference",
+        lambda self, disable_remote_inference: False,
+    )
+
+    with pytest.raises(JobsRunError, match="Remote execution was requested"):
+        valid_job.run(cache=False, offload_execution=True)
+
+
+def test_disable_remote_inference_allows_local_execution(valid_job, monkeypatch):
+    monkeypatch.setattr(
+        "edsl.jobs.remote_inference.JobsRemoteInferenceHandler.use_remote_inference",
+        lambda self, disable_remote_inference: False,
+    )
+
+    results = valid_job.run(cache=False, disable_remote_inference=True)
+    assert results is not None
 
 
 def test_jobs_by_agents():

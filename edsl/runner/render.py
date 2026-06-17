@@ -218,9 +218,9 @@ class RenderService:
                     current_answers[other_task.question_name] = answer.answer
                     # Include comment for piping ({{ qname.comment }})
                     if answer.comment:
-                        current_answers[
-                            f"{other_task.question_name}_comment"
-                        ] = answer.comment
+                        current_answers[f"{other_task.question_name}_comment"] = (
+                            answer.comment
+                        )
 
         return current_answers
 
@@ -326,7 +326,9 @@ class RenderService:
         )
 
         system_prompt = str(prompts.get("system_prompt", ""))
-        if getattr(question, "question_type", None) == "thinking" or getattr(question, "_is_thinking_question", False):
+        if getattr(question, "question_type", None) == "thinking" or getattr(
+            question, "_is_thinking_question", False
+        ):
             system_prompt = getattr(question, "_system_prompt", "")
         return {
             "system_prompt": system_prompt,
@@ -373,7 +375,9 @@ class RenderService:
         )
 
         system_prompt = str(prompts.get("system_prompt", ""))
-        if getattr(question, "question_type", None) == "thinking" or getattr(question, "_is_thinking_question", False):
+        if getattr(question, "question_type", None) == "thinking" or getattr(
+            question, "_is_thinking_question", False
+        ):
             system_prompt = getattr(question, "_system_prompt", "")
         return {
             "system_prompt": system_prompt,
@@ -421,6 +425,19 @@ class RenderWorker:
         self._jobs = JobStore(storage)
         self._answers = AnswerStore(storage)
         self._job_service = job_service  # Optional, for skip logic evaluation
+
+    @staticmethod
+    def _resolve_memory_plan(
+        cached_survey: Survey | None, mini_survey: Survey
+    ) -> MemoryPlan:
+        """Return the memory plan to use for prompt rendering.
+
+        Prefer the cached survey's plan (which carries set_full_memory_mode /
+        add_targeted_memory settings) over a blank plan built from the mini survey.
+        """
+        if cached_survey is not None:
+            return cached_survey.memory_plan
+        return MemoryPlan(survey=mini_survey)
 
     def render_ready_tasks(
         self,
@@ -779,14 +796,14 @@ class RenderWorker:
         # Instead of checking ALL interview tasks, only fetch answers for actual dependencies
         # This reduces O(n) to O(d) where d = number of dependencies (usually small)
         _t0 = _time.time()
-        answers_cache: dict[
-            str, dict[str, Any]
-        ] = {}  # interview_id -> {question_name -> answer}
+        answers_cache: dict[str, dict[str, Any]] = (
+            {}
+        )  # interview_id -> {question_name -> answer}
 
         # Collect all dependency task IDs from tasks being rendered
-        dep_task_ids_by_interview: dict[
-            str, set[str]
-        ] = {}  # interview_id -> set of dependency task_ids
+        dep_task_ids_by_interview: dict[str, set[str]] = (
+            {}
+        )  # interview_id -> set of dependency task_ids
         for task_id in tasks_to_render:
             task_def = all_task_defs.get(task_id)
             if task_def and task_def.depends_on:
@@ -890,9 +907,9 @@ class RenderWorker:
         # Caches for objects that depend on per-task context
         _permuted_questions: dict[tuple, "QuestionBase"] = {}
         _survey_cache: dict[tuple, tuple] = {}
-        _prompt_cache: dict[
-            tuple, dict
-        ] = {}  # Cache rendered prompts by input combination
+        _prompt_cache: dict[tuple, dict] = (
+            {}
+        )  # Cache rendered prompts by input combination
 
         from ..questions import QuestionFreeText as _QuestionFreeText
 
@@ -968,8 +985,14 @@ class RenderWorker:
                             )
                             questions_for_survey.append(stub)
                 questions_for_survey.append(question)
-                survey = Survey(questions_for_survey)
-                _survey_cache[survey_key] = (survey, MemoryPlan(survey=survey))
+                mini_survey = Survey(questions_for_survey)
+                memory_plan = self._resolve_memory_plan(cached_survey, mini_survey)
+                # Use the full cached survey (with instructions) for prompt rendering;
+                # fall back to the mini survey if not available.
+                render_survey = (
+                    cached_survey if cached_survey is not None else mini_survey
+                )
+                _survey_cache[survey_key] = (render_survey, memory_plan)
 
             survey, memory_plan = _survey_cache[survey_key]
             _survey_build_time += _time.time() - _t_survey
@@ -1029,9 +1052,9 @@ class RenderWorker:
                     question_id=task_def.question_id,
                     model_id=task_def.model_id,
                     model_name=model_data.get("model") if model_data else None,
-                    service_name=model_data.get("inference_service")
-                    if model_data
-                    else None,
+                    service_name=(
+                        model_data.get("inference_service") if model_data else None
+                    ),
                     iteration=task_def.iteration,
                     agent_name=agent_data.get("name") if agent_data else None,
                     question_type=getattr(question, "question_type", None),

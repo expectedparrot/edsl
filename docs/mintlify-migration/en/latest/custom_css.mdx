@@ -6,6 +6,83 @@ sidebarTitle: "Custom CSS"
 
 Every question component supported by humanize has `edsl-*` CSS classes so you can customise the survey appearance.
 
+## Applying custom CSS
+
+### When creating a human survey
+
+Pass your CSS string in the `humanize_schema` under `survey.custom_css`.
+
+```python
+from edsl import Survey, QuestionFreeText, QuestionMultipleChoice
+
+survey = Survey([
+    QuestionMultipleChoice(
+        question_name="rating",
+        question_text="Rate your experience.",
+        question_options=["Good", "OK", "Bad"],
+    ),
+    QuestionFreeText(
+        question_name="feedback",
+        question_text="Any additional feedback you'd like to share?",
+    ),
+])
+
+custom_css = """
+.edsl-survey-container { background-color: #f9f9f9; }
+.edsl-question-text { font-weight: bold; color: #333; }
+"""
+
+humanize_schema = {
+    "questions": {
+        "rating": {"format": {"type": "dropdown"}},
+        "feedback": {"optional": True},
+    },
+    "survey": {"custom_css": custom_css},
+}
+
+survey.humanize(humanize_schema=humanize_schema)
+```
+
+Pass `"survey": {"custom_css": None}` (or omit `custom_css`) to create the survey without any custom CSS.
+
+### Updating CSS on an existing human survey
+
+Use `Coop.patch_human_survey_css` to set or clear the CSS on a human survey that already exists.
+
+```python
+from edsl import Coop
+
+coop = Coop()
+
+# Set or replace CSS
+coop.patch_human_survey_css(
+    human_survey_uuid="your-human-survey-uuid",
+    css=".edsl-survey-container { background-color: #fff; }",
+)
+
+# Clear existing CSS
+coop.patch_human_survey_css(
+    human_survey_uuid="your-human-survey-uuid",
+    css=None,
+)
+```
+
+## Survey-level classes
+
+| Class | Element | Notes |
+|---|---|---|
+| `edsl-survey-container` | Outermost container of the entire survey | Use to set background color for the whole survey |
+
+## Common question classes
+
+These classes are present on every question regardless of type.
+
+| Class | Element | Notes |
+|---|---|---|
+| `edsl-question` | Outermost `<div>` of every question | Always present |
+| `edsl-question-text` | Question prompt `<div>` | Rendered from `question_text` |
+| `edsl-question-image` | `<img>` embedded in a question | Image blocks in question text |
+
 ## Question-specific HTML
 
 ### Budget
@@ -82,51 +159,109 @@ Every question component supported by humanize has `edsl-*` CSS classes so you c
 
 ### File upload
 
-<Tabs>
-  <Tab title="Multiple files">
 ```html
 <div class="edsl-question edsl-file-upload-question">
   <div class="edsl-question-text">Upload supporting documents.</div>
-  <div>
-    <input type="file" multiple />
-    <div>
-      <span>2 files chosen</span>
-      <button type="button">Choose Files</button>
+
+  <!-- edsl-file-upload-dragging is added to this element while a drag is in progress -->
+  <div class="edsl-file-upload-dropzone [edsl-file-upload-dragging]">
+
+    <!-- clickable / drag-and-drop target -->
+    <div role="button" class="edsl-file-upload-target">
+      <input type="file" multiple class="sr-only" />
+      <div class="edsl-file-upload-icon-wrapper">
+        <!-- upload icon -->
+        <svg class="edsl-file-upload-icon">…</svg>
+      </div>
+      <p class="edsl-file-upload-title">Upload files</p>
+      <p class="edsl-file-upload-subtitle">Drag & drop or click to browse</p>
+      <!-- shown when file-type / size constraints are set -->
+      <p class="edsl-file-upload-hints">All file types · Max 10 files · Up to 1 GB per file</p>
     </div>
-  </div>
-  <div class="edsl-file-list">
-    <div>
-      <p>Selected files (2):</p>
-      <button type="button">Clear all</button>
+
+    <!-- shown only when there are file-level errors -->
+    <div class="edsl-file-upload-errors">
+      <!-- error messages -->
+      <button type="button"><!-- dismiss --></button>
     </div>
-    <div class="edsl-file-item">
-      <p>doc1.pdf <span>(24 KB)</span></p>
-      <button type="button">Remove</button>
+
+    <!-- shown only when files have been added -->
+    <div class="edsl-file-list">
+      <div class="edsl-file-list-header">
+        <span>Files (2)</span>
+        <button type="button" class="edsl-file-remove-all">Remove all</button>
+      </div>
+
+      <!-- card layout (small screens) -->
+      <div class="edsl-file-cards">
+        <div class="edsl-file-item">
+          <div class="edsl-file-item-icon-wrapper">
+            <svg class="edsl-file-item-icon">…</svg>
+          </div>
+          <div>
+            <p class="edsl-file-item-name">doc1.pdf</p>
+            <div>
+              <p class="edsl-file-item-size">24 KB</p>
+              <span class="edsl-file-item-status">
+                <!-- while uploading: -->
+                <span class="edsl-file-status-uploading">
+                  <div class="edsl-file-progress-track">
+                    <div class="edsl-file-progress-fill" style="width: 60%"></div>
+                  </div>
+                  Uploading…
+                </span>
+                <!-- on success: -->
+                <span class="edsl-file-status-done">Done</span>
+                <!-- on failure: -->
+                <span class="edsl-file-status-error">Failed</span>
+              </span>
+            </div>
+          </div>
+          <button type="button" class="edsl-file-item-remove"><!-- trash icon --></button>
+        </div>
+      </div>
+
+      <!-- table layout (medium+ screens) -->
+      <div class="edsl-file-table-wrapper">
+        <table class="edsl-file-table">
+          <thead class="edsl-file-table-header">
+            <tr class="edsl-file-table-header-row">
+              <th class="edsl-file-table-header-cell">Name</th>
+              <th class="edsl-file-table-header-cell">Size</th>
+              <th class="edsl-file-table-header-cell">Upload Status</th>
+              <th class="edsl-file-table-header-cell">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="edsl-file-table-row">
+              <td>
+                <svg class="edsl-file-item-icon">…</svg>
+                <span>doc1.pdf</span>
+              </td>
+              <td>24 KB</td>
+              <td>
+                <!-- one of: -->
+                <span class="edsl-file-status-uploading">
+                  <div class="edsl-file-progress-track">
+                    <div class="edsl-file-progress-fill" style="width: 60%"></div>
+                  </div>
+                </span>
+                <span class="edsl-file-status-done">Done</span>
+                <span class="edsl-file-status-error">Failed</span>
+              </td>
+              <td>
+                <button type="button" class="edsl-file-item-remove"><!-- trash icon --></button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </div>
-    <div class="edsl-file-item">
-      <p>doc2.pdf <span>(18 KB)</span></p>
-      <button type="button">Remove</button>
-    </div>
+
   </div>
   <p class="edsl-error">…</p>
 </div>
 ```
-  </Tab>
-  <Tab title="Single file">
-```html
-<div class="edsl-question edsl-file-upload-question">
-  <div class="edsl-question-text">Upload your CV.</div>
-  <input type="file" />
-  <!-- shown after a file is selected -->
-  <div>
-    <p>Selected: resume.pdf (142 KB)</p>
-    <button type="button">Clear</button>
-  </div>
-  <p class="edsl-error">…</p>
-</div>
-```
-  </Tab>
-</Tabs>
 
 ### Free text
 

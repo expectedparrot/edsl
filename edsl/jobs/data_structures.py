@@ -88,6 +88,7 @@ class RunParameters(Base):
         fresh (bool): If True, ignore cache and generate new results, default is False
         new_format (bool): If True, uses remote_inference_create method, if False uses old_remote_inference_create method, default is True
         alert_on_completion_config (dict, optional): Config for job completion alerts (email and/or webhooks). Dict with "email" (bool) and "webhooks" (list of {"url": str}, max 3).
+        results_description (str, optional): Description for the initial results object created by remote inference. Only used with offloaded execution.
     """
 
     n: int = 1
@@ -123,6 +124,7 @@ class RunParameters(Base):
         None  # Custom EXPECTED_PARROT_API_KEY to use for this job run
     )
     alert_on_completion_config: Optional[dict] = None
+    results_description: Optional[str] = None
 
     def to_dict(self, add_edsl_version=False) -> dict:
         d = asdict(self)

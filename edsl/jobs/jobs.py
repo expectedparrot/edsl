@@ -35,6 +35,7 @@ from .data_structures import RunEnvironment, RunParameters, RunConfig
 from .check_survey_scenario_compatibility import CheckSurveyScenarioCompatibility
 from .decorators import with_config
 from ..coop.exceptions import CoopServerResponseError
+from .cost_estimation import JobCostEstimator, JobCostEstimate, TokenOverride
 
 
 def get_bucket_collection():
@@ -64,6 +65,7 @@ def get_interview():
 if TYPE_CHECKING:
     from ..agents import Agent
     from ..agents import AgentList
+    from ..coop.coop_humanize_notifications import DeliveryMap
     from ..language_models import LanguageModel
     from ..scenarios import Scenario, ScenarioList
     from ..surveys import Survey
@@ -561,6 +563,41 @@ class Jobs(Base):
 
         return result
 
+    def estimate_remote_job_cost(
+        self,
+        token_overrides: dict[str, TokenOverride | list[TokenOverride]] | None = None,
+        branch_weights: dict[tuple, float] | None = None,
+        price_lookup: dict | None = None,
+        chars_per_token: int | None = None,
+    ) -> "JobCostEstimate":
+        """Estimate the cost of running this job using the new cost estimator.
+
+        Args:
+            token_overrides: Per-question-name TokenOverride overrides.
+                Only non-None fields are applied; others use the estimated value.
+            branch_weights: dict keyed by (from_question_name, to_question_name)
+                with probability of taking that branch. Used to compute expected
+                cost when the survey has skip logic.
+            price_lookup: Price dict keyed by (inference_service, model).
+                If None, fetched from Coop.
+            chars_per_token: Override the default characters-per-token ratio.
+
+        Returns:
+            JobCostEstimate with .total_cost_usd, .detail, .warnings,
+            and .to_markdown() for a human-readable summary.
+        """
+        kwargs = {}
+        if chars_per_token is not None:
+            kwargs["chars_per_token"] = chars_per_token
+
+        estimator = JobCostEstimator(**kwargs)
+        return estimator.estimate_cost(
+            self,
+            token_overrides=token_overrides,
+            branch_weights=branch_weights,
+            price_lookup=price_lookup,
+        )
+
     @staticmethod
     def compute_job_cost(job_results: Results) -> float:
         """Compute the cost of a completed job in USD."""
@@ -678,7 +715,7 @@ class Jobs(Base):
                 self.survey, scenario=scenario, agent=None
             ).show_flow(filename=filename)
 
-    def push(self, *args, **kwargs) -> None:
+    def push(self, *args, **kwargs):
         """Push the job to the remote server, in pieces."""
         from ..agents import AgentList
         from ..scenarios import ScenarioList
@@ -1003,6 +1040,7 @@ class Jobs(Base):
             fresh=self.run_config.parameters.fresh,
             new_format=self.run_config.parameters.new_format,
             alert_on_completion_config=self.run_config.parameters.alert_on_completion_config,
+            results_description=self.run_config.parameters.results_description,
         )
         return job_info
 
@@ -1042,7 +1080,17 @@ class Jobs(Base):
                     "Remote execution completed but results could not be retrieved."
                 )
         else:
-            return None, None
+            if self.run_config.parameters.disable_remote_inference:
+                return None, None
+
+            from .exceptions import JobsRunError
+
+            raise JobsRunError(
+                "Remote execution was requested, but remote inference is not "
+                "available. Check EXPECTED_PARROT_URL, EXPECTED_PARROT_API_KEY, "
+                "and the remote inference setting. To run locally, pass "
+                "disable_remote_inference=True or offload_execution=False."
+            )
 
     def _prepare_to_run(self) -> None:
         """Prepare the job to run and ensure keys are in place for a remote job."""
@@ -1710,6 +1758,9 @@ class Jobs(Base):
         alert_on_completion_config : dict or AlertOnCompletionConfig, optional
             Config for job completion alerts (email and/or webhooks). Pass a dict with
             "email" (bool) and "webhooks" (list of {"url": str}, max 3 items).
+        results_description : str, optional
+            Description for the initial results object. Only used with remote inference
+            (offloaded execution).
 
         Returns
         -------
@@ -1718,7 +1769,8 @@ class Jobs(Base):
         Notes
         -----
             - This method will first try to use remote inference if available
-            - If remote inference is not available, it will run locally
+            - If remote inference is unavailable (no EP API key, connection error, or setting disabled),
+              a JobsRunError is raised unless disable_remote_inference=True is explicitly passed
             - For long-running jobs, consider using progress_bar=True
             - For maximum performance, ensure appropriate caching is configured
 
@@ -2596,21 +2648,26 @@ class Jobs(Base):
         survey_description: Optional[str] = None,
         survey_alias: Optional[str] = None,
         survey_visibility: Optional["VisibilityType"] = "private",
+        agent_list_description: Optional[str] = None,
+        agent_list_alias: Optional[str] = None,
+        agent_list_visibility: Optional["VisibilityType"] = "private",
         scenario_list_description: Optional[str] = None,
         scenario_list_alias: Optional[str] = None,
         scenario_list_visibility: Optional["VisibilityType"] = "private",
         humanize_schema: Optional[Dict[str, Any]] = None,
+        delivery_map: Optional["DeliveryMap"] = None,
     ):
-        """Send the survey and scenario list to Coop.
+        """Send survey, scenarios, and agents to Coop.
 
         Then, create a project on Coop so you can share the survey with human respondents.
         """
         from edsl.coop import Coop
         from edsl.coop.exceptions import CoopValueError
         from ..scenarios import Scenario
+        from ..surveys import Survey
 
-        if len(self.agents) > 0 or len(self.models) > 0:
-            raise CoopValueError("We don't support humanize with agents or models yet.")
+        if len(self.models) > 0:
+            raise CoopValueError("We don't support humanize with models yet.")
 
         if len(self.scenarios) > 0 and scenario_list_method is None:
             raise CoopValueError(
@@ -2640,19 +2697,29 @@ class Jobs(Base):
         else:
             scenario_list = self.scenarios
 
+        if len(self.agents) == 0:
+            agent_list = None
+        else:
+            agent_list = self.agents
+
         c = Coop()
         human_survey_details = c.create_human_survey(
-            self.survey,
-            scenario_list,
-            scenario_list_method,
-            human_survey_name,
-            survey_description,
-            survey_alias,
-            survey_visibility,
-            scenario_list_description,
-            scenario_list_alias,
-            scenario_list_visibility,
+            survey=self.survey,
+            agent_list=agent_list,
+            scenario_list=scenario_list,
+            scenario_list_method=scenario_list_method,
+            human_survey_name=human_survey_name,
+            survey_description=survey_description,
+            survey_alias=survey_alias,
+            survey_visibility=survey_visibility,
+            agent_list_description=agent_list_description,
+            agent_list_alias=agent_list_alias,
+            agent_list_visibility=agent_list_visibility,
+            scenario_list_description=scenario_list_description,
+            scenario_list_alias=scenario_list_alias,
+            scenario_list_visibility=scenario_list_visibility,
             humanize_schema=humanize_schema,
+            delivery_map=delivery_map,
         )
         return Scenario(human_survey_details)
 

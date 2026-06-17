@@ -39,6 +39,7 @@ class SourcePreferenceHandler:
         self,
         source_preferences: Optional[List[str]] = None,
         service_name: Optional[str] = None,
+        verbose: bool = False,
     ) -> Dict[str, List["ModelInfo"]]:
         """
         Iterate through source preferences to find and fetch model info data.
@@ -49,6 +50,7 @@ class SourcePreferenceHandler:
         Args:
             source_preferences: Optional list of source preferences to override the default
             service_name: Optional service name to fetch models only for that service
+            verbose: If True, print detailed logs for this call only (does not affect self.verbose)
 
         Returns:
             Dictionary mapping service names to lists of ModelInfo objects
@@ -57,6 +59,7 @@ class SourcePreferenceHandler:
             ValueError: If no source can successfully fetch model information
         """
         fetchers = ModelInfoFetcherABC.get_registered_fetchers()
+        _verbose = self.verbose or verbose
 
         if source_preferences is not None:
             applicable_source_preferences = source_preferences
@@ -65,18 +68,19 @@ class SourcePreferenceHandler:
 
         for source in applicable_source_preferences:
             if source not in fetchers:
-                if self.verbose:
+                if _verbose:
                     print(
                         f"[SOURCE_HANDLER] Fetcher '{source}' not registered. Available: {list(fetchers.keys())}"
                     )
                 continue
 
-            if self.verbose:
+            if _verbose:
                 print(f"[SOURCE_HANDLER] Trying source: {source}")
 
+            result = None
             try:
                 model_info_fetcher: ModelInfoFetcherABC = fetchers[source](
-                    self.registry
+                    self.registry, verbose=_verbose
                 )
                 # Pass service_name to fetch method
                 model_info_fetcher.fetch(service_name=service_name)
@@ -85,34 +89,39 @@ class SourcePreferenceHandler:
                 if len(model_info_fetcher) > 0:
                     # If a specific service was requested, check if we have models for it
                     if service_name and service_name not in model_info_fetcher.data:
-                        if self.verbose:
+                        if _verbose:
                             print(
                                 f"[SOURCE_HANDLER] Source '{source}' returned data but no models for service '{service_name}', trying next source"
                             )
                         continue
 
-                    if self.verbose:
+                    if _verbose:
                         print(
                             f"[SOURCE_HANDLER] Successfully fetched data from source: {source}"
                         )
                     self._used_source = source
-
-                    if source != "archive":
-                        if self.verbose:
-                            print("[SOURCE_HANDLER] Writing to archive")
-                        model_info_fetcher.write_to_archive()
-
-                    return dict(model_info_fetcher)
-                else:
-                    if self.verbose:
-                        print(f"[SOURCE_HANDLER] Source '{source}' returned empty data")
+                    result = dict(model_info_fetcher)
 
             except Exception as e:
-                if self.verbose:
+                if _verbose:
                     print(
                         f"[SOURCE_HANDLER] Error fetching from source '{source}': {e}"
                     )
                 continue
+
+            if result is not None:
+                if source != "archive":
+                    if _verbose:
+                        print("[SOURCE_HANDLER] Writing to archive")
+                    try:
+                        model_info_fetcher.write_to_archive()
+                    except Exception as e:
+                        if _verbose:
+                            print(f"[SOURCE_HANDLER] Archive write failed (non-fatal): {e}")
+                return result
+            else:
+                if _verbose:
+                    print(f"[SOURCE_HANDLER] Source '{source}' returned empty data")
 
         # If we get here, no source worked
         available_sources = list(fetchers.keys())

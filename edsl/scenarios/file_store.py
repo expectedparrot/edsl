@@ -129,7 +129,9 @@ class FileStore(Scenario):
             or (mimetypes.guess_type(path)[0] if path else None)
             or "application/octet-stream"
         )
-        self.base64_string = base64_string or self.encode_file_to_base64_string(path or "")
+        self.base64_string = base64_string or self.encode_file_to_base64_string(
+            path or ""
+        )
         self.external_locations = external_locations or {}
 
         self.extracted_text = (
@@ -296,7 +298,9 @@ class FileStore(Scenario):
     ) -> "FileStore":
         """Async version of screenshot functionality"""
         try:
-            from playwright.async_api import async_playwright  # ty: ignore[unresolved-import]
+            from playwright.async_api import (
+                async_playwright,
+            )  # ty: ignore[unresolved-import]
         except ImportError:
             raise ImportError(
                 "Screenshot functionality requires additional dependencies.\n"
@@ -798,7 +802,9 @@ class FileStore(Scenario):
                 file_store_dict["base64_string"] = "offloaded"
             return self.__class__.from_dict(file_store_dict)
 
-    def save_to_gcs_bucket(self, signed_url_or_dict: Union[str, Dict[str, str]]) -> dict:
+    def save_to_gcs_bucket(
+        self, signed_url_or_dict: Union[str, Dict[str, str]]
+    ) -> dict:
         """
         Saves the FileStore's file content to a Google Cloud Storage bucket using a signed URL.
 
@@ -834,7 +840,11 @@ class FileStore(Scenario):
         }
 
         # Upload to GCS using the signed URL
-        signed_url = signed_url_or_dict if isinstance(signed_url_or_dict, str) else signed_url_or_dict.get("url", "")
+        signed_url = (
+            signed_url_or_dict
+            if isinstance(signed_url_or_dict, str)
+            else signed_url_or_dict.get("url", "")
+        )
         response = requests.put(signed_url, data=file_content, headers=headers)
         response.raise_for_status()
 
@@ -845,6 +855,64 @@ class FileStore(Scenario):
             "mime_type": self.mime_type,
             "file_extension": self.suffix,
         }
+
+    @classmethod
+    def from_file_upload_answer(
+        cls,
+        file_info: dict,
+        expected_parrot_url: Optional[str] = None,
+    ) -> "FileStore":
+        """
+        Create a FileStore from a single entry in a QuestionFileUpload answer.
+
+        Calls the Coop endpoint to obtain a signed download URL, then fetches
+        the file and wraps it in a FileStore.
+
+        Args:
+            file_info: A dict with at minimum a 'gcs_path' key, as returned in
+                       the answer list for a QuestionFileUpload question.
+                       Optionally includes 'name', 'mime_type', and 'extension'.
+            expected_parrot_url: Optional override for the Coop server URL.
+
+        Returns:
+            FileStore: The downloaded file.
+
+        Example::
+
+            answer = results[0]['answer']['my_upload_question']
+            for file_info in answer:
+                fs = FileStore.from_file_upload_answer(file_info)
+        """
+        from ..coop import Coop
+
+        coop = Coop(url=expected_parrot_url) if expected_parrot_url else Coop()
+        response = coop._send_server_request(
+            uri="api/v0/human-survey-file-uploads/download-url",
+            method="POST",
+            payload={"gcs_path": file_info["gcs_path"]},
+        )
+        response.raise_for_status()
+        response_data = response.json()
+        download_url = response_data.get("url")
+        if not download_url:
+            raise ValueError(
+                f"Server did not return a download URL. Response: {response_data}"
+            )
+
+        # Save under the original filename in a fresh temp dir so the suffix is
+        # correct and there's no collision if the same name appears in multiple uploads.
+
+        name = os.path.basename(file_info.get("name") or "")
+        if not name:
+            extension = file_info.get("extension", "")
+            name = f"file.{extension}" if extension else "file"
+        download_path = os.path.join(tempfile.mkdtemp(), name)
+
+        return cls.from_url(
+            download_url,
+            download_path=download_path,
+            mime_type=file_info.get("mime_type"),
+        )
 
     @classmethod
     def pull(
@@ -908,24 +976,33 @@ class FileStore(Scenario):
         try:
             from edsl.utilities.display_utils import HTML
         except ImportError:
+
             class HTML:
                 def __init__(self, content):
                     self.content = content
+
                 def _repr_html_(self):
                     return self.content
+
         return HTML(self._html_download_link(custom_filename or self.path, style))
 
     def _html_download_link(self, custom_filename=None, style=None):
         """Generate an HTML download link string for this FileStore."""
         import os as _os
+
         filename = _os.path.basename(custom_filename or self.path)
         b64_data = self.base64_string
         mime_type = self.mime_type
         default_style = {
-            "background-color": "#4CAF50", "color": "white",
-            "padding": "10px 20px", "text-decoration": "none",
-            "border-radius": "4px", "display": "inline-block",
-            "margin": "10px 0", "font-family": "sans-serif", "cursor": "pointer",
+            "background-color": "#4CAF50",
+            "color": "white",
+            "padding": "10px 20px",
+            "text-decoration": "none",
+            "border-radius": "4px",
+            "display": "inline-block",
+            "margin": "10px 0",
+            "font-family": "sans-serif",
+            "cursor": "pointer",
         }
         button_style = style or default_style
         style_str = "; ".join(f"{k}: {v}" for k, v in button_style.items())
