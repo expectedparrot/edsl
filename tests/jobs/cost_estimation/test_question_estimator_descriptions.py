@@ -80,7 +80,11 @@ class TestDescribeMethods:
     def test_description_for_interview(self):
         assert (
             QuestionEstimator().description_for("interview")
-            == "Output fixed at 500 tokens"
+            == "Turn-based interview: estimates 5 turns. "
+               "Each turn makes two model calls (interviewer + respondent). "
+               "Input cost rises with each turn because the full transcript is included in every call. "
+               "Output estimated at ~50 tokens/turn (interviewer) "
+               "and ~100 tokens/turn (respondent)."
         )
 
     def test_description_for_free_text(self):

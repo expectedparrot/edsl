@@ -77,13 +77,142 @@ class ZeroCostEstimator:
         return f"ZeroCostEstimator(answer={self.answer})"
 
 
+class InterviewEstimator:
+    """Cost estimator for QuestionInterview.
+
+    A single QuestionInterview runs as 2*T model calls (one interviewer decision +
+    one respondent reply per turn). The transcript is included in every call and
+    grows by one exchange each turn, so input tokens accumulate non-linearly.
+
+    Parameters
+    ----------
+    default_turns:
+        Expected number of turns. Capped at the question's max_turns if lower.
+        Because input cost grows with the square of turns (each turn re-reads the
+        full transcript), overestimating turns is much more expensive than it looks —
+        estimating 10 turns when 6 actually run overcounts transcript tokens by 3×,
+        not 1.67×. Set this to a typical observed turn count rather than max_turns.
+    interviewer_output_tokens:
+        Tokens per interviewer response. The interviewer emits a small JSON object
+        (done/acknowledgment/question), so this is much smaller than a free-text reply.
+    respondent_output_tokens:
+        Tokens per respondent reply. Free-form prose — typically much larger than
+        the interviewer output.
+    avg_utterance_tokens:
+        Tokens in the interviewer utterance appended to the transcript each turn.
+        This text appears in both the interviewer prompt (as part of the growing
+        transcript on the *next* turn) and the respondent prompt (as the latest
+        interviewer utterance). Kept separate from respondent_output_tokens because
+        it is a distinct message in the transcript.
+    interviewer_overhead_tokens:
+        Fixed token overhead in _build_interviewer_user_prompt beyond question_text
+        and interview_guide: the turn-index line and the JSON-format instructions.
+    respondent_overhead_tokens:
+        Fixed token overhead in _build_respondent_user_prompt beyond question_text,
+        interview_guide, and memory: the closing instruction line.
+    interviewer_system_tokens:
+        Tokens in the fixed interviewer_system_prompt class attribute on
+        InvigilatorInterview (the "You are an expert qualitative interviewer…" string).
+    """
+
+    def __init__(
+        self,
+        default_turns: int = 5,
+        interviewer_output_tokens: int = 50,
+        respondent_output_tokens: int = 100,
+        avg_utterance_tokens: int = 30,
+        interviewer_overhead_tokens: int = 60,
+        respondent_overhead_tokens: int = 60,
+        interviewer_system_tokens: int = 40,
+        chars_per_token: int = EDSL_DEFAULT_CHARS_PER_TOKEN,
+    ):
+        self.default_turns = default_turns
+        self.interviewer_output_tokens = interviewer_output_tokens
+        self.respondent_output_tokens = respondent_output_tokens
+        self.avg_utterance_tokens = avg_utterance_tokens
+        self.interviewer_overhead_tokens = interviewer_overhead_tokens
+        self.respondent_overhead_tokens = respondent_overhead_tokens
+        self.interviewer_system_tokens = interviewer_system_tokens
+        self.chars_per_token = chars_per_token
+
+    def _effective_turns(self, question: "QuestionBase") -> int:
+        max_turns = getattr(question, "max_turns", self.default_turns)
+        return max(1, min(self.default_turns, max_turns))
+
+    def __call__(
+        self,
+        question: "QuestionBase",
+        prompts: dict,
+        model: "LanguageModel | None" = None,
+        *,
+        per_turn_base_tokens: int | None = None,
+    ) -> QuestionTokenEstimate:
+        T = self._effective_turns(question)
+
+        if per_turn_base_tokens is not None:
+            # Precomputed by JobCostEstimator from the invigilator's actual prompt
+            # builders (rendered question + respondent system prompt including agent).
+            # avg_utterance_tokens is still added here because the base was computed
+            # with interviewer_utterance="" — the actual utterance content is separate.
+            fixed_per_turn = per_turn_base_tokens + self.avg_utterance_tokens
+        else:
+            # Standalone fallback: estimate from stored defaults.
+            Q = max(1, len(getattr(question, "question_text", "")) // self.chars_per_token)
+            G = max(1, len(getattr(question, "interview_guide", "")) // self.chars_per_token)
+            fixed_per_turn = (
+                2 * (Q + G)
+                + self.interviewer_overhead_tokens
+                + self.respondent_overhead_tokens
+                + self.interviewer_system_tokens
+                + self.avg_utterance_tokens
+            )
+
+        # Each turn re-reads the full transcript accumulated so far. At turn k both
+        # calls see k prior exchanges, so total transcript tokens = T*(T-1)*exchange_size.
+        transcript_growth = (
+            T * (T - 1) * (self.avg_utterance_tokens + self.respondent_output_tokens)
+        )
+
+        prompt_tokens = T * fixed_per_turn + transcript_growth
+        # Each turn produces one interviewer JSON blob and one respondent reply.
+        answer_tokens = T * (
+            self.interviewer_output_tokens + self.respondent_output_tokens
+        )
+
+        return QuestionTokenEstimate(
+            prompt_tokens=prompt_tokens,
+            answer_tokens=answer_tokens,
+            comment_tokens=0,
+        )
+
+    def memory_multiplier(self, question: "QuestionBase") -> int:
+        """Memory appears in every respondent call, so multiply by expected turns."""
+        return self._effective_turns(question)
+
+    def describe(self) -> str:
+        return (
+            f"Turn-based interview: estimates {self.default_turns} turns. "
+            f"Each turn makes two model calls (interviewer + respondent). "
+            f"Input cost rises with each turn because the full transcript is included in every call. "
+            f"Output estimated at ~{self.interviewer_output_tokens} tokens/turn (interviewer) "
+            f"and ~{self.respondent_output_tokens} tokens/turn (respondent)."
+        )
+
+    def __repr__(self) -> str:
+        return (
+            f"InterviewEstimator(default_turns={self.default_turns}, "
+            f"interviewer_output_tokens={self.interviewer_output_tokens}, "
+            f"respondent_output_tokens={self.respondent_output_tokens})"
+        )
+
+
 class FreeTextStyleEstimator:
     """For free-form answer types where the output is open-ended text.
 
     No comment field — all output is the answer. Output defaults to TokenRatio(1.0)
     (output ≈ input) since output length is unknown for these types.
 
-    Used for: free_text, extract, list, interview, markdown, edsl_object, dict,
+    Used for: free_text, extract, list, markdown, edsl_object, dict,
               pydantic, file_upload.
     """
 
@@ -293,7 +422,7 @@ def _build_default_registry(chars_per_token: int) -> dict[str, object]:
         "free_text": FreeTextStyleEstimator(output=TokenRatio(1.0), chars_per_token=c),
         "extract": FreeTextStyleEstimator(output=TokenRatio(1.0), chars_per_token=c),
         "list": FreeTextStyleEstimator(output=TokenRatio(1.0), chars_per_token=c),
-        "interview": FreeTextStyleEstimator(output=TokenAmount(500), chars_per_token=c),
+        "interview": InterviewEstimator(chars_per_token=c),
         "markdown": FreeTextStyleEstimator(output=TokenRatio(1.0), chars_per_token=c),
         "edsl_object": FreeTextStyleEstimator(
             output=TokenRatio(1.0), chars_per_token=c

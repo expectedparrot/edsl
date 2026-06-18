@@ -75,6 +75,9 @@ class JobService:
         self._original_models: dict[
             str, dict[str, Any]
         ] = {}  # job_id -> {model_id -> model_obj}
+        self._original_key_lookups: dict[
+            str, Any
+        ] = {}  # job_id -> run_config.environment.key_lookup
         self._interview_callbacks: dict[
             str, Any
         ] = {}  # job_id -> callable(job_id, interview_id)
@@ -122,6 +125,10 @@ class JobService:
             return None
 
         return LanguageModel.from_dict(model_data)
+
+    def get_key_lookup_for_job(self, job_id: str) -> Any:
+        """Get the original key lookup object for local job execution."""
+        return self._original_key_lookups.get(job_id)
 
     # =========================================================================
     # Job Submission
@@ -269,6 +276,9 @@ class JobService:
         all_models = dict(model_map)
         all_models.update(extra_models)
         self._original_models[job_id] = all_models
+        run_config = getattr(job, "run_config", None)
+        environment = getattr(run_config, "environment", None)
+        self._original_key_lookups[job_id] = getattr(environment, "key_lookup", None)
         logger.info(
             f"[SUBMIT {job_id[:8]}] write_models_batch ({len(models_batch)}): {(time.time() - t0)*1000:.1f}ms"
         )

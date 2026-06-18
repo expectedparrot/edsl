@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 from .cost_estimation_constants import EDSL_DEFAULT_CHARS_PER_TOKEN
 from .file_store_estimator import FileStoreEstimator
 from .job_cost_estimate import JobCostEstimate
-from .question_estimators import QuestionEstimator
+from .question_estimators import InterviewEstimator, QuestionEstimator
 from .question_token_estimate import QuestionTokenEstimate
 from .token_override import TokenOverride
 
@@ -314,10 +314,41 @@ class JobCostEstimator:
             inference_service = model._inference_service_
             model_name = model.model
 
-            # Base estimate from question estimator
-            base_estimate, q_warnings = self.question_estimator.estimate(
-                question, prompts, model
+            # Base estimate from question estimator.
+            # For interviews, render the question first (substituting scenario values
+            # and agent traits exactly as the invigilator does at runtime) so that
+            # Q and G reflect the actual text sent to the model.
+            interview_est = self.question_estimator._registry.get(
+                question.question_type
             )
+            if isinstance(interview_est, InterviewEstimator):
+                rendered_q = invigilator._rendered_question()
+                c = self.chars_per_token
+                # Build the per-turn base token count from the invigilator's actual
+                # prompt builders, using empty transcript and utterance so we get just
+                # the fixed overhead (Q, G, system prompts, format instructions).
+                # Transcript growth and utterance content are added by the estimator.
+                interviewer_sys = invigilator.interviewer_system_prompt
+                respondent_sys = invigilator._build_respondent_system_prompt()
+                interviewer_user = invigilator._build_interviewer_user_prompt(
+                    rendered_question=rendered_q, transcript=[], turn_index=0
+                )
+                respondent_user = invigilator._build_respondent_user_prompt(
+                    rendered_question=rendered_q, transcript=[], interviewer_utterance=""
+                )
+                per_turn_base = (
+                    len(interviewer_sys) + len(respondent_sys)
+                    + len(interviewer_user) + len(respondent_user)
+                ) // c
+                base_estimate = interview_est(
+                    rendered_q, prompts, model,
+                    per_turn_base_tokens=per_turn_base,
+                )
+                q_warnings = []
+            else:
+                base_estimate, q_warnings = self.question_estimator.estimate(
+                    question, prompts, model
+                )
             warnings.extend(q_warnings)
             estimator_name = self.question_estimator.estimator_name_for(
                 question.question_type
@@ -353,10 +384,12 @@ class JobCostEstimator:
             # (see line below where it is stored). No further reach weighting here —
             # applying it again would square the probability for any prior question
             # with reach < 1.
-            memory_tokens = sum(
-                output_estimates.get(pq, 0)
-                for pq in memory_qs
-            )
+            memory_tokens = sum(output_estimates.get(pq, 0) for pq in memory_qs)
+            # For multi-call question types (e.g. interview), memory appears in every
+            # model call, not just once. Use memory_multiplier if the estimator exposes it.
+            estimator = self.question_estimator._registry.get(question.question_type)
+            if estimator is not None and hasattr(estimator, "memory_multiplier"):
+                memory_tokens *= estimator.memory_multiplier(question)
 
             # Assemble full estimate
             full_estimate = QuestionTokenEstimate(
