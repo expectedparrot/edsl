@@ -3,7 +3,10 @@ from edsl.jobs import Jobs
 from edsl.language_models import Model
 from edsl.questions import QuestionFreeText
 from edsl.questions.question_compute import QuestionCompute
+from edsl.questions.question_interview import QuestionInterview
 from edsl.surveys import Survey
+from edsl.agents import Agent
+from edsl.scenarios import Scenario
 from edsl.jobs.cost_estimation.job_cost_estimator import JobCostEstimator
 from edsl.jobs.cost_estimation.question_token_estimate import QuestionTokenEstimate
 from edsl.jobs.cost_estimation.token_override import TokenOverride
@@ -337,3 +340,61 @@ class TestMemory:
         rows = {r["question_name"]: r for r in result._rows}
         assert rows["q1"]["reach_probability"] == 0.5
         assert rows["q2"]["memory_tokens"] == 500
+
+
+class TestInterviewAgentScenario:
+    """Agent traits and scenario substitutions are reflected in interview prompt_tokens
+    because JobCostEstimator calls the invigilator's own prompt builders."""
+
+    def _interview_job(self, agent=None, scenario=None):
+        m = Model("test", canned_response="SPAM!")
+        q = QuestionInterview(
+            question_name="q0",
+            question_text="Tell me about {{scenario.topic}}.",
+            interview_guide="Probe on {{scenario.topic}} in detail.",
+        )
+        job = Jobs(survey=Survey(questions=[q]), models=[m])
+        if agent:
+            job = job.by(agent)
+        if scenario:
+            job = job.by(scenario)
+        return job
+
+    def test_agent_with_traits_increases_prompt_tokens(self):
+        """Agent traits appear in the respondent system prompt every turn."""
+        no_agent = JobCostEstimator().estimate_cost(
+            self._interview_job(scenario=Scenario({"topic": "coffee"})),
+            price_lookup=PRICE_LOOKUP,
+        )
+        with_agent = JobCostEstimator().estimate_cost(
+            self._interview_job(
+                agent=Agent(
+                    traits={
+                        "role": "barista",
+                        "experience": "ten years pulling espresso shots",
+                    }
+                ),
+                scenario=Scenario({"topic": "coffee"}),
+            ),
+            price_lookup=PRICE_LOOKUP,
+        )
+        assert with_agent._rows[0]["prompt_tokens"] > no_agent._rows[0]["prompt_tokens"]
+
+    def test_longer_scenario_increases_prompt_tokens(self):
+        """Scenario values substitute into question_text and interview_guide."""
+        short = JobCostEstimator().estimate_cost(
+            self._interview_job(scenario=Scenario({"topic": "tea"})),
+            price_lookup=PRICE_LOOKUP,
+        )
+        long = JobCostEstimator().estimate_cost(
+            self._interview_job(
+                scenario=Scenario(
+                    {
+                        "topic": "artificial intelligence and its long-term societal implications "
+                        * 3
+                    }
+                )
+            ),
+            price_lookup=PRICE_LOOKUP,
+        )
+        assert long._rows[0]["prompt_tokens"] > short._rows[0]["prompt_tokens"]

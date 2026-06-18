@@ -144,22 +144,29 @@ class InterviewEstimator:
         question: "QuestionBase",
         prompts: dict,
         model: "LanguageModel | None" = None,
+        *,
+        per_turn_base_tokens: int | None = None,
     ) -> QuestionTokenEstimate:
         T = self._effective_turns(question)
-        Q = max(1, len(getattr(question, "question_text", "")) // self.chars_per_token)
-        G = max(
-            1, len(getattr(question, "interview_guide", "")) // self.chars_per_token
-        )
 
-        # Fixed cost per turn: both calls receive question_text + interview_guide,
-        # plus their respective system/overhead tokens and the latest utterance.
-        fixed_per_turn = (
-            2 * (Q + G)
-            + self.interviewer_overhead_tokens
-            + self.respondent_overhead_tokens
-            + self.interviewer_system_tokens
-            + self.avg_utterance_tokens  # latest utterance in the respondent prompt
-        )
+        if per_turn_base_tokens is not None:
+            # Precomputed by JobCostEstimator from the invigilator's actual prompt
+            # builders (rendered question + respondent system prompt including agent).
+            # avg_utterance_tokens is still added here because the base was computed
+            # with interviewer_utterance="" — the actual utterance content is separate.
+            fixed_per_turn = per_turn_base_tokens + self.avg_utterance_tokens
+        else:
+            # Standalone fallback: estimate from stored defaults.
+            Q = max(1, len(getattr(question, "question_text", "")) // self.chars_per_token)
+            G = max(1, len(getattr(question, "interview_guide", "")) // self.chars_per_token)
+            fixed_per_turn = (
+                2 * (Q + G)
+                + self.interviewer_overhead_tokens
+                + self.respondent_overhead_tokens
+                + self.interviewer_system_tokens
+                + self.avg_utterance_tokens
+            )
+
         # Each turn re-reads the full transcript accumulated so far. At turn k both
         # calls see k prior exchanges, so total transcript tokens = T*(T-1)*exchange_size.
         transcript_growth = (
