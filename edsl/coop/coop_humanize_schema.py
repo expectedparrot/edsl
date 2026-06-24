@@ -79,6 +79,67 @@ class FileUploadHumanizeSchema(HumanizeSchemaBase):
     optional: bool = False
 
 
+class ChecklistItemSchema(HumanizeSchemaBase):
+    """One checklist item the interviewer can tick off during the interview."""
+
+    id: Annotated[
+        str, StringConstraints(strip_whitespace=True, min_length=1, max_length=64)
+    ]
+    # Participant-facing — shown in the checklist UI.
+    label: Annotated[
+        str, StringConstraints(strip_whitespace=True, min_length=1, max_length=200)
+    ]
+    # Model-facing — the condition under which the model should check this item off.
+    instructions: Annotated[
+        str, StringConstraints(strip_whitespace=True, min_length=1, max_length=2000)
+    ]
+
+
+class ChecklistConfig(HumanizeSchemaBase):
+    """Checklist for a text interview.
+
+    Today this is a fixed seed list of items. The container exists so dynamic
+    policy/actions (model-added items, removal, limits) can be added later as new
+    fields/action variants without reshaping the schema or the persisted answer.
+    """
+
+    items: list[ChecklistItemSchema] = []  # the SEED; may be empty
+    # Whether/when the participant sees the checklist. The model always sees it
+    # (it's in the system prompt) and the author sees the folded final state in
+    # results; this axis is only about the participant.
+    # - "visible": the floating panel is shown during the interview (today's
+    #   behavior, hence the default — keeps the ChecklistConfig wrap
+    #   behavior-preserving).
+    # - "hidden": the participant never sees it; a pure interviewer instrument
+    #   (status is still folded internally, just not shown).
+    participant_visibility: Literal["hidden", "visible"] = "visible"
+
+    @model_validator(mode="after")
+    def _unique_item_ids(self) -> "ChecklistConfig":
+        ids = [item.id for item in self.items]
+        if len(ids) != len(set(ids)):
+            raise ValueError("Checklist item ids must be unique.")
+        return self
+
+
+class EndPolicy(HumanizeSchemaBase):
+    """How a text interview is allowed to end.
+
+    Today this carries just who completes the interview (``control``). The
+    container exists so the other control modes and guards (allow_withdraw /
+    max_turns / min_turns) can be added later as additive fields/values without
+    reshaping the schema.
+    """
+
+    # Who decides when the interview is over.
+    # - "respondent": the participant can end at any time (the End Interview
+    #   button is always available) — the default, matching prior behavior.
+    # - "interviewer_gated": the participant can only end once the model has
+    #   signalled (via the structured `interview_complete` flag) that its goals
+    #   are met.
+    control: Literal["respondent", "interviewer_gated"] = "respondent"
+
+
 class TextInterviewConfig(HumanizeSchemaBase):
     """Configuration specific to text-mode interviews."""
 
@@ -90,6 +151,8 @@ class TextInterviewConfig(HumanizeSchemaBase):
         Optional[str],
         StringConstraints(strip_whitespace=True, min_length=1, max_length=2500),
     ] = None
+    checklist: Optional[ChecklistConfig] = None
+    end_policy: EndPolicy = Field(default_factory=EndPolicy)
 
 
 class InterviewHumanizeSchema(HumanizeSchemaBase):
