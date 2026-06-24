@@ -4015,6 +4015,36 @@ class Coop(CoopFunctionsMixin):
         self._resolve_server_response(response)
         return response.json()
 
+    def patch_human_survey_humanize_schema(
+        self,
+        human_survey_uuid: Union[str, UUID],
+        partial_schema: Dict[str, Any],
+    ) -> dict:
+        """
+        Partially update a human survey's humanize schema.
+
+        The ``partial_schema`` is deep-merged into the stored schema: nested dicts
+        merge key-by-key, while lists, scalars, and explicit ``None`` replace the
+        existing value wholesale. For example, sending ``questions.q1.optional``
+        flips that one field, but sending a ``checklist`` list replaces the whole
+        array rather than appending to it. The merged result is validated as a
+        whole, so unknown keys or invalid values are rejected.
+
+        Parameters:
+            human_survey_uuid: UUID of the human survey.
+            partial_schema: Partial humanize schema to deep-merge into the stored one.
+
+        Returns:
+            dict: ``{"humanize_schema": <updated schema>}``
+        """
+        response = self._send_server_request(
+            uri=f"api/v0/human-surveys/{human_survey_uuid}/humanize-schema",
+            method="PATCH",
+            payload={"patch": partial_schema},
+        )
+        self._resolve_server_response(response)
+        return response.json()
+
     def _turn_human_responses_into_results(
         self,
         human_responses: List[dict],
