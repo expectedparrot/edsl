@@ -306,6 +306,80 @@ class TestValidateHumanizeSchemaInterview:
         with pytest.raises(HumanizeSchemaValidationError):
             validate_humanize_schema(survey, humanize_schema)
 
+    def test_checklist_unique_ids_passes(self):
+        """Text interview checklist with unique item ids passes."""
+        survey = Survey(
+            [
+                QuestionInterview(
+                    question_name="q1",
+                    question_text="Tell me about your experience.",
+                    interview_guide="Ask follow-up questions about details.",
+                ),
+            ]
+        )
+        humanize_schema = {
+            "questions": {
+                "q1": {
+                    "optional": False,
+                    "text_interview_config": {
+                        "checklist": {
+                            "items": [
+                                {
+                                    "id": "role",
+                                    "label": "Asked about their role",
+                                    "instructions": "Check once their job title is known.",
+                                },
+                                {
+                                    "id": "tenure",
+                                    "label": "Asked how long they've been there",
+                                    "instructions": "Check once tenure is known.",
+                                },
+                            ]
+                        }
+                    },
+                }
+            }
+        }
+        validate_humanize_schema(survey, humanize_schema)
+
+    def test_checklist_duplicate_ids_raises(self):
+        """Text interview checklist with duplicate item ids raises."""
+        survey = Survey(
+            [
+                QuestionInterview(
+                    question_name="q1",
+                    question_text="Tell me about your experience.",
+                    interview_guide="Ask follow-up questions about details.",
+                ),
+            ]
+        )
+        humanize_schema = {
+            "questions": {
+                "q1": {
+                    "optional": False,
+                    "text_interview_config": {
+                        "checklist": {
+                            "items": [
+                                {
+                                    "id": "dup",
+                                    "label": "Asked about their role",
+                                    "instructions": "Check once their job title is known.",
+                                },
+                                {
+                                    "id": "dup",
+                                    "label": "Asked how long they've been there",
+                                    "instructions": "Check once tenure is known.",
+                                },
+                            ]
+                        }
+                    },
+                }
+            }
+        }
+        with pytest.raises(HumanizeSchemaValidationError) as exc_info:
+            validate_humanize_schema(survey, humanize_schema)
+        assert "unique" in str(exc_info.value).lower()
+
 
 class TestValidateHumanizeSchemaComments:
     """Comment-related validate_humanize_schema behavior."""

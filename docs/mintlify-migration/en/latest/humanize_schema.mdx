@@ -68,6 +68,35 @@ Each `questions[question_name]` value is a `HumanizeQuestionSchema` object.
     <ParamField path="end_interview_message" type="string" required={false}>
       Message shown to respondents when the interview ends. Must be between 1 and 2500 characters. Defaults to `"Thank you for your time. This interview has been ended. Your responses have been recorded and will be valuable for our research."` Omit or set to `null` to use the default.
     </ParamField>
+    <ParamField path="checklist" type="dict" required={false}>
+      A checklist of items the interviewer works through during the interview. Omit or set to `null` to run without a checklist.
+      <Expandable title="properties">
+        <ParamField path="items" type="array" default="[]">
+          The seed list of checklist items. May be empty. Each item is an object with:
+
+          - `id` (string, required) — a unique identifier, 1–64 characters. Item ids must be unique within the checklist.
+          - `label` (string, required) — participant-facing text shown in the checklist UI, 1–200 characters.
+          - `instructions` (string, required) — model-facing text describing the condition under which the model should check the item off, 1–2000 characters.
+        </ParamField>
+        <ParamField path="participant_visibility" type="string" default="visible">
+          Whether the participant sees the checklist. The model always sees it (it's in the system prompt) regardless of this setting.
+
+          - `"visible"` — the floating checklist panel is shown to the participant during the interview (default).
+          - `"hidden"` — the participant never sees the checklist; it acts as a pure interviewer instrument (status is still tracked internally).
+        </ParamField>
+      </Expandable>
+    </ParamField>
+    <ParamField path="end_policy" type="dict" required={false}>
+      Controls how the interview is allowed to end.
+      <Expandable title="properties">
+        <ParamField path="control" type="string" default="respondent">
+          Who decides when the interview is over.
+
+          - `"respondent"` — the participant can end at any time; the End Interview button is always available (default).
+          - `"interviewer_gated"` — the participant can only end once the model has signalled (via the structured `interview_complete` flag) that its goals are met.
+        </ParamField>
+      </Expandable>
+    </ParamField>
   </Expandable>
 </ParamField>
 
