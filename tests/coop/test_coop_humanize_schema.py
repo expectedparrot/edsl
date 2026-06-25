@@ -323,18 +323,20 @@ class TestValidateHumanizeSchemaInterview:
                     "optional": False,
                     "text_interview_config": {
                         "checklist": {
-                            "items": [
-                                {
-                                    "id": "role",
-                                    "label": "Asked about their role",
-                                    "instructions": "Check once their job title is known.",
-                                },
-                                {
-                                    "id": "tenure",
-                                    "label": "Asked how long they've been there",
-                                    "instructions": "Check once tenure is known.",
-                                },
-                            ]
+                            "initial": {
+                                "items": [
+                                    {
+                                        "id": "role",
+                                        "label": "Asked about their role",
+                                        "instructions": "Check once their job title is known.",
+                                    },
+                                    {
+                                        "id": "tenure",
+                                        "label": "Asked how long they've been there",
+                                        "instructions": "Check once tenure is known.",
+                                    },
+                                ]
+                            }
                         }
                     },
                 }
@@ -359,18 +361,20 @@ class TestValidateHumanizeSchemaInterview:
                     "optional": False,
                     "text_interview_config": {
                         "checklist": {
-                            "items": [
-                                {
-                                    "id": "dup",
-                                    "label": "Asked about their role",
-                                    "instructions": "Check once their job title is known.",
-                                },
-                                {
-                                    "id": "dup",
-                                    "label": "Asked how long they've been there",
-                                    "instructions": "Check once tenure is known.",
-                                },
-                            ]
+                            "initial": {
+                                "items": [
+                                    {
+                                        "id": "dup",
+                                        "label": "Asked about their role",
+                                        "instructions": "Check once their job title is known.",
+                                    },
+                                    {
+                                        "id": "dup",
+                                        "label": "Asked how long they've been there",
+                                        "instructions": "Check once tenure is known.",
+                                    },
+                                ]
+                            }
                         }
                     },
                 }

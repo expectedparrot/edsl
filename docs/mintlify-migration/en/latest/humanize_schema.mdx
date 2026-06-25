@@ -71,12 +71,20 @@ Each `questions[question_name]` value is a `HumanizeQuestionSchema` object.
     <ParamField path="checklist" type="dict" required={false}>
       A checklist of items the interviewer works through during the interview. Omit or set to `null` to run without a checklist.
       <Expandable title="properties">
-        <ParamField path="items" type="array" default="[]">
-          The seed list of checklist items. May be empty. Each item is an object with:
+        <ParamField path="initial" type="dict" required={false}>
+          The starting set of checklist items, written by the survey author. Defaults to an empty list.
+          <Expandable title="properties">
+            <ParamField path="type" type="string" default="manual">
+              Must be `"manual"`.
+            </ParamField>
+            <ParamField path="items" type="array" default="[]">
+              The list of checklist items. Each item is an object with:
 
-          - `id` (string, required) — a unique identifier, 1–64 characters, restricted to letters, digits, underscores, and hyphens (`^[A-Za-z0-9_\-]+$`). Item ids must be unique within the checklist.
-          - `label` (string, required) — participant-facing text shown in the checklist UI, 1–200 characters.
-          - `instructions` (string, required) — model-facing text describing the condition under which the model should check the item off, 1–2000 characters.
+              - `id` (string, required) — a unique identifier, 1–64 characters, restricted to letters, digits, underscores, and hyphens (regex pattern `^[A-Za-z0-9_\-]+$`). Item ids must be unique within the checklist.
+              - `label` (string, required) — participant-facing text shown in the checklist UI, 1–200 characters.
+              - `instructions` (string, required) — model-facing text describing the condition under which the model should check the item off, 1–2000 characters.
+            </ParamField>
+          </Expandable>
         </ParamField>
         <ParamField path="participant_visibility" type="string" default="visible">
           Whether the participant sees the checklist. The model always sees it (it's in the system prompt) regardless of this setting.

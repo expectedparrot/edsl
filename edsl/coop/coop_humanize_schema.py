@@ -104,15 +104,39 @@ class ChecklistItemSchema(HumanizeSchemaBase):
     ]
 
 
+class ManualChecklistItems(HumanizeSchemaBase):
+    """Checklist items written by the survey author by hand.
+
+    The starting set of a checklist (`ChecklistConfig.initial`),
+    discriminated by ``type`` so a ``generated`` sibling (model-produced items)
+    can join later as a ``Union[Manual, Generated]`` without reshaping stored
+    configs — existing configs already carry ``type: "manual"``. ``manual`` is
+    the only variant today.
+    """
+
+    type: Literal["manual"] = "manual"
+    items: list[ChecklistItemSchema] = []  # may be empty
+
+    @model_validator(mode="after")
+    def _unique_item_ids(self) -> "ManualChecklistItems":
+        ids = [item.id for item in self.items]
+        if len(ids) != len(set(ids)):
+            raise ValueError("Checklist item ids must be unique.")
+        return self
+
+
 class ChecklistConfig(HumanizeSchemaBase):
     """Checklist for a text interview.
 
-    Today this is a fixed seed list of items. The container exists so dynamic
-    policy/actions (model-added items, removal, limits) can be added later as new
-    fields/action variants without reshaping the schema or the persisted answer.
+    ``initial`` is the *starting* set — author-written (`manual`) today —
+    kept as a discriminated union so a `generated` source can be added, and named
+    "initial" (not "items") because runtime additions (model-added items) may
+    later extend the list beyond this seed. Either evolution is additive: stored
+    configs already carry the ``type`` discriminator, and the answer records
+    additions as actions, so neither reshapes existing data.
     """
 
-    items: list[ChecklistItemSchema] = []  # the SEED; may be empty
+    initial: ManualChecklistItems = Field(default_factory=ManualChecklistItems)
     # Whether/when the participant sees the checklist. The model always sees it
     # (it's in the system prompt) and the author sees the folded final state in
     # results; this axis is only about the participant.
@@ -122,13 +146,6 @@ class ChecklistConfig(HumanizeSchemaBase):
     # - "hidden": the participant never sees it; a pure interviewer instrument
     #   (status is still folded internally, just not shown).
     participant_visibility: Literal["hidden", "visible"] = "visible"
-
-    @model_validator(mode="after")
-    def _unique_item_ids(self) -> "ChecklistConfig":
-        ids = [item.id for item in self.items]
-        if len(ids) != len(set(ids)):
-            raise ValueError("Checklist item ids must be unique.")
-        return self
 
 
 class InterviewMarkedCompleteMessage(HumanizeSchemaBase):
