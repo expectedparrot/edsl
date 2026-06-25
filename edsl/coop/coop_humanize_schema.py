@@ -79,6 +79,125 @@ class FileUploadHumanizeSchema(HumanizeSchemaBase):
     optional: bool = False
 
 
+class ChecklistItemSchema(HumanizeSchemaBase):
+    """One checklist item the interviewer can tick off during the interview."""
+
+    # Opaque token (the human-readable text lives in `label`/`instructions`).
+    # Restricted to an identifier charset so it stays safe to interpolate into the
+    # quoted prompt line `- id "{id}": ...` — a stray `"` would malform it.
+    id: Annotated[
+        str,
+        StringConstraints(
+            strip_whitespace=True,
+            min_length=1,
+            max_length=64,
+            pattern=r"^[A-Za-z0-9_\-]+$",
+        ),
+    ]
+    # Participant-facing — shown in the checklist UI.
+    label: Annotated[
+        str, StringConstraints(strip_whitespace=True, min_length=1, max_length=200)
+    ]
+    # Model-facing — the condition under which the model should check this item off.
+    instructions: Annotated[
+        str, StringConstraints(strip_whitespace=True, min_length=1, max_length=2000)
+    ]
+
+
+class ManualChecklistItems(HumanizeSchemaBase):
+    """Checklist items written by the survey author by hand.
+
+    The starting set of a checklist (`ChecklistConfig.initial`),
+    discriminated by ``type`` so a ``generated`` sibling (model-produced items)
+    can join later as a ``Union[Manual, Generated]`` without reshaping stored
+    configs — existing configs already carry ``type: "manual"``. ``manual`` is
+    the only variant today.
+    """
+
+    type: Literal["manual"] = "manual"
+    items: list[ChecklistItemSchema] = []  # may be empty
+
+    @model_validator(mode="after")
+    def _unique_item_ids(self) -> "ManualChecklistItems":
+        ids = [item.id for item in self.items]
+        if len(ids) != len(set(ids)):
+            raise ValueError("Checklist item ids must be unique.")
+        return self
+
+
+class ChecklistConfig(HumanizeSchemaBase):
+    """Checklist for a text interview.
+
+    ``initial`` is the *starting* set — author-written (`manual`) today —
+    kept as a discriminated union so a `generated` source can be added, and named
+    "initial" (not "items") because runtime additions (model-added items) may
+    later extend the list beyond this seed. Either evolution is additive: stored
+    configs already carry the ``type`` discriminator, and the answer records
+    additions as actions, so neither reshapes existing data.
+    """
+
+    initial: ManualChecklistItems = Field(default_factory=ManualChecklistItems)
+    # Whether/when the participant sees the checklist. The model always sees it
+    # (it's in the system prompt) and the author sees the folded final state in
+    # results; this axis is only about the participant.
+    # - "visible": the floating panel is shown during the interview (today's
+    #   behavior, hence the default — keeps the ChecklistConfig wrap
+    #   behavior-preserving).
+    # - "hidden": the participant never sees it; a pure interviewer instrument
+    #   (status is still folded internally, just not shown).
+    participant_visibility: Literal["hidden", "visible"] = "visible"
+
+
+class InterviewMarkedCompleteMessage(HumanizeSchemaBase):
+    """A message to surface on the turn the interviewer first marks the interview
+    complete (the ``interview_complete`` flag's false->true transition).
+
+    When ``end_policy.interview_marked_complete_message`` is None, that turn keeps
+    the model's own generated text. When set, ``method`` decides how this
+    ``message`` relates to that text — today only ``replace`` (show this
+    ``message`` instead of the model's text for that one turn).
+    """
+
+    message: Annotated[
+        str,
+        StringConstraints(strip_whitespace=True, min_length=1, max_length=2500),
+    ]
+    # How `message` relates to the model's text on the marking turn. Only
+    # "replace" today; "prepend"/"append" can join this literal later.
+    method: Literal["replace"] = "replace"
+
+
+class RespondentEndPolicy(HumanizeSchemaBase):
+    """The participant ends the interview themselves; the End Interview button is
+    always available. The default, matching prior behavior."""
+
+    control: Literal["respondent"] = "respondent"
+
+
+class InterviewerGatedEndPolicy(HumanizeSchemaBase):
+    """The participant can only end once the model signals (via the structured
+    ``interview_complete`` flag) that its goals are met — the signal opens the
+    gate to the End Interview button."""
+
+    control: Literal["interviewer_gated"] = "interviewer_gated"
+
+    # Optional message for the turn the interviewer first marks the interview
+    # complete (the flag's false->true transition). None keeps the model's own
+    # text for that turn. Lives only here because it's meaningless without the
+    # gate.
+    interview_marked_complete_message: Optional[InterviewMarkedCompleteMessage] = None
+
+
+# How a text interview is allowed to end, discriminated by ``control`` so each
+# mode carries only the fields it can act on. New modes/guards (allow_withdraw /
+# max_turns / min_turns) join as additional variants or additive fields without
+# reshaping existing ones.
+EndPolicy = Annotated[
+    Union[RespondentEndPolicy, InterviewerGatedEndPolicy],
+    Field(discriminator="control"),
+]
+
+
 class TextInterviewConfig(HumanizeSchemaBase):
     """Configuration specific to text-mode interviews."""
 
@@ -90,6 +209,8 @@ class TextInterviewConfig(HumanizeSchemaBase):
         Optional[str],
         StringConstraints(strip_whitespace=True, min_length=1, max_length=2500),
     ] = None
+    checklist: Optional[ChecklistConfig] = None
+    end_policy: EndPolicy = Field(default_factory=RespondentEndPolicy)
 
 
 class InterviewHumanizeSchema(HumanizeSchemaBase):

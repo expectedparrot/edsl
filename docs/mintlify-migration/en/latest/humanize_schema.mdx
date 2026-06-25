@@ -68,6 +68,56 @@ Each `questions[question_name]` value is a `HumanizeQuestionSchema` object.
     <ParamField path="end_interview_message" type="string" required={false}>
       Message shown to respondents when the interview ends. Must be between 1 and 2500 characters. Defaults to `"Thank you for your time. This interview has been ended. Your responses have been recorded and will be valuable for our research."` Omit or set to `null` to use the default.
     </ParamField>
+    <ParamField path="checklist" type="dict" required={false}>
+      A checklist of items the interviewer works through during the interview. Omit or set to `null` to run without a checklist.
+      <Expandable title="properties">
+        <ParamField path="initial" type="dict" required={false}>
+          The starting set of checklist items, written by the survey author. Defaults to an empty list.
+          <Expandable title="properties">
+            <ParamField path="type" type="string" default="manual">
+              Must be `"manual"`.
+            </ParamField>
+            <ParamField path="items" type="array" default="[]">
+              The list of checklist items. Each item is an object with:
+
+              - `id` (string, required) — a unique identifier, 1–64 characters, restricted to letters, digits, underscores, and hyphens (regex pattern `^[A-Za-z0-9_\-]+$`). Item ids must be unique within the checklist.
+              - `label` (string, required) — participant-facing text shown in the checklist UI, 1–200 characters.
+              - `instructions` (string, required) — model-facing text describing the condition under which the model should check the item off, 1–2000 characters.
+            </ParamField>
+          </Expandable>
+        </ParamField>
+        <ParamField path="participant_visibility" type="string" default="visible">
+          Whether the participant sees the checklist. The model always sees it (it's in the system prompt) regardless of this setting.
+
+          - `"visible"` — the floating checklist panel is shown to the participant during the interview (default).
+          - `"hidden"` — the participant never sees the checklist; it acts as a pure interviewer instrument (status is still tracked internally).
+        </ParamField>
+      </Expandable>
+    </ParamField>
+    <ParamField path="end_policy" type="dict" required={false}>
+      Controls how the interview is allowed to end. Omit to use the default (`{"control": "respondent"}`).
+      <Expandable title="properties">
+        <ParamField path="control" type="string" default="respondent">
+          Who decides when the interview is over.
+
+          - `"respondent"` — the participant can end at any time; the End Interview button is always available (default). No other fields apply.
+          - `"interviewer_gated"` — the End Interview button is hidden until the model has signalled that its goals are met; only then can the participant end. This mode also accepts `interview_marked_complete_message`.
+        </ParamField>
+        <ParamField path="interview_marked_complete_message" type="dict" required={false}>
+          **`interviewer_gated` only.** A message to surface on the turn the interviewer first marks the interview complete. If omitted or set to `null`, the LLM will generate text for that turn instead.
+          <Expandable title="properties">
+            <ParamField path="message" type="string" required={true}>
+              The message text. Must be between 1 and 2500 characters.
+            </ParamField>
+            <ParamField path="method" type="string" default="replace">
+              How `message` relates to the model's text on the marking turn.
+
+              - `"replace"` — show this `message` for that one turn instead of using a model to generate text.
+            </ParamField>
+          </Expandable>
+        </ParamField>
+      </Expandable>
+    </ParamField>
   </Expandable>
 </ParamField>
 
