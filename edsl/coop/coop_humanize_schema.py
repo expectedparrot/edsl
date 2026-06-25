@@ -82,8 +82,17 @@ class FileUploadHumanizeSchema(HumanizeSchemaBase):
 class ChecklistItemSchema(HumanizeSchemaBase):
     """One checklist item the interviewer can tick off during the interview."""
 
+    # Opaque token (the human-readable text lives in `label`/`instructions`).
+    # Restricted to an identifier charset so it stays safe to interpolate into the
+    # quoted prompt line `- id "{id}": ...` — a stray `"` would malform it.
     id: Annotated[
-        str, StringConstraints(strip_whitespace=True, min_length=1, max_length=64)
+        str,
+        StringConstraints(
+            strip_whitespace=True,
+            min_length=1,
+            max_length=64,
+            pattern=r"^[A-Za-z0-9_\-]+$",
+        ),
     ]
     # Participant-facing — shown in the checklist UI.
     label: Annotated[
@@ -122,22 +131,54 @@ class ChecklistConfig(HumanizeSchemaBase):
         return self
 
 
-class EndPolicy(HumanizeSchemaBase):
-    """How a text interview is allowed to end.
+class InterviewMarkedCompleteMessage(HumanizeSchemaBase):
+    """A message to surface on the turn the interviewer first marks the interview
+    complete (the ``interview_complete`` flag's false->true transition).
 
-    Today this carries just who completes the interview (``control``). The
-    container exists so the other control modes and guards (allow_withdraw /
-    max_turns / min_turns) can be added later as additive fields/values without
-    reshaping the schema.
+    When ``end_policy.interview_marked_complete_message`` is None, that turn keeps
+    the model's own generated text. When set, ``method`` decides how this
+    ``message`` relates to that text — today only ``replace`` (show this
+    ``message`` instead of the model's text for that one turn).
     """
 
-    # Who decides when the interview is over.
-    # - "respondent": the participant can end at any time (the End Interview
-    #   button is always available) — the default, matching prior behavior.
-    # - "interviewer_gated": the participant can only end once the model has
-    #   signalled (via the structured `interview_complete` flag) that its goals
-    #   are met.
-    control: Literal["respondent", "interviewer_gated"] = "respondent"
+    message: Annotated[
+        str,
+        StringConstraints(strip_whitespace=True, min_length=1, max_length=2500),
+    ]
+    # How `message` relates to the model's text on the marking turn. Only
+    # "replace" today; "prepend"/"append" can join this literal later.
+    method: Literal["replace"] = "replace"
+
+
+class RespondentEndPolicy(HumanizeSchemaBase):
+    """The participant ends the interview themselves; the End Interview button is
+    always available. The default, matching prior behavior."""
+
+    control: Literal["respondent"] = "respondent"
+
+
+class InterviewerGatedEndPolicy(HumanizeSchemaBase):
+    """The participant can only end once the model signals (via the structured
+    ``interview_complete`` flag) that its goals are met — the signal opens the
+    gate to the End Interview button."""
+
+    control: Literal["interviewer_gated"] = "interviewer_gated"
+
+    # Optional message for the turn the interviewer first marks the interview
+    # complete (the flag's false->true transition). None keeps the model's own
+    # text for that turn. Lives only here because it's meaningless without the
+    # gate.
+    interview_marked_complete_message: Optional[InterviewMarkedCompleteMessage] = None
+
+
+# How a text interview is allowed to end, discriminated by ``control`` so each
+# mode carries only the fields it can act on. New modes/guards (allow_withdraw /
+# max_turns / min_turns) join as additional variants or additive fields without
+# reshaping existing ones.
+EndPolicy = Annotated[
+    Union[RespondentEndPolicy, InterviewerGatedEndPolicy],
+    Field(discriminator="control"),
+]
 
 
 class TextInterviewConfig(HumanizeSchemaBase):
@@ -152,7 +193,7 @@ class TextInterviewConfig(HumanizeSchemaBase):
         StringConstraints(strip_whitespace=True, min_length=1, max_length=2500),
     ] = None
     checklist: Optional[ChecklistConfig] = None
-    end_policy: EndPolicy = Field(default_factory=EndPolicy)
+    end_policy: EndPolicy = Field(default_factory=RespondentEndPolicy)
 
 
 class InterviewHumanizeSchema(HumanizeSchemaBase):

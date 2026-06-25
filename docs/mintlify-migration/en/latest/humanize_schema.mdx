@@ -74,7 +74,7 @@ Each `questions[question_name]` value is a `HumanizeQuestionSchema` object.
         <ParamField path="items" type="array" default="[]">
           The seed list of checklist items. May be empty. Each item is an object with:
 
-          - `id` (string, required) — a unique identifier, 1–64 characters. Item ids must be unique within the checklist.
+          - `id` (string, required) — a unique identifier, 1–64 characters, restricted to letters, digits, underscores, and hyphens (`^[A-Za-z0-9_\-]+$`). Item ids must be unique within the checklist.
           - `label` (string, required) — participant-facing text shown in the checklist UI, 1–200 characters.
           - `instructions` (string, required) — model-facing text describing the condition under which the model should check the item off, 1–2000 characters.
         </ParamField>
@@ -87,13 +87,26 @@ Each `questions[question_name]` value is a `HumanizeQuestionSchema` object.
       </Expandable>
     </ParamField>
     <ParamField path="end_policy" type="dict" required={false}>
-      Controls how the interview is allowed to end.
+      Controls how the interview is allowed to end. Omit to use the default (`{"control": "respondent"}`).
       <Expandable title="properties">
         <ParamField path="control" type="string" default="respondent">
           Who decides when the interview is over.
 
-          - `"respondent"` — the participant can end at any time; the End Interview button is always available (default).
-          - `"interviewer_gated"` — the participant can only end once the model has signalled (via the structured `interview_complete` flag) that its goals are met.
+          - `"respondent"` — the participant can end at any time; the End Interview button is always available (default). No other fields apply.
+          - `"interviewer_gated"` — the End Interview button is hidden until the model has signalled that its goals are met; only then can the participant end. This mode also accepts `interview_marked_complete_message`.
+        </ParamField>
+        <ParamField path="interview_marked_complete_message" type="dict" required={false}>
+          **`interviewer_gated` only.** A message to surface on the turn the interviewer first marks the interview complete. If omitted or set to `null`, the LLM will generate text for that turn instead.
+          <Expandable title="properties">
+            <ParamField path="message" type="string" required={true}>
+              The message text. Must be between 1 and 2500 characters.
+            </ParamField>
+            <ParamField path="method" type="string" default="replace">
+              How `message` relates to the model's text on the marking turn.
+
+              - `"replace"` — show this `message` for that one turn instead of using a model to generate text.
+            </ParamField>
+          </Expandable>
         </ParamField>
       </Expandable>
     </ParamField>
