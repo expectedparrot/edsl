@@ -59,6 +59,17 @@ Each `questions[question_name]` value is a `HumanizeQuestionSchema` object.
   - `"both"` — respondent can choose between text and voice.
 </ParamField>
 
+<ParamField path="voice_interview_config" type="dict" required={false}>
+  **Interview only** (`interview`). Optional configuration for voice-mode interviews. Ignored when `interview_mode` is `"text"`.
+  <Expandable title="properties">
+    <ParamField path="language" type="string" default="english">
+      The spoken language for the voice interview. A lowercase language id from the supported set below. Case and surrounding whitespace are normalized (e.g. `"  French "` becomes `"french"`); omit or set to `null` to use the default (`"english"`). An unsupported value raises a validation error.
+
+      **Supported languages:** `english`, `french`, `german`, `spanish`, `portuguese`, `chinese`, `japanese`, `hindi`, `italian`, `korean`, `dutch`, `polish`, `russian`, `swedish`, `turkish`, `tagalog`, `bulgarian`, `romanian`, `arabic`, `czech`, `greek`, `finnish`, `croatian`, `malay`, `slovak`, `danish`, `tamil`, `ukrainian`, `hungarian`, `norwegian`, `vietnamese`, `bengali`, `thai`, `hebrew`, `georgian`, `indonesian`, `telugu`, `gujarati`, `kannada`, `malayalam`, `marathi`, `punjabi`, `multilingual`.
+    </ParamField>
+  </Expandable>
+</ParamField>
+
 <ParamField path="text_interview_config" type="dict" required={false}>
   **Interview only** (`interview`). Optional configuration for text-mode interviews. Ignored when `interview_mode` is `"voice"`.
   <Expandable title="properties">
