@@ -53,7 +53,7 @@ edsl = "edsl.__main__:main"
 unresolved-import = "ignore"
 
 [tool.poetry.dependencies.openai]
-version = "^1.4.0"
+version = "^2.44.0"
 extras = [ "aiohttp",]
 optional = true
 
