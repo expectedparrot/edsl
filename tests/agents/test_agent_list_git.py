@@ -88,6 +88,245 @@ def test_agent_list_git_save_creates_package_layout(tmp_path):
     assert first_agent["traits"] == {"age": 22}
 
 
+def test_agent_list_git_coop_push_creates_info_then_patches(tmp_path, monkeypatch):
+    package_path = tmp_path / "agents.agent_list.ep"
+    agent_list = AgentList([Agent(name="alice", traits={"age": 22})])
+    push_calls = []
+    patch_calls = []
+
+    def fake_push(
+        self,
+        description=None,
+        alias=None,
+        visibility="private",
+        expected_parrot_url=None,
+        force=False,
+    ):
+        push_calls.append(
+            {
+                "description": description,
+                "alias": alias,
+                "visibility": visibility,
+                "expected_parrot_url": expected_parrot_url,
+                "force": force,
+            }
+        )
+        return {
+            "object_type": "agent_list",
+            "uuid": "00000000-0000-0000-0000-000000000001",
+            "url": "https://example.com/content/00000000-0000-0000-0000-000000000001",
+            "visibility": visibility,
+        }
+
+    class FakeCoop:
+        def __init__(self, url=None):
+            self.url = url
+
+        def patch(
+            self, url_or_uuid, description=None, alias=None, value=None, visibility=None
+        ):
+            patch_calls.append(
+                {
+                    "url_or_uuid": url_or_uuid,
+                    "description": description,
+                    "alias": alias,
+                    "value": value,
+                    "visibility": visibility,
+                }
+            )
+            return {
+                "uuid": url_or_uuid,
+                "description": description,
+                "visibility": visibility,
+            }
+
+        def get_metadata(self, url_or_uuid):
+            return {
+                "uuid": str(url_or_uuid),
+                "url": f"https://example.com/content/{url_or_uuid}",
+                "last_updated_ts": "2026-07-03T12:00:00+00:00",
+            }
+
+    monkeypatch.setattr(AgentList, "push", fake_push)
+    import edsl.coop as coop_module
+
+    monkeypatch.setattr(coop_module, "Coop", FakeCoop)
+
+    first = agent_list.git.coop_push(path=package_path, description="first")
+
+    assert first["status"] == "ok"
+    assert len(push_calls) == 1
+    assert patch_calls == []
+    coop_info = json.loads((package_path / "coop_info.json").read_text())
+    assert coop_info["uuid"] == "00000000-0000-0000-0000-000000000001"
+
+    second = agent_list.git.coop_push(description="updated", visibility="unlisted")
+
+    assert second["status"] == "ok"
+    assert len(push_calls) == 1
+    assert patch_calls[0]["url_or_uuid"] == "00000000-0000-0000-0000-000000000001"
+    assert patch_calls[0]["value"] is agent_list
+    coop_info = json.loads((package_path / "coop_info.json").read_text())
+    assert coop_info["description"] == "updated"
+    assert coop_info["visibility"] == "unlisted"
+
+
+def test_agent_list_git_coop_pull_overwrites_package_files(tmp_path, monkeypatch):
+    package_path = tmp_path / "agents.agent_list.ep"
+    agent_list = AgentList([Agent(name="alice", traits={"age": 22})])
+    agent_list.git.save(package_path, message="initial agents")
+    agent_list.git._write_coop_info_and_commit(
+        {"uuid": "00000000-0000-0000-0000-000000000001"},
+        message="store coop info",
+    )
+    remote = AgentList([Agent(name="bob", traits={"age": 30})])
+
+    class FakeCoop:
+        def __init__(self, url=None):
+            self.url = url
+
+        def get_metadata(self, url_or_uuid):
+            return {
+                "uuid": str(url_or_uuid),
+                "url": f"https://example.com/content/{url_or_uuid}",
+                "last_updated_ts": "2026-07-03T12:00:00+00:00",
+            }
+
+    import edsl.coop as coop_module
+
+    monkeypatch.setattr(coop_module, "Coop", FakeCoop)
+
+    monkeypatch.setattr(
+        AgentList,
+        "pull",
+        classmethod(lambda cls, url_or_uuid, expected_parrot_url=None: remote),
+    )
+
+    info = agent_list.git.coop_pull()
+
+    assert info["status"] == "ok"
+    assert agent_list == remote
+    assert AgentList.git.load(package_path) == remote
+    coop_info = json.loads((package_path / "coop_info.json").read_text())
+    assert coop_info["uuid"] == "00000000-0000-0000-0000-000000000001"
+
+
+def test_agent_list_git_coop_clone_writes_object_and_coop_info(tmp_path, monkeypatch):
+    remote = AgentList([Agent(name="alice", traits={"age": 22})])
+
+    class FakeCoop:
+        def __init__(self, url=None):
+            self.url = url
+
+        def get_metadata(self, url_or_uuid):
+            return {
+                "uuid": str(url_or_uuid),
+                "url": f"https://example.com/content/{url_or_uuid}",
+                "object_type": "agent_list",
+            }
+
+    import edsl.coop as coop_module
+
+    monkeypatch.setattr(coop_module, "Coop", FakeCoop)
+    monkeypatch.setattr(
+        AgentList,
+        "pull",
+        classmethod(lambda cls, url_or_uuid, expected_parrot_url=None: remote),
+    )
+
+    cloned = AgentList.git.coop_clone(
+        "00000000-0000-0000-0000-000000000001",
+        tmp_path / "clone",
+    )
+
+    package_path = tmp_path / "clone.agent_list.ep"
+    assert cloned == remote
+    assert AgentList.git.load(package_path) == remote
+    coop_info = json.loads((package_path / "coop_info.json").read_text())
+    assert coop_info["uuid"] == "00000000-0000-0000-0000-000000000001"
+
+
+def test_agent_list_git_load_coop_syncs_when_remote_is_newer(tmp_path, monkeypatch):
+    package_path = tmp_path / "agents.agent_list.ep"
+    local = AgentList([Agent(name="local", traits={"version": 1})])
+    local.git.save(package_path, message="initial agents")
+    local.git._write_coop_info_and_commit(
+        {
+            "uuid": "00000000-0000-0000-0000-000000000001",
+            "last_updated_ts": "2026-07-03T12:00:00+00:00",
+        },
+        message="store coop info",
+    )
+    remote = AgentList([Agent(name="remote", traits={"version": 2})])
+
+    class FakeCoop:
+        def __init__(self, url=None):
+            self.url = url
+
+        def get_metadata(self, url_or_uuid):
+            return {
+                "uuid": str(url_or_uuid),
+                "url": f"https://example.com/content/{url_or_uuid}",
+                "last_updated_ts": "2026-07-03T12:01:00+00:00",
+            }
+
+    import edsl.coop as coop_module
+
+    monkeypatch.setattr(coop_module, "Coop", FakeCoop)
+    monkeypatch.setattr(
+        AgentList,
+        "pull",
+        classmethod(lambda cls, url_or_uuid, expected_parrot_url=None: remote),
+    )
+
+    loaded = AgentList.git.load(package_path)
+
+    assert loaded == remote
+    assert json.loads((package_path / "coop_info.json").read_text())[
+        "last_updated_ts"
+    ] == "2026-07-03T12:01:00+00:00"
+
+
+def test_agent_list_git_save_coop_syncs_when_remote_is_newer(tmp_path, monkeypatch):
+    package_path = tmp_path / "agents.agent_list.ep"
+    local = AgentList([Agent(name="local", traits={"version": 1})])
+    local.git.save(package_path, message="initial agents")
+    local.git._write_coop_info_and_commit(
+        {
+            "uuid": "00000000-0000-0000-0000-000000000001",
+            "last_updated_ts": "2026-07-03T12:00:00+00:00",
+        },
+        message="store coop info",
+    )
+    stale = AgentList([Agent(name="stale", traits={"version": 0})])
+    remote = AgentList([Agent(name="remote", traits={"version": 2})])
+
+    class FakeCoop:
+        def __init__(self, url=None):
+            self.url = url
+
+        def get_metadata(self, url_or_uuid):
+            return {
+                "uuid": str(url_or_uuid),
+                "url": f"https://example.com/content/{url_or_uuid}",
+                "last_updated_ts": "2026-07-03T12:01:00+00:00",
+            }
+
+    import edsl.coop as coop_module
+
+    monkeypatch.setattr(coop_module, "Coop", FakeCoop)
+    monkeypatch.setattr(
+        AgentList,
+        "pull",
+        classmethod(lambda cls, url_or_uuid, expected_parrot_url=None: remote),
+    )
+
+    stale.git.save(package_path, message="save after coop sync")
+
+    assert stale == remote
+    assert AgentList.git.load(package_path) == remote
+
+
 def test_agent_list_git_save_warns_once_inside_outer_git_repo(tmp_path):
     outer_repo = tmp_path / "project"
     outer_repo.mkdir()
@@ -304,10 +543,13 @@ def test_agent_list_git_tags_history_switch_and_restore(tmp_path):
     assert restore_info["status"] == "ok"
     assert restore_info["commit"] == first["commit"]
     assert experiment_list == main_list
-    assert subprocess.check_output(
-        ["git", "-C", str(package_path), "branch", "--show-current"],
-        text=True,
-    ).strip() == "experiment"
+    assert (
+        subprocess.check_output(
+            ["git", "-C", str(package_path), "branch", "--show-current"],
+            text=True,
+        ).strip()
+        == "experiment"
+    )
 
 
 def test_agent_list_git_save_does_not_create_empty_commit(tmp_path):
@@ -521,7 +763,11 @@ def test_agent_list_git_remote_set_url_remove_and_fetch(tmp_path):
 
     remove_info = agent_list.git.remote_remove("origin")
 
-    assert remove_info == {"status": "ok", "name": "origin", "url": str(replacement_path)}
+    assert remove_info == {
+        "status": "ok",
+        "name": "origin",
+        "url": str(replacement_path),
+    }
     assert agent_list.git.remotes() == {}
     manifest = json.loads((package_path / "manifest.json").read_text())
     assert manifest["remotes"] == {}
@@ -585,15 +831,19 @@ def test_agent_list_git_preserves_agent_file_ids_on_insert(tmp_path):
 
     manifest = json.loads((package_path / "manifest.json").read_text())
     assert manifest["agent_order"] == ["000003", "000001", "000002"]
-    assert json.loads((package_path / "agents" / "000001.json").read_text()) == alice_file
+    assert (
+        json.loads((package_path / "agents" / "000001.json").read_text()) == alice_file
+    )
     assert json.loads((package_path / "agents" / "000002.json").read_text()) == bob_file
-    assert json.loads((package_path / "agents" / "000003.json").read_text())[
-        "name"
-    ] == "cara"
+    assert (
+        json.loads((package_path / "agents" / "000003.json").read_text())["name"]
+        == "cara"
+    )
 
 
-
-def test_agent_list_git_push_auto_creates_temporary_local_server_remote(tmp_path, monkeypatch):
+def test_agent_list_git_push_auto_creates_temporary_local_server_remote(
+    tmp_path, monkeypatch
+):
     import socket
     import sys
     import threading
@@ -663,7 +913,9 @@ def test_agent_list_git_push_auto_creates_temporary_local_server_remote(tmp_path
         thread.join(timeout=5)
 
 
-def test_agent_list_git_push_unsaved_agent_list_auto_saves_and_pushes(tmp_path, monkeypatch):
+def test_agent_list_git_push_unsaved_agent_list_auto_saves_and_pushes(
+    tmp_path, monkeypatch
+):
     import socket
     import sys
     import threading
@@ -709,7 +961,10 @@ def test_agent_list_git_push_unsaved_agent_list_auto_saves_and_pushes(tmp_path, 
     monkeypatch.setattr(CONFIG, "EDSL_GIT_SERVER_URL", base_url, raising=False)
     monkeypatch.setattr(CONFIG, "EXPECTED_PARROT_API_KEY", "alice-token", raising=False)
     monkeypatch.setattr(
-        CONFIG, "EDSL_GIT_SERVER_DIR", str(_local_git_server_path(tmp_path)), raising=False
+        CONFIG,
+        "EDSL_GIT_SERVER_DIR",
+        str(_local_git_server_path(tmp_path)),
+        raising=False,
     )
     monkeypatch.chdir(tmp_path)
 
@@ -724,7 +979,10 @@ def test_agent_list_git_push_unsaved_agent_list_auto_saves_and_pushes(tmp_path, 
         assert manifest_path.is_file()
         assert set(agent_list.git.remotes()) == {"origin"}
         manifest = json.loads(manifest_path.read_text())
-        assert manifest["remotes"]["origin"]["server_uuid"] in agent_list.git.remotes()["origin"]
+        assert (
+            manifest["remotes"]["origin"]["server_uuid"]
+            in agent_list.git.remotes()["origin"]
+        )
         assert manifest["remotes"]["origin"]["display_name"] == "agent_list"
 
         cloned = AgentList.git.clone(
@@ -765,7 +1023,9 @@ def test_agent_list_git_push_autostarts_temporary_local_server(tmp_path, monkeyp
         assert push_info["remote"] == "origin"
         remote_url = agent_list.git.remotes()["origin"]
         assert remote_url.startswith(f"{base_url}/api/v0/git/")
-        manifest = json.loads((tmp_path / "agent_list.agent_list.ep" / "manifest.json").read_text())
+        manifest = json.loads(
+            (tmp_path / "agent_list.agent_list.ep" / "manifest.json").read_text()
+        )
         assert manifest["remotes"]["origin"]["server_uuid"] in remote_url
         assert manifest["remotes"]["origin"]["remote_url"] == remote_url
     finally:

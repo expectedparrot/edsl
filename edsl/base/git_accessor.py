@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable, Optional, Type
+from typing import Any, Callable, Mapping, Optional, Type
 
 from edsl.base import git_package as gitpkg
 
@@ -69,10 +70,18 @@ class GitBackedClassAccessor:
         gitpkg.ensure_package_repo(path)
         obj = self._spec.read(path, ref)
         obj.git.path = path
-        obj.git.commit = gitpkg.resolve_commit(path, ref, error_cls=self._spec.error_cls)
-        obj.git.current_branch = gitpkg.current_branch(path, error_cls=self._spec.error_cls)
+        obj.git.commit = gitpkg.resolve_commit(
+            path, ref, error_cls=self._spec.error_cls
+        )
+        obj.git.current_branch = gitpkg.current_branch(
+            path, error_cls=self._spec.error_cls
+        )
         if hasattr(obj.git, "_after_load"):
             obj.git._after_load(obj)
+        if ref == "HEAD":
+            obj.git._coop_pull_if_remote_updated(
+                message=f"Coop sync {self._spec.object_type}"
+            )
         return obj
 
     def open(self, path):
@@ -80,7 +89,9 @@ class GitBackedClassAccessor:
 
     def clone(self, url: str, path, ref: str = "HEAD", token: Optional[str] = None):
         gitpkg.ensure_git_available()
-        destination = gitpkg.clone_destination(path, package_suffix=self._spec.package_suffix)
+        destination = gitpkg.clone_destination(
+            path, package_suffix=self._spec.package_suffix
+        )
         if destination.exists():
             raise self._spec.error_cls(
                 ["git", "clone", url, str(destination)],
@@ -107,6 +118,35 @@ class GitBackedClassAccessor:
             error_cls=self._spec.error_cls,
         )
 
+    def coop_clone(
+        self,
+        url_or_uuid,
+        path,
+        *,
+        expected_parrot_url: Optional[str] = None,
+        message: str = "",
+    ) -> Any:
+        if self._objtype is None:
+            raise ValueError("coop_clone must be called on a Git-backed EDSL class.")
+        destination = self._spec.normalize_path(path)
+        if destination.exists():
+            raise self._spec.error_cls(
+                ["coop", "clone", str(url_or_uuid), str(destination)],
+                stderr=f"Destination path already exists: {destination}",
+            )
+
+        from edsl.coop import Coop
+
+        coop = Coop(url=expected_parrot_url)
+        coop_info = _plain_dict(coop.get_metadata(url_or_uuid))
+        obj = self._objtype.pull(url_or_uuid, expected_parrot_url=expected_parrot_url)
+        obj.git._save_overwriting_package(
+            destination,
+            message=message or f"Coop clone {self._spec.object_type}",
+            coop_info=coop_info,
+        )
+        return obj
+
 
 class GitBackedInstanceAccessor(GitBackedClassAccessor):
     def __init__(self, spec: GitObjectSpec, instance: Any) -> None:
@@ -128,6 +168,10 @@ class GitBackedInstanceAccessor(GitBackedClassAccessor):
         )
         if (path / ".git").exists():
             gitpkg.ensure_clean(path, "save", error_cls=self._spec.error_cls)
+            self.path = path
+            self._coop_pull_if_remote_updated(
+                message=f"Coop sync {self._spec.object_type}"
+            )
         gitpkg.init_package(path, error_cls=self._spec.error_cls)
 
         extra_info = self._spec.write(path, self._instance, **kwargs)
@@ -139,7 +183,9 @@ class GitBackedInstanceAccessor(GitBackedClassAccessor):
             commit = gitpkg.head_commit(path, error_cls=self._spec.error_cls)
             self.path = path
             self.commit = commit
-            self.current_branch = gitpkg.current_branch(path, error_cls=self._spec.error_cls)
+            self.current_branch = gitpkg.current_branch(
+                path, error_cls=self._spec.error_cls
+            )
             for key, value in extra_info.items():
                 if key.isidentifier():
                     setattr(self, key, value)
@@ -167,7 +213,9 @@ class GitBackedInstanceAccessor(GitBackedClassAccessor):
         commit = gitpkg.head_commit(path, error_cls=self._spec.error_cls)
         self.path = path
         self.commit = commit
-        self.current_branch = gitpkg.current_branch(path, error_cls=self._spec.error_cls)
+        self.current_branch = gitpkg.current_branch(
+            path, error_cls=self._spec.error_cls
+        )
         for key, value in extra_info.items():
             if key.isidentifier():
                 setattr(self, key, value)
@@ -194,11 +242,15 @@ class GitBackedInstanceAccessor(GitBackedClassAccessor):
 
     def branch(self, name: str) -> None:
         self._bound_package().branch(name)
-        self.current_branch = gitpkg.current_branch(self.path, error_cls=self._spec.error_cls)
+        self.current_branch = gitpkg.current_branch(
+            self.path, error_cls=self._spec.error_cls
+        )
 
     def checkout(self, ref: str) -> None:
         self._bound_package().checkout(ref)
-        self.current_branch = gitpkg.current_branch(self.path, error_cls=self._spec.error_cls)
+        self.current_branch = gitpkg.current_branch(
+            self.path, error_cls=self._spec.error_cls
+        )
         self.commit = gitpkg.head_commit(self.path, error_cls=self._spec.error_cls)
 
     def switch(self, name: str) -> None:
@@ -206,7 +258,9 @@ class GitBackedInstanceAccessor(GitBackedClassAccessor):
         loaded = type(self._instance).git.load(self.path)
         self._spec.refresh(self._instance, loaded)
         self._copy_loaded_accessor_state(loaded)
-        self.current_branch = gitpkg.current_branch(self.path, error_cls=self._spec.error_cls)
+        self.current_branch = gitpkg.current_branch(
+            self.path, error_cls=self._spec.error_cls
+        )
         self.commit = gitpkg.head_commit(self.path, error_cls=self._spec.error_cls)
 
     def restore(self, ref: str = "HEAD") -> dict:
@@ -214,7 +268,9 @@ class GitBackedInstanceAccessor(GitBackedClassAccessor):
         self._spec.refresh(self._instance, loaded)
         self._copy_loaded_accessor_state(loaded)
         self.commit = loaded.git.commit
-        self.current_branch = gitpkg.current_branch(self.path, error_cls=self._spec.error_cls)
+        self.current_branch = gitpkg.current_branch(
+            self.path, error_cls=self._spec.error_cls
+        )
         return {
             "status": "ok",
             "path": str(self.path),
@@ -247,7 +303,12 @@ class GitBackedInstanceAccessor(GitBackedClassAccessor):
     def remote_set_url(self, name: str, url: str) -> dict:
         return self._bound_package().remote_set_url(name, url)
 
-    def fetch(self, remote: Optional[str] = None, branch: Optional[str] = None, token: Optional[str] = None) -> dict:
+    def fetch(
+        self,
+        remote: Optional[str] = None,
+        branch: Optional[str] = None,
+        token: Optional[str] = None,
+    ) -> dict:
         return self._bound_package().fetch(remote=remote, branch=branch, token=token)
 
     def validate(self) -> dict:
@@ -256,7 +317,13 @@ class GitBackedInstanceAccessor(GitBackedClassAccessor):
     def ignore_in_parent(self) -> dict:
         return self._bound_package().ignore_in_parent()
 
-    def push(self, remote: Optional[str] = None, branch: Optional[str] = None, token: Optional[str] = None, path=None) -> dict:
+    def push(
+        self,
+        remote: Optional[str] = None,
+        branch: Optional[str] = None,
+        token: Optional[str] = None,
+        path=None,
+    ) -> dict:
         if self.path is None:
             self.save(path or self._spec.default_path())
         info = self._bound_package().push(remote=remote, branch=branch, token=token)
@@ -264,7 +331,88 @@ class GitBackedInstanceAccessor(GitBackedClassAccessor):
         self.current_branch = info["branch"]
         return info
 
-    def pull(self, remote: Optional[str] = None, branch: Optional[str] = None, token: Optional[str] = None) -> dict:
+    def coop_push(
+        self,
+        *,
+        description: Optional[str] = None,
+        alias: Optional[str] = None,
+        visibility: Optional[str] = None,
+        expected_parrot_url: Optional[str] = None,
+        force: bool = False,
+        path=None,
+        message: str = "",
+    ) -> dict:
+        if self.path is None:
+            self.save(path or self._spec.default_path())
+        else:
+            self.save(message=message or self._spec.default_commit_message)
+
+        coop_info = self._read_coop_info()
+        if coop_info is None:
+            info = self._instance.push(
+                description=description,
+                alias=alias,
+                visibility="private" if visibility is None else visibility,
+                expected_parrot_url=expected_parrot_url,
+                force=force,
+            )
+            coop_info = _plain_dict(info)
+            coop_info.update(
+                self._remote_coop_info(expected_parrot_url, coop_info=coop_info)
+            )
+        else:
+            from edsl.coop import Coop
+
+            identifier = self._coop_identifier(coop_info)
+            patch_info = Coop(url=expected_parrot_url).patch(
+                url_or_uuid=identifier,
+                description=description,
+                alias=alias,
+                value=self._instance,
+                visibility=visibility,
+            )
+            coop_info.update(_plain_dict(patch_info))
+            coop_info.update(
+                self._remote_coop_info(expected_parrot_url, coop_info=coop_info)
+            )
+
+        commit_info = self._write_coop_info_and_commit(
+            coop_info,
+            message=message or f"Update Coop info for {self._spec.object_type}",
+        )
+        return {"status": "ok", "coop_info": coop_info, **commit_info}
+
+    def coop_pull(
+        self,
+        *,
+        expected_parrot_url: Optional[str] = None,
+        message: str = "",
+    ) -> dict:
+        coop_info = self._read_coop_info()
+        if coop_info is None:
+            raise ValueError(
+                f"No coop_info.json found for this {self._spec.object_type} package."
+            )
+        identifier = self._coop_identifier(coop_info)
+        coop_info.update(
+            self._remote_coop_info(expected_parrot_url, coop_info=coop_info)
+        )
+        loaded = type(self._instance).pull(
+            identifier, expected_parrot_url=expected_parrot_url
+        )
+        self._spec.refresh(self._instance, loaded)
+        return self._save_overwriting_package(
+            self.path,
+            message=message or f"Coop pull {self._spec.object_type}",
+            coop_info=coop_info,
+        )
+
+    def pull(
+        self,
+        remote: Optional[str] = None,
+        branch: Optional[str] = None,
+        token: Optional[str] = None,
+    ) -> dict:
         info = self._bound_package().pull(remote=remote, branch=branch, token=token)
         loaded = type(self._instance).git.load(self.path)
         self._spec.refresh(self._instance, loaded)
@@ -275,8 +423,161 @@ class GitBackedInstanceAccessor(GitBackedClassAccessor):
 
     def _bound_package(self):
         if self.path is None:
-            raise ValueError(f"This {self._spec.object_type} is not bound to a git package path.")
+            raise ValueError(
+                f"This {self._spec.object_type} is not bound to a git package path."
+            )
         return self._spec.package_cls(self.path)
+
+    def _coop_info_path(self) -> Path:
+        if self.path is None:
+            raise ValueError(
+                f"This {self._spec.object_type} is not bound to a git package path."
+            )
+        return self.path / "coop_info.json"
+
+    def _read_coop_info(self) -> dict | None:
+        info_path = self._coop_info_path()
+        if not info_path.exists():
+            return None
+        return json.loads(info_path.read_text(encoding="utf-8"))
+
+    def _write_coop_info(self, coop_info: Mapping[str, Any]) -> None:
+        self._coop_info_path().write_text(
+            json.dumps(dict(coop_info), indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+
+    def _coop_identifier(self, coop_info: Mapping[str, Any]) -> str:
+        identifier = (
+            coop_info.get("uuid") or coop_info.get("url") or coop_info.get("alias_url")
+        )
+        if not identifier:
+            raise ValueError("coop_info.json must contain a uuid, url, or alias_url.")
+        return str(identifier)
+
+    def _remote_coop_info(
+        self,
+        expected_parrot_url: Optional[str] = None,
+        *,
+        coop_info: Optional[Mapping[str, Any]] = None,
+    ) -> dict:
+        from edsl.coop import Coop
+
+        coop_info = coop_info or self._read_coop_info()
+        if coop_info is None:
+            return {}
+        return _plain_dict(
+            Coop(url=expected_parrot_url).get_metadata(self._coop_identifier(coop_info))
+        )
+
+    def _coop_remote_is_newer(
+        self, remote_info: Mapping[str, Any], local_info: Mapping[str, Any]
+    ) -> bool:
+        remote_updated = remote_info.get("last_updated_ts")
+        if remote_updated is None:
+            return False
+        return remote_updated != local_info.get("last_updated_ts")
+
+    def _coop_pull_if_remote_updated(
+        self,
+        *,
+        expected_parrot_url: Optional[str] = None,
+        message: str = "",
+    ) -> dict | None:
+        coop_info = self._read_coop_info()
+        if coop_info is None:
+            return None
+        remote_info = self._remote_coop_info(
+            expected_parrot_url=expected_parrot_url,
+            coop_info=coop_info,
+        )
+        if not self._coop_remote_is_newer(remote_info, coop_info):
+            return None
+        coop_info.update(remote_info)
+        identifier = self._coop_identifier(coop_info)
+        loaded = type(self._instance).pull(
+            identifier, expected_parrot_url=expected_parrot_url
+        )
+        self._spec.refresh(self._instance, loaded)
+        return self._save_overwriting_package(
+            self.path,
+            message=message or f"Coop sync {self._spec.object_type}",
+            coop_info=coop_info,
+        )
+
+    def _write_coop_info_and_commit(
+        self, coop_info: Mapping[str, Any], *, message: str
+    ) -> dict:
+        self._write_coop_info(coop_info)
+        return self._commit_package_changes(message)
+
+    def _save_overwriting_package(
+        self,
+        path,
+        *,
+        message: str,
+        coop_info: Optional[Mapping[str, Any]] = None,
+    ) -> dict:
+        path = self._spec.normalize_path(path)
+        gitpkg.ensure_git_available()
+        gitpkg.warn_if_nested_in_outer_repo(
+            path,
+            warned_paths=self._spec.warned_paths,
+            warning_cls=self._spec.warning_cls,
+        )
+        gitpkg.init_package(path, error_cls=self._spec.error_cls)
+        extra_info = self._spec.write(path, self._instance)
+        self.path = path
+        for key, value in extra_info.items():
+            if key.isidentifier():
+                setattr(self, key, value)
+        if coop_info is not None:
+            self._write_coop_info(coop_info)
+        return {**self._commit_package_changes(message), **extra_info}
+
+    def _commit_package_changes(self, message: str) -> dict:
+        if self.path is None:
+            raise ValueError(
+                f"This {self._spec.object_type} is not bound to a git package path."
+            )
+        gitpkg.git(self.path, "add", "-A", "--", ".", error_cls=self._spec.error_cls)
+        if not gitpkg.has_staged_changes(self.path):
+            commit = gitpkg.head_commit(self.path, error_cls=self._spec.error_cls)
+            self.commit = commit
+            self.current_branch = gitpkg.current_branch(
+                self.path, error_cls=self._spec.error_cls
+            )
+            return {
+                "status": "unchanged",
+                "path": str(self.path),
+                "commit": commit,
+                "branch": self.current_branch,
+                "message": "no changes",
+            }
+
+        gitpkg.git(
+            self.path,
+            "-c",
+            "user.name=EDSL",
+            "-c",
+            "user.email=edsl@example.invalid",
+            "commit",
+            "-m",
+            message,
+            error_cls=self._spec.error_cls,
+        )
+        commit = gitpkg.head_commit(self.path, error_cls=self._spec.error_cls)
+        self.commit = commit
+        self.current_branch = gitpkg.current_branch(
+            self.path, error_cls=self._spec.error_cls
+        )
+        return {
+            "status": "ok",
+            "path": str(self.path),
+            "commit": commit,
+            "branch": self.current_branch,
+            "message": message,
+        }
 
     def _copy_loaded_accessor_state(self, loaded) -> None:
         loaded_accessor = loaded.git
@@ -284,3 +585,13 @@ class GitBackedInstanceAccessor(GitBackedClassAccessor):
             if key.startswith("_") or key in {"path", "commit", "current_branch"}:
                 continue
             setattr(self, key, value)
+
+
+def _plain_dict(value: Any) -> dict:
+    if isinstance(value, Mapping):
+        return dict(value)
+    if hasattr(value, "data") and isinstance(value.data, Mapping):
+        return dict(value.data)
+    if hasattr(value, "to_dict"):
+        return dict(value.to_dict())
+    return dict(value)
