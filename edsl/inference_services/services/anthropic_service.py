@@ -1,4 +1,5 @@
 import os
+import re
 from typing import Any, Optional, List, TYPE_CHECKING
 from anthropic import AsyncAnthropic
 
@@ -23,6 +24,8 @@ class AnthropicService(InferenceServiceABC):
     input_token_name = "input_tokens"
     output_token_name = "output_tokens"
     available_models_url = "https://docs.anthropic.com/en/docs/about-claude/models"
+    _temperature_deprecation_date = 20260205
+    _temperature_deprecation_version = (4, 6)
 
     @classmethod
     def get_model_info(cls, api_key: Optional[str] = None):
@@ -35,6 +38,44 @@ class AnthropicService(InferenceServiceABC):
         response = requests.get("https://api.anthropic.com/v1/models", headers=headers)
         response.raise_for_status()
         return response.json()["data"]
+
+    @classmethod
+    def _requires_temperature_one(cls, model_name: str) -> bool:
+        """Return whether Anthropic only accepts temperature=1.0 for this model."""
+        model_name = model_name.lower()
+
+        version_match = re.search(
+            r"claude-(?P<family>opus|sonnet|haiku)-(?P<major>\d+)-(?P<minor>\d+)",
+            model_name,
+        )
+
+        if version_match:
+            version = (
+                int(version_match.group("major")),
+                int(version_match.group("minor")),
+            )
+            family = version_match.group("family")
+
+            if version > cls._temperature_deprecation_version:
+                return True
+            # Opus at the boundary version is exempt regardless of any date suffix
+            if version == cls._temperature_deprecation_version and family == "opus":
+                return False
+
+        date_match = re.search(r"(?<!\d)(\d{8})(?!\d)", model_name)
+        if date_match:
+            return int(date_match.group(1)) > cls._temperature_deprecation_date
+
+        if not version_match:
+            return False
+
+        return version == cls._temperature_deprecation_version and family != "opus"
+
+    @classmethod
+    def _api_temperature(cls, model_name: str, temperature: float) -> float:
+        if cls._requires_temperature_one(model_name):
+            return 1.0
+        return temperature
 
     @classmethod
     def create_model(
@@ -152,7 +193,7 @@ class AnthropicService(InferenceServiceABC):
                 create_kwargs = dict(
                     model=model_name,
                     max_tokens=self.max_tokens,
-                    temperature=self.temperature,
+                    temperature=cls._api_temperature(model_name, self.temperature),
                     system=system_prompt,  # note that the Anthropic API uses "system" parameter rather than put it in the message
                     messages=messages,
                 )

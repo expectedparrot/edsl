@@ -306,6 +306,167 @@ class TestValidateHumanizeSchemaInterview:
         with pytest.raises(HumanizeSchemaValidationError):
             validate_humanize_schema(survey, humanize_schema)
 
+    def test_checklist_unique_ids_passes(self):
+        """Text interview checklist with unique item ids passes."""
+        survey = Survey(
+            [
+                QuestionInterview(
+                    question_name="q1",
+                    question_text="Tell me about your experience.",
+                    interview_guide="Ask follow-up questions about details.",
+                ),
+            ]
+        )
+        humanize_schema = {
+            "questions": {
+                "q1": {
+                    "optional": False,
+                    "text_interview_config": {
+                        "checklist": {
+                            "initial": {
+                                "items": [
+                                    {
+                                        "id": "role",
+                                        "label": "Asked about their role",
+                                        "instructions": "Check once their job title is known.",
+                                    },
+                                    {
+                                        "id": "tenure",
+                                        "label": "Asked how long they've been there",
+                                        "instructions": "Check once tenure is known.",
+                                    },
+                                ]
+                            }
+                        }
+                    },
+                }
+            }
+        }
+        validate_humanize_schema(survey, humanize_schema)
+
+    def test_checklist_duplicate_ids_raises(self):
+        """Text interview checklist with duplicate item ids raises."""
+        survey = Survey(
+            [
+                QuestionInterview(
+                    question_name="q1",
+                    question_text="Tell me about your experience.",
+                    interview_guide="Ask follow-up questions about details.",
+                ),
+            ]
+        )
+        humanize_schema = {
+            "questions": {
+                "q1": {
+                    "optional": False,
+                    "text_interview_config": {
+                        "checklist": {
+                            "initial": {
+                                "items": [
+                                    {
+                                        "id": "dup",
+                                        "label": "Asked about their role",
+                                        "instructions": "Check once their job title is known.",
+                                    },
+                                    {
+                                        "id": "dup",
+                                        "label": "Asked how long they've been there",
+                                        "instructions": "Check once tenure is known.",
+                                    },
+                                ]
+                            }
+                        }
+                    },
+                }
+            }
+        }
+        with pytest.raises(HumanizeSchemaValidationError) as exc_info:
+            validate_humanize_schema(survey, humanize_schema)
+        assert "unique" in str(exc_info.value).lower()
+
+
+class TestValidateHumanizeSchemaVoice:
+    """Voice-interview-specific validate_humanize_schema behavior."""
+
+    @staticmethod
+    def _survey():
+        return Survey(
+            [
+                QuestionInterview(
+                    question_name="q1",
+                    question_text="Tell me about your experience.",
+                    interview_guide="Ask follow-up questions about details.",
+                ),
+            ]
+        )
+
+    def test_voice_config_default_language(self):
+        """voice_interview_config defaults language to the default when omitted."""
+        from edsl.coop.coop_humanize_schema import (
+            InterviewHumanizeSchema,
+        )
+        from edsl.coop.voice_interview_languages import (
+            DEFAULT_VOICE_INTERVIEW_LANGUAGE,
+        )
+
+        parsed = InterviewHumanizeSchema.model_validate(
+            {"interview_mode": "voice", "voice_interview_config": {}}
+        )
+        assert (
+            parsed.voice_interview_config.language
+            == DEFAULT_VOICE_INTERVIEW_LANGUAGE
+        )
+
+    def test_voice_config_supported_language_passes(self):
+        """A supported language validates through validate_humanize_schema."""
+        humanize_schema = {
+            "questions": {
+                "q1": {
+                    "interview_mode": "voice",
+                    "voice_interview_config": {"language": "french"},
+                }
+            }
+        }
+        validate_humanize_schema(self._survey(), humanize_schema)
+
+    def test_voice_config_language_normalized(self):
+        """The before-validator normalizes case and surrounding whitespace."""
+        from edsl.coop.coop_humanize_schema import InterviewHumanizeSchema
+
+        parsed = InterviewHumanizeSchema.model_validate(
+            {"voice_interview_config": {"language": "  French "}}
+        )
+        assert parsed.voice_interview_config.language == "french"
+
+    def test_voice_config_language_none_uses_default(self):
+        """A null language falls back to the default rather than failing."""
+        from edsl.coop.coop_humanize_schema import InterviewHumanizeSchema
+        from edsl.coop.voice_interview_languages import (
+            DEFAULT_VOICE_INTERVIEW_LANGUAGE,
+        )
+
+        parsed = InterviewHumanizeSchema.model_validate(
+            {"voice_interview_config": {"language": None}}
+        )
+        assert (
+            parsed.voice_interview_config.language
+            == DEFAULT_VOICE_INTERVIEW_LANGUAGE
+        )
+
+    def test_voice_config_unsupported_language_raises(self):
+        """An unsupported language raises HumanizeSchemaValidationError."""
+        humanize_schema = {
+            "questions": {
+                "q1": {
+                    "interview_mode": "voice",
+                    "voice_interview_config": {"language": "klingon"},
+                }
+            }
+        }
+        with pytest.raises(HumanizeSchemaValidationError) as exc_info:
+            validate_humanize_schema(self._survey(), humanize_schema)
+        assert "klingon" in str(exc_info.value).lower()
+
 
 class TestValidateHumanizeSchemaComments:
     """Comment-related validate_humanize_schema behavior."""

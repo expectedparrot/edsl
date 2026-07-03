@@ -7,6 +7,7 @@ from datetime import datetime
 from .jobs_status_enums import JobsStatus
 from .jobs_remote_inference_logger import JobLogger, JobRunExceptionCounter, ModelCost
 from .exceptions import RemoteInferenceError
+from ..prompts import Prompt
 
 Seconds = NewType("Seconds", float)
 JobUUID = NewType("JobUUID", str)
@@ -139,6 +140,7 @@ class JobsRemoteInferenceHandler:
         fresh: Optional[bool] = False,
         new_format: Optional[bool] = True,
         alert_on_completion_config: Optional[Any] = None,
+        results_description: Optional[str] = None,
     ) -> RemoteJobInfo:
         """
         Create a remote inference job and return job information.
@@ -150,6 +152,7 @@ class JobsRemoteInferenceHandler:
             fresh: If True, ignore existing cache entries and generate new results
             new_format: If True, use pull method for result retrieval; if False, use legacy get method
             alert_on_completion_config: Optional config for job completion alerts (email and/or webhooks)
+            results_description: Optional description for the initial results object
 
         Returns:
             RemoteJobInfo: Information about the created job including UUID and logger
@@ -178,6 +181,7 @@ class JobsRemoteInferenceHandler:
                 initial_results_visibility=remote_inference_results_visibility,
                 fresh=fresh,
                 alert_on_completion_config=alert_on_completion_config,
+                initial_results_description=results_description,
             )
         else:
             remote_job_creation_data = coop.old_remote_inference_create(
@@ -563,6 +567,50 @@ class JobsRemoteInferenceHandler:
             ] = converter.usd_to_credits(output_cost_with_cache)
         return list(expenses_by_model.values())
 
+    def _normalize_results_url(self, results_url: Optional[str]) -> Optional[str]:
+        if not results_url:
+            return None
+        if "localhost" in results_url:
+            return results_url.replace("8000", "1234")
+        return results_url
+
+    def _log_results_metadata(
+        self,
+        job_info: "RemoteJobInfo",
+        remote_job_data: "RemoteInferenceResponse",
+        *,
+        refetch_if_missing: bool = False,
+        remote_job_data_fetcher: Optional[Callable] = None,
+    ) -> Optional[str]:
+        """Populate Results UUID / URL on the job logger.
+
+        Coop may mark a job ``completed`` with ``results_available`` before
+        ``results_uuid`` is set (async upload). When ``refetch_if_missing`` is
+        True, poll the job status briefly so the status table can show links.
+        """
+        results_uuid = remote_job_data.get("results_uuid")
+        results_url = remote_job_data.get("results_url")
+
+        if (
+            not results_uuid
+            and refetch_if_missing
+            and remote_job_data_fetcher is not None
+        ):
+            for _ in range(10):
+                time.sleep(0.5)
+                fresh = remote_job_data_fetcher(job_info.job_uuid)
+                results_uuid = fresh.get("results_uuid")
+                results_url = fresh.get("results_url")
+                if results_uuid:
+                    break
+
+        if results_uuid:
+            job_info.logger.add_info("results_uuid", results_uuid)
+        results_url = self._normalize_results_url(results_url)
+        if results_url:
+            job_info.logger.add_info("results_url", results_url)
+        return results_uuid
+
     def _fetch_results_and_log(
         self,
         job_info: "RemoteJobInfo",
@@ -572,7 +620,7 @@ class JobsRemoteInferenceHandler:
         object_fetcher: Callable,
     ) -> "Results":
         "Fetches the results object and logs the results URL."
-        job_info.logger.add_info("results_uuid", results_uuid)
+        self._log_results_metadata(job_info, remote_job_data)
         results = object_fetcher(results_uuid, expected_object_type="results")
 
         model_cost_dicts = self._get_expenses_from_results(results)
@@ -596,16 +644,16 @@ class JobsRemoteInferenceHandler:
         ]
         job_info.logger.add_info("model_costs", model_costs)
 
-        results_url = remote_job_data.get("results_url")
-        if "localhost" in results_url:
-            results_url = results_url.replace("8000", "1234")
-        job_info.logger.add_info("results_url", results_url)
+        results_url = self._normalize_results_url(remote_job_data.get("results_url"))
 
         if job_status == "completed":
             job_info.logger.add_info("completed_interviews", len(results))
             job_info.logger.add_info("failed_interviews", 0)
+            completion_msg = "Job completed and Results stored on Coop."
+            if results_url:
+                completion_msg += f" [View Results]({results_url})"
             job_info.logger.update(
-                f"Job completed and Results stored on Coop. [View Results]({results_url})",
+                completion_msg,
                 status=JobsStatus.COMPLETED,
             )
 
@@ -614,8 +662,11 @@ class JobsRemoteInferenceHandler:
                 job_info.logger.job_completed(JobsStatus.COMPLETED)
 
         elif job_status == "partial_failed":
+            partial_msg = "View partial results"
+            if results_url:
+                partial_msg += f" [here]({results_url})"
             job_info.logger.update(
-                f"View partial results [here]({results_url})",
+                partial_msg,
                 status=JobsStatus.PARTIALLY_FAILED,
             )
 
@@ -632,6 +683,7 @@ class JobsRemoteInferenceHandler:
         job_info: "RemoteJobInfo",
         job_status: Literal["completed", "partial_failed"],
         remote_job_data: "RemoteInferenceResponse",
+        remote_job_data_fetcher: Optional[Callable] = None,
     ) -> "Results":
         """
         Fetch results from the runner via paginated streaming.
@@ -698,12 +750,12 @@ class JobsRemoteInferenceHandler:
                 for a in answers_raw:
                     qname = a["question_name"]
                     answer_dict[qname] = a.get("answer")
-                    prompt_dict[f"{qname}_user_prompt"] = {
-                        "text": a.get("user_prompt") or ""
-                    }
-                    prompt_dict[f"{qname}_system_prompt"] = {
-                        "text": a.get("system_prompt") or ""
-                    }
+                    prompt_dict[f"{qname}_user_prompt"] = Prompt(
+                        text=a.get("user_prompt") or ""
+                    )
+                    prompt_dict[f"{qname}_system_prompt"] = Prompt(
+                        text=a.get("system_prompt") or ""
+                    )
                     raw_model_response_dict[f"{qname}_raw_model_response"] = a.get(
                         "raw_model_response"
                     )
@@ -786,19 +838,36 @@ class JobsRemoteInferenceHandler:
             data=result_list,
         )
 
+        # Runner streaming can finish before Coop assigns results_uuid; poll briefly.
+        self._log_results_metadata(
+            job_info,
+            remote_job_data,
+            refetch_if_missing=True,
+            remote_job_data_fetcher=remote_job_data_fetcher,
+        )
+        results_url = getattr(job_info.logger.jobs_info, "results_url", None)
+
         # Log completion
         if job_status == "completed":
             job_info.logger.add_info("completed_interviews", len(result_list))
             job_info.logger.add_info("failed_interviews", 0)
+            completion_msg = f"Job completed. {len(result_list)} interviews fetched."
+            if results_url:
+                completion_msg += f" [View Results]({results_url})"
             job_info.logger.update(
-                f"Job completed. {len(result_list)} interviews fetched.",
+                completion_msg,
                 status=JobsStatus.COMPLETED,
             )
             if hasattr(job_info.logger, "job_completed"):
                 job_info.logger.job_completed(JobsStatus.COMPLETED)
         elif job_status == "partial_failed":
+            partial_msg = (
+                f"Job partially failed. {len(result_list)} interviews fetched."
+            )
+            if results_url:
+                partial_msg += f" [View partial results]({results_url})"
             job_info.logger.update(
-                f"Job partially failed. {len(result_list)} interviews fetched.",
+                partial_msg,
                 status=JobsStatus.PARTIALLY_FAILED,
             )
             if hasattr(job_info.logger, "job_completed"):
@@ -831,6 +900,9 @@ class JobsRemoteInferenceHandler:
             job_info.logger.add_info("model_costs", model_costs)
 
         results.job_uuid = job_info.job_uuid
+        results_uuid = getattr(job_info.logger.jobs_info, "results_uuid", None)
+        if results_uuid:
+            results.results_uuid = results_uuid
         return results
 
     def _attempt_fetch_job(
@@ -881,6 +953,7 @@ class JobsRemoteInferenceHandler:
                     job_info=job_info,
                     job_status=status,
                     remote_job_data=remote_job_data,
+                    remote_job_data_fetcher=remote_job_data_fetcher,
                 )
                 return results, reason
 

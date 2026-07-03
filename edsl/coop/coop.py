@@ -1740,6 +1740,235 @@ class Coop(CoopFunctionsMixin):
             "processing_started": confirm_data.get("processing_started", False),
         }
 
+    def _resolve_to_uuid(self, url_or_uuid: Union[str, UUID]) -> str:
+        """Resolve any supported identifier to a plain UUID string.
+
+        If _resolve_uuid_or_alias returns a UUID directly, use it. If it
+        returns an owner/alias pair (alias-style URL), resolve via
+        api/v0/object/alias/info — a lightweight call that returns only the
+        UUID without fetching the full object.
+        """
+        obj_uuid, owner_username, alias = self._resolve_uuid_or_alias(url_or_uuid)
+        if obj_uuid:
+            return str(obj_uuid)
+        response = self._send_server_request(
+            uri="api/v0/object/alias/info",
+            method="GET",
+            params={"owner_username": owner_username, "alias": alias},
+        )
+        self._resolve_server_response(response)
+        return str(response.json()["uuid"])
+
+    def list_human_surveys(
+        self,
+        page: int = 1,
+        page_size: int = 10,
+        search_query: Optional[str] = None,
+        sort_ascending: bool = False,
+    ) -> dict:
+        """
+        List human surveys owned by the authenticated user.
+
+        Parameters:
+            page (int): Page number (default: 1)
+            page_size (int): Number of results per page, max 100 (default: 10)
+            search_query (str, optional): Filter by name or UUID (partial matches supported)
+            sort_ascending (bool): If True, sort oldest first (default: False)
+
+        Returns:
+            dict: A dict with:
+                - human_surveys: list of dicts with uuid, name, visibility, created_ts, n_responses
+                - current_page, page_size, total_pages, total_count
+
+        Raises:
+            CoopServerResponseError: If the server returns an error.
+        """
+        params = {
+            "page": page,
+            "page_size": page_size,
+            "sort_ascending": sort_ascending,
+        }
+        if search_query is not None:
+            params["search_query"] = search_query
+
+        response = self._send_server_request(
+            uri="api/v0/human-surveys",
+            method="GET",
+            params=params,
+        )
+        self._resolve_server_response(response)
+        return response.json()
+
+    def patch_metadata(
+        self,
+        url_or_uuid: Union[str, UUID],
+        description: Optional[str] = None,
+        alias: Optional[str] = None,
+        visibility: Optional[VisibilityType] = None,
+    ) -> dict:
+        """
+        Update an object's metadata without changing its content.
+
+        This is a lighter alternative to patch() for when you only want to update
+        description, alias, or visibility — no format detection or content upload needed.
+
+        Parameters:
+            url_or_uuid (Union[str, UUID]): The UUID or URL of the object.
+            description (str, optional): New description for the object.
+            alias (str, optional): New alias for the object.
+            visibility (VisibilityType, optional): New visibility ("private", "public", "unlisted").
+
+        Returns:
+            dict: The server response.
+
+        Raises:
+            CoopPatchError: If no fields to update are provided.
+            CoopServerResponseError: If the server returns an error.
+
+        Example:
+            >>> coop.patch_metadata("123e4567-...", description="Updated description", visibility="public")
+        """
+        self._validate_alias(alias)
+
+        if description is None and alias is None and visibility is None:
+            from .exceptions import CoopPatchError
+
+            raise CoopPatchError("Nothing to patch.")
+
+        obj_uuid, owner_username, obj_alias = self._resolve_uuid_or_alias(url_or_uuid)
+
+        if obj_uuid:
+            uri = "api/v0/object"
+            params = {"uuid": obj_uuid}
+        else:
+            uri = "api/v0/object/alias"
+            params = {"owner_username": owner_username, "alias": obj_alias}
+
+        response = self._send_server_request(
+            uri=uri,
+            method="PATCH",
+            params=params,
+            payload={
+                "description": description,
+                "alias": alias,
+                "visibility": visibility,
+                "json_string": None,
+            },
+        )
+        self._resolve_server_response(response)
+        return response.json()
+
+    ################
+    # Object Sharing
+    ################
+    def get_object_shared_users(self, url_or_uuid: Union[str, UUID]) -> dict:
+        """
+        List all users an object is currently shared with.
+
+        You must be the owner of the object to call this.
+
+        Parameters:
+            url_or_uuid (Union[str, UUID]): The UUID or URL of the object.
+
+        Returns:
+            dict: A dict with:
+                - shared_with: list of dicts with "username" and "email"
+                - unregistered_shared_with: list of dicts with "email" (for non-registered users)
+
+        Raises:
+            CoopServerResponseError: If the server returns an error.
+
+        Example:
+            >>> coop.get_object_shared_users("123e4567-e89b-12d3-a456-426614174000")
+            {'shared_with': [...], 'unregistered_shared_with': [...]}
+        """
+        obj_uuid = self._resolve_to_uuid(url_or_uuid)
+        response = self._send_server_request(
+            uri="api/v0/object/share",
+            method="GET",
+            params={"uuid": obj_uuid},
+        )
+        self._resolve_server_response(response)
+        content = response.json()
+        return {
+            "shared_with": content.get("shared_with", []),
+            "unregistered_shared_with": content.get("unregistered_shared_with", []),
+        }
+
+    def share_object(
+        self, url_or_uuid: Union[str, UUID], username_or_email: str
+    ) -> dict:
+        """
+        Share an object with another Expected Parrot user.
+
+        You must be the owner of the object. The recipient can be identified by
+        username or email address. If no account exists for the email, an invitation
+        is sent and access is granted when they sign up.
+
+        Parameters:
+            url_or_uuid (Union[str, UUID]): The UUID or URL of the object to share.
+            username_or_email (str): The username or email of the recipient.
+
+        Returns:
+            dict: A dict with:
+                - message: Confirmation message
+                - username: The recipient's username (if they have an account)
+                - email: The recipient's email
+
+        Raises:
+            CoopServerResponseError: If the server returns an error (e.g., object not
+                found, already shared, sharing with yourself).
+
+        Example:
+            >>> coop.share_object("123e4567-e89b-12d3-a456-426614174000", "alice")
+            {'message': 'Successfully shared with alice.', 'username': 'alice', 'email': '...'}
+        """
+        obj_uuid = self._resolve_to_uuid(url_or_uuid)
+        response = self._send_server_request(
+            uri="api/v0/object/share",
+            method="POST",
+            payload={"uuid": obj_uuid, "username_or_email": username_or_email},
+        )
+        self._resolve_server_response(response)
+        content = response.json()
+        return {
+            "message": content.get("message"),
+            "username": content.get("username"),
+            "email": content.get("email"),
+        }
+
+    def unshare_object(
+        self, url_or_uuid: Union[str, UUID], username_or_email: str
+    ) -> dict:
+        """
+        Remove a user's access to an object.
+
+        You must be the owner of the object. Accepts either a username or email address.
+
+        Parameters:
+            url_or_uuid (Union[str, UUID]): The UUID or URL of the object.
+            username_or_email (str): The username or email of the user to remove.
+
+        Returns:
+            dict: A dict with a "message" confirmation key.
+
+        Raises:
+            CoopServerResponseError: If the server returns an error (e.g., object not
+                shared with that user).
+
+        Example:
+            >>> coop.unshare_object("123e4567-e89b-12d3-a456-426614174000", "alice")
+            {'message': 'Removed access for alice.'}
+        """
+        obj_uuid = self._resolve_to_uuid(url_or_uuid)
+        response = self._send_server_request(
+            uri="api/v0/object/unshare",
+            method="POST",
+            payload={"uuid": obj_uuid, "username_or_email": username_or_email},
+        )
+        self._resolve_server_response(response)
+        return response.json()
+
     ################
     # Remote Cache
     ################
@@ -2456,6 +2685,38 @@ class Coop(CoopFunctionsMixin):
             jobs.append(job)
 
         return CoopJobsObjects(jobs)
+
+    def get_error_report_markdown(
+        self, job_uuid: Union[str, UUID], save_path: Optional[str] = None
+    ) -> str:
+        """
+        Retrieve the markdown-rendered exception report for the most recent error on a job.
+
+        Parameters:
+            job_uuid (Union[str, UUID]): The UUID of the remote inference job.
+            save_path (str, optional): If provided, saves the markdown report to this file path.
+
+        Returns:
+            str: The error report rendered as a markdown string.
+
+        Raises:
+            CoopServerResponseError: If the server returns an error (e.g., not found
+                or forbidden).
+
+        Example:
+            >>> print(coop.get_error_report_markdown(job_uuid))
+            >>> coop.get_error_report_markdown(job_uuid, save_path="error_report.md")
+        """
+        response = self._send_server_request(
+            uri=f"api/v0/remote-inference/job/{job_uuid}/error-report",
+            method="GET",
+        )
+        self._resolve_server_response(response)
+        report = response.json()["report"]
+        if save_path is not None:
+            with open(save_path, "w", encoding="utf-8") as f:
+                f.write(report)
+        return report
 
     def get_running_jobs(self) -> List[str]:
         """
@@ -3754,6 +4015,36 @@ class Coop(CoopFunctionsMixin):
         self._resolve_server_response(response)
         return response.json()
 
+    def patch_human_survey_humanize_schema(
+        self,
+        human_survey_uuid: Union[str, UUID],
+        partial_schema: Dict[str, Any],
+    ) -> dict:
+        """
+        Partially update a human survey's humanize schema.
+
+        The ``partial_schema`` is deep-merged into the stored schema: nested dicts
+        merge key-by-key, while lists, scalars, and explicit ``None`` replace the
+        existing value wholesale. For example, sending ``questions.q1.optional``
+        flips that one field, but sending a ``checklist`` list replaces the whole
+        array rather than appending to it. The merged result is validated as a
+        whole, so unknown keys or invalid values are rejected.
+
+        Parameters:
+            human_survey_uuid: UUID of the human survey.
+            partial_schema: Partial humanize schema to deep-merge into the stored one.
+
+        Returns:
+            dict: ``{"humanize_schema": <updated schema>}``
+        """
+        response = self._send_server_request(
+            uri=f"api/v0/human-surveys/{human_survey_uuid}/humanize-schema",
+            method="PATCH",
+            payload={"patch": partial_schema},
+        )
+        self._resolve_server_response(response)
+        return response.json()
+
     def _turn_human_responses_into_results(
         self,
         human_responses: List[dict],
@@ -3983,6 +4274,58 @@ class Coop(CoopFunctionsMixin):
             filter_scenarios.append(scenario)
         return CoopProlificFilters(filter_scenarios)
 
+    def calculate_prolific_study_cost(
+        self,
+        participant_payment_cents: int,
+        num_participants: int,
+        estimated_completion_time_minutes: int,
+    ) -> dict:
+        """
+        Calculate the total cost of a Prolific study.
+
+        Parameters:
+            participant_payment_cents (int): Reward per participant in cents.
+            num_participants (int): Number of participants.
+            estimated_completion_time_minutes (int): Expected completion time in minutes,
+                used to check that the effective hourly rate meets Prolific's minimum ($8/hr).
+
+        Returns:
+            dict: A dict with:
+                - cost_cents: Total cost in cents.
+                - cost_credits: Total cost in EP credits.
+                - is_underpayment: True if the effective hourly rate is below Prolific's minimum ($8.00/hr).
+                - underpayment_warning: A warning message if is_underpayment is True, otherwise None.
+
+        Raises:
+            CoopServerResponseError: If the server returns an error.
+        """
+        is_underpayment, cost_usd_per_hour = self._validate_prolific_study_cost(
+            estimated_completion_time_minutes, participant_payment_cents
+        )
+        response = self._send_server_request(
+            uri="api/v0/prolific-studies/calculate-cost",
+            method="POST",
+            payload={
+                "reward": participant_payment_cents,
+                "total_available_places": num_participants,
+            },
+        )
+        self._resolve_server_response(response)
+        data = response.json()
+        return {
+            "cost_cents": data["cost_cents"],
+            "cost_credits": data["cost_credits"],
+            "is_underpayment": is_underpayment,
+            "underpayment_warning": (
+                (
+                    f"The current participant payment of ${cost_usd_per_hour:.2f} USD per hour "
+                    "is below the minimum payment for using Prolific ($8.00 USD per hour)."
+                )
+                if is_underpayment
+                else None
+            ),
+        }
+
     @staticmethod
     def _validate_prolific_study_cost(
         estimated_completion_time_minutes: int, participant_payment_cents: int
@@ -3992,6 +4335,8 @@ class Coop(CoopFunctionsMixin):
         Otherwise, return False.
         The second value in the tuple is the cost of the study in USD per hour.
         """
+        if estimated_completion_time_minutes <= 0:
+            raise CoopValueError("Estimated completion time must be greater than 0.")
         estimated_completion_time_hours = estimated_completion_time_minutes / 60
         participant_payment_usd = participant_payment_cents / 100
         cost_usd_per_hour = participant_payment_usd / estimated_completion_time_hours

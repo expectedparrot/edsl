@@ -181,7 +181,14 @@ handler.activate_schedule(schedule["schedule_uuid"])
 
 ### React when someone completes the survey (callback)
 
-Callbacks fire automatically when a respondent event occurs. The only supported event is `"human_survey_respondent.completed"`, which fires once per respondent who submits a complete response.
+A **respondent** is a person with a corresponding entry in the survey's agent list. Each respondent has a unique survey link and a tracked response status. Submissions from people outside the agent list (e.g. anonymous links) are not associated with a respondent.
+
+`create_callback` sends emails to respondents in your agent list. Two respondent event types are supported:
+
+| Event | When it fires |
+|-------|--------------|
+| `"human_survey_respondent.completed"` | When a respondent's status is set to completed. |
+| `"human_survey_respondent.response_submitted"` | Each time a respondent submits a response. |
 
 ```python
 callback = handler.create_callback(
@@ -199,6 +206,38 @@ callback = handler.create_callback(
     callback_type="human_survey_respondent.completed",
     max_fires=100,
 )
+```
+
+### Notify the owner on every new response
+
+Use `create_owner_response_callback` to email the survey owner each time a response is submitted. This fires for all responses, including anonymous ones — not just respondents in the agent list.
+
+```python
+callback = handler.create_owner_response_callback(name="New response notification")
+print(callback["callback_uuid"])
+```
+
+### Send a transcript after each submission
+
+Use `create_transcript_callback` to automatically email a transcript each time a response is submitted. Pass `recipient` to control who receives it:
+
+- `"respondent"` (default) — emails each respondent a copy of their own answers.
+- `"owner"` — emails the survey owner a copy of the answers. Fires for all submissions, including anonymous ones.
+
+```python
+# Email the respondent their own transcript
+callback = handler.create_transcript_callback(
+    name="Send respondent transcript on submission",
+    recipient="respondent",
+)
+
+# Email the owner a transcript on every submission
+callback = handler.create_transcript_callback(
+    name="Send owner transcript on submission",
+    recipient="owner",
+)
+
+print(callback["callback_uuid"])
 ```
 
 Activate and deactivate:
@@ -313,19 +352,19 @@ print(task)
 
 ## Route types
 
-Each delivery or schedule sends email to survey respondents via a `RespondentEmailRouteConfig` route. If no routes are passed, the server creates one automatically.
+Each delivery or schedule sends email to survey respondents via a `RespondentEmailRouteConfig` route. A delivery template is always required; convenience methods like `send_respondent_email` default to the built-in invitation template when none is provided.
 
 `RespondentEmailRouteConfig` options:
 
 | Field | Description |
 |-------|-------------|
-| `delivery_template` | HTML string for the email body. Uses the default template when omitted. |
+| `delivery_template` | The email body. Pass an HTML string to use a custom template, or omit to use the built-in invitation template. |
 | `respondent_filter` | `HumanizeRespondentFilter` to restrict which respondents receive the email. |
 | `subject` | Email subject line (1-200 characters). Uses the default subject when omitted. |
 
 ### Template variables
 
-The `delivery_template` HTML string supports the following variables, which are filled in per-respondent at send time:
+Custom HTML templates support the following variables, which are filled in per-respondent at send time:
 
 | Variable | Value |
 |----------|-------|
