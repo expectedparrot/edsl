@@ -44,7 +44,7 @@ VOICE_INTERVIEW_LANGUAGES: frozenset[str] = frozenset(
         "hungarian",
         "norwegian",
         "vietnamese",
-        "bengali",
+        "bangla",
         "thai",
         "hebrew",
         "georgian",
