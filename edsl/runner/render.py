@@ -153,7 +153,14 @@ class RenderService:
                 gcs_path = file_info["gcs_path"]
                 fs = self._upload_file_cache.get(gcs_path)
                 if fs is None:
-                    fs = FileStore.from_file_upload_answer(file_info)
+                    try:
+                        fs = FileStore.from_file_upload_answer(file_info)
+                    except Exception as e:
+                        # Fail loud (and retryable) rather than silently dropping a
+                        # referenced file and rendering a prompt without it.
+                        raise RuntimeError(
+                            f"Failed to fetch file-upload answer for question '{key}'."
+                        ) from e
                     self._upload_file_cache[gcs_path] = fs
                 file_stores.append(fs)
             modified[key] = FileStoreList(data=file_stores)
