@@ -189,18 +189,25 @@ class _FileRefPlaceholder(str):
 def _referenced_file_indices(question_text: str, name: str) -> tuple[bool, set]:
     """Which files of prior answer ``name`` does ``question_text`` reference?
 
-    Returns ``(attach_all, indices)``. ``attach_all`` is True for a bare
-    ``{{ name.answer }}`` reference (or when we can't tell, e.g. a dynamic
-    ``{{ name.answer[i] }}`` subscript); ``indices`` is the set of explicit
-    integer ``{{ name.answer[i] }}`` subscripts otherwise.
+    Returns ``(attach_all, indices)``:
+
+    - ``(False, set())`` -> ``name`` is referenced but not via ``.answer`` (e.g. a
+      bare ``{{ name }}``); it is not a file reference, so nothing attaches.
+    - ``(True, set())`` -> a bare ``{{ name.answer }}`` (or a subscript we can't
+      resolve statically, e.g. a dynamic ``{{ name.answer[i] }}``) -> attach all.
+    - ``(False, {i, ...})`` -> explicit integer subscripts ``{{ name.answer[i] }}``
+      -> attach just those files.
     """
     esc = re.escape(name)
-    indices = {
-        int(m.group(1))
-        for m in re.finditer(rf"\b{esc}\.answer\s*\[\s*(\d+)\s*\]", question_text)
-    }
-    has_whole = bool(re.search(rf"\b{esc}\.answer\b(?!\s*\[)", question_text))
-    return (has_whole or not indices), indices
+    # Every ``.answer`` reference, capturing an integer subscript when present.
+    # Bare ``.answer`` and a dynamic ``.answer[i]`` both capture "" (-> attach all);
+    # ``.answer[3]`` captures "3". No matches -> not referenced via ``.answer``.
+    refs = re.findall(rf"\b{esc}\.answer\b\s*(?:\[\s*(\d+)\s*\])?", question_text)
+    if not refs:
+        return (False, set())
+    indices = {int(r) for r in refs if r}
+    attach_all = any(r == "" for r in refs)
+    return (attach_all, indices)
 
 
 class PromptConstructor:
@@ -661,6 +668,10 @@ class PromptConstructor:
             # This variable pipes real files -> decide which ones the text asked for:
             # a bare {{ name.answer }} attaches all, {{ name.answer[i] }} just file i.
             attach_all, indices = _referenced_file_indices(question_text, name)
+            if not attach_all and not indices:
+                # Referenced without .answer (e.g. a bare {{ up }}) -> not a file
+                # reference; attach nothing and leave the answer untouched.
+                continue
             if attach_all:
                 files.extend(file_stores)
             else:

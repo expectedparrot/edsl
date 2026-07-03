@@ -78,6 +78,13 @@ class TestReferencedFileIndices(unittest.TestCase):
             (False, {3}),
         )
 
+    def test_bare_name_without_answer_is_not_a_file_reference(self):
+        # Referencing the question but not its .answer must not attach anything.
+        self.assertEqual(
+            _referenced_file_indices("Describe {{ up }}", "up"),
+            (False, set()),
+        )
+
 
 class TestFileRefPlaceholder(unittest.TestCase):
     """The str subclass that renders <see file ...> for whole and indexed refs."""
@@ -207,6 +214,15 @@ class TestPriorAnswerFiles(unittest.TestCase):
         fsl = FileStoreList(data=[self.fs1])
         c = self._make_constructor("No piping here.", {"up": fsl})
         self.assertEqual(c.prior_answer_files, [])
+
+    def test_bare_reference_without_answer_attaches_nothing(self):
+        # A bare {{ up }} (no .answer) must not attach files or rewrite the answer.
+        fsl = FileStoreList(data=[self.fs1, self.fs2])
+        c = self._make_constructor("Describe {{ up }}", {"up": fsl})
+        self.assertEqual(c.prior_answer_files, [])
+        self.assertNotIsInstance(
+            c.prior_answers_dict()["up"].answer, _FileRefPlaceholder
+        )
 
     def test_placeholder_replaces_answer_text(self):
         fsl = FileStoreList(data=[self.fs1])
