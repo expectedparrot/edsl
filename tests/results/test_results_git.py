@@ -1,6 +1,8 @@
 import json
 import shutil
 import subprocess
+import zipfile
+from pathlib import Path
 
 import pytest
 
@@ -12,6 +14,16 @@ from edsl.base.base_exception import BaseException as EDSLBaseException
 pytestmark = pytest.mark.skipif(
     shutil.which("git") is None, reason="Results git package tests require git"
 )
+
+
+def _package_json(package_path: Path, member: str):
+    with zipfile.ZipFile(package_path) as archive:
+        return json.loads(archive.read(member).decode())
+
+
+def _package_names(package_path: Path) -> set[str]:
+    with zipfile.ZipFile(package_path) as archive:
+        return set(archive.namelist())
 
 
 def test_results_git_error_uses_results_exception_hierarchy():
@@ -28,15 +40,16 @@ def test_results_git_save_default_path_and_load_round_trip(tmp_path, monkeypatch
 
     info = results.git.save()
 
-    package_path = tmp_path / "results.results.ep"
+    package_path = tmp_path / "results.ep"
     assert info["status"] == "ok"
-    assert info["path"] == "results.results.ep"
-    assert package_path.is_dir()
-    assert (package_path / ".git").is_dir()
-    assert (package_path / "manifest.json").is_file()
-    assert (package_path / "results.jsonl").is_file()
+    assert info["path"] == "results.ep"
+    assert package_path.is_file()
+    names = _package_names(package_path)
+    assert ".git/HEAD" in names
+    assert "manifest.json" in names
+    assert "results.jsonl" in names
 
-    manifest = json.loads((package_path / "manifest.json").read_text())
+    manifest = _package_json(package_path, "manifest.json")
     assert manifest["format"] == "edsl.results.git_package"
     assert manifest["edsl_class_name"] == "Results"
     assert manifest["object_type"] == "Results"
@@ -115,6 +128,5 @@ def test_results_git_push_and_pull_with_remote(tmp_path):
     assert push_info["status"] == "ok"
     assert push_info["remote"] == "origin"
 
-    subprocess.run(["git", "clone", str(remote_path), str(second_path)], check=True)
-    second = Results.git.load(second_path)
+    second = Results.git.clone(str(remote_path), path=second_path)
     assert second == first

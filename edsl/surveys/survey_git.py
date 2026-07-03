@@ -17,7 +17,7 @@ if TYPE_CHECKING:
 
 FORMAT_NAME = "edsl.survey.git_package"
 FORMAT_VERSION = 1
-PACKAGE_SUFFIX = ".survey.ep"
+PACKAGE_SUFFIX = ".ep"
 _WARNED_NESTED_PACKAGE_PATHS: set[Path] = set()
 
 
@@ -61,6 +61,22 @@ class SurveyGitPackage(gitpkg.GitPackage):
     def validate(self) -> dict:
         errors = _validate_package(self.path)
         return {"status": "ok" if not errors else "invalid", "errors": errors}
+
+    def html(
+        self,
+        filename: str | Path | None = None,
+        *,
+        ref: str = "HEAD",
+        **kwargs,
+    ) -> str:
+        """Render this package as an HTML document."""
+        survey = _read_survey(self.path, ref)
+        if filename is None:
+            file_store = survey.html(**kwargs)
+        else:
+            file_store = survey.html(filename=str(filename), **kwargs)
+        path = Path(file_store.path)
+        return path.read_text(encoding="utf-8")
 
 
 def _git_spec() -> GitObjectSpec:
@@ -137,9 +153,15 @@ def _read_survey_dict_at_ref(path: Path, ref: str) -> dict:
             )
             for question_id in manifest.get("question_order", [])
         ],
-        "memory_plan": _read_optional_json_at_ref(path, "metadata/memory_plan.json", ref, default={}),
-        "rule_collection": _read_optional_json_at_ref(path, "metadata/rule_collection.json", ref, default={}),
-        "question_groups": _read_optional_json_at_ref(path, "metadata/question_groups.json", ref, default={}),
+        "memory_plan": _read_optional_json_at_ref(
+            path, "metadata/memory_plan.json", ref, default={}
+        ),
+        "rule_collection": _read_optional_json_at_ref(
+            path, "metadata/rule_collection.json", ref, default={}
+        ),
+        "question_groups": _read_optional_json_at_ref(
+            path, "metadata/question_groups.json", ref, default={}
+        ),
     }
     optional_fields = {
         "name": "metadata/name.json",
@@ -161,7 +183,9 @@ def _read_optional_json_at_ref(path: Path, file_path: str, ref: str, default):
 
 
 def _load_manifest_at_ref(path: Path, ref: str) -> dict:
-    manifest = gitpkg.read_json_at_ref(path, "manifest.json", ref, error_cls=SurveyGitError)
+    manifest = gitpkg.read_json_at_ref(
+        path, "manifest.json", ref, error_cls=SurveyGitError
+    )
     if manifest.get("format") != FORMAT_NAME:
         raise ValueError(f"Unsupported Survey git package format: {manifest!r}")
     if manifest.get("format_version") != FORMAT_VERSION:
@@ -192,7 +216,9 @@ def _load_existing_package_state(path: Path) -> tuple[list[str], dict[str, dict]
 
 
 def _question_ids_for_questions(
-    question_dicts: list[dict], existing_order: list[str], existing_questions: dict[str, dict]
+    question_dicts: list[dict],
+    existing_order: list[str],
+    existing_questions: dict[str, dict],
 ) -> list[str]:
     used: set[str] = set()
     assigned: list[str] = []
@@ -218,17 +244,23 @@ def _question_ids_for_questions(
 
 
 def _next_question_index(existing_order: list[str]) -> int:
-    numeric_ids = [int(question_id) for question_id in existing_order if question_id.isdigit()]
+    numeric_ids = [
+        int(question_id) for question_id in existing_order if question_id.isdigit()
+    ]
     return max(numeric_ids, default=0) + 1
 
 
-def _write_package(path: Path, survey: "Survey", survey_dict: dict, question_ids: list[str]) -> None:
+def _write_package(
+    path: Path, survey: "Survey", survey_dict: dict, question_ids: list[str]
+) -> None:
     _write_manifest(path, survey, survey_dict, question_ids)
     _write_questions(path, survey_dict["questions"], question_ids)
     _write_metadata(path, survey_dict)
 
 
-def _write_manifest(path: Path, survey: "Survey", survey_dict: dict, question_ids: list[str]) -> None:
+def _write_manifest(
+    path: Path, survey: "Survey", survey_dict: dict, question_ids: list[str]
+) -> None:
     existing_manifest = gitpkg.read_manifest_file(path)
     manifest = {
         "format": FORMAT_NAME,
@@ -256,7 +288,9 @@ def _write_manifest(path: Path, survey: "Survey", survey_dict: dict, question_id
     gitpkg.write_manifest_dict(path, manifest)
 
 
-def _write_questions(path: Path, question_dicts: list[dict], question_ids: list[str]) -> None:
+def _write_questions(
+    path: Path, question_dicts: list[dict], question_ids: list[str]
+) -> None:
     questions_dir = path / "questions"
     questions_dir.mkdir(exist_ok=True)
     live_files = {f"{question_id}.json" for question_id in question_ids}
@@ -344,7 +378,9 @@ def _validate_package(path: Path) -> list[str]:
         try:
             json.loads(question_path.read_text())
         except json.JSONDecodeError as exc:
-            errors.append(f"invalid question file questions/{question_id}.json: {exc.msg}")
+            errors.append(
+                f"invalid question file questions/{question_id}.json: {exc.msg}"
+            )
     if questions_dir.is_dir():
         expected_files = {f"{question_id}.json" for question_id in seen}
         for question_file in sorted(questions_dir.glob("*.json")):

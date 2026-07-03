@@ -11,6 +11,7 @@ import sys
 import tempfile
 import time
 import warnings
+import zipfile
 from pathlib import Path
 from typing import Optional, Type
 from urllib.error import HTTPError, URLError
@@ -22,6 +23,7 @@ from edsl.base.base_exception import BaseException as EDSLBaseException
 
 TEMPORARY_PROTOTYPE_REMOTE_NAME = "origin"
 _TEMPORARY_GIT_SERVER_PROCESS: Optional[subprocess.Popen] = None
+ARCHIVE_PACKAGE_SUFFIX = ".ep"
 
 
 class GitPackageError(EDSLBaseException):
@@ -58,7 +60,13 @@ class GitPackage:
         self.object_type = object_type
         self.display_name = display_name
         self.error_cls = error_cls
-        self.path = normalize_package_path(path, package_suffix=package_suffix, for_load=True)
+        raw_path = Path(path)
+        if raw_path.is_dir() and (raw_path / ".git").is_dir():
+            self.path = raw_path
+        else:
+            self.path = normalize_package_path(
+                raw_path, package_suffix=package_suffix, for_load=True
+            )
         ensure_git_available()
         ensure_package_repo(self.path)
 
@@ -73,14 +81,22 @@ class GitPackage:
         entries = []
         for line in text.splitlines():
             commit, subject, timestamp = line.split("\x00", 2)
-            entries.append({"commit": commit, "message": subject, "timestamp": timestamp})
+            entries.append(
+                {"commit": commit, "message": subject, "timestamp": timestamp}
+            )
         return entries
 
     def history(self) -> list[dict]:
         return self.log()
 
     def branches(self) -> list[str]:
-        text = git(self.path, "branch", "--format=%(refname:short)", capture=True, error_cls=self.error_cls)
+        text = git(
+            self.path,
+            "branch",
+            "--format=%(refname:short)",
+            capture=True,
+            error_cls=self.error_cls,
+        )
         return [line.strip() for line in text.splitlines() if line.strip()]
 
     def branch(self, name: str) -> None:
@@ -122,7 +138,15 @@ class GitPackage:
             "status": "ok",
             "path": str(self.path),
             "tag": name,
-            "commit": git(self.path, "rev-list", "-n", "1", name, capture=True, error_cls=self.error_cls).strip(),
+            "commit": git(
+                self.path,
+                "rev-list",
+                "-n",
+                "1",
+                name,
+                capture=True,
+                error_cls=self.error_cls,
+            ).strip(),
             "message": message,
         }
 
@@ -180,8 +204,17 @@ class GitPackage:
         )
         return {"status": "ok", "name": name, "url": url}
 
-    def fetch(self, remote: Optional[str] = None, branch: Optional[str] = None, token: Optional[str] = None) -> dict:
-        remote = remote or upstream_remote(self.path) or single_remote(self.path, error_cls=self.error_cls)
+    def fetch(
+        self,
+        remote: Optional[str] = None,
+        branch: Optional[str] = None,
+        token: Optional[str] = None,
+    ) -> dict:
+        remote = (
+            remote
+            or upstream_remote(self.path)
+            or single_remote(self.path, error_cls=self.error_cls)
+        )
         if remote is None:
             raise ValueError("No git remote configured for this EDSL package.")
         url = remote_url(self.path, remote, error_cls=self.error_cls)
@@ -189,7 +222,14 @@ class GitPackage:
         if branch is None:
             git(self.path, "fetch", remote, env=auth_env, error_cls=self.error_cls)
         else:
-            git(self.path, "fetch", remote, branch, env=auth_env, error_cls=self.error_cls)
+            git(
+                self.path,
+                "fetch",
+                remote,
+                branch,
+                env=auth_env,
+                error_cls=self.error_cls,
+            )
         return {
             "status": "ok",
             "path": str(self.path),
@@ -198,9 +238,18 @@ class GitPackage:
             "message": f"fetched {remote}" + (f" {branch}" if branch else ""),
         }
 
-    def push(self, remote: Optional[str] = None, branch: Optional[str] = None, token: Optional[str] = None) -> dict:
+    def push(
+        self,
+        remote: Optional[str] = None,
+        branch: Optional[str] = None,
+        token: Optional[str] = None,
+    ) -> dict:
         branch = branch or require_current_branch(self.path, error_cls=self.error_cls)
-        remote = remote or upstream_remote(self.path) or single_remote(self.path, error_cls=self.error_cls)
+        remote = (
+            remote
+            or upstream_remote(self.path)
+            or single_remote(self.path, error_cls=self.error_cls)
+        )
         if remote is None:
             remote = ensure_temporary_prototype_remote(
                 self.path,
@@ -209,14 +258,31 @@ class GitPackage:
                 token=token,
                 error_cls=self.error_cls,
             )
-        ensure_remote_metadata(self.path, remote, object_type=self.object_type, error_cls=self.error_cls)
+        ensure_remote_metadata(
+            self.path, remote, object_type=self.object_type, error_cls=self.error_cls
+        )
 
         url = remote_url(self.path, remote, error_cls=self.error_cls)
         auth_env = http_auth_git_env(url, token)
         if upstream_branch(self.path):
-            git(self.path, "push", remote, branch, env=auth_env, error_cls=self.error_cls)
+            git(
+                self.path,
+                "push",
+                remote,
+                branch,
+                env=auth_env,
+                error_cls=self.error_cls,
+            )
         else:
-            git(self.path, "push", "-u", remote, branch, env=auth_env, error_cls=self.error_cls)
+            git(
+                self.path,
+                "push",
+                "-u",
+                remote,
+                branch,
+                env=auth_env,
+                error_cls=self.error_cls,
+            )
         update_local_bare_remote_head(url, branch, error_cls=self.error_cls)
 
         return {
@@ -228,10 +294,19 @@ class GitPackage:
             "message": f"pushed {branch} to {remote}",
         }
 
-    def pull(self, remote: Optional[str] = None, branch: Optional[str] = None, token: Optional[str] = None) -> dict:
+    def pull(
+        self,
+        remote: Optional[str] = None,
+        branch: Optional[str] = None,
+        token: Optional[str] = None,
+    ) -> dict:
         ensure_clean(self.path, "pull", error_cls=self.error_cls)
         branch = branch or require_current_branch(self.path, error_cls=self.error_cls)
-        remote = remote or upstream_remote(self.path) or single_remote(self.path, error_cls=self.error_cls)
+        remote = (
+            remote
+            or upstream_remote(self.path)
+            or single_remote(self.path, error_cls=self.error_cls)
+        )
         if remote is None:
             raise ValueError("No git remote configured for this EDSL package.")
 
@@ -240,7 +315,15 @@ class GitPackage:
         if upstream_branch(self.path):
             git(self.path, "pull", "--ff-only", env=auth_env, error_cls=self.error_cls)
         else:
-            git(self.path, "pull", "--ff-only", remote, branch, env=auth_env, error_cls=self.error_cls)
+            git(
+                self.path,
+                "pull",
+                "--ff-only",
+                remote,
+                branch,
+                env=auth_env,
+                error_cls=self.error_cls,
+            )
 
         return {
             "status": "ok",
@@ -256,11 +339,17 @@ class GitPackage:
         if outer_repo is None:
             raise ValueError("This EDSL package is not inside another Git repo.")
 
-        pattern = self.path.resolve().relative_to(outer_repo).as_posix().rstrip("/") + "/"
+        pattern = (
+            self.path.resolve().relative_to(outer_repo).as_posix().rstrip("/") + "/"
+        )
         gitignore = outer_repo / ".gitignore"
         existing = gitignore.read_text().splitlines() if gitignore.exists() else []
         if pattern in existing:
-            return {"status": "unchanged", "gitignore": str(gitignore), "pattern": pattern}
+            return {
+                "status": "unchanged",
+                "gitignore": str(gitignore),
+                "pattern": pattern,
+            }
 
         with gitignore.open("a") as f:
             if existing and existing[-1] != "":
@@ -274,7 +363,9 @@ def ensure_git_available() -> None:
         raise RuntimeError("EDSL git packages require the git executable.")
 
 
-def normalize_package_path(path, *, package_suffix: str, for_load: bool = False) -> Path:
+def normalize_package_path(
+    path, *, package_suffix: str, for_load: bool = False
+) -> Path:
     path = Path(path)
     if str(path).endswith(package_suffix):
         return path
@@ -288,6 +379,71 @@ def normalize_package_path(path, *, package_suffix: str, for_load: bool = False)
             f"EDSL git packages must use the {package_suffix!r} suffix; got {str(path)!r}."
         )
     return candidate
+
+
+def new_package_worktree(public_path: Path) -> Path:
+    safe_stem = public_path.name.replace("/", "_")
+    return Path(tempfile.mkdtemp(prefix=f"edsl-{safe_stem}-"))
+
+
+def unpack_package_archive(
+    archive_path: Path,
+    *,
+    package_suffix: str,
+    error_cls: Type[Exception] = GitPackageError,
+) -> Path:
+    archive_path = normalize_package_path(
+        archive_path, package_suffix=package_suffix, for_load=True
+    )
+    if not archive_path.is_file():
+        raise FileNotFoundError(f"No EDSL package archive at {archive_path}")
+    worktree = new_package_worktree(archive_path)
+    try:
+        with zipfile.ZipFile(archive_path) as archive:
+            for member in archive.infolist():
+                _validate_archive_member(member.filename)
+            archive.extractall(worktree)
+    except zipfile.BadZipFile as exc:
+        raise ValueError(f"{archive_path} is not a valid EDSL package archive") from exc
+    ensure_package_repo(worktree)
+    return worktree
+
+
+def pack_package_archive(
+    worktree_path: Path,
+    archive_path: Path,
+    *,
+    package_suffix: str,
+) -> Path:
+    archive_path = normalize_package_path(archive_path, package_suffix=package_suffix)
+    ensure_package_repo(worktree_path)
+    archive_path.parent.mkdir(parents=True, exist_ok=True)
+    fd, temp_name = tempfile.mkstemp(
+        prefix=f".{archive_path.name}.", suffix=".tmp", dir=str(archive_path.parent)
+    )
+    os.close(fd)
+    temp_path = Path(temp_name)
+    try:
+        with zipfile.ZipFile(
+            temp_path, mode="w", compression=zipfile.ZIP_DEFLATED
+        ) as archive:
+            for file_path in sorted(p for p in worktree_path.rglob("*") if p.is_file()):
+                archive.write(
+                    file_path, file_path.relative_to(worktree_path).as_posix()
+                )
+        temp_path.replace(archive_path)
+    finally:
+        try:
+            temp_path.unlink()
+        except FileNotFoundError:
+            pass
+    return archive_path
+
+
+def _validate_archive_member(name: str) -> None:
+    path = Path(name)
+    if path.is_absolute() or ".." in path.parts:
+        raise ValueError(f"Unsafe path in EDSL package archive: {name!r}")
 
 
 def ensure_package_repo(path: Path) -> None:
@@ -332,7 +488,9 @@ def run_git(
             env={**os.environ, **env} if env else None,
         )
     except subprocess.CalledProcessError as exc:
-        raise error_cls(command=command, stderr=exc.stderr or "", stdout=exc.stdout or "") from exc
+        raise error_cls(
+            command=command, stderr=exc.stderr or "", stdout=exc.stdout or ""
+        ) from exc
     finally:
         if auth_config_path:
             try:
@@ -347,8 +505,12 @@ def _display_git_command(command: list[str]) -> str:
     return " ".join(command)
 
 
-def remote_url(path: Path, remote: str, *, error_cls: Type[Exception] = GitPackageError) -> str:
-    return git(path, "remote", "get-url", remote, capture=True, error_cls=error_cls).strip()
+def remote_url(
+    path: Path, remote: str, *, error_cls: Type[Exception] = GitPackageError
+) -> str:
+    return git(
+        path, "remote", "get-url", remote, capture=True, error_cls=error_cls
+    ).strip()
 
 
 def http_auth_git_env(url: str, token: Optional[str] = None) -> dict[str, str]:
@@ -356,7 +518,9 @@ def http_auth_git_env(url: str, token: Optional[str] = None) -> dict[str, str]:
         return {}
     token = token or expected_parrot_api_key()
     if token is None:
-        raise ValueError("HTTP git remote requires EXPECTED_PARROT_API_KEY for bearer auth.")
+        raise ValueError(
+            "HTTP git remote requires EXPECTED_PARROT_API_KEY for bearer auth."
+        )
     fd, path = tempfile.mkstemp(prefix="edsl-git-auth-", suffix=".gitconfig")
     os.chmod(path, 0o600)
     with os.fdopen(fd, "w") as config:
@@ -370,7 +534,13 @@ def http_auth_git_env(url: str, token: Optional[str] = None) -> dict[str, str]:
     }
 
 
-def read_json_at_ref(path: Path, file_path: str, ref: str, *, error_cls: Type[Exception] = GitPackageError):
+def read_json_at_ref(
+    path: Path,
+    file_path: str,
+    ref: str,
+    *,
+    error_cls: Type[Exception] = GitPackageError,
+):
     text = git(path, "show", f"{ref}:{file_path}", capture=True, error_cls=error_cls)
     return json.loads(text)
 
@@ -386,20 +556,30 @@ def read_manifest_file(path: Path) -> dict:
 
 
 def write_manifest_dict(path: Path, manifest: dict) -> None:
-    (path / "manifest.json").write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n")
+    (path / "manifest.json").write_text(
+        json.dumps(manifest, indent=2, sort_keys=True) + "\n"
+    )
 
 
 def has_staged_changes(path: Path) -> bool:
-    result = subprocess.run(["git", "-C", str(path), "diff", "--cached", "--quiet"], text=True, capture_output=True)
+    result = subprocess.run(
+        ["git", "-C", str(path), "diff", "--cached", "--quiet"],
+        text=True,
+        capture_output=True,
+    )
     return result.returncode == 1
 
 
-def status_lines(path: Path, *, error_cls: Type[Exception] = GitPackageError) -> list[str]:
+def status_lines(
+    path: Path, *, error_cls: Type[Exception] = GitPackageError
+) -> list[str]:
     text = git(path, "status", "--porcelain", capture=True, error_cls=error_cls)
     return [line.strip() for line in text.splitlines() if line.strip()]
 
 
-def ensure_clean(path: Path, operation: str, *, error_cls: Type[Exception] = GitPackageError) -> None:
+def ensure_clean(
+    path: Path, operation: str, *, error_cls: Type[Exception] = GitPackageError
+) -> None:
     changed = status_lines(path, error_cls=error_cls)
     if changed:
         raise ValueError(
@@ -408,12 +588,18 @@ def ensure_clean(path: Path, operation: str, *, error_cls: Type[Exception] = Git
         )
 
 
-def current_branch(path: Path, *, error_cls: Type[Exception] = GitPackageError) -> Optional[str]:
-    branch = git(path, "branch", "--show-current", capture=True, error_cls=error_cls).strip()
+def current_branch(
+    path: Path, *, error_cls: Type[Exception] = GitPackageError
+) -> Optional[str]:
+    branch = git(
+        path, "branch", "--show-current", capture=True, error_cls=error_cls
+    ).strip()
     return branch or None
 
 
-def require_current_branch(path: Path, *, error_cls: Type[Exception] = GitPackageError) -> str:
+def require_current_branch(
+    path: Path, *, error_cls: Type[Exception] = GitPackageError
+) -> str:
     branch = current_branch(path, error_cls=error_cls)
     if branch is None:
         raise ValueError("Cannot push or pull from a detached HEAD.")
@@ -424,12 +610,20 @@ def head_commit(path: Path, *, error_cls: Type[Exception] = GitPackageError) -> 
     return git(path, "rev-parse", "HEAD", capture=True, error_cls=error_cls).strip()
 
 
-def resolve_commit(path: Path, ref: str, *, error_cls: Type[Exception] = GitPackageError) -> str:
-    return git(path, "rev-parse", f"{ref}^{{commit}}", capture=True, error_cls=error_cls).strip()
+def resolve_commit(
+    path: Path, ref: str, *, error_cls: Type[Exception] = GitPackageError
+) -> str:
+    return git(
+        path, "rev-parse", f"{ref}^{{commit}}", capture=True, error_cls=error_cls
+    ).strip()
 
 
 def upstream_branch(path: Path) -> Optional[str]:
-    result = subprocess.run(["git", "-C", str(path), "rev-parse", "--abbrev-ref", "@{u}"], text=True, capture_output=True)
+    result = subprocess.run(
+        ["git", "-C", str(path), "rev-parse", "--abbrev-ref", "@{u}"],
+        text=True,
+        capture_output=True,
+    )
     if result.returncode != 0:
         return None
     return result.stdout.strip() or None
@@ -442,8 +636,14 @@ def upstream_remote(path: Path) -> Optional[str]:
     return upstream.split("/", 1)[0]
 
 
-def single_remote(path: Path, *, error_cls: Type[Exception] = GitPackageError) -> Optional[str]:
-    remotes = [line.strip() for line in git(path, "remote", capture=True, error_cls=error_cls).splitlines() if line.strip()]
+def single_remote(
+    path: Path, *, error_cls: Type[Exception] = GitPackageError
+) -> Optional[str]:
+    remotes = [
+        line.strip()
+        for line in git(path, "remote", capture=True, error_cls=error_cls).splitlines()
+        if line.strip()
+    ]
     if len(remotes) == 1:
         return remotes[0]
     if len(remotes) > 1:
@@ -459,7 +659,11 @@ def outer_git_repo(path: Path) -> Optional[Path]:
     parent = path.parent if path.parent != Path("") else Path(".")
     while not parent.exists() and parent != parent.parent:
         parent = parent.parent
-    result = subprocess.run(["git", "-C", str(parent), "rev-parse", "--show-toplevel"], text=True, capture_output=True)
+    result = subprocess.run(
+        ["git", "-C", str(parent), "rev-parse", "--show-toplevel"],
+        text=True,
+        capture_output=True,
+    )
     if result.returncode != 0:
         return None
     repo = Path(result.stdout.strip()).resolve()
@@ -469,7 +673,9 @@ def outer_git_repo(path: Path) -> Optional[Path]:
     return repo
 
 
-def warn_if_nested_in_outer_repo(path: Path, *, warned_paths: set[Path], warning_cls: Type[Warning]) -> None:
+def warn_if_nested_in_outer_repo(
+    path: Path, *, warned_paths: set[Path], warning_cls: Type[Warning]
+) -> None:
     resolved_path = path.resolve()
     if resolved_path in warned_paths:
         return
@@ -486,23 +692,34 @@ def warn_if_nested_in_outer_repo(path: Path, *, warned_paths: set[Path], warning
         stacklevel=3,
     )
 
+
 def temporary_git_server_url() -> str:
     from edsl.config import CONFIG
+
     return CONFIG.get("EDSL_GIT_SERVER_URL").rstrip("/")
 
 
 def expected_parrot_api_key() -> Optional[str]:
     from edsl.config import CONFIG
+
     token = CONFIG.get("EXPECTED_PARROT_API_KEY")
     if not token or token == "None":
         return None
     return token
 
 
-def server_objects(*, token: Optional[str], server_url: Optional[str], object_type: str, error_cls: Type[Exception] = GitPackageError) -> dict:
+def server_objects(
+    *,
+    token: Optional[str],
+    server_url: Optional[str],
+    object_type: str,
+    error_cls: Type[Exception] = GitPackageError,
+) -> dict:
     token = token or expected_parrot_api_key()
     if token is None:
-        raise ValueError("Listing git objects requires EXPECTED_PARROT_API_KEY for bearer auth.")
+        raise ValueError(
+            "Listing git objects requires EXPECTED_PARROT_API_KEY for bearer auth."
+        )
     server_url = (server_url or temporary_git_server_url()).rstrip("/")
     url = f"{server_url}/api/v0/git-repos?object_type={object_type}"
     if can_autostart_temporary_git_server(url):
@@ -513,11 +730,21 @@ def server_objects(*, token: Optional[str], server_url: Optional[str], object_ty
             body = json.loads(response.read().decode())
     except HTTPError as exc:
         detail = exc.read().decode(errors="replace")
-        raise error_cls(["GET", url], stderr=f"Git object server rejected object listing: {detail}") from exc
+        raise error_cls(
+            ["GET", url], stderr=f"Git object server rejected object listing: {detail}"
+        ) from exc
     except URLError as exc:
-        raise error_cls(["GET", url], stderr=f"Could not reach configured git object server. EDSL_GIT_SERVER_URL={server_url}. {exc}") from exc
+        raise error_cls(
+            ["GET", url],
+            stderr=f"Could not reach configured git object server. EDSL_GIT_SERVER_URL={server_url}. {exc}",
+        ) from exc
     objects = body.get("objects", body.get("repos", []))
-    return {"status": body.get("status", "ok"), "server_url": body.get("server_url", server_url), "object_type": object_type, "objects": objects}
+    return {
+        "status": body.get("status", "ok"),
+        "server_url": body.get("server_url", server_url),
+        "object_type": object_type,
+        "objects": objects,
+    }
 
 
 def ensure_temporary_prototype_remote(
@@ -530,13 +757,27 @@ def ensure_temporary_prototype_remote(
 ) -> str:
     token = token or expected_parrot_api_key()
     if token is None:
-        raise ValueError("No git remote configured and EXPECTED_PARROT_API_KEY is not set. Set EXPECTED_PARROT_API_KEY or add a remote explicitly.")
+        raise ValueError(
+            "No git remote configured and EXPECTED_PARROT_API_KEY is not set. Set EXPECTED_PARROT_API_KEY or add a remote explicitly."
+        )
     url = f"{temporary_git_server_url()}/api/v0/git-repos"
-    payload = json.dumps({"object_type": object_type, "display_name": display_name}).encode()
-    request = Request(url, data=payload, method="POST", headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"})
+    payload = json.dumps(
+        {"object_type": object_type, "display_name": display_name}
+    ).encode()
+    request = Request(
+        url,
+        data=payload,
+        method="POST",
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json",
+        },
+    )
     body = create_temporary_prototype_repo(request, url, error_cls=error_cls)
     url = body["remote_url"]
-    git(path, "remote", "add", TEMPORARY_PROTOTYPE_REMOTE_NAME, url, error_cls=error_cls)
+    git(
+        path, "remote", "add", TEMPORARY_PROTOTYPE_REMOTE_NAME, url, error_cls=error_cls
+    )
     record_remote_metadata(
         path,
         remote_name=TEMPORARY_PROTOTYPE_REMOTE_NAME,
@@ -550,13 +791,18 @@ def ensure_temporary_prototype_remote(
     return TEMPORARY_PROTOTYPE_REMOTE_NAME
 
 
-def create_temporary_prototype_repo(request: Request, url: str, *, error_cls: Type[Exception] = GitPackageError) -> dict:
+def create_temporary_prototype_repo(
+    request: Request, url: str, *, error_cls: Type[Exception] = GitPackageError
+) -> dict:
     try:
         with urlopen(request, timeout=30) as response:
             return json.loads(response.read().decode())
     except HTTPError as exc:
         detail = exc.read().decode(errors="replace")
-        raise error_cls(["POST", url], stderr=f"Temporary git server rejected repo creation: {detail}") from exc
+        raise error_cls(
+            ["POST", url],
+            stderr=f"Temporary git server rejected repo creation: {detail}",
+        ) from exc
     except URLError as exc:
         if can_autostart_temporary_git_server(url):
             autostart_temporary_git_server()
@@ -565,10 +811,16 @@ def create_temporary_prototype_repo(request: Request, url: str, *, error_cls: Ty
                     return json.loads(response.read().decode())
             except HTTPError as retry_exc:
                 detail = retry_exc.read().decode(errors="replace")
-                raise error_cls(["POST", url], stderr=f"Temporary git server rejected repo creation: {detail}") from retry_exc
+                raise error_cls(
+                    ["POST", url],
+                    stderr=f"Temporary git server rejected repo creation: {detail}",
+                ) from retry_exc
             except URLError as retry_exc:
                 exc = retry_exc
-        raise error_cls(["POST", url], stderr=f"Could not reach temporary local git server. EDSL_GIT_SERVER_URL={temporary_git_server_url()}. {exc}") from exc
+        raise error_cls(
+            ["POST", url],
+            stderr=f"Could not reach temporary local git server. EDSL_GIT_SERVER_URL={temporary_git_server_url()}. {exc}",
+        ) from exc
 
 
 def can_autostart_temporary_git_server(url: str) -> bool:
@@ -606,7 +858,18 @@ def autostart_temporary_git_server() -> None:
         host = "127.0.0.1"
     port = str(parsed.port or 8000)
     _TEMPORARY_GIT_SERVER_PROCESS = subprocess.Popen(
-        [sys.executable, "-m", "uvicorn", "local_app:app", "--host", host, "--port", port, "--log-level", "warning"],
+        [
+            sys.executable,
+            "-m",
+            "uvicorn",
+            "local_app:app",
+            "--host",
+            host,
+            "--port",
+            port,
+            "--log-level",
+            "warning",
+        ],
         cwd=server_dir,
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
@@ -657,12 +920,23 @@ def stop_temporary_git_server() -> None:
     _TEMPORARY_GIT_SERVER_PROCESS.terminate()
 
 
-def ensure_remote_metadata(path: Path, remote_name: str, *, object_type: str, error_cls: Type[Exception] = GitPackageError) -> None:
+def ensure_remote_metadata(
+    path: Path,
+    remote_name: str,
+    *,
+    object_type: str,
+    error_cls: Type[Exception] = GitPackageError,
+) -> None:
     manifest = read_manifest_file(path)
     remotes = manifest_remotes(manifest)
     url = remote_url(path, remote_name, error_cls=error_cls)
     existing = remotes.get(remote_name)
-    if existing and existing.get("remote_url") == url and "remotes" in manifest and "remote" not in manifest:
+    if (
+        existing
+        and existing.get("remote_url") == url
+        and "remotes" in manifest
+        and "remote" not in manifest
+    ):
         return
     record_remote_metadata(
         path,
@@ -710,10 +984,22 @@ def record_remote_metadata(
     write_manifest_dict(path, manifest)
     git(path, "add", "manifest.json", error_cls=error_cls)
     if has_staged_changes(path):
-        git(path, "-c", "user.name=EDSL", "-c", "user.email=edsl@example.invalid", "commit", "-m", "Record EDSL remote", error_cls=error_cls)
+        git(
+            path,
+            "-c",
+            "user.name=EDSL",
+            "-c",
+            "user.email=edsl@example.invalid",
+            "commit",
+            "-m",
+            "Record EDSL remote",
+            error_cls=error_cls,
+        )
 
 
-def remove_remote_metadata(path: Path, remote_name: str, *, error_cls: Type[Exception] = GitPackageError) -> None:
+def remove_remote_metadata(
+    path: Path, remote_name: str, *, error_cls: Type[Exception] = GitPackageError
+) -> None:
     manifest = read_manifest_file(path)
     remotes = manifest_remotes(manifest)
     if remote_name not in remotes and manifest.get("primary_remote") != remote_name:
@@ -728,7 +1014,17 @@ def remove_remote_metadata(path: Path, remote_name: str, *, error_cls: Type[Exce
     write_manifest_dict(path, manifest)
     git(path, "add", "manifest.json", error_cls=error_cls)
     if has_staged_changes(path):
-        git(path, "-c", "user.name=EDSL", "-c", "user.email=edsl@example.invalid", "commit", "-m", "Remove EDSL remote", error_cls=error_cls)
+        git(
+            path,
+            "-c",
+            "user.name=EDSL",
+            "-c",
+            "user.email=edsl@example.invalid",
+            "commit",
+            "-m",
+            "Remove EDSL remote",
+            error_cls=error_cls,
+        )
 
 
 def remote_display_name(path: Path, remote_name: str) -> Optional[str]:
@@ -748,7 +1044,9 @@ def manifest_remotes(manifest: dict) -> dict:
         name = legacy_remote["name"]
         metadata = {key: value for key, value in legacy_remote.items() if key != "name"}
         if "kind" not in metadata:
-            metadata["kind"] = "edsl_git_server" if metadata.get("server_uuid") else "git"
+            metadata["kind"] = (
+                "edsl_git_server" if metadata.get("server_uuid") else "git"
+            )
         return {name: metadata}
     return {}
 
@@ -761,7 +1059,7 @@ def server_uuid_from_remote_url(url: str) -> Optional[str]:
     tail = parsed.path.split(marker, 1)[1]
     if not tail.endswith(".git"):
         return None
-    return tail[:-len(".git")]
+    return tail[: -len(".git")]
 
 
 def server_url_from_remote_url(url: str) -> str:

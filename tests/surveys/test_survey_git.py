@@ -2,6 +2,7 @@ import json
 from copy import deepcopy
 import shutil
 import subprocess
+import zipfile
 from pathlib import Path
 
 import pytest
@@ -17,6 +18,16 @@ pytestmark = pytest.mark.skipif(
 )
 
 
+def _package_json(package_path: Path, member: str):
+    with zipfile.ZipFile(package_path) as archive:
+        return json.loads(archive.read(member).decode())
+
+
+def _package_names(package_path: Path) -> set[str]:
+    with zipfile.ZipFile(package_path) as archive:
+        return set(archive.namelist())
+
+
 def test_survey_git_error_uses_survey_exception_hierarchy():
     assert issubclass(SurveyGitError, SurveyError)
     assert issubclass(SurveyGitError, EDSLBaseException)
@@ -29,18 +40,19 @@ def test_survey_git_save_default_path_and_load_round_trip(tmp_path, monkeypatch)
 
     info = survey.git.save()
 
-    package_path = tmp_path / "survey.survey.ep"
+    package_path = tmp_path / "survey.ep"
     assert info["status"] == "ok"
-    assert info["path"] == "survey.survey.ep"
-    assert package_path.is_dir()
-    assert (package_path / ".git").is_dir()
-    assert (package_path / "manifest.json").is_file()
-    assert (package_path / "questions" / "000001.json").is_file()
-    assert (package_path / "metadata" / "memory_plan.json").is_file()
-    assert (package_path / "metadata" / "rule_collection.json").is_file()
-    assert (package_path / "metadata" / "question_groups.json").is_file()
+    assert info["path"] == "survey.ep"
+    assert package_path.is_file()
+    names = _package_names(package_path)
+    assert ".git/HEAD" in names
+    assert "manifest.json" in names
+    assert "questions/000001.json" in names
+    assert "metadata/memory_plan.json" in names
+    assert "metadata/rule_collection.json" in names
+    assert "metadata/question_groups.json" in names
 
-    manifest = json.loads((package_path / "manifest.json").read_text())
+    manifest = _package_json(package_path, "manifest.json")
     assert manifest["format"] == "edsl.survey.git_package"
     assert manifest["edsl_class_name"] == "Survey"
     assert manifest["object_type"] == "Survey"
@@ -54,13 +66,13 @@ def test_survey_git_save_default_path_and_load_round_trip(tmp_path, monkeypatch)
 
 def test_survey_git_save_accepts_stem_and_validate(tmp_path):
     package_stem = tmp_path / "customer_survey"
-    expected_path = tmp_path / "customer_survey.survey.ep"
+    expected_path = tmp_path / "customer_survey.ep"
     survey = Survey.example()
 
     info = survey.git.save(package_stem, message="initial survey")
 
     assert info["path"] == str(expected_path)
-    assert expected_path.is_dir()
+    assert expected_path.is_file()
     assert survey.git.validate() == {"status": "ok", "errors": []}
 
 
@@ -104,11 +116,12 @@ def test_survey_git_mutation_save_cleans_stale_questions_and_round_trips(tmp_pat
     )
     second = second_survey.git.save(package_path, message="mutated survey")
 
-    manifest = json.loads((package_path / "manifest.json").read_text())
+    manifest = _package_json(package_path, "manifest.json")
     assert manifest["question_order"] == ["000002", "000003"]
-    assert not (package_path / "questions" / "000001.json").exists()
-    assert (package_path / "questions" / "000002.json").is_file()
-    assert (package_path / "questions" / "000003.json").is_file()
+    names = _package_names(package_path)
+    assert "questions/000001.json" not in names
+    assert "questions/000002.json" in names
+    assert "questions/000003.json" in names
     assert Survey.git.load(package_path) == second_survey
     assert Survey.git.load(package_path, ref=first["commit"]) == first_survey
     assert second["commit"] != first["commit"]
@@ -133,13 +146,14 @@ def test_survey_git_public_edits_round_trip_from_bound_package(tmp_path):
     )
     second = survey.git.save(message="edited survey")
 
-    manifest = json.loads((package_path / "manifest.json").read_text())
+    manifest = _package_json(package_path, "manifest.json")
     assert survey.question_names == ["q2", "q3", "q1"]
     assert manifest["question_order"] == ["000003", "000004", "000002"]
-    assert not (package_path / "questions" / "000001.json").exists()
-    assert (package_path / "questions" / "000002.json").is_file()
-    assert (package_path / "questions" / "000003.json").is_file()
-    assert (package_path / "questions" / "000004.json").is_file()
+    names = _package_names(package_path)
+    assert "questions/000001.json" not in names
+    assert "questions/000002.json" in names
+    assert "questions/000003.json" in names
+    assert "questions/000004.json" in names
     assert Survey.git.load(package_path) == survey
     assert Survey.git.load(package_path, ref=first["commit"]).question_names == [
         "q0",
@@ -176,18 +190,14 @@ def test_survey_git_metadata_edits_round_trip(tmp_path):
     assert loaded.to_dict(add_edsl_version=False) == survey.to_dict(
         add_edsl_version=False
     )
-    assert json.loads((package_path / "metadata" / "name.json").read_text()) == (
-        "metadata survey"
-    )
-    assert json.loads(
-        (package_path / "metadata" / "questions_to_randomize.json").read_text()
-    ) == ["q0"]
-    assert json.loads(
-        (package_path / "metadata" / "options_to_pin.json").read_text()
-    ) == {"q0": ["yes"]}
-    assert json.loads(
-        (package_path / "metadata" / "question_groups.json").read_text()
-    ) == {"intro": [0, 0]}
+    assert _package_json(package_path, "metadata/name.json") == "metadata survey"
+    assert _package_json(package_path, "metadata/questions_to_randomize.json") == ["q0"]
+    assert _package_json(package_path, "metadata/options_to_pin.json") == {
+        "q0": ["yes"]
+    }
+    assert _package_json(package_path, "metadata/question_groups.json") == {
+        "intro": [0, 0]
+    }
     assert loaded.memory_plan.to_dict(add_edsl_version=False) == (
         survey.memory_plan.to_dict(add_edsl_version=False)
     )
@@ -201,9 +211,10 @@ def test_survey_git_metadata_edits_round_trip(tmp_path):
     survey.question_groups = {}
     second = survey.git.save(message="remove optional metadata")
 
-    assert not (package_path / "metadata" / "name.json").exists()
-    assert not (package_path / "metadata" / "questions_to_randomize.json").exists()
-    assert not (package_path / "metadata" / "options_to_pin.json").exists()
+    names = _package_names(package_path)
+    assert "metadata/name.json" not in names
+    assert "metadata/questions_to_randomize.json" not in names
+    assert "metadata/options_to_pin.json" not in names
     assert Survey.git.load(package_path) == survey
     assert Survey.git.load(package_path, ref=first["commit"]) == loaded
     assert second["commit"] != first["commit"]
@@ -275,9 +286,13 @@ def test_survey_git_branch_tag_restore(tmp_path):
 
     assert restore_info["commit"] == first["commit"]
     assert updated == survey
-    assert subprocess.check_output(
-        ["git", "-C", str(package_path), "branch", "--show-current"], text=True
-    ).strip() == "experiment"
+    assert (
+        subprocess.check_output(
+            ["git", "-C", str(updated.git.worktree_path), "branch", "--show-current"],
+            text=True,
+        ).strip()
+        == "experiment"
+    )
 
 
 def test_survey_git_push_and_pull_with_remote(tmp_path):
@@ -294,8 +309,7 @@ def test_survey_git_push_and_pull_with_remote(tmp_path):
     assert push_info["status"] == "ok"
     assert push_info["remote"] == "origin"
 
-    subprocess.run(["git", "clone", str(remote_path), str(second_path)], check=True)
-    second = Survey.git.load(second_path)
+    second = Survey.git.clone(str(remote_path), path=second_path)
     assert second == first
 
     updated = Survey.example().add_question(

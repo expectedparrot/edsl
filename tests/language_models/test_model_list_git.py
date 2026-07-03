@@ -1,6 +1,8 @@
 import json
 import shutil
 import subprocess
+import zipfile
+from pathlib import Path
 
 import pytest
 
@@ -15,6 +17,16 @@ pytestmark = pytest.mark.skipif(
 )
 
 
+def _package_json(package_path: Path, member: str):
+    with zipfile.ZipFile(package_path) as archive:
+        return json.loads(archive.read(member).decode())
+
+
+def _package_names(package_path: Path) -> set[str]:
+    with zipfile.ZipFile(package_path) as archive:
+        return set(archive.namelist())
+
+
 def test_model_list_git_error_uses_language_model_exception_hierarchy():
     assert issubclass(ModelListGitError, LanguageModelExceptions)
     assert issubclass(ModelListGitError, EDSLBaseException)
@@ -27,15 +39,16 @@ def test_model_list_git_save_default_path_and_load_round_trip(tmp_path, monkeypa
 
     info = model_list.git.save()
 
-    package_path = tmp_path / "model_list.model_list.ep"
+    package_path = tmp_path / "model_list.ep"
     assert info["status"] == "ok"
-    assert info["path"] == "model_list.model_list.ep"
-    assert package_path.is_dir()
-    assert (package_path / ".git").is_dir()
-    assert (package_path / "manifest.json").is_file()
-    assert (package_path / "models" / "000001.json").is_file()
+    assert info["path"] == "model_list.ep"
+    assert package_path.is_file()
+    names = _package_names(package_path)
+    assert ".git/HEAD" in names
+    assert "manifest.json" in names
+    assert "models/000001.json" in names
 
-    manifest = json.loads((package_path / "manifest.json").read_text())
+    manifest = _package_json(package_path, "manifest.json")
     assert manifest["format"] == "edsl.model_list.git_package"
     assert manifest["edsl_class_name"] == "ModelList"
     assert manifest["object_type"] == "ModelList"
@@ -45,6 +58,18 @@ def test_model_list_git_save_default_path_and_load_round_trip(tmp_path, monkeypa
     loaded = ModelList.git.load(package_path)
     assert loaded == model_list
     assert loaded.git.path == package_path
+
+
+def test_model_list_git_package_html(tmp_path):
+    package_path = tmp_path / "models.ep"
+    html_path = tmp_path / "models.html"
+    ModelList.example().git.save(package_path)
+
+    html = ModelList.git.open(package_path).html(filename=html_path)
+
+    assert "<title>EDSL ModelList</title>" in html
+    assert "<table" in html
+    assert html_path.read_text(encoding="utf-8") == html
 
 
 def test_model_list_git_loads_historical_commit_without_checkout(tmp_path):
@@ -82,11 +107,12 @@ def test_model_list_git_mutation_save_cleans_stale_files_and_round_trips(tmp_pat
     model_list.append(Model("test", canned_response="added"))
     second = model_list.git.save(message="mutated models")
 
-    manifest = json.loads((package_path / "manifest.json").read_text())
+    manifest = _package_json(package_path, "manifest.json")
     assert manifest["model_order"] == ["000002", "000003"]
-    assert not (package_path / "models" / "000001.json").exists()
-    assert (package_path / "models" / "000002.json").is_file()
-    assert (package_path / "models" / "000003.json").is_file()
+    names = _package_names(package_path)
+    assert "models/000001.json" not in names
+    assert "models/000002.json" in names
+    assert "models/000003.json" in names
     assert ModelList.git.load(package_path) == model_list
     assert ModelList.git.load(package_path, ref=first["commit"]) == ModelList(
         [
@@ -115,9 +141,13 @@ def test_model_list_git_branch_tag_restore(tmp_path):
 
     assert restore_info["commit"] == first["commit"]
     assert updated == model_list
-    assert subprocess.check_output(
-        ["git", "-C", str(package_path), "branch", "--show-current"], text=True
-    ).strip() == "experiment"
+    assert (
+        subprocess.check_output(
+            ["git", "-C", str(updated.git.worktree_path), "branch", "--show-current"],
+            text=True,
+        ).strip()
+        == "experiment"
+    )
 
 
 def test_model_list_git_push_and_pull_with_remote(tmp_path):
@@ -134,8 +164,7 @@ def test_model_list_git_push_and_pull_with_remote(tmp_path):
     assert push_info["status"] == "ok"
     assert push_info["remote"] == "origin"
 
-    subprocess.run(["git", "clone", str(remote_path), str(second_path)], check=True)
-    second = ModelList.git.load(second_path)
+    second = ModelList.git.clone(str(remote_path), path=second_path)
     assert second == first
 
     updated = ModelList([Model("test", canned_response="updated")])

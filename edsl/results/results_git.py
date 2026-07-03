@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 
 FORMAT_NAME = "edsl.results.git_package"
 FORMAT_VERSION = 1
-PACKAGE_SUFFIX = ".results.ep"
+PACKAGE_SUFFIX = ".ep"
 _WARNED_NESTED_PACKAGE_PATHS: set[Path] = set()
 
 
@@ -120,9 +120,24 @@ class ResultsGitPackage(gitpkg.GitPackage):
         errors = _validate_package(self.path)
         return {"status": "ok" if not errors else "invalid", "errors": errors}
 
+    def html(
+        self,
+        filename: str | Path | None = None,
+        *,
+        ref: str = "HEAD",
+    ) -> str:
+        """Render this package as a standalone HTML document."""
+        results = _read_results(self.path, ref)
+        html = _standalone_html_document(results._repr_html_())
+        if filename is not None:
+            Path(filename).write_text(html, encoding="utf-8")
+        return html
+
 
 def _normalize_package_path(path, for_load: bool = False) -> Path:
-    return gitpkg.normalize_package_path(path, package_suffix=PACKAGE_SUFFIX, for_load=for_load)
+    return gitpkg.normalize_package_path(
+        path, package_suffix=PACKAGE_SUFFIX, for_load=for_load
+    )
 
 
 def _default_unsaved_package_path() -> Path:
@@ -140,7 +155,9 @@ def _init_package(path: Path) -> None:
     gitpkg.init_package(path, error_cls=ResultsGitError)
 
 
-def _write_package(path: Path, results: "Results", jsonl: str, content_sha256: str) -> None:
+def _write_package(
+    path: Path, results: "Results", jsonl: str, content_sha256: str
+) -> None:
     (path / "results.jsonl").write_text(jsonl)
     gitpkg.write_manifest_dict(path, _manifest(results, content_sha256))
 
@@ -159,6 +176,7 @@ def _manifest(results: "Results", content_sha256: str) -> dict:
         manifest["name"] = results.name
     try:
         from edsl import __version__
+
         manifest["edsl_version"] = __version__
     except Exception:
         pass
@@ -184,7 +202,9 @@ def _restore_source_metadata(results: "Results", source: dict) -> None:
 
 
 def _load_manifest_at_ref(path: Path, ref: str) -> dict:
-    manifest = gitpkg.read_json_at_ref(path, "manifest.json", ref, error_cls=ResultsGitError)
+    manifest = gitpkg.read_json_at_ref(
+        path, "manifest.json", ref, error_cls=ResultsGitError
+    )
     if manifest.get("format") != FORMAT_NAME:
         raise ValueError(f"Unsupported Results git package format: {manifest!r}")
     if manifest.get("format_version") != FORMAT_VERSION:
@@ -197,6 +217,21 @@ def _load_manifest_at_ref(path: Path, ref: str) -> dict:
 
 def _content_sha256(jsonl: str) -> str:
     return hashlib.sha256(jsonl.encode("utf-8")).hexdigest()
+
+
+def _standalone_html_document(body: str) -> str:
+    return (
+        "<!doctype html>\n"
+        "<html>\n"
+        "<head>\n"
+        '  <meta charset="utf-8">\n'
+        "  <title>EDSL Results</title>\n"
+        "</head>\n"
+        "<body>\n"
+        f"{body}\n"
+        "</body>\n"
+        "</html>\n"
+    )
 
 
 def _refresh_instance_from_loaded(instance: "Results", loaded: "Results") -> None:

@@ -6,6 +6,11 @@ Entry point: edsl = "edsl.__main__:main" (pyproject.toml)
 
 import sys
 import json
+import gzip
+import html
+import tempfile
+import zipfile
+import webbrowser
 from typing import Optional
 from pathlib import Path
 
@@ -79,7 +84,7 @@ def app(ctx):
     """EDSL CLI — run LLM surveys. All output is JSON."""
     if ctx.invoked_subcommand is None:
         _output({
-            "commands": ["run", "models", "info", "validate", "schema", "auth", "results", "coop"],
+            "commands": ["run", "models", "info", "validate", "open", "schema", "auth", "results", "coop"],
             "help": "Use 'edsl <command> --help' for details on each command.",
         })
 
@@ -147,6 +152,229 @@ def info():
         "config": CONFIG.to_dict(),
         "api_key_configured": bool(api_key),
     })
+
+
+# ---------------------------------------------------------------------------
+# edsl open
+# ---------------------------------------------------------------------------
+
+@app.command("open")
+@click.argument("path", type=click.Path(exists=True))
+@click.option("--output", "-o", "output_path", default=None, help="Path to write the generated HTML.")
+@click.option("--browser/--no-browser", default=True, help="Open the generated HTML in a browser.")
+def open_object(path, output_path, browser):
+    """Open an EDSL object as an HTML artifact in a browser."""
+    source_path = Path(path)
+    html_path = _html_output_path(source_path, output_path)
+
+    try:
+        obj = _load_openable_object(source_path)
+        _write_object_html(obj, html_path)
+    except SystemExit:
+        raise
+    except Exception as e:
+        _error(
+            "OPEN_ERROR",
+            f"Failed to render {path} as HTML: {e}",
+            suggestion="Use a saved Survey, AgentList, or Jobs JSON file, or a supported .ep package.",
+            exit_code=EXIT_ERROR,
+        )
+
+    url = html_path.resolve().as_uri()
+    opened = False
+    if browser:
+        try:
+            opened = bool(webbrowser.open(url))
+        except Exception as e:
+            _error(
+                "BROWSER_ERROR",
+                f"Failed to open browser: {e}",
+                suggestion=f"Open this file manually: {html_path}",
+                exit_code=EXIT_ERROR,
+            )
+
+    _output({
+        "source": str(source_path),
+        "html_path": str(html_path),
+        "url": url,
+        "opened": opened,
+        "object_type": _openable_object_type(obj),
+    })
+
+
+def _html_output_path(source_path: Path, output_path: Optional[str]) -> Path:
+    if output_path:
+        return Path(output_path)
+    safe_stem = source_path.name.replace("/", "_")
+    handle = tempfile.NamedTemporaryFile(
+        "w",
+        delete=False,
+        prefix=f"edsl-{safe_stem}-",
+        suffix=".html",
+    )
+    handle.close()
+    return Path(handle.name)
+
+
+def _load_openable_object(path: Path):
+    if path.is_dir():
+        return _load_openable_package(path)
+    if path.suffix == ".ep":
+        return _load_openable_package(path)
+    return _load_openable_json(path)
+
+
+def _load_openable_package(path: Path):
+    manifest = _read_package_manifest(path)
+    class_name = manifest.get("edsl_class_name") or manifest.get("object_type")
+    if class_name == "Survey":
+        from edsl.surveys import Survey
+
+        return Survey.git.open(path)
+    if class_name == "AgentList":
+        from edsl.agents import AgentList
+
+        return AgentList.git.open(path)
+    if class_name == "Jobs":
+        from edsl.jobs import Jobs
+
+        return Jobs.git.open(path)
+    if class_name == "Results":
+        from edsl.results import Results
+
+        return Results.git.open(path)
+    if class_name == "ScenarioList":
+        from edsl.scenarios import ScenarioList
+
+        return ScenarioList.git.open(path)
+    if class_name == "ModelList":
+        from edsl.language_models import ModelList
+
+        return ModelList.git.open(path)
+    _error(
+        "UNSUPPORTED_OBJECT",
+        f"Object package type does not support HTML rendering: {class_name or 'unknown'}",
+        suggestion="Currently supported package types: Survey, AgentList, Jobs, Results, ScenarioList, ModelList.",
+        exit_code=EXIT_USAGE,
+    )
+
+
+def _read_package_manifest(path: Path) -> dict:
+    if path.is_dir():
+        manifest_path = path / "manifest.json"
+        if not manifest_path.exists():
+            _error(
+                "INVALID_PACKAGE",
+                f"No manifest.json found in package: {path}",
+                exit_code=EXIT_USAGE,
+            )
+        return json.loads(manifest_path.read_text(encoding="utf-8"))
+
+    with zipfile.ZipFile(path) as archive:
+        with archive.open("manifest.json") as manifest_file:
+            return json.loads(manifest_file.read().decode("utf-8"))
+
+
+def _load_openable_json(path: Path):
+    data = _read_serialized_object(path)
+    class_name = data.get("edsl_class_name", "")
+    if class_name == "Survey":
+        from edsl.surveys import Survey
+
+        return Survey.from_dict(data)
+    if class_name == "AgentList":
+        from edsl.agents import AgentList
+
+        return AgentList.from_dict(data)
+    if class_name == "Jobs":
+        from edsl.jobs import Jobs
+
+        return Jobs.from_dict(data)
+    if class_name == "Results":
+        from edsl.results import Results
+
+        return Results.from_dict(data)
+    if class_name == "ScenarioList":
+        from edsl.scenarios import ScenarioList
+
+        return ScenarioList.from_dict(data)
+    if class_name == "ModelList":
+        from edsl.language_models import ModelList
+
+        return ModelList.from_dict(data)
+    _error(
+        "UNSUPPORTED_OBJECT",
+        f"Object type does not support HTML rendering: {class_name or 'unknown'}",
+        suggestion="Currently supported JSON object types: Survey, AgentList, Jobs, Results, ScenarioList, ModelList.",
+        exit_code=EXIT_USAGE,
+    )
+
+
+def _read_serialized_object(path: Path) -> dict:
+    if path.name.endswith(".json.gz"):
+        with gzip.open(path, "rt", encoding="utf-8") as f:
+            return json.load(f)
+    if path.suffix == ".json":
+        return json.loads(path.read_text(encoding="utf-8"))
+    _error(
+        "USAGE_ERROR",
+        f"Unsupported file extension for open: {path}",
+        suggestion="Use a .json, .json.gz, or .ep file.",
+        exit_code=EXIT_USAGE,
+    )
+
+
+def _write_object_html(obj, html_path: Path) -> None:
+    html_path.parent.mkdir(parents=True, exist_ok=True)
+    renderer = getattr(obj, "to_html", None) or getattr(obj, "html", None)
+    if renderer is not None:
+        renderer(filename=str(html_path))
+    else:
+        repr_html = getattr(obj, "_repr_html_", None)
+        if repr_html is not None:
+            body = repr_html()
+        else:
+            to_dataset = getattr(obj, "to_dataset", None)
+            dataset = to_dataset() if to_dataset is not None else None
+            body = dataset._repr_html_() if hasattr(dataset, "_repr_html_") else None
+        if body is None:
+            _error(
+                "UNSUPPORTED_OBJECT",
+                f"Object type does not support HTML rendering: {_openable_object_type(obj)}",
+                exit_code=EXIT_USAGE,
+            )
+        html_path.write_text(
+            _standalone_html_document(
+                title=f"EDSL {_openable_object_type(obj)}",
+                body=body,
+            ),
+            encoding="utf-8",
+        )
+    if not html_path.exists():
+        _error(
+            "OPEN_ERROR",
+            f"HTML renderer did not create expected file: {html_path}",
+            exit_code=EXIT_ERROR,
+        )
+
+
+def _standalone_html_document(title: str, body: str) -> str:
+    return (
+        "<!doctype html>\n"
+        "<html>\n"
+        "<head>\n"
+        '  <meta charset="utf-8">\n'
+        f"  <title>{html.escape(title)}</title>\n"
+        "</head>\n"
+        "<body>\n"
+        f"{body}\n"
+        "</body>\n"
+        "</html>\n"
+    )
+
+
+def _openable_object_type(obj) -> str:
+    return getattr(obj, "object_type", type(obj).__name__)
 
 
 # ---------------------------------------------------------------------------
@@ -558,8 +786,11 @@ def _validate_lightweight_job(raw: dict, warnings_list: list) -> None:
 @click.option("--progress/--no_progress", default=False, help="Show progress bar on stderr.")
 @click.option("--fresh", is_flag=True, default=False, help="Ignore cache.")
 @click.option("--save", default=None, help="Save Results JSON to file.")
+@click.option("--output", "-o", "output_path", default=None, help="Save Results to a file or .ep package.")
+@click.argument("input_path", required=False, type=click.Path(exists=True))
 def run(jobs, survey, json_data, question, agent_list, scenario_list,
-        model_list, model, qtype, options, name, progress, fresh, save):
+        model_list, model, qtype, options, name, progress, fresh, save,
+        output_path, input_path):
     """Run question(s) and get results."""
     from edsl.jobs import Jobs
     from edsl.agents import AgentList as AgentListClass
@@ -574,6 +805,8 @@ def run(jobs, survey, json_data, question, agent_list, scenario_list,
 
     # Step 1: Determine base input source
     sources = []
+    if input_path:
+        sources.append("path")
     if jobs:
         sources.append("jobs")
     if survey:
@@ -590,20 +823,20 @@ def run(jobs, survey, json_data, question, agent_list, scenario_list,
     if len(sources) > 1:
         _error("USAGE_ERROR",
                f"Multiple input sources provided: {', '.join(sources)}. Only one allowed.",
-               suggestion="Use exactly one of: --jobs, --survey, --json_data, --question, or stdin.",
+               suggestion="Use exactly one of: INPUT_PATH, --jobs, --survey, --json_data, --question, or stdin.",
                exit_code=EXIT_USAGE)
 
     input_mode = sources[0] if sources else None
     if not input_mode:
         _error("USAGE_ERROR", "No input provided.",
-               suggestion="Use --jobs, --survey, --json_data, --question, or pipe JSON via stdin.",
+               suggestion="Use INPUT_PATH, --jobs, --survey, --json_data, --question, or pipe JSON via stdin.",
                exit_code=EXIT_USAGE)
 
     # Step 2: Build the Jobs object
     try:
         job = _build_job(
             input_mode=input_mode,
-            jobs_path=jobs, survey_path=survey, json_str=json_data,
+            input_path=input_path, jobs_path=jobs, survey_path=survey, json_str=json_data,
             stdin_data=stdin_data, question_text=question,
             question_type=qtype, question_options=options, question_name=name,
         )
@@ -688,13 +921,19 @@ def run(jobs, survey, json_data, question, agent_list, scenario_list,
         except Exception:
             result_data = []
 
+    saved = None
+    if save and output_path:
+        _error("USAGE_ERROR", "--save and --output are mutually exclusive.",
+               exit_code=EXIT_USAGE)
+
     # Save if requested
-    if save:
+    if save or output_path:
         try:
-            save_path = Path(save)
-            save_path.write_text(json.dumps(results_obj.to_dict(), indent=2, default=str))
-        except Exception:
-            pass
+            saved = _save_results(results_obj, output_path or save)
+        except SystemExit:
+            raise
+        except Exception as e:
+            _error("RUN_ERROR", f"Failed to save results: {e}", exit_code=EXIT_ERROR)
 
     meta = {
         "input_mode": input_mode,
@@ -703,11 +942,13 @@ def run(jobs, survey, json_data, question, agent_list, scenario_list,
         "scenario_count": len(job.scenarios) if hasattr(job, 'scenarios') else 0,
         "result_count": len(result_data),
     }
+    if saved is not None:
+        meta["saved"] = saved
 
     _output({"results": result_data, "meta": meta})
 
 
-def _build_job(input_mode, jobs_path, survey_path, json_str, stdin_data,
+def _build_job(input_mode, input_path, jobs_path, survey_path, json_str, stdin_data,
                question_text, question_type, question_options, question_name):
     """Build a Jobs object from the determined input source."""
     from edsl.jobs import Jobs
@@ -715,9 +956,11 @@ def _build_job(input_mode, jobs_path, survey_path, json_str, stdin_data,
     from edsl.questions.register_questions_meta import RegisterQuestionsMeta
 
 
+    if input_mode == "path":
+        return _load_jobs_from_path(input_path)
+
     if input_mode == "jobs":
-        data = _read_json_file(jobs_path)
-        return Jobs.from_dict(data)
+        return _load_jobs_from_path(jobs_path)
 
     if input_mode == "survey":
         data = _read_json_file(survey_path)
@@ -752,6 +995,37 @@ def _build_job(input_mode, jobs_path, survey_path, json_str, stdin_data,
         return Jobs(survey=sv)
 
     _error("USAGE_ERROR", f"Unknown input mode: {input_mode}", exit_code=EXIT_USAGE)
+
+
+def _load_jobs_from_path(path: str):
+    path_obj = Path(path)
+    if path_obj.suffix == ".ep":
+        from edsl.jobs import Jobs
+
+        return Jobs.git.load(path_obj)
+    data = _read_json_file(path)
+    from edsl.jobs import Jobs
+
+    return Jobs.from_dict(data)
+
+
+def _save_results(results_obj, output_path: str) -> dict:
+    path = Path(output_path)
+    if path.suffix == ".ep":
+        info = results_obj.git.save(path)
+        return {
+            "path": info.get("path", str(path)),
+            "format": "ep",
+            "object_type": "Results",
+            "commit": info.get("commit"),
+        }
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps(results_obj.to_dict(), indent=2, default=str),
+        encoding="utf-8",
+    )
+    return {"path": str(path), "format": "json", "object_type": "Results"}
 
 
 def _build_job_from_json(data: dict):

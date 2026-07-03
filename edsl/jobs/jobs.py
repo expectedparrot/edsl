@@ -7,7 +7,10 @@ that users run large-scale experiments or simulations in EDSL.
 """
 
 from __future__ import annotations
+import html as html_module
+import json
 from importlib import import_module
+from pathlib import Path
 from typing import (
     Optional,
     Union,
@@ -881,6 +884,248 @@ class Jobs(Base):
                 )
             )
         return links
+
+    def to_html(self, filename: Optional[Union[str, Path]] = None) -> str:
+        """Create a standalone HTML artifact for this Jobs object."""
+        html = self._jobs_html_document()
+        if filename is not None:
+            Path(filename).write_text(html, encoding="utf-8")
+        return html
+
+    def save_html(self, filename: Union[str, Path]) -> Path:
+        """Write a standalone HTML artifact and return its path."""
+        path = Path(filename)
+        self.to_html(filename=path)
+        return path
+
+    def _jobs_html_document(self) -> str:
+        summary = self._summary()
+        summary["interviews"] = self.num_interviews
+        summary["total_questions"] = self.nr_questions
+        post_run_methods = getattr(self, "_post_run_methods", [])
+        where_clauses = getattr(self, "_where_clauses", [])
+        include_expression = getattr(self, "_include_expression", None)
+        dependency = getattr(self, "_depends_on", None)
+
+        return f"""<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>EDSL Jobs</title>
+  <style>
+    :root {{
+      color-scheme: light;
+      --ink: #172033;
+      --muted: #5f6b7a;
+      --line: #d9dee8;
+      --panel: #f8fafc;
+      --accent: #0f766e;
+      --accent-soft: #dff5f1;
+      --code: #243042;
+    }}
+    * {{ box-sizing: border-box; }}
+    body {{
+      margin: 0;
+      font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--ink);
+      background: #ffffff;
+    }}
+    header {{
+      padding: 28px 36px 18px;
+      border-bottom: 1px solid var(--line);
+      background: var(--panel);
+    }}
+    main {{ max-width: 1180px; margin: 0 auto; padding: 28px 36px 44px; }}
+    h1 {{ margin: 0 0 6px; font-size: 30px; font-weight: 700; }}
+    h2 {{ margin: 30px 0 12px; font-size: 19px; }}
+    h3 {{ margin: 18px 0 8px; font-size: 15px; }}
+    .subtle {{ color: var(--muted); }}
+    .summary {{
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 10px;
+      margin-top: 18px;
+    }}
+    .metric {{
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      padding: 12px 14px;
+    }}
+    .metric strong {{ display: block; font-size: 24px; line-height: 1.1; }}
+    .metric span {{ color: var(--muted); font-size: 12px; text-transform: uppercase; }}
+    section {{ border-top: 1px solid var(--line); padding-top: 18px; }}
+    table {{ width: 100%; border-collapse: collapse; table-layout: fixed; }}
+    th, td {{ border-bottom: 1px solid var(--line); padding: 9px 10px; vertical-align: top; text-align: left; }}
+    th {{ color: var(--muted); font-size: 12px; text-transform: uppercase; background: var(--panel); }}
+    code, pre {{ font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }}
+    pre {{
+      margin: 0;
+      padding: 10px;
+      overflow: auto;
+      color: var(--code);
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }}
+    .pill {{
+      display: inline-block;
+      border-radius: 999px;
+      padding: 2px 8px;
+      background: var(--accent-soft);
+      color: var(--accent);
+      font-size: 12px;
+      font-weight: 600;
+    }}
+    .empty {{ color: var(--muted); font-style: italic; }}
+  </style>
+</head>
+<body>
+  <header>
+    <h1>EDSL Jobs</h1>
+    <div class="subtle">Survey, agents, scenarios, models, and run metadata.</div>
+    <div class="summary">
+      {self._jobs_metric_html(summary["questions"], "Questions")}
+      {self._jobs_metric_html(summary["agents"], "Agents")}
+      {self._jobs_metric_html(summary["scenarios"], "Scenarios")}
+      {self._jobs_metric_html(summary["models"], "Models")}
+      {self._jobs_metric_html(summary["interviews"], "Interviews")}
+      {self._jobs_metric_html(summary["total_questions"], "Total questions")}
+    </div>
+  </header>
+  <main>
+    <section>
+      <h2>Survey</h2>
+      {self._jobs_survey_html()}
+    </section>
+    <section>
+      <h2>Agents</h2>
+      {self._jobs_collection_table_html(self.agents, "agent")}
+    </section>
+    <section>
+      <h2>Scenarios</h2>
+      {self._jobs_collection_table_html(self.scenarios, "scenario")}
+    </section>
+    <section>
+      <h2>Models</h2>
+      {self._jobs_collection_table_html(self.models, "model")}
+    </section>
+    <section>
+      <h2>Run Metadata</h2>
+      {self._jobs_metadata_html(post_run_methods, where_clauses, include_expression, dependency)}
+    </section>
+  </main>
+</body>
+</html>
+"""
+
+    @staticmethod
+    def _jobs_metric_html(value: Any, label: str) -> str:
+        return (
+            '<div class="metric">'
+            f"<strong>{html_module.escape(str(value))}</strong>"
+            f"<span>{html_module.escape(label)}</span>"
+            "</div>"
+        )
+
+    def _jobs_survey_html(self) -> str:
+        rows = []
+        for index, question in enumerate(self.survey.questions, start=1):
+            question_type = getattr(question, "question_type", type(question).__name__)
+            question_name = getattr(question, "question_name", f"q{index}")
+            question_text = getattr(question, "question_text", "")
+            rows.append(
+                "<tr>"
+                f"<td>{index}</td>"
+                f"<td><code>{html_module.escape(str(question_name))}</code></td>"
+                f"<td><span class=\"pill\">{html_module.escape(str(question_type))}</span></td>"
+                f"<td>{html_module.escape(str(question_text))}</td>"
+                f"<td>{self._jobs_pre_html(self._jobs_question_details(question))}</td>"
+                "</tr>"
+            )
+        if not rows:
+            return '<p class="empty">No questions.</p>'
+        return (
+            "<table><thead><tr>"
+            "<th>#</th><th>Name</th><th>Type</th><th>Text</th><th>Details</th>"
+            "</tr></thead><tbody>"
+            + "".join(rows)
+            + "</tbody></table>"
+        )
+
+    @staticmethod
+    def _jobs_question_details(question: Any) -> dict:
+        data = question.to_dict(add_edsl_version=False)
+        for key in ["question_name", "question_text", "question_type"]:
+            data.pop(key, None)
+        return data
+
+    def _jobs_collection_table_html(self, collection: Any, label: str) -> str:
+        rows = []
+        for index, item in enumerate(collection or [], start=1):
+            rows.append(
+                "<tr>"
+                f"<td>{index}</td>"
+                f"<td>{self._jobs_item_title(item, label, index)}</td>"
+                f"<td>{self._jobs_pre_html(self._jobs_item_dict(item))}</td>"
+                "</tr>"
+            )
+        if not rows:
+            return f'<p class="empty">No {html_module.escape(label)} entries.</p>'
+        return (
+            "<table><thead><tr><th>#</th><th>Item</th><th>Serialized data</th></tr></thead><tbody>"
+            + "".join(rows)
+            + "</tbody></table>"
+        )
+
+    @staticmethod
+    def _jobs_item_dict(item: Any) -> Any:
+        if hasattr(item, "to_dict"):
+            try:
+                return item.to_dict(add_edsl_version=False)
+            except TypeError:
+                return item.to_dict()
+        return item
+
+    @staticmethod
+    def _jobs_item_title(item: Any, label: str, index: int) -> str:
+        if label == "agent":
+            name = getattr(item, "name", None)
+            traits = getattr(item, "traits", {}) or {}
+            title = name or traits.get("name") or traits.get("status")
+            return html_module.escape(str(title or f"Agent {index}"))
+        if label == "model":
+            title = getattr(item, "model", None) or getattr(item, "_model_", None)
+            return html_module.escape(str(title or f"Model {index}"))
+        if label == "scenario":
+            keys = ", ".join(str(key) for key in getattr(item, "keys", lambda: [])())
+            return html_module.escape(keys or f"Scenario {index}")
+        return html_module.escape(f"{label.title()} {index}")
+
+    @staticmethod
+    def _jobs_pre_html(value: Any) -> str:
+        text = json.dumps(value, indent=2, default=str, ensure_ascii=False)
+        return f"<pre>{html_module.escape(text)}</pre>"
+
+    def _jobs_metadata_html(
+        self,
+        post_run_methods: Any,
+        where_clauses: Any,
+        include_expression: Any,
+        dependency: Any,
+    ) -> str:
+        metadata = {
+            "post_run_methods": post_run_methods,
+            "where_clauses": where_clauses,
+            "include_expression": include_expression,
+            "has_dependency": dependency is not None,
+        }
+        if dependency is not None:
+            metadata["dependency_summary"] = dependency._summary()
+        return self._jobs_pre_html(metadata)
 
     def __hash__(self):
         """Allow the model to be used as a key in a dictionary.

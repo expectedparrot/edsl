@@ -23,7 +23,7 @@ if TYPE_CHECKING:
 
 FORMAT_NAME = "edsl.jobs.git_package"
 FORMAT_VERSION = 1
-PACKAGE_SUFFIX = ".jobs.ep"
+PACKAGE_SUFFIX = ".ep"
 _WARNED_NESTED_PACKAGE_PATHS: set[Path] = set()
 _COMPONENTS = {
     "survey": "survey",
@@ -97,6 +97,16 @@ class JobsGitPackage(gitpkg.GitPackage):
         errors = _validate_package(self.path)
         return {"status": "ok" if not errors else "invalid", "errors": errors}
 
+    def html(
+        self,
+        filename: str | Path | None = None,
+        *,
+        ref: str = "HEAD",
+    ) -> str:
+        """Render this package as a standalone HTML document."""
+        job = _read_job(self.path, ref)
+        return job.to_html(filename=filename)
+
 
 class _materialized_ref:
     def __init__(self, path: Path, ref: str) -> None:
@@ -109,7 +119,16 @@ class _materialized_ref:
         temp_path = Path(self._tempdir.name)
         tar_path = temp_path / "archive.tar"
         gitpkg.run_git(
-            ["git", "-C", str(self.path), "archive", "--format=tar", "-o", str(tar_path), self.ref],
+            [
+                "git",
+                "-C",
+                str(self.path),
+                "archive",
+                "--format=tar",
+                "-o",
+                str(tar_path),
+                self.ref,
+            ],
             error_cls=JobsGitError,
         )
         with tarfile.open(tar_path) as archive:
@@ -125,7 +144,9 @@ class _materialized_ref:
 
 
 def _normalize_package_path(path, for_load: bool = False) -> Path:
-    return gitpkg.normalize_package_path(path, package_suffix=PACKAGE_SUFFIX, for_load=for_load)
+    return gitpkg.normalize_package_path(
+        path, package_suffix=PACKAGE_SUFFIX, for_load=for_load
+    )
 
 
 def _default_unsaved_package_path() -> Path:
@@ -172,6 +193,7 @@ def _write_manifest(path: Path, job: "Jobs") -> None:
         manifest["primary_remote"] = existing_manifest["remote"]["name"]
     try:
         from edsl import __version__
+
         manifest["edsl_version"] = __version__
     except Exception:
         pass
@@ -185,7 +207,9 @@ def _write_job_metadata(path: Path, job: "Jobs") -> None:
         "_include_expression": getattr(job, "_include_expression", None),
         "dependencies": ["dependencies/000001"] if job._depends_on is not None else [],
     }
-    (path / "job.json").write_text(json.dumps(metadata, indent=2, sort_keys=True) + "\n")
+    (path / "job.json").write_text(
+        json.dumps(metadata, indent=2, sort_keys=True) + "\n"
+    )
 
 
 def _write_dependencies(path: Path, job: "Jobs") -> None:
@@ -222,7 +246,9 @@ def _write_embedded_agents(path: Path, agents) -> None:
 
     path.mkdir(parents=True, exist_ok=True)
     existing_order, existing_agents = agent_list_git._load_existing_package_state(path)
-    agent_ids = agent_list_git._agent_ids_for_agents(agents, existing_order, existing_agents)
+    agent_ids = agent_list_git._agent_ids_for_agents(
+        agents, existing_order, existing_agents
+    )
     agent_list_git._write_manifest(path, agents, agent_ids)
     agent_list_git._write_agents(path, agents, agent_ids)
 
@@ -232,7 +258,9 @@ def _write_embedded_scenarios(path: Path, scenarios) -> None:
 
     path.mkdir(parents=True, exist_ok=True)
     scenario_list_dict = scenarios.to_dict(add_edsl_version=False)
-    existing_order, existing_scenarios = scenario_list_git._load_existing_package_state(path)
+    existing_order, existing_scenarios = scenario_list_git._load_existing_package_state(
+        path
+    )
     scenario_ids = scenario_list_git._scenario_ids_for_scenarios(
         scenario_list_dict["scenarios"], existing_order, existing_scenarios
     )
@@ -262,7 +290,9 @@ def _read_job_from_tree(path: Path) -> "Jobs":
     from .jobs import Jobs
 
     job = Jobs(survey=survey, agents=agents, models=models, scenarios=scenarios)
-    job._post_run_methods = _restore_post_run_methods(job_metadata.get("_post_run_methods", []))
+    job._post_run_methods = _restore_post_run_methods(
+        job_metadata.get("_post_run_methods", [])
+    )
     job._where_clauses = list(job_metadata.get("_where_clauses", []))
     job._include_expression = job_metadata.get("_include_expression")
     dependencies = job_metadata.get("dependencies") or []
@@ -280,9 +310,15 @@ def _read_embedded_survey(path: Path):
             _read_json_file(path / "questions" / f"{question_id}.json")
             for question_id in manifest.get("question_order", [])
         ],
-        "memory_plan": _read_optional_json_file(path / "metadata" / "memory_plan.json", {}),
-        "rule_collection": _read_optional_json_file(path / "metadata" / "rule_collection.json", {}),
-        "question_groups": _read_optional_json_file(path / "metadata" / "question_groups.json", {}),
+        "memory_plan": _read_optional_json_file(
+            path / "metadata" / "memory_plan.json", {}
+        ),
+        "rule_collection": _read_optional_json_file(
+            path / "metadata" / "rule_collection.json", {}
+        ),
+        "question_groups": _read_optional_json_file(
+            path / "metadata" / "question_groups.json", {}
+        ),
     }
     for key in ["name", "questions_to_randomize", "options_to_pin"]:
         value = _read_optional_json_file(path / "metadata" / f"{key}.json", None)
@@ -306,8 +342,12 @@ def _read_embedded_agents(path: Path):
     if manifest.get("instruction"):
         agent_list.set_instruction(manifest["instruction"])
     if manifest.get("traits_presentation_template"):
-        agent_list.set_traits_presentation_template(manifest["traits_presentation_template"])
-        agent_list._traits_presentation_template = manifest["traits_presentation_template"]
+        agent_list.set_traits_presentation_template(
+            manifest["traits_presentation_template"]
+        )
+        agent_list._traits_presentation_template = manifest[
+            "traits_presentation_template"
+        ]
     return agent_list
 
 
@@ -455,7 +495,7 @@ def _validate_package(path: Path) -> list[str]:
     errors.extend(_validate_component(path, "agents"))
     errors.extend(_validate_component(path, "scenarios"))
     errors.extend(_validate_component(path, "models"))
-    for dependency in (job_metadata.get("dependencies") or []):
+    for dependency in job_metadata.get("dependencies") or []:
         dependency_path = path / dependency
         if not dependency_path.is_dir():
             errors.append(f"missing dependency directory: {dependency}")
@@ -474,19 +514,30 @@ def _validate_component(path: Path, component: str) -> list[str]:
     if component == "survey":
         from edsl.surveys import survey_git
 
-        return [f"survey: {error}" for error in survey_git._validate_package(component_path)]
+        return [
+            f"survey: {error}" for error in survey_git._validate_package(component_path)
+        ]
     if component == "agents":
         from edsl.agents import agent_list_git
 
-        return [f"agents: {error}" for error in agent_list_git._validate_package(component_path)]
+        return [
+            f"agents: {error}"
+            for error in agent_list_git._validate_package(component_path)
+        ]
     if component == "scenarios":
         from edsl.scenarios import scenario_list_git
 
-        return [f"scenarios: {error}" for error in scenario_list_git._validate_package(component_path)]
+        return [
+            f"scenarios: {error}"
+            for error in scenario_list_git._validate_package(component_path)
+        ]
     if component == "models":
         from edsl.language_models import model_list_git
 
-        return [f"models: {error}" for error in model_list_git._validate_package(component_path)]
+        return [
+            f"models: {error}"
+            for error in model_list_git._validate_package(component_path)
+        ]
     return []
 
 

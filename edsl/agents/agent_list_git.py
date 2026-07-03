@@ -17,7 +17,7 @@ if TYPE_CHECKING:
 
 FORMAT_NAME = "edsl.agent_list.git_package"
 FORMAT_VERSION = 1
-PACKAGE_SUFFIX = ".agent_list.ep"
+PACKAGE_SUFFIX = ".ep"
 _WARNED_NESTED_PACKAGE_PATHS: set[Path] = set()
 
 

@@ -12,6 +12,9 @@ import tempfile
 from pathlib import Path
 
 import pytest
+from click.testing import CliRunner
+
+import edsl.__main__ as cli_module
 
 
 def run_cli(*args, stdin_data=None, expect_exit=0):
@@ -54,6 +57,193 @@ class TestEnvelope:
         assert "error" in out
         assert "code" in out["error"]
         assert "message" in out["error"]
+
+
+# ---------------------------------------------------------------------------
+# edsl open
+# ---------------------------------------------------------------------------
+
+class TestOpen:
+    def test_open_survey_json_generates_html_and_opens_browser(self, tmp_path, monkeypatch):
+        from edsl.surveys import Survey
+
+        survey_path = tmp_path / "survey.json"
+        html_path = tmp_path / "survey.html"
+        survey_path.write_text(json.dumps(Survey.example().to_dict()), encoding="utf-8")
+
+        opened_urls = []
+        monkeypatch.setattr(
+            cli_module.webbrowser,
+            "open",
+            lambda url: opened_urls.append(url) or True,
+        )
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            ["open", str(survey_path), "--output", str(html_path)],
+        )
+
+        assert result.exit_code == 0, result.output
+        out = json.loads(result.output)
+        assert out["status"] == "ok"
+        assert out["data"]["object_type"] == "Survey"
+        assert out["data"]["html_path"] == str(html_path)
+        assert out["data"]["opened"] is True
+        assert opened_urls == [html_path.resolve().as_uri()]
+        assert "<html>" in html_path.read_text(encoding="utf-8")
+
+    def test_open_survey_package_generates_html(self, tmp_path, monkeypatch):
+        from edsl.surveys import Survey
+
+        package_path = tmp_path / "survey.ep"
+        html_path = tmp_path / "survey-package.html"
+        Survey.example().git.save(package_path)
+
+        opened_urls = []
+        monkeypatch.setattr(
+            cli_module.webbrowser,
+            "open",
+            lambda url: opened_urls.append(url) or True,
+        )
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            ["open", str(package_path), "--output", str(html_path)],
+        )
+
+        assert result.exit_code == 0, result.output
+        out = json.loads(result.output)
+        assert out["status"] == "ok"
+        assert out["data"]["object_type"] == "Survey"
+        assert opened_urls == [html_path.resolve().as_uri()]
+        assert "survey_container" in html_path.read_text(encoding="utf-8")
+
+    def test_open_jobs_package_generates_html(self, tmp_path, monkeypatch):
+        from edsl import Agent, AgentList, Jobs, Model, ModelList, Scenario, ScenarioList
+        from edsl.questions import QuestionFreeText
+        from edsl.surveys import Survey
+
+        job = Jobs(
+            survey=Survey(
+                [
+                    QuestionFreeText(
+                        question_name="name",
+                        question_text="What is your name in {{ period }}?",
+                    )
+                ]
+            ),
+            agents=AgentList([Agent(traits={"status": "Joyful"})]),
+            models=ModelList([Model("test", canned_response="SPAM!")]),
+            scenarios=ScenarioList([Scenario({"period": "morning"})]),
+        )
+        package_path = tmp_path / "jobs.ep"
+        html_path = tmp_path / "jobs.html"
+        job.git.save(package_path)
+
+        opened_urls = []
+        monkeypatch.setattr(
+            cli_module.webbrowser,
+            "open",
+            lambda url: opened_urls.append(url) or True,
+        )
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            ["open", str(package_path), "--output", str(html_path)],
+        )
+
+        assert result.exit_code == 0, result.output
+        out = json.loads(result.output)
+        assert out["status"] == "ok"
+        assert out["data"]["object_type"] == "Jobs"
+        assert opened_urls == [html_path.resolve().as_uri()]
+        html = html_path.read_text(encoding="utf-8")
+        assert "EDSL Jobs" in html
+        assert "What is your name in {{ period }}?" in html
+
+    def test_open_results_package_generates_html(self, tmp_path, monkeypatch):
+        from edsl.results import Results
+
+        package_path = tmp_path / "results.ep"
+        html_path = tmp_path / "results.html"
+        Results.example().git.save(package_path)
+
+        opened_urls = []
+        monkeypatch.setattr(
+            cli_module.webbrowser,
+            "open",
+            lambda url: opened_urls.append(url) or True,
+        )
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            ["open", str(package_path), "--output", str(html_path)],
+        )
+
+        assert result.exit_code == 0, result.output
+        out = json.loads(result.output)
+        assert out["status"] == "ok"
+        assert out["data"]["object_type"] == "Results"
+        assert opened_urls == [html_path.resolve().as_uri()]
+        html = html_path.read_text(encoding="utf-8")
+        assert "<title>EDSL Results</title>" in html
+        assert "<table" in html
+
+    def test_open_scenario_list_package_generates_html(self, tmp_path, monkeypatch):
+        from edsl import ScenarioList
+
+        package_path = tmp_path / "scenario_list.ep"
+        html_path = tmp_path / "scenario-list.html"
+        ScenarioList.example().git.save(package_path)
+
+        opened_urls = []
+        monkeypatch.setattr(
+            cli_module.webbrowser,
+            "open",
+            lambda url: opened_urls.append(url) or True,
+        )
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            ["open", str(package_path), "--output", str(html_path)],
+        )
+
+        assert result.exit_code == 0, result.output
+        out = json.loads(result.output)
+        assert out["status"] == "ok"
+        assert out["data"]["object_type"] == "ScenarioList"
+        assert opened_urls == [html_path.resolve().as_uri()]
+        html = html_path.read_text(encoding="utf-8")
+        assert "<title>EDSL ScenarioList</title>" in html
+        assert "<table" in html
+
+    def test_open_model_list_package_generates_html(self, tmp_path, monkeypatch):
+        from edsl import ModelList
+
+        package_path = tmp_path / "models.ep"
+        html_path = tmp_path / "models.html"
+        ModelList.example().git.save(package_path)
+
+        opened_urls = []
+        monkeypatch.setattr(
+            cli_module.webbrowser,
+            "open",
+            lambda url: opened_urls.append(url) or True,
+        )
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            ["open", str(package_path), "--output", str(html_path)],
+        )
+
+        assert result.exit_code == 0, result.output
+        out = json.loads(result.output)
+        assert out["status"] == "ok"
+        assert out["data"]["object_type"] == "ModelList"
+        assert opened_urls == [html_path.resolve().as_uri()]
+        html = html_path.read_text(encoding="utf-8")
+        assert "<title>EDSL ModelList</title>" in html
+        assert "<table" in html
 
 
 # ---------------------------------------------------------------------------
@@ -354,6 +544,44 @@ class TestRunValidation:
         out = run_cli("run", "--question", "hi", "--type", "nonexistent_type",
                       expect_exit=2)
         assert out["error"]["code"] == "UNKNOWN_QUESTION_TYPE"
+
+    def test_run_jobs_package_saves_results_package(self, tmp_path):
+        from edsl import Agent, AgentList, Jobs, Model, ModelList, Scenario, ScenarioList
+        from edsl.questions import QuestionFreeText
+        from edsl.results import Results
+        from edsl.surveys import Survey
+
+        job = Jobs(
+            survey=Survey(
+                [
+                    QuestionFreeText(
+                        question_name="name",
+                        question_text="What is your name in {{ period }}?",
+                    )
+                ]
+            ),
+            agents=AgentList([Agent(traits={"status": "Joyful"})]),
+            models=ModelList([Model("test", canned_response="SPAM!")]),
+            scenarios=ScenarioList([Scenario({"period": "morning"})]),
+        )
+        jobs_path = tmp_path / "jobs.ep"
+        results_path = tmp_path / "results.ep"
+        job.git.save(jobs_path)
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            ["run", str(jobs_path), "-o", str(results_path)],
+        )
+
+        assert result.exit_code == 0, result.output
+        out = json.loads(result.output)
+        assert out["status"] == "ok"
+        assert out["data"]["meta"]["input_mode"] == "path"
+        assert out["data"]["meta"]["saved"]["format"] == "ep"
+        assert out["data"]["meta"]["saved"]["object_type"] == "Results"
+        assert results_path.exists()
+        loaded = Results.git.load(results_path)
+        assert len(loaded) == 1
 
 
 # ---------------------------------------------------------------------------

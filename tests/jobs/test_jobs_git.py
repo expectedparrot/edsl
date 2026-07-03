@@ -2,10 +2,21 @@ import base64
 import json
 import shutil
 import subprocess
+import zipfile
+from pathlib import Path
 
 import pytest
 
-from edsl import Agent, AgentList, FileStore, Jobs, Model, ModelList, Scenario, ScenarioList
+from edsl import (
+    Agent,
+    AgentList,
+    FileStore,
+    Jobs,
+    Model,
+    ModelList,
+    Scenario,
+    ScenarioList,
+)
 from edsl.base.base_exception import BaseException as EDSLBaseException
 from edsl.jobs import JobsGitError, JobsGitNestedRepoWarning
 from edsl.jobs.exceptions import JobsErrors
@@ -16,6 +27,16 @@ from edsl.surveys import Survey
 pytestmark = pytest.mark.skipif(
     shutil.which("git") is None, reason="Jobs git package tests require git"
 )
+
+
+def _package_json(package_path: Path, member: str):
+    with zipfile.ZipFile(package_path) as archive:
+        return json.loads(archive.read(member).decode())
+
+
+def _package_names(package_path: Path) -> set[str]:
+    with zipfile.ZipFile(package_path) as archive:
+        return set(archive.namelist())
 
 
 def simple_job(answer: str = "SPAM!") -> Jobs:
@@ -47,18 +68,19 @@ def test_jobs_git_save_default_path_and_load_round_trip(tmp_path, monkeypatch):
 
     info = job.git.save()
 
-    package_path = tmp_path / "jobs.jobs.ep"
+    package_path = tmp_path / "jobs.ep"
     assert info["status"] == "ok"
-    assert info["path"] == "jobs.jobs.ep"
-    assert package_path.is_dir()
-    assert (package_path / ".git").is_dir()
-    assert (package_path / "manifest.json").is_file()
-    assert (package_path / "job.json").is_file()
+    assert info["path"] == "jobs.ep"
+    assert package_path.is_file()
+    names = _package_names(package_path)
+    assert ".git/HEAD" in names
+    assert "manifest.json" in names
+    assert "job.json" in names
     for component in ["survey", "agents", "scenarios", "models"]:
-        assert (package_path / component / "manifest.json").is_file()
-        assert not (package_path / component / ".git").exists()
+        assert f"{component}/manifest.json" in names
+        assert f"{component}/.git/HEAD" not in names
 
-    manifest = json.loads((package_path / "manifest.json").read_text())
+    manifest = _package_json(package_path, "manifest.json")
     assert manifest["format"] == "edsl.jobs.git_package"
     assert manifest["edsl_class_name"] == "Jobs"
     assert manifest["object_type"] == "Jobs"
@@ -115,11 +137,12 @@ def test_jobs_git_mutation_save_updates_embedded_components_and_round_trips(tmp_
     job.models = mutated_models
     second = job.git.save(message="mutated job")
 
-    model_manifest = json.loads((package_path / "models" / "manifest.json").read_text())
+    model_manifest = _package_json(package_path, "models/manifest.json")
     assert model_manifest["model_order"] == ["000002", "000003"]
-    assert not (package_path / "models" / "models" / "000001.json").exists()
-    assert (package_path / "models" / "models" / "000002.json").is_file()
-    assert (package_path / "models" / "models" / "000003.json").is_file()
+    names = _package_names(package_path)
+    assert "models/models/000001.json" not in names
+    assert "models/models/000002.json" in names
+    assert "models/models/000003.json" in names
     assert Jobs.git.load(package_path) == job
     assert Jobs.git.load(package_path, ref=first["commit"]) == expected_initial
     assert second["commit"] != first["commit"]
@@ -143,9 +166,13 @@ def test_jobs_git_branch_tag_restore(tmp_path):
 
     assert restore_info["commit"] == first["commit"]
     assert updated == job
-    assert subprocess.check_output(
-        ["git", "-C", str(package_path), "branch", "--show-current"], text=True
-    ).strip() == "experiment"
+    assert (
+        subprocess.check_output(
+            ["git", "-C", str(updated.git.worktree_path), "branch", "--show-current"],
+            text=True,
+        ).strip()
+        == "experiment"
+    )
 
 
 def test_jobs_git_push_and_pull_with_remote(tmp_path):
@@ -162,8 +189,7 @@ def test_jobs_git_push_and_pull_with_remote(tmp_path):
     assert push_info["status"] == "ok"
     assert push_info["remote"] == "origin"
 
-    subprocess.run(["git", "clone", str(remote_path), str(second_path)], check=True)
-    second = Jobs.git.load(second_path)
+    second = Jobs.git.clone(str(remote_path), path=second_path)
     assert second == first
 
     updated = simple_job("updated")
@@ -185,7 +211,7 @@ def test_jobs_git_dependency_round_trip(tmp_path):
 
     dependent.git.save(package_path)
 
-    assert (package_path / "dependencies" / "000001" / "job.json").is_file()
+    assert "dependencies/000001/job.json" in _package_names(package_path)
     loaded = Jobs.git.load(package_path)
 
     assert loaded == dependent
@@ -211,13 +237,13 @@ def test_jobs_git_embedded_scenario_filestore_round_trip(tmp_path):
     source_path.write_text("hello from jobs filestore\n")
     package_path = tmp_path / "files.jobs.ep"
     job = simple_job()
-    job.scenarios = ScenarioList([Scenario({"period": "morning", "document": FileStore(str(source_path))})])
+    job.scenarios = ScenarioList(
+        [Scenario({"period": "morning", "document": FileStore(str(source_path))})]
+    )
 
     job.git.save(package_path)
 
-    scenario_json = json.loads(
-        (package_path / "scenarios" / "scenarios" / "000001.json").read_text()
-    )
+    scenario_json = _package_json(package_path, "scenarios/scenarios/000001.json")
     filestore_ref = scenario_json["document"]
     assert filestore_ref["edsl_type"] == "FileStoreRef"
     assert "base64_string" not in json.dumps(scenario_json)

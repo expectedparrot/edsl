@@ -2,6 +2,7 @@ import json
 import shutil
 import subprocess
 import warnings
+import zipfile
 from pathlib import Path
 
 import pytest
@@ -32,6 +33,16 @@ def _local_git_server_path(tmp_path: Path) -> Path:
         if (candidate / "local_app.py").exists():
             return candidate
     pytest.skip("Could not find local EDSL git server checkout.")
+
+
+def _package_json(package_path: Path, member: str):
+    with zipfile.ZipFile(package_path) as archive:
+        return json.loads(archive.read(member).decode())
+
+
+def _package_names(package_path: Path) -> set[str]:
+    with zipfile.ZipFile(package_path) as archive:
+        return set(archive.namelist())
 
 
 def test_agent_list_git_error_uses_edsl_exception_hierarchy():
@@ -69,13 +80,14 @@ def test_agent_list_git_save_creates_package_layout(tmp_path):
     info = agent_list.git.save(package_path, message="initial agents")
 
     assert info["status"] == "ok"
-    assert package_path.is_dir()
-    assert (package_path / ".git").is_dir()
-    assert (package_path / "manifest.json").is_file()
-    assert (package_path / "agents" / "000001.json").is_file()
-    assert (package_path / "agents" / "000002.json").is_file()
+    assert package_path.is_file()
+    names = _package_names(package_path)
+    assert ".git/HEAD" in names
+    assert "manifest.json" in names
+    assert "agents/000001.json" in names
+    assert "agents/000002.json" in names
 
-    manifest = json.loads((package_path / "manifest.json").read_text())
+    manifest = _package_json(package_path, "manifest.json")
     assert manifest["format"] == "edsl.agent_list.git_package"
     assert manifest["format_version"] == 1
     assert manifest["edsl_class_name"] == "AgentList"
@@ -83,7 +95,7 @@ def test_agent_list_git_save_creates_package_layout(tmp_path):
     assert manifest["codebook"] == {"age": "Age in years"}
     assert "edsl_version" in manifest
 
-    first_agent = json.loads((package_path / "agents" / "000001.json").read_text())
+    first_agent = _package_json(package_path, "agents/000001.json")
     assert first_agent["name"] == "alice"
     assert first_agent["traits"] == {"age": 22}
 
@@ -157,7 +169,7 @@ def test_agent_list_git_coop_push_creates_info_then_patches(tmp_path, monkeypatc
     assert first["status"] == "ok"
     assert len(push_calls) == 1
     assert patch_calls == []
-    coop_info = json.loads((package_path / "coop_info.json").read_text())
+    coop_info = _package_json(package_path, "coop_info.json")
     assert coop_info["uuid"] == "00000000-0000-0000-0000-000000000001"
 
     second = agent_list.git.coop_push(description="updated", visibility="unlisted")
@@ -166,7 +178,7 @@ def test_agent_list_git_coop_push_creates_info_then_patches(tmp_path, monkeypatc
     assert len(push_calls) == 1
     assert patch_calls[0]["url_or_uuid"] == "00000000-0000-0000-0000-000000000001"
     assert patch_calls[0]["value"] is agent_list
-    coop_info = json.loads((package_path / "coop_info.json").read_text())
+    coop_info = _package_json(package_path, "coop_info.json")
     assert coop_info["description"] == "updated"
     assert coop_info["visibility"] == "unlisted"
 
@@ -207,7 +219,7 @@ def test_agent_list_git_coop_pull_overwrites_package_files(tmp_path, monkeypatch
     assert info["status"] == "ok"
     assert agent_list == remote
     assert AgentList.git.load(package_path) == remote
-    coop_info = json.loads((package_path / "coop_info.json").read_text())
+    coop_info = _package_json(package_path, "coop_info.json")
     assert coop_info["uuid"] == "00000000-0000-0000-0000-000000000001"
 
 
@@ -239,10 +251,10 @@ def test_agent_list_git_coop_clone_writes_object_and_coop_info(tmp_path, monkeyp
         tmp_path / "clone",
     )
 
-    package_path = tmp_path / "clone.agent_list.ep"
+    package_path = tmp_path / "clone.ep"
     assert cloned == remote
     assert AgentList.git.load(package_path) == remote
-    coop_info = json.loads((package_path / "coop_info.json").read_text())
+    coop_info = _package_json(package_path, "coop_info.json")
     assert coop_info["uuid"] == "00000000-0000-0000-0000-000000000001"
 
 
@@ -282,9 +294,10 @@ def test_agent_list_git_load_coop_syncs_when_remote_is_newer(tmp_path, monkeypat
     loaded = AgentList.git.load(package_path)
 
     assert loaded == remote
-    assert json.loads((package_path / "coop_info.json").read_text())[
-        "last_updated_ts"
-    ] == "2026-07-03T12:01:00+00:00"
+    assert (
+        _package_json(package_path, "coop_info.json")["last_updated_ts"]
+        == "2026-07-03T12:01:00+00:00"
+    )
 
 
 def test_agent_list_git_save_coop_syncs_when_remote_is_newer(tmp_path, monkeypatch):
@@ -334,14 +347,11 @@ def test_agent_list_git_save_warns_once_inside_outer_git_repo(tmp_path):
     package_path = outer_repo / "data" / "agents.agent_list.ep"
     agent_list = AgentList([Agent(name="alice", traits={"age": 22})])
 
-    with pytest.warns(
-        AgentListGitNestedRepoWarning, match="inside another Git repository"
-    ) as captured:
+    with warnings.catch_warnings(record=True) as captured:
+        warnings.simplefilter("always")
         agent_list.git.save(package_path, message="initial agents")
 
-    assert len(captured) == 1
-    assert str(outer_repo) in str(captured[0].message)
-    assert str(package_path) in str(captured[0].message)
+    assert len(captured) == 0
 
     with warnings.catch_warnings(record=True) as second_warnings:
         warnings.simplefilter("always")
@@ -356,8 +366,7 @@ def test_agent_list_git_ignore_in_parent_updates_outer_gitignore(tmp_path):
     subprocess.run(["git", "-C", str(outer_repo), "init"], check=True)
     package_path = outer_repo / "data" / "agents.agent_list.ep"
     agent_list = AgentList([Agent(name="alice", traits={"age": 22})])
-    with pytest.warns(AgentListGitNestedRepoWarning):
-        agent_list.git.save(package_path, message="initial agents")
+    agent_list.git.save(package_path, message="initial agents")
 
     info = agent_list.git.ignore_in_parent()
     second = agent_list.git.ignore_in_parent()
@@ -365,11 +374,11 @@ def test_agent_list_git_ignore_in_parent_updates_outer_gitignore(tmp_path):
     assert info == {
         "status": "ok",
         "gitignore": str(outer_repo / ".gitignore"),
-        "pattern": "data/agents.agent_list.ep/",
+        "pattern": "data/agents.agent_list.ep",
     }
     assert second["status"] == "unchanged"
     assert (outer_repo / ".gitignore").read_text().splitlines() == [
-        "data/agents.agent_list.ep/"
+        "data/agents.agent_list.ep"
     ]
 
 
@@ -402,14 +411,14 @@ def test_agent_list_git_load_round_trips_and_binds_path(tmp_path):
 
 def test_agent_list_git_save_appends_missing_package_suffix(tmp_path):
     package_stem = tmp_path / "agents"
-    expected_path = tmp_path / "agents.agent_list.ep"
+    expected_path = tmp_path / "agents.ep"
     agent_list = AgentList([Agent(name="alice", traits={"age": 22})])
 
     info = agent_list.git.save(package_stem, message="initial agents")
     loaded = AgentList.git.load(package_stem)
 
     assert info["path"] == str(expected_path)
-    assert expected_path.is_dir()
+    assert expected_path.is_file()
     assert not package_stem.exists()
     assert loaded == agent_list
     assert loaded.git.path == expected_path
@@ -418,10 +427,10 @@ def test_agent_list_git_save_appends_missing_package_suffix(tmp_path):
 def test_agent_list_git_rejects_non_package_suffix(tmp_path):
     agent_list = AgentList([Agent(name="alice", traits={"age": 22})])
 
-    with pytest.raises(ValueError, match=r"\.agent_list\.ep"):
+    with pytest.raises(ValueError, match=r"\.ep"):
         agent_list.git.save(tmp_path / "agents.json", message="bad suffix")
 
-    with pytest.raises(ValueError, match=r"\.agent_list\.ep"):
+    with pytest.raises(ValueError, match=r"\.ep"):
         AgentList.git.load(tmp_path / "agents.json")
 
 
@@ -460,11 +469,12 @@ def test_agent_list_git_mutation_save_cleans_stale_files_and_round_trips(tmp_pat
     agent_list.append(Agent(name="carol", traits={"age": 41}))
     second = agent_list.git.save(message="mutated agents")
 
-    manifest = json.loads((package_path / "manifest.json").read_text())
+    manifest = _package_json(package_path, "manifest.json")
     assert manifest["agent_order"] == ["000002", "000003"]
-    assert not (package_path / "agents" / "000001.json").exists()
-    assert (package_path / "agents" / "000002.json").is_file()
-    assert (package_path / "agents" / "000003.json").is_file()
+    names = _package_names(package_path)
+    assert "agents/000001.json" not in names
+    assert "agents/000002.json" in names
+    assert "agents/000003.json" in names
     assert AgentList.git.load(package_path) == agent_list
     assert AgentList.git.load(package_path, ref=first["commit"]) == AgentList(
         [
@@ -491,9 +501,9 @@ def test_agent_list_git_duplicate_agents_reorder_and_restore_round_trip(tmp_path
     agent_list.insert(0, Agent(name="new", traits={"age": 41, "city": "Seattle"}))
     second = agent_list.git.save(message="reordered duplicates")
 
-    manifest = json.loads((package_path / "manifest.json").read_text())
+    manifest = _package_json(package_path, "manifest.json")
     assert manifest["agent_order"] == ["000004", "000001", "000003"]
-    assert not (package_path / "agents" / "000002.json").exists()
+    assert "agents/000002.json" not in _package_names(package_path)
     assert AgentList.git.load(package_path) == agent_list
     assert AgentList.git.load(package_path, ref=first["commit"]) == AgentList(
         [
@@ -545,7 +555,13 @@ def test_agent_list_git_tags_history_switch_and_restore(tmp_path):
     assert experiment_list == main_list
     assert (
         subprocess.check_output(
-            ["git", "-C", str(package_path), "branch", "--show-current"],
+            [
+                "git",
+                "-C",
+                str(experiment_list.git.worktree_path),
+                "branch",
+                "--show-current",
+            ],
             text=True,
         ).strip()
         == "experiment"
@@ -562,7 +578,7 @@ def test_agent_list_git_save_does_not_create_empty_commit(tmp_path):
     assert second["commit"] == first["commit"]
 
     commit_count = subprocess.check_output(
-        ["git", "-C", str(package_path), "rev-list", "--count", "HEAD"],
+        ["git", "-C", str(agent_list.git.worktree_path), "rev-list", "--count", "HEAD"],
         text=True,
     ).strip()
     assert commit_count == "1"
@@ -576,10 +592,7 @@ def test_agent_list_git_push_and_pull_with_remote(tmp_path):
 
     first = AgentList([Agent(name="alice", traits={"age": 22})])
     first.git.save(first_path, message="initial agents")
-    subprocess.run(
-        ["git", "-C", str(first_path), "remote", "add", "origin", str(remote_path)],
-        check=True,
-    )
+    first.git.remote_add("origin", str(remote_path))
 
     push_info = first.git.push()
 
@@ -587,8 +600,7 @@ def test_agent_list_git_push_and_pull_with_remote(tmp_path):
     assert push_info["remote"] == "origin"
     assert push_info["branch"] == "main"
 
-    subprocess.run(["git", "clone", str(remote_path), str(second_path)], check=True)
-    second = AgentList.git.load(second_path)
+    second = AgentList.git.clone(str(remote_path), path=second_path)
     assert second == first
 
     updated = AgentList(
@@ -614,10 +626,7 @@ def test_agent_list_git_clone_requires_destination_path(tmp_path):
 
     original = AgentList([Agent(name="alice", traits={"age": 22})])
     original.git.save(source_path, message="initial agents")
-    subprocess.run(
-        ["git", "-C", str(source_path), "remote", "add", "origin", str(remote_path)],
-        check=True,
-    )
+    original.git.remote_add("origin", str(remote_path))
     original.git.push()
 
     with pytest.raises(TypeError):
@@ -628,15 +637,12 @@ def test_agent_list_git_clone_accepts_explicit_destination_without_suffix(tmp_pa
     remote_path = tmp_path / "remote.git"
     source_path = tmp_path / "source.agent_list.ep"
     destination_stem = tmp_path / "cloned"
-    expected_destination = tmp_path / "cloned.agent_list.ep"
+    expected_destination = tmp_path / "cloned.ep"
     subprocess.run(["git", "init", "--bare", str(remote_path)], check=True)
 
     original = AgentList([Agent(name="alice", traits={"age": 22})])
     original.git.save(source_path, message="initial agents")
-    subprocess.run(
-        ["git", "-C", str(source_path), "remote", "add", "origin", str(remote_path)],
-        check=True,
-    )
+    original.git.remote_add("origin", str(remote_path))
     original.git.push()
 
     cloned = AgentList.git.clone(str(remote_path), path=destination_stem)
@@ -677,7 +683,7 @@ def test_agent_list_git_status_reports_clean_and_dirty(tmp_path):
     assert clean["branch"] == "main"
     assert clean["changed"] == []
 
-    (package_path / "agents" / "000001.json").write_text("{}\n")
+    (agent_list.git.worktree_path / "agents" / "000001.json").write_text("{}\n")
 
     dirty = agent_list.git.status()
     assert dirty["clean"] is False
@@ -695,7 +701,7 @@ def test_agent_list_git_remote_helpers(tmp_path):
 
     assert info == {"status": "ok", "name": "origin", "url": str(remote_path)}
     assert agent_list.git.remotes() == {"origin": str(remote_path)}
-    manifest = json.loads((package_path / "manifest.json").read_text())
+    manifest = _package_json(package_path, "manifest.json")
     assert manifest["primary_remote"] == "origin"
     assert manifest["remotes"] == {
         "origin": {"kind": "git", "remote_url": str(remote_path)}
@@ -720,7 +726,7 @@ def test_agent_list_git_supports_multiple_remotes_and_push_to_named_remote(tmp_p
         "github": str(github_path),
         "origin": str(origin_path),
     }
-    manifest = json.loads((package_path / "manifest.json").read_text())
+    manifest = _package_json(package_path, "manifest.json")
     assert manifest["primary_remote"] == "origin"
     assert manifest["remotes"]["origin"] == {
         "kind": "git",
@@ -755,7 +761,7 @@ def test_agent_list_git_remote_set_url_remove_and_fetch(tmp_path):
 
     assert set_info == {"status": "ok", "name": "origin", "url": str(replacement_path)}
     assert agent_list.git.remotes() == {"origin": str(replacement_path)}
-    manifest = json.loads((package_path / "manifest.json").read_text())
+    manifest = _package_json(package_path, "manifest.json")
     assert manifest["remotes"]["origin"] == {
         "kind": "git",
         "remote_url": str(replacement_path),
@@ -769,7 +775,7 @@ def test_agent_list_git_remote_set_url_remove_and_fetch(tmp_path):
         "url": str(replacement_path),
     }
     assert agent_list.git.remotes() == {}
-    manifest = json.loads((package_path / "manifest.json").read_text())
+    manifest = _package_json(package_path, "manifest.json")
     assert manifest["remotes"] == {}
     assert "primary_remote" not in manifest
 
@@ -784,7 +790,7 @@ def test_agent_list_git_pull_and_checkout_refuse_dirty_tree(tmp_path):
     agent_list.git.push()
     agent_list.git.branch("experiment")
 
-    (package_path / "agents" / "000001.json").write_text("{}\n")
+    (agent_list.git.worktree_path / "agents" / "000001.json").write_text("{}\n")
 
     with pytest.raises(ValueError, match="Run .*\\.git\\.status\\(\\)"):
         agent_list.git.checkout("experiment")
@@ -796,10 +802,10 @@ def test_agent_list_git_save_refuses_dirty_tree_before_writing(tmp_path):
     package_path = tmp_path / "agents.agent_list.ep"
     agent_list = AgentList([Agent(name="alice", traits={"age": 22})])
     agent_list.git.save(package_path, message="initial agents")
-    (package_path / "agents" / "000001.json").write_text("{}\n")
+    (agent_list.git.worktree_path / "agents" / "000001.json").write_text("{}\n")
 
     with pytest.raises(ValueError, match="Run .*\\.git\\.status\\(\\)"):
-        AgentList([Agent(name="alice", traits={"age": 23})]).git.save(package_path)
+        agent_list.git.save(message="dirty save")
 
 
 def test_agent_list_git_validate_reports_package_integrity(tmp_path):
@@ -809,8 +815,8 @@ def test_agent_list_git_validate_reports_package_integrity(tmp_path):
 
     assert agent_list.git.validate() == {"status": "ok", "errors": []}
 
-    (package_path / "agents" / "000001.json").unlink()
-    invalid = AgentList.git.open(package_path).validate()
+    (agent_list.git.worktree_path / "agents" / "000001.json").unlink()
+    invalid = agent_list.git.validate()
 
     assert invalid["status"] == "invalid"
     assert "missing agent file: agents/000001.json" in invalid["errors"]
@@ -823,22 +829,17 @@ def test_agent_list_git_preserves_agent_file_ids_on_insert(tmp_path):
     agent_list = AgentList([alice, bob])
     agent_list.git.save(package_path, message="initial agents")
 
-    alice_file = json.loads((package_path / "agents" / "000001.json").read_text())
-    bob_file = json.loads((package_path / "agents" / "000002.json").read_text())
+    alice_file = _package_json(package_path, "agents/000001.json")
+    bob_file = _package_json(package_path, "agents/000002.json")
 
     cara = Agent(name="cara", traits={"age": 40})
     AgentList([cara, alice, bob]).git.save(package_path, message="insert cara")
 
-    manifest = json.loads((package_path / "manifest.json").read_text())
+    manifest = _package_json(package_path, "manifest.json")
     assert manifest["agent_order"] == ["000003", "000001", "000002"]
-    assert (
-        json.loads((package_path / "agents" / "000001.json").read_text()) == alice_file
-    )
-    assert json.loads((package_path / "agents" / "000002.json").read_text()) == bob_file
-    assert (
-        json.loads((package_path / "agents" / "000003.json").read_text())["name"]
-        == "cara"
-    )
+    assert _package_json(package_path, "agents/000001.json") == alice_file
+    assert _package_json(package_path, "agents/000002.json") == bob_file
+    assert _package_json(package_path, "agents/000003.json")["name"] == "cara"
 
 
 def test_agent_list_git_push_auto_creates_temporary_local_server_remote(
@@ -890,7 +891,7 @@ def test_agent_list_git_push_auto_creates_temporary_local_server_remote(
     monkeypatch.setattr(CONFIG, "EXPECTED_PARROT_API_KEY", "alice-token", raising=False)
 
     try:
-        package_path = tmp_path / "agents.agent_list.ep"
+        package_path = tmp_path / "agents.ep"
         agent_list = AgentList([Agent(name="alice", traits={"age": 22})])
         agent_list.git.save(package_path, message="initial agents")
 
@@ -900,7 +901,7 @@ def test_agent_list_git_push_auto_creates_temporary_local_server_remote(
         remotes = agent_list.git.remotes()
         assert set(remotes) == {"origin"}
         assert remotes["origin"].startswith(f"{base_url}/api/v0/git/")
-        manifest = json.loads((package_path / "manifest.json").read_text())
+        manifest = _package_json(package_path, "manifest.json")
         assert manifest["primary_remote"] == "origin"
         assert manifest["remotes"]["origin"]["server_uuid"] in remotes["origin"]
         assert manifest["remotes"]["origin"]["remote_url"] == remotes["origin"]
@@ -973,12 +974,12 @@ def test_agent_list_git_push_unsaved_agent_list_auto_saves_and_pushes(
         push_info = agent_list.git.push()
 
         assert push_info["status"] == "ok"
-        assert push_info["path"] == "agent_list.agent_list.ep"
-        assert agent_list.git.path == Path("agent_list.agent_list.ep")
-        manifest_path = tmp_path / "agent_list.agent_list.ep" / "manifest.json"
+        assert push_info["path"] == "agent_list.ep"
+        assert agent_list.git.path == Path("agent_list.ep")
+        manifest_path = tmp_path / "agent_list.ep"
         assert manifest_path.is_file()
         assert set(agent_list.git.remotes()) == {"origin"}
-        manifest = json.loads(manifest_path.read_text())
+        manifest = _package_json(manifest_path, "manifest.json")
         assert (
             manifest["remotes"]["origin"]["server_uuid"]
             in agent_list.git.remotes()["origin"]
@@ -1023,9 +1024,7 @@ def test_agent_list_git_push_autostarts_temporary_local_server(tmp_path, monkeyp
         assert push_info["remote"] == "origin"
         remote_url = agent_list.git.remotes()["origin"]
         assert remote_url.startswith(f"{base_url}/api/v0/git/")
-        manifest = json.loads(
-            (tmp_path / "agent_list.agent_list.ep" / "manifest.json").read_text()
-        )
+        manifest = _package_json(tmp_path / "agent_list.ep", "manifest.json")
         assert manifest["remotes"]["origin"]["server_uuid"] in remote_url
         assert manifest["remotes"]["origin"]["remote_url"] == remote_url
     finally:
@@ -1083,7 +1082,7 @@ def test_agent_list_git_objects_lists_canonical_server_objects(tmp_path, monkeyp
     monkeypatch.setattr(CONFIG, "EXPECTED_PARROT_API_KEY", "alice-token", raising=False)
 
     try:
-        package_path = tmp_path / "agents.agent_list.ep"
+        package_path = tmp_path / "agents.ep"
         agent_list = AgentList([Agent(name="alice", traits={"age": 22})])
         agent_list.git.save(package_path, message="initial agents")
         agent_list.git.push()

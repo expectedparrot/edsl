@@ -21,7 +21,7 @@ if TYPE_CHECKING:
 
 FORMAT_NAME = "edsl.scenario_list.git_package"
 FORMAT_VERSION = 1
-PACKAGE_SUFFIX = ".scenario_list.ep"
+PACKAGE_SUFFIX = ".ep"
 _WARNED_NESTED_PACKAGE_PATHS: set[Path] = set()
 
 
@@ -62,6 +62,19 @@ class ScenarioListGitPackage(gitpkg.GitPackage):
         errors = _validate_package(self.path)
         return {"status": "ok" if not errors else "invalid", "errors": errors}
 
+    def html(
+        self,
+        filename: str | Path | None = None,
+        *,
+        ref: str = "HEAD",
+    ) -> str:
+        """Render this package as a standalone HTML document."""
+        scenario_list = _read_scenario_list(self.path, ref)
+        html = _standalone_html_document(scenario_list.to_dataset()._repr_html_())
+        if filename is not None:
+            Path(filename).write_text(html, encoding="utf-8")
+        return html
+
 
 def _git_spec() -> GitObjectSpec:
     return GitObjectSpec(
@@ -100,7 +113,9 @@ def _write_scenario_list(path: Path, scenario_list: "ScenarioList", **_kwargs) -
 
 
 def _normalize_package_path(path, for_load: bool = False) -> Path:
-    return gitpkg.normalize_package_path(path, package_suffix=PACKAGE_SUFFIX, for_load=for_load)
+    return gitpkg.normalize_package_path(
+        path, package_suffix=PACKAGE_SUFFIX, for_load=for_load
+    )
 
 
 def _default_unsaved_package_path() -> Path:
@@ -143,14 +158,25 @@ def _read_scenario_list_dict_at_ref(path: Path, ref: str) -> dict:
 
 
 def _read_optional_json_at_ref(path: Path, file_path: str, ref: str, default):
+    exists = subprocess.run(
+        ["git", "-C", str(path), "cat-file", "-e", f"{ref}:{file_path}"],
+        text=True,
+        capture_output=True,
+    )
+    if exists.returncode != 0:
+        return default
     try:
-        return gitpkg.read_json_at_ref(path, file_path, ref, error_cls=ScenarioListGitError)
+        return gitpkg.read_json_at_ref(
+            path, file_path, ref, error_cls=ScenarioListGitError
+        )
     except ScenarioListGitError:
         return default
 
 
 def _load_manifest_at_ref(path: Path, ref: str) -> dict:
-    manifest = gitpkg.read_json_at_ref(path, "manifest.json", ref, error_cls=ScenarioListGitError)
+    manifest = gitpkg.read_json_at_ref(
+        path, "manifest.json", ref, error_cls=ScenarioListGitError
+    )
     if manifest.get("format") != FORMAT_NAME:
         raise ValueError(f"Unsupported ScenarioList git package format: {manifest!r}")
     if manifest.get("format_version") != FORMAT_VERSION:
@@ -159,6 +185,21 @@ def _load_manifest_at_ref(path: Path, ref: str) -> dict:
             f"{manifest.get('format_version')!r}"
         )
     return manifest
+
+
+def _standalone_html_document(body: str) -> str:
+    return (
+        "<!doctype html>\n"
+        "<html>\n"
+        "<head>\n"
+        '  <meta charset="utf-8">\n'
+        "  <title>EDSL ScenarioList</title>\n"
+        "</head>\n"
+        "<body>\n"
+        f"{body}\n"
+        "</body>\n"
+        "</html>\n"
+    )
 
 
 def _load_existing_order(path: Path) -> list[str]:
@@ -180,7 +221,11 @@ def _load_existing_package_state(path: Path) -> tuple[list[str], dict[str, dict]
     return existing_order, existing_scenarios
 
 
-def _scenario_ids_for_scenarios(scenario_dicts: list[dict], existing_order: list[str], existing_scenarios: dict[str, dict]) -> list[str]:
+def _scenario_ids_for_scenarios(
+    scenario_dicts: list[dict],
+    existing_order: list[str],
+    existing_scenarios: dict[str, dict],
+) -> list[str]:
     used: set[str] = set()
     assigned: list[str] = []
     next_index = _next_scenario_index(existing_order)
@@ -205,17 +250,23 @@ def _scenario_ids_for_scenarios(scenario_dicts: list[dict], existing_order: list
 
 
 def _next_scenario_index(existing_order: list[str]) -> int:
-    numeric_ids = [int(scenario_id) for scenario_id in existing_order if scenario_id.isdigit()]
+    numeric_ids = [
+        int(scenario_id) for scenario_id in existing_order if scenario_id.isdigit()
+    ]
     return max(numeric_ids, default=0) + 1
 
 
-def _write_package(path: Path, scenario_list_dict: dict, scenario_ids: list[str]) -> None:
+def _write_package(
+    path: Path, scenario_list_dict: dict, scenario_ids: list[str]
+) -> None:
     _write_manifest(path, scenario_list_dict, scenario_ids)
     _write_scenarios(path, scenario_list_dict["scenarios"], scenario_ids)
     _write_codebook(path, scenario_list_dict.get("codebook"))
 
 
-def _write_manifest(path: Path, scenario_list_dict: dict, scenario_ids: list[str]) -> None:
+def _write_manifest(
+    path: Path, scenario_list_dict: dict, scenario_ids: list[str]
+) -> None:
     existing_manifest = gitpkg.read_manifest_file(path)
     manifest = {
         "format": FORMAT_NAME,
@@ -234,13 +285,16 @@ def _write_manifest(path: Path, scenario_list_dict: dict, scenario_ids: list[str
         manifest["primary_remote"] = existing_manifest["remote"]["name"]
     try:
         from edsl import __version__
+
         manifest["edsl_version"] = __version__
     except Exception:
         pass
     gitpkg.write_manifest_dict(path, manifest)
 
 
-def _write_scenarios(path: Path, scenario_dicts: list[dict], scenario_ids: list[str]) -> None:
+def _write_scenarios(
+    path: Path, scenario_dicts: list[dict], scenario_ids: list[str]
+) -> None:
     scenarios_dir = path / "scenarios"
     scenarios_dir.mkdir(exist_ok=True)
     live_files = {f"{scenario_id}.json" for scenario_id in scenario_ids}
@@ -333,7 +387,9 @@ def _hydrate_filestore_refs(path: Path, value: Any, ref: str) -> Any:
         return value
     if value.get("edsl_type") == "FileStoreRef":
         return _read_filestore_ref(path, value, ref)
-    return {key: _hydrate_filestore_refs(path, item, ref) for key, item in value.items()}
+    return {
+        key: _hydrate_filestore_refs(path, item, ref) for key, item in value.items()
+    }
 
 
 def _collect_filestore_refs(value: Any) -> list[dict]:
@@ -368,7 +424,9 @@ def _write_filestore_ref(path: Path, filestore_dict: dict) -> dict:
     blob_path = _filestore_blob_path(path, sha256)
     blob_path.parent.mkdir(parents=True, exist_ok=True)
     blob_path.write_bytes(content)
-    metadata = {key: item for key, item in filestore_dict.items() if key != "base64_string"}
+    metadata = {
+        key: item for key, item in filestore_dict.items() if key != "base64_string"
+    }
     return {
         "edsl_type": "FileStoreRef",
         "sha256": sha256,
@@ -414,7 +472,9 @@ def _filestore_blob_relpath(sha256: str) -> str:
     return f"files/sha256/{sha256[:2]}/{sha256[2:]}"
 
 
-def _refresh_instance_from_loaded(instance: "ScenarioList", loaded: "ScenarioList") -> None:
+def _refresh_instance_from_loaded(
+    instance: "ScenarioList", loaded: "ScenarioList"
+) -> None:
     accessor = instance.__dict__.get("_scenario_list_git_accessor")
     instance.__dict__.update(loaded.__dict__)
     if accessor is not None:
@@ -460,7 +520,9 @@ def _validate_package(path: Path) -> list[str]:
         try:
             scenario_dict = json.loads(scenario_path.read_text())
         except json.JSONDecodeError as exc:
-            errors.append(f"invalid scenario file scenarios/{scenario_id}.json: {exc.msg}")
+            errors.append(
+                f"invalid scenario file scenarios/{scenario_id}.json: {exc.msg}"
+            )
             continue
         for filestore_ref in _collect_filestore_refs(scenario_dict):
             errors.extend(_validate_filestore_ref(path, filestore_ref))

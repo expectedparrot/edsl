@@ -67,14 +67,19 @@ class GitBackedClassAccessor:
     def load(self, path, ref: str = "HEAD"):
         path = self._spec.normalize_path(path, for_load=True)
         gitpkg.ensure_git_available()
-        gitpkg.ensure_package_repo(path)
-        obj = self._spec.read(path, ref)
+        worktree_path = gitpkg.unpack_package_archive(
+            path,
+            package_suffix=self._spec.package_suffix,
+            error_cls=self._spec.error_cls,
+        )
+        obj = self._spec.read(worktree_path, ref)
         obj.git.path = path
+        obj.git.worktree_path = worktree_path
         obj.git.commit = gitpkg.resolve_commit(
-            path, ref, error_cls=self._spec.error_cls
+            worktree_path, ref, error_cls=self._spec.error_cls
         )
         obj.git.current_branch = gitpkg.current_branch(
-            path, error_cls=self._spec.error_cls
+            worktree_path, error_cls=self._spec.error_cls
         )
         if hasattr(obj.git, "_after_load"):
             obj.git._after_load(obj)
@@ -85,7 +90,13 @@ class GitBackedClassAccessor:
         return obj
 
     def open(self, path):
-        return self._spec.package_cls(path)
+        path = self._spec.normalize_path(path, for_load=True)
+        worktree_path = gitpkg.unpack_package_archive(
+            path,
+            package_suffix=self._spec.package_suffix,
+            error_cls=self._spec.error_cls,
+        )
+        return self._spec.package_cls(worktree_path)
 
     def clone(self, url: str, path, ref: str = "HEAD", token: Optional[str] = None):
         gitpkg.ensure_git_available()
@@ -97,10 +108,14 @@ class GitBackedClassAccessor:
                 ["git", "clone", url, str(destination)],
                 stderr=f"Destination path already exists: {destination}",
             )
+        worktree_path = gitpkg.new_package_worktree(destination)
         gitpkg.run_git(
-            ["git", "clone", url, str(destination)],
+            ["git", "clone", url, str(worktree_path)],
             error_cls=self._spec.error_cls,
             env=gitpkg.http_auth_git_env(url, token),
+        )
+        gitpkg.pack_package_archive(
+            worktree_path, destination, package_suffix=self._spec.package_suffix
         )
         loaded = self.load(destination.resolve(), ref=ref)
         return self._spec.clone_return(loaded) if self._spec.clone_return else loaded
@@ -153,6 +168,7 @@ class GitBackedInstanceAccessor(GitBackedClassAccessor):
         super().__init__(spec, type(instance))
         self._instance = instance
         self.path: Optional[Path] = None
+        self.worktree_path: Optional[Path] = None
         self.commit: Optional[str] = None
         self.current_branch: Optional[str] = None
 
@@ -161,30 +177,40 @@ class GitBackedInstanceAccessor(GitBackedClassAccessor):
             path = self.path or self._spec.default_path()
         path = self._spec.normalize_path(path)
         gitpkg.ensure_git_available()
-        gitpkg.warn_if_nested_in_outer_repo(
-            path,
-            warned_paths=self._spec.warned_paths,
-            warning_cls=self._spec.warning_cls,
-        )
-        if (path / ".git").exists():
-            gitpkg.ensure_clean(path, "save", error_cls=self._spec.error_cls)
+        if self.worktree_path is None or self.path != path:
+            if path.exists():
+                self.worktree_path = gitpkg.unpack_package_archive(
+                    path,
+                    package_suffix=self._spec.package_suffix,
+                    error_cls=self._spec.error_cls,
+                )
+            else:
+                self.worktree_path = gitpkg.new_package_worktree(path)
+        worktree_path = self.worktree_path
+        if (worktree_path / ".git").exists():
+            gitpkg.ensure_clean(worktree_path, "save", error_cls=self._spec.error_cls)
             self.path = path
             self._coop_pull_if_remote_updated(
                 message=f"Coop sync {self._spec.object_type}"
             )
-        gitpkg.init_package(path, error_cls=self._spec.error_cls)
+        gitpkg.init_package(worktree_path, error_cls=self._spec.error_cls)
 
-        extra_info = self._spec.write(path, self._instance, **kwargs)
+        extra_info = self._spec.write(worktree_path, self._instance, **kwargs)
         for key, value in extra_info.items():
             if key.isidentifier():
                 setattr(self, key, value)
-        gitpkg.git(path, "add", "-A", "--", ".", error_cls=self._spec.error_cls)
-        if not gitpkg.has_staged_changes(path):
-            commit = gitpkg.head_commit(path, error_cls=self._spec.error_cls)
+        gitpkg.git(
+            worktree_path, "add", "-A", "--", ".", error_cls=self._spec.error_cls
+        )
+        if not gitpkg.has_staged_changes(worktree_path):
+            commit = gitpkg.head_commit(worktree_path, error_cls=self._spec.error_cls)
             self.path = path
             self.commit = commit
             self.current_branch = gitpkg.current_branch(
-                path, error_cls=self._spec.error_cls
+                worktree_path, error_cls=self._spec.error_cls
+            )
+            gitpkg.pack_package_archive(
+                worktree_path, path, package_suffix=self._spec.package_suffix
             )
             for key, value in extra_info.items():
                 if key.isidentifier():
@@ -200,7 +226,7 @@ class GitBackedInstanceAccessor(GitBackedClassAccessor):
 
         commit_message = message or self._spec.default_commit_message
         gitpkg.git(
-            path,
+            worktree_path,
             "-c",
             "user.name=EDSL",
             "-c",
@@ -210,11 +236,14 @@ class GitBackedInstanceAccessor(GitBackedClassAccessor):
             commit_message,
             error_cls=self._spec.error_cls,
         )
-        commit = gitpkg.head_commit(path, error_cls=self._spec.error_cls)
+        commit = gitpkg.head_commit(worktree_path, error_cls=self._spec.error_cls)
         self.path = path
         self.commit = commit
         self.current_branch = gitpkg.current_branch(
-            path, error_cls=self._spec.error_cls
+            worktree_path, error_cls=self._spec.error_cls
+        )
+        gitpkg.pack_package_archive(
+            worktree_path, path, package_suffix=self._spec.package_suffix
         )
         for key, value in extra_info.items():
             if key.isidentifier():
@@ -243,33 +272,40 @@ class GitBackedInstanceAccessor(GitBackedClassAccessor):
     def branch(self, name: str) -> None:
         self._bound_package().branch(name)
         self.current_branch = gitpkg.current_branch(
-            self.path, error_cls=self._spec.error_cls
+            self._bound_worktree_path(), error_cls=self._spec.error_cls
         )
+        self._pack_archive()
 
     def checkout(self, ref: str) -> None:
         self._bound_package().checkout(ref)
         self.current_branch = gitpkg.current_branch(
-            self.path, error_cls=self._spec.error_cls
+            self._bound_worktree_path(), error_cls=self._spec.error_cls
         )
-        self.commit = gitpkg.head_commit(self.path, error_cls=self._spec.error_cls)
+        self.commit = gitpkg.head_commit(
+            self._bound_worktree_path(), error_cls=self._spec.error_cls
+        )
+        self._pack_archive()
 
     def switch(self, name: str) -> None:
         self._bound_package().switch(name)
-        loaded = type(self._instance).git.load(self.path)
+        loaded = self._load_from_worktree()
         self._spec.refresh(self._instance, loaded)
         self._copy_loaded_accessor_state(loaded)
         self.current_branch = gitpkg.current_branch(
-            self.path, error_cls=self._spec.error_cls
+            self._bound_worktree_path(), error_cls=self._spec.error_cls
         )
-        self.commit = gitpkg.head_commit(self.path, error_cls=self._spec.error_cls)
+        self.commit = gitpkg.head_commit(
+            self._bound_worktree_path(), error_cls=self._spec.error_cls
+        )
+        self._pack_archive()
 
     def restore(self, ref: str = "HEAD") -> dict:
-        loaded = type(self._instance).git.load(self.path, ref=ref)
+        loaded = self._load_from_worktree(ref=ref)
         self._spec.refresh(self._instance, loaded)
         self._copy_loaded_accessor_state(loaded)
         self.commit = loaded.git.commit
         self.current_branch = gitpkg.current_branch(
-            self.path, error_cls=self._spec.error_cls
+            self._bound_worktree_path(), error_cls=self._spec.error_cls
         )
         return {
             "status": "ok",
@@ -286,7 +322,11 @@ class GitBackedInstanceAccessor(GitBackedClassAccessor):
         return self._bound_package().tags()
 
     def tag(self, name: str, message: Optional[str] = None) -> dict:
-        return self._bound_package().tag(name, message=message)
+        info = self._bound_package().tag(name, message=message)
+        self._pack_archive()
+        if self.path is not None:
+            info["path"] = str(self.path)
+        return info
 
     def status(self) -> dict:
         return self._bound_package().status()
@@ -295,13 +335,19 @@ class GitBackedInstanceAccessor(GitBackedClassAccessor):
         return self._bound_package().remotes()
 
     def remote_add(self, name: str, url: str) -> dict:
-        return self._bound_package().remote_add(name, url)
+        info = self._bound_package().remote_add(name, url)
+        self._pack_archive()
+        return info
 
     def remote_remove(self, name: str) -> dict:
-        return self._bound_package().remote_remove(name)
+        info = self._bound_package().remote_remove(name)
+        self._pack_archive()
+        return info
 
     def remote_set_url(self, name: str, url: str) -> dict:
-        return self._bound_package().remote_set_url(name, url)
+        info = self._bound_package().remote_set_url(name, url)
+        self._pack_archive()
+        return info
 
     def fetch(
         self,
@@ -309,13 +355,39 @@ class GitBackedInstanceAccessor(GitBackedClassAccessor):
         branch: Optional[str] = None,
         token: Optional[str] = None,
     ) -> dict:
-        return self._bound_package().fetch(remote=remote, branch=branch, token=token)
+        info = self._bound_package().fetch(remote=remote, branch=branch, token=token)
+        self._pack_archive()
+        if self.path is not None:
+            info["path"] = str(self.path)
+        return info
 
     def validate(self) -> dict:
         return self._bound_package().validate()
 
     def ignore_in_parent(self) -> dict:
-        return self._bound_package().ignore_in_parent()
+        if self.path is None:
+            raise ValueError(
+                f"This {self._spec.object_type} is not bound to a git package path."
+            )
+        outer_repo = gitpkg.outer_git_repo(self.path)
+        if outer_repo is None:
+            raise ValueError("This EDSL package is not inside another Git repo.")
+
+        pattern = self.path.resolve().relative_to(outer_repo).as_posix()
+        gitignore = outer_repo / ".gitignore"
+        existing = gitignore.read_text().splitlines() if gitignore.exists() else []
+        if pattern in existing:
+            return {
+                "status": "unchanged",
+                "gitignore": str(gitignore),
+                "pattern": pattern,
+            }
+
+        with gitignore.open("a") as f:
+            if existing and existing[-1] != "":
+                f.write("\n")
+            f.write(pattern + "\n")
+        return {"status": "ok", "gitignore": str(gitignore), "pattern": pattern}
 
     def push(
         self,
@@ -329,6 +401,9 @@ class GitBackedInstanceAccessor(GitBackedClassAccessor):
         info = self._bound_package().push(remote=remote, branch=branch, token=token)
         self.commit = info["commit"]
         self.current_branch = info["branch"]
+        self._pack_archive()
+        if self.path is not None:
+            info["path"] = str(self.path)
         return info
 
     def coop_push(
@@ -414,26 +489,59 @@ class GitBackedInstanceAccessor(GitBackedClassAccessor):
         token: Optional[str] = None,
     ) -> dict:
         info = self._bound_package().pull(remote=remote, branch=branch, token=token)
-        loaded = type(self._instance).git.load(self.path)
+        loaded = self._load_from_worktree()
         self._spec.refresh(self._instance, loaded)
         self._copy_loaded_accessor_state(loaded)
         self.commit = info["commit"]
         self.current_branch = info["branch"]
+        self._pack_archive()
+        if self.path is not None:
+            info["path"] = str(self.path)
         return info
 
     def _bound_package(self):
+        package = self._spec.package_cls(self._bound_worktree_path())
+        if self.path is not None:
+            package.display_name = self._spec.display_name(self.path)
+        return package
+
+    def _load_from_worktree(self, ref: str = "HEAD"):
+        worktree_path = self._bound_worktree_path()
+        loaded = self._spec.read(worktree_path, ref)
+        loaded.git.path = self.path
+        loaded.git.worktree_path = worktree_path
+        loaded.git.commit = gitpkg.resolve_commit(
+            worktree_path, ref, error_cls=self._spec.error_cls
+        )
+        loaded.git.current_branch = gitpkg.current_branch(
+            worktree_path, error_cls=self._spec.error_cls
+        )
+        return loaded
+
+    def _bound_worktree_path(self) -> Path:
+        if self.worktree_path is None:
+            raise ValueError(
+                f"This {self._spec.object_type} is not bound to a git package path."
+            )
+        return self.worktree_path
+
+    def _pack_archive(self) -> None:
         if self.path is None:
             raise ValueError(
                 f"This {self._spec.object_type} is not bound to a git package path."
             )
-        return self._spec.package_cls(self.path)
+        gitpkg.pack_package_archive(
+            self._bound_worktree_path(),
+            self.path,
+            package_suffix=self._spec.package_suffix,
+        )
 
     def _coop_info_path(self) -> Path:
         if self.path is None:
             raise ValueError(
                 f"This {self._spec.object_type} is not bound to a git package path."
             )
-        return self.path / "coop_info.json"
+        return self._bound_worktree_path() / "coop_info.json"
 
     def _read_coop_info(self) -> dict | None:
         info_path = self._coop_info_path()
@@ -520,13 +628,19 @@ class GitBackedInstanceAccessor(GitBackedClassAccessor):
     ) -> dict:
         path = self._spec.normalize_path(path)
         gitpkg.ensure_git_available()
-        gitpkg.warn_if_nested_in_outer_repo(
-            path,
-            warned_paths=self._spec.warned_paths,
-            warning_cls=self._spec.warning_cls,
-        )
-        gitpkg.init_package(path, error_cls=self._spec.error_cls)
-        extra_info = self._spec.write(path, self._instance)
+        if self.worktree_path is None or self.path != path:
+            self.worktree_path = (
+                gitpkg.unpack_package_archive(
+                    path,
+                    package_suffix=self._spec.package_suffix,
+                    error_cls=self._spec.error_cls,
+                )
+                if path.exists()
+                else gitpkg.new_package_worktree(path)
+            )
+        worktree_path = self._bound_worktree_path()
+        gitpkg.init_package(worktree_path, error_cls=self._spec.error_cls)
+        extra_info = self._spec.write(worktree_path, self._instance)
         self.path = path
         for key, value in extra_info.items():
             if key.isidentifier():
@@ -540,13 +654,17 @@ class GitBackedInstanceAccessor(GitBackedClassAccessor):
             raise ValueError(
                 f"This {self._spec.object_type} is not bound to a git package path."
             )
-        gitpkg.git(self.path, "add", "-A", "--", ".", error_cls=self._spec.error_cls)
-        if not gitpkg.has_staged_changes(self.path):
-            commit = gitpkg.head_commit(self.path, error_cls=self._spec.error_cls)
+        worktree_path = self._bound_worktree_path()
+        gitpkg.git(
+            worktree_path, "add", "-A", "--", ".", error_cls=self._spec.error_cls
+        )
+        if not gitpkg.has_staged_changes(worktree_path):
+            commit = gitpkg.head_commit(worktree_path, error_cls=self._spec.error_cls)
             self.commit = commit
             self.current_branch = gitpkg.current_branch(
-                self.path, error_cls=self._spec.error_cls
+                worktree_path, error_cls=self._spec.error_cls
             )
+            self._pack_archive()
             return {
                 "status": "unchanged",
                 "path": str(self.path),
@@ -556,7 +674,7 @@ class GitBackedInstanceAccessor(GitBackedClassAccessor):
             }
 
         gitpkg.git(
-            self.path,
+            worktree_path,
             "-c",
             "user.name=EDSL",
             "-c",
@@ -566,11 +684,12 @@ class GitBackedInstanceAccessor(GitBackedClassAccessor):
             message,
             error_cls=self._spec.error_cls,
         )
-        commit = gitpkg.head_commit(self.path, error_cls=self._spec.error_cls)
+        commit = gitpkg.head_commit(worktree_path, error_cls=self._spec.error_cls)
         self.commit = commit
         self.current_branch = gitpkg.current_branch(
-            self.path, error_cls=self._spec.error_cls
+            worktree_path, error_cls=self._spec.error_cls
         )
+        self._pack_archive()
         return {
             "status": "ok",
             "path": str(self.path),
@@ -582,7 +701,12 @@ class GitBackedInstanceAccessor(GitBackedClassAccessor):
     def _copy_loaded_accessor_state(self, loaded) -> None:
         loaded_accessor = loaded.git
         for key, value in vars(loaded_accessor).items():
-            if key.startswith("_") or key in {"path", "commit", "current_branch"}:
+            if key.startswith("_") or key in {
+                "path",
+                "worktree_path",
+                "commit",
+                "current_branch",
+            }:
                 continue
             setattr(self, key, value)
 

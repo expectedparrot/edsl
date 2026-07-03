@@ -17,7 +17,7 @@ if TYPE_CHECKING:
 
 FORMAT_NAME = "edsl.model_list.git_package"
 FORMAT_VERSION = 1
-PACKAGE_SUFFIX = ".model_list.ep"
+PACKAGE_SUFFIX = ".ep"
 _WARNED_NESTED_PACKAGE_PATHS: set[Path] = set()
 
 
@@ -93,9 +93,24 @@ class ModelListGitPackage(gitpkg.GitPackage):
         errors = _validate_package(self.path)
         return {"status": "ok" if not errors else "invalid", "errors": errors}
 
+    def html(
+        self,
+        filename: str | Path | None = None,
+        *,
+        ref: str = "HEAD",
+    ) -> str:
+        """Render this package as a standalone HTML document."""
+        model_list = _read_model_list(self.path, ref)
+        html = _standalone_html_document(model_list._repr_html_())
+        if filename is not None:
+            Path(filename).write_text(html, encoding="utf-8")
+        return html
+
 
 def _normalize_package_path(path, for_load: bool = False) -> Path:
-    return gitpkg.normalize_package_path(path, package_suffix=PACKAGE_SUFFIX, for_load=for_load)
+    return gitpkg.normalize_package_path(
+        path, package_suffix=PACKAGE_SUFFIX, for_load=for_load
+    )
 
 
 def _default_unsaved_package_path() -> Path:
@@ -130,7 +145,9 @@ def _read_model_list_dict_at_ref(path: Path, ref: str) -> dict:
 
 
 def _load_manifest_at_ref(path: Path, ref: str) -> dict:
-    manifest = gitpkg.read_json_at_ref(path, "manifest.json", ref, error_cls=ModelListGitError)
+    manifest = gitpkg.read_json_at_ref(
+        path, "manifest.json", ref, error_cls=ModelListGitError
+    )
     if manifest.get("format") != FORMAT_NAME:
         raise ValueError(f"Unsupported ModelList git package format: {manifest!r}")
     if manifest.get("format_version") != FORMAT_VERSION:
@@ -139,6 +156,21 @@ def _load_manifest_at_ref(path: Path, ref: str) -> dict:
             f"{manifest.get('format_version')!r}"
         )
     return manifest
+
+
+def _standalone_html_document(body: str) -> str:
+    return (
+        "<!doctype html>\n"
+        "<html>\n"
+        "<head>\n"
+        '  <meta charset="utf-8">\n'
+        "  <title>EDSL ModelList</title>\n"
+        "</head>\n"
+        "<body>\n"
+        f"{body}\n"
+        "</body>\n"
+        "</html>\n"
+    )
 
 
 def _load_existing_order(path: Path) -> list[str]:
@@ -160,7 +192,9 @@ def _load_existing_package_state(path: Path) -> tuple[list[str], dict[str, dict]
     return existing_order, existing_models
 
 
-def _model_ids_for_models(model_dicts: list[dict], existing_order: list[str], existing_models: dict[str, dict]) -> list[str]:
+def _model_ids_for_models(
+    model_dicts: list[dict], existing_order: list[str], existing_models: dict[str, dict]
+) -> list[str]:
     used: set[str] = set()
     assigned: list[str] = []
     next_index = _next_model_index(existing_order)
@@ -213,6 +247,7 @@ def _write_manifest(path: Path, model_list_dict: dict, model_ids: list[str]) -> 
         manifest["primary_remote"] = existing_manifest["remote"]["name"]
     try:
         from edsl import __version__
+
         manifest["edsl_version"] = __version__
     except Exception:
         pass

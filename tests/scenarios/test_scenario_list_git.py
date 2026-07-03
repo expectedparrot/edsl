@@ -2,6 +2,8 @@ import json
 import base64
 import shutil
 import subprocess
+import zipfile
+from pathlib import Path
 
 import pytest
 
@@ -14,6 +16,21 @@ from edsl.base.base_exception import BaseException as EDSLBaseException
 pytestmark = pytest.mark.skipif(
     shutil.which("git") is None, reason="ScenarioList git package tests require git"
 )
+
+
+def _package_json(package_path: Path, member: str):
+    with zipfile.ZipFile(package_path) as archive:
+        return json.loads(archive.read(member).decode())
+
+
+def _package_bytes(package_path: Path, member: str) -> bytes:
+    with zipfile.ZipFile(package_path) as archive:
+        return archive.read(member)
+
+
+def _package_names(package_path: Path) -> set[str]:
+    with zipfile.ZipFile(package_path) as archive:
+        return set(archive.namelist())
 
 
 def _filestore_bytes(value):
@@ -34,15 +51,16 @@ def test_scenario_list_git_save_default_path_and_load_round_trip(tmp_path, monke
 
     info = scenario_list.git.save()
 
-    package_path = tmp_path / "scenario_list.scenario_list.ep"
+    package_path = tmp_path / "scenario_list.ep"
     assert info["status"] == "ok"
-    assert info["path"] == "scenario_list.scenario_list.ep"
-    assert package_path.is_dir()
-    assert (package_path / ".git").is_dir()
-    assert (package_path / "manifest.json").is_file()
-    assert (package_path / "scenarios" / "000001.json").is_file()
+    assert info["path"] == "scenario_list.ep"
+    assert package_path.is_file()
+    names = _package_names(package_path)
+    assert ".git/HEAD" in names
+    assert "manifest.json" in names
+    assert "scenarios/000001.json" in names
 
-    manifest = json.loads((package_path / "manifest.json").read_text())
+    manifest = _package_json(package_path, "manifest.json")
     assert manifest["format"] == "edsl.scenario_list.git_package"
     assert manifest["edsl_class_name"] == "ScenarioList"
     assert manifest["object_type"] == "ScenarioList"
@@ -54,6 +72,18 @@ def test_scenario_list_git_save_default_path_and_load_round_trip(tmp_path, monke
     assert loaded.git.path == package_path
 
 
+def test_scenario_list_git_package_html(tmp_path):
+    package_path = tmp_path / "scenario_list.ep"
+    html_path = tmp_path / "scenario_list.html"
+    ScenarioList.example().git.save(package_path)
+
+    html = ScenarioList.git.open(package_path).html(filename=html_path)
+
+    assert "<title>EDSL ScenarioList</title>" in html
+    assert "<table" in html
+    assert html_path.read_text(encoding="utf-8") == html
+
+
 def test_scenario_list_git_save_codebook_and_validate(tmp_path):
     package_path = tmp_path / "scenarios.scenario_list.ep"
     scenario_list = ScenarioList(
@@ -62,9 +92,7 @@ def test_scenario_list_git_save_codebook_and_validate(tmp_path):
 
     scenario_list.git.save(package_path, message="initial scenarios")
 
-    assert json.loads((package_path / "codebook.json").read_text()) == {
-        "food": "Favorite food"
-    }
+    assert _package_json(package_path, "codebook.json") == {"food": "Favorite food"}
     loaded = ScenarioList.git.load(package_path)
     assert loaded == scenario_list
     assert loaded.codebook == {"food": "Favorite food"}
@@ -79,15 +107,15 @@ def test_scenario_list_git_stores_filestore_as_content_addressed_blob(tmp_path):
 
     scenario_list.git.save(package_path)
 
-    scenario_json = json.loads((package_path / "scenarios" / "000001.json").read_text())
+    scenario_json = _package_json(package_path, "scenarios/000001.json")
     filestore_ref = scenario_json["document"]
     assert filestore_ref["edsl_type"] == "FileStoreRef"
     assert "base64_string" not in json.dumps(scenario_json)
 
     sha256 = filestore_ref["sha256"]
-    blob_path = package_path / "files" / "sha256" / sha256[:2] / sha256[2:]
-    assert blob_path.read_bytes() == b"hello from a filestore\n"
-    filestore_manifest = json.loads((package_path / "filestore_manifest.json").read_text())
+    blob_member = f"files/sha256/{sha256[:2]}/{sha256[2:]}"
+    assert _package_bytes(package_path, blob_member) == b"hello from a filestore\n"
+    filestore_manifest = _package_json(package_path, "filestore_manifest.json")
     assert filestore_manifest["format"] == "edsl.scenario_list.filestore_manifest"
     assert filestore_manifest["files"][0]["sha256"] == sha256
 
@@ -106,14 +134,18 @@ def test_scenario_list_git_validate_detects_missing_filestore_blob(tmp_path):
     scenario_list = ScenarioList([Scenario({"document": FileStore(str(source_path))})])
     scenario_list.git.save(package_path)
 
-    scenario_json = json.loads((package_path / "scenarios" / "000001.json").read_text())
+    scenario_json = _package_json(package_path, "scenarios/000001.json")
     sha256 = scenario_json["document"]["sha256"]
-    (package_path / "files" / "sha256" / sha256[:2] / sha256[2:]).unlink()
+    (
+        scenario_list.git.worktree_path / "files" / "sha256" / sha256[:2] / sha256[2:]
+    ).unlink()
 
     validation = scenario_list.git.validate()
 
     assert validation["status"] == "invalid"
-    missing_blob_error = f"missing FileStore blob: files/sha256/{sha256[:2]}/{sha256[2:]}"
+    missing_blob_error = (
+        f"missing FileStore blob: files/sha256/{sha256[:2]}/{sha256[2:]}"
+    )
     assert validation["errors"].count(missing_blob_error) == 2
 
 
@@ -157,7 +189,7 @@ def test_scenario_list_git_nested_filestore_refs_prune_and_round_trip(tmp_path):
     )
     first = scenario_list.git.save(package_path, message="nested files")
 
-    scenario_json = json.loads((package_path / "scenarios" / "000001.json").read_text())
+    scenario_json = _package_json(package_path, "scenarios/000001.json")
     first_ref = scenario_json["payload"]["primary"]
     second_ref = scenario_json["payload"]["attachments"][0]
     assert first_ref["edsl_type"] == "FileStoreRef"
@@ -174,28 +206,24 @@ def test_scenario_list_git_nested_filestore_refs_prune_and_round_trip(tmp_path):
     )
     second = scenario_list.git.save(message="remove nested file")
 
-    assert not (
-        package_path
-        / "files"
-        / "sha256"
-        / first_ref["sha256"][:2]
-        / first_ref["sha256"][2:]
-    ).exists()
+    names = _package_names(package_path)
     assert (
-        package_path
-        / "files"
-        / "sha256"
-        / second_ref["sha256"][:2]
-        / second_ref["sha256"][2:]
-    ).is_file()
+        f"files/sha256/{first_ref['sha256'][:2]}/{first_ref['sha256'][2:]}" not in names
+    )
+    assert (
+        f"files/sha256/{second_ref['sha256'][:2]}/{second_ref['sha256'][2:]}" in names
+    )
     current = ScenarioList.git.load(package_path)
     assert _filestore_bytes(current[0]["payload"]["primary"]) == b"second nested file\n"
     assert current[0]["payload"]["attachments"] == []
     historical = ScenarioList.git.load(package_path, ref=first["commit"])
-    assert _filestore_bytes(historical[0]["payload"]["primary"]) == b"first nested file\n"
-    assert _filestore_bytes(
-        historical[0]["payload"]["attachments"][0]
-    ) == b"second nested file\n"
+    assert (
+        _filestore_bytes(historical[0]["payload"]["primary"]) == b"first nested file\n"
+    )
+    assert (
+        _filestore_bytes(historical[0]["payload"]["attachments"][0])
+        == b"second nested file\n"
+    )
     assert second["commit"] != first["commit"]
 
 
@@ -229,11 +257,12 @@ def test_scenario_list_git_mutation_save_cleans_stale_files_and_round_trips(tmp_
     scenario_list.append(Scenario({"name": "added"}))
     second = scenario_list.git.save(message="mutated scenarios")
 
-    manifest = json.loads((package_path / "manifest.json").read_text())
+    manifest = _package_json(package_path, "manifest.json")
     assert manifest["scenario_order"] == ["000002", "000003"]
-    assert not (package_path / "scenarios" / "000001.json").exists()
-    assert (package_path / "scenarios" / "000002.json").is_file()
-    assert (package_path / "scenarios" / "000003.json").is_file()
+    names = _package_names(package_path)
+    assert "scenarios/000001.json" not in names
+    assert "scenarios/000002.json" in names
+    assert "scenarios/000003.json" in names
     assert ScenarioList.git.load(package_path) == scenario_list
     assert ScenarioList.git.load(package_path, ref=first["commit"]) == ScenarioList(
         [
@@ -262,9 +291,13 @@ def test_scenario_list_git_branch_tag_restore(tmp_path):
 
     assert restore_info["commit"] == first["commit"]
     assert updated == scenario_list
-    assert subprocess.check_output(
-        ["git", "-C", str(package_path), "branch", "--show-current"], text=True
-    ).strip() == "experiment"
+    assert (
+        subprocess.check_output(
+            ["git", "-C", str(updated.git.worktree_path), "branch", "--show-current"],
+            text=True,
+        ).strip()
+        == "experiment"
+    )
 
 
 def test_scenario_list_git_push_and_pull_with_remote(tmp_path):
@@ -281,8 +314,7 @@ def test_scenario_list_git_push_and_pull_with_remote(tmp_path):
     assert push_info["status"] == "ok"
     assert push_info["remote"] == "origin"
 
-    subprocess.run(["git", "clone", str(remote_path), str(second_path)], check=True)
-    second = ScenarioList.git.load(second_path)
+    second = ScenarioList.git.clone(str(remote_path), path=second_path)
     assert second == first
 
     updated = ScenarioList([*ScenarioList.example(), Scenario({"extra": True})])
