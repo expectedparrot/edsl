@@ -2313,6 +2313,7 @@ class TestRunValidation:
         from edsl.jobs import Jobs
         from edsl.results import Results
         import edsl.coop
+        import edsl.cli_commands.run as run_command
 
         output_path = tmp_path / "wait-results.ep"
         captured = {}
@@ -2378,7 +2379,7 @@ class TestRunValidation:
 
         monkeypatch.setattr(Jobs, "run", fake_run)
         monkeypatch.setattr(edsl.coop, "Coop", FakeCoop)
-        monkeypatch.setattr(cli_module.time, "sleep", lambda _: None)
+        monkeypatch.setattr(run_command.time, "sleep", lambda _: None)
 
         result = CliRunner().invoke(
             cli_module.app,
@@ -2411,6 +2412,7 @@ class TestRunValidation:
         from edsl.jobs import Jobs
         from edsl.results import Results
         import edsl.coop
+        import edsl.cli_commands.run as run_command
 
         def fake_run(self, **kwargs):
             job_info = SimpleNamespace(
@@ -2433,8 +2435,8 @@ class TestRunValidation:
 
         monkeypatch.setattr(Jobs, "run", fake_run)
         monkeypatch.setattr(edsl.coop, "Coop", FakeCoop)
-        monkeypatch.setattr(cli_module.time, "monotonic", fake_monotonic)
-        monkeypatch.setattr(cli_module.time, "sleep", lambda _: None)
+        monkeypatch.setattr(run_command.time, "monotonic", fake_monotonic)
+        monkeypatch.setattr(run_command.time, "sleep", lambda _: None)
 
         result = CliRunner().invoke(
             cli_module.app,
