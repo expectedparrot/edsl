@@ -641,3 +641,380 @@ class TestDefault:
         assert "auth" in data["commands"]
         assert "results" in data["commands"]
         assert "coop" in data["commands"]
+        assert "clone" in data["commands"]
+        assert "push" in data["commands"]
+        assert "pull" in data["commands"]
+
+
+# ---------------------------------------------------------------------------
+# edsl clone
+# ---------------------------------------------------------------------------
+
+class TestClone:
+    def test_clone_owner_alias_saves_git_package_with_coop_info(
+        self, tmp_path, monkeypatch
+    ):
+        from edsl.surveys import Survey
+
+        class FakeCoop:
+            def get(self, identifier):
+                assert identifier.endswith("/content/alice/shared-survey")
+                return Survey.example()
+
+            def get_metadata(self, identifier):
+                assert identifier.endswith("/content/alice/shared-survey")
+                return {
+                    "uuid": "survey-uuid",
+                    "object_type": "survey",
+                    "alias": "shared-survey",
+                    "owner_username": "alice",
+                    "description": "Shared survey",
+                    "visibility": "public",
+                    "url": "https://www.expectedparrot.com/content/survey-uuid",
+                    "alias_url": "https://www.expectedparrot.com/content/alice/shared-survey",
+                }
+
+        import edsl.coop as coop_module
+
+        monkeypatch.setattr(coop_module, "Coop", FakeCoop)
+        package_path = tmp_path / "cloned-survey.ep"
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            ["clone", "alice/shared-survey", "--path", str(package_path)],
+        )
+
+        assert result.exit_code == 0, result.output
+        out = json.loads(result.output)
+        assert out["status"] == "ok"
+        assert out["data"]["object_type"] == "Survey"
+        assert out["data"]["path"] == str(package_path)
+        assert out["data"]["coop_info"]["uuid"] == "survey-uuid"
+        assert out["data"]["coop_info"]["alias"] == "shared-survey"
+        assert out["data"]["coop_info"]["owner_username"] == "alice"
+        assert out["data"]["commit"]
+        assert package_path.exists()
+
+        html = Survey.git.open(package_path).html()
+        assert "Expected Parrot Server" in html
+        assert "alice/shared-survey" in html
+        assert "survey-uuid" in html
+
+    def test_clone_default_path_uses_alias(self, tmp_path, monkeypatch):
+        from edsl.surveys import Survey
+
+        class FakeCoop:
+            def get(self, identifier):
+                return Survey.example()
+
+            def get_metadata(self, identifier):
+                return {
+                    "uuid": "survey-uuid",
+                    "alias": "default-survey",
+                    "owner_username": "alice",
+                    "url": "https://www.expectedparrot.com/content/survey-uuid",
+                    "alias_url": "https://www.expectedparrot.com/content/alice/default-survey",
+                }
+
+        import edsl.coop as coop_module
+
+        monkeypatch.setattr(coop_module, "Coop", FakeCoop)
+        monkeypatch.chdir(tmp_path)
+
+        result = CliRunner().invoke(cli_module.app, ["clone", "alice/default-survey"])
+
+        assert result.exit_code == 0, result.output
+        out = json.loads(result.output)
+        assert out["status"] == "ok"
+        assert out["data"]["path"] == "default-survey.ep"
+        assert (tmp_path / "default-survey.ep").exists()
+
+
+# ---------------------------------------------------------------------------
+# edsl push
+# ---------------------------------------------------------------------------
+
+class TestPush:
+    def test_push_new_package_creates_coop_object(self, tmp_path, monkeypatch):
+        from edsl.surveys import Survey
+
+        package_path = tmp_path / "survey.ep"
+        Survey.example().git.save(package_path)
+        push_calls = []
+
+        def fake_push(
+            self,
+            description=None,
+            alias=None,
+            visibility=None,
+            expected_parrot_url=None,
+            force=False,
+        ):
+            push_calls.append(
+                {
+                    "description": description,
+                    "alias": alias,
+                    "visibility": visibility,
+                    "force": force,
+                }
+            )
+            return {
+                "uuid": "created-uuid",
+                "url": "https://www.expectedparrot.com/content/created-uuid",
+                "alias": alias,
+                "description": description,
+                "visibility": visibility,
+            }
+
+        class FakeCoop:
+            def __init__(self, url=None):
+                pass
+
+            def get_metadata(self, identifier):
+                return {
+                    "uuid": "created-uuid",
+                    "url": "https://www.expectedparrot.com/content/created-uuid",
+                    "alias_url": "https://www.expectedparrot.com/content/alice/created-alias",
+                    "alias": "created-alias",
+                    "owner_username": "alice",
+                    "description": "Created description",
+                    "visibility": "public",
+                }
+
+        monkeypatch.setattr(Survey, "push", fake_push)
+        import edsl.coop as coop_module
+
+        monkeypatch.setattr(coop_module, "Coop", FakeCoop)
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            [
+                "push",
+                str(package_path),
+                "--alias",
+                "created-alias",
+                "--description",
+                "Created description",
+                "--visibility",
+                "public",
+            ],
+        )
+
+        assert result.exit_code == 0, result.output
+        out = json.loads(result.output)
+        assert out["status"] == "ok"
+        assert out["data"]["operation"] == "push"
+        assert out["data"]["object_type"] == "Survey"
+        assert out["data"]["coop_info"]["uuid"] == "created-uuid"
+        assert out["data"]["coop_info"]["alias"] == "created-alias"
+        assert push_calls == [
+            {
+                "description": "Created description",
+                "alias": "created-alias",
+                "visibility": "public",
+                "force": False,
+            }
+        ]
+        html = Survey.git.open(package_path).html()
+        assert "Expected Parrot Server" in html
+        assert "created-uuid" in html
+
+    def test_push_package_with_coop_info_patches_existing_object(
+        self, tmp_path, monkeypatch
+    ):
+        from edsl.surveys import Survey
+
+        package_path = tmp_path / "survey.ep"
+        survey = Survey.example()
+        survey.git.save(package_path)
+        survey.git._write_coop_info_and_commit(
+            {
+                "uuid": "existing-uuid",
+                "url": "https://www.expectedparrot.com/content/existing-uuid",
+                "alias": "old-alias",
+            },
+            message="Store existing Coop info",
+        )
+        patch_calls = []
+
+        class FakeCoop:
+            def __init__(self, url=None):
+                pass
+
+            def patch(self, url_or_uuid, description=None, alias=None, value=None, visibility=None):
+                patch_calls.append(
+                    {
+                        "url_or_uuid": url_or_uuid,
+                        "description": description,
+                        "alias": alias,
+                        "object_type": type(value).__name__,
+                        "visibility": visibility,
+                    }
+                )
+                return {
+                    "uuid": "existing-uuid",
+                    "url": "https://www.expectedparrot.com/content/existing-uuid",
+                    "alias": alias,
+                    "description": description,
+                    "visibility": visibility,
+                }
+
+            def get_metadata(self, identifier):
+                return {
+                    "uuid": "existing-uuid",
+                    "url": "https://www.expectedparrot.com/content/existing-uuid",
+                    "alias_url": "https://www.expectedparrot.com/content/alice/new-alias",
+                    "alias": "new-alias",
+                    "owner_username": "alice",
+                    "description": "Patched description",
+                    "visibility": "unlisted",
+                }
+
+        import edsl.coop as coop_module
+
+        monkeypatch.setattr(coop_module, "Coop", FakeCoop)
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            [
+                "push",
+                str(package_path),
+                "--alias",
+                "new-alias",
+                "--description",
+                "Patched description",
+                "--visibility",
+                "unlisted",
+            ],
+        )
+
+        assert result.exit_code == 0, result.output
+        out = json.loads(result.output)
+        assert out["status"] == "ok"
+        assert out["data"]["operation"] == "patch"
+        assert out["data"]["coop_info"]["alias"] == "new-alias"
+        assert patch_calls == [
+            {
+                "url_or_uuid": "existing-uuid",
+                "description": "Patched description",
+                "alias": "new-alias",
+                "object_type": "Survey",
+                "visibility": "unlisted",
+            }
+        ]
+
+    def test_push_rejects_non_package_json(self, tmp_path):
+        from edsl.surveys import Survey
+
+        json_path = tmp_path / "survey.json"
+        json_path.write_text(json.dumps(Survey.example().to_dict()), encoding="utf-8")
+
+        result = CliRunner().invoke(cli_module.app, ["push", str(json_path)])
+
+        assert result.exit_code == cli_module.EXIT_USAGE
+        out = json.loads(result.output)
+        assert out["status"] == "error"
+        assert out["error"]["code"] == "USAGE_ERROR"
+
+
+# ---------------------------------------------------------------------------
+# edsl pull
+# ---------------------------------------------------------------------------
+
+class TestPull:
+    def test_pull_package_updates_from_coop(self, tmp_path, monkeypatch):
+        from edsl.agents import Agent, AgentList
+
+        package_path = tmp_path / "agents.agent_list.ep"
+        local = AgentList([Agent(name="local", traits={"age": 22})])
+        local.git.save(package_path)
+        local.git._write_coop_info_and_commit(
+            {"uuid": "agent-list-uuid"},
+            message="Store Coop info",
+        )
+        remote = AgentList([Agent(name="remote", traits={"age": 30})])
+
+        class FakeCoop:
+            def __init__(self, url=None):
+                pass
+
+            def get_metadata(self, identifier):
+                return {
+                    "uuid": "agent-list-uuid",
+                    "url": "https://www.expectedparrot.com/content/agent-list-uuid",
+                    "alias_url": "https://www.expectedparrot.com/content/alice/remote-agents",
+                    "alias": "remote-agents",
+                    "owner_username": "alice",
+                    "last_updated_ts": "2026-07-04T12:00:00+00:00",
+                }
+
+        monkeypatch.setattr(
+            AgentList,
+            "pull",
+            classmethod(lambda cls, url_or_uuid, expected_parrot_url=None: remote),
+        )
+        import edsl.coop as coop_module
+
+        monkeypatch.setattr(coop_module, "Coop", FakeCoop)
+
+        result = CliRunner().invoke(cli_module.app, ["pull", str(package_path)])
+
+        assert result.exit_code == 0, result.output
+        out = json.loads(result.output)
+        assert out["status"] == "ok"
+        assert out["data"]["operation"] in {"updated", "unchanged"}
+        assert out["data"]["object_type"] == "AgentList"
+        assert out["data"]["coop_info"]["alias"] == "remote-agents"
+
+    def test_pull_skips_fetch_when_remote_metadata_not_newer(self, tmp_path, monkeypatch):
+        from edsl.agents import Agent, AgentList
+
+        package_path = tmp_path / "agents.agent_list.ep"
+        local = AgentList([Agent(name="local", traits={"age": 22})])
+        local.git.save(package_path)
+        local.git._write_coop_info_and_commit(
+            {
+                "uuid": "agent-list-uuid",
+                "last_updated_ts": "2026-07-04T12:00:00+00:00",
+            },
+            message="Store Coop info",
+        )
+
+        class FakeCoop:
+            def __init__(self, url=None):
+                pass
+
+            def get_metadata(self, identifier):
+                return {
+                    "uuid": "agent-list-uuid",
+                    "url": "https://www.expectedparrot.com/content/agent-list-uuid",
+                    "last_updated_ts": "2026-07-04T12:00:00+00:00",
+                }
+
+        def fail_pull(cls, url_or_uuid, expected_parrot_url=None):
+            raise AssertionError("pull should not fetch object when metadata is current")
+
+        monkeypatch.setattr(AgentList, "pull", classmethod(fail_pull))
+        import edsl.coop as coop_module
+
+        monkeypatch.setattr(coop_module, "Coop", FakeCoop)
+
+        result = CliRunner().invoke(cli_module.app, ["pull", str(package_path)])
+
+        assert result.exit_code == 0, result.output
+        out = json.loads(result.output)
+        assert out["status"] == "ok"
+        assert out["data"]["operation"] == "unchanged"
+
+    def test_pull_package_without_coop_info_errors(self, tmp_path):
+        from edsl.surveys import Survey
+
+        package_path = tmp_path / "survey.ep"
+        Survey.example().git.save(package_path)
+
+        result = CliRunner().invoke(cli_module.app, ["pull", str(package_path)])
+
+        assert result.exit_code == cli_module.EXIT_VALIDATION
+        out = json.loads(result.output)
+        assert out["status"] == "error"
+        assert out["error"]["code"] == "NO_COOP_INFO"

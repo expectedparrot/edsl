@@ -2,6 +2,7 @@ import unittest
 import tempfile
 import os
 import json
+import zipfile
 from edsl.agents import Agent
 from edsl.agents import AgentList
 
@@ -167,10 +168,10 @@ class TestAgentList(unittest.TestCase):
             package_path = os.path.join(d, "agents.agent_list.ep")
             agent_list.git.save(package_path)
 
-            readme_path = os.path.join(package_path, "README.md")
-            self.assertTrue(os.path.exists(readme_path))
-            with open(readme_path, encoding="utf-8") as f:
-                readme = f.read()
+            self.assertTrue(os.path.isfile(package_path))
+            with zipfile.ZipFile(package_path) as archive:
+                self.assertIn("README.md", archive.namelist())
+                readme = archive.read("README.md").decode("utf-8")
             self.assertIn("Git-backed EDSL AgentList package", readme)
             self.assertIn("- Agents: 2", readme)
             self.assertIn("agents/*.json", readme)
@@ -181,7 +182,7 @@ class TestAgentList(unittest.TestCase):
             self.assertIn("agents.agent_list.ep", html)
             payload = html.split("const DATA = ", 1)[1].split(";\nconst state", 1)[0]
             data = json.loads(payload)
-            self.assertEqual(data["provenance"]["path"], package_path)
+            self.assertIn("agents.agent_list.ep", data["provenance"]["path"])
             self.assertEqual(data["manifest"]["edsl_class_name"], "AgentList")
             self.assertEqual(data["rows"][0]["id"], "000001")
             self.assertEqual(data["rows"][0]["traits"]["age"], 30)

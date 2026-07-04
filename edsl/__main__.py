@@ -84,7 +84,7 @@ def app(ctx):
     """EDSL CLI — run LLM surveys. All output is JSON."""
     if ctx.invoked_subcommand is None:
         _output({
-            "commands": ["run", "models", "info", "validate", "open", "schema", "auth", "results", "coop"],
+            "commands": ["run", "models", "info", "validate", "open", "clone", "push", "pull", "schema", "auth", "results", "coop"],
             "help": "Use 'edsl <command> --help' for details on each command.",
         })
 
@@ -424,6 +424,260 @@ def models(service, search):
     # Sort alphabetically by service then model
     model_list.sort(key=lambda x: (x["service_name"], x["model_name"]))
     _output({"models": model_list})
+
+
+@app.command("clone")
+@click.argument("identifier")
+@click.option("--path", "output_path", default=None, help="Package path to save to.")
+def clone_object(identifier, output_path):
+    """Clone a shared EDSL object into a git-backed package."""
+    try:
+        from edsl.config import CONFIG
+        from edsl.coop import Coop
+
+        coop_identifier = _coop_content_identifier(identifier, CONFIG.EXPECTED_PARROT_URL)
+        coop_client = Coop()
+        obj = coop_client.get(coop_identifier)
+        coop_info = coop_client.get_metadata(coop_identifier)
+        coop_info = _plain_dict(coop_info)
+
+        if not hasattr(obj, "git"):
+            _error(
+                "UNSUPPORTED_OBJECT",
+                f"Fetched object does not support git-backed packages: {type(obj).__name__}",
+                suggestion="Use an EDSL object type with .git support.",
+                exit_code=EXIT_VALIDATION,
+            )
+
+        save_path = output_path or _default_clone_path(identifier, coop_info, obj)
+        save_info = obj.git.save(save_path, message=f"Clone {identifier}")
+        coop_commit_info = obj.git._write_coop_info_and_commit(
+            coop_info,
+            message=f"Store Coop info for {identifier}",
+        )
+
+        data = {
+            "object_type": type(obj).__name__,
+            "path": str(obj.git.path),
+            "source": identifier,
+            "resolved_identifier": coop_identifier,
+            "coop_info": coop_info,
+            "save": save_info,
+            "commit": coop_commit_info.get("commit"),
+            "branch": coop_commit_info.get("branch"),
+            "message": coop_commit_info.get("message"),
+        }
+        _output(data)
+
+    except SystemExit:
+        raise
+    except Exception as e:
+        _error(
+            "CLONE_ERROR",
+            str(e),
+            suggestion="Check the owner/alias, your API key, and the destination path.",
+            exit_code=EXIT_REMOTE,
+        )
+
+
+def _coop_content_identifier(identifier: str, expected_parrot_url: str) -> str:
+    if identifier.startswith(("http://", "https://")):
+        return identifier
+    is_uuid = len(identifier) == 36 and identifier.count("-") == 4
+    if is_uuid:
+        return identifier
+    if "/" in identifier:
+        return f"{expected_parrot_url.rstrip('/')}/content/{identifier.strip('/')}"
+    return identifier
+
+
+def _default_clone_path(identifier: str, coop_info: dict, obj) -> str:
+    alias = coop_info.get("alias")
+    if not alias and "/" in identifier and not identifier.startswith(("http://", "https://")):
+        alias = identifier.strip("/").split("/")[-1]
+    if not alias and coop_info.get("alias_url"):
+        alias = str(coop_info["alias_url"]).rstrip("/").split("/")[-1]
+    if not alias:
+        alias = type(obj).__name__.lower()
+    return _safe_clone_name(str(alias))
+
+
+def _safe_clone_name(value: str) -> str:
+    safe = "".join(ch if ch.isalnum() or ch in ("-", "_", ".") else "-" for ch in value)
+    safe = safe.strip(".-")
+    return safe or "edsl_object"
+
+
+def _plain_dict(value) -> dict:
+    if hasattr(value, "items"):
+        return dict(value)
+    if hasattr(value, "__dict__"):
+        return {key: val for key, val in value.__dict__.items() if not key.startswith("_")}
+    return {"value": str(value)}
+
+
+@app.command("push")
+@click.argument("object_path", type=click.Path(exists=True))
+@click.option("--alias", default=None, help="Short Expected Parrot alias.")
+@click.option("--description", default=None, help="Object description.")
+@click.option("--visibility", default=None, help="private, public, or unlisted.")
+@click.option("--force", is_flag=True, default=False, help="Patch an existing alias conflict when creating.")
+def push_object(object_path, alias, description, visibility, force):
+    """Push or patch an EDSL object on Expected Parrot."""
+    source_path = Path(object_path)
+    try:
+        if not (source_path.is_dir() or source_path.suffix == ".ep"):
+            _error(
+                "USAGE_ERROR",
+                f"Push requires a git-backed .ep package: {object_path}",
+                suggestion="Save the object as a .ep package first, then run 'edsl push <path.ep>'.",
+                exit_code=EXIT_USAGE,
+            )
+
+        obj = _load_git_object(source_path)
+        if not hasattr(obj, "git"):
+            _error(
+                "UNSUPPORTED_OBJECT",
+                f"Object does not support git-backed packages: {type(obj).__name__}",
+                suggestion="Use an EDSL object type with .git support.",
+                exit_code=EXIT_VALIDATION,
+            )
+
+        had_coop_info = _object_has_coop_info(obj)
+        info = obj.git.coop_push(
+            description=description,
+            alias=alias,
+            visibility=visibility,
+            force=force,
+            message=f"Push {source_path.name} to Expected Parrot",
+        )
+
+        _output(
+            {
+                "object_type": type(obj).__name__,
+                "source": str(source_path),
+                "path": str(obj.git.path) if getattr(obj.git, "path", None) else None,
+                "operation": "patch" if had_coop_info else "push",
+                "coop_info": info.get("coop_info"),
+                "commit": info.get("commit"),
+                "branch": info.get("branch"),
+                "message": info.get("message"),
+                "result": info,
+            }
+        )
+
+    except SystemExit:
+        raise
+    except Exception as e:
+        _error(
+            "PUSH_ERROR",
+            str(e),
+            suggestion="Check the object path, alias, visibility, and Expected Parrot API key.",
+            exit_code=EXIT_REMOTE,
+        )
+
+
+@app.command("pull")
+@click.argument("object_path", type=click.Path(exists=True))
+def pull_object(object_path):
+    """Fetch the latest Expected Parrot object into a git-backed package."""
+    source_path = Path(object_path)
+    try:
+        if not (source_path.is_dir() or source_path.suffix == ".ep"):
+            _error(
+                "USAGE_ERROR",
+                f"Pull requires a git-backed .ep package: {object_path}",
+                suggestion="Use 'edsl clone <owner>/<alias>' first, or pass a .ep package path.",
+                exit_code=EXIT_USAGE,
+            )
+
+        obj = _load_git_object(source_path)
+        if not _object_has_coop_info(obj):
+            _error(
+                "NO_COOP_INFO",
+                f"No coop_info.json found for package: {object_path}",
+                suggestion="Use 'edsl clone <owner>/<alias>' or 'edsl push <object>' first.",
+                exit_code=EXIT_VALIDATION,
+            )
+
+        info = obj.git._coop_pull_if_remote_updated(
+            message=f"Pull {source_path.name} from Expected Parrot"
+        )
+        coop_info = obj.git._read_coop_info()
+        if info is None:
+            info = {
+                "status": "unchanged",
+                "path": str(obj.git.path),
+                "commit": getattr(obj.git, "commit", None),
+                "branch": getattr(obj.git, "current_branch", None),
+                "message": "remote metadata is not newer",
+            }
+        status = info.get("status")
+        _output(
+            {
+                "object_type": type(obj).__name__,
+                "source": str(source_path),
+                "path": str(obj.git.path) if getattr(obj.git, "path", None) else str(source_path),
+                "operation": "unchanged" if status == "unchanged" else "updated",
+                "coop_info": coop_info,
+                "commit": info.get("commit"),
+                "branch": info.get("branch"),
+                "message": info.get("message"),
+                "result": info,
+            }
+        )
+
+    except SystemExit:
+        raise
+    except Exception as e:
+        _error(
+            "PULL_ERROR",
+            str(e),
+            suggestion="Check the package path, stored Coop info, and Expected Parrot API key.",
+            exit_code=EXIT_REMOTE,
+        )
+
+
+def _load_git_object(path: Path):
+    manifest = _read_package_manifest(path)
+    class_name = manifest.get("edsl_class_name") or manifest.get("object_type")
+    if class_name == "Survey":
+        from edsl.surveys import Survey
+
+        return Survey.git.load(path)
+    if class_name == "AgentList":
+        from edsl.agents import AgentList
+
+        return AgentList.git.load(path)
+    if class_name == "Jobs":
+        from edsl.jobs import Jobs
+
+        return Jobs.git.load(path)
+    if class_name == "Results":
+        from edsl.results import Results
+
+        return Results.git.load(path)
+    if class_name == "ScenarioList":
+        from edsl.scenarios import ScenarioList
+
+        return ScenarioList.git.load(path)
+    if class_name == "ModelList":
+        from edsl.language_models import ModelList
+
+        return ModelList.git.load(path)
+    _error(
+        "UNSUPPORTED_OBJECT",
+        f"Object package type does not support push: {class_name or 'unknown'}",
+        suggestion="Currently supported package types: Survey, AgentList, Jobs, Results, ScenarioList, ModelList.",
+        exit_code=EXIT_USAGE,
+    )
+
+
+def _object_has_coop_info(obj) -> bool:
+    try:
+        return obj.git._read_coop_info() is not None
+    except Exception:
+        return False
 
 
 # ---------------------------------------------------------------------------
@@ -1216,7 +1470,7 @@ def coop_search(query, obj_type, visibility, community, page, page_size):
 @click.option("--id", "obj_id", required=True, help="UUID, alias, or URL.")
 @click.option("--output", "-o", "output_path", required=True, help="File to write pulled object to.")
 def coop_pull(obj_id, output_path):
-    """Download an object from Coop and save to a file."""
+    """Deprecated: download an object from Coop as JSON. Prefer edsl clone/pull."""
     try:
         from edsl.coop import Coop
         coop_client = Coop()
@@ -1240,7 +1494,12 @@ def coop_pull(obj_id, output_path):
             json_size = len(json.dumps(serialized, default=str))
             summary["json_bytes"] = json_size
 
-        _output(summary)
+        _output(
+            summary,
+            warnings=[
+                "Deprecated: use 'edsl clone <owner>/<alias>' for git-backed objects, then 'edsl pull <path.ep>'."
+            ],
+        )
 
     except SystemExit:
         raise
@@ -1256,7 +1515,7 @@ def coop_pull(obj_id, output_path):
 @click.option("--alias", default=None, help="Short name.")
 @click.option("--visibility", default="private", help="public, private, unlisted.")
 def coop_push(file_path, description, alias, visibility):
-    """Upload a serialized EDSL object to Coop."""
+    """Deprecated: upload serialized JSON to Coop. Prefer edsl push <path.ep>."""
     data = _read_json_file(file_path)
 
     try:
@@ -1295,7 +1554,12 @@ def coop_push(file_path, description, alias, visibility):
         else:
             result_data = {"result": str(result)}
 
-        _output(result_data)
+        _output(
+            result_data,
+            warnings=[
+                "Deprecated: save the object as a .ep package and use 'edsl push <path.ep>'."
+            ],
+        )
 
     except SystemExit:
         raise
