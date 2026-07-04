@@ -63,11 +63,39 @@ def test_model_list_git_save_default_path_and_load_round_trip(tmp_path, monkeypa
 def test_model_list_git_package_html(tmp_path):
     package_path = tmp_path / "models.ep"
     html_path = tmp_path / "models.html"
-    ModelList.example().git.save(package_path)
+    model_list = ModelList.example()
+    model_list.git.save(package_path)
+    model_list.git._write_coop_info_and_commit(
+        {
+            "uuid": "model-list-uuid",
+            "url": "https://www.expectedparrot.com/content/model-list-uuid",
+            "alias_url": "https://www.expectedparrot.com/content/alice/shared-models",
+            "alias": "shared-models",
+            "description": "A shared model list",
+            "owner": "alice",
+        },
+        message="Add Coop info",
+    )
 
     html = ModelList.git.open(package_path).html(filename=html_path)
 
     assert "<title>EDSL ModelList</title>" in html
+    assert "Expected Parrot" in html
+    assert "Expected Parrot Server" in html
+    assert "remote-meta" in html
+    assert "copy-mini" in html
+    assert "object alias" in html
+    assert "owner" in html
+    assert "model-list-uuid" in html
+    assert "alice/shared-models" in html
+    assert "alias URL" in html
+    assert "https://www.expectedparrot.com/content/alice/shared-models" in html
+    assert "shared-models" in html
+    assert "A shared model list" in html
+    assert "alice" in html
+    assert '"href": "https://www.expectedparrot.com/content/model-list-uuid"' in html
+    assert 'target="_blank"' in html
+    assert "collection-table" in html
     assert "<table" in html
     assert html_path.read_text(encoding="utf-8") == html
 

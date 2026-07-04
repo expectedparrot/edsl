@@ -935,137 +935,9 @@ class Jobs(Base):
         return path
 
     def _jobs_html_document(self) -> str:
-        summary = self._summary()
-        summary["interviews"] = self.num_interviews
-        summary["total_questions"] = self.nr_questions
-        post_run_methods = getattr(self, "_post_run_methods", [])
-        where_clauses = getattr(self, "_where_clauses", [])
-        include_expression = getattr(self, "_include_expression", None)
-        dependency = getattr(self, "_depends_on", None)
+        from .jobs_html_renderer import JobsHTMLRenderer
 
-        return f"""<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>EDSL Jobs</title>
-  <style>
-    :root {{
-      color-scheme: light;
-      --ink: #172033;
-      --muted: #5f6b7a;
-      --line: #d9dee8;
-      --panel: #f8fafc;
-      --accent: #0f766e;
-      --accent-soft: #dff5f1;
-      --code: #243042;
-    }}
-    * {{ box-sizing: border-box; }}
-    body {{
-      margin: 0;
-      font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      color: var(--ink);
-      background: #ffffff;
-    }}
-    header {{
-      padding: 28px 36px 18px;
-      border-bottom: 1px solid var(--line);
-      background: var(--panel);
-    }}
-    main {{ max-width: 1180px; margin: 0 auto; padding: 28px 36px 44px; }}
-    h1 {{ margin: 0 0 6px; font-size: 30px; font-weight: 700; }}
-    h2 {{ margin: 30px 0 12px; font-size: 19px; }}
-    h3 {{ margin: 18px 0 8px; font-size: 15px; }}
-    .subtle {{ color: var(--muted); }}
-    .summary {{
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-      gap: 10px;
-      margin-top: 18px;
-    }}
-    .metric {{
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      background: #fff;
-      padding: 12px 14px;
-    }}
-    .metric strong {{ display: block; font-size: 24px; line-height: 1.1; }}
-    .metric span {{ color: var(--muted); font-size: 12px; text-transform: uppercase; }}
-    section {{ border-top: 1px solid var(--line); padding-top: 18px; }}
-    table {{ width: 100%; border-collapse: collapse; table-layout: fixed; }}
-    th, td {{ border-bottom: 1px solid var(--line); padding: 9px 10px; vertical-align: top; text-align: left; }}
-    th {{ color: var(--muted); font-size: 12px; text-transform: uppercase; background: var(--panel); }}
-    code, pre {{ font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }}
-    pre {{
-      margin: 0;
-      padding: 10px;
-      overflow: auto;
-      color: var(--code);
-      background: var(--panel);
-      border: 1px solid var(--line);
-      border-radius: 6px;
-      white-space: pre-wrap;
-      word-break: break-word;
-    }}
-    .pill {{
-      display: inline-block;
-      border-radius: 999px;
-      padding: 2px 8px;
-      background: var(--accent-soft);
-      color: var(--accent);
-      font-size: 12px;
-      font-weight: 600;
-    }}
-    .empty {{ color: var(--muted); font-style: italic; }}
-  </style>
-</head>
-<body>
-  <header>
-    <h1>EDSL Jobs</h1>
-    <div class="subtle">Survey, agents, scenarios, models, and run metadata.</div>
-    <div class="summary">
-      {self._jobs_metric_html(summary["questions"], "Questions")}
-      {self._jobs_metric_html(summary["agents"], "Agents")}
-      {self._jobs_metric_html(summary["scenarios"], "Scenarios")}
-      {self._jobs_metric_html(summary["models"], "Models")}
-      {self._jobs_metric_html(summary["interviews"], "Interviews")}
-      {self._jobs_metric_html(summary["total_questions"], "Total questions")}
-    </div>
-  </header>
-  <main>
-    <section>
-      <h2>Survey</h2>
-      {self._jobs_survey_html()}
-    </section>
-    <section>
-      <h2>Agents</h2>
-      {self._jobs_collection_table_html(self.agents, "agent")}
-    </section>
-    <section>
-      <h2>Scenarios</h2>
-      {self._jobs_collection_table_html(self.scenarios, "scenario")}
-    </section>
-    <section>
-      <h2>Models</h2>
-      {self._jobs_collection_table_html(self.models, "model")}
-    </section>
-    <section>
-      <h2>Run Metadata</h2>
-      {self._jobs_metadata_html(post_run_methods, where_clauses, include_expression, dependency)}
-    </section>
-  </main>
-</body>
-</html>
-"""
-
-    @staticmethod
-    def _jobs_metric_html(value: Any, label: str) -> str:
-        return (
-            '<div class="metric">'
-            f"<strong>{html_module.escape(str(value))}</strong>"
-            f"<span>{html_module.escape(label)}</span>"
-            "</div>"
-        )
+        return JobsHTMLRenderer(self).render()
 
     def _jobs_survey_html(self) -> str:
         rows = []
@@ -1144,7 +1016,7 @@ class Jobs(Base):
     @staticmethod
     def _jobs_pre_html(value: Any) -> str:
         text = json.dumps(value, indent=2, default=str, ensure_ascii=False)
-        return f"<pre>{html_module.escape(text)}</pre>"
+        return f'<pre class="jobs-json">{html_module.escape(text)}</pre>'
 
     def _jobs_metadata_html(
         self,

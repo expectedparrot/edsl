@@ -97,6 +97,46 @@ def test_results_git_loads_historical_commit_without_checkout(tmp_path):
     assert current.git.commit == second["commit"]
 
 
+def test_results_git_package_html(tmp_path):
+    package_path = tmp_path / "results.ep"
+    html_path = tmp_path / "results.html"
+    results = Results.example()
+    results.git.save(package_path)
+    results.git._write_coop_info_and_commit(
+        {
+            "uuid": "results-uuid",
+            "url": "https://www.expectedparrot.com/content/results-uuid",
+            "alias_url": "https://www.expectedparrot.com/content/alice/shared-results",
+            "alias": "shared-results",
+            "description": "A shared results object",
+            "owner": "alice",
+        },
+        message="Add Coop info",
+    )
+
+    html = Results.git.open(package_path).html(filename=html_path)
+
+    assert "<title>EDSL Results</title>" in html
+    assert "Expected Parrot" in html
+    assert "Expected Parrot Server" in html
+    assert "remote-meta" in html
+    assert "copy-mini" in html
+    assert "object alias" in html
+    assert "owner" in html
+    assert "results-uuid" in html
+    assert "alice/shared-results" in html
+    assert "alias URL" in html
+    assert "https://www.expectedparrot.com/content/alice/shared-results" in html
+    assert "shared-results" in html
+    assert "A shared results object" in html
+    assert "alice" in html
+    assert '"href": "https://www.expectedparrot.com/content/results-uuid"' in html
+    assert 'target="_blank"' in html
+    assert "collection-table" in html
+    assert "<table" in html
+    assert html_path.read_text(encoding="utf-8") == html
+
+
 def test_results_git_tag_restore(tmp_path):
     package_path = tmp_path / "archive.results.ep"
     results = Results.example()

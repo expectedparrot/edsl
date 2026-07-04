@@ -100,8 +100,7 @@ class ModelListGitPackage(gitpkg.GitPackage):
         ref: str = "HEAD",
     ) -> str:
         """Render this package as a standalone HTML document."""
-        model_list = _read_model_list(self.path, ref)
-        html = _standalone_html_document(model_list._repr_html_())
+        html = _render_model_list_package_html(self.path, ref)
         if filename is not None:
             Path(filename).write_text(html, encoding="utf-8")
         return html
@@ -158,18 +157,38 @@ def _load_manifest_at_ref(path: Path, ref: str) -> dict:
     return manifest
 
 
-def _standalone_html_document(body: str) -> str:
-    return (
-        "<!doctype html>\n"
-        "<html>\n"
-        "<head>\n"
-        '  <meta charset="utf-8">\n'
-        "  <title>EDSL ModelList</title>\n"
-        "</head>\n"
-        "<body>\n"
-        f"{body}\n"
-        "</body>\n"
-        "</html>\n"
+def _render_model_list_package_html(path: Path, ref: str) -> str:
+    from edsl.base.collection_html_renderer import render_collection_html
+    from edsl.base.html_artifacts import package_remote_context
+
+    manifest = _load_manifest_at_ref(path, ref)
+    model_list_dict = _read_model_list_dict_at_ref(path, ref)
+    rows = []
+    for index, model in enumerate(model_list_dict.get("models", []), start=1):
+        rows.append(
+            {
+                "#": index,
+                "model": model.get("model") or model.get("_model_"),
+                "service": model.get("inference_service")
+                or model.get("_inference_service_"),
+                "parameters": model.get("parameters") or {},
+            }
+        )
+
+    return render_collection_html(
+        title="EDSL ModelList",
+        subtitle=f"{path.name} · {ref}",
+        facts=[
+            (manifest.get("n_models", len(rows)), "models"),
+            (len({row.get("service") for row in rows if row.get("service")}), "services"),
+        ],
+        columns=["#", "model", "service", "parameters"],
+        rows=rows,
+        raw={"manifest": manifest, "models": model_list_dict.get("models", [])},
+        search_placeholder="Search models, services, parameters",
+        remote_context=package_remote_context(
+            path, ref, manifest=manifest, error_cls=ModelListGitError
+        ),
     )
 
 

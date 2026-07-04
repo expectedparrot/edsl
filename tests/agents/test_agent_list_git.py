@@ -183,6 +183,45 @@ def test_agent_list_git_coop_push_creates_info_then_patches(tmp_path, monkeypatc
     assert coop_info["visibility"] == "unlisted"
 
 
+def test_agent_list_git_package_html_shows_coop_info(tmp_path):
+    package_path = tmp_path / "agents.agent_list.ep"
+    html_path = tmp_path / "agents.html"
+    agent_list = AgentList([Agent(name="alice", traits={"age": 22})])
+    agent_list.git.save(package_path, message="initial agents")
+    agent_list.git._write_coop_info_and_commit(
+        {
+            "uuid": "agent-list-uuid",
+            "url": "https://www.expectedparrot.com/content/agent-list-uuid",
+            "alias_url": "https://www.expectedparrot.com/content/alice/shared-agents",
+            "alias": "shared-agents",
+            "description": "A shared agent list",
+            "owner": "alice",
+        },
+        message="Add Coop info",
+    )
+
+    html = AgentList.git.open(package_path).html(
+        filename=html_path, include_prompts=False
+    )
+
+    assert "Expected Parrot" in html
+    assert "Expected Parrot Server" in html
+    assert "remote-meta" in html
+    assert "copy-mini" in html
+    assert "object alias" in html
+    assert "owner" in html
+    assert "agent-list-uuid" in html
+    assert "alice/shared-agents" in html
+    assert "alias URL" in html
+    assert "https://www.expectedparrot.com/content/alice/shared-agents" in html
+    assert "shared-agents" in html
+    assert "A shared agent list" in html
+    assert "alice" in html
+    assert '"href": "https://www.expectedparrot.com/content/agent-list-uuid"' in html
+    assert 'target="_blank"' in html
+    assert html_path.read_text(encoding="utf-8") == html
+
+
 def test_agent_list_git_coop_pull_overwrites_package_files(tmp_path, monkeypatch):
     package_path = tmp_path / "agents.agent_list.ep"
     agent_list = AgentList([Agent(name="alice", traits={"age": 22})])

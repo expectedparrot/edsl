@@ -4,10 +4,13 @@ from __future__ import annotations
 
 import json
 import tempfile
+from copy import deepcopy
 from datetime import datetime, timezone
 from html import escape
 from pathlib import Path
 from typing import Any, TYPE_CHECKING
+
+from edsl.base.html_artifacts import package_remote_context
 
 if TYPE_CHECKING:
     from .agent_list import AgentList
@@ -353,6 +356,9 @@ class AgentListPackageHTMLRenderer:
             "generated_at": datetime.now(timezone.utc).isoformat(),
             "provenance": provenance,
             "manifest": manifest,
+            "remote_context": package_remote_context(
+                self.path, self.ref, manifest=manifest, error_cls=AgentListGitError
+            ),
             "summary": {
                 "agents": len(rows),
                 "traits": len(trait_keys),
@@ -489,8 +495,9 @@ def render_agent_list_html_via_package(
 ) -> str:
     with tempfile.TemporaryDirectory() as temp_dir:
         package_path = Path(temp_dir) / "agent_list.agent_list.ep"
-        agent_list.git.save(package_path, message="Render AgentList HTML")
-        return AgentListPackageHTMLRenderer(package_path).render(
+        render_list = deepcopy(agent_list)
+        render_list.git.save(package_path, message="Render AgentList HTML")
+        return AgentListPackageHTMLRenderer(render_list.git.worktree_path).render(
             title=title, include_prompts=include_prompts
         )
 
@@ -1620,6 +1627,40 @@ h1 { margin: 0; font-size: 30px; font-weight: 680; letter-spacing: 0; }
 .notice.ok { background: var(--ok-bg); border-color: #b9dec8; color: var(--ok); }
 .notice.warning { background: var(--warn-bg); border-color: #f0cc8a; color: var(--warn); }
 .notice.error { background: var(--error-bg); border-color: #efb4ad; color: var(--error); }
+.remote-heading { margin-bottom: 8px; }
+.remote-meta {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 8px;
+  font-size: 12px;
+}
+.remote-meta th,
+.remote-meta td {
+  position: static;
+  padding: 5px 8px;
+  border: 1px solid #cfe3d6;
+  background: rgba(255, 255, 255, .55);
+  color: inherit;
+  text-align: left;
+  vertical-align: top;
+}
+.remote-meta th {
+  width: 132px;
+  color: var(--muted);
+  font-weight: 650;
+}
+.remote-meta td { overflow-wrap: anywhere; }
+.copy-mini {
+  border: 1px solid #b9dec8;
+  border-radius: 5px;
+  background: #fff;
+  color: var(--ok);
+  cursor: pointer;
+  font: inherit;
+  font-size: 11px;
+  padding: 2px 6px;
+  margin-left: 8px;
+}
 .tabs {
   display: flex;
   gap: 6px;
@@ -1790,6 +1831,7 @@ pre {
     </div>
     <div class="facts" id="facts"></div>
     <div class="notice" id="diagnostic-summary"></div>
+    <div class="notice" id="remote-summary"></div>
   </header>
 
   <nav class="tabs" aria-label="AgentList views">
@@ -1894,6 +1936,7 @@ function init() {
   document.getElementById("subtitle").textContent = subtitleText();
   renderFacts();
   renderDiagnosticSummary();
+  renderRemoteSummary();
   renderTable();
   renderCodebook();
   renderPackage();
@@ -1937,6 +1980,56 @@ function renderDiagnosticSummary() {
   const hasError = diagnostics.some(d => d.level === "error");
   notice.className = `notice show ${hasError ? "error" : "warning"}`;
   notice.textContent = diagnostics.map(d => d.title).join("; ");
+}
+
+function renderRemoteSummary() {
+  const notice = document.getElementById("remote-summary");
+  const context = DATA.remote_context || {};
+  const rows = context.display_rows || [];
+  if (!rows.length) {
+    notice.className = "notice";
+    notice.textContent = "";
+    return;
+  }
+  const firstUrl = rows.find(row => row.label.toLowerCase().includes("url"));
+  const primary = firstUrl || rows[0];
+  const heading = context.display_name && firstUrl
+    ? { label: "object", value: context.display_name, href: firstUrl.href || firstUrl.value }
+    : primary;
+  const headingCopy = context.display_name ? copyButtonHtml({ label: "display name", value: context.display_name }) : "";
+  notice.className = "notice show ok";
+  notice.innerHTML = `<div class="remote-heading"><strong>Expected Parrot Server:</strong> ${remoteValueHtml(heading)}${headingCopy}</div>${remoteMetaHtml(rows)}`;
+}
+
+function remoteValueHtml(row) {
+  const href = row.href || (isHttpUrl(row.value) ? row.value : "");
+  if (!href) return escapeHtml(row.value);
+  return `<a href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer">${escapeHtml(row.value)}</a>`;
+}
+
+function copyButtonHtml(row) {
+  const label = row.label.toLowerCase();
+  if (label !== "url" && label !== "alias url" && label !== "uuid" && label !== "display name") return "";
+  return `<button class="copy-mini" data-copy="${escapeHtml(row.value)}" type="button">Copy</button>`;
+}
+
+function isHttpUrl(value) {
+  return typeof value === "string" && (value.startsWith("https://") || value.startsWith("http://"));
+}
+
+function remoteMetaHtml(rows) {
+  const preferred = ["object alias", "owner", "URL", "UUID", "description", "visibility", "updated", "created"];
+  const rank = row => {
+    const index = preferred.indexOf(row.label);
+    return index === -1 ? preferred.length : index;
+  };
+  const visible = rows
+    .sort((a, b) => rank(a) - rank(b))
+    .slice(0, 8);
+  if (!visible.length) return "";
+  return `<table class="remote-meta"><tbody>${visible.map(row => `
+    <tr><th>${escapeHtml(row.label)}</th><td>${remoteValueHtml(row)}${copyButtonHtml(row)}</td></tr>
+  `).join("")}</tbody></table>`;
 }
 
 function filteredRows() {
@@ -2006,17 +2099,19 @@ function renderCodebook() {
 
 function renderPackage() {
   const p = DATA.provenance || {};
+  const remoteRows = (DATA.remote_context?.display_rows || []).map(row => ({ label: row.label, value: row.value, href: row.href }));
   const rows = [
-    ["path", p.path],
-    ["ref", p.ref],
-    ["branch", p.branch],
-    ["commit", p.commit],
-    ["format", DATA.manifest?.format],
-    ["edsl version", DATA.manifest?.edsl_version],
-    ["generated", DATA.generated_at]
-  ].filter(([, value]) => value !== undefined && value !== null && value !== "");
-  document.getElementById("package").innerHTML = rows.map(([key, value]) => `
-    <div class="package-row"><span>${escapeHtml(key)}</span><code>${escapeHtml(value)}</code></div>
+    { label: "path", value: p.path },
+    { label: "ref", value: p.ref },
+    { label: "branch", value: p.branch },
+    { label: "commit", value: p.commit },
+    { label: "format", value: DATA.manifest?.format },
+    { label: "edsl version", value: DATA.manifest?.edsl_version },
+    { label: "generated", value: DATA.generated_at },
+    ...remoteRows
+  ].filter(row => row.value !== undefined && row.value !== null && row.value !== "");
+  document.getElementById("package").innerHTML = rows.map(row => `
+    <div class="package-row"><span>${escapeHtml(row.label)}</span><code>${remoteValueHtml(row)}</code></div>
   `).join("");
   document.getElementById("manifest-json").textContent = JSON.stringify(DATA.manifest, null, 2);
 }
@@ -2051,6 +2146,14 @@ function bindEvents() {
   document.getElementById("drawer-backdrop").addEventListener("click", closeDrawer);
   document.getElementById("copy-json").addEventListener("click", copyJson);
   document.getElementById("download-json").addEventListener("click", downloadJson);
+  document.getElementById("remote-summary").addEventListener("click", event => {
+    const button = event.target.closest("[data-copy]");
+    if (!button) return;
+    navigator.clipboard?.writeText(button.dataset.copy).then(
+      () => showToast("Copied"),
+      () => showToast("Clipboard blocked by browser")
+    );
+  });
   document.addEventListener("keydown", event => {
     if (event.key === "Escape") closeDrawer();
   });

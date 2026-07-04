@@ -128,7 +128,7 @@ class ResultsGitPackage(gitpkg.GitPackage):
     ) -> str:
         """Render this package as a standalone HTML document."""
         results = _read_results(self.path, ref)
-        html = _standalone_html_document(results._repr_html_())
+        html = _render_results_package_html(self.path, ref, results)
         if filename is not None:
             Path(filename).write_text(html, encoding="utf-8")
         return html
@@ -219,19 +219,65 @@ def _content_sha256(jsonl: str) -> str:
     return hashlib.sha256(jsonl.encode("utf-8")).hexdigest()
 
 
-def _standalone_html_document(body: str) -> str:
-    return (
-        "<!doctype html>\n"
-        "<html>\n"
-        "<head>\n"
-        '  <meta charset="utf-8">\n'
-        "  <title>EDSL Results</title>\n"
-        "</head>\n"
-        "<body>\n"
-        f"{body}\n"
-        "</body>\n"
-        "</html>\n"
+def _render_results_package_html(path: Path, ref: str, results: "Results") -> str:
+    from edsl.base.collection_html_renderer import render_collection_html
+    from edsl.base.html_artifacts import package_remote_context
+
+    manifest = _load_manifest_at_ref(path, ref)
+    raw = results.to_dict(add_edsl_version=False)
+    serialized_results = raw.get("data") or raw.get("results") or []
+    rows = [_result_row(index, result) for index, result in enumerate(results, start=1)]
+    question_names = list(getattr(results, "question_names", []) or [])
+
+    return render_collection_html(
+        title="EDSL Results",
+        subtitle=f"{path.name} · {ref}",
+        facts=[
+            (len(results), "results"),
+            (len(question_names), "questions"),
+            (len(getattr(results, "agent_keys", []) or []), "agent keys"),
+            (len(getattr(results, "model_keys", []) or []), "model keys"),
+        ],
+        columns=["#", "agent", "model", "scenario", "answers"],
+        rows=rows,
+        raw={"manifest": manifest, "results": serialized_results},
+        search_placeholder="Search agents, models, scenarios, answers",
+        remote_context=package_remote_context(
+            path, ref, manifest=manifest, error_cls=ResultsGitError
+        ),
     )
+
+
+def _result_row(index: int, result: object) -> dict:
+    data = _result_dict(result)
+    return {
+        "#": index,
+        "agent": _compact_json(data.get("agent")),
+        "model": _model_label(data.get("model")),
+        "scenario": _compact_json(data.get("scenario")),
+        "answers": data.get("answer") or data.get("answers") or {},
+    }
+
+
+def _result_dict(result: object) -> dict:
+    if hasattr(result, "to_dict"):
+        try:
+            return result.to_dict(add_edsl_version=False)
+        except TypeError:
+            return result.to_dict()
+    return {}
+
+
+def _model_label(model: object) -> str:
+    if isinstance(model, dict):
+        return str(model.get("model") or model.get("_model_") or model)
+    return "" if model is None else str(model)
+
+
+def _compact_json(value: object) -> object:
+    if isinstance(value, dict) and len(value) == 1:
+        return next(iter(value.values()))
+    return value or {}
 
 
 def _refresh_instance_from_loaded(instance: "Results", loaded: "Results") -> None:

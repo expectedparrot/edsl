@@ -75,11 +75,40 @@ def test_scenario_list_git_save_default_path_and_load_round_trip(tmp_path, monke
 def test_scenario_list_git_package_html(tmp_path):
     package_path = tmp_path / "scenario_list.ep"
     html_path = tmp_path / "scenario_list.html"
-    ScenarioList.example().git.save(package_path)
+    scenario_list = ScenarioList.example()
+    scenario_list.git.save(package_path)
+    scenario_list.git._write_coop_info_and_commit(
+        {
+            "uuid": "scenario-list-uuid",
+            "url": "https://www.expectedparrot.com/content/scenario-list-uuid",
+            "alias_url": "https://www.expectedparrot.com/content/alice/shared-scenarios",
+            "alias": "shared-scenarios",
+            "description": "A shared scenario list",
+            "owner": "alice",
+        },
+        message="Add Coop info",
+    )
 
     html = ScenarioList.git.open(package_path).html(filename=html_path)
 
     assert "<title>EDSL ScenarioList</title>" in html
+    assert "Expected Parrot" in html
+    assert "Expected Parrot Server" in html
+    assert "remote-meta" in html
+    assert "copy-mini" in html
+    assert "object alias" in html
+    assert "owner" in html
+    assert "scenario-list-uuid" in html
+    assert "alice/shared-scenarios" in html
+    assert "alias URL" in html
+    assert "https://www.expectedparrot.com/content/alice/shared-scenarios" in html
+    assert "shared-scenarios" in html
+    assert "A shared scenario list" in html
+    assert "alice" in html
+    assert '"href": "https://www.expectedparrot.com/content/scenario-list-uuid"' in html
+    assert 'target="_blank"' in html
+    assert "Copy JSON" in html
+    assert "scenario-table" in html
     assert "<table" in html
     assert html_path.read_text(encoding="utf-8") == html
 

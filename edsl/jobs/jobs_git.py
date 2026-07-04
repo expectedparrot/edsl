@@ -105,7 +105,19 @@ class JobsGitPackage(gitpkg.GitPackage):
     ) -> str:
         """Render this package as a standalone HTML document."""
         job = _read_job(self.path, ref)
-        return job.to_html(filename=filename)
+        from edsl.base.html_artifacts import package_remote_context
+        from .jobs_html_renderer import JobsHTMLRenderer
+
+        manifest = _load_manifest_at_ref(self.path, ref)
+        html = JobsHTMLRenderer(
+            job,
+            package_context=package_remote_context(
+                self.path, ref, manifest=manifest, error_cls=JobsGitError
+            ),
+        ).render()
+        if filename is not None:
+            Path(filename).write_text(html, encoding="utf-8")
+        return html
 
 
 class _materialized_ref:
@@ -158,6 +170,20 @@ def _package_display_name(path: Path) -> str:
     if name.endswith(PACKAGE_SUFFIX):
         return name[: -len(PACKAGE_SUFFIX)]
     return path.stem
+
+
+def _load_manifest_at_ref(path: Path, ref: str) -> dict:
+    manifest = gitpkg.read_json_at_ref(
+        path, "manifest.json", ref, error_cls=JobsGitError
+    )
+    if manifest.get("format") != FORMAT_NAME:
+        raise ValueError(f"Unsupported Jobs git package format: {manifest!r}")
+    if manifest.get("format_version") != FORMAT_VERSION:
+        raise ValueError(
+            "Unsupported Jobs git package version: "
+            f"{manifest.get('format_version')!r}"
+        )
+    return manifest
 
 
 def _init_package(path: Path) -> None:

@@ -116,7 +116,10 @@ class TestOpen:
         assert out["status"] == "ok"
         assert out["data"]["object_type"] == "Survey"
         assert opened_urls == [html_path.resolve().as_uri()]
-        assert "survey_container" in html_path.read_text(encoding="utf-8")
+        html = html_path.read_text(encoding="utf-8")
+        assert "<title>EDSL Survey</title>" in html
+        assert "Expected Parrot" in html
+        assert "survey-question-table" in html
 
     def test_open_jobs_package_generates_html(self, tmp_path, monkeypatch):
         from edsl import Agent, AgentList, Jobs, Model, ModelList, Scenario, ScenarioList
@@ -139,6 +142,17 @@ class TestOpen:
         package_path = tmp_path / "jobs.ep"
         html_path = tmp_path / "jobs.html"
         job.git.save(package_path)
+        job.git._write_coop_info_and_commit(
+            {
+                "uuid": "jobs-uuid",
+                "url": "https://www.expectedparrot.com/content/jobs-uuid",
+                "alias_url": "https://www.expectedparrot.com/content/alice/shared-jobs",
+                "alias": "shared-jobs",
+                "description": "A shared jobs object",
+                "owner": "alice",
+            },
+            message="Add Coop info",
+        )
 
         opened_urls = []
         monkeypatch.setattr(
@@ -159,6 +173,26 @@ class TestOpen:
         assert opened_urls == [html_path.resolve().as_uri()]
         html = html_path.read_text(encoding="utf-8")
         assert "EDSL Jobs" in html
+        assert "Expected Parrot" in html
+        assert "Expected Parrot Server" in html
+        assert "remote-meta" in html
+        assert "copy-mini" in html
+        assert "object alias" in html
+        assert "owner" in html
+        assert "jobs-uuid" in html
+        assert "alice/shared-jobs" in html
+        assert "alias URL" in html
+        assert "https://www.expectedparrot.com/content/alice/shared-jobs" in html
+        assert "shared-jobs" in html
+        assert "A shared jobs object" in html
+        assert "alice" in html
+        assert '"href": "https://www.expectedparrot.com/content/jobs-uuid"' in html
+        assert 'target="_blank"' in html
+        assert "Jobs sections" in html
+        assert "data-view-tab=\"survey\"" in html
+        assert "data-view-tab=\"agents\"" in html
+        assert "data-view-tab=\"scenarios\"" in html
+        assert "data-view-tab=\"models\"" in html
         assert "What is your name in {{ period }}?" in html
 
     def test_open_results_package_generates_html(self, tmp_path, monkeypatch):
@@ -187,6 +221,8 @@ class TestOpen:
         assert opened_urls == [html_path.resolve().as_uri()]
         html = html_path.read_text(encoding="utf-8")
         assert "<title>EDSL Results</title>" in html
+        assert "Expected Parrot" in html
+        assert "collection-table" in html
         assert "<table" in html
 
     def test_open_scenario_list_package_generates_html(self, tmp_path, monkeypatch):
@@ -215,6 +251,8 @@ class TestOpen:
         assert opened_urls == [html_path.resolve().as_uri()]
         html = html_path.read_text(encoding="utf-8")
         assert "<title>EDSL ScenarioList</title>" in html
+        assert "Expected Parrot" in html
+        assert "scenario-table" in html
         assert "<table" in html
 
     def test_open_model_list_package_generates_html(self, tmp_path, monkeypatch):
@@ -243,6 +281,8 @@ class TestOpen:
         assert opened_urls == [html_path.resolve().as_uri()]
         html = html_path.read_text(encoding="utf-8")
         assert "<title>EDSL ModelList</title>" in html
+        assert "Expected Parrot" in html
+        assert "collection-table" in html
         assert "<table" in html
 
 

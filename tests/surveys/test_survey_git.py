@@ -76,6 +76,79 @@ def test_survey_git_save_accepts_stem_and_validate(tmp_path):
     assert survey.git.validate() == {"status": "ok", "errors": []}
 
 
+def test_survey_git_package_html(tmp_path):
+    package_path = tmp_path / "survey.ep"
+    html_path = tmp_path / "survey.html"
+    survey = Survey.example()
+    survey.git.save(package_path)
+    survey.git._write_coop_info_and_commit(
+        {
+            "uuid": "survey-uuid",
+            "url": "https://www.expectedparrot.com/content/survey-uuid",
+            "alias_url": "https://www.expectedparrot.com/content/alice/shared-survey",
+            "alias": "shared-survey",
+            "description": "A shared survey",
+            "owner": "alice",
+        },
+        message="Add Coop info",
+    )
+
+    html = Survey.git.open(package_path).html(filename=html_path)
+
+    assert "<title>EDSL Survey</title>" in html
+    assert "Expected Parrot" in html
+    assert "Expected Parrot Server" in html
+    assert "remote-meta" in html
+    assert "copy-mini" in html
+    assert "object alias" in html
+    assert "owner" in html
+    assert "survey-uuid" in html
+    assert "alice/shared-survey" in html
+    assert "alias URL" in html
+    assert "https://www.expectedparrot.com/content/alice/shared-survey" in html
+    assert "shared-survey" in html
+    assert "A shared survey" in html
+    assert "alice" in html
+    assert '"href": "https://www.expectedparrot.com/content/survey-uuid"' in html
+    assert 'target="_blank"' in html
+    assert "survey-question-table" in html
+    assert "flow-diagram" in html
+    assert "flow_diagram" in html
+    assert "Flow and skip logic" in html
+    assert html_path.read_text(encoding="utf-8") == html
+
+
+def test_survey_git_package_html_questions_table_shows_logic(tmp_path):
+    package_path = tmp_path / "logic.survey.ep"
+    survey = Survey(
+        [
+            QuestionMultipleChoice(
+                question_name="q0",
+                question_text="Choose one.",
+                question_options=["yes", "no"],
+            ),
+            QuestionMultipleChoice(
+                question_name="q1",
+                question_text="Choose from prior answer.",
+                question_options=["{{ q0.answer }}", "other"],
+            ),
+            QuestionFreeText(question_name="q2", question_text="Why?"),
+        ]
+    )
+    survey.add_skip_rule("q1", "{{ q0.answer }} == 'no'")
+    survey.git.save(package_path)
+
+    html = Survey.git.open(package_path).html()
+
+    assert "logic" in html
+    assert "if q0.answer is 'no': skip q1 -> q2" in html
+    assert "before showing q1" in html
+    assert '"source_q": 0' in html
+    assert "Q0" in html
+    assert "pipes q0.answer" in html
+    assert "question_options[0]" in html
+
+
 def test_survey_git_loads_historical_commit_without_checkout(tmp_path):
     package_path = tmp_path / "survey.survey.ep"
     first_survey = Survey.example()

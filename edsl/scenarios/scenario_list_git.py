@@ -69,8 +69,11 @@ class ScenarioListGitPackage(gitpkg.GitPackage):
         ref: str = "HEAD",
     ) -> str:
         """Render this package as a standalone HTML document."""
-        scenario_list = _read_scenario_list(self.path, ref)
-        html = _standalone_html_document(scenario_list.to_dataset()._repr_html_())
+        from .scenario_list_html_renderer import ScenarioListHTMLRenderer
+
+        html = ScenarioListHTMLRenderer.from_package(self.path, ref=ref).render(
+            title="EDSL ScenarioList"
+        )
         if filename is not None:
             Path(filename).write_text(html, encoding="utf-8")
         return html
@@ -185,21 +188,6 @@ def _load_manifest_at_ref(path: Path, ref: str) -> dict:
             f"{manifest.get('format_version')!r}"
         )
     return manifest
-
-
-def _standalone_html_document(body: str) -> str:
-    return (
-        "<!doctype html>\n"
-        "<html>\n"
-        "<head>\n"
-        '  <meta charset="utf-8">\n'
-        "  <title>EDSL ScenarioList</title>\n"
-        "</head>\n"
-        "<body>\n"
-        f"{body}\n"
-        "</body>\n"
-        "</html>\n"
-    )
 
 
 def _load_existing_order(path: Path) -> list[str]:

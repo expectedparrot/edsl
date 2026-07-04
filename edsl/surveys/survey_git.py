@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import subprocess
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -70,13 +71,13 @@ class SurveyGitPackage(gitpkg.GitPackage):
         **kwargs,
     ) -> str:
         """Render this package as an HTML document."""
-        survey = _read_survey(self.path, ref)
-        if filename is None:
-            file_store = survey.html(**kwargs)
-        else:
-            file_store = survey.html(filename=str(filename), **kwargs)
-        path = Path(file_store.path)
-        return path.read_text(encoding="utf-8")
+        from .survey_html_renderer import SurveyPackageHTMLRenderer
+
+        title = kwargs.get("title", "EDSL Survey")
+        html = SurveyPackageHTMLRenderer(self.path, ref=ref).render(title=title)
+        if filename is not None:
+            Path(filename).write_text(html, encoding="utf-8")
+        return html
 
 
 def _git_spec() -> GitObjectSpec:
@@ -176,6 +177,13 @@ def _read_survey_dict_at_ref(path: Path, ref: str) -> dict:
 
 
 def _read_optional_json_at_ref(path: Path, file_path: str, ref: str, default):
+    exists = subprocess.run(
+        ["git", "-C", str(path), "cat-file", "-e", f"{ref}:{file_path}"],
+        text=True,
+        capture_output=True,
+    )
+    if exists.returncode != 0:
+        return default
     try:
         return gitpkg.read_json_at_ref(path, file_path, ref, error_cls=SurveyGitError)
     except SurveyGitError:
