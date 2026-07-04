@@ -5,6 +5,7 @@ Uses subprocess to invoke the CLI exactly as an agent would,
 then parses stdout as JSON and checks structure.
 """
 
+import importlib
 import json
 import subprocess
 import sys
@@ -82,6 +83,57 @@ class TestEnvelope:
         assert out["data"]["api_key_configured"] is True
         assert out["data"]["config"]["EXPECTED_PARROT_API_KEY"] == "***"
         assert "ep_test_secret" not in result.output
+
+
+class TestCliModuleBoundaries:
+    def test_command_modules_import_independently(self):
+        modules = [
+            "account",
+            "auth",
+            "humanize",
+            "jobs",
+            "models",
+            "objects",
+            "open",
+            "results",
+            "run",
+            "schema",
+            "validate",
+        ]
+
+        for module_name in modules:
+            module = importlib.import_module(f"edsl.cli_commands.{module_name}")
+            assert callable(module.register)
+
+    def test_top_level_help_exposes_registered_commands(self):
+        result = CliRunner().invoke(cli_module.app, ["--help"])
+
+        assert result.exit_code == 0, result.output
+        for command in [
+            "auth",
+            "balance",
+            "clone",
+            "humanize",
+            "info",
+            "jobs",
+            "metadata",
+            "models",
+            "open",
+            "profile",
+            "pull",
+            "push",
+            "results",
+            "run",
+            "schema",
+            "search",
+            "settings",
+            "share",
+            "shared",
+            "unshare",
+            "update-metadata",
+            "validate",
+        ]:
+            assert command in result.output
 
 
 # ---------------------------------------------------------------------------
