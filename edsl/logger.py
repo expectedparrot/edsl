@@ -39,10 +39,9 @@ if not logger.handlers:
         )
         file_handler.setFormatter(file_formatter)
         logger.addHandler(file_handler)
-    except Exception as e:
+    except Exception:
         # Don't fail if file logging can't be set up
-        # No console handler to adjust
-        print(f"WARNING: Could not set up file logging: {e}")
+        logger.addHandler(logging.NullHandler())
 
 
 def get_logger(name):
