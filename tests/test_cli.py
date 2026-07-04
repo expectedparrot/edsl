@@ -203,6 +203,7 @@ class TestCliSmokeFlows:
 class TestOpen:
     def test_open_survey_json_generates_html_and_opens_browser(self, tmp_path, monkeypatch):
         from edsl.surveys import Survey
+        import edsl.cli_commands.open as open_command
 
         survey_path = tmp_path / "survey.json"
         html_path = tmp_path / "survey.html"
@@ -210,7 +211,7 @@ class TestOpen:
 
         opened_urls = []
         monkeypatch.setattr(
-            cli_module.webbrowser,
+            open_command.webbrowser,
             "open",
             lambda url: opened_urls.append(url) or True,
         )
@@ -231,6 +232,7 @@ class TestOpen:
 
     def test_open_survey_package_generates_html(self, tmp_path, monkeypatch):
         from edsl.surveys import Survey
+        import edsl.cli_commands.open as open_command
 
         package_path = tmp_path / "survey.ep"
         html_path = tmp_path / "survey-package.html"
@@ -238,7 +240,7 @@ class TestOpen:
 
         opened_urls = []
         monkeypatch.setattr(
-            cli_module.webbrowser,
+            open_command.webbrowser,
             "open",
             lambda url: opened_urls.append(url) or True,
         )
@@ -262,6 +264,7 @@ class TestOpen:
         from edsl import Agent, AgentList, Jobs, Model, ModelList, Scenario, ScenarioList
         from edsl.questions import QuestionFreeText
         from edsl.surveys import Survey
+        import edsl.cli_commands.open as open_command
 
         job = Jobs(
             survey=Survey(
@@ -293,7 +296,7 @@ class TestOpen:
 
         opened_urls = []
         monkeypatch.setattr(
-            cli_module.webbrowser,
+            open_command.webbrowser,
             "open",
             lambda url: opened_urls.append(url) or True,
         )
@@ -334,6 +337,7 @@ class TestOpen:
 
     def test_open_results_package_generates_html(self, tmp_path, monkeypatch):
         from edsl.results import Results
+        import edsl.cli_commands.open as open_command
 
         package_path = tmp_path / "results.ep"
         html_path = tmp_path / "results.html"
@@ -341,7 +345,7 @@ class TestOpen:
 
         opened_urls = []
         monkeypatch.setattr(
-            cli_module.webbrowser,
+            open_command.webbrowser,
             "open",
             lambda url: opened_urls.append(url) or True,
         )
@@ -364,6 +368,7 @@ class TestOpen:
 
     def test_open_scenario_list_package_generates_html(self, tmp_path, monkeypatch):
         from edsl import ScenarioList
+        import edsl.cli_commands.open as open_command
 
         package_path = tmp_path / "scenario_list.ep"
         html_path = tmp_path / "scenario-list.html"
@@ -371,7 +376,7 @@ class TestOpen:
 
         opened_urls = []
         monkeypatch.setattr(
-            cli_module.webbrowser,
+            open_command.webbrowser,
             "open",
             lambda url: opened_urls.append(url) or True,
         )
@@ -394,6 +399,7 @@ class TestOpen:
 
     def test_open_model_list_package_generates_html(self, tmp_path, monkeypatch):
         from edsl import ModelList
+        import edsl.cli_commands.open as open_command
 
         package_path = tmp_path / "models.ep"
         html_path = tmp_path / "models.html"
@@ -401,7 +407,7 @@ class TestOpen:
 
         opened_urls = []
         monkeypatch.setattr(
-            cli_module.webbrowser,
+            open_command.webbrowser,
             "open",
             lambda url: opened_urls.append(url) or True,
         )
