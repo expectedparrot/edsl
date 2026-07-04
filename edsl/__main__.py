@@ -6,11 +6,9 @@ Entry point: edsl = "edsl.__main__:main" (pyproject.toml)
 
 import sys
 import json
-import gzip
 import html
 import tempfile
 import time
-import zipfile
 import webbrowser
 from typing import Optional
 from pathlib import Path
@@ -20,56 +18,24 @@ import click
 from edsl.cli_commands import humanize as humanize_commands
 from edsl.cli_commands import jobs as jobs_commands
 from edsl.cli_commands import results as results_commands
-
-# ---------------------------------------------------------------------------
-# Exit codes
-# ---------------------------------------------------------------------------
-
-EXIT_OK = 0
-EXIT_ERROR = 1
-EXIT_USAGE = 2
-EXIT_NOT_FOUND = 3
-EXIT_AUTH = 4
-EXIT_VALIDATION = 5
-EXIT_REMOTE = 6
-
-# ---------------------------------------------------------------------------
-# Output helpers
-# ---------------------------------------------------------------------------
-
-
-def _output(data: dict, warnings: Optional[list] = None) -> None:
-    """Write a success envelope to stdout."""
-    envelope = {"status": "ok", "data": data, "warnings": warnings or []}
-    json.dump(envelope, sys.stdout, indent=2, default=str)
-    sys.stdout.write("\n")
-
-
-def _error(code: str, message: str, suggestion: str = "",
-           exit_code: int = EXIT_ERROR, details: Optional[list] = None) -> None:
-    """Write an error envelope to stdout and exit."""
-    err = {"code": code, "message": message}
-    if suggestion:
-        err["suggestion"] = suggestion
-    if details:
-        err["details"] = details
-    envelope = {"status": "error", "error": err}
-    json.dump(envelope, sys.stdout, indent=2, default=str)
-    sys.stdout.write("\n")
-    raise SystemExit(exit_code)
-
-
-def _read_json_file(path: str) -> dict:
-    """Read and parse a JSON file, or emit an error."""
-    p = Path(path)
-    if not p.exists():
-        _error("FILE_NOT_FOUND", f"File not found: {path}",
-               suggestion="Check the file path.", exit_code=EXIT_NOT_FOUND)
-    try:
-        return json.loads(p.read_text())
-    except json.JSONDecodeError as e:
-        _error("INVALID_JSON", f"Failed to parse JSON from {path}: {e}",
-               suggestion="Ensure the file contains valid JSON.", exit_code=EXIT_USAGE)
+from edsl.cli_shared import (
+    EXIT_AUTH,
+    EXIT_ERROR,
+    EXIT_NOT_FOUND,
+    EXIT_OK,
+    EXIT_REMOTE,
+    EXIT_USAGE,
+    EXIT_VALIDATION,
+    error as _error,
+    jsonable as _jsonable,
+    load_git_object as _load_git_object,
+    load_openable_json as _load_openable_json,
+    output as _output,
+    read_json_file as _read_json_file,
+    read_package_manifest as _read_package_manifest,
+    read_serialized_object as _read_serialized_object,
+    save_results as _save_results,
+)
 
 
 def _read_stdin() -> Optional[str]:
@@ -317,71 +283,6 @@ def _load_openable_package(path: Path):
         "UNSUPPORTED_OBJECT",
         f"Object package type does not support HTML rendering: {class_name or 'unknown'}",
         suggestion="Currently supported package types: Survey, AgentList, Jobs, Results, ScenarioList, ModelList.",
-        exit_code=EXIT_USAGE,
-    )
-
-
-def _read_package_manifest(path: Path) -> dict:
-    if path.is_dir():
-        manifest_path = path / "manifest.json"
-        if not manifest_path.exists():
-            _error(
-                "INVALID_PACKAGE",
-                f"No manifest.json found in package: {path}",
-                exit_code=EXIT_USAGE,
-            )
-        return json.loads(manifest_path.read_text(encoding="utf-8"))
-
-    with zipfile.ZipFile(path) as archive:
-        with archive.open("manifest.json") as manifest_file:
-            return json.loads(manifest_file.read().decode("utf-8"))
-
-
-def _load_openable_json(path: Path):
-    data = _read_serialized_object(path)
-    class_name = data.get("edsl_class_name", "")
-    if class_name == "Survey":
-        from edsl.surveys import Survey
-
-        return Survey.from_dict(data)
-    if class_name == "AgentList":
-        from edsl.agents import AgentList
-
-        return AgentList.from_dict(data)
-    if class_name == "Jobs":
-        from edsl.jobs import Jobs
-
-        return Jobs.from_dict(data)
-    if class_name == "Results":
-        from edsl.results import Results
-
-        return Results.from_dict(data)
-    if class_name == "ScenarioList":
-        from edsl.scenarios import ScenarioList
-
-        return ScenarioList.from_dict(data)
-    if class_name == "ModelList":
-        from edsl.language_models import ModelList
-
-        return ModelList.from_dict(data)
-    _error(
-        "UNSUPPORTED_OBJECT",
-        f"Object type does not support HTML rendering: {class_name or 'unknown'}",
-        suggestion="Currently supported JSON object types: Survey, AgentList, Jobs, Results, ScenarioList, ModelList.",
-        exit_code=EXIT_USAGE,
-    )
-
-
-def _read_serialized_object(path: Path) -> dict:
-    if path.name.endswith(".json.gz"):
-        with gzip.open(path, "rt", encoding="utf-8") as f:
-            return json.load(f)
-    if path.suffix == ".json":
-        return json.loads(path.read_text(encoding="utf-8"))
-    _error(
-        "USAGE_ERROR",
-        f"Unsupported file extension for open: {path}",
-        suggestion="Use a .json, .json.gz, or .ep file.",
         exit_code=EXIT_USAGE,
     )
 
@@ -662,22 +563,6 @@ def _remote_identifier(target: str) -> str:
     return _coop_content_identifier(target, CONFIG.EXPECTED_PARROT_URL)
 
 
-def _jsonable(value):
-    if isinstance(value, list):
-        return [_jsonable(item) for item in value]
-    if isinstance(value, tuple):
-        return [_jsonable(item) for item in value]
-    if hasattr(value, "items"):
-        return {key: _jsonable(val) for key, val in value.items()}
-    if hasattr(value, "__dict__"):
-        return {
-            key: _jsonable(val)
-            for key, val in value.__dict__.items()
-            if not key.startswith("_")
-        }
-    return value
-
-
 @app.command("push")
 @click.argument("object_path", type=click.Path(exists=True))
 @click.option("--alias", default=None, help="Short Expected Parrot alias.")
@@ -798,41 +683,6 @@ def pull_object(object_path):
             suggestion="Check the package path, stored Coop info, and Expected Parrot API key.",
             exit_code=EXIT_REMOTE,
         )
-
-
-def _load_git_object(path: Path):
-    manifest = _read_package_manifest(path)
-    class_name = manifest.get("edsl_class_name") or manifest.get("object_type")
-    if class_name == "Survey":
-        from edsl.surveys import Survey
-
-        return Survey.git.load(path)
-    if class_name == "AgentList":
-        from edsl.agents import AgentList
-
-        return AgentList.git.load(path)
-    if class_name == "Jobs":
-        from edsl.jobs import Jobs
-
-        return Jobs.git.load(path)
-    if class_name == "Results":
-        from edsl.results import Results
-
-        return Results.git.load(path)
-    if class_name == "ScenarioList":
-        from edsl.scenarios import ScenarioList
-
-        return ScenarioList.git.load(path)
-    if class_name == "ModelList":
-        from edsl.language_models import ModelList
-
-        return ModelList.git.load(path)
-    _error(
-        "UNSUPPORTED_OBJECT",
-        f"Object package type does not support push: {class_name or 'unknown'}",
-        suggestion="Currently supported package types: Survey, AgentList, Jobs, Results, ScenarioList, ModelList.",
-        exit_code=EXIT_USAGE,
-    )
 
 
 def _object_has_coop_info(obj) -> bool:
@@ -1814,25 +1664,6 @@ def _load_jobs_from_path(path: str):
     from edsl.jobs import Jobs
 
     return Jobs.from_dict(data)
-
-
-def _save_results(results_obj, output_path: str) -> dict:
-    path = Path(output_path)
-    if path.suffix == ".ep":
-        info = results_obj.git.save(path)
-        return {
-            "path": info.get("path", str(path)),
-            "format": "ep",
-            "object_type": "Results",
-            "commit": info.get("commit"),
-        }
-
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(
-        json.dumps(results_obj.to_dict(), indent=2, default=str),
-        encoding="utf-8",
-    )
-    return {"path": str(path), "format": "json", "object_type": "Results"}
 
 
 def _build_job_from_json(data: dict):
