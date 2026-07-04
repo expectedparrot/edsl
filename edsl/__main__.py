@@ -14,11 +14,13 @@ from pathlib import Path
 
 import click
 
+from edsl.cli_commands import auth as auth_commands
 from edsl.cli_commands import humanize as humanize_commands
 from edsl.cli_commands import jobs as jobs_commands
 from edsl.cli_commands import objects as objects_commands
 from edsl.cli_commands import results as results_commands
 from edsl.cli_commands import run as run_commands
+from edsl.cli_commands import schema as schema_commands
 from edsl.cli_shared import (
     EXIT_AUTH,
     EXIT_ERROR,
@@ -142,11 +144,13 @@ def humanize(ctx):
 
 
 
+auth_commands.register(app, auth)
 humanize_commands.register(humanize)
 jobs_commands.register(jobs)
 objects_commands.register(app)
 results_commands.register(results)
 run_commands.register(app)
+schema_commands.register(schema)
 
 
 # ---------------------------------------------------------------------------
@@ -448,138 +452,6 @@ def models(service, search, works_with_text, works_with_images):
 
 
 
-# ---------------------------------------------------------------------------
-# edsl auth
-# ---------------------------------------------------------------------------
-
-@auth.command("login")
-@click.option("--api_key", default=None, help="Provide API key directly.")
-def auth_login(api_key):
-    """Store an API key for Expected Parrot / Coop access."""
-    from edsl.coop.ep_key_handling import ExpectedParrotKeyHandler
-
-    handler = ExpectedParrotKeyHandler()
-
-    if api_key:
-        handler.store_ep_api_key(api_key)
-        _output({"message": "API key stored successfully"})
-    else:
-        # Browser-based flow
-        import secrets
-        from edsl.config import CONFIG
-
-        edsl_auth_token = secrets.token_urlsafe(16)
-        login_url = f"{CONFIG.EXPECTED_PARROT_URL}/login?edsl_auth_token={edsl_auth_token}"
-        _output({
-            "action": "awaiting_login",
-            "login_url": login_url,
-        })
-
-        # Poll for key
-        try:
-            from edsl.coop import Coop
-            import webbrowser
-            webbrowser.open(login_url)
-            coop_client = Coop()
-            api_key_result = coop_client._poll_for_api_key(edsl_auth_token)
-            if api_key_result:
-                handler.store_ep_api_key(api_key_result)
-                _output({"message": "API key stored successfully"})
-            else:
-                _error("AUTH_TIMEOUT", "Timed out waiting for login.",
-                       suggestion="Try again or use --api_key to provide a key directly.",
-                       exit_code=EXIT_AUTH)
-        except Exception as e:
-            _error("AUTH_ERROR", str(e),
-                   suggestion="Try again or use --api_key to provide a key directly.",
-                   exit_code=EXIT_AUTH)
-
-
-@auth.command("status")
-def auth_status():
-    """Check authentication status."""
-    import os
-
-    env_key = os.environ.get("EXPECTED_PARROT_API_KEY", "")
-    has_key = bool(env_key)
-
-    data = {
-        "authenticated": has_key,
-        "api_key_source": "environment" if has_key else "none",
-    }
-
-    # Try to get username if authenticated
-    if has_key:
-        try:
-            from edsl.coop import Coop
-            # Suppress any stdout from Coop internals
-            import io
-            old_stdout = sys.stdout
-            sys.stdout = io.StringIO()
-            try:
-                coop_client = Coop()
-                profile = coop_client.get_profile()
-            finally:
-                sys.stdout = old_stdout
-            if hasattr(profile, 'get'):
-                data["username"] = profile.get("username", None)
-            elif hasattr(profile, 'username'):
-                data["username"] = profile.username
-        except Exception:
-            data["username"] = None
-
-    _output(data)
-
-
-@auth.command("balance")
-def auth_balance():
-    """Get the authenticated Expected Parrot credit balance."""
-    _output(_get_expected_parrot_balance())
-
-
-@app.command("balance")
-def balance():
-    """Get the authenticated Expected Parrot credit balance."""
-    _output(_get_expected_parrot_balance())
-
-
-def _get_expected_parrot_balance() -> dict:
-    """Return Expected Parrot balance data using the configured API key."""
-    from edsl.coop.ep_key_handling import ExpectedParrotKeyHandler
-
-    api_key = ExpectedParrotKeyHandler().get_ep_api_key()
-    if not api_key:
-        _error(
-            "AUTH_REQUIRED",
-            "No Expected Parrot API key is configured.",
-            suggestion="Run 'edsl auth login --api_key <key>' or set EXPECTED_PARROT_API_KEY.",
-            exit_code=EXIT_AUTH,
-        )
-
-    try:
-        from edsl.coop import Coop
-
-        import io
-
-        old_stdout = sys.stdout
-        sys.stdout = io.StringIO()
-        try:
-            balance_info = Coop(api_key=api_key).get_balance()
-        finally:
-            sys.stdout = old_stdout
-    except SystemExit:
-        raise
-    except Exception as e:
-        _error(
-            "BALANCE_ERROR",
-            str(e),
-            suggestion="Check your Expected Parrot API key and network connection.",
-            exit_code=EXIT_REMOTE,
-        )
-
-    if hasattr(balance_info, "items"):
-        return dict(balance_info)
-    return {"balance": balance_info}
 
 
 @app.command("profile")
@@ -628,136 +500,6 @@ def settings():
 
 
 
-# ---------------------------------------------------------------------------
-# edsl schema
-# ---------------------------------------------------------------------------
-
-def _get_schema_classes():
-    """Return a map of schema names to (class, description) for all introspectable types."""
-    from edsl.agents import Agent, AgentList
-    from edsl.scenarios import Scenario, ScenarioList
-    from edsl.surveys import Survey
-    from edsl.language_models import Model
-    from edsl.language_models.model_list import ModelList
-    from edsl.jobs import Jobs
-    from edsl.results import Results
-    from edsl.questions.register_questions_meta import RegisterQuestionsMeta
-
-    # Force import of question types
-
-    classes = {
-        "Agent": (Agent, "A respondent with traits and optional instructions."),
-        "AgentList": (AgentList, "A list of Agent objects. Pass to 'edsl run --agent_list'."),
-        "Scenario": (Scenario, "Template parameters for questions using Jinja2 {{variable}} syntax."),
-        "ScenarioList": (ScenarioList, "A list of Scenario objects. Pass to 'edsl run --scenario_list'."),
-        "Survey": (Survey, "A collection of questions with optional flow logic."),
-        "Model": (Model, "An LLM configuration. Pass to 'edsl run --model'."),
-        "ModelList": (ModelList, "A list of Model objects. Pass to 'edsl run --model_list'."),
-        "Jobs": (Jobs, "A complete job spec (survey + agents + models + scenarios). Pass to 'edsl run --jobs'."),
-        "Results": (Results, "Output from a job run. Pass to 'edsl results select --file'."),
-    }
-
-    # Add question types
-    type_map = RegisterQuestionsMeta.question_types_to_classes()
-    for qtype, cls in sorted(type_map.items()):
-        classes[qtype] = (cls, f"Question type '{qtype}'.")
-
-    return classes
-
-
-@schema.command("list")
-def schema_list():
-    """List all types available for schema introspection."""
-    classes = _get_schema_classes()
-
-    object_types = []
-    question_types = []
-    for name, (cls, desc) in classes.items():
-        entry = {"name": name, "description": desc}
-        if name[0].isupper():
-            object_types.append(entry)
-        else:
-            question_types.append(entry)
-
-    _output({"object_types": object_types, "question_types": question_types})
-
-
-@schema.command("show")
-@click.option("--class", "class_name", default=None, help="EDSL class to inspect (e.g. Agent, ScenarioList, Survey, Jobs).")
-@click.option("--question_type", default=None, help="Question type to inspect (e.g. free_text, multiple_choice).")
-def schema_show(class_name, question_type):
-    """Show the serialized schema of an EDSL type via its .example().to_dict()."""
-    if class_name and question_type:
-        _error("USAGE_ERROR", "--class and --question_type are mutually exclusive.",
-               exit_code=EXIT_USAGE)
-    if not class_name and not question_type:
-        _error("USAGE_ERROR", "Provide one of --class or --question_type.",
-               suggestion="Use 'edsl schema list' to see available types.",
-               exit_code=EXIT_USAGE)
-
-    classes = _get_schema_classes()
-    schema_type = class_name or question_type
-
-    if schema_type not in classes:
-        # Suggest from the right category
-        if class_name:
-            available = sorted(n for n in classes if n[0].isupper())
-        else:
-            available = sorted(n for n in classes if n[0].islower())
-        _error("NOT_FOUND", f"Unknown type: '{schema_type}'",
-               suggestion=f"Available: {', '.join(available)}",
-               exit_code=EXIT_NOT_FOUND)
-
-    cls, desc = classes[schema_type]
-
-    try:
-        example = cls.example()
-        serialized = example.to_dict()
-    except Exception as e:
-        _error("RUN_ERROR", f"Failed to generate example for '{schema_type}': {e}",
-               exit_code=EXIT_ERROR)
-
-    _output({
-        "type": schema_type,
-        "description": desc,
-        "example": serialized,
-    })
-
-
-@schema.command("error")
-def schema_error():
-    """Documents the error envelope and all known error codes."""
-    _output({
-        "envelope": {
-            "status": "error",
-            "error": {
-                "code": "string — error code",
-                "message": "string — human-readable description",
-                "suggestion": "string — what to do next (optional)",
-                "details": "array — detailed sub-errors for validation (optional)",
-            },
-        },
-        "exit_codes": {
-            "0": "Success",
-            "1": "General error",
-            "2": "Usage error (bad arguments, conflicting flags)",
-            "3": "Resource not found",
-            "4": "Authentication error",
-            "5": "Validation error",
-            "6": "Remote service error",
-        },
-        "known_error_codes": [
-            "FILE_NOT_FOUND", "INVALID_JSON", "USAGE_ERROR",
-            "UNKNOWN_QUESTION_TYPE", "INVALID_MODEL", "MODEL_LIST_ERROR",
-            "AUTH_TIMEOUT", "AUTH_ERROR",
-            "VALIDATION_ERROR", "RUN_ERROR",
-            "COOP_ERROR", "BALANCE_ERROR", "AUTH_REQUIRED", "NOT_FOUND",
-            "CONFIRMATION_REQUIRED", "DELETE_ERROR", "DEPENDENCY_ERROR",
-            "HUMANIZE_ERROR", "JOBS_ERROR", "METADATA_ERROR", "PROFILE_ERROR",
-            "RESULTS_NOT_AVAILABLE", "SEARCH_ERROR", "SETTINGS_ERROR",
-            "SHARE_ERROR", "UNSUPPORTED_OBJECT",
-        ],
-    })
 
 
 # ---------------------------------------------------------------------------
