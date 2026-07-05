@@ -94,7 +94,7 @@ def register(app: click.Group, profiles_group: click.Group) -> None:
             error(
                 "PROFILE_NOT_FOUND",
                 f"Profile not found: {name}",
-                suggestion="Run 'edsl profiles list' to see available profiles.",
+                suggestion="Run 'ep profiles list' to see available profiles.",
                 exit_code=EXIT_NOT_FOUND,
             )
         output(
@@ -211,7 +211,7 @@ def register(app: click.Group, profiles_group: click.Group) -> None:
             error(
                 "PROFILE_NOT_FOUND",
                 f"Profile not found: {name}",
-                suggestion="Run 'edsl profiles list' to see available profiles.",
+                suggestion="Run 'ep profiles list' to see available profiles.",
                 exit_code=EXIT_NOT_FOUND,
             )
 
@@ -248,7 +248,7 @@ def register(app: click.Group, profiles_group: click.Group) -> None:
             error(
                 "PROFILE_NOT_FOUND",
                 f"Profile not found: {name}",
-                suggestion="Run 'edsl profiles list' to see available profiles.",
+                suggestion="Run 'ep profiles list' to see available profiles.",
                 exit_code=EXIT_NOT_FOUND,
             )
 
@@ -261,7 +261,7 @@ def register(app: click.Group, profiles_group: click.Group) -> None:
         if not _has_value(config.get("EXPECTED_PARROT_API_KEY")):
             warnings.append(
                 "Profile has no EXPECTED_PARROT_API_KEY. "
-                "Run 'edsl profiles update "
+                "Run 'ep profiles update "
                 f"{name} --api-key <key>' before using authenticated services."
             )
 
@@ -342,7 +342,7 @@ def _check_connectivity(
         error(
             "CHECK_AUTH_REQUIRED",
             "No EXPECTED_PARROT_API_KEY is configured for this profile.",
-            suggestion="Run 'edsl profiles update <name> --api-key <key>' or update .env.",
+            suggestion="Run 'ep profiles update <name> --api-key <key>' or update .env.",
             details=[data],
             exit_code=EXIT_USAGE,
         )
@@ -403,7 +403,7 @@ def _check_config(
             error(
                 "PROFILE_NOT_FOUND",
                 f"Profile not found: {profile_name}",
-                suggestion="Run 'edsl profiles list' to see available profiles.",
+                suggestion="Run 'ep profiles list' to see available profiles.",
                 exit_code=EXIT_NOT_FOUND,
             )
         return _read_profile(path), str(path)

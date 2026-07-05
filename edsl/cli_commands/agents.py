@@ -27,7 +27,24 @@ def register(agents_group: click.Group) -> None:
         codebook: str | None,
         output_path: str,
     ):
-        """Create an AgentList from a tabular data source."""
+        """Create an AgentList from a tabular data source.
+
+        \b
+        Examples:
+          ep agents create --from-csv people.csv --output agents.ep
+          ep agents create --from-csv people.csv --name-field name --output agents.ep
+          ep agents create --from-csv people.csv --instructions instructions.txt --output agents.ep
+          ep agents create --from-csv people.csv --instructions "Answer as this respondent." --output agents.ep
+          ep agents create --from-csv people.csv --codebook '{"age":"Age in years","role":"Current role"}' --output agents.ep
+          ep agents create --from-xlsx people.xlsx --sheet Sheet1 --name-field respondent_id --output agents.ep
+          ep agents create --from-csv people.csv --output agents.json
+          ep agents create --from-csv people.csv --output - > agents.json
+
+        \b
+        Next:
+          ep inspect agents.ep
+          ep run --survey survey.ep --agent_list agents.ep --model gpt-4o
+        """
         source_count = sum(bool(value) for value in (csv_path, xlsx_path))
         if source_count != 1:
             error(

@@ -11,7 +11,7 @@ from edsl.cli_shared import EXIT_AUTH, EXIT_REMOTE, error, output
 
 def register(app: click.Group, auth: click.Group) -> None:
     # ---------------------------------------------------------------------------
-    # edsl auth
+    # ep auth
     # ---------------------------------------------------------------------------
 
     @auth.command("login")
@@ -114,7 +114,7 @@ def register(app: click.Group, auth: click.Group) -> None:
             error(
                 "AUTH_REQUIRED",
                 "No Expected Parrot API key is configured.",
-                suggestion="Run 'edsl auth login --api_key <key>' or set EXPECTED_PARROT_API_KEY.",
+                suggestion="Run 'ep auth login --api_key <key>' or set EXPECTED_PARROT_API_KEY.",
                 exit_code=EXIT_AUTH,
             )
 

@@ -146,6 +146,34 @@ class TestCliModuleBoundaries:
         ]:
             assert command in result.output
 
+    @pytest.mark.parametrize(
+        "command",
+        [
+            ["schema", "--help"],
+            ["results", "--help"],
+            ["jobs", "--help"],
+            ["agents", "--help"],
+            ["scenarios", "--help"],
+            ["surveys", "--help"],
+            ["costs", "--help"],
+            ["humanize", "--help"],
+            ["run", "--help"],
+            ["inspect", "--help"],
+            ["schema", "show", "--help"],
+            ["results", "select", "--help"],
+            ["results", "export", "--help"],
+            ["jobs", "build", "--help"],
+            ["models", "--help"],
+            ["models", "create", "--help"],
+            ["scenarios", "create", "--help"],
+        ],
+    )
+    def test_common_help_includes_examples(self, command):
+        result = CliRunner().invoke(cli_module.app, command)
+
+        assert result.exit_code == 0, result.output
+        assert "Examples:" in result.output
+
 
 class TestProfilesCli:
     class FakeResponse:
@@ -520,10 +548,29 @@ class TestObjectTransformCli:
         assert "search" in out["data"]["commands"]
         assert "push" in out["data"]["commands"]
 
-    def test_agents_create_from_csv_and_inspect(self, tmp_path):
+    def test_agents_help_includes_examples(self):
+        group_help = CliRunner().invoke(cli_module.app, ["agents", "--help"])
+
+        assert group_help.exit_code == 0, group_help.output
+        assert "Examples:" in group_help.output
+        assert "ep agents create --from-csv people.csv" in group_help.output
+        assert "ep run --survey survey.ep --agent_list agents.ep" in group_help.output
+
+        create_help = CliRunner().invoke(cli_module.app, ["agents", "create", "--help"])
+
+        assert create_help.exit_code == 0, create_help.output
+        assert "Examples:" in create_help.output
+        assert "--from-xlsx people.xlsx --sheet Sheet1" in create_help.output
+        assert "ep inspect agents.ep" in create_help.output
+
+    def test_agents_create_from_csv_saves_expected_agent_list(self, tmp_path):
+        from edsl import AgentList
+
         csv_path = tmp_path / "agents.csv"
+        instructions_path = tmp_path / "instructions.txt"
         output_path = tmp_path / "agent_list.ep"
         csv_path.write_text("name,age,role\nAlice,31,teacher\nBob,42,doctor\n", encoding="utf-8")
+        instructions_path.write_text("Answer as the person described by these traits.", encoding="utf-8")
 
         create = CliRunner().invoke(
             cli_module.app,
@@ -534,6 +581,8 @@ class TestObjectTransformCli:
                 str(csv_path),
                 "--name-field",
                 "name",
+                "--instructions",
+                str(instructions_path),
                 "--output",
                 str(output_path),
             ],
@@ -543,6 +592,17 @@ class TestObjectTransformCli:
         out = json.loads(create.output)
         assert out["data"]["agent_count"] == 2
         assert out["data"]["saved"]["format"] == "ep"
+        assert out["data"]["trait_keys"] == ["age", "role"]
+
+        agents = AgentList.git.load(output_path)
+        assert len(agents) == 2
+        assert [agent.name for agent in agents] == ["Alice", "Bob"]
+        assert [agent.traits["role"] for agent in agents] == ["teacher", "doctor"]
+        assert [str(agent.traits["age"]) for agent in agents] == ["31", "42"]
+        assert all(
+            agent.instruction == "Answer as the person described by these traits."
+            for agent in agents
+        )
 
         inspect = CliRunner().invoke(cli_module.app, ["inspect", str(output_path)])
         assert inspect.exit_code == 0, inspect.output
@@ -645,6 +705,109 @@ class TestObjectTransformCli:
         assert out["data"]["scenario_count"] == 1
         assert out["data"]["model_count"] == 1
         assert jobs_path.exists()
+
+    def test_cli_cookbook_builds_inspects_and_runs_local_workflow(self, tmp_path):
+        from edsl.results import Results
+
+        survey_path = tmp_path / "survey.ep"
+        agents_csv = tmp_path / "agents.csv"
+        agents_path = tmp_path / "agents.ep"
+        scenarios_csv = tmp_path / "scenarios.csv"
+        scenarios_path = tmp_path / "scenarios.ep"
+        models_path = tmp_path / "models.ep"
+        jobs_path = tmp_path / "jobs.ep"
+        results_path = tmp_path / "results.ep"
+
+        agents_csv.write_text("name,age,role\nAlice,31,teacher\nBob,42,doctor\n", encoding="utf-8")
+        scenarios_csv.write_text("topic\nAI\nClimate\n", encoding="utf-8")
+
+        commands = [
+            [
+                "surveys",
+                "create",
+                "--question-type",
+                "free_text",
+                "--question-name",
+                "opinion",
+                "--question-text",
+                "What do you think about {{ topic }}?",
+                "--output",
+                str(survey_path),
+            ],
+            [
+                "agents",
+                "create",
+                "--from-csv",
+                str(agents_csv),
+                "--name-field",
+                "name",
+                "--output",
+                str(agents_path),
+            ],
+            [
+                "scenarios",
+                "create",
+                "--from-csv",
+                str(scenarios_csv),
+                "--output",
+                str(scenarios_path),
+            ],
+            [
+                "models",
+                "create",
+                "--model",
+                "test",
+                "--canned-response",
+                "ok",
+                "--output",
+                str(models_path),
+            ],
+            [
+                "jobs",
+                "build",
+                "--survey",
+                str(survey_path),
+                "--agents",
+                str(agents_path),
+                "--scenarios",
+                str(scenarios_path),
+                "--models",
+                str(models_path),
+                "--output",
+                str(jobs_path),
+            ],
+        ]
+
+        for command in commands:
+            result = CliRunner().invoke(cli_module.app, command)
+            assert result.exit_code == 0, result.output
+            assert json.loads(result.output)["status"] == "ok"
+
+        for path, object_type in [
+            (survey_path, "Survey"),
+            (agents_path, "AgentList"),
+            (scenarios_path, "ScenarioList"),
+            (models_path, "ModelList"),
+            (jobs_path, "Jobs"),
+        ]:
+            inspect = CliRunner().invoke(cli_module.app, ["inspect", str(path)])
+            assert inspect.exit_code == 0, inspect.output
+            assert json.loads(inspect.output)["data"]["object_type"] == object_type
+
+        run = CliRunner().invoke(
+            cli_module.app,
+            ["run", "--jobs", str(jobs_path), "--local", "--output", str(results_path)],
+        )
+
+        assert run.exit_code == 0, run.output
+        out = json.loads(run.output)
+        assert out["data"]["meta"]["saved"]["format"] == "ep"
+        results = Results.git.load(results_path)
+        assert len(results) == 4
+        assert {
+            row["answer.opinion"]
+            for row in results.select("answer.opinion").to_dicts(remove_prefix=False)
+        } == {"ok"}
 
     def test_models_sort_filter_with_fake_coop(self, monkeypatch):
         import edsl.coop
@@ -795,7 +958,7 @@ class TestCliSmokeFlows:
 
 
 # ---------------------------------------------------------------------------
-# edsl open
+# ep open
 # ---------------------------------------------------------------------------
 
 class TestOpen:
@@ -1028,7 +1191,7 @@ class TestOpen:
 
 
 # ---------------------------------------------------------------------------
-# edsl info
+# ep info
 # ---------------------------------------------------------------------------
 
 class TestInfo:
@@ -1052,7 +1215,7 @@ class TestInfo:
 
 
 # ---------------------------------------------------------------------------
-# edsl schema
+# ep schema
 # ---------------------------------------------------------------------------
 
 class TestSchemaList:
@@ -1128,7 +1291,7 @@ class TestSchemaError:
 
 
 # ---------------------------------------------------------------------------
-# edsl validate
+# ep validate
 # ---------------------------------------------------------------------------
 
 class TestValidate:
@@ -1197,7 +1360,7 @@ class TestValidate:
 
 
 # ---------------------------------------------------------------------------
-# edsl models
+# ep models
 # ---------------------------------------------------------------------------
 
 class TestModels:
@@ -1356,9 +1519,41 @@ class TestModels:
         loaded = ModelList.git.load(output_path)
         assert len(loaded) == 1
 
+    def test_models_create_with_canned_response(self, tmp_path):
+        from edsl.language_models import ModelList
+
+        output_path = tmp_path / "test-models.ep"
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            [
+                "models",
+                "create",
+                "--model",
+                "test",
+                "--canned-response",
+                "ok",
+                "--output",
+                str(output_path),
+            ],
+        )
+
+        assert result.exit_code == 0, result.output
+        out = json.loads(result.output)
+        assert out["data"]["models"] == [
+            {
+                "model_name": "test",
+                "service_name": "test",
+                "canned_response": "ok",
+            }
+        ]
+        loaded = ModelList.git.load(output_path)
+        assert len(loaded) == 1
+        assert loaded[0].parameters["canned_response"] == "ok"
+
 
 # ---------------------------------------------------------------------------
-# edsl search
+# ep search
 # ---------------------------------------------------------------------------
 
 class TestSearch:
@@ -1437,7 +1632,7 @@ class TestSearch:
 
 
 # ---------------------------------------------------------------------------
-# edsl auth
+# ep auth
 # ---------------------------------------------------------------------------
 
 class TestAuthStatus:
@@ -1505,7 +1700,7 @@ class TestAuthBalance:
 
 
 # ---------------------------------------------------------------------------
-# edsl remote object/account commands
+# ep remote object/account commands
 # ---------------------------------------------------------------------------
 
 class TestRemoteObjectCommands:
@@ -1674,7 +1869,7 @@ class TestRemoteObjectCommands:
 
 
 # ---------------------------------------------------------------------------
-# edsl jobs
+# ep jobs
 # ---------------------------------------------------------------------------
 
 class TestJobsCli:
@@ -2010,7 +2205,7 @@ class TestJobsCli:
 
 
 # ---------------------------------------------------------------------------
-# edsl humanize
+# ep humanize
 # ---------------------------------------------------------------------------
 
 class TestHumanizeCli:
@@ -2841,7 +3036,7 @@ class TestHumanizeCli:
 
 
 # ---------------------------------------------------------------------------
-# edsl results (using a fabricated Results file)
+# ep results (using a fabricated Results file)
 # ---------------------------------------------------------------------------
 
 class TestResults:
@@ -3002,7 +3197,7 @@ class TestResults:
 
 
 # ---------------------------------------------------------------------------
-# edsl run (unit tests — no network)
+# ep run (unit tests — no network)
 # ---------------------------------------------------------------------------
 
 class TestRunValidation:
@@ -3077,6 +3272,112 @@ class TestRunValidation:
         loaded = Results.git.load(results_path)
         assert len(loaded) == 1
 
+    def test_canned_jobs_run_results_are_queryable_and_exportable(self, tmp_path):
+        from edsl import Agent, AgentList, Jobs, Model, ModelList, Scenario, ScenarioList
+        from edsl.questions import QuestionFreeText
+        from edsl.surveys import Survey
+
+        jobs_path = tmp_path / "jobs.ep"
+        results_path = tmp_path / "results.ep"
+        export_path = tmp_path / "answers.csv"
+        Jobs(
+            survey=Survey(
+                [
+                    QuestionFreeText(
+                        question_name="opinion",
+                        question_text="What do you think about {{ topic }}?",
+                    )
+                ]
+            ),
+            agents=AgentList(
+                [
+                    Agent(traits={"role": "teacher"}),
+                    Agent(traits={"role": "doctor"}),
+                ]
+            ),
+            scenarios=ScenarioList(
+                [
+                    Scenario({"topic": "AI"}),
+                    Scenario({"topic": "Climate"}),
+                ]
+            ),
+            models=ModelList([Model("test", canned_response="ok")]),
+        ).git.save(jobs_path)
+
+        run = CliRunner().invoke(
+            cli_module.app,
+            ["run", str(jobs_path), "--output", str(results_path)],
+        )
+        select = CliRunner().invoke(
+            cli_module.app,
+            [
+                "results",
+                "select",
+                "--file",
+                str(results_path),
+                "--column",
+                "answer.opinion",
+                "--column",
+                "agent.role",
+                "--column",
+                "scenario.topic",
+            ],
+        )
+        export = CliRunner().invoke(
+            cli_module.app,
+            [
+                "results",
+                "export",
+                str(results_path),
+                "--column",
+                "answer.opinion",
+                "--column",
+                "scenario.topic",
+                "--output",
+                str(export_path),
+            ],
+        )
+
+        assert run.exit_code == 0, run.output
+        assert select.exit_code == 0, select.output
+        assert export.exit_code == 0, export.output
+        rows = json.loads(select.output)["data"]["data"]
+        assert len(rows) == 4
+        assert {row["answer.opinion"] for row in rows} == {"ok"}
+        assert {row["agent.role"] for row in rows} == {"teacher", "doctor"}
+        assert {row["scenario.topic"] for row in rows} == {"AI", "Climate"}
+        csv_text = export_path.read_text(encoding="utf-8")
+        assert csv_text.startswith("answer.opinion,scenario.topic")
+        assert "ok" in csv_text
+
+    def test_canned_jobs_run_respects_iterations(self, tmp_path):
+        from edsl import Agent, AgentList, Jobs, Model, ModelList
+        from edsl.questions import QuestionFreeText
+        from edsl.results import Results
+        from edsl.surveys import Survey
+
+        jobs_path = tmp_path / "jobs.ep"
+        results_path = tmp_path / "results.ep"
+        Jobs(
+            survey=Survey(
+                [QuestionFreeText(question_name="name", question_text="What is your name?")]
+            ),
+            agents=AgentList([Agent(traits={"role": "teacher"})]),
+            models=ModelList([Model("test", canned_response="Ada")]),
+        ).git.save(jobs_path)
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            ["run", str(jobs_path), "--n", "3", "--output", str(results_path)],
+        )
+
+        assert result.exit_code == 0, result.output
+        loaded = Results.git.load(results_path)
+        assert len(loaded) == 3
+        rows = loaded.select("iteration", "answer.name").to_dicts(remove_prefix=False)
+        assert [row["iteration.iteration"] for row in rows] == [0, 1, 2]
+        assert {row["answer.name"] for row in rows} == {"Ada"}
+
     def test_run_background_returns_remote_job_metadata(self, monkeypatch):
         from types import SimpleNamespace
         from edsl.jobs import Jobs
@@ -3131,8 +3432,8 @@ class TestRunValidation:
         remote_job = out["data"]["meta"]["remote_job"]
         assert remote_job["job_uuid"] == "job-uuid"
         assert remote_job["progress_bar_url"] == "https://example.com/progress/job-uuid"
-        assert remote_job["commands"]["status"] == "edsl jobs status job-uuid"
-        assert remote_job["commands"]["results"] == "edsl jobs results job-uuid --output results.ep"
+        assert remote_job["commands"]["status"] == "ep jobs status job-uuid"
+        assert remote_job["commands"]["results"] == "ep jobs results job-uuid --output results.ep"
 
     def test_run_background_rejects_output(self):
         result = CliRunner().invoke(
@@ -3369,7 +3670,7 @@ class TestRunValidation:
 
 
 # ---------------------------------------------------------------------------
-# edsl surveys
+# ep surveys
 # ---------------------------------------------------------------------------
 
 class TestSurveys:
@@ -3642,7 +3943,7 @@ class TestSurveys:
 
         assert result.exit_code == 0, result.output
         assert "Example:" in result.output
-        assert "edsl surveys add-question" in result.output
+        assert "ep surveys add-question" in result.output
 
     def test_surveys_pipe_raw_json_with_dash(self):
         create_result = CliRunner().invoke(
@@ -3698,7 +3999,7 @@ class TestSurveys:
 
 
 # ---------------------------------------------------------------------------
-# edsl costs
+# ep costs
 # ---------------------------------------------------------------------------
 
 class TestCosts:
@@ -3737,7 +4038,7 @@ class TestCosts:
 
 
 # ---------------------------------------------------------------------------
-# edsl (no subcommand)
+# ep (no subcommand)
 # ---------------------------------------------------------------------------
 
 class TestDefault:
@@ -3777,7 +4078,7 @@ class TestDefault:
 
 
 # ---------------------------------------------------------------------------
-# edsl clone
+# ep clone
 # ---------------------------------------------------------------------------
 
 class TestClone:
@@ -3861,7 +4162,7 @@ class TestClone:
 
 
 # ---------------------------------------------------------------------------
-# edsl push
+# ep push
 # ---------------------------------------------------------------------------
 
 class TestPush:
@@ -4048,7 +4349,7 @@ class TestPush:
 
 
 # ---------------------------------------------------------------------------
-# edsl pull
+# ep pull
 # ---------------------------------------------------------------------------
 
 class TestPull:

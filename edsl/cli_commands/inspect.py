@@ -29,7 +29,16 @@ def register(app: click.Group) -> None:
         sample: int,
         save_path: str | None,
     ):
-        """Inspect a local EDSL object package/file or remote object."""
+        """Inspect a local EDSL object package/file or remote object.
+
+        \b
+        Examples:
+          ep inspect survey.ep
+          ep inspect agents.ep --sample 5
+          ep inspect results.ep --sample 10
+          ep inspect <uuid> --type Survey
+          ep inspect <uuid> --type AgentList --save agents.ep
+        """
         try:
             obj = load_any_object(target, expected_object_type=object_type)
             data = _summary(obj, sample=max(0, sample))

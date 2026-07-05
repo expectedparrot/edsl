@@ -25,7 +25,7 @@ from edsl.cli_shared import (
 
 def register(app: click.Group) -> None:
     # ---------------------------------------------------------------------------
-    # edsl run
+    # ep run
     # ---------------------------------------------------------------------------
 
     @app.command("run")
@@ -59,7 +59,18 @@ def register(app: click.Group) -> None:
             wait, poll_interval, timeout, remote_inference_description,
             remote_inference_results_visibility, results_description, fresh,
             iterations, local, save, output_path, input_path):
-        """Run question(s) and get results."""
+        """Run question(s) and get results.
+
+        \b
+        Examples:
+          ep run --question "What is 2+2?" --model gpt-4o
+          ep run --question "Pick one." --type multiple_choice --options '["A","B"]' --name choice
+          ep run --survey survey.ep --agent_list agents.ep --scenario_list scenarios.ep --model gpt-4o --output results.ep
+          ep run --jobs jobs.ep --local --output results.ep
+          ep run --jobs jobs.ep --background
+          ep run --jobs jobs.ep --background --wait --timeout 600 --output results.ep
+          cat jobs.json | ep run --output results.json
+        """
         from edsl.jobs import Jobs
         from edsl.agents import AgentList as AgentListClass
         from edsl.scenarios import ScenarioList as ScenarioListClass
@@ -124,7 +135,7 @@ def register(app: click.Group) -> None:
             raise
         except Exception as e:
             error("RUN_ERROR", f"Failed to build job: {e}",
-                   suggestion="Use 'edsl validate' to check your input.",
+                   suggestion="Use 'ep validate' to check your input.",
                    exit_code=EXIT_ERROR)
 
         # Step 3: Apply component overrides
@@ -168,7 +179,7 @@ def register(app: click.Group) -> None:
         # Step 4: Execute
         if background and not wait and (save or output_path):
             error("USAGE_ERROR", "Background jobs cannot be saved before completion.",
-                   suggestion="Use 'edsl jobs results <job_uuid> --output results.ep' after the job completes.",
+                   suggestion="Use 'ep jobs results <job_uuid> --output results.ep' after the job completes.",
                    exit_code=EXIT_USAGE)
 
         try:
@@ -323,7 +334,7 @@ def register(app: click.Group) -> None:
                 data["saved"] = save_results(results_obj, output_path)
         elif normalized_status in {"failed", "partial_failed", "partially_failed"}:
             data["commands"] = {
-                "errors": f"edsl jobs errors {job_uuid} --output error.md",
+                "errors": f"ep jobs errors {job_uuid} --output error.md",
             }
 
         return data
@@ -357,9 +368,9 @@ def register(app: click.Group) -> None:
             if value is not None:
                 meta[field] = value
         meta["commands"] = {
-            "status": f"edsl jobs status {meta['job_uuid']}" if meta.get("job_uuid") else None,
-            "results": f"edsl jobs results {meta['job_uuid']} --output results.ep" if meta.get("job_uuid") else None,
-            "errors": f"edsl jobs errors {meta['job_uuid']} --output error.md" if meta.get("job_uuid") else None,
+            "status": f"ep jobs status {meta['job_uuid']}" if meta.get("job_uuid") else None,
+            "results": f"ep jobs results {meta['job_uuid']} --output results.ep" if meta.get("job_uuid") else None,
+            "errors": f"ep jobs errors {meta['job_uuid']} --output error.md" if meta.get("job_uuid") else None,
         }
         return meta
 
@@ -478,7 +489,7 @@ def register(app: click.Group) -> None:
 
         error("VALIDATION_ERROR",
                "Could not determine JSON shape. Expected serialized Jobs, lightweight job spec, or single question.",
-               suggestion="Use 'edsl schema survey' to see accepted shapes.",
+               suggestion="Use 'ep schema survey' to see accepted shapes.",
                exit_code=EXIT_VALIDATION)
 
 

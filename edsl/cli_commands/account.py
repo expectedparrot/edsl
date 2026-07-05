@@ -9,7 +9,7 @@ from edsl.cli_shared import EXIT_REMOTE, error, jsonable, output
 
 def register(app: click.Group) -> None:
     # ---------------------------------------------------------------------------
-    # edsl info
+    # ep info
     # ---------------------------------------------------------------------------
 
     @app.command()
@@ -57,7 +57,7 @@ def register(app: click.Group) -> None:
             error(
                 "PROFILE_ERROR",
                 str(e),
-                suggestion="Check your Expected Parrot API key with 'edsl auth status'.",
+                suggestion="Check your Expected Parrot API key with 'ep auth status'.",
                 exit_code=EXIT_REMOTE,
             )
 

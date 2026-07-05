@@ -13,7 +13,7 @@ from edsl.cli_shared import EXIT_USAGE, EXIT_VALIDATION, error, output, read_jso
 
 def register(app: click.Group) -> None:
     # ---------------------------------------------------------------------------
-    # edsl validate
+    # ep validate
     # ---------------------------------------------------------------------------
 
     @app.command()
@@ -90,7 +90,7 @@ def register(app: click.Group) -> None:
             raise
         except Exception as e:
             error("VALIDATION_ERROR", f"Input failed validation: {e}",
-                   suggestion="Check the input against 'edsl schema' output.",
+                   suggestion="Check the input against 'ep schema' output.",
                    exit_code=EXIT_VALIDATION)
 
 

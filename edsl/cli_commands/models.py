@@ -9,7 +9,7 @@ from edsl.cli_shared import EXIT_ERROR, EXIT_REMOTE, error, output, raw_output_w
 
 def register(app: click.Group) -> None:
     # ---------------------------------------------------------------------------
-    # edsl models
+    # ep models
     # ---------------------------------------------------------------------------
 
     @app.group("models", invoke_without_command=True)
@@ -20,7 +20,16 @@ def register(app: click.Group) -> None:
     @click.option("--vision/--no-vision", "works_with_images", default=None, help="Filter by image/vision capability.")
     @click.option("--sort", "sort_by", type=click.Choice(["name", "service", "input-price", "output-price"]), default="service", show_default=True)
     def models(ctx, service, search, works_with_text, works_with_images, sort_by):
-        """List and create model lists."""
+        """List and create model lists.
+
+        \b
+        Examples:
+          ep models
+          ep models --service openai
+          ep models --search gpt --text --sort input-price
+          ep models --vision --sort name
+          ep models create --model gpt-4o --output models.ep
+        """
         if ctx.invoked_subcommand and ctx.invoked_subcommand != "*":
             return
         from edsl.language_models import Model
@@ -128,15 +137,36 @@ def register(app: click.Group) -> None:
     @models.command("create")
     @click.option("--model", "models", multiple=True, required=True, help="Model name. Repeat for multiple models.")
     @click.option("--service", default=None, help="Service name to use for all models.")
+    @click.option("--canned-response", default=None, help="Canned response for offline test models.")
     @click.option("--output", "-o", "output_path", required=True, help="Output .ep package or serialized file.")
-    def models_create(models, service, output_path):
-        """Create a ModelList file."""
+    def models_create(models, service, canned_response, output_path):
+        """Create a ModelList file.
+
+        \b
+        Examples:
+          ep models create --model gpt-4o --output models.ep
+          ep models create --model gpt-4o --model gpt-4o-mini --output models.ep
+          ep models create --service openai --model gpt-4o --output models.json
+          ep models create --service anthropic --model claude-sonnet-4-5 --output models.ep
+          ep models create --model test --canned-response ok --output test-models.ep
+
+        \b
+        Next:
+          ep inspect models.ep
+          ep run --survey survey.ep --model_list models.ep
+        """
         try:
             from edsl.language_models import Model, ModelList
 
+            model_kwargs = {}
+            if canned_response is not None:
+                model_kwargs["canned_response"] = canned_response
+
             model_list = ModelList(
                 [
-                    Model(model_name, service_name=service) if service else Model(model_name)
+                    Model(model_name, service_name=service, **model_kwargs)
+                    if service
+                    else Model(model_name, **model_kwargs)
                     for model_name in models
                 ]
             )
@@ -151,6 +181,7 @@ def register(app: click.Group) -> None:
                         {
                             "model_name": getattr(model, "model", str(model)),
                             "service_name": getattr(model, "_inference_service_", None),
+                            "canned_response": getattr(model, "parameters", {}).get("canned_response"),
                         }
                         for model in model_list
                     ],

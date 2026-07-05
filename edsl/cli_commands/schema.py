@@ -9,7 +9,7 @@ from edsl.cli_shared import EXIT_ERROR, EXIT_NOT_FOUND, EXIT_USAGE, error, outpu
 
 def register(schema: click.Group) -> None:
     # ---------------------------------------------------------------------------
-    # edsl schema
+    # ep schema
     # ---------------------------------------------------------------------------
 
     def _get_schema_classes():
@@ -27,14 +27,14 @@ def register(schema: click.Group) -> None:
 
         classes = {
             "Agent": (Agent, "A respondent with traits and optional instructions."),
-            "AgentList": (AgentList, "A list of Agent objects. Pass to 'edsl run --agent_list'."),
+            "AgentList": (AgentList, "A list of Agent objects. Pass to 'ep run --agent_list'."),
             "Scenario": (Scenario, "Template parameters for questions using Jinja2 {{variable}} syntax."),
-            "ScenarioList": (ScenarioList, "A list of Scenario objects. Pass to 'edsl run --scenario_list'."),
+            "ScenarioList": (ScenarioList, "A list of Scenario objects. Pass to 'ep run --scenario_list'."),
             "Survey": (Survey, "A collection of questions with optional flow logic."),
-            "Model": (Model, "An LLM configuration. Pass to 'edsl run --model'."),
-            "ModelList": (ModelList, "A list of Model objects. Pass to 'edsl run --model_list'."),
-            "Jobs": (Jobs, "A complete job spec (survey + agents + models + scenarios). Pass to 'edsl run --jobs'."),
-            "Results": (Results, "Output from a job run. Pass to 'edsl results select --file'."),
+            "Model": (Model, "An LLM configuration. Pass to 'ep run --model'."),
+            "ModelList": (ModelList, "A list of Model objects. Pass to 'ep run --model_list'."),
+            "Jobs": (Jobs, "A complete job spec (survey + agents + models + scenarios). Pass to 'ep run --jobs'."),
+            "Results": (Results, "Output from a job run. Pass to 'ep results select --file'."),
         }
 
         # Add question types
@@ -47,7 +47,14 @@ def register(schema: click.Group) -> None:
 
     @schema.command("list")
     def schema_list():
-        """List all types available for schema introspection."""
+        """List all types available for schema introspection.
+
+        \b
+        Examples:
+          ep schema list
+          ep schema show --class Survey
+          ep schema show --question_type free_text
+        """
         classes = _get_schema_classes()
 
         object_types = []
@@ -66,13 +73,22 @@ def register(schema: click.Group) -> None:
     @click.option("--class", "class_name", default=None, help="EDSL class to inspect (e.g. Agent, ScenarioList, Survey, Jobs).")
     @click.option("--question_type", default=None, help="Question type to inspect (e.g. free_text, multiple_choice).")
     def schema_show(class_name, question_type):
-        """Show the serialized schema of an EDSL type via its .example().to_dict()."""
+        """Show the serialized schema of an EDSL type via its .example().to_dict().
+
+        \b
+        Examples:
+          ep schema show --class Survey
+          ep schema show --class AgentList
+          ep schema show --class Jobs
+          ep schema show --question_type multiple_choice
+          ep schema show --question_type free_text
+        """
         if class_name and question_type:
             error("USAGE_ERROR", "--class and --question_type are mutually exclusive.",
                    exit_code=EXIT_USAGE)
         if not class_name and not question_type:
             error("USAGE_ERROR", "Provide one of --class or --question_type.",
-                   suggestion="Use 'edsl schema list' to see available types.",
+                   suggestion="Use 'ep schema list' to see available types.",
                    exit_code=EXIT_USAGE)
 
         classes = _get_schema_classes()
@@ -106,7 +122,13 @@ def register(schema: click.Group) -> None:
 
     @schema.command("error")
     def schema_error():
-        """Documents the error envelope and all known error codes."""
+        """Documents the error envelope and all known error codes.
+
+        \b
+        Examples:
+          ep schema error
+          ep validate --file survey.json --type Survey
+        """
         output({
             "envelope": {
                 "status": "error",

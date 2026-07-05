@@ -26,7 +26,7 @@ def register(surveys_group: click.Group) -> None:
         """Create a Survey with one question.
 
         Example:
-          edsl surveys create --question-type free_text --question-name q0 --question-text "What is your name?" --output survey.ep
+          ep surveys create --question-type free_text --question-name q0 --question-text "What is your name?" --output survey.ep
         """
         try:
             from edsl.surveys import Survey
@@ -65,7 +65,7 @@ def register(surveys_group: click.Group) -> None:
         """Add one question to an existing Survey.
 
         Example:
-          edsl surveys add-question survey.ep --question-type multiple_choice --question-name q1 --question-text "Pick one." --option A --option B
+          ep surveys add-question survey.ep --question-type multiple_choice --question-name q1 --question-text "Pick one." --option A --option B
         """
         try:
             survey = _load_survey(survey_path)
@@ -107,7 +107,7 @@ def register(surveys_group: click.Group) -> None:
         """Summarize a Survey.
 
         Example:
-          edsl surveys show survey.ep
+          ep surveys show survey.ep
         """
         try:
             survey = _load_survey(survey_path)
@@ -128,7 +128,7 @@ def register(surveys_group: click.Group) -> None:
         """List Survey questions.
 
         Example:
-          edsl surveys questions survey.ep
+          ep surveys questions survey.ep
         """
         try:
             survey = _load_survey(survey_path)
@@ -159,7 +159,7 @@ def register(surveys_group: click.Group) -> None:
         """Add a pre-question skip rule.
 
         Example:
-          edsl surveys add-skip-rule survey.ep --question q1 --expression "{{ q0.answer }} == 'no'"
+          ep surveys add-skip-rule survey.ep --question q1 --expression "{{ q0.answer }} == 'no'"
         """
         try:
             survey = _load_survey(survey_path)
@@ -195,7 +195,7 @@ def register(surveys_group: click.Group) -> None:
         """Add a post-answer stop rule.
 
         Example:
-          edsl surveys add-stop-rule survey.ep --question q0 --expression "{{ q0.answer }} == 'no'"
+          ep surveys add-stop-rule survey.ep --question q0 --expression "{{ q0.answer }} == 'no'"
         """
         try:
             survey = _load_survey(survey_path)
@@ -222,7 +222,7 @@ def register(surveys_group: click.Group) -> None:
         """Remove one question from a Survey.
 
         Example:
-          edsl surveys drop-question survey.ep --question q1
+          ep surveys drop-question survey.ep --question q1
         """
         try:
             survey = _load_survey(survey_path)
@@ -250,7 +250,7 @@ def register(surveys_group: click.Group) -> None:
         """Move one question in a Survey.
 
         Example:
-          edsl surveys move-question survey.ep --question q2 --index 1
+          ep surveys move-question survey.ep --question q2 --index 1
         """
         try:
             survey = _load_survey(survey_path)

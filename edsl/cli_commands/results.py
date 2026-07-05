@@ -14,7 +14,13 @@ def register(results_group: click.Group) -> None:
     @results_group.command("columns")
     @click.option("--file", "file_path", required=True, help="Path to serialized Results .ep, JSON, or JSON.gz.")
     def results_columns(file_path):
-        """List available columns in a Results file."""
+        """List available columns in a Results file.
+
+        \b
+        Examples:
+          ep results columns --file results.ep
+          ep results columns --file results.json
+        """
         try:
             results_obj = load_results_object(file_path)
             output({"columns": sorted(results_obj.columns)})
@@ -29,7 +35,15 @@ def register(results_group: click.Group) -> None:
     @click.option("--csv", "as_csv", is_flag=True, default=False, help="Output as CSV.")
     @click.option("--limit", default=None, type=int, help="Max rows.")
     def results_select(file_path, column, filter_expr, order_by, as_csv, limit):
-        """Extract columns from a Results file with optional filtering."""
+        """Extract columns from a Results file with optional filtering.
+
+        \b
+        Examples:
+          ep results select --file results.ep --column answer.q0
+          ep results select --file results.ep --column answer.q0 --column agent.age --limit 10
+          ep results select --file results.ep --filter "agent.age > 30" --order_by answer.q0
+          ep results select --file results.ep --column answer.q0 --csv
+        """
         try:
             results_obj = load_results_object(file_path)
         except Exception as e:
@@ -79,7 +93,15 @@ def register(results_group: click.Group) -> None:
     @click.option("--filter", "-f", "filter_expr", default=None, help="Filter expression.")
     @click.option("--rows", default=5, type=int, show_default=True, help="Number of rows.")
     def results_head(file_path, column, filter_expr, rows):
-        """Return the first rows from a Results file."""
+        """Return the first rows from a Results file.
+
+        \b
+        Examples:
+          ep results head results.ep
+          ep results head results.ep --rows 10
+          ep results head results.ep --column answer.q0 --column model.model
+          ep results head results.ep --filter "scenario.topic == 'AI'"
+        """
         try:
             results_obj = load_results_object(file_path)
             dataset = _select_dataset(results_obj, column, filter_expr, None)
@@ -96,7 +118,14 @@ def register(results_group: click.Group) -> None:
     @click.option("--format", "export_format", type=click.Choice(["csv", "json"]), default="csv", show_default=True)
     @click.option("--output", "-o", "output_path", required=True, help="Output CSV or JSON path.")
     def results_export(file_path, column, filter_expr, export_format, output_path):
-        """Export selected Results rows to CSV or JSON."""
+        """Export selected Results rows to CSV or JSON.
+
+        \b
+        Examples:
+          ep results export results.ep --output results.csv
+          ep results export results.ep --column answer.q0 --column agent.age --output answers.csv
+          ep results export results.ep --filter "agent.age > 30" --format json --output filtered.json
+        """
         try:
             results_obj = load_results_object(file_path)
             dataset = _select_dataset(results_obj, column, filter_expr, None)
@@ -124,7 +153,13 @@ def register(results_group: click.Group) -> None:
     @results_group.command("summary")
     @click.argument("file_path", type=click.Path(exists=True))
     def results_summary(file_path):
-        """Summarize a Results file."""
+        """Summarize a Results file.
+
+        \b
+        Examples:
+          ep results summary results.ep
+          ep results summary results.json
+        """
         try:
             results_obj = load_results_object(file_path)
             columns = sorted(results_obj.columns)
@@ -151,7 +186,15 @@ def register(results_group: click.Group) -> None:
     @click.option("--rows", default=5, type=int, show_default=True, help="Number of rows.")
     @click.option("--seed", default=42, type=int, show_default=True, help="Random seed.")
     def results_sample(file_path, column, filter_expr, rows, seed):
-        """Return a reproducible random sample from a Results file."""
+        """Return a reproducible random sample from a Results file.
+
+        \b
+        Examples:
+          ep results sample results.ep
+          ep results sample results.ep --rows 20 --seed 123
+          ep results sample results.ep --column answer.q0 --column agent.age
+          ep results sample results.ep --filter "model.model == 'gpt-4o'"
+        """
         try:
             import random
 
@@ -179,7 +222,14 @@ def register(results_group: click.Group) -> None:
     @click.option("--filter", "-f", "filter_expr", default=None, help="Filter expression.")
     @click.option("--limit", default=None, type=int, help="Max values.")
     def results_values(file_path, column, filter_expr, limit):
-        """Return values from one Results column."""
+        """Return values from one Results column.
+
+        \b
+        Examples:
+          ep results values results.ep --column answer.q0
+          ep results values results.ep --column agent.age --limit 25
+          ep results values results.ep --column answer.q0 --filter "scenario.topic == 'AI'"
+        """
         try:
             results_obj = load_results_object(file_path)
             dataset = _select_dataset(results_obj, (column,), filter_expr, None)
@@ -198,7 +248,13 @@ def register(results_group: click.Group) -> None:
     @click.option("--column", required=True, help="Column to extract, e.g. answer.q0.")
     @click.option("--filter", "-f", "filter_expr", default=None, help="Filter expression.")
     def results_first(file_path, column, filter_expr):
-        """Return the first value from one Results column."""
+        """Return the first value from one Results column.
+
+        \b
+        Examples:
+          ep results first results.ep --column answer.q0
+          ep results first results.ep --column answer.q0 --filter "agent.age > 30"
+        """
         try:
             results_obj = load_results_object(file_path)
             dataset = _select_dataset(results_obj, (column,), filter_expr, None)
@@ -220,7 +276,13 @@ def register(results_group: click.Group) -> None:
     @results_group.command("cost")
     @click.argument("file_path", type=click.Path(exists=True))
     def results_cost(file_path):
-        """Compute actual job cost from a Results file."""
+        """Compute actual job cost from a Results file.
+
+        \b
+        Examples:
+          ep results cost results.ep
+          ep costs log --output costs.jsonl --actual-from results.ep
+        """
         try:
             from edsl.cli_shared import jsonable
 

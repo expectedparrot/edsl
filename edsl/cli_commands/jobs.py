@@ -31,7 +31,22 @@ def register(jobs_group: click.Group) -> None:
     @click.option("--models", "models_path", default=None, type=click.Path(exists=True), help="ModelList object package/file.")
     @click.option("--output", "-o", "output_path", required=True, help="Output Jobs .ep package or serialized file.")
     def jobs_build(survey_path, agents_path, scenarios_path, models_path, output_path):
-        """Build a Jobs object from saved EDSL object packages/files."""
+        """Build a Jobs object from saved EDSL object packages/files.
+
+        \b
+        Examples:
+          ep jobs build --survey survey.ep --output jobs.ep
+          ep jobs build --survey survey.ep --agents agents.ep --output jobs.ep
+          ep jobs build --survey survey.ep --scenarios scenarios.ep --models models.ep --output jobs.ep
+          ep jobs build --survey survey.ep --agents agents.ep --scenarios scenarios.ep --models models.ep --output jobs.ep
+          ep jobs build --survey survey.json --agents agents.json --models models.json --output jobs.json
+
+        \b
+        Next:
+          ep run --jobs jobs.ep --local --output results.ep
+          ep run --jobs jobs.ep --background
+          ep jobs cost jobs.ep
+        """
         try:
             from edsl.agents import AgentList
             from edsl.jobs import Jobs
@@ -172,7 +187,7 @@ def register(jobs_group: click.Group) -> None:
                     error(
                         "RESULTS_NOT_AVAILABLE",
                         f"No results UUID is available for job: {job_uuid}",
-                        suggestion="Use 'edsl jobs status <job_uuid>' to check whether the job has completed.",
+                        suggestion="Use 'ep jobs status <job_uuid>' to check whether the job has completed.",
                         exit_code=EXIT_NOT_FOUND,
                     )
 
@@ -421,6 +436,6 @@ def _wait_for_remote_job(
             if raw_output_written(data["saved"]):
                 return data
     elif normalized_status in {"failed", "partial_failed", "partially_failed"}:
-        data["commands"] = {"errors": f"edsl jobs errors {job_uuid} --output error.md"}
+        data["commands"] = {"errors": f"ep jobs errors {job_uuid} --output error.md"}
 
     return data

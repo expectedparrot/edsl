@@ -29,7 +29,21 @@ def register(scenarios_group: click.Group) -> None:
         filename_key: str,
         output_path: str,
     ):
-        """Create a ScenarioList from tabular data or images."""
+        """Create a ScenarioList from tabular data or images.
+
+        \b
+        Examples:
+          ep scenarios create --from-csv topics.csv --output scenarios.ep
+          ep scenarios create --from-csv topics.csv --no-snakify --output scenarios.ep
+          ep scenarios create --from-xlsx topics.xlsx --sheet Sheet1 --output scenarios.ep
+          ep scenarios create --from-image chart.png --from-image map.png --image-key image --filename-key source_file --output image_scenarios.ep
+          ep scenarios create --from-csv topics.csv --output -
+
+        \b
+        Next:
+          ep inspect scenarios.ep
+          ep run --survey survey.ep --scenario_list scenarios.ep --model gpt-4o
+        """
         source_count = sum(bool(value) for value in (csv_path, xlsx_path, image_paths))
         if source_count != 1:
             error(

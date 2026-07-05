@@ -125,7 +125,7 @@ def register(app: click.Group) -> None:
                 error(
                     "NO_COOP_INFO",
                     f"No coop_info.json found for package: {target}",
-                    suggestion="Use 'edsl clone <owner>/<alias>' or 'edsl push <path.ep>' first.",
+                    suggestion="Use 'ep clone <owner>/<alias>' or 'ep push <path.ep>' first.",
                     exit_code=EXIT_VALIDATION,
                 )
             return obj.git._coop_identifier(coop_info)
@@ -148,7 +148,7 @@ def register(app: click.Group) -> None:
                 error(
                     "USAGE_ERROR",
                     f"Push requires a git-backed .ep package: {object_path}",
-                    suggestion="Save the object as a .ep package first, then run 'edsl push <path.ep>'.",
+                    suggestion="Save the object as a .ep package first, then run 'ep push <path.ep>'.",
                     exit_code=EXIT_USAGE,
                 )
 
@@ -205,7 +205,7 @@ def register(app: click.Group) -> None:
                 error(
                     "USAGE_ERROR",
                     f"Pull requires a git-backed .ep package: {object_path}",
-                    suggestion="Use 'edsl clone <owner>/<alias>' first, or pass a .ep package path.",
+                    suggestion="Use 'ep clone <owner>/<alias>' first, or pass a .ep package path.",
                     exit_code=EXIT_USAGE,
                 )
 
@@ -214,7 +214,7 @@ def register(app: click.Group) -> None:
                 error(
                     "NO_COOP_INFO",
                     f"No coop_info.json found for package: {object_path}",
-                    suggestion="Use 'edsl clone <owner>/<alias>' or 'edsl push <object>' first.",
+                    suggestion="Use 'ep clone <owner>/<alias>' or 'ep push <object>' first.",
                     exit_code=EXIT_VALIDATION,
                 )
 
@@ -410,7 +410,7 @@ def register(app: click.Group) -> None:
 
 
     # ---------------------------------------------------------------------------
-    # edsl search
+    # ep search
     # ---------------------------------------------------------------------------
 
     def _search_objects(query, obj_type, visibility, community, page, page_size):
@@ -464,7 +464,7 @@ def register(app: click.Group) -> None:
             raise
         except Exception as e:
             error("SEARCH_ERROR", str(e),
-                   suggestion="Check your API key with 'edsl auth status'.",
+                   suggestion="Check your API key with 'ep auth status'.",
                    exit_code=EXIT_REMOTE)
 
 

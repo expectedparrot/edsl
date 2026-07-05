@@ -37,7 +37,7 @@ def register(humanize: click.Group) -> None:
         if ctx.invoked_subcommand is None:
             output({
                 "commands": ["validate", "patch"],
-                "help": "Use 'edsl humanize schema <command> --help' for details.",
+                "help": "Use 'ep humanize schema <command> --help' for details.",
             })
 
 
@@ -48,7 +48,7 @@ def register(humanize: click.Group) -> None:
         if ctx.invoked_subcommand is None:
             output({
                 "commands": ["patch"],
-                "help": "Use 'edsl humanize css <command> --help' for details.",
+                "help": "Use 'ep humanize css <command> --help' for details.",
             })
 
 
@@ -63,7 +63,7 @@ def register(humanize: click.Group) -> None:
                     "update-one-time", "update-cron", "activate", "deactivate",
                     "delete", "route-add", "route-delete", "route-patch-respondent-email",
                 ],
-                "help": "Use 'edsl humanize schedules <command> --help' for details.",
+                "help": "Use 'ep humanize schedules <command> --help' for details.",
             })
 
 
@@ -74,7 +74,7 @@ def register(humanize: click.Group) -> None:
         if ctx.invoked_subcommand is None:
             output({
                 "commands": ["list", "create", "get", "tasks", "task", "wait"],
-                "help": "Use 'edsl humanize deliveries <command> --help' for details.",
+                "help": "Use 'ep humanize deliveries <command> --help' for details.",
             })
 
 
@@ -88,7 +88,7 @@ def register(humanize: click.Group) -> None:
                     "list", "create", "get", "patch", "activate", "deactivate",
                     "delete", "route-add", "route-delete", "route-patch-respondent-email",
                 ],
-                "help": "Use 'edsl humanize callbacks <command> --help' for details.",
+                "help": "Use 'ep humanize callbacks <command> --help' for details.",
             })
 
 
@@ -99,7 +99,7 @@ def register(humanize: click.Group) -> None:
         if ctx.invoked_subcommand is None:
             output({
                 "commands": ["get", "patch"],
-                "help": "Use 'edsl humanize agent-list <command> --help' for details.",
+                "help": "Use 'ep humanize agent-list <command> --help' for details.",
             })
 
 
@@ -110,12 +110,12 @@ def register(humanize: click.Group) -> None:
         if ctx.invoked_subcommand is None:
             output({
                 "commands": ["filters", "cost", "create", "publish", "responses"],
-                "help": "Use 'edsl humanize prolific <command> --help' for details.",
+                "help": "Use 'ep humanize prolific <command> --help' for details.",
             })
 
 
     # ---------------------------------------------------------------------------
-    # edsl humanize
+    # ep humanize
     # ---------------------------------------------------------------------------
 
     @humanize.command("list")
@@ -247,7 +247,7 @@ def register(humanize: click.Group) -> None:
                 data["saved"] = _save_edsl_object(response_obj, output_path)
             else:
                 data["next_step"] = (
-                    f"Use 'edsl humanize prolific responses {human_survey_uuid} {study_id} "
+                    f"Use 'ep humanize prolific responses {human_survey_uuid} {study_id} "
                     "--output responses.ep' to save the response data."
                 )
             output(data)
@@ -354,7 +354,7 @@ def register(humanize: click.Group) -> None:
                 data["saved"] = _save_edsl_object(response_obj, output_path)
             else:
                 data["next_step"] = (
-                    f"Use 'edsl humanize responses {human_survey_uuid} --output responses.ep' "
+                    f"Use 'ep humanize responses {human_survey_uuid} --output responses.ep' "
                     "to save the response data."
                 )
             output(data)
