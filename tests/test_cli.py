@@ -3559,6 +3559,90 @@ class TestSurveys:
         assert len(rules) == 1
         assert rules[0].before_rule is True
 
+    def test_surveys_replace_drop_and_move_question(self, tmp_path):
+        from edsl.surveys import Survey
+
+        output_path = tmp_path / "survey.ep"
+        commands = [
+            [
+                "surveys",
+                "create",
+                "--question-type",
+                "free_text",
+                "--question-name",
+                "q0",
+                "--question-text",
+                "First",
+                "--output",
+                str(output_path),
+            ],
+            [
+                "surveys",
+                "add-question",
+                str(output_path),
+                "--question-type",
+                "free_text",
+                "--question-name",
+                "q1",
+                "--question-text",
+                "Second",
+            ],
+            [
+                "surveys",
+                "add-question",
+                str(output_path),
+                "--question-type",
+                "free_text",
+                "--question-name",
+                "q2",
+                "--question-text",
+                "Third",
+            ],
+            [
+                "surveys",
+                "add-question",
+                str(output_path),
+                "--question-type",
+                "free_text",
+                "--question-name",
+                "q1",
+                "--question-text",
+                "Second revised",
+                "--replace",
+            ],
+            [
+                "surveys",
+                "move-question",
+                str(output_path),
+                "--question",
+                "q2",
+                "--index",
+                "1",
+            ],
+            [
+                "surveys",
+                "drop-question",
+                str(output_path),
+                "--question",
+                "q0",
+            ],
+        ]
+
+        for command in commands:
+            result = CliRunner().invoke(cli_module.app, command)
+            assert result.exit_code == 0, result.output
+
+        loaded = Survey.git.load(output_path)
+        assert loaded.question_names == ["q2", "q1"]
+        assert loaded.get("q1").question_text == "Second revised"
+
+    def test_surveys_help_includes_examples(self):
+        result = CliRunner().invoke(cli_module.app, ["surveys", "add-question", "--help"])
+
+        assert result.exit_code == 0, result.output
+        assert "Example:" in result.output
+        assert "edsl surveys add-question" in result.output
+
 
 # ---------------------------------------------------------------------------
 # edsl costs
