@@ -10,6 +10,7 @@ import json
 import subprocess
 import sys
 import tempfile
+import tomllib
 from pathlib import Path
 
 import pytest
@@ -3643,6 +3644,58 @@ class TestSurveys:
         assert "Example:" in result.output
         assert "edsl surveys add-question" in result.output
 
+    def test_surveys_pipe_raw_json_with_dash(self):
+        create_result = CliRunner().invoke(
+            cli_module.app,
+            [
+                "surveys",
+                "create",
+                "--question-type",
+                "free_text",
+                "--question-name",
+                "q0",
+                "--question-text",
+                "First",
+                "--output",
+                "-",
+            ],
+        )
+        assert create_result.exit_code == 0, create_result.output
+        raw_survey = json.loads(create_result.output)
+        assert raw_survey["edsl_class_name"] == "Survey"
+        assert "status" not in raw_survey
+
+        add_result = CliRunner().invoke(
+            cli_module.app,
+            [
+                "surveys",
+                "add-question",
+                "-",
+                "--question-type",
+                "free_text",
+                "--question-name",
+                "q1",
+                "--question-text",
+                "Second",
+                "--output",
+                "-",
+            ],
+            input=create_result.output,
+        )
+        assert add_result.exit_code == 0, add_result.output
+        raw_updated = json.loads(add_result.output)
+        assert raw_updated["edsl_class_name"] == "Survey"
+
+        show_result = CliRunner().invoke(
+            cli_module.app,
+            ["surveys", "show", "-"],
+            input=add_result.output,
+        )
+        assert show_result.exit_code == 0, show_result.output
+        show = json.loads(show_result.output)
+        assert show["status"] == "ok"
+        assert show["data"]["question_names"] == ["q0", "q1"]
+
 
 # ---------------------------------------------------------------------------
 # edsl costs
@@ -3714,6 +3767,13 @@ class TestDefault:
         assert "humanize" in data["commands"]
         assert "surveys" in data["commands"]
         assert "costs" in data["commands"]
+        assert data["pipe_contract"]["pipeable_objects"] == "Use '-' for raw obj.to_dict() JSON on stdin/stdout."
+
+    def test_ep_script_alias_is_registered(self):
+        pyproject = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
+        scripts = pyproject["tool"]["poetry"]["scripts"]
+        assert scripts["ep"] == "edsl.__main__:main"
+        assert scripts["edsl"] == "edsl.__main__:main"
 
 
 # ---------------------------------------------------------------------------

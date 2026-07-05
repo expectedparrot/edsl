@@ -81,6 +81,11 @@ def app(ctx):
                 "costs",
             ],
             "help": "Use 'edsl <command> --help' for details on each command.",
+            "pipe_contract": {
+                "durable_objects": "Use .ep paths for durable git-backed object packages.",
+                "pipeable_objects": "Use '-' for raw obj.to_dict() JSON on stdin/stdout.",
+                "envelopes": "Normal command output is a status envelope; --output - emits raw object JSON for piping.",
+            },
         })
 
 

@@ -17,6 +17,7 @@ from edsl.cli_shared import (
     load_git_object,
     load_openable_json,
     output,
+    raw_output_written,
     save_edsl_object,
     save_results,
 )
@@ -58,6 +59,8 @@ def register(jobs_group: click.Group) -> None:
                     job = job.by(models)
 
             saved = save_edsl_object(job, output_path, object_type="Jobs")
+            if raw_output_written(saved):
+                return
             output(
                 {
                     "object_type": "Jobs",
@@ -182,6 +185,8 @@ def register(jobs_group: click.Group) -> None:
             }
             if output_path:
                 data["saved"] = save_results(results_obj, output_path)
+                if raw_output_written(data["saved"]):
+                    return
             output(data)
         except SystemExit:
             raise
@@ -299,7 +304,10 @@ def register(jobs_group: click.Group) -> None:
     def jobs_wait(job_uuid, poll_interval, timeout, output_path):
         """Poll a remote job until it reaches a terminal status."""
         try:
-            output(_wait_for_remote_job(job_uuid, poll_interval, timeout, output_path))
+            data = _wait_for_remote_job(job_uuid, poll_interval, timeout, output_path)
+            if raw_output_written(data.get("saved")):
+                return
+            output(data)
         except SystemExit:
             raise
         except Exception as e:
@@ -410,6 +418,8 @@ def _wait_for_remote_job(
         data["result_count"] = len(results_obj) if hasattr(results_obj, "__len__") else None
         if output_path:
             data["saved"] = save_results(results_obj, output_path)
+            if raw_output_written(data["saved"]):
+                return data
     elif normalized_status in {"failed", "partial_failed", "partially_failed"}:
         data["commands"] = {"errors": f"edsl jobs errors {job_uuid} --output error.md"}
 

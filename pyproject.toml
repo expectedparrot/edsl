@@ -48,6 +48,7 @@ gcp = [ "google-cloud-storage",]
 
 [tool.poetry.scripts]
 edsl = "edsl.__main__:main"
+ep = "edsl.__main__:main"
 
 [tool.ty.rules]
 unresolved-import = "ignore"

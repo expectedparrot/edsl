@@ -12,6 +12,7 @@ from edsl.cli_shared import (
     jsonable,
     load_any_object,
     output,
+    raw_output_written,
     save_edsl_object,
 )
 
@@ -34,6 +35,8 @@ def register(app: click.Group) -> None:
             data = _summary(obj, sample=max(0, sample))
             if save_path:
                 data["saved"] = save_edsl_object(obj, save_path)
+                if raw_output_written(data["saved"]):
+                    return
             output(data)
         except SystemExit:
             raise

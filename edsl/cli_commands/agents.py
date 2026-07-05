@@ -6,7 +6,7 @@ from pathlib import Path
 
 import click
 
-from edsl.cli_shared import EXIT_ERROR, EXIT_USAGE, error, output, save_edsl_object
+from edsl.cli_shared import EXIT_ERROR, EXIT_USAGE, error, output, raw_output_written, save_edsl_object
 
 
 def register(agents_group: click.Group) -> None:
@@ -57,6 +57,8 @@ def register(agents_group: click.Group) -> None:
                 source = xlsx_path
 
             saved = save_edsl_object(agents, output_path, object_type="AgentList")
+            if raw_output_written(saved):
+                return
             output(
                 {
                     "object_type": "AgentList",

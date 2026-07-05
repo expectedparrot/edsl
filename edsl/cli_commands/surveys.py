@@ -10,6 +10,7 @@ from edsl.cli_shared import (
     error,
     load_any_object,
     output,
+    raw_output_written,
     save_edsl_object,
 )
 
@@ -20,7 +21,7 @@ def register(surveys_group: click.Group) -> None:
     @click.option("--question-name", required=True, help="Question name.")
     @click.option("--question-text", required=True, help="Question text.")
     @click.option("--option", "options", multiple=True, help="Question option. Repeat for multiple-choice, checkbox, scale, or similar questions.")
-    @click.option("--output", "-o", "output_path", required=True, help="Output .ep package or serialized file.")
+    @click.option("--output", "-o", "output_path", required=True, help="Output .ep package, serialized file, or '-' for raw JSON stdout.")
     def create_survey(question_type: str, question_name: str, question_text: str, options: tuple[str, ...], output_path: str):
         """Create a Survey with one question.
 
@@ -38,6 +39,8 @@ def register(surveys_group: click.Group) -> None:
             )
             survey = Survey(questions=[question])
             saved = save_edsl_object(survey, output_path, object_type="Survey")
+            if raw_output_written(saved):
+                return
             output(_survey_output(survey, saved))
         except SystemExit:
             raise
@@ -50,14 +53,14 @@ def register(surveys_group: click.Group) -> None:
             )
 
     @surveys_group.command("add-question")
-    @click.argument("survey_path", type=click.Path(exists=True))
+    @click.argument("survey_path")
     @click.option("--question-type", required=True, help="Question type, e.g. free_text or multiple_choice.")
     @click.option("--question-name", required=True, help="Question name.")
     @click.option("--question-text", required=True, help="Question text.")
     @click.option("--option", "options", multiple=True, help="Question option. Repeat for multiple-choice, checkbox, scale, or similar questions.")
     @click.option("--index", default=None, type=int, help="Insert question at this zero-based index. Defaults to append.")
     @click.option("--replace", is_flag=True, default=False, help="Replace an existing question with the same --question-name.")
-    @click.option("--output", "-o", "output_path", default=None, help="Output .ep package or serialized file. Defaults to SURVEY_PATH.")
+    @click.option("--output", "-o", "output_path", default=None, help="Output .ep package, serialized file, or '-' for raw JSON stdout. Defaults to SURVEY_PATH.")
     def add_question(survey_path: str, question_type: str, question_name: str, question_text: str, options: tuple[str, ...], index: int | None, replace: bool, output_path: str | None):
         """Add one question to an existing Survey.
 
@@ -85,6 +88,8 @@ def register(surveys_group: click.Group) -> None:
                 )
             survey = survey.add_question(question, index=index)
             saved = save_edsl_object(survey, output_path or survey_path, object_type="Survey")
+            if raw_output_written(saved):
+                return
             output(_survey_output(survey, saved))
         except SystemExit:
             raise
@@ -97,7 +102,7 @@ def register(surveys_group: click.Group) -> None:
             )
 
     @surveys_group.command("show")
-    @click.argument("survey_path", type=click.Path(exists=True))
+    @click.argument("survey_path")
     def show_survey(survey_path: str):
         """Summarize a Survey.
 
@@ -118,7 +123,7 @@ def register(surveys_group: click.Group) -> None:
             )
 
     @surveys_group.command("questions")
-    @click.argument("survey_path", type=click.Path(exists=True))
+    @click.argument("survey_path")
     def survey_questions(survey_path: str):
         """List Survey questions.
 
@@ -145,11 +150,11 @@ def register(surveys_group: click.Group) -> None:
             )
 
     @surveys_group.command("add-skip-rule")
-    @click.argument("survey_path", type=click.Path(exists=True))
+    @click.argument("survey_path")
     @click.option("--question", "question_name", required=True, help="Question name where the rule is evaluated.")
     @click.option("--expression", required=True, help="Expression that triggers the rule.")
     @click.option("--next", "next_question", default=None, help="Destination question name or index. Defaults to the next question.")
-    @click.option("--output", "-o", "output_path", default=None, help="Output .ep package or serialized file. Defaults to SURVEY_PATH.")
+    @click.option("--output", "-o", "output_path", default=None, help="Output .ep package, serialized file, or '-' for raw JSON stdout. Defaults to SURVEY_PATH.")
     def add_skip_rule(survey_path: str, question_name: str, expression: str, next_question: str | None, output_path: str | None):
         """Add a pre-question skip rule.
 
@@ -168,6 +173,8 @@ def register(surveys_group: click.Group) -> None:
                     before_rule=True,
                 )
             saved = save_edsl_object(survey, output_path or survey_path, object_type="Survey")
+            if raw_output_written(saved):
+                return
             output(_survey_summary(survey, saved=saved))
         except SystemExit:
             raise
@@ -180,10 +187,10 @@ def register(surveys_group: click.Group) -> None:
             )
 
     @surveys_group.command("add-stop-rule")
-    @click.argument("survey_path", type=click.Path(exists=True))
+    @click.argument("survey_path")
     @click.option("--question", "question_name", required=True, help="Question name where the rule is evaluated.")
     @click.option("--expression", required=True, help="Expression that ends the survey when true.")
-    @click.option("--output", "-o", "output_path", default=None, help="Output .ep package or serialized file. Defaults to SURVEY_PATH.")
+    @click.option("--output", "-o", "output_path", default=None, help="Output .ep package, serialized file, or '-' for raw JSON stdout. Defaults to SURVEY_PATH.")
     def add_stop_rule(survey_path: str, question_name: str, expression: str, output_path: str | None):
         """Add a post-answer stop rule.
 
@@ -194,6 +201,8 @@ def register(surveys_group: click.Group) -> None:
             survey = _load_survey(survey_path)
             survey = survey.add_stop_rule(question_name, expression)
             saved = save_edsl_object(survey, output_path or survey_path, object_type="Survey")
+            if raw_output_written(saved):
+                return
             output(_survey_summary(survey, saved=saved))
         except SystemExit:
             raise
@@ -206,9 +215,9 @@ def register(surveys_group: click.Group) -> None:
             )
 
     @surveys_group.command("drop-question")
-    @click.argument("survey_path", type=click.Path(exists=True))
+    @click.argument("survey_path")
     @click.option("--question", "question_name", required=True, help="Question name to remove.")
-    @click.option("--output", "-o", "output_path", default=None, help="Output .ep package or serialized file. Defaults to SURVEY_PATH.")
+    @click.option("--output", "-o", "output_path", default=None, help="Output .ep package, serialized file, or '-' for raw JSON stdout. Defaults to SURVEY_PATH.")
     def drop_question(survey_path: str, question_name: str, output_path: str | None):
         """Remove one question from a Survey.
 
@@ -219,6 +228,8 @@ def register(surveys_group: click.Group) -> None:
             survey = _load_survey(survey_path)
             survey = survey.delete_question(question_name)
             saved = save_edsl_object(survey, output_path or survey_path, object_type="Survey")
+            if raw_output_written(saved):
+                return
             output(_survey_summary(survey, saved=saved))
         except SystemExit:
             raise
@@ -231,10 +242,10 @@ def register(surveys_group: click.Group) -> None:
             )
 
     @surveys_group.command("move-question")
-    @click.argument("survey_path", type=click.Path(exists=True))
+    @click.argument("survey_path")
     @click.option("--question", "question_name", required=True, help="Question name to move.")
     @click.option("--index", required=True, type=int, help="New zero-based question index.")
-    @click.option("--output", "-o", "output_path", default=None, help="Output .ep package or serialized file. Defaults to SURVEY_PATH.")
+    @click.option("--output", "-o", "output_path", default=None, help="Output .ep package, serialized file, or '-' for raw JSON stdout. Defaults to SURVEY_PATH.")
     def move_question(survey_path: str, question_name: str, index: int, output_path: str | None):
         """Move one question in a Survey.
 
@@ -245,6 +256,8 @@ def register(surveys_group: click.Group) -> None:
             survey = _load_survey(survey_path)
             survey = survey.move_question(question_name, index)
             saved = save_edsl_object(survey, output_path or survey_path, object_type="Survey")
+            if raw_output_written(saved):
+                return
             output(_survey_summary(survey, saved=saved))
         except SystemExit:
             raise

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import click
 
-from edsl.cli_shared import EXIT_ERROR, EXIT_REMOTE, error, output, save_edsl_object
+from edsl.cli_shared import EXIT_ERROR, EXIT_REMOTE, error, output, raw_output_written, save_edsl_object
 
 
 def register(app: click.Group) -> None:
@@ -141,6 +141,8 @@ def register(app: click.Group) -> None:
                 ]
             )
             saved = save_edsl_object(model_list, output_path, object_type="ModelList")
+            if raw_output_written(saved):
+                return
             output(
                 {
                     "object_type": "ModelList",

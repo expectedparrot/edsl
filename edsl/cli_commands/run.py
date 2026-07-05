@@ -17,6 +17,7 @@ from edsl.cli_shared import (
     error,
     jsonable,
     output,
+    raw_output_written,
     read_json_file,
     save_results,
 )
@@ -223,6 +224,8 @@ def register(app: click.Group) -> None:
         if (save or output_path) and not background:
             try:
                 saved = save_results(results_obj, output_path or save)
+                if raw_output_written(saved):
+                    return
             except SystemExit:
                 raise
             except Exception as e:
@@ -249,6 +252,8 @@ def register(app: click.Group) -> None:
                 meta["remote_job"]["wait"] = wait_data
                 if wait_data.get("saved") is not None:
                     meta["saved"] = wait_data["saved"]
+                    if raw_output_written(wait_data["saved"]):
+                        return
         if saved is not None:
             meta["saved"] = saved
 

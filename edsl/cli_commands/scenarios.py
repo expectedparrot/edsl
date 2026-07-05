@@ -6,7 +6,7 @@ from pathlib import Path
 
 import click
 
-from edsl.cli_shared import EXIT_ERROR, EXIT_USAGE, error, output, save_edsl_object
+from edsl.cli_shared import EXIT_ERROR, EXIT_USAGE, error, output, raw_output_written, save_edsl_object
 
 
 def register(scenarios_group: click.Group) -> None:
@@ -67,6 +67,8 @@ def register(scenarios_group: click.Group) -> None:
                 source = list(image_paths)
 
             saved = save_edsl_object(scenarios, output_path, object_type="ScenarioList")
+            if raw_output_written(saved):
+                return
             output(
                 {
                     "object_type": "ScenarioList",

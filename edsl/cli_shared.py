@@ -47,6 +47,16 @@ def error(
 
 def read_json_file(path: str) -> dict:
     """Read and parse a JSON file, or emit an error."""
+    if path == "-":
+        try:
+            return json.loads(sys.stdin.read())
+        except json.JSONDecodeError as e:
+            error(
+                "INVALID_JSON",
+                f"Failed to parse JSON from stdin: {e}",
+                suggestion="Pipe raw EDSL object JSON, not a status envelope.",
+                exit_code=EXIT_USAGE,
+            )
     p = Path(path)
     if not p.exists():
         error(
@@ -83,6 +93,8 @@ def read_package_manifest(path: Path) -> dict:
 
 
 def read_serialized_object(path: Path) -> dict:
+    if str(path) == "-":
+        return read_json_file("-")
     if path.name.endswith(".json.gz"):
         with gzip.open(path, "rt", encoding="utf-8") as f:
             return json.load(f)
@@ -125,6 +137,8 @@ def load_git_object(path: Path):
 
 
 def load_any_object(target: str, expected_object_type: str | None = None):
+    if target == "-":
+        return load_openable_json(Path("-"))
     path = Path(target)
     if path.exists():
         if path.is_dir() or path.suffix == ".ep":
@@ -188,6 +202,15 @@ def jsonable(value):
 
 
 def save_results(results_obj, output_path: str) -> dict:
+    if output_path == "-":
+        _write_raw_object_json(results_obj)
+        return {
+            "path": "-",
+            "format": "json",
+            "object_type": "Results",
+            "pipeable": True,
+            "raw_output": True,
+        }
     path = Path(output_path)
     if path.suffix == ".ep":
         info = results_obj.git.save(path)
@@ -207,8 +230,18 @@ def save_results(results_obj, output_path: str) -> dict:
 
 
 def save_edsl_object(obj, output_path: str, object_type: str | None = None) -> dict:
-    path = Path(output_path)
     class_name = object_type or type(obj).__name__
+    if output_path == "-":
+        _write_raw_object_json(obj)
+        return {
+            "path": "-",
+            "format": "json",
+            "object_type": class_name,
+            "pipeable": True,
+            "raw_output": True,
+        }
+
+    path = Path(output_path)
     path.parent.mkdir(parents=True, exist_ok=True)
     if path.suffix == ".ep":
         info = obj.git.save(path)
@@ -231,9 +264,21 @@ def save_edsl_object(obj, output_path: str, object_type: str | None = None) -> d
     return {"path": str(path), "format": "json", "object_type": class_name}
 
 
+def raw_output_written(saved: Optional[dict]) -> bool:
+    return bool(saved and saved.get("raw_output"))
+
+
+def _write_raw_object_json(obj) -> None:
+    json.dump(obj.to_dict(), sys.stdout, indent=2, default=str)
+    sys.stdout.write("\n")
+
+
 def load_results_object(file_path: str):
     from edsl.results import Results
 
+    if file_path == "-":
+        data = read_json_file("-")
+        return Results.from_dict(data)
     path = Path(file_path)
     if path.is_dir() or path.suffix == ".ep":
         return Results.git.load(path)
