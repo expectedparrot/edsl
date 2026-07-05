@@ -2,82 +2,118 @@
 
 from __future__ import annotations
 
-import json
-from pathlib import Path
-
 import click
 
-from edsl.cli_shared import EXIT_ERROR, EXIT_USAGE, error, output, save_edsl_object
+from edsl.cli_shared import (
+    EXIT_ERROR,
+    EXIT_USAGE,
+    error,
+    load_any_object,
+    output,
+    save_edsl_object,
+)
 
 
 def register(surveys_group: click.Group) -> None:
     @surveys_group.command("create")
-    @click.option("--spec", "spec_path", required=True, type=click.Path(exists=True), help="Survey spec JSON or YAML.")
+    @click.option("--question-type", required=True, help="Question type, e.g. free_text or multiple_choice.")
+    @click.option("--question-name", required=True, help="Question name.")
+    @click.option("--question-text", required=True, help="Question text.")
+    @click.option("--option", "options", multiple=True, help="Question option. Repeat for multiple-choice, checkbox, scale, or similar questions.")
     @click.option("--output", "-o", "output_path", required=True, help="Output .ep package or serialized file.")
-    def create_survey(spec_path: str, output_path: str):
-        """Create a Survey from a JSON or YAML spec."""
+    def create_survey(question_type: str, question_name: str, question_text: str, options: tuple[str, ...], output_path: str):
+        """Create a Survey with one question."""
         try:
             from edsl.surveys import Survey
 
-            spec = _read_spec(spec_path)
-            question_specs = spec.get("questions")
-            if not isinstance(question_specs, list) or not question_specs:
-                error(
-                    "USAGE_ERROR",
-                    "Survey spec must contain a non-empty 'questions' list.",
-                    exit_code=EXIT_USAGE,
-                )
-
-            questions = [_build_question(item) for item in question_specs]
-            survey = Survey(questions=questions)
-            saved = save_edsl_object(survey, output_path, object_type="Survey")
-            output(
-                {
-                    "object_type": "Survey",
-                    "question_count": len(questions),
-                    "questions": [
-                        {
-                            "question_name": q.question_name,
-                            "question_type": q.question_type,
-                        }
-                        for q in questions
-                    ],
-                    "saved": saved,
-                }
+            question = _build_question_from_fields(
+                question_type=question_type,
+                question_name=question_name,
+                question_text=question_text,
+                options=options,
             )
+            survey = Survey(questions=[question])
+            saved = save_edsl_object(survey, output_path, object_type="Survey")
+            output(_survey_output(survey, saved))
         except SystemExit:
             raise
         except Exception as e:
             error(
                 "SURVEYS_CREATE_ERROR",
                 str(e),
-                suggestion="Check the survey spec and output path.",
+                suggestion="Check the question fields and output path.",
+                exit_code=EXIT_ERROR,
+            )
+
+    @surveys_group.command("add-question")
+    @click.argument("survey_path", type=click.Path(exists=True))
+    @click.option("--question-type", required=True, help="Question type, e.g. free_text or multiple_choice.")
+    @click.option("--question-name", required=True, help="Question name.")
+    @click.option("--question-text", required=True, help="Question text.")
+    @click.option("--option", "options", multiple=True, help="Question option. Repeat for multiple-choice, checkbox, scale, or similar questions.")
+    @click.option("--index", default=None, type=int, help="Insert question at this zero-based index. Defaults to append.")
+    @click.option("--output", "-o", "output_path", default=None, help="Output .ep package or serialized file. Defaults to SURVEY_PATH.")
+    def add_question(survey_path: str, question_type: str, question_name: str, question_text: str, options: tuple[str, ...], index: int | None, output_path: str | None):
+        """Add one question to an existing Survey."""
+        try:
+            from edsl.surveys import Survey
+
+            survey = load_any_object(survey_path)
+            if not isinstance(survey, Survey):
+                error(
+                    "UNSUPPORTED_OBJECT",
+                    f"Expected a Survey object, got {type(survey).__name__}.",
+                    exit_code=EXIT_USAGE,
+                )
+            question = _build_question_from_fields(
+                question_type=question_type,
+                question_name=question_name,
+                question_text=question_text,
+                options=options,
+            )
+            survey = survey.add_question(question, index=index)
+            saved = save_edsl_object(survey, output_path or survey_path, object_type="Survey")
+            output(_survey_output(survey, saved))
+        except SystemExit:
+            raise
+        except Exception as e:
+            error(
+                "SURVEYS_ADD_QUESTION_ERROR",
+                str(e),
+                suggestion="Check the survey path, question fields, and output path.",
                 exit_code=EXIT_ERROR,
             )
 
 
-def _read_spec(path: str) -> dict:
-    p = Path(path)
-    text = p.read_text(encoding="utf-8")
-    if p.suffix.lower() in {".yaml", ".yml"}:
-        try:
-            import yaml
-        except ImportError:
-            error(
-                "DEPENDENCY_ERROR",
-                "YAML survey specs require PyYAML.",
-                suggestion="Use JSON, or install PyYAML.",
-                exit_code=EXIT_USAGE,
-            )
-        data = yaml.safe_load(text)
-    else:
-        try:
-            data = json.loads(text)
-        except json.JSONDecodeError as e:
-            error("INVALID_JSON", f"Failed to parse JSON from {path}: {e}", exit_code=EXIT_USAGE)
-    if not isinstance(data, dict):
-        error("USAGE_ERROR", "Survey spec must be a JSON/YAML object.", exit_code=EXIT_USAGE)
-    return data
+def _build_question_from_fields(
+    question_type: str,
+    question_name: str,
+    question_text: str,
+    options: tuple[str, ...],
+):
+    spec = {
+        "question_type": question_type,
+        "question_name": question_name,
+        "question_text": question_text,
+    }
+    if options:
+        spec["question_options"] = list(options)
+    return _build_question(spec)
+
+
+def _survey_output(survey, saved: dict) -> dict:
+    return {
+        "object_type": "Survey",
+        "question_count": len(survey.questions),
+        "questions": [
+            {
+                "question_name": q.question_name,
+                "question_type": q.question_type,
+            }
+            for q in survey.questions
+        ],
+        "saved": saved,
+    }
 
 
 def _build_question(spec: dict):

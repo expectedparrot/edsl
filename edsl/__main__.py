@@ -189,7 +189,7 @@ def surveys(ctx):
     """Create and inspect Survey objects."""
     if ctx.invoked_subcommand is None:
         _output({
-            "commands": ["create"],
+            "commands": ["create", "add-question"],
             "help": "Use 'edsl surveys <command> --help' for details.",
         })
 

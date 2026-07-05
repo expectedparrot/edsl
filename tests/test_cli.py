@@ -3372,39 +3372,49 @@ class TestRunValidation:
 # ---------------------------------------------------------------------------
 
 class TestSurveys:
-    def test_surveys_create_from_json_spec(self, tmp_path):
+    def test_surveys_create_and_add_question_from_fields(self, tmp_path):
         from edsl.surveys import Survey
 
-        spec_path = tmp_path / "survey.json"
         output_path = tmp_path / "survey.ep"
-        spec_path.write_text(
-            json.dumps(
-                {
-                    "questions": [
-                        {
-                            "type": "free_text",
-                            "name": "q0",
-                            "text": "What should we ask next?",
-                        },
-                        {
-                            "type": "multiple_choice",
-                            "name": "q1",
-                            "text": "Pick one.",
-                            "options": ["A", "B"],
-                        },
-                    ]
-                }
-            ),
-            encoding="utf-8",
-        )
 
-        result = CliRunner().invoke(
+        create_result = CliRunner().invoke(
             cli_module.app,
-            ["surveys", "create", "--spec", str(spec_path), "--output", str(output_path)],
+            [
+                "surveys",
+                "create",
+                "--question-type",
+                "free_text",
+                "--question-name",
+                "q0",
+                "--question-text",
+                "What should we ask next?",
+                "--output",
+                str(output_path),
+            ],
+        )
+        add_result = CliRunner().invoke(
+            cli_module.app,
+            [
+                "surveys",
+                "add-question",
+                str(output_path),
+                "--question-type",
+                "multiple_choice",
+                "--question-name",
+                "q1",
+                "--question-text",
+                "Pick one.",
+                "--option",
+                "A",
+                "--option",
+                "B",
+            ],
         )
 
-        assert result.exit_code == 0, result.output
-        out = json.loads(result.output)
+        assert create_result.exit_code == 0, create_result.output
+        assert add_result.exit_code == 0, add_result.output
+
+        out = json.loads(add_result.output)
         assert out["data"]["object_type"] == "Survey"
         assert out["data"]["question_count"] == 2
         assert out["data"]["saved"]["format"] == "ep"
