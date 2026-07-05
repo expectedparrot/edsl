@@ -48,6 +48,8 @@ def register(app: click.Group) -> None:
     @click.option("--remote_inference_results_visibility", default="private", type=click.Choice(["private", "public", "unlisted"]), help="Visibility for remote results.")
     @click.option("--results_description", default=None, help="Description for the remote results object.")
     @click.option("--fresh", is_flag=True, default=False, help="Ignore cache.")
+    @click.option("--n", "iterations", default=1, type=int, show_default=True, help="Number of iterations per question/scenario/agent/model combination.")
+    @click.option("--local", is_flag=True, default=False, help="Disable remote inference and run locally.")
     @click.option("--save", default=None, help="Save Results JSON to file.")
     @click.option("--output", "-o", "output_path", default=None, help="Save Results to a file or .ep package.")
     @click.argument("input_path", required=False, type=click.Path(exists=True))
@@ -55,7 +57,7 @@ def register(app: click.Group) -> None:
             model_list, model, qtype, options, name, progress, background,
             wait, poll_interval, timeout, remote_inference_description,
             remote_inference_results_visibility, results_description, fresh,
-            save, output_path, input_path):
+            iterations, local, save, output_path, input_path):
         """Run question(s) and get results."""
         from edsl.jobs import Jobs
         from edsl.agents import AgentList as AgentListClass
@@ -75,6 +77,9 @@ def register(app: click.Group) -> None:
                    exit_code=EXIT_USAGE)
         if timeout is not None and timeout <= 0:
             error("USAGE_ERROR", "--timeout must be greater than 0.",
+                   exit_code=EXIT_USAGE)
+        if iterations <= 0:
+            error("USAGE_ERROR", "--n must be greater than 0.",
                    exit_code=EXIT_USAGE)
 
         # Step 1: Determine base input source
@@ -173,6 +178,8 @@ def register(app: click.Group) -> None:
                 remote_inference_results_visibility=remote_inference_results_visibility,
                 results_description=results_description,
                 fresh=fresh,
+                n=iterations,
+                disable_remote_inference=local,
                 verbose=False,
             )
         except Exception as e:
@@ -227,6 +234,8 @@ def register(app: click.Group) -> None:
             "agent_count": len(job.agents) if hasattr(job, 'agents') else 0,
             "scenario_count": len(job.scenarios) if hasattr(job, 'scenarios') else 0,
             "result_count": len(result_data),
+            "n": iterations,
+            "local": local,
         }
         if background:
             meta["remote_job"] = _remote_job_meta_from_results(results_obj)

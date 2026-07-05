@@ -173,6 +173,50 @@ def register(results_group: click.Group) -> None:
         except Exception as e:
             error("RUN_ERROR", f"Sample failed: {e}", exit_code=EXIT_ERROR)
 
+    @results_group.command("values")
+    @click.argument("file_path", type=click.Path(exists=True))
+    @click.option("--column", required=True, help="Column to extract, e.g. answer.q0.")
+    @click.option("--filter", "-f", "filter_expr", default=None, help="Filter expression.")
+    @click.option("--limit", default=None, type=int, help="Max values.")
+    def results_values(file_path, column, filter_expr, limit):
+        """Return values from one Results column."""
+        try:
+            results_obj = load_results_object(file_path)
+            dataset = _select_dataset(results_obj, (column,), filter_expr, None)
+            rows = dataset.to_dicts(remove_prefix=False)
+            if limit and limit > 0:
+                rows = rows[:limit]
+            values = [row.get(column) for row in rows]
+            output({"column": column, "values": values, "count": len(values)})
+        except SystemExit:
+            raise
+        except Exception as e:
+            error("RUN_ERROR", f"Value extraction failed: {e}", exit_code=EXIT_ERROR)
+
+    @results_group.command("first")
+    @click.argument("file_path", type=click.Path(exists=True))
+    @click.option("--column", required=True, help="Column to extract, e.g. answer.q0.")
+    @click.option("--filter", "-f", "filter_expr", default=None, help="Filter expression.")
+    def results_first(file_path, column, filter_expr):
+        """Return the first value from one Results column."""
+        try:
+            results_obj = load_results_object(file_path)
+            dataset = _select_dataset(results_obj, (column,), filter_expr, None)
+            rows = dataset.to_dicts(remove_prefix=False)
+            row = rows[0] if rows else None
+            output(
+                {
+                    "column": column,
+                    "value": row.get(column) if row else None,
+                    "row": row,
+                    "found": row is not None,
+                }
+            )
+        except SystemExit:
+            raise
+        except Exception as e:
+            error("RUN_ERROR", f"First-value extraction failed: {e}", exit_code=EXIT_ERROR)
+
     @results_group.command("cost")
     @click.argument("file_path", type=click.Path(exists=True))
     def results_cost(file_path):

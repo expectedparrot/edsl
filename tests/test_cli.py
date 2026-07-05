@@ -1328,6 +1328,33 @@ class TestModels:
         out = json.loads(result.output)
         assert [m["model_name"] for m in out["data"]["models"]] == ["gpt-text-only"]
 
+    def test_models_create_model_list_package(self, tmp_path):
+        from edsl.language_models import ModelList
+
+        output_path = tmp_path / "models.ep"
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            [
+                "models",
+                "create",
+                "--model",
+                "test",
+                "--service",
+                "test",
+                "--output",
+                str(output_path),
+            ],
+        )
+
+        assert result.exit_code == 0, result.output
+        out = json.loads(result.output)
+        assert out["data"]["object_type"] == "ModelList"
+        assert out["data"]["model_count"] == 1
+        assert out["data"]["saved"]["format"] == "ep"
+        loaded = ModelList.git.load(output_path)
+        assert len(loaded) == 1
+
 
 # ---------------------------------------------------------------------------
 # edsl search
@@ -2005,6 +2032,7 @@ class TestHumanizeCli:
             "agent-list",
             "schema",
             "css",
+            "prolific",
         ]
 
     def test_humanize_schema_group_lists_commands(self):
@@ -2487,6 +2515,100 @@ class TestHumanizeCli:
         assert outputs[1]["deliveries"][0]["delivery_uuid"] == "delivery-uuid"
         assert outputs[4]["task_uuid"] == "task-uuid"
 
+    def test_humanize_prolific_commands(self, tmp_path, monkeypatch):
+        from edsl.results import Results
+        import edsl.coop
+
+        config_path = tmp_path / "prolific.json"
+        output_path = tmp_path / "prolific-responses.ep"
+        config_path.write_text(
+            json.dumps(
+                {
+                    "name": "Demo",
+                    "description": "Demo study",
+                    "num_participants": 2,
+                    "estimated_completion_time_minutes": 5,
+                    "participant_payment_cents": 100,
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        class FakeFilters:
+            def __len__(self):
+                return 1
+
+            def to_list(self):
+                return [{"filter_id": "age", "type": "range"}]
+
+        class FakeCoop:
+            def list_prolific_filters(self):
+                return FakeFilters()
+
+            def calculate_prolific_study_cost(
+                self, participant_payment_cents, num_participants, estimated_completion_time_minutes
+            ):
+                assert participant_payment_cents == 100
+                assert num_participants == 2
+                assert estimated_completion_time_minutes == 5
+                return {"cost_cents": 240, "cost_credits": 2.4}
+
+            def create_prolific_study(self, human_survey_uuid, **config):
+                assert human_survey_uuid == "human-survey-uuid"
+                assert config["name"] == "Demo"
+                return {"study_id": "study-id", "status": "UNPUBLISHED"}
+
+            def publish_prolific_study(self, human_survey_uuid, study_id):
+                assert human_survey_uuid == "human-survey-uuid"
+                assert study_id == "study-id"
+                return {"study_id": study_id, "status": "ACTIVE"}
+
+            def get_prolific_study_responses(self, human_survey_uuid, study_id):
+                assert human_survey_uuid == "human-survey-uuid"
+                assert study_id == "study-id"
+                return Results.example()
+
+        monkeypatch.setattr(edsl.coop, "Coop", FakeCoop)
+
+        commands = [
+            ["humanize", "prolific", "filters"],
+            [
+                "humanize",
+                "prolific",
+                "cost",
+                "--participant_payment_cents",
+                "100",
+                "--num_participants",
+                "2",
+                "--estimated_completion_time_minutes",
+                "5",
+            ],
+            ["humanize", "prolific", "create", "human-survey-uuid", "--config", str(config_path)],
+            ["humanize", "prolific", "publish", "human-survey-uuid", "study-id"],
+            [
+                "humanize",
+                "prolific",
+                "responses",
+                "human-survey-uuid",
+                "study-id",
+                "--output",
+                str(output_path),
+            ],
+        ]
+
+        outputs = []
+        for command in commands:
+            result = CliRunner().invoke(cli_module.app, command)
+            assert result.exit_code == 0, result.output
+            outputs.append(json.loads(result.output)["data"])
+
+        assert outputs[0]["filter_count"] == 1
+        assert outputs[1]["cost_cents"] == 240
+        assert outputs[2]["study_id"] == "study-id"
+        assert outputs[3]["status"] == "ACTIVE"
+        assert outputs[4]["saved"]["format"] == "ep"
+        assert output_path.exists()
+
     def test_humanize_delivery_create_route_helper(self, monkeypatch):
         import edsl.coop
 
@@ -2856,6 +2978,22 @@ class TestResults:
         assert second.exit_code == 0, second.output
         assert json.loads(first.output)["data"] == json.loads(second.output)["data"]
 
+    def test_results_values_and_first(self, results_file):
+        values = CliRunner().invoke(
+            cli_module.app,
+            ["results", "values", results_file, "--column", "answer.q0"],
+        )
+        first = CliRunner().invoke(
+            cli_module.app,
+            ["results", "first", results_file, "--column", "answer.q0"],
+        )
+
+        assert values.exit_code == 0, values.output
+        assert first.exit_code == 0, first.output
+        assert json.loads(values.output)["data"]["values"] == ["hello"]
+        assert json.loads(first.output)["data"]["value"] == "hello"
+        assert json.loads(first.output)["data"]["found"] is True
+
     def test_file_not_found(self):
         out = run_cli("results", "columns", "--file", "/nonexistent/file.json", expect_exit=3)
         assert out["status"] == "error"
@@ -3174,6 +3312,144 @@ class TestRunValidation:
         out = json.loads(result.output)
         assert out["error"]["code"] == "USAGE_ERROR"
 
+    def test_run_passes_iterations_and_local_flags(self, monkeypatch):
+        from edsl import Agent
+        from edsl.jobs import Jobs
+        from edsl.language_models import Model
+        from edsl.questions import QuestionFreeText
+        from edsl.results import Results
+        from edsl.results.result import Result
+        from edsl.scenarios import Scenario
+        from edsl.surveys import Survey
+
+        captured = {}
+        survey = Survey(
+            [QuestionFreeText(question_name="name", question_text="What is your name?")]
+        )
+        fake_results = Results(
+            survey=survey,
+            data=[
+                Result(
+                    agent=Agent(traits={}),
+                    scenario=Scenario(),
+                    model=Model("test", service_name="test"),
+                    iteration=0,
+                    answer={"name": "Ada"},
+                )
+            ],
+        )
+
+        def fake_run(self, **kwargs):
+            captured.update(kwargs)
+            return fake_results
+
+        monkeypatch.setattr(Jobs, "run", fake_run)
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            [
+                "run",
+                "--question",
+                "What is your name?",
+                "--n",
+                "3",
+                "--local",
+                "--fresh",
+            ],
+        )
+
+        assert result.exit_code == 0, result.output
+        assert captured["n"] == 3
+        assert captured["disable_remote_inference"] is True
+        assert captured["fresh"] is True
+        out = json.loads(result.output)
+        assert out["data"]["meta"]["n"] == 3
+        assert out["data"]["meta"]["local"] is True
+
+
+# ---------------------------------------------------------------------------
+# edsl surveys
+# ---------------------------------------------------------------------------
+
+class TestSurveys:
+    def test_surveys_create_from_json_spec(self, tmp_path):
+        from edsl.surveys import Survey
+
+        spec_path = tmp_path / "survey.json"
+        output_path = tmp_path / "survey.ep"
+        spec_path.write_text(
+            json.dumps(
+                {
+                    "questions": [
+                        {
+                            "type": "free_text",
+                            "name": "q0",
+                            "text": "What should we ask next?",
+                        },
+                        {
+                            "type": "multiple_choice",
+                            "name": "q1",
+                            "text": "Pick one.",
+                            "options": ["A", "B"],
+                        },
+                    ]
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            ["surveys", "create", "--spec", str(spec_path), "--output", str(output_path)],
+        )
+
+        assert result.exit_code == 0, result.output
+        out = json.loads(result.output)
+        assert out["data"]["object_type"] == "Survey"
+        assert out["data"]["question_count"] == 2
+        assert out["data"]["saved"]["format"] == "ep"
+        loaded = Survey.git.load(output_path)
+        assert loaded.question_names == ["q0", "q1"]
+
+
+# ---------------------------------------------------------------------------
+# edsl costs
+# ---------------------------------------------------------------------------
+
+class TestCosts:
+    def test_costs_log_appends_jsonl(self, tmp_path):
+        ledger_path = tmp_path / "costs.jsonl"
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            [
+                "costs",
+                "log",
+                "--output",
+                str(ledger_path),
+                "--estimated",
+                "1.25",
+                "--actual",
+                "1.00",
+                "--model",
+                "test",
+                "--agents",
+                "2",
+                "--questions",
+                "3",
+                "--note",
+                "demo",
+            ],
+        )
+
+        assert result.exit_code == 0, result.output
+        out = json.loads(result.output)
+        assert out["data"]["record"]["ratio"] == 0.8
+        record = json.loads(ledger_path.read_text(encoding="utf-8").strip())
+        assert record["actual_cost_usd"] == 1.0
+        assert record["estimated_cost_usd"] == 1.25
+        assert record["model"] == "test"
+
 
 # ---------------------------------------------------------------------------
 # edsl (no subcommand)
@@ -3204,6 +3480,8 @@ class TestDefault:
         assert "profile" in data["commands"]
         assert "jobs" in data["commands"]
         assert "humanize" in data["commands"]
+        assert "surveys" in data["commands"]
+        assert "costs" in data["commands"]
 
 
 # ---------------------------------------------------------------------------

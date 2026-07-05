@@ -103,6 +103,17 @@ def register(humanize: click.Group) -> None:
             })
 
 
+    @humanize.group("prolific", invoke_without_command=True)
+    @click.pass_context
+    def humanize_prolific(ctx):
+        """Manage Prolific studies for human surveys."""
+        if ctx.invoked_subcommand is None:
+            output({
+                "commands": ["filters", "cost", "create", "publish", "responses"],
+                "help": "Use 'edsl humanize prolific <command> --help' for details.",
+            })
+
+
     # ---------------------------------------------------------------------------
     # edsl humanize
     # ---------------------------------------------------------------------------
@@ -141,6 +152,109 @@ def register(humanize: click.Group) -> None:
                 suggestion="Check your Expected Parrot API key and list filters.",
                 exit_code=EXIT_REMOTE,
             )
+
+
+    @humanize_prolific.command("filters")
+    def humanize_prolific_filters():
+        """List supported Prolific filters."""
+        try:
+            from edsl.coop import Coop
+
+            filters = Coop().list_prolific_filters()
+            output(
+                {
+                    "object_type": type(filters).__name__,
+                    "filter_count": len(filters) if hasattr(filters, "__len__") else None,
+                    "filters": jsonable(filters.to_list() if hasattr(filters, "to_list") else filters),
+                }
+            )
+        except SystemExit:
+            raise
+        except Exception as e:
+            error("HUMANIZE_ERROR", str(e), exit_code=EXIT_REMOTE)
+
+
+    @humanize_prolific.command("cost")
+    @click.option("--participant_payment_cents", required=True, type=int, help="Reward per participant in cents.")
+    @click.option("--num_participants", required=True, type=int, help="Number of participants.")
+    @click.option("--estimated_completion_time_minutes", required=True, type=int, help="Estimated completion time in minutes.")
+    def humanize_prolific_cost(participant_payment_cents, num_participants, estimated_completion_time_minutes):
+        """Estimate Prolific study cost."""
+        try:
+            from edsl.coop import Coop
+
+            output(jsonable(Coop().calculate_prolific_study_cost(
+                participant_payment_cents=participant_payment_cents,
+                num_participants=num_participants,
+                estimated_completion_time_minutes=estimated_completion_time_minutes,
+            )))
+        except SystemExit:
+            raise
+        except Exception as e:
+            error("HUMANIZE_ERROR", str(e), exit_code=EXIT_REMOTE)
+
+
+    @humanize_prolific.command("create")
+    @click.argument("human_survey_uuid")
+    @click.option("--config", "config_path", required=True, type=click.Path(exists=True), help="Prolific study config JSON.")
+    def humanize_prolific_create(human_survey_uuid, config_path):
+        """Create a Prolific study for a human survey."""
+        try:
+            from edsl.coop import Coop
+
+            config = _read_json_or_gzip(config_path)
+            if not isinstance(config, dict):
+                error("USAGE_ERROR", "Prolific config must be a JSON object.", exit_code=EXIT_USAGE)
+            output(jsonable(Coop().create_prolific_study(human_survey_uuid, **config)))
+        except SystemExit:
+            raise
+        except Exception as e:
+            error("HUMANIZE_ERROR", str(e), exit_code=EXIT_REMOTE)
+
+
+    @humanize_prolific.command("publish")
+    @click.argument("human_survey_uuid")
+    @click.argument("study_id")
+    def humanize_prolific_publish(human_survey_uuid, study_id):
+        """Publish a Prolific study."""
+        try:
+            from edsl.coop import Coop
+
+            output(jsonable(Coop().publish_prolific_study(human_survey_uuid, study_id)))
+        except SystemExit:
+            raise
+        except Exception as e:
+            error("HUMANIZE_ERROR", str(e), exit_code=EXIT_REMOTE)
+
+
+    @humanize_prolific.command("responses")
+    @click.argument("human_survey_uuid")
+    @click.argument("study_id")
+    @click.option("--output", "-o", "output_path", default=None, help="Save responses to .ep, .json, or .json.gz.")
+    def humanize_prolific_responses(human_survey_uuid, study_id, output_path):
+        """Fetch Prolific study responses."""
+        try:
+            from edsl.coop import Coop
+
+            response_obj = Coop().get_prolific_study_responses(human_survey_uuid, study_id)
+            data = {
+                "human_survey_uuid": human_survey_uuid,
+                "study_id": study_id,
+                "object_type": type(response_obj).__name__,
+                "result_count": len(response_obj) if hasattr(response_obj, "__len__") else None,
+            }
+            if output_path:
+                data["saved"] = _save_edsl_object(response_obj, output_path)
+            else:
+                data["next_step"] = (
+                    f"Use 'edsl humanize prolific responses {human_survey_uuid} {study_id} "
+                    "--output responses.ep' to save the response data."
+                )
+            output(data)
+        except SystemExit:
+            raise
+        except Exception as e:
+            error("HUMANIZE_ERROR", str(e), exit_code=EXIT_REMOTE)
 
 
     @humanize.command("status")

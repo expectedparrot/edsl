@@ -11,6 +11,7 @@ import click
 from edsl.cli_commands import account as account_commands
 from edsl.cli_commands import agents as agents_commands
 from edsl.cli_commands import auth as auth_commands
+from edsl.cli_commands import costs as costs_commands
 from edsl.cli_commands import humanize as humanize_commands
 from edsl.cli_commands import inspect as inspect_commands
 from edsl.cli_commands import jobs as jobs_commands
@@ -22,6 +23,7 @@ from edsl.cli_commands import results as results_commands
 from edsl.cli_commands import run as run_commands
 from edsl.cli_commands import schema as schema_commands
 from edsl.cli_commands import scenarios as scenarios_commands
+from edsl.cli_commands import surveys as surveys_commands
 from edsl.cli_commands import validate as validate_commands
 from edsl.cli_shared import (
     EXIT_AUTH,
@@ -75,6 +77,8 @@ def app(ctx):
                 "auth",
                 "results",
                 "jobs",
+                "surveys",
+                "costs",
             ],
             "help": "Use 'edsl <command> --help' for details on each command.",
         })
@@ -141,7 +145,7 @@ def results(ctx):
     """Query and extract data from Results files."""
     if ctx.invoked_subcommand is None:
         _output({
-            "commands": ["columns", "select", "head", "sample", "export", "summary", "cost"],
+            "commands": ["columns", "select", "head", "sample", "values", "first", "export", "summary", "cost"],
             "help": "Use 'edsl results <command> --help' for details.",
         })
 
@@ -181,6 +185,28 @@ def scenarios(ctx):
 
 @app.group(invoke_without_command=True)
 @click.pass_context
+def surveys(ctx):
+    """Create and inspect Survey objects."""
+    if ctx.invoked_subcommand is None:
+        _output({
+            "commands": ["create"],
+            "help": "Use 'edsl surveys <command> --help' for details.",
+        })
+
+
+@app.group(invoke_without_command=True)
+@click.pass_context
+def costs(ctx):
+    """Track estimated and actual job costs."""
+    if ctx.invoked_subcommand is None:
+        _output({
+            "commands": ["log"],
+            "help": "Use 'edsl costs <command> --help' for details.",
+        })
+
+
+@app.group(invoke_without_command=True)
+@click.pass_context
 def humanize(ctx):
     """Create and manage human surveys."""
     if ctx.invoked_subcommand is None:
@@ -188,7 +214,7 @@ def humanize(ctx):
             "commands": [
                 "list", "create", "status", "responses", "qr", "preview",
                 "respondents", "schedules", "deliveries", "callbacks",
-                "agent-list", "schema", "css",
+                "agent-list", "schema", "css", "prolific",
             ],
             "help": "Use 'edsl humanize <command> --help' for details.",
         })
@@ -199,6 +225,7 @@ def humanize(ctx):
 account_commands.register(app)
 agents_commands.register(agents)
 auth_commands.register(app, auth)
+costs_commands.register(costs)
 humanize_commands.register(humanize)
 inspect_commands.register(app)
 jobs_commands.register(jobs)
@@ -223,6 +250,7 @@ results_commands.register(results)
 run_commands.register(app)
 schema_commands.register(schema)
 scenarios_commands.register(scenarios)
+surveys_commands.register(surveys)
 validate_commands.register(app)
 
 

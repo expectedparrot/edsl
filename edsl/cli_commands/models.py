@@ -1,10 +1,10 @@
-"""Model listing command for the EDSL CLI."""
+"""Model commands for the EDSL CLI."""
 
 from __future__ import annotations
 
 import click
 
-from edsl.cli_shared import EXIT_REMOTE, error, output
+from edsl.cli_shared import EXIT_ERROR, EXIT_REMOTE, error, output, save_edsl_object
 
 
 def register(app: click.Group) -> None:
@@ -12,14 +12,17 @@ def register(app: click.Group) -> None:
     # edsl models
     # ---------------------------------------------------------------------------
 
-    @app.command()
+    @app.group("models", invoke_without_command=True)
+    @click.pass_context
     @click.option("--service", default=None, help="Filter by service name.")
     @click.option("--search", default=None, help="Wildcard search pattern.")
     @click.option("--text/--no-text", "works_with_text", default=None, help="Filter by text capability.")
     @click.option("--vision/--no-vision", "works_with_images", default=None, help="Filter by image/vision capability.")
     @click.option("--sort", "sort_by", type=click.Choice(["name", "service", "input-price", "output-price"]), default="service", show_default=True)
-    def models(service, search, works_with_text, works_with_images, sort_by):
-        """List available models."""
+    def models(ctx, service, search, works_with_text, works_with_images, sort_by):
+        """List and create model lists."""
+        if ctx.invoked_subcommand and ctx.invoked_subcommand != "*":
+            return
         from edsl.language_models import Model
 
         # Determine which services have configured keys
@@ -121,6 +124,46 @@ def register(app: click.Group) -> None:
             },
             warnings=warnings,
         )
+
+    @models.command("create")
+    @click.option("--model", "models", multiple=True, required=True, help="Model name. Repeat for multiple models.")
+    @click.option("--service", default=None, help="Service name to use for all models.")
+    @click.option("--output", "-o", "output_path", required=True, help="Output .ep package or serialized file.")
+    def models_create(models, service, output_path):
+        """Create a ModelList file."""
+        try:
+            from edsl.language_models import Model, ModelList
+
+            model_list = ModelList(
+                [
+                    Model(model_name, service_name=service) if service else Model(model_name)
+                    for model_name in models
+                ]
+            )
+            saved = save_edsl_object(model_list, output_path, object_type="ModelList")
+            output(
+                {
+                    "object_type": "ModelList",
+                    "model_count": len(model_list),
+                    "models": [
+                        {
+                            "model_name": getattr(model, "model", str(model)),
+                            "service_name": getattr(model, "_inference_service_", None),
+                        }
+                        for model in model_list
+                    ],
+                    "saved": saved,
+                }
+            )
+        except SystemExit:
+            raise
+        except Exception as e:
+            error(
+                "MODELS_CREATE_ERROR",
+                str(e),
+                suggestion="Check model names, service name, and output path.",
+                exit_code=EXIT_ERROR,
+            )
 
 
 def _price_sort_value(value):
