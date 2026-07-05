@@ -9,15 +9,19 @@ import sys
 import click
 
 from edsl.cli_commands import account as account_commands
+from edsl.cli_commands import agents as agents_commands
 from edsl.cli_commands import auth as auth_commands
 from edsl.cli_commands import humanize as humanize_commands
+from edsl.cli_commands import inspect as inspect_commands
 from edsl.cli_commands import jobs as jobs_commands
 from edsl.cli_commands import models as models_commands
 from edsl.cli_commands import objects as objects_commands
 from edsl.cli_commands import open as open_commands
+from edsl.cli_commands import profiles as profiles_commands
 from edsl.cli_commands import results as results_commands
 from edsl.cli_commands import run as run_commands
 from edsl.cli_commands import schema as schema_commands
+from edsl.cli_commands import scenarios as scenarios_commands
 from edsl.cli_commands import validate as validate_commands
 from edsl.cli_shared import (
     EXIT_AUTH,
@@ -44,6 +48,8 @@ def app(ctx):
             "commands": [
                 "run",
                 "models",
+                "check",
+                "inspect",
                 "info",
                 "validate",
                 "open",
@@ -59,9 +65,12 @@ def app(ctx):
                 "delete",
                 "balance",
                 "profile",
+                "profiles",
                 "settings",
                 "humanize",
                 "schema",
+                "agents",
+                "scenarios",
                 "auth",
                 "results",
                 "jobs",
@@ -94,11 +103,22 @@ def auth(ctx):
 
 @app.group(invoke_without_command=True)
 @click.pass_context
+def profiles(ctx):
+    """Manage local Expected Parrot environment profiles."""
+    if ctx.invoked_subcommand is None:
+        _output({
+            "commands": ["list", "current", "show", "create", "update", "set", "check"],
+            "help": "Use 'edsl profiles <command> --help' for details.",
+        })
+
+
+@app.group(invoke_without_command=True)
+@click.pass_context
 def results(ctx):
     """Query and extract data from Results files."""
     if ctx.invoked_subcommand is None:
         _output({
-            "commands": ["columns", "select"],
+            "commands": ["columns", "select", "head", "export", "summary", "cost"],
             "help": "Use 'edsl results <command> --help' for details.",
         })
 
@@ -109,8 +129,30 @@ def jobs(ctx):
     """Inspect and manage remote jobs."""
     if ctx.invoked_subcommand is None:
         _output({
-            "commands": ["list", "status", "results", "errors", "manifest", "page", "cancel", "cost"],
+            "commands": ["build", "list", "status", "results", "errors", "manifest", "page", "cancel", "cost"],
             "help": "Use 'edsl jobs <command> --help' for details.",
+        })
+
+
+@app.group(invoke_without_command=True)
+@click.pass_context
+def agents(ctx):
+    """Create and inspect AgentList objects."""
+    if ctx.invoked_subcommand is None:
+        _output({
+            "commands": ["create"],
+            "help": "Use 'edsl agents <command> --help' for details.",
+        })
+
+
+@app.group(invoke_without_command=True)
+@click.pass_context
+def scenarios(ctx):
+    """Create and inspect ScenarioList objects."""
+    if ctx.invoked_subcommand is None:
+        _output({
+            "commands": ["create"],
+            "help": "Use 'edsl scenarios <command> --help' for details.",
         })
 
 
@@ -132,15 +174,19 @@ def humanize(ctx):
 
 
 account_commands.register(app)
+agents_commands.register(agents)
 auth_commands.register(app, auth)
 humanize_commands.register(humanize)
+inspect_commands.register(app)
 jobs_commands.register(jobs)
 models_commands.register(app)
 objects_commands.register(app)
 open_commands.register(app)
+profiles_commands.register(app, profiles)
 results_commands.register(results)
 run_commands.register(app)
 schema_commands.register(schema)
+scenarios_commands.register(scenarios)
 validate_commands.register(app)
 
 

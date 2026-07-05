@@ -89,15 +89,19 @@ class TestCliModuleBoundaries:
     def test_command_modules_import_independently(self):
         modules = [
             "account",
+            "agents",
             "auth",
             "humanize",
+            "inspect",
             "jobs",
             "models",
             "objects",
             "open",
+            "profiles",
             "results",
             "run",
             "schema",
+            "scenarios",
             "validate",
         ]
 
@@ -111,20 +115,25 @@ class TestCliModuleBoundaries:
         assert result.exit_code == 0, result.output
         for command in [
             "auth",
+            "agents",
             "balance",
+            "check",
             "clone",
             "humanize",
             "info",
+            "inspect",
             "jobs",
             "metadata",
             "models",
             "open",
             "profile",
+            "profiles",
             "pull",
             "push",
             "results",
             "run",
             "schema",
+            "scenarios",
             "search",
             "settings",
             "share",
@@ -134,6 +143,514 @@ class TestCliModuleBoundaries:
             "validate",
         ]:
             assert command in result.output
+
+
+class TestProfilesCli:
+    class FakeResponse:
+        headers = {}
+
+        def __init__(self, data):
+            self._data = data
+
+        def json(self):
+            return self._data
+
+    class FakeCoop:
+        def __init__(self, api_key=None, url=None):
+            self.api_key = api_key
+            self.url = (url or "https://www.expectedparrot.com").rstrip("/")
+            if "chick.expectedparrot" in self.url:
+                self.api_url = "https://chickapi.expectedparrot.com"
+            else:
+                self.api_url = "https://api.expectedparrot.com"
+
+        def _send_server_request(self, uri, method, timeout=None):
+            assert uri == "api/v0/users/profile"
+            assert method == "GET"
+            assert timeout == 10.0
+            return TestProfilesCli.FakeResponse(
+                {"username": "alice", "email": "alice@example.com"}
+            )
+
+        def _resolve_server_response(self, response, check_api_key=True):
+            assert check_api_key is False
+
+    def test_profiles_group_lists_commands(self):
+        result = CliRunner().invoke(cli_module.app, ["profiles"])
+
+        assert result.exit_code == 0, result.output
+        out = json.loads(result.output)
+        assert out["data"]["commands"] == [
+            "list",
+            "current",
+            "show",
+            "create",
+            "update",
+            "set",
+            "check",
+        ]
+
+    def test_create_show_list_and_set_chick_profile(self):
+        runner = CliRunner()
+        with runner.isolated_filesystem():
+            create = runner.invoke(
+                cli_module.app,
+                [
+                    "profiles",
+                    "create",
+                    "chick",
+                    "--url",
+                    "https://chick.expectedparrot.com/",
+                    "--api-key-env",
+                    "CHICK_EXPECTED_PARROT_API_KEY",
+                ],
+                env={"CHICK_EXPECTED_PARROT_API_KEY": "ep_chick_secret"},
+            )
+
+            assert create.exit_code == 0, create.output
+            created = json.loads(create.output)
+            assert created["data"]["config"]["EXPECTED_PARROT_URL"] == "https://chick.expectedparrot.com/"
+            assert created["data"]["config"]["EXPECTED_PARROT_API_KEY"] == "***"
+            assert "ep_chick_secret" not in create.output
+
+            profile_path = Path(".edsl/profiles/chick.env")
+            assert profile_path.exists()
+            assert "EXPECTED_PARROT_API_KEY=ep_chick_secret" in profile_path.read_text()
+            assert Path(".edsl/.gitignore").read_text() == "profiles/\n"
+
+            show = runner.invoke(cli_module.app, ["profiles", "show", "chick"])
+            assert show.exit_code == 0, show.output
+            shown = json.loads(show.output)
+            assert shown["data"]["config"]["EXPECTED_PARROT_API_KEY"] == "***"
+            assert "ep_chick_secret" not in show.output
+
+            list_result = runner.invoke(cli_module.app, ["profiles", "list"])
+            assert list_result.exit_code == 0, list_result.output
+            listed = json.loads(list_result.output)
+            assert listed["data"]["profile_count"] == 1
+            assert listed["data"]["profiles"][0]["name"] == "chick"
+            assert listed["data"]["profiles"][0]["active"] is False
+
+            set_result = runner.invoke(cli_module.app, ["profiles", "set", "chick"])
+            assert set_result.exit_code == 0, set_result.output
+            activated = json.loads(set_result.output)
+            assert activated["data"]["active_profile"] == "chick"
+            assert activated["data"]["config"]["EXPECTED_PARROT_API_KEY"] == "***"
+            assert "ep_chick_secret" not in set_result.output
+
+            env_text = Path(".env").read_text()
+            assert "# >>> EDSL_PROFILE" in env_text
+            assert "EDSL_ACTIVE_PROFILE=chick" in env_text
+            assert "EXPECTED_PARROT_URL=https://chick.expectedparrot.com/" in env_text
+            assert "EXPECTED_PARROT_API_KEY=ep_chick_secret" in env_text
+
+            current = runner.invoke(cli_module.app, ["profiles", "current"])
+            assert current.exit_code == 0, current.output
+            current_out = json.loads(current.output)
+            assert current_out["data"]["active_profile"] == "chick"
+            assert current_out["data"]["config"]["EXPECTED_PARROT_API_KEY"] == "***"
+            assert "ep_chick_secret" not in current.output
+
+    def test_set_replaces_existing_managed_block_and_preserves_other_env_lines(self):
+        runner = CliRunner()
+        with runner.isolated_filesystem():
+            Path(".env").write_text(
+                "SOMETHING_ELSE=1\n\n"
+                "# >>> EDSL_PROFILE\n"
+                "EDSL_ACTIVE_PROFILE=old\n"
+                "EXPECTED_PARROT_URL=https://old.example.com\n"
+                "# <<< EDSL_PROFILE\n",
+                encoding="utf-8",
+            )
+            result = runner.invoke(
+                cli_module.app,
+                [
+                    "profiles",
+                    "create",
+                    "prod",
+                    "--url",
+                    "https://www.expectedparrot.com",
+                    "--api-key",
+                    "ep_prod_secret",
+                ],
+            )
+            assert result.exit_code == 0, result.output
+
+            set_result = runner.invoke(cli_module.app, ["profiles", "set", "prod"])
+            assert set_result.exit_code == 0, set_result.output
+
+            env_text = Path(".env").read_text()
+            assert env_text.count("# >>> EDSL_PROFILE") == 1
+            assert "SOMETHING_ELSE=1" in env_text
+            assert "EDSL_ACTIVE_PROFILE=prod" in env_text
+            assert "https://old.example.com" not in env_text
+            assert "ep_prod_secret" in env_text
+
+    def test_create_from_current_uses_env_file_and_expected_parrot_only(self):
+        runner = CliRunner()
+        with runner.isolated_filesystem():
+            Path(".env").write_text(
+                "EXPECTED_PARROT_URL=https://www.expectedparrot.com\n"
+                "EXPECTED_PARROT_API_KEY=ep_current_secret\n"
+                "EDSL_CAS_URL=https://deprecated.example.com\n",
+                encoding="utf-8",
+            )
+
+            result = runner.invoke(cli_module.app, ["profiles", "create", "prod", "--from-current"])
+
+            assert result.exit_code == 0, result.output
+            out = json.loads(result.output)
+            assert out["data"]["config"]["EXPECTED_PARROT_URL"] == "https://www.expectedparrot.com"
+            assert out["data"]["config"]["EXPECTED_PARROT_API_KEY"] == "***"
+            assert "EDSL_CAS_URL" not in out["data"]["config"]
+            profile_text = Path(".edsl/profiles/prod.env").read_text()
+            assert "EXPECTED_PARROT_API_KEY=ep_current_secret" in profile_text
+            assert "EDSL_CAS_URL" not in profile_text
+
+    def test_rejects_non_expected_parrot_settings(self):
+        runner = CliRunner()
+        with runner.isolated_filesystem():
+            result = runner.invoke(
+                cli_module.app,
+                ["profiles", "create", "bad", "--set", "EDSL_CAS_URL=https://deprecated.example.com"],
+            )
+
+            assert result.exit_code == 2
+            out = json.loads(result.output)
+            assert out["error"]["code"] == "INVALID_PROFILE_SETTING"
+
+    def test_create_accepts_comma_separated_settings(self):
+        runner = CliRunner()
+        with runner.isolated_filesystem():
+            result = runner.invoke(
+                cli_module.app,
+                [
+                    "profiles",
+                    "create",
+                    "chick",
+                    "--set",
+                    "EXPECTED_PARROT_URL=https://chick.expectedparrot.com,",
+                    "EXPECTED_PARROT_API_KEY=x12889",
+                ],
+            )
+
+            assert result.exit_code == 0, result.output
+            out = json.loads(result.output)
+            assert out["data"]["config"]["EXPECTED_PARROT_URL"] == "https://chick.expectedparrot.com"
+            assert out["data"]["config"]["EXPECTED_PARROT_API_KEY"] == "***"
+            assert "x12889" not in result.output
+            profile_text = Path(".edsl/profiles/chick.env").read_text()
+            assert "EXPECTED_PARROT_API_KEY=x12889" in profile_text
+
+    def test_update_existing_profile_adds_api_key(self):
+        runner = CliRunner()
+        with runner.isolated_filesystem():
+            create = runner.invoke(
+                cli_module.app,
+                [
+                    "profiles",
+                    "create",
+                    "chick",
+                    "--url",
+                    "https://chick.expectedparrot.com",
+                ],
+            )
+            assert create.exit_code == 0, create.output
+
+            update = runner.invoke(
+                cli_module.app,
+                ["profiles", "update", "chick", "--api-key", "ep_chick_secret"],
+            )
+            assert update.exit_code == 0, update.output
+            out = json.loads(update.output)
+            assert out["data"]["config"]["EXPECTED_PARROT_API_KEY"] == "***"
+            assert "ep_chick_secret" not in update.output
+
+            set_result = runner.invoke(cli_module.app, ["profiles", "set", "chick"])
+            assert set_result.exit_code == 0, set_result.output
+            set_out = json.loads(set_result.output)
+            assert set_out["warnings"] == []
+            env_text = Path(".env").read_text()
+            assert "EXPECTED_PARROT_API_KEY=ep_chick_secret" in env_text
+
+    def test_set_warns_when_profile_has_no_api_key(self):
+        runner = CliRunner()
+        with runner.isolated_filesystem():
+            create = runner.invoke(
+                cli_module.app,
+                [
+                    "profiles",
+                    "create",
+                    "chick",
+                    "--url",
+                    "https://chick.expectedparrot.com",
+                ],
+            )
+            assert create.exit_code == 0, create.output
+
+            set_result = runner.invoke(cli_module.app, ["profiles", "set", "chick"])
+            assert set_result.exit_code == 0, set_result.output
+            out = json.loads(set_result.output)
+            assert "EXPECTED_PARROT_API_KEY" in out["warnings"][0]
+
+    def test_check_current_profile_success(self, monkeypatch):
+        import edsl.coop
+
+        monkeypatch.setattr(edsl.coop, "Coop", self.FakeCoop)
+        runner = CliRunner()
+        with runner.isolated_filesystem():
+            Path(".env").write_text(
+                "EXPECTED_PARROT_URL=https://chick.expectedparrot.com\n"
+                "EXPECTED_PARROT_API_KEY=ep_secret\n",
+                encoding="utf-8",
+            )
+
+            result = runner.invoke(cli_module.app, ["check"])
+
+            assert result.exit_code == 0, result.output
+            out = json.loads(result.output)
+            assert out["data"]["api_url"] == "https://chickapi.expectedparrot.com"
+            assert out["data"]["checks"]["reachable"] is True
+            assert out["data"]["checks"]["authenticated"] is True
+            assert out["data"]["checks"]["api_key_configured"] is True
+            assert out["data"]["config"]["EXPECTED_PARROT_API_KEY"] == "***"
+            assert out["data"]["user"] == {
+                "username": "alice",
+                "email": "alice@example.com",
+            }
+            assert "ep_secret" not in result.output
+
+    def test_check_named_profile_without_activating_it(self, monkeypatch):
+        import edsl.coop
+
+        monkeypatch.setattr(edsl.coop, "Coop", self.FakeCoop)
+        runner = CliRunner()
+        with runner.isolated_filesystem():
+            create = runner.invoke(
+                cli_module.app,
+                [
+                    "profiles",
+                    "create",
+                    "chick",
+                    "--url",
+                    "https://chick.expectedparrot.com",
+                    "--api-key",
+                    "ep_secret",
+                ],
+            )
+            assert create.exit_code == 0, create.output
+
+            result = runner.invoke(cli_module.app, ["profiles", "check", "chick"])
+
+            assert result.exit_code == 0, result.output
+            out = json.loads(result.output)
+            assert out["data"]["profile"] == "chick"
+            assert out["data"]["source"] == ".edsl/profiles/chick.env"
+            assert not Path(".env").exists()
+
+    def test_check_auth_error_is_non_interactive(self, monkeypatch):
+        import edsl.coop
+        from edsl.coop.exceptions import CoopServerResponseError
+
+        class InvalidKeyCoop(self.FakeCoop):
+            def _resolve_server_response(self, response, check_api_key=True):
+                assert check_api_key is False
+                raise CoopServerResponseError("The API key you provided is invalid")
+
+        monkeypatch.setattr(edsl.coop, "Coop", InvalidKeyCoop)
+        runner = CliRunner()
+        with runner.isolated_filesystem():
+            Path(".env").write_text(
+                "EXPECTED_PARROT_URL=https://chick.expectedparrot.com\n"
+                "EXPECTED_PARROT_API_KEY=bad_key\n",
+                encoding="utf-8",
+            )
+
+            result = runner.invoke(cli_module.app, ["check"])
+
+            assert result.exit_code == 2
+            out = json.loads(result.output)
+            assert out["error"]["code"] == "CHECK_AUTH_ERROR"
+            details = out["error"]["details"][0]
+            assert details["checks"]["reachable"] is True
+            assert details["checks"]["authenticated"] is False
+            assert details["config"]["EXPECTED_PARROT_API_KEY"] == "***"
+            assert "bad_key" not in result.output
+
+    def test_check_active_profile_missing_key_does_not_fallback_to_env(self, monkeypatch):
+        import edsl.coop
+
+        class NoNetworkCoop(self.FakeCoop):
+            def _send_server_request(self, uri, method, timeout=None):
+                raise AssertionError("check should stop before network without a profile key")
+
+        monkeypatch.setattr(edsl.coop, "Coop", NoNetworkCoop)
+        runner = CliRunner()
+        with runner.isolated_filesystem():
+            Path(".env").write_text(
+                "# >>> EDSL_PROFILE\n"
+                "EDSL_ACTIVE_PROFILE=chick\n"
+                "EXPECTED_PARROT_URL=https://chick.expectedparrot.com\n"
+                "# <<< EDSL_PROFILE\n",
+                encoding="utf-8",
+            )
+
+            result = runner.invoke(
+                cli_module.app,
+                ["check"],
+                env={"EXPECTED_PARROT_API_KEY": "ep_other_secret"},
+            )
+
+            assert result.exit_code == 2
+            out = json.loads(result.output)
+            assert out["error"]["code"] == "CHECK_AUTH_REQUIRED"
+            details = out["error"]["details"][0]
+            assert details["checks"]["api_key_configured"] is False
+            assert "ep_other_secret" not in result.output
+
+
+class TestObjectTransformCli:
+    def test_agents_create_from_csv_and_inspect(self, tmp_path):
+        csv_path = tmp_path / "agents.csv"
+        output_path = tmp_path / "agent_list.ep"
+        csv_path.write_text("name,age,role\nAlice,31,teacher\nBob,42,doctor\n", encoding="utf-8")
+
+        create = CliRunner().invoke(
+            cli_module.app,
+            [
+                "agents",
+                "create",
+                "--from-csv",
+                str(csv_path),
+                "--name-field",
+                "name",
+                "--output",
+                str(output_path),
+            ],
+        )
+
+        assert create.exit_code == 0, create.output
+        out = json.loads(create.output)
+        assert out["data"]["agent_count"] == 2
+        assert out["data"]["saved"]["format"] == "ep"
+
+        inspect = CliRunner().invoke(cli_module.app, ["inspect", str(output_path)])
+        assert inspect.exit_code == 0, inspect.output
+        inspected = json.loads(inspect.output)
+        assert inspected["data"]["object_type"] == "AgentList"
+        assert inspected["data"]["agent_count"] == 2
+        assert "age" in inspected["data"]["trait_keys"]
+
+    def test_scenarios_create_from_csv_and_inspect(self, tmp_path):
+        csv_path = tmp_path / "scenarios.csv"
+        output_path = tmp_path / "scenario_list.ep"
+        csv_path.write_text("topic,frame\nAI,optimistic\nClimate,urgent\n", encoding="utf-8")
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            [
+                "scenarios",
+                "create",
+                "--from-csv",
+                str(csv_path),
+                "--output",
+                str(output_path),
+            ],
+        )
+
+        assert result.exit_code == 0, result.output
+        out = json.loads(result.output)
+        assert out["data"]["scenario_count"] == 2
+        assert set(out["data"]["keys"]) == {"frame", "topic"}
+
+        inspect = CliRunner().invoke(cli_module.app, ["inspect", str(output_path)])
+        assert inspect.exit_code == 0, inspect.output
+        inspected = json.loads(inspect.output)
+        assert inspected["data"]["object_type"] == "ScenarioList"
+        assert inspected["data"]["scenario_count"] == 2
+
+    def test_jobs_build_from_packages(self, tmp_path):
+        from edsl import Agent, AgentList, Model, ModelList, Scenario, ScenarioList
+        from edsl.questions import QuestionFreeText
+        from edsl.surveys import Survey
+
+        survey_path = tmp_path / "survey.ep"
+        agents_path = tmp_path / "agents.ep"
+        scenarios_path = tmp_path / "scenarios.ep"
+        models_path = tmp_path / "models.ep"
+        jobs_path = tmp_path / "jobs.ep"
+
+        Survey(
+            [
+                QuestionFreeText(
+                    question_name="opinion",
+                    question_text="What do you think about {{ topic }}?",
+                )
+            ]
+        ).git.save(survey_path)
+        AgentList([Agent(traits={"role": "teacher"})]).git.save(agents_path)
+        ScenarioList([Scenario({"topic": "AI"})]).git.save(scenarios_path)
+        ModelList([Model("test", canned_response="ok")]).git.save(models_path)
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            [
+                "jobs",
+                "build",
+                "--survey",
+                str(survey_path),
+                "--agents",
+                str(agents_path),
+                "--scenarios",
+                str(scenarios_path),
+                "--models",
+                str(models_path),
+                "--output",
+                str(jobs_path),
+            ],
+        )
+
+        assert result.exit_code == 0, result.output
+        out = json.loads(result.output)
+        assert out["data"]["object_type"] == "Jobs"
+        assert out["data"]["agent_count"] == 1
+        assert out["data"]["scenario_count"] == 1
+        assert out["data"]["model_count"] == 1
+        assert jobs_path.exists()
+
+    def test_models_sort_filter_with_fake_coop(self, monkeypatch):
+        import edsl.coop
+
+        class FakeCoop:
+            def fetch_working_models(self):
+                return [
+                    {
+                        "service": "openai",
+                        "model": "expensive",
+                        "works_with_text": True,
+                        "works_with_images": True,
+                        "usd_per_1M_input_tokens": 10,
+                        "usd_per_1M_output_tokens": 20,
+                    },
+                    {
+                        "service": "openai",
+                        "model": "cheap",
+                        "works_with_text": True,
+                        "works_with_images": False,
+                        "usd_per_1M_input_tokens": 1,
+                        "usd_per_1M_output_tokens": 2,
+                    },
+                ]
+
+        monkeypatch.setattr(edsl.coop, "Coop", FakeCoop)
+        result = CliRunner().invoke(
+            cli_module.app,
+            ["models", "--service", "openai", "--sort", "input-price"],
+        )
+
+        assert result.exit_code == 0, result.output
+        out = json.loads(result.output)
+        assert [m["model_name"] for m in out["data"]["models"]] == ["cheap", "expensive"]
 
 
 # ---------------------------------------------------------------------------
@@ -706,6 +1223,7 @@ class TestModels:
             "search": None,
             "text": None,
             "vision": None,
+            "sort": "service",
         }
 
     def test_model_entries_have_fields(self, fake_model_catalog):
@@ -748,6 +1266,7 @@ class TestModels:
             "search": "4o",
             "text": None,
             "vision": None,
+            "sort": "service",
         }
         assert out["data"]["models"] == [
             {
@@ -1109,6 +1628,7 @@ class TestJobsCli:
         assert result.exit_code == 0, result.output
         out = json.loads(result.output)
         assert out["data"]["commands"] == [
+            "build",
             "list",
             "status",
             "results",
@@ -2209,6 +2729,49 @@ class TestResults:
         rows = json.loads(select_result.output)["data"]["data"]
         assert "answer.q0" in columns
         assert rows[0]["answer.q0"] == "hello"
+
+    def test_results_head_summary_and_export(self, tmp_path, results_file):
+        csv_path = tmp_path / "results.csv"
+        json_path = tmp_path / "results.json"
+
+        head = CliRunner().invoke(
+            cli_module.app,
+            ["results", "head", results_file, "--column", "answer.q0", "--rows", "1"],
+        )
+        summary = CliRunner().invoke(cli_module.app, ["results", "summary", results_file])
+        export_csv = CliRunner().invoke(
+            cli_module.app,
+            [
+                "results",
+                "export",
+                results_file,
+                "--column",
+                "answer.q0",
+                "--output",
+                str(csv_path),
+            ],
+        )
+        export_json = CliRunner().invoke(
+            cli_module.app,
+            [
+                "results",
+                "export",
+                results_file,
+                "--format",
+                "json",
+                "--output",
+                str(json_path),
+            ],
+        )
+
+        assert head.exit_code == 0, head.output
+        assert summary.exit_code == 0, summary.output
+        assert export_csv.exit_code == 0, export_csv.output
+        assert export_json.exit_code == 0, export_json.output
+        assert json.loads(head.output)["data"]["data"][0]["answer.q0"] == "hello"
+        assert "answer.q0" in json.loads(summary.output)["data"]["answer_columns"]
+        assert csv_path.read_text(encoding="utf-8").startswith("answer.q0")
+        assert json.loads(json_path.read_text(encoding="utf-8"))[0]["answer.q0"] == "hello"
 
     def test_file_not_found(self):
         out = run_cli("results", "columns", "--file", "/nonexistent/file.json", expect_exit=3)

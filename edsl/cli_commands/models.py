@@ -17,7 +17,8 @@ def register(app: click.Group) -> None:
     @click.option("--search", default=None, help="Wildcard search pattern.")
     @click.option("--text/--no-text", "works_with_text", default=None, help="Filter by text capability.")
     @click.option("--vision/--no-vision", "works_with_images", default=None, help="Filter by image/vision capability.")
-    def models(service, search, works_with_text, works_with_images):
+    @click.option("--sort", "sort_by", type=click.Choice(["name", "service", "input-price", "output-price"]), default="service", show_default=True)
+    def models(service, search, works_with_text, works_with_images, sort_by):
         """List available models."""
         from edsl.language_models import Model
 
@@ -97,8 +98,14 @@ def register(app: click.Group) -> None:
                     "usd_per_1M_output_tokens": None,
                 })
 
-        # Sort alphabetically by service then model
-        model_list.sort(key=lambda x: (x["service_name"], x["model_name"]))
+        if sort_by == "name":
+            model_list.sort(key=lambda x: (x["model_name"] or "", x["service_name"] or ""))
+        elif sort_by == "input-price":
+            model_list.sort(key=lambda x: (_price_sort_value(x["usd_per_1M_input_tokens"]), x["service_name"] or "", x["model_name"] or ""))
+        elif sort_by == "output-price":
+            model_list.sort(key=lambda x: (_price_sort_value(x["usd_per_1M_output_tokens"]), x["service_name"] or "", x["model_name"] or ""))
+        else:
+            model_list.sort(key=lambda x: (x["service_name"] or "", x["model_name"] or ""))
         output(
             {
                 "models": model_list,
@@ -108,9 +115,18 @@ def register(app: click.Group) -> None:
                     "search": search,
                     "text": works_with_text,
                     "vision": works_with_images,
+                    "sort": sort_by,
                 },
                 "count": len(model_list),
             },
             warnings=warnings,
         )
 
+
+def _price_sort_value(value):
+    if value is None:
+        return float("inf")
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return float("inf")

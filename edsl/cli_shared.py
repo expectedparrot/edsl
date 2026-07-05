@@ -124,6 +124,18 @@ def load_git_object(path: Path):
     )
 
 
+def load_any_object(target: str, expected_object_type: str | None = None):
+    path = Path(target)
+    if path.exists():
+        if path.is_dir() or path.suffix == ".ep":
+            return load_git_object(path)
+        return load_openable_json(path)
+
+    from edsl.coop import Coop
+
+    return Coop().pull(target, expected_object_type=expected_object_type)
+
+
 def load_openable_json(path: Path):
     data = read_serialized_object(path)
     class_name = data.get("edsl_class_name", "")
@@ -192,6 +204,31 @@ def save_results(results_obj, output_path: str) -> dict:
         encoding="utf-8",
     )
     return {"path": str(path), "format": "json", "object_type": "Results"}
+
+
+def save_edsl_object(obj, output_path: str, object_type: str | None = None) -> dict:
+    path = Path(output_path)
+    class_name = object_type or type(obj).__name__
+    path.parent.mkdir(parents=True, exist_ok=True)
+    if path.suffix == ".ep":
+        info = obj.git.save(path)
+        return {
+            "path": info.get("path", str(path)),
+            "format": "ep",
+            "object_type": class_name,
+            "commit": info.get("commit"),
+        }
+
+    if hasattr(obj, "save") and path.suffix in ("", ".gz"):
+        saved = obj.save(str(path))
+        return {
+            "path": str(saved) if saved else str(path),
+            "format": "serialized",
+            "object_type": class_name,
+        }
+
+    path.write_text(json.dumps(obj.to_dict(), indent=2, default=str), encoding="utf-8")
+    return {"path": str(path), "format": "json", "object_type": class_name}
 
 
 def load_results_object(file_path: str):
