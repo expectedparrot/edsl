@@ -6,7 +6,14 @@ from pathlib import Path
 
 import click
 
-from edsl.cli_shared import EXIT_ERROR, error, jsonable, load_any_object, output
+from edsl.cli_shared import (
+    EXIT_ERROR,
+    error,
+    jsonable,
+    load_any_object,
+    output,
+    save_edsl_object,
+)
 
 
 def register(app: click.Group) -> None:
@@ -14,11 +21,20 @@ def register(app: click.Group) -> None:
     @click.argument("target")
     @click.option("--type", "object_type", default=None, help="Expected remote object type when inspecting a UUID or URL.")
     @click.option("--sample", default=3, type=int, show_default=True, help="Number of sample rows/items to include.")
-    def inspect_object(target: str, object_type: str | None, sample: int):
+    @click.option("--save", "save_path", default=None, help="Save the inspected object to a local .ep package or serialized file.")
+    def inspect_object(
+        target: str,
+        object_type: str | None,
+        sample: int,
+        save_path: str | None,
+    ):
         """Inspect a local EDSL object package/file or remote object."""
         try:
             obj = load_any_object(target, expected_object_type=object_type)
-            output(_summary(obj, sample=max(0, sample)))
+            data = _summary(obj, sample=max(0, sample))
+            if save_path:
+                data["saved"] = save_edsl_object(obj, save_path)
+            output(data)
         except SystemExit:
             raise
         except Exception as e:

@@ -52,6 +52,7 @@ def app(ctx):
                 "inspect",
                 "info",
                 "validate",
+                "objects",
                 "open",
                 "clone",
                 "search",
@@ -76,6 +77,28 @@ def app(ctx):
                 "jobs",
             ],
             "help": "Use 'edsl <command> --help' for details on each command.",
+        })
+
+
+@app.group(invoke_without_command=True)
+@click.pass_context
+def objects(ctx):
+    """Manage Expected Parrot objects."""
+    if ctx.invoked_subcommand is None:
+        _output({
+            "commands": [
+                "search",
+                "clone",
+                "push",
+                "pull",
+                "metadata",
+                "update-metadata",
+                "share",
+                "shared",
+                "unshare",
+                "delete",
+            ],
+            "help": "Use 'edsl objects <command> --help' for details.",
         })
 
 
@@ -118,7 +141,7 @@ def results(ctx):
     """Query and extract data from Results files."""
     if ctx.invoked_subcommand is None:
         _output({
-            "commands": ["columns", "select", "head", "export", "summary", "cost"],
+            "commands": ["columns", "select", "head", "sample", "export", "summary", "cost"],
             "help": "Use 'edsl results <command> --help' for details.",
         })
 
@@ -129,7 +152,7 @@ def jobs(ctx):
     """Inspect and manage remote jobs."""
     if ctx.invoked_subcommand is None:
         _output({
-            "commands": ["build", "list", "status", "results", "errors", "manifest", "page", "cancel", "cost"],
+            "commands": ["build", "list", "status", "wait", "results", "errors", "manifest", "page", "cancel", "cost"],
             "help": "Use 'edsl jobs <command> --help' for details.",
         })
 
@@ -181,6 +204,19 @@ inspect_commands.register(app)
 jobs_commands.register(jobs)
 models_commands.register(app)
 objects_commands.register(app)
+for command_name in [
+    "search",
+    "clone",
+    "push",
+    "pull",
+    "metadata",
+    "update-metadata",
+    "share",
+    "shared",
+    "unshare",
+    "delete",
+]:
+    objects.add_command(app.commands[command_name], command_name)
 open_commands.register(app)
 profiles_commands.register(app, profiles)
 results_commands.register(results)

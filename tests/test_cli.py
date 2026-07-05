@@ -125,6 +125,7 @@ class TestCliModuleBoundaries:
             "jobs",
             "metadata",
             "models",
+            "objects",
             "open",
             "profile",
             "profiles",
@@ -510,6 +511,14 @@ class TestProfilesCli:
 
 
 class TestObjectTransformCli:
+    def test_objects_group_lists_commands(self):
+        result = CliRunner().invoke(cli_module.app, ["objects"])
+
+        assert result.exit_code == 0, result.output
+        out = json.loads(result.output)
+        assert "search" in out["data"]["commands"]
+        assert "push" in out["data"]["commands"]
+
     def test_agents_create_from_csv_and_inspect(self, tmp_path):
         csv_path = tmp_path / "agents.csv"
         output_path = tmp_path / "agent_list.ep"
@@ -568,6 +577,24 @@ class TestObjectTransformCli:
         inspected = json.loads(inspect.output)
         assert inspected["data"]["object_type"] == "ScenarioList"
         assert inspected["data"]["scenario_count"] == 2
+
+    def test_inspect_can_save_copy(self, tmp_path):
+        from edsl.surveys import Survey
+
+        source_path = tmp_path / "survey.ep"
+        saved_path = tmp_path / "survey-copy.ep"
+        Survey.example().git.save(source_path)
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            ["inspect", str(source_path), "--save", str(saved_path)],
+        )
+
+        assert result.exit_code == 0, result.output
+        out = json.loads(result.output)
+        assert out["data"]["object_type"] == "Survey"
+        assert out["data"]["saved"]["format"] == "ep"
+        assert saved_path.exists()
 
     def test_jobs_build_from_packages(self, tmp_path):
         from edsl import Agent, AgentList, Model, ModelList, Scenario, ScenarioList
@@ -744,6 +771,7 @@ class TestCliSmokeFlows:
         commands = [
             ["models", "--vision"],
             ["search", "--query", "survey"],
+            ["objects", "search", "--query", "survey"],
             ["metadata", "alice/survey"],
             ["shared", "alice/survey"],
             ["share", "alice/survey", "--user", "bob@example.com"],
@@ -1631,6 +1659,7 @@ class TestJobsCli:
             "build",
             "list",
             "status",
+            "wait",
             "results",
             "errors",
             "manifest",
@@ -1748,6 +1777,46 @@ class TestJobsCli:
         assert result.exit_code == 0, result.output
         out = json.loads(result.output)
         assert out["data"]["status"] == "cancelling"
+
+    def test_jobs_wait_fetches_completed_results(self, tmp_path, monkeypatch):
+        from edsl.results import Results
+        import edsl.coop
+
+        output_path = tmp_path / "results.ep"
+
+        class FakeCoop:
+            def __init__(self):
+                self.calls = 0
+
+            def new_remote_inference_get(self, job_uuid=None, results_uuid=None, include_json_string=False):
+                assert job_uuid == "job-uuid"
+                self.calls += 1
+                if self.calls == 1:
+                    return {"job_uuid": job_uuid, "status": "running"}
+                return {
+                    "job_uuid": job_uuid,
+                    "status": "completed",
+                    "results_uuid": "results-uuid",
+                }
+
+            def pull(self, identifier, expected_object_type=None):
+                assert identifier == "results-uuid"
+                assert expected_object_type == "results"
+                return Results.example()
+
+        monkeypatch.setattr(edsl.coop, "Coop", FakeCoop)
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            ["jobs", "wait", "job-uuid", "--poll", "0", "--output", str(output_path)],
+        )
+
+        assert result.exit_code == 0, result.output
+        out = json.loads(result.output)
+        assert out["data"]["completed"] is True
+        assert out["data"]["results_uuid"] == "results-uuid"
+        assert out["data"]["saved"]["format"] == "ep"
+        assert output_path.exists()
 
     def test_jobs_results_fetches_and_saves_results(self, tmp_path, monkeypatch):
         from edsl.results import Results
@@ -2772,6 +2841,20 @@ class TestResults:
         assert "answer.q0" in json.loads(summary.output)["data"]["answer_columns"]
         assert csv_path.read_text(encoding="utf-8").startswith("answer.q0")
         assert json.loads(json_path.read_text(encoding="utf-8"))[0]["answer.q0"] == "hello"
+
+    def test_results_sample_is_reproducible(self, results_file):
+        first = CliRunner().invoke(
+            cli_module.app,
+            ["results", "sample", results_file, "--column", "answer.q0", "--rows", "1", "--seed", "7"],
+        )
+        second = CliRunner().invoke(
+            cli_module.app,
+            ["results", "sample", results_file, "--column", "answer.q0", "--rows", "1", "--seed", "7"],
+        )
+
+        assert first.exit_code == 0, first.output
+        assert second.exit_code == 0, second.output
+        assert json.loads(first.output)["data"] == json.loads(second.output)["data"]
 
     def test_file_not_found(self):
         out = run_cli("results", "columns", "--file", "/nonexistent/file.json", expect_exit=3)

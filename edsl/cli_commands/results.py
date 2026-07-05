@@ -144,6 +144,35 @@ def register(results_group: click.Group) -> None:
         except Exception as e:
             error("RUN_ERROR", f"Summary failed: {e}", exit_code=EXIT_ERROR)
 
+    @results_group.command("sample")
+    @click.argument("file_path", type=click.Path(exists=True))
+    @click.option("--column", multiple=True, help="Column to include. Repeat for multiple columns.")
+    @click.option("--filter", "-f", "filter_expr", default=None, help="Filter expression.")
+    @click.option("--rows", default=5, type=int, show_default=True, help="Number of rows.")
+    @click.option("--seed", default=42, type=int, show_default=True, help="Random seed.")
+    def results_sample(file_path, column, filter_expr, rows, seed):
+        """Return a reproducible random sample from a Results file."""
+        try:
+            import random
+
+            results_obj = load_results_object(file_path)
+            dataset = _select_dataset(results_obj, column, filter_expr, None)
+            data = dataset.to_dicts(remove_prefix=False)
+            rng = random.Random(seed)
+            sample_size = min(max(0, rows), len(data))
+            output(
+                {
+                    "data": rng.sample(data, sample_size) if sample_size else [],
+                    "seed": seed,
+                    "row_count": len(data),
+                    "sample_count": sample_size,
+                }
+            )
+        except SystemExit:
+            raise
+        except Exception as e:
+            error("RUN_ERROR", f"Sample failed: {e}", exit_code=EXIT_ERROR)
+
     @results_group.command("cost")
     @click.argument("file_path", type=click.Path(exists=True))
     def results_cost(file_path):

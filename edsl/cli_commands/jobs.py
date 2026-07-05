@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import time
 from pathlib import Path
 
 import click
@@ -290,6 +291,25 @@ def register(jobs_group: click.Group) -> None:
                 exit_code=EXIT_REMOTE,
             )
 
+    @jobs_group.command("wait")
+    @click.argument("job_uuid")
+    @click.option("--poll", "poll_interval", default=10.0, type=float, show_default=True, help="Seconds between status polls.")
+    @click.option("--timeout", default=None, type=float, help="Maximum seconds to wait.")
+    @click.option("--output", "-o", "output_path", default=None, help="Save completed Results to this path.")
+    def jobs_wait(job_uuid, poll_interval, timeout, output_path):
+        """Poll a remote job until it reaches a terminal status."""
+        try:
+            output(_wait_for_remote_job(job_uuid, poll_interval, timeout, output_path))
+        except SystemExit:
+            raise
+        except Exception as e:
+            error(
+                "JOBS_ERROR",
+                str(e),
+                suggestion="Check the job UUID, polling arguments, and Expected Parrot API key.",
+                exit_code=EXIT_REMOTE,
+            )
+
     @jobs_group.command("cost")
     @click.argument("object_path", type=click.Path(exists=True))
     @click.option("--iterations", default=1, type=int, help="Number of iterations.")
@@ -334,3 +354,63 @@ def _load_typed_object(path: Path, expected_type, type_name: str):
             exit_code=EXIT_USAGE,
         )
     return obj
+
+
+def _wait_for_remote_job(
+    job_uuid: str,
+    poll_interval: float,
+    timeout: float | None,
+    output_path: str | None,
+) -> dict:
+    from edsl.coop import Coop
+
+    coop = Coop()
+    terminal_statuses = {
+        "completed",
+        "failed",
+        "partial_failed",
+        "partially_failed",
+        "cancelled",
+        "canceled",
+    }
+    started_at = time.monotonic()
+    polls = 0
+
+    while True:
+        status_data = coop.new_remote_inference_get(job_uuid=job_uuid)
+        polls += 1
+        last_status = status_data.get("status")
+        normalized_status = str(last_status or "").lower()
+        if normalized_status in terminal_statuses:
+            break
+        if timeout is not None and time.monotonic() - started_at >= timeout:
+            return {
+                "completed": False,
+                "timed_out": True,
+                "polls": polls,
+                "elapsed_seconds": round(time.monotonic() - started_at, 3),
+                "last_status": last_status,
+                "status": jsonable(status_data),
+            }
+        time.sleep(max(0, poll_interval))
+
+    data = {
+        "completed": normalized_status == "completed",
+        "timed_out": False,
+        "polls": polls,
+        "elapsed_seconds": round(time.monotonic() - started_at, 3),
+        "last_status": last_status,
+        "status": jsonable(status_data),
+    }
+
+    results_uuid = status_data.get("results_uuid") if status_data else None
+    if normalized_status == "completed" and results_uuid:
+        results_obj = coop.pull(results_uuid, expected_object_type="results")
+        data["results_uuid"] = results_uuid
+        data["result_count"] = len(results_obj) if hasattr(results_obj, "__len__") else None
+        if output_path:
+            data["saved"] = save_results(results_obj, output_path)
+    elif normalized_status in {"failed", "partial_failed", "partially_failed"}:
+        data["commands"] = {"errors": f"edsl jobs errors {job_uuid} --output error.md"}
+
+    return data
