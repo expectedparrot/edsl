@@ -3421,6 +3421,144 @@ class TestSurveys:
         loaded = Survey.git.load(output_path)
         assert loaded.question_names == ["q0", "q1"]
 
+    def test_surveys_show_questions_and_rules(self, tmp_path):
+        from edsl.surveys import Survey
+
+        output_path = tmp_path / "survey.ep"
+        create_result = CliRunner().invoke(
+            cli_module.app,
+            [
+                "surveys",
+                "create",
+                "--question-type",
+                "multiple_choice",
+                "--question-name",
+                "q0",
+                "--question-text",
+                "Continue?",
+                "--option",
+                "yes",
+                "--option",
+                "no",
+                "--output",
+                str(output_path),
+            ],
+        )
+        add_result = CliRunner().invoke(
+            cli_module.app,
+            [
+                "surveys",
+                "add-question",
+                str(output_path),
+                "--question-type",
+                "free_text",
+                "--question-name",
+                "q1",
+                "--question-text",
+                "Why?",
+            ],
+        )
+        skip_result = CliRunner().invoke(
+            cli_module.app,
+            [
+                "surveys",
+                "add-skip-rule",
+                str(output_path),
+                "--question",
+                "q1",
+                "--expression",
+                "{{ q0.answer }} == 'no'",
+            ],
+        )
+        stop_result = CliRunner().invoke(
+            cli_module.app,
+            [
+                "surveys",
+                "add-stop-rule",
+                str(output_path),
+                "--question",
+                "q0",
+                "--expression",
+                "{{ q0.answer }} == 'no'",
+            ],
+        )
+        show_result = CliRunner().invoke(cli_module.app, ["surveys", "show", str(output_path)])
+        questions_result = CliRunner().invoke(cli_module.app, ["surveys", "questions", str(output_path)])
+
+        for result in (create_result, add_result, skip_result, stop_result, show_result, questions_result):
+            assert result.exit_code == 0, result.output
+
+        show = json.loads(show_result.output)["data"]
+        questions = json.loads(questions_result.output)["data"]
+        assert show["question_names"] == ["q0", "q1"]
+        assert show["rule_count"] == 2
+        assert questions["questions"][0]["question_options"] == ["yes", "no"]
+
+        loaded = Survey.git.load(output_path)
+        assert loaded.question_names == ["q0", "q1"]
+        assert len(loaded.rule_collection.non_default_rules) == 2
+
+    def test_surveys_add_skip_rule_with_destination(self, tmp_path):
+        from edsl.surveys import Survey
+
+        output_path = tmp_path / "survey.ep"
+        commands = [
+            [
+                "surveys",
+                "create",
+                "--question-type",
+                "free_text",
+                "--question-name",
+                "q0",
+                "--question-text",
+                "First",
+                "--output",
+                str(output_path),
+            ],
+            [
+                "surveys",
+                "add-question",
+                str(output_path),
+                "--question-type",
+                "free_text",
+                "--question-name",
+                "q1",
+                "--question-text",
+                "Second",
+            ],
+            [
+                "surveys",
+                "add-question",
+                str(output_path),
+                "--question-type",
+                "free_text",
+                "--question-name",
+                "q2",
+                "--question-text",
+                "Third",
+            ],
+            [
+                "surveys",
+                "add-skip-rule",
+                str(output_path),
+                "--question",
+                "q1",
+                "--expression",
+                "{{ q0.answer }} == 'skip'",
+                "--next",
+                "q2",
+            ],
+        ]
+
+        for command in commands:
+            result = CliRunner().invoke(cli_module.app, command)
+            assert result.exit_code == 0, result.output
+
+        loaded = Survey.git.load(output_path)
+        rules = loaded.rule_collection.non_default_rules
+        assert len(rules) == 1
+        assert rules[0].before_rule is True
+
 
 # ---------------------------------------------------------------------------
 # edsl costs

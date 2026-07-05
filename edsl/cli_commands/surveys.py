@@ -84,6 +84,99 @@ def register(surveys_group: click.Group) -> None:
                 exit_code=EXIT_ERROR,
             )
 
+    @surveys_group.command("show")
+    @click.argument("survey_path", type=click.Path(exists=True))
+    def show_survey(survey_path: str):
+        """Summarize a Survey."""
+        try:
+            survey = _load_survey(survey_path)
+            output(_survey_summary(survey))
+        except SystemExit:
+            raise
+        except Exception as e:
+            error(
+                "SURVEYS_SHOW_ERROR",
+                str(e),
+                suggestion="Check the survey path.",
+                exit_code=EXIT_ERROR,
+            )
+
+    @surveys_group.command("questions")
+    @click.argument("survey_path", type=click.Path(exists=True))
+    def survey_questions(survey_path: str):
+        """List Survey questions."""
+        try:
+            survey = _load_survey(survey_path)
+            output(
+                {
+                    "object_type": "Survey",
+                    "question_count": len(survey.questions),
+                    "questions": [_question_summary(q) for q in survey.questions],
+                }
+            )
+        except SystemExit:
+            raise
+        except Exception as e:
+            error(
+                "SURVEYS_QUESTIONS_ERROR",
+                str(e),
+                suggestion="Check the survey path.",
+                exit_code=EXIT_ERROR,
+            )
+
+    @surveys_group.command("add-skip-rule")
+    @click.argument("survey_path", type=click.Path(exists=True))
+    @click.option("--question", "question_name", required=True, help="Question name where the rule is evaluated.")
+    @click.option("--expression", required=True, help="Expression that triggers the rule.")
+    @click.option("--next", "next_question", default=None, help="Destination question name or index. Defaults to the next question.")
+    @click.option("--output", "-o", "output_path", default=None, help="Output .ep package or serialized file. Defaults to SURVEY_PATH.")
+    def add_skip_rule(survey_path: str, question_name: str, expression: str, next_question: str | None, output_path: str | None):
+        """Add a pre-question skip rule."""
+        try:
+            survey = _load_survey(survey_path)
+            if next_question is None:
+                survey = survey.add_skip_rule(question_name, expression)
+            else:
+                survey = survey.add_rule(
+                    question_name,
+                    expression,
+                    _parse_next_question(next_question),
+                    before_rule=True,
+                )
+            saved = save_edsl_object(survey, output_path or survey_path, object_type="Survey")
+            output(_survey_summary(survey, saved=saved))
+        except SystemExit:
+            raise
+        except Exception as e:
+            error(
+                "SURVEYS_ADD_SKIP_RULE_ERROR",
+                str(e),
+                suggestion="Check the survey path, question name, expression, and destination.",
+                exit_code=EXIT_ERROR,
+            )
+
+    @surveys_group.command("add-stop-rule")
+    @click.argument("survey_path", type=click.Path(exists=True))
+    @click.option("--question", "question_name", required=True, help="Question name where the rule is evaluated.")
+    @click.option("--expression", required=True, help="Expression that ends the survey when true.")
+    @click.option("--output", "-o", "output_path", default=None, help="Output .ep package or serialized file. Defaults to SURVEY_PATH.")
+    def add_stop_rule(survey_path: str, question_name: str, expression: str, output_path: str | None):
+        """Add a post-answer stop rule."""
+        try:
+            survey = _load_survey(survey_path)
+            survey = survey.add_stop_rule(question_name, expression)
+            saved = save_edsl_object(survey, output_path or survey_path, object_type="Survey")
+            output(_survey_summary(survey, saved=saved))
+        except SystemExit:
+            raise
+        except Exception as e:
+            error(
+                "SURVEYS_ADD_STOP_RULE_ERROR",
+                str(e),
+                suggestion="Check the survey path, question name, and expression.",
+                exit_code=EXIT_ERROR,
+            )
+
 
 def _build_question_from_fields(
     question_type: str,
@@ -114,6 +207,67 @@ def _survey_output(survey, saved: dict) -> dict:
         ],
         "saved": saved,
     }
+
+
+def _load_survey(path: str):
+    from edsl.surveys import Survey
+
+    survey = load_any_object(path)
+    if not isinstance(survey, Survey):
+        error(
+            "UNSUPPORTED_OBJECT",
+            f"Expected a Survey object, got {type(survey).__name__}.",
+            exit_code=EXIT_USAGE,
+        )
+    return survey
+
+
+def _survey_summary(survey, saved: dict | None = None) -> dict:
+    rules = _non_default_rules(survey)
+    data = {
+        "object_type": "Survey",
+        "question_count": len(survey.questions),
+        "question_names": survey.question_names,
+        "questions": [_question_summary(q) for q in survey.questions],
+        "rule_count": len(rules),
+        "rules": [_rule_summary(rule) for rule in rules],
+    }
+    if saved is not None:
+        data["saved"] = saved
+    return data
+
+
+def _question_summary(question) -> dict:
+    data = {
+        "question_name": question.question_name,
+        "question_type": question.question_type,
+        "question_text": question.question_text,
+    }
+    if hasattr(question, "question_options"):
+        data["question_options"] = getattr(question, "question_options")
+    return data
+
+
+def _rule_summary(rule) -> dict:
+    return {
+        "current_q": rule.current_q,
+        "expression": rule.expression,
+        "next_q": rule.next_q,
+        "priority": rule.priority,
+        "before_rule": rule.before_rule,
+    }
+
+
+def _non_default_rules(survey) -> list:
+    rules = survey.rule_collection.non_default_rules
+    return rules() if callable(rules) else rules
+
+
+def _parse_next_question(value: str):
+    try:
+        return int(value)
+    except ValueError:
+        return value
 
 
 def _build_question(spec: dict):
