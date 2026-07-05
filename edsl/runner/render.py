@@ -283,9 +283,9 @@ class RenderService:
                     current_answers[other_task.question_name] = answer.answer
                     # Include comment for piping ({{ qname.comment }})
                     if answer.comment:
-                        current_answers[f"{other_task.question_name}_comment"] = (
-                            answer.comment
-                        )
+                        current_answers[
+                            f"{other_task.question_name}_comment"
+                        ] = answer.comment
 
         return current_answers
 
@@ -770,16 +770,45 @@ class RenderWorker:
                 ops_counter["skip_task_calls"] += 1
 
                 _t_skip = _time.time()
-                should_skip, skip_reason = self._job_service.should_skip_task(
-                    job_id,
-                    interview_id,
-                    task_id,
-                    debug=False,  # Reduce noise
-                    cached_survey=cached_survey,
-                    cached_question_index_map=cached_question_index_map,
-                    cached_answers=cached_answers,
-                    cached_task_def=task_def,
-                )
+                try:
+                    should_skip, skip_reason = self._job_service.should_skip_task(
+                        job_id,
+                        interview_id,
+                        task_id,
+                        debug=False,  # Reduce noise
+                        cached_survey=cached_survey,
+                        cached_question_index_map=cached_question_index_map,
+                        cached_answers=cached_answers,
+                        cached_task_def=task_def,
+                    )
+                except Exception as skip_exc:
+                    # Defense-in-depth: skip-rule evaluation must never take down
+                    # the whole render batch. Without this guard an exception here
+                    # (e.g. a survey rule referencing an undefined variable) unwinds
+                    # the entire task loop — no task is marked FAILED and the job
+                    # freezes until the stall watchdog force-fails it with no usable
+                    # error. Instead, fail *this* task permanently with the real
+                    # error and keep rendering the rest of the batch. The failure is
+                    # deterministic (same inputs render the same crash), so retrying
+                    # is pointless -> force_permanent=True.
+                    import traceback
+
+                    print(
+                        f"  [render] should_skip_task raised for task {task_id} "
+                        f"(interview {interview_id}); failing this task and "
+                        f"continuing render: {type(skip_exc).__name__}: {skip_exc}"
+                    )
+                    traceback.print_exc()
+                    self._job_service.on_task_failed(
+                        job_id,
+                        interview_id,
+                        task_id,
+                        error_type=type(skip_exc).__name__,
+                        error_message=f"Skip-rule evaluation failed: {skip_exc}",
+                        force_permanent=True,
+                    )
+                    _skip_logic_time += _time.time() - _t_skip
+                    continue
                 _skip_logic_time += _time.time() - _t_skip
                 if should_skip:
                     self._job_service.on_task_skipped(
@@ -869,14 +898,14 @@ class RenderWorker:
         # Instead of checking ALL interview tasks, only fetch answers for actual dependencies
         # This reduces O(n) to O(d) where d = number of dependencies (usually small)
         _t0 = _time.time()
-        answers_cache: dict[str, dict[str, Any]] = (
-            {}
-        )  # interview_id -> {question_name -> answer}
+        answers_cache: dict[
+            str, dict[str, Any]
+        ] = {}  # interview_id -> {question_name -> answer}
 
         # Collect all dependency task IDs from tasks being rendered
-        dep_task_ids_by_interview: dict[str, set[str]] = (
-            {}
-        )  # interview_id -> set of dependency task_ids
+        dep_task_ids_by_interview: dict[
+            str, set[str]
+        ] = {}  # interview_id -> set of dependency task_ids
         for task_id in tasks_to_render:
             task_def = all_task_defs.get(task_id)
             if task_def and task_def.depends_on:
@@ -980,9 +1009,9 @@ class RenderWorker:
         # Caches for objects that depend on per-task context
         _permuted_questions: dict[tuple, "QuestionBase"] = {}
         _survey_cache: dict[tuple, tuple] = {}
-        _prompt_cache: dict[tuple, dict] = (
-            {}
-        )  # Cache rendered prompts by input combination
+        _prompt_cache: dict[
+            tuple, dict
+        ] = {}  # Cache rendered prompts by input combination
 
         from ..questions import QuestionFreeText as _QuestionFreeText
 
