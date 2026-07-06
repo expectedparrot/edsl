@@ -46,6 +46,14 @@ class SurveyGitDescriptor(GitBackedDescriptor):
     def __init__(self) -> None:
         super().__init__(_git_spec)
 
+    def __get__(self, obj, objtype=None):
+        accessor = super().__get__(obj, objtype)
+        if obj is not None and "comments" not in accessor.__dict__:
+            from .survey_comments import SurveyComments
+
+            accessor.comments = SurveyComments(accessor)
+        return accessor
+
 
 class SurveyGitPackage(gitpkg.GitPackage):
     """Package-level helper for a Git-backed Survey directory."""
@@ -74,7 +82,11 @@ class SurveyGitPackage(gitpkg.GitPackage):
         from .survey_html_renderer import SurveyPackageHTMLRenderer
 
         title = kwargs.get("title", "EDSL Survey")
-        html = SurveyPackageHTMLRenderer(self.path, ref=ref).render(title=title)
+        html = SurveyPackageHTMLRenderer(
+            self.path,
+            ref=ref,
+            display_path=self.public_path or self.path,
+        ).render(title=title)
         if filename is not None:
             Path(filename).write_text(html, encoding="utf-8")
         return html

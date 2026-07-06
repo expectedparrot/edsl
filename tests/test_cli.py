@@ -1306,6 +1306,53 @@ class TestOpen:
         assert "Expected Parrot" in html
         assert "survey-question-table" in html
 
+    def test_open_survey_package_ref_generates_historical_html(
+        self, tmp_path, monkeypatch
+    ):
+        from edsl import QuestionFreeText
+        from edsl.surveys import Survey
+        import edsl.cli_commands.open as open_command
+
+        package_path = tmp_path / "survey.ep"
+        html_path = tmp_path / "survey-old.html"
+        first_survey = Survey(
+            [QuestionFreeText(question_name="first", question_text="First?")]
+        )
+        first = first_survey.git.save(package_path, message="initial")
+        second_survey = first_survey.add_question(
+            QuestionFreeText(question_name="second", question_text="Second?")
+        )
+        second_survey.git.save(package_path, message="second")
+
+        opened_urls = []
+        monkeypatch.setattr(
+            open_command.webbrowser,
+            "open",
+            lambda url: opened_urls.append(url) or True,
+        )
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            [
+                "open",
+                str(package_path),
+                "--ref",
+                first["commit"],
+                "--output",
+                str(html_path),
+            ],
+        )
+
+        assert result.exit_code == 0, result.output
+        out = json.loads(result.output)
+        assert out["status"] == "ok"
+        assert out["data"]["ref"] == first["commit"]
+        assert opened_urls == [html_path.resolve().as_uri()]
+        html = html_path.read_text(encoding="utf-8")
+        assert '"name": "first"' in html
+        assert '"name": "second"' not in html
+        assert first["commit"][:8] in html
+
     def test_open_jobs_package_generates_html(self, tmp_path, monkeypatch):
         from edsl import Agent, AgentList, Jobs, Model, ModelList, Scenario, ScenarioList
         from edsl.questions import QuestionFreeText

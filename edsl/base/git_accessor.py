@@ -96,7 +96,9 @@ class GitBackedClassAccessor:
             package_suffix=self._spec.package_suffix,
             error_cls=self._spec.error_cls,
         )
-        return self._spec.package_cls(worktree_path)
+        package = self._spec.package_cls(worktree_path)
+        package.public_path = path
+        return package
 
     def clone(self, url: str, path, ref: str = "HEAD", token: Optional[str] = None):
         gitpkg.ensure_git_available()

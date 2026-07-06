@@ -67,6 +67,7 @@ class GitPackage:
             self.path = normalize_package_path(
                 raw_path, package_suffix=package_suffix, for_load=True
             )
+        self.public_path: Optional[Path] = None
         ensure_git_available()
         ensure_package_repo(self.path)
 
@@ -428,8 +429,12 @@ def pack_package_archive(
             temp_path, mode="w", compression=zipfile.ZIP_DEFLATED
         ) as archive:
             for file_path in sorted(p for p in worktree_path.rglob("*") if p.is_file()):
+                member_name = file_path.relative_to(worktree_path).as_posix()
+                if _exclude_from_package_archive(member_name):
+                    continue
                 archive.write(
-                    file_path, file_path.relative_to(worktree_path).as_posix()
+                    file_path,
+                    member_name,
                 )
         temp_path.replace(archive_path)
     finally:
@@ -438,6 +443,10 @@ def pack_package_archive(
         except FileNotFoundError:
             pass
     return archive_path
+
+
+def _exclude_from_package_archive(member_name: str) -> bool:
+    return member_name.startswith(".git/hooks/")
 
 
 def _validate_archive_member(name: str) -> None:

@@ -27,16 +27,28 @@ def register(app: click.Group) -> None:
 
     @app.command("open")
     @click.argument("path", type=click.Path(exists=True))
-    @click.option("--output", "-o", "output_path", default=None, help="Path to write the generated HTML.")
-    @click.option("--browser/--no-browser", default=True, help="Open the generated HTML in a browser.")
-    def open_object(path, output_path, browser):
+    @click.option(
+        "--output",
+        "-o",
+        "output_path",
+        default=None,
+        help="Path to write the generated HTML.",
+    )
+    @click.option(
+        "--browser/--no-browser",
+        default=True,
+        help="Open the generated HTML in a browser.",
+    )
+    @click.option("--ref", default="HEAD", help="Git ref to render for .ep packages.")
+    def open_object(path, output_path, browser, ref):
         """Open an EDSL object as an HTML artifact in a browser."""
         source_path = Path(path)
         html_path = _html_output_path(source_path, output_path)
 
         try:
             obj = _load_openable_object(source_path)
-            _write_object_html(obj, html_path)
+            render_ref = ref if _is_package(source_path) else None
+            _write_object_html(obj, html_path, ref=render_ref)
         except SystemExit:
             raise
         except Exception as e:
@@ -66,6 +78,7 @@ def register(app: click.Group) -> None:
             "url": url,
             "opened": opened,
             "object_type": _openable_object_type(obj),
+            "ref": ref if _is_package(source_path) else None,
         })
 
 
@@ -84,11 +97,13 @@ def register(app: click.Group) -> None:
 
 
     def _load_openable_object(path: Path):
-        if path.is_dir():
-            return _load_openable_package(path)
-        if path.suffix == ".ep":
+        if _is_package(path):
             return _load_openable_package(path)
         return load_openable_json(path)
+
+
+    def _is_package(path: Path) -> bool:
+        return path.is_dir() or path.suffix == ".ep"
 
 
     def _load_openable_package(path: Path):
@@ -126,11 +141,14 @@ def register(app: click.Group) -> None:
         )
 
 
-    def _write_object_html(obj, html_path: Path) -> None:
+    def _write_object_html(obj, html_path: Path, *, ref: str | None = None) -> None:
         html_path.parent.mkdir(parents=True, exist_ok=True)
         renderer = getattr(obj, "to_html", None) or getattr(obj, "html", None)
         if renderer is not None:
-            renderer(filename=str(html_path))
+            if ref is None:
+                renderer(filename=str(html_path))
+            else:
+                renderer(filename=str(html_path), ref=ref)
         else:
             repr_html = getattr(obj, "_repr_html_", None)
             if repr_html is not None:

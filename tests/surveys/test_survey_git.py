@@ -118,6 +118,95 @@ def test_survey_git_package_html(tmp_path):
     assert html_path.read_text(encoding="utf-8") == html
 
 
+def test_survey_git_package_html_shows_versions(tmp_path):
+    package_path = tmp_path / "versioned.survey.ep"
+    first_survey = Survey(
+        [QuestionFreeText(question_name="q0", question_text="First?")]
+    )
+    first = first_survey.git.save(package_path, message="initial survey")
+
+    second_survey = first_survey.add_question(
+        QuestionFreeText(question_name="q1", question_text="Second?")
+    )
+    second = second_survey.git.save(package_path, message="add second question")
+
+    html = Survey.git.open(package_path).html()
+
+    assert "Versions" in html
+    assert "version-list" in html
+    assert "initial survey" in html
+    assert "add second question" in html
+    assert first["commit"][:8] in html
+    assert second["commit"][:8] in html
+    data_json = html.split("const DATA = ", 1)[1].split(";\n", 1)[0]
+    data = json.loads(data_json)
+    version_by_message = {
+        version["message"]: version for version in data["versions"]
+    }
+    assert version_by_message["initial survey"]["index"] == 1
+    assert version_by_message["add second question"]["index"] == 2
+    assert version_by_message["initial survey"]["diff"]["label"] == "Initial version"
+    second_diff = version_by_message["add second question"]["diff"]
+    assert second_diff["label"] == "Changes from v1"
+    assert second_diff["summary"][0]["kind"] == "added"
+    assert second_diff["summary"][0]["label"] == "Added question q1"
+    assert "Second?" in second_diff["summary"][0]["detail"]
+    assert "questions/000002.json" in second_diff["stat"]
+    assert "Second?" in second_diff["patch"]
+    assert f"ep open {package_path} --ref {first['commit']}" in html
+    assert '"is_current": true' in html
+
+
+def test_survey_git_comments_are_versioned_and_rendered(tmp_path):
+    package_path = tmp_path / "commented.survey.ep"
+    survey = Survey(
+        [QuestionFreeText(question_name="q0", question_text="First?")]
+    )
+    initial = survey.git.save(package_path, message="initial survey")
+
+    loaded = Survey.git.load(package_path)
+    added = loaded.git.comments.add(
+        question_name="q0",
+        path="question_text",
+        body="This wording needs review.",
+        author="Ada",
+    )
+    thread_id = added["thread"]["id"]
+    replied = loaded.git.comments.reply(
+        thread_id,
+        body="Agreed, let's revise it.",
+        author="Grace",
+    )
+    resolved = loaded.git.comments.resolve(thread_id)
+
+    assert added["commit"]["commit"] != initial["commit"]
+    assert replied["commit"]["commit"] != added["commit"]["commit"]
+    assert resolved["commit"]["commit"] != replied["commit"]["commit"]
+    comments = _package_json(package_path, "metadata/comments.json")
+    thread = comments["threads"][0]
+    assert thread["target"]["question_id"] == "000001"
+    assert thread["target"]["question_name"] == "q0"
+    assert thread["target"]["path"] == "question_text"
+    assert thread["status"] == "resolved"
+    assert [message["author"]["name"] for message in thread["messages"]] == [
+        "Ada",
+        "Grace",
+    ]
+
+    history = loaded.git.history()
+    assert [entry["message"] for entry in history[:3]] == [
+        f"Resolve comment {thread_id}",
+        f"Reply to comment {thread_id}",
+        "Add comment on q0 question_text",
+    ]
+
+    html = Survey.git.open(package_path).html()
+    assert "Comments" in html
+    assert "This wording needs review." in html
+    assert "Agreed, let&#039;s revise it." in html or "Agreed, let's revise it." in html
+    assert '"open_comments": 0' in html
+
+
 def test_survey_git_package_html_questions_table_shows_logic(tmp_path):
     package_path = tmp_path / "logic.survey.ep"
     survey = Survey(

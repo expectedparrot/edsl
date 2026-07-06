@@ -83,6 +83,7 @@ def test_agent_list_git_save_creates_package_layout(tmp_path):
     assert package_path.is_file()
     names = _package_names(package_path)
     assert ".git/HEAD" in names
+    assert not any(name.startswith(".git/hooks/") for name in names)
     assert "manifest.json" in names
     assert "agents/000001.json" in names
     assert "agents/000002.json" in names

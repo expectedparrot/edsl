@@ -18,9 +18,18 @@ from edsl.base.html_artifacts import (
 class SurveyPackageHTMLRenderer:
     """Build an HTML artifact from a Survey git package tree."""
 
-    def __init__(self, path: Path, ref: str = "HEAD") -> None:
+    def __init__(
+        self,
+        path: Path,
+        ref: str = "HEAD",
+        *,
+        display_path: str | Path | None = None,
+    ) -> None:
         self.path = Path(path)
         self.ref = ref
+        self.display_path = (
+            Path(display_path) if display_path is not None else self.path
+        )
 
     def render(self, *, title: str = "EDSL Survey") -> str:
         return render_standalone_html(
@@ -41,9 +50,11 @@ class SurveyPackageHTMLRenderer:
         from edsl.base import git_package as gitpkg
         from .survey_git import SurveyGitError, _load_manifest_at_ref
         from .survey_git import _read_survey_dict_at_ref
+        from .survey_comments import read_comments_at_ref
 
         manifest = _load_manifest_at_ref(self.path, self.ref)
         survey_dict = _read_survey_dict_at_ref(self.path, self.ref)
+        comments = read_comments_at_ref(self.path, self.ref, error_cls=SurveyGitError)
         question_ids = manifest.get("question_order", [])
         questions = survey_dict.get("questions", [])
         rule_collection = survey_dict.get("rule_collection") or {}
@@ -61,10 +72,14 @@ class SurveyPackageHTMLRenderer:
                 _rule_view(rule, question_names, len(questions)) for rule in q_rules
             ]
             piping = _piping_references(question)
+            question_id = question_ids[index] if index < len(question_ids) else None
+            question_comments = _comments_for_question(
+                comments, question_id, question.get("question_name")
+            )
             rows.append(
                 {
                     "index": index,
-                    "id": question_ids[index] if index < len(question_ids) else None,
+                    "id": question_id,
                     "name": question.get("question_name"),
                     "type": question.get("question_type"),
                     "text": question.get("question_text"),
@@ -73,11 +88,13 @@ class SurveyPackageHTMLRenderer:
                     "rules": rule_views,
                     "piping": piping,
                     "logic": _logic_items(rule_views, piping),
+                    "comments": question_comments,
+                    "open_comments": _count_comments(question_comments, status="open"),
                     "raw": _jsonable(question),
                 }
             )
 
-        provenance = {"path": str(self.path), "ref": self.ref}
+        provenance = {"path": str(self.display_path), "ref": self.ref}
         try:
             provenance["commit"] = gitpkg.resolve_commit(
                 self.path, self.ref, error_cls=SurveyGitError
@@ -87,12 +104,19 @@ class SurveyPackageHTMLRenderer:
             )
         except Exception:
             pass
+        versions = _git_versions(
+            self.path,
+            display_path=self.display_path,
+            current_commit=provenance.get("commit"),
+            error_cls=SurveyGitError,
+        )
 
         non_default_rules = [rule for rule in rules if rule.get("priority", -1) > -1]
         return {
             "title": title,
             "generated_at": datetime.now(timezone.utc).isoformat(),
             "provenance": provenance,
+            "versions": versions,
             "manifest": manifest,
             "remote_context": package_remote_context(
                 self.path, self.ref, manifest=manifest, error_cls=SurveyGitError
@@ -106,6 +130,7 @@ class SurveyPackageHTMLRenderer:
                 "randomized": len(questions_to_randomize),
             },
             "questions": rows,
+            "comments": comments,
             "rules": [
                 _rule_view(rule, question_names, len(questions)) for rule in rules
             ],
@@ -127,6 +152,275 @@ class SurveyPackageHTMLRenderer:
                 questions_to_randomize,
             ),
         }
+
+
+def _git_versions(
+    path: Path,
+    *,
+    display_path: Path,
+    current_commit: str | None,
+    error_cls,
+) -> list[dict[str, Any]]:
+    from edsl.base import git_package as gitpkg
+
+    try:
+        entries = gitpkg.GitPackage(
+            path,
+            package_suffix=".ep",
+            object_type="Survey",
+            error_cls=error_cls,
+        ).log()
+    except Exception:
+        return []
+    total = len(entries)
+    return [
+        _version_entry(
+            path,
+            entry,
+            index=index,
+            total=total,
+            display_path=display_path,
+            current_commit=current_commit,
+            error_cls=error_cls,
+        )
+        for index, entry in enumerate(entries)
+    ]
+
+
+def _comments_for_question(
+    comments: dict[str, Any], question_id: str | None, question_name: str | None
+) -> list[dict[str, Any]]:
+    threads = comments.get("threads") or []
+    matched = []
+    for thread in threads:
+        target = thread.get("target") or {}
+        if question_id and target.get("question_id") == question_id:
+            matched.append(thread)
+        elif question_name and target.get("question_name") == question_name:
+            matched.append(thread)
+    return matched
+
+
+def _count_comments(
+    comments: list[dict[str, Any]], *, status: str | None = None
+) -> int:
+    if status is None:
+        return len(comments)
+    return sum(1 for comment in comments if comment.get("status") == status)
+
+
+def _version_entry(
+    path: Path,
+    entry: dict[str, Any],
+    *,
+    index: int,
+    total: int,
+    display_path: Path,
+    current_commit: str | None,
+    error_cls,
+) -> dict[str, Any]:
+    commit = entry.get("commit")
+    previous = None
+    if index + 1 < total:
+        previous = f"{commit}^"
+    return {
+        "index": total - index,
+        "commit": commit,
+        "short_commit": str(commit or "")[:8],
+        "message": entry.get("message") or "",
+        "timestamp": entry.get("timestamp") or "",
+        "is_current": bool(current_commit and commit == current_commit),
+        "open_command": f"ep open {display_path} --ref {commit}",
+        "diff": _git_diff(
+            path,
+            previous,
+            commit,
+            previous_version=total - index - 1,
+            error_cls=error_cls,
+        ),
+    }
+
+
+def _git_diff(
+    path: Path,
+    previous: str | None,
+    commit: str | None,
+    *,
+    previous_version: int,
+    error_cls,
+) -> dict[str, Any]:
+    if not previous or not commit:
+        return {
+            "label": "Initial version",
+            "summary": [],
+            "stat": "",
+            "patch": "",
+            "truncated": False,
+        }
+    from edsl.base import git_package as gitpkg
+
+    try:
+        stat = gitpkg.git(
+            path,
+            "diff",
+            "--stat",
+            previous,
+            commit,
+            capture=True,
+            error_cls=error_cls,
+        ).strip()
+        patch = gitpkg.git(
+            path,
+            "diff",
+            "--unified=3",
+            previous,
+            commit,
+            capture=True,
+            error_cls=error_cls,
+        )
+    except Exception:
+        return {
+            "label": "Diff unavailable",
+            "summary": [],
+            "stat": "",
+            "patch": "",
+            "truncated": False,
+        }
+    max_chars = 20000
+    truncated = len(patch) > max_chars
+    if truncated:
+        patch = patch[:max_chars] + "\n... diff truncated ..."
+    return {
+        "label": f"Changes from v{previous_version}",
+        "summary": _survey_diff_summary(path, previous, commit),
+        "stat": stat,
+        "patch": patch,
+        "truncated": truncated,
+    }
+
+
+def _survey_diff_summary(
+    path: Path, previous: str, commit: str
+) -> list[dict[str, str]]:
+    try:
+        from .survey_git import _read_survey_dict_at_ref
+
+        before = _read_survey_dict_at_ref(path, previous)
+        after = _read_survey_dict_at_ref(path, commit)
+    except Exception:
+        return []
+
+    items: list[dict[str, str]] = []
+    before_questions = {
+        question.get("question_name", f"q{index}"): question
+        for index, question in enumerate(before.get("questions") or [])
+    }
+    after_questions = {
+        question.get("question_name", f"q{index}"): question
+        for index, question in enumerate(after.get("questions") or [])
+    }
+    before_order = list(before_questions)
+    after_order = list(after_questions)
+
+    for name in after_order:
+        if name not in before_questions:
+            question = after_questions[name]
+            items.append(
+                {
+                    "kind": "added",
+                    "label": f"Added question {name}",
+                    "detail": _question_summary(question),
+                }
+            )
+    for name in before_order:
+        if name not in after_questions:
+            question = before_questions[name]
+            items.append(
+                {
+                    "kind": "removed",
+                    "label": f"Removed question {name}",
+                    "detail": _question_summary(question),
+                }
+            )
+    for name in after_order:
+        if name in before_questions and after_questions[name] != before_questions[name]:
+            items.append(
+                {
+                    "kind": "changed",
+                    "label": f"Changed question {name}",
+                    "detail": _changed_question_fields(
+                        before_questions[name], after_questions[name]
+                    ),
+                }
+            )
+    if before_order != after_order and set(before_order) == set(after_order):
+        items.append(
+            {
+                "kind": "reordered",
+                "label": "Reordered questions",
+                "detail": f"{' -> '.join(before_order)} became {' -> '.join(after_order)}",
+            }
+        )
+
+    for key, label in [
+        ("rule_collection", "Skip logic"),
+        ("memory_plan", "Memory"),
+        ("question_groups", "Question groups"),
+        ("questions_to_randomize", "Randomization"),
+        ("options_to_pin", "Pinned options"),
+        ("name", "Survey name"),
+    ]:
+        if before.get(key) != after.get(key):
+            items.append(
+                {
+                    "kind": "changed",
+                    "label": f"Changed {label}",
+                    "detail": _value_change_summary(before.get(key), after.get(key)),
+                }
+            )
+
+    if not items:
+        items.append(
+            {
+                "kind": "unchanged",
+                "label": "No survey-level changes detected",
+                "detail": "Only package metadata changed.",
+            }
+        )
+    return items
+
+
+def _question_summary(question: dict[str, Any]) -> str:
+    question_type = question.get("question_type") or "question"
+    question_text = str(question.get("question_text") or "").strip()
+    if question_text:
+        return f"{question_type}: {question_text}"
+    return str(question_type)
+
+
+def _changed_question_fields(before: dict[str, Any], after: dict[str, Any]) -> str:
+    changed = [
+        key
+        for key in sorted(set(before) | set(after))
+        if before.get(key) != after.get(key)
+    ]
+    return ", ".join(changed) if changed else "Question changed"
+
+
+def _value_change_summary(before: Any, after: Any) -> str:
+    before_count = _collection_size(before)
+    after_count = _collection_size(after)
+    if before_count is not None and after_count is not None:
+        return f"{before_count} entries -> {after_count} entries"
+    return "Value changed"
+
+
+def _collection_size(value: Any) -> int | None:
+    if isinstance(value, dict):
+        return len(value)
+    if isinstance(value, list):
+        return len(value)
+    return None
 
 
 def _question_details(question: dict[str, Any]) -> list[tuple[str, Any]]:
@@ -566,6 +860,29 @@ EXTRA_CSS = """
 .chip.jump, .chip.end { border-color: #8fb4ff; background: #eef4ff; color: #173f8a; }
 .chip.branch { border-color: #9ed4ba; background: #eefaf3; color: #1b5a36; }
 .chip.pipe { border-color: #c7b5ee; background: #f6f1ff; color: #4c2b84; }
+.chip.comment { border-color: #d8bd64; background: #fff8dc; color: #6a4a00; }
+.comment-list { display: grid; gap: 10px; padding: 14px; }
+.comment-thread {
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: #fff;
+  padding: 12px;
+}
+.comment-thread.resolved { opacity: .7; }
+.comment-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+}
+.comment-target { color: var(--muted); font-size: 12px; }
+.comment-body { margin-top: 8px; color: #17201b; white-space: pre-wrap; }
+.comment-replies { margin-top: 10px; display: grid; gap: 8px; }
+.comment-reply {
+  border-left: 3px solid var(--line);
+  padding-left: 10px;
+}
 .flow-diagram-wrap {
   overflow: auto;
   border-bottom: 1px solid var(--line);
@@ -595,6 +912,68 @@ EXTRA_CSS = """
 .flow-summary { font-weight: 700; color: #17201b; }
 .flow-skipped { margin-top: 5px; color: #6d3d00; }
 .flow-row.default { opacity: .62; }
+.version-list { display: grid; gap: 10px; padding: 14px; }
+.version-row {
+  display: grid;
+  grid-template-columns: 54px minmax(0, 1fr) 96px auto;
+  gap: 12px;
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: #fff;
+  padding: 10px;
+}
+.version-row.current { border-color: #9ed4ba; background: #f7fcf9; }
+.version-index {
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+.version-message { font-weight: 700; color: #17201b; }
+.version-main { min-width: 0; }
+.version-row code { overflow-wrap: anywhere; }
+.version-diff {
+  grid-column: 2 / -1;
+  border-top: 1px solid var(--line);
+  padding-top: 10px;
+}
+.version-diff pre {
+  max-height: 360px;
+  overflow: auto;
+  background: #f7f8f7;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 10px;
+  color: #17201b;
+}
+.version-diff summary { cursor: pointer; font-weight: 700; }
+.version-stat {
+  margin: 6px 0;
+  color: #344139;
+  white-space: pre-wrap;
+}
+.version-summary-list {
+  display: grid;
+  gap: 8px;
+  margin: 10px 0;
+}
+.version-summary-item {
+  border: 1px solid var(--line);
+  border-left: 4px solid #9aa39e;
+  border-radius: 6px;
+  background: #fff;
+  padding: 8px 10px;
+}
+.version-summary-item.added { border-left-color: #2f8a4d; }
+.version-summary-item.removed { border-left-color: #b5473c; }
+.version-summary-item.changed { border-left-color: #d88722; }
+.version-summary-item.reordered { border-left-color: #527fd8; }
+.version-summary-label { font-weight: 700; color: #17201b; }
+.version-summary-detail {
+  margin-top: 3px;
+  color: #4e5a54;
+  overflow-wrap: anywhere;
+}
 """
 
 
@@ -621,6 +1000,8 @@ BODY_HTML = f"""
     <button class="tab active" data-view-tab="questions">Questions</button>
     <button class="tab" data-view-tab="flow">Flow</button>
     <button class="tab" data-view-tab="memory">Memory</button>
+    <button class="tab" data-view-tab="comments">Comments</button>
+    <button class="tab" data-view-tab="versions">Versions</button>
     <button class="tab" data-view-tab="package">Package</button>
   </nav>
 
@@ -678,6 +1059,26 @@ BODY_HTML = f"""
       </details>
     </div>
   </section>
+
+  <section class="view" id="view-comments">
+    <div class="panel">
+      <div class="toolbar">
+        <strong>Comments</strong>
+        <span class="muted" id="comment-count"></span>
+      </div>
+      <div class="comment-list" id="comments"></div>
+    </div>
+  </section>
+
+  <section class="view" id="view-versions">
+    <div class="panel">
+      <div class="toolbar">
+        <strong>Versions</strong>
+        <span class="muted" id="version-count"></span>
+      </div>
+      <div class="version-list" id="versions"></div>
+    </div>
+  </section>
 </div>
 
 <div class="drawer-backdrop" id="drawer-backdrop"></div>
@@ -692,6 +1093,7 @@ BODY_HTML = f"""
   <div class="drawer-tabs">
     <button class="tab active" data-drawer-tab="overview">Overview</button>
     <button class="tab" data-drawer-tab="rules">Rules</button>
+    <button class="tab" data-drawer-tab="comments">Comments</button>
     <button class="tab" data-drawer-tab="raw">Raw JSON</button>
   </div>
   <div class="drawer-body">
@@ -740,6 +1142,8 @@ function init() {
   renderFlow();
   renderMemory();
   renderPackage();
+  renderComments();
+  renderVersions();
   bindEvents();
 }
 
@@ -856,7 +1260,7 @@ function renderQuestionTable() {
     document.getElementById("survey-question-table").innerHTML = "<tbody><tr><td class='empty'>No questions.</td></tr></tbody>";
     return;
   }
-  const columns = ["index", "name", "type", "text", "options", "logic"];
+  const columns = ["index", "name", "type", "text", "options", "logic", "comments"];
   document.getElementById("survey-question-table").innerHTML = `
     <thead><tr>${columns.map(key => `<th data-sort="${escapeHtml(key)}">${escapeHtml(key)}${sortArrow(key)}</th>`).join("")}</tr></thead>
     <tbody>
@@ -877,6 +1281,7 @@ function questionCell(row, key) {
   if (key === "text") return `<td><div class="question-text">${cellText(row.text)}</div></td>`;
   if (key === "options") return `<td><div class="chips">${optionChips(row.options)}</div></td>`;
   if (key === "logic") return `<td><div class="chips">${logicChips(row.logic)}</div></td>`;
+  if (key === "comments") return `<td><div class="chips">${commentChips(row.comments)}</div></td>`;
   return `<td><div class="value">${cellText(row[key])}</div></td>`;
 }
 
@@ -890,6 +1295,16 @@ function logicChips(logic) {
   return logic.map(item => `
     <span class="chip ${escapeHtml(item.kind)}" title="${escapeHtml(item.detail)}">${escapeHtml(item.label)}</span>
   `).join("");
+}
+
+function commentChips(comments) {
+  if (!comments || !comments.length) return "<span class='missing'>none</span>";
+  const open = comments.filter(comment => comment.status === "open").length;
+  const resolved = comments.length - open;
+  const chips = [];
+  if (open) chips.push(`<span class="chip comment">${fmt.format(open)} open</span>`);
+  if (resolved) chips.push(`<span class="chip">${fmt.format(resolved)} resolved</span>`);
+  return chips.join("");
 }
 
 function renderFlow() {
@@ -957,6 +1372,98 @@ function renderPackage() {
     <div class="package-row"><span>${escapeHtml(row.label)}</span><code>${remoteValueHtml(row)}</code></div>
   `).join("");
   document.getElementById("manifest-json").textContent = JSON.stringify(DATA.manifest, null, 2);
+}
+
+function renderComments() {
+  const threads = DATA.comments?.threads || [];
+  const open = threads.filter(thread => thread.status === "open").length;
+  document.getElementById("comment-count").textContent =
+    `${fmt.format(open)} open · ${fmt.format(threads.length)} total`;
+  document.getElementById("comments").innerHTML = threads.length
+    ? threads.map(commentThreadHtml).join("")
+    : "<div class='empty'>No comments.</div>";
+}
+
+function commentThreadHtml(thread) {
+  const target = thread.target || {};
+  const messages = thread.messages || [];
+  const first = messages[0] || {};
+  const replies = messages.slice(1);
+  return `
+    <div class="comment-thread ${escapeHtml(thread.status || "")}">
+      <div class="comment-head">
+        <strong>${escapeHtml(commentTargetLabel(target))}</strong>
+        <span class="chip ${thread.status === "open" ? "comment" : ""}">${escapeHtml(thread.status || "open")}</span>
+      </div>
+      <div class="comment-target">${escapeHtml(first.author?.name || "unknown")} · ${escapeHtml(first.created_at || thread.created_at || "")}</div>
+      <div class="comment-body">${escapeHtml(first.body || "")}</div>
+      ${replies.length ? `<div class="comment-replies">${replies.map(reply => `
+        <div class="comment-reply">
+          <div class="comment-target">${escapeHtml(reply.author?.name || "unknown")} · ${escapeHtml(reply.created_at || "")}</div>
+          <div class="comment-body">${escapeHtml(reply.body || "")}</div>
+        </div>
+      `).join("")}</div>` : ""}
+    </div>
+  `;
+}
+
+function commentTargetLabel(target) {
+  if (target.question_name) {
+    return target.path ? `${target.question_name} · ${target.path}` : target.question_name;
+  }
+  return target.kind || "survey";
+}
+
+function renderVersions() {
+  const versions = DATA.versions || [];
+  document.getElementById("version-count").textContent =
+    versions.length ? `${fmt.format(versions.length)} commits` : "No git history found";
+  document.getElementById("versions").innerHTML = versions.length
+    ? versions.map(version => `
+      <div class="version-row ${version.is_current ? "current" : ""}">
+        <div class="version-index">v${escapeHtml(version.index)}</div>
+        <div class="version-main">
+          <div class="version-message">${escapeHtml(version.message || "(no message)")}</div>
+          <div class="muted">${escapeHtml(version.timestamp || "")}</div>
+          <code class="version-command">${escapeHtml(version.open_command || "")}</code>
+        </div>
+        <code>${escapeHtml(version.short_commit || "")}</code>
+        ${version.is_current ? "<span class='chip branch'>current</span>" : ""}
+        ${versionDiffHtml(version)}
+      </div>
+    `).join("")
+    : "<div class='empty'>No git history found.</div>";
+}
+
+function versionDiffHtml(version) {
+  const diff = version.diff || {};
+  if (!diff.patch && !diff.stat) {
+    return `<div class="version-diff muted">${escapeHtml(diff.label || "No diff available")}</div>`;
+  }
+  return `
+    <div class="version-diff">
+      <details>
+        <summary>${escapeHtml(diff.label || "Changes")}</summary>
+        ${versionSummaryHtml(diff.summary || [])}
+        ${diff.stat ? `<pre class="version-stat">${escapeHtml(diff.stat)}</pre>` : ""}
+        ${diff.patch ? `<details><summary>Raw package patch</summary><pre>${escapeHtml(diff.patch)}</pre></details>` : ""}
+      </details>
+    </div>
+  `;
+}
+
+function versionSummaryHtml(summary) {
+  if (!summary.length) return "";
+  return `
+    <div class="version-summary-list">
+      ${summary.map(item => `
+        <div class="version-summary-item ${escapeHtml(item.kind || "")}">
+          <div class="version-summary-label">${escapeHtml(item.label || "")}</div>
+          <div class="version-summary-detail">${escapeHtml(item.detail || "")}</div>
+        </div>
+      `).join("")}
+    </div>
+  `;
 }
 
 function renderFlowDiagram() {
@@ -1061,10 +1568,13 @@ function renderDrawerContent() {
       text: state.selected.text,
       options: state.selected.options,
       details: state.selected.details,
-      logic: state.selected.logic
+      logic: state.selected.logic,
+      comments: state.selected.comments
     };
   } else if (state.drawerTab === "rules") {
     value = state.selected.rules;
+  } else if (state.drawerTab === "comments") {
+    value = state.selected.comments;
   } else {
     value = state.selected.raw;
   }
