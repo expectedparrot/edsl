@@ -944,6 +944,152 @@ class TestObjectTransformCli:
             for row in results.select("answer.opinion").to_dicts(remove_prefix=False)
         } == {"ok"}
 
+    def test_cli_cookbook_uses_direct_controls_and_model_config(self, tmp_path):
+        survey_path = tmp_path / "survey.ep"
+        agents_csv = tmp_path / "agents.csv"
+        agents_path = tmp_path / "agents.ep"
+        transformed_agents_path = tmp_path / "teachers.ep"
+        scenarios_path = tmp_path / "scenarios.ep"
+        transformed_scenarios_path = tmp_path / "urgent.ep"
+        models_path = tmp_path / "models.ep"
+        jobs_path = tmp_path / "jobs.ep"
+        results_path = tmp_path / "results.ep"
+
+        agents_csv.write_text("name,age,role\nAlice,31,teacher\nBob,42,doctor\nCara,22,teacher\n", encoding="utf-8")
+
+        commands = [
+            [
+                "surveys",
+                "create",
+                "--question-type",
+                "numerical",
+                "--question-name",
+                "score",
+                "--question-text",
+                "Rate {{ topic }} from 0 to 10.",
+                "--min-value",
+                "0",
+                "--max-value",
+                "10",
+                "--no-include-comment",
+                "--output",
+                str(survey_path),
+            ],
+            [
+                "agents",
+                "create",
+                "--from-csv",
+                str(agents_csv),
+                "--name-field",
+                "name",
+                "--output",
+                str(agents_path),
+            ],
+            [
+                "agents",
+                "transform",
+                str(agents_path),
+                "--filter",
+                "role == 'teacher'",
+                "--select",
+                "role",
+                "--output",
+                str(transformed_agents_path),
+            ],
+            [
+                "scenarios",
+                "create",
+                "--from-json",
+                '[{"topic":"AI","priority":"urgent"},{"topic":"Climate","priority":"later"}]',
+                "--output",
+                str(scenarios_path),
+            ],
+            [
+                "scenarios",
+                "transform",
+                str(scenarios_path),
+                "--filter",
+                "priority == 'urgent'",
+                "--select",
+                "topic",
+                "--output",
+                str(transformed_scenarios_path),
+            ],
+            [
+                "models",
+                "create",
+                "--model",
+                "test",
+                "--canned-response",
+                "7",
+                "--temperature",
+                "0.2",
+                "--max-tokens",
+                "50",
+                "--top-p",
+                "0.9",
+                "--parameter",
+                "presence_penalty=0.1",
+                "--output",
+                str(models_path),
+            ],
+            [
+                "jobs",
+                "build",
+                "--survey",
+                str(survey_path),
+                "--agents",
+                str(transformed_agents_path),
+                "--scenarios",
+                str(transformed_scenarios_path),
+                "--models",
+                str(models_path),
+                "--output",
+                str(jobs_path),
+            ],
+            [
+                "run",
+                "--jobs",
+                str(jobs_path),
+                "--local",
+                "--output",
+                str(results_path),
+            ],
+        ]
+
+        for command in commands:
+            result = CliRunner().invoke(cli_module.app, command)
+            assert result.exit_code == 0, result.output
+            assert json.loads(result.output)["status"] == "ok"
+
+        from edsl import AgentList, ScenarioList
+        from edsl.language_models import ModelList
+        from edsl.results import Results
+        from edsl.surveys import Survey
+
+        survey = Survey.git.load(survey_path)
+        assert survey.get("score").min_value == 0
+        assert survey.get("score").max_value == 10
+        assert survey.get("score").include_comment is False
+
+        agents = AgentList.git.load(transformed_agents_path)
+        assert len(agents) == 2
+        assert all(agent.traits == {"role": "teacher"} for agent in agents)
+
+        scenarios = ScenarioList.git.load(transformed_scenarios_path)
+        assert len(scenarios) == 1
+        assert dict(scenarios[0]) == {"topic": "AI"}
+
+        models = ModelList.git.load(models_path)
+        assert models[0].parameters["canned_response"] == "7"
+        assert models[0].parameters["temperature"] == 0.2
+        assert models[0].parameters["max_tokens"] == 50
+        assert models[0].parameters["top_p"] == 0.9
+        assert models[0].parameters["presence_penalty"] == 0.1
+
+        results = Results.git.load(results_path)
+        assert len(results) == 2
+
     def test_models_sort_filter_with_fake_coop(self, monkeypatch):
         import edsl.coop
 
@@ -1675,16 +1821,59 @@ class TestModels:
 
         assert result.exit_code == 0, result.output
         out = json.loads(result.output)
-        assert out["data"]["models"] == [
-            {
-                "model_name": "test",
-                "service_name": "test",
-                "canned_response": "ok",
-            }
-        ]
+        assert out["data"]["models"][0]["model_name"] == "test"
+        assert out["data"]["models"][0]["service_name"] == "test"
+        assert out["data"]["models"][0]["canned_response"] == "ok"
+        assert out["data"]["models"][0]["parameters"]["canned_response"] == "ok"
         loaded = ModelList.git.load(output_path)
         assert len(loaded) == 1
         assert loaded[0].parameters["canned_response"] == "ok"
+
+    def test_models_create_with_config_parameters(self, tmp_path):
+        from edsl.language_models import ModelList
+
+        output_path = tmp_path / "models.ep"
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            [
+                "models",
+                "create",
+                "--model",
+                "test",
+                "--canned-response",
+                "ok",
+                "--temperature",
+                "0.3",
+                "--max-tokens",
+                "25",
+                "--top-p",
+                "0.8",
+                "--parameter",
+                "presence_penalty=0.2",
+                "--parameter",
+                'metadata={"purpose":"test"}',
+                "--output",
+                str(output_path),
+            ],
+        )
+
+        assert result.exit_code == 0, result.output
+        out = json.loads(result.output)
+        params = out["data"]["models"][0]["parameters"]
+        assert params["canned_response"] == "ok"
+        assert params["temperature"] == 0.3
+        assert params["max_tokens"] == 25
+        assert params["top_p"] == 0.8
+        assert params["presence_penalty"] == 0.2
+        assert params["metadata"] == {"purpose": "test"}
+
+        loaded = ModelList.git.load(output_path)
+        assert loaded[0].parameters["temperature"] == 0.3
+        assert loaded[0].parameters["max_tokens"] == 25
+        assert loaded[0].parameters["top_p"] == 0.8
+        assert loaded[0].parameters["presence_penalty"] == 0.2
+        assert loaded[0].parameters["metadata"] == {"purpose": "test"}
 
 
 # ---------------------------------------------------------------------------

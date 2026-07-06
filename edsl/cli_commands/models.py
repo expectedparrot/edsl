@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import json
+
 import click
 
-from edsl.cli_shared import EXIT_ERROR, EXIT_REMOTE, error, output, raw_output_written, save_edsl_object
+from edsl.cli_shared import EXIT_ERROR, EXIT_REMOTE, EXIT_USAGE, error, output, raw_output_written, save_edsl_object
 
 
 def register(app: click.Group) -> None:
@@ -138,14 +140,20 @@ def register(app: click.Group) -> None:
     @click.option("--model", "models", multiple=True, required=True, help="Model name. Repeat for multiple models.")
     @click.option("--service", default=None, help="Service name to use for all models.")
     @click.option("--canned-response", default=None, help="Canned response for offline test models.")
+    @click.option("--temperature", default=None, type=float, help="Sampling temperature for all models.")
+    @click.option("--max-tokens", default=None, type=int, help="Maximum output tokens for all models.")
+    @click.option("--top-p", default=None, type=float, help="Nucleus sampling top-p for all models.")
+    @click.option("--parameter", "parameters", multiple=True, help="Extra model parameter as KEY=JSON. Repeat for multiple parameters.")
     @click.option("--output", "-o", "output_path", required=True, help="Output .ep package or serialized file.")
-    def models_create(models, service, canned_response, output_path):
+    def models_create(models, service, canned_response, temperature, max_tokens, top_p, parameters, output_path):
         """Create a ModelList file.
 
         \b
         Examples:
           ep models create --model gpt-4o --output models.ep
           ep models create --model gpt-4o --model gpt-4o-mini --output models.ep
+          ep models create --model gpt-4o --temperature 0.2 --max-tokens 500 --top-p 0.9 --output models.ep
+          ep models create --model gpt-4o --parameter presence_penalty=0.1 --output models.ep
           ep models create --service openai --model gpt-4o --output models.json
           ep models create --service anthropic --model claude-sonnet-4-5 --output models.ep
           ep models create --model test --canned-response ok --output test-models.ep
@@ -161,12 +169,17 @@ def register(app: click.Group) -> None:
             model_kwargs = {}
             if canned_response is not None:
                 model_kwargs["canned_response"] = canned_response
+            if temperature is not None:
+                model_kwargs["temperature"] = temperature
+            if max_tokens is not None:
+                model_kwargs["max_tokens"] = max_tokens
+            if top_p is not None:
+                model_kwargs["top_p"] = top_p
+            model_kwargs.update(_parse_model_parameters(parameters))
 
             model_list = ModelList(
                 [
-                    Model(model_name, service_name=service, **model_kwargs)
-                    if service
-                    else Model(model_name, **model_kwargs)
+                    _create_model(Model, model_name, service, model_kwargs)
                     for model_name in models
                 ]
             )
@@ -182,6 +195,7 @@ def register(app: click.Group) -> None:
                             "model_name": getattr(model, "model", str(model)),
                             "service_name": getattr(model, "_inference_service_", None),
                             "canned_response": getattr(model, "parameters", {}).get("canned_response"),
+                            "parameters": getattr(model, "parameters", {}),
                         }
                         for model in model_list
                     ],
@@ -197,6 +211,32 @@ def register(app: click.Group) -> None:
                 suggestion="Check model names, service name, and output path.",
                 exit_code=EXIT_ERROR,
             )
+
+
+def _parse_model_parameters(items: tuple[str, ...]) -> dict:
+    parameters = {}
+    for item in items:
+        if "=" not in item:
+            error("USAGE_ERROR", f"Invalid --parameter {item!r}; expected KEY=JSON.", exit_code=EXIT_USAGE)
+        key, raw_value = item.split("=", 1)
+        if not key:
+            error("USAGE_ERROR", f"Invalid --parameter {item!r}; key is empty.", exit_code=EXIT_USAGE)
+        try:
+            parameters[key] = json.loads(raw_value)
+        except json.JSONDecodeError:
+            parameters[key] = raw_value
+    return parameters
+
+
+def _create_model(model_cls, model_name: str, service: str | None, model_kwargs: dict):
+    model = (
+        model_cls(model_name, service_name=service, **model_kwargs)
+        if service
+        else model_cls(model_name, **model_kwargs)
+    )
+    if hasattr(model, "parameters"):
+        model.parameters.update(model_kwargs)
+    return model
 
 
 def _price_sort_value(value):
