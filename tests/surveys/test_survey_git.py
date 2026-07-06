@@ -144,7 +144,8 @@ def test_survey_git_package_html_questions_table_shows_logic(tmp_path):
     assert "if q0.answer is 'no': skip q1 -> q2" in html
     assert "before showing q1" in html
     assert '"source_q": 0' in html
-    assert "Q0" in html
+    assert '"index": 0' in html
+    assert '"name": "q0"' in html
     assert "pipes q0.answer" in html
     assert "question_options[0]" in html
 
