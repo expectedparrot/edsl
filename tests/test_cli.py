@@ -4263,6 +4263,12 @@ class TestRunValidation:
 # ---------------------------------------------------------------------------
 
 class TestSurveys:
+    def test_surveys_help_includes_review(self):
+        result = CliRunner().invoke(cli_module.app, ["surveys", "--help"])
+
+        assert result.exit_code == 0, result.output
+        assert "review" in result.output
+
     def test_surveys_create_and_add_question_from_fields(self, tmp_path):
         from edsl.surveys import Survey
 

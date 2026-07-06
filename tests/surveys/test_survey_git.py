@@ -207,6 +207,48 @@ def test_survey_git_comments_are_versioned_and_rendered(tmp_path):
     assert '"open_comments": 0' in html
 
 
+def test_survey_review_server_comment_flow(tmp_path):
+    pytest.importorskip("fastapi")
+    from fastapi.testclient import TestClient
+
+    from edsl.surveys.survey_review_server import create_review_app
+
+    package_path = tmp_path / "review.survey.ep"
+    Survey([QuestionFreeText(question_name="q0", question_text="First?")]).git.save(
+        package_path,
+        message="initial survey",
+    )
+
+    client = TestClient(create_review_app(package_path))
+    snapshot = client.get("/api/survey")
+
+    assert snapshot.status_code == 200
+    assert snapshot.json()["questions"][0]["name"] == "q0"
+
+    added = client.post(
+        "/api/comments",
+        json={
+            "question_name": "q0",
+            "path": "question_text",
+            "body": "Review this wording.",
+            "author": "Ada",
+        },
+    )
+
+    assert added.status_code == 200
+    thread = added.json()["result"]["thread"]
+    assert thread["target"]["question_id"] == "000001"
+    assert added.json()["snapshot"]["questions"][0]["comments"][0]["id"] == thread["id"]
+
+    resolved = client.post(f"/api/comments/{thread['id']}/resolve")
+
+    assert resolved.status_code == 200
+    assert resolved.json()["result"]["thread"]["status"] == "resolved"
+    history = Survey.git.load(package_path).git.history()
+    assert history[0]["message"] == f"Resolve comment {thread['id']}"
+    assert history[1]["message"] == "Add comment on q0 question_text"
+
+
 def test_survey_git_package_html_questions_table_shows_logic(tmp_path):
     package_path = tmp_path / "logic.survey.ep"
     survey = Survey(

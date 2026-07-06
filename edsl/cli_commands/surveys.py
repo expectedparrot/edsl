@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import webbrowser
 
 import click
 
@@ -18,6 +19,40 @@ from edsl.cli_shared import (
 
 
 def register(surveys_group: click.Group) -> None:
+    @surveys_group.command("review")
+    @click.argument("survey_path", type=click.Path(exists=True))
+    @click.option("--host", default="127.0.0.1", show_default=True, help="Host for the local review server.")
+    @click.option("--port", default=8008, show_default=True, type=int, help="Port for the local review server.")
+    @click.option("--browser/--no-browser", default=True, help="Open the review UI in a browser.")
+    def review_survey(survey_path: str, host: str, port: int, browser: bool):
+        """Launch a local web UI for reviewing and commenting on a Survey package."""
+        try:
+            import uvicorn
+
+            from edsl.surveys.survey_review_server import create_review_app
+
+            app = create_review_app(survey_path)
+            url = f"http://{host}:{port}"
+            output(
+                {
+                    "url": url,
+                    "survey_path": survey_path,
+                    "message": "Starting survey review server. Press Ctrl+C to stop.",
+                }
+            )
+            if browser:
+                webbrowser.open(url)
+            uvicorn.run(app, host=host, port=port, log_level="warning")
+        except SystemExit:
+            raise
+        except Exception as e:
+            error(
+                "SURVEYS_REVIEW_ERROR",
+                str(e),
+                suggestion="Install services extras with `pip install 'edsl[services]'` and check the survey path.",
+                exit_code=EXIT_ERROR,
+            )
+
     @surveys_group.command("create")
     @click.option("--question-type", required=True, help="Question type, e.g. free_text or multiple_choice.")
     @click.option("--question-name", required=True, help="Question name.")
