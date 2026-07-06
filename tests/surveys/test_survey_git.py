@@ -202,6 +202,13 @@ def test_survey_git_comments_are_versioned_and_rendered(tmp_path):
 
     html = Survey.git.open(package_path).html()
     assert "Comments" in html
+    assert 'id="drawer-content"' in html
+    assert 'pre id="drawer-content"' not in html
+    assert "drawer-comments" in html
+    assert 'data-open-tab="comments"' in html
+    assert "drawerOverviewHtml" in html
+    assert "drawer-section-title" in html
+    assert "commentThreadHtml" in html
     assert "This wording needs review." in html
     assert "Agreed, let&#039;s revise it." in html or "Agreed, let's revise it." in html
     assert '"open_comments": 0' in html

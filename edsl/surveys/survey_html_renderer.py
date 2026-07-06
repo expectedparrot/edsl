@@ -883,6 +883,38 @@ EXTRA_CSS = """
   border-left: 3px solid var(--line);
   padding-left: 10px;
 }
+.drawer-comments {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+}
+.drawer-comments .comment-thread { padding: 12px; }
+.drawer-overview {
+  display: grid;
+  gap: 12px;
+  padding: 12px;
+}
+.drawer-section {
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: #fff;
+  padding: 12px;
+}
+.drawer-section-title {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  margin-bottom: 6px;
+}
+.drawer-question-text { color: #17201b; line-height: 1.45; }
+.drawer-kv {
+  display: grid;
+  grid-template-columns: 110px minmax(0, 1fr);
+  gap: 8px 12px;
+}
+.drawer-kv span:nth-child(odd) { color: var(--muted); }
 .flow-diagram-wrap {
   overflow: auto;
   border-bottom: 1px solid var(--line);
@@ -1097,7 +1129,7 @@ BODY_HTML = f"""
     <button class="tab" data-drawer-tab="raw">Raw JSON</button>
   </div>
   <div class="drawer-body">
-    <pre id="drawer-content"></pre>
+    <div id="drawer-content"></div>
   </div>
 </aside>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
@@ -1281,7 +1313,7 @@ function questionCell(row, key) {
   if (key === "text") return `<td><div class="question-text">${cellText(row.text)}</div></td>`;
   if (key === "options") return `<td><div class="chips">${optionChips(row.options)}</div></td>`;
   if (key === "logic") return `<td><div class="chips">${logicChips(row.logic)}</div></td>`;
-  if (key === "comments") return `<td><div class="chips">${commentChips(row.comments)}</div></td>`;
+  if (key === "comments") return `<td data-open-tab="comments"><div class="chips">${commentChips(row.comments)}</div></td>`;
   return `<td><div class="value">${cellText(row[key])}</div></td>`;
 }
 
@@ -1503,7 +1535,10 @@ function bindEvents() {
       return;
     }
     const row = event.target.closest("tr[data-index]");
-    if (row) openDrawer(Number(row.dataset.index));
+    if (row) {
+      const tabCell = event.target.closest("[data-open-tab]");
+      openDrawer(Number(row.dataset.index), tabCell?.dataset.openTab || "overview");
+    }
   });
   document.querySelectorAll("[data-drawer-tab]").forEach(button => {
     button.addEventListener("click", () => setDrawerTab(button.dataset.drawerTab));
@@ -1535,12 +1570,12 @@ function setView(view) {
   });
 }
 
-function openDrawer(index) {
+function openDrawer(index, tab = "overview") {
   state.selected = DATA.questions.find(row => row.index === index);
-  state.drawerTab = "overview";
+  state.drawerTab = tab;
   document.getElementById("drawer-title").textContent = state.selected.name || `Question ${index + 1}`;
   document.getElementById("drawer-subtitle").textContent = state.selected.id ? `question file ${state.selected.id}.json` : "";
-  setDrawerTab("overview");
+  setDrawerTab(tab);
   document.getElementById("drawer").classList.add("open");
   document.getElementById("drawer-backdrop").classList.add("open");
 }
@@ -1560,25 +1595,61 @@ function setDrawerTab(tab) {
 
 function renderDrawerContent() {
   if (!state.selected) return;
+  const container = document.getElementById("drawer-content");
   let value;
   if (state.drawerTab === "overview") {
-    value = {
-      name: state.selected.name,
-      type: state.selected.type,
-      text: state.selected.text,
-      options: state.selected.options,
-      details: state.selected.details,
-      logic: state.selected.logic,
-      comments: state.selected.comments
-    };
+    container.innerHTML = drawerOverviewHtml(state.selected);
+    return;
   } else if (state.drawerTab === "rules") {
     value = state.selected.rules;
   } else if (state.drawerTab === "comments") {
-    value = state.selected.comments;
+    const comments = state.selected.comments || [];
+    container.innerHTML = comments.length
+      ? `<div class="drawer-comments">${comments.map(commentThreadHtml).join("")}</div>`
+      : "<div class='empty'>No comments on this question.</div>";
+    return;
   } else {
     value = state.selected.raw;
   }
-  document.getElementById("drawer-content").textContent = JSON.stringify(value, null, 2);
+  container.innerHTML = `<pre>${escapeHtml(JSON.stringify(value, null, 2))}</pre>`;
+}
+
+function drawerOverviewHtml(question) {
+  return `
+    <div class="drawer-overview">
+      <div class="drawer-section">
+        <div class="drawer-section-title">Question</div>
+        <div class="drawer-question-text">${escapeHtml(question.text || "")}</div>
+      </div>
+      <div class="drawer-section">
+        <div class="drawer-section-title">Properties</div>
+        <div class="drawer-kv">
+          <span>Name</span><strong>${escapeHtml(question.name || "")}</strong>
+          <span>Type</span><span>${escapeHtml(question.type || "")}</span>
+          <span>File</span><code>${escapeHtml(question.id ? `${question.id}.json` : "")}</code>
+          <span>Comments</span><span>${escapeHtml(commentCountLabel(question.comments || []))}</span>
+        </div>
+      </div>
+      <div class="drawer-section">
+        <div class="drawer-section-title">Options</div>
+        <div class="chips">${optionChips(question.options)}</div>
+      </div>
+      <div class="drawer-section">
+        <div class="drawer-section-title">Logic</div>
+        <div class="chips">${logicChips(question.logic)}</div>
+      </div>
+    </div>
+  `;
+}
+
+function commentCountLabel(comments) {
+  if (!comments.length) return "none";
+  const open = comments.filter(comment => comment.status === "open").length;
+  const resolved = comments.length - open;
+  const parts = [];
+  if (open) parts.push(`${open} open`);
+  if (resolved) parts.push(`${resolved} resolved`);
+  return parts.join(", ");
 }
 
 function copyJson() {
