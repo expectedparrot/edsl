@@ -10,13 +10,17 @@ import json
 import subprocess
 import sys
 import tempfile
-import tomllib
 from pathlib import Path
 
 import pytest
 from click.testing import CliRunner
 
 import edsl.__main__ as cli_module
+
+try:
+    import tomllib
+except ModuleNotFoundError:
+    import tomli as tomllib
 
 
 def run_cli(*args, stdin_data=None, expect_exit=0):
