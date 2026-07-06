@@ -3,10 +3,14 @@
 from __future__ import annotations
 
 import sys
+import webbrowser
 
 import click
 
 from edsl.cli_shared import EXIT_AUTH, EXIT_REMOTE, error, output
+
+
+CREDITS_URL = "https://www.expectedparrot.com/home/credits"
 
 
 def register(app: click.Group, auth: click.Group) -> None:
@@ -103,6 +107,29 @@ def register(app: click.Group, auth: click.Group) -> None:
     def balance():
         """Get the authenticated Expected Parrot credit balance."""
         output(_get_expected_parrot_balance())
+
+    @app.command("credits")
+    @click.option("--browser/--no-browser", default=True, help="Open the credits page in a browser.")
+    def credits(browser):
+        """Open the Expected Parrot credits page.
+
+        \b
+        Examples:
+          ep credits
+          ep credits --no-browser
+        """
+        opened = False
+        if browser:
+            try:
+                opened = bool(webbrowser.open(CREDITS_URL))
+            except Exception as e:
+                error(
+                    "BROWSER_ERROR",
+                    f"Failed to open browser: {e}",
+                    suggestion=f"Open this URL manually: {CREDITS_URL}",
+                    exit_code=EXIT_REMOTE,
+                )
+        output({"credits_url": CREDITS_URL, "opened": opened})
 
 
     def _get_expected_parrot_balance() -> dict:

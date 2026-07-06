@@ -67,6 +67,7 @@ def app(ctx):
                 "shared",
                 "delete",
                 "balance",
+                "credits",
                 "profile",
                 "profiles",
                 "settings",

@@ -33,10 +33,17 @@ def register(humanize: click.Group) -> None:
     @humanize.group("schema", invoke_without_command=True)
     @click.pass_context
     def humanize_schema(ctx):
-        """Validate humanize schemas."""
+        """Create, validate, and apply humanize schemas.
+
+        \b
+        Examples:
+          ep humanize schema create --survey survey.ep --optional feedback --output humanize.json
+          ep humanize schema validate --survey survey.ep --schema humanize.json
+          ep humanize schema set <uuid> --format rating=dropdown --comment rating="Why?"
+        """
         if ctx.invoked_subcommand is None:
             output({
-                "commands": ["validate", "patch"],
+                "commands": ["create", "validate", "patch", "set"],
                 "help": "Use 'ep humanize schema <command> --help' for details.",
             })
 
@@ -336,6 +343,92 @@ def register(humanize: click.Group) -> None:
             )
 
 
+    @humanize_schema.command("create")
+    @click.option("--survey", "survey_path", required=True, type=click.Path(exists=True), help="Survey .ep, JSON, or package directory.")
+    @click.option("--output", "-o", "output_path", default=None, help="Write schema JSON to this path. Omit to return it in the JSON envelope.")
+    @click.option("--optional", "optional_questions", multiple=True, help="Question to mark optional. Repeat or use 'all'.")
+    @click.option("--required", "required_questions", multiple=True, help="Question to mark required. Repeat or use 'all'.")
+    @click.option("--format", "format_specs", multiple=True, help="QUESTION=radio|dropdown|input. Repeat for multiple questions.")
+    @click.option("--slider", "slider_specs", multiple=True, help="QUESTION:MIN:MAX:STEP numerical slider config.")
+    @click.option("--comment", "comment_specs", multiple=True, help="QUESTION=LABEL comment field. Repeat for multiple questions.")
+    @click.option("--select-exact-answer", "exact_answer_specs", multiple=True, help="QUESTION=ANSWER multiple-choice attention check.")
+    @click.option("--interview-mode", "interview_mode_specs", multiple=True, help="QUESTION=text|voice|both.")
+    @click.option("--voice-language", "voice_language_specs", multiple=True, help="QUESTION=LANGUAGE for voice interviews.")
+    @click.option("--interviewer-name", "interviewer_name_specs", multiple=True, help="QUESTION=NAME for text interviews.")
+    @click.option("--end-interview-message", "end_message_specs", multiple=True, help="QUESTION=MESSAGE shown when a text interview ends.")
+    @click.option("--end-policy", "end_policy_specs", multiple=True, help="QUESTION=respondent|interviewer_gated.")
+    @click.option("--interview-complete-message", "complete_message_specs", multiple=True, help="QUESTION=MESSAGE for interviewer-gated completion.")
+    @click.option("--checklist-item", "checklist_item_specs", multiple=True, help="QUESTION:ID:LABEL:INSTRUCTIONS checklist item.")
+    @click.option("--checklist-hidden", "hidden_checklist_questions", multiple=True, help="Question whose checklist is hidden from participants.")
+    @click.option("--checklist-visible", "visible_checklist_questions", multiple=True, help="Question whose checklist is visible to participants.")
+    @click.option("--custom-css", "custom_css_path", default=None, type=click.Path(exists=True), help="CSS file to store in survey.custom_css.")
+    def humanize_schema_create(
+        survey_path,
+        output_path,
+        optional_questions,
+        required_questions,
+        format_specs,
+        slider_specs,
+        comment_specs,
+        exact_answer_specs,
+        interview_mode_specs,
+        voice_language_specs,
+        interviewer_name_specs,
+        end_message_specs,
+        end_policy_specs,
+        complete_message_specs,
+        checklist_item_specs,
+        hidden_checklist_questions,
+        visible_checklist_questions,
+        custom_css_path,
+    ):
+        """Create a humanize schema from CLI controls.
+
+        \b
+        Examples:
+          ep humanize schema create --survey survey.ep --output humanize.json
+          ep humanize schema create --survey survey.ep --optional feedback --format rating=dropdown --comment rating="Why?"
+          ep humanize schema create --survey survey.ep --slider age:18:99:1 --output humanize.json
+          ep humanize schema create --survey survey.ep --interview-mode interview=both --voice-language interview=spanish
+        """
+        try:
+            survey = _load_survey_object(survey_path)
+            schema = _build_humanize_schema_from_controls(
+                survey=survey,
+                base_schema=None,
+                optional_questions=optional_questions,
+                required_questions=required_questions,
+                format_specs=format_specs,
+                slider_specs=slider_specs,
+                comment_specs=comment_specs,
+                exact_answer_specs=exact_answer_specs,
+                interview_mode_specs=interview_mode_specs,
+                voice_language_specs=voice_language_specs,
+                interviewer_name_specs=interviewer_name_specs,
+                end_message_specs=end_message_specs,
+                end_policy_specs=end_policy_specs,
+                complete_message_specs=complete_message_specs,
+                checklist_item_specs=checklist_item_specs,
+                hidden_checklist_questions=hidden_checklist_questions,
+                visible_checklist_questions=visible_checklist_questions,
+                custom_css_path=custom_css_path,
+            )
+            _validate_humanize_schema(survey, schema)
+            data = {"schema": schema, "valid": True}
+            if output_path:
+                data["saved"] = _write_json_schema(schema, output_path)
+            output(data)
+        except SystemExit:
+            raise
+        except Exception as e:
+            error(
+                "VALIDATION_ERROR",
+                str(e),
+                suggestion="Check the survey path and humanize schema controls.",
+                exit_code=EXIT_VALIDATION,
+            )
+
+
     @humanize.command("responses")
     @click.argument("human_survey_uuid")
     @click.option("--output", "-o", "output_path", default=None, help="Save responses to .ep, .json, or .json.gz.")
@@ -430,6 +523,120 @@ def register(humanize: click.Group) -> None:
                 human_survey_uuid,
                 _read_json_or_gzip(schema_path),
             )))
+        except SystemExit:
+            raise
+        except Exception as e:
+            error("HUMANIZE_ERROR", str(e), exit_code=EXIT_REMOTE)
+
+
+    @humanize_schema.command("set")
+    @click.argument("human_survey_uuid")
+    @click.option("--schema", "schema_path", default=None, type=click.Path(exists=True), help="Base or complete humanize schema JSON.")
+    @click.option("--survey", "survey_path", default=None, type=click.Path(exists=True), help="Survey to validate direct controls against before patching.")
+    @click.option("--validate/--no-validate", "validate_schema", default=True, help="Validate locally when --survey is provided.")
+    @click.option("--optional", "optional_questions", multiple=True, help="Question to mark optional. Repeat or use 'all'.")
+    @click.option("--required", "required_questions", multiple=True, help="Question to mark required. Repeat or use 'all'.")
+    @click.option("--format", "format_specs", multiple=True, help="QUESTION=radio|dropdown|input. Repeat for multiple questions.")
+    @click.option("--slider", "slider_specs", multiple=True, help="QUESTION:MIN:MAX:STEP numerical slider config.")
+    @click.option("--comment", "comment_specs", multiple=True, help="QUESTION=LABEL comment field. Repeat for multiple questions.")
+    @click.option("--select-exact-answer", "exact_answer_specs", multiple=True, help="QUESTION=ANSWER multiple-choice attention check.")
+    @click.option("--interview-mode", "interview_mode_specs", multiple=True, help="QUESTION=text|voice|both.")
+    @click.option("--voice-language", "voice_language_specs", multiple=True, help="QUESTION=LANGUAGE for voice interviews.")
+    @click.option("--interviewer-name", "interviewer_name_specs", multiple=True, help="QUESTION=NAME for text interviews.")
+    @click.option("--end-interview-message", "end_message_specs", multiple=True, help="QUESTION=MESSAGE shown when a text interview ends.")
+    @click.option("--end-policy", "end_policy_specs", multiple=True, help="QUESTION=respondent|interviewer_gated.")
+    @click.option("--interview-complete-message", "complete_message_specs", multiple=True, help="QUESTION=MESSAGE for interviewer-gated completion.")
+    @click.option("--checklist-item", "checklist_item_specs", multiple=True, help="QUESTION:ID:LABEL:INSTRUCTIONS checklist item.")
+    @click.option("--checklist-hidden", "hidden_checklist_questions", multiple=True, help="Question whose checklist is hidden from participants.")
+    @click.option("--checklist-visible", "visible_checklist_questions", multiple=True, help="Question whose checklist is visible to participants.")
+    @click.option("--custom-css", "custom_css_path", default=None, type=click.Path(exists=True), help="CSS file to store in survey.custom_css.")
+    def humanize_schema_set(
+        human_survey_uuid,
+        schema_path,
+        survey_path,
+        validate_schema,
+        optional_questions,
+        required_questions,
+        format_specs,
+        slider_specs,
+        comment_specs,
+        exact_answer_specs,
+        interview_mode_specs,
+        voice_language_specs,
+        interviewer_name_specs,
+        end_message_specs,
+        end_policy_specs,
+        complete_message_specs,
+        checklist_item_specs,
+        hidden_checklist_questions,
+        visible_checklist_questions,
+        custom_css_path,
+    ):
+        """Patch a human survey schema from a file or direct CLI controls.
+
+        \b
+        Examples:
+          ep humanize schema set <uuid> --schema humanize.json
+          ep humanize schema set <uuid> --optional feedback --comment rating="Why?"
+          ep humanize schema set <uuid> --survey survey.ep --format rating=dropdown
+        """
+        if schema_path is None and not _has_humanize_schema_controls(
+            optional_questions,
+            required_questions,
+            format_specs,
+            slider_specs,
+            comment_specs,
+            exact_answer_specs,
+            interview_mode_specs,
+            voice_language_specs,
+            interviewer_name_specs,
+            end_message_specs,
+            end_policy_specs,
+            complete_message_specs,
+            checklist_item_specs,
+            hidden_checklist_questions,
+            visible_checklist_questions,
+            custom_css_path,
+        ):
+            error(
+                "USAGE_ERROR",
+                "Provide --schema or at least one direct schema control.",
+                exit_code=EXIT_USAGE,
+            )
+        try:
+            from edsl.coop import Coop
+
+            survey = _load_survey_object(survey_path) if survey_path else None
+            schema = _build_humanize_schema_from_controls(
+                survey=survey,
+                base_schema=_read_json_or_gzip(schema_path) if schema_path else None,
+                optional_questions=optional_questions,
+                required_questions=required_questions,
+                format_specs=format_specs,
+                slider_specs=slider_specs,
+                comment_specs=comment_specs,
+                exact_answer_specs=exact_answer_specs,
+                interview_mode_specs=interview_mode_specs,
+                voice_language_specs=voice_language_specs,
+                interviewer_name_specs=interviewer_name_specs,
+                end_message_specs=end_message_specs,
+                end_policy_specs=end_policy_specs,
+                complete_message_specs=complete_message_specs,
+                checklist_item_specs=checklist_item_specs,
+                hidden_checklist_questions=hidden_checklist_questions,
+                visible_checklist_questions=visible_checklist_questions,
+                custom_css_path=custom_css_path,
+            )
+            if survey is not None and validate_schema:
+                _validate_humanize_schema(survey, schema)
+            result = jsonable(Coop().patch_human_survey_humanize_schema(
+                human_survey_uuid,
+                schema,
+            ))
+            if isinstance(result, dict):
+                result.setdefault("schema", schema)
+                result.setdefault("valid", bool(survey is not None and validate_schema))
+            output(result)
         except SystemExit:
             raise
         except Exception as e:
@@ -1318,6 +1525,218 @@ def register(humanize: click.Group) -> None:
         if path.is_dir() or path.suffix == ".ep":
             return load_git_object(path)
         return load_openable_json(path)
+
+    def _build_humanize_schema_from_controls(
+        *,
+        survey,
+        base_schema,
+        optional_questions,
+        required_questions,
+        format_specs,
+        slider_specs,
+        comment_specs,
+        exact_answer_specs,
+        interview_mode_specs,
+        voice_language_specs,
+        interviewer_name_specs,
+        end_message_specs,
+        end_policy_specs,
+        complete_message_specs,
+        checklist_item_specs,
+        hidden_checklist_questions,
+        visible_checklist_questions,
+        custom_css_path,
+    ) -> dict:
+        schema = json.loads(json.dumps(base_schema or {}))
+        questions = schema.setdefault("questions", {})
+        if survey is not None and not questions and not _has_humanize_schema_controls(
+            optional_questions,
+            required_questions,
+            format_specs,
+            slider_specs,
+            comment_specs,
+            exact_answer_specs,
+            interview_mode_specs,
+            voice_language_specs,
+            interviewer_name_specs,
+            end_message_specs,
+            end_policy_specs,
+            complete_message_specs,
+            checklist_item_specs,
+            hidden_checklist_questions,
+            visible_checklist_questions,
+            custom_css_path,
+        ):
+            for question_name in getattr(survey, "question_names", []):
+                questions[question_name] = {}
+
+        for question_name in _expand_question_names(optional_questions, survey):
+            _question_entry(questions, question_name)["optional"] = True
+        for question_name in _expand_question_names(required_questions, survey):
+            _question_entry(questions, question_name)["optional"] = False
+
+        for question_name, format_type in _parse_key_value_specs(format_specs, "--format"):
+            if format_type not in {"radio", "dropdown", "input"}:
+                _humanize_usage_error("--format values must be radio, dropdown, or input.")
+            _question_entry(questions, question_name)["format"] = {"type": format_type}
+
+        for question_name, min_value, max_value, step in _parse_slider_specs(slider_specs):
+            _question_entry(questions, question_name)["format"] = {
+                "type": "slider",
+                "min": min_value,
+                "max": max_value,
+                "step": step,
+            }
+
+        for question_name, label in _parse_key_value_specs(comment_specs, "--comment"):
+            _question_entry(questions, question_name)["comment"] = {"label": label}
+
+        for question_name, answer in _parse_key_value_specs(exact_answer_specs, "--select-exact-answer"):
+            _question_entry(questions, question_name)["custom_validation"] = {
+                "select_exact_answer": answer
+            }
+
+        for question_name, mode in _parse_key_value_specs(interview_mode_specs, "--interview-mode"):
+            if mode not in {"text", "voice", "both"}:
+                _humanize_usage_error("--interview-mode values must be text, voice, or both.")
+            _question_entry(questions, question_name)["interview_mode"] = mode
+
+        for question_name, language in _parse_key_value_specs(voice_language_specs, "--voice-language"):
+            entry = _question_entry(questions, question_name)
+            entry.setdefault("voice_interview_config", {})["language"] = language
+
+        for question_name, interviewer_name in _parse_key_value_specs(interviewer_name_specs, "--interviewer-name"):
+            entry = _question_entry(questions, question_name)
+            entry.setdefault("text_interview_config", {})["interviewer_name"] = interviewer_name
+
+        for question_name, message in _parse_key_value_specs(end_message_specs, "--end-interview-message"):
+            entry = _question_entry(questions, question_name)
+            entry.setdefault("text_interview_config", {})["end_interview_message"] = message
+
+        for question_name, control in _parse_key_value_specs(end_policy_specs, "--end-policy"):
+            if control not in {"respondent", "interviewer_gated"}:
+                _humanize_usage_error("--end-policy values must be respondent or interviewer_gated.")
+            entry = _question_entry(questions, question_name)
+            entry.setdefault("text_interview_config", {})["end_policy"] = {"control": control}
+
+        for question_name, message in _parse_key_value_specs(complete_message_specs, "--interview-complete-message"):
+            entry = _question_entry(questions, question_name)
+            end_policy = entry.setdefault("text_interview_config", {}).setdefault(
+                "end_policy",
+                {"control": "interviewer_gated"},
+            )
+            end_policy["control"] = "interviewer_gated"
+            end_policy["interview_marked_complete_message"] = {
+                "message": message,
+                "method": "replace",
+            }
+
+        for question_name, item_id, label, instructions in _parse_checklist_item_specs(checklist_item_specs):
+            entry = _question_entry(questions, question_name)
+            checklist = entry.setdefault("text_interview_config", {}).setdefault(
+                "checklist",
+                {"initial": {"type": "manual", "items": []}},
+            )
+            checklist.setdefault("initial", {"type": "manual", "items": []})
+            checklist["initial"].setdefault("type", "manual")
+            checklist["initial"].setdefault("items", []).append(
+                {
+                    "id": item_id,
+                    "label": label,
+                    "instructions": instructions,
+                }
+            )
+
+        for question_name in _expand_question_names(hidden_checklist_questions, survey):
+            checklist = _question_entry(questions, question_name).setdefault(
+                "text_interview_config", {}
+            ).setdefault("checklist", {"initial": {"type": "manual", "items": []}})
+            checklist["participant_visibility"] = "hidden"
+        for question_name in _expand_question_names(visible_checklist_questions, survey):
+            checklist = _question_entry(questions, question_name).setdefault(
+                "text_interview_config", {}
+            ).setdefault("checklist", {"initial": {"type": "manual", "items": []}})
+            checklist["participant_visibility"] = "visible"
+
+        if custom_css_path:
+            schema.setdefault("survey", {})["custom_css"] = Path(custom_css_path).read_text(encoding="utf-8")
+
+        return schema
+
+
+    def _has_humanize_schema_controls(*values) -> bool:
+        return any(bool(value) for value in values)
+
+
+    def _question_entry(questions: dict, question_name: str) -> dict:
+        return questions.setdefault(question_name, {})
+
+
+    def _expand_question_names(question_names, survey) -> list[str]:
+        expanded = []
+        for question_name in question_names:
+            if question_name == "all":
+                if survey is None:
+                    _humanize_usage_error("'all' requires --survey.")
+                expanded.extend(list(getattr(survey, "question_names", [])))
+            else:
+                expanded.append(question_name)
+        return expanded
+
+
+    def _parse_key_value_specs(specs, flag_name: str) -> list[tuple[str, str]]:
+        parsed = []
+        for spec in specs:
+            if "=" not in spec:
+                _humanize_usage_error(f"{flag_name} must be formatted as QUESTION=VALUE.")
+            key, value = spec.split("=", 1)
+            key = key.strip()
+            value = value.strip()
+            if not key or not value:
+                _humanize_usage_error(f"{flag_name} must include both QUESTION and VALUE.")
+            parsed.append((key, value))
+        return parsed
+
+
+    def _parse_slider_specs(specs) -> list[tuple[str, float, float, float]]:
+        parsed = []
+        for spec in specs:
+            parts = spec.split(":", 3)
+            if len(parts) != 4:
+                _humanize_usage_error("--slider must be formatted as QUESTION:MIN:MAX:STEP.")
+            question_name, min_value, max_value, step = parts
+            try:
+                parsed.append((question_name, float(min_value), float(max_value), float(step)))
+            except ValueError:
+                _humanize_usage_error("--slider MIN, MAX, and STEP must be numbers.")
+        return parsed
+
+
+    def _parse_checklist_item_specs(specs) -> list[tuple[str, str, str, str]]:
+        parsed = []
+        for spec in specs:
+            parts = spec.split(":", 3)
+            if len(parts) != 4:
+                _humanize_usage_error(
+                    "--checklist-item must be formatted as QUESTION:ID:LABEL:INSTRUCTIONS."
+                )
+            if not all(part.strip() for part in parts):
+                _humanize_usage_error("--checklist-item values cannot be blank.")
+            parsed.append(tuple(part.strip() for part in parts))
+        return parsed
+
+
+    def _validate_humanize_schema(survey, schema: dict) -> None:
+        from edsl.coop.coop_humanize_schema import validate_humanize_schema
+
+        validate_humanize_schema(survey, schema)
+
+
+    def _write_json_schema(schema: dict, output_path: str) -> dict:
+        path = Path(output_path)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(schema, indent=2, default=str), encoding="utf-8")
+        return {"path": str(path), "format": "json", "object_type": "HumanizeSchema"}
 
 
     def _load_survey_object(path: str):

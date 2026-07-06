@@ -120,6 +120,7 @@ class TestCliModuleBoundaries:
             "balance",
             "check",
             "clone",
+            "credits",
             "humanize",
             "info",
             "inspect",
@@ -157,6 +158,10 @@ class TestCliModuleBoundaries:
             ["surveys", "--help"],
             ["costs", "--help"],
             ["humanize", "--help"],
+            ["humanize", "schema", "--help"],
+            ["humanize", "schema", "create", "--help"],
+            ["humanize", "schema", "set", "--help"],
+            ["credits", "--help"],
             ["run", "--help"],
             ["inspect", "--help"],
             ["schema", "show", "--help"],
@@ -611,6 +616,61 @@ class TestObjectTransformCli:
         assert inspected["data"]["agent_count"] == 2
         assert "age" in inspected["data"]["trait_keys"]
 
+    def test_agents_transform_core_operations(self, tmp_path):
+        from edsl import AgentList
+
+        csv_path = tmp_path / "agents.csv"
+        input_path = tmp_path / "agents.ep"
+        output_path = tmp_path / "transformed_agents.ep"
+        csv_path.write_text("name,age,role\nAlice,31,teacher\nBob,42,doctor\nCara,22,teacher\n", encoding="utf-8")
+
+        create = CliRunner().invoke(
+            cli_module.app,
+            [
+                "agents",
+                "create",
+                "--from-csv",
+                str(csv_path),
+                "--name-field",
+                "name",
+                "--output",
+                str(input_path),
+            ],
+        )
+        result = CliRunner().invoke(
+            cli_module.app,
+            [
+                "agents",
+                "transform",
+                str(input_path),
+                "--filter",
+                "role == 'teacher'",
+                "--rename",
+                "role=job",
+                "--add-trait",
+                'cohort="A"',
+                "--remove-trait",
+                "age",
+                "--sample",
+                "1",
+                "--seed",
+                "demo",
+                "--output",
+                str(output_path),
+            ],
+        )
+
+        assert create.exit_code == 0, create.output
+        assert result.exit_code == 0, result.output
+        out = json.loads(result.output)
+        assert out["data"]["agent_count"] == 1
+        assert out["data"]["trait_keys"] == ["cohort", "job"]
+
+        agents = AgentList.git.load(output_path)
+        assert len(agents) == 1
+        assert set(agents[0].traits) == {"job", "cohort"}
+        assert agents[0].traits["cohort"] == "A"
+
     def test_scenarios_create_from_csv_and_inspect(self, tmp_path):
         csv_path = tmp_path / "scenarios.csv"
         output_path = tmp_path / "scenario_list.ep"
@@ -638,6 +698,81 @@ class TestObjectTransformCli:
         inspected = json.loads(inspect.output)
         assert inspected["data"]["object_type"] == "ScenarioList"
         assert inspected["data"]["scenario_count"] == 2
+
+    def test_scenarios_create_from_json_list_and_transform(self, tmp_path):
+        from edsl import ScenarioList
+
+        json_path = tmp_path / "scenarios.json"
+        input_path = tmp_path / "scenarios.ep"
+        output_path = tmp_path / "urgent.ep"
+        json_path.write_text(
+            json.dumps(
+                [
+                    {"topic": "AI", "frame": "optimistic", "extra": 1},
+                    {"topic": "Climate", "frame": "urgent", "extra": 2},
+                    {"topic": "Housing", "frame": "urgent", "extra": 3},
+                ]
+            ),
+            encoding="utf-8",
+        )
+
+        create = CliRunner().invoke(
+            cli_module.app,
+            [
+                "scenarios",
+                "create",
+                "--from-json",
+                str(json_path),
+                "--output",
+                str(input_path),
+            ],
+        )
+        result = CliRunner().invoke(
+            cli_module.app,
+            [
+                "scenarios",
+                "transform",
+                str(input_path),
+                "--filter",
+                "frame == 'urgent'",
+                "--drop",
+                "extra",
+                "--rename",
+                "frame=tone",
+                "--sample",
+                "1",
+                "--seed",
+                "demo",
+                "--output",
+                str(output_path),
+            ],
+        )
+        list_result = CliRunner().invoke(
+            cli_module.app,
+            [
+                "scenarios",
+                "create",
+                "--from-list",
+                "AI",
+                "--from-list",
+                "Climate",
+                "--field",
+                "topic",
+                "--output",
+                str(tmp_path / "list_scenarios.ep"),
+            ],
+        )
+
+        assert create.exit_code == 0, create.output
+        assert result.exit_code == 0, result.output
+        assert list_result.exit_code == 0, list_result.output
+        out = json.loads(result.output)
+        assert out["data"]["scenario_count"] == 1
+        assert out["data"]["keys"] == ["tone", "topic"]
+
+        scenarios = ScenarioList.git.load(output_path)
+        assert len(scenarios) == 1
+        assert set(dict(scenarios[0])) == {"topic", "tone"}
 
     def test_inspect_can_save_copy(self, tmp_path):
         from edsl.surveys import Survey
@@ -1699,6 +1834,37 @@ class TestAuthBalance:
         assert out["error"]["code"] == "AUTH_REQUIRED"
 
 
+class TestCredits:
+    def test_credits_returns_url_without_browser(self):
+        result = CliRunner().invoke(cli_module.app, ["credits", "--no-browser"])
+
+        assert result.exit_code == 0, result.output
+        out = json.loads(result.output)
+        assert out["status"] == "ok"
+        assert out["data"] == {
+            "credits_url": "https://www.expectedparrot.com/home/credits",
+            "opened": False,
+        }
+
+    def test_credits_opens_browser(self, monkeypatch):
+        import edsl.cli_commands.auth as auth_command
+
+        opened_urls = []
+        monkeypatch.setattr(
+            auth_command.webbrowser,
+            "open",
+            lambda url: opened_urls.append(url) or True,
+        )
+
+        result = CliRunner().invoke(cli_module.app, ["credits"])
+
+        assert result.exit_code == 0, result.output
+        out = json.loads(result.output)
+        assert opened_urls == ["https://www.expectedparrot.com/home/credits"]
+        assert out["data"]["opened"] is True
+        assert out["data"]["credits_url"] == "https://www.expectedparrot.com/home/credits"
+
+
 # ---------------------------------------------------------------------------
 # ep remote object/account commands
 # ---------------------------------------------------------------------------
@@ -2236,7 +2402,7 @@ class TestHumanizeCli:
 
         assert result.exit_code == 0, result.output
         out = json.loads(result.output)
-        assert out["data"]["commands"] == ["validate", "patch"]
+        assert out["data"]["commands"] == ["create", "validate", "patch", "set"]
 
     def test_humanize_schema_validate(self, tmp_path):
         from edsl.surveys import Survey
@@ -2262,6 +2428,149 @@ class TestHumanizeCli:
         assert result.exit_code == 0, result.output
         out = json.loads(result.output)
         assert out["data"]["valid"] is True
+
+    def test_humanize_schema_create_from_direct_controls(self, tmp_path):
+        from edsl.questions import (
+            QuestionFreeText,
+            QuestionMultipleChoice,
+            QuestionNumerical,
+        )
+        from edsl.surveys import Survey
+
+        survey_path = tmp_path / "survey.json"
+        schema_path = tmp_path / "humanize.json"
+        css_path = tmp_path / "style.css"
+        survey = Survey(
+            [
+                QuestionMultipleChoice(
+                    question_name="rating",
+                    question_text="Rate it.",
+                    question_options=["Good", "OK", "Bad"],
+                ),
+                QuestionFreeText(
+                    question_name="feedback",
+                    question_text="Any feedback?",
+                ),
+                QuestionNumerical(
+                    question_name="age",
+                    question_text="Age?",
+                ),
+            ]
+        )
+        survey_path.write_text(json.dumps(survey.to_dict()), encoding="utf-8")
+        css_path.write_text(".edsl-root { color: red; }", encoding="utf-8")
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            [
+                "humanize",
+                "schema",
+                "create",
+                "--survey",
+                str(survey_path),
+                "--optional",
+                "feedback",
+                "--required",
+                "rating",
+                "--format",
+                "rating=dropdown",
+                "--slider",
+                "age:18:99:1",
+                "--comment",
+                "rating=Why did you choose this rating?",
+                "--select-exact-answer",
+                "rating=Good",
+                "--custom-css",
+                str(css_path),
+                "--output",
+                str(schema_path),
+            ],
+        )
+
+        assert result.exit_code == 0, result.output
+        out = json.loads(result.output)
+        schema = out["data"]["schema"]
+        assert out["data"]["valid"] is True
+        assert out["data"]["saved"]["path"] == str(schema_path)
+        assert schema["questions"]["feedback"]["optional"] is True
+        assert schema["questions"]["rating"]["optional"] is False
+        assert schema["questions"]["rating"]["format"] == {"type": "dropdown"}
+        assert schema["questions"]["rating"]["comment"]["label"] == "Why did you choose this rating?"
+        assert schema["questions"]["rating"]["custom_validation"]["select_exact_answer"] == "Good"
+        assert schema["questions"]["age"]["format"] == {
+            "type": "slider",
+            "min": 18.0,
+            "max": 99.0,
+            "step": 1.0,
+        }
+        assert schema["survey"]["custom_css"] == ".edsl-root { color: red; }"
+        assert json.loads(schema_path.read_text(encoding="utf-8")) == schema
+
+    def test_humanize_schema_create_interview_controls(self, tmp_path):
+        from edsl.questions import QuestionInterview
+        from edsl.surveys import Survey
+
+        survey_path = tmp_path / "survey.json"
+        survey = Survey(
+            [
+                QuestionInterview(
+                    question_name="interview",
+                    question_text="Interview the participant.",
+                    interview_guide="Ask follow-up questions.",
+                )
+            ]
+        )
+        survey_path.write_text(json.dumps(survey.to_dict()), encoding="utf-8")
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            [
+                "humanize",
+                "schema",
+                "create",
+                "--survey",
+                str(survey_path),
+                "--interview-mode",
+                "interview=both",
+                "--voice-language",
+                "interview=spanish",
+                "--interviewer-name",
+                "interview=Research Assistant",
+                "--end-interview-message",
+                "interview=Thank you.",
+                "--end-policy",
+                "interview=interviewer_gated",
+                "--interview-complete-message",
+                "interview=We have covered everything.",
+                "--checklist-item",
+                "interview:intro:Introduce study:Explain the study purpose",
+                "--checklist-hidden",
+                "interview",
+            ],
+        )
+
+        assert result.exit_code == 0, result.output
+        schema = json.loads(result.output)["data"]["schema"]
+        entry = schema["questions"]["interview"]
+        assert entry["interview_mode"] == "both"
+        assert entry["voice_interview_config"]["language"] == "spanish"
+        assert entry["text_interview_config"]["interviewer_name"] == "Research Assistant"
+        assert entry["text_interview_config"]["end_interview_message"] == "Thank you."
+        assert entry["text_interview_config"]["end_policy"] == {
+            "control": "interviewer_gated",
+            "interview_marked_complete_message": {
+                "message": "We have covered everything.",
+                "method": "replace",
+            },
+        }
+        assert entry["text_interview_config"]["checklist"]["participant_visibility"] == "hidden"
+        assert entry["text_interview_config"]["checklist"]["initial"]["items"] == [
+            {
+                "id": "intro",
+                "label": "Introduce study",
+                "instructions": "Explain the study purpose",
+            }
+        ]
 
     def test_humanize_list(self, monkeypatch):
         import edsl.coop
@@ -2613,6 +2922,46 @@ class TestHumanizeCli:
         assert json.loads(schema_result.output)["data"]["humanize_schema"]["questions"]["q0"]["optional"] is True
         assert json.loads(css_result.output)["data"]["message"] == "updated"
         assert json.loads(respondents_result.output)["data"]["respondents"][0]["respondent_uuid"] == "resp-uuid"
+
+    def test_humanize_schema_set_from_direct_controls(self, monkeypatch):
+        import edsl.coop
+
+        class FakeCoop:
+            def patch_human_survey_humanize_schema(self, human_survey_uuid, partial_schema):
+                assert human_survey_uuid == "human-survey-uuid"
+                assert partial_schema == {
+                    "questions": {
+                        "feedback": {"optional": True},
+                        "rating": {
+                            "format": {"type": "dropdown"},
+                            "comment": {"label": "Why?"},
+                        },
+                    }
+                }
+                return {"humanize_schema": partial_schema}
+
+        monkeypatch.setattr(edsl.coop, "Coop", FakeCoop)
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            [
+                "humanize",
+                "schema",
+                "set",
+                "human-survey-uuid",
+                "--optional",
+                "feedback",
+                "--format",
+                "rating=dropdown",
+                "--comment",
+                "rating=Why?",
+            ],
+        )
+
+        assert result.exit_code == 0, result.output
+        out = json.loads(result.output)
+        assert out["data"]["humanize_schema"]["questions"]["feedback"]["optional"] is True
+        assert out["data"]["schema"]["questions"]["rating"]["format"]["type"] == "dropdown"
 
     def test_humanize_agent_list_commands(self, tmp_path, monkeypatch):
         import edsl.coop
@@ -3723,6 +4072,511 @@ class TestSurveys:
         loaded = Survey.git.load(output_path)
         assert loaded.question_names == ["q0", "q1"]
 
+    def test_surveys_create_rich_question_with_params(self, tmp_path):
+        from edsl.surveys import Survey
+
+        output_path = tmp_path / "survey.ep"
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            [
+                "surveys",
+                "create",
+                "--question-type",
+                "numerical",
+                "--question-name",
+                "age",
+                "--question-text",
+                "Age?",
+                "--min-value",
+                "18",
+                "--max-value",
+                "99",
+                "--no-include-comment",
+                "--output",
+                str(output_path),
+            ],
+        )
+
+        assert result.exit_code == 0, result.output
+        loaded = Survey.git.load(output_path)
+        question = loaded.get("age")
+        assert question.min_value == 18
+        assert question.max_value == 99
+        assert question.include_comment is False
+
+    def test_surveys_create_matrix_and_extract_with_direct_flags(self, tmp_path):
+        from edsl.surveys import Survey
+
+        matrix_path = tmp_path / "matrix.ep"
+        extract_path = tmp_path / "extract.ep"
+
+        matrix_result = CliRunner().invoke(
+            cli_module.app,
+            [
+                "surveys",
+                "create",
+                "--question-type",
+                "matrix",
+                "--question-name",
+                "prefs",
+                "--question-text",
+                "Rate these.",
+                "--question-item",
+                "price",
+                "--question-item",
+                "quality",
+                "--option-json",
+                "1",
+                "--option-json",
+                "5",
+                "--option-label",
+                "1=Low",
+                "--option-label",
+                "5=High",
+                "--output",
+                str(matrix_path),
+            ],
+        )
+        extract_result = CliRunner().invoke(
+            cli_module.app,
+            [
+                "surveys",
+                "create",
+                "--question-type",
+                "extract",
+                "--question-name",
+                "details",
+                "--question-text",
+                "Extract details.",
+                "--answer-template",
+                '{"name":"example","age":0}',
+                "--output",
+                str(extract_path),
+            ],
+        )
+
+        assert matrix_result.exit_code == 0, matrix_result.output
+        assert extract_result.exit_code == 0, extract_result.output
+
+        matrix = Survey.git.load(matrix_path).get("prefs")
+        assert matrix.question_items == ["price", "quality"]
+        assert matrix.question_options == [1, 5]
+        assert matrix.option_labels == {"1": "Low", "5": "High"}
+
+        extract = Survey.git.load(extract_path).get("details")
+        assert extract.answer_template == {"name": "example", "age": 0}
+
+    @pytest.mark.parametrize(
+        "case",
+        [
+            {
+                "name": "multiple_choice_common_flags",
+                "args": [
+                    "--question-type",
+                    "multiple_choice",
+                    "--question-name",
+                    "choice",
+                    "--question-text",
+                    "Pick one.",
+                    "--option",
+                    "A",
+                    "--option",
+                    "B",
+                    "--use-code",
+                    "--permissive",
+                    "--no-include-comment",
+                    "--answering-instructions",
+                    "Use the closest option.",
+                    "--question-presentation",
+                    "Question: {{ question_text }}",
+                ],
+                "checks": {
+                    "question_type": "multiple_choice",
+                    "question_options": ["A", "B"],
+                    "use_code": True,
+                    "include_comment": False,
+                    "answering_instructions": "Use the closest option.",
+                    "question_presentation": "Question: {{ question_text }}",
+                },
+            },
+            {
+                "name": "checkbox_selection_bounds",
+                "args": [
+                    "--question-type",
+                    "checkbox",
+                    "--question-name",
+                    "symptoms",
+                    "--question-text",
+                    "Select symptoms.",
+                    "--option",
+                    "Fever",
+                    "--option",
+                    "Cough",
+                    "--option",
+                    "Fatigue",
+                    "--min-selections",
+                    "1",
+                    "--max-selections",
+                    "2",
+                    "--use-code",
+                ],
+                "checks": {
+                    "question_type": "checkbox",
+                    "question_options": ["Fever", "Cough", "Fatigue"],
+                    "min_selections": 1,
+                    "max_selections": 2,
+                    "use_code": True,
+                },
+            },
+            {
+                "name": "top_k_selection_bounds",
+                "args": [
+                    "--question-type",
+                    "top_k",
+                    "--question-name",
+                    "top",
+                    "--question-text",
+                    "Pick top two.",
+                    "--option",
+                    "A",
+                    "--option",
+                    "B",
+                    "--option",
+                    "C",
+                    "--min-selections",
+                    "2",
+                    "--max-selections",
+                    "2",
+                ],
+                "checks": {
+                    "question_type": "top_k",
+                    "min_selections": 2,
+                    "max_selections": 2,
+                },
+            },
+            {
+                "name": "rank_num_selections",
+                "args": [
+                    "--question-type",
+                    "rank",
+                    "--question-name",
+                    "ranked",
+                    "--question-text",
+                    "Rank these.",
+                    "--option",
+                    "A",
+                    "--option",
+                    "B",
+                    "--option",
+                    "C",
+                    "--num-selections",
+                    "2",
+                    "--no-use-code",
+                ],
+                "checks": {
+                    "question_type": "rank",
+                    "num_selections": 2,
+                },
+            },
+            {
+                "name": "linear_scale_typed_options_and_labels",
+                "args": [
+                    "--question-type",
+                    "linear_scale",
+                    "--question-name",
+                    "scale",
+                    "--question-text",
+                    "Rate this.",
+                    "--option-json",
+                    "1",
+                    "--option-json",
+                    "2",
+                    "--option-json",
+                    "3",
+                    "--option-label",
+                    "1=Low",
+                    "--option-label",
+                    "3=High",
+                ],
+                "checks": {
+                    "question_type": "linear_scale",
+                    "question_options": [1, 2, 3],
+                    "option_labels": {1: "Low", 3: "High"},
+                },
+            },
+            {
+                "name": "budget_sum",
+                "args": [
+                    "--question-type",
+                    "budget",
+                    "--question-name",
+                    "budget",
+                    "--question-text",
+                    "Allocate funds.",
+                    "--option",
+                    "Ads",
+                    "--option",
+                    "Research",
+                    "--budget-sum",
+                    "100",
+                    "--strict",
+                ],
+                "checks": {
+                    "question_type": "budget",
+                    "question_options": ["Ads", "Research"],
+                    "budget_sum": 100,
+                    "permissive": False,
+                },
+            },
+            {
+                "name": "list_bounds",
+                "args": [
+                    "--question-type",
+                    "list",
+                    "--question-name",
+                    "ideas",
+                    "--question-text",
+                    "List ideas.",
+                    "--min-list-items",
+                    "2",
+                    "--max-list-items",
+                    "4",
+                    "--permissive",
+                ],
+                "checks": {
+                    "question_type": "list",
+                    "min_list_items": 2,
+                    "max_list_items": 4,
+                },
+            },
+            {
+                "name": "dict_schema",
+                "args": [
+                    "--question-type",
+                    "dict",
+                    "--question-name",
+                    "profile",
+                    "--question-text",
+                    "Extract profile.",
+                    "--answer-key",
+                    "name",
+                    "--answer-key",
+                    "age",
+                    "--value-type",
+                    "str",
+                    "--value-type",
+                    "int",
+                    "--value-description",
+                    "Full name",
+                    "--value-description",
+                    "Age in years",
+                ],
+                "checks": {
+                    "question_type": "dict",
+                    "answer_keys": ["name", "age"],
+                    "value_types": ["str", "int"],
+                    "value_descriptions": ["Full name", "Age in years"],
+                },
+            },
+            {
+                "name": "dropdown_search_controls",
+                "args": [
+                    "--question-type",
+                    "dropdown",
+                    "--question-name",
+                    "city",
+                    "--question-text",
+                    "Pick a city.",
+                    "--option",
+                    "Boston",
+                    "--option",
+                    "Chicago",
+                    "--option",
+                    "Denver",
+                    "--max-options-shown",
+                    "2",
+                    "--top-k",
+                    "2",
+                ],
+                "checks": {
+                    "question_type": "dropdown",
+                    "question_options": ["Boston", "Chicago", "Denver"],
+                    "max_options_shown": 2,
+                    "top_k": 2,
+                },
+            },
+            {
+                "name": "yes_no_defaults_and_comment_toggle",
+                "args": [
+                    "--question-type",
+                    "yes_no",
+                    "--question-name",
+                    "confirm",
+                    "--question-text",
+                    "Continue?",
+                    "--no-include-comment",
+                ],
+                "checks": {
+                    "question_type": "yes_no",
+                    "question_options": ["No", "Yes"],
+                    "include_comment": False,
+                },
+            },
+            {
+                "name": "likert_five_defaults",
+                "args": [
+                    "--question-type",
+                    "likert_five",
+                    "--question-name",
+                    "satisfaction",
+                    "--question-text",
+                    "I am satisfied.",
+                ],
+                "checks": {
+                    "question_type": "likert_five",
+                    "question_options": [
+                        "Strongly disagree",
+                        "Disagree",
+                        "Neutral",
+                        "Agree",
+                        "Strongly agree",
+                    ],
+                },
+            },
+            {
+                "name": "file_upload",
+                "args": [
+                    "--question-type",
+                    "file_upload",
+                    "--question-name",
+                    "file",
+                    "--question-text",
+                    "Upload a file.",
+                ],
+                "checks": {"question_type": "file_upload"},
+            },
+            {
+                "name": "markdown",
+                "args": [
+                    "--question-type",
+                    "markdown",
+                    "--question-name",
+                    "md",
+                    "--question-text",
+                    "Respond in markdown.",
+                ],
+                "checks": {"question_type": "markdown"},
+            },
+            {
+                "name": "thinking_with_param_escape_hatch",
+                "args": [
+                    "--question-type",
+                    "thinking",
+                    "--question-name",
+                    "think",
+                    "--question-text",
+                    "Think this through.",
+                    "--param",
+                    "system_prompt=\"Be concise.\"",
+                ],
+                "checks": {
+                    "question_type": "thinking",
+                },
+            },
+        ],
+        ids=lambda case: case["name"],
+    )
+    def test_surveys_create_question_direct_flag_matrix(self, tmp_path, case):
+        from edsl.surveys import Survey
+
+        output_path = tmp_path / f"{case['name']}.ep"
+        result = CliRunner().invoke(
+            cli_module.app,
+            [
+                "surveys",
+                "create",
+                *case["args"],
+                "--output",
+                str(output_path),
+            ],
+        )
+
+        assert result.exit_code == 0, result.output
+        question = Survey.git.load(output_path).questions[0]
+        for attr, expected in case["checks"].items():
+            assert getattr(question, attr) == expected
+
+    def test_surveys_create_question_json_and_add_question_direct_flags(self, tmp_path):
+        from edsl.surveys import Survey
+
+        output_path = tmp_path / "survey.ep"
+        question_json = tmp_path / "question.json"
+        question_json.write_text(
+            json.dumps(
+                {
+                    "question_type": "numerical",
+                    "question_name": "score",
+                    "question_text": "Score?",
+                    "min_value": 0,
+                    "max_value": 10,
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        create_result = CliRunner().invoke(
+            cli_module.app,
+            [
+                "surveys",
+                "create",
+                "--question-type",
+                "free_text",
+                "--question-name",
+                "placeholder",
+                "--question-text",
+                "Placeholder",
+                "--question-json",
+                str(question_json),
+                "--output",
+                str(output_path),
+            ],
+        )
+        add_result = CliRunner().invoke(
+            cli_module.app,
+            [
+                "surveys",
+                "add-question",
+                str(output_path),
+                "--question-type",
+                "matrix",
+                "--question-name",
+                "ratings",
+                "--question-text",
+                "Rate these.",
+                "--question-item",
+                "price",
+                "--question-item",
+                "quality",
+                "--option-json",
+                "1",
+                "--option-json",
+                "5",
+                "--option-label",
+                "1=Low",
+                "--option-label",
+                "5=High",
+            ],
+        )
+
+        assert create_result.exit_code == 0, create_result.output
+        assert add_result.exit_code == 0, add_result.output
+        survey = Survey.git.load(output_path)
+        assert survey.question_names == ["score", "ratings"]
+        assert survey.get("score").min_value == 0
+        assert survey.get("score").max_value == 10
+        assert survey.get("ratings").question_items == ["price", "quality"]
+
     def test_surveys_show_questions_and_rules(self, tmp_path):
         from edsl.surveys import Survey
 
@@ -3861,6 +4715,80 @@ class TestSurveys:
         assert len(rules) == 1
         assert rules[0].before_rule is True
 
+    def test_surveys_flow_controls_instruction_memory_and_group(self, tmp_path):
+        from edsl.surveys import Survey
+
+        output_path = tmp_path / "survey.ep"
+        instructions_path = tmp_path / "instructions.txt"
+        instructions_path.write_text("Answer consistently.", encoding="utf-8")
+        commands = [
+            [
+                "surveys",
+                "create",
+                "--question-type",
+                "free_text",
+                "--question-name",
+                "q0",
+                "--question-text",
+                "First",
+                "--output",
+                str(output_path),
+            ],
+            [
+                "surveys",
+                "add-question",
+                str(output_path),
+                "--question-type",
+                "free_text",
+                "--question-name",
+                "q1",
+                "--question-text",
+                "Second",
+            ],
+            [
+                "surveys",
+                "add-instruction",
+                str(output_path),
+                "--name",
+                "intro",
+                "--text",
+                str(instructions_path),
+            ],
+            [
+                "surveys",
+                "add-question-group",
+                str(output_path),
+                "--name",
+                "intro_group",
+                "--start",
+                "q0",
+                "--end",
+                "q1",
+            ],
+            [
+                "surveys",
+                "set-memory",
+                str(output_path),
+                "--target",
+                "q1=q0",
+            ],
+        ]
+
+        for command in commands:
+            result = CliRunner().invoke(cli_module.app, command)
+            assert result.exit_code == 0, result.output
+
+        show_result = CliRunner().invoke(cli_module.app, ["surveys", "show", str(output_path)])
+        assert show_result.exit_code == 0, show_result.output
+        show = json.loads(show_result.output)["data"]
+        assert show["instructions"] == [{"name": "intro", "text": "Answer consistently."}]
+        assert show["question_groups"] == {"intro_group": [0, 1]}
+        assert show["memory_plan"] == {"q1": ["q0"]}
+
+        loaded = Survey.git.load(output_path)
+        assert loaded.question_groups == {"intro_group": (0, 1)}
+        assert list(loaded.memory_plan["q1"]) == ["q0"]
+
     def test_surveys_replace_drop_and_move_question(self, tmp_path):
         from edsl.surveys import Survey
 
@@ -3942,7 +4870,7 @@ class TestSurveys:
         result = CliRunner().invoke(cli_module.app, ["surveys", "add-question", "--help"])
 
         assert result.exit_code == 0, result.output
-        assert "Example:" in result.output
+        assert "Examples:" in result.output
         assert "ep surveys add-question" in result.output
 
     def test_surveys_pipe_raw_json_with_dash(self):
