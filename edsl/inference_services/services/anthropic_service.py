@@ -72,6 +72,29 @@ class AnthropicService(InferenceServiceABC):
         return version == cls._temperature_deprecation_version and family != "opus"
 
     @classmethod
+    def _temperature_unsupported(cls, model_name: str) -> bool:
+        """Return whether this Anthropic model rejects the ``temperature`` parameter.
+
+        Claude Fable 5 / Mythos 5 and the Claude 4.7+/5 generation removed sampling
+        parameters: sending ``temperature`` at all (any value, including 1.0) returns
+        ``400 invalid_request_error``. It must be omitted from the request, not set.
+        """
+        name = model_name.lower()
+        if re.search(r"claude-(fable|mythos)", name):
+            return True
+        version_match = re.search(
+            r"claude-(?:opus|sonnet|haiku)-(\d+)-(\d+)", name
+        )
+        if version_match:
+            version = (int(version_match.group(1)), int(version_match.group(2)))
+            return version >= (4, 7)
+        # Single-number generation ids (e.g. claude-sonnet-5) also reject it.
+        single_version = re.search(r"claude-(?:opus|sonnet|haiku)-(\d+)(?!-?\d)", name)
+        if single_version:
+            return int(single_version.group(1)) >= 5
+        return False
+
+    @classmethod
     def _api_temperature(cls, model_name: str, temperature: float) -> float:
         if cls._requires_temperature_one(model_name):
             return 1.0
@@ -193,10 +216,14 @@ class AnthropicService(InferenceServiceABC):
                 create_kwargs = dict(
                     model=model_name,
                     max_tokens=self.max_tokens,
-                    temperature=cls._api_temperature(model_name, self.temperature),
                     system=system_prompt,  # note that the Anthropic API uses "system" parameter rather than put it in the message
                     messages=messages,
                 )
+                # Fable 5 / Opus 4.7+ / Sonnet 5 reject `temperature` entirely; omit it.
+                if not cls._temperature_unsupported(model_name):
+                    create_kwargs["temperature"] = cls._api_temperature(
+                        model_name, self.temperature
+                    )
                 if self.thinking is not None:
                     create_kwargs["thinking"] = self.thinking
                 if self.output_config is not None:
