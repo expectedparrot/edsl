@@ -156,11 +156,6 @@ class Agent(Base):
     # Optional name identifier for the agent
     name = NameDescriptor()
 
-    # CAS store support
-    _store_class_name = "Agent"
-    from edsl.base.store_accessor import StoreDescriptor
-    store = StoreDescriptor()
-
     # Default values for function-related attributes
     answer_question_directly_function_name = ""
 

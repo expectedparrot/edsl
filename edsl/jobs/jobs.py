@@ -7,7 +7,10 @@ that users run large-scale experiments or simulations in EDSL.
 """
 
 from __future__ import annotations
+import html as html_module
+import json
 from importlib import import_module
+from pathlib import Path
 from typing import (
     Optional,
     Union,
@@ -28,6 +31,7 @@ from ..logger import get_logger
 # from ..surveys import Survey
 
 from .exceptions import JobsValueError, JobsImplementationError
+from .jobs_git import JobsGitDescriptor
 from .jobs_pricing_estimation import JobsPrompts
 from .remote_inference import JobsRemoteInferenceHandler
 from .jobs_checks import JobsChecks
@@ -108,6 +112,7 @@ class Jobs(Base):
 
     __documentation__ = "https://docs.expectedparrot.com/en/latest/jobs.html"
     _logger = get_logger(__name__)
+    git = JobsGitDescriptor()
 
     def __init__(
         self,
@@ -916,6 +921,120 @@ class Jobs(Base):
             )
         return links
 
+    def to_html(self, filename: Optional[Union[str, Path]] = None) -> str:
+        """Create a standalone HTML artifact for this Jobs object."""
+        html = self._jobs_html_document()
+        if filename is not None:
+            Path(filename).write_text(html, encoding="utf-8")
+        return html
+
+    def save_html(self, filename: Union[str, Path]) -> Path:
+        """Write a standalone HTML artifact and return its path."""
+        path = Path(filename)
+        self.to_html(filename=path)
+        return path
+
+    def _jobs_html_document(self) -> str:
+        from .jobs_html_renderer import JobsHTMLRenderer
+
+        return JobsHTMLRenderer(self).render()
+
+    def _jobs_survey_html(self) -> str:
+        rows = []
+        for index, question in enumerate(self.survey.questions, start=1):
+            question_type = getattr(question, "question_type", type(question).__name__)
+            question_name = getattr(question, "question_name", f"q{index}")
+            question_text = getattr(question, "question_text", "")
+            rows.append(
+                "<tr>"
+                f"<td>{index}</td>"
+                f"<td><code>{html_module.escape(str(question_name))}</code></td>"
+                f"<td><span class=\"pill\">{html_module.escape(str(question_type))}</span></td>"
+                f"<td>{html_module.escape(str(question_text))}</td>"
+                f"<td>{self._jobs_pre_html(self._jobs_question_details(question))}</td>"
+                "</tr>"
+            )
+        if not rows:
+            return '<p class="empty">No questions.</p>'
+        return (
+            "<table><thead><tr>"
+            "<th>#</th><th>Name</th><th>Type</th><th>Text</th><th>Details</th>"
+            "</tr></thead><tbody>"
+            + "".join(rows)
+            + "</tbody></table>"
+        )
+
+    @staticmethod
+    def _jobs_question_details(question: Any) -> dict:
+        data = question.to_dict(add_edsl_version=False)
+        for key in ["question_name", "question_text", "question_type"]:
+            data.pop(key, None)
+        return data
+
+    def _jobs_collection_table_html(self, collection: Any, label: str) -> str:
+        rows = []
+        for index, item in enumerate(collection or [], start=1):
+            rows.append(
+                "<tr>"
+                f"<td>{index}</td>"
+                f"<td>{self._jobs_item_title(item, label, index)}</td>"
+                f"<td>{self._jobs_pre_html(self._jobs_item_dict(item))}</td>"
+                "</tr>"
+            )
+        if not rows:
+            return f'<p class="empty">No {html_module.escape(label)} entries.</p>'
+        return (
+            "<table><thead><tr><th>#</th><th>Item</th><th>Serialized data</th></tr></thead><tbody>"
+            + "".join(rows)
+            + "</tbody></table>"
+        )
+
+    @staticmethod
+    def _jobs_item_dict(item: Any) -> Any:
+        if hasattr(item, "to_dict"):
+            try:
+                return item.to_dict(add_edsl_version=False)
+            except TypeError:
+                return item.to_dict()
+        return item
+
+    @staticmethod
+    def _jobs_item_title(item: Any, label: str, index: int) -> str:
+        if label == "agent":
+            name = getattr(item, "name", None)
+            traits = getattr(item, "traits", {}) or {}
+            title = name or traits.get("name") or traits.get("status")
+            return html_module.escape(str(title or f"Agent {index}"))
+        if label == "model":
+            title = getattr(item, "model", None) or getattr(item, "_model_", None)
+            return html_module.escape(str(title or f"Model {index}"))
+        if label == "scenario":
+            keys = ", ".join(str(key) for key in getattr(item, "keys", lambda: [])())
+            return html_module.escape(keys or f"Scenario {index}")
+        return html_module.escape(f"{label.title()} {index}")
+
+    @staticmethod
+    def _jobs_pre_html(value: Any) -> str:
+        text = json.dumps(value, indent=2, default=str, ensure_ascii=False)
+        return f'<pre class="jobs-json">{html_module.escape(text)}</pre>'
+
+    def _jobs_metadata_html(
+        self,
+        post_run_methods: Any,
+        where_clauses: Any,
+        include_expression: Any,
+        dependency: Any,
+    ) -> str:
+        metadata = {
+            "post_run_methods": post_run_methods,
+            "where_clauses": where_clauses,
+            "include_expression": include_expression,
+            "has_dependency": dependency is not None,
+        }
+        if dependency is not None:
+            metadata["dependency_summary"] = dependency._summary()
+        return self._jobs_pre_html(metadata)
+
     def __hash__(self):
         """Allow the model to be used as a key in a dictionary.
 
@@ -1081,6 +1200,12 @@ class Jobs(Base):
                 )
         else:
             if self.run_config.parameters.disable_remote_inference:
+                return None, None
+
+            explicit_parameters = getattr(
+                self.run_config.parameters, "_explicit_parameters", set()
+            )
+            if "offload_execution" not in explicit_parameters:
                 return None, None
 
             from .exceptions import JobsRunError
@@ -1557,7 +1682,6 @@ class Jobs(Base):
             "concatenate",
             "collapse",
             "expand",
-            "store",
             "first",
             "last",
         }
@@ -2437,10 +2561,7 @@ class Jobs(Base):
         return Jobs.from_dict(self.to_dict())
 
     def to_jsonl(self, filename=None, root=None, message="", **kwargs):
-        """Export as JSONL with CAS pointers to component objects.
-
-        Components are auto-saved to the store if not already saved.
-        """
+        """Export as JSONL with an inline Jobs dictionary payload."""
         from .jobs_serializer import JobsSerializer
 
         return JobsSerializer(self).to_jsonl(
@@ -2449,7 +2570,7 @@ class Jobs(Base):
 
     @classmethod
     def from_jsonl(cls, source, root=None, **kwargs):
-        """Load a Jobs from a JSONL file with CAS pointers."""
+        """Load a Jobs from a JSONL file."""
         from .jobs_serializer import JobsSerializer
 
         return JobsSerializer.from_jsonl(source, root=root)

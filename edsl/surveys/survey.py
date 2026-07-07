@@ -66,6 +66,7 @@ from .rules import RuleManager, RuleCollection
 from .survey_export import SurveyExport
 from .pseudo_indices import PseudoIndices
 from .survey_navigator import SurveyNavigator
+from .survey_git import SurveyGitDescriptor
 from .exceptions import (
     SurveyCreationError,
     SurveyError,
@@ -95,6 +96,8 @@ class Survey(Base):
     """
 
     __documentation__ = """https://docs.expectedparrot.com/en/latest/surveys.html"""
+
+    git = SurveyGitDescriptor()
 
     questions = QuestionsDescriptor()
     """A descriptor that manages the list of questions in the survey.
@@ -191,7 +194,9 @@ class Survey(Base):
         self.memory_plan = memory_plan or MemoryPlan(self)
 
         if question_groups is not None:
-            self.question_groups = question_groups
+            self.question_groups = {
+                name: tuple(indices) for name, indices in question_groups.items()
+            }
         else:
             self.question_groups = {}
 
@@ -3396,6 +3401,25 @@ class Survey(Base):
             scenario, filename, return_link, css, cta, include_question_name
         )
 
+    def html(
+        self,
+        scenario: Optional[dict] = None,
+        filename: Optional[str] = None,
+        return_link: bool = False,
+        css: Optional[str] = None,
+        cta: str = "Open HTML file",
+        include_question_name: bool = False,
+    ) -> FileStore:
+        """Generate HTML representation of the survey."""
+        return self.to_html(
+            scenario=scenario,
+            filename=filename,
+            return_link=return_link,
+            css=css,
+            cta=cta,
+            include_question_name=include_question_name,
+        )
+
     def to_markdown(self) -> str:
         """Generate a markdown string representation of the survey.
 
@@ -3452,32 +3476,6 @@ class Survey(Base):
     def code(self, filename: str = "", survey_var_name: str = "survey") -> list[str]:
         """Create the Python code representation of a survey."""
         return self._exporter.code(filename, survey_var_name)
-
-    # def html(
-    #     self,
-    #     scenario: Optional[dict] = None,
-    #     filename: Optional[str] = None,
-    #     return_link=False,
-    #     css: Optional[str] = None,
-    #     cta: str = "Open HTML file",
-    #     include_question_name=False,
-    # ) -> FileStore:
-    #     """DEPRECATED: Use :py:meth:`to_html` instead."""
-    #     import warnings
-
-    #     warnings.warn(
-    #         "Survey.html is deprecated and will be removed in a future release. Use Survey.to_html instead.",
-    #         DeprecationWarning,
-    #         stacklevel=2,
-    #     )
-    #     return self.to_html(
-    #         scenario,
-    #         filename,
-    #         return_link=return_link,
-    #         css=css,
-    #         cta=cta,
-    #         include_question_name=include_question_name,
-    #     )
 
     # def latex(
     #     self,

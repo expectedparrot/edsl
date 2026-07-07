@@ -999,41 +999,8 @@ class RepresentationMixin:
         return TableDisplay.from_dataset(self.to_dataset())._repr_html_()
 
     def _store_info_line(self) -> str:
-        """Build a dim store-metadata line if this object has been saved."""
-        accessor = self.__dict__.get("_store_accessor")
-        if accessor is None or getattr(accessor, "uuid", None) is None:
-            return ""
-        parts: list[str] = [f"uuid: {accessor.uuid[:8]}"]
-        if accessor.current_branch:
-            parts.append(f"branch: {accessor.current_branch}")
-        if accessor.commit:
-            parts.append(f"commit: {accessor.commit[:8]}")
-        try:
-            from edsl.object_store import ObjectStore
-
-            meta = ObjectStore()._index.get(accessor.uuid)
-            if meta:
-                for field in ("title", "alias", "visibility"):
-                    val = meta.get(field)
-                    if val:
-                        parts.append(f"{field}: {val}")
-                lm = meta.get("last_modified")
-                if lm:
-                    parts.append(f"modified: {str(lm)[:10]}")
-        except Exception:
-            pass
-        raw = " | ".join(parts)
-        import io
-        import shutil
-
-        from rich.console import Console
-        from rich.text import Text
-
-        width = shutil.get_terminal_size().columns
-        t = Text(raw, style="dim italic")
-        c = Console(file=io.StringIO(), force_terminal=True, width=width)
-        c.print(t, end="")
-        return c.file.getvalue()
+        """Return store metadata for legacy display hooks."""
+        return ""
 
     def __repr__(self):
         """Return a string representation of the object.
@@ -1147,9 +1114,6 @@ class Base(
     All EDSL classes should inherit from this class to ensure consistent behavior
     and capabilities across the framework.
     """
-
-    from .store_accessor import StoreDescriptor
-    store = StoreDescriptor()
 
     def get_uuid(self) -> str:
         """

@@ -1,6 +1,6 @@
 # object_store Module
 
-A git-like content-addressable storage (CAS) system for versioning EDSL domain objects. Provides local persistence in the current working directory (`.edsl_objects/`), branching, commit history, diffing, and push/pull sync to a remote HTTP service.
+A git-like content-addressable storage (CAS) system for versioning EDSL domain objects. Provides local persistence via `platformdirs` (default `~/Library/Application Support/edsl/objects/` on macOS), branching, commit history, diffing, and push/pull sync to a remote HTTP service.
 
 ## Architecture
 
@@ -155,7 +155,7 @@ AgentList.store.branches(uuid)             # list branches
 AgentList.store.pull(uuid)                 # pull from remote and return loaded object
 ```
 
-All methods accept `root=` to override the default current-working-directory location.
+All methods accept `root=` to override the default platformdirs location.
 
 ### Accessor State Management
 
@@ -262,7 +262,7 @@ Both SQLite and PostgreSQL implementations share identical schemas. The PostgreS
 
 ## Configuration and Defaults
 
-- **Default root**: `Path.cwd() / ".edsl_objects"`
+- **Default root**: `Path(platformdirs.user_data_dir("edsl")) / "objects"` (e.g. `~/Library/Application Support/edsl/objects/` on macOS)
 - **Default remote URL**: Read from `CONFIG.get("EDSL_CAS_URL")` (via `edsl.config`)
 - **Auth token**: Read from `EXPECTED_PARROT_API_KEY` environment variable
 - **Default branch**: `"main"`
@@ -270,6 +270,6 @@ Both SQLite and PostgreSQL implementations share identical schemas. The PostgreS
 
 ## Dependencies
 
-- **Required**: `dotenv` (for env loading in store_accessor)
+- **Required**: `platformdirs` (for default storage path), `dotenv` (for env loading in store_accessor)
 - **Optional**: `google-cloud-storage` for GCSBackend (`pip install edsl[gcp]`), `psycopg2` for PostgreSQLMetadataIndex
 - **Stdlib only**: HttpBackend uses `urllib.request` (no `requests` dependency)

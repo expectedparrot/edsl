@@ -60,6 +60,11 @@ class RenderService:
         self._interviews = InterviewStore(storage)
         self._tasks = TaskStore(storage)
         self._answers = AnswerStore(storage)
+        # Realized file-upload answers, keyed by gcs_path. A gcs_path is globally
+        # unique and content-addressed, so a file piped into several questions is
+        # downloaded from Coop only once for the lifetime of this render service
+        # (one per job). This mirrors how offloaded scenario FileStores are restored.
+        self._upload_file_cache: dict[str, Any] = {}
 
     def _is_filestore_dict(self, value: Any) -> bool:
         """Check if a dict represents a serialized FileStore."""
@@ -99,6 +104,66 @@ class RenderService:
                     modified[key] = value
             else:
                 modified[key] = value
+        return modified
+
+    @staticmethod
+    def _is_file_upload_answer(value: Any) -> bool:
+        """True if a prior answer is a raw QuestionFileUpload answer.
+
+        The answer is a non-empty list of file-info dicts, each an uploaded-file
+        reference tagged ``type == 'gcs'`` with a non-empty ``gcs_path`` string
+        pointing at the file in Google Cloud Storage. We match on that specific
+        shape — not merely the presence of a ``gcs_path`` key — so an unrelated
+        list-of-dicts answer can't be mistaken for a file upload.
+        """
+        return (
+            isinstance(value, list)
+            and len(value) > 0
+            and all(
+                isinstance(v, dict)
+                and v.get("type") == "gcs"
+                and isinstance(v.get("gcs_path"), str)
+                and bool(v.get("gcs_path"))
+                for v in value
+            )
+        )
+
+    def _restore_upload_answers(self, current_answers: dict) -> dict:
+        """Realize raw file-upload answers into FileStores for piping.
+
+        Downstream questions that pipe a file-upload answer ({{ upload.answer }})
+        need real FileStore objects so the uploaded file can be attached to the
+        model. We realize them here, in the durable render layer, and cache each
+        file by gcs_path so a file referenced by several questions is downloaded
+        from Coop only once per job. The stored answer (in the AnswerStore) is left
+        untouched as the raw gcs reference; only the in-flight copy is enriched.
+        """
+        if not current_answers:
+            return current_answers
+
+        from ..scenarios import FileStore
+        from ..scenarios.file_store_list import FileStoreList
+
+        modified = dict(current_answers)
+        for key, value in current_answers.items():
+            if not self._is_file_upload_answer(value):
+                continue
+            file_stores = []
+            for file_info in value:
+                gcs_path = file_info["gcs_path"]
+                fs = self._upload_file_cache.get(gcs_path)
+                if fs is None:
+                    try:
+                        fs = FileStore.from_file_upload_answer(file_info)
+                    except Exception as e:
+                        # Fail loud (and retryable) rather than silently dropping a
+                        # referenced file and rendering a prompt without it.
+                        raise RuntimeError(
+                            f"Failed to fetch file-upload answer for question '{key}'."
+                        ) from e
+                    self._upload_file_cache[gcs_path] = fs
+                file_stores.append(fs)
+            modified[key] = FileStoreList(data=file_stores)
         return modified
 
     def _apply_option_permutation(
@@ -218,9 +283,9 @@ class RenderService:
                     current_answers[other_task.question_name] = answer.answer
                     # Include comment for piping ({{ qname.comment }})
                     if answer.comment:
-                        current_answers[f"{other_task.question_name}_comment"] = (
-                            answer.comment
-                        )
+                        current_answers[
+                            f"{other_task.question_name}_comment"
+                        ] = answer.comment
 
         return current_answers
 
@@ -238,6 +303,10 @@ class RenderService:
     ) -> dict[str, str]:
         """Use EDSL's PromptConstructor to render the prompts."""
         import time as _t
+
+        # Realize any file-upload answers into FileStores (cached by gcs_path) so
+        # they can be piped into and attached to this question.
+        current_answers = self._restore_upload_answers(current_answers)
 
         # Reconstruct EDSL objects with timing
         _t0 = _t.time()
@@ -348,6 +417,10 @@ class RenderService:
     ) -> dict[str, str]:
         """Render prompts using pre-built EDSL objects (avoids redundant from_dict)."""
         import time as _t
+
+        # Realize any file-upload answers into FileStores (cached by gcs_path) so
+        # they can be piped into and attached to this question.
+        current_answers = self._restore_upload_answers(current_answers)
 
         _t0 = _t.time()
         prompt_constructor = PromptConstructor(
@@ -697,16 +770,45 @@ class RenderWorker:
                 ops_counter["skip_task_calls"] += 1
 
                 _t_skip = _time.time()
-                should_skip, skip_reason = self._job_service.should_skip_task(
-                    job_id,
-                    interview_id,
-                    task_id,
-                    debug=False,  # Reduce noise
-                    cached_survey=cached_survey,
-                    cached_question_index_map=cached_question_index_map,
-                    cached_answers=cached_answers,
-                    cached_task_def=task_def,
-                )
+                try:
+                    should_skip, skip_reason = self._job_service.should_skip_task(
+                        job_id,
+                        interview_id,
+                        task_id,
+                        debug=False,  # Reduce noise
+                        cached_survey=cached_survey,
+                        cached_question_index_map=cached_question_index_map,
+                        cached_answers=cached_answers,
+                        cached_task_def=task_def,
+                    )
+                except Exception as skip_exc:
+                    # Defense-in-depth: skip-rule evaluation must never take down
+                    # the whole render batch. Without this guard an exception here
+                    # (e.g. a survey rule referencing an undefined variable) unwinds
+                    # the entire task loop — no task is marked FAILED and the job
+                    # freezes until the stall watchdog force-fails it with no usable
+                    # error. Instead, fail *this* task permanently with the real
+                    # error and keep rendering the rest of the batch. The failure is
+                    # deterministic (same inputs render the same crash), so retrying
+                    # is pointless -> force_permanent=True.
+                    import traceback
+
+                    print(
+                        f"  [render] should_skip_task raised for task {task_id} "
+                        f"(interview {interview_id}); failing this task and "
+                        f"continuing render: {type(skip_exc).__name__}: {skip_exc}"
+                    )
+                    traceback.print_exc()
+                    self._job_service.on_task_failed(
+                        job_id,
+                        interview_id,
+                        task_id,
+                        error_type=type(skip_exc).__name__,
+                        error_message=f"Skip-rule evaluation failed: {skip_exc}",
+                        force_permanent=True,
+                    )
+                    _skip_logic_time += _time.time() - _t_skip
+                    continue
                 _skip_logic_time += _time.time() - _t_skip
                 if should_skip:
                     self._job_service.on_task_skipped(
@@ -796,14 +898,14 @@ class RenderWorker:
         # Instead of checking ALL interview tasks, only fetch answers for actual dependencies
         # This reduces O(n) to O(d) where d = number of dependencies (usually small)
         _t0 = _time.time()
-        answers_cache: dict[str, dict[str, Any]] = (
-            {}
-        )  # interview_id -> {question_name -> answer}
+        answers_cache: dict[
+            str, dict[str, Any]
+        ] = {}  # interview_id -> {question_name -> answer}
 
         # Collect all dependency task IDs from tasks being rendered
-        dep_task_ids_by_interview: dict[str, set[str]] = (
-            {}
-        )  # interview_id -> set of dependency task_ids
+        dep_task_ids_by_interview: dict[
+            str, set[str]
+        ] = {}  # interview_id -> set of dependency task_ids
         for task_id in tasks_to_render:
             task_def = all_task_defs.get(task_id)
             if task_def and task_def.depends_on:
@@ -907,9 +1009,9 @@ class RenderWorker:
         # Caches for objects that depend on per-task context
         _permuted_questions: dict[tuple, "QuestionBase"] = {}
         _survey_cache: dict[tuple, tuple] = {}
-        _prompt_cache: dict[tuple, dict] = (
-            {}
-        )  # Cache rendered prompts by input combination
+        _prompt_cache: dict[
+            tuple, dict
+        ] = {}  # Cache rendered prompts by input combination
 
         from ..questions import QuestionFreeText as _QuestionFreeText
 

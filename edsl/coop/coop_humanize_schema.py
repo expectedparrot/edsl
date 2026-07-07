@@ -10,12 +10,17 @@ from pydantic import (
     Field,
     StringConstraints,
     ValidationError,
+    field_validator,
     model_validator,
 )
 
 from ..questions import QuestionBase
 
 from .exceptions import HumanizeSchemaValidationError
+from .voice_interview_languages import (
+    DEFAULT_VOICE_INTERVIEW_LANGUAGE,
+    normalize_voice_interview_language,
+)
 
 if TYPE_CHECKING:
     from ..surveys import Survey
@@ -213,11 +218,26 @@ class TextInterviewConfig(HumanizeSchemaBase):
     end_policy: EndPolicy = Field(default_factory=RespondentEndPolicy)
 
 
+class VoiceInterviewConfig(HumanizeSchemaBase):
+    """Configuration specific to voice-mode interviews."""
+
+    # The spoken language for the voice interview. Stored as a lowercase id
+    # (e.g. "english"); the before-validator normalizes case/whitespace, maps
+    # None/blank to the default, and rejects unsupported languages.
+    language: str = DEFAULT_VOICE_INTERVIEW_LANGUAGE
+
+    @field_validator("language", mode="before")
+    @classmethod
+    def _validate_language(cls, v: object) -> str:
+        return normalize_voice_interview_language(v)
+
+
 class InterviewHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the interview question type."""
 
     optional: bool = False
     interview_mode: Literal["text", "voice", "both"] = "text"
+    voice_interview_config: Optional[VoiceInterviewConfig] = None
     text_interview_config: Optional[TextInterviewConfig] = None
 
 

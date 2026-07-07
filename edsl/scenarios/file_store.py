@@ -861,18 +861,24 @@ class FileStore(Scenario):
         cls,
         file_info: dict,
         expected_parrot_url: Optional[str] = None,
+        download_url: Optional[str] = None,
     ) -> "FileStore":
         """
         Create a FileStore from a single entry in a QuestionFileUpload answer.
 
-        Calls the Coop endpoint to obtain a signed download URL, then fetches
-        the file and wraps it in a FileStore.
+        By default this calls the Coop endpoint to obtain a signed download URL,
+        then fetches the file and wraps it in a FileStore. A caller that already
+        has bucket access (e.g. the backend) can pass ``download_url`` to skip the
+        Coop round-trip and fetch the file directly.
 
         Args:
             file_info: A dict with at minimum a 'gcs_path' key, as returned in
                        the answer list for a QuestionFileUpload question.
                        Optionally includes 'name', 'mime_type', and 'extension'.
             expected_parrot_url: Optional override for the Coop server URL.
+            download_url: Optional pre-obtained download URL. When provided, the
+                       Coop signed-URL request is skipped and the file is fetched
+                       from this URL directly.
 
         Returns:
             FileStore: The downloaded file.
@@ -883,21 +889,22 @@ class FileStore(Scenario):
             for file_info in answer:
                 fs = FileStore.from_file_upload_answer(file_info)
         """
-        from ..coop import Coop
+        if download_url is None:
+            from ..coop import Coop
 
-        coop = Coop(url=expected_parrot_url) if expected_parrot_url else Coop()
-        response = coop._send_server_request(
-            uri="api/v0/human-survey-file-uploads/download-url",
-            method="POST",
-            payload={"gcs_path": file_info["gcs_path"]},
-        )
-        response.raise_for_status()
-        response_data = response.json()
-        download_url = response_data.get("url")
-        if not download_url:
-            raise ValueError(
-                f"Server did not return a download URL. Response: {response_data}"
+            coop = Coop(url=expected_parrot_url) if expected_parrot_url else Coop()
+            response = coop._send_server_request(
+                uri="api/v0/human-survey-file-uploads/download-url",
+                method="POST",
+                payload={"gcs_path": file_info["gcs_path"]},
             )
+            response.raise_for_status()
+            response_data = response.json()
+            download_url = response_data.get("url")
+            if not download_url:
+                raise ValueError(
+                    f"Server did not return a download URL. Response: {response_data}"
+                )
 
         # Save under the original filename in a fresh temp dir so the suffix is
         # correct and there's no collision if the same name appears in multiple uploads.
