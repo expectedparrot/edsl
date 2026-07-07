@@ -82,6 +82,10 @@ class EmbeddingModel:
                 from edsl.coop import Coop
 
                 result = await Coop().remote_async_embed(self.to_dict(), uncached_inputs)
+                if "embeddings" not in result:
+                    raise ValueError(
+                        "Remote embedding response did not include embeddings."
+                    )
                 new_embeddings = result["embeddings"]
                 usage = result.get("usage")
             else:
@@ -93,6 +97,14 @@ class EmbeddingModel:
                     inputs=uncached_inputs,
                     parameters=cache_parameters,
                 )
+
+            if len(new_embeddings) != len(uncached_inputs):
+                raise ValueError(
+                    "Embedding service returned "
+                    f"{len(new_embeddings)} embeddings for {len(uncached_inputs)} inputs."
+                )
+            if any(vector is None for vector in new_embeddings):
+                raise ValueError("Embedding service returned a missing embedding.")
 
             for position, text, vector in zip(
                 uncached_positions, uncached_inputs, new_embeddings
@@ -108,12 +120,16 @@ class EmbeddingModel:
                         usage=usage,
                     )
 
+        if any(vector is None for vector in embeddings):
+            raise ValueError("Embedding result is incomplete.")
+        final_embeddings = [vector for vector in embeddings if vector is not None]
+
         return EmbeddingResult(
-            embeddings=[vector for vector in embeddings if vector is not None],
+            embeddings=final_embeddings,
             input=inputs,
             model=self.model,
             service_name=self.service_name,
-            dimensions=len(embeddings[0]) if embeddings and embeddings[0] else None,
+            dimensions=len(final_embeddings[0]) if final_embeddings else None,
             usage=usage,
             cache_keys=[key for key in cache_keys],
             cache_used=cache_used,

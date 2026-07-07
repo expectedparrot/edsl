@@ -1,6 +1,11 @@
 from edsl import Dataset, EmbeddingCache, EmbeddingModel, EmbeddingResult, ScenarioList
 
 
+class PartialEmbeddingService:
+    async def async_embed(self, *, model, inputs, parameters):
+        return [[1.0], None], None
+
+
 def test_test_embedding_model_embed_list():
     model = EmbeddingModel("test", service_name="test")
 
@@ -37,6 +42,44 @@ def test_embedding_cache_jsonl_roundtrip(tmp_path):
 
     assert cached.cache_used == [True]
     assert cached.embeddings == result.embeddings
+
+
+def test_embedding_cache_deferred_write_fetches_and_flushes(tmp_path):
+    cache_path = tmp_path / "embeddings.jsonl"
+    model = EmbeddingModel("test", service_name="test")
+    cache = EmbeddingCache(filename=str(cache_path), immediate_write=False)
+
+    result = model.embed(["hello"], cache=cache)
+    cached = model.embed(["hello"], cache=cache)
+
+    assert cached.cache_used == [True]
+    assert cached.embeddings == result.embeddings
+    assert not cache_path.exists()
+
+    cache.flush()
+    reloaded = EmbeddingCache(filename=str(cache_path))
+    cached_after_reload = model.embed(["hello"], cache=reloaded)
+
+    assert cached_after_reload.cache_used == [True]
+    assert cached_after_reload.embeddings == result.embeddings
+
+
+def test_embedding_model_rejects_missing_embedding(monkeypatch):
+    import edsl.embeddings.embedding_model as embedding_model
+
+    monkeypatch.setattr(
+        embedding_model,
+        "get_embedding_service",
+        lambda *args, **kwargs: PartialEmbeddingService(),
+    )
+    model = EmbeddingModel("test", service_name="test")
+
+    try:
+        model.embed(["a", "b"])
+    except ValueError as e:
+        assert "missing embedding" in str(e)
+    else:
+        raise AssertionError("Expected missing embedding to raise ValueError")
 
 
 def test_embedding_result_conversions():

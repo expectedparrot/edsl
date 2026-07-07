@@ -4754,6 +4754,7 @@ class Coop(CoopFunctionsMixin):
         }
         async with aiohttp.ClientSession() as session:
             async with session.post(url, json=data, headers=self.headers) as response:
+                response.raise_for_status()
                 return await response.json()
 
     def web(

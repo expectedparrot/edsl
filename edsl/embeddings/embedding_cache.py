@@ -123,13 +123,20 @@ class EmbeddingCache:
             usage=usage,
         )
         key = entry.key
+        self.data[key] = entry
         self.new_entries[key] = entry
         if self.immediate_write:
-            self.data[key] = entry
-            if self.filename:
-                with open(self.filename, "a", encoding="utf-8") as f:
-                    f.write(json.dumps(entry.to_dict(), ensure_ascii=False) + "\n")
+            self.flush()
         return key
+
+    def flush(self) -> None:
+        if not self.new_entries:
+            return
+        if self.filename:
+            with open(self.filename, "a", encoding="utf-8") as f:
+                for entry in self.new_entries.values():
+                    f.write(json.dumps(entry.to_dict(), ensure_ascii=False) + "\n")
+        self.new_entries.clear()
 
     def keys(self) -> list[str]:
         return list(self.data.keys())
