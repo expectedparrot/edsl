@@ -36,7 +36,7 @@ psutil = "^6.1.0"
 [tool.poetry.extras]
 inference = [ "openai", "groq", "boto3", "anthropic", "azure-ai-inference", "google-genai", "mistralai", "sqlalchemy",]
 file-formats = [ "python-docx", "openpyxl", "pypdf2", "python-pptx", "pandas",]
-full = [ "openai", "groq", "boto3", "anthropic", "azure-ai-inference", "google-genai", "mistralai", "sqlalchemy", "black", "pydot", "python-docx", "openpyxl", "pypdf2", "python-pptx", "playwright", "fastapi", "uvicorn", "altair", "nbformat", "nbclient", "psutil", "sentence-transformers", "seaborn", "termplotlib", "qrcode", "pandas",]
+full = [ "openai", "groq", "boto3", "anthropic", "azure-ai-inference", "google-genai", "mistralai", "sqlalchemy", "black", "pydot", "python-docx", "openpyxl", "pypdf2", "python-pptx", "playwright", "fastapi", "uvicorn", "altair", "nbformat", "nbclient", "psutil", "seaborn", "termplotlib", "qrcode", "pandas",]
 notebook = [ "nbformat", "nbclient", "psutil",]
 screenshots = [ "playwright",]
 services = [ "fastapi", "uvicorn",]
@@ -48,6 +48,7 @@ gcp = [ "google-cloud-storage",]
 
 [tool.poetry.scripts]
 edsl = "edsl.__main__:main"
+ep = "edsl.__main__:main"
 
 [tool.ty.rules]
 unresolved-import = "ignore"
@@ -164,7 +165,7 @@ optional = true
 
 [tool.poetry.dependencies.typer]
 extras = [ "all",]
-version = ">=0.12,<1"
+version = ">=0.9,<1"
 
 [tool.tomlsort.overrides."tool.poetry.dependencies"]
 table_keys = false

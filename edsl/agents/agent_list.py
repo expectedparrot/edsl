@@ -11,7 +11,16 @@ from itertools import product
 
 from collections import UserList
 from pathlib import Path
-from typing import Any, Callable, Generator, Iterable, List, Optional, Union, TYPE_CHECKING
+from typing import (
+    Any,
+    Callable,
+    Generator,
+    Iterable,
+    List,
+    Optional,
+    Union,
+    TYPE_CHECKING,
+)
 
 # simpleeval imports moved to agent_list_filter.py
 
@@ -23,6 +32,7 @@ from .agent_list_builder import AgentListBuilder
 from .agent_list_code_generator import AgentListCodeGenerator
 from .agent_list_factories import AgentListFactories
 from .agent_list_filter import AgentListFilter
+from .agent_list_git import AgentListGitDescriptor
 from .agent_list_joiner import AgentListJoiner
 from .agent_list_representation import AgentListRepresentation
 from .agent_list_sampling import AgentListSampling
@@ -43,6 +53,7 @@ if TYPE_CHECKING:
     from .agent_list_deltas import AgentListDeltas
     from ..dataset import Dataset
 
+
 class AgentList(UserList, Base, AgentListOperationsMixin):
     """A list of Agents with additional functionality for manipulation and analysis.
 
@@ -61,6 +72,8 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
     __documentation__ = (
         "https://docs.expectedparrot.com/en/latest/agents.html#agentlist-class"
     )
+
+    git = AgentListGitDescriptor()
 
     def __init__(
         self,
@@ -589,7 +602,10 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
         instructions: Optional[str] = None,
     ) -> "AgentList":
         return AgentListFactories.from_csv(
-            file_path, name_field=name_field, codebook=codebook, instructions=instructions,
+            file_path,
+            name_field=name_field,
+            codebook=codebook,
+            instructions=instructions,
         )
 
     @classmethod
@@ -634,7 +650,9 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
         )
 
     @wraps(AgentListSerializer.to_jsonl)
-    def to_jsonl(self, filename: Union[str, Path, None] = None, **kwargs) -> Optional[str]:
+    def to_jsonl(
+        self, filename: Union[str, Path, None] = None, **kwargs
+    ) -> Optional[str]:
         return self._agent_list_serializer.to_jsonl(filename=filename)
 
     def to_jsonl_rows(self, blob_writer=None):
@@ -659,6 +677,7 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
 
     def __repr__(self):
         from edsl.base.base_class import RepresentationMixin
+
         return RepresentationMixin.__repr__(self)
 
     @wraps(AgentListRepresentation.eval_repr)
@@ -683,9 +702,7 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
             summary_fields.append("Named")
             summary_values.append(str(named_count))
 
-        summary_ds = Dataset(
-            [{"Field": summary_fields}, {"Value": summary_values}]
-        )
+        summary_ds = Dataset([{"Field": summary_fields}, {"Value": summary_values}])
 
         # Data section
         columns: dict[str, list] = {}
@@ -712,6 +729,51 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
     def _summary(self) -> dict:
         return self._agent_list_representation.summary()
 
+    def to_html(
+        self,
+        filename: Optional[Union[str, Path]] = None,
+        *,
+        title: str = "AgentList",
+        include_prompts: bool = True,
+    ) -> str:
+        """Create a standalone interactive HTML artifact for this AgentList.
+
+        Args:
+            filename: Optional path to write the HTML document.
+            title: Document and page title.
+            include_prompts: Whether to render each agent prompt in the detail drawer.
+
+        Returns:
+            The generated HTML document as a string.
+        """
+        from .agent_list_html_renderer import render_agent_list_html_via_package
+
+        html = render_agent_list_html_via_package(
+            self, title=title, include_prompts=include_prompts
+        )
+        if filename is not None:
+            Path(filename).write_text(html, encoding="utf-8")
+        return html
+
+    def save_html(
+        self,
+        filename: Union[str, Path],
+        *,
+        title: str = "AgentList",
+        include_prompts: bool = True,
+    ) -> Path:
+        """Write a standalone interactive HTML artifact and return its path."""
+        from .agent_list_html_renderer import render_agent_list_html_via_package
+
+        path = Path(filename)
+        path.write_text(
+            render_agent_list_html_via_package(
+                self, title=title, include_prompts=include_prompts
+            ),
+            encoding="utf-8",
+        )
+        return path
+
     def table(
         self,
         *fields,
@@ -726,7 +788,7 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
             .table(*fields, tablefmt=tablefmt, pretty_labels=pretty_labels)
         )
 
-    def to_dataset(self, traits_only: bool = True) -> 'Dataset':
+    def to_dataset(self, traits_only: bool = True) -> "Dataset":
         """Convert the AgentList to a Dataset.
 
         Args:
@@ -861,7 +923,6 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
         return AgentListFactories.from_scenario_list(scenario_list)
 
     from_scenario_list.__doc__ = AgentListFactories.from_scenario_list.__doc__
-
 
 
 if __name__ == "__main__":

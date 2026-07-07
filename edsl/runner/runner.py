@@ -210,12 +210,6 @@ class JobHandle:
             )
             print(stats.report())
 
-        # Attach CAS metadata so results.store.log() works
-        if cas is not None:
-            results.store.uuid = cas.uuid
-            results.store.commit = cas.tip
-            results.store.current_branch = "main"
-
         return results
 
     def cancel(self) -> None:

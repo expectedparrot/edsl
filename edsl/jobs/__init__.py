@@ -6,6 +6,7 @@ and management of concurrent language model API calls.
 """
 
 from .jobs import Jobs
+from .jobs_git import JobsGitError, JobsGitNestedRepoWarning
 from .jobs import RunConfig, RunParameters, RunEnvironment  # noqa: F401
 from .data_structures import (  # noqa: F401
     WebhookConfig,
@@ -29,6 +30,8 @@ from .exceptions import (
 
 __all__ = [
     "Jobs",
+    "JobsGitError",
+    "JobsGitNestedRepoWarning",
     "JobsErrors",
     "JobsRunError",
     "MissingRemoteInferenceError",
