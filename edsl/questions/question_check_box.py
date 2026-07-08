@@ -687,32 +687,6 @@ class QuestionCheckBox(QuestionBase):
         self.question_presentation = question_presentation
         self.answering_instructions = answering_instructions
 
-    @property
-    def unselected(self) -> list:
-        """The options NOT chosen in this question's answer.
-
-        Complements ``.answer`` (the selected options) so a later question can
-        carry forward the *unselected* choices, mirroring Qualtrics' "Unselected
-        Choices". Only meaningful once the question has been answered; returns an
-        empty list if there is no list-valued answer yet.
-
-        Examples:
-            >>> q = QuestionCheckBox(
-            ...     question_name="q_banks",
-            ...     question_text="Which banks do you use?",
-            ...     question_options=["Chase", "Citi", "US Bank"],
-            ... )
-            >>> q.unselected
-            []
-            >>> q.answer = ["Chase"]
-            >>> q.unselected
-            ['Citi', 'US Bank']
-        """
-        answer = getattr(self, "answer", None)
-        if not isinstance(answer, (list, tuple, set)):
-            return []
-        return [o for o in self.question_options if o not in answer]
-
     def create_response_model(self):
         """
         Create a response model with the appropriate constraints.

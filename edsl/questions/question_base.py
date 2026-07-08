@@ -392,6 +392,41 @@ class QuestionBase(
         """
         return self.question_name
 
+    @property
+    def unselected(self) -> list:
+        """The options NOT chosen in this question's answer.
+
+        Complements ``.answer`` (the selected option(s)) so a later question can
+        carry forward the *unselected* choices, mirroring Qualtrics' "Unselected
+        Choices". Works for both list-valued answers (checkbox, top_k, rank) and
+        single-valued answers (multiple_choice, dropdown, etc.). Returns an empty
+        list for questions without options, or before the question is answered.
+
+        Examples:
+            >>> from edsl import QuestionMultipleChoice as MC
+            >>> q = MC(question_name="q", question_text="Pick",
+            ...        question_options=["A", "B", "C"])
+            >>> q.unselected
+            []
+            >>> q.answer = "B"
+            >>> q.unselected
+            ['A', 'C']
+            >>> from edsl import QuestionCheckBox as CB
+            >>> c = CB(question_name="c", question_text="Pick",
+            ...        question_options=["A", "B", "C", "D"])
+            >>> c.answer = ["A", "C"]
+            >>> c.unselected
+            ['B', 'D']
+        """
+        options = getattr(self, "question_options", None)
+        if not isinstance(options, (list, tuple)):
+            return []
+        answer = getattr(self, "answer", None)
+        if answer is None:
+            return []
+        selected = set(answer) if isinstance(answer, (list, tuple, set)) else {answer}
+        return [o for o in options if o not in selected]
+
     def __hash__(self) -> int:
         """
         Calculate a hash value for this question instance.
@@ -427,14 +462,18 @@ class QuestionBase(
             # "_include_comment",
             # "_use_code",
             "_model_instructions",
-            "_model",                  # live Model object; serialized via _thinking_model
-            "_invigilator_class",      # runtime-only; restored by thinking_question()
-            "_system_prompt",          # serialized via _thinking_system_prompt
-            "_is_thinking_question",   # serialized via from_dict detection
+            "_model",  # live Model object; serialized via _thinking_model
+            "_invigilator_class",  # runtime-only; restored by thinking_question()
+            "_system_prompt",  # serialized via _thinking_system_prompt
+            "_is_thinking_question",  # serialized via from_dict detection
         ]
         only_if_not_na_list = ["_answering_instructions", "_question_presentation"]
 
-        only_if_not_default_list = {"_include_comment": True, "_use_code": False, "_enumeration": "none"}
+        only_if_not_default_list = {
+            "_include_comment": True,
+            "_use_code": False,
+            "_enumeration": "none",
+        }
 
         def ok(key, value):
             if not key.startswith("_"):
@@ -566,6 +605,7 @@ class QuestionBase(
         # Re-wrap as thinking question if needed
         if thinking_model_data is not None:
             from .question_thinking import thinking_question
+
             new_q = thinking_question(
                 new_q, model=thinking_model_data, system_prompt=thinking_system_prompt
             )
@@ -916,14 +956,23 @@ class QuestionBase(
         ]
 
         if hasattr(self, "question_options") and self.question_options:
-            rows.append(("question_options", ", ".join(str(o) for o in self.question_options)))
+            rows.append(
+                ("question_options", ", ".join(str(o) for o in self.question_options))
+            )
 
         if hasattr(self, "option_labels") and self.option_labels:
             labels = ", ".join(f"{k}: {v!r}" for k, v in self.option_labels.items())
             rows.append(("option_labels", f"{{{labels}}}"))
 
-        for attr in ("min_value", "max_value", "min_selections", "max_selections",
-                      "num_selections", "max_list_items", "weight"):
+        for attr in (
+            "min_value",
+            "max_value",
+            "min_selections",
+            "max_selections",
+            "num_selections",
+            "max_list_items",
+            "weight",
+        ):
             if hasattr(self, attr) and getattr(self, attr) is not None:
                 rows.append((attr, repr(getattr(self, attr))))
 
