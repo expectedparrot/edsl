@@ -10,7 +10,7 @@ from ..utilities import jupyter_nb_handler
 
 class EmbeddingModel:
     default_model_by_service = {
-        "openai": "text-embedding-3-small",
+        "openai": "text-embedding-3-large",
         "sentence_transformers": "all-MiniLM-L6-v2",
         "test": "test",
     }
@@ -29,7 +29,9 @@ class EmbeddingModel:
         self.service_name = service_name.replace("-", "_")
         self.model = model_name or self.default_model_by_service.get(self.service_name)
         if self.model is None:
-            raise ValueError(f"No default embedding model for service '{service_name}'.")
+            raise ValueError(
+                f"No default embedding model for service '{service_name}'."
+            )
         self.remote = remote
         self.api_key = api_key
         self.base_url = base_url
@@ -39,7 +41,9 @@ class EmbeddingModel:
     def _normalize_inputs(input: Union[str, list[str]]) -> tuple[list[str], bool]:
         if isinstance(input, str):
             return [input], True
-        if not isinstance(input, list) or not all(isinstance(item, str) for item in input):
+        if not isinstance(input, list) or not all(
+            isinstance(item, str) for item in input
+        ):
             raise TypeError("Embedding input must be a string or list of strings.")
         return input, False
 
@@ -81,7 +85,9 @@ class EmbeddingModel:
             if self.remote:
                 from edsl.coop import Coop
 
-                result = await Coop().remote_async_embed(self.to_dict(), uncached_inputs)
+                result = await Coop().remote_async_embed(
+                    self.to_dict(), uncached_inputs
+                )
                 if "embeddings" not in result:
                     raise ValueError(
                         "Remote embedding response did not include embeddings."
