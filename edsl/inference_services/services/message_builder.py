@@ -30,6 +30,15 @@ class MessageBuilder:
         self.is_reasoning_model = "o1" in self.model or "o3" in self.model
         self.is_o1_mini = "o1-mini" in self.model
 
+        # Some reasoning models have no image/file (vision) input and must
+        # receive text-only content with the system prompt folded into the user
+        # turn. Vision-capable reasoning models (o1, o3, o4-mini) accept raw
+        # files — e.g. PDFs uploaded via the Files API, which preserves images
+        # and tables — exactly like regular models, so they use the normal path.
+        self._text_only_reasoning_model = any(
+            marker in self.model for marker in ("o1-mini", "o3-mini", "o1-preview")
+        )
+
     def get_file_metadata(self) -> List[Dict[str, Any]]:
         """Extract metadata about files for proxy mode.
 
@@ -45,6 +54,7 @@ class MessageBuilder:
                     ),
                     "mime_type": file_entry.mime_type,
                     "is_pdf": self._is_pdf_file(file_entry),
+                    "is_docx": self._is_docx_file(file_entry),
                     "is_text": self._is_text_file(file_entry),
                     "is_image": self._is_image_file(file_entry),
                     "has_extracted_text": hasattr(file_entry, "extracted_text")
@@ -62,17 +72,19 @@ class MessageBuilder:
             {"role": "user", "content": content},
         ]
 
-        # Remove system message for reasoning models or when system prompt is empty
+        # Remove the system message when it's empty, or for text-only reasoning
+        # models that fold it into the user turn instead. Vision-capable
+        # reasoning models keep the system message like regular models.
         if (
             self.system_prompt == "" and self.omit_system_prompt_if_empty
-        ) or self.is_reasoning_model:
+        ) or self._text_only_reasoning_model:
             messages = messages[1:]
 
         return messages
 
     def _build_content(self, sync_client=None) -> Union[str, List[Dict[str, Any]]]:
         """Build the content for the user message, handling files appropriately for different model types."""
-        if self.is_reasoning_model:
+        if self._text_only_reasoning_model:
             return self._build_reasoning_model_content()
         elif not self.files_list:
             return self.user_prompt
@@ -92,6 +104,10 @@ class MessageBuilder:
         for file_entry in self.files_list:
             if self._is_pdf_file(file_entry):
                 content_parts.append(self._process_pdf_for_reasoning_model(file_entry))
+            elif self._is_docx_file(file_entry):
+                content_parts.append(
+                    self._process_docx_for_reasoning_model(file_entry)
+                )
             elif self._is_text_file(file_entry):
                 content_parts.append(self._process_text_for_reasoning_model(file_entry))
             elif self._is_image_file(file_entry):
@@ -114,6 +130,8 @@ class MessageBuilder:
                 content.append(
                     self._process_pdf_for_regular_model(file_entry, sync_client)
                 )
+            elif self._is_docx_file(file_entry):
+                content.append(self._process_docx_for_regular_model(file_entry))
             elif self._is_text_file(file_entry):
                 content.append(self._process_text_for_regular_model(file_entry))
             elif self._is_image_file(file_entry):
@@ -130,17 +148,41 @@ class MessageBuilder:
 
         return content
 
+    def _has_extension(self, file_entry: "Files", extensions) -> bool:
+        """Check a file's extension via its ``suffix`` or ``filename``.
+
+        FileStore objects expose ``suffix`` (e.g. ``"docx"``) rather than a
+        ``filename``, and their ``mime_type`` can fall back to
+        ``application/octet-stream`` when the type can't be guessed (Python's
+        mimetypes registry misses .docx on some platforms). Checking the suffix
+        keeps file-type detection working in that case; the filename check
+        covers other file-like inputs.
+        """
+        exts = tuple(e.lower().lstrip(".") for e in extensions)
+
+        suffix = (getattr(file_entry, "suffix", "") or "").lower().lstrip(".")
+        if suffix in exts:
+            return True
+
+        filename = (getattr(file_entry, "filename", "") or "").lower()
+        return any(filename.endswith("." + e) for e in exts)
+
     def _is_pdf_file(self, file_entry: "Files") -> bool:
-        """Check if a file is a PDF based on MIME type or filename."""
+        """Check if a file is a PDF based on MIME type, suffix, or filename."""
         return (
             file_entry.mime_type == "application/pdf"
             or file_entry.mime_type == "application/x-pdf"
             or file_entry.mime_type == "text/pdf"
             or "pdf" in file_entry.mime_type.lower()
-            or (
-                hasattr(file_entry, "filename")
-                and getattr(file_entry, "filename", "").lower().endswith(".pdf")
-            )
+            or self._has_extension(file_entry, ["pdf"])
+        )
+
+    def _is_docx_file(self, file_entry: "Files") -> bool:
+        """Check if a file is a Word .docx document by MIME type, suffix, or filename."""
+        return (
+            file_entry.mime_type
+            == "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            or self._has_extension(file_entry, ["docx"])
         )
 
     def _is_text_file(self, file_entry: "Files") -> bool:
@@ -210,11 +252,7 @@ class MessageBuilder:
             ".properties",
         ]
 
-        if hasattr(file_entry, "filename"):
-            filename = getattr(file_entry, "filename", "").lower()
-            return any(filename.endswith(ext) for ext in text_extensions)
-
-        return False
+        return self._has_extension(file_entry, text_extensions)
 
     def _is_image_file(self, file_entry: "Files") -> bool:
         """Check if a file is an image based on MIME type."""
@@ -247,6 +285,81 @@ class MessageBuilder:
             )
 
         return text_content
+
+    def _extract_docx_content(self, docx_bytes: bytes) -> str:
+        """Extract paragraphs and tables from a .docx, preserving document order.
+
+        The FileStore's pre-computed ``extracted_text`` only captures paragraph
+        text, so we walk the document body here to also render tables (which are
+        stored separately from paragraphs in the docx format).
+        """
+        from docx import Document
+        from docx.oxml.ns import qn
+        from docx.table import Table
+        from docx.text.paragraph import Paragraph
+
+        document = Document(io.BytesIO(docx_bytes))
+
+        parts = []
+        for child in document.element.body.iterchildren():
+            if child.tag == qn("w:p"):
+                parts.append(Paragraph(child, document).text)
+            elif child.tag == qn("w:tbl"):
+                table = Table(child, document)
+                for row in table.rows:
+                    # Flatten each cell to a single line so rows stay readable.
+                    cells = [" ".join(cell.text.split()) for cell in row.cells]
+                    parts.append("| " + " | ".join(cells) + " |")
+
+        return "\n".join(parts)
+
+    def decode_docx_text(self, file_entry: "Files", max_chars: int = 100000) -> str:
+        """Extract the text of a Word .docx document. Can be used by other services.
+
+        Parses the base64 payload with python-docx to capture both paragraphs and
+        tables in document order. Falls back to the FileStore's pre-computed
+        ``extracted_text`` (paragraph-only) if the document can't be parsed.
+        """
+        filename = getattr(file_entry, "filename", "document.docx")
+
+        try:
+            docx_bytes = base64.b64decode(file_entry.base64_string)
+            text_content = self._extract_docx_content(docx_bytes)
+        except Exception:
+            # Fall back to the precomputed paragraph text (misses tables) if the
+            # payload is unavailable or python-docx can't parse it.
+            if hasattr(file_entry, "extracted_text") and file_entry.extracted_text:
+                text_content = file_entry.extracted_text
+            else:
+                return f"[DOCX file '{filename}' could not be processed.]"
+
+        # Truncate very long documents
+        if len(text_content) > max_chars:
+            text_content = (
+                text_content[:max_chars]
+                + f"\n\n[DOCX truncated after {max_chars} characters due to length limits]"
+            )
+
+        return text_content
+
+    def _process_docx_for_regular_model(self, file_entry: "Files") -> Dict[str, Any]:
+        """Process .docx files for regular models by including their extracted text."""
+        filename = getattr(file_entry, "filename", "document.docx")
+        text_content = self.decode_docx_text(file_entry, max_chars=100000)
+
+        return {
+            "type": "text",
+            "text": f"\n--- Content from '{filename}' ---\n{text_content}\n--- End of {filename} ---\n",
+        }
+
+    def _process_docx_for_reasoning_model(self, file_entry: "Files") -> str:
+        """Process .docx files for reasoning models by including their extracted text."""
+        filename = getattr(file_entry, "filename", "document.docx")
+        text_content = self.decode_docx_text(
+            file_entry, max_chars=50000
+        )  # Lower limit for reasoning models
+
+        return f"\n--- Content from '{filename}' ---\n{text_content}\n--- End of {filename} ---\n"
 
     def _process_pdf_for_reasoning_model(self, file_entry: "Files") -> str:
         """Process PDF files for reasoning models by extracting text content."""

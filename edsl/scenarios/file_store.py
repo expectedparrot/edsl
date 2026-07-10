@@ -124,9 +124,20 @@ class FileStore(Scenario):
 
         self.suffix = suffix or (path.split(".")[-1] if path else "")
         self.binary = binary or False
+        # Python's mimetypes registry misses some common types (notably the
+        # OOXML office formats, which .guess_type() returns None for on Windows),
+        # which would otherwise fall back to application/octet-stream and make
+        # downstream consumers treat the file as unsupported. Map those from the
+        # suffix before giving up.
+        _suffix_mime_types = {
+            "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            "xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            "pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+        }
         self.mime_type = (
             mime_type
             or (mimetypes.guess_type(path)[0] if path else None)
+            or _suffix_mime_types.get((self.suffix or "").lower())
             or "application/octet-stream"
         )
         self.base64_string = base64_string or self.encode_file_to_base64_string(
