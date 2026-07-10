@@ -307,8 +307,17 @@ class MessageBuilder:
             elif child.tag == qn("w:tbl"):
                 table = Table(child, document)
                 for row in table.rows:
-                    # Flatten each cell to a single line so rows stay readable.
-                    cells = [" ".join(cell.text.split()) for cell in row.cells]
+                    # python-docx returns the same cell once per grid column it
+                    # spans, so a horizontally merged cell would repeat its text
+                    # in the row. De-duplicate by the underlying <w:tc> element.
+                    seen_tc = set()
+                    cells = []
+                    for cell in row.cells:
+                        if id(cell._tc) in seen_tc:
+                            continue
+                        seen_tc.add(id(cell._tc))
+                        # Flatten each cell to a single line so rows stay readable.
+                        cells.append(" ".join(cell.text.split()))
                     parts.append("| " + " | ".join(cells) + " |")
 
         return "\n".join(parts)
@@ -325,12 +334,21 @@ class MessageBuilder:
         try:
             docx_bytes = base64.b64decode(file_entry.base64_string)
             text_content = self._extract_docx_content(docx_bytes)
-        except Exception:
-            # Fall back to the precomputed paragraph text (misses tables) if the
+        except Exception as exc:
+            # Fall back to the precomputed paragraph text (misses tables) when the
             # payload is unavailable or python-docx can't parse it.
             if hasattr(file_entry, "extracted_text") and file_entry.extracted_text:
                 text_content = file_entry.extracted_text
+            elif isinstance(exc, ImportError):
+                # python-docx isn't installed and there's no precomputed text —
+                # tell the user which dependency to install.
+                return (
+                    f"[DOCX file '{filename}' could not be processed: the "
+                    f"'python-docx' package is required. Install the "
+                    f"'file-formats' extra.]"
+                )
             else:
+                # Malformed/unparseable document — keep the message generic.
                 return f"[DOCX file '{filename}' could not be processed.]"
 
         # Truncate very long documents
