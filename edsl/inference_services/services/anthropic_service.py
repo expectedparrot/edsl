@@ -176,6 +176,18 @@ class AnthropicService(InferenceServiceABC):
                                     "text": f"\n--- Content from '{filename}' ---\n{text_content}\n--- End of {filename} ---\n",
                                 }
                             )
+                        # Handle .docx by including their extracted text
+                        elif msg_builder._is_docx_file(file_entry):
+                            text_content = msg_builder.decode_docx_text(file_entry)
+                            filename = getattr(
+                                file_entry, "filename", "document.docx"
+                            )
+                            messages[0]["content"].append(
+                                {
+                                    "type": "text",
+                                    "text": f"\n--- Content from '{filename}' ---\n{text_content}\n--- End of {filename} ---\n",
+                                }
+                            )
                         # Handle PDFs as documents
                         elif msg_builder._is_pdf_file(file_entry):
                             encoded_data = file_entry.base64_string

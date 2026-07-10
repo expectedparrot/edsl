@@ -73,6 +73,11 @@ Each `questions[question_name]` value is a `HumanizeQuestionSchema` object.
 <ParamField path="text_interview_config" type="dict" required={false}>
   **Interview only** (`interview`). Optional configuration for text-mode interviews. Ignored when `interview_mode` is `"voice"`.
   <Expandable title="properties">
+    <ParamField path="language" type="string" default="english">
+      The language for the text interview. A lowercase language id from the supported set below. Case and surrounding whitespace are normalized (e.g. `"  French "` becomes `"french"`); omit or set to `null` to use the default (`"english"`). An unsupported value raises a validation error.
+
+      **Supported languages:** `english`, `french`, `german`, `spanish`, `portuguese`, `chinese`, `japanese`, `hindi`, `italian`, `korean`, `dutch`, `polish`, `russian`, `swedish`, `turkish`, `tagalog`, `bulgarian`, `romanian`, `arabic`, `czech`, `greek`, `finnish`, `croatian`, `malay`, `slovak`, `danish`, `tamil`, `ukrainian`, `hungarian`, `norwegian`, `vietnamese`, `bangla`, `thai`, `hebrew`, `georgian`, `indonesian`, `telugu`, `gujarati`, `kannada`, `malayalam`, `marathi`, `punjabi`, `multilingual`.
+    </ParamField>
     <ParamField path="interviewer_name" type="string" required={false}>
       Label shown above the interviewer's messages. Must be between 1 and 200 characters. Defaults to `"AI Interviewer"`. Omit or set to `null` to use the default.
     </ParamField>
@@ -102,6 +107,14 @@ Each `questions[question_name]` value is a `HumanizeQuestionSchema` object.
 
           - `"visible"` — the floating checklist panel is shown to the participant during the interview (default).
           - `"hidden"` — the participant never sees the checklist; it acts as a pure interviewer instrument (status is still tracked internally).
+        </ParamField>
+      </Expandable>
+    </ParamField>
+    <ParamField path="structured_questions" type="dict" required={false}>
+      Lets the interviewer ask multiple-choice and numerical questions mid-interview, rendered as input widgets rather than prose. Omit or set to `null` to disable structured questions.
+      <Expandable title="properties">
+        <ParamField path="allowed_types" type="array" default={["multiple_choice", "numerical"]}>
+          Which question types the model may use. Each entry must be `"multiple_choice"` or `"numerical"`. Defaults to both. Narrowing this restricts the model to the listed types. Must be non-empty (omit `structured_questions` instead of passing an empty list) and must not contain duplicates.
         </ParamField>
       </Expandable>
     </ParamField>
