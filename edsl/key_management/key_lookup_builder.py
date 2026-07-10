@@ -44,6 +44,7 @@ for service, key in service_to_api_keyname.items():
             api_keyname_to_service[k] = service
     else:
         api_keyname_to_service[key] = service
+api_keyname_to_service["LLAMA_API_KEY"] = "meta"
 
 api_id_to_service = {"AWS_ACCESS_KEY_ID": "bedrock"}
 

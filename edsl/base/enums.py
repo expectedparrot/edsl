@@ -70,6 +70,7 @@ class InferenceServiceType(EnumWithChecks):
     DEEPSEEK = "deepseek"
     XAI = "xai"
     OPEN_ROUTER = "open_router"
+    META = "meta"
 
 
 # unavoidable violation of the DRY principle but it is necessary
@@ -92,6 +93,7 @@ InferenceServiceLiteral = Literal[
     "deepseek",
     "xai",
     "open_router",
+    "meta",
 ]
 
 available_models_urls = {
@@ -100,6 +102,7 @@ available_models_urls = {
     "openai_v2": "https://platform.openai.com/docs/models/gp",
     "groq": "https://console.groq.com/docs/models",
     "google": "https://cloud.google.com/vertex-ai/generative-ai/docs/learn/models",
+    "meta": "https://dev.meta.ai/docs/getting-started/overview/",
 }
 
 
@@ -120,6 +123,7 @@ service_to_api_keyname = {
     InferenceServiceType.DEEPSEEK.value: "DEEPSEEK_API_KEY",
     InferenceServiceType.XAI.value: "XAI_API_KEY",
     InferenceServiceType.OPEN_ROUTER.value: "OPEN_ROUTER_API_KEY",
+    InferenceServiceType.META.value: "META_API_KEY",
     InferenceServiceType.OLLAMA.value: "OLLAMA_API_KEY",
 }
 

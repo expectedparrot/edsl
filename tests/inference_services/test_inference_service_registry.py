@@ -128,6 +128,12 @@ class TestInferenceServiceRegistry:
         services = registry.list_registered_services()
         assert set(services) == {"service1", "service2"}
 
+    def test_default_registry_discovers_meta_service(self):
+        registry = InferenceServiceRegistry()
+
+        assert "meta" in registry.list_registered_services()
+        assert registry.get_service_class("meta")._inference_service_ == "meta"
+
     def test_services_property(self, registry):
         """Test services property returns the internal services dict."""
         registry.register("service1", MockInferenceService)
@@ -474,6 +480,7 @@ class TestInferenceServiceRegistry:
             "together",
             "xai",
             "open_router",
+            "meta",
             "bedrock",
             "azure",
             "ollama",
