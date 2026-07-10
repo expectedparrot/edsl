@@ -118,6 +118,7 @@ class InferenceServiceRegistry:
         "together",
         "xai",
         "open_router",
+        "meta",
         "bedrock",
         "azure",
         "ollama",
