@@ -203,6 +203,26 @@ EndPolicy = Annotated[
 ]
 
 
+class StructuredQuestionsConfig(HumanizeSchemaBase):
+    """Lets the interviewer ask multiple-choice and numerical questions mid-interview,
+    rendered as input widgets rather than prose.
+    """
+
+    allowed_types: list[Literal["multiple_choice", "numerical"]] = Field(
+        default_factory=lambda: ["multiple_choice", "numerical"]
+    )
+
+    @model_validator(mode="after")
+    def _allowed_types_nonempty_unique(self) -> "StructuredQuestionsConfig":
+        if not self.allowed_types:
+            raise ValueError(
+                "allowed_types must not be empty; omit structured_questions instead."
+            )
+        if len(self.allowed_types) != len(set(self.allowed_types)):
+            raise ValueError("allowed_types must not contain duplicates.")
+        return self
+
+
 class TextInterviewConfig(HumanizeSchemaBase):
     """Configuration specific to text-mode interviews."""
 
@@ -216,6 +236,7 @@ class TextInterviewConfig(HumanizeSchemaBase):
         StringConstraints(strip_whitespace=True, min_length=1, max_length=2500),
     ] = None
     checklist: Optional[ChecklistConfig] = None
+    structured_questions: Optional[StructuredQuestionsConfig] = None
     end_policy: EndPolicy = Field(default_factory=RespondentEndPolicy)
 
     @field_validator("language", mode="before")

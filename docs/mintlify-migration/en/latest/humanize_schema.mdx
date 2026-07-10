@@ -110,6 +110,14 @@ Each `questions[question_name]` value is a `HumanizeQuestionSchema` object.
         </ParamField>
       </Expandable>
     </ParamField>
+    <ParamField path="structured_questions" type="dict" required={false}>
+      Lets the interviewer ask multiple-choice and numerical questions mid-interview, rendered as input widgets rather than prose. Omit or set to `null` to disable structured questions.
+      <Expandable title="properties">
+        <ParamField path="allowed_types" type="array" default={["multiple_choice", "numerical"]}>
+          Which question types the model may use. Each entry must be `"multiple_choice"` or `"numerical"`. Defaults to both. Narrowing this restricts the model to the listed types. Must be non-empty (omit `structured_questions` instead of passing an empty list) and must not contain duplicates.
+        </ParamField>
+      </Expandable>
+    </ParamField>
     <ParamField path="end_policy" type="dict" required={false}>
       Controls how the interview is allowed to end. Omit to use the default (`{"control": "respondent"}`).
       <Expandable title="properties">
