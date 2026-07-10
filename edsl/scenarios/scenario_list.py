@@ -1354,6 +1354,28 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
     def add_list(self, name: str, values: List[Any]) -> ScenarioList:
         return self._transformer.add_list(name, values)
 
+    def embed(
+        self,
+        field: str,
+        *,
+        model: Optional[Any] = None,
+        output_field: str = "embedding",
+        cache: Optional[Any] = None,
+    ) -> ScenarioList:
+        """Embed a text field and return a ScenarioList with an embedding field.
+
+        >>> ScenarioList.from_list("text", ["a", "bb"]).embed("text", model=__import__("edsl").EmbeddingModel("test", service_name="test"))  # doctest: +ELLIPSIS
+        ScenarioList(...)
+        """
+        from ..embeddings import EmbeddingModel
+
+        embedding_model = model or EmbeddingModel()
+        texts = [scenario.get(field) for scenario in self]
+        if any(not isinstance(text, str) for text in texts):
+            raise TypeError(f"All values in field '{field}' must be strings.")
+        result = embedding_model.embed(texts, cache=cache)
+        return self.add_list(output_field, result.embeddings)
+
     @classmethod
     def create_empty_scenario_list(cls, n: int) -> ScenarioList:
         """Create an empty ScenarioList with n scenarios.

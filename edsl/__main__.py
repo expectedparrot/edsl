@@ -18,6 +18,7 @@ from edsl.cli_commands import jobs as jobs_commands
 from edsl.cli_commands import models as models_commands
 from edsl.cli_commands import objects as objects_commands
 from edsl.cli_commands import open as open_commands
+from edsl.cli_commands import packages as package_commands
 from edsl.cli_commands import profiles as profiles_commands
 from edsl.cli_commands import results as results_commands
 from edsl.cli_commands import run as run_commands
@@ -56,6 +57,8 @@ def app(ctx):
                 "validate",
                 "objects",
                 "open",
+                "unpack",
+                "unzip",
                 "clone",
                 "search",
                 "push",
@@ -330,6 +333,7 @@ for command_name in [
 ]:
     objects.add_command(app.commands[command_name], command_name)
 open_commands.register(app)
+package_commands.register(app)
 profiles_commands.register(app, profiles)
 results_commands.register(results)
 run_commands.register(app)

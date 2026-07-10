@@ -29,6 +29,10 @@ __all__ = [
     "logger",
     "Config",
     "CONFIG",
+    "EmbeddingCache",
+    "EmbeddingCacheEntry",
+    "EmbeddingModel",
+    "EmbeddingResult",
     "__version__",
     "modify_settings",
     "show_settings",
@@ -42,6 +46,7 @@ _LAZY_MODULES = {
     "questions",
     "scenarios",
     "language_models",
+    "embeddings",
     "results",
     "caching",
     "notebooks",
@@ -88,6 +93,11 @@ _EXPORT_TO_MODULE = {
     "Model": "language_models",
     "ModelList": "language_models",
     "LanguageModel": "language_models",
+    # embeddings
+    "EmbeddingModel": "embeddings",
+    "EmbeddingResult": "embeddings",
+    "EmbeddingCache": "embeddings",
+    "EmbeddingCacheEntry": "embeddings",
     # results
     "Results": "results",
     # dataset
