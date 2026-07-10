@@ -206,6 +206,7 @@ EndPolicy = Annotated[
 class TextInterviewConfig(HumanizeSchemaBase):
     """Configuration specific to text-mode interviews."""
 
+    language: str = DEFAULT_VOICE_INTERVIEW_LANGUAGE
     interviewer_name: Annotated[
         Optional[str],
         StringConstraints(strip_whitespace=True, min_length=1, max_length=200),
@@ -216,6 +217,11 @@ class TextInterviewConfig(HumanizeSchemaBase):
     ] = None
     checklist: Optional[ChecklistConfig] = None
     end_policy: EndPolicy = Field(default_factory=RespondentEndPolicy)
+
+    @field_validator("language", mode="before")
+    @classmethod
+    def _validate_language(cls, v: object) -> str:
+        return normalize_voice_interview_language(v)
 
 
 class VoiceInterviewConfig(HumanizeSchemaBase):
