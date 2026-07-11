@@ -47,9 +47,22 @@ class ResultSerializer:
         """
 
         def convert_value(value, add_edsl_version=True):
-            """Helper function to convert values with to_dict method."""
+            """Helper function to convert nested values with to_dict methods."""
             if hasattr(value, "to_dict"):
                 return value.to_dict(add_edsl_version=add_edsl_version)
+            elif isinstance(value, dict):
+                return {
+                    k: convert_value(v, add_edsl_version=add_edsl_version)
+                    for k, v in value.items()
+                }
+            elif isinstance(value, list):
+                return [
+                    convert_value(v, add_edsl_version=add_edsl_version) for v in value
+                ]
+            elif isinstance(value, tuple):
+                return tuple(
+                    convert_value(v, add_edsl_version=add_edsl_version) for v in value
+                )
             else:
                 return value
 
