@@ -11,6 +11,7 @@ on the client. The registry maps task_id -> callable for local execution.
 
 from dataclasses import dataclass
 from typing import Any
+import inspect
 
 
 @dataclass
@@ -53,7 +54,7 @@ class DirectAnswerRegistry:
         """Get the entry for a task."""
         return self._entries.get(task_id)
 
-    def execute(self, task_id: str) -> dict:
+    async def execute(self, task_id: str) -> dict:
         """
         Execute a direct answer task.
 
@@ -72,13 +73,19 @@ class DirectAnswerRegistry:
             raise ValueError(f"No direct answer entry for task {task_id}")
 
         if entry.execution_type == "agent_direct":
-            return self._execute_agent_direct(entry)
+            return await self._maybe_await(self._execute_agent_direct(entry))
         elif entry.execution_type == "functional":
-            return self._execute_functional(entry)
+            return await self._maybe_await(self._execute_functional(entry))
         else:
             raise ValueError(f"Unknown execution type: {entry.execution_type}")
 
-    def _execute_agent_direct(self, entry: DirectAnswerEntry) -> dict:
+    @staticmethod
+    async def _maybe_await(value):
+        if inspect.isawaitable(value):
+            return await value
+        return value
+
+    async def _execute_agent_direct(self, entry: DirectAnswerEntry) -> dict:
         """
         Execute agent-level direct answering.
 
@@ -86,7 +93,9 @@ class DirectAnswerRegistry:
         that returns either the answer directly or a dict with "answer" and
         optional "comment" keys.
         """
-        result = entry.agent.answer_question_directly(entry.question, entry.scenario)
+        result = await self._maybe_await(
+            entry.agent.answer_question_directly(entry.question, entry.scenario)
+        )
         # Handle dicts with answer and comment keys - this is used for humanize
         # to turn responses into results
         if isinstance(result, dict) and "answer" in result:
@@ -105,7 +114,7 @@ class DirectAnswerRegistry:
             "output_tokens": 0,
         }
 
-    def _execute_functional(self, entry: DirectAnswerEntry) -> dict:
+    async def _execute_functional(self, entry: DirectAnswerEntry) -> dict:
         """
         Execute question-level functional answering.
 
@@ -121,8 +130,10 @@ class DirectAnswerRegistry:
                 agent_traits = entry.agent._traits
 
         # QuestionFunctional.answer_question_directly returns a dict
-        result = entry.question.answer_question_directly(
-            scenario=entry.scenario, agent_traits=agent_traits
+        result = await self._maybe_await(
+            entry.question.answer_question_directly(
+                scenario=entry.scenario, agent_traits=agent_traits
+            )
         )
 
         # Handle both dict and direct value returns
@@ -133,6 +144,18 @@ class DirectAnswerRegistry:
                 "cached": False,
                 "input_tokens": 0,
                 "output_tokens": 0,
+                **{
+                    key: value
+                    for key, value in result.items()
+                    if key
+                    not in {
+                        "answer",
+                        "comment",
+                        "cached",
+                        "input_tokens",
+                        "output_tokens",
+                    }
+                },
             }
         else:
             # Direct value return
