@@ -17,7 +17,7 @@ from edsl import FileStore, Model, QuestionImageGeneration, ScenarioList
 
 OUTPUT_DIR = Path("temp/decade_photo_modernization_demo")
 REFERENCE_YEAR = 1910
-TARGET_YEARS = list(range(1920, 2030, 10))
+TARGET_YEARS = [1920, 1970, 2020]
 
 
 def load_env() -> None:
@@ -236,8 +236,8 @@ def main() -> None:
     question = QuestionImageGeneration(
         question_name="decade_image",
         question_text=(
-            "Use this reference photo from {{ reference_year }} as the identity anchor: "
-            "{{ source_image }}\n\n"
+            "Use the attached reference photo from {{ reference_year }} as the identity anchor. "
+            "Reference image: {{ source_image }}\n\n"
             "Generate a realistic version of the same person in {{ target_decade }}. "
             "Keep the person clearly recognizable: preserve facial structure, expression, "
             "body type, stance, and relationship to cattle or farm work. Modernize the "

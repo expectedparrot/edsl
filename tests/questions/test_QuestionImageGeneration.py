@@ -110,3 +110,4 @@ def test_question_image_generation_can_use_scenario_image():
 
     assert isinstance(scenario["source_image"], FileStore)
     assert edited_answer.mime_type == "image/png"
+    assert edit._referenced_input_images(scenario, {}) == [scenario["source_image"]]

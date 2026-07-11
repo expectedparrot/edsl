@@ -116,19 +116,27 @@ class QuestionImageGeneration(QuestionBase):
         from .question_base_prompts_mixin import QuestionBasePromptsMixin
         from ..scenarios import FileStore
 
-        referenced_names = {
-            path[0]
-            for path in QuestionBasePromptsMixin.extract_parameters(self.question_text)
-            if len(path) >= 2 and path[1] == "answer"
-        }
+        referenced_paths = QuestionBasePromptsMixin.extract_parameters(
+            self.question_text
+        )
         images = []
-        for name in referenced_names:
+        for path in referenced_paths:
+            name = path[0]
             value = current_answers.get(name)
-            if isinstance(value, FileStore) and value.mime_type.startswith("image/"):
+            if (
+                len(path) >= 2
+                and path[1] == "answer"
+                and isinstance(value, FileStore)
+                and value.mime_type.startswith("image/")
+            ):
                 images.append(value)
                 continue
             value = scenario.get(name)
-            if isinstance(value, FileStore) and value.mime_type.startswith("image/"):
+            if (
+                isinstance(value, FileStore)
+                and value.mime_type.startswith("image/")
+                and (len(path) == 1 or path[1] == "answer")
+            ):
                 images.append(value)
         return images
 
