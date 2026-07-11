@@ -1,4 +1,11 @@
-from edsl import ImageGeneration, Model, QuestionBase, QuestionImageGeneration, Scenario
+from edsl import (
+    ImageGeneration,
+    Model,
+    QuestionBase,
+    QuestionImageGeneration,
+    Scenario,
+    Survey,
+)
 
 
 def test_image_generation_test_service_returns_filestore():
@@ -50,3 +57,30 @@ def test_question_image_generation_runs_as_filestore_answer():
     assert answer.mime_type == "image/png"
     assert answer.base64_string
     assert generated_tokens == "Create an icon for surveys"
+
+
+def test_question_image_generation_can_pipe_prior_image_answer():
+    original = QuestionImageGeneration(
+        question_name="image",
+        question_text="Create a portrait image.",
+        model="test-image",
+        service_name="test",
+    )
+    edit = QuestionImageGeneration(
+        question_name="edit",
+        question_text="Edit this image: {{ image.answer }}",
+        model="test-image",
+        service_name="test",
+    )
+
+    results = (
+        Survey([original, edit])
+        .by(Model("test"))
+        .run(disable_remote_inference=True, stop_on_exception=True)
+    )
+
+    original_answer = results.select("answer.image").to_list()[0]
+    edited_answer = results.select("answer.edit").to_list()[0]
+
+    assert original_answer.mime_type == "image/png"
+    assert edited_answer.mime_type == "image/png"

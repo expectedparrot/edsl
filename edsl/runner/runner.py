@@ -394,7 +394,7 @@ class Runner:
         self._render_worker = RenderWorker(self._storage, job_service=self._service)
 
         # Client-side registry for direct answer tasks
-        self._direct_registry = DirectAnswerRegistry()
+        self._direct_registry = DirectAnswerRegistry(job_service=self._service)
 
         # CAS streaming integrations per job
         self._job_cas: dict[str, Any] = {}
@@ -468,6 +468,8 @@ class Runner:
                 agent=info["agent"],
                 question=info["question"],
                 scenario=info["scenario"],
+                job_id=job_id,
+                interview_id=info.get("interview_id"),
             )
             self._direct_registry.register(info["task_id"], entry)
 

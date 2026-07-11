@@ -75,11 +75,20 @@ class QuestionImageGeneration(QuestionBase):
             **self.generation_parameters,
         )
 
-    async def answer_question_directly(self, scenario, agent_traits=None):
+    async def answer_question_directly(
+        self, scenario, agent_traits=None, current_answers=None
+    ):
         from jinja2 import Template
 
-        prompt = Template(self.question_text).render(dict(scenario))
-        image = await self.image_generator.async_generate(prompt)
+        current_answers = current_answers or {}
+        template_context = dict(scenario) | self._prior_answer_template_context(
+            current_answers
+        )
+        prompt = Template(self.question_text).render(template_context)
+        input_images = self._referenced_input_images(current_answers)
+        image = await self.image_generator.async_generate(
+            prompt, input_images=input_images
+        )
         return {
             "answer": image,
             "comment": None,
@@ -91,6 +100,33 @@ class QuestionImageGeneration(QuestionBase):
             "user_prompt": prompt,
             "system_prompt": "",
         }
+
+    @staticmethod
+    def _prior_answer_template_context(current_answers: dict) -> dict:
+        from types import SimpleNamespace
+
+        context = {}
+        for key, value in current_answers.items():
+            if key.endswith(".answer"):
+                continue
+            context[key] = SimpleNamespace(answer=value)
+        return context
+
+    def _referenced_input_images(self, current_answers: dict) -> list:
+        from .question_base_prompts_mixin import QuestionBasePromptsMixin
+        from ..scenarios import FileStore
+
+        referenced_names = {
+            path[0]
+            for path in QuestionBasePromptsMixin.extract_parameters(self.question_text)
+            if len(path) >= 2 and path[1] == "answer"
+        }
+        images = []
+        for name in referenced_names:
+            value = current_answers.get(name)
+            if isinstance(value, FileStore) and value.mime_type.startswith("image/"):
+                images.append(value)
+        return images
 
     @property
     def _invigilator_class(self):

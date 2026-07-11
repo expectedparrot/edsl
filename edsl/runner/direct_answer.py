@@ -23,6 +23,8 @@ class DirectAnswerEntry:
     agent: Any  # EDSL Agent object (has the method)
     question: Any  # EDSL Question object
     scenario: Any  # EDSL Scenario object
+    job_id: str | None = None
+    interview_id: str | None = None
 
 
 class DirectAnswerRegistry:
@@ -39,8 +41,9 @@ class DirectAnswerRegistry:
         PENDING -> READY -> RENDERING -> QUEUED -> RUNNING -> COMPLETED
     """
 
-    def __init__(self):
+    def __init__(self, job_service: Any | None = None):
         self._entries: dict[str, DirectAnswerEntry] = {}
+        self._job_service = job_service
 
     def register(self, task_id: str, entry: DirectAnswerEntry) -> None:
         """Register a task for direct answering."""
@@ -129,11 +132,20 @@ class DirectAnswerRegistry:
             elif hasattr(entry.agent, "_traits"):
                 agent_traits = entry.agent._traits
 
+        current_answers = {}
+        if self._job_service and entry.job_id and entry.interview_id:
+            current_answers = self._job_service._gather_current_answers(
+                entry.job_id, entry.interview_id
+            )
+
+        kwargs = {"scenario": entry.scenario, "agent_traits": agent_traits}
+        signature = inspect.signature(entry.question.answer_question_directly)
+        if "current_answers" in signature.parameters:
+            kwargs["current_answers"] = current_answers
+
         # QuestionFunctional.answer_question_directly returns a dict
         result = await self._maybe_await(
-            entry.question.answer_question_directly(
-                scenario=entry.scenario, agent_traits=agent_traits
-            )
+            entry.question.answer_question_directly(**kwargs)
         )
 
         # Handle both dict and direct value returns
