@@ -3,6 +3,8 @@ import shutil
 import pytest
 
 from edsl import QuestionBase, QuestionDiagram, Scenario
+from edsl.results import Results
+from edsl.scenarios import FileStore
 
 
 def _requires_graphviz():
@@ -71,3 +73,23 @@ def test_question_diagram_runs_as_filestore_answer():
     assert answer.mime_type == "image/svg+xml"
     assert answer.base64_string
     assert hash(results)
+
+
+def test_question_diagram_result_serialization_restores_filestore_answer():
+    _requires_graphviz()
+    question = QuestionDiagram(
+        question_name="flow",
+        question_text="digraph { {{ start }} -> {{ finish }} }",
+    )
+
+    results = question.by(Scenario({"start": "Start", "finish": "Done"})).run(
+        disable_remote_inference=True,
+        stop_on_exception=True,
+    )
+
+    restored = Results.from_dict(results.to_dict())
+    answer = restored.select("answer.flow").to_list()[0]
+
+    assert isinstance(answer, FileStore)
+    assert answer.mime_type == "image/svg+xml"
+    assert answer.base64_string

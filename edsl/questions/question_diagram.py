@@ -64,8 +64,6 @@ class QuestionDiagram(QuestionBase):
     def answer_question_directly(self, scenario, agent_traits=None):
         if hasattr(scenario, "data"):
             render_context = scenario.data
-        elif isinstance(scenario, dict):
-            render_context = scenario
         else:
             render_context = scenario
 
