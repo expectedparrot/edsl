@@ -85,7 +85,7 @@ class QuestionImageGeneration(QuestionBase):
             current_answers
         )
         prompt = Template(self.question_text).render(template_context)
-        input_images = self._referenced_input_images(current_answers)
+        input_images = self._referenced_input_images(scenario, current_answers)
         image = await self.image_generator.async_generate(
             prompt, input_images=input_images
         )
@@ -112,7 +112,7 @@ class QuestionImageGeneration(QuestionBase):
             context[key] = SimpleNamespace(answer=value)
         return context
 
-    def _referenced_input_images(self, current_answers: dict) -> list:
+    def _referenced_input_images(self, scenario: dict, current_answers: dict) -> list:
         from .question_base_prompts_mixin import QuestionBasePromptsMixin
         from ..scenarios import FileStore
 
@@ -124,6 +124,10 @@ class QuestionImageGeneration(QuestionBase):
         images = []
         for name in referenced_names:
             value = current_answers.get(name)
+            if isinstance(value, FileStore) and value.mime_type.startswith("image/"):
+                images.append(value)
+                continue
+            value = scenario.get(name)
             if isinstance(value, FileStore) and value.mime_type.startswith("image/"):
                 images.append(value)
         return images

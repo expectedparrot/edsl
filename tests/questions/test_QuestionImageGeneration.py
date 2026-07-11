@@ -84,3 +84,29 @@ def test_question_image_generation_can_pipe_prior_image_answer():
 
     assert original_answer.mime_type == "image/png"
     assert edited_answer.mime_type == "image/png"
+
+
+def test_question_image_generation_can_use_scenario_image():
+    from edsl import FileStore
+
+    image = ImageGeneration(model="test-image", service_name="test").generate(
+        "source image"
+    )
+    scenario = Scenario({"source_image": image})
+    edit = QuestionImageGeneration(
+        question_name="edit",
+        question_text="Edit this scenario image: {{ source_image }}",
+        model="test-image",
+        service_name="test",
+    )
+
+    results = (
+        edit.by(Model("test"))
+        .by(scenario)
+        .run(disable_remote_inference=True, stop_on_exception=True)
+    )
+
+    edited_answer = results.select("answer.edit").to_list()[0]
+
+    assert isinstance(scenario["source_image"], FileStore)
+    assert edited_answer.mime_type == "image/png"
