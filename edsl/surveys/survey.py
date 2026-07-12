@@ -73,7 +73,6 @@ from .exceptions import (
 )
 
 
-
 class Survey(Base):
     """A collection of questions with logic for navigating between them.
 
@@ -232,6 +231,58 @@ class Survey(Base):
             text.append(question.human_readable())
         return "\n\n".join(text)
 
+    def add_loop_merge(
+        self,
+        source: Union[str, "QuestionType"],
+        templates: Union["QuestionType", List["QuestionType"]],
+        item_key: str = "loop_item",
+    ) -> "Survey":
+        """Register a *dynamic* Loop & Merge expansion.
+
+        Unlike ``Question.loop()`` (which expands a known ScenarioList *before*
+        the run), this defers expansion to run time: after the ``source``
+        question is answered, the runner reads that answer as a list of items
+        and materializes one copy of each ``templates`` question **per item**,
+        executing them inside the same interview.
+
+        The template questions must NOT be members of the survey — they are
+        held here and instantiated dynamically. Each template should reference
+        the current item via ``{{ <item_key> }}`` (default ``{{ loop_item }}``)
+        and may also use ``{{ loop_index }}``.
+
+        Args:
+            source: The question (or its ``question_name``) whose answer is the
+                loop set. Its answer should be a list (or comma-separated string).
+            templates: A follow-up question, or list of them, asked once per item.
+            item_key: Scenario key the current item is exposed under. Defaults to
+                ``"loop_item"``.
+
+        Returns:
+            self (for chaining).
+
+        Examples:
+            >>> from edsl import QuestionList, QuestionFreeText, Survey
+            >>> q1 = QuestionList(question_name="depts", question_text="List your departments.")
+            >>> follow = QuestionFreeText(question_name="head", question_text="Who heads {{ loop_item }}?")
+            >>> s = Survey([q1]).add_loop_merge(source="depts", templates=follow)
+            >>> len(s._loop_merge_specs)
+            1
+        """
+        source_name = source if isinstance(source, str) else source.question_name
+        if not isinstance(templates, list):
+            templates = [templates]
+
+        if not hasattr(self, "_loop_merge_specs"):
+            self._loop_merge_specs = []
+        self._loop_merge_specs.append(
+            {
+                "source": source_name,
+                "templates": list(templates),
+                "item_key": item_key,
+            }
+        )
+        return self
+
     # @classmethod
     # def auto_survey(
     #     cls, overall_question: str, population: str, num_questions: int
@@ -354,7 +405,13 @@ class Survey(Base):
 
     def _relevant_instructions(self, question: QuestionBase) -> dict:
         """Return instructions that are relevant to the question."""
-        return self._relevant_instructions_dict[question]
+        try:
+            return self._relevant_instructions_dict[question]
+        except KeyError:
+            # Question is not a member of this survey (e.g. a dynamically
+            # injected Loop & Merge follow-up question). Such questions carry
+            # no survey-level instructions.
+            return []
 
     def show_flow(self, filename: Optional[str] = None, renderer: Optional[str] = None):
         """Show the flow of the survey.
@@ -575,6 +632,7 @@ class Survey(Base):
 
     def to_jsonl_rows(self, blob_writer=None):
         from .survey_serializer import SurveySerializer
+
         return SurveySerializer(self).to_jsonl_rows()
 
     @classmethod
@@ -3064,9 +3122,7 @@ class Survey(Base):
                 elif isinstance(val, list):
                     columns[key].append(", ".join(str(o) for o in val))
                 elif isinstance(val, dict):
-                    columns[key].append(
-                        ", ".join(f"{k}: {v}" for k, v in val.items())
-                    )
+                    columns[key].append(", ".join(f"{k}: {v}" for k, v in val.items()))
                 else:
                     columns[key].append(str(val))
 

@@ -81,6 +81,11 @@ class JobService:
         self._interview_callbacks: dict[
             str, Any
         ] = {}  # job_id -> callable(job_id, interview_id)
+        # Dynamic Loop & Merge state (local runner only).
+        # job_id -> {source_question_name -> {"item_key": str, "templates": [dict...]}}
+        self._loop_specs: dict[str, dict[str, dict]] = {}
+        # job_id -> set of dynamically-injected question names (for results assembly)
+        self._injected_question_names: dict[str, set[str]] = {}
 
     @property
     def jobs(self) -> JobStore:
@@ -203,6 +208,23 @@ class JobService:
         for q_id, q in question_map.items():
             q_name = self._get_question_name(q)
             question_name_to_id[q_name] = q_id
+
+        # Extract dynamic Loop & Merge specs off the survey (local runner).
+        # Stored as {source_question_name -> {item_key, templates(dicts)}}.
+        self._injected_question_names[job_id] = set()
+        loop_specs = getattr(survey, "_loop_merge_specs", None) or []
+        if loop_specs:
+            job_loop_specs: dict[str, dict] = {}
+            for spec in loop_specs:
+                job_loop_specs[spec["source"]] = {
+                    "item_key": spec.get("item_key", "loop_item"),
+                    "templates": [self._to_dict(t) for t in spec["templates"]],
+                }
+            self._loop_specs[job_id] = job_loop_specs
+            logger.info(
+                f"[SUBMIT {job_id[:8]}] loop_merge specs registered for sources: "
+                f"{list(job_loop_specs.keys())}"
+            )
 
         # Detect QuestionThinking questions that carry their own model.
         # Register those models in the model store and build a mapping
@@ -810,6 +832,121 @@ class JobService:
         return current
 
     # =========================================================================
+    # Dynamic Loop & Merge
+    # =========================================================================
+
+    @staticmethod
+    def _loop_items_from_answer(answer_value: Any) -> list:
+        """Coerce a source-question answer into a list of loop items."""
+        if answer_value is None:
+            return []
+        if isinstance(answer_value, (list, tuple)):
+            return [x for x in answer_value]
+        if isinstance(answer_value, dict):
+            return list(answer_value.values())
+        if isinstance(answer_value, str):
+            parts = [p.strip() for p in answer_value.split(",") if p.strip()]
+            if len(parts) > 1:
+                return parts
+            return [answer_value] if answer_value.strip() else []
+        return [answer_value]
+
+    def _expand_loop_for_interview(
+        self,
+        job_id: str,
+        interview_id: str,
+        source_task_def: Any,
+        answer_value: Any,
+    ) -> None:
+        """Inject follow-up tasks for a completed dynamic Loop & Merge source.
+
+        Called from ``on_task_completed`` *before* the source task is counted
+        toward interview completion. For each item in the source answer and
+        each registered template question, this writes a per-item Scenario and
+        Question to the stores, extends the interview definition's task count,
+        and creates immediately-READY tasks so the poll loop runs them next.
+        """
+        job_specs = self._loop_specs.get(job_id)
+        if not job_specs:
+            return
+        spec = job_specs.get(source_task_def.question_name)
+        if not spec:
+            return
+
+        items = self._loop_items_from_answer(answer_value)
+        if not items:
+            logger.info(
+                f"[LOOP_MERGE {job_id[:8]}] source={source_task_def.question_name} "
+                f"produced 0 items; nothing to inject"
+            )
+            return
+
+        import copy
+        from ..scenarios import Scenario
+
+        base_scenario_dict = self._jobs.get_scenario(
+            job_id, source_task_def.scenario_id
+        )
+        if base_scenario_dict and "_default" not in base_scenario_dict:
+            base_scenario = Scenario.from_dict(base_scenario_dict)
+        else:
+            base_scenario = Scenario({})
+
+        item_key = spec["item_key"]
+        templates = spec["templates"]
+
+        new_task_defs: list = []
+        new_task_ids: list = []
+        for i, item in enumerate(items):
+            new_scenario = Scenario(
+                {**dict(base_scenario), item_key: item, "loop_index": i}
+            )
+            new_scenario_id = generate_id()
+            self._jobs.write_scenario(job_id, new_scenario_id, new_scenario.to_dict())
+
+            for template_dict in templates:
+                base_name = template_dict.get("question_name", "loop_q")
+                new_q_name = f"{base_name}_{source_task_def.question_name}_{i}"
+                q_dict = copy.deepcopy(template_dict)
+                q_dict["question_name"] = new_q_name
+                new_q_id = generate_id()
+                self._jobs.write_question(job_id, new_q_id, q_dict)
+
+                task_id = generate_id()
+                new_task_defs.append(
+                    TaskDefinition(
+                        task_id=task_id,
+                        job_id=job_id,
+                        interview_id=interview_id,
+                        scenario_id=new_scenario_id,
+                        question_id=new_q_id,
+                        question_name=new_q_name,
+                        agent_id=source_task_def.agent_id,
+                        model_id=source_task_def.model_id,
+                        depends_on=[],
+                        dependents=[],
+                        iteration=source_task_def.iteration,
+                        execution_type="llm",
+                    )
+                )
+                new_task_ids.append(task_id)
+                self._injected_question_names.setdefault(job_id, set()).add(new_q_name)
+
+        if not new_task_defs:
+            return
+
+        # Bump the interview definition FIRST so the interview does not finalize
+        # early when the source task is counted below. Then create the tasks
+        # (depends_on=[] -> immediately READY, picked up on the next poll tick).
+        self._interviews.extend_definition_tasks(job_id, interview_id, new_task_ids)
+        self._tasks.create_batch(new_task_defs)
+        logger.info(
+            f"[LOOP_MERGE {job_id[:8]}] injected {len(new_task_defs)} task(s) "
+            f"into interview {interview_id[:8]} for source="
+            f"{source_task_def.question_name} ({len(items)} item(s))"
+        )
+
+    # =========================================================================
     # Task Completion
     # =========================================================================
 
@@ -883,6 +1020,20 @@ class JobService:
         for dependent_id in task_def.dependents:
             self._tasks.mark_dependency_satisfied(job_id, dependent_id)
         _dt_deps = (_time.monotonic() - _t) * 1000
+
+        # Dynamic Loop & Merge: if this task is a registered loop source, inject
+        # follow-up tasks BEFORE counting it toward interview completion so the
+        # interview does not finalize early.
+        if self._loop_specs.get(job_id):
+            try:
+                self._expand_loop_for_interview(
+                    job_id, interview_id, task_def, answer_value
+                )
+            except Exception as loop_exc:  # pragma: no cover - defensive
+                logger.error(
+                    f"[LOOP_MERGE {job_id[:8]}] expansion failed for task "
+                    f"{task_id[:8]}: {type(loop_exc).__name__}: {loop_exc}"
+                )
 
         # Update interview status
         _t = _time.monotonic()
@@ -2132,6 +2283,14 @@ class JobService:
                 q_data = questions_data.get(q_id)
                 if q_data:
                     question_names.append(q_data.get("question_name", q_id))
+
+        # Dynamic Loop & Merge: include dynamically-injected question names so
+        # their answers are fetched into Results (sparse/union columns).
+        injected_names = self._injected_question_names.get(job_id)
+        if injected_names:
+            for qn in injected_names:
+                if qn not in question_names:
+                    question_names.append(qn)
 
         all_answers = {}
         if completed_interview_ids and question_names:
