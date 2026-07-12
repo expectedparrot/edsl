@@ -86,6 +86,10 @@ class JobService:
         self._loop_specs: dict[str, dict[str, dict]] = {}
         # job_id -> set of dynamically-injected question names (for results assembly)
         self._injected_question_names: dict[str, set[str]] = {}
+        # Per-iteration skip metadata for injected Loop & Merge tasks.
+        # job_id -> {task_id -> {"skip_expr": str, "base_name_map": {base->mangled},
+        #                        "scenario_id": str}}
+        self._injected_skip_meta: dict[str, dict[str, dict]] = {}
 
     @property
     def jobs(self) -> JobStore:
@@ -216,9 +220,56 @@ class JobService:
         if loop_specs:
             job_loop_specs: dict[str, dict] = {}
             for spec in loop_specs:
+                # Skip rules ride on the template question objects themselves
+                # (set via QuestionBase.with_loop_skip), keyed here by base name.
+                skip_rules: dict[str, str] = {}
+                jump_rules: dict[str, list] = {}
+                template_dicts: list[dict] = []
+                for t in spec["templates"]:
+                    t_name = self._get_question_name(t)
+                    expr = getattr(t, "_loop_skip_rule", None)
+                    if expr:
+                        skip_rules[t_name] = expr
+                    jumps = getattr(t, "_loop_jump_rules", None)
+                    if jumps:
+                        jump_rules[t_name] = [tuple(j) for j in jumps]
+                    td = self._to_dict(t)
+                    # to_dict() serializes the transient _loop_skip_rule /
+                    # _loop_jump_rules as loop_skip_rule / loop_jump_rules; strip
+                    # them so from_dict reconstruction of the per-item question
+                    # doesn't choke on an unknown parameter.
+                    td.pop("loop_skip_rule", None)
+                    td.pop("loop_jump_rules", None)
+                    template_dicts.append(td)
+                # Validate jump targets: each must be a LATER block question
+                # (forward jump) or the end-of-loop sentinel. Backward jumps and
+                # jumps to questions outside the block are unsupported.
+                block_order = [td.get("question_name") for td in template_dicts]
+                order_index = {name: idx for idx, name in enumerate(block_order)}
+                for base_name, rules in jump_rules.items():
+                    src_idx = order_index[base_name]
+                    for _expr, target in rules:
+                        if target == "end_of_loop":
+                            continue
+                        if target not in order_index:
+                            raise ValueError(
+                                f"Loop & Merge jump rule on '{base_name}' targets "
+                                f"'{target}', which is not a question in the same "
+                                f"block. Jumping outside the loop block is not "
+                                f"supported; valid targets: "
+                                f"{block_order[src_idx + 1:]} or 'end_of_loop'."
+                            )
+                        if order_index[target] <= src_idx:
+                            raise ValueError(
+                                f"Loop & Merge jump rule on '{base_name}' targets "
+                                f"'{target}', which is not later in the block. Only "
+                                f"forward jumps are supported."
+                            )
                 job_loop_specs[spec["source"]] = {
                     "item_key": spec.get("item_key", "loop_item"),
-                    "templates": [self._to_dict(t) for t in spec["templates"]],
+                    "templates": template_dicts,
+                    "skip_rules": skip_rules,
+                    "jump_rules": jump_rules,
                 }
             self._loop_specs[job_id] = job_loop_specs
             logger.info(
@@ -629,6 +680,20 @@ class JobService:
         if task_def is None:
             return False, None
 
+        # Dynamic Loop & Merge: injected block tasks are NOT survey members, so
+        # the survey-rule walk below cannot see them. They carry their own
+        # per-iteration skip expression, evaluated here against merged answers.
+        inj_meta = self._injected_skip_meta.get(job_id, {}).get(task_id)
+        if inj_meta is not None:
+            return self._should_skip_injected_task(
+                job_id,
+                interview_id,
+                task_def,
+                inj_meta,
+                cached_answers=cached_answers,
+                cached_scenario_data=cached_scenario_data,
+            )
+
         # Use cached survey or fetch and reconstruct
         if cached_survey is not None:
             survey = cached_survey
@@ -835,6 +900,164 @@ class JobService:
     # Dynamic Loop & Merge
     # =========================================================================
 
+    def has_injected_skip_rules(self, job_id: str) -> bool:
+        """True if this job has any per-iteration Loop & Merge skip rules pending.
+
+        Used by the render path to enable skip evaluation even when the survey
+        itself defines no skip rules (injected block tasks aren't survey members).
+        """
+        return bool(self._injected_skip_meta.get(job_id))
+
+    @staticmethod
+    def _eval_block_skip(expression: str, combined_answers: dict) -> bool:
+        """Evaluate a Loop & Merge per-iteration skip expression.
+
+        Replicates ``Rule.evaluate``'s Jinja + simpleeval semantics but WITHOUT
+        the survey's question-name validation (injected block questions are not
+        survey members, and free-form expressions may use Jinja filters that the
+        Rule constructor rejects).
+
+        ``combined_answers`` keys are ``"<name>.answer"`` for question answers,
+        ``"scenario.<k>"`` for scenario values, and ``"agent.<k>"`` for agent
+        traits. String answers are repr()'d so the rendered expression is valid
+        Python; scenario/agent values render raw (mirroring Rule.evaluate).
+        """
+        from collections import defaultdict
+        import random
+        from jinja2 import Template
+        from simpleeval import EvalWithCompoundTypes
+
+        def _fmt(value):
+            return repr(value) if isinstance(value, str) else value
+
+        jinja_dict: dict = defaultdict(dict)
+        for key, value in combined_answers.items():
+            if key.startswith("agent."):
+                jinja_dict["agent"][key.split(".", 1)[1]] = value
+            elif key.startswith("scenario."):
+                jinja_dict["scenario"][key.split(".", 1)[1]] = value
+            elif "." in key:
+                name, vtype = key.split(".", 1)
+                jinja_dict[name][vtype] = _fmt(value)
+            else:
+                jinja_dict[key]["answer"] = _fmt(value)
+
+        to_evaluate = Template(expression).render(jinja_dict)
+        random_functions = {
+            "randint": random.randint,
+            "choice": random.choice,
+            "random": random.random,
+            "uniform": random.uniform,
+        }
+        return bool(EvalWithCompoundTypes(functions=random_functions).eval(to_evaluate))
+
+    def _should_skip_injected_task(
+        self,
+        job_id: str,
+        interview_id: str,
+        task_def: Any,
+        meta: dict,
+        cached_answers: dict | None = None,
+        cached_scenario_data: dict | None = None,
+    ) -> tuple[bool, str | None]:
+        """Decide whether an injected Loop & Merge block task should run.
+
+        Simulates navigation through this iteration's block from position 0 to
+        the task's ``block_index``, applying per-iteration *skip* rules
+        (before-rules: skip this question) and *jump* rules (after-rules: jump
+        forward, skipping the block questions in between). If navigation does not
+        land exactly on this task's index, the task is skipped.
+
+        Merged answer context = all interview answers by their real name, this
+        iteration's block answers ALSO exposed by their unmangled base name, plus
+        the iteration's scenario keys (item and ``loop_index``).
+        """
+        block_order: list = meta.get("block_order") or []
+        target_index: int = meta.get("block_index", 0)
+        skip_rules: dict = meta.get("skip_rules") or {}
+        jump_rules: dict = meta.get("jump_rules") or {}
+        base_name_map = meta.get("base_name_map") or {}
+        order_index = {name: idx for idx, name in enumerate(block_order)}
+
+        if cached_answers is not None:
+            current = cached_answers
+        else:
+            current = self._gather_current_answers(job_id, interview_id)
+
+        combined: dict[str, Any] = {}
+        # Outer + block answers keyed by their real (possibly mangled) names.
+        for key, value in current.items():
+            if key.endswith("_comment"):
+                continue
+            if key.endswith(".answer"):
+                combined[key] = value
+            else:
+                combined[f"{key}.answer"] = value
+
+        # Also expose this iteration's block answers under their unmangled base
+        # name, so a rule can reference an earlier template as
+        # ``{{ used_recently.answer }}`` rather than the mangled name.
+        for base_name, mangled in base_name_map.items():
+            if mangled in current:
+                combined[f"{base_name}.answer"] = current[mangled]
+
+        scenario_id = meta.get("scenario_id") or task_def.scenario_id
+        if cached_scenario_data is not None:
+            scenario_data = cached_scenario_data
+        else:
+            scenario_data = self._jobs.get_scenario(job_id, scenario_id)
+        if scenario_data:
+            combined.update({f"scenario.{k}": v for k, v in scenario_data.items()})
+
+        def _fires(expression: str) -> bool:
+            try:
+                return self._eval_block_skip(expression, combined)
+            except Exception as e:
+                logger.error(
+                    f"[LOOP_MERGE {job_id[:8]}] loop rule eval failed for "
+                    f"{task_def.question_name!r}: {type(e).__name__}: {e}. "
+                    f"Expression: {expression!r}"
+                )
+                return False
+
+        # Walk the block from the start, mirroring survey navigation but scoped
+        # to this iteration's questions.
+        end = len(block_order)
+        pos = 0
+        guard = end + 1
+        while guard > 0 and pos < target_index:
+            guard -= 1
+            base = block_order[pos]
+
+            # Before-rule: is this question skipped outright?
+            skip_expr = skip_rules.get(base)
+            if skip_expr and _fires(skip_expr):
+                pos += 1
+                continue
+
+            # After-rules: does a forward jump fire? Follow the first match.
+            jumped = False
+            for expr, target in jump_rules.get(base, []):
+                if _fires(expr):
+                    pos = end if target == "end_of_loop" else order_index[target]
+                    jumped = True
+                    break
+            if not jumped:
+                pos += 1
+
+            if pos >= end:
+                return True, "Loop & Merge jump rule: end of iteration reached"
+
+        if pos > target_index:
+            return True, "Loop & Merge jump rule: navigation skipped this question"
+
+        # Arrived exactly at this question -> does its OWN before-skip fire?
+        base = block_order[target_index]
+        skip_expr = skip_rules.get(base)
+        if skip_expr and _fires(skip_expr):
+            return True, f"Loop & Merge per-iteration skip rule: {skip_expr}"
+        return False, None
+
     @staticmethod
     def _loop_items_from_answer(answer_value: Any) -> list:
         """Coerce a source-question answer into a list of loop items."""
@@ -894,6 +1117,11 @@ class JobService:
 
         item_key = spec["item_key"]
         templates = spec["templates"]
+        skip_rules = spec.get("skip_rules") or {}
+        jump_rules = spec.get("jump_rules") or {}
+        # Block order (base names) drives the per-iteration navigation walk.
+        block_order = [t.get("question_name", "loop_q") for t in templates]
+        block_has_rules = bool(skip_rules or jump_rules)
 
         new_task_defs: list = []
         new_task_ids: list = []
@@ -904,7 +1132,18 @@ class JobService:
             new_scenario_id = generate_id()
             self._jobs.write_scenario(job_id, new_scenario_id, new_scenario.to_dict())
 
+            # Within one iteration, chain the block's questions sequentially so a
+            # later template's skip rule can reference an earlier template's answer
+            # (block-local reference). base_name_map lets a skip expression refer
+            # to block-local answers by their unmangled base name.
+            prev_task_id: str | None = None
+            prev_task_def: TaskDefinition | None = None
+            base_name_map: dict[str, str] = {}
             for template_dict in templates:
+                base_name = template_dict.get("question_name", "loop_q")
+                new_q_name = f"{base_name}_{source_task_def.question_name}_{i}"
+                base_name_map[base_name] = new_q_name
+            for block_index, template_dict in enumerate(templates):
                 base_name = template_dict.get("question_name", "loop_q")
                 new_q_name = f"{base_name}_{source_task_def.question_name}_{i}"
                 q_dict = copy.deepcopy(template_dict)
@@ -913,24 +1152,44 @@ class JobService:
                 self._jobs.write_question(job_id, new_q_id, q_dict)
 
                 task_id = generate_id()
-                new_task_defs.append(
-                    TaskDefinition(
-                        task_id=task_id,
-                        job_id=job_id,
-                        interview_id=interview_id,
-                        scenario_id=new_scenario_id,
-                        question_id=new_q_id,
-                        question_name=new_q_name,
-                        agent_id=source_task_def.agent_id,
-                        model_id=source_task_def.model_id,
-                        depends_on=[],
-                        dependents=[],
-                        iteration=source_task_def.iteration,
-                        execution_type="llm",
-                    )
+                depends_on = [prev_task_id] if prev_task_id is not None else []
+                task_def = TaskDefinition(
+                    task_id=task_id,
+                    job_id=job_id,
+                    interview_id=interview_id,
+                    scenario_id=new_scenario_id,
+                    question_id=new_q_id,
+                    question_name=new_q_name,
+                    agent_id=source_task_def.agent_id,
+                    model_id=source_task_def.model_id,
+                    depends_on=depends_on,
+                    dependents=[],
+                    iteration=source_task_def.iteration,
+                    execution_type="llm",
                 )
+                # Wire the previous block task -> this one so its completion (or
+                # skip) promotes this PENDING task to READY.
+                if prev_task_def is not None:
+                    prev_task_def.dependents.append(task_id)
+                new_task_defs.append(task_def)
                 new_task_ids.append(task_id)
                 self._injected_question_names.setdefault(job_id, set()).add(new_q_name)
+
+                # Record per-iteration navigation metadata for this injected
+                # task. Stored for EVERY task in a block that has any skip/jump
+                # rules, because a task with no rule of its own may still be
+                # jumped over by an earlier block question's jump rule.
+                if block_has_rules:
+                    self._injected_skip_meta.setdefault(job_id, {})[task_id] = {
+                        "block_index": block_index,
+                        "block_order": block_order,
+                        "skip_rules": skip_rules,
+                        "jump_rules": jump_rules,
+                        "base_name_map": base_name_map,
+                        "scenario_id": new_scenario_id,
+                    }
+                prev_task_id = task_id
+                prev_task_def = task_def
 
         if not new_task_defs:
             return
@@ -1964,6 +2223,13 @@ class JobService:
         for qname in question_names:
             if qname not in answer_dict:
                 answer_dict[qname] = None
+        # Dynamically-injected Loop & Merge questions that were skipped (per-item
+        # skip rule) produce no answer; surface them as None so the column exists.
+        injected_names = self._injected_question_names.get(job_id)
+        if injected_names:
+            for qname in injected_names:
+                if qname not in answer_dict:
+                    answer_dict[qname] = None
 
         # Build prompt dict (matches EDSL's prompt_dictionary structure)
         from edsl.prompts import Prompt

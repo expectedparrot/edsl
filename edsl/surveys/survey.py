@@ -257,6 +257,9 @@ class Survey(Base):
             item_key: Scenario key the current item is exposed under. Defaults to
                 ``"loop_item"``.
 
+        Per-iteration skip logic is attached to a *template* question (not here),
+        via ``question.with_loop_skip(expression)``. See that method for details.
+
         Returns:
             self (for chaining).
 

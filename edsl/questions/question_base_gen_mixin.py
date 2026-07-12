@@ -196,7 +196,9 @@ class QuestionBaseGenMixin:
 
         if pin_options:
             # Record positions of pinned options
-            pinned = {i: v for i, v in enumerate(self.question_options) if v in pin_options}
+            pinned = {
+                i: v for i, v in enumerate(self.question_options) if v in pin_options
+            }
             # Collect non-pinned options
             non_pinned = [v for v in self.question_options if v not in pin_options]
             # Shuffle only non-pinned options
@@ -240,6 +242,73 @@ class QuestionBaseGenMixin:
 
         lp = loop_processor(self)
         return lp.process_templates(scenario_list)
+
+    def with_loop_skip(self, expression: str) -> "QuestionBase":
+        """Attach a per-iteration skip rule to this dynamic Loop & Merge template.
+
+        Only meaningful when this question is used as a ``templates`` entry in
+        ``Survey.add_loop_merge``. During a run, ``expression`` is evaluated once
+        **per loop iteration** against that iteration's merged answers; when it is
+        truthy, this question is skipped for that iteration (its answer is
+        ``None``). The expression may reference:
+
+        - block-local answers by their base name, e.g. ``{{ used_recently.answer }}``
+          (an earlier template in the same iteration);
+        - outer survey answers by their real name, e.g. ``{{ products.answer }}``;
+        - the current item / index via ``{{ scenario.<item_key> }}`` and
+          ``{{ scenario.loop_index }}``.
+
+        Block-out jumps (skipping *to* a question outside the block) are not
+        supported: the rule only decides whether *this* question runs.
+
+        Returns:
+            self (for chaining).
+
+        >>> from edsl.questions import QuestionFreeText
+        >>> q = QuestionFreeText(question_name="head", question_text="Who heads {{ loop_item }}?")
+        >>> q.with_loop_skip("{{ scenario.loop_index }} == 0")._loop_skip_rule
+        '{{ scenario.loop_index }} == 0'
+        """
+        self._loop_skip_rule = expression
+        return self
+
+    #: Sentinel target for with_loop_jump meaning "skip the rest of this
+    #: iteration's block" (analogous to EndOfSurvey, but scoped to the block).
+    END_OF_LOOP = "end_of_loop"
+
+    def with_loop_jump(self, expression: str, target: str) -> "QuestionBase":
+        """Attach a per-iteration jump rule to this dynamic Loop & Merge template.
+
+        Only meaningful when this question is a ``templates`` entry in
+        ``Survey.add_loop_merge``. After this question is answered in a given
+        iteration, ``expression`` is evaluated against that iteration's merged
+        answers; when truthy, navigation jumps **forward within the block**,
+        skipping every block question between this one and ``target``.
+
+        Args:
+            expression: A Jinja/eval condition (same context as
+                ``with_loop_skip``: block-local answers by base name, outer
+                answers by real name, ``{{ scenario.<item_key> }}`` /
+                ``{{ scenario.loop_index }}``).
+            target: The ``question_name`` (base name) of a *later* template in
+                the same block to jump to, or ``QuestionBase.END_OF_LOOP`` to
+                skip the rest of this iteration's block.
+
+        Jumping to an earlier block question (backward loop) or to a question
+        outside the block (the main survey flow) is not supported.
+
+        Returns:
+            self (for chaining).
+
+        >>> from edsl.questions import QuestionFreeText
+        >>> q = QuestionFreeText(question_name="q1", question_text="{{ loop_item }}?")
+        >>> q.with_loop_jump("{{ q1.answer }} == 'no'", target="q3")._loop_jump_rules
+        [("{{ q1.answer }} == 'no'", 'q3')]
+        """
+        if not hasattr(self, "_loop_jump_rules") or self._loop_jump_rules is None:
+            self._loop_jump_rules = []
+        self._loop_jump_rules.append((expression, target))
+        return self
 
     class MaxTemplateNestingExceeded(Exception):
         """Raised when template rendering exceeds maximum allowed nesting level."""
