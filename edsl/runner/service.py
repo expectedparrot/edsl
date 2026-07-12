@@ -979,10 +979,11 @@ class JobService:
         base_name_map = meta.get("base_name_map") or {}
         order_index = {name: idx for idx, name in enumerate(block_order)}
 
-        if cached_answers is not None:
-            current = cached_answers
-        else:
-            current = self._gather_current_answers(job_id, interview_id)
+        # Always gather fresh answers here. The render-batch answer cache
+        # (cached_answers) is a snapshot that may predate this iteration's
+        # block answers (which complete mid-run), and the navigation walk needs
+        # earlier block questions' answers to evaluate skip/jump rules.
+        current = self._gather_current_answers(job_id, interview_id)
 
         combined: dict[str, Any] = {}
         # Outer + block answers keyed by their real (possibly mangled) names.
