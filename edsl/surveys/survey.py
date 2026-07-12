@@ -231,34 +231,35 @@ class Survey(Base):
             text.append(question.human_readable())
         return "\n\n".join(text)
 
-    def add_loop_merge(
+    def loop_over(
         self,
-        source: Union[str, "QuestionType"],
-        templates: Union["QuestionType", List["QuestionType"]],
-        item_key: str = "loop_item",
+        question: Union[str, "QuestionType"],
+        ask: Union["QuestionType", List["QuestionType"]],
+        item: str = "item",
     ) -> "Survey":
-        """Register a *dynamic* Loop & Merge expansion.
+        """Loop a block of follow-up questions once per item of a list answer.
 
         Unlike ``Question.loop()`` (which expands a known ScenarioList *before*
-        the run), this defers expansion to run time: after the ``source``
-        question is answered, the runner reads that answer as a list of items
-        and materializes one copy of each ``templates`` question **per item**,
-        executing them inside the same interview.
+        the run), this defers expansion to run time: after ``question`` is
+        answered, the runner reads that answer as a list of items and
+        materializes one copy of each ``ask`` question **per item**, executing
+        them inside the same interview.
 
-        The template questions must NOT be members of the survey — they are
-        held here and instantiated dynamically. Each template should reference
-        the current item via ``{{ <item_key> }}`` (default ``{{ loop_item }}``)
-        and may also use ``{{ loop_index }}``.
+        The ``ask`` questions must NOT be members of the survey — they are held
+        here and instantiated dynamically. Each should reference the current
+        item via ``{{ <item> }}`` (default ``{{ item }}``) and may also use
+        ``{{ loop_index }}``.
 
         Args:
-            source: The question (or its ``question_name``) whose answer is the
+            question: The question (or its ``question_name``) whose answer is the
                 loop set. Its answer should be a list (or comma-separated string).
-            templates: A follow-up question, or list of them, asked once per item.
-            item_key: Scenario key the current item is exposed under. Defaults to
-                ``"loop_item"``.
+            ask: A follow-up question, or list of them, asked once per item.
+            item: Scenario key the current item is exposed under. Defaults to
+                ``"item"`` (so templates use ``{{ item }}``).
 
-        Per-iteration skip logic is attached to a *template* question (not here),
-        via ``question.with_loop_skip(expression)``. See that method for details.
+        Per-iteration conditional logic is attached to an ``ask`` question (not
+        here), via ``question.skip_when(expression)`` and
+        ``question.jump_when(expression, to=...)``. See those methods for details.
 
         Returns:
             self (for chaining).
@@ -266,25 +267,47 @@ class Survey(Base):
         Examples:
             >>> from edsl import QuestionList, QuestionFreeText, Survey
             >>> q1 = QuestionList(question_name="depts", question_text="List your departments.")
-            >>> follow = QuestionFreeText(question_name="head", question_text="Who heads {{ loop_item }}?")
-            >>> s = Survey([q1]).add_loop_merge(source="depts", templates=follow)
+            >>> follow = QuestionFreeText(question_name="head", question_text="Who heads {{ item }}?")
+            >>> s = Survey([q1]).loop_over("depts", ask=follow)
             >>> len(s._loop_merge_specs)
             1
         """
-        source_name = source if isinstance(source, str) else source.question_name
-        if not isinstance(templates, list):
-            templates = [templates]
+        source_name = question if isinstance(question, str) else question.question_name
+        if not isinstance(ask, list):
+            ask = [ask]
 
         if not hasattr(self, "_loop_merge_specs"):
             self._loop_merge_specs = []
         self._loop_merge_specs.append(
             {
                 "source": source_name,
-                "templates": list(templates),
-                "item_key": item_key,
+                "templates": list(ask),
+                "item_key": item,
             }
         )
         return self
+
+    def add_loop_merge(
+        self,
+        source: Union[str, "QuestionType"],
+        templates: Union["QuestionType", List["QuestionType"]],
+        item_key: str = "loop_item",
+    ) -> "Survey":
+        """Deprecated alias for :meth:`loop_over`.
+
+        ``source`` -> ``question``, ``templates`` -> ``ask``, ``item_key`` ->
+        ``item``. Note the old default item key was ``"loop_item"``; ``loop_over``
+        defaults to ``"item"``.
+        """
+        import warnings
+
+        warnings.warn(
+            "add_loop_merge() is deprecated; use "
+            "loop_over(question, ask=..., item=...).",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return self.loop_over(source, ask=templates, item=item_key)
 
     # @classmethod
     # def auto_survey(

@@ -5,12 +5,14 @@ All cases run on the canned ``test`` model (no API keys needed):
 - static loop:  the loop set is known *before* the run via ``Question.loop()``,
   which name-mangles one question per scenario up front (ordinary static tasks).
 - dynamic loop: the loop set is derived from an answer given mid-interview
-  (``Survey.add_loop_merge``); the runner injects one follow-up task per item.
-- per-iteration skip: a template's ``with_loop_skip`` rule skips that question
-  for iterations where the condition is truthy.
-- per-iteration jump: a template's ``with_loop_jump`` rule jumps forward within
-  the block (or to end-of-iteration), skipping the questions in between.
+  (``Survey.loop_over``); the runner injects one follow-up task per item.
+- per-iteration skip: an ``ask`` question's ``skip_when`` rule skips that
+  question for iterations where the condition is truthy.
+- per-iteration jump: an ``ask`` question's ``jump_when`` rule jumps forward
+  within the block (or to the next item), skipping the questions in between.
 """
+
+import warnings
 
 import pytest
 
@@ -88,11 +90,9 @@ def test_dynamic_loop_merge():
     )
     q_follow = QuestionFreeText(
         question_name="head",
-        question_text="Who is the head of the {{ loop_item }} department?",
+        question_text="Who is the head of the {{ item }} department?",
     )
-    survey = Survey([q_source]).add_loop_merge(
-        source="departments", templates=q_follow, item_key="loop_item"
-    )
+    survey = Survey([q_source]).loop_over("departments", ask=q_follow)
 
     canned = {
         "departments": ["Engineering", "Sales", "Marketing"],
@@ -118,9 +118,9 @@ def test_dynamic_loop_merge_no_scenario():
     src = QuestionList(question_name="colors", question_text="Name some colors.")
     follow = QuestionFreeText(
         question_name="why",
-        question_text="Why do people like {{ loop_item }}?",
+        question_text="Why do people like {{ item }}?",
     )
-    survey = Survey([src]).add_loop_merge(source="colors", templates=follow)
+    survey = Survey([src]).loop_over("colors", ask=follow)
 
     canned = {
         "colors": ["red", "blue"],
@@ -138,10 +138,10 @@ def test_dynamic_loop_merge_no_scenario():
 def test_dynamic_per_iteration_skip():
     """Per-iteration skip logic inside a dynamic Loop & Merge block.
 
-    Three chained templates per product:
+    Three chained ``ask`` questions per product:
       1. used_recently  -- no skip rule
       2. recent_exp      -- skip when {{ used_recently.answer }} == 'No'
-                            (block-local reference to an earlier template)
+                            (block-local reference to an earlier question)
       3. deep_dive       -- skip when {{ scenario.loop_index }} == 0
                             (scenario reference; also references outer source)
 
@@ -152,21 +152,19 @@ def test_dynamic_per_iteration_skip():
     src = QuestionList(question_name="products", question_text="List two products.")
     used_recently = QuestionFreeText(
         question_name="used_recently",
-        question_text="Have you used {{ loop_item }} recently?",
+        question_text="Have you used {{ item }} recently?",
     )
     recent_exp = QuestionFreeText(
         question_name="recent_exp",
-        question_text="Describe your recent experience with {{ loop_item }}.",
-    ).with_loop_skip("{{ used_recently.answer }} == 'No'")
+        question_text="Describe your recent experience with {{ item }}.",
+    ).skip_when("{{ used_recently.answer }} == 'No'")
     deep_dive = QuestionFreeText(
         question_name="deep_dive",
-        question_text="Tell me more about {{ loop_item }}.",
-    ).with_loop_skip(
-        "{{ products.answer | length }} > 5 or {{ scenario.loop_index }} == 0"
-    )
+        question_text="Tell me more about {{ item }}.",
+    ).skip_when("{{ products.answer | length }} > 5 or {{ scenario.loop_index }} == 0")
 
-    survey = Survey([src]).add_loop_merge(
-        source="products", templates=[used_recently, recent_exp, deep_dive]
+    survey = Survey([src]).loop_over(
+        "products", ask=[used_recently, recent_exp, deep_dive]
     )
 
     canned = {
@@ -193,38 +191,36 @@ def test_dynamic_per_iteration_jump():
 
     Block: interested -> details -> wrap_up. ``interested`` carries two
     forward-jump rules:
-      - answer == 'no'   -> jump to wrap_up      (skip details)
-      - answer == 'stop' -> jump to end_of_loop  (skip details AND wrap_up)
+      - answer == 'no'   -> jump to wrap_up   (skip details)
+      - answer == 'stop' -> jump to NEXT_ITEM (skip details AND wrap_up)
 
     With items = ["A", "B", "C"] and interested = yes / no / stop:
       - A: no jump      -> details runs, wrap_up runs
       - B: jump wrap_up -> details SKIPPED, wrap_up runs
-      - C: jump end     -> details SKIPPED, wrap_up SKIPPED
+      - C: jump next    -> details SKIPPED, wrap_up SKIPPED
     """
     src = QuestionList(question_name="items", question_text="List items.")
     interested = (
         QuestionFreeText(
             question_name="interested",
-            question_text="Interested in {{ loop_item }}? (yes/no/stop)",
+            question_text="Interested in {{ item }}? (yes/no/stop)",
         )
-        .with_loop_jump("{{ interested.answer }} == 'no'", target="wrap_up")
-        .with_loop_jump(
+        .jump_when("{{ interested.answer }} == 'no'", to="wrap_up")
+        .jump_when(
             "{{ interested.answer }} == 'stop'",
-            target=QuestionFreeText.END_OF_LOOP,
+            to=QuestionFreeText.NEXT_ITEM,
         )
     )
     details = QuestionFreeText(
         question_name="details",
-        question_text="Give details about {{ loop_item }}.",
+        question_text="Give details about {{ item }}.",
     )
     wrap_up = QuestionFreeText(
         question_name="wrap_up",
-        question_text="Any final word on {{ loop_item }}?",
+        question_text="Any final word on {{ item }}?",
     )
 
-    survey = Survey([src]).add_loop_merge(
-        source="items", templates=[interested, details, wrap_up]
-    )
+    survey = Survey([src]).loop_over("items", ask=[interested, details, wrap_up])
 
     canned = {
         "items": ["A", "B", "C"],
@@ -245,21 +241,62 @@ def test_dynamic_per_iteration_jump():
     assert _val(results, "interested_items_2") == "stop"
     assert _val(results, "details_items_0") == "Details for A"
     assert _val(results, "details_items_1") is None  # jumped over (-> wrap_up)
-    assert _val(results, "details_items_2") is None  # jumped over (-> end_of_loop)
+    assert _val(results, "details_items_2") is None  # jumped over (-> next_item)
     assert _val(results, "wrap_up_items_0") == "Wrap A"
     assert _val(results, "wrap_up_items_1") == "Wrap B"
-    assert _val(results, "wrap_up_items_2") is None  # end_of_loop skipped it
+    assert _val(results, "wrap_up_items_2") is None  # next_item skipped it
 
 
 def test_dynamic_jump_invalid_target_raises():
     """A jump target outside the block fails loudly at submit time."""
     src = QuestionList(question_name="items", question_text="List.")
     q1 = QuestionFreeText(
-        question_name="a", question_text="{{ loop_item }}?"
-    ).with_loop_jump("True", target="outside_the_block")
-    q2 = QuestionFreeText(question_name="b", question_text="{{ loop_item }}?")
-    survey = Survey([src]).add_loop_merge(source="items", templates=[q1, q2])
+        question_name="a", question_text="{{ item }}?"
+    ).jump_when("True", to="outside_the_block")
+    q2 = QuestionFreeText(question_name="b", question_text="{{ item }}?")
+    survey = Survey([src]).loop_over("items", ask=[q1, q2])
 
     canned = {"items": ["x"], "a_items_0": "y", "b_items_0": "z"}
     with pytest.raises(ValueError, match="not a question in the same"):
         _run(survey, canned)
+
+
+def test_deprecated_aliases_still_work():
+    """Old names (add_loop_merge / with_loop_skip / with_loop_jump / END_OF_LOOP)
+    still function, forwarding to the new API, and emit DeprecationWarning."""
+    src = QuestionList(question_name="items", question_text="List items.")
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        gate = (
+            QuestionFreeText(
+                question_name="gate",
+                question_text="Proceed with {{ loop_item }}? (yes/stop)",
+            )
+            .with_loop_jump(
+                "{{ gate.answer }} == 'stop'", target=QuestionFreeText.END_OF_LOOP
+            )
+        )
+        note = QuestionFreeText(
+            question_name="note",
+            question_text="Note on {{ loop_item }}.",
+        ).with_loop_skip("{{ gate.answer }} == 'skip'")
+        survey = Survey([src]).add_loop_merge(
+            source="items", templates=[gate, note], item_key="loop_item"
+        )
+
+    categories = [w.category for w in caught]
+    assert DeprecationWarning in categories
+
+    canned = {
+        "items": ["A", "B"],
+        "gate_items_0": "yes",
+        "gate_items_1": "stop",
+        "note_items_0": "note A",
+        "note_items_1": "SHOULD NOT APPEAR",
+    }
+    results = _run(survey, canned)
+
+    assert _val(results, "gate_items_0") == "yes"
+    assert _val(results, "note_items_0") == "note A"
+    assert _val(results, "gate_items_1") == "stop"
+    assert _val(results, "note_items_1") is None  # jumped past via NEXT_ITEM

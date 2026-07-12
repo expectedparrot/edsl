@@ -221,7 +221,7 @@ class JobService:
             job_loop_specs: dict[str, dict] = {}
             for spec in loop_specs:
                 # Skip rules ride on the template question objects themselves
-                # (set via QuestionBase.with_loop_skip), keyed here by base name.
+                # (set via QuestionBase.skip_when), keyed here by base name.
                 skip_rules: dict[str, str] = {}
                 jump_rules: dict[str, list] = {}
                 template_dicts: list[dict] = []
@@ -249,7 +249,7 @@ class JobService:
                 for base_name, rules in jump_rules.items():
                     src_idx = order_index[base_name]
                     for _expr, target in rules:
-                        if target == "end_of_loop":
+                        if target == "next_item":
                             continue
                         if target not in order_index:
                             raise ValueError(
@@ -257,7 +257,7 @@ class JobService:
                                 f"'{target}', which is not a question in the same "
                                 f"block. Jumping outside the loop block is not "
                                 f"supported; valid targets: "
-                                f"{block_order[src_idx + 1:]} or 'end_of_loop'."
+                                f"{block_order[src_idx + 1:]} or 'next_item'."
                             )
                         if order_index[target] <= src_idx:
                             raise ValueError(
@@ -266,7 +266,7 @@ class JobService:
                                 f"forward jumps are supported."
                             )
                 job_loop_specs[spec["source"]] = {
-                    "item_key": spec.get("item_key", "loop_item"),
+                    "item_key": spec.get("item_key", "item"),
                     "templates": template_dicts,
                     "skip_rules": skip_rules,
                     "jump_rules": jump_rules,
@@ -1040,7 +1040,7 @@ class JobService:
             jumped = False
             for expr, target in jump_rules.get(base, []):
                 if _fires(expr):
-                    pos = end if target == "end_of_loop" else order_index[target]
+                    pos = end if target == "next_item" else order_index[target]
                     jumped = True
                     break
             if not jumped:
