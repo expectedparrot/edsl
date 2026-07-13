@@ -1,15 +1,23 @@
-"""End-to-end tests for dynamic Loop & Merge on the new runner.
+"""End-to-end tests for dynamic Loop & Merge.
 
 All cases run on the canned ``test`` model (no API keys needed):
 
 - static loop:  the loop set is known *before* the run via ``Question.loop()``,
   which name-mangles one question per scenario up front (ordinary static tasks).
 - dynamic loop: the loop set is derived from an answer given mid-interview
-  (``Survey.loop_over``); the runner injects one follow-up task per item.
-- per-iteration skip: an ``ask`` question's ``skip_when`` rule skips that
-  question for iterations where the condition is truthy.
-- per-iteration jump: an ``ask`` question's ``jump_when`` rule jumps forward
-  within the block (or to the next item), skipping the questions in between.
+  (``Survey.loop_over``). This is now expanded *statically at build time* into a
+  plain survey: ``max_items`` copies of each ``ask`` question, each piping the
+  i-th item via ``{{ <source>.answer[i] }}`` and carrying an overflow guard so
+  iterations past the actual answer length are skipped. There is no runtime
+  injection, so the survey runs identically on every runner.
+- per-iteration skip: an ``ask`` question's ``skip_when`` rule becomes a native
+  survey skip rule on each copy; the question is skipped where it is truthy.
+- per-iteration jump: an ``ask`` question's ``jump_when`` rule becomes a native
+  survey jump rule, jumping forward within the block (or to the next item).
+
+Because loop conditions become native survey rules, their expressions are
+subject to the ordinary rule validator (which reads bare Jinja-filter names
+like ``length`` as unknown questions); use list operations instead.
 """
 
 import json
@@ -128,7 +136,7 @@ def test_dynamic_loop_merge_no_scenario():
         question_name="why",
         question_text="Why do people like {{ item }}?",
     )
-    survey = Survey([src]).loop_over("colors", ask=follow)
+    survey = Survey([src]).loop_over("colors", ask=follow, max_items=2)
 
     canned = {
         "colors": ["red", "blue"],
@@ -169,10 +177,10 @@ def test_dynamic_per_iteration_skip():
     deep_dive = QuestionFreeText(
         question_name="deep_dive",
         question_text="Tell me more about {{ item }}.",
-    ).skip_when("{{ products.answer | length }} > 5 or {{ scenario.loop_index }} == 0")
+    ).skip_when("{{ scenario.loop_index }} == 0")
 
     survey = Survey([src]).loop_over(
-        "products", ask=[used_recently, recent_exp, deep_dive]
+        "products", ask=[used_recently, recent_exp, deep_dive], max_items=2
     )
 
     canned = {
@@ -228,7 +236,9 @@ def test_dynamic_per_iteration_jump():
         question_text="Any final word on {{ item }}?",
     )
 
-    survey = Survey([src]).loop_over("items", ask=[interested, details, wrap_up])
+    survey = Survey([src]).loop_over(
+        "items", ask=[interested, details, wrap_up], max_items=3
+    )
 
     canned = {
         "items": ["A", "B", "C"],
@@ -256,17 +266,17 @@ def test_dynamic_per_iteration_jump():
 
 
 def test_dynamic_jump_invalid_target_raises():
-    """A jump target outside the block fails loudly at submit time."""
+    """A jump target outside the block fails loudly at build (expansion) time."""
     src = QuestionList(question_name="items", question_text="List.")
     q1 = QuestionFreeText(
         question_name="a", question_text="{{ item }}?"
     ).jump_when("True", to="outside_the_block")
     q2 = QuestionFreeText(question_name="b", question_text="{{ item }}?")
-    survey = Survey([src]).loop_over("items", ask=[q1, q2])
 
-    canned = {"items": ["x"], "a_items_0": "y", "b_items_0": "z"}
-    with pytest.raises(ValueError, match="not a question in the same"):
-        _run(survey, canned)
+    from edsl.surveys.exceptions import SurveyCreationError
+
+    with pytest.raises(SurveyCreationError, match="not a question in the same"):
+        Survey([src]).loop_over("items", ask=[q1, q2])
 
 
 def _economy_survey():
@@ -294,7 +304,7 @@ def _economy_survey():
         question_name="allocation", question_text="Allocate to {{ sector }}?"
     )
     return Survey([risk_tolerance, sectors]).loop_over(
-        "sectors", ask=[outlook, concern, allocation], item="sector"
+        "sectors", ask=[outlook, concern, allocation], item="sector", max_items=3
     )
 
 
@@ -311,32 +321,28 @@ _ECONOMY_CANNED = {
 
 
 def test_loop_merge_serializes_to_json():
-    """The loop config (and its non-member template questions + skip/jump rules)
-    must survive a to_dict/from_dict round-trip -- otherwise remote jobs, Coop
-    hosting, and the survey builder silently lose the loop block."""
+    """After static expansion the loop is an ordinary survey: the expanded
+    questions and their skip/jump rules must survive a to_dict/from_dict
+    round-trip like any other survey (no special ``loop_merge`` block needed)."""
     survey = _economy_survey()
 
-    # A full JSON round-trip, exactly like a remote job upload.
+    # Static expansion => plain survey; no dynamic loop spec rides along.
     d = json.loads(json.dumps(survey.to_dict()))
-    assert "loop_merge" in d
+    assert "loop_merge" not in d
+    assert not getattr(survey, "_loop_merge_specs", None)
 
+    # The per-item questions are real survey members (3 templates x 3 items).
+    for i in range(3):
+        for base in ("outlook", "concern", "allocation"):
+            assert f"{base}_sectors_{i}" in survey.question_names
+    # Piping was rewritten to index the source answer.
+    qm = survey.question_names_to_questions()
+    assert qm["outlook_sectors_1"].question_text == "Outlook on {{ sectors.answer[1] }}?"
+
+    # A full JSON round-trip (exactly like a remote job upload) is faithful.
     survey2 = Survey.from_dict(d)
-    specs = getattr(survey2, "_loop_merge_specs", None)
-    assert specs, "loop specs lost on round-trip"
-    spec = specs[0]
-    assert spec["source"] == "sectors"
-    assert spec["item_key"] == "sector"
-    assert len(spec["templates"]) == 3
-    # skip/jump rules reattached to the reconstructed template questions
-    assert spec["templates"][0]._loop_jump_rules == [
-        ("{{ outlook.answer }} == 'bearish'", "next_item")
-    ]
-    assert spec["templates"][1]._loop_skip_rule == (
-        "{{ outlook.answer }} == 'bullish' or {{ risk_tolerance.answer }} == 'high'"
-    )
-
-    # Equality holds across the round-trip.
     assert survey2 == survey
+    assert survey2.question_names == survey.question_names
 
 
 def test_loop_merge_round_trip_runs_identically():
