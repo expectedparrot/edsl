@@ -102,6 +102,7 @@ class TestCliModuleBoundaries:
             "models",
             "objects",
             "open",
+            "packages",
             "profiles",
             "results",
             "run",
@@ -133,6 +134,8 @@ class TestCliModuleBoundaries:
             "models",
             "objects",
             "open",
+            "unpack",
+            "unzip",
             "profile",
             "profiles",
             "pull",
@@ -168,6 +171,8 @@ class TestCliModuleBoundaries:
             ["credits", "--help"],
             ["run", "--help"],
             ["inspect", "--help"],
+            ["unpack", "--help"],
+            ["unzip", "--help"],
             ["schema", "show", "--help"],
             ["results", "select", "--help"],
             ["results", "export", "--help"],
@@ -1240,6 +1245,44 @@ class TestCliSmokeFlows:
 
         assert results_path.exists()
         assert error_path.read_text(encoding="utf-8") == "# Error"
+
+
+# ---------------------------------------------------------------------------
+# ep unpack / ep unzip
+# ---------------------------------------------------------------------------
+
+class TestPackageHelpers:
+    def test_unpack_extracts_package_to_temp_directory(self, tmp_path):
+        from edsl.surveys import Survey
+
+        package_path = tmp_path / "survey.ep"
+        Survey.example().git.save(package_path)
+
+        result = CliRunner().invoke(cli_module.app, ["unpack", str(package_path)])
+
+        assert result.exit_code == 0, result.output
+        out = json.loads(result.output)
+        extract_path = Path(out["data"]["path"])
+        assert out["status"] == "ok"
+        assert out["data"]["package"] == str(package_path)
+        assert out["data"]["temp"] is True
+        assert out["data"]["object_type"] == "Survey"
+        assert extract_path.is_dir()
+        assert (extract_path / "manifest.json").is_file()
+        assert (extract_path / ".git").is_dir()
+
+    def test_unzip_alias_extracts_package_to_temp_directory(self, tmp_path):
+        from edsl.surveys import Survey
+
+        package_path = tmp_path / "survey.ep"
+        Survey.example().git.save(package_path)
+
+        result = CliRunner().invoke(cli_module.app, ["unzip", str(package_path)])
+
+        assert result.exit_code == 0, result.output
+        out = json.loads(result.output)
+        assert Path(out["data"]["path"]).is_dir()
+        assert out["data"]["object_type"] == "Survey"
 
 
 # ---------------------------------------------------------------------------

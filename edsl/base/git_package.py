@@ -446,7 +446,13 @@ def pack_package_archive(
 
 
 def _exclude_from_package_archive(member_name: str) -> bool:
-    return member_name.startswith(".git/hooks/")
+    if member_name.startswith(".git/hooks/"):
+        return True
+    return _is_transient_git_pack_file(member_name)
+
+
+def _is_transient_git_pack_file(member_name: str) -> bool:
+    return member_name.startswith(".git/objects/pack/tmp_")
 
 
 def _validate_archive_member(name: str) -> None:
