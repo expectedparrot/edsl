@@ -12,11 +12,19 @@ All cases run on the canned ``test`` model (no API keys needed):
   within the block (or to the next item), skipping the questions in between.
 """
 
+import json
 import warnings
 
 import pytest
 
-from edsl import QuestionList, QuestionFreeText, Survey, Model
+from edsl import (
+    QuestionList,
+    QuestionFreeText,
+    QuestionMultipleChoice,
+    QuestionNumerical,
+    Survey,
+    Model,
+)
 from edsl.scenarios import ScenarioList
 
 
@@ -259,6 +267,101 @@ def test_dynamic_jump_invalid_target_raises():
     canned = {"items": ["x"], "a_items_0": "y", "b_items_0": "z"}
     with pytest.raises(ValueError, match="not a question in the same"):
         _run(survey, canned)
+
+
+def _economy_survey():
+    """The economy example survey: skip + jump rules over a dynamic loop."""
+    risk_tolerance = QuestionMultipleChoice(
+        question_name="risk_tolerance",
+        question_text="How would you describe your risk tolerance?",
+        question_options=["low", "medium", "high"],
+    )
+    sectors = QuestionList(
+        question_name="sectors", question_text="Which sectors do you follow?"
+    )
+    outlook = QuestionMultipleChoice(
+        question_name="outlook",
+        question_text="Outlook on {{ sector }}?",
+        question_options=["bullish", "neutral", "bearish"],
+    ).jump_when("{{ outlook.answer }} == 'bearish'", to=QuestionMultipleChoice.NEXT_ITEM)
+    concern = QuestionFreeText(
+        question_name="concern",
+        question_text="Biggest concern about {{ sector }}?",
+    ).skip_when(
+        "{{ outlook.answer }} == 'bullish' or {{ risk_tolerance.answer }} == 'high'"
+    )
+    allocation = QuestionNumerical(
+        question_name="allocation", question_text="Allocate to {{ sector }}?"
+    )
+    return Survey([risk_tolerance, sectors]).loop_over(
+        "sectors", ask=[outlook, concern, allocation], item="sector"
+    )
+
+
+_ECONOMY_CANNED = {
+    "risk_tolerance": "medium",
+    "sectors": ["Technology", "Energy", "Real Estate"],
+    "outlook_sectors_0": "bullish",
+    "allocation_sectors_0": 25,
+    "outlook_sectors_1": "neutral",
+    "concern_sectors_1": "Volatile commodity prices.",
+    "allocation_sectors_1": 15,
+    "outlook_sectors_2": "bearish",
+}
+
+
+def test_loop_merge_serializes_to_json():
+    """The loop config (and its non-member template questions + skip/jump rules)
+    must survive a to_dict/from_dict round-trip -- otherwise remote jobs, Coop
+    hosting, and the survey builder silently lose the loop block."""
+    survey = _economy_survey()
+
+    # A full JSON round-trip, exactly like a remote job upload.
+    d = json.loads(json.dumps(survey.to_dict()))
+    assert "loop_merge" in d
+
+    survey2 = Survey.from_dict(d)
+    specs = getattr(survey2, "_loop_merge_specs", None)
+    assert specs, "loop specs lost on round-trip"
+    spec = specs[0]
+    assert spec["source"] == "sectors"
+    assert spec["item_key"] == "sector"
+    assert len(spec["templates"]) == 3
+    # skip/jump rules reattached to the reconstructed template questions
+    assert spec["templates"][0]._loop_jump_rules == [
+        ("{{ outlook.answer }} == 'bearish'", "next_item")
+    ]
+    assert spec["templates"][1]._loop_skip_rule == (
+        "{{ outlook.answer }} == 'bullish' or {{ risk_tolerance.answer }} == 'high'"
+    )
+
+    # Equality holds across the round-trip.
+    assert survey2 == survey
+
+
+def test_loop_merge_round_trip_runs_identically():
+    """A survey reconstructed from JSON runs with identical skip/jump behavior --
+    proving remote execution (which round-trips the job) matches local."""
+
+    def answers(s):
+        results = _run(s, _ECONOMY_CANNED)
+        return {
+            c: results.select(c.split(".", 1)[1]).to_list()[0]
+            for c in sorted(results.columns)
+            if c.startswith("answer.")
+        }
+
+    survey = _economy_survey()
+    survey2 = Survey.from_dict(json.loads(json.dumps(survey.to_dict())))
+
+    original = answers(survey)
+    round_tripped = answers(survey2)
+    assert original == round_tripped
+    # sanity: the skip/jump actually fired (not a trivially-equal empty run)
+    assert original["answer.concern_sectors_0"] is None  # skipped (bullish)
+    assert original["answer.concern_sectors_2"] is None  # jumped over (bearish)
+    assert original["answer.allocation_sectors_2"] is None  # jumped over
+    assert original["answer.allocation_sectors_0"] == 25
 
 
 def test_deprecated_aliases_still_work():

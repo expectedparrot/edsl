@@ -637,6 +637,25 @@ class Survey(Base):
         if self.options_to_pin:
             d["options_to_pin"] = self.options_to_pin
 
+        # Include dynamic Loop & Merge specs if present. Without this the loop
+        # config (and its non-member template questions) is lost on any JSON
+        # round-trip -- which breaks remote jobs, Coop hosting, and the builder.
+        # Each template's skip/jump rules ride along inside its own to_dict()
+        # (as loop_skip_rule / loop_jump_rules) and are reattached in from_dict.
+        loop_specs = getattr(self, "_loop_merge_specs", None)
+        if loop_specs:
+            d["loop_merge"] = [
+                {
+                    "source": spec["source"],
+                    "item_key": spec["item_key"],
+                    "templates": [
+                        t.to_dict(add_edsl_version=add_edsl_version)
+                        for t in spec["templates"]
+                    ],
+                }
+                for spec in loop_specs
+            ]
+
         # Add version information if requested
         if add_edsl_version:
             d["edsl_version"] = __version__
@@ -775,6 +794,37 @@ class Survey(Base):
             options_to_pin=options_to_pin,
             _internal_copy=_internal_copy,
         )
+
+        # Reconstruct dynamic Loop & Merge specs (see to_dict). Template
+        # questions are NOT survey members, so they are rebuilt here from their
+        # serialized dicts; their skip/jump rules (serialized as loop_skip_rule /
+        # loop_jump_rules) are stripped before from_dict -- which rejects unknown
+        # params -- and reattached as the transient attrs the runner reads.
+        loop_merge = data.get("loop_merge")
+        if loop_merge:
+            from ..questions import QuestionBase
+
+            specs = []
+            for spec in loop_merge:
+                templates = []
+                for t_dict in spec["templates"]:
+                    t_dict = dict(t_dict)
+                    skip_rule = t_dict.pop("loop_skip_rule", None)
+                    jump_rules = t_dict.pop("loop_jump_rules", None)
+                    question = QuestionBase.from_dict(t_dict)
+                    if skip_rule is not None:
+                        question._loop_skip_rule = skip_rule
+                    if jump_rules is not None:
+                        question._loop_jump_rules = [tuple(j) for j in jump_rules]
+                    templates.append(question)
+                specs.append(
+                    {
+                        "source": spec["source"],
+                        "templates": templates,
+                        "item_key": spec["item_key"],
+                    }
+                )
+            survey._loop_merge_specs = specs
 
         return survey
 
