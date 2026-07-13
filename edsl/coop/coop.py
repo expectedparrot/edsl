@@ -4746,6 +4746,17 @@ class Coop(CoopFunctionsMixin):
                 response_data = await response.json()
         return response_data
 
+    async def remote_async_embed(self, model_dict: dict, inputs: List[str]) -> dict:
+        url = self.api_url + "/embeddings/"
+        data = {
+            "model_dict": model_dict,
+            "input": inputs,
+        }
+        async with aiohttp.ClientSession() as session:
+            async with session.post(url, json=data, headers=self.headers) as response:
+                response.raise_for_status()
+                return await response.json()
+
     def web(
         self,
         survey: dict,

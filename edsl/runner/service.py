@@ -428,6 +428,7 @@ class JobService:
                     all_direct_task_info.append(
                         {
                             **info,
+                            "interview_id": interview_id,
                             "agent": agent_obj,
                             "scenario": scenario_obj,
                             "question": questions[info["question_index"]],

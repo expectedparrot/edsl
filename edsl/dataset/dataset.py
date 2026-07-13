@@ -227,6 +227,21 @@ class Dataset(UserList, DatasetOperationsMixin, PersistenceMixin, HashingMixin):
         """
         return self.to_scenario_list().collapse(field, separator).to_dataset()
 
+    def embed(
+        self,
+        field: str,
+        *,
+        model: Optional[Any] = None,
+        output_field: str = "embedding",
+        cache: Optional[Any] = None,
+    ) -> "Dataset":
+        """Embed a text column and return a Dataset with an embedding column."""
+        return (
+            self.to_scenario_list()
+            .embed(field, model=model, output_field=output_field, cache=cache)
+            .to_dataset()
+        )
+
     def long(self, *args, exclude_fields: Union[list[str], str] = None) -> Dataset:
         """Convert the dataset from wide to long format.
 
