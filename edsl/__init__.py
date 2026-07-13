@@ -40,6 +40,7 @@ _LAZY_MODULES = {
     "agents",
     "surveys",
     "questions",
+    "image_generation",
     "scenarios",
     "language_models",
     "results",
@@ -75,6 +76,7 @@ _EXPORT_TO_MODULE = {
     "QuestionTopK": "questions",
     "QuestionFunctional": "questions",
     "QuestionBase": "questions",
+    "QuestionImageGeneration": "questions",
     # surveys
     "Survey": "surveys",
     # agents
@@ -88,6 +90,9 @@ _EXPORT_TO_MODULE = {
     "Model": "language_models",
     "ModelList": "language_models",
     "LanguageModel": "language_models",
+    # image generation
+    "ImageGeneration": "image_generation",
+    "GeneratedImage": "image_generation",
     # results
     "Results": "results",
     # dataset
