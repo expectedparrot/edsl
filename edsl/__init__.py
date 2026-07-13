@@ -44,6 +44,7 @@ _LAZY_MODULES = {
     "agents",
     "surveys",
     "questions",
+    "image_generation",
     "scenarios",
     "language_models",
     "embeddings",
@@ -80,6 +81,7 @@ _EXPORT_TO_MODULE = {
     "QuestionTopK": "questions",
     "QuestionFunctional": "questions",
     "QuestionBase": "questions",
+    "QuestionImageGeneration": "questions",
     # surveys
     "Survey": "surveys",
     # agents
@@ -98,6 +100,9 @@ _EXPORT_TO_MODULE = {
     "EmbeddingResult": "embeddings",
     "EmbeddingCache": "embeddings",
     "EmbeddingCacheEntry": "embeddings",
+    # image generation
+    "ImageGeneration": "image_generation",
+    "GeneratedImage": "image_generation",
     # results
     "Results": "results",
     # dataset
