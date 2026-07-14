@@ -112,21 +112,21 @@ def test_dynamic_loop_merge():
 
     canned = {
         "departments": ["Engineering", "Sales", "Marketing"],
-        "head_departments_0": "Ada Lovelace",
-        "head_departments_1": "Grace Hopper",
-        "head_departments_2": "Katherine Johnson",
+        "head__loop0__departments": "Ada Lovelace",
+        "head__loop1__departments": "Grace Hopper",
+        "head__loop2__departments": "Katherine Johnson",
     }
     results = _run(survey, canned)
 
     for name in (
-        "head_departments_0",
-        "head_departments_1",
-        "head_departments_2",
+        "head__loop0__departments",
+        "head__loop1__departments",
+        "head__loop2__departments",
     ):
         assert f"answer.{name}" in results.columns
-    assert _val(results, "head_departments_0") == "Ada Lovelace"
-    assert _val(results, "head_departments_1") == "Grace Hopper"
-    assert _val(results, "head_departments_2") == "Katherine Johnson"
+    assert _val(results, "head__loop0__departments") == "Ada Lovelace"
+    assert _val(results, "head__loop1__departments") == "Grace Hopper"
+    assert _val(results, "head__loop2__departments") == "Katherine Johnson"
 
 
 def test_dynamic_loop_merge_no_scenario():
@@ -140,15 +140,19 @@ def test_dynamic_loop_merge_no_scenario():
 
     canned = {
         "colors": ["red", "blue"],
-        "why_colors_0": "It is warm.",
-        "why_colors_1": "It is calm.",
+        "why__loop0__colors": "It is warm.",
+        "why__loop1__colors": "It is calm.",
     }
     results = _run(survey, canned)
 
     answer_cols = sorted(c for c in results.columns if c.startswith("answer."))
-    assert answer_cols == ["answer.colors", "answer.why_colors_0", "answer.why_colors_1"]
-    assert _val(results, "why_colors_0") == "It is warm."
-    assert _val(results, "why_colors_1") == "It is calm."
+    assert answer_cols == [
+        "answer.colors",
+        "answer.why__loop0__colors",
+        "answer.why__loop1__colors",
+    ]
+    assert _val(results, "why__loop0__colors") == "It is warm."
+    assert _val(results, "why__loop1__colors") == "It is calm."
 
 
 def test_dynamic_per_iteration_skip():
@@ -185,21 +189,23 @@ def test_dynamic_per_iteration_skip():
 
     canned = {
         "products": ["A", "B"],
-        "used_recently_products_0": "Yes",
-        "used_recently_products_1": "No",
-        "recent_exp_products_0": "Loved it",
-        "recent_exp_products_1": "SHOULD NOT APPEAR",
-        "deep_dive_products_0": "SHOULD NOT APPEAR",
-        "deep_dive_products_1": "Tell me more",
+        "used_recently__loop0__products": "Yes",
+        "used_recently__loop1__products": "No",
+        "recent_exp__loop0__products": "Loved it",
+        "recent_exp__loop1__products": "SHOULD NOT APPEAR",
+        "deep_dive__loop0__products": "SHOULD NOT APPEAR",
+        "deep_dive__loop1__products": "Tell me more",
     }
     results = _run(survey, canned)
 
-    assert _val(results, "used_recently_products_0") == "Yes"
-    assert _val(results, "used_recently_products_1") == "No"
-    assert _val(results, "recent_exp_products_0") == "Loved it"
-    assert _val(results, "recent_exp_products_1") is None  # skipped (block-local)
-    assert _val(results, "deep_dive_products_0") is None  # skipped (loop_index==0)
-    assert _val(results, "deep_dive_products_1") == "Tell me more"
+    assert _val(results, "used_recently__loop0__products") == "Yes"
+    assert _val(results, "used_recently__loop1__products") == "No"
+    assert _val(results, "recent_exp__loop0__products") == "Loved it"
+    assert _val(results, "recent_exp__loop1__products") is None  # skipped (block-local)
+    assert (
+        _val(results, "deep_dive__loop0__products") is None
+    )  # skipped (loop_index==0)
+    assert _val(results, "deep_dive__loop1__products") == "Tell me more"
 
 
 def test_dynamic_per_iteration_jump():
@@ -242,35 +248,35 @@ def test_dynamic_per_iteration_jump():
 
     canned = {
         "items": ["A", "B", "C"],
-        "interested_items_0": "yes",
-        "interested_items_1": "no",
-        "interested_items_2": "stop",
-        "details_items_0": "Details for A",
-        "details_items_1": "SHOULD NOT APPEAR",
-        "details_items_2": "SHOULD NOT APPEAR",
-        "wrap_up_items_0": "Wrap A",
-        "wrap_up_items_1": "Wrap B",
-        "wrap_up_items_2": "SHOULD NOT APPEAR",
+        "interested__loop0__items": "yes",
+        "interested__loop1__items": "no",
+        "interested__loop2__items": "stop",
+        "details__loop0__items": "Details for A",
+        "details__loop1__items": "SHOULD NOT APPEAR",
+        "details__loop2__items": "SHOULD NOT APPEAR",
+        "wrap_up__loop0__items": "Wrap A",
+        "wrap_up__loop1__items": "Wrap B",
+        "wrap_up__loop2__items": "SHOULD NOT APPEAR",
     }
     results = _run(survey, canned)
 
-    assert _val(results, "interested_items_0") == "yes"
-    assert _val(results, "interested_items_1") == "no"
-    assert _val(results, "interested_items_2") == "stop"
-    assert _val(results, "details_items_0") == "Details for A"
-    assert _val(results, "details_items_1") is None  # jumped over (-> wrap_up)
-    assert _val(results, "details_items_2") is None  # jumped over (-> next_item)
-    assert _val(results, "wrap_up_items_0") == "Wrap A"
-    assert _val(results, "wrap_up_items_1") == "Wrap B"
-    assert _val(results, "wrap_up_items_2") is None  # next_item skipped it
+    assert _val(results, "interested__loop0__items") == "yes"
+    assert _val(results, "interested__loop1__items") == "no"
+    assert _val(results, "interested__loop2__items") == "stop"
+    assert _val(results, "details__loop0__items") == "Details for A"
+    assert _val(results, "details__loop1__items") is None  # jumped over (-> wrap_up)
+    assert _val(results, "details__loop2__items") is None  # jumped over (-> next_item)
+    assert _val(results, "wrap_up__loop0__items") == "Wrap A"
+    assert _val(results, "wrap_up__loop1__items") == "Wrap B"
+    assert _val(results, "wrap_up__loop2__items") is None  # next_item skipped it
 
 
 def test_dynamic_jump_invalid_target_raises():
     """A jump target outside the block fails loudly at build (expansion) time."""
     src = QuestionList(question_name="items", question_text="List.")
-    q1 = QuestionFreeText(
-        question_name="a", question_text="{{ item }}?"
-    ).jump_when("True", to="outside_the_block")
+    q1 = QuestionFreeText(question_name="a", question_text="{{ item }}?").jump_when(
+        "True", to="outside_the_block"
+    )
     q2 = QuestionFreeText(question_name="b", question_text="{{ item }}?")
 
     from edsl.surveys.exceptions import SurveyCreationError
@@ -293,7 +299,9 @@ def _economy_survey():
         question_name="outlook",
         question_text="Outlook on {{ sector }}?",
         question_options=["bullish", "neutral", "bearish"],
-    ).jump_when("{{ outlook.answer }} == 'bearish'", to=QuestionMultipleChoice.NEXT_ITEM)
+    ).jump_when(
+        "{{ outlook.answer }} == 'bearish'", to=QuestionMultipleChoice.NEXT_ITEM
+    )
     concern = QuestionFreeText(
         question_name="concern",
         question_text="Biggest concern about {{ sector }}?",
@@ -311,12 +319,12 @@ def _economy_survey():
 _ECONOMY_CANNED = {
     "risk_tolerance": "medium",
     "sectors": ["Technology", "Energy", "Real Estate"],
-    "outlook_sectors_0": "bullish",
-    "allocation_sectors_0": 25,
-    "outlook_sectors_1": "neutral",
-    "concern_sectors_1": "Volatile commodity prices.",
-    "allocation_sectors_1": 15,
-    "outlook_sectors_2": "bearish",
+    "outlook__loop0__sectors": "bullish",
+    "allocation__loop0__sectors": 25,
+    "outlook__loop1__sectors": "neutral",
+    "concern__loop1__sectors": "Volatile commodity prices.",
+    "allocation__loop1__sectors": 15,
+    "outlook__loop2__sectors": "bearish",
 }
 
 
@@ -331,13 +339,25 @@ def test_loop_merge_serializes_to_json():
     assert "loop_merge" not in d
     assert not getattr(survey, "_loop_merge_specs", None)
 
-    # The per-item questions are real survey members (3 templates x 3 items).
+    # The per-item questions are real survey members (3 templates x 3 items),
+    # named via the public loop naming scheme.
     for i in range(3):
         for base in ("outlook", "concern", "allocation"):
-            assert f"{base}_sectors_{i}" in survey.question_names
+            assert (
+                Survey.loop_question_name(base, "sectors", i) in survey.question_names
+            )
+    # The name marker parses back to its parts (what a consumer would detect on).
+    assert Survey.parse_loop_question_name("outlook__loop1__sectors") == {
+        "base": "outlook",
+        "source": "sectors",
+        "index": 1,
+    }
     # Piping was rewritten to index the source answer.
     qm = survey.question_names_to_questions()
-    assert qm["outlook_sectors_1"].question_text == "Outlook on {{ sectors.answer[1] }}?"
+    assert (
+        qm["outlook__loop1__sectors"].question_text
+        == "Outlook on {{ sectors.answer[1] }}?"
+    )
 
     # A full JSON round-trip (exactly like a remote job upload) is faithful.
     survey2 = Survey.from_dict(d)
@@ -364,10 +384,10 @@ def test_loop_merge_round_trip_runs_identically():
     round_tripped = answers(survey2)
     assert original == round_tripped
     # sanity: the skip/jump actually fired (not a trivially-equal empty run)
-    assert original["answer.concern_sectors_0"] is None  # skipped (bullish)
-    assert original["answer.concern_sectors_2"] is None  # jumped over (bearish)
-    assert original["answer.allocation_sectors_2"] is None  # jumped over
-    assert original["answer.allocation_sectors_0"] == 25
+    assert original["answer.concern__loop0__sectors"] is None  # skipped (bullish)
+    assert original["answer.concern__loop2__sectors"] is None  # jumped over (bearish)
+    assert original["answer.allocation__loop2__sectors"] is None  # jumped over
+    assert original["answer.allocation__loop0__sectors"] == 25
 
 
 def test_deprecated_aliases_still_work():
@@ -376,14 +396,11 @@ def test_deprecated_aliases_still_work():
     src = QuestionList(question_name="items", question_text="List items.")
     with warnings.catch_warnings(record=True) as caught:
         warnings.simplefilter("always")
-        gate = (
-            QuestionFreeText(
-                question_name="gate",
-                question_text="Proceed with {{ loop_item }}? (yes/stop)",
-            )
-            .with_loop_jump(
-                "{{ gate.answer }} == 'stop'", target=QuestionFreeText.END_OF_LOOP
-            )
+        gate = QuestionFreeText(
+            question_name="gate",
+            question_text="Proceed with {{ loop_item }}? (yes/stop)",
+        ).with_loop_jump(
+            "{{ gate.answer }} == 'stop'", target=QuestionFreeText.END_OF_LOOP
         )
         note = QuestionFreeText(
             question_name="note",
@@ -398,14 +415,14 @@ def test_deprecated_aliases_still_work():
 
     canned = {
         "items": ["A", "B"],
-        "gate_items_0": "yes",
-        "gate_items_1": "stop",
-        "note_items_0": "note A",
-        "note_items_1": "SHOULD NOT APPEAR",
+        "gate__loop0__items": "yes",
+        "gate__loop1__items": "stop",
+        "note__loop0__items": "note A",
+        "note__loop1__items": "SHOULD NOT APPEAR",
     }
     results = _run(survey, canned)
 
-    assert _val(results, "gate_items_0") == "yes"
-    assert _val(results, "note_items_0") == "note A"
-    assert _val(results, "gate_items_1") == "stop"
-    assert _val(results, "note_items_1") is None  # jumped past via NEXT_ITEM
+    assert _val(results, "gate__loop0__items") == "yes"
+    assert _val(results, "note__loop0__items") == "note A"
+    assert _val(results, "gate__loop1__items") == "stop"
+    assert _val(results, "note__loop1__items") is None  # jumped past via NEXT_ITEM
