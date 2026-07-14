@@ -747,16 +747,6 @@ class RenderWorker:
             )
             _has_skip_rules = non_default is not None and len(non_default) > 0
 
-        # Dynamic Loop & Merge injected tasks carry their own per-iteration skip
-        # rules that are NOT survey rules; enable skip evaluation when present.
-        if (
-            not _has_skip_rules
-            and self._job_service is not None
-            and hasattr(self._job_service, "has_injected_skip_rules")
-            and self._job_service.has_injected_skip_rules(job_id)
-        ):
-            _has_skip_rules = True
-
         for task_id in task_ids:
             task_def = all_task_defs.get(task_id)
             if not task_def:
