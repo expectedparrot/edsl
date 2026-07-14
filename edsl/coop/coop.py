@@ -2822,6 +2822,21 @@ class Coop(CoopFunctionsMixin):
             raise CoopValueError("Provide either max_jobs or deadline.")
         return payload
 
+    @staticmethod
+    def _strip_instruction_preambles_for_humanize(
+        survey_dict: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """Remove the LLM-only `preamble` field from Instruction entries.
+
+        `Instruction.preamble` (e.g. "You were given the following instructions:")
+        is scaffolding for LLM prompt construction and has no meaning to a human
+        respondent. It must not appear in payloads that reach a human-facing survey.
+        """
+        for entry in survey_dict.get("questions", []):
+            if entry.get("edsl_class_name") == "Instruction":
+                entry.pop("preamble", None)
+        return survey_dict
+
     def create_human_survey(
         self,
         survey: "Survey",
@@ -2895,6 +2910,9 @@ class Coop(CoopFunctionsMixin):
             description=survey_description,
             alias=survey_alias,
             visibility=survey_visibility,
+            _object_dict=self._strip_instruction_preambles_for_humanize(
+                survey.to_dict()
+            ),
         )
         survey_uuid = survey_details.get("uuid")
         if scenario_list is not None:
@@ -3978,7 +3996,7 @@ class Coop(CoopFunctionsMixin):
             raise CoopObjectTypeError("This is not a survey.")
         if humanize_schema is not None:
             self.validate_human_survey_humanize_schema(survey, humanize_schema)
-        survey_dict = survey.to_dict()
+        survey_dict = self._strip_instruction_preambles_for_humanize(survey.to_dict())
         payload: Dict[str, Any] = {"survey_json": survey_dict}
         if humanize_schema is not None:
             payload["humanize_schema"] = humanize_schema
@@ -5400,6 +5418,7 @@ class Coop(CoopFunctionsMixin):
         alias: Optional[str] = None,
         visibility: Optional[VisibilityType] = "private",
         force: bool = False,
+        _object_dict: Optional[Dict[str, Any]] = None,
     ) -> "Scenario":
         """
         Upload an EDSL object to Coop via a signed GCS URL (PUT), then confirm the upload.
@@ -5424,7 +5443,7 @@ class Coop(CoopFunctionsMixin):
         self._validate_alias(alias)
 
         object_type = ObjectRegistry.get_object_type_by_edsl_class(object)
-        object_dict = object.to_dict()
+        object_dict = _object_dict if _object_dict is not None else object.to_dict()
         object_hash = object.get_hash() if hasattr(object, "get_hash") else None
 
         # Process FileStore objects: upload to GCS and offload
