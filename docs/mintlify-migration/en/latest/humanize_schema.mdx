@@ -59,6 +59,18 @@ Each `questions[question_name]` value is a `HumanizeQuestionSchema` object.
   - `"both"` — respondent can choose between text and voice.
 </ParamField>
 
+<ParamField path="intro_screen" type="dict" required={false}>
+  **Interview only** (`interview`). The intro screen shown to the respondent before the interview begins. The intro screen is always shown; this field customizes its text. Omit or set to `null` to use the default text (`"This will be a conversation with an AI agent."`).
+  <Expandable title="properties">
+    <ParamField path="type" type="string" default="default">
+      Must be `"default"`.
+    </ParamField>
+    <ParamField path="instruction" type="string" required={true}>
+      The intro screen body text. Must be between 1 and 2500 characters.
+    </ParamField>
+  </Expandable>
+</ParamField>
+
 <ParamField path="voice_interview_config" type="dict" required={false}>
   **Interview only** (`interview`). Optional configuration for voice-mode interviews. Ignored when `interview_mode` is `"text"`.
   <Expandable title="properties">
