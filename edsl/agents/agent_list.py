@@ -70,7 +70,7 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
     """
 
     __documentation__ = (
-        "https://docs.expectedparrot.com/en/latest/agents.html#agentlist-class"
+        "https://docs.expectedparrot.com/en/latest/agents#agentlist-class"
     )
 
     git = AgentListGitDescriptor()

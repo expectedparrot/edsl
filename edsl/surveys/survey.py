@@ -95,7 +95,7 @@ class Survey(Base):
     serialization for storage or transmission.
     """
 
-    __documentation__ = """https://docs.expectedparrot.com/en/latest/surveys.html"""
+    __documentation__ = """https://docs.expectedparrot.com/en/latest/surveys"""
 
     git = SurveyGitDescriptor()
 

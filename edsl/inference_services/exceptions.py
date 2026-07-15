@@ -34,7 +34,7 @@ class InferenceServiceError(BaseException):
         ```
     """
 
-    relevant_doc = "https://docs.expectedparrot.com/en/latest/remote_inference.html"
+    relevant_doc = "https://docs.expectedparrot.com/en/latest/remote_inference"
 
 
 class InferenceServiceIntendedError(InferenceServiceError):
@@ -43,7 +43,7 @@ class InferenceServiceIntendedError(InferenceServiceError):
 
     """
 
-    relevant_doc = "https://docs.expectedparrot.com/en/latest/language_models.html#model-parameters"
+    relevant_doc = "https://docs.expectedparrot.com/en/latest/language_models#model-parameters"
 
 
 class InferenceServiceValueError(InferenceServiceError):
@@ -67,7 +67,7 @@ class InferenceServiceValueError(InferenceServiceError):
         ```
     """
 
-    relevant_doc = "https://docs.expectedparrot.com/en/latest/language_models.html#model-parameters"
+    relevant_doc = "https://docs.expectedparrot.com/en/latest/language_models#model-parameters"
 
 
 class InferenceServiceIndexError(InferenceServiceError):
@@ -86,7 +86,7 @@ class InferenceServiceIndexError(InferenceServiceError):
         ```
     """
 
-    relevant_doc = "https://docs.expectedparrot.com/en/latest/language_models.html#available-models"
+    relevant_doc = "https://docs.expectedparrot.com/en/latest/language_models#available-models"
 
 
 class InferenceServiceNotImplementedError(InferenceServiceError):
@@ -107,7 +107,7 @@ class InferenceServiceNotImplementedError(InferenceServiceError):
         ```
     """
 
-    relevant_doc = "https://docs.expectedparrot.com/en/latest/language_models.html#available-models"
+    relevant_doc = "https://docs.expectedparrot.com/en/latest/language_models#available-models"
 
 
 class InferenceServiceRuntimeError(InferenceServiceError):
@@ -128,7 +128,7 @@ class InferenceServiceRuntimeError(InferenceServiceError):
         ```
     """
 
-    relevant_doc = "https://docs.expectedparrot.com/en/latest/remote_inference.html"
+    relevant_doc = "https://docs.expectedparrot.com/en/latest/remote_inference"
 
 
 class InferenceServiceEnvironmentError(InferenceServiceError):
@@ -148,7 +148,7 @@ class InferenceServiceEnvironmentError(InferenceServiceError):
         ```
     """
 
-    relevant_doc = "https://docs.expectedparrot.com/en/latest/api_keys.html"
+    relevant_doc = "https://docs.expectedparrot.com/en/latest/api_keys"
 
 
 class InferenceServiceDependencyError(InferenceServiceError):
@@ -166,4 +166,4 @@ class InferenceServiceDependencyError(InferenceServiceError):
         ```
     """
 
-    relevant_doc = "https://docs.expectedparrot.com/en/latest/language_models.html"
+    relevant_doc = "https://docs.expectedparrot.com/en/latest/language_models"

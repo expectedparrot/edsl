@@ -571,7 +571,7 @@ class QuestionDict(QuestionBase):
     with specific keys and value types. It dynamically builds a pydantic model
     so that Pydantic automatically raises ValidationError for missing/invalid fields.
 
-    Documentation: https://docs.expectedparrot.com/en/latest/questions.html#questiondict
+    Documentation: https://docs.expectedparrot.com/en/latest/questions#questiondict
 
     Parameters
     ----------
