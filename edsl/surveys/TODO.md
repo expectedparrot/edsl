@@ -97,5 +97,5 @@ For class-level factory methods (`from_qsf`, `generate_from_topic`, etc.), use *
 - `edsl/interviews/answering_function.py`, `edsl/runner/service.py`
 
 **Docstrings/docs (3 references):**
-- `edsl/surveys/survey.py:2152`, `edsl/surveys/rules/rule_collection.py:325`, `docs/mintlify-migration/en/latest/surveys.mdx:1001`
+- `edsl/surveys/survey.py:2152`, `edsl/surveys/rules/rule_collection.py:325`, `docs/en/latest/surveys.mdx:1001`
 
