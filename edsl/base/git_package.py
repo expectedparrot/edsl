@@ -428,9 +428,11 @@ def pack_package_archive(
         with zipfile.ZipFile(
             temp_path, mode="w", compression=zipfile.ZIP_DEFLATED
         ) as archive:
-            for file_path in sorted(p for p in worktree_path.rglob("*") if p.is_file()):
+            for file_path in sorted(worktree_path.rglob("*")):
                 member_name = file_path.relative_to(worktree_path).as_posix()
                 if _exclude_from_package_archive(member_name):
+                    continue
+                if not file_path.is_file():
                     continue
                 archive.write(
                     file_path,
