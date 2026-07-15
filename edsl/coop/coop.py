@@ -2927,8 +2927,7 @@ class Coop(CoopFunctionsMixin):
             description=survey_description,
             alias=survey_alias,
             visibility=survey_visibility,
-            _object_dict=stripped_survey_dict,
-            _object_hash=str(dict_hash(stripped_hash_dict)),
+            _content_override=(stripped_survey_dict, str(dict_hash(stripped_hash_dict))),
         )
         survey_uuid = survey_details.get("uuid")
         if scenario_list is not None:
@@ -5434,14 +5433,18 @@ class Coop(CoopFunctionsMixin):
         alias: Optional[str] = None,
         visibility: Optional[VisibilityType] = "private",
         force: bool = False,
-        _object_dict: Optional[Dict[str, Any]] = None,
-        _object_hash: Optional[str] = None,
+        _content_override: Optional[Tuple[Dict[str, Any], str]] = None,
     ) -> "Scenario":
         """
         Upload an EDSL object to Coop via a signed GCS URL (PUT), then confirm the upload.
 
         Parameters:
             object: The EDSL object to upload (e.g. Survey, Scenario).
+            _content_override: Optional (object_dict, object_hash) pair to upload instead
+                of `object`'s own serialization — e.g. a version with fields stripped for
+                a human-facing destination. The dict and hash must describe the same
+                content; they travel together so callers can't pass a hash that doesn't
+                match what's actually uploaded.
 
         Returns:
             Scenario: Coop upload metadata as a ``Scenario`` so notebooks/terminals keep
@@ -5460,12 +5463,11 @@ class Coop(CoopFunctionsMixin):
         self._validate_alias(alias)
 
         object_type = ObjectRegistry.get_object_type_by_edsl_class(object)
-        object_dict = _object_dict if _object_dict is not None else object.to_dict()
-        object_hash = (
-            _object_hash
-            if _object_hash is not None
-            else (object.get_hash() if hasattr(object, "get_hash") else None)
-        )
+        if _content_override is not None:
+            object_dict, object_hash = _content_override
+        else:
+            object_dict = object.to_dict()
+            object_hash = object.get_hash() if hasattr(object, "get_hash") else None
 
         # Process FileStore objects: upload to GCS and offload
         object_dict = self._process_filestores_for_push(
