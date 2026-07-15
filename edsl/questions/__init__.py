@@ -142,6 +142,7 @@ from .question_file_upload import QuestionFileUpload
 from .question_edsl_object import QuestionEDSLObject
 from .question_pydantic import QuestionPydantic
 from .question_thinking import QuestionThinking, thinking_question
+from .question_image_generation import QuestionImageGeneration
 
 from .exceptions import QuestionScenarioRenderError
 
@@ -196,6 +197,7 @@ __all__ = [
     "QuestionEDSLObject",
     "QuestionPydantic",
     "QuestionThinking",
+    "QuestionImageGeneration",
     "thinking_question",
     # Validation utilities
     "log_validation_failure",

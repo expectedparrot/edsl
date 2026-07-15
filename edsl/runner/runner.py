@@ -394,7 +394,7 @@ class Runner:
         self._render_worker = RenderWorker(self._storage, job_service=self._service)
 
         # Client-side registry for direct answer tasks
-        self._direct_registry = DirectAnswerRegistry()
+        self._direct_registry = DirectAnswerRegistry(job_service=self._service)
 
         # CAS streaming integrations per job
         self._job_cas: dict[str, Any] = {}
@@ -468,6 +468,8 @@ class Runner:
                 agent=info["agent"],
                 question=info["question"],
                 scenario=info["scenario"],
+                job_id=job_id,
+                interview_id=info.get("interview_id"),
             )
             self._direct_registry.register(info["task_id"], entry)
 
@@ -661,7 +663,7 @@ class Runner:
                 loop_start = time.time()
 
                 # 1. Execute any ready direct-answer tasks first (no LLM needed)
-                self._execute_ready_direct_answers(
+                await self._execute_ready_direct_answers(
                     job_id, debug=debug, stop_on_exception=stop_on_exception
                 )
 
@@ -820,7 +822,7 @@ class Runner:
                 stream.write(f"\r{line}")
             stream.flush()
 
-    def _execute_ready_direct_answers(
+    async def _execute_ready_direct_answers(
         self,
         job_id: str,
         debug: bool = False,
@@ -853,7 +855,7 @@ class Runner:
                 continue
 
             try:
-                result = self._direct_registry.execute(task_id)
+                result = await self._direct_registry.execute(task_id)
 
                 from .models import generate_id
 
@@ -865,8 +867,13 @@ class Runner:
                     comment=result.get("comment"),
                     input_tokens=result.get("input_tokens", 0),
                     output_tokens=result.get("output_tokens", 0),
+                    raw_model_response=result.get("raw_model_response"),
+                    generated_tokens=result.get("generated_tokens"),
                     cached=result.get("cached", False),
+                    system_prompt=result.get("system_prompt"),
+                    user_prompt=result.get("user_prompt"),
                     cache_key=generate_id(),
+                    validated=True,
                 )
 
                 self._direct_registry.remove(task_id)

@@ -339,6 +339,21 @@ def test_survey_git_mutation_save_cleans_stale_questions_and_round_trips(tmp_pat
     assert second["commit"] != first["commit"]
 
 
+def test_survey_git_archive_excludes_transient_git_pack_files(tmp_path):
+    package_path = tmp_path / "survey.survey.ep"
+    survey = Survey.example()
+    survey.git.save(package_path, message="initial survey")
+
+    pack_dir = survey.git.worktree_path / ".git" / "objects" / "pack"
+    pack_dir.mkdir(parents=True, exist_ok=True)
+    transient_pack_file = pack_dir / "tmp_pack_test"
+    transient_pack_file.write_text("git pack in progress", encoding="utf-8")
+
+    survey.git.save(message="unchanged survey")
+
+    assert ".git/objects/pack/tmp_pack_test" not in _package_names(package_path)
+
+
 def test_survey_git_public_edits_round_trip_from_bound_package(tmp_path):
     package_path = tmp_path / "editable.survey.ep"
     survey = Survey(
