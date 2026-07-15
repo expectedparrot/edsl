@@ -1,11 +1,11 @@
 """
 question_dict.py
 
-Drop-in replacement for `QuestionDict`, with dynamic creation of a Pydantic model 
+Drop-in replacement for `QuestionDict`, with dynamic creation of a Pydantic model
 to validate user responses automatically (just like QuestionNumerical).
 
 
-Failure: 
+Failure:
 
 ```python { "first_name": "Kris", "last_name": "Rosemann", "phone": "(262) 506-6064", "email": "InvestorRelations@generac.com", "title": "Senior Manager Corporate Development & Investor Relations", "external": False } ``` The first name and last name are extracted directly from the text. The phone number and email are provided in the text. The title is also given in the text. The email domain "generac.com" suggests that it is an internal email address, so "external" is set to False.
 """
@@ -635,7 +635,7 @@ class QuestionDict(QuestionBase):
 
     @staticmethod
     def _normalize_value_types(
-        value_types: Optional[List[Union[str, type]]]
+        value_types: Optional[List[Union[str, type]]],
     ) -> Optional[List[str]]:
         """
         Convert all value_types to string representations (e.g. "int", "list[str]", etc.).
@@ -665,7 +665,7 @@ class QuestionDict(QuestionBase):
 
     def to_dict(self, add_edsl_version: bool = True) -> dict:
         """Serialize to JSON-compatible dictionary."""
-        return {
+        d = {
             "question_type": self.question_type,
             "question_name": self.question_name,
             "question_text": self.question_text,
@@ -675,11 +675,19 @@ class QuestionDict(QuestionBase):
             "include_comment": self.include_comment,
             "permissive": self.permissive,
         }
+        # Preserve thinking_question() wrapper data so it round-trips. The base
+        # QuestionBase.to_dict emits these via its `data` property, but this
+        # override doesn't call super(), so they'd otherwise be dropped and the
+        # wrapper silently lost on serialization (e.g. when humanizing a survey).
+        if getattr(self, "_thinking_model", None) is not None:
+            d["thinking_model"] = self._thinking_model
+            d["thinking_system_prompt"] = getattr(self, "_thinking_system_prompt", "")
+        return d
 
     @classmethod
     def from_dict(cls, data: dict) -> "QuestionDict":
         """Recreate from a dictionary."""
-        return cls(
+        question = cls(
             question_name=data["question_name"],
             question_text=data["question_text"],
             answer_keys=data["answer_keys"],
@@ -688,6 +696,21 @@ class QuestionDict(QuestionBase):
             include_comment=data.get("include_comment", True),
             permissive=data.get("permissive", False),
         )
+
+        # Re-wrap as a thinking question if the serialized dict carries the
+        # thinking_question() wrapper data. This mirrors QuestionBase.from_dict
+        # so both deserialization paths preserve the wrapper.
+        thinking_model_data = data.get("thinking_model")
+        if thinking_model_data is not None:
+            from .question_thinking import thinking_question
+
+            question = thinking_question(
+                question,
+                model=thinking_model_data,
+                system_prompt=data.get("thinking_system_prompt", ""),
+            )
+
+        return question
 
     @classmethod
     @inject_exception
