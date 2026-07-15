@@ -138,7 +138,7 @@ class Agent(Base):
     structured interactions with language models.
     """
 
-    __documentation__ = "https://docs.expectedparrot.com/en/latest/agents.html"
+    __documentation__ = "https://docs.expectedparrot.com/en/latest/agents"
 
     default_instruction = """You are answering questions as if you were a human. Do not break character."""
 
@@ -813,7 +813,7 @@ class Agent(Base):
     ) -> None:
         """Add a method to the agent that can answer a particular question type.
 
-        See: https://docs.expectedparrot.com/en/latest/agents.html#agent-direct-answering-methods
+        See: https://docs.expectedparrot.com/en/latest/agents#agent-direct-answering-methods
 
         Args:
             method: A method that can answer a question directly

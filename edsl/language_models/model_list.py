@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 
 
 class ModelList(Base, UserList):
-    __documentation__ = """https://docs.expectedparrot.com/en/latest/language_models.html#module-edsl.language_models.ModelList"""
+    __documentation__ = """https://docs.expectedparrot.com/en/latest/language_models#module-edsl.language_models.ModelList"""
     git = ModelListGitDescriptor()
 
     def __init__(self, data: Optional["LanguageModel"] = None):

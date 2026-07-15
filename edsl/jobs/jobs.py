@@ -110,7 +110,7 @@ class Jobs(Base):
     method chaining for concise, readable configuration.
     """
 
-    __documentation__ = "https://docs.expectedparrot.com/en/latest/jobs.html"
+    __documentation__ = "https://docs.expectedparrot.com/en/latest/jobs"
     _logger = get_logger(__name__)
     git = JobsGitDescriptor()
 
