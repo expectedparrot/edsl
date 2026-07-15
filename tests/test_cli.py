@@ -3866,6 +3866,17 @@ class TestRunValidation:
                       expect_exit=2)
         assert out["error"]["code"] == "UNKNOWN_QUESTION_TYPE"
 
+    def test_run_completed_results_require_output(self):
+        result = CliRunner().invoke(
+            cli_module.app,
+            ["run", "--question", "What is your name?"],
+        )
+
+        assert result.exit_code == cli_module.EXIT_USAGE
+        out = json.loads(result.output)
+        assert out["error"]["code"] == "USAGE_ERROR"
+        assert "written to a file" in out["error"]["message"]
+
     def test_run_jobs_package_saves_results_package(self, tmp_path):
         from edsl import Agent, AgentList, Jobs, Model, ModelList, Scenario, ScenarioList
         from edsl.questions import QuestionFreeText
@@ -4067,6 +4078,44 @@ class TestRunValidation:
         assert remote_job["commands"]["status"] == "ep jobs status job-uuid"
         assert remote_job["commands"]["results"] == "ep jobs results job-uuid --output results.ep"
 
+    def test_run_stdout_remains_json_when_runner_prints(self, monkeypatch):
+        from types import SimpleNamespace
+        from edsl.jobs import Jobs
+        from edsl.results import Results
+
+        def fake_run(self, **kwargs):
+            print("Results UUID: results-uuid")
+            print("Results URL: https://www.expectedparrot.com/content/results-uuid")
+            job_info = SimpleNamespace(
+                creation_data={"uuid": "job-uuid", "status": "queued"},
+                job_uuid="job-uuid",
+                new_format=True,
+                logger=SimpleNamespace(
+                    jobs_info=SimpleNamespace(
+                        progress_bar_url="https://example.com/progress/job-uuid",
+                        remote_inference_url=None,
+                        remote_cache_url=None,
+                        results_uuid=None,
+                        results_url=None,
+                        error_report_url=None,
+                    )
+                ),
+            )
+            return Results.from_job_info(job_info)
+
+        monkeypatch.setattr(Jobs, "run", fake_run)
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            ["run", "--question", "What is your name?", "--background"],
+        )
+
+        assert result.exit_code == 0, result.output
+        out = json.loads(result.output)
+        assert out["status"] == "ok"
+        assert out["warnings"][0]["code"] == "SUPPRESSED_STDOUT"
+        assert "Results UUID: results-uuid" in out["warnings"][0]["output"]
+
     def test_run_background_rejects_output(self):
         result = CliRunner().invoke(
             cli_module.app,
@@ -4246,7 +4295,7 @@ class TestRunValidation:
         out = json.loads(result.output)
         assert out["error"]["code"] == "USAGE_ERROR"
 
-    def test_run_passes_iterations_and_local_flags(self, monkeypatch):
+    def test_run_passes_iterations_and_local_flags(self, tmp_path, monkeypatch):
         from edsl import Agent
         from edsl.jobs import Jobs
         from edsl.language_models import Model
@@ -4278,6 +4327,7 @@ class TestRunValidation:
             return fake_results
 
         monkeypatch.setattr(Jobs, "run", fake_run)
+        output_path = tmp_path / "results.json"
 
         result = CliRunner().invoke(
             cli_module.app,
@@ -4289,6 +4339,8 @@ class TestRunValidation:
                 "3",
                 "--local",
                 "--fresh",
+                "--output",
+                str(output_path),
             ],
         )
 
@@ -4297,8 +4349,11 @@ class TestRunValidation:
         assert captured["disable_remote_inference"] is True
         assert captured["fresh"] is True
         out = json.loads(result.output)
+        assert out["data"]["results"] == []
         assert out["data"]["meta"]["n"] == 3
         assert out["data"]["meta"]["local"] is True
+        assert out["data"]["meta"]["saved"]["path"] == str(output_path)
+        assert output_path.exists()
 
 
 # ---------------------------------------------------------------------------
