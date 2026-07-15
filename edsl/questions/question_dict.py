@@ -126,6 +126,65 @@ class DictResponseValidator(ResponseValidatorABC):
 
     required_params = ["answer_keys", "permissive"]
 
+    def _recover_from_generated_tokens(self, text, verbose=False):
+        """Recover a dict answer from the raw generated text.
+
+        The model typically emits a JSON object followed by an optional
+        one-line comment. We try, in order:
+
+        1. Parse the whole string as JSON (clean answer, no comment).
+        2. Peel off the last line as the comment and parse the rest as JSON
+           (the model's usual ``{...}\\n<comment>`` shape).
+        3. Fall back to ``repair_json`` on the whole string for malformed JSON.
+
+        Returns a ``{"answer", "comment", "generated_tokens"}`` dict on success,
+        or ``None`` if nothing parsed to a dict.
+        """
+        import json
+
+        if not isinstance(text, str) or not text.strip():
+            return None
+
+        def _strict(s):
+            s = s.strip()
+            if not s:
+                return None
+            try:
+                parsed = json.loads(s)
+            except (ValueError, TypeError):
+                return None
+            return parsed if isinstance(parsed, dict) else None
+
+        # 1) Whole string is clean JSON — no trailing comment.
+        parsed = _strict(text)
+        if parsed is not None:
+            return {"answer": parsed, "comment": None, "generated_tokens": text}
+
+        # 2) JSON is everything but the last line; last line is the comment.
+        lines = text.rstrip("\n").split("\n")
+        if len(lines) >= 2:
+            head = "\n".join(lines[:-1])
+            parsed = _strict(head)
+            if parsed is not None:
+                comment = lines[-1].strip().lstrip("#").strip() or None
+                if verbose:
+                    print(
+                        f"[QDICT fix]   split JSON from trailing comment line: {comment!r}"
+                    )
+                return {"answer": parsed, "comment": comment, "generated_tokens": text}
+
+        # 3) Last resort: let json_repair try to salvage a malformed object.
+        try:
+            from json_repair import repair_json
+
+            repaired = json.loads(repair_json(text.strip()))
+            if isinstance(repaired, dict):
+                return {"answer": repaired, "comment": None, "generated_tokens": text}
+        except Exception:
+            pass
+
+        return None
+
     def fix(self, response, verbose=False):
         """
         Attempt to fix an invalid dictionary response.
@@ -187,6 +246,22 @@ class DictResponseValidator(ResponseValidatorABC):
             >>> validator.fix(response)
             'not a dictionary'
         """
+        # Recovery for the common case where the model returns multi-line JSON
+        # followed by a trailing comment line. The upstream parser splits on the
+        # first newline, leaving `answer` empty ({}) while the full text survives
+        # in `generated_tokens`. Re-parse it here: JSON is everything but the last
+        # line, and the last line becomes the comment.
+        if isinstance(response, dict) and not response.get("answer"):
+            recovered = self._recover_from_generated_tokens(
+                response.get("generated_tokens"), verbose=verbose
+            )
+            if recovered is not None:
+                try:
+                    self.response_model.model_validate(recovered)
+                    return recovered
+                except Exception as e:
+                    pass
+
         # First try to separate dictionary from trailing comment if they're on the same line
         original_response = response
         if isinstance(response, str):
