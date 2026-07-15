@@ -2826,16 +2826,25 @@ class Coop(CoopFunctionsMixin):
     def _strip_instruction_preambles_for_humanize(
         survey_dict: Dict[str, Any]
     ) -> Dict[str, Any]:
-        """Remove the LLM-only `preamble` field from Instruction entries.
+        """Return a copy of survey_dict with the LLM-only `preamble` field removed
+        from any Instruction entries.
 
         `Instruction.preamble` (e.g. "You were given the following instructions:")
         is scaffolding for LLM prompt construction and has no meaning to a human
         respondent. It must not appear in payloads that reach a human-facing survey.
+
+        Does not mutate `survey_dict` or its nested entries.
         """
-        for entry in survey_dict.get("questions", []):
-            if entry.get("edsl_class_name") == "Instruction":
-                entry.pop("preamble", None)
-        return survey_dict
+        result = dict(survey_dict)
+        result["questions"] = [
+            (
+                {k: v for k, v in entry.items() if k != "preamble"}
+                if entry.get("edsl_class_name") == "Instruction"
+                else entry
+            )
+            for entry in survey_dict.get("questions", [])
+        ]
+        return result
 
     def create_human_survey(
         self,
@@ -2905,14 +2914,21 @@ class Coop(CoopFunctionsMixin):
             agent_list_uuid = agent_list_details.get("uuid")
         else:
             agent_list_uuid = None
+        from ..utilities.utilities import dict_hash
+
+        stripped_survey_dict = self._strip_instruction_preambles_for_humanize(
+            survey.to_dict()
+        )
+        stripped_hash_dict = self._strip_instruction_preambles_for_humanize(
+            survey.to_dict(add_edsl_version=False)
+        )
         survey_details = self.push(
             object=survey,
             description=survey_description,
             alias=survey_alias,
             visibility=survey_visibility,
-            _object_dict=self._strip_instruction_preambles_for_humanize(
-                survey.to_dict()
-            ),
+            _object_dict=stripped_survey_dict,
+            _object_hash=str(dict_hash(stripped_hash_dict)),
         )
         survey_uuid = survey_details.get("uuid")
         if scenario_list is not None:
@@ -5419,6 +5435,7 @@ class Coop(CoopFunctionsMixin):
         visibility: Optional[VisibilityType] = "private",
         force: bool = False,
         _object_dict: Optional[Dict[str, Any]] = None,
+        _object_hash: Optional[str] = None,
     ) -> "Scenario":
         """
         Upload an EDSL object to Coop via a signed GCS URL (PUT), then confirm the upload.
@@ -5444,7 +5461,11 @@ class Coop(CoopFunctionsMixin):
 
         object_type = ObjectRegistry.get_object_type_by_edsl_class(object)
         object_dict = _object_dict if _object_dict is not None else object.to_dict()
-        object_hash = object.get_hash() if hasattr(object, "get_hash") else None
+        object_hash = (
+            _object_hash
+            if _object_hash is not None
+            else (object.get_hash() if hasattr(object, "get_hash") else None)
+        )
 
         # Process FileStore objects: upload to GCS and offload
         object_dict = self._process_filestores_for_push(
