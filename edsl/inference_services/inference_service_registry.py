@@ -334,12 +334,37 @@ class InferenceServiceRegistry:
             return "test"
 
         services = self.model_to_services.get(model_name, [])
+        refresh_error = None
+        if not services and self._source_handler.used_source == "archive":
+            # A stale or partial local model archive can yield a false negative
+            # for a model that live sources (and remote inference) actually
+            # support. Refresh from live sources once, skipping the archive,
+            # before giving up.
+            try:
+                self._model_info_data = self._source_handler.fetch_model_info_data(
+                    source_preferences=[
+                        "coop_working",
+                        "coop",
+                        "local",
+                        "default_models",
+                    ]
+                )
+                self._model_to_services = None
+                self._service_to_models = None
+                services = self.model_to_services.get(model_name, [])
+            except Exception as e:
+                refresh_error = e
         if not services:
+            refresh_context = (
+                f"\n                             Live-source refresh failed: {refresh_error}"
+                if refresh_error is not None
+                else ""
+            )
             raise ValueError(
-                f"""Model '{model_name}' not found in any service. 
+                f"""Model '{model_name}' not found in any service.
                              Available models: {list(self.model_to_services.keys())}. 
                              Available services: {list(self.service_to_models.keys())}
-                            Used source: {self._source_handler.used_source}"""
+                            Used source: {self._source_handler.used_source}{refresh_context}"""
             )
 
         # Find the first preferred service that provides this model

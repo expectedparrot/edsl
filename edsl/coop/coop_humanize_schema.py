@@ -259,11 +259,32 @@ class VoiceInterviewConfig(HumanizeSchemaBase):
         return normalize_voice_interview_language(v)
 
 
+class DefaultIntroScreen(HumanizeSchemaBase):
+    """The default intro screen: a single instruction shown before the interview
+    starts.
+
+    Discriminated by ``type`` so alternative intro screens can join later as a
+    ``Union`` without reshaping stored configs. ``default`` is the only variant
+    today.
+    """
+
+    type: Literal["default"] = "default"
+    instruction: Annotated[
+        str,
+        StringConstraints(strip_whitespace=True, min_length=1, max_length=2500),
+    ]
+
+
 class InterviewHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the interview question type."""
 
     optional: bool = False
     interview_mode: Literal["text", "voice", "both"] = "text"
+    # The intro screen shown before the interview starts. The intro screen is
+    # always shown; None falls back to the default text ("This will be a
+    # conversation with an AI agent."). When set, ``instruction`` supplies the
+    # body text.
+    intro_screen: Optional[DefaultIntroScreen] = None
     voice_interview_config: Optional[VoiceInterviewConfig] = None
     text_interview_config: Optional[TextInterviewConfig] = None
 

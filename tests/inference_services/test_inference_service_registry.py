@@ -294,6 +294,34 @@ class TestInferenceServiceRegistry:
             exc_info.value
         )
 
+    def test_get_service_for_model_archive_refresh_failure_preserves_context(
+        self, registry
+    ):
+        """Archive misses should not be replaced by opaque live-refresh errors."""
+        from edsl.inference_services.model_info import ModelInfo
+
+        handler = Mock(spec=SourcePreferenceHandler)
+        handler.used_source = "archive"
+        handler.fetch_model_info_data.side_effect = [
+            {
+                "archive_service": [
+                    ModelInfo.from_raw(
+                        {"id": "archive_model"}, "archive_service", "archive_model"
+                    )
+                ]
+            },
+            RuntimeError("network unavailable"),
+        ]
+        registry._source_handler = handler
+
+        with pytest.raises(ValueError) as exc_info:
+            registry.get_service_for_model("new_live_model")
+
+        message = str(exc_info.value)
+        assert "Model 'new_live_model' not found in any service" in message
+        assert "archive_model" in message
+        assert "Live-source refresh failed: network unavailable" in message
+
     def test_get_services_for_model(self, registry, mock_source_handler):
         """Test getting all services for a model."""
         registry._source_handler = mock_source_handler
