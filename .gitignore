@@ -46,6 +46,8 @@ probable_junk/
 !.vscode/settings.json
 !tests/serialization/data/*.json
 !performance.yml
+# Mintlify docs config and assets must be tracked despite the broad *json/*png/*svg rules above
+!docs/docs.json
 .env*
 docs/notebooks/drafts/*
 test.py
