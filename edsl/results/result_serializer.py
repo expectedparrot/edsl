@@ -125,9 +125,25 @@ class ResultSerializer:
         """
         from ..agents import Agent
         from ..scenarios import Scenario
+        from ..scenarios import FileStore
         from ..language_models import LanguageModel
         from ..prompts import Prompt
         from .result import Result
+
+        def restore_value(value):
+            """Restore nested serialized answer values that need object types."""
+            if isinstance(value, dict):
+                if (
+                    value.get("edsl_class_name") == "FileStore"
+                    or ("base64_string" in value and "path" in value)
+                ):
+                    return FileStore.from_dict(value)
+                return {k: restore_value(v) for k, v in value.items()}
+            elif isinstance(value, list):
+                return [restore_value(v) for v in value]
+            elif isinstance(value, tuple):
+                return tuple(restore_value(v) for v in value)
+            return value
 
         prompt_data = json_dict.get("prompt", {})
         prompt_d = {}
@@ -139,7 +155,7 @@ class ResultSerializer:
             scenario=Scenario.from_dict(json_dict["scenario"]),
             model=LanguageModel.from_dict(json_dict["model"]),
             iteration=json_dict["iteration"],
-            answer=json_dict["answer"],
+            answer=restore_value(json_dict["answer"]),
             prompt=prompt_d,
             raw_model_response=json_dict.get(
                 "raw_model_response", {"raw_model_response": "No raw model response"}

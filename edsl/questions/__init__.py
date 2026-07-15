@@ -31,6 +31,7 @@ Core Question Types:
 - QuestionExtract: Extraction of specific information from text or data
 - QuestionDropdown: BM25-powered search through large option sets
 - QuestionInterview: Simulates interview dialogue between interviewer and respondent
+- QuestionDiagram: Renders Graphviz DOT source as an SVG or PNG FileStore
 
 Derived Question Types:
 - QuestionLikertFive: Standard 5-point Likert scale (agree/disagree)
@@ -129,6 +130,7 @@ from .question_rank import QuestionRank
 from .question_random import QuestionRandom
 from .question_dropdown import QuestionDropdown
 from .question_interview import QuestionInterview
+from .question_diagram import QuestionDiagram
 
 # Questions derived from core questions
 from .question_likert_five import QuestionLikertFive
@@ -185,6 +187,7 @@ __all__ = [
     "QuestionRandom",
     "QuestionDropdown",
     "QuestionInterview",
+    "QuestionDiagram",
     # Derived question types
     "QuestionLinearScale",
     "QuestionTopK",
