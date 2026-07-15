@@ -200,6 +200,32 @@ class TestUnknownParameterWarning(unittest.TestCase):
             user_warnings = [x for x in w if issubclass(x.category, UserWarning) and "Unknown parameter" in str(x.message)]
             self.assertEqual(len(user_warnings), 0, f"Unexpected warnings: {[str(x.message) for x in user_warnings]}")
 
+    def test_from_dict_infers_openai_without_model_discovery(self):
+        from unittest.mock import patch
+
+        data = {
+            "model": "gpt-4o",
+            "parameters": {
+                "temperature": 0.5,
+                "max_tokens": 1000,
+                "top_p": 1,
+                "frequency_penalty": 0,
+                "presence_penalty": 0,
+                "logprobs": False,
+                "top_logprobs": 3,
+            },
+        }
+
+        with patch(
+            "edsl.inference_services.inference_service_registry."
+            "InferenceServiceRegistry.get_service_for_model",
+            side_effect=AssertionError("from_dict should not discover model services"),
+        ):
+            model = LanguageModel.from_dict(data)
+
+        self.assertEqual(model.model, "gpt-4o")
+        self.assertEqual(model._inference_service_, "openai")
+
 
 if __name__ == "__main__":
     unittest.main()
