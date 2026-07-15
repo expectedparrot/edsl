@@ -465,6 +465,43 @@ class TaskState:
 # =============================================================================
 
 
+def _encode_answer_value(value):
+    """Make an EDSL-object answer JSON-encodable.
+
+    Most answers are scalars and pass through untouched. Direct-answer questions
+    can return EDSL objects instead — QuestionImageGeneration answers with a
+    FileStore (or a list of them, when a prompt yields several images). Those
+    survive an in-memory store as live objects but hit `Object of type FileStore
+    is not JSON serializable` on a serializing backend like Redis.
+
+    The encoded form is the object's own to_dict() with edsl_class_name
+    corrected to the concrete class. FileStore inherits Scenario's to_dict, so
+    it would otherwise self-identify as "Scenario" and decode to the wrong type.
+    Keeping the payload flat matters: consumers that read answers straight out
+    of the store without going through Answer.from_dict still see base64_string
+    and mime_type at the top level, rather than an opaque wrapper they'd all
+    need to learn how to unwrap.
+    """
+    from ..scenarios import FileStore
+
+    if isinstance(value, FileStore):
+        return {**value.to_dict(), "edsl_class_name": "FileStore"}
+    if isinstance(value, list):
+        return [_encode_answer_value(v) for v in value]
+    return value
+
+
+def _decode_answer_value(value):
+    """Inverse of _encode_answer_value."""
+    if isinstance(value, dict) and value.get("edsl_class_name") == "FileStore":
+        from ..scenarios import FileStore
+
+        return FileStore.from_dict(value)
+    if isinstance(value, list):
+        return [_decode_answer_value(v) for v in value]
+    return value
+
+
 @dataclass
 class Answer:
     """
@@ -517,7 +554,7 @@ class Answer:
 
     def to_dict(self) -> dict:
         return {
-            "answer": self.answer,
+            "answer": _encode_answer_value(self.answer),
             "created_at": self.created_at.isoformat(),
             "system_prompt": self.system_prompt,
             "user_prompt": self.user_prompt,
@@ -544,7 +581,7 @@ class Answer:
             job_id=job_id,
             interview_id=interview_id,
             question_name=question_name,
-            answer=data["answer"],
+            answer=_decode_answer_value(data["answer"]),
             created_at=datetime.fromisoformat(data["created_at"]),
             system_prompt=data.get("system_prompt"),
             user_prompt=data.get("user_prompt"),
