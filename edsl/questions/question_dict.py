@@ -682,6 +682,11 @@ class QuestionDict(QuestionBase):
         if getattr(self, "_thinking_model", None) is not None:
             d["thinking_model"] = self._thinking_model
             d["thinking_system_prompt"] = getattr(self, "_thinking_system_prompt", "")
+        if add_edsl_version:
+            from .. import __version__
+
+            d["edsl_version"] = __version__
+            d["edsl_class_name"] = "QuestionBase"
         return d
 
     @classmethod
