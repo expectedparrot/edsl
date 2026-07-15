@@ -2822,6 +2822,30 @@ class Coop(CoopFunctionsMixin):
             raise CoopValueError("Provide either max_jobs or deadline.")
         return payload
 
+    @staticmethod
+    def _strip_instruction_preambles_for_humanize(
+        survey_dict: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """Return a copy of survey_dict with the LLM-only `preamble` field removed
+        from any Instruction entries.
+
+        `Instruction.preamble` (e.g. "You were given the following instructions:")
+        is scaffolding for LLM prompt construction and has no meaning to a human
+        respondent. It must not appear in payloads that reach a human-facing survey.
+
+        Does not mutate `survey_dict` or its nested entries.
+        """
+        result = dict(survey_dict)
+        result["questions"] = [
+            (
+                {k: v for k, v in entry.items() if k != "preamble"}
+                if entry.get("edsl_class_name") == "Instruction"
+                else entry
+            )
+            for entry in survey_dict.get("questions", [])
+        ]
+        return result
+
     def create_human_survey(
         self,
         survey: "Survey",
@@ -2890,11 +2914,20 @@ class Coop(CoopFunctionsMixin):
             agent_list_uuid = agent_list_details.get("uuid")
         else:
             agent_list_uuid = None
+        from ..utilities.utilities import dict_hash
+
+        stripped_survey_dict = self._strip_instruction_preambles_for_humanize(
+            survey.to_dict()
+        )
+        stripped_hash_dict = self._strip_instruction_preambles_for_humanize(
+            survey.to_dict(add_edsl_version=False)
+        )
         survey_details = self.push(
             object=survey,
             description=survey_description,
             alias=survey_alias,
             visibility=survey_visibility,
+            _content_override=(stripped_survey_dict, str(dict_hash(stripped_hash_dict))),
         )
         survey_uuid = survey_details.get("uuid")
         if scenario_list is not None:
@@ -3978,7 +4011,7 @@ class Coop(CoopFunctionsMixin):
             raise CoopObjectTypeError("This is not a survey.")
         if humanize_schema is not None:
             self.validate_human_survey_humanize_schema(survey, humanize_schema)
-        survey_dict = survey.to_dict()
+        survey_dict = self._strip_instruction_preambles_for_humanize(survey.to_dict())
         payload: Dict[str, Any] = {"survey_json": survey_dict}
         if humanize_schema is not None:
             payload["humanize_schema"] = humanize_schema
@@ -5400,12 +5433,18 @@ class Coop(CoopFunctionsMixin):
         alias: Optional[str] = None,
         visibility: Optional[VisibilityType] = "private",
         force: bool = False,
+        _content_override: Optional[Tuple[Dict[str, Any], str]] = None,
     ) -> "Scenario":
         """
         Upload an EDSL object to Coop via a signed GCS URL (PUT), then confirm the upload.
 
         Parameters:
             object: The EDSL object to upload (e.g. Survey, Scenario).
+            _content_override: Optional (object_dict, object_hash) pair to upload instead
+                of `object`'s own serialization — e.g. a version with fields stripped for
+                a human-facing destination. The dict and hash must describe the same
+                content; they travel together so callers can't pass a hash that doesn't
+                match what's actually uploaded.
 
         Returns:
             Scenario: Coop upload metadata as a ``Scenario`` so notebooks/terminals keep
@@ -5424,8 +5463,11 @@ class Coop(CoopFunctionsMixin):
         self._validate_alias(alias)
 
         object_type = ObjectRegistry.get_object_type_by_edsl_class(object)
-        object_dict = object.to_dict()
-        object_hash = object.get_hash() if hasattr(object, "get_hash") else None
+        if _content_override is not None:
+            object_dict, object_hash = _content_override
+        else:
+            object_dict = object.to_dict()
+            object_hash = object.get_hash() if hasattr(object, "get_hash") else None
 
         # Process FileStore objects: upload to GCS and offload
         object_dict = self._process_filestores_for_push(
