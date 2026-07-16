@@ -35,7 +35,9 @@ class MemoryPlan(UserDict):
         """Return a dictionary mapping question names to question texts."""
         return dict(zip(self.survey_question_names, self.question_texts))
 
-    def add_question(self, question: "QuestionBase", index: Optional[int] = None) -> None:
+    def add_question(
+        self, question: "QuestionBase", index: Optional[int] = None
+    ) -> None:
         """Add a question to the survey.
 
         :param question: A question to add to the survey
@@ -70,7 +72,11 @@ class MemoryPlan(UserDict):
         """
         from ...prompts import Prompt
 
-        self._check_valid_question_name(focal_question)
+        # A question that is not a survey member (e.g. a dynamically injected
+        # Loop & Merge block question) has no memory plan entry, so there is
+        # nothing to remember -> return an empty fragment rather than raising.
+        if focal_question not in self.survey_question_names:
+            return Prompt("")
 
         if focal_question not in self:
             return Prompt("")

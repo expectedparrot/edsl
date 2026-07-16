@@ -73,7 +73,6 @@ from .exceptions import (
 )
 
 
-
 class Survey(Base):
     """A collection of questions with logic for navigating between them.
 
@@ -232,6 +231,84 @@ class Survey(Base):
             text.append(question.human_readable())
         return "\n\n".join(text)
 
+    def loop_over(
+        self,
+        question: Union[str, "QuestionType"],
+        ask: Union["QuestionType", List["QuestionType"]],
+        item: str = "item",
+    ) -> "Survey":
+        """Loop a block of follow-up questions once per item of a list answer.
+
+        Unlike ``Question.loop()`` (which expands a known ScenarioList *before*
+        the run), this defers expansion to run time: after ``question`` is
+        answered, the runner reads that answer as a list of items and
+        materializes one copy of each ``ask`` question **per item**, executing
+        them inside the same interview.
+
+        The ``ask`` questions must NOT be members of the survey — they are held
+        here and instantiated dynamically. Each should reference the current
+        item via ``{{ <item> }}`` (default ``{{ item }}``) and may also use
+        ``{{ loop_index }}``.
+
+        Args:
+            question: The question (or its ``question_name``) whose answer is the
+                loop set. Its answer should be a list (or comma-separated string).
+            ask: A follow-up question, or list of them, asked once per item.
+            item: Scenario key the current item is exposed under. Defaults to
+                ``"item"`` (so templates use ``{{ item }}``).
+
+        Per-iteration conditional logic is attached to an ``ask`` question (not
+        here), via ``question.skip_when(expression)`` and
+        ``question.jump_when(expression, to=...)``. See those methods for details.
+
+        Returns:
+            self (for chaining).
+
+        Examples:
+            >>> from edsl import QuestionList, QuestionFreeText, Survey
+            >>> q1 = QuestionList(question_name="depts", question_text="List your departments.")
+            >>> follow = QuestionFreeText(question_name="head", question_text="Who heads {{ item }}?")
+            >>> s = Survey([q1]).loop_over("depts", ask=follow)
+            >>> len(s._loop_merge_specs)
+            1
+        """
+        source_name = question if isinstance(question, str) else question.question_name
+        if not isinstance(ask, list):
+            ask = [ask]
+
+        if not hasattr(self, "_loop_merge_specs"):
+            self._loop_merge_specs = []
+        self._loop_merge_specs.append(
+            {
+                "source": source_name,
+                "templates": list(ask),
+                "item_key": item,
+            }
+        )
+        return self
+
+    def add_loop_merge(
+        self,
+        source: Union[str, "QuestionType"],
+        templates: Union["QuestionType", List["QuestionType"]],
+        item_key: str = "loop_item",
+    ) -> "Survey":
+        """Deprecated alias for :meth:`loop_over`.
+
+        ``source`` -> ``question``, ``templates`` -> ``ask``, ``item_key`` ->
+        ``item``. Note the old default item key was ``"loop_item"``; ``loop_over``
+        defaults to ``"item"``.
+        """
+        import warnings
+
+        warnings.warn(
+            "add_loop_merge() is deprecated; use "
+            "loop_over(question, ask=..., item=...).",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return self.loop_over(source, ask=templates, item=item_key)
+
     # @classmethod
     # def auto_survey(
     #     cls, overall_question: str, population: str, num_questions: int
@@ -354,7 +431,13 @@ class Survey(Base):
 
     def _relevant_instructions(self, question: QuestionBase) -> dict:
         """Return instructions that are relevant to the question."""
-        return self._relevant_instructions_dict[question]
+        try:
+            return self._relevant_instructions_dict[question]
+        except KeyError:
+            # Question is not a member of this survey (e.g. a dynamically
+            # injected Loop & Merge follow-up question). Such questions carry
+            # no survey-level instructions.
+            return []
 
     def show_flow(self, filename: Optional[str] = None, renderer: Optional[str] = None):
         """Show the flow of the survey.
@@ -554,6 +637,25 @@ class Survey(Base):
         if self.options_to_pin:
             d["options_to_pin"] = self.options_to_pin
 
+        # Include dynamic Loop & Merge specs if present. Without this the loop
+        # config (and its non-member template questions) is lost on any JSON
+        # round-trip -- which breaks remote jobs, Coop hosting, and the builder.
+        # Each template's skip/jump rules ride along inside its own to_dict()
+        # (as loop_skip_rule / loop_jump_rules) and are reattached in from_dict.
+        loop_specs = getattr(self, "_loop_merge_specs", None)
+        if loop_specs:
+            d["loop_merge"] = [
+                {
+                    "source": spec["source"],
+                    "item_key": spec["item_key"],
+                    "templates": [
+                        t.to_dict(add_edsl_version=add_edsl_version)
+                        for t in spec["templates"]
+                    ],
+                }
+                for spec in loop_specs
+            ]
+
         # Add version information if requested
         if add_edsl_version:
             d["edsl_version"] = __version__
@@ -575,6 +677,7 @@ class Survey(Base):
 
     def to_jsonl_rows(self, blob_writer=None):
         from .survey_serializer import SurveySerializer
+
         return SurveySerializer(self).to_jsonl_rows()
 
     @classmethod
@@ -691,6 +794,37 @@ class Survey(Base):
             options_to_pin=options_to_pin,
             _internal_copy=_internal_copy,
         )
+
+        # Reconstruct dynamic Loop & Merge specs (see to_dict). Template
+        # questions are NOT survey members, so they are rebuilt here from their
+        # serialized dicts; their skip/jump rules (serialized as loop_skip_rule /
+        # loop_jump_rules) are stripped before from_dict -- which rejects unknown
+        # params -- and reattached as the transient attrs the runner reads.
+        loop_merge = data.get("loop_merge")
+        if loop_merge:
+            from ..questions import QuestionBase
+
+            specs = []
+            for spec in loop_merge:
+                templates = []
+                for t_dict in spec["templates"]:
+                    t_dict = dict(t_dict)
+                    skip_rule = t_dict.pop("loop_skip_rule", None)
+                    jump_rules = t_dict.pop("loop_jump_rules", None)
+                    question = QuestionBase.from_dict(t_dict)
+                    if skip_rule is not None:
+                        question._loop_skip_rule = skip_rule
+                    if jump_rules is not None:
+                        question._loop_jump_rules = [tuple(j) for j in jump_rules]
+                    templates.append(question)
+                specs.append(
+                    {
+                        "source": spec["source"],
+                        "templates": templates,
+                        "item_key": spec["item_key"],
+                    }
+                )
+            survey._loop_merge_specs = specs
 
         return survey
 
@@ -3064,9 +3198,7 @@ class Survey(Base):
                 elif isinstance(val, list):
                     columns[key].append(", ".join(str(o) for o in val))
                 elif isinstance(val, dict):
-                    columns[key].append(
-                        ", ".join(f"{k}: {v}" for k, v in val.items())
-                    )
+                    columns[key].append(", ".join(f"{k}: {v}" for k, v in val.items()))
                 else:
                     columns[key].append(str(val))
 
