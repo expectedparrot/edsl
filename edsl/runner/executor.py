@@ -246,6 +246,9 @@ class ExecutionWorker:
                 question_data = self._job_service._jobs.get_question(
                     task.job_id, task.question_id
                 )
+                # These question types perform their own provider calls or custom
+                # control flow, so route through their invigilators instead of
+                # the normal LLM response path.
                 if question_data and question_data.get("question_type") in {
                     "interview",
                     "image_generation",

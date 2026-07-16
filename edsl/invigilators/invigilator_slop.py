@@ -164,12 +164,19 @@ class InvigilatorSlop(InvigilatorBase):
                     timeout_seconds=self.question.timeout_seconds,
                     poll_interval=self.question.poll_interval,
                 )
-                answer = self._normalize_response(
-                    raw_response,
-                    rendered_text=rendered_text,
-                    include_segments=self.question.include_segments,
-                    include_raw_response=self.question.include_raw_response,
-                )
+                if raw_response.get("stage") == "STAGE_FAILED":
+                    answer = self._error_answer(
+                        rendered_text, RuntimeError("Pangram task failed.")
+                    )
+                    comment = answer["error_message"]
+                else:
+                    answer = self._normalize_response(
+                        raw_response,
+                        rendered_text=rendered_text,
+                        include_segments=self.question.include_segments,
+                        include_raw_response=self.question.include_raw_response,
+                        include_dashboard_link=self.question.public_dashboard_link,
+                    )
             except PangramConfigurationError:
                 raise
             except Exception as exc:
@@ -267,6 +274,7 @@ class InvigilatorSlop(InvigilatorBase):
         rendered_text: str,
         include_segments: bool,
         include_raw_response: bool,
+        include_dashboard_link: bool,
     ) -> dict[str, Any]:
         windows = raw_response.get("windows") or []
         segments = None
@@ -301,7 +309,9 @@ class InvigilatorSlop(InvigilatorBase):
             "num_ai_segments": raw_response.get("num_ai_segments"),
             "num_ai_assisted_segments": raw_response.get("num_ai_assisted_segments"),
             "num_human_segments": raw_response.get("num_human_segments"),
-            "dashboard_link": raw_response.get("dashboard_link"),
+            "dashboard_link": (
+                raw_response.get("dashboard_link") if include_dashboard_link else None
+            ),
             "segments": segments,
             "raw_response": raw_response if include_raw_response else None,
         }
@@ -315,4 +325,3 @@ class InvigilatorSlop(InvigilatorBase):
             "Mixed": "mixed",
         }
         return mapping.get(prediction_short or "", "uncertain")
-

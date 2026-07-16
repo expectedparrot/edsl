@@ -46,6 +46,21 @@ class ErrorPangramClient:
         raise PangramHTTPError(402, '{"detail":"Insufficient credits"}')
 
 
+class FailedStagePangramClient:
+    async def score_text(self, text, **kwargs):
+        return {
+            "stage": "STAGE_FAILED",
+            "message": "Provider could not score this task.",
+        }
+
+
+class DashboardLinkPangramClient(FakePangramClient):
+    async def score_text(self, text, **kwargs):
+        response = await super().score_text(text, **kwargs)
+        response["dashboard_link"] = "https://dashboard.example/task"
+        return response
+
+
 def make_invigilator(question, scenario=None, current_answers=None):
     survey = Survey([question])
     return InvigilatorSlop(
@@ -129,6 +144,49 @@ async def test_invigilator_slop_provider_error_is_structured(monkeypatch):
 
     assert result.answer["classification"] == "error"
     assert result.answer["error_code"] == "insufficient_credits"
+
+
+@pytest.mark.asyncio
+async def test_invigilator_slop_failed_stage_is_structured_error(monkeypatch):
+    monkeypatch.setattr(InvigilatorSlop, "client_class", FailedStagePangramClient)
+    q = QuestionSlop(question_name="slop", question_text="This is long enough.")
+    invigilator = make_invigilator(q)
+
+    result = await invigilator.async_answer_question()
+
+    assert result.answer["classification"] == "error"
+    assert result.answer["error_code"] == "provider_error"
+    assert result.raw_model_response["stage"] == "STAGE_FAILED"
+
+
+@pytest.mark.asyncio
+async def test_invigilator_slop_dashboard_link_requires_flag(monkeypatch):
+    monkeypatch.setattr(InvigilatorSlop, "client_class", DashboardLinkPangramClient)
+    q = QuestionSlop(
+        question_name="slop",
+        question_text="This is long enough.",
+        public_dashboard_link=False,
+    )
+    invigilator = make_invigilator(q)
+
+    result = await invigilator.async_answer_question()
+
+    assert result.answer["dashboard_link"] is None
+
+
+@pytest.mark.asyncio
+async def test_invigilator_slop_dashboard_link_included_when_requested(monkeypatch):
+    monkeypatch.setattr(InvigilatorSlop, "client_class", DashboardLinkPangramClient)
+    q = QuestionSlop(
+        question_name="slop",
+        question_text="This is long enough.",
+        public_dashboard_link=True,
+    )
+    invigilator = make_invigilator(q)
+
+    result = await invigilator.async_answer_question()
+
+    assert result.answer["dashboard_link"] == "https://dashboard.example/task"
 
 
 def test_pangram_client_requires_local_api_key(monkeypatch):
