@@ -74,7 +74,7 @@ class Scenario(Base, UserDict):
         >>> os.unlink(data_path) # Clean up temp file
     """
 
-    __documentation__ = "https://docs.expectedparrot.com/en/latest/scenarios.html"
+    __documentation__ = "https://docs.expectedparrot.com/en/latest/scenarios"
 
     def __init__(
         self,

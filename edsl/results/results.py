@@ -134,7 +134,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         True
     """
 
-    __documentation__ = "https://docs.expectedparrot.com/en/latest/results.html"
+    __documentation__ = "https://docs.expectedparrot.com/en/latest/results"
     git = ResultsGitDescriptor()
 
     known_data_types = [

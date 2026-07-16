@@ -172,17 +172,11 @@ table_keys = false
 
 [tool.poetry.group.dev.dependencies]
 mypy = "^1.7.1"
-myst-parser = "^3.0.1"
-nbsphinx = "^0.9.3"
 objgraph = "^3.6.0"
 pre-commit = "^3.6.0"
 pydocstyle = "^6.3.0"
 pylint = "^3.1.0"
 ruff = "^0.3.0"
-sphinx = "^7.2.6"
-sphinx-copybutton = "^0.5.2"
-sphinx-fontawesome = "^0.0.6"
-sphinx-rtd-theme = "^2.0.0"
 toml-sort = "^0.23.1"
 ty = "^0.0.23"
 

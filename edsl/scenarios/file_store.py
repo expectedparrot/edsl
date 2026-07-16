@@ -62,7 +62,7 @@ class FileStore(Scenario):
         # >>> _ = [FileStore.example(format) for format in formats]
     """
 
-    __documentation__ = "https://docs.expectedparrot.com/en/latest/filestore.html"
+    __documentation__ = "https://docs.expectedparrot.com/en/latest/filestore"
 
     # Class-level client cache for Google API
     _cached_client = None
