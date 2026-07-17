@@ -196,9 +196,7 @@ class QuestionBaseGenMixin:
 
         if pin_options:
             # Record positions of pinned options
-            pinned = {
-                i: v for i, v in enumerate(self.question_options) if v in pin_options
-            }
+            pinned = {i: v for i, v in enumerate(self.question_options) if v in pin_options}
             # Collect non-pinned options
             non_pinned = [v for v in self.question_options if v not in pin_options]
             # Shuffle only non-pinned options
@@ -242,98 +240,6 @@ class QuestionBaseGenMixin:
 
         lp = loop_processor(self)
         return lp.process_templates(scenario_list)
-
-    def skip_when(self, expression: str) -> "QuestionBase":
-        """Skip this question, per loop iteration, when ``expression`` is truthy.
-
-        Only meaningful when this question is used as an ``ask`` entry in
-        ``Survey.loop_over``. During a run, ``expression`` is evaluated once
-        **per loop iteration** against that iteration's merged answers; when it is
-        truthy, this question is skipped for that iteration (its answer is
-        ``None``). The expression may reference:
-
-        - block-local answers by their base name, e.g. ``{{ used_recently.answer }}``
-          (an earlier question in the same iteration);
-        - outer survey answers by their real name, e.g. ``{{ products.answer }}``;
-        - the current item / index via ``{{ scenario.<item> }}`` and
-          ``{{ scenario.loop_index }}``.
-
-        Block-out jumps (skipping *to* a question outside the block) are not
-        supported: the rule only decides whether *this* question runs.
-
-        Returns:
-            self (for chaining).
-
-        >>> from edsl.questions import QuestionFreeText
-        >>> q = QuestionFreeText(question_name="head", question_text="Who heads {{ item }}?")
-        >>> q.skip_when("{{ scenario.loop_index }} == 0")._loop_skip_rule
-        '{{ scenario.loop_index }} == 0'
-        """
-        self._loop_skip_rule = expression
-        return self
-
-    #: Sentinel jump target for ``jump_when`` meaning "skip the rest of this
-    #: item's block and move on to the next item" (scoped to the loop block).
-    NEXT_ITEM = "next_item"
-
-    #: Deprecated alias for :attr:`NEXT_ITEM`.
-    END_OF_LOOP = "next_item"
-
-    def jump_when(self, expression: str, to: str) -> "QuestionBase":
-        """Jump forward in the loop block, per iteration, when ``expression`` is truthy.
-
-        Only meaningful when this question is an ``ask`` entry in
-        ``Survey.loop_over``. After this question is answered in a given
-        iteration, ``expression`` is evaluated against that iteration's merged
-        answers; when truthy, navigation jumps **forward within the block**,
-        skipping every block question between this one and ``to``.
-
-        Args:
-            expression: A Jinja/eval condition (same context as
-                ``skip_when``: block-local answers by base name, outer
-                answers by real name, ``{{ scenario.<item> }}`` /
-                ``{{ scenario.loop_index }}``).
-            to: The ``question_name`` of a *later* question in the same block to
-                jump to, or ``QuestionBase.NEXT_ITEM`` to skip the rest of this
-                item's block and move on to the next item.
-
-        Jumping to an earlier block question (backward loop) or to a question
-        outside the block (the main survey flow) is not supported.
-
-        Returns:
-            self (for chaining).
-
-        >>> from edsl.questions import QuestionFreeText
-        >>> q = QuestionFreeText(question_name="q1", question_text="{{ item }}?")
-        >>> q.jump_when("{{ q1.answer }} == 'no'", to="q3")._loop_jump_rules
-        [("{{ q1.answer }} == 'no'", 'q3')]
-        """
-        if not hasattr(self, "_loop_jump_rules") or self._loop_jump_rules is None:
-            self._loop_jump_rules = []
-        self._loop_jump_rules.append((expression, to))
-        return self
-
-    def with_loop_skip(self, expression: str) -> "QuestionBase":
-        """Deprecated alias for :meth:`skip_when`."""
-        import warnings
-
-        warnings.warn(
-            "with_loop_skip() is deprecated; use skip_when().",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return self.skip_when(expression)
-
-    def with_loop_jump(self, expression: str, target: str) -> "QuestionBase":
-        """Deprecated alias for :meth:`jump_when` (``target=`` is now ``to=``)."""
-        import warnings
-
-        warnings.warn(
-            "with_loop_jump() is deprecated; use jump_when(expr, to=...).",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return self.jump_when(expression, to=target)
 
     class MaxTemplateNestingExceeded(Exception):
         """Raised when template rendering exceeds maximum allowed nesting level."""
