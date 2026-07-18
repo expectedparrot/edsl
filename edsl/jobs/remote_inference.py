@@ -470,8 +470,13 @@ class JobsRemoteInferenceHandler:
                         "cost_usd_with_cache": 0,
                     }
 
-                input_price_per_million_tokens = input_key[3]
-                input_tokens = raw_response[f"{question_name}_input_tokens"]
+                # Image-generation models are priced per image, not per token:
+                # their raw response carries a numeric `_cost` (so this field is
+                # processed) but null per-token prices and zero token counts.
+                # Treat a missing price as 0 so the token math contributes 0
+                # rather than raising on None / int.
+                input_price_per_million_tokens = input_key[3] or 0
+                input_tokens = raw_response[f"{question_name}_input_tokens"] or 0
                 input_cost = (input_price_per_million_tokens / 1_000_000) * input_tokens
 
                 expenses[input_key]["tokens"] += input_tokens
@@ -488,8 +493,8 @@ class JobsRemoteInferenceHandler:
                         "cost_usd_with_cache": 0,
                     }
 
-                output_price_per_million_tokens = output_key[3]
-                output_tokens = raw_response[f"{question_name}_output_tokens"]
+                output_price_per_million_tokens = output_key[3] or 0
+                output_tokens = raw_response[f"{question_name}_output_tokens"] or 0
                 thinking_tokens = (
                     raw_response.get(f"{question_name}_thinking_tokens") or 0
                 )
