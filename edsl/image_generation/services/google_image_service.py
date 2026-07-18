@@ -68,7 +68,9 @@ class GoogleImageGenerationService(ImageGenerationServiceABC):
         )
         output_image = getattr(interaction, "output_image", None)
         if output_image is None:
-            raise ValueError("Google image generation response did not include output_image.")
+            raise ValueError(
+                "Google image generation response did not include output_image."
+            )
 
         mime_type = getattr(output_image, "mime_type", None) or "image/png"
         return [
@@ -79,6 +81,7 @@ class GoogleImageGenerationService(ImageGenerationServiceABC):
                 service_name=self.service_name,
                 prompt=prompt,
                 raw_response=raw_response,
+                usage=self._extract_usage(raw_response),
             )
         ]
 
@@ -118,6 +121,7 @@ class GoogleImageGenerationService(ImageGenerationServiceABC):
                 service_name=self.service_name,
                 prompt=prompt,
                 raw_response=raw_response,
+                usage=self._extract_usage(raw_response),
             )
         ]
 
@@ -158,6 +162,76 @@ class GoogleImageGenerationService(ImageGenerationServiceABC):
                 return decoded[-1]
             raise
 
+    # Candidate key names for each token count, covering both the genai SDK's
+    # snake_case model_dump and the REST endpoint's camelCase, and the
+    # Interactions API's "response_token_count" alias for output tokens.
+    _INPUT_TOKEN_KEYS = ("prompt_token_count", "promptTokenCount")
+    _OUTPUT_TOKEN_KEYS = (
+        "candidates_token_count",
+        "candidatesTokenCount",
+        "response_token_count",
+        "responseTokenCount",
+    )
+    _THINKING_TOKEN_KEYS = ("thoughts_token_count", "thoughtsTokenCount")
+
+    @classmethod
+    def _extract_usage(cls, raw_response) -> Optional[dict]:
+        """Pull token usage out of a Google response into edsl's field names.
+
+        Searches for a ``usage_metadata``/``usage`` block anywhere in the
+        response (top level or nested within interaction steps) and normalizes
+        it to prompt_token_count / candidates_token_count / thoughts_token_count.
+        Returns None when no usage information is present.
+        """
+        usage_block = cls._find_usage_block(raw_response)
+        if not usage_block:
+            return None
+
+        def _first(keys):
+            for key in keys:
+                value = usage_block.get(key)
+                if value is not None:
+                    return value
+            return None
+
+        normalized = {
+            "prompt_token_count": _first(cls._INPUT_TOKEN_KEYS),
+            "candidates_token_count": _first(cls._OUTPUT_TOKEN_KEYS),
+            "thoughts_token_count": _first(cls._THINKING_TOKEN_KEYS),
+        }
+        if all(value is None for value in normalized.values()):
+            return None
+        return normalized
+
+    @classmethod
+    def _find_usage_block(cls, node, _depth: int = 0) -> Optional[dict]:
+        """Recursively locate a usage dict (bounded depth) within a response."""
+        if _depth > 6 or not isinstance(node, (dict, list)):
+            return None
+        if isinstance(node, dict):
+            for key in ("usage_metadata", "usageMetadata", "usage"):
+                candidate = node.get(key)
+                if isinstance(candidate, dict) and cls._looks_like_usage(candidate):
+                    return candidate
+            # The response itself may be the usage block.
+            if cls._looks_like_usage(node):
+                return node
+            for value in node.values():
+                found = cls._find_usage_block(value, _depth + 1)
+                if found:
+                    return found
+        else:
+            for item in node:
+                found = cls._find_usage_block(item, _depth + 1)
+                if found:
+                    return found
+        return None
+
+    @classmethod
+    def _looks_like_usage(cls, candidate: dict) -> bool:
+        keys = cls._INPUT_TOKEN_KEYS + cls._OUTPUT_TOKEN_KEYS
+        return any(key in candidate for key in keys)
+
     @staticmethod
     def _extract_image_block(raw_response: dict) -> dict:
         for step in raw_response.get("steps", []):
@@ -166,7 +240,9 @@ class GoogleImageGenerationService(ImageGenerationServiceABC):
             for content_block in step.get("content", []):
                 if content_block.get("type") == "image" and content_block.get("data"):
                     return content_block
-        raise ValueError("Google image generation response did not include an image block.")
+        raise ValueError(
+            "Google image generation response did not include an image block."
+        )
 
     @staticmethod
     def _response_has_image(raw_response: dict) -> bool:

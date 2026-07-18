@@ -869,6 +869,13 @@ class Runner:
                     comment=result.get("comment"),
                     input_tokens=result.get("input_tokens", 0),
                     output_tokens=result.get("output_tokens", 0),
+                    thinking_tokens=result.get("thinking_tokens"),
+                    input_price_per_million_tokens=result.get(
+                        "input_price_per_million_tokens"
+                    ),
+                    output_price_per_million_tokens=result.get(
+                        "output_price_per_million_tokens"
+                    ),
                     raw_model_response=result.get("raw_model_response"),
                     generated_tokens=result.get("generated_tokens"),
                     cached=result.get("cached", False),
