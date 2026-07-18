@@ -104,7 +104,7 @@ class DirectAnswerRegistry:
         if isinstance(result, dict) and "answer" in result:
             return {
                 "answer": result["answer"],
-            "comment": result.get("comment"),
+                "comment": result.get("comment"),
                 "cached": False,
                 "input_tokens": 0,
                 "output_tokens": 0,
@@ -154,8 +154,11 @@ class DirectAnswerRegistry:
                 "answer": result.get("answer"),
                 "comment": result.get("comment", "Functional question result"),
                 "cached": False,
-                "input_tokens": 0,
-                "output_tokens": 0,
+                # Preserve any token/cost metadata the question reported (e.g.
+                # QuestionImageGeneration prices each generated image); most
+                # functional questions omit these and default to 0.
+                "input_tokens": result.get("input_tokens", 0),
+                "output_tokens": result.get("output_tokens", 0),
                 **{
                     key: value
                     for key, value in result.items()
