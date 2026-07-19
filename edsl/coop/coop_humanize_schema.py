@@ -33,6 +33,31 @@ class HumanizeSchemaBase(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
+class CalloutSubmittingIndicator(HumanizeSchemaBase):
+    """Submitting indicator rendered as a callout box while the next (thinking)
+    question runs after the respondent clicks Next.
+
+    ``title`` is optional; when None the frontend supplies a sensible default
+    label per ``type`` (so the default can evolve without a data migration).
+    """
+
+    type: Literal["callout"] = "callout"
+    title: Annotated[
+        Optional[str],
+        StringConstraints(strip_whitespace=True, min_length=1, max_length=200),
+    ] = None
+
+
+# Discriminated on ``type`` so other renderings (e.g. "spinner", "overlay",
+# "progress") can join as sibling variants without reshaping stored configs.
+# "callout" is the only variant today, and the discriminator default, so a config
+# that only enables the indicator lands on callout.
+SubmittingIndicator = Annotated[
+    Union[CalloutSubmittingIndicator],
+    Field(discriminator="type"),
+]
+
+
 class MCSubclassFormatSchema(HumanizeSchemaBase):
     """Display format for MC-style questions: radio list or dropdown."""
 
@@ -56,6 +81,7 @@ class FreeTextHumanizeSchema(HumanizeSchemaBase):
 
     optional: bool = False
     comment: Optional[CommentConfig] = None
+    submitting_indicator: Optional[SubmittingIndicator] = None
 
 
 class BudgetHumanizeSchema(HumanizeSchemaBase):
@@ -63,6 +89,7 @@ class BudgetHumanizeSchema(HumanizeSchemaBase):
 
     optional: bool = False
     comment: Optional[CommentConfig] = None
+    submitting_indicator: Optional[SubmittingIndicator] = None
 
 
 class CheckboxHumanizeSchema(HumanizeSchemaBase):
@@ -70,10 +97,15 @@ class CheckboxHumanizeSchema(HumanizeSchemaBase):
 
     optional: bool = False
     comment: Optional[CommentConfig] = None
+    submitting_indicator: Optional[SubmittingIndicator] = None
 
 
 class ComputeHumanizeSchema(HumanizeSchemaBase):
-    """Humanize options for the compute question type (no optionality)."""
+    """Humanize options for the compute question type (no optionality).
+
+    No ``submitting_indicator``: compute questions run locally (no LLM) and are
+    auto-advanced, so they are never the question a respondent submits.
+    """
 
     pass
 
@@ -82,6 +114,7 @@ class FileUploadHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the file upload question type."""
 
     optional: bool = False
+    submitting_indicator: Optional[SubmittingIndicator] = None
 
 
 class ChecklistItemSchema(HumanizeSchemaBase):
@@ -295,6 +328,7 @@ class LikertHumanizeSchema(HumanizeSchemaBase):
     optional: bool = False
     format: MCSubclassFormatSchema = Field(default_factory=MCSubclassFormatSchema)
     comment: Optional[CommentConfig] = None
+    submitting_indicator: Optional[SubmittingIndicator] = None
 
 
 class LinearScaleHumanizeSchema(HumanizeSchemaBase):
@@ -303,6 +337,7 @@ class LinearScaleHumanizeSchema(HumanizeSchemaBase):
     optional: bool = False
     format: MCSubclassFormatSchema = Field(default_factory=MCSubclassFormatSchema)
     comment: Optional[CommentConfig] = None
+    submitting_indicator: Optional[SubmittingIndicator] = None
 
 
 class ListHumanizeSchema(HumanizeSchemaBase):
@@ -310,6 +345,7 @@ class ListHumanizeSchema(HumanizeSchemaBase):
 
     optional: bool = False
     comment: Optional[CommentConfig] = None
+    submitting_indicator: Optional[SubmittingIndicator] = None
 
 
 class MatrixHumanizeSchema(HumanizeSchemaBase):
@@ -317,6 +353,7 @@ class MatrixHumanizeSchema(HumanizeSchemaBase):
 
     optional: bool = False
     comment: Optional[CommentConfig] = None
+    submitting_indicator: Optional[SubmittingIndicator] = None
 
 
 class MultipleChoiceCustomValidation(HumanizeSchemaBase):
@@ -332,6 +369,7 @@ class MultipleChoiceHumanizeSchema(HumanizeSchemaBase):
     format: MCSubclassFormatSchema = Field(default_factory=MCSubclassFormatSchema)
     custom_validation: Optional[MultipleChoiceCustomValidation] = None
     comment: Optional[CommentConfig] = None
+    submitting_indicator: Optional[SubmittingIndicator] = None
 
 
 class MultipleChoiceWithOtherHumanizeSchema(HumanizeSchemaBase):
@@ -339,6 +377,7 @@ class MultipleChoiceWithOtherHumanizeSchema(HumanizeSchemaBase):
 
     optional: bool = False
     comment: Optional[CommentConfig] = None
+    submitting_indicator: Optional[SubmittingIndicator] = None
 
 
 class NumericalFormatInputSchema(HumanizeSchemaBase):
@@ -378,6 +417,7 @@ class NumericalHumanizeSchema(HumanizeSchemaBase):
     optional: bool = False
     format: NumericalFormatSchema = Field(default_factory=NumericalFormatInputSchema)
     comment: Optional[CommentConfig] = None
+    submitting_indicator: Optional[SubmittingIndicator] = None
 
 
 class RankHumanizeSchema(HumanizeSchemaBase):
@@ -385,6 +425,7 @@ class RankHumanizeSchema(HumanizeSchemaBase):
 
     optional: bool = False
     comment: Optional[CommentConfig] = None
+    submitting_indicator: Optional[SubmittingIndicator] = None
 
 
 class TopKHumanizeSchema(HumanizeSchemaBase):
@@ -392,6 +433,7 @@ class TopKHumanizeSchema(HumanizeSchemaBase):
 
     optional: bool = False
     comment: Optional[CommentConfig] = None
+    submitting_indicator: Optional[SubmittingIndicator] = None
 
 
 class YesNoHumanizeSchema(HumanizeSchemaBase):
@@ -400,6 +442,7 @@ class YesNoHumanizeSchema(HumanizeSchemaBase):
     optional: bool = False
     format: MCSubclassFormatSchema = Field(default_factory=MCSubclassFormatSchema)
     comment: Optional[CommentConfig] = None
+    submitting_indicator: Optional[SubmittingIndicator] = None
 
 
 HumanizeQuestionSchema = Union[

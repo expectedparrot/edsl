@@ -170,6 +170,23 @@ Each `questions[question_name]` value is a `HumanizeQuestionSchema` object.
   </Expandable>
 </ParamField>
 
+<ParamField path="submitting_indicator" type="dict" required={false}>
+  Optional indicator shown after the respondent clicks **Next**, while the following question runs. Omit or set to `null` for no indicator.
+
+  **Supported question types:** `free_text`, `budget`, `checkbox`, `file_upload`, `likert_five`, `linear_scale`, `list`, `matrix`, `multiple_choice`, `multiple_choice_with_other`, `numerical`, `rank`, `top_k`, `yes_no`.
+
+  Note: not supported for `compute` (runs locally and auto-advances, so it is never the question a respondent submits) or `interview`.
+
+  <Expandable title="properties">
+    <ParamField path="type" type="string" default="callout">
+      How the indicator is rendered. Must be `"callout"` — a callout box shown while the next question runs, with the subtitle `"We'll continue automatically when it's ready."`
+    </ParamField>
+    <ParamField path="title" type="string" required={false}>
+      Optional title for the callout, 1–200 characters. Omit or set to `null` to use the frontend's default label for the indicator type.
+    </ParamField>
+  </Expandable>
+</ParamField>
+
 ## Example
 
 ```python
@@ -193,6 +210,7 @@ humanize_schema = {
             "optional": False,
             "format": {"type": "dropdown"},
             "comment": {"label": "Why did you choose this rating?"},
+            "submitting_indicator": {"type": "callout", "title": "Analyzing your answer…"},
         },
         "feedback": {"optional": True},
     },
