@@ -144,7 +144,7 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
     """
 
     __documentation__ = (
-        "https://docs.expectedparrot.com/en/latest/scenarios.html#scenariolist"
+        "https://docs.expectedparrot.com/en/latest/scenarios#scenariolist"
     )
 
     git = ScenarioListGitDescriptor()

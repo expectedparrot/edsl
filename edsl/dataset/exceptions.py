@@ -25,7 +25,7 @@ class DatasetError(BaseException):
         ```
     """
 
-    relevant_doc = "https://docs.expectedparrot.com/en/latest/dataset.html"
+    relevant_doc = "https://docs.expectedparrot.com/en/latest/dataset"
 
 
 class DatasetKeyError(DatasetError):
@@ -42,7 +42,7 @@ class DatasetKeyError(DatasetError):
         ```
     """
 
-    relevant_doc = "https://docs.expectedparrot.com/en/latest/dataset.html"
+    relevant_doc = "https://docs.expectedparrot.com/en/latest/dataset"
 
 
 class DatasetValueError(DatasetError):
@@ -59,7 +59,7 @@ class DatasetValueError(DatasetError):
         ```
     """
 
-    relevant_doc = "https://docs.expectedparrot.com/en/latest/dataset.html"
+    relevant_doc = "https://docs.expectedparrot.com/en/latest/dataset"
 
 
 class DatasetTypeError(DatasetError):
@@ -76,7 +76,7 @@ class DatasetTypeError(DatasetError):
         ```
     """
 
-    relevant_doc = "https://docs.expectedparrot.com/en/latest/dataset.html"
+    relevant_doc = "https://docs.expectedparrot.com/en/latest/dataset"
 
 
 class DatasetExportError(DatasetError):
@@ -93,7 +93,7 @@ class DatasetExportError(DatasetError):
         ```
     """
 
-    relevant_doc = "https://docs.expectedparrot.com/en/latest/dataset.html"
+    relevant_doc = "https://docs.expectedparrot.com/en/latest/dataset"
 
 
 class DatasetImportError(DatasetError):
@@ -111,7 +111,7 @@ class DatasetImportError(DatasetError):
         ```
     """
 
-    relevant_doc = "https://docs.expectedparrot.com/en/latest/dataset.html"
+    relevant_doc = "https://docs.expectedparrot.com/en/latest/dataset"
 
 
 class DatasetRuntimeError(DatasetError):
@@ -129,4 +129,4 @@ class DatasetRuntimeError(DatasetError):
         ```
     """
 
-    relevant_doc = "https://docs.expectedparrot.com/en/latest/dataset.html"
+    relevant_doc = "https://docs.expectedparrot.com/en/latest/dataset"

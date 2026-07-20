@@ -8,6 +8,7 @@ from .jobs_status_enums import JobsStatus
 from .jobs_remote_inference_logger import JobLogger, JobRunExceptionCounter, ModelCost
 from .exceptions import RemoteInferenceError
 from ..prompts import Prompt
+from ..runner.models import _decode_answer_value
 
 Seconds = NewType("Seconds", float)
 JobUUID = NewType("JobUUID", str)
@@ -749,7 +750,10 @@ class JobsRemoteInferenceHandler:
 
                 for a in answers_raw:
                     qname = a["question_name"]
-                    answer_dict[qname] = a.get("answer")
+                    # Answers cross the wire as JSON, so EDSL-object answers
+                    # (image_generation returns a FileStore) arrive as dicts and
+                    # have to be rebuilt into live objects.
+                    answer_dict[qname] = _decode_answer_value(a.get("answer"))
                     prompt_dict[f"{qname}_user_prompt"] = Prompt(
                         text=a.get("user_prompt") or ""
                     )

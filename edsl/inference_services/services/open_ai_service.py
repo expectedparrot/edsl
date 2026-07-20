@@ -5,7 +5,7 @@ import os
 from ..inference_service_abc import InferenceServiceABC
 from .message_builder import MessageBuilder
 from ..decorators import report_errors_async
-from .service_enums import OPENAI_REASONING_MODELS
+from .service_enums import OPENAI_REASONING_MODELS, openai_requires_temperature_one
 
 # Use TYPE_CHECKING to avoid circular imports at runtime
 if TYPE_CHECKING:
@@ -38,17 +38,26 @@ class OpenAIParameterBuilder:
         default_max_tokens = model_params.get("max_tokens", 1000)
         default_temperature = model_params.get("temperature", 0.5)
         default_reasoning_effort = model_params.get("reasoning_effort", "medium")
-        if model in OPENAI_REASONING_MODELS:
+        # Substring match so suffixed variants (e.g. gpt-5.6-terra) are still
+        # recognized as reasoning models, consistent with the other services.
+        is_reasoning_model = any(tag in model for tag in OPENAI_REASONING_MODELS)
+        if is_reasoning_model:
             # For reasoning models, use much higher completion tokens to allow for reasoning + response
             max_tokens = max(default_max_tokens, 5000)
-            temperature = 1
             # If no reasoning effort is provided, use "medium" as the default
             # Some models (e.g. gpt-5) do not support null values for reasoning_effort
             reasoning_effort = default_reasoning_effort or "medium"
         else:
             max_tokens = default_max_tokens
-            temperature = default_temperature
             reasoning_effort = None
+
+        # GPT-5+ and o-series models reject any temperature other than 1, even
+        # when the exact model id isn't in OPENAI_REASONING_MODELS (e.g. dated
+        # variants of gpt-5.6).
+        if openai_requires_temperature_one(model):
+            temperature = 1
+        else:
+            temperature = default_temperature
 
         # Base parameters
         params = {
@@ -67,7 +76,7 @@ class OpenAIParameterBuilder:
             ),
         }
 
-        if model in OPENAI_REASONING_MODELS:
+        if is_reasoning_model:
             params["reasoning_effort"] = reasoning_effort
 
         return params

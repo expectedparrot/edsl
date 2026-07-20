@@ -26,12 +26,17 @@ _build/*
 .coverage
 .edsl_cache
 .edsl_objects/
+.edsl/
+.claude/
+.tmp/
 .env
 .ipynb_checkpoints/
 .mypy_cache
 .pytest_cache
 .temp
 .venv
+temp/
+tenv/
 docs/_build/
 dist
 htmlcov
@@ -41,11 +46,19 @@ tests/temp_outputs
 tests/assets
 venv
 probable_junk/
+*.ep
+*.ep/
+*.zip
 # exceptions
 !edsl/utilities/data/*.json
 !.vscode/settings.json
 !tests/serialization/data/*.json
 !performance.yml
+# Mintlify docs config and assets must be tracked despite the broad *json/*png/*svg rules above
+!docs/docs.json
+!docs/images/**
+!docs/logo.png
+!docs/favicon.ico
 .env*
 docs/notebooks/drafts/*
 test.py

@@ -73,6 +73,7 @@ from .exceptions import (
 )
 
 
+
 class Survey(Base):
     """A collection of questions with logic for navigating between them.
 
@@ -94,7 +95,7 @@ class Survey(Base):
     serialization for storage or transmission.
     """
 
-    __documentation__ = """https://docs.expectedparrot.com/en/latest/surveys.html"""
+    __documentation__ = """https://docs.expectedparrot.com/en/latest/surveys"""
 
     git = SurveyGitDescriptor()
 
@@ -899,7 +900,6 @@ class Survey(Base):
 
     def to_jsonl_rows(self, blob_writer=None):
         from .survey_serializer import SurveySerializer
-
         return SurveySerializer(self).to_jsonl_rows()
 
     @classmethod
@@ -3389,7 +3389,9 @@ class Survey(Base):
                 elif isinstance(val, list):
                     columns[key].append(", ".join(str(o) for o in val))
                 elif isinstance(val, dict):
-                    columns[key].append(", ".join(f"{k}: {v}" for k, v in val.items()))
+                    columns[key].append(
+                        ", ".join(f"{k}: {v}" for k, v in val.items())
+                    )
                 else:
                     columns[key].append(str(val))
 

@@ -23,7 +23,7 @@ class InstructionError(BaseException):
         ```
     """
 
-    relevant_doc = "https://docs.expectedparrot.com/en/latest/instructions.html"
+    relevant_doc = "https://docs.expectedparrot.com/en/latest/surveys"
 
 
 class InstructionValueError(InstructionError):
@@ -42,7 +42,7 @@ class InstructionValueError(InstructionError):
         ```
     """
 
-    relevant_doc = "https://docs.expectedparrot.com/en/latest/instructions.html"
+    relevant_doc = "https://docs.expectedparrot.com/en/latest/surveys"
 
 
 class InstructionCollectionError(InstructionError):
@@ -61,4 +61,4 @@ class InstructionCollectionError(InstructionError):
         ```
     """
 
-    relevant_doc = "https://docs.expectedparrot.com/en/latest/instructions.html"
+    relevant_doc = "https://docs.expectedparrot.com/en/latest/surveys"

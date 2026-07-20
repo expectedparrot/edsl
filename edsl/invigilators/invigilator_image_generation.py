@@ -22,12 +22,22 @@ class InvigilatorImageGeneration(InvigilatorBase):
         input_images = []
         if "files_list" in prompts:
             input_images = [
-                file for file in prompts["files_list"] if file.mime_type.startswith("image/")
+                file
+                for file in prompts["files_list"]
+                if file.mime_type.startswith("image/")
             ]
 
         generator = self.question.image_generator
-        image = await generator.async_generate(prompt_text, input_images=input_images)
-        raw_response = getattr(image, "raw_response", None)
+        # Request the GeneratedImage (not a FileStore) so provider usage /
+        # cost metadata is available; convert to a FileStore for the answer.
+        generated = await generator.async_generate(
+            prompt_text, input_images=input_images, return_type="generated_image"
+        )
+        if isinstance(generated, list):
+            generated = generated[0]
+        image = generated.to_filestore()
+        raw_response = generated.raw_response
+        cost = generated.cost()
 
         data = {
             "answer": image,
@@ -41,11 +51,11 @@ class InvigilatorImageGeneration(InvigilatorBase):
             "cache_key": None,
             "validated": True,
             "exception_occurred": None,
-            "input_tokens": None,
-            "output_tokens": None,
-            "thinking_tokens": None,
-            "input_price_per_million_tokens": None,
-            "output_price_per_million_tokens": None,
-            "total_cost": None,
+            "input_tokens": cost.input_tokens,
+            "output_tokens": cost.output_tokens,
+            "thinking_tokens": cost.thinking_tokens,
+            "input_price_per_million_tokens": cost.input_price_per_million_tokens,
+            "output_price_per_million_tokens": cost.output_price_per_million_tokens,
+            "total_cost": cost.total_cost,
         }
         return EDSLResultObjectInput(**data)

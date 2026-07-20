@@ -37,6 +37,11 @@ class TestImageGenerationService(ImageGenerationServiceABC):
                     "prompt": prompt,
                     "input_image_count": len(input_images or []),
                 },
+                usage={
+                    "prompt_token_count": max(1, len(prompt) // 4),
+                    "candidates_token_count": 1290,
+                    "thoughts_token_count": None,
+                },
             )
             for _ in range(n)
         ]

@@ -771,6 +771,18 @@ class PersistenceMixin:
         """
         logger.debug(f"Loading {cls.__name__} from file: {filename}")
 
+        # Git-backed ".ep" archive packages are not flat JSON; delegate to the
+        # git accessor so ``Results.load('x.ep')`` works like ``Results.git.load``.
+        from edsl.base.git_package import ARCHIVE_PACKAGE_SUFFIX
+
+        if str(filename).endswith(ARCHIVE_PACKAGE_SUFFIX):
+            if hasattr(cls, "git"):
+                return cls.git.load(filename)
+            raise ValueError(
+                f"{filename!r} is an EDSL git package but {cls.__name__} has no "
+                f"git accessor; it cannot be loaded with .load()."
+            )
+
         try:
             if filename.endswith("json.gz"):
                 d = cls.open_compressed_file(filename)

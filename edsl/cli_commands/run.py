@@ -5,6 +5,8 @@ from __future__ import annotations
 import json
 import sys
 import time
+from contextlib import redirect_stdout
+from io import StringIO
 from pathlib import Path
 from typing import Optional
 
@@ -39,7 +41,7 @@ def register(app: click.Group) -> None:
     @click.option("--model", "-m", default=None, help="Model name.")
     @click.option("--type", "-t", "qtype", default="free_text", help="Question type.")
     @click.option("--options", default=None, help="JSON array for MC/checkbox.")
-    @click.option("--name", "-n", default=None, help="Question name.")
+    @click.option("--name", default=None, help="Question name.")
     @click.option("--progress/--no_progress", default=False, help="Show progress bar on stderr.")
     @click.option("--background", is_flag=True, default=False, help="Submit remote job and return immediately.")
     @click.option("--wait", is_flag=True, default=False, help="With --background, poll until the remote job reaches a terminal status.")
@@ -49,7 +51,7 @@ def register(app: click.Group) -> None:
     @click.option("--remote_inference_results_visibility", default="private", type=click.Choice(["private", "public", "unlisted"]), help="Visibility for remote results.")
     @click.option("--results_description", default=None, help="Description for the remote results object.")
     @click.option("--fresh", is_flag=True, default=False, help="Ignore cache.")
-    @click.option("--n", "iterations", default=1, type=int, show_default=True, help="Number of iterations per question/scenario/agent/model combination.")
+    @click.option("--n", "-n", "iterations", default=1, type=int, show_default=True, help="Number of iterations per question/scenario/agent/model combination.")
     @click.option("--local", is_flag=True, default=False, help="Disable remote inference and run locally.")
     @click.option("--save", default=None, help="Save Results JSON to file.")
     @click.option("--output", "-o", "output_path", default=None, help="Save Results to a file or .ep package.")
@@ -177,59 +179,52 @@ def register(app: click.Group) -> None:
             error("RUN_ERROR", f"Failed to apply overrides: {e}", exit_code=EXIT_ERROR)
 
         # Step 4: Execute
+        if save and output_path:
+            error("USAGE_ERROR", "--save and --output are mutually exclusive.",
+                   exit_code=EXIT_USAGE)
+
+        if not background and not (save or output_path):
+            error(
+                "USAGE_ERROR",
+                "Completed run results must be written to a file.",
+                suggestion="Use '--output results.ep' or '--output results.json'. Use '--background' to submit a remote job and return metadata without waiting for results.",
+                exit_code=EXIT_USAGE,
+            )
+
         if background and not wait and (save or output_path):
             error("USAGE_ERROR", "Background jobs cannot be saved before completion.",
                    suggestion="Use 'ep jobs results <job_uuid> --output results.ep' after the job completes.",
                    exit_code=EXIT_USAGE)
 
+        envelope_warnings = []
         try:
-            results_obj = job.run(
-                progress_bar=progress,
-                background=background,
-                remote_inference_description=remote_inference_description,
-                remote_inference_results_visibility=remote_inference_results_visibility,
-                results_description=results_description,
-                fresh=fresh,
-                n=iterations,
-                disable_remote_inference=local,
-                verbose=False,
-            )
+            stdout_buffer = StringIO()
+            with redirect_stdout(stdout_buffer):
+                results_obj = job.run(
+                    progress_bar=progress,
+                    background=background,
+                    remote_inference_description=remote_inference_description,
+                    remote_inference_results_visibility=remote_inference_results_visibility,
+                    results_description=results_description,
+                    fresh=fresh,
+                    n=iterations,
+                    disable_remote_inference=local,
+                    verbose=False,
+                )
+            captured_stdout = stdout_buffer.getvalue().strip()
+            if captured_stdout:
+                envelope_warnings.append(
+                    {
+                        "code": "SUPPRESSED_STDOUT",
+                        "message": "Output emitted during job execution was captured to keep stdout as a single JSON envelope.",
+                        "output": captured_stdout,
+                    }
+                )
         except Exception as e:
             error("RUN_ERROR", f"Job execution failed: {e}", exit_code=EXIT_ERROR)
 
-        # Format output
-        if background:
-            result_data = []
-        else:
-            try:
-                result_data = []
-                for r in results_obj:
-                    entry = {}
-                    # Answer
-                    entry["answer"] = dict(r.get("answer", {})) if hasattr(r, 'get') else {}
-
-                    # Agent, scenario, model
-                    if hasattr(r, 'agent'):
-                        entry["agent"] = {"traits": dict(r.agent.traits) if hasattr(r.agent, 'traits') else {}}
-                    if hasattr(r, 'scenario'):
-                        entry["scenario"] = dict(r.scenario) if r.scenario else {}
-                    if hasattr(r, 'model'):
-                        entry["model"] = {
-                            "model": r.model.model if hasattr(r.model, 'model') else str(r.model),
-                            "service": r.model.inference_service if hasattr(r.model, 'inference_service') else "",
-                        }
-                    result_data.append(entry)
-            except Exception:
-                # Fallback: use select().to_dicts()
-                try:
-                    result_data = results_obj.select("answer.*").to_dicts(remove_prefix=True)
-                except Exception:
-                    result_data = []
-
         saved = None
-        if save and output_path:
-            error("USAGE_ERROR", "--save and --output are mutually exclusive.",
-                   exit_code=EXIT_USAGE)
+        result_count = 0 if background else _safe_len(results_obj)
 
         # Save if requested
         if (save or output_path) and not background:
@@ -247,7 +242,7 @@ def register(app: click.Group) -> None:
             "model_count": len(job.models) if hasattr(job, 'models') else 0,
             "agent_count": len(job.agents) if hasattr(job, 'agents') else 0,
             "scenario_count": len(job.scenarios) if hasattr(job, 'scenarios') else 0,
-            "result_count": len(result_data),
+            "result_count": result_count,
             "n": iterations,
             "local": local,
         }
@@ -268,7 +263,7 @@ def register(app: click.Group) -> None:
         if saved is not None:
             meta["saved"] = saved
 
-        output({"results": result_data, "meta": meta})
+        output({"results": [], "meta": meta}, warnings=envelope_warnings)
 
 
     def _wait_for_remote_job(
@@ -373,6 +368,13 @@ def register(app: click.Group) -> None:
             "errors": f"ep jobs errors {meta['job_uuid']} --output error.md" if meta.get("job_uuid") else None,
         }
         return meta
+
+
+    def _safe_len(obj) -> Optional[int]:
+        try:
+            return len(obj)
+        except Exception:
+            return None
 
 
     def _build_job(input_mode, input_path, jobs_path, survey_path, json_str, stdin_data,

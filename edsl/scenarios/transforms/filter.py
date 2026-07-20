@@ -88,7 +88,7 @@ class FilterMixin:
                 f"The expression '{expression}' refers to a field that does not exist.\n"
                 f"Available fields: {available_fields}\n"
                 "Check your filter expression or consult the documentation: "
-                "https://docs.expectedparrot.com/en/latest/scenarios.html#module-edsl.scenarios.Scenario"
+                "https://docs.expectedparrot.com/en/latest/scenarios#module-edsl.scenarios.Scenario"
             ) from None
         except Exception as e:
             raise ScenarioError(f"Error in filter. Exception:{e}")

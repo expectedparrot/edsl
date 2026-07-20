@@ -86,17 +86,26 @@ class QuestionImageGeneration(QuestionBase):
         )
         prompt = Template(self.question_text).render(template_context)
         input_images = self._referenced_input_images(scenario, current_answers)
-        image = await self.image_generator.async_generate(
-            prompt, input_images=input_images
+        # Request the GeneratedImage so provider usage / cost metadata survives;
+        # convert to a FileStore for the answer.
+        generated = await self.image_generator.async_generate(
+            prompt, input_images=input_images, return_type="generated_image"
         )
+        if isinstance(generated, list):
+            generated = generated[0]
+        image = generated.to_filestore()
+        cost = generated.cost()
         return {
             "answer": image,
             "comment": None,
             "cached": False,
-            "input_tokens": 0,
-            "output_tokens": 0,
+            "input_tokens": cost.input_tokens,
+            "output_tokens": cost.output_tokens,
+            "input_price_per_million_tokens": cost.input_price_per_million_tokens,
+            "output_price_per_million_tokens": cost.output_price_per_million_tokens,
+            "total_cost": cost.total_cost,
             "generated_tokens": prompt,
-            "raw_model_response": getattr(image, "raw_response", None),
+            "raw_model_response": generated.raw_response,
             "user_prompt": prompt,
             "system_prompt": "",
         }
@@ -142,7 +151,9 @@ class QuestionImageGeneration(QuestionBase):
 
     @property
     def _invigilator_class(self):
-        from ..invigilators.invigilator_image_generation import InvigilatorImageGeneration
+        from ..invigilators.invigilator_image_generation import (
+            InvigilatorImageGeneration,
+        )
 
         return InvigilatorImageGeneration
 

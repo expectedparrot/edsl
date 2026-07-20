@@ -1060,6 +1060,19 @@ class Coop(CoopFunctionsMixin):
         else:
             return None
 
+    @staticmethod
+    def _get_preview_url(respondent_url: Optional[str]) -> Optional[str]:
+        """
+        Build a preview URL from a respondent URL.
+
+        The preview URL lets users take the survey without saving any response
+        data - it appends ``save_response=false`` to the respondent URL.
+        """
+        if not respondent_url:
+            return None
+        separator = "&" if "?" in respondent_url else "?"
+        return f"{respondent_url}{separator}save_response=false"
+
     def _scenario_is_file_store(self, scenario_dict: dict) -> bool:
         """
         Check if the scenario object is a valid FileStore.
@@ -2915,11 +2928,13 @@ class Coop(CoopFunctionsMixin):
         )
         self._resolve_server_response(response)
         response_json = response.json()
+        respondent_url = f"{self.url}/respond/human-surveys/{response_json.get('uuid')}"
         return {
             "name": response_json.get("name"),
             "uuid": response_json.get("uuid"),
             "admin_url": f"{self.url}/home/human-surveys/{response_json.get('uuid')}",
-            "respondent_url": f"{self.url}/respond/human-surveys/{response_json.get('uuid')}",
+            "respondent_url": respondent_url,
+            "preview_url": self._get_preview_url(respondent_url),
             "n_responses": response_json.get("n_responses"),
             "survey_uuid": response_json.get("survey_uuid"),
             "agent_list_uuid": response_json.get("agent_list_uuid"),
@@ -2939,11 +2954,13 @@ class Coop(CoopFunctionsMixin):
         )
         self._resolve_server_response(response)
         response_json = response.json()
+        respondent_url = f"{self.url}/respond/human-surveys/{response_json.get('uuid')}"
         return {
             "name": response_json.get("name"),
             "uuid": response_json.get("uuid"),
             "admin_url": f"{self.url}/home/human-surveys/{response_json.get('uuid')}",
-            "respondent_url": f"{self.url}/respond/human-surveys/{response_json.get('uuid')}",
+            "respondent_url": respondent_url,
+            "preview_url": self._get_preview_url(respondent_url),
             "n_responses": response_json.get("n_responses"),
             "survey_uuid": response_json.get("survey_uuid"),
             "agent_list_uuid": response_json.get("agent_list_uuid"),
@@ -4406,6 +4423,7 @@ class Coop(CoopFunctionsMixin):
             "status": response_json.get("status"),
             "admin_url": response_json.get("admin_url"),
             "respondent_url": response_json.get("respondent_url"),
+            "preview_url": self._get_preview_url(response_json.get("respondent_url")),
             "name": response_json.get("name"),
             "description": response_json.get("description"),
             "num_participants": response_json.get("total_available_places"),
@@ -4487,6 +4505,7 @@ class Coop(CoopFunctionsMixin):
             "status": response_json.get("status"),
             "admin_url": response_json.get("admin_url"),
             "respondent_url": response_json.get("respondent_url"),
+            "preview_url": self._get_preview_url(response_json.get("respondent_url")),
             "name": response_json.get("name"),
             "description": response_json.get("description"),
             "num_participants": response_json.get("total_available_places"),
@@ -4599,6 +4618,7 @@ class Coop(CoopFunctionsMixin):
             "status": response_json.get("status"),
             "admin_url": response_json.get("admin_url"),
             "respondent_url": response_json.get("respondent_url"),
+            "preview_url": self._get_preview_url(response_json.get("respondent_url")),
             "name": response_json.get("name"),
             "description": response_json.get("description"),
             "num_participants": response_json.get("total_available_places"),

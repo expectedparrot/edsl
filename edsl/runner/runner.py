@@ -22,7 +22,7 @@ import asyncio
 
 from .storage import InMemoryStorage, StorageProtocol
 from .service import JobService
-from .models import JobState, TaskExecutionError
+from .models import JobState, TaskExecutionError, TaskStatus
 from .queues import QueueRegistry, load_queues_from_env
 from .coordinator import ExecutionCoordinator
 from .render import RenderWorker
@@ -484,7 +484,9 @@ class Runner:
         if stream_to_cas:
             from .cas_integration import RunnerCASIntegration
 
-            survey = job.survey if hasattr(job, "survey") else getattr(job, "_survey", None)
+            survey = (
+                job.survey if hasattr(job, "survey") else getattr(job, "_survey", None)
+            )
             if survey is not None:
                 self._job_cas[job_id] = RunnerCASIntegration(
                     job_id, survey, self._service, batch_size=cas_batch_size
@@ -867,6 +869,13 @@ class Runner:
                     comment=result.get("comment"),
                     input_tokens=result.get("input_tokens", 0),
                     output_tokens=result.get("output_tokens", 0),
+                    thinking_tokens=result.get("thinking_tokens"),
+                    input_price_per_million_tokens=result.get(
+                        "input_price_per_million_tokens"
+                    ),
+                    output_price_per_million_tokens=result.get(
+                        "output_price_per_million_tokens"
+                    ),
                     raw_model_response=result.get("raw_model_response"),
                     generated_tokens=result.get("generated_tokens"),
                     cached=result.get("cached", False),
@@ -889,7 +898,11 @@ class Runner:
                     error_type=error_type,
                     error_message=error_message,
                 )
-                self._direct_registry.remove(task_id)
+                # on_task_failed may have reset the task to READY for a retry.
+                # The registry entry has to survive that, or the retry finds no
+                # entry, gets re-queued, and the task stays READY forever.
+                if self._service._tasks.get_status(task_id) != TaskStatus.READY:
+                    self._direct_registry.remove(task_id)
 
                 if stop_on_exception:
                     self._service.jobs.set_state(job_id, JobState.CANCELLED)

@@ -1814,6 +1814,7 @@ class JobService:
         for qname in question_names:
             if qname not in answer_dict:
                 answer_dict[qname] = None
+
         # Build prompt dict (matches EDSL's prompt_dictionary structure)
         from edsl.prompts import Prompt
 
