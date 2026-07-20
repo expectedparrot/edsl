@@ -225,6 +225,18 @@ class InterviewerGatedEndPolicy(HumanizeSchemaBase):
     # gate.
     interview_marked_complete_message: Optional[InterviewMarkedCompleteMessage] = None
 
+    # Whether the participant may keep sending messages once the interviewer has
+    # marked the interview complete.
+    # - "open": the composer stays live; the mark only unlocks the End Interview
+    #   button (today's behavior, hence the default — keeps stored configs
+    #   behavior-identical).
+    # - "locked": the composer closes too, so the marking turn is the last thing
+    #   the participant reads and ending is their only remaining action.
+    # Named off the same event as `interview_marked_complete_message` because the
+    # two are aspects of one moment: what that turn says, and what it leaves the
+    # participant able to do.
+    participant_chat_after_complete: Literal["open", "locked"] = "open"
+
 
 # How a text interview is allowed to end, discriminated by ``control`` so each
 # mode carries only the fields it can act on. New modes/guards (allow_withdraw /
