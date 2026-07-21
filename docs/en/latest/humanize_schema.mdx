@@ -160,6 +160,14 @@ Each `questions[question_name]` value is a `HumanizeQuestionSchema` object.
         </ParamField>
       </Expandable>
     </ParamField>
+    <ParamField path="participant_chat_during_reply" type="string" default="open">
+      Whether the participant can type while the interviewer's reply is still being generated.
+
+      - `"open"` — the message composer stays live, so the participant can compose ahead of a reply they have not read yet (default).
+      - `"locked"` — the composer closes until the reply arrives, so each reply is read before anything is written against it.
+
+      Unlike `end_policy.participant_chat_after_complete`, this lock is per-turn and reopens; it applies to every turn under either end policy.
+    </ParamField>
   </Expandable>
 </ParamField>
 

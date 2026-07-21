@@ -284,6 +284,18 @@ class TextInterviewConfig(HumanizeSchemaBase):
     structured_questions: Optional[StructuredQuestionsConfig] = None
     end_policy: EndPolicy = Field(default_factory=RespondentEndPolicy)
 
+    # Whether the participant may type while the interviewer's reply is still
+    # being generated.
+    # - "open": the composer stays live, so they can compose ahead of a reply
+    #   they have not read yet (today's behavior, hence the default — keeps
+    #   stored configs behavior-identical).
+    # - "locked": the composer closes for the duration of the run, so each reply
+    #   is read before anything is written against it.
+    # Unlike `end_policy.participant_chat_after_complete` this is a per-turn
+    # lock that reopens, so it lives on the config rather than on a policy: it
+    # applies to every turn under either end policy.
+    participant_chat_during_reply: Literal["open", "locked"] = "open"
+
     @field_validator("language", mode="before")
     @classmethod
     def _validate_language(cls, v: object) -> str:
