@@ -269,9 +269,9 @@ class Coop(CoopFunctionsMixin):
             if "json_string" in log_payload and log_payload["json_string"]:
                 json_str = log_payload["json_string"]
                 if len(json_str) > 200:
-                    log_payload["json_string"] = (
-                        f"{json_str[:200]}... (truncated, total length: {len(json_str)})"
-                    )
+                    log_payload[
+                        "json_string"
+                    ] = f"{json_str[:200]}... (truncated, total length: {len(json_str)})"
             self._logger.info(f"Request payload: {log_payload}")
 
         try:
@@ -5234,15 +5234,23 @@ class Coop(CoopFunctionsMixin):
 
             file_uuid = upload_result["file_uuid"]
 
-            # Update the serialized dict
-            d["base64_string"] = "offloaded"
-            if "external_locations" not in d:
-                d["external_locations"] = {}
-            d["external_locations"]["gcs"] = {
+            # Content-stable digest, computed while we still hold the bytes, so
+            # the byte-less read side (and re-uploads under a new file_uuid) can
+            # key the cache on content rather than on this upload's identity.
+            content_hash = FileStore._compute_content_hash(d.get("base64_string"))
+            gcs_info = {
                 "file_uuid": file_uuid,
                 "uploaded": True,
                 "offloaded": True,
             }
+            if content_hash:
+                gcs_info["content_hash"] = content_hash
+
+            # Update the serialized dict
+            d["base64_string"] = "offloaded"
+            if "external_locations" not in d:
+                d["external_locations"] = {}
+            d["external_locations"]["gcs"] = dict(gcs_info)
 
             # Update the original in-memory FileStore object
             if original_object is not None and path:
@@ -5288,11 +5296,7 @@ class Coop(CoopFunctionsMixin):
                         current_obj["base64_string"] = "offloaded"
                         if "external_locations" not in current_obj:
                             current_obj["external_locations"] = {}
-                        current_obj["external_locations"]["gcs"] = {
-                            "file_uuid": file_uuid,
-                            "uploaded": True,
-                            "offloaded": True,
-                        }
+                        current_obj["external_locations"]["gcs"] = dict(gcs_info)
                         current_obj.external_locations = current_obj[
                             "external_locations"
                         ]
@@ -5515,7 +5519,9 @@ class Coop(CoopFunctionsMixin):
                     value_type = (
                         "inf"
                         if math.isinf(value)
-                        else "nan" if math.isnan(value) else "invalid"
+                        else "nan"
+                        if math.isnan(value)
+                        else "invalid"
                     )
                     error_msg += f"  • {path}: {value} ({value_type})\n"
 

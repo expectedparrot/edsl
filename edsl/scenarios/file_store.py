@@ -1,4 +1,5 @@
 import base64
+import hashlib
 import io
 import tempfile
 import mimetypes
@@ -166,6 +167,60 @@ class FileStore(Scenario):
         if key_name is None:
             key_name = "file_store"
         return Scenario({key_name: self})
+
+    @staticmethod
+    def _compute_content_hash(base64_string: Optional[str]) -> Optional[str]:
+        """Return a content-stable digest (md5 of the decoded bytes).
+
+        This is the cache identity of a file's *content*, independent of where a
+        given upload happened to store it (GCS ``file_uuid`` etc.). Returns None
+        when no real content is available (e.g. an offloaded ``base64_string``),
+        so callers can fall back to another identity.
+        """
+        if not base64_string or base64_string == "offloaded":
+            return None
+        try:
+            raw = base64.b64decode(base64_string)
+        except Exception:
+            return None
+        return hashlib.md5(raw).hexdigest()
+
+    def _content_identity_hash(self) -> int:
+        """Hash a file by *content*, never by per-upload storage metadata.
+
+        Identity = (content digest, mime_type). The content digest is read from
+        ``external_locations["gcs"]["content_hash"]`` when present (stamped at
+        offload, so the byte-less read side can use it without downloading),
+        otherwise computed live from the bytes. As a last resort — a legacy file
+        that arrived offloaded with no stamped ``content_hash`` — we fall back to
+        the per-upload ``file_uuid`` so that different files never collide onto a
+        shared cache entry (correctness over reuse).
+        """
+        from ..utilities.utilities import dict_hash
+
+        ext = self.get("external_locations") or {}
+        gcs = ext.get("gcs", {}) if isinstance(ext, dict) else {}
+
+        content_hash = gcs.get("content_hash")
+        if not content_hash:
+            content_hash = getattr(self, "_cached_content_hash", None)
+            if content_hash is None:
+                content_hash = self._compute_content_hash(self.get("base64_string"))
+                try:
+                    self._cached_content_hash = content_hash
+                except Exception:
+                    pass
+        if not content_hash:
+            # No content identity available (offloaded, unstamped): stay
+            # collision-free by keying on the upload id even though it is not
+            # content-stable.
+            content_hash = gcs.get("file_uuid")
+
+        identity = {"content_hash": content_hash, "mime_type": self.get("mime_type")}
+        return dict_hash(identity)
+
+    def __hash__(self) -> int:
+        return self._content_identity_hash()
 
     def _restore_from_gcs(self) -> None:
         """
@@ -804,13 +859,34 @@ class FileStore(Scenario):
         """
         if inplace:
             if hasattr(self, "base64_string"):
+                content_hash = self._compute_content_hash(self.base64_string)
                 self.base64_string = "offloaded"
+                if content_hash:
+                    ext = self.get("external_locations") or {}
+                    if not isinstance(ext, dict):
+                        ext = {}
+                    gcs = dict(ext.get("gcs") or {})
+                    gcs["content_hash"] = content_hash
+                    ext["gcs"] = gcs
+                    self["external_locations"] = ext
+                    self.external_locations = ext
             return self
         else:
             # Create a copy and offload it
             file_store_dict = self.to_dict()
             if "base64_string" in file_store_dict:
+                content_hash = self._compute_content_hash(
+                    file_store_dict["base64_string"]
+                )
                 file_store_dict["base64_string"] = "offloaded"
+                if content_hash:
+                    ext = file_store_dict.get("external_locations") or {}
+                    if not isinstance(ext, dict):
+                        ext = {}
+                    gcs = dict(ext.get("gcs") or {})
+                    gcs["content_hash"] = content_hash
+                    ext["gcs"] = gcs
+                    file_store_dict["external_locations"] = ext
             return self.__class__.from_dict(file_store_dict)
 
     def save_to_gcs_bucket(
