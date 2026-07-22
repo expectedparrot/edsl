@@ -432,6 +432,26 @@ class InterviewStore:
             return None
         return InterviewDefinition.from_dict(interview_id, job_id, data)
 
+    def extend_definition_tasks(
+        self, job_id: str, interview_id: str, new_task_ids: list[str]
+    ) -> "InterviewDefinition | None":
+        """Append task IDs to an interview definition and bump ``total_tasks``.
+
+        Used by dynamic Loop & Merge to inject follow-up tasks *after* an
+        interview has already been submitted. Rewrites the persistent
+        definition so that finalization (``is_done``) waits for the newly
+        injected tasks instead of finalizing the interview early.
+
+        Returns the updated definition, or ``None`` if the interview is unknown.
+        """
+        definition = self.get_definition(job_id, interview_id)
+        if definition is None:
+            return None
+        definition.task_ids = list(definition.task_ids) + list(new_task_ids)
+        definition.total_tasks = definition.total_tasks + len(new_task_ids)
+        self._storage.write_persistent(definition.storage_key(), definition.to_dict())
+        return definition
+
     def get_status(self, interview_id: str) -> InterviewStatus:
         return InterviewStatus(
             interview_id=interview_id,

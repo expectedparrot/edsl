@@ -232,6 +232,325 @@ class Survey(Base):
             text.append(question.human_readable())
         return "\n\n".join(text)
 
+    #: Default upper bound on loop iterations when ``loop_over`` is called
+    #: without an explicit ``max_items``. See :meth:`loop_over`.
+    DEFAULT_LOOP_MAX_ITEMS = 10
+
+    # Marker embedded in every question name that ``loop_over`` materializes, so
+    # downstream consumers (e.g. the Coop survey renderer) can *detect* and
+    # *parse* loop-expanded questions without heuristics. The name format is
+    # ``<base>__loop<i>__<source>`` where ``base`` is the template's
+    # question_name, ``i`` is the 0-based iteration index, and ``source`` is the
+    # list question being looped over (e.g. ``head__loop0__departments``). The
+    # ``__loop<digits>__`` infix is unambiguous even when ``base`` or ``source``
+    # themselves contain underscores.
+    LOOP_NAME_MARKER = "__loop"
+    _LOOP_NAME_RE = re.compile(r"^(?P<base>.+?)__loop(?P<index>\d+)__(?P<source>.+)$")
+
+    @staticmethod
+    def loop_question_name(base: str, source: str, index: int) -> str:
+        """Build the materialized question name for a ``loop_over`` template copy.
+
+        This is the single source of truth for the loop naming scheme (see
+        :attr:`LOOP_NAME_MARKER`); ``loop_over`` and any consumer reconstructing
+        names must go through here.
+
+        >>> Survey.loop_question_name("head", "departments", 0)
+        'head__loop0__departments'
+        """
+        return f"{base}{Survey.LOOP_NAME_MARKER}{index}__{source}"
+
+    @classmethod
+    def parse_loop_question_name(cls, name: str) -> Optional[dict]:
+        """Parse a loop-expanded question name into its parts, or ``None``.
+
+        Inverse of :meth:`loop_question_name`. Returns
+        ``{"base", "source", "index"}`` for a loop-materialized name, or
+        ``None`` for an ordinary question. Consumers (e.g. a survey renderer)
+        can use this to group the ``max_items`` copies of each template back
+        into a single loop block, keyed by ``source``.
+
+        >>> Survey.parse_loop_question_name("head__loop2__departments")
+        {'base': 'head', 'source': 'departments', 'index': 2}
+        >>> Survey.parse_loop_question_name("risk_tolerance") is None
+        True
+        >>> Survey.parse_loop_question_name("used_recently__loop1__products")
+        {'base': 'used_recently', 'source': 'products', 'index': 1}
+        """
+        m = cls._LOOP_NAME_RE.match(name)
+        if not m:
+            return None
+        return {
+            "base": m.group("base"),
+            "source": m.group("source"),
+            "index": int(m.group("index")),
+        }
+
+    def loop_question_groups(self) -> dict:
+        """Group this survey's loop-expanded questions by their source list.
+
+        Returns ``{source: {"item_count", "bases", "iterations"}}`` where
+        ``iterations[i]`` is the ordered list of question names for iteration
+        ``i``. Empty if the survey has no ``loop_over`` questions. This is a
+        convenience for consumers that render loop blocks; it relies solely on
+        the public naming scheme (:meth:`parse_loop_question_name`).
+        """
+        groups: dict = {}
+        for name in self.question_names:
+            parsed = self.parse_loop_question_name(name)
+            if parsed is None:
+                continue
+            g = groups.setdefault(parsed["source"], {"bases": [], "iterations": {}})
+            if parsed["base"] not in g["bases"]:
+                g["bases"].append(parsed["base"])
+            g["iterations"].setdefault(parsed["index"], []).append(name)
+        # Normalize: sort iterations by index, add item_count.
+        for source, g in groups.items():
+            iterations = [g["iterations"][i] for i in sorted(g["iterations"])]
+            g["iterations"] = iterations
+            g["item_count"] = len(iterations)
+        return groups
+
+    def loop_over(
+        self,
+        question: Union[str, "QuestionType"],
+        ask: Union["QuestionType", List["QuestionType"]],
+        item: str = "item",
+        max_items: Optional[int] = None,
+    ) -> "Survey":
+        """Loop a block of follow-up questions once per item of a list answer.
+
+        Unlike ``Question.loop()`` (which expands a *known* ScenarioList by
+        substituting concrete values), this handles a loop set that is only
+        known at run time: the answer to ``question``. It does so by **statically
+        expanding**, at build time, into ``max_items`` copies of each ``ask``
+        question, wired together with ordinary piping and skip/jump rules:
+
+        - each copy's ``{{ <item> }}`` reference is rewritten to
+          ``{{ <question>.answer[i] }}`` so the i-th item's value is *piped* in
+          at render time (no runtime injection required);
+        - each copy carries an overflow guard ``skip_when`` so that iterations
+          beyond the actual answer length are skipped (make no model call);
+        - per-iteration ``skip_when`` / ``jump_when`` rules attached to the
+          ``ask`` questions become native survey skip/jump rules on the copies.
+
+        The result is a *plain* survey with more questions — no dynamic runtime
+        machinery — so it runs identically on the local, remote, and distributed
+        runners. Injected question names match ``<base>__loop<i>__<question>``
+        (e.g. ``head__loop0__depts``) — see :meth:`loop_question_name` /
+        :meth:`parse_loop_question_name` — so result columns are stable and the
+        loop structure is detectable by downstream consumers.
+
+        The ``ask`` questions must NOT already be members of the survey. Each
+        should reference the current item via ``{{ <item> }}`` (default
+        ``{{ item }}``) and may also use ``{{ loop_index }}`` (rewritten to the
+        integer index).
+
+        Args:
+            question: The question (or its ``question_name``) whose answer is the
+                loop set. Its answer should be a list (e.g. ``QuestionList``).
+            ask: A follow-up question, or list of them, asked once per item.
+            item: Template key the current item is exposed under. Defaults to
+                ``"item"`` (so templates use ``{{ item }}``).
+            max_items: Upper bound on iterations to materialize. Because
+                expansion happens at build time, the number of items must be
+                bounded; iterations past the actual answer length are skipped.
+                Defaults to :attr:`DEFAULT_LOOP_MAX_ITEMS`.
+
+        Per-iteration conditional logic is attached to an ``ask`` question (not
+        here), via ``question.skip_when(expression)`` and
+        ``question.jump_when(expression, to=...)``. See those methods for details.
+
+        Returns:
+            self (for chaining).
+
+        Examples:
+            >>> from edsl import QuestionList, QuestionFreeText, Survey
+            >>> q1 = QuestionList(question_name="depts", question_text="List your departments.")
+            >>> follow = QuestionFreeText(question_name="head", question_text="Who heads {{ item }}?")
+            >>> s = Survey([q1]).loop_over("depts", ask=follow, max_items=3)
+            >>> s.question_names
+            ['depts', 'head__loop0__depts', 'head__loop1__depts', 'head__loop2__depts']
+            >>> s.question_names_to_questions()['head__loop1__depts'].question_text
+            'Who heads {{ depts.answer[1] }}?'
+        """
+        source_name = question if isinstance(question, str) else question.question_name
+        if not isinstance(ask, list):
+            ask = list(ask) if isinstance(ask, (list, tuple)) else [ask]
+        else:
+            ask = list(ask)
+
+        if source_name not in self.question_names:
+            raise SurveyCreationError(
+                f"loop_over source '{source_name}' is not a question in the "
+                f"survey. Add it before calling loop_over. Existing questions: "
+                f"{self.question_names}."
+            )
+        if max_items is None:
+            max_items = self.DEFAULT_LOOP_MAX_ITEMS
+        if not isinstance(max_items, int) or max_items < 1:
+            raise SurveyCreationError(
+                f"loop_over max_items must be a positive integer, got {max_items!r}."
+            )
+
+        self._expand_loop_over_static(source_name, ask, item, max_items)
+        return self
+
+    def _rewrite_loop_template_str(
+        self,
+        text: str,
+        i: int,
+        source_name: str,
+        item_key: str,
+        base_name_map: dict,
+    ) -> str:
+        """Rewrite a loop template string for iteration ``i``.
+
+        Inside each ``{{ ... }}`` the leading identifier is rewritten:
+        ``{{ item }}`` -> ``{{ source.answer[i] }}``; ``{{ loop_index }}`` ->
+        ``{{ i }}``; a block-local base name -> its per-iteration mangled name;
+        outer references (and everything else) are left untouched. Text outside
+        ``{{ ... }}`` (operators, literals) is preserved verbatim.
+        """
+        import re
+
+        def repl(match: "re.Match") -> str:
+            inner = match.group(1).strip()
+            lead = re.match(r"(scenario\.)?([A-Za-z_][A-Za-z0-9_]*)(.*)$", inner, re.S)
+            if not lead:
+                return match.group(0)
+            ident, rest = lead.group(2), lead.group(3)
+            if ident == item_key:
+                return "{{ " + f"{source_name}.answer[{i}]" + rest + " }}"
+            if ident == "loop_index":
+                return "{{ " + str(i) + " }}"
+            if ident in base_name_map:
+                return "{{ " + base_name_map[ident] + rest + " }}"
+            # Outer answer or anything else: leave as-is.
+            return match.group(0)
+
+        return re.sub(r"\{\{(.+?)\}\}", repl, text, flags=re.S)
+
+    def _expand_loop_over_static(
+        self,
+        source_name: str,
+        templates: List["QuestionType"],
+        item_key: str,
+        max_items: int,
+    ) -> None:
+        """Materialize a dynamic loop block into plain questions + rules.
+
+        Phase 1 creates and appends every per-iteration question. Phase 2 adds
+        the skip/jump rules (deferred so jump targets in a *later* iteration —
+        e.g. ``NEXT_ITEM`` -> the next iteration's first question — already
+        exist). See :meth:`loop_over` for the rewrite semantics.
+        """
+        import copy
+        from ..questions import QuestionBase
+
+        block_bases = [t.question_name for t in templates]
+
+        def name_map(i: int) -> dict:
+            return {b: self.loop_question_name(b, source_name, i) for b in block_bases}
+
+        # --- Phase 1: create all expanded questions -------------------------
+        for i in range(max_items):
+            base_name_map = name_map(i)
+            for t in templates:
+                new_name = base_name_map[t.question_name]
+                q_dict = copy.deepcopy(t.to_dict())
+                # Strip transient loop-rule keys (from_dict rejects unknown params);
+                # the real rules are read off the template object in Phase 2.
+                q_dict.pop("loop_skip_rule", None)
+                q_dict.pop("loop_jump_rules", None)
+                q_dict["question_name"] = new_name
+                if isinstance(q_dict.get("question_text"), str):
+                    q_dict["question_text"] = self._rewrite_loop_template_str(
+                        q_dict["question_text"], i, source_name, item_key, base_name_map
+                    )
+                opts = q_dict.get("question_options")
+                if isinstance(opts, list):
+                    q_dict["question_options"] = [
+                        (
+                            self._rewrite_loop_template_str(
+                                o, i, source_name, item_key, base_name_map
+                            )
+                            if isinstance(o, str)
+                            else o
+                        )
+                        for o in opts
+                    ]
+                self.add_question(QuestionBase.from_dict(q_dict))
+
+        # --- Phase 2: add skip/jump rules -----------------------------------
+        for i in range(max_items):
+            base_name_map = name_map(i)
+            # Overflow guard: skip every question in iterations past the actual
+            # answer length. The source answer renders as a Python list literal,
+            # so "list[i:] == []" is true exactly when the list has <= i items.
+            # (A "| length" filter would trip the rule's AST name validator,
+            # which reads "length" as an unknown question; this form surfaces
+            # only the source question as a referenced name.)
+            overflow_guard = f"{{{{ {source_name}.answer }}}}[{i}:] == []"
+            for t in templates:
+                new_name = base_name_map[t.question_name]
+                self.add_skip_rule(new_name, overflow_guard)
+                own_skip = getattr(t, "_loop_skip_rule", None)
+                if own_skip:
+                    self.add_skip_rule(
+                        new_name,
+                        self._rewrite_loop_template_str(
+                            own_skip, i, source_name, item_key, base_name_map
+                        ),
+                    )
+            for t in templates:
+                new_name = base_name_map[t.question_name]
+                for expr, to in getattr(t, "_loop_jump_rules", None) or []:
+                    if to in (QuestionBase.NEXT_ITEM, "next_item"):
+                        if i + 1 < max_items:
+                            target = self.loop_question_name(
+                                block_bases[0], source_name, i + 1
+                            )
+                        else:
+                            target = EndOfSurvey
+                    elif to in base_name_map:
+                        target = base_name_map[to]
+                    else:
+                        raise SurveyCreationError(
+                            f"jump_when target '{to}' from '{t.question_name}' is "
+                            f"not a question in the same loop block "
+                            f"{block_bases} (or QuestionBase.NEXT_ITEM)."
+                        )
+                    self.add_rule(
+                        new_name,
+                        self._rewrite_loop_template_str(
+                            expr, i, source_name, item_key, base_name_map
+                        ),
+                        target,
+                    )
+
+    def add_loop_merge(
+        self,
+        source: Union[str, "QuestionType"],
+        templates: Union["QuestionType", List["QuestionType"]],
+        item_key: str = "loop_item",
+    ) -> "Survey":
+        """Deprecated alias for :meth:`loop_over`.
+
+        ``source`` -> ``question``, ``templates`` -> ``ask``, ``item_key`` ->
+        ``item``. Note the old default item key was ``"loop_item"``; ``loop_over``
+        defaults to ``"item"``.
+        """
+        import warnings
+
+        warnings.warn(
+            "add_loop_merge() is deprecated; use "
+            "loop_over(question, ask=..., item=...).",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return self.loop_over(source, ask=templates, item=item_key)
+
     # @classmethod
     # def auto_survey(
     #     cls, overall_question: str, population: str, num_questions: int
@@ -354,7 +673,13 @@ class Survey(Base):
 
     def _relevant_instructions(self, question: QuestionBase) -> dict:
         """Return instructions that are relevant to the question."""
-        return self._relevant_instructions_dict[question]
+        try:
+            return self._relevant_instructions_dict[question]
+        except KeyError:
+            # Question is not a member of this survey (e.g. a dynamically
+            # injected Loop & Merge follow-up question). Such questions carry
+            # no survey-level instructions.
+            return []
 
     def show_flow(self, filename: Optional[str] = None, renderer: Optional[str] = None):
         """Show the flow of the survey.
