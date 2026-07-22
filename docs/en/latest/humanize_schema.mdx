@@ -137,7 +137,7 @@ Each `questions[question_name]` value is a `HumanizeQuestionSchema` object.
           Who decides when the interview is over.
 
           - `"respondent"` — the participant can end at any time; the End Interview button is always available (default). No other fields apply.
-          - `"interviewer_gated"` — the End Interview button is hidden until the model has signalled that its goals are met; only then can the participant end. This mode also accepts `interview_marked_complete_message`.
+          - `"interviewer_gated"` — the End Interview button is hidden until the model has signalled that its goals are met; only then can the participant end. This mode also accepts `interview_marked_complete_message` and `participant_chat_after_complete`.
         </ParamField>
         <ParamField path="interview_marked_complete_message" type="dict" required={false}>
           **`interviewer_gated` only.** A message to surface on the turn the interviewer first marks the interview complete. If omitted or set to `null`, the LLM will generate text for that turn instead.
@@ -152,7 +152,21 @@ Each `questions[question_name]` value is a `HumanizeQuestionSchema` object.
             </ParamField>
           </Expandable>
         </ParamField>
+        <ParamField path="participant_chat_after_complete" type="string" default="open">
+          **`interviewer_gated` only.** Whether the participant can keep sending messages after the interviewer has marked the interview complete.
+
+          - `"open"` — the message composer stays live; marking the interview complete only unlocks the End Interview button (default).
+          - `"locked"` — the composer closes as well, so the marking turn is the last thing the participant reads and ending the interview is their only remaining action.
+        </ParamField>
       </Expandable>
+    </ParamField>
+    <ParamField path="participant_chat_during_reply" type="string" default="open">
+      Whether the participant can type while the interviewer's reply is still being generated.
+
+      - `"open"` — the message composer stays live, so the participant can compose ahead of a reply they have not read yet (default).
+      - `"locked"` — the composer closes until the reply arrives, so each reply is read before anything is written against it.
+
+      Unlike `end_policy.participant_chat_after_complete`, this lock is per-turn and reopens; it applies to every turn under either end policy.
     </ParamField>
   </Expandable>
 </ParamField>

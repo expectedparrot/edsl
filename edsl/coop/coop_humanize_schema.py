@@ -225,6 +225,18 @@ class InterviewerGatedEndPolicy(HumanizeSchemaBase):
     # gate.
     interview_marked_complete_message: Optional[InterviewMarkedCompleteMessage] = None
 
+    # Whether the participant may keep sending messages once the interviewer has
+    # marked the interview complete.
+    # - "open": the composer stays live; the mark only unlocks the End Interview
+    #   button (today's behavior, hence the default — keeps stored configs
+    #   behavior-identical).
+    # - "locked": the composer closes too, so the marking turn is the last thing
+    #   the participant reads and ending is their only remaining action.
+    # Named off the same event as `interview_marked_complete_message` because the
+    # two are aspects of one moment: what that turn says, and what it leaves the
+    # participant able to do.
+    participant_chat_after_complete: Literal["open", "locked"] = "open"
+
 
 # How a text interview is allowed to end, discriminated by ``control`` so each
 # mode carries only the fields it can act on. New modes/guards (allow_withdraw /
@@ -271,6 +283,18 @@ class TextInterviewConfig(HumanizeSchemaBase):
     checklist: Optional[ChecklistConfig] = None
     structured_questions: Optional[StructuredQuestionsConfig] = None
     end_policy: EndPolicy = Field(default_factory=RespondentEndPolicy)
+
+    # Whether the participant may type while the interviewer's reply is still
+    # being generated.
+    # - "open": the composer stays live, so they can compose ahead of a reply
+    #   they have not read yet (today's behavior, hence the default — keeps
+    #   stored configs behavior-identical).
+    # - "locked": the composer closes for the duration of the run, so each reply
+    #   is read before anything is written against it.
+    # Unlike `end_policy.participant_chat_after_complete` this is a per-turn
+    # lock that reopens, so it lives on the config rather than on a policy: it
+    # applies to every turn under either end policy.
+    participant_chat_during_reply: Literal["open", "locked"] = "open"
 
     @field_validator("language", mode="before")
     @classmethod
