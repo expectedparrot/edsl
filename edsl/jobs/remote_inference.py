@@ -142,6 +142,7 @@ class JobsRemoteInferenceHandler:
         new_format: Optional[bool] = True,
         alert_on_completion_config: Optional[Any] = None,
         results_description: Optional[str] = None,
+        task_timeout: Optional[int] = None,
     ) -> RemoteJobInfo:
         """
         Create a remote inference job and return job information.
@@ -183,6 +184,7 @@ class JobsRemoteInferenceHandler:
                 fresh=fresh,
                 alert_on_completion_config=alert_on_completion_config,
                 initial_results_description=results_description,
+                task_timeout=task_timeout,
             )
         else:
             remote_job_creation_data = coop.old_remote_inference_create(
