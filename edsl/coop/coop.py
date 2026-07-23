@@ -2056,6 +2056,7 @@ class Coop(CoopFunctionsMixin):
         iterations: Optional[int] = 1,
         fresh: Optional[bool] = False,
         alert_on_completion_config: Optional[Any] = None,
+        task_timeout: Optional[int] = None,
     ) -> RemoteInferenceCreationInfo:
         """
         Create a remote inference job for execution in the Expected Parrot cloud.
@@ -2159,6 +2160,7 @@ class Coop(CoopFunctionsMixin):
                 "message": "Job uploaded successfully",
                 "nr_questions": job.nr_questions,
                 "initial_results_description": initial_results_description,
+                "task_timeout": task_timeout,
             },
         )
         response_json = response.json()
