@@ -89,6 +89,8 @@ class RunParameters(Base):
         new_format (bool): If True, uses remote_inference_create method, if False uses old_remote_inference_create method, default is True
         alert_on_completion_config (dict, optional): Config for job completion alerts (email and/or webhooks). Dict with "email" (bool) and "webhooks" (list of {"url": str}, max 3).
         results_description (str, optional): Description for the initial results object created by remote inference. Only used with offloaded execution.
+        task_timeout (int, optional): Maximum seconds allowed for each remotely
+            executed interview. The service may impose an upper bound.
     """
 
     n: int = 1
@@ -125,6 +127,7 @@ class RunParameters(Base):
     )
     alert_on_completion_config: Optional[dict] = None
     results_description: Optional[str] = None
+    task_timeout: Optional[int] = None
 
     def to_dict(self, add_edsl_version=False) -> dict:
         d = asdict(self)
