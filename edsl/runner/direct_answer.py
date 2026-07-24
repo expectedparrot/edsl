@@ -212,6 +212,18 @@ def detect_execution_type(agent: Any, question: Any) -> str:
         "agent_direct" - Agent with direct answering method
         "llm" - Standard LLM execution (default)
     """
+    direct = getattr(agent, "answer_question_directly", None) if agent else None
+
+    # An agent replaying recorded answers can mark itself authoritative for
+    # specific question names by tagging its direct-answering method with
+    # stored_answer_question_names. Those names take priority over the
+    # question's own answer_question_directly, so a question type that can
+    # answer itself replays the stored value instead of re-executing. Opt-in:
+    # agents that don't set the attribute keep the original precedence.
+    stored = getattr(direct, "stored_answer_question_names", None)
+    if stored and getattr(question, "question_name", None) in stored:
+        return "agent_direct"
+
     # Check question-level first (QuestionFunctional)
     # These have answer_question_directly on the question itself
     if hasattr(question, "answer_question_directly"):
@@ -219,7 +231,7 @@ def detect_execution_type(agent: Any, question: Any) -> str:
 
     # Check agent-level direct answering
     # These have answer_question_directly on the agent
-    if agent and hasattr(agent, "answer_question_directly"):
+    if direct is not None:
         return "agent_direct"
 
     # Default to LLM execution
