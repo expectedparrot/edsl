@@ -261,9 +261,13 @@ ep models --search gpt --text --sort input-price
 ep models --vision --sort name
 ep models create --model gpt-4o --output models.ep
 ep models create --model gpt-4o --model gpt-4o-mini --output models.ep
+ep models create \
+  --model-spec '{"model":"claude-opus-4-8","service":"anthropic"}' \
+  --model-spec '{"model":"gpt-5.4","service":"openai","parameters":{"reasoning_effort":"high"}}' \
+  --output models.ep
 ```
 
-Prefer `--model` on `ep run` for a one-off single model. Create a `ModelList` when the model set is reused or shared.
+Prefer `--model` on `ep run` for a one-off single model. Create a `ModelList` when the model set is reused or shared. Repeat `--model` when models share configuration; repeat `--model-spec` when services or parameters differ by model. Do not write a Python helper merely to construct a heterogeneous `ModelList`.
 
 ## Running Jobs
 
