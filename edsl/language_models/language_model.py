@@ -1229,6 +1229,8 @@ class LanguageModel(
         registry = InferenceServiceRegistry()
         model_name = data["model"]
         service_name = data.get("inference_service", None)
+        if service_name is None:
+            service_name = cls._infer_service_from_serialized_model_name(model_name)
 
         # Handle test model parameters that need to be passed as kwargs
         test_param_names = (
@@ -1273,6 +1275,40 @@ class LanguageModel(
                 return test_model_class(**test_data)
             else:
                 raise
+
+    @staticmethod
+    def _infer_service_from_serialized_model_name(model_name: str) -> str | None:
+        """Infer a service for older serialized models without live discovery.
+
+        Historical fixtures predate the ``inference_service`` field. Deserialization
+        should be offline and deterministic, so avoid provider model-list lookups for
+        common model families.
+        """
+        if model_name == "test":
+            return "test"
+
+        model_prefixes = (
+            ("gpt-", "openai"),
+            ("o1", "openai"),
+            ("o3", "openai"),
+            ("o4", "openai"),
+            ("text-", "openai"),
+            ("dall-e", "openai"),
+            ("claude-", "anthropic"),
+            ("gemini-", "google"),
+            ("models/gemini-", "google"),
+            ("llama", "meta"),
+            ("mistral", "mistral"),
+            ("mixtral", "mistral"),
+            ("codestral", "mistral"),
+            ("deepseek", "deepseek"),
+            ("grok-", "xai"),
+        )
+        for prefix, service_name in model_prefixes:
+            if model_name.startswith(prefix):
+                return service_name
+
+        return None
 
     def __repr__(self) -> str:
         """Generate a string representation of the model.
