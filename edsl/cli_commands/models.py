@@ -137,7 +137,13 @@ def register(app: click.Group) -> None:
         )
 
     @models.command("create")
-    @click.option("--model", "models", multiple=True, required=True, help="Model name. Repeat for multiple models.")
+    @click.option("--model", "models", multiple=True, help="Model name. Repeat for multiple models.")
+    @click.option(
+        "--model-spec",
+        "model_specs",
+        multiple=True,
+        help='Per-model JSON object with "model", optional "service", and optional "parameters". Repeat for multiple models.',
+    )
     @click.option("--service", default=None, help="Service name to use for all models.")
     @click.option("--canned-response", default=None, help="Canned response for offline test models.")
     @click.option("--temperature", default=None, type=float, help="Sampling temperature for all models.")
@@ -145,7 +151,7 @@ def register(app: click.Group) -> None:
     @click.option("--top-p", default=None, type=float, help="Nucleus sampling top-p for all models.")
     @click.option("--parameter", "parameters", multiple=True, help="Extra model parameter as KEY=JSON. Repeat for multiple parameters.")
     @click.option("--output", "-o", "output_path", required=True, help="Output .ep package or serialized file.")
-    def models_create(models, service, canned_response, temperature, max_tokens, top_p, parameters, output_path):
+    def models_create(models, model_specs, service, canned_response, temperature, max_tokens, top_p, parameters, output_path):
         """Create a ModelList file.
 
         \b
@@ -156,6 +162,7 @@ def register(app: click.Group) -> None:
           ep models create --model gpt-4o --parameter presence_penalty=0.1 --output models.ep
           ep models create --service openai --model gpt-4o --output models.json
           ep models create --service anthropic --model claude-sonnet-4-5 --output models.ep
+          ep models create --model-spec '{"model":"claude-opus-4-8","service":"anthropic"}' --model-spec '{"model":"gpt-5.4","service":"openai","parameters":{"reasoning_effort":"high"}}' --output models.ep
           ep models create --model test --canned-response ok --output test-models.ep
 
         \b
@@ -177,12 +184,32 @@ def register(app: click.Group) -> None:
                 model_kwargs["top_p"] = top_p
             model_kwargs.update(_parse_model_parameters(parameters))
 
-            model_list = ModelList(
-                [
-                    _create_model(Model, model_name, service, model_kwargs)
-                    for model_name in models
-                ]
-            )
+            if not models and not model_specs:
+                error(
+                    "USAGE_ERROR",
+                    "Provide at least one --model or --model-spec.",
+                    suggestion="Use --model NAME for shared settings or repeat --model-spec with a JSON object for per-model settings.",
+                    exit_code=EXIT_USAGE,
+                )
+
+            created_models = [
+                _create_model(Model, model_name, service, model_kwargs)
+                for model_name in models
+            ]
+            for raw_spec in model_specs:
+                spec = _parse_model_spec(raw_spec)
+                spec_kwargs = dict(model_kwargs)
+                spec_kwargs.update(spec["parameters"])
+                created_models.append(
+                    _create_model(
+                        Model,
+                        spec["model"],
+                        spec.get("service", service),
+                        spec_kwargs,
+                    )
+                )
+
+            model_list = ModelList(created_models)
             saved = save_edsl_object(model_list, output_path, object_type="ModelList")
             if raw_output_written(saved):
                 return
@@ -226,6 +253,51 @@ def _parse_model_parameters(items: tuple[str, ...]) -> dict:
         except json.JSONDecodeError:
             parameters[key] = raw_value
     return parameters
+
+
+def _parse_model_spec(raw_spec: str) -> dict:
+    try:
+        spec = json.loads(raw_spec)
+    except json.JSONDecodeError as exc:
+        error(
+            "USAGE_ERROR",
+            f"Invalid --model-spec JSON: {exc.msg}.",
+            suggestion='Use an object such as \'{"model":"gpt-5.4","service":"openai","parameters":{"reasoning_effort":"high"}}\'.',
+            exit_code=EXIT_USAGE,
+        )
+
+    if not isinstance(spec, dict):
+        error("USAGE_ERROR", "--model-spec must be a JSON object.", exit_code=EXIT_USAGE)
+
+    allowed_keys = {"model", "service", "service_name", "parameters"}
+    unknown_keys = sorted(set(spec) - allowed_keys)
+    if unknown_keys:
+        error(
+            "USAGE_ERROR",
+            f"Unknown --model-spec field(s): {', '.join(unknown_keys)}.",
+            suggestion="Allowed fields are model, service, service_name, and parameters.",
+            exit_code=EXIT_USAGE,
+        )
+
+    model_name = spec.get("model")
+    if not isinstance(model_name, str) or not model_name.strip():
+        error("USAGE_ERROR", '--model-spec requires a non-empty string "model".', exit_code=EXIT_USAGE)
+
+    if "service" in spec and "service_name" in spec:
+        error(
+            "USAGE_ERROR",
+            '--model-spec cannot contain both "service" and "service_name".',
+            exit_code=EXIT_USAGE,
+        )
+    service = spec.get("service", spec.get("service_name"))
+    if service is not None and (not isinstance(service, str) or not service.strip()):
+        error("USAGE_ERROR", '--model-spec "service" must be a non-empty string.', exit_code=EXIT_USAGE)
+
+    parameters = spec.get("parameters", {})
+    if not isinstance(parameters, dict):
+        error("USAGE_ERROR", '--model-spec "parameters" must be a JSON object.', exit_code=EXIT_USAGE)
+
+    return {"model": model_name, "service": service, "parameters": parameters}
 
 
 def _create_model(model_cls, model_name: str, service: str | None, model_kwargs: dict):

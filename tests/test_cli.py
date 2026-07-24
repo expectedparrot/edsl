@@ -1969,6 +1969,61 @@ class TestModels:
         assert loaded[0].parameters["presence_penalty"] == 0.2
         assert loaded[0].parameters["metadata"] == {"purpose": "test"}
 
+    def test_models_create_with_per_model_specs(self, tmp_path):
+        from edsl.language_models import ModelList
+
+        output_path = tmp_path / "models.ep"
+        result = CliRunner().invoke(
+            cli_module.app,
+            [
+                "models",
+                "create",
+                "--model-spec",
+                '{"model":"test","service":"test","parameters":{"canned_response":"claude"}}',
+                "--model-spec",
+                '{"model":"test","service_name":"test","parameters":{"canned_response":"gpt","reasoning_effort":"high"}}',
+                "--output",
+                str(output_path),
+            ],
+        )
+
+        assert result.exit_code == 0, result.output
+        out = json.loads(result.output)
+        assert out["data"]["model_count"] == 2
+        assert out["data"]["models"][0]["service_name"] == "test"
+        assert out["data"]["models"][0]["parameters"]["canned_response"] == "claude"
+        assert out["data"]["models"][1]["service_name"] == "test"
+        assert out["data"]["models"][1]["parameters"]["canned_response"] == "gpt"
+        assert out["data"]["models"][1]["parameters"]["reasoning_effort"] == "high"
+
+        loaded = ModelList.git.load(output_path)
+        assert len(loaded) == 2
+        assert loaded[1].parameters["reasoning_effort"] == "high"
+
+    @pytest.mark.parametrize(
+        ("args", "message"),
+        [
+            ([], "Provide at least one --model or --model-spec"),
+            (["--model-spec", "not-json"], "Invalid --model-spec JSON"),
+            (["--model-spec", "[]"], "--model-spec must be a JSON object"),
+            (["--model-spec", '{"service":"test"}'], 'requires a non-empty string "model"'),
+            (
+                ["--model-spec", '{"model":"test","parameters":[]}'],
+                '"parameters" must be a JSON object',
+            ),
+        ],
+    )
+    def test_models_create_rejects_invalid_model_specs(self, tmp_path, args, message):
+        result = CliRunner().invoke(
+            cli_module.app,
+            ["models", "create", *args, "--output", str(tmp_path / "models.ep")],
+        )
+
+        assert result.exit_code == 2, result.output
+        out = json.loads(result.output)
+        assert out["error"]["code"] == "USAGE_ERROR"
+        assert message in out["error"]["message"]
+
 
 # ---------------------------------------------------------------------------
 # ep search
