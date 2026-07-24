@@ -5246,6 +5246,16 @@ class Coop(CoopFunctionsMixin):
             if content_hash:
                 gcs_info["content_hash"] = content_hash
 
+            # Stamp an input-token estimate while raw bytes are still present, so
+            # the byte-less server side can charge its rate limiter correctly for
+            # videos/images (duration/dimensions are unrecoverable once offloaded).
+            try:
+                token_estimate = FileStore.from_dict(d).estimate_media_tokens()
+                if token_estimate:
+                    gcs_info["token_estimate"] = int(token_estimate)
+            except Exception:
+                pass
+
             # Update the serialized dict
             d["base64_string"] = "offloaded"
             if "external_locations" not in d:

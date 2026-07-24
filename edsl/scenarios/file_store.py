@@ -1351,6 +1351,59 @@ class FileStore(Scenario):
                 "size_bytes": self.size,
             }
 
+    # Approx input-token cost of media when sent to an LLM. Video dominates a
+    # per-minute token rate limit (Gemini bills ~295 tokens/sec of video+audio),
+    # and an offloaded FileStore has no bytes, a bogus ``size`` and cannot run
+    # ffprobe — so this is computed while content is still present and stamped
+    # into ``external_locations`` at offload for the byte-less server to read.
+    _VIDEO_TOKENS_PER_SECOND = 295
+    # Fallback when ffprobe is unavailable: tokens-per-byte proxy derived from
+    # _VIDEO_TOKENS_PER_SECOND at an assumed ~2 Mbps bitrate.
+    _VIDEO_TOKENS_PER_BYTE_FALLBACK = 0.0012
+
+    @staticmethod
+    def _approx_image_tokens(width: int, height: int) -> int:
+        """Approx Gemini image tokens: 258 per 768px tile, 258 for <=384px."""
+        import math
+
+        if width <= 0 or height <= 0:
+            return 258
+        if width <= 384 and height <= 384:
+            return 258
+        return math.ceil(width / 768) * math.ceil(height / 768) * 258
+
+    def estimate_media_tokens(self) -> int:
+        """Best-effort estimate of the input tokens this file costs an LLM.
+
+        Must be called while the file still holds real content (e.g. just
+        before offload); an offloaded FileStore has no bytes, a bogus ``size``
+        and cannot run ffprobe, so the result is stamped into
+        ``external_locations`` at offload for the server side to read.
+        Model-agnostic. Returns 0 if nothing can be determined.
+        """
+        try:
+            if self.is_video():
+                dur = 0.0
+                try:
+                    meta = self.get_video_metadata()
+                    dur = float(meta.get("simplified", {}).get("duration_seconds") or 0)
+                except Exception:
+                    dur = 0.0
+                if dur > 0:
+                    return int(dur * self._VIDEO_TOKENS_PER_SECOND)
+                # ffprobe unavailable — fall back to a size-based proxy
+                return int(self.size * self._VIDEO_TOKENS_PER_BYTE_FALLBACK)
+            if self.is_image():
+                try:
+                    width, height = self.get_image_dimensions()
+                    return int(self._approx_image_tokens(int(width), int(height)))
+                except Exception:
+                    return 1500
+            # Non-media file: coarse size-based proxy
+            return int(self.size * 0.25)
+        except Exception:
+            return 0
+
     def get_image_dimensions(self) -> tuple:
         """
         Get the dimensions (width, height) of an image file.
