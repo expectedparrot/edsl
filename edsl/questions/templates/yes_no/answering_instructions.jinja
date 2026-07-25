@@ -1,6 +1,13 @@
 {# Answering Instructions #}
+{% if probabilistic_response %}
+Respond only with a JSON object containing a "probabilities" array.
+Provide probabilities for "No" and "Yes", in that displayed order.
+The probabilities must be nonnegative and sum to 1.
+Do not choose an answer or generate a random draw.
+{% else %}
 Please respond with just your answer. 
 
 {% if include_comment %}
 After the answer, you can put a comment explaining your response.
+{% endif %}
 {% endif %}
