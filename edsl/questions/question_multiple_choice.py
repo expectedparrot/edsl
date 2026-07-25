@@ -189,6 +189,7 @@ class MultipleChoiceResponseValidator(ResponseValidatorABC):
         "use_code",
         "enumeration",
         "probabilistic_response",
+        "probabilistic_seed_context",
     ]
 
     def _post_process(self, edsl_answer_dict):
@@ -213,7 +214,9 @@ class MultipleChoiceResponseValidator(ResponseValidatorABC):
                 pydantic_error=exc,
             ) from exc
 
-        resolution = contract.resolve(probabilities)[0]
+        resolution = contract.resolve(
+            probabilities, context=self.probabilistic_seed_context
+        )[0]
         index = resolution["index"]
         if index is None:
             answer = None
@@ -625,6 +628,14 @@ class QuestionMultipleChoice(QuestionBase):
         self._probabilistic_response = ProbabilisticResponse.from_value(
             probabilistic_response
         )
+        if (
+            self._probabilistic_response is not None
+            and self._probabilistic_response.representation != "categorical"
+        ):
+            raise ValueError(
+                "Multiple-choice probabilistic responses require "
+                "representation='categorical'."
+            )
 
     ################
     # Answer methods
@@ -660,6 +671,10 @@ class QuestionMultipleChoice(QuestionBase):
     @property
     def probabilistic_response(self) -> ProbabilisticResponse | None:
         return self._probabilistic_response
+
+    @property
+    def probabilistic_seed_context(self) -> dict | None:
+        return getattr(self, "_probabilistic_seed_context", None)
 
     def create_response_model(self, replacement_dict: Optional[dict] = None):
         if self.probabilistic_response is not None:

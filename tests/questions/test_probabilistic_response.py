@@ -2,7 +2,14 @@ import math
 
 import pytest
 
-from edsl import Model, ProbabilisticResponse, QuestionMultipleChoice, Results
+from edsl import (
+    Agent,
+    AgentList,
+    Model,
+    ProbabilisticResponse,
+    QuestionMultipleChoice,
+    Results,
+)
 from edsl.questions.exceptions import QuestionAnswerValidationError
 from edsl.questions.question_base import QuestionBase
 
@@ -111,6 +118,56 @@ def test_repeated_resolution_reuses_distribution():
     assert draws == contract.resolve([0.25, 0.75], n=3, seed=20260725)
 
 
+def test_response_seed_is_stable_and_context_specific():
+    contract = ProbabilisticResponse(resolution="sample", seed=42)
+    first_context = {
+        "agent": {"name": "Ada", "age": 34},
+        "scenario": {"city": "Boston"},
+        "question": "trust",
+        "iteration": 0,
+    }
+    reordered_context = {
+        "iteration": 0,
+        "question": "trust",
+        "scenario": {"city": "Boston"},
+        "agent": {"age": 34, "name": "Ada"},
+    }
+    other_agent_context = {
+        **first_context,
+        "agent": {"name": "Grace", "age": 34},
+    }
+
+    first = contract.resolve([0.5, 0.5], context=first_context)[0]
+    reordered = contract.resolve([0.5, 0.5], context=reordered_context)[0]
+    other_agent = contract.resolve([0.5, 0.5], context=other_agent_context)[0]
+
+    assert first == reordered
+    assert first["seed"] != 42
+    assert first["seed"] != other_agent["seed"]
+    assert first["draw"] != other_agent["draw"]
+
+
+def test_response_seed_changes_by_question_scenario_and_iteration():
+    contract = ProbabilisticResponse(resolution="sample", seed=42)
+    base = {
+        "agent": {"name": "Ada"},
+        "scenario": {"city": "Boston"},
+        "question": "trust",
+        "iteration": 0,
+    }
+    contexts = [
+        base,
+        {**base, "question": "confidence"},
+        {**base, "scenario": {"city": "Chicago"}},
+        {**base, "iteration": 1},
+    ]
+    seeds = {
+        contract.resolve([0.5, 0.5], context=context)[0]["seed"]
+        for context in contexts
+    }
+    assert len(seeds) == len(contexts)
+
+
 def test_sample_requires_seed():
     with pytest.raises(ValueError, match="explicit seed"):
         ProbabilisticResponse(resolution="sample")
@@ -134,13 +191,45 @@ def test_local_job_retains_resolution_audit_fields_and_round_trips():
         "resolution_seed.trust_resolution_seed",
         "resolution_method.trust_resolution_method",
     ).to_list()[0]
-    assert row == ("Low", [0.1, 0.9], 0.6394267984578837, 42, "sample")
+    answer, probabilities, draw, derived_seed, method = row
+    assert answer in {"High", "Low"}
+    assert probabilities == [0.1, 0.9]
+    assert 0 <= draw < 1
+    assert derived_seed != 42
+    assert method == "sample"
 
     restored = Results.from_dict(results.to_dict())
     assert restored.select(
         "distribution.trust_distribution",
         "resolution_method.trust_resolution_method",
     ).to_list() == [([0.1, 0.9], "sample")]
+
+
+def test_local_job_derives_distinct_stable_seeds_per_agent():
+    question = QuestionMultipleChoice(
+        question_name="trust",
+        question_text="How much trust?",
+        question_options=["High", "Low"],
+        probabilistic_response=ProbabilisticResponse(resolution="sample", seed=42),
+    )
+    agents = AgentList(
+        [
+            Agent(traits={"respondent_id": "ada"}),
+            Agent(traits={"respondent_id": "grace"}),
+        ]
+    )
+    results = (
+        question.by(agents)
+        .by(Model("test", canned_response='{"probabilities":[0.5,0.5]}'))
+        .run(disable_remote_inference=True)
+    )
+    rows = results.select(
+        "agent.respondent_id", "resolution_seed.trust_resolution_seed"
+    ).to_list()
+    seed_by_agent = dict(rows)
+    assert set(seed_by_agent) == {"ada", "grace"}
+    assert len(set(seed_by_agent.values())) == 2
+    assert 42 not in seed_by_agent.values()
 
 
 def test_prompt_requests_probabilities_without_model_generated_randomness():

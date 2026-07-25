@@ -542,7 +542,7 @@ class Answer:
     validated: bool | None = None
     reasoning_summary: str | None = None
     distribution: list[float] | None = None
-    resolution_draw: float | None = None
+    resolution_draw: Any = None
     resolution_seed: int | None = None
     resolution_method: str | None = None
 

@@ -499,6 +499,19 @@ class InvigilatorAI(InvigilatorBase):
             else:
                 question_with_validators = self.question
 
+            agent_identity = self.agent.to_dict(add_edsl_version=False)
+            scenario_identity = self.scenario.to_dict(add_edsl_version=False)
+            question_with_validators._probabilistic_seed_context = {
+                "interview": {
+                    "agent": agent_identity,
+                    "scenario": scenario_identity,
+                    "iteration": self.iteration,
+                },
+                "agent": agent_identity,
+                "scenario": scenario_identity,
+                "question": self.question.question_name,
+                "iteration": self.iteration,
+            }
             validated_edsl_dict = question_with_validators._validate_answer(edsl_dict)
             answer = self._determine_answer(validated_edsl_dict["answer"])
             comment = validated_edsl_dict.get("comment", "")

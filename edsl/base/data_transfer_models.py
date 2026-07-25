@@ -65,7 +65,7 @@ class EDSLResultObjectInput(NamedTuple):
     total_cost: Optional[Union[float, str]] = None
     thinking_tokens: Optional[int] = None
     distribution: Optional[Any] = None
-    resolution_draw: Optional[float] = None
+    resolution_draw: Optional[Any] = None
     resolution_seed: Optional[int] = None
     resolution_method: Optional[str] = None
 

@@ -58,7 +58,7 @@ class ExecutionResult:
     validated: bool | None = None
     reasoning_summary: str | None = None
     distribution: list[float] | None = None
-    resolution_draw: float | None = None
+    resolution_draw: Any = None
     resolution_seed: int | None = None
     resolution_method: str | None = None
 
@@ -493,7 +493,7 @@ class ExecutionWorker:
         str | None,
         bool,
         list[float] | None,
-        float | None,
+        Any,
         int | None,
         str | None,
     ]:
@@ -521,6 +521,32 @@ class ExecutionWorker:
         )
 
         question = QuestionBase.from_dict(question_data)
+        task_definition = self._job_service._tasks.get_definition(
+            task.job_id, task.interview_id, task.task_id
+        )
+        agent_id = task_definition.agent_id if task_definition else None
+        scenario_id = task_definition.scenario_id if task_definition else None
+        agent_data = (
+            self._job_service._jobs.get_agent(task.job_id, agent_id) or {}
+            if agent_id is not None
+            else {}
+        )
+        scenario_data = (
+            self._job_service._jobs.get_scenario(task.job_id, scenario_id) or {}
+            if scenario_id is not None
+            else {}
+        )
+        question._probabilistic_seed_context = {
+            "interview": {
+                "agent": agent_data,
+                "scenario": scenario_data,
+                "iteration": task.iteration,
+            },
+            "agent": agent_data,
+            "scenario": scenario_data,
+            "question": task.question_name,
+            "iteration": task.iteration,
+        }
         raw_answer_dict = {
             "answer": answer,
             "generated_tokens": generated_tokens or str(answer),

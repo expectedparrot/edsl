@@ -90,7 +90,7 @@ class Result(Base, UserDict):
         cache_keys: Optional[dict[QuestionName, str]] = None,
         validated_dict: Optional[dict[QuestionName, bool]] = None,
         distribution: Optional[dict[QuestionName, Any]] = None,
-        resolution_draw: Optional[dict[QuestionName, float]] = None,
+        resolution_draw: Optional[dict[QuestionName, Any]] = None,
         resolution_seed: Optional[dict[QuestionName, int]] = None,
         resolution_method: Optional[dict[QuestionName, str]] = None,
     ):
