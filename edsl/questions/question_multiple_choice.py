@@ -193,7 +193,7 @@ class MultipleChoiceResponseValidator(ResponseValidatorABC):
     ]
 
     def _post_process(self, edsl_answer_dict):
-        contract = self.probabilistic_response
+        contract = getattr(self, "probabilistic_response", None)
         if contract is None:
             return edsl_answer_dict
 
@@ -215,7 +215,8 @@ class MultipleChoiceResponseValidator(ResponseValidatorABC):
             ) from exc
 
         resolution = contract.resolve(
-            probabilities, context=self.probabilistic_seed_context
+            probabilities,
+            context=getattr(self, "probabilistic_seed_context", None),
         )[0]
         index = resolution["index"]
         if index is None:

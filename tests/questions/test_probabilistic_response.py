@@ -236,3 +236,14 @@ def test_prompt_requests_probabilities_without_model_generated_randomness():
     prompt = make_question(resolution="sample", seed=42).prompt_preview().text
     assert '"probabilities" array' in prompt
     assert "Do not choose an option or generate a random draw." in prompt
+
+
+def test_derived_multiple_choice_questions_remain_non_probabilistic():
+    from edsl import QuestionLinearScale
+
+    question = QuestionLinearScale(
+        question_name="rating",
+        question_text="Rate this.",
+        question_options=[1, 2, 3, 4, 5],
+    )
+    assert question._validate_answer({"answer": 1})["answer"] == 1
