@@ -834,6 +834,10 @@ class JobService:
         cache_key: str | None = None,
         validated: bool | None = None,
         reasoning_summary: str | None = None,
+        distribution: list[float] | None = None,
+        resolution_draw: float | None = None,
+        resolution_seed: int | None = None,
+        resolution_method: str | None = None,
     ) -> None:
         """Called when a task finishes successfully with an answer."""
         import time as _time
@@ -869,6 +873,10 @@ class JobService:
             cache_key=cache_key,
             validated=validated,
             reasoning_summary=reasoning_summary,
+            distribution=distribution,
+            resolution_draw=resolution_draw,
+            resolution_seed=resolution_seed,
+            resolution_method=resolution_method,
         )
         _t = _time.monotonic()
         self._answers.store(answer)
@@ -1898,6 +1906,27 @@ class JobService:
         for a in answers:
             validated_dict[f"{a.question_name}_validated"] = a.validated
 
+        distribution_dict = {
+            a.question_name: a.distribution
+            for a in answers
+            if a.distribution is not None
+        }
+        resolution_draw_dict = {
+            a.question_name: a.resolution_draw
+            for a in answers
+            if a.resolution_draw is not None
+        }
+        resolution_seed_dict = {
+            a.question_name: a.resolution_seed
+            for a in answers
+            if a.resolution_seed is not None
+        }
+        resolution_method_dict = {
+            a.question_name: a.resolution_method
+            for a in answers
+            if a.resolution_method is not None
+        }
+
         if _timing is not None:
             _timing["build_dicts"] = (
                 _timing.get("build_dicts", 0) + (_time.time() - _t_dicts) * 1000
@@ -1986,6 +2015,10 @@ class JobService:
             validated_dict=validated_dict,
             question_to_attributes=question_to_attributes,
             indices=indices,
+            distribution=distribution_dict,
+            resolution_draw=resolution_draw_dict,
+            resolution_seed=resolution_seed_dict,
+            resolution_method=resolution_method_dict,
         )
 
         # Set interview_hash for compatibility with EDSL's Interview-based results.

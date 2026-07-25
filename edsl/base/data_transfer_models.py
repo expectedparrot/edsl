@@ -64,6 +64,10 @@ class EDSLResultObjectInput(NamedTuple):
     output_price_per_million_tokens: Optional[float] = None
     total_cost: Optional[Union[float, str]] = None
     thinking_tokens: Optional[int] = None
+    distribution: Optional[Any] = None
+    resolution_draw: Optional[float] = None
+    resolution_seed: Optional[int] = None
+    resolution_method: Optional[str] = None
 
 
 @dataclass

@@ -502,6 +502,10 @@ class InvigilatorAI(InvigilatorBase):
             validated_edsl_dict = question_with_validators._validate_answer(edsl_dict)
             answer = self._determine_answer(validated_edsl_dict["answer"])
             comment = validated_edsl_dict.get("comment", "")
+            distribution = validated_edsl_dict.get("distribution")
+            resolution_draw = validated_edsl_dict.get("resolution_draw")
+            resolution_seed = validated_edsl_dict.get("resolution_seed")
+            resolution_method = validated_edsl_dict.get("resolution_method")
             validated = True
 
             # Update the cache entry to mark it as validated if we have a cache and a key
@@ -523,6 +527,10 @@ class InvigilatorAI(InvigilatorBase):
             exception_occurred = non_validation_error
         finally:
             # even if validation failes, we still return the result
+            distribution = locals().get("distribution")
+            resolution_draw = locals().get("resolution_draw")
+            resolution_seed = locals().get("resolution_seed")
+            resolution_method = locals().get("resolution_method")
 
             data = {
                 "answer": answer,
@@ -542,6 +550,10 @@ class InvigilatorAI(InvigilatorBase):
                 "input_price_per_million_tokens": agent_response_dict.model_outputs.input_price_per_million_tokens,
                 "output_price_per_million_tokens": agent_response_dict.model_outputs.output_price_per_million_tokens,
                 "total_cost": agent_response_dict.model_outputs.total_cost,
+                "distribution": distribution,
+                "resolution_draw": resolution_draw,
+                "resolution_seed": resolution_seed,
+                "resolution_method": resolution_method,
             }
             result = EDSLResultObjectInput(**data)
             return result

@@ -108,6 +108,26 @@ class ResultComponentPrependedKeys(ResultComponentDict):
         return d
 
 
+class DistributionDict(ResultComponentPrependedKeys):
+    name = "distribution"
+    special_keys = ["distribution"]
+
+
+class ResolutionDrawDict(ResultComponentPrependedKeys):
+    name = "resolution_draw"
+    special_keys = ["resolution_draw"]
+
+
+class ResolutionSeedDict(ResultComponentPrependedKeys):
+    name = "resolution_seed"
+    special_keys = ["resolution_seed"]
+
+
+class ResolutionMethodDict(ResultComponentPrependedKeys):
+    name = "resolution_method"
+    special_keys = ["resolution_method"]
+
+
 class PromptDict(ResultComponentPrependedKeys):
     name = "prompt"
     special_keys = ["user_prompt", "system_prompt"]

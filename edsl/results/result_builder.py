@@ -207,6 +207,22 @@ class ResultBuilder:
             "generated_tokens": self.data["generated_tokens"],
             "raw_model_response": self.data["raw_model_response"],
             "validated": self.data["validated_dict"],
+            "distribution": {
+                f"{key}_distribution": value
+                for key, value in self.data["distribution"].items()
+            },
+            "resolution_draw": {
+                f"{key}_resolution_draw": value
+                for key, value in self.data["resolution_draw"].items()
+            },
+            "resolution_seed": {
+                f"{key}_resolution_seed": value
+                for key, value in self.data["resolution_seed"].items()
+            },
+            "resolution_method": {
+                f"{key}_resolution_method": value
+                for key, value in self.data["resolution_method"].items()
+            },
         }
 
     # Static factory methods for sub-dictionaries
