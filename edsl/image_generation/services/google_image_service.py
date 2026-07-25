@@ -186,14 +186,22 @@ class GoogleImageGenerationService(ImageGenerationServiceABC):
             raise
 
     # Candidate key names for each token count, covering both the genai SDK's
-    # snake_case model_dump and the REST endpoint's camelCase, and the
-    # Interactions API's "response_token_count" alias for output tokens.
-    _INPUT_TOKEN_KEYS = ("prompt_token_count", "promptTokenCount")
+    # snake_case model_dump and the REST endpoint's camelCase, the Interactions
+    # API's "response_token_count" alias for output tokens, and the newer
+    # "total_input_tokens"/"total_output_tokens" names it reports today.
+    _INPUT_TOKEN_KEYS = (
+        "prompt_token_count",
+        "promptTokenCount",
+        "total_input_tokens",
+        "totalInputTokens",
+    )
     _OUTPUT_TOKEN_KEYS = (
         "candidates_token_count",
         "candidatesTokenCount",
         "response_token_count",
         "responseTokenCount",
+        "total_output_tokens",
+        "totalOutputTokens",
     )
     _THINKING_TOKEN_KEYS = ("thoughts_token_count", "thoughtsTokenCount")
 
