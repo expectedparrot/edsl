@@ -2,6 +2,7 @@ import pytest
 
 from edsl import (
     ProbabilisticResponse,
+    QuestionLikertFive,
     QuestionLinearScale,
     QuestionYesNo,
 )
@@ -30,6 +31,15 @@ from edsl.questions.question_base import QuestionBase
             ),
             [0.05, 0.1, 0.15, 0.6, 0.1],
             4,
+        ),
+        (
+            QuestionLikertFive(
+                question_name="agreement",
+                question_text="I agree with this proposal.",
+                probabilistic_response=ProbabilisticResponse(resolution="mode"),
+            ),
+            [0.05, 0.1, 0.15, 0.6, 0.1],
+            "Agree",
         ),
     ],
 )
@@ -60,6 +70,13 @@ def test_derived_questions_resolve_categorical_probabilities(
                 resolution="sample", seed=42
             ),
         ),
+        QuestionLikertFive(
+            question_name="agreement",
+            question_text="I agree with this proposal.",
+            probabilistic_response=ProbabilisticResponse(
+                resolution="sample", seed=42
+            ),
+        ),
     ],
 )
 def test_derived_questions_round_trip(question):
@@ -79,8 +96,14 @@ def test_derived_question_prompts_request_probability_vectors():
         question_options=[1, 2, 3],
         probabilistic_response=ProbabilisticResponse(resolution="none"),
     )
+    likert = QuestionLikertFive(
+        question_name="agreement",
+        question_text="I agree with this proposal.",
+        probabilistic_response=ProbabilisticResponse(resolution="none"),
+    )
     assert '"probabilities" array' in yes_no.prompt_preview().text
     assert '"probabilities" array' in scale.prompt_preview().text
+    assert '"probabilities" array' in likert.prompt_preview().text
 
 
 def test_non_probabilistic_derived_questions_are_unchanged():
@@ -97,4 +120,11 @@ def test_non_probabilistic_derived_questions_are_unchanged():
             question_options=[1, 2, 3],
         )._validate_answer({"answer": 2})["answer"]
         == 2
+    )
+    assert (
+        QuestionLikertFive(
+            question_name="agreement",
+            question_text="I agree with this proposal.",
+        )._validate_answer({"answer": "Agree"})["answer"]
+        == "Agree"
     )

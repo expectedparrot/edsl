@@ -1,6 +1,7 @@
 from __future__ import annotations
 from typing import Optional
 from .question_multiple_choice import QuestionMultipleChoice
+from .probabilistic_response import ProbabilisticResponse
 from .decorators import inject_exception
 
 
@@ -69,6 +70,7 @@ class QuestionLikertFive(QuestionMultipleChoice):
         answering_instructions: Optional[str] = None,
         question_presentation: Optional[str] = None,
         include_comment: bool = True,
+        probabilistic_response: ProbabilisticResponse | dict | None = None,
     ):
         """
         Initialize a new 5-point Likert scale question.
@@ -99,6 +101,10 @@ class QuestionLikertFive(QuestionMultipleChoice):
         include_comment : bool, default=True
             Whether to include a comment field in the response, allowing the model to provide
             additional explanation beyond just selecting an option on the scale.
+
+        probabilistic_response : ProbabilisticResponse | dict | None, default=None
+            Optional categorical probability contract. When provided, the model returns
+            one probability per Likert option instead of selecting a single option.
 
         Examples
         --------
@@ -131,6 +137,7 @@ class QuestionLikertFive(QuestionMultipleChoice):
             include_comment=include_comment,
             answering_instructions=answering_instructions,
             question_presentation=question_presentation,
+            probabilistic_response=probabilistic_response,
         )
 
     @classmethod
