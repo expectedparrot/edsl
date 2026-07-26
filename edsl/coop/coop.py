@@ -4076,6 +4076,7 @@ class Coop(CoopFunctionsMixin):
         from ..agents import Agent, AgentList
         from ..caching import Cache
         from ..language_models import Model
+        from ..runner.models import _decode_answer_value
         from ..scenarios import Scenario, ScenarioList
         from ..surveys import Survey
 
@@ -4124,10 +4125,22 @@ class Coop(CoopFunctionsMixin):
 
                 a = Agent(name=response_uuid, instruction="", traits=agent_traits)
 
-                def create_answer_function(response_data):
+                def create_answer_function(response_data, question_names):
                     def f(self, question, scenario):
-                        return response_data.get(question.question_name, None)
+                        return _decode_answer_value(
+                            response_data.get(question.question_name)
+                        )
 
+                    # Every question in a humanized survey is answered from the
+                    # recorded response, never recomputed. Question types that can
+                    # answer themselves (image generation, compute, diagram, random)
+                    # would otherwise re-execute here and discard what the
+                    # respondent's session actually produced. Names absent from the
+                    # response - e.g. an image whose generation failed at survey
+                    # time - resolve to None rather than triggering a fresh run.
+                    f.stored_answer_question_names = set(question_names) | set(
+                        response_data
+                    )
                     return f
 
                 scenario = None
@@ -4135,7 +4148,7 @@ class Coop(CoopFunctionsMixin):
                     scenario = Scenario.from_dict(json.loads(scenario_json_string))
 
                 a.add_direct_question_answering_method(
-                    create_answer_function(response_dict)
+                    create_answer_function(response_dict, survey.question_names)
                 )
 
                 job = survey.by(a).by(model)

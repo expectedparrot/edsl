@@ -19,6 +19,21 @@ def _get_genai():
     return _genai
 
 
+def _sdk_supports_interactions() -> bool:
+    """Whether the installed google-genai can talk to the Interactions API.
+
+    Versions below 2.0.0 send a request the API no longer accepts, so we skip
+    the client on those and post to the REST endpoint ourselves instead.
+    """
+    from importlib.metadata import PackageNotFoundError, version
+    from packaging.version import InvalidVersion, Version
+
+    try:
+        return Version(version("google-genai")) >= Version("2.0.0")
+    except (PackageNotFoundError, InvalidVersion):
+        return False
+
+
 class GoogleImageGenerationService(ImageGenerationServiceABC):
     service_name = "google"
 
@@ -46,6 +61,14 @@ class GoogleImageGenerationService(ImageGenerationServiceABC):
             create_kwargs["previous_interaction_id"] = kwargs["previous_interaction_id"]
         if "response_format" in kwargs and kwargs["response_format"] is not None:
             create_kwargs["response_format"] = kwargs["response_format"]
+
+        if not _sdk_supports_interactions():
+            return await self._async_generate_with_rest(
+                api_key=api_key,
+                prompt=prompt,
+                model=model,
+                payload=create_kwargs,
+            )
 
         try:
             genai = _get_genai()
@@ -163,14 +186,22 @@ class GoogleImageGenerationService(ImageGenerationServiceABC):
             raise
 
     # Candidate key names for each token count, covering both the genai SDK's
-    # snake_case model_dump and the REST endpoint's camelCase, and the
-    # Interactions API's "response_token_count" alias for output tokens.
-    _INPUT_TOKEN_KEYS = ("prompt_token_count", "promptTokenCount")
+    # snake_case model_dump and the REST endpoint's camelCase, the Interactions
+    # API's "response_token_count" alias for output tokens, and the newer
+    # "total_input_tokens"/"total_output_tokens" names it reports today.
+    _INPUT_TOKEN_KEYS = (
+        "prompt_token_count",
+        "promptTokenCount",
+        "total_input_tokens",
+        "totalInputTokens",
+    )
     _OUTPUT_TOKEN_KEYS = (
         "candidates_token_count",
         "candidatesTokenCount",
         "response_token_count",
         "responseTokenCount",
+        "total_output_tokens",
+        "totalOutputTokens",
     )
     _THINKING_TOKEN_KEYS = ("thoughts_token_count", "thoughtsTokenCount")
 
