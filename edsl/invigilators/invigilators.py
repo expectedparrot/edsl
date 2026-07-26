@@ -499,19 +499,16 @@ class InvigilatorAI(InvigilatorBase):
             else:
                 question_with_validators = self.question
 
-            agent_identity = self.agent.to_dict(add_edsl_version=False)
-            scenario_identity = self.scenario.to_dict(add_edsl_version=False)
-            question_with_validators._probabilistic_seed_context = {
-                "interview": {
-                    "agent": agent_identity,
-                    "scenario": scenario_identity,
-                    "iteration": self.iteration,
-                },
-                "agent": agent_identity,
-                "scenario": scenario_identity,
-                "question": self.question.question_name,
-                "iteration": self.iteration,
-            }
+            from ..questions.probabilistic_response import ProbabilisticResponse
+
+            question_with_validators._probabilistic_seed_context = (
+                ProbabilisticResponse.seed_context(
+                    agent=self.agent,
+                    scenario=self.scenario,
+                    question_name=self.question.question_name,
+                    iteration=self.iteration,
+                )
+            )
             validated_edsl_dict = question_with_validators._validate_answer(edsl_dict)
             answer = self._determine_answer(validated_edsl_dict["answer"])
             comment = validated_edsl_dict.get("comment", "")
@@ -615,13 +612,31 @@ class InvigilatorHuman(InvigilatorBase):
 
         exception_occurred = None
         validated = False
+        distribution = None
+        resolution_draw = None
+        resolution_seed = None
+        resolution_method = None
         try:
             answer = self.agent.answer_question_directly(self.question, self.scenario)
             self.raw_model_response = answer
 
-            if self.validate_response:
-                _ = self.question._validate_answer({"answer": answer})
-            if self.translate_response:
+            contract = getattr(self.question, "probabilistic_response", None)
+            if contract is not None:
+                self.question._probabilistic_seed_context = contract.seed_context(
+                    agent=self.agent,
+                    scenario=self.scenario,
+                    question_name=self.question.question_name,
+                    iteration=self.iteration,
+                )
+                validated_answer = self.question._validate_answer({"answer": answer})
+                answer = validated_answer["answer"]
+                distribution = validated_answer.get("distribution")
+                resolution_draw = validated_answer.get("resolution_draw")
+                resolution_seed = validated_answer.get("resolution_seed")
+                resolution_method = validated_answer.get("resolution_method")
+            elif self.validate_response:
+                self.question._validate_answer({"answer": answer})
+            if self.translate_response and contract is None:
                 answer = self.question._translate_answer_code_to_answer(
                     answer, self.scenario
                 )
@@ -647,6 +662,10 @@ class InvigilatorHuman(InvigilatorBase):
                 "comment": comment,
                 "validated": validated,
                 "exception_occurred": exception_occurred,
+                "distribution": distribution,
+                "resolution_draw": resolution_draw,
+                "resolution_seed": resolution_seed,
+                "resolution_method": resolution_method,
             }
             return EDSLResultObjectInput(**data)
 
@@ -664,6 +683,29 @@ class InvigilatorFunctional(InvigilatorBase):
             self.scenario | prior_answers_dict | {"agent": self.agent.traits}
         )
         answer = func(scenario=enriched_scenario, agent_traits=self.agent.traits)
+        answer_value = answer["answer"]
+        audit_fields = {}
+        contract = getattr(self.question, "probabilistic_response", None)
+        if contract is not None:
+            self.question._probabilistic_seed_context = contract.seed_context(
+                agent=self.agent,
+                scenario=self.scenario,
+                question_name=self.question.question_name,
+                iteration=self.iteration,
+            )
+            validated_answer = self.question._validate_answer(
+                {"answer": answer_value}
+            )
+            answer_value = validated_answer["answer"]
+            audit_fields = {
+                field: validated_answer.get(field)
+                for field in (
+                    "distribution",
+                    "resolution_draw",
+                    "resolution_seed",
+                    "resolution_method",
+                )
+            }
 
         return EDSLResultObjectInput(
             generated_tokens=str(answer),
@@ -673,10 +715,11 @@ class InvigilatorFunctional(InvigilatorBase):
             raw_model_response=NA,
             cache_used=NA,
             cache_key=NA,
-            answer=answer["answer"],
+            answer=answer_value,
             comment="This is the result of a functional question.",
             validated=True,
             exception_occurred=None,
+            **audit_fields,
         )
 
     def get_prompts(self) -> Dict[str, "Prompt"]:

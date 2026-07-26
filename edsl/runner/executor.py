@@ -521,6 +521,8 @@ class ExecutionWorker:
         )
 
         question = QuestionBase.from_dict(question_data)
+        from ..questions.probabilistic_response import ProbabilisticResponse
+
         task_definition = self._job_service._tasks.get_definition(
             task.job_id, task.interview_id, task.task_id
         )
@@ -536,17 +538,12 @@ class ExecutionWorker:
             if scenario_id is not None
             else {}
         )
-        question._probabilistic_seed_context = {
-            "interview": {
-                "agent": agent_data,
-                "scenario": scenario_data,
-                "iteration": task.iteration,
-            },
-            "agent": agent_data,
-            "scenario": scenario_data,
-            "question": task.question_name,
-            "iteration": task.iteration,
-        }
+        question._probabilistic_seed_context = ProbabilisticResponse.seed_context(
+            agent=agent_data,
+            scenario=scenario_data,
+            question_name=task.question_name,
+            iteration=task.iteration,
+        )
         raw_answer_dict = {
             "answer": answer,
             "generated_tokens": generated_tokens or str(answer),

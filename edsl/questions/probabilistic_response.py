@@ -221,3 +221,44 @@ class ProbabilisticResponse:
             default=str,
         ).encode("utf-8")
         return int.from_bytes(hashlib.sha256(payload).digest()[:8], "big")
+
+    @staticmethod
+    def seed_context(
+        *,
+        agent: object,
+        scenario: object,
+        question_name: str,
+        iteration: int,
+    ) -> dict:
+        """Build the canonical response identity shared by all execution engines."""
+
+        def identity(value: object) -> object:
+            if hasattr(value, "to_dict"):
+                try:
+                    value = value.to_dict(add_edsl_version=False)
+                except TypeError:
+                    value = value.to_dict()
+
+            if isinstance(value, dict):
+                return {
+                    key: identity(item)
+                    for key, item in value.items()
+                    if key not in {"edsl_version", "edsl_class_name"}
+                }
+            if isinstance(value, (list, tuple)):
+                return [identity(item) for item in value]
+            return value
+
+        agent_identity = identity(agent)
+        scenario_identity = identity(scenario)
+        return {
+            "interview": {
+                "agent": agent_identity,
+                "scenario": scenario_identity,
+                "iteration": iteration,
+            },
+            "agent": agent_identity,
+            "scenario": scenario_identity,
+            "question": question_name,
+            "iteration": iteration,
+        }

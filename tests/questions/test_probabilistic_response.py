@@ -9,7 +9,11 @@ from edsl import (
     ProbabilisticResponse,
     QuestionMultipleChoice,
     Results,
+    Scenario,
+    Survey,
 )
+from edsl.invigilators import InvigilatorHuman
+from edsl.surveys.memory import MemoryPlan
 from edsl.questions.exceptions import QuestionAnswerValidationError
 from edsl.questions.question_base import QuestionBase
 
@@ -166,6 +170,87 @@ def test_response_seed_changes_by_question_scenario_and_iteration():
         for context in contexts
     }
     assert len(seeds) == len(contexts)
+
+
+def test_seed_context_strips_serialization_metadata_recursively():
+    plain = ProbabilisticResponse.seed_context(
+        agent={"traits": {"name": "Ada"}},
+        scenario={"city": "Boston"},
+        question_name="trust",
+        iteration=0,
+    )
+    serialized = ProbabilisticResponse.seed_context(
+        agent={
+            "traits": {"name": "Ada", "edsl_version": "nested"},
+            "edsl_version": "1.0",
+            "edsl_class_name": "Agent",
+        },
+        scenario={
+            "city": "Boston",
+            "edsl_version": "1.0",
+            "edsl_class_name": "Scenario",
+        },
+        question_name="trust",
+        iteration=0,
+    )
+    assert plain == serialized
+
+
+def test_direct_answer_invigilator_resolves_probabilities_and_keeps_audit_fields():
+    question = make_question(resolution="sample", seed=42)
+    agent = Agent(traits={"respondent_id": "ada"})
+    agent.add_direct_question_answering_method(
+        lambda self, question, scenario: {
+            "probabilities": [0.1, 0.35, 0.55]
+        }
+    )
+    scenario = Scenario({"city": "Boston"})
+    survey = Survey([question])
+    invigilator = InvigilatorHuman(
+        agent=agent,
+        question=question,
+        scenario=scenario,
+        model=Model("test"),
+        memory_plan=MemoryPlan(survey=survey),
+        current_answers={},
+        survey=survey,
+        iteration=0,
+    )
+
+    result = invigilator.answer_question()
+
+    assert result.answer in question.question_options
+    assert result.distribution == [0.1, 0.35, 0.55]
+    assert result.resolution_method == "sample"
+    assert result.resolution_seed != 42
+    assert 0 <= result.resolution_draw < 1
+
+
+@pytest.mark.asyncio
+async def test_seeded_direct_answer_is_consistent_across_execution_engines():
+    question = make_question(resolution="sample", seed=42)
+    question.question_text = "How much trust in {{ city }}?"
+    agent = Agent(traits={"respondent_id": "ada"})
+    agent.add_direct_question_answering_method(
+        lambda self, question, scenario: {
+            "probabilities": [0.1, 0.35, 0.55]
+        }
+    )
+    jobs = question.by(agent).by(Scenario({"city": "Boston"})).by(Model("test"))
+
+    runner_results = jobs.run(disable_remote_inference=True)
+    async_results = await jobs.run_async(disable_remote_inference=True)
+    columns = (
+        "answer.trust",
+        "distribution.trust_distribution",
+        "resolution_draw.trust_resolution_draw",
+        "resolution_seed.trust_resolution_seed",
+        "resolution_method.trust_resolution_method",
+    )
+
+    assert runner_results.select(*columns).to_list() == async_results.select(
+        *columns
+    ).to_list()
 
 
 def test_sample_requires_seed():
