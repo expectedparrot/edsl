@@ -200,6 +200,26 @@ class TestUnknownParameterWarning(unittest.TestCase):
             user_warnings = [x for x in w if issubclass(x.category, UserWarning) and "Unknown parameter" in str(x.message)]
             self.assertEqual(len(user_warnings), 0, f"Unexpected warnings: {[str(x.message) for x in user_warnings]}")
 
+    def test_legacy_deserialization_does_not_fetch_model_catalog(self):
+        from unittest.mock import patch
+        from edsl.inference_services.inference_service_registry import (
+            InferenceServiceRegistry,
+        )
+
+        legacy_data = {
+            "model": "gpt-4-1106-preview",
+            "parameters": {"temperature": 0.5},
+        }
+        with patch.object(
+            InferenceServiceRegistry,
+            "get_service_for_model",
+            side_effect=AssertionError("model discovery must not run"),
+        ):
+            model = LanguageModel.from_dict(legacy_data)
+
+        self.assertEqual(model.model, "test")
+        self.assertEqual(model.original_model, "gpt-4-1106-preview")
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -28,6 +28,16 @@ class ProbabilisticResponse:
     tolerance: float = 1e-6
 
     def __post_init__(self) -> None:
+        if self.representation not in {
+            "categorical",
+            "inclusion_probabilities",
+        }:
+            raise ValueError(
+                "representation must be one of: 'categorical' or "
+                "'inclusion_probabilities'."
+            )
+        if self.joint_model not in {None, "independent"}:
+            raise ValueError("joint_model must be 'independent' or None.")
         if self.representation == "categorical" and self.joint_model is not None:
             raise ValueError("categorical responses do not use a joint_model.")
         if self.representation == "inclusion_probabilities":
@@ -43,6 +53,10 @@ class ProbabilisticResponse:
             self.seed is not None and not isinstance(self.seed, int)
         ):
             raise TypeError("seed must be an integer or None.")
+        if isinstance(self.tolerance, bool) or not isinstance(
+            self.tolerance, (int, float)
+        ):
+            raise TypeError("tolerance must be a finite nonnegative number.")
         if not math.isfinite(self.tolerance) or self.tolerance < 0:
             raise ValueError("tolerance must be a finite nonnegative number.")
 
@@ -112,8 +126,12 @@ class ProbabilisticResponse:
         context: dict | None = None,
     ) -> list[dict]:
         """Resolve a validated categorical distribution without another model call."""
+        if isinstance(n, bool) or not isinstance(n, int):
+            raise TypeError("n must be an integer.")
         if n < 1:
             raise ValueError("n must be at least 1.")
+        if isinstance(seed, bool) or (seed is not None and not isinstance(seed, int)):
+            raise TypeError("seed must be an integer or None.")
         values = self.validate(probabilities, len(probabilities))
         base_seed = self.seed if seed is None else seed
         effective_seed = (

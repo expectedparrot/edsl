@@ -1230,6 +1230,25 @@ class LanguageModel(
         model_name = data["model"]
         service_name = data.get("inference_service", None)
 
+        def create_legacy_fallback():
+            """Reconstruct service-less legacy data without model discovery."""
+            test_model_class = registry.create_language_model(
+                "test", service_name="test"
+            )
+            test_data = data.copy()
+            test_data["model"] = "test"
+            test_data["original_model"] = model_name
+            return test_model_class(**test_data)
+
+        # Older serialized models did not record their inference service. Looking
+        # it up here makes deserialization depend on live model catalogs and API
+        # availability. Use the existing compatibility representation directly.
+        if service_name is None:
+            if model_name == "test":
+                service_name = "test"
+            else:
+                return create_legacy_fallback()
+
         # Handle test model parameters that need to be passed as kwargs
         test_param_names = (
             "canned_response",
@@ -1262,15 +1281,7 @@ class LanguageModel(
             if "not found in any service" in str(e):
                 # For serialization compatibility testing, create a test model as fallback
                 # while preserving the original model name for reference
-                test_model_class = registry.create_language_model(
-                    "test", service_name="test"
-                )
-                test_data = data.copy()
-                test_data["model"] = "test"  # Test model expects "test" as model name
-                test_data["original_model"] = (
-                    model_name  # Preserve original for debugging
-                )
-                return test_model_class(**test_data)
+                return create_legacy_fallback()
             else:
                 raise
 

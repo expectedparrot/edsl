@@ -173,6 +173,31 @@ def test_sample_requires_seed():
         ProbabilisticResponse(resolution="sample")
 
 
+@pytest.mark.parametrize(
+    ("kwargs", "exception"),
+    [
+        ({"representation": "unknown"}, ValueError),
+        ({"joint_model": "correlated"}, ValueError),
+        ({"tolerance": True}, TypeError),
+        ({"tolerance": "0.01"}, TypeError),
+    ],
+)
+def test_contract_rejects_invalid_runtime_values(kwargs, exception):
+    with pytest.raises(exception):
+        ProbabilisticResponse(**kwargs)
+
+
+@pytest.mark.parametrize("n", [True, 1.5])
+def test_resolution_count_must_be_an_integer(n):
+    with pytest.raises(TypeError, match="n must be an integer"):
+        ProbabilisticResponse().resolve([0.5, 0.5], n=n)
+
+
+def test_resolution_seed_override_must_be_an_integer():
+    with pytest.raises(TypeError, match="seed must be an integer"):
+        ProbabilisticResponse().resolve([0.5, 0.5], seed=True)
+
+
 def test_local_job_retains_resolution_audit_fields_and_round_trips():
     question = QuestionMultipleChoice(
         question_name="trust",
