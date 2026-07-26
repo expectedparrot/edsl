@@ -204,7 +204,7 @@ def register(app: click.Group) -> None:
                     _create_model(
                         Model,
                         spec["model"],
-                        spec.get("service", service),
+                        spec["service"] or service,
                         spec_kwargs,
                     )
                 )

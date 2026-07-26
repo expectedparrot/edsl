@@ -2000,6 +2000,25 @@ class TestModels:
         assert len(loaded) == 2
         assert loaded[1].parameters["reasoning_effort"] == "high"
 
+    def test_models_create_model_spec_inherits_global_service(self, tmp_path):
+        result = CliRunner().invoke(
+            cli_module.app,
+            [
+                "models",
+                "create",
+                "--service",
+                "test",
+                "--model-spec",
+                '{"model":"test","parameters":{"canned_response":"ok"}}',
+                "--output",
+                str(tmp_path / "models.ep"),
+            ],
+        )
+
+        assert result.exit_code == 0, result.output
+        out = json.loads(result.output)
+        assert out["data"]["models"][0]["service_name"] == "test"
+
     @pytest.mark.parametrize(
         ("args", "message"),
         [

@@ -155,6 +155,7 @@ class JobsRemoteInferenceHandler:
             new_format: If True, use pull method for result retrieval; if False, use legacy get method
             alert_on_completion_config: Optional config for job completion alerts (email and/or webhooks)
             results_description: Optional description for the initial results object
+            task_timeout: Optional maximum seconds allowed for each interview
 
         Returns:
             RemoteJobInfo: Information about the created job including UUID and logger
@@ -194,6 +195,7 @@ class JobsRemoteInferenceHandler:
                 iterations=iterations,
                 initial_results_visibility=remote_inference_results_visibility,
                 fresh=fresh,
+                task_timeout=task_timeout,
             )
         logger.update(
             "Your survey is running at the Expected Parrot server...",
