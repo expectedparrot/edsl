@@ -142,6 +142,7 @@ class JobsRemoteInferenceHandler:
         new_format: Optional[bool] = True,
         alert_on_completion_config: Optional[Any] = None,
         results_description: Optional[str] = None,
+        task_timeout: Optional[int] = None,
     ) -> RemoteJobInfo:
         """
         Create a remote inference job and return job information.
@@ -154,6 +155,7 @@ class JobsRemoteInferenceHandler:
             new_format: If True, use pull method for result retrieval; if False, use legacy get method
             alert_on_completion_config: Optional config for job completion alerts (email and/or webhooks)
             results_description: Optional description for the initial results object
+            task_timeout: Optional maximum seconds allowed for each interview
 
         Returns:
             RemoteJobInfo: Information about the created job including UUID and logger
@@ -183,6 +185,7 @@ class JobsRemoteInferenceHandler:
                 fresh=fresh,
                 alert_on_completion_config=alert_on_completion_config,
                 initial_results_description=results_description,
+                task_timeout=task_timeout,
             )
         else:
             remote_job_creation_data = coop.old_remote_inference_create(
@@ -192,6 +195,7 @@ class JobsRemoteInferenceHandler:
                 iterations=iterations,
                 initial_results_visibility=remote_inference_results_visibility,
                 fresh=fresh,
+                task_timeout=task_timeout,
             )
         logger.update(
             "Your survey is running at the Expected Parrot server...",

@@ -47,6 +47,7 @@ def register(app: click.Group) -> None:
     @click.option("--wait", is_flag=True, default=False, help="With --background, poll until the remote job reaches a terminal status.")
     @click.option("--poll_interval", default=10.0, type=float, help="Seconds between status checks with --wait.")
     @click.option("--timeout", default=None, type=float, help="Maximum seconds to wait with --wait.")
+    @click.option("--task-timeout", default=None, type=click.IntRange(min=1), help="Maximum seconds for each remotely executed interview.")
     @click.option("--remote_inference_description", default=None, help="Description for the remote job.")
     @click.option("--remote_inference_results_visibility", default="private", type=click.Choice(["private", "public", "unlisted"]), help="Visibility for remote results.")
     @click.option("--results_description", default=None, help="Description for the remote results object.")
@@ -58,7 +59,7 @@ def register(app: click.Group) -> None:
     @click.argument("input_path", required=False, type=click.Path(exists=True))
     def run(jobs, survey, json_data, question, agent_list, scenario_list,
             model_list, model, qtype, options, name, progress, background,
-            wait, poll_interval, timeout, remote_inference_description,
+            wait, poll_interval, timeout, task_timeout, remote_inference_description,
             remote_inference_results_visibility, results_description, fresh,
             iterations, local, save, output_path, input_path):
         """Run question(s) and get results.
@@ -71,6 +72,7 @@ def register(app: click.Group) -> None:
           ep run --jobs jobs.ep --local --output results.ep
           ep run --jobs jobs.ep --background
           ep run --jobs jobs.ep --background --wait --timeout 600 --output results.ep
+          ep run --jobs jobs.ep --task-timeout 900 --output results.ep
           cat jobs.json | ep run --output results.json
         """
         from edsl.jobs import Jobs
@@ -206,6 +208,7 @@ def register(app: click.Group) -> None:
                     remote_inference_description=remote_inference_description,
                     remote_inference_results_visibility=remote_inference_results_visibility,
                     results_description=results_description,
+                    task_timeout=task_timeout,
                     fresh=fresh,
                     n=iterations,
                     disable_remote_inference=local,

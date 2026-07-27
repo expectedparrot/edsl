@@ -1160,6 +1160,7 @@ class Jobs(Base):
             new_format=self.run_config.parameters.new_format,
             alert_on_completion_config=self.run_config.parameters.alert_on_completion_config,
             results_description=self.run_config.parameters.results_description,
+            task_timeout=self.run_config.parameters.task_timeout,
         )
         return job_info
 

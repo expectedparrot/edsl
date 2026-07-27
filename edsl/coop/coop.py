@@ -2056,6 +2056,7 @@ class Coop(CoopFunctionsMixin):
         iterations: Optional[int] = 1,
         fresh: Optional[bool] = False,
         alert_on_completion_config: Optional[Any] = None,
+        task_timeout: Optional[int] = None,
     ) -> RemoteInferenceCreationInfo:
         """
         Create a remote inference job for execution in the Expected Parrot cloud.
@@ -2079,6 +2080,7 @@ class Coop(CoopFunctionsMixin):
             fresh (bool): If True, ignore existing cache entries and generate new results
             alert_on_completion_config (dict, optional): Config for job completion alerts
                 (email and/or webhooks). Dict with "email" (bool) and "webhooks" (list of {"url": str}, max 3).
+            task_timeout (int, optional): Maximum seconds allowed for each interview
 
         Returns:
             RemoteInferenceCreationInfo: Information about the created job including:
@@ -2159,6 +2161,7 @@ class Coop(CoopFunctionsMixin):
                 "message": "Job uploaded successfully",
                 "nr_questions": job.nr_questions,
                 "initial_results_description": initial_results_description,
+                "task_timeout": task_timeout,
             },
         )
         response_json = response.json()
@@ -2209,6 +2212,7 @@ class Coop(CoopFunctionsMixin):
         initial_results_visibility: Optional[VisibilityType] = "private",
         iterations: Optional[int] = 1,
         fresh: Optional[bool] = False,
+        task_timeout: Optional[int] = None,
     ) -> RemoteInferenceCreationInfo:
         """
         Create a remote inference job for execution in the Expected Parrot cloud.
@@ -2230,6 +2234,7 @@ class Coop(CoopFunctionsMixin):
             initial_results_visibility (VisibilityType): Access level for the job results
             iterations (int): Number of times to run each interview (default: 1)
             fresh (bool): If True, ignore existing cache entries and generate new results
+            task_timeout (int, optional): Maximum seconds allowed for each interview
 
         Returns:
             RemoteInferenceCreationInfo: Information about the created job including:
@@ -2269,6 +2274,7 @@ class Coop(CoopFunctionsMixin):
                 "version": self._edsl_version,
                 "initial_results_visibility": initial_results_visibility,
                 "fresh": fresh,
+                "task_timeout": task_timeout,
             },
         )
         self._resolve_server_response(response)
