@@ -16,6 +16,7 @@ CallbackType = Literal[
 from pydantic import BaseModel, ConfigDict, Discriminator, Field, Tag, TypeAdapter
 
 if TYPE_CHECKING:
+    from ..dataset import Dataset
     from .coop import Coop
 
 
@@ -536,6 +537,34 @@ class HumanSurveyNotificationHandler:
             human_survey_uuid=self.human_survey_uuid,
             page=page,
             page_size=page_size,
+        )
+
+    def get_respondent_links(
+        self,
+        *,
+        save_path: Optional[str] = None,
+        include_preview_urls: bool = False,
+        strict: bool = True,
+    ) -> "Dataset":
+        """Merge this survey's agent list with its respondent links.
+
+        Gives one row per agent - the agent's traits alongside their personal
+        survey link - joined on ``agent_index``.  Pass ``save_path`` to write the
+        table to disk as CSV.
+
+        ``include_preview_urls`` adds a link that opens the survey without saving
+        a response.  ``strict=False`` keeps rows that don't line up (an agent with
+        no respondent, or a respondent with no agent) instead of raising.
+
+        Returns:
+            Dataset: ``agent_index``, optionally ``agent_name``, then
+            ``respondent_uuid``, ``url``, ``response_status``, and the agent traits.
+        """
+        return self._coop.get_human_survey_respondent_links(
+            human_survey_uuid=self.human_survey_uuid,
+            save_path=save_path,
+            include_preview_urls=include_preview_urls,
+            strict=strict,
         )
 
     # ------------------------------------------------------------------
