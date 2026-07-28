@@ -1281,8 +1281,14 @@ class LanguageModel(
         """Infer a service for older serialized models without live discovery.
 
         Historical fixtures predate the ``inference_service`` field. Deserialization
-        should be offline and deterministic, so avoid provider model-list lookups for
-        common model families.
+        should be offline and deterministic, so these model names skip the provider
+        model-list lookup.
+
+        Only prefixes that belong to exactly one service are listed. Families served
+        by several providers - llama, mistral, deepseek - are deliberately absent: a
+        prefix can't tell you which of them hosts a given model, and a wrong guess
+        gets written back into ``inference_service`` on the next ``to_dict``. Those
+        fall through to ``None``, which routes to the registry's normal lookup.
         """
         if model_name == "test":
             return "test"
@@ -1294,15 +1300,6 @@ class LanguageModel(
             ("o4", "openai"),
             ("text-", "openai"),
             ("dall-e", "openai"),
-            ("claude-", "anthropic"),
-            ("gemini-", "google"),
-            ("models/gemini-", "google"),
-            ("llama", "meta"),
-            ("mistral", "mistral"),
-            ("mixtral", "mistral"),
-            ("codestral", "mistral"),
-            ("deepseek", "deepseek"),
-            ("grok-", "xai"),
         )
         for prefix, service_name in model_prefixes:
             if model_name.startswith(prefix):

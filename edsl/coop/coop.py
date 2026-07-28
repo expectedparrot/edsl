@@ -270,9 +270,9 @@ class Coop(CoopFunctionsMixin):
             if "json_string" in log_payload and log_payload["json_string"]:
                 json_str = log_payload["json_string"]
                 if len(json_str) > 200:
-                    log_payload[
-                        "json_string"
-                    ] = f"{json_str[:200]}... (truncated, total length: {len(json_str)})"
+                    log_payload["json_string"] = (
+                        f"{json_str[:200]}... (truncated, total length: {len(json_str)})"
+                    )
             self._logger.info(f"Request payload: {log_payload}")
 
         try:
@@ -3723,7 +3723,8 @@ class Coop(CoopFunctionsMixin):
             Dataset: One row per agent, with ``agent_index``, ``respondent_uuid``,
             ``url``, and ``response_status`` followed by the agent's traits. An
             ``agent_name`` column is included when any agent is named. A trait
-            sharing a name with one of those columns is suffixed with ``_trait``.
+            sharing a name with one of those columns is suffixed with ``_trait``,
+            repeated if needed until the column name is unique.
 
         Raises:
             CoopValueError: If the survey has no agent list attached, or if
@@ -3796,14 +3797,18 @@ class Coop(CoopFunctionsMixin):
             base_columns.append("preview_url")
         base_columns.append("response_status")
 
-        # A trait named e.g. "url" would otherwise overwrite the link column.
-        reserved = set(base_columns)
-        trait_columns = [
-            f"{key}_trait" if key in reserved else key for key in trait_keys
-        ]
-        columns: Dict[str, list] = {
-            name: [] for name in base_columns + trait_columns
-        }
+        # A trait named e.g. "url" would otherwise overwrite the link column. Suffix
+        # until the name is free, so a list holding both "url" and "url_trait" still
+        # gets one column per trait.
+        taken = set(base_columns)
+        trait_columns: List[str] = []
+        for key in trait_keys:
+            column = key
+            while column in taken:
+                column = f"{column}_trait"
+            taken.add(column)
+            trait_columns.append(column)
+        columns: Dict[str, list] = {name: [] for name in base_columns + trait_columns}
 
         def append_row(index: Any, agent: Optional[Any], respondent: dict) -> None:
             url = respondent.get("url")
@@ -5711,9 +5716,7 @@ class Coop(CoopFunctionsMixin):
                     value_type = (
                         "inf"
                         if math.isinf(value)
-                        else "nan"
-                        if math.isnan(value)
-                        else "invalid"
+                        else "nan" if math.isnan(value) else "invalid"
                     )
                     error_msg += f"  • {path}: {value} ({value_type})\n"
 
