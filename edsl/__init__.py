@@ -83,6 +83,7 @@ _EXPORT_TO_MODULE = {
     "QuestionBase": "questions",
     "QuestionDiagram": "questions",
     "QuestionImageGeneration": "questions",
+    "QuestionSlop": "questions",
     # surveys
     "Survey": "surveys",
     # agents

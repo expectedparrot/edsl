@@ -246,7 +246,14 @@ class ExecutionWorker:
                 question_data = self._job_service._jobs.get_question(
                     task.job_id, task.question_id
                 )
-                if question_data and question_data.get("question_type") == "interview":
+                # These question types perform their own provider calls or custom
+                # control flow, so route through their invigilators instead of
+                # the normal LLM response path.
+                if question_data and question_data.get("question_type") in {
+                    "interview",
+                    "image_generation",
+                    "slop",
+                }:
                     return await self._execute_via_invigilator(task, model, cache)
 
             # Use model.async_get_response() like InvigilatorAI does
