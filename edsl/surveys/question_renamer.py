@@ -25,7 +25,10 @@ class QuestionRenamer:
         - Rules and expressions (both old format 'q1' and new format '{{ q1.answer }}')
         - Memory plans (focal questions and prior questions)
         - Question text piping (e.g., {{ old_name.answer }})
-        - Question options that use piping
+        - References inside Jinja statements, e.g. {% if old_name.answer == 'x' %}
+        - Every other templatable question attribute that uses piping, including
+          question_options, option_labels, question_items, and
+          QuestionInterview.interview_guide
         - Instructions that reference the question
         - Question groups (keys only, not ranges since those use indices)
 
@@ -71,6 +74,18 @@ class QuestionRenamer:
         question_index = new_survey.question_name_to_index[old_name]
         target_question = new_survey.questions[question_index]
         target_question.question_name = new_name
+
+        # Invalidate the survey's cached question-name lookups. Reading
+        # question_name_to_index above populated them keyed on the old name, so
+        # without this every later lookup -- including Survey.get() -- still
+        # resolves the old name and raises on the new one.
+        for cache_attribute in (
+            "_cached_question_names",
+            "_cached_qname_to_q",
+            "_cached_qname_to_index",
+        ):
+            if hasattr(new_survey, cache_attribute):
+                delattr(new_survey, cache_attribute)
 
         # 2. Update all rules that reference the old question name
         for rule in new_survey.rule_collection:
@@ -133,32 +148,65 @@ class QuestionRenamer:
             ]
 
         # 4. Update piping references in all questions
+
+        # Matches a Jinja expression ({{ ... }}) or statement ({% ... %}) block.
+        jinja_block_pattern = re.compile(r"\{\{.*?\}\}|\{%.*?%\}", re.DOTALL)
+        # Matches a single-or-double quoted string literal, so we can skip it.
+        string_literal_pattern = re.compile(r"'[^']*'|\"[^\"]*\"")
+        # The old name as a standalone identifier: not preceded by a word char
+        # or a dot (so `foo.old_name` is left alone), not followed by a word char.
+        old_name_pattern = re.compile(rf"(?<![\w.]){re.escape(old_name)}(?!\w)")
+
+        def rename_outside_string_literals(expression: str) -> str:
+            """Rename standalone `old_name` in a Jinja block, skipping literals."""
+            pieces = []
+            position = 0
+            for literal in string_literal_pattern.finditer(expression):
+                pieces.append(
+                    old_name_pattern.sub(
+                        new_name, expression[position : literal.start()]
+                    )
+                )
+                pieces.append(literal.group(0))
+                position = literal.end()
+            pieces.append(old_name_pattern.sub(new_name, expression[position:]))
+            return "".join(pieces)
+
         def update_piping_in_text(text: str) -> str:
-            """Update piping references in text strings."""
-            # Handle {{ old_name.answer }} format
-            text = re.sub(
-                rf"\{{\{{\s*{re.escape(old_name)}\.answer\s*\}}\}}",
-                f"{{{{ {new_name}.answer }}}}",
-                text,
+            """Update piping references anywhere inside Jinja blocks in `text`.
+
+            Covers `{{ old_name.answer }}` and `{{ old_name }}` as well as
+            references inside statements such as
+            `{% if old_name.answer == 'x' %}` -- the if/then pattern used for
+            per-answer wording. Text outside Jinja blocks, and quoted string
+            literals inside them, are never touched.
+            """
+            return jinja_block_pattern.sub(
+                lambda block: rename_outside_string_literals(block.group(0)), text
             )
-            # Handle {{ old_name }} format
-            text = re.sub(
-                rf"\{{\{{\s*{re.escape(old_name)}\s*\}}\}}",
-                f"{{{{ {new_name} }}}}",
-                text,
-            )
-            return text
+
+        def update_piping_in_value(value):
+            """Recursively update piping references in a question attribute value."""
+            if isinstance(value, str):
+                return update_piping_in_text(value)
+            if isinstance(value, list):
+                return [update_piping_in_value(item) for item in value]
+            if isinstance(value, dict):
+                return {key: update_piping_in_value(item) for key, item in value.items()}
+            return value
 
         for question in new_survey.questions:
-            # Update question text
-            question.question_text = update_piping_in_text(question.question_text)
-
-            # Update question options if they exist
-            if hasattr(question, "question_options") and question.question_options:
-                question.question_options = [
-                    update_piping_in_text(option) if isinstance(option, str) else option
-                    for option in question.question_options
-                ]
+            # Update every templatable attribute, not just question_text and
+            # question_options. Parameter detection scans all string values in
+            # question.data (see QuestionBasePromptsMixin._all_text), so any field
+            # left un-renamed here keeps pointing at the old name -- e.g.
+            # QuestionInterview.interview_guide, or option_labels / question_items.
+            for attribute_name, value in question.data.items():
+                if attribute_name == "question_name":
+                    continue
+                new_value = update_piping_in_value(value)
+                if new_value != value:
+                    setattr(question, attribute_name, new_value)
 
         # 5. Update instructions
         for (

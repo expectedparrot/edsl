@@ -287,7 +287,6 @@ class TestSurvey(unittest.TestCase):
         for ordering in color_list:
             assert set(ordering) == {"Red", "Blue", "Green"}
 
-    @unittest.skip("Pre-existing bug: question_name_to_index cache not invalidated after rename")
     def test_with_renamed_question_basic(self):
         """Test basic question renaming functionality."""
         s = self.gen_survey()
@@ -314,7 +313,6 @@ class TestSurvey(unittest.TestCase):
         with self.assertRaises(Exception):
             s_renamed.get("like_school")
 
-    @unittest.skip("Pre-existing bug: question_name_to_index cache not invalidated after rename")
     def test_with_renamed_question_with_rules(self):
         """Test that rules are updated when questions are renamed."""
         from edsl.questions import QuestionFreeText
@@ -343,7 +341,6 @@ class TestSurvey(unittest.TestCase):
         rule_expressions_old = [rule.expression for rule in s_renamed.rule_collection if "{{ name.answer }}" in rule.expression]
         self.assertEqual(len(rule_expressions_old), 0)
 
-    @unittest.skip("Pre-existing bug: question_name_to_index cache not invalidated after rename")
     def test_with_renamed_question_with_piping(self):
         """Test that piping references are updated when questions are renamed."""
         from edsl.questions import QuestionFreeText, QuestionMultipleChoice
@@ -376,7 +373,95 @@ class TestSurvey(unittest.TestCase):
         self.assertNotIn("{{ user_name.answer }}", s_renamed.get("likes_surveys").question_text)
         self.assertNotIn("{{ user_name.answer }}", s_renamed.get("explanation").question_text)
 
-    @unittest.skip("Pre-existing bug: question_name_to_index cache not invalidated after rename")
+    def test_with_renamed_question_with_piping_in_other_attributes(self):
+        """Renaming must update piping in every templatable attribute, not just question_text."""
+        from edsl.questions import (
+            QuestionInterview,
+            QuestionLinearScale,
+            QuestionMultipleChoice,
+        )
+
+        q1 = QuestionMultipleChoice(
+            question_text="Which language?",
+            question_options=["English", "Portuguese"],
+            question_name="language",
+        )
+        # option_labels is a dict -> exercises the dict branch
+        q2 = QuestionLinearScale(
+            question_text="Rate it.",
+            question_options=[1, 2, 3],
+            option_labels={1: "Worst in {{ language.answer }}", 3: "Best"},
+            question_name="rating",
+        )
+        # interview_guide is the field that regressed
+        q3 = QuestionInterview(
+            question_text="Chat about {{ language.answer }}",
+            interview_guide="Conduct the interview in {{ language.answer }}.",
+            question_name="depth",
+        )
+
+        s = Survey([q1, q2, q3])
+        s_renamed = s.with_renamed_question("language", "lang_choice")
+
+        guide = s_renamed.get("depth").interview_guide
+        self.assertIn("{{ lang_choice.answer }}", guide)
+        self.assertNotIn("{{ language.answer }}", guide)
+
+        labels = s_renamed.get("rating").option_labels
+        self.assertIn("{{ lang_choice.answer }}", labels[1])
+        self.assertNotIn("{{ language.answer }}", labels[1])
+
+        # question_text still handled, and no phantom dependency on the old name
+        self.assertIn("{{ lang_choice.answer }}", s_renamed.get("depth").question_text)
+        self.assertEqual(s_renamed.get("depth").parameters, {"lang_choice"})
+
+    def test_with_renamed_question_with_piping_in_jinja_statements(self):
+        """Renaming must reach references inside {% ... %} blocks, and only those."""
+        from edsl.questions import QuestionFreeText, QuestionMultipleChoice
+
+        cases = {
+            "if_block": (
+                "{% if language.answer == 'Portugues' %}Ola{% else %}Hi{% endif %}",
+                "{% if lang_choice.answer == 'Portugues' %}Ola{% else %}Hi{% endif %}",
+            ),
+            "for_loop": (
+                "{% for x in language.answer %}{{ x }}{% endfor %}",
+                "{% for x in lang_choice.answer %}{{ x }}{% endfor %}",
+            ),
+            "extra_whitespace": ("{{  language.answer  }}", "{{  lang_choice.answer  }}"),
+            "bare_reference": ("Value {{ language }}.", "Value {{ lang_choice }}."),
+            # Must NOT be renamed:
+            "string_literal": (
+                "{% if language.answer == 'language' %}x{% endif %}",
+                "{% if lang_choice.answer == 'language' %}x{% endif %}",
+            ),
+            "prose_outside_jinja": (
+                "The word language appears in prose.",
+                "The word language appears in prose.",
+            ),
+            "dotted_attribute": ("{{ scenario.language }}", "{{ scenario.language }}"),
+            "name_prefix": ("{{ language_other.answer }}", "{{ language_other.answer }}"),
+        }
+
+        questions = [
+            QuestionMultipleChoice(
+                question_text="Lang?",
+                question_options=["English", "Portugues"],
+                question_name="language",
+            )
+        ]
+        for name, (before, _) in cases.items():
+            questions.append(
+                QuestionFreeText(question_text=before, question_name=name)
+            )
+
+        s_renamed = Survey(questions).with_renamed_question("language", "lang_choice")
+
+        for name, (_, expected) in cases.items():
+            self.assertEqual(
+                s_renamed.get(name).question_text, expected, msg=f"case: {name}"
+            )
+
     def test_with_renamed_question_with_memory_plan(self):
         """Test that memory plans are updated when questions are renamed."""
         s = self.gen_survey()
@@ -406,7 +491,6 @@ class TestSurvey(unittest.TestCase):
         self.assertIn("school_preference", memory_plan_final["preferred_subject"].data)
         self.assertNotIn("like_school", memory_plan_final["preferred_subject"].data)
 
-    @unittest.skip("Pre-existing bug: question_name_to_index cache not invalidated after rename")
     def test_with_renamed_question_with_instructions(self):
         """Test that instructions are updated when questions are renamed."""
         from edsl.instructions import Instruction
@@ -432,7 +516,6 @@ class TestSurvey(unittest.TestCase):
         self.assertIn("{{ school_preference.answer }}", instruction_text_after)
         self.assertNotIn("{{ like_school.answer }}", instruction_text_after)
 
-    @unittest.skip("Pre-existing bug: question_name_to_index cache not invalidated")
     def test_with_renamed_question_error_conditions(self):
         """Test error conditions for question renaming."""
         s = self.gen_survey()
@@ -457,7 +540,6 @@ class TestSurvey(unittest.TestCase):
             s.with_renamed_question("like_school", "invalid name")
         self.assertIn("not a valid Python identifier", str(context.exception))
 
-    @unittest.skip("Pre-existing bug: question_name_to_index cache not invalidated")
     def test_with_renamed_question_preserves_survey_structure(self):
         """Test that renaming preserves overall survey structure."""
         s = self.gen_survey()
@@ -480,7 +562,6 @@ class TestSurvey(unittest.TestCase):
         next_q = s_renamed.next_question("school_preference", {"school_preference.answer": "yes"})
         self.assertEqual(next_q.question_name, "manual")
 
-    @unittest.skip("Pre-existing bug: question_name_to_index cache not invalidated")
     def test_with_renamed_question_method_chaining(self):
         """Test that with_renamed_question can be chained with other methods."""
         s = self.gen_survey()
@@ -497,7 +578,6 @@ class TestSurvey(unittest.TestCase):
         for name in expected_names:
             self.assertIsNotNone(s_chained.get(name))
 
-    @unittest.skip("Pre-existing bug: question_name_to_index cache not invalidated")
     def test_with_renamed_question_complex_scenario(self):
         """Test renaming in a complex scenario with multiple interdependencies."""
         from edsl.questions import QuestionFreeText, QuestionMultipleChoice
