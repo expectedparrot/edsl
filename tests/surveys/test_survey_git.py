@@ -140,9 +140,7 @@ def test_survey_git_package_html_shows_versions(tmp_path):
     assert second["commit"][:8] in html
     data_json = html.split("const DATA = ", 1)[1].split(";\n", 1)[0]
     data = json.loads(data_json)
-    version_by_message = {
-        version["message"]: version for version in data["versions"]
-    }
+    version_by_message = {version["message"]: version for version in data["versions"]}
     assert version_by_message["initial survey"]["index"] == 1
     assert version_by_message["add second question"]["index"] == 2
     assert version_by_message["initial survey"]["diff"]["label"] == "Initial version"
@@ -159,9 +157,7 @@ def test_survey_git_package_html_shows_versions(tmp_path):
 
 def test_survey_git_comments_are_versioned_and_rendered(tmp_path):
     package_path = tmp_path / "commented.survey.ep"
-    survey = Survey(
-        [QuestionFreeText(question_name="q0", question_text="First?")]
-    )
+    survey = Survey([QuestionFreeText(question_name="q0", question_text="First?")])
     initial = survey.git.save(package_path, message="initial survey")
 
     loaded = Survey.git.load(package_path)
@@ -286,6 +282,34 @@ def test_survey_git_package_html_questions_table_shows_logic(tmp_path):
     assert '"name": "q0"' in html
     assert "pipes q0.answer" in html
     assert "question_options[0]" in html
+
+
+def test_survey_git_package_html_normalizes_dynamic_question_options(tmp_path):
+    package_path = tmp_path / "dynamic-options.survey.ep"
+    survey = Survey(
+        [
+            QuestionMultipleChoice(
+                question_name="q0",
+                question_text="List choices.",
+                question_options=["one", "two"],
+            ),
+            QuestionMultipleChoice(
+                question_name="q1",
+                question_text="Choose from the prior answer.",
+                question_options="{{ q0.answer }}",
+            ),
+        ]
+    )
+    survey.git.save(package_path)
+
+    html = Survey.git.open(package_path).html()
+    data_json = html.split("const DATA = ", 1)[1].split(";\n", 1)[0]
+    data = json.loads(data_json)
+
+    assert data["questions"][1]["options"] == ["{{ q0.answer }}"]
+    assert "const values = Array.isArray(options) ? options : [options];" in html
+    assert "<tbody><tr>" in html
+    assert "Choose from the prior answer." in html
 
 
 def test_survey_git_loads_historical_commit_without_checkout(tmp_path):
