@@ -159,6 +159,14 @@ class GitPackage:
             ]
             if not conflicts:
                 raise
+            conflict_contents = {}
+            for conflict_path in conflicts:
+                try:
+                    conflict_contents[conflict_path] = (
+                        self.path / conflict_path
+                    ).read_text(encoding="utf-8")
+                except (OSError, UnicodeDecodeError):
+                    continue
             git(self.path, "merge", "--abort", error_cls=self.error_cls)
             return {
                 "status": "conflict",
@@ -169,6 +177,7 @@ class GitPackage:
                 "fast_forward": False,
                 "changed": [],
                 "conflicts": conflicts,
+                "conflict_contents": conflict_contents,
                 "aborted": True,
                 "message": f"merge of {ref} aborted due to conflicts",
             }
@@ -184,6 +193,7 @@ class GitPackage:
                 "fast_forward": False,
                 "changed": [],
                 "conflicts": [],
+                "conflict_contents": {},
                 "aborted": False,
                 "message": f"{ref} is already merged",
             }
@@ -221,6 +231,7 @@ class GitPackage:
             "fast_forward": not is_merge_commit,
             "changed": changed,
             "conflicts": [],
+            "conflict_contents": {},
             "aborted": False,
             "message": message or f"Merge {ref}",
         }

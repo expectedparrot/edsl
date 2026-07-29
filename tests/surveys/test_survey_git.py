@@ -363,6 +363,25 @@ def test_survey_git_question_edit_preserves_question_file_id(tmp_path):
     )
 
 
+def test_survey_git_question_name_rename_preserves_question_file_id(tmp_path):
+    package_path = tmp_path / "renamed.survey.ep"
+    survey = Survey.example()
+    first = survey.git.save(package_path, message="initial survey")
+
+    survey = survey.with_renamed_question("q0", "school_enjoyment")
+    second = survey.git.save(package_path, message="rename first question")
+
+    manifest = _package_json(package_path, "manifest.json")
+    renamed_question = _package_json(package_path, "questions/000001.json")
+    diff = survey.git.diff(first["commit"], second["commit"])
+
+    assert manifest["question_order"] == ["000001", "000002", "000003"]
+    assert renamed_question["question_name"] == "school_enjoyment"
+    assert "questions/000001.json" in diff
+    assert "questions/000004.json" not in diff
+    assert "rename from" not in diff
+
+
 def test_survey_git_archive_excludes_transient_git_pack_files(tmp_path):
     package_path = tmp_path / "survey.survey.ep"
     survey = Survey.example()
@@ -572,6 +591,7 @@ def test_survey_git_merge_refreshes_object_and_repackages_archive(tmp_path):
     assert merge_info["merged_ref"] == "short-form"
     assert merge_info["fast_forward"] is False
     assert merge_info["conflicts"] == []
+    assert merge_info["conflict_contents"] == {}
     assert merge_info["aborted"] is False
     assert "manifest.json" in merge_info["changed"]
     assert "questions/000002.json" in merge_info["changed"]
@@ -625,6 +645,19 @@ def test_survey_git_merge_conflict_aborts_and_preserves_current_survey(tmp_path)
         "fast_forward": False,
         "changed": [],
         "conflicts": ["questions/000001.json"],
+        "conflict_contents": {
+            "questions/000001.json": (
+                "{\n"
+                '  "question_name": "q0",\n'
+                "<<<<<<< HEAD\n"
+                '  "question_text": "Main wording",\n'
+                "=======\n"
+                '  "question_text": "Alternative wording",\n'
+                ">>>>>>> alternative\n"
+                '  "question_type": "free_text"\n'
+                "}\n"
+            )
+        },
         "aborted": True,
         "message": "merge of alternative aborted due to conflicts",
     }

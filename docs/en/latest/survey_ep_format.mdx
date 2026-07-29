@@ -283,17 +283,42 @@ index 353b419..33b47da 100644
 +  "question_text": "Do you enjoy school?",
 ```
 
-Two identifiers are doing different jobs:
+Three identifiers are doing different jobs:
 
-- `q0` is the EDSL `question_name`. Prompts, rules, and results use it to refer
-  to the logical question.
-- `000001` is the package-internal question ID. EDSL uses `question_name` to
-  recognize the same logical question and retain this file ID when its wording,
-  options, or other properties change.
+- `0` is the question's current position in the Survey.
+- `q0` is its EDSL `question_name`. Prompts, rules, and results use this name
+  to refer to the logical question.
+- `000001` is its stable package file ID. It is not a position and it is not
+  the public question name.
 
 The manifest and the other two question files do not change. A genuinely new
 question receives the next available package ID; deleting a question removes
 its file from the current tree while retaining it in Git history.
+
+The package ID also survives a pure `question_name` rename:
+
+```python
+survey.git.branch("rename-demo")
+survey.git.switch("rename-demo")
+survey = survey.with_renamed_question("q0", "school_enjoyment")
+survey.git.save("example-survey.ep", message="Rename q0")
+```
+
+```diff
+diff --git a/questions/000001.json b/questions/000001.json
+-  "question_name": "q0",
++  "question_name": "school_enjoyment",
+```
+
+That is why the package needs an identity separate from `question_name`:
+renaming a question is a one-line edit inside a stable file, not a file rename
+and not a new question.
+
+Return to the unchanged main line before continuing:
+
+```python
+survey.git.switch("main")
+```
 
 ## What Git stores
 
@@ -419,14 +444,39 @@ Branches let collaborators develop alternative instruments without
 overwriting the main line:
 
 ```python
-survey.git.branch("short-form")
-survey.git.switch("short-form")
-
-# Make edits to the in-memory Survey here.
-survey.git.save(message="Create short-form variant")
+survey.git.branch("without-q1")
+survey.git.switch("without-q1")
+survey.delete_question("q1")
+survey.git.save(message="Create variant without q1")
 ```
 
-Return to the main version:
+Deleting one question changes more than one file:
+
+```python
+print(survey.git.diff("--stat", "HEAD~1", "HEAD"))
+```
+
+```text
+ manifest.json                 | 3 +--
+ metadata/memory_plan.json     | 2 --
+ metadata/rule_collection.json | 6 +++---
+ questions/000002.json         | 9 ---------
+ 4 files changed, 4 insertions(+), 16 deletions(-)
+```
+
+`questions/000002.json` is deleted, not renumbered. The other question files
+retain their IDs. The manifest changes because the question order no longer
+includes `000002`; the memory plan and flow rules change because they describe
+relationships among the remaining questions. This is why metadata is split
+into named files rather than buried in one survey blob: Git shows exactly
+which parts of survey behavior changed.
+
+Methods that return a `changed` list use “changed” in Git's broad sense:
+touched paths, including additions, modifications, and deletions.
+
+This branch represents a genuine alternative instrument, so do not merge it
+merely because it exists. Keep it parallel, field or review it independently,
+and return to `main`:
 
 ```python
 survey.git.switch("main")
@@ -436,35 +486,51 @@ survey.git.switch("main")
 requires a clean package before switching, pulling, or checking out another
 version, which protects uncommitted changes.
 
-## Merge a survey branch
+## Merge independent work
 
-Suppose the `short-form` branch removes the follow-up question `q1`:
+Merging is appropriate when reviewed work belongs back on the main survey.
+The useful case is not a sequential edit forced into a merge commit. It is two
+authors making divergent commits from the same base.
+
+Alice and Bob begin with the current `main`. Create Bob's branch before either
+person edits:
 
 ```python
-survey.git.switch("short-form")
-survey.delete_question("q1")
-survey.git.save(message="Remove follow-up from short form")
+survey.git.branch("bob-options")
 ```
 
-At this point, `main` still has all three questions and `short-form` has two.
-Switch back before merging:
+Bob changes only the options for `q2`:
+
+```python
+survey.git.switch("bob-options")
+survey.questions[2].question_options.append("not sure")
+survey.git.save(message="Bob: add a q2 response option")
+```
+
+Meanwhile, Alice changes only the wording of `q0` on `main`:
 
 ```python
 survey.git.switch("main")
-survey.question_names
+survey.questions[0].question_text = "Do you enjoy attending school?"
+survey.git.save(message="Alice: clarify q0 wording")
 ```
 
-```python
-["q0", "q1", "q2"]
+The histories now diverge. Neither commit is an ancestor of the other, and the
+edits live in different question files:
+
+```text
+* Alice: clarify q0 wording                 questions/000001.json
+| * Bob: add a q2 response option           questions/000003.json
+|/
+* Clarify the first question
 ```
 
-Merge the branch through the same Git-backed accessor:
+Now perform a genuine three-way merge:
 
 ```python
 merge_info = survey.git.merge(
-    "short-form",
-    message="Merge short-form survey",
-    no_ff=True,
+    "bob-options",
+    message="Merge Bob's reviewed options",
 )
 merge_info
 ```
@@ -475,23 +541,20 @@ merge_info
     "path": "example-survey.ep",
     "commit": "<merge-commit>",
     "branch": "main",
-    "merged_ref": "short-form",
+    "merged_ref": "bob-options",
     "fast_forward": False,
-    "changed": [
-        "manifest.json",
-        "metadata/memory_plan.json",
-        "metadata/rule_collection.json",
-        "questions/000002.json",
-    ],
+    "changed": ["questions/000003.json"],
     "conflicts": [],
+    "conflict_contents": {},
     "aborted": False,
-    "message": "Merge short-form survey",
+    "message": "Merge Bob's reviewed options",
 }
 ```
 
-`no_ff=True` asks Git to create a merge commit even though this simple example
-could be fast-forwarded. That makes the point where the alternative survey
-entered `main` visible in history.
+No `no_ff=True` is needed: Alice's and Bob's commits are genuinely divergent,
+so Git must reconcile them. `changed` lists the paths introduced to Alice's
+pre-merge `main`; her `q0` edit was already there, while Bob's `q2` edit arrives
+through the merge.
 
 The method completes all three layers of the operation: it merges the embedded
 repository, reloads the merged files into the in-memory `Survey`, and repacks
@@ -503,17 +566,19 @@ survey.question_names
 ```
 
 ```python
-["q0", "q2"]
+["q0", "q1", "q2"]
 ```
 
-The newest package history entry is the merge commit:
+Both authors' changes survive:
 
 ```python
-survey.git.log()[0]
+survey.questions[0].question_text
+survey.questions[2].question_options
 ```
 
 ```python
-{"message": "Merge short-form survey", "...": "..."}
+"Do you enjoy attending school?"
+["**lack*** of killer bees in cafeteria", "other", "not sure"]
 ```
 
 From an unpacked inspection copy, Git can display the topology:
@@ -523,80 +588,108 @@ git log --graph --oneline --all
 ```
 
 ```text
-*   <merge> Merge short-form survey
+*   <merge> Merge Bob's reviewed options
 |\
-| * <branch> Remove follow-up from short form
+| * <bob> Bob: add a q2 response option
+* | <alice> Alice: clarify q0 wording
 |/
-*   <initial> Create example survey
+*   <base> Clarify the first question
 ```
 
-This is more informative than copying the short survey over the long one. The
-merge records both lines of development, their common ancestor, and the exact
-decision that joined them.
+This is the payoff from storing questions separately. Git performs a real
+three-way merge, sees that Alice and Bob changed disjoint files, and retains
+both changes without human intervention. With one large `survey.json`, Git
+would be reconciling edits inside the same 4,000-line blob.
 
 ### What happens on a conflict
 
-If both branches edit the same part of a question or manifest, EDSL does not
-silently choose one survey design. It aborts the merge, leaves the current
-branch and `.ep` archive unchanged, and returns a structured report:
+Now repeat the experiment with both authors editing `q0`. Starting from a
+one-question package makes the conflict especially clear:
 
 ```python
-conflict = survey.git.merge("alternative-wording", no_ff=True)
+from edsl import QuestionFreeText, Survey
+
+wording = Survey([
+    QuestionFreeText(
+        question_name="q0",
+        question_text="Original wording",
+    )
+])
+wording.git.save("wording.ep", message="Shared wording")
+wording.git.branch("bob-wording")
+
+wording.git.switch("bob-wording")
+wording.questions[0].question_text = "Bob's wording"
+wording.git.save(message="Bob: revise q0")
+
+wording.git.switch("main")
+wording.questions[0].question_text = "Alice's wording"
+wording.git.save(message="Alice: revise q0")
+
+conflict = wording.git.merge("bob-wording")
 ```
 
 ```python
 {
     "status": "conflict",
-    "path": "example-survey.ep",
+    "path": "wording.ep",
     "commit": "<unchanged-main-commit>",
     "branch": "main",
-    "merged_ref": "alternative-wording",
+    "merged_ref": "bob-wording",
     "fast_forward": False,
     "changed": [],
     "conflicts": ["questions/000001.json"],
+    "conflict_contents": {
+        "questions/000001.json": "<conflicted text shown below>"
+    },
     "aborted": True,
-    "message": "merge of alternative-wording aborted due to conflicts",
+    "message": "merge of bob-wording aborted due to conflicts",
 }
 ```
 
-The automatic abort is important for a portable package: the in-memory
-Survey, embedded working tree, and archived `.ep` file continue to describe
-the same committed object. A researcher can inspect the reported files,
-revise one of the branches, and try the merge again.
+EDSL captures the conflicted file before aborting. Its `question_text` conflict
+is local and legible:
+
+```diff
+{
+  "question_name": "q0",
+ <<<<<<< HEAD
+  "question_text": "Alice's wording",
+ =======
+  "question_text": "Bob's wording",
+ >>>>>>> bob-wording
+  "question_type": "free_text"
+}
+```
+
+This is a conflict that a reviewer can understand and resolve. It is isolated
+to one small question file rather than buried among thousands of unrelated
+survey lines. The marker lines are indented one space above only so Git does
+not mistake this documentation example for an unresolved repository conflict.
+
+EDSL then aborts the merge, leaving the current branch and `.ep` archive
+unchanged and clean. A researcher can use `conflict_contents` to inspect the
+two alternatives, revise one branch, and try again. The API never silently
+chooses a survey design or leaves the portable package in a half-merged state.
 
 ## Communicate only the changes
 
-An `.ep` file is already a self-contained handoff: its recipient gets both the
-current Survey and its history. For ongoing collaboration, attach a Git remote
-and use EDSL's synchronization methods:
+An `.ep` file is a self-contained handoff: its recipient gets both the current
+Survey and its history. For ongoing collaboration, attach a GitHub remote and
+push:
 
 ```python
-survey.git.remote_add("origin", "<git-remote-url>")
+survey.git.remote_add("origin", "git@github.com:team/research-survey.git")
 survey.git.push("origin")
 ```
 
-A collaborator can clone the package and later fetch or pull new commits:
-
-```python
-collaborator = Survey.git.clone(
-    "<git-remote-url>",
-    "collaborator-copy.ep",
-)
-
-collaborator.git.pull()
-```
-
-At the CLI level, Expected Parrot-backed packages can be shared with:
-
-```bash
-ep push example-survey.ep
-ep pull example-survey.ep
-```
-
-Git negotiates which objects the receiver already has and transfers the
-missing objects. This matters when a team repeatedly revises a large survey:
-the communication unit is a commit and its changed objects, not a succession
-of unrelated `survey-final-2-revised.json` files.
+What lands on GitHub is the unpacked tree of readable JSON, not an opaque ZIP
+diff. A collaborator can review a one-line question-wording change as an
+ordinary pull request. Git negotiates which objects the receiver already has
+and transfers the missing objects, while EDSL repacks the history into `.ep`
+when it returns to the portable-file workflow. Zipping does not defeat the
+point: the archive is the transport artifact; the embedded repository is the
+collaboration artifact.
 
 ## Working inside another Git repository
 
@@ -640,9 +733,11 @@ guarantees:
 8. **Portable provenance.** Copying one `.ep` file carries the current object
    and its complete embedded history.
 
-The result is a survey format that works at two levels: researchers can use it
-as a normal EDSL `Survey`, while reviewers and collaborators can use familiar
-Git concepts to understand how that Survey evolved.
+The result works at two levels. Researchers use a normal EDSL `Survey`;
+reviewers and collaborators see ordinary Git history and readable diffs.
+Agents can understand and operate the versioning plumbing so researchers do
+not have to—but the repository remains available whenever a human needs to
+audit exactly what changed.
 
 ## Command reference
 
