@@ -339,6 +339,30 @@ def test_survey_git_mutation_save_cleans_stale_questions_and_round_trips(tmp_pat
     assert second["commit"] != first["commit"]
 
 
+def test_survey_git_question_edit_preserves_question_file_id(tmp_path):
+    package_path = tmp_path / "edited.survey.ep"
+    survey = Survey.example()
+    first = survey.git.save(package_path, message="initial survey")
+
+    survey.questions[0].question_text = "Do you enjoy school?"
+    second = survey.git.save(message="clarify first question")
+
+    manifest = _package_json(package_path, "manifest.json")
+    edited_question = _package_json(package_path, "questions/000001.json")
+    diff = survey.git.diff(first["commit"], second["commit"])
+
+    assert manifest["question_order"] == ["000001", "000002", "000003"]
+    assert edited_question["question_name"] == "q0"
+    assert edited_question["question_text"] == "Do you enjoy school?"
+    assert "questions/000001.json" in diff
+    assert "questions/000004.json" not in diff
+    assert "manifest.json" not in diff
+    assert (
+        Survey.git.load(package_path).questions[0].question_text
+        == "Do you enjoy school?"
+    )
+
+
 def test_survey_git_archive_excludes_transient_git_pack_files(tmp_path):
     package_path = tmp_path / "survey.survey.ep"
     survey = Survey.example()

@@ -1,0 +1,562 @@
+---
+title: "Versioning Surveys with .ep Files"
+description: "A hands-on tour of the Git-backed .ep format for EDSL Surveys: package contents, commits, diffs, history, and efficient collaboration."
+---
+
+An EDSL `Survey` can be saved either as serialized JSON or as an `.ep`
+package. JSON is useful for a quick interchange. An `.ep` package is intended
+for work that will evolve: it keeps the survey's current state and its Git
+history together in one portable file.
+
+This tutorial creates a package from `Survey.example()`, opens it up, changes
+one question, and follows that change through Git.
+
+## The format in one picture
+
+```text
+example-survey.ep                   one portable ZIP-compatible file
+└── unpacked contents               a complete Git working tree
+    ├── .git/                       commits, trees, blobs, refs, and configuration
+    ├── manifest.json               package type, format version, and question order
+    ├── questions/
+    │   ├── 000001.json             one question per file
+    │   ├── 000002.json
+    │   └── 000003.json
+    └── metadata/
+        ├── memory_plan.json
+        ├── question_groups.json
+        └── rule_collection.json
+```
+
+There are two layers to keep straight:
+
+- On disk, `example-survey.ep` is a single ZIP-compatible archive. It is easy
+  to attach, copy, archive, or deposit in a replication package.
+- Inside the archive is a real Git repository. EDSL uses that repository for
+  commits, history, diffs, branches, tags, and synchronization.
+
+The `.ep` suffix therefore does not mean “a JSON file with another extension.”
+It means “a portable EDSL object with its version history.”
+
+## Create the example Survey
+
+Start with EDSL's built-in example:
+
+```python
+from edsl import Survey
+
+survey = Survey.example()
+survey
+```
+
+The example has three multiple-choice questions named `q0`, `q1`, and `q2`.
+Save it as a package with an informative commit message:
+
+```python
+first_save = survey.git.save(
+    "example-survey.ep",
+    message="Create example survey",
+)
+first_save
+```
+
+A successful save returns package and commit information:
+
+```python
+{
+    "status": "ok",
+    "path": "example-survey.ep",
+    "commit": "65801c7e03eb93c0f31c8bee6b2a29cc9152be14",
+    "branch": "main",
+    "message": "Create example survey",
+}
+```
+
+Your commit hash will differ. Git derives it from the commit and its contents,
+so it is an identifier for that particular version.
+
+Calling `save()` again without changing the survey does not create an empty
+commit:
+
+```python
+survey.git.save(message="Save again")
+```
+
+```python
+{
+    "status": "unchanged",
+    "path": "example-survey.ep",
+    "commit": "...",
+    "branch": "main",
+    "message": "no changes",
+}
+```
+
+This makes repeated saves safe: history records substantive package changes,
+not every call to `save()`.
+
+## Inspect the package as an EDSL object
+
+For ordinary use, let EDSL inspect and load the file:
+
+```bash
+ep inspect example-survey.ep
+```
+
+The CLI writes a JSON envelope to stdout:
+
+```json
+{
+  "status": "ok",
+  "data": {
+    "object_type": "Survey",
+    "length": 3,
+    "question_count": 3,
+    "question_names": ["q0", "q1", "q2"],
+    "question_types": [
+      "multiple_choice",
+      "multiple_choice",
+      "multiple_choice"
+    ]
+  },
+  "warnings": []
+}
+```
+
+Load the latest committed version in Python with:
+
+```python
+loaded = Survey.git.load("example-survey.ep")
+loaded == survey
+```
+
+```python
+True
+```
+
+Loading binds the object to its package. A later
+`loaded.git.save(message="...")` writes a new version back to the same `.ep`
+file unless a different path is supplied.
+
+## Unpack the Git repository
+
+You do not need to unpack a package to use it. Unpacking is useful when you
+want to audit the representation or use lower-level Git commands:
+
+```bash
+ep unpack example-survey.ep
+```
+
+The returned JSON includes a temporary directory in `data.path` and a
+`next_step` command. Change into that directory:
+
+```bash
+cd /tmp/path-returned-by-ep-unpack
+git status
+git log --oneline --decorate
+```
+
+<Warning>
+The directory returned by `ep unpack` is a temporary inspection copy. Editing
+it does not rewrite the original `.ep` archive. Make durable changes through
+the loaded EDSL object and call `save()`.
+</Warning>
+
+Because `.ep` is ZIP-compatible, a standard archive utility can also confirm
+what is present:
+
+```bash
+unzip -l example-survey.ep
+```
+
+The listing includes `.git/HEAD`, `.git/objects/`, `.git/refs/heads/main`, the
+manifest, question files, and survey metadata. EDSL omits transient Git files
+such as hooks when packing the archive.
+
+## Read the working-tree files
+
+The manifest identifies the format and reconstructs question order:
+
+```json
+{
+  "edsl_class_name": "Survey",
+  "edsl_version": "1.0.8.dev1",
+  "format": "edsl.survey.git_package",
+  "format_version": 1,
+  "n_questions": 3,
+  "object_type": "Survey",
+  "question_order": [
+    "000001",
+    "000002",
+    "000003"
+  ]
+}
+```
+
+The exact `edsl_version` reflects the installed version that wrote the
+package.
+
+Each question is stored separately. For example,
+`questions/000001.json` contains:
+
+```json
+{
+  "question_name": "q0",
+  "question_options": [
+    "yes",
+    "no"
+  ],
+  "question_text": "Do you like school?",
+  "question_type": "multiple_choice"
+}
+```
+
+The split representation is deliberate. If a survey has 500 questions and
+one changes, Git does not need to treat one giant serialized survey document
+as the unit of review. The diff can focus on the affected question and any
+metadata that actually changed.
+
+The files under `metadata/` preserve behavior that is not contained in an
+individual question:
+
+- `rule_collection.json` stores survey flow, including skip and stop rules.
+- `memory_plan.json` records which earlier answers are made available later.
+- `question_groups.json` records named groups.
+
+Optional survey properties, when present, are stored in additional metadata
+files such as `name.json`, `questions_to_randomize.json`, and
+`options_to_pin.json`.
+
+## Make and commit a change
+
+Change the wording of the first question:
+
+```python
+survey = Survey.git.load("example-survey.ep")
+survey.questions[0].question_text = "Do you enjoy school?"
+
+second_save = survey.git.save(
+    message="Clarify the first question",
+)
+second_save
+```
+
+The package remains one file, but it now contains two commits. View them
+without unpacking:
+
+```python
+survey.git.log()
+```
+
+```python
+[
+    {
+        "commit": "d1f44ff624288e48e8835597d247c039ceffeb48",
+        "message": "Clarify the first question",
+        "timestamp": "2026-07-29 07:47:56 -0400",
+    },
+    {
+        "commit": "65801c7e03eb93c0f31c8bee6b2a29cc9152be14",
+        "message": "Create example survey",
+        "timestamp": "2026-07-29 07:47:34 -0400",
+    },
+]
+```
+
+Again, hashes and timestamps will differ.
+
+Now ask Git what changed:
+
+```python
+print(survey.git.diff("HEAD~1", "HEAD"))
+```
+
+The essential part of the diff is:
+
+```diff
+diff --git a/questions/000001.json b/questions/000001.json
+index 353b419..33b47da 100644
+--- a/questions/000001.json
++++ b/questions/000001.json
+@@
+-  "question_text": "Do you like school?",
++  "question_text": "Do you enjoy school?",
+```
+
+Two identifiers are doing different jobs:
+
+- `q0` is the EDSL `question_name`. Prompts, rules, and results use it to refer
+  to the logical question.
+- `000001` is the package-internal question ID. EDSL uses `question_name` to
+  recognize the same logical question and retain this file ID when its wording,
+  options, or other properties change.
+
+The manifest and the other two question files do not change. A genuinely new
+question receives the next available package ID; deleting a question removes
+its file from the current tree while retaining it in Git history.
+
+## What Git stores
+
+The `.git` directory does not contain a second full copy of the survey for
+every version. Git stores content-addressed objects:
+
+- **blobs** hold file contents;
+- **trees** describe directory snapshots;
+- **commits** point to a tree, a parent commit, and commit metadata;
+- **refs** such as `main` and tags give memorable names to commits.
+
+From the unpacked repository, inspect the current commit:
+
+```bash
+git cat-file -p HEAD
+```
+
+Representative output:
+
+```text
+tree <tree-id>
+parent <first-commit-id>
+author EDSL <edsl@example.invalid> ...
+committer EDSL <edsl@example.invalid> ...
+
+Clarify the first question
+```
+
+Follow the tree to a stored file:
+
+```bash
+git ls-tree HEAD
+git ls-tree HEAD:questions
+git show HEAD:questions/000001.json
+git show HEAD~1:questions/000001.json
+```
+
+The last two commands read different survey versions directly from Git
+without changing the working tree.
+
+Git addresses every stored object by a hash of its contents. Files that did
+not change are reused by the new tree instead of being stored as new logical
+versions. When repositories are packed or transferred, Git can also delta
+compress similar objects. This is why Git can communicate a small survey
+revision without treating the entire history as an opaque replacement file.
+
+The `.ep` archive itself is repacked after a save, so copying the file with a
+generic file-copy tool still copies the whole archive. The transfer
+efficiency comes into play when the embedded repository is synchronized with
+a Git remote through EDSL's push and pull operations.
+
+## Load or render an older version
+
+Save the first commit ID before making further changes:
+
+```python
+first_commit = first_save["commit"]
+```
+
+Load that exact historical survey:
+
+```python
+original = Survey.git.load(
+    "example-survey.ep",
+    ref=first_commit,
+)
+
+original.questions[0].question_text
+```
+
+```python
+"Do you like school?"
+```
+
+The current version remains:
+
+```python
+current = Survey.git.load("example-survey.ep")
+current.questions[0].question_text
+```
+
+```python
+"Do you enjoy school?"
+```
+
+The CLI can also render a historical version to HTML:
+
+```bash
+ep open example-survey.ep --ref <first-commit-id> --output original-survey.html
+```
+
+This is useful in review or replication: a commit ID identifies the exact
+survey being discussed, even after the package has moved forward.
+
+## Name important versions
+
+Commit IDs are precise but not memorable. Add a Git tag to a milestone:
+
+```python
+survey.git.tag(
+    "pilot-v1",
+    message="Survey used for the first pilot",
+)
+```
+
+List tags:
+
+```python
+survey.git.tags()
+```
+
+```python
+["pilot-v1"]
+```
+
+Tags are helpful for statements such as “the preregistered instrument was
+`pilot-v1`” or “production used `field-v2`.” A verifier can resolve the tag to
+the exact commit and inspect the difference between milestones.
+
+## Explore alternatives with branches
+
+Branches let collaborators develop alternative instruments without
+overwriting the main line:
+
+```python
+survey.git.branch("short-form")
+survey.git.switch("short-form")
+
+# Make edits to the in-memory Survey here.
+survey.git.save(message="Create short-form variant")
+```
+
+Return to the main version:
+
+```python
+survey.git.switch("main")
+```
+
+`switch()` refreshes the in-memory `Survey` from the selected branch. EDSL
+requires a clean package before switching, pulling, or checking out another
+version, which protects uncommitted changes.
+
+## Communicate only the changes
+
+An `.ep` file is already a self-contained handoff: its recipient gets both the
+current Survey and its history. For ongoing collaboration, attach a Git remote
+and use EDSL's synchronization methods:
+
+```python
+survey.git.remote_add("origin", "<git-remote-url>")
+survey.git.push("origin")
+```
+
+A collaborator can clone the package and later fetch or pull new commits:
+
+```python
+collaborator = Survey.git.clone(
+    "<git-remote-url>",
+    "collaborator-copy.ep",
+)
+
+collaborator.git.pull()
+```
+
+At the CLI level, Expected Parrot-backed packages can be shared with:
+
+```bash
+ep push example-survey.ep
+ep pull example-survey.ep
+```
+
+Git negotiates which objects the receiver already has and transfers the
+missing objects. This matters when a team repeatedly revises a large survey:
+the communication unit is a commit and its changed objects, not a succession
+of unrelated `survey-final-2-revised.json` files.
+
+## Working inside another Git repository
+
+An `.ep` package contains its own Git repository. If it is placed inside a
+different Git repository, the outer Git repository sees an embedded
+repository. EDSL warns about this because the relationship should be
+intentional.
+
+Usually, choose one of these approaches:
+
+- Ignore the `.ep` package in the outer repository and let its own Git history
+  and remote manage it.
+- Intentionally manage it as a Git submodule.
+- Store an exported JSON snapshot in the outer repository when independent
+  `.ep` history is unnecessary.
+
+For the first option, a loaded package can update the outer `.gitignore`:
+
+```python
+survey.git.ignore_in_parent()
+```
+
+## Why this design is useful
+
+For survey research, a Git-backed object provides several practical
+guarantees:
+
+1. **Exact references.** A commit hash identifies the complete survey,
+   including questions, order, rules, memory, and groups.
+2. **Readable review.** Questions and metadata are formatted JSON, so a
+   reviewer can see wording and logic changes as ordinary diffs.
+3. **Focused changes.** Unchanged questions retain their stored objects;
+   revisions affect the relevant question and dependent metadata.
+4. **Recoverable history.** Old instruments remain loadable even after the
+   working version changes.
+5. **Named milestones.** Tags can identify preregistration, pilot, field, and
+   publication versions.
+6. **Parallel development.** Branches can hold experimental variants.
+7. **Efficient synchronization.** Git remotes exchange missing objects rather
+   than treating every revision as an unrelated dataset.
+8. **Portable provenance.** Copying one `.ep` file carries the current object
+   and its complete embedded history.
+
+The result is a survey format that works at two levels: researchers can use it
+as a normal EDSL `Survey`, while reviewers and collaborators can use familiar
+Git concepts to understand how that Survey evolved.
+
+## Command reference
+
+```python
+from edsl import Survey
+
+# Create and save
+survey = Survey.example()
+info = survey.git.save("example-survey.ep", message="Initial survey")
+
+# Load latest or historical state
+latest = Survey.git.load("example-survey.ep")
+older = Survey.git.load("example-survey.ep", ref=info["commit"])
+
+# Inspect history and changes
+latest.git.status()
+latest.git.log()
+latest.git.diff("HEAD~1", "HEAD")
+
+# Mark and navigate versions
+latest.git.tag("pilot-v1", message="Pilot instrument")
+latest.git.branch("alternative")
+latest.git.switch("alternative")
+
+# Validate and synchronize
+latest.git.validate()
+latest.git.remotes()
+latest.git.push()
+latest.git.pull()
+```
+
+```bash
+# Inspect without writing
+ep inspect example-survey.ep
+
+# Unpack a temporary audit copy
+ep unpack example-survey.ep
+
+# Render the latest or a historical version
+ep open example-survey.ep --output survey.html
+ep open example-survey.ep --ref <commit> --output old-survey.html
+
+# Use the package in a job
+ep run --survey example-survey.ep --model test --output results.ep
+```

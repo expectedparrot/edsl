@@ -252,6 +252,18 @@ def _question_ids_for_questions(
                 matched_id = question_id
                 break
         if matched_id is None:
+            question_name = question_dict.get("question_name")
+            for question_id in existing_order:
+                if question_id in used:
+                    continue
+                existing_question = existing_questions.get(question_id, {})
+                if (
+                    question_name is not None
+                    and existing_question.get("question_name") == question_name
+                ):
+                    matched_id = question_id
+                    break
+        if matched_id is None:
             while True:
                 candidate = f"{next_index:06d}"
                 next_index += 1
