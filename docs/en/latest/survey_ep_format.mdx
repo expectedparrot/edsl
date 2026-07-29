@@ -436,6 +436,109 @@ survey.git.switch("main")
 requires a clean package before switching, pulling, or checking out another
 version, which protects uncommitted changes.
 
+## Merge a survey branch
+
+Suppose the `short-form` branch removes the follow-up question `q1`:
+
+```python
+survey.git.switch("short-form")
+survey.delete_question("q1")
+survey.git.save(message="Remove follow-up from short form")
+```
+
+At this point, `main` still has all three questions and `short-form` has two.
+Switch back before merging:
+
+```python
+survey.git.switch("main")
+survey.question_names
+```
+
+```python
+["q0", "q1", "q2"]
+```
+
+EDSL exposes branch creation and switching, but does not currently have a
+high-level `survey.git.merge()` method. The package is a real Git repository,
+so use Git for the merge:
+
+```python
+import subprocess
+
+subprocess.run(
+    [
+        "git",
+        "-C",
+        str(survey.git.worktree_path),
+        "-c",
+        "user.name=EDSL",
+        "-c",
+        "user.email=edsl@example.invalid",
+        "merge",
+        "--no-ff",
+        "short-form",
+        "-m",
+        "Merge short-form survey",
+    ],
+    check=True,
+)
+```
+
+`--no-ff` asks Git to create a merge commit even though this simple example
+could be fast-forwarded. That makes the point where the alternative survey
+entered `main` visible in history.
+
+The Git operation changes the unpacked working tree. Refresh the in-memory
+`Survey` from the merged branch and repack the `.ep` archive:
+
+```python
+survey.git.switch("main")
+survey.question_names
+```
+
+```python
+["q0", "q2"]
+```
+
+Calling `switch("main")` here is intentional even though Git is already on
+`main`: it reloads the merged files into the EDSL object and writes the
+updated repository back into `example-survey.ep`.
+
+The package history now contains a two-parent merge:
+
+```python
+survey.git.log()[:3]
+```
+
+```python
+[
+    {"message": "Merge short-form survey", "...": "..."},
+    {"message": "Remove follow-up from short form", "...": "..."},
+    {"message": "Create example survey", "...": "..."},
+]
+```
+
+From an unpacked inspection copy, Git can display the topology:
+
+```bash
+git log --graph --oneline --all
+```
+
+```text
+*   <merge> Merge short-form survey
+|\
+| * <branch> Remove follow-up from short form
+|/
+*   <initial> Create example survey
+```
+
+This is more informative than copying the short survey over the long one. The
+merge records both lines of development, their common ancestor, and the exact
+decision that joined them. If both branches edit the same part of a question
+or manifest, Git stops with a conflict rather than silently choosing one
+survey design; resolve the affected JSON, commit the resolution, reload the
+Survey, and repack the archive in the same way.
+
 ## Communicate only the changes
 
 An `.ep` file is already a self-contained handoff: its recipient gets both the
