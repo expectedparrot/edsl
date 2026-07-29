@@ -301,6 +301,29 @@ class GitBackedInstanceAccessor(GitBackedClassAccessor):
         )
         self._pack_archive()
 
+    def merge(
+        self,
+        ref: str,
+        *,
+        message: Optional[str] = None,
+        no_ff: bool = False,
+    ) -> dict:
+        info = self._bound_package().merge(
+            ref,
+            message=message,
+            no_ff=no_ff,
+        )
+        if info["status"] != "conflict":
+            loaded = self._load_from_worktree()
+            self._spec.refresh(self._instance, loaded)
+            self._copy_loaded_accessor_state(loaded)
+            self.commit = info["commit"]
+            self.current_branch = info["branch"]
+            self._pack_archive()
+        if self.path is not None:
+            info["path"] = str(self.path)
+        return info
+
     def restore(self, ref: str = "HEAD") -> dict:
         loaded = self._load_from_worktree(ref=ref)
         self._spec.refresh(self._instance, loaded)

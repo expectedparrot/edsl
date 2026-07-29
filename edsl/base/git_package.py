@@ -111,6 +111,120 @@ class GitPackage:
         ensure_clean(self.path, "switch", error_cls=self.error_cls)
         git(self.path, "switch", name, error_cls=self.error_cls)
 
+    def merge(
+        self,
+        ref: str,
+        *,
+        message: Optional[str] = None,
+        no_ff: bool = False,
+    ) -> dict:
+        """Merge ``ref`` into the current branch.
+
+        Conflicting merges are aborted automatically so that the package
+        worktree remains clean and its archive can continue to represent a
+        valid committed object.
+        """
+        ensure_clean(self.path, "merge", error_cls=self.error_cls)
+        branch = require_current_branch(self.path, error_cls=self.error_cls)
+        before = head_commit(self.path, error_cls=self.error_cls)
+        command = [
+            "-c",
+            "user.name=EDSL",
+            "-c",
+            "user.email=edsl@example.invalid",
+            "merge",
+        ]
+        if no_ff:
+            command.append("--no-ff")
+        if message is not None:
+            command.extend(["-m", message])
+        else:
+            command.append("--no-edit")
+        command.append(ref)
+
+        try:
+            git(self.path, *command, error_cls=self.error_cls)
+        except self.error_cls:
+            conflicts = [
+                line.strip()
+                for line in git(
+                    self.path,
+                    "diff",
+                    "--name-only",
+                    "--diff-filter=U",
+                    capture=True,
+                    error_cls=self.error_cls,
+                ).splitlines()
+                if line.strip()
+            ]
+            if not conflicts:
+                raise
+            git(self.path, "merge", "--abort", error_cls=self.error_cls)
+            return {
+                "status": "conflict",
+                "path": str(self.path),
+                "commit": before,
+                "branch": branch,
+                "merged_ref": ref,
+                "fast_forward": False,
+                "changed": [],
+                "conflicts": conflicts,
+                "aborted": True,
+                "message": f"merge of {ref} aborted due to conflicts",
+            }
+
+        commit = head_commit(self.path, error_cls=self.error_cls)
+        if commit == before:
+            return {
+                "status": "unchanged",
+                "path": str(self.path),
+                "commit": commit,
+                "branch": branch,
+                "merged_ref": ref,
+                "fast_forward": False,
+                "changed": [],
+                "conflicts": [],
+                "aborted": False,
+                "message": f"{ref} is already merged",
+            }
+
+        parent_line = git(
+            self.path,
+            "rev-list",
+            "--parents",
+            "-n",
+            "1",
+            commit,
+            capture=True,
+            error_cls=self.error_cls,
+        ).strip()
+        is_merge_commit = len(parent_line.split()) > 2
+        changed = [
+            line.strip()
+            for line in git(
+                self.path,
+                "diff",
+                "--name-only",
+                before,
+                commit,
+                capture=True,
+                error_cls=self.error_cls,
+            ).splitlines()
+            if line.strip()
+        ]
+        return {
+            "status": "ok",
+            "path": str(self.path),
+            "commit": commit,
+            "branch": branch,
+            "merged_ref": ref,
+            "fast_forward": not is_merge_commit,
+            "changed": changed,
+            "conflicts": [],
+            "aborted": False,
+            "message": message or f"Merge {ref}",
+        }
+
     def diff(self, *refs: str) -> str:
         return git(self.path, "diff", *refs, capture=True, error_cls=self.error_cls)
 

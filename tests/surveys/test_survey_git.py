@@ -546,6 +546,97 @@ def test_survey_git_branch_tag_restore(tmp_path):
     )
 
 
+def test_survey_git_merge_refreshes_object_and_repackages_archive(tmp_path):
+    package_path = tmp_path / "merge.survey.ep"
+    survey = Survey(
+        [QuestionFreeText(question_name="q0", question_text="First?")]
+    )
+    initial = survey.git.save(package_path, message="initial survey")
+
+    survey.git.branch("short-form")
+    survey.git.switch("short-form")
+    survey.add_question(
+        QuestionFreeText(question_name="q1", question_text="Second?")
+    )
+    branch_commit = survey.git.save(message="add second question")
+
+    survey.git.switch("main")
+    merge_info = survey.git.merge(
+        "short-form",
+        message="Merge short-form survey",
+        no_ff=True,
+    )
+
+    assert merge_info["status"] == "ok"
+    assert merge_info["branch"] == "main"
+    assert merge_info["merged_ref"] == "short-form"
+    assert merge_info["fast_forward"] is False
+    assert merge_info["conflicts"] == []
+    assert merge_info["aborted"] is False
+    assert "manifest.json" in merge_info["changed"]
+    assert "questions/000002.json" in merge_info["changed"]
+    assert merge_info["commit"] not in {
+        initial["commit"],
+        branch_commit["commit"],
+    }
+    assert survey.question_names == ["q0", "q1"]
+    assert Survey.git.load(package_path).question_names == ["q0", "q1"]
+
+    parent_line = subprocess.check_output(
+        [
+            "git",
+            "-C",
+            str(survey.git.worktree_path),
+            "rev-list",
+            "--parents",
+            "-n",
+            "1",
+            "HEAD",
+        ],
+        text=True,
+    ).strip()
+    assert len(parent_line.split()) == 3
+
+
+def test_survey_git_merge_conflict_aborts_and_preserves_current_survey(tmp_path):
+    package_path = tmp_path / "conflict.survey.ep"
+    survey = Survey(
+        [QuestionFreeText(question_name="q0", question_text="Original wording")]
+    )
+    survey.git.save(package_path, message="initial survey")
+
+    survey.git.branch("alternative")
+    survey.git.switch("alternative")
+    survey.questions[0].question_text = "Alternative wording"
+    survey.git.save(message="edit wording on alternative")
+
+    survey.git.switch("main")
+    survey.questions[0].question_text = "Main wording"
+    main_commit = survey.git.save(message="edit wording on main")
+
+    merge_info = survey.git.merge("alternative", no_ff=True)
+
+    assert merge_info == {
+        "status": "conflict",
+        "path": str(package_path),
+        "commit": main_commit["commit"],
+        "branch": "main",
+        "merged_ref": "alternative",
+        "fast_forward": False,
+        "changed": [],
+        "conflicts": ["questions/000001.json"],
+        "aborted": True,
+        "message": "merge of alternative aborted due to conflicts",
+    }
+    assert survey.git.status()["clean"] is True
+    assert survey.git.commit == main_commit["commit"]
+    assert survey.questions[0].question_text == "Main wording"
+    assert (
+        Survey.git.load(package_path).questions[0].question_text
+        == "Main wording"
+    )
+
+
 def test_survey_git_push_and_pull_with_remote(tmp_path):
     remote_path = tmp_path / "remote.git"
     first_path = tmp_path / "first.survey.ep"
