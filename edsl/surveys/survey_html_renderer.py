@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import re
 from datetime import datetime, timezone
+from html import escape
 from pathlib import Path
 from typing import Any
 
@@ -32,11 +33,15 @@ class SurveyPackageHTMLRenderer:
         )
 
     def render(self, *, title: str = "EDSL Survey") -> str:
+        payload = self._payload(title=title)
         return render_standalone_html(
             title=title,
             data_variable="DATA",
-            data=self._payload(title=title),
-            body=BODY_HTML,
+            data=payload,
+            body=BODY_HTML.replace(
+                '<table id="survey-question-table"></table>',
+                _static_question_table(payload["questions"]),
+            ),
             script=SCRIPT,
             extra_css=EXTRA_CSS,
         )
@@ -63,7 +68,9 @@ class SurveyPackageHTMLRenderer:
         question_groups = survey_dict.get("question_groups") or {}
         questions_to_randomize = survey_dict.get("questions_to_randomize") or []
         options_to_pin = survey_dict.get("options_to_pin") or {}
-        question_names = [q.get("question_name", f"q{idx}") for idx, q in enumerate(questions)]
+        question_names = [
+            q.get("question_name", f"q{idx}") for idx, q in enumerate(questions)
+        ]
 
         rows = []
         for index, question in enumerate(questions):
@@ -83,7 +90,7 @@ class SurveyPackageHTMLRenderer:
                     "name": question.get("question_name"),
                     "type": question.get("question_type"),
                     "text": question.get("question_text"),
-                    "options": question.get("question_options"),
+                    "options": _option_values(question.get("question_options")),
                     "details": _question_details(question),
                     "rules": rule_views,
                     "piping": piping,
@@ -123,7 +130,9 @@ class SurveyPackageHTMLRenderer:
             ),
             "summary": {
                 "questions": len(rows),
-                "question_types": len({row.get("type") for row in rows if row.get("type")}),
+                "question_types": len(
+                    {row.get("type") for row in rows if row.get("type")}
+                ),
                 "rules": len(non_default_rules),
                 "memory_entries": len((memory_plan.get("data") or {})),
                 "groups": len(question_groups),
@@ -437,7 +446,9 @@ def _piping_references(question: dict[str, Any]) -> list[dict[str, str]]:
     for location, value in _walk_question_values(question):
         if not isinstance(value, str) or "{{" not in value:
             continue
-        for match in re.finditer(r"\{\{\s*([A-Za-z_]\w*)\.([A-Za-z_]\w*)[^}]*\}\}", value):
+        for match in re.finditer(
+            r"\{\{\s*([A-Za-z_]\w*)\.([A-Za-z_]\w*)[^}]*\}\}", value
+        ):
             key = (match.group(1), match.group(2))
             references[key] = {
                 "source": match.group(1),
@@ -470,7 +481,9 @@ def _logic_items(
         items.append(
             {
                 "kind": behavior,
-                "label": str(rule.get("summary") or f"{behavior} -> {rule.get('target')}"),
+                "label": str(
+                    rule.get("summary") or f"{behavior} -> {rule.get('target')}"
+                ),
                 "detail": str(rule.get("detail") or rule.get("expression") or ""),
             }
         )
@@ -546,11 +559,7 @@ def _rule_behavior(
         and next_q > current_q + 1
     ):
         return "jump"
-    if (
-        isinstance(current_q, int)
-        and isinstance(next_q, int)
-        and next_q <= current_q
-    ):
+    if isinstance(current_q, int) and isinstance(next_q, int) and next_q <= current_q:
         return "jump"
     return "branch"
 
@@ -841,6 +850,61 @@ def _jsonable(value: Any) -> Any:
         if isinstance(value, (list, tuple, set)):
             return [_jsonable(v) for v in value]
         return repr(value)
+
+
+def _option_values(value: Any) -> list[Any]:
+    """Return question options in the list shape expected by the HTML UI."""
+    if value is None:
+        return []
+    if isinstance(value, list):
+        return value
+    if isinstance(value, (tuple, set)):
+        return list(value)
+    return [value]
+
+
+def _static_question_table(questions: list[dict[str, Any]]) -> str:
+    """Render question rows that remain useful when browser JavaScript is unavailable."""
+    columns = ("index", "name", "type", "text", "options", "logic", "comments")
+    header = "".join(f"<th>{escape(column)}</th>" for column in columns)
+    rows = []
+    for question in questions:
+        options = (
+            ", ".join(escape(str(option)) for option in question.get("options") or [])
+            or '<span class="missing">none</span>'
+        )
+        logic = (
+            "; ".join(
+                escape(str(item.get("label") or ""))
+                for item in question.get("logic") or []
+            )
+            or '<span class="missing">none</span>'
+        )
+        comments = question.get("comments") or []
+        comment_text = (
+            escape(f"{len(comments)} total")
+            if comments
+            else '<span class="missing">none</span>'
+        )
+        rows.append(
+            "<tr>"
+            f'<td class="index">{question["index"] + 1}</td>'
+            f"<td>{escape(str(question.get('name') or ''))}</td>"
+            f"<td>{escape(str(question.get('type') or ''))}</td>"
+            f'<td><div class="question-text">{escape(str(question.get("text") or ""))}</div></td>'
+            f'<td><div class="chips">{options}</div></td>'
+            f'<td><div class="chips">{logic}</div></td>'
+            f"<td>{comment_text}</td>"
+            "</tr>"
+        )
+    if not rows:
+        rows.append('<tr><td class="empty" colspan="7">No questions.</td></tr>')
+    return (
+        '<table id="survey-question-table">'
+        f"<thead><tr>{header}</tr></thead>"
+        f"<tbody>{''.join(rows)}</tbody>"
+        "</table>"
+    )
 
 
 EXTRA_CSS = """
@@ -1318,8 +1382,10 @@ function questionCell(row, key) {
 }
 
 function optionChips(options) {
-  if (!options || !options.length) return "<span class='missing'>none</span>";
-  return options.map(option => `<span class="chip">${escapeHtml(text(option))}</span>`).join("");
+  if (options === null || options === undefined) return "<span class='missing'>none</span>";
+  const values = Array.isArray(options) ? options : [options];
+  if (!values.length) return "<span class='missing'>none</span>";
+  return values.map(option => `<span class="chip">${escapeHtml(text(option))}</span>`).join("");
 }
 
 function logicChips(logic) {
