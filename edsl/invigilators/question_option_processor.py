@@ -167,13 +167,23 @@ class QuestionOptionProcessor(QuestionAttributeProcessor):
 
     def _render_option_list(self, options: list) -> list:
         """Render templated options individually while preserving static values."""
-        return [
-            self._render_template_to_native_value(option)
-            if isinstance(option, str)
-            and any(marker in option for marker in ("{{", "{%", "{#"))
-            else option
-            for option in options
-        ]
+        rendered_options = []
+        for option in options:
+            if not (
+                isinstance(option, str)
+                and any(marker in option for marker in ("{{", "{%", "{#"))
+            ):
+                rendered_options.append(option)
+                continue
+
+            try:
+                rendered_options.append(self._render_template_to_native_value(option))
+            except Exception:
+                # Preserve option text that only resembles a template or
+                # contains malformed Jinja syntax.
+                rendered_options.append(option)
+
+        return rendered_options
 
     def _get_options_from_template(self, template_string: str) -> list:
         """

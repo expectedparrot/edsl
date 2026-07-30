@@ -72,3 +72,29 @@ def test_renders_templates_in_additional_options():
     )
 
     assert options == ["apple", "pear", "Other fruit", "None"]
+
+
+def test_preserves_malformed_template_in_individual_option():
+    processor = QuestionOptionProcessor(Scenario({}), {})
+
+    options = processor.get_question_options(
+        {"question_options": ["Use {{name", "Other"]}
+    )
+
+    assert options == ["Use {{name", "Other"]
+
+
+def test_preserves_malformed_template_in_additional_option():
+    prior_answers = {"q1": SimpleNamespace(answer=["apple", "pear"], comment=None)}
+    processor = QuestionOptionProcessor(Scenario({}), prior_answers)
+
+    options = processor.get_question_options(
+        {
+            "question_options": {
+                "from": "{{ q1.answer }}",
+                "add": ["Use {{name"],
+            }
+        }
+    )
+
+    assert options == ["apple", "pear", "Use {{name"]
