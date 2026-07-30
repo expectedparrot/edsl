@@ -40,7 +40,7 @@ class MetaService(OpenAIService):
             raise ValueError(f"API key for {cls._inference_service_} is not set")
 
         response = requests.get(
-            cls._models_url,
+            cls._models_url_,
             headers={"Authorization": f"Bearer {api_key}"},
             timeout=30,
         )

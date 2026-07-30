@@ -57,6 +57,10 @@ class ExecutionResult:
     cache_key: str | None = None
     validated: bool | None = None
     reasoning_summary: str | None = None
+    distribution: list[float] | None = None
+    resolution_draw: Any = None
+    resolution_seed: int | None = None
+    resolution_method: str | None = None
 
 
 class ExecutionWorker:
@@ -180,6 +184,10 @@ class ExecutionWorker:
                         cache_key=result.cache_key,
                         validated=result.validated,
                         reasoning_summary=result.reasoning_summary,
+                        distribution=result.distribution,
+                        resolution_draw=result.resolution_draw,
+                        resolution_seed=result.resolution_seed,
+                        resolution_method=result.resolution_method,
                     )
                 else:
                     self._job_service.on_task_failed(
@@ -282,7 +290,15 @@ class ExecutionWorker:
             )
 
             # Validate answer through question's validator (handles repair/fix)
-            answer, comment, validated = self._validate_answer(
+            (
+                answer,
+                comment,
+                validated,
+                distribution,
+                resolution_draw,
+                resolution_seed,
+                resolution_method,
+            ) = self._validate_answer(
                 task, answer, comment, generated_tokens
             )
 
@@ -344,6 +360,10 @@ class ExecutionWorker:
                 cache_key=cache_key,
                 validated=validated,
                 reasoning_summary=reasoning_summary,
+                distribution=distribution,
+                resolution_draw=resolution_draw,
+                resolution_seed=resolution_seed,
+                resolution_method=resolution_method,
             )
 
         except Exception as e:
@@ -432,6 +452,10 @@ class ExecutionWorker:
             cache_key=result.cache_key,
             validated=result.validated,
             reasoning_summary=result.reasoning_summary,
+            distribution=result.distribution,
+            resolution_draw=result.resolution_draw,
+            resolution_seed=result.resolution_seed,
+            resolution_method=result.resolution_method,
             error_type=self._classify_error(exception_occurred)
             if exception_occurred
             else None,
@@ -464,23 +488,31 @@ class ExecutionWorker:
 
     def _validate_answer(
         self, task: Any, answer: Any, comment: str | None, generated_tokens: str | None
-    ) -> tuple[Any, str | None, bool]:
+    ) -> tuple[
+        Any,
+        str | None,
+        bool,
+        list[float] | None,
+        Any,
+        int | None,
+        str | None,
+    ]:
         """Validate answer through the question's response validator.
 
         Resolves template options before validation.
         Raises QuestionAnswerValidationError on failure (handled by _execute).
 
-        Returns (answer, comment, validated) tuple.
+        Returns the answer, comment, validation status, and resolution audit fields.
         """
         if task.question_id is None:
-            return answer, comment, True
+            return answer, comment, True, None, None, None, None
 
         question_data = self._job_service._jobs.get_question(
             task.job_id, task.question_id
         )
 
         if not question_data:
-            return answer, comment, True
+            return answer, comment, True, None, None, None, None
 
         # Resolve template strings in question data before validation.
         # This handles question_options, min_value, max_value, etc.
@@ -489,6 +521,29 @@ class ExecutionWorker:
         )
 
         question = QuestionBase.from_dict(question_data)
+        from ..questions.probabilistic_response import ProbabilisticResponse
+
+        task_definition = self._job_service._tasks.get_definition(
+            task.job_id, task.interview_id, task.task_id
+        )
+        agent_id = task_definition.agent_id if task_definition else None
+        scenario_id = task_definition.scenario_id if task_definition else None
+        agent_data = (
+            self._job_service._jobs.get_agent(task.job_id, agent_id) or {}
+            if agent_id is not None
+            else {}
+        )
+        scenario_data = (
+            self._job_service._jobs.get_scenario(task.job_id, scenario_id) or {}
+            if scenario_id is not None
+            else {}
+        )
+        question._probabilistic_seed_context = ProbabilisticResponse.seed_context(
+            agent=agent_data,
+            scenario=scenario_data,
+            question_name=task.question_name,
+            iteration=task.iteration,
+        )
         raw_answer_dict = {
             "answer": answer,
             "generated_tokens": generated_tokens or str(answer),
@@ -502,12 +557,16 @@ class ExecutionWorker:
                 validated_dict.get("answer", answer),
                 validated_dict.get("comment", comment),
                 True,
+                validated_dict.get("distribution"),
+                validated_dict.get("resolution_draw"),
+                validated_dict.get("resolution_seed"),
+                validated_dict.get("resolution_method"),
             )
         except QuestionAnswerValidationError:
             raise  # Real validation failure — let _execute handle it
         except Exception:
             # Bug in validation code (e.g. type mismatch) — don't block the answer
-            return answer, comment, False
+            return answer, comment, False, None, None, None, None
 
     def _get_interview_answers(self, job_id: str, interview_id: str) -> dict:
         """Get current answers for an interview as {question_name: answer_value}."""

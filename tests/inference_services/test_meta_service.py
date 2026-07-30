@@ -3,6 +3,34 @@ import asyncio
 from edsl.inference_services.services.meta_service import MetaService
 
 
+def test_meta_get_model_info_uses_models_endpoint(monkeypatch):
+    captured = {}
+
+    class DummyResponse:
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {"data": [{"id": "muse-spark-1.1"}]}
+
+    def fake_get(url, headers, timeout):
+        captured.update({"url": url, "headers": headers, "timeout": timeout})
+        return DummyResponse()
+
+    monkeypatch.setattr(
+        "edsl.inference_services.services.meta_service.requests.get", fake_get
+    )
+
+    assert MetaService.get_model_info(api_key="test-token") == [
+        {"id": "muse-spark-1.1"}
+    ]
+    assert captured == {
+        "url": "https://api.meta.ai/v1/models",
+        "headers": {"Authorization": "Bearer test-token"},
+        "timeout": 30,
+    }
+
+
 def test_meta_payload_uses_responses_input_text_shape():
     model_class = MetaService.create_model("muse-spark-1.1")
     model = model_class(skip_api_key_check=True)

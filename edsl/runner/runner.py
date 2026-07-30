@@ -883,6 +883,10 @@ class Runner:
                     user_prompt=result.get("user_prompt"),
                     cache_key=generate_id(),
                     validated=True,
+                    distribution=result.get("distribution"),
+                    resolution_draw=result.get("resolution_draw"),
+                    resolution_seed=result.get("resolution_seed"),
+                    resolution_method=result.get("resolution_method"),
                 )
 
                 self._direct_registry.remove(task_id)

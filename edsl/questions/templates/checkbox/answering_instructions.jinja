@@ -1,10 +1,15 @@
 {# Answering Instructions #}
-{% if use_code %}
+{% if probabilistic_response %}
+Respond only with a JSON object containing an "inclusion_probabilities" array.
+Provide exactly one marginal inclusion probability per option in the displayed order.
+Every probability must be between 0 and 1.
+These probabilities will be resolved as independent Bernoulli selections by EDSL.
+Do not choose a subset or generate random draws.
+{% elif use_code %}
 Please respond only with a comma-separated list of the code of the options that apply, with square brackets. E.g., [0, 1, 3]
 {% else %}
 Please respond only with a comma-separated list of the options that apply, with square brackets. E.g., ['Good', 'Bad', 'Ugly']
 {% endif %}
-{% if include_comment %}
+{% if include_comment and not probabilistic_response %}
 After the answer, you can put a comment explaining your choice on the next line.
 {% endif %}
-

@@ -466,8 +466,13 @@ class QuestionBase(
             "_invigilator_class",  # runtime-only; restored by thinking_question()
             "_system_prompt",  # serialized via _thinking_system_prompt
             "_is_thinking_question",  # serialized via from_dict detection
+            "_probabilistic_seed_context",  # runtime-only resolution identity
         ]
-        only_if_not_na_list = ["_answering_instructions", "_question_presentation"]
+        only_if_not_na_list = [
+            "_answering_instructions",
+            "_question_presentation",
+            "_probabilistic_response",
+        ]
 
         only_if_not_default_list = {
             "_include_comment": True,

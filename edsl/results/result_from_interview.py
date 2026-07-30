@@ -114,6 +114,18 @@ class ResultFromInterview:
         )
 
         validated_dictionary = self._get_validated_dictionary(model_response_objects)
+        distribution_dict = self._get_optional_result_field(
+            answer_key_names, question_results, "distribution"
+        )
+        resolution_draw_dict = self._get_optional_result_field(
+            answer_key_names, question_results, "resolution_draw"
+        )
+        resolution_seed_dict = self._get_optional_result_field(
+            answer_key_names, question_results, "resolution_seed"
+        )
+        resolution_method_dict = self._get_optional_result_field(
+            answer_key_names, question_results, "resolution_method"
+        )
 
         # Build question_to_attributes from the actual question instances
         # These have been updated by the invigilator (e.g., resolved dict-based options)
@@ -140,6 +152,10 @@ class ResultFromInterview:
             cache_keys=cache_keys,
             validated_dict=validated_dictionary,
             question_to_attributes=question_to_attributes,
+            distribution=distribution_dict,
+            resolution_draw=resolution_draw_dict,
+            resolution_seed=resolution_seed_dict,
+            resolution_method=resolution_method_dict,
         )
 
         # Store only the hash, not the interview
@@ -164,6 +180,14 @@ class ResultFromInterview:
         for result in model_response_objects:
             question_results[result.question_name] = result
         return question_results
+
+    @staticmethod
+    def _get_optional_result_field(answer_key_names, question_results, field):
+        return {
+            question_name: value
+            for question_name in answer_key_names
+            if (value := getattr(question_results[question_name], field, None)) is not None
+        }
 
     def _get_cache_keys(self, model_response_objects) -> Dict[str, bool]:
         """Extract cache keys from model response objects."""
