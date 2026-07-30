@@ -207,7 +207,7 @@ class TestUnknownParameterWarning(unittest.TestCase):
         )
 
         legacy_data = {
-            "model": "gpt-4-1106-preview",
+            "model": "legacy-unknown-model",
             "parameters": {"temperature": 0.5},
         }
         with patch.object(
@@ -218,7 +218,33 @@ class TestUnknownParameterWarning(unittest.TestCase):
             model = LanguageModel.from_dict(legacy_data)
 
         self.assertEqual(model.model, "test")
-        self.assertEqual(model.original_model, "gpt-4-1106-preview")
+        self.assertEqual(model.original_model, "legacy-unknown-model")
+
+    def test_from_dict_infers_openai_without_model_discovery(self):
+        from unittest.mock import patch
+
+        data = {
+            "model": "gpt-4o",
+            "parameters": {
+                "temperature": 0.5,
+                "max_tokens": 1000,
+                "top_p": 1,
+                "frequency_penalty": 0,
+                "presence_penalty": 0,
+                "logprobs": False,
+                "top_logprobs": 3,
+            },
+        }
+
+        with patch(
+            "edsl.inference_services.inference_service_registry."
+            "InferenceServiceRegistry.get_service_for_model",
+            side_effect=AssertionError("from_dict should not discover model services"),
+        ):
+            model = LanguageModel.from_dict(data)
+
+        self.assertEqual(model.model, "gpt-4o")
+        self.assertEqual(model._inference_service_, "openai")
 
 
 if __name__ == "__main__":
