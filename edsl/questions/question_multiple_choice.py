@@ -3,12 +3,25 @@ from enum import Enum
 from typing import Union, Literal, Optional, List, Any
 
 from jinja2 import Template
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, StrictFloat, StrictInt
 
 from .question_base import QuestionBase
 from .descriptors import QuestionOptionsDescriptor
 from .decorators import inject_exception
 from .response_validator_abc import ResponseValidatorABC
+from .probabilistic_response import ProbabilisticResponse
+
+
+class CategoricalProbabilityPayload(BaseModel):
+    probabilities: List[Union[StrictInt, StrictFloat]] = Field(
+        description="One probability per option, in the displayed option order"
+    )
+
+
+class ProbabilisticMultipleChoiceResponse(BaseModel):
+    answer: CategoricalProbabilityPayload
+    comment: Optional[str] = None
+    generated_tokens: Optional[Any] = None
 
 
 class AnswerEnumeration(str, Enum):
@@ -171,7 +184,53 @@ class MultipleChoiceResponseValidator(ResponseValidatorABC):
         'Good'
     """
 
-    required_params = ["question_options", "use_code", "enumeration"]
+    required_params = [
+        "question_options",
+        "use_code",
+        "enumeration",
+        "probabilistic_response",
+        "probabilistic_seed_context",
+    ]
+
+    def _post_process(self, edsl_answer_dict):
+        contract = getattr(self, "probabilistic_response", None)
+        if contract is None:
+            return edsl_answer_dict
+
+        payload = edsl_answer_dict["answer"]
+        if isinstance(payload, BaseModel):
+            payload = payload.model_dump()
+        try:
+            probabilities = contract.validate(
+                payload["probabilities"], len(self.question_options)
+            )
+        except (KeyError, TypeError, ValueError) as exc:
+            from .exceptions import QuestionAnswerValidationError
+
+            raise QuestionAnswerValidationError(
+                message=str(exc),
+                data=edsl_answer_dict,
+                model=self.response_model,
+                pydantic_error=exc,
+            ) from exc
+
+        resolution = contract.resolve(
+            probabilities,
+            context=getattr(self, "probabilistic_seed_context", None),
+        )[0]
+        index = resolution["index"]
+        if index is None:
+            answer = None
+        else:
+            codes = self.enumeration.codes_for(len(self.question_options))
+            answer = codes[index] if codes is not None else self.question_options[index]
+
+        edsl_answer_dict["answer"] = answer
+        edsl_answer_dict["distribution"] = probabilities
+        edsl_answer_dict["resolution_draw"] = resolution["draw"]
+        edsl_answer_dict["resolution_seed"] = resolution["seed"]
+        edsl_answer_dict["resolution_method"] = resolution["method"]
+        return edsl_answer_dict
 
     def fix(self, response, verbose=False):
         """
@@ -464,6 +523,7 @@ class QuestionMultipleChoice(QuestionBase):
         answering_instructions: Optional[str] = None,
         question_presentation: Optional[str] = None,
         permissive: bool = False,
+        probabilistic_response: ProbabilisticResponse | dict | None = None,
     ):
         """
         Initialize a new multiple choice question.
@@ -566,6 +626,17 @@ class QuestionMultipleChoice(QuestionBase):
         self.answering_instructions = answering_instructions
         self.question_presentation = question_presentation
         self.permissive = permissive
+        self._probabilistic_response = ProbabilisticResponse.from_value(
+            probabilistic_response
+        )
+        if (
+            self._probabilistic_response is not None
+            and self._probabilistic_response.representation != "categorical"
+        ):
+            raise ValueError(
+                "Multiple-choice probabilistic responses require "
+                "representation='categorical'."
+            )
 
     ################
     # Answer methods
@@ -598,7 +669,17 @@ class QuestionMultipleChoice(QuestionBase):
     def enumeration(self) -> AnswerEnumeration:
         return self._enumeration
 
+    @property
+    def probabilistic_response(self) -> ProbabilisticResponse | None:
+        return self._probabilistic_response
+
+    @property
+    def probabilistic_seed_context(self) -> dict | None:
+        return getattr(self, "_probabilistic_seed_context", None)
+
     def create_response_model(self, replacement_dict: Optional[dict] = None):
+        if self.probabilistic_response is not None:
+            return ProbabilisticMultipleChoiceResponse
         if replacement_dict is None:
             replacement_dict = {}
 
@@ -607,6 +688,12 @@ class QuestionMultipleChoice(QuestionBase):
             return create_response_model(codes, self.permissive)
         else:
             return create_response_model(self.question_options, self.permissive)
+
+    def to_dict(self, add_edsl_version: bool = True):
+        data = super().to_dict(add_edsl_version=add_edsl_version)
+        if self.probabilistic_response is not None:
+            data["probabilistic_response"] = self.probabilistic_response.to_dict()
+        return data
 
     @staticmethod
     def _translate_question_options(

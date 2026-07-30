@@ -498,10 +498,10 @@ test: ## Run regular tests (no Coop tests). Use 'make test DIR' to run tests fro
 	@if [ -n "$(filter-out $@,$(MAKECMDGOALS))" ]; then \
 		dir="$(filter-out $@,$(MAKECMDGOALS))"; \
 		echo "Running tests for directory: $$dir"; \
-		pytest -xv $$dir --nocoop; \
+		poetry run pytest -xv $$dir --nocoop; \
 	else \
 		echo "Running all tests"; \
-		pytest -xv tests --nocoop; \
+		poetry run pytest -xv tests --nocoop; \
 	fi
 	@bash scripts/mark_check_complete.sh TESTS
 
@@ -556,31 +556,31 @@ test-doctests: ## Run doctests for a specific directory (e.g., make test-doctest
 		dir="$(filter-out $@,$(MAKECMDGOALS))"; \
 		echo "Running doctests for directory: $$dir"; \
 		if [ "$$dir" = "edsl/buckets" ]; then \
-			EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules --ignore=edsl/buckets/token_bucket_client.py --ignore=edsl/buckets/token_bucket_api.py $$dir; \
+			EDSL_RUNNING_DOCTESTS=True poetry run pytest -x --doctest-modules --ignore=edsl/buckets/token_bucket_client.py --ignore=edsl/buckets/token_bucket_api.py $$dir; \
 		else \
-			EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules $$dir; \
+			EDSL_RUNNING_DOCTESTS=True poetry run pytest -x --doctest-modules $$dir; \
 		fi; \
 	else \
 		echo "Running doctests for all directories"; \
-		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/instructions && \
-		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/key_management && \
-		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/prompts && \
-		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/tasks && \
-		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/results && \
-		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/dataset && \
-		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules --ignore=edsl/buckets/token_bucket_client.py --ignore=edsl/buckets/token_bucket_api.py edsl/buckets && \
-		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/interviews && \
-		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/tokens && \
-		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/jobs/ && \
-		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/surveys && \
-		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/agents && \
-		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/scenarios && \
-		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/questions && \
-		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/utilities && \
-		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules --ignore=edsl/language_models/unused edsl/language_models && \
-		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/caching && \
-		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules edsl/invigilators && \
-		EDSL_RUNNING_DOCTESTS=True pytest -x --doctest-modules --ignore=edsl/inference_services/services edsl/inference_services; \
+		EDSL_RUNNING_DOCTESTS=True poetry run pytest -x --doctest-modules edsl/instructions && \
+		EDSL_RUNNING_DOCTESTS=True poetry run pytest -x --doctest-modules edsl/key_management && \
+		EDSL_RUNNING_DOCTESTS=True poetry run pytest -x --doctest-modules edsl/prompts && \
+		EDSL_RUNNING_DOCTESTS=True poetry run pytest -x --doctest-modules edsl/tasks && \
+		EDSL_RUNNING_DOCTESTS=True poetry run pytest -x --doctest-modules edsl/results && \
+		EDSL_RUNNING_DOCTESTS=True poetry run pytest -x --doctest-modules edsl/dataset && \
+		EDSL_RUNNING_DOCTESTS=True poetry run pytest -x --doctest-modules --ignore=edsl/buckets/token_bucket_client.py --ignore=edsl/buckets/token_bucket_api.py edsl/buckets && \
+		EDSL_RUNNING_DOCTESTS=True poetry run pytest -x --doctest-modules edsl/interviews && \
+		EDSL_RUNNING_DOCTESTS=True poetry run pytest -x --doctest-modules edsl/tokens && \
+		EDSL_RUNNING_DOCTESTS=True poetry run pytest -x --doctest-modules edsl/jobs/ && \
+		EDSL_RUNNING_DOCTESTS=True poetry run pytest -x --doctest-modules edsl/surveys && \
+		EDSL_RUNNING_DOCTESTS=True poetry run pytest -x --doctest-modules edsl/agents && \
+		EDSL_RUNNING_DOCTESTS=True poetry run pytest -x --doctest-modules edsl/scenarios && \
+		EDSL_RUNNING_DOCTESTS=True poetry run pytest -x --doctest-modules edsl/questions && \
+		EDSL_RUNNING_DOCTESTS=True poetry run pytest -x --doctest-modules edsl/utilities && \
+		EDSL_RUNNING_DOCTESTS=True poetry run pytest -x --doctest-modules --ignore=edsl/language_models/unused edsl/language_models && \
+		EDSL_RUNNING_DOCTESTS=True poetry run pytest -x --doctest-modules edsl/caching && \
+		EDSL_RUNNING_DOCTESTS=True poetry run pytest -x --doctest-modules edsl/invigilators && \
+		EDSL_RUNNING_DOCTESTS=True poetry run pytest -x --doctest-modules --ignore=edsl/inference_services/services edsl/inference_services; \
 	fi
 	@bash scripts/mark_check_complete.sh DOCTESTS
 

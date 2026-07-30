@@ -89,6 +89,10 @@ class Result(Base, UserDict):
         indices: Optional[dict] = None,
         cache_keys: Optional[dict[QuestionName, str]] = None,
         validated_dict: Optional[dict[QuestionName, bool]] = None,
+        distribution: Optional[dict[QuestionName, Any]] = None,
+        resolution_draw: Optional[dict[QuestionName, Any]] = None,
+        resolution_seed: Optional[dict[QuestionName, int]] = None,
+        resolution_method: Optional[dict[QuestionName, str]] = None,
     ):
         """Initialize a Result object.
 
@@ -131,6 +135,10 @@ class Result(Base, UserDict):
             "cache_used_dict": cache_used_dict or {},
             "cache_keys": cache_keys or {},
             "validated_dict": validated_dict or {},
+            "distribution": distribution or {},
+            "resolution_draw": resolution_draw or {},
+            "resolution_seed": resolution_seed or {},
+            "resolution_method": resolution_method or {},
         }
         super().__init__(**data)
         self.indices = indices
@@ -251,6 +259,10 @@ class Result(Base, UserDict):
             "validated_dict": filter_keys(
                 self.data.get("validated_dict", {}), handle_prefixes=True
             ),
+            "distribution": filter_keys(self.data.get("distribution", {})),
+            "resolution_draw": filter_keys(self.data.get("resolution_draw", {})),
+            "resolution_seed": filter_keys(self.data.get("resolution_seed", {})),
+            "resolution_method": filter_keys(self.data.get("resolution_method", {})),
         }
 
         return Result(**new_data, indices=self.indices)

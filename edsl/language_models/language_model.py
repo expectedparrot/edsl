@@ -1229,6 +1229,27 @@ class LanguageModel(
         registry = InferenceServiceRegistry()
         model_name = data["model"]
         service_name = data.get("inference_service", None)
+        if service_name is None:
+            service_name = cls._infer_service_from_serialized_model_name(model_name)
+
+        def create_legacy_fallback():
+            """Reconstruct service-less legacy data without model discovery."""
+            test_model_class = registry.create_language_model(
+                "test", service_name="test"
+            )
+            test_data = data.copy()
+            test_data["model"] = "test"
+            test_data["original_model"] = model_name
+            return test_model_class(**test_data)
+
+        # Older serialized models did not record their inference service. Looking
+        # it up here makes deserialization depend on live model catalogs and API
+        # availability. Use the existing compatibility representation directly.
+        if service_name is None:
+            if model_name == "test":
+                service_name = "test"
+            else:
+                return create_legacy_fallback()
 
         # Handle test model parameters that need to be passed as kwargs
         test_param_names = (
@@ -1262,17 +1283,40 @@ class LanguageModel(
             if "not found in any service" in str(e):
                 # For serialization compatibility testing, create a test model as fallback
                 # while preserving the original model name for reference
-                test_model_class = registry.create_language_model(
-                    "test", service_name="test"
-                )
-                test_data = data.copy()
-                test_data["model"] = "test"  # Test model expects "test" as model name
-                test_data["original_model"] = (
-                    model_name  # Preserve original for debugging
-                )
-                return test_model_class(**test_data)
+                return create_legacy_fallback()
             else:
                 raise
+
+    @staticmethod
+    def _infer_service_from_serialized_model_name(model_name: str) -> str | None:
+        """Infer a service for older serialized models without live discovery.
+
+        Historical fixtures predate the ``inference_service`` field. Deserialization
+        should be offline and deterministic, so these model names skip the provider
+        model-list lookup.
+
+        Only prefixes that belong to exactly one service are listed. Families served
+        by several providers - llama, mistral, deepseek - are deliberately absent: a
+        prefix can't tell you which of them hosts a given model, and a wrong guess
+        gets written back into ``inference_service`` on the next ``to_dict``. Those
+        fall through to ``None``, which routes to the registry's normal lookup.
+        """
+        if model_name == "test":
+            return "test"
+
+        model_prefixes = (
+            ("gpt-", "openai"),
+            ("o1", "openai"),
+            ("o3", "openai"),
+            ("o4", "openai"),
+            ("text-", "openai"),
+            ("dall-e", "openai"),
+        )
+        for prefix, service_name in model_prefixes:
+            if model_name.startswith(prefix):
+                return service_name
+
+        return None
 
     def __repr__(self) -> str:
         """Generate a string representation of the model.

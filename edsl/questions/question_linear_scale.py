@@ -11,12 +11,20 @@ from .question_multiple_choice import (
     MultipleChoiceResponseValidator,
 )
 from .decorators import inject_exception
+from .probabilistic_response import ProbabilisticResponse
 
 
 class LinearScaleResponseValidator(MultipleChoiceResponseValidator):
     """Validator for linear scale responses."""
 
-    required_params = ["question_options", "use_code", "option_labels"]
+    required_params = [
+        "question_options",
+        "use_code",
+        "enumeration",
+        "option_labels",
+        "probabilistic_response",
+        "probabilistic_seed_context",
+    ]
 
     def fix(self, response, verbose=False):
         """
@@ -231,6 +239,7 @@ class QuestionLinearScale(QuestionMultipleChoice):
         question_presentation: Optional[str] = None,
         include_comment: Optional[bool] = True,
         weight: Optional[float] = None,
+        probabilistic_response: ProbabilisticResponse | dict | None = None,
     ):
         """Instantiate a new QuestionLinearScale.
 
@@ -247,6 +256,7 @@ class QuestionLinearScale(QuestionMultipleChoice):
             question_options=question_options,
             use_code=False,  # question linear scale will have its own code
             include_comment=include_comment,
+            probabilistic_response=probabilistic_response,
         )
         self.question_options = question_options
         if isinstance(option_labels, str):

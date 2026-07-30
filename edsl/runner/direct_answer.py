@@ -76,11 +76,50 @@ class DirectAnswerRegistry:
             raise ValueError(f"No direct answer entry for task {task_id}")
 
         if entry.execution_type == "agent_direct":
-            return await self._maybe_await(self._execute_agent_direct(entry))
+            result = await self._maybe_await(self._execute_agent_direct(entry))
         elif entry.execution_type == "functional":
-            return await self._maybe_await(self._execute_functional(entry))
+            result = await self._maybe_await(self._execute_functional(entry))
         else:
             raise ValueError(f"Unknown execution type: {entry.execution_type}")
+        return self._resolve_probabilistic_answer(entry, result)
+
+    def _resolve_probabilistic_answer(
+        self, entry: DirectAnswerEntry, result: dict
+    ) -> dict:
+        """Apply probabilistic contracts to answers that bypass the LLM worker."""
+        contract = getattr(entry.question, "probabilistic_response", None)
+        if contract is None:
+            return result
+
+        iteration = 0
+        if self._job_service and entry.job_id and entry.interview_id:
+            definition = self._job_service._tasks.get_definition(
+                entry.job_id, entry.interview_id, entry.task_id
+            )
+            if definition is not None:
+                iteration = definition.iteration
+
+        entry.question._probabilistic_seed_context = contract.seed_context(
+            agent=entry.agent,
+            scenario=entry.scenario,
+            question_name=entry.question.question_name,
+            iteration=iteration,
+        )
+        validated = entry.question._validate_answer(
+            {
+                "answer": result["answer"],
+                "comment": result.get("comment"),
+            }
+        )
+        result["answer"] = validated["answer"]
+        for field in (
+            "distribution",
+            "resolution_draw",
+            "resolution_seed",
+            "resolution_method",
+        ):
+            result[field] = validated.get(field)
+        return result
 
     @staticmethod
     async def _maybe_await(value):

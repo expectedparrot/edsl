@@ -140,9 +140,7 @@ def test_survey_git_package_html_shows_versions(tmp_path):
     assert second["commit"][:8] in html
     data_json = html.split("const DATA = ", 1)[1].split(";\n", 1)[0]
     data = json.loads(data_json)
-    version_by_message = {
-        version["message"]: version for version in data["versions"]
-    }
+    version_by_message = {version["message"]: version for version in data["versions"]}
     assert version_by_message["initial survey"]["index"] == 1
     assert version_by_message["add second question"]["index"] == 2
     assert version_by_message["initial survey"]["diff"]["label"] == "Initial version"
@@ -159,9 +157,7 @@ def test_survey_git_package_html_shows_versions(tmp_path):
 
 def test_survey_git_comments_are_versioned_and_rendered(tmp_path):
     package_path = tmp_path / "commented.survey.ep"
-    survey = Survey(
-        [QuestionFreeText(question_name="q0", question_text="First?")]
-    )
+    survey = Survey([QuestionFreeText(question_name="q0", question_text="First?")])
     initial = survey.git.save(package_path, message="initial survey")
 
     loaded = Survey.git.load(package_path)
@@ -288,6 +284,34 @@ def test_survey_git_package_html_questions_table_shows_logic(tmp_path):
     assert "question_options[0]" in html
 
 
+def test_survey_git_package_html_normalizes_dynamic_question_options(tmp_path):
+    package_path = tmp_path / "dynamic-options.survey.ep"
+    survey = Survey(
+        [
+            QuestionMultipleChoice(
+                question_name="q0",
+                question_text="List choices.",
+                question_options=["one", "two"],
+            ),
+            QuestionMultipleChoice(
+                question_name="q1",
+                question_text="Choose from the prior answer.",
+                question_options="{{ q0.answer }}",
+            ),
+        ]
+    )
+    survey.git.save(package_path)
+
+    html = Survey.git.open(package_path).html()
+    data_json = html.split("const DATA = ", 1)[1].split(";\n", 1)[0]
+    data = json.loads(data_json)
+
+    assert data["questions"][1]["options"] == ["{{ q0.answer }}"]
+    assert "const values = Array.isArray(options) ? options : [options];" in html
+    assert "<tbody><tr>" in html
+    assert "Choose from the prior answer." in html
+
+
 def test_survey_git_loads_historical_commit_without_checkout(tmp_path):
     package_path = tmp_path / "survey.survey.ep"
     first_survey = Survey.example()
@@ -337,6 +361,49 @@ def test_survey_git_mutation_save_cleans_stale_questions_and_round_trips(tmp_pat
     assert Survey.git.load(package_path) == second_survey
     assert Survey.git.load(package_path, ref=first["commit"]) == first_survey
     assert second["commit"] != first["commit"]
+
+
+def test_survey_git_question_edit_preserves_question_file_id(tmp_path):
+    package_path = tmp_path / "edited.survey.ep"
+    survey = Survey.example()
+    first = survey.git.save(package_path, message="initial survey")
+
+    survey.questions[0].question_text = "Do you enjoy school?"
+    second = survey.git.save(message="clarify first question")
+
+    manifest = _package_json(package_path, "manifest.json")
+    edited_question = _package_json(package_path, "questions/000001.json")
+    diff = survey.git.diff(first["commit"], second["commit"])
+
+    assert manifest["question_order"] == ["000001", "000002", "000003"]
+    assert edited_question["question_name"] == "q0"
+    assert edited_question["question_text"] == "Do you enjoy school?"
+    assert "questions/000001.json" in diff
+    assert "questions/000004.json" not in diff
+    assert "manifest.json" not in diff
+    assert (
+        Survey.git.load(package_path).questions[0].question_text
+        == "Do you enjoy school?"
+    )
+
+
+def test_survey_git_question_name_rename_preserves_question_file_id(tmp_path):
+    package_path = tmp_path / "renamed.survey.ep"
+    survey = Survey.example()
+    first = survey.git.save(package_path, message="initial survey")
+
+    survey = survey.with_renamed_question("q0", "school_enjoyment")
+    second = survey.git.save(package_path, message="rename first question")
+
+    manifest = _package_json(package_path, "manifest.json")
+    renamed_question = _package_json(package_path, "questions/000001.json")
+    diff = survey.git.diff(first["commit"], second["commit"])
+
+    assert manifest["question_order"] == ["000001", "000002", "000003"]
+    assert renamed_question["question_name"] == "school_enjoyment"
+    assert "questions/000001.json" in diff
+    assert "questions/000004.json" not in diff
+    assert "rename from" not in diff
 
 
 def test_survey_git_archive_excludes_transient_git_pack_files(tmp_path):
@@ -519,6 +586,111 @@ def test_survey_git_branch_tag_restore(tmp_path):
             text=True,
         ).strip()
         == "experiment"
+    )
+
+
+def test_survey_git_merge_refreshes_object_and_repackages_archive(tmp_path):
+    package_path = tmp_path / "merge.survey.ep"
+    survey = Survey(
+        [QuestionFreeText(question_name="q0", question_text="First?")]
+    )
+    initial = survey.git.save(package_path, message="initial survey")
+
+    survey.git.branch("short-form")
+    survey.git.switch("short-form")
+    survey.add_question(
+        QuestionFreeText(question_name="q1", question_text="Second?")
+    )
+    branch_commit = survey.git.save(message="add second question")
+
+    survey.git.switch("main")
+    merge_info = survey.git.merge(
+        "short-form",
+        message="Merge short-form survey",
+        no_ff=True,
+    )
+
+    assert merge_info["status"] == "ok"
+    assert merge_info["branch"] == "main"
+    assert merge_info["merged_ref"] == "short-form"
+    assert merge_info["fast_forward"] is False
+    assert merge_info["conflicts"] == []
+    assert merge_info["conflict_contents"] == {}
+    assert merge_info["aborted"] is False
+    assert "manifest.json" in merge_info["changed"]
+    assert "questions/000002.json" in merge_info["changed"]
+    assert merge_info["commit"] not in {
+        initial["commit"],
+        branch_commit["commit"],
+    }
+    assert survey.question_names == ["q0", "q1"]
+    assert Survey.git.load(package_path).question_names == ["q0", "q1"]
+
+    parent_line = subprocess.check_output(
+        [
+            "git",
+            "-C",
+            str(survey.git.worktree_path),
+            "rev-list",
+            "--parents",
+            "-n",
+            "1",
+            "HEAD",
+        ],
+        text=True,
+    ).strip()
+    assert len(parent_line.split()) == 3
+
+
+def test_survey_git_merge_conflict_aborts_and_preserves_current_survey(tmp_path):
+    package_path = tmp_path / "conflict.survey.ep"
+    survey = Survey(
+        [QuestionFreeText(question_name="q0", question_text="Original wording")]
+    )
+    survey.git.save(package_path, message="initial survey")
+
+    survey.git.branch("alternative")
+    survey.git.switch("alternative")
+    survey.questions[0].question_text = "Alternative wording"
+    survey.git.save(message="edit wording on alternative")
+
+    survey.git.switch("main")
+    survey.questions[0].question_text = "Main wording"
+    main_commit = survey.git.save(message="edit wording on main")
+
+    merge_info = survey.git.merge("alternative", no_ff=True)
+
+    assert merge_info == {
+        "status": "conflict",
+        "path": str(package_path),
+        "commit": main_commit["commit"],
+        "branch": "main",
+        "merged_ref": "alternative",
+        "fast_forward": False,
+        "changed": [],
+        "conflicts": ["questions/000001.json"],
+        "conflict_contents": {
+            "questions/000001.json": (
+                "{\n"
+                '  "question_name": "q0",\n'
+                "<<<<<<< HEAD\n"
+                '  "question_text": "Main wording",\n'
+                "=======\n"
+                '  "question_text": "Alternative wording",\n'
+                ">>>>>>> alternative\n"
+                '  "question_type": "free_text"\n'
+                "}\n"
+            )
+        },
+        "aborted": True,
+        "message": "merge of alternative aborted due to conflicts",
+    }
+    assert survey.git.status()["clean"] is True
+    assert survey.git.commit == main_commit["commit"]
+    assert survey.questions[0].question_text == "Main wording"
+    assert (
+        Survey.git.load(package_path).questions[0].question_text
+        == "Main wording"
     )
 
 

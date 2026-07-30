@@ -27,6 +27,7 @@ from ..logger import get_logger
 
 if TYPE_CHECKING:
     from ..agents import AgentList
+    from ..dataset import Dataset
     from ..jobs import Jobs
     from ..scenarios import Scenario, ScenarioList
     from ..scenarios.contrib.qr_code import QRCode
@@ -269,9 +270,9 @@ class Coop(CoopFunctionsMixin):
             if "json_string" in log_payload and log_payload["json_string"]:
                 json_str = log_payload["json_string"]
                 if len(json_str) > 200:
-                    log_payload[
-                        "json_string"
-                    ] = f"{json_str[:200]}... (truncated, total length: {len(json_str)})"
+                    log_payload["json_string"] = (
+                        f"{json_str[:200]}... (truncated, total length: {len(json_str)})"
+                    )
             self._logger.info(f"Request payload: {log_payload}")
 
         try:
@@ -3669,6 +3670,173 @@ class Coop(CoopFunctionsMixin):
             "total_pages": data.get("total_pages"),
         }
 
+    def _get_all_human_survey_respondents(
+        self,
+        human_survey_uuid: Union[str, UUID],
+        page_size: int = 100,
+    ) -> List[dict]:
+        """Fetch every respondent record for a human survey, following pagination."""
+        respondents: List[dict] = []
+        page = 1
+        while True:
+            content = self.get_human_survey_respondents(
+                human_survey_uuid=human_survey_uuid,
+                page=page,
+                page_size=page_size,
+            )
+            batch = content.get("respondents") or []
+            respondents.extend(batch)
+            total_pages = content.get("total_pages") or 1
+            if not batch or page >= total_pages:
+                break
+            page += 1
+        return respondents
+
+    def get_human_survey_respondent_links(
+        self,
+        human_survey_uuid: Union[str, UUID],
+        *,
+        save_path: Optional[str] = None,
+        include_preview_urls: bool = False,
+        strict: bool = True,
+    ) -> "Dataset":
+        """
+        Merge a human survey's agent list with its respondent links.
+
+        Pulls the agent list attached to the survey and joins it to the respondent
+        records on ``agent_index``, giving one row per agent: that agent's traits
+        alongside their personal survey link.
+
+        Parameters:
+            human_survey_uuid (Union[str, UUID]): The UUID of the human survey.
+            save_path (str, optional): If provided, writes the merged table to this
+                file path as CSV.
+            include_preview_urls (bool): Add a ``preview_url`` column holding a link
+                that opens the survey without saving a response (default: False).
+            strict (bool): If True, raise when the agent list and the respondent
+                records don't line up exactly - a respondent pointing at an agent
+                that isn't in the list, two respondents sharing an agent, or an
+                agent with no respondent. If False, those rows are kept with the
+                missing columns left empty (default: True).
+
+        Returns:
+            Dataset: One row per agent, with ``agent_index``, ``respondent_uuid``,
+            ``url``, and ``response_status`` followed by the agent's traits. An
+            ``agent_name`` column is included when any agent is named. A trait
+            sharing a name with one of those columns is suffixed with ``_trait``,
+            repeated if needed until the column name is unique.
+
+        Raises:
+            CoopValueError: If the survey has no agent list attached, or if
+                ``strict`` is True and the join doesn't line up.
+            CoopServerResponseError: If the server returns an error.
+
+        Example:
+            >>> coop.get_human_survey_respondent_links(survey_uuid).table()
+            >>> coop.get_human_survey_respondent_links(survey_uuid, save_path="links.csv")
+        """
+        from ..dataset import Dataset
+
+        agent_list_config = self.get_human_survey_agent_list(
+            human_survey_uuid=human_survey_uuid,
+        )["agent_list_config"]
+        if agent_list_config is None:
+            raise CoopValueError(
+                f"Human survey {human_survey_uuid} has no agent list attached, "
+                "so it has no per-respondent links to export."
+            )
+        agent_list = self.pull(
+            agent_list_config["uuid"], expected_object_type="agent_list"
+        )
+        respondents = self._get_all_human_survey_respondents(human_survey_uuid)
+
+        # agent_index is 0-based and indexes into the attached agent list.
+        by_index: Dict[Any, dict] = {}
+        for respondent in respondents:
+            index = respondent.get("agent_index")
+            if strict and index in by_index:
+                raise CoopValueError(
+                    f"Two respondents share agent_index {index}. The agent list and "
+                    "the respondent records for this survey are out of sync."
+                )
+            by_index[index] = respondent
+
+        if strict:
+            unmatched = sorted(
+                (
+                    index
+                    for index in by_index
+                    if not isinstance(index, int) or not 0 <= index < len(agent_list)
+                ),
+                key=str,
+            )
+            if unmatched:
+                raise CoopValueError(
+                    f"Respondents reference agent indices {unmatched}, which fall "
+                    f"outside the attached agent list of {len(agent_list)} agents."
+                )
+            missing = [i for i in range(len(agent_list)) if i not in by_index]
+            if missing:
+                raise CoopValueError(
+                    f"No respondent record for agent indices {missing}. Pass "
+                    "strict=False to export those agents with empty link columns."
+                )
+
+        trait_keys: List[str] = []
+        for agent in agent_list:
+            for key in agent.traits:
+                if key not in trait_keys:
+                    trait_keys.append(key)
+
+        include_names = any(agent.name is not None for agent in agent_list)
+        base_columns = ["agent_index"]
+        if include_names:
+            base_columns.append("agent_name")
+        base_columns += ["respondent_uuid", "url"]
+        if include_preview_urls:
+            base_columns.append("preview_url")
+        base_columns.append("response_status")
+
+        # A trait named e.g. "url" would otherwise overwrite the link column. Suffix
+        # until the name is free, so a list holding both "url" and "url_trait" still
+        # gets one column per trait.
+        taken = set(base_columns)
+        trait_columns: List[str] = []
+        for key in trait_keys:
+            column = key
+            while column in taken:
+                column = f"{column}_trait"
+            taken.add(column)
+            trait_columns.append(column)
+        columns: Dict[str, list] = {name: [] for name in base_columns + trait_columns}
+
+        def append_row(index: Any, agent: Optional[Any], respondent: dict) -> None:
+            url = respondent.get("url")
+            columns["agent_index"].append(index)
+            if include_names:
+                columns["agent_name"].append(agent.name if agent is not None else None)
+            columns["respondent_uuid"].append(respondent.get("respondent_uuid"))
+            columns["url"].append(url)
+            if include_preview_urls:
+                columns["preview_url"].append(self._get_preview_url(url))
+            columns["response_status"].append(respondent.get("response_status"))
+            traits = agent.traits if agent is not None else {}
+            for trait_key, column in zip(trait_keys, trait_columns):
+                columns[column].append(traits.get(trait_key))
+
+        for index, agent in enumerate(agent_list):
+            append_row(index, agent, by_index.pop(index, None) or {})
+
+        # Only reachable with strict=False: respondents with no matching agent are
+        # appended at the bottom, with their trait columns left empty.
+        for index in sorted(by_index, key=str):
+            append_row(index, None, by_index[index])
+
+        dataset = Dataset([{name: values} for name, values in columns.items()])
+        if save_path is not None:
+            dataset.to_csv(filename=save_path)
+        return dataset
+
     def delete_human_survey_schedule(
         self,
         human_survey_uuid: Union[str, UUID],
@@ -5548,9 +5716,7 @@ class Coop(CoopFunctionsMixin):
                     value_type = (
                         "inf"
                         if math.isinf(value)
-                        else "nan"
-                        if math.isnan(value)
-                        else "invalid"
+                        else "nan" if math.isnan(value) else "invalid"
                     )
                     error_msg += f"  • {path}: {value} ({value_type})\n"
 

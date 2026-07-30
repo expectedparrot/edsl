@@ -154,6 +154,10 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         "cache_keys",
         "reasoning_summary",
         "validated",
+        "distribution",
+        "resolution_draw",
+        "resolution_seed",
+        "resolution_method",
     ]
 
     def __init__(

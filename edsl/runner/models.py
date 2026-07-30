@@ -541,6 +541,10 @@ class Answer:
     cache_key: str | None = None
     validated: bool | None = None
     reasoning_summary: str | None = None
+    distribution: list[float] | None = None
+    resolution_draw: Any = None
+    resolution_seed: int | None = None
+    resolution_method: str | None = None
 
     def storage_key(self) -> str:
         return f"job:{self.job_id}:interview:{self.interview_id}:answer:{self.question_name}"
@@ -571,6 +575,10 @@ class Answer:
             "cache_key": self.cache_key,
             "validated": self.validated,
             "reasoning_summary": self.reasoning_summary,
+            "distribution": self.distribution,
+            "resolution_draw": self.resolution_draw,
+            "resolution_seed": self.resolution_seed,
+            "resolution_method": self.resolution_method,
         }
 
     @classmethod
@@ -598,6 +606,10 @@ class Answer:
             cache_key=data.get("cache_key"),
             validated=data.get("validated"),
             reasoning_summary=data.get("reasoning_summary"),
+            distribution=data.get("distribution"),
+            resolution_draw=data.get("resolution_draw"),
+            resolution_seed=data.get("resolution_seed"),
+            resolution_method=data.get("resolution_method"),
         )
 
 

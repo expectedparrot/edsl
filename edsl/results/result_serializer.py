@@ -168,6 +168,10 @@ class ResultSerializer:
             cache_keys=json_dict.get("cache_keys", {}),
             indices=json_dict.get("indices", None),
             validated_dict=json_dict.get("validated_dict", {}),
+            distribution=json_dict.get("distribution", {}),
+            resolution_draw=json_dict.get("resolution_draw", {}),
+            resolution_seed=json_dict.get("resolution_seed", {}),
+            resolution_method=json_dict.get("resolution_method", {}),
         )
 
         if "interview_hash" in json_dict:

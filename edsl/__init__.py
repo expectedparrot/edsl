@@ -69,6 +69,7 @@ _EXPORT_TO_MODULE = {
     # questions
     "QuestionFreeText": "questions",
     "QuestionMultipleChoice": "questions",
+    "ProbabilisticResponse": "questions",
     "QuestionCheckBox": "questions",
     "QuestionLinearScale": "questions",
     "QuestionNumerical": "questions",

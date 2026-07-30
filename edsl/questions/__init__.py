@@ -124,6 +124,7 @@ from .question_list import QuestionList
 from .question_matrix import QuestionMatrix
 from .question_dict import QuestionDict
 from .question_multiple_choice import QuestionMultipleChoice
+from .probabilistic_response import ProbabilisticResponse
 from .question_numerical import QuestionNumerical
 from .question_budget import QuestionBudget
 from .question_demand import QuestionDemand
