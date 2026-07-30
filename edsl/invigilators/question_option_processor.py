@@ -1,5 +1,5 @@
 from ast import literal_eval
-from typing import Any, Union, TYPE_CHECKING
+from typing import Union, TYPE_CHECKING
 
 
 # import edsl.scenarios.scenario  # noqa: F401
@@ -133,28 +133,57 @@ class QuestionOptionProcessor(QuestionAttributeProcessor):
             # Extract the base options from the "from" template
             from_template = options_entry.get("from")
             additional_options = options_entry.get("add", [])
+            rendered_additional_options = self._render_option_list(additional_options)
 
             # Get the base options using the template
             base_options = self._get_options_from_template(from_template)
 
             # Concatenate with additional options
             if base_options and base_options != self._get_default_options():
-                return base_options + additional_options
+                return base_options + rendered_additional_options
             else:
                 # If we can't resolve the template, just return additional options
                 # or default if no additional options
                 return (
-                    additional_options
-                    if additional_options
+                    rendered_additional_options
+                    if rendered_additional_options
                     else self._get_default_options()
                 )
 
-        # If not a template string or dict, return as is or default
+        # Render templates contained in ordinary option lists.
+        if isinstance(options_entry, list):
+            return (
+                self._render_option_list(options_entry)
+                if options_entry
+                else self._get_default_options()
+            )
+
+        # If not a template string, list, or dict, return as is or default.
         if not isinstance(options_entry, str):
             return options_entry if options_entry else self._get_default_options()
 
         # Handle simple template string (existing logic)
         return self._get_options_from_template(options_entry)
+
+    def _render_option_list(self, options: list) -> list:
+        """Render templated options individually while preserving static values."""
+        rendered_options = []
+        for option in options:
+            if not (
+                isinstance(option, str)
+                and any(marker in option for marker in ("{{", "{%", "{#"))
+            ):
+                rendered_options.append(option)
+                continue
+
+            try:
+                rendered_options.append(self._render_template_to_native_value(option))
+            except Exception:
+                # Preserve option text that only resembles a template or
+                # contains malformed Jinja syntax.
+                rendered_options.append(option)
+
+        return rendered_options
 
     def _get_options_from_template(self, template_string: str) -> list:
         """
