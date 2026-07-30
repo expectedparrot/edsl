@@ -39,6 +39,7 @@ Derived Question Types:
 - QuestionYesNo: Simple binary yes/no response
 - QuestionTopK: Selection of top K items from a list of options
 - QuestionMultipleChoiceWithOther: Multiple choice with option to specify "Other" custom response
+- QuestionCheckBoxWithOther: Selection of multiple options with custom "Other" responses
 - QuestionEDSLObject: Expects JSON representation of any EDSL object (questions, surveys, agents, scenarios, etc.) as answer
 
 Technical Architecture:
@@ -139,6 +140,7 @@ from .question_linear_scale import QuestionLinearScale
 from .question_yes_no import QuestionYesNo
 from .question_top_k import QuestionTopK
 from .question_multiple_choice_with_other import QuestionMultipleChoiceWithOther
+from .question_checkbox_with_other import QuestionCheckBoxWithOther
 from .question_file_upload import QuestionFileUpload
 from .question_edsl_object import QuestionEDSLObject
 from .question_pydantic import QuestionPydantic
@@ -194,6 +196,7 @@ __all__ = [
     "QuestionLikertFive",
     "QuestionYesNo",
     "QuestionMultipleChoiceWithOther",
+    "QuestionCheckBoxWithOther",
     "QuestionFileUpload",
     "QuestionEDSLObject",
     "QuestionPydantic",
