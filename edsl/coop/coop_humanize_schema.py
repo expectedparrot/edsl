@@ -112,9 +112,7 @@ class CheckboxWithOtherHumanizeSchema(HumanizeSchemaBase):
     # stays an ordinary member of the option list and needs no special encoding.
     # Empty means no option is exclusive — today's behavior, and the default, so
     # stored configs are unaffected.
-    exclusive_options: list[
-        Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
-    ] = []
+    exclusive_options: list[Annotated[str, StringConstraints(min_length=1)]] = []
     comment: Optional[CommentConfig] = None
     submitting_indicator: Optional[SubmittingIndicator] = None
 
