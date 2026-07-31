@@ -100,6 +100,31 @@ class CheckboxHumanizeSchema(HumanizeSchemaBase):
     submitting_indicator: Optional[SubmittingIndicator] = None
 
 
+class CheckboxWithOtherHumanizeSchema(HumanizeSchemaBase):
+    """Humanize options for the checkbox with other question type."""
+
+    optional: bool = False
+    # Options that stand alone: checking one clears every other selection —
+    # including the respondent's "other" entries and any other exclusive
+    # option — and selecting anything else clears it. Identified by their exact
+    # text in ``question_options``, i.e. a "None of the above" the author already
+    # wrote, rather than a label this schema injects, so the submitted answer
+    # stays an ordinary member of the option list and needs no special encoding.
+    # Empty means no option is exclusive — today's behavior, and the default, so
+    # stored configs are unaffected.
+    exclusive_options: list[
+        Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
+    ] = []
+    comment: Optional[CommentConfig] = None
+    submitting_indicator: Optional[SubmittingIndicator] = None
+
+    @model_validator(mode="after")
+    def _unique_exclusive_options(self) -> "CheckboxWithOtherHumanizeSchema":
+        if len(self.exclusive_options) != len(set(self.exclusive_options)):
+            raise ValueError("exclusive_options must not contain duplicates.")
+        return self
+
+
 class ComputeHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the compute question type (no optionality).
 
@@ -473,6 +498,7 @@ HumanizeQuestionSchema = Union[
     FreeTextHumanizeSchema,
     BudgetHumanizeSchema,
     CheckboxHumanizeSchema,
+    CheckboxWithOtherHumanizeSchema,
     ComputeHumanizeSchema,
     FileUploadHumanizeSchema,
     InterviewHumanizeSchema,
@@ -503,6 +529,7 @@ QUESTION_TYPE_TO_HUMANIZE_CLASS: Dict[str, Type[BaseModel]] = {
     "free_text": FreeTextHumanizeSchema,
     "budget": BudgetHumanizeSchema,
     "checkbox": CheckboxHumanizeSchema,
+    "checkbox_with_other": CheckboxWithOtherHumanizeSchema,
     "compute": ComputeHumanizeSchema,
     "file_upload": FileUploadHumanizeSchema,
     "interview": InterviewHumanizeSchema,
