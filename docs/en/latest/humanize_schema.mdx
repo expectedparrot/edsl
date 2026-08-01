@@ -28,7 +28,7 @@ Each `questions[question_name]` value is a `HumanizeQuestionSchema` object.
 <ParamField path="optional" type="boolean" default={false}>
   Whether the question is optional. Default is `false` when omitted.
 
-  **Supported question types:** `free_text`, `budget`, `checkbox`, `file_upload`, `interview`, `likert_five`, `linear_scale`, `list`, `matrix`, `multiple_choice`, `multiple_choice_with_other`, `numerical`, `rank`, `top_k`, `yes_no`.
+  **Supported question types:** `free_text`, `budget`, `checkbox`, `checkbox_with_other`, `file_upload`, `interview`, `likert_five`, `linear_scale`, `list`, `matrix`, `multiple_choice`, `multiple_choice_with_other`, `numerical`, `rank`, `top_k`, `yes_no`.
 
   Note: `optional` currently has no effect for `interview` and `rank`.
 </ParamField>
@@ -49,6 +49,12 @@ Each `questions[question_name]` value is a `HumanizeQuestionSchema` object.
       If set, the human survey will require the respondent to select this exact option. Use for attention checks or forcing a particular choice. Omit or set to `null` to allow any selection.
     </ParamField>
   </Expandable>
+</ParamField>
+
+<ParamField path="exclusive_options" type="array" default={[]}>
+  **Checkbox only** (`checkbox`, `checkbox_with_other`). Options that stand alone: checking one clears every other selection — including any other exclusive option, and for `checkbox_with_other` the respondent's "other" entries — and selecting anything else clears it. Use for options like `"None of the above"` or `"Prefer not to say"`.
+
+  Each entry must be the exact text of an option in the question's `question_options` — matching is literal, so surrounding whitespace is not trimmed for you. Entries must be non-empty and unique. Because an exclusive option is an ordinary member of the option list, the submitted answer looks like any other selection. Defaults to an empty list, meaning no option is exclusive.
 </ParamField>
 
 <ParamField path="interview_mode" type="string" default="text">
@@ -175,7 +181,7 @@ Each `questions[question_name]` value is a `HumanizeQuestionSchema` object.
   Optional comment input shown with the question.
   Submitted comment text appears in survey results under `comment.{question_name}_comment`.
 
-  **Supported question types:** `free_text`, `budget`, `checkbox`, `likert_five`, `linear_scale`, `list`, `matrix`, `multiple_choice`, `multiple_choice_with_other`, `numerical`, `rank`, `top_k`, `yes_no`.
+  **Supported question types:** `free_text`, `budget`, `checkbox`, `checkbox_with_other`, `likert_five`, `linear_scale`, `list`, `matrix`, `multiple_choice`, `multiple_choice_with_other`, `numerical`, `rank`, `top_k`, `yes_no`.
 
   <Expandable title="properties">
     <ParamField path="label" type="string" required={true}>
@@ -187,7 +193,7 @@ Each `questions[question_name]` value is a `HumanizeQuestionSchema` object.
 <ParamField path="submitting_indicator" type="dict" required={false}>
   Optional indicator shown after the respondent clicks **Next**, while the following question runs. Omit or set to `null` for no indicator.
 
-  **Supported question types:** `free_text`, `budget`, `checkbox`, `file_upload`, `likert_five`, `linear_scale`, `list`, `matrix`, `multiple_choice`, `multiple_choice_with_other`, `numerical`, `rank`, `top_k`, `yes_no`.
+  **Supported question types:** `free_text`, `budget`, `checkbox`, `checkbox_with_other`, `file_upload`, `likert_five`, `linear_scale`, `list`, `matrix`, `multiple_choice`, `multiple_choice_with_other`, `numerical`, `rank`, `top_k`, `yes_no`.
 
   Note: not supported for `compute` (runs locally and auto-advances, so it is never the question a respondent submits) or `interview`.
 
