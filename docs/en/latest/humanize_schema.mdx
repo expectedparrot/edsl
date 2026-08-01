@@ -52,7 +52,7 @@ Each `questions[question_name]` value is a `HumanizeQuestionSchema` object.
 </ParamField>
 
 <ParamField path="exclusive_options" type="array" default={[]}>
-  **Checkbox with other only** (`checkbox_with_other`). Options that stand alone: checking one clears every other selection — including the respondent's "other" entries and any other exclusive option — and selecting anything else clears it. Use for options like `"None of the above"` or `"Prefer not to say"`.
+  **Checkbox only** (`checkbox`, `checkbox_with_other`). Options that stand alone: checking one clears every other selection — including any other exclusive option, and for `checkbox_with_other` the respondent's "other" entries — and selecting anything else clears it. Use for options like `"None of the above"` or `"Prefer not to say"`.
 
   Each entry must be the exact text of an option in the question's `question_options` — matching is literal, so surrounding whitespace is not trimmed for you. Entries must be non-empty and unique. Because an exclusive option is an ordinary member of the option list, the submitted answer looks like any other selection. Defaults to an empty list, meaning no option is exclusive.
 </ParamField>

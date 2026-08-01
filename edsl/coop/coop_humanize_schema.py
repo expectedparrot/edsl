@@ -96,8 +96,24 @@ class CheckboxHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the checkbox question type."""
 
     optional: bool = False
+    # Options that stand alone: checking one clears every other selection —
+    # including any other exclusive option — and selecting anything else clears
+    # it. Identified by their exact text in ``question_options``, i.e. a "None of
+    # the above" the author already wrote, rather than a label this schema
+    # injects, so the submitted answer stays an ordinary member of the option
+    # list and needs no special encoding. Not stripped, because the text has to
+    # match a ``question_options`` entry byte for byte and those are never
+    # stripped either. Empty means no option is exclusive — today's behavior, and
+    # the default, so stored configs are unaffected.
+    exclusive_options: list[Annotated[str, StringConstraints(min_length=1)]] = []
     comment: Optional[CommentConfig] = None
     submitting_indicator: Optional[SubmittingIndicator] = None
+
+    @model_validator(mode="after")
+    def _unique_exclusive_options(self) -> "CheckboxHumanizeSchema":
+        if len(self.exclusive_options) != len(set(self.exclusive_options)):
+            raise ValueError("exclusive_options must not contain duplicates.")
+        return self
 
 
 class CheckboxWithOtherHumanizeSchema(HumanizeSchemaBase):
