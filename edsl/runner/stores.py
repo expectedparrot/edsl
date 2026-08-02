@@ -570,6 +570,17 @@ class InterviewStore:
         self.increment_blocked(interview_id)
         self._maybe_finalize(job_id, interview_id)
 
+    def mark_tasks_blocked(
+        self, job_id: str, interview_id: str, count: int
+    ) -> None:
+        """Record several blocked tasks and finalize the interview once."""
+        if count <= 0:
+            return
+        self._storage.increment_volatile(
+            f"interview:{interview_id}:blocked", count
+        )
+        self._maybe_finalize(job_id, interview_id)
+
     def _maybe_finalize(self, job_id: str, interview_id: str) -> None:
         """Check if interview is done and update state accordingly."""
         definition = self.get_definition(job_id, interview_id)
@@ -925,6 +936,16 @@ class TaskStore:
         if not task_ids:
             return
         items = {f"task:{task_id}:status": status.value for task_id in task_ids}
+        self._storage.batch_write_volatile(items)
+
+    def set_errors_batch(
+        self, task_ids: list[str], error_type: str, error_message: str
+    ) -> None:
+        """Set the same error on several tasks in one storage operation."""
+        if not task_ids:
+            return
+        error = {"type": error_type, "message": error_message}
+        items = {f"task:{task_id}:error": error for task_id in task_ids}
         self._storage.batch_write_volatile(items)
 
     # Ready task operations
