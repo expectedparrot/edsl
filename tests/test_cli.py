@@ -1701,6 +1701,38 @@ class TestValidate:
             out = run_cli("validate", "--file", f.name)
             assert out["data"]["valid"] is True
 
+    @pytest.mark.parametrize("survey_format", ["json", "json.gz", "ep"])
+    def test_validate_survey_with_instruction(self, tmp_path, survey_format):
+        import gzip
+
+        from edsl.instructions import Instruction
+        from edsl.questions import QuestionFreeText
+        from edsl.surveys import Survey
+
+        survey = Survey(
+            [
+                Instruction(name="intro", text="Please answer carefully."),
+                QuestionFreeText(question_name="q0", question_text="Say hello."),
+            ]
+        )
+        survey_path = tmp_path / f"survey.{survey_format}"
+        if survey_format == "ep":
+            survey.git.save(survey_path)
+        elif survey_format == "json.gz":
+            with gzip.open(survey_path, "wt", encoding="utf-8") as f:
+                json.dump(survey.to_dict(), f)
+        else:
+            survey_path.write_text(json.dumps(survey.to_dict()), encoding="utf-8")
+
+        result = CliRunner().invoke(
+            cli_module.app, ["validate", "--file", str(survey_path)]
+        )
+
+        assert result.exit_code == 0, result.output
+        out = json.loads(result.output)
+        assert out["data"]["valid"] is True
+        assert out["data"]["object_type"] == "survey"
+
     def test_validate_from_stdin(self):
         q = json.dumps({"type": "free_text", "question_name": "q0", "question_text": "Hello?"})
         out = run_cli("validate", stdin_data=q)
