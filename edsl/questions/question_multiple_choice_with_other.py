@@ -113,7 +113,13 @@ class MultipleChoiceWithOtherResponseValidator(MultipleChoiceResponseValidator):
             question_options.append("Other")
         self.question_options = question_options
 
-    def validate(self, response_dict, verbose=False):
+    def validate(
+        self,
+        response_dict,
+        fix=False,
+        verbose=False,
+        replacement_dict=None,
+    ):
         """
         Validate the response according to the schema.
 
@@ -154,7 +160,12 @@ class MultipleChoiceWithOtherResponseValidator(MultipleChoiceResponseValidator):
 
         # Try to validate with the parent validator
         try:
-            validated_response = super().validate(response_dict, verbose)
+            validated_response = super().validate(
+                response_dict,
+                fix=fix,
+                verbose=verbose,
+                replacement_dict=replacement_dict,
+            )
             return validated_response
         except Exception as _:
             # If validation fails but the answer matches our pattern, accept it anyway
