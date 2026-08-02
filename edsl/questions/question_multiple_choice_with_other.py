@@ -130,6 +130,7 @@ class MultipleChoiceWithOtherResponseValidator(MultipleChoiceResponseValidator):
         """
         # Create a copy to avoid modifying the original that may be needed elsewhere
         response_dict = response_dict.copy()
+        self._unwrap_structured_answer(response_dict)
         answer = str(response_dict.get("answer", ""))
 
         # Check for "{other_option_text}: X" format directly in the answer field
@@ -187,6 +188,9 @@ class MultipleChoiceWithOtherResponseValidator(MultipleChoiceResponseValidator):
         Returns:
             A fixed response dict if possible, otherwise the original response
         """
+        response = response.copy()
+        self._unwrap_structured_answer(response)
+
         # Check if this is an "Other" response with additional text
         response_text = str(response.get("answer", ""))
 
@@ -233,6 +237,24 @@ class MultipleChoiceWithOtherResponseValidator(MultipleChoiceResponseValidator):
 
         # If not an "Other" response, try the parent class fix method
         return super().fix(response, verbose)
+
+    @staticmethod
+    def _unwrap_structured_answer(response):
+        """Unwrap a model's redundant ``{"answer": {"answer": value}}`` shape."""
+        nested = response.get("answer")
+        if not isinstance(nested, dict) or "answer" not in nested:
+            return
+
+        # Only unwrap an EDSL response envelope, never an arbitrary mapping that
+        # happens to contain application data under an ``answer`` key.
+        response_fields = {"answer", "comment", "generated_tokens"}
+        if not set(nested).issubset(response_fields):
+            return
+
+        response["answer"] = nested["answer"]
+        for field in ("comment", "generated_tokens"):
+            if response.get(field) is None and nested.get(field) is not None:
+                response[field] = nested[field]
 
     valid_examples = [
         (

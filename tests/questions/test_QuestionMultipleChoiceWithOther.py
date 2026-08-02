@@ -114,6 +114,25 @@ def test_validator_regular_answer():
     assert validated["answer"] == "Blue"
 
 
+def test_validator_unwraps_structured_answer_envelope():
+    long_option = (
+        "We share full postback data with only the attributed network and "
+        "limited/partial postback data with the other non-attributed networks"
+    )
+    q = QuestionMultipleChoiceWithOther(
+        question_name="postback_policy",
+        question_text="How do you share postback data?",
+        question_options=["We do not share postback data", long_option, "Not sure"],
+    )
+
+    validated = q.response_validator.validate(
+        {"answer": {"answer": long_option, "comment": "From the profile"}}
+    )
+
+    assert validated["answer"] == long_option
+    assert validated["comment"] == "From the profile"
+
+
 def test_validator_invalid_answer():
     """Test that invalid answers (not in options) are rejected."""
     # Create the question
