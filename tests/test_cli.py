@@ -3989,6 +3989,80 @@ class TestRunValidation:
         loaded = Results.git.load(results_path)
         assert len(loaded) == 1
 
+    @pytest.mark.parametrize("survey_format", ["ep", "json.gz"])
+    def test_run_accepts_durable_survey_formats(self, tmp_path, survey_format):
+        import gzip
+
+        from edsl.questions import QuestionFreeText
+        from edsl.results import Results
+        from edsl.surveys import Survey
+
+        survey = Survey(
+            [QuestionFreeText(question_name="name", question_text="Say your name.")]
+        )
+        survey_path = tmp_path / f"survey.{survey_format}"
+        if survey_format == "ep":
+            survey.git.save(survey_path)
+        else:
+            with gzip.open(survey_path, "wt", encoding="utf-8") as f:
+                json.dump(survey.to_dict(), f)
+
+        results_path = tmp_path / "results.ep"
+        result = CliRunner().invoke(
+            cli_module.app,
+            [
+                "run",
+                "--survey",
+                str(survey_path),
+                "--model",
+                "test",
+                "--local",
+                "--output",
+                str(results_path),
+            ],
+        )
+
+        assert result.exit_code == 0, result.output
+        assert json.loads(result.output)["status"] == "ok"
+        assert Results.git.load(results_path).select("answer.name").to_list() == [
+            "Hello, world X"
+        ]
+
+    def test_run_accepts_agent_list_package_override(self, tmp_path):
+        from edsl import Agent, AgentList
+        from edsl.questions import QuestionFreeText
+        from edsl.results import Results
+        from edsl.surveys import Survey
+
+        survey_path = tmp_path / "survey.ep"
+        agents_path = tmp_path / "agents.ep"
+        results_path = tmp_path / "results.ep"
+        Survey(
+            [QuestionFreeText(question_name="name", question_text="Say your name.")]
+        ).git.save(survey_path)
+        AgentList([Agent(traits={"cohort": "package"})]).git.save(agents_path)
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            [
+                "run",
+                "--survey",
+                str(survey_path),
+                "--agent_list",
+                str(agents_path),
+                "--model",
+                "test",
+                "--local",
+                "--output",
+                str(results_path),
+            ],
+        )
+
+        assert result.exit_code == 0, result.output
+        assert Results.git.load(results_path).select("agent.cohort").to_list() == [
+            "package"
+        ]
+
     def test_canned_jobs_run_results_are_queryable_and_exportable(self, tmp_path):
         from edsl import Agent, AgentList, Jobs, Model, ModelList, Scenario, ScenarioList
         from edsl.questions import QuestionFreeText

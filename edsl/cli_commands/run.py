@@ -18,6 +18,7 @@ from edsl.cli_shared import (
     EXIT_VALIDATION,
     error,
     jsonable,
+    load_any_object,
     output,
     raw_output_written,
     read_json_file,
@@ -145,27 +146,46 @@ def register(app: click.Group) -> None:
         # Step 3: Apply component overrides
         try:
             if agent_list:
-                data = read_json_file(agent_list)
+                agents_obj = load_any_object(
+                    agent_list, expected_object_type="AgentList"
+                )
+                if not isinstance(agents_obj, AgentListClass):
+                    raise TypeError(
+                        f"--agent_list requires AgentList, got {type(agents_obj).__name__}"
+                    )
                 job = Jobs(
                     survey=job.survey,
-                    agents=AgentListClass.from_dict(data),
+                    agents=agents_obj,
                     models=job.models,
                     scenarios=job.scenarios,
                 )
             if scenario_list:
-                data = read_json_file(scenario_list)
+                scenarios_obj = load_any_object(
+                    scenario_list, expected_object_type="ScenarioList"
+                )
+                if not isinstance(scenarios_obj, ScenarioListClass):
+                    raise TypeError(
+                        "--scenario_list requires ScenarioList, "
+                        f"got {type(scenarios_obj).__name__}"
+                    )
                 job = Jobs(
                     survey=job.survey,
                     agents=job.agents,
                     models=job.models,
-                    scenarios=ScenarioListClass.from_dict(data),
+                    scenarios=scenarios_obj,
                 )
             if model_list:
-                data = read_json_file(model_list)
+                models_obj = load_any_object(
+                    model_list, expected_object_type="ModelList"
+                )
+                if not isinstance(models_obj, ModelListClass):
+                    raise TypeError(
+                        f"--model_list requires ModelList, got {type(models_obj).__name__}"
+                    )
                 job = Jobs(
                     survey=job.survey,
                     agents=job.agents,
-                    models=ModelListClass.from_dict(data),
+                    models=models_obj,
                     scenarios=job.scenarios,
                 )
             if model:
@@ -395,8 +415,11 @@ def register(app: click.Group) -> None:
             return _load_jobs_from_path(jobs_path)
 
         if input_mode == "survey":
-            data = read_json_file(survey_path)
-            sv = SurveyClass.from_dict(data)
+            sv = load_any_object(survey_path, expected_object_type="Survey")
+            if not isinstance(sv, SurveyClass):
+                raise TypeError(
+                    f"--survey requires Survey, got {type(sv).__name__}"
+                )
             return Jobs(survey=sv)
 
         if input_mode in ("json", "stdin"):
@@ -430,15 +453,12 @@ def register(app: click.Group) -> None:
 
 
     def _load_jobs_from_path(path: str):
-        path_obj = Path(path)
-        if path_obj.suffix == ".ep":
-            from edsl.jobs import Jobs
-
-            return Jobs.git.load(path_obj)
-        data = read_json_file(path)
         from edsl.jobs import Jobs
 
-        return Jobs.from_dict(data)
+        job = load_any_object(path, expected_object_type="Jobs")
+        if not isinstance(job, Jobs):
+            raise TypeError(f"Jobs input requires Jobs, got {type(job).__name__}")
+        return job
 
 
     def _build_job_from_json(data: dict):
