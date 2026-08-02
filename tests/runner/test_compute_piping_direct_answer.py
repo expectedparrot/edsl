@@ -95,5 +95,10 @@ def test_compute_answer_can_supply_dynamic_budget_options_without_memory():
     assert row == (
         ["Channel A", "Channel B", "Channel C", "Channel D"],
         "['Channel A', 'Channel B', 'Channel C', 'Channel D']",
-        [20.0, 24.0, 28.0, 28.0],
+        [
+            {"Channel A": 20.0},
+            {"Channel B": 24.0},
+            {"Channel C": 28.0},
+            {"Channel D": 28.0},
+        ],
     )

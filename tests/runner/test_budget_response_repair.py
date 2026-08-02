@@ -1,5 +1,7 @@
 """Regression coverage for budget repair using only the local test model."""
 
+import pytest
+
 from edsl import Model, QuestionBudget
 
 
@@ -19,4 +21,7 @@ def test_budget_rounding_repair_runs_through_local_job_runner():
     )
 
     answer = results.select("answer.allocation").to_list()[0]
-    assert sum(answer) == 100
+    assert [list(row) for row in answer] == [["A"], ["B"], ["C"], ["D"]]
+    allocations = [next(iter(row.values())) for row in answer]
+    assert sum(allocations) == 100
+    assert allocations == pytest.approx([33.4, 33.3, 33.3, 0])
