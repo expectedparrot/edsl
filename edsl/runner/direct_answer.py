@@ -177,7 +177,29 @@ class DirectAnswerRegistry:
                 entry.job_id, entry.interview_id
             )
 
-        kwargs = {"scenario": entry.scenario, "agent_traits": agent_traits}
+        # Functional/self-answering questions historically ran through
+        # InvigilatorFunctional, which enriched the scenario with answered
+        # Question objects.  Jinja piping relies on that object shape, e.g.
+        # ``{{ q0.answer }}``.  The direct-answer runner bypasses the
+        # invigilator, so reconstruct the same context here rather than passing
+        # only the original job scenario.
+        scenario = entry.scenario
+        if current_answers and self._job_service and entry.job_id:
+            survey_data = self._job_service._jobs.get_survey(entry.job_id)
+            if survey_data:
+                from ..surveys import Survey
+
+                answered_questions = Survey.from_dict(
+                    survey_data
+                ).question_names_to_questions()
+                for question_name, answer in current_answers.items():
+                    if question_name in answered_questions:
+                        answered_questions[question_name].answer = answer
+
+                agent_context = {"agent": agent_traits} if agent_traits else {}
+                scenario = scenario | answered_questions | agent_context
+
+        kwargs = {"scenario": scenario, "agent_traits": agent_traits}
         signature = inspect.signature(entry.question.answer_question_directly)
         if "current_answers" in signature.parameters:
             kwargs["current_answers"] = current_answers
