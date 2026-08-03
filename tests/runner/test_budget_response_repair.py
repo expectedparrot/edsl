@@ -25,3 +25,29 @@ def test_budget_rounding_repair_runs_through_local_job_runner():
     allocations = [next(iter(row.values())) for row in answer]
     assert sum(allocations) == 100
     assert allocations == pytest.approx([33.4, 33.3, 33.3, 0])
+
+
+def test_labeled_budget_string_repairs_through_local_job_runner():
+    question = QuestionBudget(
+        question_name="revenue_split",
+        question_text="Allocate revenue.",
+        question_options=["Product revenue %", "Advertising revenue %"],
+        budget_sum=100,
+    )
+    model = Model(
+        "test",
+        canned_response="[Product revenue %: 50, Advertising revenue %: 50]",
+    )
+
+    results = question.by(model).run(
+        disable_remote_inference=True,
+        disable_remote_cache=True,
+        cache=False,
+    )
+
+    assert results.select("answer.revenue_split").to_list() == [
+        [
+            {"Product revenue %": 50.0},
+            {"Advertising revenue %": 50.0},
+        ]
+    ]
