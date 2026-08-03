@@ -161,6 +161,33 @@ def test_QuestionBudget_repairs_small_rounding_residual():
     assert validated["answer"] == pytest.approx([33.4, 33.3, 33.3, 0])
 
 
+def test_QuestionBudget_repairs_single_labeled_allocation_string():
+    q = QuestionBudget(
+        question_name="revenue_split",
+        question_text="Allocate revenue.",
+        question_options=["Product revenue %", "Advertising revenue %"],
+        budget_sum=100,
+    )
+
+    validated = q.response_validator.validate(
+        {"answer": ["Product revenue %: 50, Advertising revenue %: 50"]}
+    )
+
+    assert validated["answer"] == [50, 50]
+
+
+def test_QuestionBudget_rejects_partial_labeled_allocation_string():
+    q = QuestionBudget(
+        question_name="revenue_split",
+        question_text="Allocate revenue.",
+        question_options=["Product revenue %", "Advertising revenue %"],
+        budget_sum=100,
+    )
+
+    with pytest.raises(QuestionAnswerValidationError):
+        q.response_validator.validate({"answer": ["Product revenue %: 100"]})
+
+
 @pytest.mark.parametrize(
     "answer",
     [

@@ -370,7 +370,8 @@ class BudgetResponseValidator(ResponseValidatorABC):
             try:
                 fixed_answer = [float(x) for x in answer]
             except (ValueError, TypeError):
-                pass
+                if len(answer) == 1 and isinstance(answer[0], str):
+                    fixed_answer = self._parse_labeled_allocation(answer[0])
 
         fixed_answer = self._repair_small_rounding_error(fixed_answer)
 
@@ -385,6 +386,18 @@ class BudgetResponseValidator(ResponseValidatorABC):
             fixed_response["comment"] = response["comment"]
 
         return fixed_response
+
+    def _parse_labeled_allocation(self, text):
+        """Parse ``Option: value`` pairs only when every option is identified."""
+        values = []
+        number_pattern = r"([-+]?\d+(?:\.\d+)?)"
+        for option in self.question_options:
+            pattern = rf"{re.escape(str(option))}\s*:\s*{number_pattern}"
+            matches = re.findall(pattern, text, flags=re.IGNORECASE)
+            if len(matches) != 1:
+                return []
+            values.append(float(matches[0]))
+        return values
 
     def _repair_small_rounding_error(self, answer):
         """Correct a rounding-sized residual without changing an unsafe answer."""
