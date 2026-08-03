@@ -1167,12 +1167,24 @@ class JobService:
                     frontier.extend(task_def.dependents)
 
         ordered_ids = list(blocked_ids)
-        self._tasks.set_statuses_batch(ordered_ids, TaskStatus.BLOCKED)
+        statuses = self._tasks.get_statuses_batch(ordered_ids)
+        terminal_statuses = {
+            TaskStatus.COMPLETED,
+            TaskStatus.FAILED,
+            TaskStatus.SKIPPED,
+            TaskStatus.BLOCKED,
+        }
+        newly_blocked_ids = [
+            task_id
+            for task_id in ordered_ids
+            if statuses.get(task_id) not in terminal_statuses
+        ]
+        self._tasks.set_statuses_batch(newly_blocked_ids, TaskStatus.BLOCKED)
         self._tasks.set_errors_batch(
-            ordered_ids, "upstream_failure", "Blocked by failed dependency"
+            newly_blocked_ids, "upstream_failure", "Blocked by failed dependency"
         )
         self._interviews.mark_tasks_blocked(
-            job_id, interview_id, len(ordered_ids)
+            job_id, interview_id, len(newly_blocked_ids)
         )
 
     # =========================================================================
