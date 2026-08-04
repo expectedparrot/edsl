@@ -26,6 +26,7 @@ from edsl.cli_commands import schema as schema_commands
 from edsl.cli_commands import scenarios as scenarios_commands
 from edsl.cli_commands import surveys as surveys_commands
 from edsl.cli_commands import validate as validate_commands
+from ep_workflow import cli as workflow_commands
 from edsl.cli_shared import (
     EXIT_AUTH,
     EXIT_ERROR,
@@ -83,6 +84,7 @@ def app(ctx):
                 "jobs",
                 "surveys",
                 "costs",
+                "workflow",
             ],
             "help": "Use 'ep <command> --help' for details on each command.",
             "pipe_contract": {
@@ -286,6 +288,28 @@ def costs(ctx):
 
 @app.group(invoke_without_command=True)
 @click.pass_context
+def workflow(ctx):
+    """Manage evidence-backed task workflow gates."""
+    if ctx.invoked_subcommand is None:
+        _output({
+            "commands": ["init", "status", "freeze", "gate"],
+            "help": "Use 'ep workflow <command> --help' for details.",
+        })
+
+
+@workflow.group(invoke_without_command=True)
+@click.pass_context
+def gate(ctx):
+    """Define, attest, verify, and clear ordered gates."""
+    if ctx.invoked_subcommand is None:
+        _output({
+            "commands": ["set", "attest", "verify", "clear"],
+            "help": "Use 'ep workflow gate <command> --help' for details.",
+        })
+
+
+@app.group(invoke_without_command=True)
+@click.pass_context
 def humanize(ctx):
     """Create and manage human surveys.
 
@@ -341,6 +365,7 @@ schema_commands.register(schema)
 scenarios_commands.register(scenarios)
 surveys_commands.register(surveys)
 validate_commands.register(app)
+workflow_commands.register(workflow, gate)
 
 
 

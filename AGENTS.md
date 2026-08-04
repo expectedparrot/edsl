@@ -104,6 +104,25 @@ Top-level commands available in the CLI:
 | `unzip` | Alias for `ep unpack`. |
 | `update-metadata` | Update remote metadata without object changes. |
 | `validate` | Validate questions, surveys, and jobs. |
+| `workflow` | Define and verify evidence-backed task workflow gates. |
+
+## Workflow Gates
+
+Use workflows when an agent-managed task needs a durable definition of done.
+The agent or its loaded skills decide which gates apply; EDSL does not impose a
+universal study workflow.
+
+```bash
+ep workflow init --name color-survey --root .
+ep workflow gate set --json '{"gates":[{"name":"plan-approved","description":"User approved the plan","verification":{"type":"user-approval"}},{"name":"report-rendered","description":"Promised HTML exists","verification":{"type":"file-exists","path":"writeup/report.html"}}]}'
+ep workflow freeze --evidence "User approved the plan and gate set"
+ep workflow gate attest plan-approved --by user --evidence "Approved in conversation turn 8"
+ep workflow gate verify report-rendered
+ep workflow status
+```
+
+Gate setup is atomic. Gates pass in order, automatic gates cannot be attested,
+and clearing an earlier gate invalidates passed downstream gates.
 
 Many remote object commands are available both at top level and under `ep objects`, for example `ep search` and `ep objects search`.
 
