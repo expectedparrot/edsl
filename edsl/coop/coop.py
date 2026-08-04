@@ -4790,6 +4790,51 @@ class Coop(CoopFunctionsMixin):
         self._resolve_server_response(response)
         return response.json()
 
+    def list_prolific_studies(self, human_survey_uuid: str) -> List[dict]:
+        """
+        List all Prolific studies linked to a human survey.
+
+        Parameters:
+            human_survey_uuid (str): The UUID of the human survey.
+
+        Returns:
+            List[dict]: One dict per study, with these keys:
+                - study_id: The Prolific study ID
+                - name: The study name
+                - status: The study status (e.g. "UNPUBLISHED", "ACTIVE")
+                - num_participants: The number of available places
+                - participant_payment_cents: The reward per participant, in cents
+                - estimated_completion_time_minutes: The estimated completion time
+                - total_cost_cents: The total cost of the study, in cents
+
+        Raises:
+            CoopServerResponseError: If the server returns an error.
+
+        Example:
+            >>> coop.list_prolific_studies("123e4567-e89b-12d3-a456-426614174000")
+            [{'study_id': '...', 'name': 'My study', 'status': 'ACTIVE', ...}]
+        """
+        response = self._send_server_request(
+            uri=f"api/v0/human-surveys/{human_survey_uuid}/prolific-studies",
+            method="GET",
+        )
+        self._resolve_server_response(response)
+        response_json = response.json()
+        return [
+            {
+                "study_id": study.get("study_id"),
+                "name": study.get("name"),
+                "status": study.get("status"),
+                "num_participants": study.get("total_available_places"),
+                "estimated_completion_time_minutes": study.get(
+                    "estimated_completion_time"
+                ),
+                "participant_payment_cents": study.get("reward"),
+                "total_cost_cents": study.get("cost_cents"),
+            }
+            for study in response_json.get("studies", [])
+        ]
+
     def get_prolific_study(self, human_survey_uuid: str, study_id: str) -> dict:
         """
         Get a Prolific study. Returns a dict with the study details.
