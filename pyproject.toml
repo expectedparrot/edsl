@@ -19,6 +19,7 @@ packages = [{ include = "edsl" }, { include = "ep_workflow" }]
 [tool.poetry.dependencies]
 python = ">=3.10,<3.14"
 aiohttp = "^3.9.1"
+click = "^8.0.0"
 httpx = ">=0.24.0"
 jinja2 = "^3.1.2"
 json-repair = "^0.28.4"
@@ -182,7 +183,6 @@ toml-sort = "^0.23.1"
 ty = "^0.0.23"
 
 [tool.poetry.group.test.dependencies]
-click = "^8.0.0"
 coverage = "^7.3.3"
 nbformat = "^5.9.2"
 pytest = "^7.4.3"
