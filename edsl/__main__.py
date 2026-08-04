@@ -22,6 +22,7 @@ from edsl.cli_commands import packages as package_commands
 from edsl.cli_commands import profiles as profiles_commands
 from edsl.cli_commands import results as results_commands
 from edsl.cli_commands import run as run_commands
+from edsl.cli_commands import run_manifest as run_manifest_commands
 from edsl.cli_commands import schema as schema_commands
 from edsl.cli_commands import scenarios as scenarios_commands
 from edsl.cli_commands import surveys as surveys_commands
@@ -337,6 +338,7 @@ package_commands.register(app)
 profiles_commands.register(app, profiles)
 results_commands.register(results)
 run_commands.register(app)
+run_manifest_commands.register(app)
 schema_commands.register(schema)
 scenarios_commands.register(scenarios)
 surveys_commands.register(surveys)

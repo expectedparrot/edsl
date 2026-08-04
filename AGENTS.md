@@ -185,6 +185,19 @@ ep run --json '{"type":"free_text","question_text":"Say hi"}' --output results.e
 cat jobs.json | ep run --output results.ep
 ```
 
+For a declarative manifest containing a `runs` list with `job_path`,
+`result_path`, and either `prediction_count` or `scenario_count` plus
+`model_count`, verify cached results first and explicitly opt into remote work:
+
+```bash
+ep run-manifest workflow/jobs/run-manifest.json
+ep run-manifest workflow/jobs/run-manifest.json --parallel 3 --execute
+```
+
+The first command makes no model calls and reports incomplete runs in its JSON
+error details. With `--execute`, complete result packages are reused and partial
+packages are preserved before the corresponding job is resumed.
+
 Important replacement rule: component override flags replace the corresponding component in the base job.
 
 - `--agent_list` replaces agents.
