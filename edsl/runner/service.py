@@ -1140,18 +1140,52 @@ class JobService:
     def _propagate_failure(
         self, job_id: str, interview_id: str, dependent_ids: list[str]
     ) -> None:
-        """Recursively mark dependents as blocked."""
-        for dep_id in dependent_ids:
-            self._tasks.set_status(dep_id, TaskStatus.BLOCKED)
-            self._tasks.set_error(
-                dep_id, "upstream_failure", "Blocked by failed dependency"
-            )
-            self._interviews.mark_task_blocked(job_id, interview_id)
+        """Mark every downstream task blocked exactly once.
 
-            # Recurse
-            dep_def = self._tasks.get_definition(job_id, interview_id, dep_id)
-            if dep_def:
-                self._propagate_failure(job_id, interview_id, dep_def.dependents)
+        A dependency DAG can converge, so recursive path traversal revisits the
+        same task many times (exponentially in a dense graph), over-counts
+        blocked tasks, and repeatedly finalizes the interview.  Traverse by
+        unique task ID and batch state changes instead.
+        """
+        blocked_ids: set[str] = set()
+        frontier = list(dependent_ids)
+
+        while frontier:
+            current = list(dict.fromkeys(frontier))
+            frontier = []
+            unseen = [task_id for task_id in current if task_id not in blocked_ids]
+            if not unseen:
+                continue
+
+            blocked_ids.update(unseen)
+            definitions = self._tasks.get_definitions_batch(
+                job_id, interview_id, unseen
+            )
+            for task_id in unseen:
+                task_def = definitions.get(task_id)
+                if task_def:
+                    frontier.extend(task_def.dependents)
+
+        ordered_ids = list(blocked_ids)
+        statuses = self._tasks.get_statuses_batch(ordered_ids)
+        terminal_statuses = {
+            TaskStatus.COMPLETED,
+            TaskStatus.FAILED,
+            TaskStatus.SKIPPED,
+            TaskStatus.BLOCKED,
+        }
+        newly_blocked_ids = [
+            task_id
+            for task_id in ordered_ids
+            if statuses.get(task_id) not in terminal_statuses
+        ]
+        self._tasks.set_statuses_batch(newly_blocked_ids, TaskStatus.BLOCKED)
+        self._tasks.set_errors_batch(
+            newly_blocked_ids, "upstream_failure", "Blocked by failed dependency"
+        )
+        self._interviews.mark_tasks_blocked(
+            job_id, interview_id, len(newly_blocked_ids)
+        )
 
     # =========================================================================
     # Job Status & Results

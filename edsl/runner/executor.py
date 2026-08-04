@@ -553,8 +553,18 @@ class ExecutionWorker:
 
         try:
             validated_dict = question._validate_answer(raw_answer_dict)
+            validated_answer = validated_dict.get("answer", answer)
+            # Match the legacy invigilator contract: validate the model's
+            # compact/code response first, then expose the translated answer
+            # to Results and downstream piping.  This is significant for
+            # QuestionBudget, whose validated response is a numeric list but
+            # whose public answer is a list of option-labelled allocations.
+            if getattr(question, "probabilistic_response", None) is None:
+                validated_answer = question._translate_answer_code_to_answer(
+                    validated_answer, scenario_data
+                )
             return (
-                validated_dict.get("answer", answer),
+                validated_answer,
                 validated_dict.get("comment", comment),
                 True,
                 validated_dict.get("distribution"),

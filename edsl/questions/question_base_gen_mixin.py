@@ -184,6 +184,14 @@ class QuestionBaseGenMixin:
         if not hasattr(self, "question_options"):
             return copy.deepcopy(self)
 
+        # Dynamic options are rendered from prior answers at interview time,
+        # e.g. ``{{ available_options.answer }}``. Before those answers exist,
+        # the value is a template string rather than an option collection.
+        # Sampling it here would shuffle individual characters and create an
+        # invalid question, so preserve it for runtime rendering.
+        if not isinstance(self.question_options, list):
+            return copy.deepcopy(self)
+
         # Use provided random instance or create one with seed
         if random_instance is not None:
             rng = random_instance

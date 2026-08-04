@@ -8,7 +8,14 @@ from typing import Optional
 
 import click
 
-from edsl.cli_shared import EXIT_USAGE, EXIT_VALIDATION, error, output, read_json_file
+from edsl.cli_shared import (
+    EXIT_USAGE,
+    EXIT_VALIDATION,
+    error,
+    load_any_object,
+    output,
+    read_serialized_object,
+)
 
 
 def register(app: click.Group) -> None:
@@ -23,8 +30,17 @@ def register(app: click.Group) -> None:
     def validate(file_path, json_data, force_type):
         """Validate a question, survey, or job spec without executing."""
         raw = None
+        loaded_type = None
         if file_path:
-            raw = read_json_file(file_path)
+            from pathlib import Path
+
+            path = Path(file_path)
+            if path.is_dir() or path.suffix == ".ep":
+                loaded = load_any_object(file_path)
+                loaded_type = loaded.__class__.__name__
+                raw = loaded.to_dict()
+            else:
+                raw = read_serialized_object(path)
         elif json_data:
             try:
                 raw = json.loads(json_data)
@@ -50,7 +66,16 @@ def register(app: click.Group) -> None:
         # Detect object type
         obj_type = force_type
         if not obj_type:
-            if "survey" in raw and isinstance(raw.get("survey"), dict):
+            class_name = loaded_type or raw.get("edsl_class_name")
+            serialized_types = {
+                "Survey": "survey",
+                "Jobs": "job",
+                "AgentList": "agent_list",
+                "ScenarioList": "scenario_list",
+            }
+            if class_name in serialized_types:
+                obj_type = serialized_types[class_name]
+            elif "survey" in raw and isinstance(raw.get("survey"), dict):
                 obj_type = "job"
             elif "questions" in raw and isinstance(raw.get("questions"), list):
                 obj_type = "job_lightweight"
