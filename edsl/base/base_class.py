@@ -15,6 +15,7 @@ JSON/YAML serialization, file persistence, pretty printing, and object compariso
 from abc import ABC, abstractmethod, ABCMeta
 import gzip
 import json
+import os
 from typing import Any, Optional, Union, TYPE_CHECKING, Callable
 from uuid import UUID
 import difflib
@@ -674,8 +675,45 @@ class PersistenceMixin:
         except Exception as e:
             print(f"Failed to copy to clipboard: {e}")
 
-    def save(self, filename: Optional[str] = None, compress: bool = True):
-        """Save the object to a file as JSON with optional compression.
+    def save(
+        self,
+        filename: Optional[str] = None,
+        compress: Optional[bool] = None,
+        **kwargs,
+    ):
+        """Save the object, choosing the format from the filename.
+
+        Objects with a Git-backed ``git`` accessor use the ``.ep`` package
+        format by default. An explicit ``.json`` or ``.json.gz`` filename, or
+        an explicit ``compress`` value, retains the legacy JSON behavior.
+        Other :class:`Base` subclasses continue to use JSON.
+
+        Use :meth:`save_json` when JSON persistence is required regardless of
+        the object type.
+        """
+        filename_text = os.fspath(filename) if filename is not None else None
+        has_git_accessor = hasattr(type(self), "git")
+        json_requested = compress is not None or (
+            filename_text is not None
+            and (filename_text.endswith(".json") or filename_text.endswith(".json.gz"))
+        )
+
+        if has_git_accessor and not json_requested:
+            return self.git.save(filename, **kwargs)
+        if kwargs:
+            unexpected = ", ".join(sorted(kwargs))
+            raise TypeError(
+                f"Unexpected keyword argument(s) for JSON save: {unexpected}"
+            )
+        json_compress = compress
+        if json_compress is None:
+            json_compress = not (
+                filename_text is not None and filename_text.endswith(".json")
+            )
+        return self.save_json(filename, compress=json_compress)
+
+    def save_json(self, filename: Optional[str] = None, compress: bool = True):
+        """Save the object to legacy JSON with optional compression.
 
         Serializes the object to JSON and writes it to the specified file.
         By default, the file will be compressed using gzip. File extensions
@@ -695,6 +733,7 @@ class PersistenceMixin:
 
         if filename is None:
             filename = f"{self.__class__.__name__}_{str(hash(self))}.json"
+        filename = os.fspath(filename)
 
         logger.debug(f"Saving {self.__class__.__name__} to file: {filename}")
 
@@ -755,7 +794,34 @@ class PersistenceMixin:
 
     @classmethod
     def load(cls, filename):
-        """Load the object from a JSON file (compressed or uncompressed).
+        """Load an object, choosing the format from the filename.
+
+        ``.ep`` packages are loaded through the class's Git accessor. For
+        Git-backed classes an extensionless path prefers an existing ``.ep``
+        package, then falls back to the legacy JSON filename lookup.
+        """
+        filename = os.fspath(filename)
+
+        from edsl.base.git_package import ARCHIVE_PACKAGE_SUFFIX
+
+        if hasattr(cls, "git"):
+            if filename.endswith(ARCHIVE_PACKAGE_SUFFIX):
+                return cls.git.load(filename)
+            if not filename.endswith((".json", ".json.gz")):
+                ep_path = filename + ARCHIVE_PACKAGE_SUFFIX
+                if os.path.exists(ep_path):
+                    return cls.git.load(ep_path)
+        elif filename.endswith(ARCHIVE_PACKAGE_SUFFIX):
+            raise ValueError(
+                f"{filename!r} is an EDSL git package but {cls.__name__} has no "
+                f"git accessor; it cannot be loaded with .load()."
+            )
+
+        return cls.load_json(filename)
+
+    @classmethod
+    def load_json(cls, filename):
+        """Load an object from legacy JSON (compressed or uncompressed).
 
         This method deserializes an object from a file, automatically detecting
         whether the file is compressed with gzip or not.
@@ -769,19 +835,8 @@ class PersistenceMixin:
         Raises:
             Various exceptions may be raised if the file doesn't exist or contains invalid data
         """
-        logger.debug(f"Loading {cls.__name__} from file: {filename}")
-
-        # Git-backed ".ep" archive packages are not flat JSON; delegate to the
-        # git accessor so ``Results.load('x.ep')`` works like ``Results.git.load``.
-        from edsl.base.git_package import ARCHIVE_PACKAGE_SUFFIX
-
-        if str(filename).endswith(ARCHIVE_PACKAGE_SUFFIX):
-            if hasattr(cls, "git"):
-                return cls.git.load(filename)
-            raise ValueError(
-                f"{filename!r} is an EDSL git package but {cls.__name__} has no "
-                f"git accessor; it cannot be loaded with .load()."
-            )
+        filename = os.fspath(filename)
+        logger.debug(f"Loading {cls.__name__} from JSON file: {filename}")
 
         try:
             if filename.endswith("json.gz"):
