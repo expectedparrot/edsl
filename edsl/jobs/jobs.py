@@ -1785,7 +1785,14 @@ class Jobs(Base):
             from ..inference_services.services.open_ai_service import OpenAIService
             from ..inference_services.services.open_ai_service_v2 import OpenAIServiceV2
 
-            for svc_cls in [OpenAIService, OpenAIServiceV2]:
+            def descendants(cls):
+                found = [cls]
+                for child in cls.__subclasses__():
+                    found.extend(descendants(child))
+                return found
+
+            service_classes = list(dict.fromkeys(descendants(OpenAIService) + descendants(OpenAIServiceV2)))
+            for svc_cls in service_classes:
                 for client in list(svc_cls._async_client_instances.values()):
                     try:
                         await client.close()
@@ -1941,10 +1948,11 @@ class Jobs(Base):
             return None
 
         self._logger.info("Starting local execution with Runner")
-        results = self._execute_with_runner()
-
-        # Close cached async HTTP clients to avoid 'Unclosed client session' warnings
-        self._cleanup_async_clients()
+        try:
+            results = self._execute_with_runner()
+        finally:
+            # Close cached async HTTP clients on success, failure, or cancellation.
+            self._cleanup_async_clients()
 
         self._logger.info("Applying post-run methods to results")
         final_results = self._apply_post_run_methods(results)

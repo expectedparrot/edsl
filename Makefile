@@ -3,7 +3,7 @@
 ###############
 GIT_ROOT ?= $(shell git rev-parse --show-toplevel)
 PROJECT_NAME ?= $(shell basename $(GIT_ROOT))
-.PHONY: bump docs docs-check docstrings find help integration model-report ruff-lint
+.PHONY: bump docs docs-check docstrings find help integration model-report ruff-lint test-openai-compatible
 
 ###############
 ##@Utils ⭐ 
@@ -504,6 +504,12 @@ test: ## Run regular tests (no Coop tests). Use 'make test DIR' to run tests fro
 		poetry run pytest -xv tests --nocoop; \
 	fi
 	@bash scripts/mark_check_complete.sh TESTS
+
+test-openai-compatible: ## Test generic OpenAI-compatible support; set EDSL_OPENAI_COMPATIBLE_TEST_URL and EDSL_OPENAI_COMPATIBLE_TEST_MODEL for a live check
+	poetry run pytest -xv \
+		tests/inference_services/test_openai_compatible_service.py \
+		tests/inference_services/test_cli_openai_compatible.py \
+		--confcutdir=tests/inference_services
 
 test-token-bucket: ## Run token bucket tests
 	make clean-test

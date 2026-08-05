@@ -512,6 +512,7 @@ class TestInferenceServiceRegistry:
             "bedrock",
             "azure",
             "ollama",
+            "openai_compatible",
         ]
 
         registry = InferenceServiceRegistry()
