@@ -362,6 +362,8 @@ def register(humanize: click.Group) -> None:
     @click.option("--checklist-hidden", "hidden_checklist_questions", multiple=True, help="Question whose checklist is hidden from participants.")
     @click.option("--checklist-visible", "visible_checklist_questions", multiple=True, help="Question whose checklist is visible to participants.")
     @click.option("--custom-css", "custom_css_path", default=None, type=click.Path(exists=True), help="CSS file to store in survey.custom_css.")
+    @click.option("--back-button", is_flag=True, default=False, help="Enable Back navigation for respondents.")
+    @click.option("--no-back-past", "no_back_past_questions", multiple=True, help="Question that acts as a Back navigation boundary.")
     def humanize_schema_create(
         survey_path,
         output_path,
@@ -381,6 +383,8 @@ def register(humanize: click.Group) -> None:
         hidden_checklist_questions,
         visible_checklist_questions,
         custom_css_path,
+        back_button,
+        no_back_past_questions,
     ):
         """Create a humanize schema from CLI controls.
 
@@ -412,6 +416,8 @@ def register(humanize: click.Group) -> None:
                 hidden_checklist_questions=hidden_checklist_questions,
                 visible_checklist_questions=visible_checklist_questions,
                 custom_css_path=custom_css_path,
+                back_button=back_button,
+                no_back_past_questions=no_back_past_questions,
             )
             _validate_humanize_schema(survey, schema)
             data = {"schema": schema, "valid": True}
@@ -550,6 +556,8 @@ def register(humanize: click.Group) -> None:
     @click.option("--checklist-hidden", "hidden_checklist_questions", multiple=True, help="Question whose checklist is hidden from participants.")
     @click.option("--checklist-visible", "visible_checklist_questions", multiple=True, help="Question whose checklist is visible to participants.")
     @click.option("--custom-css", "custom_css_path", default=None, type=click.Path(exists=True), help="CSS file to store in survey.custom_css.")
+    @click.option("--back-button", is_flag=True, default=False, help="Enable Back navigation for respondents.")
+    @click.option("--no-back-past", "no_back_past_questions", multiple=True, help="Question that acts as a Back navigation boundary.")
     def humanize_schema_set(
         human_survey_uuid,
         schema_path,
@@ -571,6 +579,8 @@ def register(humanize: click.Group) -> None:
         hidden_checklist_questions,
         visible_checklist_questions,
         custom_css_path,
+        back_button,
+        no_back_past_questions,
     ):
         """Patch a human survey schema from a file or direct CLI controls.
 
@@ -597,6 +607,8 @@ def register(humanize: click.Group) -> None:
             hidden_checklist_questions,
             visible_checklist_questions,
             custom_css_path,
+            back_button,
+            no_back_past_questions,
         ):
             error(
                 "USAGE_ERROR",
@@ -626,6 +638,8 @@ def register(humanize: click.Group) -> None:
                 hidden_checklist_questions=hidden_checklist_questions,
                 visible_checklist_questions=visible_checklist_questions,
                 custom_css_path=custom_css_path,
+                back_button=back_button,
+                no_back_past_questions=no_back_past_questions,
             )
             if survey is not None and validate_schema:
                 _validate_humanize_schema(survey, schema)
@@ -1546,6 +1560,8 @@ def register(humanize: click.Group) -> None:
         hidden_checklist_questions,
         visible_checklist_questions,
         custom_css_path,
+        back_button,
+        no_back_past_questions,
     ) -> dict:
         schema = json.loads(json.dumps(base_schema or {}))
         questions = schema.setdefault("questions", {})
@@ -1566,6 +1582,8 @@ def register(humanize: click.Group) -> None:
             hidden_checklist_questions,
             visible_checklist_questions,
             custom_css_path,
+            back_button,
+            no_back_past_questions,
         ):
             for question_name in getattr(survey, "question_names", []):
                 questions[question_name] = {}
@@ -1660,6 +1678,15 @@ def register(humanize: click.Group) -> None:
 
         if custom_css_path:
             schema.setdefault("survey", {})["custom_css"] = Path(custom_css_path).read_text(encoding="utf-8")
+
+        if back_button:
+            schema.setdefault("survey", {}).setdefault("navigation", {})[
+                "back_button"
+            ] = True
+        for question_name in _expand_question_names(no_back_past_questions, survey):
+            _question_entry(questions, question_name).setdefault("navigation", {})[
+                "allow_back_past"
+            ] = False
 
         return schema
 

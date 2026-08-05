@@ -206,6 +206,7 @@ class ResultBuilder:
             "reasoning_summary": self.data["reasoning_summaries_dict"],
             "generated_tokens": self.data["generated_tokens"],
             "raw_model_response": self.data["raw_model_response"],
+            "metadata": self.data["metadata"],
             "validated": self.data["validated_dict"],
             "distribution": {
                 f"{key}_distribution": value
