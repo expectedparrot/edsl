@@ -244,6 +244,12 @@ def test_command_gate_records_output_and_clear_reopens_gate(tmp_path: Path) -> N
     assert code == 0
     assert verified["data"]["gates"][0]["evidence"]["stdout"] == "verified"
 
+    code, repeated = invoke(
+        runner, ["workflow", "gate", "verify", "checked", "--root", str(tmp_path)]
+    )
+    assert code == 0
+    assert repeated["data"]["already_passed"] is True
+
     code, cleared = invoke(
         runner,
         [
@@ -375,3 +381,43 @@ def test_command_timeout_uses_structured_error(tmp_path: Path, monkeypatch) -> N
     assert code == 1
     assert failed["error"]["code"] == "WORKFLOW_VERIFICATION_FAILED"
     assert "timed out" in failed["error"]["message"]
+
+
+def test_gate_verify_defaults_to_current_gate(tmp_path: Path) -> None:
+    runner = CliRunner()
+    artifact = tmp_path / "report.html"
+    artifact.write_text("finished", encoding="utf-8")
+    spec = gate_spec({
+        "name": "report", "verification": {"type": "artifact", "path": "report.html", "min_bytes": 4},
+    })
+    invoke(runner, [
+        "workflow", "setup", "--name", "study", "--root", str(tmp_path),
+        "--json", spec, "--evidence", "Approved",
+    ])
+
+    code, complete = invoke(runner, ["workflow", "gate", "verify", "--root", str(tmp_path)])
+
+    assert code == 0
+    assert complete["data"]["all_gates_passed"] is True
+    assert complete["data"]["gates"][0]["evidence"]["size"] == 8
+
+
+def test_command_failure_includes_bounded_diagnostics(tmp_path: Path) -> None:
+    runner = CliRunner()
+    spec = gate_spec({
+        "name": "broken",
+        "verification": {"type": "command", "command": "printf problem >&2; exit 7"},
+    })
+    invoke(runner, [
+        "workflow", "setup", "--name", "study", "--root", str(tmp_path),
+        "--json", spec, "--evidence", "Approved",
+    ])
+
+    code, failed = invoke(runner, ["workflow", "verify", "--root", str(tmp_path)])
+
+    assert code == 1
+    detail = failed["error"]["details"][0]
+    assert detail["gate"] == "broken"
+    assert detail["exit_code"] == 7
+    assert detail["cwd"] == str(tmp_path)
+    assert detail["stderr"] == "problem"

@@ -12,16 +12,17 @@ from pathlib import Path
 from typing import Any
 
 WORKFLOW_DIR = ".ep-workflow"
-VALID_TYPES = {"agent-attestation", "user-approval", "file-exists", "command"}
+VALID_TYPES = {"agent-attestation", "user-approval", "file-exists", "artifact", "command"}
 SLUG = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 
 
 class WorkflowError(Exception):
-    def __init__(self, code: str, message: str, suggestion: str = ""):
+    def __init__(self, code: str, message: str, suggestion: str = "", details: list[dict[str, Any]] | None = None):
         super().__init__(message)
         self.code = code
         self.message = message
         self.suggestion = suggestion
+        self.details = details or []
 
 
 def utc_now() -> str:
@@ -164,13 +165,20 @@ def validate_spec(spec: dict[str, Any]) -> list[dict[str, Any]]:
                 f"Gate {name} needs a supported verification type",
             )
         kind = verification["type"]
-        if kind == "file-exists" and not (
+        if kind in {"file-exists", "artifact"} and not (
             isinstance(verification.get("path"), str) and verification["path"].strip()
         ):
             raise WorkflowError(
                 "WORKFLOW_SPEC_INVALID",
                 f"Gate {name} file-exists verification needs path",
             )
+        if kind == "artifact":
+            minimum = verification.get("min_bytes", 1)
+            if not isinstance(minimum, int) or isinstance(minimum, bool) or minimum < 0:
+                raise WorkflowError(
+                    "WORKFLOW_SPEC_INVALID",
+                    f"Gate {name} artifact min_bytes must be a non-negative integer",
+                )
         if kind == "command" and not (
             isinstance(verification.get("command"), str)
             and verification["command"].strip()
@@ -298,6 +306,12 @@ def attest(root: Path, name: str, evidence: str, by: str) -> dict[str, Any]:
 
 
 def verify(root: Path, name: str) -> dict[str, Any]:
+    status = load_status(root)
+    existing = next((gate for gate in status["gates"] if gate["name"] == name), None)
+    if existing is None:
+        raise WorkflowError("WORKFLOW_GATE_NOT_FOUND", f"Gate is not declared: {name}")
+    if existing["passed"]:
+        return {**status, "gate": name, "already_passed": True}
     _, gate = _current_gate(root, name)
     verification = gate["verification"]
     kind = verification["type"]
@@ -306,7 +320,7 @@ def verify(root: Path, name: str) -> dict[str, Any]:
             "WORKFLOW_GATE_REQUIRES_ATTESTATION",
             f"Gate {name} requires evidence-bearing attestation",
         )
-    if kind == "file-exists":
+    if kind in {"file-exists", "artifact"}:
         path = (root / verification["path"]).resolve()
         try:
             path.relative_to(root)
@@ -320,11 +334,19 @@ def verify(root: Path, name: str) -> dict[str, Any]:
                 "WORKFLOW_VERIFICATION_FAILED",
                 f"Required file does not exist: {verification['path']}",
             )
+        size = path.stat().st_size
+        minimum = int(verification.get("min_bytes", 0 if kind == "file-exists" else 1))
+        if size < minimum:
+            raise WorkflowError(
+                "WORKFLOW_VERIFICATION_FAILED",
+                f"Artifact {verification['path']} is {size} bytes; expected at least {minimum}",
+                details=[{"gate": name, "path": verification["path"], "size": size, "min_bytes": minimum}],
+            )
         evidence = {
             "verification_type": kind,
             "path": verification["path"],
             "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
-            "size": path.stat().st_size,
+            "size": size,
         }
     else:
         try:
@@ -345,6 +367,14 @@ def verify(root: Path, name: str) -> dict[str, Any]:
             raise WorkflowError(
                 "WORKFLOW_VERIFICATION_FAILED",
                 f"Verification command failed with exit code {result.returncode}",
+                details=[{
+                    "gate": name,
+                    "command": verification["command"],
+                    "cwd": str(root),
+                    "exit_code": result.returncode,
+                    "stdout": result.stdout[-2000:],
+                    "stderr": result.stderr[-2000:],
+                }],
             )
         evidence = {
             "verification_type": kind,

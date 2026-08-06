@@ -20,6 +20,8 @@ from edsl.cli_commands import objects as objects_commands
 from edsl.cli_commands import open as open_commands
 from edsl.cli_commands import packages as package_commands
 from edsl.cli_commands import profiles as profiles_commands
+from edsl.cli_commands import present as present_commands
+from edsl.cli_commands import report as report_commands
 from edsl.cli_commands import results as results_commands
 from edsl.cli_commands import run as run_commands
 from edsl.cli_commands import schema as schema_commands
@@ -85,6 +87,8 @@ def app(ctx):
                 "surveys",
                 "costs",
                 "workflow",
+                "present",
+                "report",
             ],
             "help": "Use 'ep <command> --help' for details on each command.",
             "pipe_contract": {
@@ -297,6 +301,14 @@ def workflow(ctx):
         })
 
 
+@app.group(invoke_without_command=True)
+@click.pass_context
+def report(ctx):
+    """Validate generated study reports."""
+    if ctx.invoked_subcommand is None:
+        _output({"commands": ["check"], "help": "Use 'ep report check --help' for details."})
+
+
 @workflow.group(invoke_without_command=True)
 @click.pass_context
 def gate(ctx):
@@ -359,6 +371,8 @@ for command_name in [
 open_commands.register(app)
 package_commands.register(app)
 profiles_commands.register(app, profiles)
+present_commands.register(app)
+report_commands.register(report)
 results_commands.register(results)
 run_commands.register(app)
 schema_commands.register(schema)

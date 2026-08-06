@@ -30,7 +30,7 @@ def _fail(exc: WorkflowError) -> None:
         if exc.code == "WORKFLOW_NOT_FOUND"
         else EXIT_USAGE if "SPEC" in exc.code else EXIT_ERROR
     )
-    error(exc.code, exc.message, suggestion=exc.suggestion, exit_code=exit_code)
+    error(exc.code, exc.message, suggestion=exc.suggestion, details=exc.details, exit_code=exit_code)
 
 
 def _spec(spec_path: str | None, inline_json: str | None) -> dict:
@@ -152,12 +152,19 @@ def register(workflow_group: click.Group, gate_group: click.Group) -> None:
             _fail(exc)
 
     @gate_group.command("verify")
-    @click.argument("gate_name")
+    @click.argument("gate_name", required=False)
     @click.option("--root", default=None, type=click.Path(file_okay=False))
     def gate_verify(gate_name, root):
         """Run the current gate's objective verifier."""
         try:
-            output(verify(resolve_root(root), gate_name))
+            resolved = resolve_root(root)
+            if gate_name is None:
+                status = load_status(resolved)
+                gate_name = status["current_gate"]
+                if gate_name is None:
+                    output({**status, "already_complete": True})
+                    return
+            output(verify(resolved, gate_name))
         except WorkflowError as exc:
             _fail(exc)
 
