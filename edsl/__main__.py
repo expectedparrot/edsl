@@ -296,7 +296,7 @@ def workflow(ctx):
     """Manage evidence-backed task workflow gates."""
     if ctx.invoked_subcommand is None:
         _output({
-            "commands": ["setup", "init", "status", "verify", "freeze", "gate"],
+            "commands": ["setup", "init", "status", "verify", "freeze", "repair", "gate"],
             "help": "Use 'ep workflow <command> --help' for details.",
         })
 

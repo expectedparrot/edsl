@@ -421,3 +421,52 @@ def test_command_failure_includes_bounded_diagnostics(tmp_path: Path) -> None:
     assert detail["exit_code"] == 7
     assert detail["cwd"] == str(tmp_path)
     assert detail["stderr"] == "problem"
+
+
+def test_repair_changes_only_unpassed_verifiers_and_preserves_audit(tmp_path: Path) -> None:
+    runner = CliRunner()
+    original = gate_spec(
+        {"name": "approved", "description": "User approved", "verification": {"type": "user-approval"}},
+        {"name": "report", "description": "Report is valid", "verification": {"type": "command", "command": "false"}},
+    )
+    invoke(runner, [
+        "workflow", "setup", "--name", "study", "--root", str(tmp_path),
+        "--json", original, "--evidence", "Approved",
+    ])
+    invoke(runner, [
+        "workflow", "gate", "attest", "approved", "--root", str(tmp_path),
+        "--by", "user", "--evidence", "Approved",
+    ])
+    (tmp_path / "report.html").write_text("finished", encoding="utf-8")
+    repaired = gate_spec(
+        {"name": "approved", "description": "User approved", "verification": {"type": "user-approval"}},
+        {"name": "report", "description": "Report is valid", "verification": {"type": "artifact", "path": "report.html"}},
+    )
+
+    code, result = invoke(runner, [
+        "workflow", "repair", "--root", str(tmp_path), "--json", repaired,
+        "--reason", "Frozen command referenced a missing checkout path",
+    ])
+
+    assert code == 0
+    assert result["data"]["repaired"] == ["report"]
+    assert invoke(runner, ["workflow", "verify", "--root", str(tmp_path)])[1]["data"]["all_gates_passed"] is True
+    events = list((tmp_path / ".ep-workflow" / "events").glob("*_workflow-repaired.json"))
+    assert len(events) == 1
+
+
+def test_repair_rejects_gate_semantic_changes(tmp_path: Path) -> None:
+    runner = CliRunner()
+    original = gate_spec({"name": "report", "description": "Report is valid", "verification": {"type": "command", "command": "false"}})
+    invoke(runner, [
+        "workflow", "setup", "--name", "study", "--root", str(tmp_path),
+        "--json", original, "--evidence", "Approved",
+    ])
+    renamed = gate_spec({"name": "shortcut", "description": "Less work", "verification": {"type": "file-exists", "path": "x"}})
+
+    code, result = invoke(runner, [
+        "workflow", "repair", "--root", str(tmp_path), "--json", renamed, "--reason", "Shortcut",
+    ])
+
+    assert code == 1
+    assert result["error"]["code"] == "WORKFLOW_REPAIR_INVALID"

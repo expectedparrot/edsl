@@ -17,6 +17,7 @@ from .state import (
     initialize,
     load_status,
     resolve_root,
+    repair_gates,
     set_gates,
     validate_spec,
     verify,
@@ -117,6 +118,18 @@ def register(workflow_group: click.Group, gate_group: click.Group) -> None:
         """Freeze the approved gate definition."""
         try:
             output(freeze(resolve_root(root), evidence))
+        except WorkflowError as exc:
+            _fail(exc)
+
+    @workflow_group.command("repair")
+    @click.option("--spec", "spec_path", default=None, type=click.Path())
+    @click.option("--json", "inline_json", default=None)
+    @click.option("--reason", required=True)
+    @click.option("--root", default=None, type=click.Path(file_okay=False))
+    def workflow_repair(spec_path, inline_json, reason, root):
+        """Repair unpassed verifier definitions while preserving frozen gate semantics."""
+        try:
+            output(repair_gates(resolve_root(root), _spec(spec_path, inline_json), reason))
         except WorkflowError as exc:
             _fail(exc)
 

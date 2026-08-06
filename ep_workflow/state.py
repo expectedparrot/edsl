@@ -211,6 +211,38 @@ def set_gates(root: Path, spec: dict[str, Any]) -> list[dict[str, Any]]:
     return gates
 
 
+def repair_gates(root: Path, spec: dict[str, Any], reason: str) -> dict[str, Any]:
+    """Repair verifier definitions without changing the approved gate semantics."""
+    status = load_status(root)
+    if not status["frozen"]:
+        raise WorkflowError("WORKFLOW_NOT_FROZEN", "Use gate set before the workflow is frozen")
+    proposed = validate_spec(spec)
+    current = status["gates"]
+    if [(g["name"], g["description"]) for g in proposed] != [
+        (g["name"], g["description"]) for g in current
+    ]:
+        raise WorkflowError(
+            "WORKFLOW_REPAIR_INVALID",
+            "Repair must preserve gate names, order, and descriptions",
+        )
+    changed = []
+    for old, new in zip(current, proposed):
+        if old["passed"] and old["verification"] != new["verification"]:
+            raise WorkflowError(
+                "WORKFLOW_REPAIR_INVALID",
+                f"Cannot change verifier for passed gate: {old['name']}",
+            )
+        if old["verification"] != new["verification"]:
+            changed.append(old["name"])
+    if not changed:
+        return {**status, "repaired": [], "already_current": True}
+    config = read_config(root)
+    config["gates"] = proposed
+    atomic_json(workflow_path(root) / "workflow.json", config)
+    append_event(root, "workflow-repaired", {"gates": changed, "reason": reason})
+    return {**load_status(root), "repaired": changed}
+
+
 def load_status(root: Path) -> dict[str, Any]:
     config = read_config(root)
     gates = config.get("gates", [])
