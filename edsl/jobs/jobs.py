@@ -1812,7 +1812,9 @@ class Jobs(Base):
         """Execute job locally using the Runner engine."""
         from ..runner.runner import Runner
 
-        runner = Runner()
+        runner = Runner(
+            max_workers=self.run_config.parameters.max_concurrency or 400
+        )
         handle = runner.submit(
             self,
             n=self.run_config.parameters.n,

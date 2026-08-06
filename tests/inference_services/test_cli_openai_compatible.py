@@ -43,10 +43,12 @@ def test_models_create_persists_connection_without_secret(tmp_path):
 
 
 def test_run_builds_one_off_openai_compatible_model(tmp_path, monkeypatch):
+    from edsl.config import CONFIG
     from edsl.jobs import Jobs
     from edsl.results import Results
 
     captured = {}
+    original_api_timeout = CONFIG.EDSL_API_TIMEOUT
 
     def fake_run(self, **kwargs):
         model = self.models[0]
@@ -54,6 +56,7 @@ def test_run_builds_one_off_openai_compatible_model(tmp_path, monkeypatch):
             service=model._inference_service_,
             base_url=model.base_url,
             kwargs=kwargs,
+            api_timeout=CONFIG.EDSL_API_TIMEOUT,
         )
         return Results(survey=self.survey, data=[])
 
@@ -84,7 +87,64 @@ def test_run_builds_one_off_openai_compatible_model(tmp_path, monkeypatch):
     assert captured["service"] == "openai_compatible"
     assert captured["base_url"] == "http://127.0.0.1:8080/v1"
     assert captured["kwargs"]["disable_remote_inference"] is True
+    assert captured["kwargs"]["max_concurrency"] == 3
+    assert captured["api_timeout"] == "120.0"
+    assert CONFIG.EDSL_API_TIMEOUT == original_api_timeout
     assert json.loads(result.output)["data"]["meta"]["run_status"] == "complete"
+
+
+def test_run_restores_api_timeout_after_failure(tmp_path, monkeypatch):
+    from edsl.config import CONFIG
+    from edsl.jobs import Jobs
+
+    original_api_timeout = CONFIG.EDSL_API_TIMEOUT
+
+    def fail_run(self, **kwargs):
+        assert CONFIG.EDSL_API_TIMEOUT == "45.0"
+        raise RuntimeError("expected failure")
+
+    monkeypatch.setattr(Jobs, "run", fail_run)
+    result = CliRunner().invoke(
+        cli_module.app,
+        [
+            "run",
+            "--question",
+            "hi",
+            "--api-timeout",
+            "45",
+            "--output",
+            str(tmp_path / "results.json"),
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert CONFIG.EDSL_API_TIMEOUT == original_api_timeout
+
+
+def test_jobs_configures_active_runner_concurrency(monkeypatch):
+    from edsl.jobs import Jobs
+    from edsl.runner import runner as runner_module
+
+    captured = {}
+    expected_results = object()
+
+    class FakeHandle:
+        def results(self, **kwargs):
+            return expected_results
+
+    class FakeRunner:
+        def __init__(self, **kwargs):
+            captured.update(kwargs)
+
+        def submit(self, *args, **kwargs):
+            return FakeHandle()
+
+    monkeypatch.setattr(runner_module, "Runner", FakeRunner)
+    job = Jobs.example()
+    job.run_config.parameters.max_concurrency = 7
+
+    assert job._execute_with_runner() is expected_results
+    assert captured["max_workers"] == 7
 
 
 def test_run_reports_partial_results(tmp_path, monkeypatch):

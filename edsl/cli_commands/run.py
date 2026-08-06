@@ -229,38 +229,40 @@ def register(app: click.Group) -> None:
                    exit_code=EXIT_USAGE)
 
         envelope_warnings = []
-        if max_concurrency is not None:
-            from edsl.jobs.async_interview_runner import AsyncInterviewRunner
-            AsyncInterviewRunner.MAX_CONCURRENT = max_concurrency
-        if api_timeout is not None:
-            from edsl.config import CONFIG
-            CONFIG.EDSL_API_TIMEOUT = str(api_timeout)
+        from edsl.config import CONFIG
+        original_api_timeout = CONFIG.EDSL_API_TIMEOUT
         try:
-            stdout_buffer = StringIO()
-            with redirect_stdout(stdout_buffer):
-                results_obj = job.run(
-                    progress_bar=progress,
-                    background=background,
-                    remote_inference_description=remote_inference_description,
-                    remote_inference_results_visibility=remote_inference_results_visibility,
-                    results_description=results_description,
-                    task_timeout=task_timeout,
-                    fresh=fresh,
-                    n=iterations,
-                    disable_remote_inference=local,
-                    verbose=False,
-                )
-            captured_stdout = stdout_buffer.getvalue().strip()
-            if captured_stdout:
-                envelope_warnings.append(
-                    {
-                        "code": "SUPPRESSED_STDOUT",
-                        "message": "Output emitted during job execution was captured to keep stdout as a single JSON envelope.",
-                        "output": captured_stdout,
-                    }
-                )
-        except Exception as e:
-            error("RUN_ERROR", f"Job execution failed: {e}", exit_code=EXIT_ERROR)
+            if api_timeout is not None:
+                CONFIG.EDSL_API_TIMEOUT = str(api_timeout)
+            try:
+                stdout_buffer = StringIO()
+                with redirect_stdout(stdout_buffer):
+                    results_obj = job.run(
+                        progress_bar=progress,
+                        background=background,
+                        remote_inference_description=remote_inference_description,
+                        remote_inference_results_visibility=remote_inference_results_visibility,
+                        results_description=results_description,
+                        task_timeout=task_timeout,
+                        fresh=fresh,
+                        n=iterations,
+                        disable_remote_inference=local,
+                        verbose=False,
+                        max_concurrency=max_concurrency,
+                    )
+                captured_stdout = stdout_buffer.getvalue().strip()
+                if captured_stdout:
+                    envelope_warnings.append(
+                        {
+                            "code": "SUPPRESSED_STDOUT",
+                            "message": "Output emitted during job execution was captured to keep stdout as a single JSON envelope.",
+                            "output": captured_stdout,
+                        }
+                    )
+            except Exception as e:
+                error("RUN_ERROR", f"Job execution failed: {e}", exit_code=EXIT_ERROR)
+        finally:
+            CONFIG.EDSL_API_TIMEOUT = original_api_timeout
 
         saved = None
         result_count = 0 if background else _safe_len(results_obj)
