@@ -59,6 +59,32 @@ There is no user-facing `edsl coop` command. Expected Parrot-backed operations a
 
 `edsl info` includes configuration diagnostics but redacts credential values such as API keys.
 
+## Local OpenAI-compatible Models
+
+Create a portable model list for llama.cpp, Ollama, LM Studio, vLLM, SGLang, or another OpenAI-compatible server:
+
+```bash
+ep models create \
+  --service openai_compatible \
+  --model local-model \
+  --base-url http://127.0.0.1:11434/v1 \
+  --output local-models.ep
+```
+
+Run it without remote inference:
+
+```bash
+ep run \
+  --question "Reply with ok." \
+  --model_list local-models.ep \
+  --local \
+  --max-concurrency 4 \
+  --api-timeout 300 \
+  --output results.ep
+```
+
+Use `--api-key-env NAME` for an authenticated endpoint. Only the environment-variable name is serialized. See [Local OpenAI-compatible models](/en/latest/local_openai_compatible) for the full guide.
+
 ## Remote Object Workflow
 
 ```bash
