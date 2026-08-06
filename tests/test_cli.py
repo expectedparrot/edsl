@@ -3974,6 +3974,31 @@ class TestResults:
         review = json.loads(result.output)["data"]
         assert review["selected_columns"] == ["answer.q0", "agent.age"]
 
+    def test_results_review_returns_report_ready_summaries(self, tmp_path):
+        from edsl import Agent, AgentList, QuestionLinearScale, Survey
+
+        results = Survey([QuestionLinearScale(
+            question_name="score", question_text="Score?",
+            question_options=[1, 2, 3, 4, 5],
+        )]).by(AgentList([
+            Agent(traits={"segment": "a"}), Agent(traits={"segment": "b"}),
+        ])).run(cache=False, disable_remote_inference=True)
+        # Deterministically replace generated answers for summary coverage.
+        results[0].answer["score"] = 2
+        results[1].answer["score"] = 4
+        path = tmp_path / "review.ep"
+        results.git.save(str(path))
+
+        result = CliRunner().invoke(cli_module.app, [
+            "results", "review", str(path), "--group-by", "agent.segment",
+        ])
+
+        assert result.exit_code == 0, result.output
+        review = json.loads(result.output)["data"]
+        assert review["numeric_summaries"][0]["mean"] == 3.0
+        assert review["segment_summaries"][0]["group_by"] == "agent.segment"
+        assert [g["means"]["answer.score"] for g in review["segment_summaries"][0]["groups"]] == [2.0, 4.0]
+
     def test_results_values_and_first(self, results_file):
         values = CliRunner().invoke(
             cli_module.app,

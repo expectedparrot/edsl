@@ -25,7 +25,7 @@ def _bounded(value, text_chars: int):
 
 def _review(
     results_obj, *, max_rows: int, max_columns: int, max_values: int,
-    text_chars: int, requested_columns=(),
+    text_chars: int, requested_columns=(), group_by=(),
 ):
     columns = sorted(results_obj.columns)
     preferred = list(requested_columns) or [
@@ -41,12 +41,20 @@ def _review(
             missingness.append({"column": column, "missing": missing, "rate": round(missing / max(1, len(rows)), 4)})
 
     distributions = []
+    numeric_summaries = []
+    text_samples = []
     for column in (column for column in selected if column.startswith("answer.")):
         counts = {}
+        numeric = []
+        text_values = []
         for row in rows:
             value = row.get(column)
             if value is None:
                 continue
+            if isinstance(value, (int, float)) and not isinstance(value, bool):
+                numeric.append(float(value))
+            elif isinstance(value, str):
+                text_values.append(_bounded(value, text_chars))
             key = str(_bounded(value, text_chars))
             counts[key] = counts.get(key, 0) + 1
         ranked = sorted(counts.items(), key=lambda item: (-item[1], item[0]))
@@ -60,6 +68,49 @@ def _review(
                 "values_truncated": max(0, len(ranked) - max_values),
             }
         )
+        if numeric:
+            numeric_summaries.append({
+                "column": column,
+                "count": len(numeric),
+                "mean": round(sum(numeric) / len(numeric), 4),
+                "min": min(numeric),
+                "max": max(numeric),
+            })
+        if text_values:
+            text_samples.append({
+                "column": column,
+                "samples": text_values[:max_values],
+                "samples_truncated": max(0, len(text_values) - max_values),
+            })
+
+    segment_summaries = []
+    numeric_columns = [item["column"] for item in numeric_summaries]
+    for group_column in group_by[:2]:
+        if group_column not in columns:
+            continue
+        groups = {}
+        for row in results_obj.select(group_column, *numeric_columns).to_dicts(remove_prefix=False):
+            group = str(_bounded(row.get(group_column), text_chars))
+            bucket = groups.setdefault(group, {column: [] for column in numeric_columns})
+            for column in numeric_columns:
+                value = row.get(column)
+                if isinstance(value, (int, float)) and not isinstance(value, bool):
+                    bucket[column].append(float(value))
+        segment_summaries.append({
+            "group_by": group_column,
+            "groups": [
+                {
+                    "value": group,
+                    "count": max((len(values) for values in bucket.values()), default=0),
+                    "means": {
+                        column: round(sum(values) / len(values), 4)
+                        for column, values in bucket.items() if values
+                    },
+                }
+                for group, bucket in sorted(groups.items())[:max_values]
+            ],
+            "groups_truncated": max(0, len(groups) - max_values),
+        })
 
     sample = [
         {column: _bounded(row.get(column), text_chars) for column in selected}
@@ -75,6 +126,9 @@ def _review(
         "columns_truncated": max(0, len(preferred) - len(selected)),
         "missingness": missingness,
         "answer_distributions": distributions,
+        "numeric_summaries": numeric_summaries,
+        "text_samples": text_samples,
+        "segment_summaries": segment_summaries,
         "representative_rows": sample,
         "cost": cost,
         "bounds": {
@@ -266,8 +320,13 @@ def register(results_group: click.Group) -> None:
     )
     @click.option("--values", "max_values", default=8, type=click.IntRange(1, 20), show_default=True)
     @click.option("--text-chars", default=240, type=click.IntRange(40, 500), show_default=True)
+    @click.option(
+        "--group-by", multiple=True,
+        help="Return numeric answer means by this column. Repeat at most twice.",
+    )
     def results_review(
         file_path, requested_columns, max_rows, max_columns, max_values, text_chars,
+        group_by,
     ):
         """Return bounded, agent-oriented diagnostics for a Results file.
 
@@ -286,6 +345,7 @@ def register(results_group: click.Group) -> None:
                 results_obj, max_rows=max_rows, max_columns=max_columns,
                 max_values=max_values, text_chars=text_chars,
                 requested_columns=requested_columns,
+                group_by=group_by,
             ))
         except SystemExit:
             raise
