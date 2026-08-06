@@ -3933,6 +3933,19 @@ class TestResults:
         }
         assert "raw_model_response.q0_raw_model_response" not in review["selected_columns"]
 
+    def test_results_review_accepts_repeated_explicit_columns(self, results_file):
+        result = CliRunner().invoke(
+            cli_module.app,
+            [
+                "results", "review", results_file,
+                "--column", "answer.q0", "--column", "agent.age",
+            ],
+        )
+
+        assert result.exit_code == 0, result.output
+        review = json.loads(result.output)["data"]
+        assert review["selected_columns"] == ["answer.q0", "agent.age"]
+
     def test_results_values_and_first(self, results_file):
         values = CliRunner().invoke(
             cli_module.app,

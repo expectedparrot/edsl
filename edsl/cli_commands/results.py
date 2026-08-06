@@ -23,9 +23,12 @@ def _bounded(value, text_chars: int):
     return value
 
 
-def _review(results_obj, *, max_rows: int, max_columns: int, max_values: int, text_chars: int):
+def _review(
+    results_obj, *, max_rows: int, max_columns: int, max_values: int,
+    text_chars: int, requested_columns=(),
+):
     columns = sorted(results_obj.columns)
-    preferred = [
+    preferred = list(requested_columns) or [
         column for prefix in ("answer.", "agent.", "scenario.", "model.")
         for column in columns if column.startswith(prefix)
     ]
@@ -252,22 +255,37 @@ def register(results_group: click.Group) -> None:
 
     @results_group.command("review")
     @click.argument("file_path", type=click.Path(exists=True))
+    @click.option(
+        "--column", "requested_columns", multiple=True,
+        help="Column to review. Repeat for multiple columns.",
+    )
     @click.option("--rows", "max_rows", default=3, type=click.IntRange(1, 10), show_default=True)
-    @click.option("--columns", "max_columns", default=24, type=click.IntRange(1, 50), show_default=True)
+    @click.option(
+        "--columns", "max_columns", default=24, type=click.IntRange(1, 50),
+        show_default=True, help="Maximum number of columns returned.",
+    )
     @click.option("--values", "max_values", default=8, type=click.IntRange(1, 20), show_default=True)
     @click.option("--text-chars", default=240, type=click.IntRange(40, 500), show_default=True)
-    def results_review(file_path, max_rows, max_columns, max_values, text_chars):
+    def results_review(
+        file_path, requested_columns, max_rows, max_columns, max_values, text_chars,
+    ):
         """Return bounded, agent-oriented diagnostics for a Results file.
 
         \b
         Includes compact schema, missingness, answer distributions, representative
         rows, and actual cost. Output limits are enforced to protect agent context.
+
+        \b
+        Examples:
+          ep results review results.ep
+          ep results review results.ep --column answer.q0 --column agent.age
         """
         try:
             results_obj = load_results_object(file_path)
             output(_review(
                 results_obj, max_rows=max_rows, max_columns=max_columns,
                 max_values=max_values, text_chars=text_chars,
+                requested_columns=requested_columns,
             ))
         except SystemExit:
             raise

@@ -68,7 +68,35 @@ def check_report(root: Path) -> dict:
             if not (writeup / source).resolve().is_file():
                 errors.append(f"Image not found: {source}")
     if markdown.is_file():
-        for number, line in enumerate(markdown.read_text(encoding="utf-8").splitlines(), 1):
+        lines = markdown.read_text(encoding="utf-8").splitlines()
+        frontmatter_end = 0
+        has_yaml_title = False
+        if lines and lines[0].strip() == "---":
+            for index, line in enumerate(lines[1:], 1):
+                if line.strip() == "---":
+                    frontmatter_end = index
+                    has_yaml_title = any(
+                        re.match(r"^title\s*:", candidate)
+                        for candidate in lines[1:index]
+                    )
+                    break
+        body_h1_lines = [
+            number for number, line in enumerate(lines, 1)
+            if number > frontmatter_end + 1 and re.match(r"^#\s+\S", line)
+        ]
+        if has_yaml_title and body_h1_lines:
+            errors.append(
+                "report.md has YAML title plus H1 body heading(s) on line(s) "
+                + ", ".join(map(str, body_h1_lines))
+                + "; start body sections at H2"
+            )
+        elif len(body_h1_lines) > 1:
+            errors.append(
+                "report.md has multiple H1 headings on line(s) "
+                + ", ".join(map(str, body_h1_lines))
+                + "; keep one title and use H2 sections"
+            )
+        for number, line in enumerate(lines, 1):
             if re.match(r"^>\s*\[.+?\]\s*:", line):
                 errors.append(f"Line {number}: blockquote is parsed as a link reference")
     return {
