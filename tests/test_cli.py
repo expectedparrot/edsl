@@ -176,6 +176,7 @@ class TestCliModuleBoundaries:
             ["schema", "show", "--help"],
             ["results", "select", "--help"],
             ["results", "export", "--help"],
+            ["results", "review", "--help"],
             ["jobs", "build", "--help"],
             ["models", "--help"],
             ["models", "create", "--help"],
@@ -3911,6 +3912,26 @@ class TestResults:
         assert first.exit_code == 0, first.output
         assert second.exit_code == 0, second.output
         assert json.loads(first.output)["data"] == json.loads(second.output)["data"]
+
+    def test_results_review_is_bounded_and_agent_oriented(self, results_file):
+        result = CliRunner().invoke(
+            cli_module.app,
+            [
+                "results", "review", results_file, "--rows", "1",
+                "--columns", "2", "--values", "1", "--text-chars", "40",
+            ],
+        )
+
+        assert result.exit_code == 0, result.output
+        review = json.loads(result.output)["data"]
+        assert review["result_count"] == 1
+        assert len(review["selected_columns"]) <= 2
+        assert len(review["representative_rows"]) == 1
+        assert all(len(item["top_values"]) <= 1 for item in review["answer_distributions"])
+        assert review["bounds"] == {
+            "max_rows": 1, "max_columns": 2, "max_values": 1, "text_chars": 40,
+        }
+        assert "raw_model_response.q0_raw_model_response" not in review["selected_columns"]
 
     def test_results_values_and_first(self, results_file):
         values = CliRunner().invoke(

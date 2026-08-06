@@ -18,7 +18,9 @@ from .state import (
     load_status,
     resolve_root,
     set_gates,
+    validate_spec,
     verify,
+    verify_remaining,
 )
 
 
@@ -49,6 +51,34 @@ def _spec(spec_path: str | None, inline_json: str | None) -> dict:
 
 
 def register(workflow_group: click.Group, gate_group: click.Group) -> None:
+    @workflow_group.command("setup")
+    @click.option("--name", required=True)
+    @click.option("--spec", "spec_path", default=None, type=click.Path())
+    @click.option("--json", "inline_json", default=None)
+    @click.option("--evidence", required=True)
+    @click.option("--root", default=".", type=click.Path(file_okay=False))
+    def workflow_setup(name, spec_path, inline_json, evidence, root):
+        """Initialize, bulk-set, and freeze a workflow in one command."""
+        try:
+            specification = _spec(spec_path, inline_json)
+            validate_spec(specification)
+            resolved = resolve_root(root, require=False)
+            resolved.mkdir(parents=True, exist_ok=True)
+            initialize(resolved, name)
+            set_gates(resolved, specification)
+            status = freeze(resolved, evidence)
+            output(
+                {
+                    "root": str(resolved),
+                    "name": status["name"],
+                    "frozen": status["frozen"],
+                    "gate_count": len(status["gates"]),
+                    "current_gate": status["current_gate"],
+                }
+            )
+        except WorkflowError as exc:
+            _fail(exc)
+
     @workflow_group.command("init")
     @click.option("--name", required=True)
     @click.option("--root", default=".", type=click.Path(file_okay=False))
@@ -68,6 +98,15 @@ def register(workflow_group: click.Group, gate_group: click.Group) -> None:
         """Show current gate progress and evidence."""
         try:
             output(load_status(resolve_root(root)))
+        except WorkflowError as exc:
+            _fail(exc)
+
+    @workflow_group.command("verify")
+    @click.option("--root", default=None, type=click.Path(file_okay=False))
+    def workflow_verify(root):
+        """Verify all consecutive remaining objective gates."""
+        try:
+            output(verify_remaining(resolve_root(root)))
         except WorkflowError as exc:
             _fail(exc)
 

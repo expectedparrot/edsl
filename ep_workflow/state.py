@@ -366,6 +366,40 @@ def verify(root: Path, name: str) -> dict[str, Any]:
     return load_status(root)
 
 
+def verify_remaining(root: Path) -> dict[str, Any]:
+    """Verify every consecutive objective gate and return one bounded summary."""
+    verified: list[dict[str, Any]] = []
+    while True:
+        status = load_status(root)
+        current = status["current_gate"]
+        if current is None:
+            return {
+                "root": str(root),
+                "verified": verified,
+                "passed_gates": status["passed_gates"],
+                "current_gate": None,
+                "all_gates_passed": status["all_gates_passed"],
+            }
+        gate = next(gate for gate in status["gates"] if gate["name"] == current)
+        kind = gate["verification"]["type"]
+        if kind in {"agent-attestation", "user-approval"}:
+            if verified:
+                return {
+                    "root": str(root),
+                    "verified": verified,
+                    "passed_gates": status["passed_gates"],
+                    "current_gate": current,
+                    "all_gates_passed": False,
+                    "stopped": "attestation-required",
+                }
+            raise WorkflowError(
+                "WORKFLOW_GATE_REQUIRES_ATTESTATION",
+                f"Gate {current} requires evidence-bearing attestation",
+            )
+        verify(root, current)
+        verified.append({"name": current, "verification_type": kind})
+
+
 def clear(root: Path, name: str, reason: str) -> dict[str, Any]:
     status = load_status(root)
     if name not in status["passed_gates"]:

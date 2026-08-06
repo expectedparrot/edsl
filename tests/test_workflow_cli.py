@@ -148,6 +148,86 @@ def test_gate_set_rejects_non_object_json_with_structured_error(tmp_path: Path) 
     assert invalid["error"]["code"] == "WORKFLOW_SPEC_INVALID"
 
 
+def test_setup_initializes_sets_and_freezes_in_one_call(tmp_path: Path) -> None:
+    runner = CliRunner()
+    spec = gate_spec(
+        {"name": "approved", "verification": {"type": "user-approval"}},
+        {"name": "report", "verification": {"type": "file-exists", "path": "report.html"}},
+    )
+
+    code, configured = invoke(
+        runner,
+        [
+            "workflow", "setup", "--name", "study", "--root", str(tmp_path),
+            "--json", spec, "--evidence", "Approved gate design",
+        ],
+    )
+
+    assert code == 0
+    assert configured["data"] == {
+        "root": str(tmp_path), "name": "study", "frozen": True,
+        "gate_count": 2, "current_gate": "approved",
+    }
+
+
+def test_setup_rejects_invalid_spec_before_creating_workflow(tmp_path: Path) -> None:
+    runner = CliRunner()
+
+    code, invalid = invoke(runner, [
+        "workflow", "setup", "--name", "study", "--root", str(tmp_path),
+        "--json", "[]", "--evidence", "Approved gate design",
+    ])
+
+    assert code == 2
+    assert invalid["error"]["code"] == "WORKFLOW_SPEC_INVALID"
+    assert not (tmp_path / ".ep-workflow").exists()
+
+
+def test_verify_advances_all_remaining_objective_gates(tmp_path: Path) -> None:
+    runner = CliRunner()
+    first = tmp_path / "first.txt"
+    second = tmp_path / "second.txt"
+    first.write_text("one")
+    second.write_text("two")
+    spec = gate_spec(
+        {"name": "first", "verification": {"type": "file-exists", "path": "first.txt"}},
+        {"name": "second", "verification": {"type": "file-exists", "path": "second.txt"}},
+    )
+    invoke(runner, [
+        "workflow", "setup", "--name", "study", "--root", str(tmp_path),
+        "--json", spec, "--evidence", "Approved gate design",
+    ])
+
+    code, complete = invoke(runner, ["workflow", "verify", "--root", str(tmp_path)])
+
+    assert code == 0
+    assert [item["name"] for item in complete["data"]["verified"]] == ["first", "second"]
+    assert complete["data"]["all_gates_passed"] is True
+    assert complete["data"]["current_gate"] is None
+
+
+def test_verify_stops_before_later_attestation_gate(tmp_path: Path) -> None:
+    runner = CliRunner()
+    (tmp_path / "artifact.txt").write_text("done")
+    spec = gate_spec(
+        {"name": "artifact", "verification": {"type": "file-exists", "path": "artifact.txt"}},
+        {"name": "approval", "verification": {"type": "user-approval"}},
+    )
+    invoke(runner, [
+        "workflow", "setup", "--name", "study", "--root", str(tmp_path),
+        "--json", spec, "--evidence", "Approved gate design",
+    ])
+
+    code, partial = invoke(runner, ["workflow", "verify", "--root", str(tmp_path)])
+
+    assert code == 0
+    assert partial["data"]["verified"] == [
+        {"name": "artifact", "verification_type": "file-exists"}
+    ]
+    assert partial["data"]["current_gate"] == "approval"
+    assert partial["data"]["stopped"] == "attestation-required"
+
+
 def test_command_gate_records_output_and_clear_reopens_gate(tmp_path: Path) -> None:
     runner = CliRunner()
     invoke(runner, ["workflow", "init", "--name", "commands", "--root", str(tmp_path)])

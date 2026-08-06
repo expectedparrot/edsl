@@ -10,6 +10,77 @@ import click
 from edsl.cli_shared import EXIT_ERROR, error, load_results_object, output
 
 
+def _bounded(value, text_chars: int):
+    """Return a compact JSON-safe scalar suitable for agent context."""
+    from edsl.cli_shared import jsonable
+
+    value = jsonable(value)
+    if isinstance(value, str) and len(value) > text_chars:
+        return value[: text_chars - 1] + "…"
+    if isinstance(value, (dict, list)):
+        rendered = str(value)
+        return rendered[: text_chars - 1] + "…" if len(rendered) > text_chars else value
+    return value
+
+
+def _review(results_obj, *, max_rows: int, max_columns: int, max_values: int, text_chars: int):
+    columns = sorted(results_obj.columns)
+    preferred = [
+        column for prefix in ("answer.", "agent.", "scenario.", "model.")
+        for column in columns if column.startswith(prefix)
+    ]
+    selected = preferred[:max_columns]
+    rows = results_obj.select(*selected).to_dicts(remove_prefix=False) if selected else []
+    missingness = []
+    for column in selected:
+        missing = sum(row.get(column) is None for row in rows)
+        if missing:
+            missingness.append({"column": column, "missing": missing, "rate": round(missing / max(1, len(rows)), 4)})
+
+    distributions = []
+    for column in (column for column in selected if column.startswith("answer.")):
+        counts = {}
+        for row in rows:
+            value = row.get(column)
+            if value is None:
+                continue
+            key = str(_bounded(value, text_chars))
+            counts[key] = counts.get(key, 0) + 1
+        ranked = sorted(counts.items(), key=lambda item: (-item[1], item[0]))
+        distributions.append(
+            {
+                "column": column,
+                "unique": len(counts),
+                "top_values": [
+                    {"value": value, "count": count} for value, count in ranked[:max_values]
+                ],
+                "values_truncated": max(0, len(ranked) - max_values),
+            }
+        )
+
+    sample = [
+        {column: _bounded(row.get(column), text_chars) for column in selected}
+        for row in rows[:max_rows]
+    ]
+    try:
+        cost = _bounded(results_obj.compute_job_cost(), text_chars)
+    except Exception:
+        cost = None
+    return {
+        "result_count": len(results_obj),
+        "selected_columns": selected,
+        "columns_truncated": max(0, len(preferred) - len(selected)),
+        "missingness": missingness,
+        "answer_distributions": distributions,
+        "representative_rows": sample,
+        "cost": cost,
+        "bounds": {
+            "max_rows": max_rows, "max_columns": max_columns,
+            "max_values": max_values, "text_chars": text_chars,
+        },
+    }
+
+
 def register(results_group: click.Group) -> None:
     @results_group.command("columns")
     @click.option("--file", "file_path", required=True, help="Path to serialized Results .ep, JSON, or JSON.gz.")
@@ -178,6 +249,30 @@ def register(results_group: click.Group) -> None:
             raise
         except Exception as e:
             error("RUN_ERROR", f"Summary failed: {e}", exit_code=EXIT_ERROR)
+
+    @results_group.command("review")
+    @click.argument("file_path", type=click.Path(exists=True))
+    @click.option("--rows", "max_rows", default=3, type=click.IntRange(1, 10), show_default=True)
+    @click.option("--columns", "max_columns", default=24, type=click.IntRange(1, 50), show_default=True)
+    @click.option("--values", "max_values", default=8, type=click.IntRange(1, 20), show_default=True)
+    @click.option("--text-chars", default=240, type=click.IntRange(40, 500), show_default=True)
+    def results_review(file_path, max_rows, max_columns, max_values, text_chars):
+        """Return bounded, agent-oriented diagnostics for a Results file.
+
+        \b
+        Includes compact schema, missingness, answer distributions, representative
+        rows, and actual cost. Output limits are enforced to protect agent context.
+        """
+        try:
+            results_obj = load_results_object(file_path)
+            output(_review(
+                results_obj, max_rows=max_rows, max_columns=max_columns,
+                max_values=max_values, text_chars=text_chars,
+            ))
+        except SystemExit:
+            raise
+        except Exception as e:
+            error("RUN_ERROR", f"Review failed: {e}", exit_code=EXIT_ERROR)
 
     @results_group.command("sample")
     @click.argument("file_path", type=click.Path(exists=True))
