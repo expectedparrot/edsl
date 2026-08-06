@@ -21,14 +21,15 @@ def register(app: click.Group) -> None:
     @click.option("--text/--no-text", "works_with_text", default=None, help="Filter by text capability.")
     @click.option("--vision/--no-vision", "works_with_images", default=None, help="Filter by image/vision capability.")
     @click.option("--sort", "sort_by", type=click.Choice(["name", "service", "input-price", "output-price"]), default="service", show_default=True)
-    def models(ctx, service, search, works_with_text, works_with_images, sort_by):
+    @click.option("--limit", type=click.IntRange(1, 100), default=None, help="Return at most this many models.")
+    def models(ctx, service, search, works_with_text, works_with_images, sort_by, limit):
         """List and create model lists.
 
         \b
         Examples:
           ep models
           ep models --service openai
-          ep models --search gpt --text --sort input-price
+          ep models --search gpt --text --sort input-price --limit 10
           ep models --vision --sort name
           ep models create --model gpt-4o --output models.ep
         """
@@ -120,6 +121,9 @@ def register(app: click.Group) -> None:
             model_list.sort(key=lambda x: (_price_sort_value(x["usd_per_1M_output_tokens"]), x["service_name"] or "", x["model_name"] or ""))
         else:
             model_list.sort(key=lambda x: (x["service_name"] or "", x["model_name"] or ""))
+        total_count = len(model_list)
+        if limit is not None:
+            model_list = model_list[:limit]
         output(
             {
                 "models": model_list,
@@ -130,8 +134,10 @@ def register(app: click.Group) -> None:
                     "text": works_with_text,
                     "vision": works_with_images,
                     "sort": sort_by,
+                    "limit": limit,
                 },
                 "count": len(model_list),
+                "total_count": total_count,
             },
             warnings=warnings,
         )

@@ -1134,6 +1134,34 @@ class TestObjectTransformCli:
         out = json.loads(result.output)
         assert [m["model_name"] for m in out["data"]["models"]] == ["cheap", "expensive"]
 
+    def test_models_limit_bounds_sorted_output(self, monkeypatch):
+        import edsl.coop
+
+        class FakeCoop:
+            def fetch_working_models(self):
+                return [
+                    {
+                        "service": "openai", "model": name,
+                        "works_with_text": True, "works_with_images": False,
+                        "usd_per_1M_input_tokens": price,
+                        "usd_per_1M_output_tokens": price * 2,
+                    }
+                    for name, price in (("medium", 2), ("expensive", 3), ("cheap", 1))
+                ]
+
+        monkeypatch.setattr(edsl.coop, "Coop", FakeCoop)
+        result = CliRunner().invoke(
+            cli_module.app,
+            ["models", "--text", "--sort", "input-price", "--limit", "2"],
+        )
+
+        assert result.exit_code == 0, result.output
+        out = json.loads(result.output)["data"]
+        assert [m["model_name"] for m in out["models"]] == ["cheap", "medium"]
+        assert out["count"] == 2
+        assert out["total_count"] == 3
+        assert out["filters"]["limit"] == 2
+
 
 # ---------------------------------------------------------------------------
 # CLI smoke flows with fake Coop
