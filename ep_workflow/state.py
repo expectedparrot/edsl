@@ -6,6 +6,7 @@ import hashlib
 import json
 import os
 import re
+import shlex
 import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
@@ -211,6 +212,74 @@ def set_gates(root: Path, spec: dict[str, Any]) -> list[dict[str, Any]]:
     return gates
 
 
+def preflight(root: Path, spec: dict[str, Any] | None = None) -> dict[str, Any]:
+    """Validate verifier definitions in the cwd used by final verification."""
+    gates = validate_spec(spec) if spec is not None else load_status(root)["gates"]
+    issues: list[dict[str, Any]] = []
+    for gate in gates:
+        verification = gate["verification"]
+        kind = verification["type"]
+        if kind in {"file-exists", "artifact"}:
+            path = (root / verification["path"]).resolve()
+            try:
+                path.relative_to(root)
+            except ValueError:
+                issues.append({
+                    "gate": gate["name"],
+                    "issue": "verification path escapes workflow root",
+                    "path": verification["path"],
+                })
+            continue
+        if kind != "command":
+            continue
+        command = verification["command"]
+        syntax = subprocess.run(
+            ["/bin/sh", "-n", "-c", command], cwd=root,
+            capture_output=True, text=True,
+        )
+        if syntax.returncode:
+            issues.append({
+                "gate": gate["name"], "issue": "invalid shell syntax",
+                "command": command, "cwd": str(root),
+                "stderr": syntax.stderr[-1000:],
+            })
+            continue
+        try:
+            words = shlex.split(command)
+        except ValueError as exc:
+            issues.append({
+                "gate": gate["name"], "issue": f"cannot parse command: {exc}",
+                "command": command, "cwd": str(root),
+            })
+            continue
+        for index, word in enumerate(words[:-1]):
+            if word not in {"-C", "--directory"}:
+                continue
+            directory = words[index + 1]
+            if "$" in directory or "`" in directory:
+                continue
+            candidate = Path(directory).expanduser()
+            if not candidate.is_absolute():
+                candidate = root / candidate
+            if not candidate.resolve().is_dir():
+                issues.append({
+                    "gate": gate["name"],
+                    "issue": "static make directory does not exist from workflow root",
+                    "command": command, "cwd": str(root), "directory": directory,
+                })
+    if issues:
+        raise WorkflowError(
+            "WORKFLOW_PREFLIGHT_FAILED",
+            "Gate verifier preflight failed before workflow freeze",
+            suggestion="Fix verifier paths or commands, then freeze again",
+            details=issues,
+        )
+    return {
+        "root": str(root), "command_cwd": str(root),
+        "checked_gates": [gate["name"] for gate in gates],
+    }
+
+
 def repair_gates(root: Path, spec: dict[str, Any], reason: str) -> dict[str, Any]:
     """Repair verifier definitions without changing the approved gate semantics."""
     status = load_status(root)
@@ -292,6 +361,7 @@ def freeze(root: Path, evidence: str) -> dict[str, Any]:
         raise WorkflowError(
             "WORKFLOW_EMPTY", "Define gates before freezing the workflow"
         )
+    preflight(root)
     append_event(root, "workflow-frozen", {"evidence": evidence})
     return load_status(root)
 

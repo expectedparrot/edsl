@@ -135,6 +135,51 @@ def test_gate_set_is_atomic_and_freeze_prevents_replacement(tmp_path: Path) -> N
     assert frozen["error"]["code"] == "WORKFLOW_FROZEN"
 
 
+def test_freeze_preflight_rejects_wrong_make_directory_from_workflow_root(
+    tmp_path: Path,
+) -> None:
+    runner = CliRunner()
+    invoke(runner, ["workflow", "init", "--name", "study", "--root", str(tmp_path)])
+    spec = gate_spec({
+        "name": "checked",
+        "verification": {
+            "type": "command",
+            "command": "make -C sessions/topic_color/study_a qa",
+        },
+    })
+    invoke(runner, [
+        "workflow", "gate", "set", "--root", str(tmp_path), "--json", spec,
+    ])
+
+    code, failed = invoke(runner, [
+        "workflow", "freeze", "--root", str(tmp_path),
+        "--evidence", "Approved gates",
+    ])
+
+    assert code == 1
+    assert failed["error"]["code"] == "WORKFLOW_PREFLIGHT_FAILED"
+    assert failed["error"]["details"][0]["cwd"] == str(tmp_path)
+    status = invoke(runner, ["workflow", "status", "--root", str(tmp_path)])[1]
+    assert status["data"]["frozen"] is False
+
+
+def test_setup_preflights_before_creating_workflow(tmp_path: Path) -> None:
+    runner = CliRunner()
+    spec = gate_spec({
+        "name": "checked",
+        "verification": {"type": "command", "command": "if then"},
+    })
+
+    code, failed = invoke(runner, [
+        "workflow", "setup", "--name", "study", "--root", str(tmp_path),
+        "--json", spec, "--evidence", "Approved gates",
+    ])
+
+    assert code == 1
+    assert failed["error"]["code"] == "WORKFLOW_PREFLIGHT_FAILED"
+    assert not (tmp_path / ".ep-workflow").exists()
+
+
 def test_gate_set_rejects_non_object_json_with_structured_error(tmp_path: Path) -> None:
     runner = CliRunner()
     invoke(runner, ["workflow", "init", "--name", "study", "--root", str(tmp_path)])

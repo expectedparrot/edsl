@@ -16,6 +16,7 @@ from .state import (
     freeze,
     initialize,
     load_status,
+    preflight,
     resolve_root,
     repair_gates,
     set_gates,
@@ -65,6 +66,7 @@ def register(workflow_group: click.Group, gate_group: click.Group) -> None:
             validate_spec(specification)
             resolved = resolve_root(root, require=False)
             resolved.mkdir(parents=True, exist_ok=True)
+            preflight(resolved, specification)
             initialize(resolved, name)
             set_gates(resolved, specification)
             status = freeze(resolved, evidence)
@@ -118,6 +120,16 @@ def register(workflow_group: click.Group, gate_group: click.Group) -> None:
         """Freeze the approved gate definition."""
         try:
             output(freeze(resolve_root(root), evidence))
+        except WorkflowError as exc:
+            _fail(exc)
+
+    @workflow_group.command("preflight")
+    @click.option("--root", default=None, type=click.Path(file_okay=False))
+    def workflow_preflight(root):
+        """Validate gate verifier definitions before freezing."""
+        try:
+            resolved = resolve_root(root)
+            output(preflight(resolved))
         except WorkflowError as exc:
             _fail(exc)
 
