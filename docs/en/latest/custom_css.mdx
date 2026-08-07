@@ -75,11 +75,12 @@ coop.patch_human_survey_css(
 
 ## Progress indicator
 
-The survey's progress indicator sits above the question. It renders either as a bar or
-as a row of step markers, depending on how the survey is configured; if progress is
-hidden, nothing is rendered and there is nothing to style. Both renderings carry
-`edsl-progress` on their outer element, so rules meant for progress in general can hang
-off that one class.
+The progress indicator sits above the question. Depending on how the survey is
+configured, it shows as a bar or as a row of step markers. A survey can also hide it, in
+which case nothing is rendered and there is nothing to style.
+
+Both renderings put `edsl-progress` on their outer element. Use that class for rules that
+should apply whichever one a survey uses.
 
 ### Bar
 
@@ -98,23 +99,26 @@ off that one class.
 | `edsl-progress` | Outer element of either rendering | Present on both the bar and the steps |
 | `edsl-progress-bar` | Outer `<div>` of the bar rendering | |
 | `edsl-progress-track` | Unfilled groove | Set its `height`, `border-radius`, `background` |
-| `edsl-progress-fill` | Filled portion | See the note below before setting `width` |
+| `edsl-progress-fill` | Filled portion | Color it, but leave its width alone. See below |
 | `edsl-progress-label` | Percentage text under the bar | Absent when the label is turned off |
 
-The fill spans the full width of the track and is slid left by a transform to reveal
-only the completed portion, so setting `width` on it will not shorten it — style its
-`background`, `border-radius`, or `transition` instead and leave the geometry alone.
+**Recolor the fill, don't resize it.** The fill is always as wide as the whole track, and
+it slides sideways to reveal only the finished portion. Setting `width` on it will not
+shorten it. Set `background`, `border-radius`, or `transition` instead.
 
 ### Steps
+
+Each step is one `<li>` holding a marker, half of the connecting line on either side of
+it, and an optional label below.
 
 ```html
 <ol class="edsl-progress edsl-progress-steps">
   <li class="edsl-progress-step edsl-progress-step-complete">
     <div>
-      <!-- first step's leading connector is hidden, not removed -->
-      <span class="edsl-progress-connector"></span>
+      <!-- first step's incoming connector is hidden, not removed -->
+      <span class="edsl-progress-connector edsl-progress-connector-incoming edsl-progress-connector-upcoming"></span>
       <span class="edsl-progress-marker">1</span>
-      <span class="edsl-progress-connector"></span>
+      <span class="edsl-progress-connector edsl-progress-connector-outgoing edsl-progress-connector-complete"></span>
     </div>
     <!-- shown only for steps that have a label -->
     <span class="edsl-progress-label">Background</span>
@@ -122,19 +126,20 @@ only the completed portion, so setting `width` on it will not shorten it — sty
 
   <li class="edsl-progress-step edsl-progress-step-current">
     <div>
-      <span class="edsl-progress-connector"></span>
+      <!-- filled, because the step before it is complete -->
+      <span class="edsl-progress-connector edsl-progress-connector-incoming edsl-progress-connector-complete"></span>
       <span class="edsl-progress-marker">2</span>
-      <span class="edsl-progress-connector"></span>
+      <span class="edsl-progress-connector edsl-progress-connector-outgoing edsl-progress-connector-upcoming"></span>
     </div>
     <span class="edsl-progress-label">Experience</span>
   </li>
 
   <li class="edsl-progress-step edsl-progress-step-upcoming">
     <div>
-      <span class="edsl-progress-connector"></span>
+      <span class="edsl-progress-connector edsl-progress-connector-incoming edsl-progress-connector-upcoming"></span>
       <span class="edsl-progress-marker">3</span>
-      <!-- last step's trailing connector is hidden, not removed -->
-      <span class="edsl-progress-connector"></span>
+      <!-- last step's outgoing connector is hidden, not removed -->
+      <span class="edsl-progress-connector edsl-progress-connector-outgoing edsl-progress-connector-upcoming"></span>
     </div>
     <span class="edsl-progress-label">Wrap-up</span>
   </li>
@@ -150,21 +155,46 @@ only the completed portion, so setting `width` on it will not shorten it — sty
 | `edsl-progress-step-upcoming` | A step not yet reached | |
 | `edsl-progress-marker` | The circle for a step | Contains the step number, or is empty when markers are dots |
 | `edsl-progress-connector` | Half of the line between two markers | Two per step, one on each side of the marker |
+| `edsl-progress-connector-incoming` | The half arriving at the marker | On the left of the marker |
+| `edsl-progress-connector-outgoing` | The half leaving the marker | On the right of the marker |
+| `edsl-progress-connector-complete` | A filled half of the line | |
+| `edsl-progress-connector-upcoming` | An unfilled half of the line | |
 | `edsl-progress-label` | Text under a marker | Absent for steps without a label |
 
-Each step's status class is on the `<li>`, so style the pieces through it — that is how
-you give the current step a different marker color from the finished ones:
+**Style markers and labels through their step.** Every `<li>` says whether its step is
+complete, current, or upcoming, so those classes are how you give the current marker a
+different look from the finished ones.
+
+**Style the line through its own classes.** Each half carries its own filled or unfilled
+class, which does not match the status of the step it belongs to. The half arriving at
+the current step is filled as soon as the step before it is done, so the current step
+normally holds one filled half and one empty one. Select the filled line with
+`.edsl-progress-connector-complete`. Reaching for `.edsl-progress-step-complete
+.edsl-progress-connector` instead leaves that first half gray, and the line stops short
+of where the respondent actually is.
 
 ```css
 .edsl-progress-step-current .edsl-progress-marker { border-color: #b91c1c; color: #b91c1c; }
 .edsl-progress-step-complete .edsl-progress-marker { background: #b91c1c; border-color: #b91c1c; }
-.edsl-progress-step-complete .edsl-progress-connector { background: #b91c1c; }
+.edsl-progress-connector-complete { background: #b91c1c; }
 ```
 
-Markers come in two shapes — numbered circles and small dots — set by the survey's
-configuration rather than by CSS. Rules that assume a size (a fixed `width`, say) will
-look wrong under the other shape, so if you change one, check the survey renders with
-the shape you expect.
+**To reach a single segment, combine a step class with a connector class.** Include the
+position class as well, since a step's two halves are otherwise identical. The rule below
+picks out the filled half arriving at the step the respondent is on, and gives it a
+gradient so the line brightens as it reaches them:
+
+```css
+.edsl-progress-step-current
+  .edsl-progress-connector-incoming.edsl-progress-connector-complete {
+  background: linear-gradient(to right, #b91c1c, #f87171);
+}
+```
+
+Finally, markers come in two shapes: numbered circles and small dots. The survey's
+configuration picks the shape, not your CSS. A rule that assumes a size, such as a fixed
+`width`, will look wrong under the other shape, so check the survey renders with the
+shape you expect.
 
 ## Common question classes
 
