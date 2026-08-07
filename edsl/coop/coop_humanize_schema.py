@@ -64,10 +64,99 @@ class MCSubclassFormatSchema(HumanizeSchemaBase):
     type: Literal["radio", "dropdown"] = "radio"
 
 
+class PercentBarLabel(HumanizeSchemaBase):
+    """The share of the survey completed, e.g. "33%"."""
+
+    type: Literal["percent"] = "percent"
+
+
+# Discriminated on ``type`` so other label kinds (a "3 of 9" fraction, a static
+# caption, a percentage with wording around it) can join as sibling variants
+# without reshaping stored configs. "percent" is the only variant today, and the
+# discriminator default, so a config that only asks for a label lands on percent.
+BarLabel = Annotated[
+    Union[PercentBarLabel],
+    Field(discriminator="type"),
+]
+
+
+class BarProgress(HumanizeSchemaBase):
+    """A filled bar with an optional label beneath it."""
+
+    type: Literal["bar"] = "bar"
+    # None keeps the bar and drops the label; the default is today's "33%".
+    label: Optional[BarLabel] = Field(default_factory=PercentBarLabel)
+
+
+class HiddenProgress(HumanizeSchemaBase):
+    """No progress indicator anywhere in the survey.
+
+    A variant rather than ``progress: None``, because None already means
+    "unconfigured" — and unconfigured has to keep meaning ``bar``, or every
+    survey stored before this field existed would silently lose the bar it
+    renders today.
+    """
+
+    type: Literal["hidden"] = "hidden"
+
+
+class ProgressStep(HumanizeSchemaBase):
+    """One step of a stepped progress indicator.
+
+    A step is a *boundary*, not a bucket: it covers every survey item from the
+    end of the previous step through ``complete_after``, so questions can be
+    added or removed inside a step without touching this config, and the items
+    a respondent skips past inside a step don't move the marker.
+    """
+
+    # The word under the marker. None renders the marker alone.
+    label: Annotated[
+        Optional[str],
+        StringConstraints(strip_whitespace=True, min_length=1, max_length=60),
+    ] = None
+    # The survey item (question or instruction) after which this step is
+    # complete. None means the step runs to the end of the survey, which only
+    # the final step can do.
+    complete_after: Optional[str] = None
+
+
+class StepsProgress(HumanizeSchemaBase):
+    """Markers joined by a connector, one per step, the current one highlighted."""
+
+    type: Literal["steps"] = "steps"
+    # Whether a marker carries its step number or is a bare dot.
+    marker: Literal["number", "dot"] = "number"
+    steps: Annotated[list[ProgressStep], Field(min_length=2)]
+
+    @model_validator(mode="after")
+    def _boundaries_well_formed(self) -> "StepsProgress":
+        if any(step.complete_after is None for step in self.steps[:-1]):
+            raise ValueError(
+                "Only the final step may omit complete_after; every earlier step "
+                "must name the survey item it ends after."
+            )
+        boundaries = [s.complete_after for s in self.steps if s.complete_after]
+        if len(boundaries) != len(set(boundaries)):
+            raise ValueError("complete_after must not repeat across steps.")
+        return self
+
+
+# Discriminated on ``type`` so a rendering with its own options (a chevron bar,
+# say) joins as a sibling without reshaping stored configs.
+SurveyProgress = Annotated[
+    Union[BarProgress, HiddenProgress, StepsProgress],
+    Field(discriminator="type"),
+]
+
+
 class SurveyHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the survey (e.g. custom styling)."""
 
     custom_css: Optional[str] = None
+    # How the respondent is shown their position in the survey. Defaults to the
+    # bar that shipped before this field existed, so stored configs render
+    # identically.
+    progress: SurveyProgress = Field(default_factory=BarProgress)
 
 
 class CommentConfig(HumanizeSchemaBase):
