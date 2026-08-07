@@ -2787,6 +2787,30 @@ class TestJobsCli:
         out = json.loads(result.output)
         assert out["data"]["credits_hold"] == 2.34
 
+    def test_jobs_cost_accepts_model_override(self, tmp_path, monkeypatch):
+        from edsl.jobs import Jobs
+        import edsl.coop
+
+        jobs_path = tmp_path / "model-free.jobs.ep"
+        job = Jobs(survey=Jobs.example().survey, models=[])
+        job.git.save(jobs_path)
+
+        class FakeCoop:
+            def remote_inference_cost(self, obj, iterations=1):
+                assert type(obj).__name__ == "Jobs"
+                assert [item.model for item in obj.models] == ["test"]
+                return {"credits_hold": 1.0, "usd": 0.01}
+
+        monkeypatch.setattr(edsl.coop, "Coop", FakeCoop)
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            ["jobs", "cost", str(jobs_path), "--model", "test"],
+        )
+
+        assert result.exit_code == 0, result.output
+        assert json.loads(result.output)["data"]["usd"] == 0.01
+
 
 # ---------------------------------------------------------------------------
 # ep humanize
