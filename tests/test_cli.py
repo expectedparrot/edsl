@@ -176,6 +176,7 @@ class TestCliModuleBoundaries:
             ["schema", "show", "--help"],
             ["results", "select", "--help"],
             ["results", "export", "--help"],
+            ["results", "review", "--help"],
             ["jobs", "build", "--help"],
             ["models", "--help"],
             ["models", "create", "--help"],
@@ -1099,10 +1100,14 @@ class TestObjectTransformCli:
         results = Results.git.load(results_path)
         assert len(results) == 2
 
-    def test_models_sort_filter_with_fake_coop(self, monkeypatch):
+    def test_models_sort_filter_with_fake_coop(self, monkeypatch, tmp_path):
         import edsl.coop
 
+        monkeypatch.setenv("EDSL_MODEL_CATALOG_CACHE_DIR", str(tmp_path / "model-cache"))
+
         class FakeCoop:
+            api_url = "https://api.example.test"
+
             def fetch_working_models(self):
                 return [
                     {
@@ -1132,6 +1137,38 @@ class TestObjectTransformCli:
         assert result.exit_code == 0, result.output
         out = json.loads(result.output)
         assert [m["model_name"] for m in out["data"]["models"]] == ["cheap", "expensive"]
+
+    def test_models_limit_bounds_sorted_output(self, monkeypatch, tmp_path):
+        import edsl.coop
+
+        monkeypatch.setenv("EDSL_MODEL_CATALOG_CACHE_DIR", str(tmp_path / "model-cache"))
+
+        class FakeCoop:
+            api_url = "https://api.example.test"
+
+            def fetch_working_models(self):
+                return [
+                    {
+                        "service": "openai", "model": name,
+                        "works_with_text": True, "works_with_images": False,
+                        "usd_per_1M_input_tokens": price,
+                        "usd_per_1M_output_tokens": price * 2,
+                    }
+                    for name, price in (("medium", 2), ("expensive", 3), ("cheap", 1))
+                ]
+
+        monkeypatch.setattr(edsl.coop, "Coop", FakeCoop)
+        result = CliRunner().invoke(
+            cli_module.app,
+            ["models", "--text", "--sort", "input-price", "--limit", "2"],
+        )
+
+        assert result.exit_code == 0, result.output
+        out = json.loads(result.output)["data"]
+        assert [m["model_name"] for m in out["models"]] == ["cheap", "medium"]
+        assert out["count"] == 2
+        assert out["total_count"] == 3
+        assert out["filters"]["limit"] == 2
 
 
 # ---------------------------------------------------------------------------
@@ -1772,10 +1809,14 @@ class TestValidate:
 
 class TestModels:
     @pytest.fixture
-    def fake_model_catalog(self, monkeypatch):
+    def fake_model_catalog(self, monkeypatch, tmp_path):
         import edsl.coop
 
+        monkeypatch.setenv("EDSL_MODEL_CATALOG_CACHE_DIR", str(tmp_path / "model-cache"))
+
         class FakeCoop:
+            api_url = "https://api.example.test"
+
             def fetch_working_models(self):
                 return [
                     {
@@ -1816,6 +1857,7 @@ class TestModels:
         assert isinstance(data["models"], list)
         assert len(data["models"]) == 3
         assert data["source"] == "expected_parrot"
+        assert data["cache"]["hit"] is False
         assert data["count"] == 3
         assert data["filters"] == {
             "service": None,
@@ -1823,6 +1865,7 @@ class TestModels:
             "text": None,
             "vision": None,
             "sort": "service",
+            "limit": None,
         }
 
     def test_model_entries_have_fields(self, fake_model_catalog):
@@ -1866,6 +1909,7 @@ class TestModels:
             "text": None,
             "vision": None,
             "sort": "service",
+            "limit": None,
         }
         assert out["data"]["models"] == [
             {
@@ -1878,6 +1922,56 @@ class TestModels:
                 "usd_per_1M_output_tokens": 10.0,
             }
         ]
+
+    def test_models_reuses_cached_remote_catalog(self, monkeypatch, tmp_path):
+        import edsl.coop
+
+        monkeypatch.setenv("EDSL_MODEL_CATALOG_CACHE_DIR", str(tmp_path / "model-cache"))
+        calls = 0
+
+        class FakeCoop:
+            api_url = "https://api.example.test"
+
+            def fetch_working_models(self):
+                nonlocal calls
+                calls += 1
+                return [{
+                    "service": "openai", "model": "gpt-test",
+                    "works_with_text": True, "works_with_images": False,
+                    "usd_per_1M_input_tokens": 1.0,
+                    "usd_per_1M_output_tokens": 2.0,
+                }]
+
+        monkeypatch.setattr(edsl.coop, "Coop", FakeCoop)
+        first = CliRunner().invoke(cli_module.app, ["models", "--search", "gpt"])
+        second = CliRunner().invoke(cli_module.app, ["models", "--search", "test"])
+
+        assert first.exit_code == second.exit_code == 0
+        assert calls == 1
+        assert json.loads(first.output)["data"]["cache"]["hit"] is False
+        assert json.loads(second.output)["data"]["cache"]["hit"] is True
+
+    def test_models_refresh_bypasses_cache(self, monkeypatch, tmp_path):
+        import edsl.coop
+
+        monkeypatch.setenv("EDSL_MODEL_CATALOG_CACHE_DIR", str(tmp_path / "model-cache"))
+        calls = 0
+
+        class FakeCoop:
+            api_url = "https://api.example.test"
+
+            def fetch_working_models(self):
+                nonlocal calls
+                calls += 1
+                return []
+
+        monkeypatch.setattr(edsl.coop, "Coop", FakeCoop)
+        first = CliRunner().invoke(cli_module.app, ["models"])
+        second = CliRunner().invoke(cli_module.app, ["models", "--refresh"])
+
+        assert first.exit_code == second.exit_code == 0
+        assert calls == 2
+        assert json.loads(second.output)["data"]["cache"]["hit"] is False
 
     def test_models_filters_by_capability(self, fake_model_catalog):
         result = CliRunner().invoke(
@@ -2757,6 +2851,30 @@ class TestJobsCli:
         assert result.exit_code == 0, result.output
         out = json.loads(result.output)
         assert out["data"]["credits_hold"] == 2.34
+
+    def test_jobs_cost_accepts_model_override(self, tmp_path, monkeypatch):
+        from edsl.jobs import Jobs
+        import edsl.coop
+
+        jobs_path = tmp_path / "model-free.jobs.ep"
+        job = Jobs(survey=Jobs.example().survey, models=[])
+        job.git.save(jobs_path)
+
+        class FakeCoop:
+            def remote_inference_cost(self, obj, iterations=1):
+                assert type(obj).__name__ == "Jobs"
+                assert [item.model for item in obj.models] == ["test"]
+                return {"credits_hold": 1.0, "usd": 0.01}
+
+        monkeypatch.setattr(edsl.coop, "Coop", FakeCoop)
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            ["jobs", "cost", str(jobs_path), "--model", "test"],
+        )
+
+        assert result.exit_code == 0, result.output
+        assert json.loads(result.output)["data"]["usd"] == 0.01
 
 
 # ---------------------------------------------------------------------------
@@ -3911,6 +4029,64 @@ class TestResults:
         assert first.exit_code == 0, first.output
         assert second.exit_code == 0, second.output
         assert json.loads(first.output)["data"] == json.loads(second.output)["data"]
+
+    def test_results_review_is_bounded_and_agent_oriented(self, results_file):
+        result = CliRunner().invoke(
+            cli_module.app,
+            [
+                "results", "review", results_file, "--rows", "1",
+                "--columns", "2", "--values", "1", "--text-chars", "40",
+            ],
+        )
+
+        assert result.exit_code == 0, result.output
+        review = json.loads(result.output)["data"]
+        assert review["result_count"] == 1
+        assert len(review["selected_columns"]) <= 2
+        assert len(review["representative_rows"]) == 1
+        assert all(len(item["top_values"]) <= 1 for item in review["answer_distributions"])
+        assert review["bounds"] == {
+            "max_rows": 1, "max_columns": 2, "max_values": 1, "text_chars": 40,
+        }
+        assert "raw_model_response.q0_raw_model_response" not in review["selected_columns"]
+
+    def test_results_review_accepts_repeated_explicit_columns(self, results_file):
+        result = CliRunner().invoke(
+            cli_module.app,
+            [
+                "results", "review", results_file,
+                "--column", "answer.q0", "--column", "agent.age",
+            ],
+        )
+
+        assert result.exit_code == 0, result.output
+        review = json.loads(result.output)["data"]
+        assert review["selected_columns"] == ["answer.q0", "agent.age"]
+
+    def test_results_review_returns_report_ready_summaries(self, tmp_path):
+        from edsl import Agent, AgentList, QuestionLinearScale, Survey
+
+        results = Survey([QuestionLinearScale(
+            question_name="score", question_text="Score?",
+            question_options=[1, 2, 3, 4, 5],
+        )]).by(AgentList([
+            Agent(traits={"segment": "a"}), Agent(traits={"segment": "b"}),
+        ])).run(cache=False, disable_remote_inference=True)
+        # Deterministically replace generated answers for summary coverage.
+        results[0].answer["score"] = 2
+        results[1].answer["score"] = 4
+        path = tmp_path / "review.ep"
+        results.git.save(str(path))
+
+        result = CliRunner().invoke(cli_module.app, [
+            "results", "review", str(path), "--group-by", "agent.segment",
+        ])
+
+        assert result.exit_code == 0, result.output
+        review = json.loads(result.output)["data"]
+        assert review["numeric_summaries"][0]["mean"] == 3.0
+        assert review["segment_summaries"][0]["group_by"] == "agent.segment"
+        assert [g["means"]["answer.score"] for g in review["segment_summaries"][0]["groups"]] == [2.0, 4.0]
 
     def test_results_values_and_first(self, results_file):
         values = CliRunner().invoke(

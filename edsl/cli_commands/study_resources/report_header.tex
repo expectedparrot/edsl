@@ -1,0 +1,68 @@
+%% Expected Parrot -- PDF report branding
+%% Auto-included via Makefile: pandoc report.md -o report.pdf --pdf-engine=xelatex --include-in-header=report_header.tex
+
+\usepackage{xcolor}
+\definecolor{epgreen}{HTML}{428a5f}
+\definecolor{epgray}{HTML}{666666}
+
+%% Title block: green rule under title; date small, gray, right-aligned
+\usepackage{titling}
+\pretitle{\begin{center}\LARGE\bfseries}
+\posttitle{\end{center}\vskip-0.4em{\color{epgreen}\noindent\rule{\linewidth}{1.5pt}}\vskip0.6em}
+\newsavebox{\EPdiscardbox}
+\predate{\begin{lrbox}{\EPdiscardbox}}
+\postdate{\end{lrbox}\vskip0.5em}
+
+%% Colored section headings (H2 = section, H3 = subsection in pandoc markdown)
+\usepackage{titlesec}
+\titleformat{\section}
+  {\Large\bfseries\color{epgreen}}
+  {}{0em}{}[\color{epgreen}\titlerule]
+\titleformat{\subsection}
+  {\large\bfseries\color{epgreen}}
+  {}{0em}{}
+\titleformat{\subsubsection}
+  {\normalsize\bfseries\color{epgreen}}
+  {}{0em}{}
+
+%% EP logo in header (vector PDF, scales cleanly)
+\usepackage{graphicx}
+\newcommand{\EPlogo}{\raisebox{-0.1em}{\includegraphics[height=0.38cm]{ep_logo}}\hspace{0.4em}\textcolor{epgreen}{Expected Parrot}}
+
+%% Running header/footer (all pages including page 1)
+\usepackage{fancyhdr}
+\setlength{\headheight}{16pt}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\EPlogo}
+\fancyhead[R]{\small\textcolor{epgray}{\thedate}}
+\fancyfoot[C]{\small\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\headrule}{{\color{epgreen}\hrule width\headwidth height\headrulewidth\vskip-\headrulewidth}}
+
+%% Apply same header to page 1 (maketitle uses plain pagestyle by default)
+\fancypagestyle{plain}{%
+  \fancyhf{}%
+  \fancyhead[L]{\small\EPlogo}%
+  \fancyhead[R]{\small\textcolor{epgray}{\thedate}}%
+  \fancyfoot[C]{\small\thepage}%
+  \renewcommand{\headrulewidth}{0.4pt}%
+  \renewcommand{\headrule}{{\color{epgreen}\hrule width\headwidth height\headrulewidth\vskip-\headrulewidth}}%
+}
+
+%% Landscape pages for very wide tables (used by fix-table-widths.lua)
+\usepackage{pdflscape}
+
+%% Allow long URLs to break at any character (must load before hyperref)
+\usepackage{xurl}
+
+%% Green hyperlinks (applied after pandoc loads hyperref)
+\AtBeginDocument{%
+  \hypersetup{%
+    colorlinks=true,%
+    linkcolor=epgreen,%
+    urlcolor=epgreen,%
+    citecolor=epgreen%
+  }%
+}
+

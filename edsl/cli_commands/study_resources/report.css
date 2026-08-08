@@ -1,0 +1,276 @@
+/* 
+ * Expected Parrot Report Stylesheet
+ * For use with pandoc: pandoc report.md -o report.html --css=report.css --standalone --embed-resources
+ */
+
+:root {
+    --ep-green: #428a5f;
+    --ep-green-light: #5ba97a;
+    --ep-dark: #1a1a1a;
+    --ep-gray: #666666;
+    --ep-light-gray: #f5f5f5;
+    --ep-border: #e0e0e0;
+    --font-serif: Georgia, 'Times New Roman', serif;
+    --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    --font-mono: 'SF Mono', Consolas, 'Liberation Mono', Menlo, monospace;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+html {
+    font-size: 16px;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+    font-family: var(--font-sans);
+    line-height: 1.7;
+    color: var(--ep-dark);
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 2rem;
+    background: #fff;
+}
+
+/* Typography */
+h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-serif);
+    font-weight: 600;
+    line-height: 1.3;
+    margin-top: 2rem;
+    margin-bottom: 1rem;
+    color: var(--ep-dark);
+}
+
+h1 {
+    font-size: 2.5rem;
+    border-bottom: 3px solid var(--ep-green);
+    padding-bottom: 0.5rem;
+    margin-top: 0;
+}
+
+h2 {
+    font-size: 1.75rem;
+    color: var(--ep-green);
+    border-bottom: 1px solid var(--ep-border);
+    padding-bottom: 0.3rem;
+}
+
+h3 {
+    font-size: 1.35rem;
+    color: var(--ep-dark);
+}
+
+h4 {
+    font-size: 1.15rem;
+    color: var(--ep-gray);
+}
+
+p {
+    margin: 1rem 0;
+}
+
+/* Links */
+a {
+    color: var(--ep-green);
+    text-decoration: none;
+}
+
+a:hover {
+    text-decoration: underline;
+    color: var(--ep-green-light);
+}
+
+/* Lists */
+ul, ol {
+    margin: 1rem 0;
+    padding-left: 2rem;
+}
+
+li {
+    margin: 0.5rem 0;
+}
+
+li::marker {
+    color: var(--ep-green);
+}
+
+/* Blockquotes */
+blockquote {
+    border-left: 4px solid var(--ep-green);
+    margin: 1.5rem 0;
+    padding: 0.5rem 1.5rem;
+    background: var(--ep-light-gray);
+    color: var(--ep-gray);
+    font-style: italic;
+}
+
+blockquote p {
+    margin: 0.5rem 0;
+}
+
+/* Code */
+code {
+    font-family: var(--font-mono);
+    font-size: 0.9em;
+    background: var(--ep-light-gray);
+    padding: 0.2em 0.4em;
+    border-radius: 4px;
+    color: var(--ep-dark);
+}
+
+pre {
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+    background: #1e1e1e;
+    color: #d4d4d4;
+    padding: 1rem 1.5rem;
+    border-radius: 8px;
+    overflow-x: auto;
+    margin: 1.5rem 0;
+    line-height: 1.5;
+}
+
+pre code {
+    background: none;
+    padding: 0;
+    color: inherit;
+}
+
+/* Tables */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1.5rem 0;
+    font-size: 0.95rem;
+}
+
+th, td {
+    padding: 0.75rem 1rem;
+    text-align: left;
+    border-bottom: 1px solid var(--ep-border);
+}
+
+th {
+    background: var(--ep-green);
+    color: white;
+    font-weight: 600;
+    font-family: var(--font-sans);
+}
+
+tr:nth-child(even) {
+    background: var(--ep-light-gray);
+}
+
+tr:hover {
+    background: #e8f5e9;
+}
+
+/* Images */
+img {
+    max-width: 100%;
+    height: auto;
+    display: block;
+    margin: 1.5rem auto;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* Figure captions */
+figcaption, .caption {
+    text-align: center;
+    font-size: 0.9rem;
+    color: var(--ep-gray);
+    margin-top: -1rem;
+    margin-bottom: 1.5rem;
+    font-style: italic;
+}
+
+/* Horizontal rules */
+hr {
+    border: none;
+    border-top: 2px solid var(--ep-border);
+    margin: 2rem 0;
+}
+
+/* Strong/Bold - use green for emphasis */
+strong {
+    color: var(--ep-dark);
+    font-weight: 600;
+}
+
+/* Executive Summary / Key findings box */
+h2 + ul, 
+h3 + ul {
+    background: linear-gradient(135deg, #f8faf8 0%, #f0f7f2 100%);
+    border-left: 4px solid var(--ep-green);
+    padding: 1rem 1.5rem;
+    border-radius: 0 8px 8px 0;
+    list-style-position: inside;
+}
+
+/* Print styles */
+@media print {
+    body {
+        max-width: 100%;
+        padding: 1cm;
+        font-size: 11pt;
+    }
+    
+    h1, h2, h3 {
+        page-break-after: avoid;
+    }
+    
+    img, table, pre {
+        page-break-inside: avoid;
+    }
+    
+    a {
+        color: var(--ep-dark);
+    }
+    
+    pre {
+        background: var(--ep-light-gray);
+        color: var(--ep-dark);
+        border: 1px solid var(--ep-border);
+    }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    body {
+        padding: 1rem;
+    }
+    
+    h1 {
+        font-size: 2rem;
+    }
+    
+    h2 {
+        font-size: 1.5rem;
+    }
+    
+    table {
+        font-size: 0.85rem;
+    }
+    
+    th, td {
+        padding: 0.5rem;
+    }
+}
+
+/* Header branding */
+body::before {
+    content: "E[🦜] Expected Parrot";
+    display: block;
+    font-family: var(--font-serif);
+    font-size: 1rem;
+    color: var(--ep-green);
+    margin-bottom: 2rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--ep-border);
+}
+

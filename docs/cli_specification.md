@@ -257,7 +257,8 @@ edsl run --survey survey.json --save results.json
 | Flag | Description |
 |------|-------------|
 | `--service` | Filter by service name |
-| `--search` | Wildcard search pattern |
+| `--search` | Case-insensitive model-name substring |
+| `--refresh` | Bypass the one-hour working-model catalog cache |
 | `--text` / `--no-text` | Filter by text capability |
 | `--vision` / `--no-vision` | Filter by image/vision capability |
 
@@ -760,6 +761,22 @@ edsl jobs status <job_uuid>
 ---
 
 ## Design Decisions
+
+### Study scaffolding and repeated scenarios
+
+`ep study start --root <workspace> --topic <topic>` allocates a neutral study
+directory without blank placeholder files. The agent creates `plan.md` once
+its contents are known. After approval, `ep study scaffold <path> --template
+survey` installs the reproducible survey workflow. Add `--with-scenarios` when
+one survey should repeat across stimuli or source items. That explicit flag
+creates `study_scenario_list.py`, builds `scenario_list.ep`, and supplies
+`--scenarios` to `ep jobs build`; ordinary surveys receive no scenario stub.
+For callers holding a workspace separately from a relative study path,
+`ep study scaffold --root <workspace> <relative-path> ...` is equivalent to
+passing the resolved absolute path.
+The scaffold manifest orders implementation explicitly: edit every
+`next_edits` source first, then execute `phase_commands.after_source_edits`.
+This prevents `prepare` from building placeholder study content.
 
 ### Output arrays are deterministically ordered
 - `schema question_types`: alphabetical by type name

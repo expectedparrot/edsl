@@ -336,11 +336,13 @@ def register(jobs_group: click.Group) -> None:
     @jobs_group.command("cost")
     @click.argument("object_path", type=click.Path(exists=True))
     @click.option("--iterations", default=1, type=int, help="Number of iterations.")
-    def jobs_cost(object_path, iterations):
+    @click.option("--model", default=None, help="Model name to use for this estimate.")
+    def jobs_cost(object_path, iterations, model):
         """Estimate remote run cost for a local Jobs or Survey object."""
         try:
             from edsl.coop import Coop
             from edsl.jobs import Jobs
+            from edsl.language_models import Model
             from edsl.surveys import Survey
 
             obj = _load_costable_object(Path(object_path))
@@ -350,6 +352,16 @@ def register(jobs_group: click.Group) -> None:
                     f"Cost estimation requires a Jobs or Survey object, got {type(obj).__name__}.",
                     exit_code=EXIT_VALIDATION,
                 )
+            if model:
+                if isinstance(obj, Survey):
+                    obj = Jobs(survey=obj, models=[Model(model)])
+                else:
+                    obj = Jobs(
+                        survey=obj.survey,
+                        agents=obj.agents,
+                        models=[Model(model)],
+                        scenarios=obj.scenarios,
+                    )
             output(jsonable(Coop().remote_inference_cost(obj, iterations=iterations)))
         except SystemExit:
             raise
@@ -357,7 +369,7 @@ def register(jobs_group: click.Group) -> None:
             error(
                 "JOBS_ERROR",
                 str(e),
-                suggestion="Check the object path, iterations, and Expected Parrot API key.",
+                suggestion="Check the object path, model, iterations, and Expected Parrot API key.",
                 exit_code=EXIT_REMOTE,
             )
 
