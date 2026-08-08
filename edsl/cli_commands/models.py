@@ -3,10 +3,70 @@
 from __future__ import annotations
 
 import json
+import os
+import time
+from hashlib import sha256
+from pathlib import Path
 
 import click
+from platformdirs import user_cache_path
 
 from edsl.cli_shared import EXIT_ERROR, EXIT_REMOTE, EXIT_USAGE, error, output, raw_output_written, save_edsl_object
+
+
+MODEL_CATALOG_CACHE_TTL_SECONDS = 3600
+
+
+def _model_catalog_cache_path(api_url: str) -> Path:
+    cache_root = Path(
+        os.environ.get("EDSL_MODEL_CATALOG_CACHE_DIR")
+        or user_cache_path("edsl") / "model-catalog"
+    )
+    endpoint = sha256(api_url.encode("utf-8")).hexdigest()[:16]
+    return cache_root / f"working-models-{endpoint}.json"
+
+
+def _read_model_catalog_cache(path: Path) -> tuple[list[dict] | None, float | None]:
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        models = payload["models"]
+        fetched_at = float(payload["fetched_at"])
+        if not isinstance(models, list):
+            return None, None
+        return models, max(0.0, time.time() - fetched_at)
+    except (OSError, ValueError, KeyError, TypeError, json.JSONDecodeError):
+        return None, None
+
+
+def _write_model_catalog_cache(path: Path, models: list[dict]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_suffix(".tmp")
+    temporary.write_text(
+        json.dumps({"fetched_at": time.time(), "models": models}),
+        encoding="utf-8",
+    )
+    temporary.replace(path)
+
+
+def _working_models(coop, *, refresh: bool, ttl_seconds: int) -> tuple[list[dict], dict]:
+    path = _model_catalog_cache_path(str(coop.api_url))
+    cached, age = _read_model_catalog_cache(path)
+    if not refresh and cached is not None and age is not None and age <= ttl_seconds:
+        return cached, {
+            "hit": True,
+            "age_seconds": round(age, 3),
+            "ttl_seconds": ttl_seconds,
+        }
+    models = coop.fetch_working_models()
+    try:
+        _write_model_catalog_cache(path, models)
+    except OSError:
+        pass
+    return models, {
+        "hit": False,
+        "age_seconds": 0.0,
+        "ttl_seconds": ttl_seconds,
+    }
 
 
 def register(app: click.Group) -> None:
@@ -17,12 +77,13 @@ def register(app: click.Group) -> None:
     @app.group("models", invoke_without_command=True)
     @click.pass_context
     @click.option("--service", default=None, help="Filter by service name.")
-    @click.option("--search", default=None, help="Wildcard search pattern.")
+    @click.option("--search", default=None, help="Case-insensitive model-name substring.")
     @click.option("--text/--no-text", "works_with_text", default=None, help="Filter by text capability.")
     @click.option("--vision/--no-vision", "works_with_images", default=None, help="Filter by image/vision capability.")
     @click.option("--sort", "sort_by", type=click.Choice(["name", "service", "input-price", "output-price"]), default="service", show_default=True)
     @click.option("--limit", type=click.IntRange(1, 100), default=None, help="Return at most this many models.")
-    def models(ctx, service, search, works_with_text, works_with_images, sort_by, limit):
+    @click.option("--refresh", is_flag=True, help="Bypass the one-hour model-catalog cache.")
+    def models(ctx, service, search, works_with_text, works_with_images, sort_by, limit, refresh):
         """List and create model lists.
 
         \b
@@ -53,10 +114,14 @@ def register(app: click.Group) -> None:
 
         warnings = []
         source = "expected_parrot"
+        cache = None
         try:
             from edsl.coop import Coop
 
-            available = Coop().fetch_working_models()
+            available, cache = _working_models(
+                Coop(), refresh=refresh,
+                ttl_seconds=MODEL_CATALOG_CACHE_TTL_SECONDS,
+            )
             model_list = []
             for item in available:
                 model_name = item.get("model")
@@ -128,6 +193,7 @@ def register(app: click.Group) -> None:
             {
                 "models": model_list,
                 "source": source,
+                "cache": cache,
                 "filters": {
                     "service": service,
                     "search": search,

@@ -257,7 +257,8 @@ edsl run --survey survey.json --save results.json
 | Flag | Description |
 |------|-------------|
 | `--service` | Filter by service name |
-| `--search` | Wildcard search pattern |
+| `--search` | Case-insensitive model-name substring |
+| `--refresh` | Bypass the one-hour working-model catalog cache |
 | `--text` / `--no-text` | Filter by text capability |
 | `--vision` / `--no-vision` | Filter by image/vision capability |
 

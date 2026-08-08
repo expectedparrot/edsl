@@ -1100,10 +1100,14 @@ class TestObjectTransformCli:
         results = Results.git.load(results_path)
         assert len(results) == 2
 
-    def test_models_sort_filter_with_fake_coop(self, monkeypatch):
+    def test_models_sort_filter_with_fake_coop(self, monkeypatch, tmp_path):
         import edsl.coop
 
+        monkeypatch.setenv("EDSL_MODEL_CATALOG_CACHE_DIR", str(tmp_path / "model-cache"))
+
         class FakeCoop:
+            api_url = "https://api.example.test"
+
             def fetch_working_models(self):
                 return [
                     {
@@ -1134,10 +1138,14 @@ class TestObjectTransformCli:
         out = json.loads(result.output)
         assert [m["model_name"] for m in out["data"]["models"]] == ["cheap", "expensive"]
 
-    def test_models_limit_bounds_sorted_output(self, monkeypatch):
+    def test_models_limit_bounds_sorted_output(self, monkeypatch, tmp_path):
         import edsl.coop
 
+        monkeypatch.setenv("EDSL_MODEL_CATALOG_CACHE_DIR", str(tmp_path / "model-cache"))
+
         class FakeCoop:
+            api_url = "https://api.example.test"
+
             def fetch_working_models(self):
                 return [
                     {
@@ -1801,10 +1809,14 @@ class TestValidate:
 
 class TestModels:
     @pytest.fixture
-    def fake_model_catalog(self, monkeypatch):
+    def fake_model_catalog(self, monkeypatch, tmp_path):
         import edsl.coop
 
+        monkeypatch.setenv("EDSL_MODEL_CATALOG_CACHE_DIR", str(tmp_path / "model-cache"))
+
         class FakeCoop:
+            api_url = "https://api.example.test"
+
             def fetch_working_models(self):
                 return [
                     {
@@ -1845,6 +1857,7 @@ class TestModels:
         assert isinstance(data["models"], list)
         assert len(data["models"]) == 3
         assert data["source"] == "expected_parrot"
+        assert data["cache"]["hit"] is False
         assert data["count"] == 3
         assert data["filters"] == {
             "service": None,
@@ -1852,6 +1865,7 @@ class TestModels:
             "text": None,
             "vision": None,
             "sort": "service",
+            "limit": None,
         }
 
     def test_model_entries_have_fields(self, fake_model_catalog):
@@ -1895,6 +1909,7 @@ class TestModels:
             "text": None,
             "vision": None,
             "sort": "service",
+            "limit": None,
         }
         assert out["data"]["models"] == [
             {
@@ -1907,6 +1922,56 @@ class TestModels:
                 "usd_per_1M_output_tokens": 10.0,
             }
         ]
+
+    def test_models_reuses_cached_remote_catalog(self, monkeypatch, tmp_path):
+        import edsl.coop
+
+        monkeypatch.setenv("EDSL_MODEL_CATALOG_CACHE_DIR", str(tmp_path / "model-cache"))
+        calls = 0
+
+        class FakeCoop:
+            api_url = "https://api.example.test"
+
+            def fetch_working_models(self):
+                nonlocal calls
+                calls += 1
+                return [{
+                    "service": "openai", "model": "gpt-test",
+                    "works_with_text": True, "works_with_images": False,
+                    "usd_per_1M_input_tokens": 1.0,
+                    "usd_per_1M_output_tokens": 2.0,
+                }]
+
+        monkeypatch.setattr(edsl.coop, "Coop", FakeCoop)
+        first = CliRunner().invoke(cli_module.app, ["models", "--search", "gpt"])
+        second = CliRunner().invoke(cli_module.app, ["models", "--search", "test"])
+
+        assert first.exit_code == second.exit_code == 0
+        assert calls == 1
+        assert json.loads(first.output)["data"]["cache"]["hit"] is False
+        assert json.loads(second.output)["data"]["cache"]["hit"] is True
+
+    def test_models_refresh_bypasses_cache(self, monkeypatch, tmp_path):
+        import edsl.coop
+
+        monkeypatch.setenv("EDSL_MODEL_CATALOG_CACHE_DIR", str(tmp_path / "model-cache"))
+        calls = 0
+
+        class FakeCoop:
+            api_url = "https://api.example.test"
+
+            def fetch_working_models(self):
+                nonlocal calls
+                calls += 1
+                return []
+
+        monkeypatch.setattr(edsl.coop, "Coop", FakeCoop)
+        first = CliRunner().invoke(cli_module.app, ["models"])
+        second = CliRunner().invoke(cli_module.app, ["models", "--refresh"])
+
+        assert first.exit_code == second.exit_code == 0
+        assert calls == 2
+        assert json.loads(second.output)["data"]["cache"]["hit"] is False
 
     def test_models_filters_by_capability(self, fake_model_catalog):
         result = CliRunner().invoke(
