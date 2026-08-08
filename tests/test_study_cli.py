@@ -30,7 +30,8 @@ def test_study_scaffold_installs_packaged_survey_assets(tmp_path):
         "--model", "gpt-5-nano", "--run-description", "Cognitive test",
     ]))
     assert result["data"]["template"] == "survey"
-    assert "prepare" in result["data"]["phase_commands"]["after_plan_approval"]
+    assert "prepare" in result["data"]["phase_commands"]["after_source_edits"]
+    assert result["data"]["next_action"].startswith("Read and edit every next_edits file")
     assert result["data"]["phase_commands"]["after_inference"].endswith(" post-run")
     for relative in [
         "Makefile", "workflow-gates.json", "analysis/validate_results.py",

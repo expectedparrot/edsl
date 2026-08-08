@@ -759,7 +759,7 @@ if __name__ == "__main__":
             ),
             "phase_commands": (
                 {
-                    "after_plan_approval": (
+                    "after_source_edits": (
                         f'make -C "{Path(root).resolve()}" prepare '
                         'APPROVAL_EVIDENCE="<approval evidence>"'
                     ),
@@ -768,6 +768,10 @@ if __name__ == "__main__":
                     "after_report": f'make -C "{Path(root).resolve()}" complete',
                 }
                 if template == "survey" else {}
+            ),
+            "next_action": (
+                "Read and edit every next_edits file, then execute phase_commands.after_source_edits exactly."
+                if template == "survey" else None
             ),
             "inspect_scaffold": False,
         },

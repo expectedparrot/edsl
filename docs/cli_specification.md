@@ -774,6 +774,9 @@ creates `study_scenario_list.py`, builds `scenario_list.ep`, and supplies
 For callers holding a workspace separately from a relative study path,
 `ep study scaffold --root <workspace> <relative-path> ...` is equivalent to
 passing the resolved absolute path.
+The scaffold manifest orders implementation explicitly: edit every
+`next_edits` source first, then execute `phase_commands.after_source_edits`.
+This prevents `prepare` from building placeholder study content.
 
 ### Output arrays are deterministically ordered
 - `schema question_types`: alphabetical by type name
