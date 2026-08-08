@@ -116,8 +116,13 @@ class ProgressStep(HumanizeSchemaBase):
     ] = None
     # The survey item (question or instruction) after which this step is
     # complete. None means the step runs to the end of the survey, which only
-    # the final step can do.
-    complete_after: Optional[str] = None
+    # the final step can do. A blank name is rejected rather than read as None:
+    # it would satisfy every check here as a named boundary and then match no
+    # item at all, leaving the marker with nothing to advance on.
+    complete_after: Annotated[
+        Optional[str],
+        StringConstraints(strip_whitespace=True, min_length=1),
+    ] = None
 
 
 class StepsProgress(HumanizeSchemaBase):
@@ -135,7 +140,9 @@ class StepsProgress(HumanizeSchemaBase):
                 "Only the final step may omit complete_after; every earlier step "
                 "must name the survey item it ends after."
             )
-        boundaries = [s.complete_after for s in self.steps if s.complete_after]
+        boundaries = [
+            s.complete_after for s in self.steps if s.complete_after is not None
+        ]
         if len(boundaries) != len(set(boundaries)):
             raise ValueError("complete_after must not repeat across steps.")
         return self
