@@ -27,6 +27,7 @@ from edsl.cli_commands import run as run_commands
 from edsl.cli_commands import schema as schema_commands
 from edsl.cli_commands import scenarios as scenarios_commands
 from edsl.cli_commands import surveys as surveys_commands
+from edsl.cli_commands import study as study_commands
 from edsl.cli_commands import validate as validate_commands
 from ep_workflow import cli as workflow_commands
 from edsl.cli_shared import (
@@ -89,6 +90,7 @@ def app(ctx):
                 "workflow",
                 "present",
                 "report",
+                "study",
             ],
             "help": "Use 'ep <command> --help' for details on each command.",
             "pipe_contract": {
@@ -378,6 +380,7 @@ run_commands.register(app)
 schema_commands.register(schema)
 scenarios_commands.register(scenarios)
 surveys_commands.register(surveys)
+study_commands.register(app)
 validate_commands.register(app)
 workflow_commands.register(workflow, gate)
 
