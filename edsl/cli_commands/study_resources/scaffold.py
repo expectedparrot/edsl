@@ -757,6 +757,18 @@ if __name__ == "__main__":
                 ["workflow-setup", "prepare", "zwill-init", "twin-next", "twin-status", "twin-report", "workflow-verify", "present", "complete"]
                 if template == "digital-twins" else []
             ),
+            "phase_commands": (
+                {
+                    "after_plan_approval": (
+                        f'make -C "{Path(root).resolve()}" prepare '
+                        'APPROVAL_EVIDENCE="<approval evidence>"'
+                    ),
+                    "after_spend_approval": f'make -C "{Path(root).resolve()}" data',
+                    "after_inference": f'make -C "{Path(root).resolve()}" post-run',
+                    "after_report": f'make -C "{Path(root).resolve()}" complete',
+                }
+                if template == "survey" else {}
+            ),
             "inspect_scaffold": False,
         },
         "warnings": [],

@@ -14,7 +14,8 @@ def payload(result):
 def test_study_start_allocates_next_path_and_creates_neutral_scaffold(tmp_path):
     first = payload(CliRunner().invoke(app, ["study", "start", "--root", str(tmp_path), "--topic", "Cognitive Survey"]))
     assert first["data"]["recommended_study"] == "sessions/topic_cognitive-survey/study_a"
-    assert (tmp_path / "sessions/topic_cognitive-survey/study_a/plan.md").is_file()
+    assert (tmp_path / "sessions/topic_cognitive-survey/study_a").is_dir()
+    assert not (tmp_path / "sessions/topic_cognitive-survey/study_a/plan.md").exists()
 
     second = payload(CliRunner().invoke(app, ["study", "start", "--root", str(tmp_path), "--topic", "Cognitive Survey"]))
     assert second["data"]["recommended_study"] == "sessions/topic_cognitive-survey/study_b"
@@ -29,6 +30,8 @@ def test_study_scaffold_installs_packaged_survey_assets(tmp_path):
         "--model", "gpt-5-nano", "--run-description", "Cognitive test",
     ]))
     assert result["data"]["template"] == "survey"
+    assert "prepare" in result["data"]["phase_commands"]["after_plan_approval"]
+    assert result["data"]["phase_commands"]["after_inference"].endswith(" post-run")
     for relative in [
         "Makefile", "workflow-gates.json", "analysis/validate_results.py",
         "analysis/plot_style.py", "writeup/report.css", "writeup/ep_logo.pdf",

@@ -73,17 +73,16 @@ def study(ctx):
 @click.option("--root", type=click.Path(path_type=Path), default=Path.cwd, show_default="current directory")
 @click.option("--topic", required=True, help="Human topic name or stable topic slug.")
 @click.option("--summary-limit", type=click.IntRange(0, 20), default=5, show_default=True)
-@click.option("--create/--no-create", default=True, help="Create the neutral study directory and plan placeholder.")
+@click.option("--create/--no-create", default=True, help="Create the neutral study directory without placeholder files.")
 def start(root: Path, topic: str, summary_limit: int, create: bool):
     """Choose the next study path and optionally create its neutral scaffold."""
     data = _orientation(root, topic, summary_limit)
     study_path = root.resolve() / data["recommended_study"]
     if create:
         study_path.mkdir(parents=True, exist_ok=False)
-        (study_path / "plan.md").write_text("", encoding="utf-8")
     data["created"] = create
     data["study_root"] = str(study_path)
-    data["next_action"] = "Write plan.md and obtain approval before method-specific scaffolding."
+    data["next_action"] = "Create plan.md with the Write tool and obtain approval before method-specific scaffolding."
     output(data)
 
 

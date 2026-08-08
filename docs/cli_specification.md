@@ -765,7 +765,8 @@ edsl jobs status <job_uuid>
 ### Study scaffolding and repeated scenarios
 
 `ep study start --root <workspace> --topic <topic>` allocates a neutral study
-directory and `plan.md`. After approval, `ep study scaffold <path> --template
+directory without blank placeholder files. The agent creates `plan.md` once
+its contents are known. After approval, `ep study scaffold <path> --template
 survey` installs the reproducible survey workflow. Add `--with-scenarios` when
 one survey should repeat across stimuli or source items. That explicit flag
 creates `study_scenario_list.py`, builds `scenario_list.ep`, and supplies
