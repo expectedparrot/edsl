@@ -89,6 +89,7 @@ def start(root: Path, topic: str, summary_limit: int, create: bool):
 
 @study.command("scaffold")
 @click.argument("path", type=click.Path(path_type=Path))
+@click.option("--root", type=click.Path(path_type=Path), default=None, help="Resolve a relative PATH from this workspace root.")
 @click.option("--type", "study_type", type=click.Choice(["edsl", "simulation"]), default="edsl")
 @click.option("--template", type=click.Choice(["survey", "agent-list", "qualitative-analysis", "digital-twins"]))
 @click.option("--expected-rows", type=int)
@@ -100,26 +101,29 @@ def start(root: Path, topic: str, summary_limit: int, create: bool):
 @click.option("--required-source-domain")
 @click.option("--model")
 @click.option("--run-description")
+@click.option("--with-scenarios", is_flag=True, help="Create and wire a ScenarioList for repeated stimuli.")
 @click.option("--job", "jobs", multiple=True)
 @click.option("--sim", "sims", multiple=True)
-def scaffold(path: Path, study_type: str, template: str | None, expected_rows: int | None,
+def scaffold(path: Path, root: Path | None, study_type: str, template: str | None, expected_rows: int | None,
              required_answer: tuple[str, ...], expected_agents: int | None,
              required_trait: tuple[str, ...], group_trait: str | None,
              expected_group_size: int | None, required_source_domain: str | None,
-             model: str | None, run_description: str | None, jobs: tuple[str, ...],
+             model: str | None, run_description: str | None, with_scenarios: bool, jobs: tuple[str, ...],
              sims: tuple[str, ...]):
     """Install deterministic build, validation, workflow, and report assets."""
     try:
         capture = io.StringIO()
         with contextlib.redirect_stdout(capture):
+            resolved_path = (root.resolve() / path) if root is not None and not path.is_absolute() else path
             create_project(
-                str(path), list(jobs) or None, study_type=study_type, sims=list(sims) or None,
+                str(resolved_path), list(jobs) or None, study_type=study_type, sims=list(sims) or None,
                 template=template, expected_rows=expected_rows,
                 required_answers=list(required_answer), expected_agents=expected_agents,
                 required_traits=list(required_trait), group_trait=group_trait,
                 expected_group_size=expected_group_size,
                 required_source_domain=required_source_domain, model=model,
                 run_description=run_description,
+                with_scenarios=with_scenarios,
             )
         payload = json.loads(capture.getvalue())
     except (ValueError, json.JSONDecodeError) as exc:

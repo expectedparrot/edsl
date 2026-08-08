@@ -762,6 +762,18 @@ edsl jobs status <job_uuid>
 
 ## Design Decisions
 
+### Study scaffolding and repeated scenarios
+
+`ep study start --root <workspace> --topic <topic>` allocates a neutral study
+directory and `plan.md`. After approval, `ep study scaffold <path> --template
+survey` installs the reproducible survey workflow. Add `--with-scenarios` when
+one survey should repeat across stimuli or source items. That explicit flag
+creates `study_scenario_list.py`, builds `scenario_list.ep`, and supplies
+`--scenarios` to `ep jobs build`; ordinary surveys receive no scenario stub.
+For callers holding a workspace separately from a relative study path,
+`ep study scaffold --root <workspace> <relative-path> ...` is equivalent to
+passing the resolved absolute path.
+
 ### Output arrays are deterministically ordered
 - `schema question_types`: alphabetical by type name
 - `models`: alphabetical by service, then model name

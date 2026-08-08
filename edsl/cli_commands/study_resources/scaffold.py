@@ -87,6 +87,28 @@ if __name__ == "__main__":
     agent_list.git.save("agent_list.ep")
 '''
 
+SCENARIO_SOURCE_TEMPLATE = '''"""Define the approved repeated study stimuli."""
+
+from edsl import Scenario, ScenarioList
+
+
+# STUDY EDIT: replace these examples with the approved stimuli. Keep stable
+# identifiers so each Results row can be joined back to the source instrument.
+scenarios = [
+    {
+        "item_id": "replace_me",
+        "item_text": "Replace with the approved item or stimulus.",
+        "response_type": "Replace with the proposed response type.",
+        "response_options": ["Replace me"],
+    },
+]
+scenario_list = ScenarioList([Scenario(values) for values in scenarios])
+
+
+if __name__ == "__main__":
+    scenario_list.git.save("scenario_list.ep")
+'''
+
 
 def create_project(
     root: str,
@@ -103,6 +125,7 @@ def create_project(
     required_source_domain: str | None = None,
     model: str | None = None,
     run_description: str | None = None,
+    with_scenarios: bool = False,
 ):
     if jobs is None:
         jobs = ["job_a"]
@@ -129,6 +152,8 @@ def create_project(
         ]
         if invalid:
             raise ValueError(f"invalid answer field names: {invalid}")
+    elif with_scenarios:
+        raise ValueError("--with-scenarios requires --template survey")
     if template == "agent-list":
         if study_type != "edsl":
             raise ValueError("the agent-list template requires --type edsl")
@@ -207,6 +232,8 @@ def create_project(
             job_dir / "study_survey.py": SURVEY_SOURCE_TEMPLATE,
             job_dir / "study_agent_list.py": AGENT_SOURCE_TEMPLATE,
         }
+        if with_scenarios:
+            source_templates[job_dir / "study_scenario_list.py"] = SCENARIO_SOURCE_TEMPLATE
         for path, content in source_templates.items():
             if not path.exists():
                 path.write_text(content, encoding="utf-8")
@@ -339,6 +366,16 @@ if __name__ == "__main__":
                 f"--column answer.{field}" for field in required_answers
             )
             export_options = "--column 'agent.*' --column 'answer.*'"
+            scenario_variables = (
+                "SCENARIOS := $(JOB_DIR)/scenario_list.ep\n" if with_scenarios else ""
+            )
+            scenario_rule = (
+                "$(SCENARIOS): $(JOB_DIR)/study_scenario_list.py\n"
+                "\tcd $(JOB_DIR) && $(STUDY_PYTHON) study_scenario_list.py\n\n"
+                if with_scenarios else ""
+            )
+            scenario_prerequisite = " $(SCENARIOS)" if with_scenarios else ""
+            scenario_argument = " --scenarios $(SCENARIOS)" if with_scenarios else ""
             makefile.write_text(
                 makefile_text.rstrip() + "\n\n" + marker + "\n"
                 f"MODEL_NAME := {model}\n"
@@ -347,6 +384,7 @@ if __name__ == "__main__":
                 "JOB_DIR := edsl_jobs/job_a\n"
                 "SURVEY := $(JOB_DIR)/survey.ep\n"
                 "AGENTS := $(JOB_DIR)/agent_list.ep\n"
+                f"{scenario_variables}"
                 "MODELS := $(JOB_DIR)/model_list.ep\n"
                 "JOBS := $(JOB_DIR)/jobs.ep\n\n"
                 ".PHONY: prepare post-run complete estimate inspect report-data plots exports costs retry-data workflow-setup workflow-verify report-check present\n\n"
@@ -360,10 +398,11 @@ if __name__ == "__main__":
                 "\tcd $(JOB_DIR) && $(STUDY_PYTHON) study_survey.py\n\n"
                 "$(AGENTS): $(JOB_DIR)/study_agent_list.py\n"
                 "\tcd $(JOB_DIR) && $(STUDY_PYTHON) study_agent_list.py\n\n"
+                f"{scenario_rule}"
                 "$(MODELS):\n"
                 "\t$(EP) models create --model \"$(MODEL_NAME)\" --output $@\n\n"
-                "$(JOBS): $(SURVEY) $(AGENTS) $(MODELS)\n"
-                "\t$(EP) jobs build --survey $(SURVEY) --agents $(AGENTS) --models $(MODELS) --output $@\n\n"
+                f"$(JOBS): $(SURVEY) $(AGENTS){scenario_prerequisite} $(MODELS)\n"
+                f"\t$(EP) jobs build --survey $(SURVEY) --agents $(AGENTS){scenario_argument} --models $(MODELS) --output $@\n\n"
                 "estimate: $(JOBS)\n"
                 "\t$(EP) jobs cost $(JOBS)\n\n"
                 "data: data/results.ep\n\n"
@@ -693,9 +732,10 @@ if __name__ == "__main__":
                 [
                     "edsl_jobs/job_a/study_survey.py",
                     "edsl_jobs/job_a/study_agent_list.py",
-                ]
+                ] + (["edsl_jobs/job_a/study_scenario_list.py"] if with_scenarios else [])
                 if template == "survey" else []
             ),
+            "with_scenarios": with_scenarios if template == "survey" else False,
             "next_writes": (
                 ["writeup/report.md"] if template == "survey" else
                 ["data/raw/agents.csv", "data/raw/provenance.json"]
@@ -732,6 +772,11 @@ if __name__ == "__main__":
         choices=["edsl", "simulation"],
         default="edsl",
         help="Study type: 'edsl' (default) or 'simulation'",
+    )
+    parser.add_argument(
+        "--with-scenarios",
+        action="store_true",
+        help="Create and wire a ScenarioList for repeated survey stimuli",
     )
     parser.add_argument(
         "--template",
@@ -787,5 +832,5 @@ if __name__ == "__main__":
         required_source_domain=args.required_source_domain,
         model=args.model,
         run_description=args.run_description,
+        with_scenarios=args.with_scenarios,
     )
-

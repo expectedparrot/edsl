@@ -37,6 +37,35 @@ def test_study_scaffold_installs_packaged_survey_assets(tmp_path):
         assert (root / relative).is_file(), relative
 
 
+def test_study_scaffold_wires_scenarios_only_when_requested(tmp_path):
+    root = tmp_path / "workspace"
+    result = payload(CliRunner().invoke(app, [
+        "study", "scaffold", "sessions/topic_test/study_a", "--root", str(root),
+        "--template", "survey", "--with-scenarios", "--expected-rows", "48",
+        "--required-answer", "probe", "--model", "gpt-5-nano",
+        "--run-description", "Cognitive test",
+    ]))
+    study = root / "sessions/topic_test/study_a"
+    scenario_source = study / "edsl_jobs/job_a/study_scenario_list.py"
+    makefile = (study / "Makefile").read_text(encoding="utf-8")
+
+    assert result["data"]["with_scenarios"] is True
+    assert result["data"]["next_edits"][-1] == "edsl_jobs/job_a/study_scenario_list.py"
+    assert scenario_source.is_file()
+    assert "SCENARIOS := $(JOB_DIR)/scenario_list.ep" in makefile
+    assert "--scenarios $(SCENARIOS)" in makefile
+    assert "$(JOBS): $(SURVEY) $(AGENTS) $(SCENARIOS) $(MODELS)" in makefile
+
+
+def test_study_scaffold_rejects_scenarios_for_non_survey_template(tmp_path):
+    result = CliRunner().invoke(app, [
+        "study", "scaffold", str(tmp_path / "study_a"),
+        "--template", "agent-list", "--with-scenarios", "--expected-agents", "2",
+    ])
+    assert result.exit_code == 2
+    assert "--with-scenarios requires --template survey" in result.output
+
+
 def test_study_scaffold_reports_missing_template_invariants(tmp_path):
     result = CliRunner().invoke(app, ["study", "scaffold", str(tmp_path / "study_a"), "--template", "survey"])
     assert result.exit_code == 2
