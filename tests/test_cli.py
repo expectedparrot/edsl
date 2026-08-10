@@ -2895,6 +2895,7 @@ class TestHumanizeCli:
             "qr",
             "preview",
             "respondents",
+            "links",
             "schedules",
             "deliveries",
             "callbacks",
@@ -3429,6 +3430,80 @@ class TestHumanizeCli:
         assert json.loads(schema_result.output)["data"]["humanize_schema"]["questions"]["q0"]["optional"] is True
         assert json.loads(css_result.output)["data"]["message"] == "updated"
         assert json.loads(respondents_result.output)["data"]["respondents"][0]["respondent_uuid"] == "resp-uuid"
+
+    def test_humanize_links_exports_csv_without_printing_tokens(self, tmp_path, monkeypatch):
+        from edsl.dataset import Dataset
+        import edsl.coop
+
+        output_path = tmp_path / "respondent-links.csv"
+        personal_url = "https://example.test/respond?token=secret-token"
+
+        class FakeCoop:
+            def get_human_survey_respondent_links(self, human_survey_uuid, *, include_preview_urls=False, strict=True):
+                assert human_survey_uuid == "human-survey-uuid"
+                assert include_preview_urls is False
+                assert strict is True
+                return Dataset([
+                    {"agent_name": ["Alice"]},
+                    {"respondent_uuid": ["respondent-uuid"]},
+                    {"url": [personal_url]},
+                    {"response_status": ["not_started"]},
+                ])
+
+        monkeypatch.setattr(edsl.coop, "Coop", FakeCoop)
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            ["humanize", "links", "human-survey-uuid", "--output", str(output_path)],
+        )
+
+        assert result.exit_code == 0, result.output
+        out = json.loads(result.output)
+        assert out["data"]["saved_to"] == str(output_path)
+        assert out["data"]["respondent_count"] == 1
+        assert out["data"]["qr_count"] == 0
+        assert out["data"]["sensitive"] is True
+        assert personal_url not in result.output
+        assert personal_url in output_path.read_text(encoding="utf-8")
+
+    def test_humanize_links_can_generate_personal_qr_codes(self, tmp_path, monkeypatch):
+        from edsl.dataset import Dataset
+        import edsl.coop
+        import edsl.scenarios.contrib.qr_code
+
+        output_path = tmp_path / "respondent-links.csv"
+        qr_dir = tmp_path / "qr"
+
+        class FakeCoop:
+            def get_human_survey_respondent_links(self, *args, **kwargs):
+                return Dataset([
+                    {"agent_name": ["Alice"]},
+                    {"respondent_uuid": ["respondent-uuid"]},
+                    {"url": ["https://example.test/respond?token=secret-token"]},
+                    {"response_status": ["not_started"]},
+                ])
+
+        class FakeQRCode:
+            def __init__(self, url):
+                assert "secret-token" in url
+
+            def save(self, path):
+                Path(path).write_bytes(b"png")
+
+        monkeypatch.setattr(edsl.coop, "Coop", FakeCoop)
+        monkeypatch.setattr(edsl.scenarios.contrib.qr_code, "QRCode", FakeQRCode)
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            ["humanize", "links", "human-survey-uuid", "--output", str(output_path), "--qr-dir", str(qr_dir)],
+        )
+
+        assert result.exit_code == 0, result.output
+        out = json.loads(result.output)
+        qr_path = qr_dir / "respondent-respondent-uuid.png"
+        assert out["data"]["qr_count"] == 1
+        assert qr_path.read_bytes() == b"png"
+        assert str(qr_path) in output_path.read_text(encoding="utf-8")
 
     def test_humanize_schema_set_from_direct_controls(self, monkeypatch):
         import edsl.coop

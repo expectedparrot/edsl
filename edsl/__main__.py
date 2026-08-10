@@ -339,7 +339,7 @@ def humanize(ctx):
         _output({
             "commands": [
                 "list", "create", "status", "responses", "qr", "preview",
-                "respondents", "schedules", "deliveries", "callbacks",
+                "respondents", "links", "schedules", "deliveries", "callbacks",
                 "agent-list", "schema", "css", "prolific",
             ],
             "help": "Use 'ep humanize <command> --help' for details.",
