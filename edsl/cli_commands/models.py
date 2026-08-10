@@ -49,7 +49,15 @@ def _write_model_catalog_cache(path: Path, models: list[dict]) -> None:
 
 
 def _working_models(coop, *, refresh: bool, ttl_seconds: int) -> tuple[list[dict], dict]:
-    path = _model_catalog_cache_path(str(coop.api_url))
+    api_url = getattr(coop, "api_url", None)
+    if api_url is None:
+        return coop.fetch_working_models(), {
+            "hit": False,
+            "age_seconds": 0.0,
+            "ttl_seconds": ttl_seconds,
+        }
+
+    path = _model_catalog_cache_path(str(api_url))
     cached, age = _read_model_catalog_cache(path)
     if not refresh and cached is not None and age is not None and age <= ttl_seconds:
         return cached, {
