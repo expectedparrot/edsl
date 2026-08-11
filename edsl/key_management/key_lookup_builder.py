@@ -198,6 +198,13 @@ class KeyLookupBuilder:
                 }
             )
 
+        if "openai_compatible" not in d:
+            d["openai_compatible"] = LanguageModelInput(
+                api_token=os.getenv("OPENAI_COMPATIBLE_API_KEY", "local"),
+                rpm=1000,
+                tpm=2000000,
+            )
+
         return KeyLookup(d)
 
     def get_language_model_input(self, service: str) -> LanguageModelInput:

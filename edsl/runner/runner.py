@@ -345,6 +345,7 @@ class Runner:
         distributed: bool = False,
         heartbeat_interval: float = 10.0,
         dead_worker_timeout: int = 60,
+        max_workers: int = 400,
     ):
         """
         Initialize a Runner for local execution.
@@ -358,10 +359,12 @@ class Runner:
             distributed: If True, enable distributed execution features.
             heartbeat_interval: Seconds between worker heartbeats.
             dead_worker_timeout: Seconds after which a worker is considered dead.
+            max_workers: Maximum number of concurrent execution workers.
         """
         self._distributed = distributed
         self._heartbeat_interval = heartbeat_interval
         self._dead_worker_timeout = dead_worker_timeout
+        self._max_workers = max_workers
 
         # Initialize storage
         self._storage = self._create_storage(storage)
@@ -618,7 +621,6 @@ class Runner:
         self,
         job_id: str,
         debug: bool = False,
-        max_workers: int = 400,
         cache: Any = None,
         stats: TimingStats | None = None,
         stop_on_exception: bool = False,
@@ -631,8 +633,8 @@ class Runner:
         pool = ExecutionWorkerPool(
             coordinator=self._coordinator,
             job_service=self._service,
-            min_workers=max_workers,
-            max_workers=max_workers,
+            min_workers=self._max_workers,
+            max_workers=self._max_workers,
             cache=cache,
             worker_registry=self._worker_registry,
             heartbeat_interval=self._heartbeat_interval,

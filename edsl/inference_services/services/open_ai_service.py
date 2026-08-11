@@ -127,30 +127,34 @@ class OpenAIService(InferenceServiceABC):
             cls._async_client_ = openai.AsyncOpenAI
 
     @classmethod
-    def sync_client(cls, api_key):
+    def sync_client(cls, api_key, base_url=None):
         cls._resolve_clients()
-        if api_key not in cls._sync_client_instances:
+        resolved_base_url = base_url if base_url is not None else cls._base_url_
+        cache_key = (api_key, resolved_base_url)
+        if cache_key not in cls._sync_client_instances:
             client = cls._sync_client_(
                 api_key=api_key,
-                base_url=cls._base_url_,
+                base_url=resolved_base_url,
             )
-            cls._sync_client_instances[api_key] = client
-        client = cls._sync_client_instances[api_key]
+            cls._sync_client_instances[cache_key] = client
+        client = cls._sync_client_instances[cache_key]
         return client
 
     @classmethod
-    def async_client(cls, api_key):
+    def async_client(cls, api_key, base_url=None):
         cls._resolve_clients()
-        if api_key not in cls._async_client_instances:
+        resolved_base_url = base_url if base_url is not None else cls._base_url_
+        cache_key = (api_key, resolved_base_url)
+        if cache_key not in cls._async_client_instances:
             from openai import DefaultAioHttpClient
 
             client = cls._async_client_(
                 api_key=api_key,
-                base_url=cls._base_url_,
+                base_url=resolved_base_url,
                 http_client=DefaultAioHttpClient(),
             )
-            cls._async_client_instances[api_key] = client
-        client = cls._async_client_instances[api_key]
+            cls._async_client_instances[cache_key] = client
+        client = cls._async_client_instances[cache_key]
         return client
 
     @classmethod
@@ -218,10 +222,12 @@ class OpenAIService(InferenceServiceABC):
             }
 
             def sync_client(self):
-                return cls.sync_client(api_key=self.api_token)
+                api_key = os.getenv(self.api_key_env) if getattr(self, "api_key_env", None) else self.api_token
+                return cls.sync_client(api_key=api_key, base_url=getattr(self, "base_url", None))
 
             def async_client(self):
-                return cls.async_client(api_key=self.api_token)
+                api_key = os.getenv(self.api_key_env) if getattr(self, "api_key_env", None) else self.api_token
+                return cls.async_client(api_key=api_key, base_url=getattr(self, "base_url", None))
 
             @classmethod
             def available(cls) -> list[str]:

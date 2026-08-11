@@ -35,6 +35,7 @@ Output:
 | mistral |
 | ollama |
 | openai |
+| openai_compatible |
 | perplexity |
 | together |
 | xai |
@@ -44,6 +45,12 @@ Output:
 
 We recently added support for OpenAI reasoning models. See an example notebook for usage [here](https://www.expectedparrot.com/content/RobinHorton/reasoning-model-example). Use service_name = “openai_v2” when using these models. The Results that are generated with reasoning models include additional fields for reasoning summaries.
 </Note>
+
+## Local and self-hosted models
+
+Use the `openai_compatible` service to connect EDSL to a local or self-hosted server that implements the OpenAI chat-completions API, including llama.cpp, Ollama, LM Studio, vLLM, and SGLang. Connection details can be saved in a portable `ModelList` without storing an API-key value.
+
+See [Local OpenAI-compatible models](/en/latest/local_openai_compatible) for setup, CLI examples, concurrency guidance, and troubleshooting.
 
 ## Specifying a model
 
