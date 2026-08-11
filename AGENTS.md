@@ -281,13 +281,14 @@ ep models --vision --sort name
 ep models --refresh
 ep models create --model gpt-4o --output models.ep
 ep models create --model gpt-4o --model gpt-4o-mini --output models.ep
+ep models create --profile report-review --count 3 --output report-review.models.ep
 ep models create \
   --model-spec '{"model":"claude-opus-4-8","service":"anthropic"}' \
   --model-spec '{"model":"gpt-5.4","service":"openai","parameters":{"reasoning_effort":"high"}}' \
   --output models.ep
 ```
 
-Prefer `--model` on `ep run` for a one-off single model. Create a `ModelList` when the model set is reused or shared. Repeat `--model` when models share configuration; repeat `--model-spec` when services or parameters differ by model. Do not write a Python helper merely to construct a heterogeneous `ModelList`.
+Prefer `--model` on `ep run` for a one-off single model. Create a `ModelList` when the model set is reused or shared. Repeat `--model` when models share configuration; repeat `--model-spec` when services or parameters differ by model. Use `--profile report-review` for a bounded vision-capable panel from distinct providers; it reuses the model-catalog disk cache unless `--refresh` is supplied. Do not write a Python helper merely to construct a heterogeneous `ModelList`.
 
 `ep models` caches the unfiltered Expected Parrot working-model catalog for one
 hour and applies service, search, capability, sort, and limit filters locally.
