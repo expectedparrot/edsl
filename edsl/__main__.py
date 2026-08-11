@@ -20,13 +20,17 @@ from edsl.cli_commands import objects as objects_commands
 from edsl.cli_commands import open as open_commands
 from edsl.cli_commands import packages as package_commands
 from edsl.cli_commands import profiles as profiles_commands
+from edsl.cli_commands import present as present_commands
+from edsl.cli_commands import report as report_commands
 from edsl.cli_commands import results as results_commands
 from edsl.cli_commands import run as run_commands
 from edsl.cli_commands import run_manifest as run_manifest_commands
 from edsl.cli_commands import schema as schema_commands
 from edsl.cli_commands import scenarios as scenarios_commands
 from edsl.cli_commands import surveys as surveys_commands
+from edsl.cli_commands import study as study_commands
 from edsl.cli_commands import validate as validate_commands
+from ep_workflow import cli as workflow_commands
 from edsl.cli_shared import (
     EXIT_AUTH,
     EXIT_ERROR,
@@ -84,6 +88,10 @@ def app(ctx):
                 "jobs",
                 "surveys",
                 "costs",
+                "workflow",
+                "present",
+                "report",
+                "study",
             ],
             "help": "Use 'ep <command> --help' for details on each command.",
             "pipe_contract": {
@@ -287,6 +295,36 @@ def costs(ctx):
 
 @app.group(invoke_without_command=True)
 @click.pass_context
+def workflow(ctx):
+    """Manage evidence-backed task workflow gates."""
+    if ctx.invoked_subcommand is None:
+        _output({
+            "commands": ["setup", "init", "status", "verify", "freeze", "repair", "gate"],
+            "help": "Use 'ep workflow <command> --help' for details.",
+        })
+
+
+@app.group(invoke_without_command=True)
+@click.pass_context
+def report(ctx):
+    """Validate generated study reports."""
+    if ctx.invoked_subcommand is None:
+        _output({"commands": ["check"], "help": "Use 'ep report check --help' for details."})
+
+
+@workflow.group(invoke_without_command=True)
+@click.pass_context
+def gate(ctx):
+    """Define, attest, verify, and clear ordered gates."""
+    if ctx.invoked_subcommand is None:
+        _output({
+            "commands": ["set", "attest", "verify", "clear"],
+            "help": "Use 'ep workflow gate <command> --help' for details.",
+        })
+
+
+@app.group(invoke_without_command=True)
+@click.pass_context
 def humanize(ctx):
     """Create and manage human surveys.
 
@@ -302,7 +340,7 @@ def humanize(ctx):
         _output({
             "commands": [
                 "list", "create", "status", "responses", "qr", "preview",
-                "respondents", "schedules", "deliveries", "callbacks",
+                "respondents", "links", "schedules", "deliveries", "callbacks",
                 "agent-list", "schema", "css", "prolific",
             ],
             "help": "Use 'ep humanize <command> --help' for details.",
@@ -336,13 +374,17 @@ for command_name in [
 open_commands.register(app)
 package_commands.register(app)
 profiles_commands.register(app, profiles)
+present_commands.register(app)
+report_commands.register(report)
 results_commands.register(results)
 run_commands.register(app)
 run_manifest_commands.register(app)
 schema_commands.register(schema)
 scenarios_commands.register(scenarios)
 surveys_commands.register(surveys)
+study_commands.register(app)
 validate_commands.register(app)
+workflow_commands.register(workflow, gate)
 
 
 

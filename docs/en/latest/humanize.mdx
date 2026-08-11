@@ -238,6 +238,32 @@ qr = coop.get_human_survey_qr_code("your-human-survey-uuid")
 qr.save("qr_code.png")  # save to file
 ```
 
+From the CLI, generate a QR code for the shared respondent URL:
+
+```bash
+ep humanize qr <human-survey-uuid> --output survey-qr.png
+```
+
+When the human survey has an attached agent list, export the roster together
+with each respondent's personal link:
+
+```bash
+ep humanize links <human-survey-uuid> --output respondent-links.csv
+```
+
+Add `--qr-dir` to generate one personal QR code per respondent and record each
+PNG path in the CSV:
+
+```bash
+ep humanize links <human-survey-uuid> \
+  --output respondent-links.csv \
+  --qr-dir respondent-qr
+```
+
+Personal links and QR codes contain access tokens and act as bearer credentials.
+Store the export securely and share each link or code only with its intended
+respondent. The CLI returns only file metadata on stdout, never the links.
+
 ---
 
 ## Prolific integration

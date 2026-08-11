@@ -1,6 +1,7 @@
 from typing import Dict, List, Optional, TYPE_CHECKING, Tuple
 from datetime import datetime
 from collections import defaultdict
+from difflib import get_close_matches
 import fnmatch
 
 from .source_preference_handler import SourcePreferenceHandler
@@ -355,6 +356,12 @@ class InferenceServiceRegistry:
             except Exception as e:
                 refresh_error = e
         if not services:
+            available_models = sorted(self.model_to_services)
+            suggested_models = get_close_matches(
+                model_name, available_models, n=5, cutoff=0.35
+            )
+            if not suggested_models:
+                suggested_models = available_models[:5]
             refresh_context = (
                 f"\n                             Live-source refresh failed: {refresh_error}"
                 if refresh_error is not None
@@ -362,7 +369,7 @@ class InferenceServiceRegistry:
             )
             raise ValueError(
                 f"""Model '{model_name}' not found in any service.
-                             Available models: {list(self.model_to_services.keys())}. 
+                             Suggested models: {suggested_models}.
                              Available services: {list(self.service_to_models.keys())}
                             Used source: {self._source_handler.used_source}{refresh_context}"""
             )
