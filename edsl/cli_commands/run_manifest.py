@@ -24,7 +24,8 @@ def _expected_count(run: dict) -> int:
 def _result_count(path: Path) -> int:
     if not path.exists():
         return 0
-    return len(load_any_object(str(path), expected_object_type="Results"))
+    result = load_any_object(str(path), expected_object_type="Results")
+    return len(result)
 
 
 def _execute_run(run: dict, *, base: Path, timeout: float) -> dict:
@@ -32,7 +33,8 @@ def _execute_run(run: dict, *, base: Path, timeout: float) -> dict:
     result = Path(str(run["result_path"]))
     if not result.is_absolute():
         result = base / result
-    expected, actual = _expected_count(run), _result_count(result)
+    expected = _expected_count(run)
+    actual = _result_count(result)
     if actual == expected and expected > 0:
         return {"job_path": str(job), "result_path": str(result), "expected_count": expected,
                 "actual_count": actual, "status": "complete", "executed": False}
@@ -79,7 +81,8 @@ def register(app: click.Group) -> None:
         if not isinstance(runs, list) or not runs:
             error("INVALID_MANIFEST", "Run manifest needs a non-empty 'runs' list.", exit_code=EXIT_USAGE)
         base = Path(result_base).resolve()
-        records, incomplete = [], []
+        records = []
+        incomplete = []
         for run in runs:
             result = Path(str(run.get("result_path", "")))
             if not result.is_absolute():
@@ -97,7 +100,8 @@ def register(app: click.Group) -> None:
                   suggestion="Review the manifest and rerun with --execute to permit remote inference.",
                   exit_code=EXIT_REMOTE, details=records)
         if incomplete:
-            completed_records, failures = [], []
+            completed_records = []
+            failures = []
             with ThreadPoolExecutor(max_workers=parallel) as pool:
                 futures = {pool.submit(_execute_run, run, base=base, timeout=timeout): run for run in incomplete}
                 for future in as_completed(futures):
