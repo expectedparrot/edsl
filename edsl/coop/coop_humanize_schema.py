@@ -245,6 +245,17 @@ class ComputeHumanizeSchema(HumanizeSchemaBase):
     pass
 
 
+class ImageGenerationHumanizeSchema(HumanizeSchemaBase):
+    """Humanize options for the image generation question type (none).
+
+    Like compute, image generation is a background/auto-advanced question the
+    respondent never submits, so there are no per-question humanize options and
+    no ``submitting_indicator``. Empty schema kept for parity/registration.
+    """
+
+    pass
+
+
 class FileUploadHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the file upload question type."""
 
@@ -650,6 +661,7 @@ HumanizeQuestionSchema = Union[
     CheckboxWithOtherHumanizeSchema,
     ComputeHumanizeSchema,
     FileUploadHumanizeSchema,
+    ImageGenerationHumanizeSchema,
     InterviewHumanizeSchema,
     LikertHumanizeSchema,
     LinearScaleHumanizeSchema,
@@ -681,6 +693,7 @@ QUESTION_TYPE_TO_HUMANIZE_CLASS: Dict[str, Type[BaseModel]] = {
     "checkbox_with_other": CheckboxWithOtherHumanizeSchema,
     "compute": ComputeHumanizeSchema,
     "file_upload": FileUploadHumanizeSchema,
+    "image_generation": ImageGenerationHumanizeSchema,
     "interview": InterviewHumanizeSchema,
     "likert_five": LikertHumanizeSchema,
     "linear_scale": LinearScaleHumanizeSchema,

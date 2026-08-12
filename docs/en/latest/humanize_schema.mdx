@@ -239,7 +239,7 @@ Each `questions[question_name]` value is a `HumanizeQuestionSchema` object.
 
   **Supported question types:** `free_text`, `budget`, `checkbox`, `checkbox_with_other`, `file_upload`, `likert_five`, `linear_scale`, `list`, `matrix`, `multiple_choice`, `multiple_choice_with_other`, `numerical`, `rank`, `top_k`, `yes_no`.
 
-  Note: not supported for `compute` (runs locally and auto-advances, so it is never the question a respondent submits) or `interview`.
+  Note: not supported for `compute` or `image_generation` (both run in the background and auto-advance, so neither is ever the question a respondent submits), or for `interview`.
 
   <Expandable title="properties">
     <ParamField path="type" type="string" default="callout">
