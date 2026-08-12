@@ -462,7 +462,13 @@ class QuestionRank(QuestionBase):
         self.question_name = question_name
         self.question_text = question_text
         self.question_options = question_options
-        self.num_selections = num_selections or len(question_options)
+        # The "all of them" default is a count of the options, so it can only be taken
+        # when there are options to count. Piped options are still a template here, and
+        # counting one gives the length of the string; left as None,
+        # NumSelectionsDescriptor resolves it on read instead, once they are a list.
+        self.num_selections = num_selections or (
+            len(question_options) if isinstance(question_options, list) else None
+        )
         self.question_presentation = question_presentation
         self.answering_instructions = answering_instructions
         self.permissive = permissive

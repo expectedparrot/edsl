@@ -168,15 +168,36 @@ class InstructionsDescriptor(BaseDescriptor):
 
 
 class NumSelectionsDescriptor(BaseDescriptor):
-    """Validate that `num_selections` is an integer, is less than the number of options, and is positive."""
+    """Validate that `num_selections` is an integer, is less than the number of options, and is positive.
+
+    Left unset, `num_selections` means "all of them" — a count of the options rather
+    than a number in its own right. Options can be a template piped from an earlier
+    answer, in which case there is nothing to count until that answer arrives, so the
+    default is stored as None and worked out on read instead. Resolving it any earlier
+    counts the characters in the template.
+    """
+
+    def __get__(self, instance, owner):
+        """Fill in the "all of them" default against whatever the options are now."""
+        value = instance.__dict__.get(self.name)
+        if value is None and isinstance(instance.question_options, list):
+            return len(instance.question_options)
+        return value
 
     def validate(self, value, instance):
         """Validate the value is an integer, is less than the number of options, and is positive."""
+        if value is None:
+            return None
         if not (isinstance(value, int)):
             raise QuestionCreationValidationError(
                 f"`num_selections` must be an integer (got {value})."
             )
-        if value > len(instance.question_options):
+        # Only worth comparing once the options are a list. Against a template the
+        # comparison is to the length of a string, which lets a wrong number through
+        # and rejects a right one.
+        if isinstance(instance.question_options, list) and value > len(
+            instance.question_options
+        ):
             raise QuestionCreationValidationError(
                 f"`num_selections` must be less than the number of options (got {value})."
             )
