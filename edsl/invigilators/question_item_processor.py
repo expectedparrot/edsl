@@ -1,3 +1,4 @@
+import random
 from typing import Union, TYPE_CHECKING
 
 from .question_attribute_processor import QuestionAttributeProcessor
@@ -116,6 +117,21 @@ class QuestionItemProcessor(QuestionAttributeProcessor):
         >>> question_data = {"question_items": {"from": "{{ q0.answer }}", "add": ["Item 3", "Item 4"]}}
         >>> processor.get_question_items(question_data)
         ['Item 1', 'Item 2', 'Item 3', 'Item 4']
+
+        Randomization is applied only after a template resolves to a list:
+
+        >>> import random
+        >>> random.seed(1)
+        >>> question_data = {"question_items": "{{ q0.answer }}", "randomize_items": True}
+        >>> sorted(processor.get_question_items(question_data))
+        ['Item 1', 'Item 2']
+
+        Pinned rows retain their original positions:
+
+        >>> random.seed(1)
+        >>> question_data = {"question_items": ["A", "B", "Other"], "randomize_items": True, "items_to_pin": ["Other"]}
+        >>> processor.get_question_items(question_data)[-1]
+        'Other'
         """
         items_entry = question_data.get("question_items")
 
@@ -127,16 +143,39 @@ class QuestionItemProcessor(QuestionAttributeProcessor):
             base_items = self._get_items_from_template(from_template)
 
             if base_items and base_items != self._get_default_items():
-                return base_items + additional_items
+                items = base_items + additional_items
+                return self._maybe_randomize(items, question_data)
 
-            return additional_items if additional_items else self._get_default_items()
+            items = additional_items if additional_items else self._get_default_items()
+            return self._maybe_randomize(items, question_data)
 
         # If not a template string or dict, return as is or default
         if not isinstance(items_entry, str):
-            return items_entry if items_entry else self._get_default_items()
+            items = items_entry if items_entry else self._get_default_items()
+            return self._maybe_randomize(items, question_data)
 
         # Handle simple template string
-        return self._get_items_from_template(items_entry)
+        items = self._get_items_from_template(items_entry)
+        return self._maybe_randomize(items, question_data)
+
+    @staticmethod
+    def _maybe_randomize(items: list, question_data: dict) -> list:
+        """Shuffle resolved matrix rows while leaving requested positions pinned."""
+        if not question_data.get("randomize_items") or len(items) < 2:
+            return items
+
+        pinned_values = question_data.get("items_to_pin") or []
+        pinned = {i: value for i, value in enumerate(items) if value in pinned_values}
+        movable = [value for value in items if value not in pinned_values]
+        shuffled = random.sample(movable, len(movable))
+        result = [None] * len(items)
+        for index, value in pinned.items():
+            result[index] = value
+        movable_iter = iter(shuffled)
+        for index, value in enumerate(result):
+            if value is None:
+                result[index] = next(movable_iter)
+        return result
 
     def _get_items_from_template(self, template_string: str) -> list:
         """

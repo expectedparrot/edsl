@@ -271,6 +271,8 @@ class InterviewDefinition:
     # Randomized question options per question (question_name -> permuted options list)
     # Only populated for questions in survey.questions_to_randomize
     question_option_permutations: dict[str, list] = field(default_factory=dict)
+    # Exact randomized matrix row order served in this interview.
+    question_item_permutations: dict[str, list] = field(default_factory=dict)
 
     def storage_key(self) -> str:
         return f"job:{self.job_id}:interview:{self.interview_id}"
@@ -284,6 +286,7 @@ class InterviewDefinition:
             "task_ids": self.task_ids,
             "iteration": self.iteration,
             "question_option_permutations": self.question_option_permutations,
+            "question_item_permutations": self.question_item_permutations,
         }
 
     @classmethod
@@ -300,6 +303,7 @@ class InterviewDefinition:
             task_ids=data["task_ids"],
             iteration=data.get("iteration", 0),
             question_option_permutations=data.get("question_option_permutations", {}),
+            question_item_permutations=data.get("question_item_permutations", {}),
         )
 
 

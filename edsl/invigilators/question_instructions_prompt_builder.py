@@ -243,9 +243,8 @@ class QuestionInstructionPromptBuilder:
 
         return question_data
 
-    @staticmethod
     def _enrich_with_question_options(
-        prompt_data: Dict, scenario: "Scenario", prior_answers_dict: Dict
+        self, prompt_data: Dict, scenario: "Scenario", prior_answers_dict: Dict
     ) -> Dict:
         """Enriches the prompt data with processed question options if they exist.
 
@@ -257,11 +256,25 @@ class QuestionInstructionPromptBuilder:
         Returns:
             Dict: Enriched prompt data
         """
+        if getattr(self.question, "_matrix_items_randomized", False):
+            prompt_data["data"]["question_items"] = self.question.question_items
+            prompt_data["data"]["randomize_items"] = False
+
         prompt_data["data"] = (
             QuestionInstructionPromptBuilder._process_question_options(
                 prompt_data["data"], scenario, prior_answers_dict
             )
         )
+
+        # Preserve the exact matrix row order used to build the prompt. This makes
+        # it stable if prompts are requested again and exposes it in Results.
+        if (
+            getattr(self.question, "question_type", None) == "matrix"
+            and "question_items" in prompt_data["data"]
+        ):
+            self.question.question_items = prompt_data["data"]["question_items"]
+            if getattr(self.question, "randomize_items", False):
+                self.question._matrix_items_randomized = True
         return prompt_data
 
     def _render_prompt(self, prompt_data: Dict) -> "Prompt":

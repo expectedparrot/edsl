@@ -147,6 +147,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         "iteration",
         "question_text",
         "question_options",
+        "question_items",
         "question_type",
         "comment",
         "generated_tokens",
@@ -214,6 +215,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
 
         from ..caching import Cache
         from ..tasks import TaskHistory
+
         self.survey = survey
         self.created_columns = created_columns or []
         self._job_uuid = job_uuid
@@ -479,9 +481,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         # Models
         model_names = []
         for m in set(self.models):
-            model_names.append(
-                getattr(m, "model", getattr(m, "_model_", "unknown"))
-            )
+            model_names.append(getattr(m, "model", getattr(m, "_model_", "unknown")))
         components.append("Models")
         counts.append(str(num_models))
         details.append(", ".join(sorted(set(model_names))))
@@ -1285,6 +1285,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
             >>> r.insert_sorted(new_result)
         """
         return self._container.insert_sorted(item)
+
 
 def main():  # pragma: no cover
     """Run example operations on a Results object.
