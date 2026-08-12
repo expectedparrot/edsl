@@ -168,7 +168,12 @@ class ValidatedDict(ResultComponentPrependedKeys):
 
 class ResultComponentNested(ResultComponentDict):
     name = "question_to_attributes"
-    special_keys = ["question_text", "question_options", "question_type"]
+    special_keys = [
+        "question_text",
+        "question_options",
+        "question_items",
+        "question_type",
+    ]
 
     def generate_by_question_dict(self):
         d = defaultdict(dict)

@@ -24,6 +24,26 @@ def test_QuestionMatrix_construction():
     assert q.question_options == valid_question["question_options"]
     assert q.option_labels == valid_question["option_labels"]
 
+
+def test_matrix_row_randomization_configuration_roundtrip():
+    q = QuestionMatrix(
+        **valid_question,
+        randomize_items=True,
+        items_to_pin=["3 or more children"],
+    )
+
+    restored = QuestionMatrix.from_dict(q.to_dict())
+
+    assert restored.randomize_items is True
+    assert restored.items_to_pin == ["3 or more children"]
+
+
+def test_default_matrix_serialization_is_unchanged():
+    q = QuestionMatrix(**valid_question)
+
+    assert "randomize_items" not in q.to_dict()
+    assert "items_to_pin" not in q.to_dict()
+
     # Construction without labels
     q = QuestionMatrix(
         **{k: v for k, v in valid_question.items() if k != "option_labels"}
@@ -37,7 +57,7 @@ def test_QuestionMatrix_construction():
     ):
         QuestionMatrix(
             question_name="",
-            **{k: v for k, v in valid_question.items() if k != "question_name"}
+            **{k: v for k, v in valid_question.items() if k != "question_name"},
         )
 
     with pytest.raises(
@@ -46,7 +66,7 @@ def test_QuestionMatrix_construction():
     ):
         QuestionMatrix(
             question_text="",
-            **{k: v for k, v in valid_question.items() if k != "question_text"}
+            **{k: v for k, v in valid_question.items() if k != "question_text"},
         )
 
     with pytest.raises(
@@ -54,7 +74,7 @@ def test_QuestionMatrix_construction():
     ):
         QuestionMatrix(
             question_items=[],
-            **{k: v for k, v in valid_question.items() if k != "question_items"}
+            **{k: v for k, v in valid_question.items() if k != "question_items"},
         )
 
     q.question_items = ["No children"]
@@ -65,7 +85,7 @@ def test_QuestionMatrix_construction():
     ):
         QuestionMatrix(
             question_options=[],
-            **{k: v for k, v in valid_question.items() if k != "question_options"}
+            **{k: v for k, v in valid_question.items() if k != "question_options"},
         )
 
 
@@ -160,43 +180,55 @@ def test_QuestionMatrix_numeric_key_fix():
         question_name="test_numeric_keys",
         question_text="How often do you use each of the following?",
         question_items=["Use TikTok", "Use Instagram", "Use BlueSky"],
-        question_options=["Never", "Rarely", "Now and then", "Quite regularly", "Very regularly"],
-        permissive=True
+        question_options=[
+            "Never",
+            "Rarely",
+            "Now and then",
+            "Quite regularly",
+            "Very regularly",
+        ],
+        permissive=True,
     )
 
     # This is the format that caused the validation error in production
     numeric_response = {
         "answer": {"0": 1, "1": 3, "2": 0},
         "comment": "I rarely use TikTok, quite regularly use Instagram, and never use BlueSky.",
-        "generated_tokens": '{"0": 1, "1": 3, "2": 0}\n\nI rarely use TikTok, quite regularly use Instagram, and never use BlueSky.'
+        "generated_tokens": '{"0": 1, "1": 3, "2": 0}\n\nI rarely use TikTok, quite regularly use Instagram, and never use BlueSky.',
     }
 
     # First test the direct fix method to see if it correctly converts the response
     fixed_response = q.response_validator.fix(numeric_response, verbose=True)
-    
+
     # Assert each item is in the fixed response
     assert "Use TikTok" in fixed_response["answer"]
     assert "Use Instagram" in fixed_response["answer"]
     assert "Use BlueSky" in fixed_response["answer"]
-    
+
     # Check that all items are present
     assert len(fixed_response["answer"]) == len(q.question_items)
-    
+
     # Now create a production-like test with string options
     q2 = QuestionMatrix(
         question_name="test_numeric_keys_string_options",
         question_text="How often do you use each of the following?",
         question_items=["Use TikTok", "Use Instagram", "Use BlueSky"],
-        question_options=["Never", "Rarely", "Now and then", "Quite regularly", "Very regularly"],
+        question_options=[
+            "Never",
+            "Rarely",
+            "Now and then",
+            "Quite regularly",
+            "Very regularly",
+        ],
     )
-    
+
     # Set up generated tokens with the JSON format that's causing the issue
     response_with_json = {
         "answer": {"0": 1, "1": 3, "2": 0},
         "comment": "I rarely use TikTok, quite regularly use Instagram, and never use BlueSky.",
-        "generated_tokens": '{"0": 1, "1": 3, "2": 0}'
+        "generated_tokens": '{"0": 1, "1": 3, "2": 0}',
     }
-    
+
     # This should now work because our fix properly maps numeric keys to item names and values to option strings
     try:
         fixed_data = q2.response_validator.fix(response_with_json, verbose=True)
