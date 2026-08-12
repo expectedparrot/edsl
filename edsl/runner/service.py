@@ -12,6 +12,7 @@ import time
 from datetime import datetime
 from typing import Any, TYPE_CHECKING
 import itertools
+import random
 
 logger = logging.getLogger(__name__)
 
@@ -326,7 +327,11 @@ class JobService:
                 question_option_permutations = self._generate_question_permutations(
                     questions, questions_to_randomize
                 )
-                question_item_permutations = self._generate_item_permutations(questions)
+                question_item_randomization_seeds = {
+                    self._get_question_name(question): random.getrandbits(64)
+                    for question in questions
+                    if self._to_dict(question).get("randomize_items")
+                }
 
                 # Create tasks for this interview
                 # Pass agent and scenario objects for direct answer detection
@@ -360,6 +365,11 @@ class JobService:
                             "agent": agent_obj,
                             "scenario": scenario_obj,
                             "question": questions[info["question_index"]],
+                            "item_randomization_seed": question_item_randomization_seeds.get(
+                                self._get_question_name(
+                                    questions[info["question_index"]]
+                                )
+                            ),
                         }
                     )
 
@@ -374,7 +384,7 @@ class JobService:
                     task_ids=task_ids,
                     iteration=iteration,
                     question_option_permutations=question_option_permutations,
-                    question_item_permutations=question_item_permutations,
+                    question_item_randomization_seeds=question_item_randomization_seeds,
                 )
                 interview_definitions.append(interview_def)
 
@@ -2004,9 +2014,10 @@ class JobService:
             if interview_def and hasattr(interview_def, "question_option_permutations")
             else {}
         )
-        item_permutations = (
-            interview_def.question_item_permutations
-            if interview_def and hasattr(interview_def, "question_item_permutations")
+        item_randomization_seeds = (
+            interview_def.question_item_randomization_seeds
+            if interview_def
+            and hasattr(interview_def, "question_item_randomization_seeds")
             else {}
         )
         if job_def and job_def.question_ids and questions_data:
@@ -2028,8 +2039,11 @@ class JobService:
                         "question_options": q_options,
                         **(
                             {
-                                "question_items": item_permutations.get(
-                                    q_name, q_data.get("question_items")
+                                "question_items": self._resolve_question_items(
+                                    q_data,
+                                    answer_dict,
+                                    scenario,
+                                    item_randomization_seeds.get(q_name),
                                 )
                             }
                             if "question_items" in q_data
@@ -2513,20 +2527,26 @@ class JobService:
 
         return permutations
 
-    def _generate_item_permutations(self, questions: list) -> dict[str, list]:
-        """Generate and retain per-interview permutations for static matrix rows."""
-        import random
-
-        permutations = {}
-        for question in questions:
-            data = self._to_dict(question)
-            items = data.get("question_items")
-            if not data.get("randomize_items") or not isinstance(items, list):
-                continue
-            permutations[data["question_name"]] = self._shuffle_pinned(
-                items, data.get("items_to_pin") or [], random
-            )
-        return permutations
+    @staticmethod
+    def _resolve_question_items(
+        question_data: dict,
+        answer_dict: dict,
+        scenario: Any,
+        randomization_seed: int | None = None,
+    ) -> Any:
+        """Resolve matrix rows and reproduce their per-interview randomization."""
+        items = JobService._resolve_question_options(
+            question_data.get("question_items"), answer_dict, scenario
+        )
+        if not isinstance(items, list):
+            return items
+        if not question_data.get("randomize_items") or randomization_seed is None:
+            return items
+        return JobService._shuffle_pinned(
+            items,
+            question_data.get("items_to_pin") or [],
+            random.Random(randomization_seed),
+        )
 
     @staticmethod
     def _shuffle_pinned(items: list, pinned_values: list, rng) -> list:

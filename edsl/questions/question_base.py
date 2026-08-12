@@ -467,7 +467,7 @@ class QuestionBase(
             "_system_prompt",  # serialized via _thinking_system_prompt
             "_is_thinking_question",  # serialized via from_dict detection
             "_probabilistic_seed_context",  # runtime-only resolution identity
-            "_matrix_items_randomized",  # runtime-only row randomization marker
+            "_item_randomization_seed",  # runtime-only row randomization seed
         ]
         only_if_not_na_list = [
             "_answering_instructions",

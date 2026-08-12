@@ -256,9 +256,9 @@ class QuestionInstructionPromptBuilder:
         Returns:
             Dict: Enriched prompt data
         """
-        if getattr(self.question, "_matrix_items_randomized", False):
-            prompt_data["data"]["question_items"] = self.question.question_items
-            prompt_data["data"]["randomize_items"] = False
+        item_seed = getattr(self.question, "_item_randomization_seed", None)
+        if item_seed is not None:
+            prompt_data["data"]["item_randomization_seed"] = item_seed
 
         prompt_data["data"] = (
             QuestionInstructionPromptBuilder._process_question_options(
@@ -266,15 +266,6 @@ class QuestionInstructionPromptBuilder:
             )
         )
 
-        # Preserve the exact matrix row order used to build the prompt. This makes
-        # it stable if prompts are requested again and exposes it in Results.
-        if (
-            getattr(self.question, "question_type", None) == "matrix"
-            and "question_items" in prompt_data["data"]
-        ):
-            self.question.question_items = prompt_data["data"]["question_items"]
-            if getattr(self.question, "randomize_items", False):
-                self.question._matrix_items_randomized = True
         return prompt_data
 
     def _render_prompt(self, prompt_data: Dict) -> "Prompt":

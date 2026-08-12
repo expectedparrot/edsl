@@ -194,21 +194,6 @@ class RenderService:
         modified["question_options"] = permutations[question_name]
         return modified
 
-    def _apply_item_permutation(
-        self, question_data: dict, question_name: str, permutations: dict[str, list]
-    ) -> dict:
-        """Apply a stored matrix-row permutation to question data."""
-        if (
-            not permutations
-            or question_name not in permutations
-            or question_data is None
-        ):
-            return question_data
-        modified = question_data.copy()
-        modified["question_items"] = permutations[question_name]
-        modified["randomize_items"] = False
-        return modified
-
     def render_task(
         self, job_id: str, interview_id: str, task_id: str
     ) -> RenderedPrompt:
@@ -230,14 +215,11 @@ class RenderService:
             task_def.question_name,
             interview_def.question_option_permutations,
         )
-        question_data = self._apply_item_permutation(
-            question_data,
-            task_def.question_name,
-            interview_def.question_item_permutations,
-        )
-
         # Get current answers for memory/piping
         current_answers = self._get_current_answers(job_id, interview_id, task_def)
+        item_randomization_seed = interview_def.question_item_randomization_seeds.get(
+            task_def.question_name
+        )
 
         # Render using EDSL
         prompts = self._render_with_edsl(
@@ -246,6 +228,7 @@ class RenderService:
             model_data=model_data,
             question_data=question_data,
             current_answers=current_answers,
+            item_randomization_seed=item_randomization_seed,
         )
 
         # Compute cache key and estimate tokens
@@ -320,6 +303,7 @@ class RenderService:
         model_data: dict,
         question_data: dict,
         current_answers: dict[str, Any],
+        item_randomization_seed: int | None = None,
     ) -> dict[str, str]:
         """Use EDSL's PromptConstructor to render the prompts."""
         import time as _t
@@ -361,6 +345,7 @@ class RenderService:
 
         _t0 = _t.time()
         question = QuestionBase.from_dict(question_data)
+        question._item_randomization_seed = item_randomization_seed
         self._profile_times["question_from_dict"] = self._profile_times.get(
             "question_from_dict", 0
         ) + (_t.time() - _t0)
@@ -1064,16 +1049,18 @@ class RenderWorker:
                 if interview_def
                 else None
             )
-            item_perms = (
-                interview_def.question_item_permutations.get(task_def.question_name)
+            item_seed = (
+                interview_def.question_item_randomization_seeds.get(
+                    task_def.question_name
+                )
                 if interview_def
                 else None
             )
-            if option_perms or item_perms:
+            if option_perms or item_seed is not None:
                 _perm_key = (
                     task_def.question_id,
                     tuple(str(o) for o in option_perms or []),
-                    tuple(str(item) for item in item_perms or []),
+                    item_seed,
                 )
                 if _perm_key not in _permuted_questions:
                     q_data = questions.get(task_def.question_id)
@@ -1082,13 +1069,15 @@ class RenderWorker:
                         task_def.question_name,
                         interview_def.question_option_permutations,
                     )
-                    q_data = self._render_service._apply_item_permutation(
-                        q_data,
-                        task_def.question_name,
-                        interview_def.question_item_permutations,
-                    )
                     _permuted_questions[_perm_key] = QuestionBase.from_dict(q_data)
                 question = _permuted_questions[_perm_key]
+
+            if interview_def:
+                question._item_randomization_seed = (
+                    interview_def.question_item_randomization_seeds.get(
+                        task_def.question_name
+                    )
+                )
 
             # Get current answers from cache
             current_answers = answers_cache.get(interview_id, {})

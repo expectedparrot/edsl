@@ -167,7 +167,9 @@ class QuestionItemProcessor(QuestionAttributeProcessor):
         pinned_values = question_data.get("items_to_pin") or []
         pinned = {i: value for i, value in enumerate(items) if value in pinned_values}
         movable = [value for value in items if value not in pinned_values]
-        shuffled = random.sample(movable, len(movable))
+        seed = question_data.get("item_randomization_seed")
+        rng = random.Random(seed) if seed is not None else random
+        shuffled = rng.sample(movable, len(movable))
         result = [None] * len(items)
         for index, value in pinned.items():
             result[index] = value
