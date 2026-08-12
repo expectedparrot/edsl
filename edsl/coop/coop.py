@@ -33,6 +33,7 @@ if TYPE_CHECKING:
     from ..scenarios.contrib.qr_code import QRCode
     from ..surveys import Survey
     from ..results import Results
+    from ..tasks import TaskHistory
 
 from .exceptions import (
     CoopInvalidURLError,
@@ -112,6 +113,21 @@ class RemoteInferenceResponse(TypedDict):
     version: str
     visibility: VisibilityType
     results_url: str
+
+
+class ErrorReportTaskHistory(TypedDict):
+    # Bumped when the shape of this response changes
+    schema_version: str
+    job_uuid: str
+    results_uuid: Optional[str]
+    error_report_uuid: str
+
+    # False when the error report was stored without a task history, in which
+    # case task_history holds an empty one
+    has_task_history: bool
+
+    # A TaskHistory.to_dict() payload, deserializable with TaskHistory.from_dict
+    task_history: dict
 
 
 class RemoteInferenceCreationInfo(TypedDict):
@@ -2737,6 +2753,59 @@ class Coop(CoopFunctionsMixin):
             with open(save_path, "w", encoding="utf-8") as f:
                 f.write(report)
         return report
+
+    def get_error_report_task_history(
+        self,
+        job_uuid: Union[str, UUID],
+        as_object: bool = False,
+    ) -> Union[ErrorReportTaskHistory, "TaskHistory"]:
+        """
+        Retrieve the raw task history for the most recent error report on a job.
+
+        This is the structured counterpart to :meth:`get_error_report_markdown`,
+        for callers that want to inspect exceptions programmatically instead of
+        reading a rendered report.
+
+        Parameters:
+            job_uuid (Union[str, UUID]): The UUID of the remote inference job.
+            as_object (bool): If True, return the task history deserialized into a
+                TaskHistory object instead of the raw response.
+
+        Returns:
+            ErrorReportTaskHistory: The response envelope, containing the
+                schema version, job/results/error report UUIDs and the task history.
+            TaskHistory: If ``as_object`` is True.
+
+        Raises:
+            CoopServerResponseError: If the server returns an error (e.g., the job
+                does not exist, has no error report, or belongs to another user).
+
+        Notes:
+            A task history can hold prompts, agent traits, scenarios, raw model
+            responses and tracebacks, so treat it as sensitive.
+
+            ``has_task_history`` is False when the error report was stored without
+            one; ``task_history`` is then an empty task history rather than null.
+
+        Example:
+            >>> response = coop.get_error_report_task_history(job_uuid)
+            >>> response["task_history"]["interviews"][0]["exceptions"].keys()
+            >>> task_history = coop.get_error_report_task_history(job_uuid, as_object=True)
+            >>> task_history.has_exceptions
+        """
+        response = self._send_server_request(
+            uri=f"api/v0/remote-inference/job/{job_uuid}/error-report/task-history",
+            method="GET",
+        )
+        self._resolve_server_response(response)
+        content = response.json()
+
+        if as_object:
+            from ..tasks import TaskHistory
+
+            return TaskHistory.from_dict(content.get("task_history"))
+
+        return content
 
     def get_running_jobs(self) -> List[str]:
         """
