@@ -215,11 +215,38 @@ def register(jobs_group: click.Group) -> None:
 
     @jobs_group.command("errors")
     @click.argument("job_uuid")
-    @click.option("--output", "-o", "output_path", default=None, help="Write markdown error report to this path.")
-    def jobs_errors(job_uuid, output_path):
-        """Fetch the latest remote job error report as markdown."""
+    @click.option("--format", "error_format", type=click.Choice(["markdown", "json"]), default="markdown", show_default=True, help="Rendered report, or the raw task history.")
+    @click.option("--output", "-o", "output_path", default=None, help="Write the error report to this path.")
+    def jobs_errors(job_uuid, error_format, output_path):
+        """Fetch the latest remote job error report.
+
+        \b
+        Examples:
+          ep jobs errors 0b8f4e12-1234-5678-9abc-def012345678
+          ep jobs errors 0b8f4e12-1234-5678-9abc-def012345678 --output errors.md
+          ep jobs errors 0b8f4e12-1234-5678-9abc-def012345678 --format json
+
+        \b
+        Notes:
+          A task history can contain prompts, agent traits, scenarios, raw model
+          responses and tracebacks, so treat --format json output as sensitive.
+        """
         try:
+            import json as json_mod
+
             from edsl.coop import Coop
+
+            if error_format == "json":
+                task_history = Coop().get_error_report_task_history(job_uuid)
+                data = {**task_history, "saved_to": None}
+                if output_path:
+                    path = Path(output_path)
+                    path.write_text(
+                        json_mod.dumps(task_history, indent=2), encoding="utf-8"
+                    )
+                    data["saved_to"] = str(path)
+                output(data)
+                return
 
             report = Coop().get_error_report_markdown(job_uuid)
             data = {"job_uuid": job_uuid, "markdown": report, "saved_to": None}

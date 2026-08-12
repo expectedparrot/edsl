@@ -200,6 +200,7 @@ def jobs(ctx):
       ep jobs status <job_uuid>
       ep jobs results <job_uuid> --output results.ep
       ep jobs errors <job_uuid>
+      ep jobs errors <job_uuid> --format json
     """
     if ctx.invoked_subcommand is None:
         _output({
