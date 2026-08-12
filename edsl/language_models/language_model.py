@@ -82,6 +82,8 @@ _INTERNAL_KWARGS = frozenset(
         "fail_at_number",
         "never_ending",
         "prompt_plan",
+        "base_url",
+        "api_key_env",
     }
 )
 
@@ -1188,6 +1190,14 @@ class LanguageModel(
             "inference_service": self._inference_service_,
         }
 
+        connection = {}
+        if getattr(self, "base_url", None):
+            connection["base_url"] = self.base_url
+        if getattr(self, "api_key_env", None):
+            connection["api_key_env"] = self.api_key_env
+        if connection:
+            d["connection"] = connection
+
         # Include prompt_plan if set
         if self.prompt_plan is not None:
             d["prompt_plan"] = self.prompt_plan.to_dict()
@@ -1219,6 +1229,12 @@ class LanguageModel(
             InferenceServiceRegistry,
         )
         from ..invigilators.prompt_helpers import PromptPlan
+
+        connection = data.pop("connection", None)
+        if connection is not None:
+            if not isinstance(connection, dict):
+                raise LanguageModelValueError("Model connection must be a dictionary")
+            data.update(connection)
 
         # Extract and reconstruct prompt_plan if present
         prompt_plan_data = data.pop("prompt_plan", None)

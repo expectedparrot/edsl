@@ -107,6 +107,7 @@ class TestCliModuleBoundaries:
             "profiles",
             "results",
             "run",
+            "run_manifest",
             "schema",
             "scenarios",
             "validate",
@@ -171,6 +172,7 @@ class TestCliModuleBoundaries:
             ["humanize", "schema", "set", "--help"],
             ["credits", "--help"],
             ["run", "--help"],
+            ["run-manifest", "--help"],
             ["inspect", "--help"],
             ["unpack", "--help"],
             ["unzip", "--help"],
@@ -2807,6 +2809,81 @@ class TestJobsCli:
         assert out["data"]["job_uuid"] == "job-uuid"
         assert out["data"]["saved_to"] == str(output_path)
         assert output_path.read_text(encoding="utf-8") == "# Error report\n\nDetails"
+
+    def test_jobs_errors_json_format_returns_task_history(self, monkeypatch):
+        import edsl.coop
+
+        envelope = {
+            "schema_version": "1.0",
+            "job_uuid": "job-uuid",
+            "results_uuid": None,
+            "error_report_uuid": "report-uuid",
+            "has_task_history": True,
+            "task_history": {
+                "interviews": [
+                    {
+                        "type": "InterviewReference",
+                        "id": 0,
+                        "exceptions": {"q0": [{"exception": {"type": "RuntimeError"}}]},
+                    }
+                ],
+                "include_traceback": True,
+            },
+        }
+
+        class FakeCoop:
+            def get_error_report_task_history(self, job_uuid):
+                assert job_uuid == "job-uuid"
+                return envelope
+
+        monkeypatch.setattr(edsl.coop, "Coop", FakeCoop)
+
+        result = CliRunner().invoke(
+            cli_module.app, ["jobs", "errors", "job-uuid", "--format", "json"]
+        )
+
+        assert result.exit_code == 0, result.output
+        data = json.loads(result.output)["data"]
+        assert data["schema_version"] == "1.0"
+        assert data["has_task_history"] is True
+        assert data["task_history"]["interviews"][0]["exceptions"]["q0"]
+        assert data["saved_to"] is None
+        assert "markdown" not in data
+
+    def test_jobs_errors_json_format_saves_task_history(self, tmp_path, monkeypatch):
+        import edsl.coop
+
+        output_path = tmp_path / "task_history.json"
+        envelope = {
+            "schema_version": "1.0",
+            "job_uuid": "job-uuid",
+            "results_uuid": None,
+            "error_report_uuid": "report-uuid",
+            "has_task_history": False,
+            "task_history": {"interviews": [], "include_traceback": False},
+        }
+
+        class FakeCoop:
+            def get_error_report_task_history(self, job_uuid):
+                return envelope
+
+        monkeypatch.setattr(edsl.coop, "Coop", FakeCoop)
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            ["jobs", "errors", "job-uuid", "--format", "json", "--output", str(output_path)],
+        )
+
+        assert result.exit_code == 0, result.output
+        assert json.loads(result.output)["data"]["saved_to"] == str(output_path)
+        assert json.loads(output_path.read_text(encoding="utf-8")) == envelope
+
+    def test_jobs_errors_rejects_unknown_format(self, monkeypatch):
+        result = CliRunner().invoke(
+            cli_module.app, ["jobs", "errors", "job-uuid", "--format", "html"]
+        )
+
+        assert result.exit_code != 0
 
     def test_jobs_manifest(self, monkeypatch):
         import edsl.coop

@@ -285,13 +285,15 @@ def register(app: click.Group) -> None:
     )
     @click.option("--count", type=click.IntRange(1, 4), default=3, show_default=True, help="Number of models selected by --profile.")
     @click.option("--refresh", is_flag=True, help="Bypass the one-hour model-catalog cache used by --profile.")
+    @click.option("--base-url", default=None, help="Base URL for an OpenAI-compatible endpoint.")
+    @click.option("--api-key-env", default=None, help="Environment variable containing the endpoint API key.")
     @click.option("--canned-response", default=None, help="Canned response for offline test models.")
     @click.option("--temperature", default=None, type=float, help="Sampling temperature for all models.")
     @click.option("--max-tokens", default=None, type=int, help="Maximum output tokens for all models.")
     @click.option("--top-p", default=None, type=float, help="Nucleus sampling top-p for all models.")
     @click.option("--parameter", "parameters", multiple=True, help="Extra model parameter as KEY=JSON. Repeat for multiple parameters.")
     @click.option("--output", "-o", "output_path", required=True, help="Output .ep package or serialized file.")
-    def models_create(models, model_specs, service, profile, count, refresh, canned_response, temperature, max_tokens, top_p, parameters, output_path):
+    def models_create(models, model_specs, service, profile, count, refresh, base_url, api_key_env, canned_response, temperature, max_tokens, top_p, parameters, output_path):
         """Create a ModelList file.
 
         \b
@@ -315,6 +317,10 @@ def register(app: click.Group) -> None:
             from edsl.language_models import Model, ModelList
 
             model_kwargs = {}
+            if base_url is not None:
+                model_kwargs["base_url"] = base_url
+            if api_key_env is not None:
+                model_kwargs["api_key_env"] = api_key_env
             if canned_response is not None:
                 model_kwargs["canned_response"] = canned_response
             if temperature is not None:
@@ -378,6 +384,7 @@ def register(app: click.Group) -> None:
                 spec = _parse_model_spec(raw_spec)
                 spec_kwargs = dict(model_kwargs)
                 spec_kwargs.update(spec["parameters"])
+                spec_kwargs.update(spec["connection"])
                 created_models.append(
                     _create_model(
                         Model,
@@ -403,6 +410,7 @@ def register(app: click.Group) -> None:
                             "service_name": getattr(model, "_inference_service_", None),
                             "canned_response": getattr(model, "parameters", {}).get("canned_response"),
                             "parameters": getattr(model, "parameters", {}),
+                            "connection": getattr(model, "to_dict")().get("connection", {}),
                         }
                         for model in model_list
                     ],
@@ -449,13 +457,13 @@ def _parse_model_spec(raw_spec: str) -> dict:
     if not isinstance(spec, dict):
         error("USAGE_ERROR", "--model-spec must be a JSON object.", exit_code=EXIT_USAGE)
 
-    allowed_keys = {"model", "service", "service_name", "parameters"}
+    allowed_keys = {"model", "service", "service_name", "parameters", "connection"}
     unknown_keys = sorted(set(spec) - allowed_keys)
     if unknown_keys:
         error(
             "USAGE_ERROR",
             f"Unknown --model-spec field(s): {', '.join(unknown_keys)}.",
-            suggestion="Allowed fields are model, service, service_name, and parameters.",
+            suggestion="Allowed fields are model, service, service_name, parameters, and connection.",
             exit_code=EXIT_USAGE,
         )
 
@@ -477,7 +485,14 @@ def _parse_model_spec(raw_spec: str) -> dict:
     if not isinstance(parameters, dict):
         error("USAGE_ERROR", '--model-spec "parameters" must be a JSON object.', exit_code=EXIT_USAGE)
 
-    return {"model": model_name, "service": service, "parameters": parameters}
+    connection = spec.get("connection", {})
+    if not isinstance(connection, dict):
+        error("USAGE_ERROR", '--model-spec "connection" must be a JSON object.', exit_code=EXIT_USAGE)
+    unknown_connection = sorted(set(connection) - {"base_url", "api_key_env"})
+    if unknown_connection:
+        error("USAGE_ERROR", f"Unknown connection field(s): {', '.join(unknown_connection)}.", exit_code=EXIT_USAGE)
+
+    return {"model": model_name, "service": service, "parameters": parameters, "connection": connection}
 
 
 def _create_model(model_cls, model_name: str, service: str | None, model_kwargs: dict):
@@ -487,7 +502,9 @@ def _create_model(model_cls, model_name: str, service: str | None, model_kwargs:
         else model_cls(model_name, **model_kwargs)
     )
     if hasattr(model, "parameters"):
-        model.parameters.update(model_kwargs)
+        model.parameters.update(
+            {k: v for k, v in model_kwargs.items() if k not in {"base_url", "api_key_env"}}
+        )
     return model
 
 
