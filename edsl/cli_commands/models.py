@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import time
 from hashlib import sha256
 from pathlib import Path
@@ -15,6 +16,59 @@ from edsl.cli_shared import EXIT_ERROR, EXIT_REMOTE, EXIT_USAGE, error, output, 
 
 
 MODEL_CATALOG_CACHE_TTL_SECONDS = 3600
+
+MODEL_PROFILES = {
+    "report-review": {
+        "description": "Vision-capable frontier reviewers from distinct providers.",
+        "providers": [
+            {"service": "anthropic", "include": ("claude-", "sonnet", "opus"), "exclude": ()},
+            {"service": "openai", "include": ("gpt-",), "exclude": ("mini", "nano", "codex", "chat", "sol", "terra", "luna")},
+            {"service": "google", "include": ("gemini", "pro"), "exclude": ("image", "robotics", "customtools")},
+            {"service": "deep_infra", "include": ("qwen", "vl"), "exclude": ()},
+        ],
+    },
+}
+
+
+def _model_version_key(name: str) -> tuple[bool, tuple[int, ...], str]:
+    """Sort versioned model names newest-first without depending on one vendor."""
+    has_date_snapshot = bool(re.search(r"(?:19|20)\d{6}|(?:19|20)\d{2}-\d{2}-\d{2}", name))
+    return not has_date_snapshot, tuple(int(value) for value in re.findall(r"\d+", name)), name
+
+
+def _select_model_profile(
+    available: list[dict], profile: str, count: int,
+) -> list[dict]:
+    """Select one capable model per ranked provider for a named workflow."""
+    definition = MODEL_PROFILES[profile]
+    selected: list[dict] = []
+    for provider in definition["providers"]:
+        candidates = []
+        for item in available:
+            name = str(item.get("model") or "")
+            lower = name.lower()
+            if item.get("service") != provider["service"]:
+                continue
+            if item.get("works_with_images") is not True:
+                continue
+            if not all(token in lower for token in provider["include"][:1]):
+                continue
+            if len(provider["include"]) > 1 and not any(
+                token in lower for token in provider["include"][1:]
+            ):
+                continue
+            if any(token in lower for token in provider["exclude"]):
+                continue
+            candidates.append(item)
+        if candidates:
+            candidates.sort(
+                key=lambda item: _model_version_key(str(item.get("model") or "")),
+                reverse=True,
+            )
+            selected.append(candidates[0])
+        if len(selected) == count:
+            break
+    return selected
 
 
 def _model_catalog_cache_path(api_url: str) -> Path:
@@ -225,6 +279,12 @@ def register(app: click.Group) -> None:
         help='Per-model JSON object with "model", optional "service", and optional "parameters". Repeat for multiple models.',
     )
     @click.option("--service", default=None, help="Service name to use for all models.")
+    @click.option(
+        "--profile", type=click.Choice(sorted(MODEL_PROFILES)), default=None,
+        help="Select a bounded workflow-specific model panel from the cached working-model catalog.",
+    )
+    @click.option("--count", type=click.IntRange(1, 4), default=3, show_default=True, help="Number of models selected by --profile.")
+    @click.option("--refresh", is_flag=True, help="Bypass the one-hour model-catalog cache used by --profile.")
     @click.option("--base-url", default=None, help="Base URL for an OpenAI-compatible endpoint.")
     @click.option("--api-key-env", default=None, help="Environment variable containing the endpoint API key.")
     @click.option("--canned-response", default=None, help="Canned response for offline test models.")
@@ -233,7 +293,7 @@ def register(app: click.Group) -> None:
     @click.option("--top-p", default=None, type=float, help="Nucleus sampling top-p for all models.")
     @click.option("--parameter", "parameters", multiple=True, help="Extra model parameter as KEY=JSON. Repeat for multiple parameters.")
     @click.option("--output", "-o", "output_path", required=True, help="Output .ep package or serialized file.")
-    def models_create(models, model_specs, service, base_url, api_key_env, canned_response, temperature, max_tokens, top_p, parameters, output_path):
+    def models_create(models, model_specs, service, profile, count, refresh, base_url, api_key_env, canned_response, temperature, max_tokens, top_p, parameters, output_path):
         """Create a ModelList file.
 
         \b
@@ -244,6 +304,7 @@ def register(app: click.Group) -> None:
           ep models create --model gpt-4o --parameter presence_penalty=0.1 --output models.ep
           ep models create --service openai --model gpt-4o --output models.json
           ep models create --service anthropic --model claude-sonnet-4-5 --output models.ep
+          ep models create --profile report-review --count 3 --output review-models.ep
           ep models create --model-spec '{"model":"claude-opus-4-8","service":"anthropic"}' --model-spec '{"model":"gpt-5.4","service":"openai","parameters":{"reasoning_effort":"high"}}' --output models.ep
           ep models create --model test --canned-response ok --output test-models.ep
 
@@ -270,6 +331,37 @@ def register(app: click.Group) -> None:
                 model_kwargs["top_p"] = top_p
             model_kwargs.update(_parse_model_parameters(parameters))
 
+            if profile and (models or model_specs or service or canned_response):
+                error(
+                    "USAGE_ERROR",
+                    "--profile cannot be combined with --model, --model-spec, --service, or --canned-response.",
+                    suggestion="Use the profile by itself; shared generation parameters such as --max-tokens remain supported.",
+                    exit_code=EXIT_USAGE,
+                )
+
+            profile_selection = None
+            catalog_cache = None
+            if profile:
+                from edsl.coop import Coop
+
+                available, catalog_cache = _working_models(
+                    Coop(), refresh=refresh,
+                    ttl_seconds=MODEL_CATALOG_CACHE_TTL_SECONDS,
+                )
+                selected = _select_model_profile(available, profile, count)
+                if len(selected) != count:
+                    error(
+                        "MODEL_PROFILE_UNAVAILABLE",
+                        f"Profile {profile!r} found {len(selected)} of {count} required distinct-provider models.",
+                        suggestion="Run `ep models --vision --refresh` to inspect the current catalog, or request a smaller --count.",
+                        exit_code=EXIT_REMOTE,
+                    )
+                profile_selection = [
+                    {"model": item["model"], "service": item["service"]}
+                    for item in selected
+                ]
+                models = tuple(item["model"] for item in selected)
+
             if not models and not model_specs:
                 error(
                     "USAGE_ERROR",
@@ -278,10 +370,16 @@ def register(app: click.Group) -> None:
                     exit_code=EXIT_USAGE,
                 )
 
-            created_models = [
-                _create_model(Model, model_name, service, model_kwargs)
-                for model_name in models
-            ]
+            if profile_selection is not None:
+                created_models = [
+                    _create_model(Model, item["model"], item["service"], model_kwargs)
+                    for item in profile_selection
+                ]
+            else:
+                created_models = [
+                    _create_model(Model, model_name, service, model_kwargs)
+                    for model_name in models
+                ]
             for raw_spec in model_specs:
                 spec = _parse_model_spec(raw_spec)
                 spec_kwargs = dict(model_kwargs)
@@ -304,6 +402,8 @@ def register(app: click.Group) -> None:
                 {
                     "object_type": "ModelList",
                     "model_count": len(model_list),
+                    "profile": profile,
+                    "catalog_cache": catalog_cache,
                     "models": [
                         {
                             "model_name": getattr(model, "model", str(model)),
