@@ -73,8 +73,17 @@ Each `questions[question_name]` value is a `HumanizeQuestionSchema` object.
 
   - **MC-style** (`likert_five`, `linear_scale`, `multiple_choice`, `yes_no`): `"radio"` (list of radio buttons) or `"dropdown"` (single `<select>`). Default is `"radio"`. Use `{"type": "radio"}` or `{"type": "dropdown"}`.
   - **Numerical** (`numerical`): `"input"` (number input field) or `"slider"` (range slider). Default is `"input"`. Use `{"type": "input"}` or `{"type": "slider", "min": 0, "max": 100, "step": 1}`. For slider, `min` must be less than `max`, `step` must be positive and not exceed `(max - min)`.
+  - **Matrix** (`matrix`): `"table"` (the whole grid at once) or `"carousel"` (one item at a time). Default is `"table"`. Use `{"type": "table"}` or `{"type": "carousel"}`.
 
   Other question types do not support `format`.
+
+  <Expandable title="matrix carousel properties">
+    <ParamField path="advance_on_select" type="boolean" default={true}>
+      **`carousel` only.** Whether answering an item moves to the next one on its own, rather than waiting for the respondent to click Next.
+
+      Every answer advances, corrections included — the same rule respondents will have met in Qualtrics. Set to `false` when respondents are expected to revise as they go, since under `true` a correction costs the way back as well.
+    </ParamField>
+  </Expandable>
 </ParamField>
 
 <ParamField path="custom_validation" type="dict" required={false}>

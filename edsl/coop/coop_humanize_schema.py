@@ -507,10 +507,49 @@ class ListHumanizeSchema(HumanizeSchemaBase):
     submitting_indicator: Optional[SubmittingIndicator] = None
 
 
+class MatrixFormatTableSchema(HumanizeSchemaBase):
+    """The whole grid at once: one row per item, one column per option."""
+
+    type: Literal["table"] = "table"
+
+
+class MatrixFormatCarouselSchema(HumanizeSchemaBase):
+    """One item at a time, its options listed beneath it, the respondent moving
+    between items with the carousel's own controls.
+
+    The grid is the point of a matrix — every item on one screen, the shared
+    option scale obvious at a glance — and that same shape is what breaks it on a
+    narrow screen: five columns of prose headings are either scrolled sideways or
+    squeezed until they cannot be read. The carousel spends the overview to buy
+    the room, which is the trade worth making for long option labels or a survey
+    answered mostly on phones.
+    """
+
+    type: Literal["carousel"] = "carousel"
+    # Whether answering an item moves to the next one on its own. On by default:
+    # the format exists to turn a long matrix into a run of small questions, and
+    # reaching for Next after every answer undoes that. Every answer advances,
+    # corrections included — the rule respondents have already met in Qualtrics,
+    # and one with no exception to notice. Set False when they are expected to
+    # revise as they go, since a correction costs the way back as well.
+    advance_on_select: bool = True
+
+
+# Discriminated on ``type`` so each shape carries only the options it can act on,
+# and so a third rendering can join as a sibling without reshaping stored configs.
+# "table" is the default, which is what every matrix rendered before this field
+# existed, so stored configs are unaffected.
+MatrixFormatSchema = Annotated[
+    Union[MatrixFormatTableSchema, MatrixFormatCarouselSchema],
+    Field(discriminator="type"),
+]
+
+
 class MatrixHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the matrix question type."""
 
     optional: bool = False
+    format: MatrixFormatSchema = Field(default_factory=MatrixFormatTableSchema)
     comment: Optional[CommentConfig] = None
     submitting_indicator: Optional[SubmittingIndicator] = None
 
