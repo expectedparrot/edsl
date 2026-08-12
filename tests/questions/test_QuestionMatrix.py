@@ -57,6 +57,9 @@ def test_QuestionMatrix_construction():
             **{k: v for k, v in valid_question.items() if k != "question_items"}
         )
 
+    q.question_items = ["No children"]
+    assert q.question_items == ["No children"]
+
     with pytest.raises(
         QuestionCreationValidationError, match="Too few question options"
     ):
