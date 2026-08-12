@@ -55,10 +55,10 @@ def test_QuestionDemand_construction():
     with pytest.raises(Exception):
         QuestionDemand(**invalid_question)
 
-    # or has 1 item
-    invalid_question.update({"prices": [1.0]})
-    with pytest.raises(Exception):
-        QuestionDemand(**invalid_question)
+    # a single price is valid
+    single_price_question = valid_question.copy()
+    single_price_question.update({"prices": [1.0]})
+    assert QuestionDemand(**single_price_question).prices == [1.0]
 
     # or has duplicates
     invalid_question.update({"prices": [1.0, 1.0]})
