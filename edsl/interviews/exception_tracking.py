@@ -270,7 +270,10 @@ class InterviewExceptionEntry:
         from ..invigilators import InvigilatorAI
 
         exception = cls.deserialize_exception(data["exception"])
-        if data["invigilator"] is None:
+        # The invigilator may be absent (older payloads), null, or an empty dict
+        # (task histories built outside of a live run). None of those can be
+        # deserialized, and callers already guard against a missing invigilator.
+        if not data.get("invigilator"):
             invigilator = None
         else:
             invigilator = InvigilatorAI.from_dict(data["invigilator"])

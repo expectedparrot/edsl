@@ -16,6 +16,7 @@ import pytest
 from click.testing import CliRunner
 
 import edsl.__main__ as cli_module
+from edsl.cli_commands.models import _select_model_profile
 
 try:
     import tomllib
@@ -1171,6 +1172,50 @@ class TestObjectTransformCli:
         assert out["count"] == 2
         assert out["total_count"] == 3
         assert out["filters"]["limit"] == 2
+
+    def test_report_review_profile_selects_latest_vision_models_from_distinct_providers(self):
+        available = [
+            {"service": "anthropic", "model": "claude-sonnet-4-6", "works_with_images": True},
+            {"service": "anthropic", "model": "claude-sonnet-5", "works_with_images": True},
+            {"service": "openai", "model": "gpt-5.4-mini", "works_with_images": True},
+            {"service": "openai", "model": "gpt-5.5", "works_with_images": True},
+            {"service": "openai", "model": "gpt-5-2025-08-07", "works_with_images": True},
+            {"service": "google", "model": "gemini-3.1-pro", "works_with_images": True},
+            {"service": "google", "model": "gemini-3.2-pro-preview-customtools", "works_with_images": True},
+            {"service": "google", "model": "gemini-3.5-pro", "works_with_images": False},
+        ]
+
+        selected = _select_model_profile(available, "report-review", 3)
+
+        assert [(item["service"], item["model"]) for item in selected] == [
+            ("anthropic", "claude-sonnet-5"),
+            ("openai", "gpt-5.5"),
+            ("google", "gemini-3.1-pro"),
+        ]
+
+    def test_report_review_profile_requires_requested_provider_count(self, monkeypatch, tmp_path):
+        import edsl.coop
+
+        monkeypatch.setenv("EDSL_MODEL_CATALOG_CACHE_DIR", str(tmp_path / "model-cache"))
+
+        class FakeCoop:
+            api_url = "https://api.example.test"
+
+            def fetch_working_models(self):
+                return [{
+                    "service": "anthropic", "model": "claude-sonnet-5",
+                    "works_with_images": True,
+                }]
+
+        monkeypatch.setattr(edsl.coop, "Coop", FakeCoop)
+        result = CliRunner().invoke(
+            cli_module.app,
+            ["models", "create", "--profile", "report-review", "--count", "3",
+             "--output", str(tmp_path / "models.ep")],
+        )
+
+        assert result.exit_code == 6, result.output
+        assert json.loads(result.output)["error"]["code"] == "MODEL_PROFILE_UNAVAILABLE"
 
 
 # ---------------------------------------------------------------------------
@@ -2764,6 +2809,81 @@ class TestJobsCli:
         assert out["data"]["job_uuid"] == "job-uuid"
         assert out["data"]["saved_to"] == str(output_path)
         assert output_path.read_text(encoding="utf-8") == "# Error report\n\nDetails"
+
+    def test_jobs_errors_json_format_returns_task_history(self, monkeypatch):
+        import edsl.coop
+
+        envelope = {
+            "schema_version": "1.0",
+            "job_uuid": "job-uuid",
+            "results_uuid": None,
+            "error_report_uuid": "report-uuid",
+            "has_task_history": True,
+            "task_history": {
+                "interviews": [
+                    {
+                        "type": "InterviewReference",
+                        "id": 0,
+                        "exceptions": {"q0": [{"exception": {"type": "RuntimeError"}}]},
+                    }
+                ],
+                "include_traceback": True,
+            },
+        }
+
+        class FakeCoop:
+            def get_error_report_task_history(self, job_uuid):
+                assert job_uuid == "job-uuid"
+                return envelope
+
+        monkeypatch.setattr(edsl.coop, "Coop", FakeCoop)
+
+        result = CliRunner().invoke(
+            cli_module.app, ["jobs", "errors", "job-uuid", "--format", "json"]
+        )
+
+        assert result.exit_code == 0, result.output
+        data = json.loads(result.output)["data"]
+        assert data["schema_version"] == "1.0"
+        assert data["has_task_history"] is True
+        assert data["task_history"]["interviews"][0]["exceptions"]["q0"]
+        assert data["saved_to"] is None
+        assert "markdown" not in data
+
+    def test_jobs_errors_json_format_saves_task_history(self, tmp_path, monkeypatch):
+        import edsl.coop
+
+        output_path = tmp_path / "task_history.json"
+        envelope = {
+            "schema_version": "1.0",
+            "job_uuid": "job-uuid",
+            "results_uuid": None,
+            "error_report_uuid": "report-uuid",
+            "has_task_history": False,
+            "task_history": {"interviews": [], "include_traceback": False},
+        }
+
+        class FakeCoop:
+            def get_error_report_task_history(self, job_uuid):
+                return envelope
+
+        monkeypatch.setattr(edsl.coop, "Coop", FakeCoop)
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            ["jobs", "errors", "job-uuid", "--format", "json", "--output", str(output_path)],
+        )
+
+        assert result.exit_code == 0, result.output
+        assert json.loads(result.output)["data"]["saved_to"] == str(output_path)
+        assert json.loads(output_path.read_text(encoding="utf-8")) == envelope
+
+    def test_jobs_errors_rejects_unknown_format(self, monkeypatch):
+        result = CliRunner().invoke(
+            cli_module.app, ["jobs", "errors", "job-uuid", "--format", "html"]
+        )
+
+        assert result.exit_code != 0
 
     def test_jobs_manifest(self, monkeypatch):
         import edsl.coop

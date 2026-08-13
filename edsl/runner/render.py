@@ -215,9 +215,11 @@ class RenderService:
             task_def.question_name,
             interview_def.question_option_permutations,
         )
-
         # Get current answers for memory/piping
         current_answers = self._get_current_answers(job_id, interview_id, task_def)
+        item_randomization_seed = interview_def.question_item_randomization_seeds.get(
+            task_def.question_name
+        )
 
         # Render using EDSL
         prompts = self._render_with_edsl(
@@ -226,6 +228,7 @@ class RenderService:
             model_data=model_data,
             question_data=question_data,
             current_answers=current_answers,
+            item_randomization_seed=item_randomization_seed,
         )
 
         # Compute cache key and estimate tokens
@@ -283,9 +286,9 @@ class RenderService:
                     current_answers[other_task.question_name] = answer.answer
                     # Include comment for piping ({{ qname.comment }})
                     if answer.comment:
-                        current_answers[
-                            f"{other_task.question_name}_comment"
-                        ] = answer.comment
+                        current_answers[f"{other_task.question_name}_comment"] = (
+                            answer.comment
+                        )
 
         return current_answers
 
@@ -300,6 +303,7 @@ class RenderService:
         model_data: dict,
         question_data: dict,
         current_answers: dict[str, Any],
+        item_randomization_seed: int | None = None,
     ) -> dict[str, str]:
         """Use EDSL's PromptConstructor to render the prompts."""
         import time as _t
@@ -341,6 +345,7 @@ class RenderService:
 
         _t0 = _t.time()
         question = QuestionBase.from_dict(question_data)
+        question._item_randomization_seed = item_randomization_seed
         self._profile_times["question_from_dict"] = self._profile_times.get(
             "question_from_dict", 0
         ) + (_t.time() - _t0)
@@ -898,14 +903,14 @@ class RenderWorker:
         # Instead of checking ALL interview tasks, only fetch answers for actual dependencies
         # This reduces O(n) to O(d) where d = number of dependencies (usually small)
         _t0 = _time.time()
-        answers_cache: dict[
-            str, dict[str, Any]
-        ] = {}  # interview_id -> {question_name -> answer}
+        answers_cache: dict[str, dict[str, Any]] = (
+            {}
+        )  # interview_id -> {question_name -> answer}
 
         # Collect all dependency task IDs from tasks being rendered
-        dep_task_ids_by_interview: dict[
-            str, set[str]
-        ] = {}  # interview_id -> set of dependency task_ids
+        dep_task_ids_by_interview: dict[str, set[str]] = (
+            {}
+        )  # interview_id -> set of dependency task_ids
         for task_id in tasks_to_render:
             task_def = all_task_defs.get(task_id)
             if task_def and task_def.depends_on:
@@ -1009,9 +1014,9 @@ class RenderWorker:
         # Caches for objects that depend on per-task context
         _permuted_questions: dict[tuple, "QuestionBase"] = {}
         _survey_cache: dict[tuple, tuple] = {}
-        _prompt_cache: dict[
-            tuple, dict
-        ] = {}  # Cache rendered prompts by input combination
+        _prompt_cache: dict[tuple, dict] = (
+            {}
+        )  # Cache rendered prompts by input combination
 
         from ..questions import QuestionFreeText as _QuestionFreeText
 
@@ -1039,15 +1044,24 @@ class RenderWorker:
 
             # Track permutation key for prompt caching
             _perm_key = None
-            if (
-                interview_def
-                and interview_def.question_option_permutations
-                and task_def.question_name in interview_def.question_option_permutations
-            ):
-                perms = interview_def.question_option_permutations[
+            option_perms = (
+                interview_def.question_option_permutations.get(task_def.question_name)
+                if interview_def
+                else None
+            )
+            item_seed = (
+                interview_def.question_item_randomization_seeds.get(
                     task_def.question_name
-                ]
-                _perm_key = (task_def.question_id, tuple(str(o) for o in perms))
+                )
+                if interview_def
+                else None
+            )
+            if option_perms or item_seed is not None:
+                _perm_key = (
+                    task_def.question_id,
+                    tuple(str(o) for o in option_perms or []),
+                    item_seed,
+                )
                 if _perm_key not in _permuted_questions:
                     q_data = questions.get(task_def.question_id)
                     q_data = self._render_service._apply_option_permutation(
@@ -1057,6 +1071,13 @@ class RenderWorker:
                     )
                     _permuted_questions[_perm_key] = QuestionBase.from_dict(q_data)
                 question = _permuted_questions[_perm_key]
+
+            if interview_def:
+                question._item_randomization_seed = (
+                    interview_def.question_item_randomization_seeds.get(
+                        task_def.question_name
+                    )
+                )
 
             # Get current answers from cache
             current_answers = answers_cache.get(interview_id, {})

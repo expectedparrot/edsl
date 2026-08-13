@@ -1,4 +1,5 @@
 import pytest
+from jinja2.sandbox import SandboxedEnvironment
 from edsl.questions.exceptions import (
     QuestionAnswerValidationError,
 )
@@ -96,6 +97,21 @@ def test_QuestionRank_construction():
             }
         )
         QuestionRank(**invalid_question)
+
+
+def test_QuestionRank_renders_single_piped_option():
+    rank = QuestionRank(
+        question_name="fruit_rank",
+        question_text="Rank the fruits you buy.",
+        question_options="{{ fruits.answer }}",
+        num_selections=1,
+    )
+
+    rendered = rank.render(
+        {"fruits": {"answer": ["Apple"]}}, jinja_env=SandboxedEnvironment()
+    )
+
+    assert rendered.question_options == ["Apple"]
 
 
 def test_QuestionRank_serialization():

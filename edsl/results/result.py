@@ -644,7 +644,7 @@ class Result(Base, UserDict):
             data_type: The category of data to retrieve from. Valid options include:
                 "agent", "scenario", "model", "answer", "prompt", "comment",
                 "generated_tokens", "raw_model_response", "question_text",
-                "question_options", "question_type", "cache_used", "cache_keys".
+                "question_options", "question_items", "question_type", "cache_used", "cache_keys".
             key: The specific attribute name within that data type.
 
         Returns:
@@ -755,9 +755,11 @@ class Result(Base, UserDict):
         """Return display sections as (title, Dataset) pairs."""
         from edsl.dataset import Dataset
 
-        model_name = getattr(
-            self.model, "model", getattr(self.model, "_model_", "unknown")
-        ) if self.model else "none"
+        model_name = (
+            getattr(self.model, "model", getattr(self.model, "_model_", "unknown"))
+            if self.model
+            else "none"
+        )
         service = getattr(self.model, "_inference_service_", "") if self.model else ""
 
         fields = []
@@ -791,9 +793,11 @@ class Result(Base, UserDict):
         """Generate a summary representation of the Result as a Rich table."""
         from ..utilities.summary_table import ColumnDef, render_summary_table
 
-        model_name = getattr(
-            self.model, "model", getattr(self.model, "_model_", "unknown")
-        ) if self.model else "none"
+        model_name = (
+            getattr(self.model, "model", getattr(self.model, "_model_", "unknown"))
+            if self.model
+            else "none"
+        )
         service = getattr(self.model, "_inference_service_", "") if self.model else ""
 
         answers = self.answer or {}

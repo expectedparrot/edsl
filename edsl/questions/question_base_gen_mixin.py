@@ -463,6 +463,17 @@ class QuestionBaseGenMixin:
             except Exception:
                 pass
 
+        original_question_items = self.data.get("question_items")
+        if isinstance(original_question_items, str):
+            try:
+                native_question_items = render_native(original_question_items)
+                if isinstance(native_question_items, tuple):
+                    native_question_items = list(native_question_items)
+                if isinstance(native_question_items, list):
+                    rendered_dict["question_items"] = native_question_items
+            except Exception:
+                pass
+
         if return_dict:
             return rendered_dict
         else:

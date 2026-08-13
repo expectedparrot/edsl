@@ -73,7 +73,6 @@ from .exceptions import (
 )
 
 
-
 class Survey(Base):
     """A collection of questions with logic for navigating between them.
 
@@ -595,6 +594,11 @@ class Survey(Base):
                 "question_options": (
                     None if not hasattr(q, "question_options") else q.question_options
                 ),
+                **(
+                    {"question_items": q.question_items}
+                    if hasattr(q, "question_items")
+                    else {}
+                ),
             }
             for q in self.questions
         }
@@ -900,6 +904,7 @@ class Survey(Base):
 
     def to_jsonl_rows(self, blob_writer=None):
         from .survey_serializer import SurveySerializer
+
         return SurveySerializer(self).to_jsonl_rows()
 
     @classmethod
@@ -3389,9 +3394,7 @@ class Survey(Base):
                 elif isinstance(val, list):
                     columns[key].append(", ".join(str(o) for o in val))
                 elif isinstance(val, dict):
-                    columns[key].append(
-                        ", ".join(f"{k}: {v}" for k, v in val.items())
-                    )
+                    columns[key].append(", ".join(f"{k}: {v}" for k, v in val.items()))
                 else:
                     columns[key].append(str(val))
 

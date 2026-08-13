@@ -473,6 +473,7 @@ class Runner:
                 scenario=info["scenario"],
                 job_id=job_id,
                 interview_id=info.get("interview_id"),
+                item_randomization_seed=info.get("item_randomization_seed"),
             )
             self._direct_registry.register(info["task_id"], entry)
 

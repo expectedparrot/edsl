@@ -12,6 +12,7 @@ import time
 from datetime import datetime
 from typing import Any, TYPE_CHECKING
 import itertools
+import random
 
 logger = logging.getLogger(__name__)
 
@@ -72,15 +73,15 @@ class JobService:
         self._tasks = TaskStore(storage)
         self._answers = AnswerStore(storage)
         self._job_stop_on_exception: dict[str, bool] = {}  # job_id -> stop_on_exception
-        self._original_models: dict[
-            str, dict[str, Any]
-        ] = {}  # job_id -> {model_id -> model_obj}
-        self._original_key_lookups: dict[
-            str, Any
-        ] = {}  # job_id -> run_config.environment.key_lookup
-        self._interview_callbacks: dict[
-            str, Any
-        ] = {}  # job_id -> callable(job_id, interview_id)
+        self._original_models: dict[str, dict[str, Any]] = (
+            {}
+        )  # job_id -> {model_id -> model_obj}
+        self._original_key_lookups: dict[str, Any] = (
+            {}
+        )  # job_id -> run_config.environment.key_lookup
+        self._interview_callbacks: dict[str, Any] = (
+            {}
+        )  # job_id -> callable(job_id, interview_id)
 
     @property
     def jobs(self) -> JobStore:
@@ -208,9 +209,9 @@ class JobService:
         # Register those models in the model store and build a mapping
         # from question_name -> model_id so tasks use the question's model.
         question_model_overrides: dict[str, str] = {}  # q_name -> model_id
-        extra_models: dict[
-            str, Any
-        ] = {}  # model_id -> model obj (NOT in cross-product)
+        extra_models: dict[str, Any] = (
+            {}
+        )  # model_id -> model obj (NOT in cross-product)
         extra_models_batch: dict[str, dict] = {}
         for q in questions:
             if hasattr(q, "_model"):
@@ -326,6 +327,11 @@ class JobService:
                 question_option_permutations = self._generate_question_permutations(
                     questions, questions_to_randomize
                 )
+                question_item_randomization_seeds = {
+                    self._get_question_name(question): random.getrandbits(64)
+                    for question in questions
+                    if self._to_dict(question).get("randomize_items")
+                }
 
                 # Create tasks for this interview
                 # Pass agent and scenario objects for direct answer detection
@@ -359,6 +365,11 @@ class JobService:
                             "agent": agent_obj,
                             "scenario": scenario_obj,
                             "question": questions[info["question_index"]],
+                            "item_randomization_seed": question_item_randomization_seeds.get(
+                                self._get_question_name(
+                                    questions[info["question_index"]]
+                                )
+                            ),
                         }
                     )
 
@@ -373,6 +384,7 @@ class JobService:
                     task_ids=task_ids,
                     iteration=iteration,
                     question_option_permutations=question_option_permutations,
+                    question_item_randomization_seeds=question_item_randomization_seeds,
                 )
                 interview_definitions.append(interview_def)
 
@@ -1878,13 +1890,13 @@ class JobService:
         # Build raw_model_response dict (matches EDSL's raw_model_results_dictionary)
         raw_model_response_dict = {}
         for a in answers:
-            raw_model_response_dict[
-                f"{a.question_name}_raw_model_response"
-            ] = a.raw_model_response
+            raw_model_response_dict[f"{a.question_name}_raw_model_response"] = (
+                a.raw_model_response
+            )
             raw_model_response_dict[f"{a.question_name}_input_tokens"] = a.input_tokens
-            raw_model_response_dict[
-                f"{a.question_name}_output_tokens"
-            ] = a.output_tokens
+            raw_model_response_dict[f"{a.question_name}_output_tokens"] = (
+                a.output_tokens
+            )
             raw_model_response_dict[f"{a.question_name}_thinking_tokens"] = getattr(
                 a, "thinking_tokens", None
             )
@@ -1913,9 +1925,9 @@ class JobService:
         # Build generated_tokens dict (matches EDSL's generated_tokens_dict)
         generated_tokens_dict = {}
         for a in answers:
-            generated_tokens_dict[
-                f"{a.question_name}_generated_tokens"
-            ] = a.generated_tokens
+            generated_tokens_dict[f"{a.question_name}_generated_tokens"] = (
+                a.generated_tokens
+            )
 
         # Build comments dict (matches EDSL's comments_dict)
         comments_dict = {}
@@ -1925,9 +1937,9 @@ class JobService:
         # Build reasoning_summaries dict (matches EDSL's reasoning_summaries_dict)
         reasoning_summaries_dict = {}
         for a in answers:
-            reasoning_summaries_dict[
-                f"{a.question_name}_reasoning_summary"
-            ] = a.reasoning_summary
+            reasoning_summaries_dict[f"{a.question_name}_reasoning_summary"] = (
+                a.reasoning_summary
+            )
 
         # Build cache_used dict (matches EDSL's cache_used_dictionary)
         cache_used_dict = {a.question_name: a.cached for a in answers}
@@ -2002,6 +2014,12 @@ class JobService:
             if interview_def and hasattr(interview_def, "question_option_permutations")
             else {}
         )
+        item_randomization_seeds = (
+            interview_def.question_item_randomization_seeds
+            if interview_def
+            and hasattr(interview_def, "question_item_randomization_seeds")
+            else {}
+        )
         if job_def and job_def.question_ids and questions_data:
             for q_id in job_def.question_ids:
                 q_data = questions_data.get(q_id)
@@ -2019,6 +2037,18 @@ class JobService:
                         "question_text": q_data.get("question_text", ""),
                         "question_type": q_data.get("question_type", ""),
                         "question_options": q_options,
+                        **(
+                            {
+                                "question_items": self._resolve_question_items(
+                                    q_data,
+                                    answer_dict,
+                                    scenario,
+                                    item_randomization_seeds.get(q_name),
+                                )
+                            }
+                            if "question_items" in q_data
+                            else {}
+                        ),
                     }
         if _timing is not None:
             _timing["build_question_attrs"] = (
@@ -2061,15 +2091,21 @@ class JobService:
         from edsl.utilities.utilities import dict_hash
 
         hash_data = {
-            "agent": agent.to_dict(add_edsl_version=False)
-            if hasattr(agent, "to_dict")
-            else {},
-            "scenario": scenario.to_dict(add_edsl_version=False)
-            if hasattr(scenario, "to_dict")
-            else {},
-            "model": model.to_dict(add_edsl_version=False)
-            if model and hasattr(model, "to_dict")
-            else {},
+            "agent": (
+                agent.to_dict(add_edsl_version=False)
+                if hasattr(agent, "to_dict")
+                else {}
+            ),
+            "scenario": (
+                scenario.to_dict(add_edsl_version=False)
+                if hasattr(scenario, "to_dict")
+                else {}
+            ),
+            "model": (
+                model.to_dict(add_edsl_version=False)
+                if model and hasattr(model, "to_dict")
+                else {}
+            ),
             "iteration": iteration,
         }
         result.interview_hash = dict_hash(hash_data)
@@ -2490,6 +2526,40 @@ class JobService:
                 permutations[q_name] = random.sample(options, len(options))
 
         return permutations
+
+    @staticmethod
+    def _resolve_question_items(
+        question_data: dict,
+        answer_dict: dict,
+        scenario: Any,
+        randomization_seed: int | None = None,
+    ) -> Any:
+        """Resolve matrix rows and reproduce their per-interview randomization."""
+        items = JobService._resolve_question_options(
+            question_data.get("question_items"), answer_dict, scenario
+        )
+        if not isinstance(items, list):
+            return items
+        if not question_data.get("randomize_items") or randomization_seed is None:
+            return items
+        return JobService._shuffle_pinned(
+            items,
+            question_data.get("items_to_pin") or [],
+            random.Random(randomization_seed),
+        )
+
+    @staticmethod
+    def _shuffle_pinned(items: list, pinned_values: list, rng) -> list:
+        pinned = {i: value for i, value in enumerate(items) if value in pinned_values}
+        movable = rng.sample(
+            [value for value in items if value not in pinned_values],
+            len(items) - len(pinned),
+        )
+        result = [None] * len(items)
+        for index, value in pinned.items():
+            result[index] = value
+        movable_iter = iter(movable)
+        return [next(movable_iter) if value is None else value for value in result]
 
     # =========================================================================
     # FileStore Blob Handling
