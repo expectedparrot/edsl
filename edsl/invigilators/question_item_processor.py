@@ -1,4 +1,5 @@
 import random
+from ast import literal_eval
 from typing import Union, TYPE_CHECKING
 
 from .question_attribute_processor import QuestionAttributeProcessor
@@ -107,6 +108,25 @@ class QuestionItemProcessor(QuestionAttributeProcessor):
         >>> processor.get_question_items(question_data)
         ['Item 1', 'Item 2']
 
+        The case where the prior answer is the text of a list rather than a list,
+        which is what a QuestionCompute answers with:
+
+        >>> q1 = MockQuestion()
+        >>> q1.answer = "['Item 1', 'Item 2']"
+        >>> mpc.prior_answers_dict = lambda: {"q0": q0, "q1": q1}
+        >>> compute_processor = QuestionItemProcessor.from_prompt_constructor(mpc)
+        >>> compute_processor.get_question_items({"question_items": "{{ q1.answer }}"})
+        ['Item 1', 'Item 2']
+
+        A string that is not a list stays a lookup rather than being taken apart:
+
+        >>> q2 = MockQuestion()
+        >>> q2.answer = "Item 1, Item 2"
+        >>> mpc.prior_answers_dict = lambda: {"q2": q2}
+        >>> text_processor = QuestionItemProcessor.from_prompt_constructor(mpc)
+        >>> text_processor.get_question_items({"question_items": "{{ q2.answer }}"})
+        ['<< Item 1 - Placeholder >>', '<< Item 2 - Placeholder >>', '<< Item 3 - Placeholder >>']
+
         The case where no items are found:
 
         >>> processor.get_question_items({"question_items": "{{ missing }}"})
@@ -192,6 +212,35 @@ class QuestionItemProcessor(QuestionAttributeProcessor):
         """
         if not template_string:
             return self._get_default_items()
+
+        # Render the template first and take the value it produces. A prior answer is
+        # not always a list even when it names one: a QuestionCompute answers with the
+        # rendered text of its expression, so a matrix whose rows come from one is
+        # handed "['Alpha', 'Beta']" where it needs ['Alpha', 'Beta']. Without this the
+        # lookup below finds a string, treats it as no answer at all, and the question
+        # is served "<< Item 1 - Placeholder >>" rows.
+        #
+        # QuestionOptionProcessor resolves its own templates this way and for the same
+        # reason; a matrix validates its rows through the descriptor it uses for its
+        # options, so the two are worth keeping in step.
+        try:
+            rendered_items = self._render_template_to_native_value(template_string)
+            if isinstance(rendered_items, list):
+                return rendered_items
+            if isinstance(rendered_items, tuple):
+                return list(rendered_items)
+            if isinstance(rendered_items, str):
+                try:
+                    parsed_items = literal_eval(rendered_items)
+                except (SyntaxError, ValueError):
+                    parsed_items = None
+                if isinstance(parsed_items, list):
+                    return parsed_items
+                if isinstance(parsed_items, tuple):
+                    return list(parsed_items)
+        except Exception:
+            # Fall back to the key-lookup path below.
+            pass
 
         raw_item_key = self._parse_template_variable(template_string)
 
