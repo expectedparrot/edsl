@@ -119,6 +119,36 @@ def test_QuestionCheckBox_construction():
         QuestionCheckBox(**invalid_question)
 
 
+def test_QuestionCheckBox_max_selections_allowed_above_piped_option_count():
+    """A ceiling above a *piped* option count is accepted rather than raised.
+
+    The check above catches a typo in a hand-written question, where the cap and the
+    options are typed next to each other. It cannot mean the same thing once the
+    options are a template: the cap is fixed when the survey is written and the list
+    is not known until the question is served, so "up to five" put to someone whose
+    list resolved to three is a ceiling that does not bind rather than a contradiction.
+    Raising there would replace a question the respondent was entitled to see with an
+    error, over an answer they gave earlier.
+    """
+    q = QuestionCheckBox(
+        question_name="piped",
+        question_text="Which of these?",
+        question_options="{{ q0.answer }}",
+        max_selections=5,
+    )
+
+    # What coopr does when it serves the question: write the resolved list on.
+    q.question_options = ["Alpha", "Beta", "Gamma"]
+    assert q.question_options == ["Alpha", "Beta", "Gamma"]
+
+    # The declared cap is kept, not rewritten to fit. It is what the survey asked for,
+    # and results should record that rather than what one respondent's earlier answers
+    # left room for. Nothing needs the smaller number: three options cannot yield four
+    # selections, so enforcement is unaffected either way.
+    assert q.max_selections == 5
+    assert q.to_dict()["max_selections"] == 5
+
+
 def test_QuestionCheckBox_negative_values():
     """Test QuestionCheckBox validation for negative values."""
     
