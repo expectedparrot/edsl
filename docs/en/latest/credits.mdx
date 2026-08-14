@@ -1,12 +1,12 @@
 ---
 title: "Credits"
-description: "Credits are required in order to run surveys with models using your Expected Parrot API key. They can be purchased at your account (see details below). Credits are deducted to cover API call costs, which depend on token rates set by language model service providers. You can view current pricing for available models at the [model pricing page](https://www.expectedparrot.com/getting-started/coop-pricing)."
+description: "Credits are required in order to run surveys with models using your Expected Parrot API key. They can be purchased at your account (see details below). Credits are deducted based on the applicable rates published on the Expected Parrot model pricing page. These are the rates Expected Parrot uses to calculate credit consumption and may differ from rates charged by the underlying service provider."
 ---
 
 Credits must be purchased in advance and are consumed when surveys are run. If your balance is insufficient, you will be prompted to purchase more credits. Details on credit consumption are provided below.
 
 <Note>
-*Note:* Credits are *not* required to run surveys with your own keys from service providers or to post and share content at [Expected Parrot](https://www.expectedparrot.com/login). When using your own keys, cost estimates are based on the prices listed in the [model pricing page](https://www.expectedparrot.com/getting-started/coop-pricing), but your actual charges may vary depending on service providers’ terms.
+*Note:* Credits are *not* required to run surveys with your own keys from service providers or to post and share content at [Expected Parrot](https://www.expectedparrot.com/login). When using your own keys, cost estimates may use the prices listed on the model pricing page, but your actual charges are determined by the applicable service provider and may differ from those estimates.
 </Note>
 
 ## Free credits
@@ -33,8 +33,8 @@ When you run a survey with your Expected Parrot API key, the number of credits c
 
 The cost in credits of a response is calculated as follows:
 
-- The number of input tokens is multiplied by the input token rate set by the language model service provider.
-- The number of output tokens is multiplied by the output token rate set by the language model service provider.
+- The number of input tokens is multiplied by the applicable input token rate published on the Expected Parrot model pricing page.
+- The number of output tokens is multiplied by the applicable output token rate published on the Expected Parrot model pricing page.
 - The total cost in USD is converted to credits (1 USD = 100 credits).
 - The total cost in credits is rounded up to the nearest 1/100th of a credit.
 
@@ -53,7 +53,7 @@ The cost in credits of a response is calculated as follows:
 
 Details about a model’s response are stored in the raw_model_response fields of the results dataset. For each question that was run, the following columns will appear in results:
 
-- **raw_model_response.&lt;question_name&gt;_cost**: The cost in USD for the API call to a language model service provider. (In the example above, this is USD 0.00049.)
+- **raw_model_response.&lt;question_name&gt;_cost**: The cost in USD calculated for the API call using the applicable Expected Parrot pricing rates. (In the example above, this is USD 0.00049.)
 - **raw_model_response.&lt;question_name&gt;_one_usd_buys**: The number of tokens that can be purchased with 1 USD (for reference).
 - **raw_model_response.&lt;question_name&gt;_raw_model_response**: A dictionary containing the raw response for the question, which includes the input text and tokens, output text and tokens, and other information about the API call. This dictionary is specific to the language model service provider and may contain additional information about the response.
 
@@ -88,7 +88,7 @@ In the raw model response information for the response from *gpt-4o*, we can see
 'prompt_tokens': 16
 ```
 
-The total cost of the response is calculated based on the token rates set by the OpenAI (at the time of writing, USD 2.50 per 1M tokens for input and USD 10.00 per 1M tokens for output):
+The total cost of the response is calculated using the applicable rates listed on the Expected Parrot model pricing page (at the time of writing, USD 2.50 per 1M tokens for input and USD 10.00 per 1M tokens for output):
 
 ```python
 (16 * USD 2.50/1,000,000) + (40 * USD 10.00/1,000,000)
@@ -103,7 +103,7 @@ In the raw model response information for the response from *gemini-1.5-flash*, 
 'candidates_token_count': 57
 ```
 
-The total cost of the response is calculated based on the token rates set by Google (at the time of writing, USD 0.08 per 1M tokens for input and USD 0.30 per 1M tokens for output):
+The total cost of the response is calculated using the applicable rates listed on the Expected Parrot model pricing page (at the time of writing, USD 0.08 per 1M tokens for input and USD 0.30 per 1M tokens for output):
 
 ```python
 (8 * USD 0.08/1,000,000) + (57 * USD 0.30/1,000,000)
@@ -127,7 +127,11 @@ We can also navigate to the results page and select the same columns of the resu
 
 ## Token rates
 
-Model token rates used to calculate costs can be viewed at the [model pricing page](https://www.expectedparrot.com/getting-started/coop-pricing). This page is regularly updated to reflect the latest prices published by service providers. If you notice a discrepancy with a listed price, please submit a report using the form at that page.
+Model token rates used to calculate costs can be viewed on the [model pricing page](https://www.expectedparrot.com/getting-started/coop-pricing). For jobs run using an Expected Parrot API key, the rates published on that page are the rates Expected Parrot uses to calculate credit consumption.
+
+Expected Parrot reviews pricing information from service providers regularly, but our published rates do not necessarily reproduce every provider-specific pricing mechanism, including discounts, promotions, time-based pricing, caching discounts, batch pricing, volume pricing, service tiers, or similar adjustments. Published Expected Parrot rates may therefore differ from the rates a service provider would charge for the same request made directly or using your own API key.
+
+Provider pricing may change without notice, and Expected Parrot rates may not be updated at the same time. If a current price is unavailable, a default or fallback price may be used as described on the model pricing page. If you believe a published price is missing or out of date, please submit a report using the form on that page.
 
 ## Estimating job costs
 
