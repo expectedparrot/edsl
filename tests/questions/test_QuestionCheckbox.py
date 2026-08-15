@@ -93,13 +93,18 @@ def test_QuestionCheckBox_construction():
     # )
     # with pytest.raises(Exception):
     #     QuestionCheckBox(**invalid_question)
-    # or not of type list of strings
+    # Not a list of strings. Neither of these raises: the same-type check in
+    # QuestionOptionsDescriptor is commented out, so nothing rejects them on type. They
+    # used to raise on the option count instead, since this question caps at 3 and both
+    # lists have 2 options, and that is a warning now. Restore the type check and these
+    # go back to raising.
     invalid_question.update({"question_options": [1, 2]})
-    with pytest.raises(Exception):
+    with pytest.warns(UserWarning, match="at most 3 selections"):
         QuestionCheckBox(**invalid_question)
     invalid_question.update({"question_options": ["OK", 2]})
-    with pytest.raises(Exception):
+    with pytest.warns(UserWarning, match="at most 3 selections"):
         QuestionCheckBox(**invalid_question)
+    # This one does raise, on the empty option rather than the count.
     invalid_question.update({"question_options": ["OK", ""]})
     with pytest.raises(Exception):
         QuestionCheckBox(**invalid_question)
@@ -112,11 +117,12 @@ def test_QuestionCheckBox_construction():
     invalid_question.update({"min_selections": 20})
     with pytest.raises(Exception):
         QuestionCheckBox(**invalid_question)
-    # should raise an exception if len(question_options) < max_selections
-    invalid_question = valid_question.copy()
-    invalid_question.update({"max_selections": 20})
-    with pytest.raises(Exception):
-        QuestionCheckBox(**invalid_question)
+    # should warn, not raise, if len(question_options) < max_selections: the cap never
+    # comes into play, so the question is still answerable
+    odd_question = valid_question.copy()
+    odd_question.update({"max_selections": 20})
+    with pytest.warns(UserWarning, match="at most 20 selections"):
+        QuestionCheckBox(**odd_question)
 
 
 def test_QuestionCheckBox_max_selections_allowed_above_piped_option_count():
@@ -137,8 +143,10 @@ def test_QuestionCheckBox_max_selections_allowed_above_piped_option_count():
         max_selections=5,
     )
 
-    # What coopr does when it serves the question: write the resolved list on.
-    q.question_options = ["Alpha", "Beta", "Gamma"]
+    # Write the resolved list on, the way it happens when the question is served. This
+    # warns, since the cap is now higher than the option count, but that is all it does.
+    with pytest.warns(UserWarning, match="at most 5 selections"):
+        q.question_options = ["Alpha", "Beta", "Gamma"]
     assert q.question_options == ["Alpha", "Beta", "Gamma"]
 
     # The declared cap is kept, not rewritten to fit. It is what the survey asked for,

@@ -416,10 +416,21 @@ class QuestionOptionsDescriptor(BaseDescriptor):
                 raise QuestionCreationValidationError(
                     f"You asked for at least {instance.min_selections} selections, but provided fewer options (got {value})."
                 )
+        # Warn instead of raising. A min_selections above the option count is impossible
+        # to satisfy, but a max above it is harmless: it just never comes into play.
+        #
+        # This matters when the options are piped. The cap is set when the survey is
+        # written, but the list isn't known until the question is served, so "up to 5"
+        # over a list that resolves to 3 options is normal, not a mistake. Raising would
+        # fail at render time, when the survey is already in front of a respondent.
         if hasattr(instance, "max_selections") and instance.max_selections is not None:
             if instance.max_selections > len(value):
-                raise QuestionCreationValidationError(
-                    f"You asked for at most {instance.max_selections} selections, but provided fewer options (got {value})."
+                import warnings
+
+                warnings.warn(
+                    f"You asked for at most {instance.max_selections} selections, but "
+                    f"provided fewer options (got {value}). The cap cannot bind.",
+                    UserWarning,
                 )
         if self.num_choices is not None:
             if len(value) != self.num_choices:
