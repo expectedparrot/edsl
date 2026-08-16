@@ -86,6 +86,29 @@ Each `questions[question_name]` value is a `HumanizeQuestionSchema` object.
   </Expandable>
 </ParamField>
 
+<ParamField path="preselection" type="dict" required={false}>
+  **Matrix only** (`matrix`). Cells checked before the respondent touches the grid. Omit or set to `null` for an empty grid, which is what matrices render by default.
+
+  A preselection changes what the question measures: it puts an answer in front of the respondent and asks them to disagree with it, so the answers lean toward the preselected column. It also removes the blank — a row left alone is recorded as the preselected option and cannot be told apart from a considered answer. Both are usually the point (a long grid where most rows are expected to be neutral is far cheaper to finish), but they are worth deciding before fielding rather than after.
+
+  <Expandable title="properties">
+    <ParamField path="rules" type="array" required={true}>
+      The rules, in order. At least one is required.
+
+      Rules are tried in order and **the first match wins**, so the list reads like a routing table: the specific rows first, the catch-all last. A rule that matches every item must therefore be last — anything behind it could never be reached, and a list in the wrong order raises a validation error rather than silently dropping the rules it shadows.
+
+      Each rule is an object with:
+
+      - `match` (dict, required) — which rows the rule fills. Must be `{"type": "all"}`, every row of the grid.
+      - `option` (dict, required) — which column those rows are set to. Must be `{"type": "text", "value": "<option text>"}`, naming an option by its exact text in the question's `question_options`. Matching is literal, so surrounding whitespace is not trimmed for you.
+
+      **If the option you name is not in the list as served, the rule fills nothing.** It does not raise, and the survey still runs. A matrix's columns can be piped from an earlier answer, so the text you name may not exist until the question reaches the respondent — and a preselection must not be the thing that breaks a survey in front of them. Where the columns are a literal list, a name that matches none of them is caught when the survey is saved, while you can still fix it.
+
+      Those rows are then left empty; they do not fall through to the next rule. A row belongs to the first rule that matches it whether or not that rule finds its option, so a row singled out by an early rule cannot quietly pick up the catch-all that rule was written to override.
+    </ParamField>
+  </Expandable>
+</ParamField>
+
 <ParamField path="custom_validation" type="dict" required={false}>
   **Multiple choice only** (`multiple_choice`). Optional custom validation rules.
   <Expandable title="properties">

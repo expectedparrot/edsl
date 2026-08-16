@@ -172,6 +172,56 @@ class CommentConfig(HumanizeSchemaBase):
     label: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
 
 
+class AllSelector(HumanizeSchemaBase):
+    """Every member of a list.
+
+    The catch-all, and the only selector that reaches a list piped from a prior
+    answer without the author knowing what arrives there.
+    """
+
+    type: Literal["all"] = "all"
+
+
+# Which members of a list something applies to. Discriminated on ``type`` so
+# predicates over the members — an exact text, a prefix, a position — join as
+# siblings without reshaping stored configs. "all" is the only variant today, and
+# the discriminator default.
+#
+# Deliberately separate from ``OptionTarget`` below, and split by *arity* rather
+# than by axis: a selector picks a set (a predicate matching three rows fills
+# three cells), a target picks exactly one (a cell holds one answer, so a target
+# matching two options would be undefined). A matrix's rows take selectors and its
+# column takes a target; a checkbox's options would take selectors, for the same
+# reason its answer is a set.
+Selector = Annotated[
+    Union[AllSelector],
+    Field(discriminator="type"),
+]
+
+
+class TextOptionTarget(HumanizeSchemaBase):
+    """An option named by its exact text, matched against the list as served.
+
+    Compared stringified, because an option list may be numbers carrying
+    ``option_labels`` — the same comparison the grid itself makes when deciding
+    which radio is checked. Not stripped, because the text has to match an entry
+    of ``question_options`` and those are never stripped either.
+    """
+
+    type: Literal["text"] = "text"
+    value: Annotated[str, StringConstraints(min_length=1)]
+
+
+# Which single option something names. Discriminated on ``type`` so a target that
+# names an option by position, by a scale's midpoint, or by a template resolved
+# from a prior answer can join as a sibling without reshaping stored configs.
+# "text" is the only variant today, and the discriminator default.
+OptionTarget = Annotated[
+    Union[TextOptionTarget],
+    Field(discriminator="type"),
+]
+
+
 class FreeTextHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the free text question type."""
 
@@ -556,11 +606,67 @@ MatrixFormatSchema = Annotated[
 ]
 
 
+class MatrixPreselectionRule(HumanizeSchemaBase):
+    """The column preselected for the rows a selector picks out."""
+
+    # Required, with no default. "Every row" is a claim about the design, not a
+    # fallback: an author who has not said which rows they mean has not finished
+    # writing the rule, and a defaulted catch-all would silently swallow the case
+    # where they meant to name only some. It also keeps stored configs
+    # self-describing under any serializer, rather than relying on defaults being
+    # emitted.
+    match: Selector
+    option: OptionTarget
+
+
+class MatrixPreselection(HumanizeSchemaBase):
+    """Cells checked before the respondent touches the grid.
+
+    Rules are tried in order and the first match wins, so a config reads like a
+    routing table: the specific rows first, the catch-all last. First-match rather
+    than last-match because a row then belongs to exactly one rule, which is what
+    makes a filled grid explainable after the fact — with piped rows, the cells
+    two respondents were shown are not the same cells, and "which rule did this"
+    is the only way to reconstruct either.
+
+    A target naming no option fills nothing rather than raising: a matrix's
+    columns can be piped, so the author cannot always know at authoring time that
+    the text will be there, and a survey must not fail in front of a respondent
+    over it. Where the columns are literal the same mistake is caught at save time
+    instead, while the author can still fix it.
+
+    A rule whose target misses leaves its cells empty rather than falling through
+    to the next rule, or a row's exception would silently inherit the catch-all it
+    was written to override.
+    """
+
+    rules: Annotated[list[MatrixPreselectionRule], Field(min_length=1)]
+
+    @model_validator(mode="after")
+    def _no_rules_after_catch_all(self) -> "MatrixPreselection":
+        # An `all` selector matches every remaining row, so anything behind it can
+        # never be reached — today that means exactly one rule, since `all` is the
+        # only selector there is. Almost always a rule list written in the wrong
+        # order, and silently dropping the author's exceptions is the worst way to
+        # find out.
+        for position, rule in enumerate(self.rules[:-1]):
+            if rule.match.type == "all":
+                raise ValueError(
+                    f"Rule {position + 1} matches every item, leaving the rules "
+                    "after it unreachable; put the catch-all last."
+                )
+        return self
+
+
 class MatrixHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the matrix question type."""
 
     optional: bool = False
     format: MatrixFormatSchema = Field(default_factory=MatrixFormatTableSchema)
+    # Cells filled in before the respondent arrives. None means an empty grid —
+    # what every matrix rendered before this field existed, so stored configs are
+    # unaffected.
+    preselection: Optional[MatrixPreselection] = None
     comment: Optional[CommentConfig] = None
     submitting_indicator: Optional[SubmittingIndicator] = None
 
@@ -708,6 +814,39 @@ QUESTION_TYPE_TO_HUMANIZE_CLASS: Dict[str, Type[BaseModel]] = {
 }
 
 
+def _validate_preselection_targets(
+    question_name: str,
+    question: QuestionBase,
+    question_schema: BaseModel,
+) -> None:
+    """Reject a preselection naming a column the question does not have.
+
+    Only checkable when ``question_options`` is a literal list. A matrix whose
+    columns are a template string has nothing to compare against until a
+    respondent has answered the question they pipe from, so the mismatch is left
+    to the runtime miss policy — which fills nothing and raises nothing, because a
+    survey must not fail in front of a respondent over it.
+
+    That policy is exactly why this check earns its place: where the columns *are*
+    literal, a typo would otherwise be a silent no-op that previews fine and
+    preselects nothing in the field.
+    """
+    preselection = getattr(question_schema, "preselection", None)
+    if preselection is None:
+        return
+    options = getattr(question, "question_options", None)
+    if not isinstance(options, list):
+        return
+    option_texts = {str(option) for option in options}
+    for position, rule in enumerate(preselection.rules):
+        if rule.option.type == "text" and rule.option.value not in option_texts:
+            raise HumanizeSchemaValidationError(
+                f"Preselection rule {position + 1} for question {question_name!r} "
+                f"names option {rule.option.value!r}, which is not one of that "
+                "question's options."
+            )
+
+
 def validate_humanize_schema(
     survey: Survey,
     humanize_schema: Dict[str, Any],
@@ -754,6 +893,10 @@ def validate_humanize_schema(
             )
         raw_entry = raw_questions.get(question_name)
         try:
-            model_class.model_validate(raw_entry)
+            validated_entry = model_class.model_validate(raw_entry)
         except ValidationError as e:
             raise HumanizeSchemaValidationError(str(e)) from e
+        # Checked here rather than on the model, which sees the entry alone: whether
+        # an option exists is a fact about the question, and only this function has
+        # both halves.
+        _validate_preselection_targets(question_name, q, validated_entry)
