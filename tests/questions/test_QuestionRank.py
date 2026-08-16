@@ -241,6 +241,38 @@ def test_QuestionRank_extras():
     assert simulated_answer["answer"][0] in q.question_options
 
 
+def test_QuestionRank_templated_options_do_not_serialize_num_selections():
+    """A count that could not be taken must not be written down as though it had been.
+
+    Options given as a list are counted at construction and serialized as usual; only
+    a template leaves nothing to count, and recording a number there would let it reach
+    the question that gets rebuilt once the options are known.
+    """
+    q = QuestionRank(
+        question_name="food_rank",
+        question_text="Rank the foods you chose.",
+        question_options="{{ favorite_foods.answer }}",
+    )
+    assert "num_selections" not in q.to_dict()
+
+
+def test_QuestionRank_num_selections_not_derived_from_template():
+    """`num_selections` defaults to "rank all of them", which a template cannot count.
+
+    `__init__` resolves the default eagerly as `len(question_options)`, so a question
+    whose options are piped from an earlier answer asks for as many rankings as its
+    template has characters.
+    """
+    template = "{{ favorite_foods.answer }}"
+    q = QuestionRank(
+        question_name="food_rank",
+        question_text="Rank the foods you chose.",
+        question_options=template,
+    )
+
+    assert q.num_selections != len(template)
+
+
 def test_QuestionRank_integer_options():
     """Test QuestionRank with integer options."""
     q = QuestionRank(

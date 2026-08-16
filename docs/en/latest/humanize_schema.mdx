@@ -73,8 +73,40 @@ Each `questions[question_name]` value is a `HumanizeQuestionSchema` object.
 
   - **MC-style** (`likert_five`, `linear_scale`, `multiple_choice`, `yes_no`): `"radio"` (list of radio buttons) or `"dropdown"` (single `<select>`). Default is `"radio"`. Use `{"type": "radio"}` or `{"type": "dropdown"}`.
   - **Numerical** (`numerical`): `"input"` (number input field) or `"slider"` (range slider). Default is `"input"`. Use `{"type": "input"}` or `{"type": "slider", "min": 0, "max": 100, "step": 1}`. For slider, `min` must be less than `max`, `step` must be positive and not exceed `(max - min)`.
+  - **Matrix** (`matrix`): `"table"` (the whole grid at once) or `"carousel"` (one item at a time). Default is `"table"`. Use `{"type": "table"}` or `{"type": "carousel"}`.
 
   Other question types do not support `format`.
+
+  <Expandable title="matrix carousel properties">
+    <ParamField path="advance_on_select" type="boolean" default={true}>
+      **`carousel` only.** Whether answering an item moves to the next one on its own, rather than waiting for the respondent to click Next.
+
+      Every answer advances, corrections included — the same rule respondents will have met in Qualtrics. Set to `false` when respondents are expected to revise as they go, since under `true` a correction costs the way back as well.
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField path="preselection" type="dict" required={false}>
+  **Matrix only** (`matrix`). Cells checked before the respondent touches the grid. Omit or set to `null` for an empty grid, which is what matrices render by default.
+
+  A preselection changes what the question measures: it puts an answer in front of the respondent and asks them to disagree with it, so the answers lean toward the preselected column. It also removes the blank — a row left alone is recorded as the preselected option and cannot be told apart from a considered answer. Both are usually the point (a long grid where most rows are expected to be neutral is far cheaper to finish), but they are worth deciding before fielding rather than after.
+
+  <Expandable title="properties">
+    <ParamField path="rules" type="array" required={true}>
+      The rules, in order. At least one is required.
+
+      Rules are tried in order and **the first match wins**, so the list reads like a routing table: the specific rows first, the catch-all last. A rule that matches every item must therefore be last — anything behind it could never be reached, and a list in the wrong order raises a validation error rather than silently dropping the rules it shadows.
+
+      Each rule is an object with:
+
+      - `match` (dict, required) — which rows the rule fills. Must be `{"type": "all"}`, every row of the grid.
+      - `option` (dict, required) — which column those rows are set to. Must be `{"type": "text", "value": "<option text>"}`, naming an option by its exact text in the question's `question_options`. Matching is literal, so surrounding whitespace is not trimmed for you.
+
+      **If the option you name is not in the list as served, the rule fills nothing.** It does not raise, and the survey still runs. A matrix's columns can be piped from an earlier answer, so the text you name may not exist until the question reaches the respondent — and a preselection must not be the thing that breaks a survey in front of them. Where the columns are a literal list, a name that matches none of them is caught when the survey is saved, while you can still fix it.
+
+      Those rows are then left empty; they do not fall through to the next rule. A row belongs to the first rule that matches it whether or not that rule finds its option, so a row singled out by an early rule cannot quietly pick up the catch-all that rule was written to override.
+    </ParamField>
+  </Expandable>
 </ParamField>
 
 <ParamField path="custom_validation" type="dict" required={false}>
@@ -230,7 +262,7 @@ Each `questions[question_name]` value is a `HumanizeQuestionSchema` object.
 
   **Supported question types:** `free_text`, `budget`, `checkbox`, `checkbox_with_other`, `file_upload`, `likert_five`, `linear_scale`, `list`, `matrix`, `multiple_choice`, `multiple_choice_with_other`, `numerical`, `rank`, `top_k`, `yes_no`.
 
-  Note: not supported for `compute` (runs locally and auto-advances, so it is never the question a respondent submits) or `interview`.
+  Note: not supported for `compute` or `image_generation` (both run in the background and auto-advance, so neither is ever the question a respondent submits), or for `interview`.
 
   <Expandable title="properties">
     <ParamField path="type" type="string" default="callout">
