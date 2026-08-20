@@ -9,7 +9,11 @@ valid_question = {
     "question_text": "Please provide a detailed recipe for basic hot chocolate. Include all ingredients and steps.",
     "answer_keys": ["recipe_name", "ingredients", "num_ingredients"],
     "value_types": ["str", "list[str]", "int"],
-    "value_descriptions": ["The name of the recipe.", "List of ingredients.", "The number of ingredients."],
+    "value_descriptions": [
+        "The name of the recipe.",
+        "List of ingredients.",
+        "The number of ingredients.",
+    ],
 }
 
 
@@ -28,7 +32,7 @@ def test_QuestionDict_construction():
     minimal_question = {
         "question_name": "recipe",
         "question_text": valid_question["question_text"],
-        "answer_keys": valid_question["answer_keys"]
+        "answer_keys": valid_question["answer_keys"],
     }
     q = QuestionDict(**minimal_question)
     assert q.value_types is None
@@ -53,9 +57,9 @@ def test_QuestionDict_validation():
     # Valid answer
     valid_answer = {
         "answer": {
-            "recipe_name": "Basic Hot Chocolate", 
-            "ingredients": ["Steamed milk", "Chocolate flakes"], 
-            "num_ingredients": 2
+            "recipe_name": "Basic Hot Chocolate",
+            "ingredients": ["Steamed milk", "Chocolate flakes"],
+            "num_ingredients": 2,
         }
     }
     q._validate_answer(valid_answer)
@@ -69,6 +73,84 @@ def test_QuestionDict_validation():
 
     with pytest.raises(QuestionAnswerValidationError):
         q._validate_answer({"answer": {"num_ingredients": "2"}})  # Should be an int
+
+
+def test_QuestionDict_recovers_fenced_generated_tokens():
+    q = QuestionDict(
+        question_name="x",
+        question_text="x",
+        answer_keys=["assumption", "node_ids"],
+        value_types=["str", "list[str]"],
+    )
+    generated_tokens = """```json
+{"assumption":"test", "node_ids":["n1"]}
+```
+Extra explanation"""
+
+    result = q._validate_answer(
+        {"answer": "```json", "generated_tokens": generated_tokens}
+    )
+
+    assert result == {
+        "answer": {"assumption": "test", "node_ids": ["n1"]},
+        "comment": "Extra explanation",
+        "generated_tokens": generated_tokens,
+    }
+
+
+def test_QuestionDict_recovers_multiline_json_and_complex_strings():
+    q = QuestionDict(
+        question_name="x",
+        question_text="x",
+        answer_keys=["text", "node_ids"],
+        value_types=["str", "list[str]"],
+    )
+    generated_tokens = """```
+{
+  "text": "A {brace} and an escaped quote: \\"yes\\"",
+  "node_ids": ["n1"]
+}
+```
+First paragraph.
+
+Second paragraph."""
+
+    result = q._validate_answer({"answer": "```", "generated_tokens": generated_tokens})
+
+    assert result["answer"]["text"] == 'A {brace} and an escaped quote: "yes"'
+    assert result["comment"] == "First paragraph.\n\nSecond paragraph."
+    assert result["generated_tokens"] == generated_tokens
+
+
+def test_QuestionDict_generated_token_recovery_is_schema_aware():
+    q = QuestionDict(
+        question_name="x",
+        question_text="x",
+        answer_keys=["assumption", "node_ids"],
+        value_types=["str", "list[str]"],
+    )
+
+    with pytest.raises(QuestionAnswerValidationError):
+        q._validate_answer(
+            {
+                "answer": "```json",
+                "generated_tokens": '```json\n{"assumption": "test", "node_ids": 1}\n```',
+            }
+        )
+
+
+def test_QuestionDict_fix_preserves_valid_answer():
+    q = QuestionDict(**valid_question)
+    response = {
+        "answer": {
+            "recipe_name": "Cocoa",
+            "ingredients": ["milk"],
+            "num_ingredients": 1,
+        },
+        "generated_tokens": "not relevant",
+    }
+
+    assert q.response_validator.fix(response) is response
 
 
 def test_QuestionDict_serialization():
@@ -90,7 +172,7 @@ def test_QuestionDict_presentation():
     """Test question presentation template rendering."""
     q = QuestionDict(**valid_question)
     presentation = q.question_presentation
-    
+
     assert presentation is not None
     assert isinstance(presentation, str)
     assert valid_question["question_text"] in presentation
