@@ -153,6 +153,22 @@ def test_QuestionDict_fix_preserves_valid_answer():
     assert q.response_validator.fix(response) is response
 
 
+def test_QuestionDict_fix_returns_coerced_answer():
+    q = QuestionDict(**valid_question)
+
+    fixed = q.response_validator.fix(
+        {
+            "answer": {
+                "recipe_name": "Cocoa",
+                "ingredients": ["milk"],
+                "num_ingredients": "1",
+            }
+        }
+    )
+
+    assert fixed["answer"]["num_ingredients"] == 1
+
+
 def test_QuestionDict_serialization():
     """Test serialization."""
     q = QuestionDict(**valid_question)

@@ -255,7 +255,13 @@ class DictResponseValidator(ResponseValidatorABC):
         # raw generated text.
         if isinstance(response, dict):
             try:
-                self.response_model.model_validate(response)
+                validated = self.response_model.model_validate(response)
+                validated_answer = validated.model_dump()["answer"]
+                # Pydantic may accept the input by coercing values (for example,
+                # ``"23"`` to ``23``).  In that case return the normalized model
+                # output; otherwise retain the original object and its shape.
+                if validated_answer != response.get("answer"):
+                    return validated.model_dump()
                 return response
             except Exception:
                 pass
