@@ -1104,11 +1104,55 @@ class JobService:
         error_type: str,
         error_message: str,
         force_permanent: bool = False,
+        comment: str | None = None,
+        input_tokens: int | None = None,
+        output_tokens: int | None = None,
+        raw_model_response: dict | None = None,
+        generated_tokens: str | None = None,
+        cached: bool = False,
+        system_prompt: str | None = None,
+        user_prompt: str | None = None,
+        input_price_per_million_tokens: float | None = None,
+        output_price_per_million_tokens: float | None = None,
+        thinking_tokens: int | None = None,
+        cache_key: str | None = None,
+        validated: bool | None = None,
+        reasoning_summary: str | None = None,
     ) -> None:
         """Called when a task fails. Retries if policy allows, otherwise marks as permanent failure."""
         task_def = self._tasks.get_definition(job_id, interview_id, task_id)
         if task_def is None:
             raise ValueError(f"Task {task_id} not found")
+
+        if (
+            validated is False
+            or raw_model_response is not None
+            or generated_tokens is not None
+        ):
+            self._answers.store(
+                Answer(
+                    job_id=job_id,
+                    interview_id=interview_id,
+                    question_name=task_def.question_name,
+                    answer=None,
+                    created_at=datetime.utcnow(),
+                    system_prompt=system_prompt,
+                    user_prompt=user_prompt,
+                    comment=comment or error_message,
+                    cached=cached,
+                    input_tokens=input_tokens,
+                    output_tokens=output_tokens,
+                    thinking_tokens=thinking_tokens,
+                    raw_model_response=raw_model_response,
+                    generated_tokens=generated_tokens,
+                    model_id=task_def.model_id,
+                    input_price_per_million_tokens=input_price_per_million_tokens,
+                    output_price_per_million_tokens=output_price_per_million_tokens,
+                    cache_key=cache_key,
+                    validated=validated,
+                    reasoning_summary=reasoning_summary,
+                )
+            )
 
         # Check retry policy before marking as permanently failed
         # Skip retries if stop_on_exception is set for this job
@@ -1702,6 +1746,19 @@ class JobService:
                         "error_message": state.last_error_message or "Unknown error",
                         "attempts": state.attempts,
                     }
+
+                    if task_def is not None:
+                        failed_answer = self._answers.get(
+                            job_id, interview_id, task_def.question_name
+                        )
+                        if failed_answer is not None:
+                            error_info["response_context"] = {
+                                "raw_model_response": failed_answer.raw_model_response,
+                                "generated_tokens": failed_answer.generated_tokens,
+                                "system_prompt": failed_answer.system_prompt,
+                                "user_prompt": failed_answer.user_prompt,
+                                "validated": failed_answer.validated,
+                            }
 
                     errors.append(error_info)
 
@@ -2299,10 +2356,42 @@ class JobService:
 
         # Create the Results object
         _t = _time.time()
-        results = Results(
-            survey=survey,
-            data=result_list,
+        from ..tasks import TaskHistory
+
+        errors_by_interview: dict[str, dict[str, list[dict]]] = {}
+        for error in self.get_error_details(job_id):
+            question_name = error.get("question_name") or "unknown"
+            exception_entry = {
+                "exception": {
+                    "type": error.get("error_type") or "Exception",
+                    "module": "edsl.runner",
+                    "message": error.get("error_message") or "Unknown error",
+                    "traceback": f"Exception: {error.get('error_message') or 'Unknown error'}",
+                },
+                "invigilator": None,
+                "additional_data": {
+                    "attempts": error.get("attempts", {}),
+                    "response_context": error.get("response_context"),
+                },
+            }
+            errors_by_interview.setdefault(error["interview_id"], {}).setdefault(
+                question_name, []
+            ).append(exception_entry)
+
+        task_history = TaskHistory.from_dict(
+            {
+                "interviews": [
+                    {
+                        "id": interview_id,
+                        "type": "InterviewReference",
+                        "exceptions": exceptions,
+                        "task_status_logs": {},
+                    }
+                    for interview_id, exceptions in errors_by_interview.items()
+                ]
+            }
         )
+        results = Results(survey=survey, data=result_list, task_history=task_history)
         if _timing is not None:
             _timing["create_results_object"] = (_time.time() - _t) * 1000
 

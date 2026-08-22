@@ -9,6 +9,7 @@ import pytest
 from edsl.results import Results, ResultsGitError, ResultsGitNestedRepoWarning
 from edsl.results.exceptions import ResultsError
 from edsl.base.base_exception import BaseException as EDSLBaseException
+from edsl.tasks import TaskHistory
 
 
 pytestmark = pytest.mark.skipif(
@@ -24,6 +25,39 @@ def _package_json(package_path: Path, member: str):
 def _package_names(package_path: Path) -> set[str]:
     with zipfile.ZipFile(package_path) as archive:
         return set(archive.namelist())
+
+
+def _results_with_task_history(*, fixed=False):
+    results = Results.example().sample(1)
+    history = TaskHistory.from_dict(
+        {
+            "include_traceback": True,
+            "interviews": [
+                {
+                    "id": "interview-1",
+                    "type": "InterviewReference",
+                    "exceptions": {
+                        "q0": [
+                            {
+                                "exception": {
+                                    "type": "ValidationError",
+                                    "module": "edsl.runner",
+                                    "message": "invalid answer",
+                                    "traceback": "Exception: invalid answer",
+                                },
+                                "invigilator": None,
+                                "additional_data": {"attempts": 3},
+                            }
+                        ]
+                    },
+                    "fixed_questions": ["q0"] if fixed else [],
+                    "task_status_logs": {},
+                }
+            ],
+        }
+    )
+    results.task_history = history
+    return results
 
 
 def test_results_git_error_uses_results_exception_hierarchy():
@@ -63,6 +97,71 @@ def test_results_git_save_default_path_and_load_round_trip(tmp_path, monkeypatch
     assert loaded == results
     assert loaded.git.path == package_path
     assert loaded.git.validate() == {"status": "ok", "errors": []}
+
+
+def test_results_jsonl_round_trip_preserves_task_history():
+    results = _results_with_task_history()
+
+    loaded = Results.from_jsonl(results.to_jsonl())
+
+    assert loaded.has_unfixed_exceptions
+    assert len(loaded.task_history.exceptions) == 1
+    entry = loaded.task_history.to_dict()["interviews"][0]["exceptions"]["q0"][0]
+    assert entry["exception"]["message"] == "invalid answer"
+    assert entry["additional_data"]["attempts"] == 3
+
+
+def test_results_jsonl_records_authoritative_empty_task_history():
+    results = Results.example().sample(1)
+    lines = results.to_jsonl().splitlines()
+
+    assert json.loads(lines[0])["format_version"] == 2
+    assert json.loads(lines[1])["n_task_history_lines"] == 1
+    loaded = Results.from_jsonl("\n".join(lines))
+    assert loaded.task_history.total_interviews == []
+    assert not loaded.has_unfixed_exceptions
+
+
+def test_results_jsonl_round_trip_preserves_fixed_history():
+    results = _results_with_task_history(fixed=True)
+    assert not results.has_unfixed_exceptions
+
+    loaded = Results.from_jsonl(results.to_jsonl())
+
+    assert len(loaded.task_history.exceptions) == 1
+    assert not loaded.has_unfixed_exceptions
+    assert loaded.task_history.to_dict()["interviews"][0]["fixed_questions"] == [
+        "q0"
+    ]
+
+
+def test_results_git_round_trip_preserves_task_history(tmp_path):
+    results = _results_with_task_history()
+    package_path = tmp_path / "failed-results.ep"
+
+    results.git.save(package_path)
+    loaded = Results.git.load(package_path)
+
+    assert loaded.has_unfixed_exceptions
+    assert len(loaded.task_history.exceptions) == 1
+
+
+def test_results_jsonl_loads_legacy_format_without_task_history():
+    results = Results.example().sample(1)
+    lines = results.to_jsonl().splitlines()
+    manifest = json.loads(lines[1])
+    n_survey = manifest["n_survey_lines"]
+    n_history = manifest.pop("n_task_history_lines")
+    legacy_lines = (
+        [lines[0], json.dumps(manifest)]
+        + lines[2 : 2 + n_survey]
+        + lines[2 + n_survey + n_history :]
+    )
+
+    loaded = Results.from_jsonl("\n".join(legacy_lines))
+
+    assert len(loaded) == len(results)
+    assert loaded.task_history.total_interviews == []
 
 
 def test_results_git_save_is_immutable_by_default(tmp_path):
