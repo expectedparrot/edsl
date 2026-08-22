@@ -196,6 +196,20 @@ class ExecutionWorker:
                         task_id=result.task_id,
                         error_type=result.error_type or "unknown",
                         error_message=result.error_message or "Unknown error",
+                        comment=result.comment,
+                        input_tokens=result.input_tokens,
+                        output_tokens=result.output_tokens,
+                        raw_model_response=result.raw_model_response,
+                        generated_tokens=result.generated_tokens,
+                        cached=result.cached,
+                        system_prompt=result.system_prompt,
+                        user_prompt=result.user_prompt,
+                        input_price_per_million_tokens=result.input_price_per_million_tokens,
+                        output_price_per_million_tokens=result.output_price_per_million_tokens,
+                        thinking_tokens=result.thinking_tokens,
+                        cache_key=result.cache_key,
+                        validated=result.validated,
+                        reasoning_summary=result.reasoning_summary,
                     )
         finally:
             # Unregister on shutdown
@@ -236,6 +250,12 @@ class ExecutionWorker:
         """Execute a single task using the actual model object."""
         task = assignment.task
 
+        response_received = False
+        answer = comment = generated_tokens = reasoning_summary = None
+        input_tokens = output_tokens = thinking_tokens = None
+        raw_response = cache_key = input_price = output_price = None
+        cached = False
+
         try:
             # Reconstruct the model object from stored data
             model = self._job_service.get_model_for_task(task.job_id, task.model_id)
@@ -274,6 +294,7 @@ class ExecutionWorker:
             # Response is an AgentResponseDict with edsl_dict and model_outputs
             edsl_dict = response.edsl_dict
             model_outputs = response.model_outputs
+            response_received = True
 
             # From edsl_dict (EDSLOutput)
             answer = edsl_dict.answer if hasattr(edsl_dict, "answer") else None
@@ -289,6 +310,18 @@ class ExecutionWorker:
                 else None
             )
 
+            # Capture provider context before validation, which may raise.
+            input_tokens = getattr(model_outputs, "input_tokens", None)
+            output_tokens = getattr(model_outputs, "output_tokens", None)
+            raw_response = getattr(model_outputs, "response", None)
+            cached = getattr(model_outputs, "cache_used", False)
+            cache_key = getattr(model_outputs, "cache_key", None)
+            input_price = getattr(model_outputs, "input_price_per_million_tokens", None)
+            output_price = getattr(
+                model_outputs, "output_price_per_million_tokens", None
+            )
+            thinking_tokens = getattr(model_outputs, "thinking_tokens", None)
+
             # Validate answer through question's validator (handles repair/fix)
             (
                 answer,
@@ -300,44 +333,6 @@ class ExecutionWorker:
                 resolution_method,
             ) = self._validate_answer(
                 task, answer, comment, generated_tokens
-            )
-
-            # From model_outputs (ModelResponse)
-            input_tokens = (
-                model_outputs.input_tokens
-                if hasattr(model_outputs, "input_tokens")
-                else None
-            )
-            output_tokens = (
-                model_outputs.output_tokens
-                if hasattr(model_outputs, "output_tokens")
-                else None
-            )
-            raw_response = (
-                model_outputs.response if hasattr(model_outputs, "response") else None
-            )
-            cached = (
-                model_outputs.cache_used
-                if hasattr(model_outputs, "cache_used")
-                else False
-            )
-            cache_key = (
-                model_outputs.cache_key if hasattr(model_outputs, "cache_key") else None
-            )
-            input_price = (
-                model_outputs.input_price_per_million_tokens
-                if hasattr(model_outputs, "input_price_per_million_tokens")
-                else None
-            )
-            output_price = (
-                model_outputs.output_price_per_million_tokens
-                if hasattr(model_outputs, "output_price_per_million_tokens")
-                else None
-            )
-            thinking_tokens = (
-                model_outputs.thinking_tokens
-                if hasattr(model_outputs, "thinking_tokens")
-                else None
             )
 
             return ExecutionResult(
@@ -377,6 +372,21 @@ class ExecutionWorker:
                 job_id=task.job_id,
                 interview_id=task.interview_id,
                 success=False,
+                answer=None,
+                comment=comment,
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
+                raw_model_response=raw_response,
+                generated_tokens=generated_tokens,
+                cached=cached,
+                system_prompt=task.system_prompt if response_received else None,
+                user_prompt=task.user_prompt if response_received else None,
+                input_price_per_million_tokens=input_price,
+                output_price_per_million_tokens=output_price,
+                thinking_tokens=thinking_tokens,
+                cache_key=cache_key,
+                validated=False if response_received else None,
+                reasoning_summary=reasoning_summary,
                 error_type=error_type,
                 error_message=str(e),
             )

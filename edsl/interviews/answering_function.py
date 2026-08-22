@@ -435,9 +435,7 @@ class AnswerQuestionFunctionConstructor:
 
             except QuestionAnswerValidationError as e:
                 self._handle_exception(e, invigilator, task)
-                return invigilator.get_failed_task_result(
-                    failure_reason="Question answer validation failed."
-                )
+                return response._replace(comment="Question answer validation failed.")
 
             except asyncio.TimeoutError:
                 # Don't record exception yet - will retry

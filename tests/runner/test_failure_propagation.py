@@ -1,8 +1,48 @@
-from edsl import Agent, QuestionCompute, QuestionFreeText, Survey
+from edsl import (
+    Agent,
+    Model,
+    QuestionBudget,
+    QuestionCompute,
+    QuestionFreeText,
+    Results,
+    Survey,
+)
 from edsl.inference_services.services.test_service import TestService
 from edsl.runner.models import InterviewState, TaskStatus
+from edsl.runner.runner import Runner
 from edsl.runner.service import JobService
 from edsl.runner.storage import InMemoryStorage
+
+
+def test_validation_failure_preserves_response_and_task_history():
+    question = QuestionBudget(
+        question_name="budget",
+        question_text="Allocate the budget.",
+        question_options=["item", "other_or_unspent"],
+        budget_sum=100,
+    )
+
+    job = question.by(Model("test", canned_response="[60,30]"))
+    results = Runner().submit(job, cache=False).results()
+
+    result = results[0]
+    assert result.answer["budget"] is None
+    assert result["generated_tokens"]["budget_generated_tokens"] == "[60,30]"
+    assert result["raw_model_response"]["budget_raw_model_response"] is not None
+    assert result["prompt"]["budget_user_prompt"].text
+    assert result["validated_dict"]["budget_validated"] is False
+    assert results.has_unfixed_exceptions
+    history_dict = results.task_history.to_dict()
+    response_context = history_dict["interviews"][0]["exceptions"]["budget"][0][
+        "additional_data"
+    ]["response_context"]
+    assert response_context["generated_tokens"] == "[60,30]"
+    assert response_context["raw_model_response"] is not None
+
+    round_tripped = Results.from_dict(results.to_dict())
+    assert round_tripped[0]["generated_tokens"] == result["generated_tokens"]
+    assert round_tripped[0]["raw_model_response"] == result["raw_model_response"]
+    assert round_tripped.has_unfixed_exceptions
 
 
 def test_failure_propagation_blocks_converging_dag_nodes_once():
