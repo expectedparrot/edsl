@@ -14,7 +14,7 @@ from edsl.runner.service import JobService
 from edsl.runner.storage import InMemoryStorage
 
 
-def test_validation_failure_preserves_response_and_task_history():
+def test_validation_failure_preserves_response_and_task_history(tmp_path):
     question = QuestionBudget(
         question_name="budget",
         question_text="Allocate the budget.",
@@ -43,6 +43,17 @@ def test_validation_failure_preserves_response_and_task_history():
     assert round_tripped[0]["generated_tokens"] == result["generated_tokens"]
     assert round_tripped[0]["raw_model_response"] == result["raw_model_response"]
     assert round_tripped.has_unfixed_exceptions
+
+    package_path = tmp_path / "validation-failure-results.ep"
+    results.git.save(package_path)
+    package_round_tripped = Results.git.load(package_path)
+    assert package_round_tripped.has_unfixed_exceptions
+    assert len(package_round_tripped.task_history.exceptions) == 1
+    assert package_round_tripped[0]["generated_tokens"] == result["generated_tokens"]
+    assert package_round_tripped[0]["raw_model_response"] == result[
+        "raw_model_response"
+    ]
+    assert package_round_tripped[0]["validated_dict"]["budget_validated"] is False
 
 
 def test_failure_propagation_blocks_converging_dag_nodes_once():
