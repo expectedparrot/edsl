@@ -381,6 +381,7 @@ class AnswerQuestionFunctionConstructor:
                 )
 
             had_language_model_no_response_error = False
+            response = None
             try:
                 import time
 
@@ -435,7 +436,13 @@ class AnswerQuestionFunctionConstructor:
 
             except QuestionAnswerValidationError as e:
                 self._handle_exception(e, invigilator, task)
-                return response._replace(comment="Question answer validation failed.")
+                if response is not None:
+                    return response._replace(
+                        comment="Question answer validation failed."
+                    )
+                return invigilator.get_failed_task_result(
+                    failure_reason="Question answer validation failed."
+                )
 
             except asyncio.TimeoutError:
                 # Don't record exception yet - will retry

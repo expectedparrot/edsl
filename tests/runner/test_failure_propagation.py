@@ -1,17 +1,71 @@
+import asyncio
+from types import SimpleNamespace
+from unittest.mock import AsyncMock, Mock
+
 from edsl import (
     Agent,
     Model,
     QuestionBudget,
     QuestionCompute,
     QuestionFreeText,
+    QuestionFunctional,
     Results,
+    Scenario,
     Survey,
 )
+from edsl.interviews.answering_function import AnswerQuestionFunctionConstructor
+from edsl.interviews.interview import Interview
+from edsl.questions.exceptions import QuestionAnswerValidationError
 from edsl.inference_services.services.test_service import TestService
 from edsl.runner.models import InterviewState, TaskStatus
 from edsl.runner.runner import Runner
 from edsl.runner.service import JobService
 from edsl.runner.storage import InMemoryStorage
+
+
+def _functional_answer(scenario, agent_traits):
+    return 1
+
+
+def test_validation_error_before_response_uses_no_response_failure_result():
+    question = QuestionFunctional(
+        question_name="functional",
+        func=_functional_answer,
+        unsafe=True,
+    )
+    interview = Interview(
+        agent=Agent(),
+        survey=Survey([question]),
+        scenario=Scenario(),
+        model=Model("test"),
+        raise_validation_errors=False,
+    )
+    interview.skip_flags = {}
+    error = QuestionAnswerValidationError(
+        message="invalid functional answer",
+        data={"answer": None},
+        model=Mock(model_json_schema=Mock(return_value={})),
+        pydantic_error=Mock(),
+    )
+    failed_result = object()
+    invigilator = SimpleNamespace(
+        question=question,
+        async_answer_question=AsyncMock(side_effect=error),
+        get_failed_task_result=Mock(return_value=failed_result),
+    )
+    constructor = AnswerQuestionFunctionConstructor(interview, key_lookup=None)
+    constructor.invigilator_fetcher = Mock(return_value=invigilator)
+
+    result = asyncio.run(
+        constructor.answer_question_and_record_task(question=question)
+    )
+
+    assert result is failed_result
+    invigilator.get_failed_task_result.assert_called_once_with(
+        failure_reason="Question answer validation failed."
+    )
+    assert len(interview.exceptions[question.question_name]) == 1
+    assert interview.exceptions[question.question_name][0].exception is error
 
 
 def test_validation_failure_preserves_response_and_task_history(tmp_path):
