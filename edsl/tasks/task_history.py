@@ -168,6 +168,9 @@ class TaskHistory(RepresentationMixin):
                         name: log.to_dict() if hasattr(log, "to_dict") else {}
                         for name, log in self.task_status_logs.items()
                     },
+                    "fixed_questions": sorted(
+                        getattr(self.exceptions, "fixed", set())
+                    ),
                 }
 
                 # Add model and survey info if they have to_dict methods
@@ -333,6 +336,7 @@ class TaskHistory(RepresentationMixin):
                     if exceptions_data
                     else InterviewExceptionCollection()
                 )
+                self.exceptions.fixed.update(data.get("fixed_questions", []))
 
                 # Store other fields
                 self.task_status_logs = data.get("task_status_logs", {})
@@ -360,6 +364,9 @@ class TaskHistory(RepresentationMixin):
                         )
                     ),
                     "task_status_logs": self.task_status_logs,
+                    "fixed_questions": sorted(
+                        getattr(self.exceptions, "fixed", set())
+                    ),
                     "model": self._model_data,
                     "survey": self._survey_data,
                 }

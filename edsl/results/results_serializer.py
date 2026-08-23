@@ -6,9 +6,10 @@ object reconstruction, shelve operations, and disk persistence.
 
 Inline JSONL format:
   - Line 1: header (``__header__: true``, class name, version, format)
-  - Line 2: manifest (created_columns, name, n_survey_lines)
+  - Line 2: manifest (metadata and section line counts)
   - Lines 3..S+2: Survey JSONL lines (inline)
-  - Lines S+3..: Result rows (one Result.to_dict() per line, appendable)
+  - Task-history metadata and interview rows
+  - Result rows (one Result.to_dict() per line, appendable)
 """
 
 import json
@@ -212,12 +213,26 @@ class ResultsSerializer:
           - Line 1: header
           - Line 2: manifest (line counts + metadata)
           - Survey lines (from Survey.to_jsonl_rows())
+          - Task-history metadata and interview rows
           - Result rows (one Result.to_dict() per line)
         """
         from .. import __version__
 
         # Collect survey rows first to get count
         survey_rows = list(self.results.survey.to_jsonl_rows(blob_writer=blob_writer))
+        task_history = self.results.task_history.to_dict(offload_content=True)
+        task_history_rows = [
+            json.dumps(
+                {
+                    "__task_history__": True,
+                    "include_traceback": task_history.get("include_traceback", False),
+                }
+            )
+        ]
+        task_history_rows.extend(
+            json.dumps({"interview": interview})
+            for interview in task_history.get("interviews", [])
+        )
 
         # Header
         yield json.dumps({
@@ -225,6 +240,7 @@ class ResultsSerializer:
             "edsl_class_name": "Results",
             "edsl_version": __version__,
             "format": "inline",
+            "format_version": 2,
         })
 
         # Manifest
@@ -232,10 +248,15 @@ class ResultsSerializer:
             "created_columns": self.results.created_columns,
             "name": self.results.name,
             "n_survey_lines": len(survey_rows),
+            "n_task_history_lines": len(task_history_rows),
         })
 
         # Survey lines
         yield from survey_rows
+
+        # Task-history lines.  The metadata row is always present, including
+        # when the authoritative history is empty.
+        yield from task_history_rows
 
         # Result rows
         for result in self.results.data:
@@ -252,6 +273,7 @@ class ResultsSerializer:
           - Line 1: header
           - Line 2: manifest (line counts + metadata)
           - Survey lines inline
+          - Task-history metadata and interview rows
           - Result rows
         """
         content = "\n".join(self.to_jsonl_rows()) + "\n"
@@ -268,7 +290,7 @@ class ResultsSerializer:
     ) -> "Results":
         """Create a Results instance from an inline JSONL source.
 
-        Reads the manifest to determine line counts for Survey and Cache
+        Reads the manifest to determine line counts for Survey and TaskHistory
         sections, then parses each section from the inline content.
         """
         from .results import Results
@@ -277,7 +299,7 @@ class ResultsSerializer:
         from ..caching import Cache
         from ..tasks import TaskHistory
 
-        lines = [l.rstrip("\n") for l in _open_lines(source) if l.strip()]
+        lines = [line.rstrip("\n") for line in _open_lines(source) if line.strip()]
 
         _header = json.loads(lines[0])
         manifest = json.loads(lines[1])
@@ -293,8 +315,30 @@ class ResultsSerializer:
         created_columns = manifest.get("created_columns", [])
         name = manifest.get("name", None)
 
+        # Task-history section.  Older inline packages have no count and retain
+        # the legacy empty-history behavior.
+        task_history_start = 2 + n_survey
+        n_task_history = manifest.get("n_task_history_lines", 0)
+        task_history_lines = lines[
+            task_history_start : task_history_start + n_task_history
+        ]
+        if task_history_lines:
+            task_history_metadata = json.loads(task_history_lines[0])
+            task_history_data = {
+                "include_traceback": task_history_metadata.get(
+                    "include_traceback", False
+                ),
+                "interviews": [
+                    json.loads(line)["interview"]
+                    for line in task_history_lines[1:]
+                ],
+            }
+            task_history = TaskHistory.from_dict(task_history_data)
+        else:
+            task_history = TaskHistory(interviews=[])
+
         # Result rows
-        result_start = 2 + n_survey
+        result_start = task_history_start + n_task_history
         results_data = [
             Result.from_dict(json.loads(line))
             for line in lines[result_start:]
@@ -306,11 +350,10 @@ class ResultsSerializer:
             data=[],
             created_columns=created_columns,
             cache=cache,
-            task_history=TaskHistory(interviews=[]),
+            task_history=task_history,
             name=name,
         )
         for result in results_data:
             results.append(result)
 
         return results
-
