@@ -269,7 +269,23 @@ def register(app: click.Group) -> None:
         result_count = 0 if background else _safe_len(results_obj)
         remote_status = None
         if not background and not local:
-            remote_status = _remote_status_from_results(results_obj)
+            try:
+                remote_status = _remote_status_from_results(results_obj)
+            except Exception as e:
+                recovery_details = {"status_error": str(e)}
+                if save or output_path:
+                    try:
+                        saved = save_results(results_obj, output_path or save)
+                        recovery_details["saved"] = saved
+                    except Exception as save_error:
+                        recovery_details["save_error"] = str(save_error)
+                error(
+                    "REMOTE_STATUS_UNAVAILABLE",
+                    "Remote inference finished, but its authoritative status could not be verified.",
+                    suggestion="Check the remote job status before using the saved Results.",
+                    details=[recovery_details],
+                    exit_code=EXIT_ERROR,
+                )
             if remote_status is not None:
                 status = str(remote_status.get("status") or "").lower()
                 counts = _remote_interview_counts(remote_status, result_count)
@@ -476,11 +492,15 @@ def register(app: click.Group) -> None:
 
     def _remote_status_from_results(results_obj) -> Optional[dict]:
         results_uuid = getattr(results_obj, "results_uuid", None)
-        if not results_uuid:
+        job_uuid = getattr(results_obj, "job_uuid", None) or getattr(
+            results_obj, "_job_uuid", None
+        )
+        if not (results_uuid or job_uuid):
             return None
         from edsl.coop import Coop
 
-        return dict(Coop().remote_inference_get(results_uuid=results_uuid))
+        lookup = {"results_uuid": results_uuid} if results_uuid else {"job_uuid": job_uuid}
+        return dict(Coop().remote_inference_get(**lookup))
 
 
     def _remote_interview_counts(status_data: dict, fallback_total: int) -> dict:
