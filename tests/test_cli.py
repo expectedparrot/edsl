@@ -3477,6 +3477,29 @@ class TestHumanizeCli:
         assert result.exit_code == 0, result.output
         assert json.loads(result.output)["data"]["uuid"] == "human-survey-uuid"
 
+    def test_humanize_create_rejects_scenario_method_for_empty_jobs(self, tmp_path):
+        from edsl.jobs import Jobs
+
+        jobs_path = tmp_path / "jobs.ep"
+        Jobs(survey=Jobs.example().survey, models=[], scenarios=[]).git.save(jobs_path)
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            [
+                "humanize",
+                "create",
+                "--jobs",
+                str(jobs_path),
+                "--scenario_method",
+                "ordered",
+            ],
+        )
+
+        assert result.exit_code == cli_module.EXIT_USAGE
+        out = json.loads(result.output)
+        assert out["error"]["code"] == "USAGE_ERROR"
+        assert "requires scenarios" in out["error"]["message"]
+
     def test_humanize_responses_fetches_and_saves_results(self, tmp_path, monkeypatch):
         from edsl.results import Results
         import edsl.coop

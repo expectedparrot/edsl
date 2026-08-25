@@ -1564,6 +1564,12 @@ def register(humanize: click.Group) -> None:
                         "Jobs with scenarios require --scenario_method.",
                         exit_code=EXIT_USAGE,
                     )
+                if scenario_list is None and scenario_method is not None:
+                    error(
+                        "USAGE_ERROR",
+                        "--scenario_method requires scenarios in the Jobs object.",
+                        exit_code=EXIT_USAGE,
+                    )
             else:
                 survey = _load_survey_object(survey_path)
                 agent_list = _load_agent_list_object(agent_list_path) if agent_list_path else None
