@@ -17,6 +17,8 @@ def render_collection_html(
     raw: Any,
     search_placeholder: str = "Search",
     remote_context: dict[str, Any] | None = None,
+    facts_layout: str = "cards",
+    transcript_rows: list[dict[str, Any]] | None = None,
 ) -> str:
     """Render a searchable table artifact using the shared Expected Parrot shell."""
     data = {
@@ -28,6 +30,8 @@ def render_collection_html(
         "raw": raw,
         "search_placeholder": search_placeholder,
         "remote_context": remote_context,
+        "facts_layout": facts_layout,
+        "transcript_rows": transcript_rows,
     }
     return render_standalone_html(
         title=title,
@@ -42,6 +46,21 @@ def render_collection_html(
 EXTRA_CSS = """
 .collection-panel { margin-top: 16px; }
 .collection-json { margin-top: 14px; }
+.facts-table { width: auto; margin-top: 18px; }
+.facts-table th, .facts-table td { min-width: 110px; padding: 8px 14px; text-align: center; }
+.view-tabs { display: flex; gap: 4px; margin-top: 18px; border-bottom: 1px solid var(--line); }
+.view-tab { border: 0; border-bottom: 2px solid transparent; padding: 9px 14px; background: transparent; color: var(--muted); cursor: pointer; font-weight: 700; }
+.view-tab.active { color: var(--text); border-bottom-color: var(--accent); }
+.transcript-panel { margin-top: 16px; }
+.transcript-toolbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+.transcript-toolbar select { min-width: 220px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); color: var(--text); }
+.transcript-counter { color: var(--muted); font-size: 13px; }
+.transcript-meta { width: auto; margin-bottom: 18px; }
+.transcript-meta th { color: var(--muted); text-align: left; }
+.transcript-question { padding: 18px; margin-bottom: 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); }
+.transcript-question-name { color: var(--muted); font-family: var(--font-mono); font-size: 11px; font-weight: 700; }
+.transcript-question-text { margin: 5px 0 14px; font-size: 17px; font-weight: 700; }
+.transcript-answer { white-space: pre-wrap; overflow-wrap: anywhere; }
 .cell-code { font-family: var(--font-mono); font-size: 12px; }
 .cell-json {
   max-width: 520px;
@@ -50,6 +69,36 @@ EXTRA_CSS = """
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
+.results-answers { min-width: 320px; display: grid; gap: 12px; }
+.results-answer-name {
+  margin-bottom: 6px;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+}
+.interview-transcript { display: grid; gap: 8px; }
+.interview-turn {
+  max-width: 88%;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel);
+}
+.interview-turn.respondent {
+  justify-self: end;
+  background: var(--accent-soft);
+  border-color: var(--line-strong);
+}
+.interview-role {
+  margin-bottom: 3px;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+.interview-text { white-space: pre-wrap; overflow-wrap: anywhere; }
 """
 
 
@@ -69,9 +118,13 @@ BODY_HTML = f"""
     </div>
     <div class="facts" id="facts"></div>
     <div class="notice" id="remote-summary"></div>
+    <nav class="view-tabs" id="view-tabs" hidden>
+      <button class="view-tab active" id="table-tab" type="button">Table</button>
+      <button class="view-tab" id="transcript-tab" type="button">Transcript</button>
+    </nav>
   </header>
 
-  <section class="panel collection-panel">
+  <section class="panel collection-panel" id="table-panel">
     <div class="toolbar">
       <input class="search" id="search" type="search">
       <span class="muted" id="visible-count"></span>
@@ -79,6 +132,16 @@ BODY_HTML = f"""
     <div class="table-wrap">
       <table id="collection-table"></table>
     </div>
+  </section>
+
+  <section class="transcript-panel" id="transcript-panel" hidden>
+    <div class="transcript-toolbar">
+      <button class="btn" id="transcript-prev" type="button">Previous</button>
+      <select id="transcript-select" aria-label="Choose a result"></select>
+      <span class="transcript-counter" id="transcript-counter"></span>
+      <button class="btn" id="transcript-next" type="button">Next</button>
+    </div>
+    <div id="transcript-content"></div>
   </section>
 
   <details class="collection-json">
@@ -91,7 +154,7 @@ BODY_HTML = f"""
 
 
 SCRIPT = r"""
-const state = { query: "", sortKey: DATA.columns[0] || "", sortDir: 1 };
+const state = { query: "", sortKey: DATA.columns[0] || "", sortDir: 1, transcriptIndex: 0 };
 const fmt = new Intl.NumberFormat();
 const escapeHtml = value => String(value)
   .replaceAll("&", "&amp;")
@@ -109,13 +172,70 @@ function init() {
   document.getElementById("title").textContent = DATA.title;
   document.getElementById("subtitle").textContent = DATA.subtitle || "";
   document.getElementById("search").placeholder = DATA.search_placeholder || "Search";
-  document.getElementById("facts").innerHTML = DATA.facts.map(fact => `
-    <span class="fact"><strong>${escapeHtml(fact.value)}</strong>${escapeHtml(fact.label)}</span>
-  `).join("");
+  renderFacts();
   document.getElementById("raw-json").textContent = JSON.stringify(DATA.raw, null, 2);
   renderRemoteSummary();
   bindEvents();
   renderTable();
+  initTranscript();
+}
+
+function renderFacts() {
+  const facts = DATA.facts || [];
+  document.getElementById("facts").innerHTML = DATA.facts_layout === "table"
+    ? `<table class="facts-table"><thead><tr>${facts.map(f => `<th>${escapeHtml(f.label)}</th>`).join("")}</tr></thead><tbody><tr>${facts.map(f => `<td>${escapeHtml(f.value)}</td>`).join("")}</tr></tbody></table>`
+    : facts.map(fact => `<span class="fact"><strong>${escapeHtml(fact.value)}</strong>${escapeHtml(fact.label)}</span>`).join("");
+}
+
+function initTranscript() {
+  if (!Array.isArray(DATA.transcript_rows)) return;
+  document.getElementById("view-tabs").hidden = false;
+  const select = document.getElementById("transcript-select");
+  select.innerHTML = DATA.transcript_rows.map((row, index) =>
+    `<option value="${index}">${escapeHtml(row.index)} · ${escapeHtml(row.label)}</option>`
+  ).join("");
+  renderTranscript();
+}
+
+function activateView(view) {
+  const transcript = view === "transcript";
+  document.getElementById("table-panel").hidden = transcript;
+  document.getElementById("transcript-panel").hidden = !transcript;
+  document.getElementById("table-tab").classList.toggle("active", !transcript);
+  document.getElementById("transcript-tab").classList.toggle("active", transcript);
+}
+
+function renderTranscript() {
+  const rows = DATA.transcript_rows || [];
+  const content = document.getElementById("transcript-content");
+  if (!rows.length) {
+    content.innerHTML = '<div class="empty">No results.</div>';
+    document.getElementById("transcript-counter").textContent = "0 of 0";
+    return;
+  }
+  const row = rows[state.transcriptIndex];
+  document.getElementById("transcript-select").value = String(state.transcriptIndex);
+  document.getElementById("transcript-counter").textContent = `${state.transcriptIndex + 1} of ${rows.length}`;
+  document.getElementById("transcript-prev").disabled = state.transcriptIndex === 0;
+  document.getElementById("transcript-next").disabled = state.transcriptIndex === rows.length - 1;
+  content.innerHTML = `${metadataHtml(row)}${(row.questions || []).map(question => `
+    <article class="transcript-question">
+      <div class="transcript-question-name">${escapeHtml(question.name)}</div>
+      <div class="transcript-question-text">${escapeHtml(question.text || question.name)}</div>
+      <div class="transcript-answer">${answerHtml(question.answer)}</div>
+    </article>`).join("") || '<div class="empty">No answers.</div>'}`;
+}
+
+function metadataHtml(row) {
+  const values = [["Agent", row.agent], ["Model", row.model], ["Scenario", row.scenario], ["Iteration", row.iteration]];
+  return `<table class="transcript-meta"><tbody>${values.map(([label, value]) =>
+    `<tr><th>${label}</th><td>${escapeHtml(text(value) || "NA")}</td></tr>`).join("")}</tbody></table>`;
+}
+
+function answerHtml(answer) {
+  if (answer?.__edsl_cell_type === "interview_transcript") return interviewHtml(answer.turns || []);
+  if (answer === null || answer === undefined || answer === "") return '<span class="missing">NA</span>';
+  return escapeHtml(typeof answer === "string" ? answer : JSON.stringify(answer, null, 2));
 }
 
 function renderRemoteSummary() {
@@ -202,9 +322,39 @@ function sortArrow(col) {
 
 function cell(value) {
   if (value === null || value === undefined || value === "") return "<td><span class='missing'>NA</span></td>";
+  if (hasInterviewAnswer(value)) return `<td>${answersHtml(value)}</td>`;
   if (typeof value === "object") return `<td><div class="cell-json">${escapeHtml(JSON.stringify(value, null, 2))}</div></td>`;
   const className = String(value).length > 80 ? "cell-json" : "value";
   return `<td><div class="${className}">${escapeHtml(value)}</div></td>`;
+}
+
+function hasInterviewAnswer(value) {
+  return value && typeof value === "object" && !Array.isArray(value)
+    && Object.values(value).some(answer => answer?.__edsl_cell_type === "interview_transcript");
+}
+
+function answersHtml(answers) {
+  return `<div class="results-answers">${Object.entries(answers).map(([name, answer]) => `
+    <section class="results-answer">
+      <div class="results-answer-name">${escapeHtml(name)}</div>
+      ${answer?.__edsl_cell_type === "interview_transcript"
+        ? interviewHtml(answer.turns || [])
+        : `<div class="cell-json">${escapeHtml(text(answer))}</div>`}
+    </section>
+  `).join("")}</div>`;
+}
+
+function interviewHtml(turns) {
+  if (!turns.length) return '<span class="missing">No transcript turns</span>';
+  return `<div class="interview-transcript">${turns.map(turn => {
+    const role = turn.role === "respondent" ? "respondent" : "interviewer";
+    const label = turn.role || "unknown";
+    const message = turn.text || "(non-text content)";
+    return `<div class="interview-turn ${role}">
+      <div class="interview-role">${escapeHtml(label)}</div>
+      <div class="interview-text">${escapeHtml(message)}</div>
+    </div>`;
+  }).join("")}</div>`;
 }
 
 function bindEvents() {
@@ -224,6 +374,20 @@ function bindEvents() {
     renderTable();
   });
   document.getElementById("copy-json").addEventListener("click", copyJson);
+  document.getElementById("table-tab").addEventListener("click", () => activateView("table"));
+  document.getElementById("transcript-tab").addEventListener("click", () => activateView("transcript"));
+  document.getElementById("transcript-select").addEventListener("change", event => {
+    state.transcriptIndex = Number(event.target.value);
+    renderTranscript();
+  });
+  document.getElementById("transcript-prev").addEventListener("click", () => {
+    state.transcriptIndex = Math.max(0, state.transcriptIndex - 1);
+    renderTranscript();
+  });
+  document.getElementById("transcript-next").addEventListener("click", () => {
+    state.transcriptIndex = Math.min((DATA.transcript_rows || []).length - 1, state.transcriptIndex + 1);
+    renderTranscript();
+  });
   document.getElementById("download-json").addEventListener("click", downloadJson);
   document.getElementById("remote-summary").addEventListener("click", event => {
     const button = event.target.closest("[data-copy]");

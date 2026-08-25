@@ -7,6 +7,8 @@ from pathlib import Path
 import pytest
 
 from edsl.results import Results, ResultsGitError, ResultsGitNestedRepoWarning
+from edsl import Agent, Model, QuestionInterview, Scenario, Survey
+from edsl.results import Result
 from edsl.results.exceptions import ResultsError
 from edsl.base.base_exception import BaseException as EDSLBaseException
 from edsl.tasks import TaskHistory
@@ -215,7 +217,8 @@ def test_results_git_package_html(tmp_path):
 
     html = Results.git.open(package_path).html(filename=html_path)
 
-    assert "<title>EDSL Results</title>" in html
+    assert "<title>Results</title>" in html
+    assert "<title>EDSL Results</title>" not in html
     assert "Expected Parrot" in html
     assert "Expected Parrot Server" in html
     assert "remote-meta" in html
@@ -233,7 +236,85 @@ def test_results_git_package_html(tmp_path):
     assert 'target="_blank"' in html
     assert "collection-table" in html
     assert "<table" in html
+    assert 'class="facts-table"' in html
+    assert '"label": "Results"' in html
+    assert '"label": "Questions"' in html
+    assert 'id="table-tab"' in html
+    assert 'id="transcript-tab"' in html
+    assert 'id="transcript-panel" hidden' in html
+    assert 'id="transcript-prev"' in html
+    assert 'id="transcript-next"' in html
     assert html_path.read_text(encoding="utf-8") == html
+
+
+def test_results_git_package_html_renders_interview_answers_as_turns(tmp_path):
+    question = QuestionInterview(
+        question_name="experience",
+        question_text="Tell me about your experience.",
+        interview_guide="Ask for a concrete example.",
+    )
+    survey = Survey([question])
+    answer = [
+        {
+            "role": "interviewer",
+            "content": [
+                {"type": "text", "text": "What changed?"},
+                {"type": "image", "url": "https://example.com/image.png"},
+                {"type": "text", "text": "Please be specific."},
+            ],
+        },
+        {
+            "role": "respondent",
+            "content": [
+                {"type": "text", "text": "Everything <script>alert(1)</script>."}
+            ],
+        },
+    ]
+    result = Result(
+        agent=Agent(name="participant-1"),
+        scenario=Scenario(),
+        model=Model("test"),
+        iteration=0,
+        answer={"experience": answer},
+        survey=survey,
+    )
+    results = Results(survey=survey, data=[result])
+    package_path = tmp_path / "interview-results.ep"
+    results.git.save(package_path)
+
+    html = Results.git.open(package_path).html()
+
+    assert '"__edsl_cell_type": "interview_transcript"' in html
+    assert 'class="interview-transcript"' in html
+    assert 'class="interview-turn ${role}"' in html
+    assert "What changed?\\nPlease be specific." in html
+    assert "Tell me about your experience." in html
+    assert '"label": "participant-1"' in html
+    assert "participant-1" in html
+
+
+def test_results_git_package_html_preserves_malformed_interview_answer(tmp_path):
+    question = QuestionInterview(
+        question_name="experience",
+        question_text="Tell me about your experience.",
+        interview_guide="Ask for a concrete example.",
+    )
+    survey = Survey([question])
+    result = Result(
+        agent=Agent(name="participant-1"),
+        scenario=Scenario(),
+        model=Model("test"),
+        iteration=0,
+        answer={"experience": {"unexpected": "shape"}},
+        survey=survey,
+    )
+    package_path = tmp_path / "malformed-interview-results.ep"
+    Results(survey=survey, data=[result]).git.save(package_path)
+
+    html = Results.git.open(package_path).html()
+
+    assert '"unexpected": "shape"' in html
+    assert '"__edsl_cell_type": "interview_transcript"' not in html
 
 
 def test_results_git_tag_restore(tmp_path):

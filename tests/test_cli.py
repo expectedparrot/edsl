@@ -1581,7 +1581,7 @@ class TestOpen:
         assert out["data"]["object_type"] == "Results"
         assert opened_urls == [html_path.resolve().as_uri()]
         html = html_path.read_text(encoding="utf-8")
-        assert "<title>EDSL Results</title>" in html
+        assert "<title>Results</title>" in html
         assert "Expected Parrot" in html
         assert "collection-table" in html
         assert "<table" in html
