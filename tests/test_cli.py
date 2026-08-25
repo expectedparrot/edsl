@@ -3429,6 +3429,54 @@ class TestHumanizeCli:
         out = json.loads(result.output)
         assert out["error"]["code"] == "USAGE_ERROR"
 
+    def test_humanize_create_uses_scenarios_from_jobs(self, tmp_path, monkeypatch):
+        from edsl.jobs import Jobs
+        from edsl.questions import QuestionFreeText
+        from edsl.scenarios import ScenarioList
+        from edsl.surveys import Survey
+        import edsl.coop
+
+        jobs_path = tmp_path / "jobs.ep"
+        scenarios = ScenarioList.from_list("city", ["Boston"])
+        Jobs(
+            survey=Survey(
+                [
+                    QuestionFreeText(
+                        question_name="visit",
+                        question_text="What would you visit in {{ city }}?",
+                    )
+                ]
+            ),
+            models=[],
+            scenarios=scenarios,
+        ).git.save(jobs_path)
+
+        class FakeCoop:
+            def create_human_survey(
+                self, survey, scenario_list=None, scenario_list_method=None, **kwargs
+            ):
+                assert type(survey).__name__ == "Survey"
+                assert scenario_list == scenarios
+                assert scenario_list_method == "ordered"
+                return {"uuid": "human-survey-uuid"}
+
+        monkeypatch.setattr(edsl.coop, "Coop", FakeCoop)
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            [
+                "humanize",
+                "create",
+                "--jobs",
+                str(jobs_path),
+                "--scenario_method",
+                "ordered",
+            ],
+        )
+
+        assert result.exit_code == 0, result.output
+        assert json.loads(result.output)["data"]["uuid"] == "human-survey-uuid"
+
     def test_humanize_responses_fetches_and_saves_results(self, tmp_path, monkeypatch):
         from edsl.results import Results
         import edsl.coop
