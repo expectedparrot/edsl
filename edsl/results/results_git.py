@@ -262,15 +262,22 @@ def _render_results_package_html(path: Path, ref: str, results: "Results") -> st
 
 def _result_row(index: int, result: object) -> dict:
     data = _result_dict(result)
+    answers = data.get("answer") or data.get("answers") or {}
+    attributes = data.get("question_to_attributes") or {}
+    answers = answers if isinstance(answers, dict) else {}
     row = {
         "#": index,
+        "__interview_transcripts": {
+            name: turns
+            for name, answer in answers.items()
+            if (turns := _question_interview_turns(name, answer, attributes))
+            is not None
+        },
     }
     row.update(_flatten_context("agent", data.get("agent"), unwrap_traits=True))
     row["model"] = _model_label(data.get("model"))
     row.update(_flatten_context("scenario", data.get("scenario")))
-    row.update(
-        {f"answer.{name}": answer for name, answer in _display_answers(data).items()}
-    )
+    row.update({f"answer.{name}": answer for name, answer in answers.items()})
     return row
 
 
@@ -330,7 +337,10 @@ def _transcript_row(index: int, result: object, question_names: list[str]) -> di
             {
                 "name": name,
                 "text": (attributes.get(name) or {}).get("question_text") or name,
-                "answer": _display_answer(name, answers.get(name), attributes),
+                "answer": answers.get(name),
+                "interview_turns": _question_interview_turns(
+                    name, answers.get(name), attributes
+                ),
             }
             for name in ordered_names
             if name in answers
@@ -348,29 +358,13 @@ def _result_label(index: int, agent: object) -> str:
     return f"Result {index}"
 
 
-def _display_answers(data: dict) -> dict:
-    """Mark valid QuestionInterview answers for transcript-aware HTML rendering."""
-    answers = data.get("answer") or data.get("answers") or {}
-    attributes = data.get("question_to_attributes") or {}
-    if not isinstance(answers, dict):
-        return answers
-
-    return {
-        question_name: _display_answer(question_name, answer, attributes)
-        for question_name, answer in answers.items()
-    }
-
-
-def _display_answer(question_name: str, answer: object, attributes: dict) -> object:
+def _question_interview_turns(
+    question_name: str, answer: object, attributes: dict
+) -> list[dict[str, str]] | None:
     question_attributes = attributes.get(question_name) or {}
     if question_attributes.get("question_type") == "interview":
-        turns = _interview_turns(answer)
-        if turns is not None:
-            return {
-                "__edsl_cell_type": "interview_transcript",
-                "turns": turns,
-            }
-    return answer
+        return _interview_turns(answer)
+    return None
 
 
 def _interview_turns(answer: object) -> list[dict[str, str]] | None:

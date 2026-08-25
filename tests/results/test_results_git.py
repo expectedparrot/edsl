@@ -9,7 +9,7 @@ import pytest
 from edsl.results import Results, ResultsGitError, ResultsGitNestedRepoWarning
 from edsl import Agent, Model, QuestionFreeText, QuestionInterview, Scenario, Survey
 from edsl.results import Result
-from edsl.results.results_git import _transcript_row
+from edsl.results.results_git import _result_row, _transcript_row
 from edsl.results.exceptions import ResultsError
 from edsl.base.base_exception import BaseException as EDSLBaseException
 from edsl.tasks import TaskHistory
@@ -310,7 +310,8 @@ def test_results_git_package_html_renders_interview_answers_as_turns(tmp_path):
         "experience",
         "closing",
     ]
-    assert '"__edsl_cell_type": "interview_transcript"' in html
+    assert '"__interview_transcripts"' in html
+    assert '"interview_turns"' in html
     assert 'class="interview-transcript"' in html
     assert 'class="interview-turn ${role}"' in html
     assert "What changed?\\nPlease be specific." in html
@@ -340,7 +341,32 @@ def test_results_git_package_html_preserves_malformed_interview_answer(tmp_path)
     html = Results.git.open(package_path).html()
 
     assert '"unexpected": "shape"' in html
-    assert '"__edsl_cell_type": "interview_transcript"' not in html
+    assert '"interview_turns": null' in html
+
+
+def test_results_html_reserved_marker_cannot_hide_user_answer():
+    question = QuestionFreeText(
+        question_name="structured", question_text="Return structured data."
+    )
+    survey = Survey([question])
+    answer = {
+        "__edsl_cell_type": "interview_transcript",
+        "turns": ["user-authored", "data"],
+        "actual_value": "preserve me",
+    }
+    result = Result(
+        agent=Agent(name="participant-1"),
+        scenario=Scenario(),
+        model=Model("test"),
+        iteration=0,
+        answer={"structured": answer},
+        survey=survey,
+    )
+
+    row = _result_row(1, result)
+
+    assert row["answer.structured"] == answer
+    assert row["__interview_transcripts"] == {}
 
 
 def test_results_git_tag_restore(tmp_path):

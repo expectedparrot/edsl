@@ -240,7 +240,7 @@ function renderTranscript() {
     <article class="transcript-question">
       <div class="transcript-question-name">${escapeHtml(question.name)}</div>
       <div class="transcript-question-text">${questionTextHtml(question.text || question.name, row.scenario)}</div>
-      <div class="transcript-answer">${answerHtml(question.answer)}</div>
+      <div class="transcript-answer">${answerHtml(question.answer, question.interview_turns)}</div>
     </article>`).join("") || '<div class="empty">No answers.</div>'}`;
 }
 
@@ -337,8 +337,8 @@ function contextHtml(value) {
   `).join("")}</div>`;
 }
 
-function answerHtml(answer) {
-  if (answer?.__edsl_cell_type === "interview_transcript") return interviewHtml(answer.turns || []);
+function answerHtml(answer, interviewTurns) {
+  if (Array.isArray(interviewTurns)) return interviewHtml(interviewTurns);
   if (answer === null || answer === undefined || answer === "") return '<span class="missing">NA</span>';
   return escapeHtml(typeof answer === "string" ? answer : JSON.stringify(answer, null, 2));
 }
@@ -432,10 +432,12 @@ function renderColumnPicker() {
   </label>`).join("")}`;
 }
 
-function csvCell(value) {
+function csvCell(value, column, row) {
   let output = value;
-  if (value?.__edsl_cell_type === "interview_transcript") {
-    output = (value.turns || []).map(turn => `${turn.role}: ${turn.text || ""}`).join("\n");
+  const questionName = column.startsWith("answer.") ? column.slice(7) : "";
+  const interviewTurns = row.__interview_transcripts?.[questionName];
+  if (Array.isArray(interviewTurns)) {
+    output = interviewTurns.map(turn => `${turn.role}: ${turn.text || ""}`).join("\n");
   } else if (typeof value === "object" && value !== null) output = JSON.stringify(value);
   const string = output === null || output === undefined ? "" : String(output);
   return `"${string.replaceAll('"', '""')}"`;
@@ -443,9 +445,11 @@ function csvCell(value) {
 
 function shownCsv() {
   const columns = DATA.columns.filter(column => state.visibleColumns.has(column));
-  return [columns, ...filteredRows().map(row => columns.map(column => row[column]))]
-    .map(row => row.map(csvCell).join(","))
-    .join("\n");
+  const header = columns.map(value => csvCell(value, "", {})).join(",");
+  const body = filteredRows().map(row =>
+    columns.map(column => csvCell(row[column], column, row)).join(",")
+  );
+  return [header, ...body].join("\n");
 }
 
 function sortArrow(col) {
@@ -462,30 +466,15 @@ function columnClass(column) {
 function cell(value, column, row) {
   const groupClass = columnClass(column);
   if (value === null || value === undefined || value === "") return `<td class="${groupClass}"><span class='missing'>NA</span></td>`;
-  if (value?.__edsl_cell_type === "interview_transcript") {
-    const count = (value.turns || []).length;
+  const questionName = column.startsWith("answer.") ? column.slice(7) : "";
+  const interviewTurns = row.__interview_transcripts?.[questionName];
+  if (Array.isArray(interviewTurns)) {
+    const count = interviewTurns.length;
     return `<td><button class="interview-link" type="button" data-open-transcript="${escapeHtml(row["#"])}">${fmt.format(count)}-turn interview →</button></td>`;
   }
-  if (hasInterviewAnswer(value)) return `<td class="${groupClass}">${answersHtml(value)}</td>`;
   if (typeof value === "object") return `<td class="${groupClass}"><div class="cell-json">${escapeHtml(JSON.stringify(value, null, 2))}</div></td>`;
   const valueClass = String(value).length > 80 ? "cell-json" : "value";
   return `<td class="${groupClass}"><div class="${valueClass}">${escapeHtml(value)}</div></td>`;
-}
-
-function hasInterviewAnswer(value) {
-  return value && typeof value === "object" && !Array.isArray(value)
-    && Object.values(value).some(answer => answer?.__edsl_cell_type === "interview_transcript");
-}
-
-function answersHtml(answers) {
-  return `<div class="results-answers">${Object.entries(answers).map(([name, answer]) => `
-    <section class="results-answer">
-      <div class="results-answer-name">${escapeHtml(name)}</div>
-      ${answer?.__edsl_cell_type === "interview_transcript"
-        ? interviewHtml(answer.turns || [])
-        : `<div class="cell-json">${escapeHtml(text(answer))}</div>`}
-    </section>
-  `).join("")}</div>`;
 }
 
 function interviewHtml(turns) {
