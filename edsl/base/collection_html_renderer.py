@@ -57,6 +57,9 @@ EXTRA_CSS = """
 .transcript-counter { color: var(--muted); font-size: 13px; }
 .transcript-meta { width: auto; margin-bottom: 18px; }
 .transcript-meta th { color: var(--muted); text-align: left; }
+.context-fields { display: grid; grid-template-columns: max-content minmax(140px, 1fr); gap: 5px 14px; }
+.context-key { color: var(--muted); font-size: 12px; font-weight: 700; }
+.context-value { white-space: pre-wrap; overflow-wrap: anywhere; }
 .transcript-question { padding: 18px; margin-bottom: 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); }
 .transcript-question-name { color: var(--muted); font-family: var(--font-mono); font-size: 11px; font-weight: 700; }
 .transcript-question-text { margin: 5px 0 14px; font-size: 17px; font-weight: 700; }
@@ -229,7 +232,21 @@ function renderTranscript() {
 function metadataHtml(row) {
   const values = [["Agent", row.agent], ["Model", row.model], ["Scenario", row.scenario], ["Iteration", row.iteration]];
   return `<table class="transcript-meta"><tbody>${values.map(([label, value]) =>
-    `<tr><th>${label}</th><td>${escapeHtml(text(value) || "NA")}</td></tr>`).join("")}</tbody></table>`;
+    `<tr><th>${label}</th><td>${contextHtml(value)}</td></tr>`).join("")}</tbody></table>`;
+}
+
+function contextHtml(value) {
+  if (value === null || value === undefined || value === "") return '<span class="missing">NA</span>';
+  if (!value || typeof value !== "object" || Array.isArray(value)) return escapeHtml(text(value));
+  const fields = value.traits && typeof value.traits === "object"
+    ? {...value.traits, ...(value.name ? {name: value.name} : {})}
+    : value;
+  const entries = Object.entries(fields);
+  if (!entries.length) return '<span class="missing">None</span>';
+  return `<div class="context-fields">${entries.map(([key, field]) => `
+    <div class="context-key">${escapeHtml(key)}</div>
+    <div class="context-value">${escapeHtml(typeof field === "string" ? field : JSON.stringify(field, null, 2))}</div>
+  `).join("")}</div>`;
 }
 
 function answerHtml(answer) {

@@ -226,7 +226,12 @@ def _render_results_package_html(path: Path, ref: str, results: "Results") -> st
     manifest = _load_manifest_at_ref(path, ref)
     raw = results.to_dict(add_edsl_version=False)
     serialized_results = raw.get("data") or raw.get("results") or []
-    question_names = list(getattr(results, "question_names", []) or [])
+    survey = getattr(results, "survey", None)
+    question_names = list(
+        getattr(survey, "question_names", None)
+        or getattr(results, "question_names", [])
+        or []
+    )
     rows = [_result_row(index, result) for index, result in enumerate(results, start=1)]
     transcript_rows = [
         _transcript_row(index, result, question_names)
