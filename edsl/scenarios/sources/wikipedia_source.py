@@ -1,7 +1,9 @@
 """Wikipedia table source for ScenarioList creation."""
 
 from __future__ import annotations
+from io import StringIO
 from typing import TYPE_CHECKING
+from urllib.parse import urljoin, urlparse
 
 from .base import Source
 from ..scenario import Scenario
@@ -16,7 +18,16 @@ class WikipediaSource(Source):
 
     source_type = "wikipedia"
 
-    def __init__(self, url: str, table_index: int = 0, header: bool = True):
+    MAX_RESPONSE_BYTES = 10 * 1024 * 1024
+    MAX_REDIRECTS = 5
+
+    def __init__(
+        self,
+        url: str,
+        table_index: int = 0,
+        header: bool = True,
+        timeout: float = 30.0,
+    ):
         """
         Initialize a WikipediaSource with a URL to a Wikipedia page.
 
@@ -25,9 +36,68 @@ class WikipediaSource(Source):
             table_index: The index of the table to extract (default is 0).
             header: Whether the table has a header row (default is True).
         """
+        from ..network import validate_request_timeout
+
+        self._validate_url(url)
         self.url = url
         self.table_index = table_index
         self.header = header
+        self.timeout = validate_request_timeout(timeout)
+
+    @staticmethod
+    def _validate_url(url: str) -> None:
+        parsed = urlparse(url)
+        hostname = (parsed.hostname or "").lower()
+        if (
+            parsed.scheme != "https"
+            or not (hostname == "wikipedia.org" or hostname.endswith(".wikipedia.org"))
+            or parsed.port not in (None, 443)
+            or parsed.username is not None
+            or parsed.password is not None
+        ):
+            raise ScenarioError(
+                "Wikipedia URLs must use HTTPS on a wikipedia.org host and the default port."
+            )
+
+    def _fetch_html(self, requests) -> str:
+        current_url = self.url
+        visited = set()
+        for _ in range(self.MAX_REDIRECTS + 1):
+            self._validate_url(current_url)
+            if current_url in visited:
+                raise ScenarioError("Wikipedia redirect loop detected.")
+            visited.add(current_url)
+            response = requests.get(
+                current_url,
+                stream=True,
+                allow_redirects=False,
+                timeout=self.timeout,
+            )
+            try:
+                response.raise_for_status()
+                if 300 <= response.status_code < 400:
+                    location = response.headers.get("Location")
+                    if not location:
+                        raise ScenarioError("Wikipedia redirect omitted its Location header.")
+                    current_url = urljoin(current_url, location)
+                    continue
+                content_type = response.headers.get("Content-Type", "")
+                if not content_type.lower().startswith("text/html"):
+                    raise ScenarioError("Wikipedia response is not HTML.")
+                chunks = []
+                size = 0
+                for chunk in response.iter_content(chunk_size=8192):
+                    if not chunk:
+                        continue
+                    size += len(chunk)
+                    if size > self.MAX_RESPONSE_BYTES:
+                        raise ScenarioError("Wikipedia response exceeds the size limit.")
+                    chunks.append(chunk)
+                encoding = response.encoding or "utf-8"
+                return b"".join(chunks).decode(encoding, errors="replace")
+            finally:
+                response.close()
+        raise ScenarioError("Wikipedia URL exceeded the redirect limit.")
 
     @classmethod
     def example(cls) -> "WikipediaSource":
@@ -87,12 +157,8 @@ class WikipediaSource(Source):
             raise ImportError("pandas is required to read Wikipedia tables")
 
         try:
-            # Check if the URL is reachable
-            response = requests.get(self.url)
-            response.raise_for_status()  # Raises HTTPError for bad responses
-
-            # Extract tables from the Wikipedia page
-            tables = pd.read_html(self.url, header=0 if self.header else None)
+            html = self._fetch_html(requests)
+            tables = pd.read_html(StringIO(html), header=0 if self.header else None)
 
             # Ensure the requested table index is within the range of available tables
             if self.table_index >= len(tables) or self.table_index < 0:
@@ -113,6 +179,8 @@ class WikipediaSource(Source):
 
         except requests.exceptions.RequestException as e:
             raise ScenarioError(f"Error fetching the URL: {str(e)}")
+        except ScenarioError:
+            raise
         except ValueError as e:
             raise ScenarioError(f"Error parsing tables: {str(e)}")
         except Exception as e:

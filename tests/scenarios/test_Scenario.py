@@ -46,6 +46,16 @@ class TestScenario(unittest.TestCase):
         # Assert
         self.assertEqual(scenario["url"], url)
         self.assertEqual(scenario["content"], "Mocked response text")
+        mock_get.assert_called_once_with(url, timeout=30.0)
+
+    @patch('requests.get')
+    def test_from_url_custom_timeout(self, mock_get):
+        mock_response = MagicMock(text="content")
+        mock_get.return_value = mock_response
+
+        Scenario.from_url("http://example.com", testing=True, timeout=4)
+
+        mock_get.assert_called_once_with("http://example.com", timeout=4.0)
 
 
 if __name__ == "__main__":
