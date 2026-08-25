@@ -1,0 +1,176 @@
+\documentclass[11pt]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage{hyperref}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{enumitem}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue!50!black,
+  citecolor=blue!50!black,
+  urlcolor=blue!50!black
+}
+
+\lstdefinestyle{python}{
+  language=Python,
+  basicstyle=\ttfamily\small,
+  frame=single,
+  framesep=5pt,
+  breaklines=true,
+  showstringspaces=false,
+  columns=fullflexible
+}
+
+\title{A Note on the Characterization of EDSL in\\
+\textit{Anamnesis: An Open-Source Platform for\\
+Large-Scale Backstory-Conditioned Survey Simulation}}
+\author{John Horton\\\small MIT Sloan \& Expected Parrot}
+\date{August 25, 2026}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+Yu et al. characterize Expected Parrot's EDSL as restricting persona
+conditioning to short attribute profiles. This note clarifies that the claim
+describes a default presentation rather than a limitation of EDSL. EDSL agents
+can carry long narrative backstories, render them through customizable Jinja2
+persona templates, and retain earlier questions and answers through survey
+memory. EDSL can therefore express the backstory conditioning and sequential
+context accumulation central to the Anthology procedure. Anamnesis has useful
+distinctive contributions, particularly its curated persona pool,
+probabilistic demographic inference and matching, and graphical workflow, but
+rich narrative conditioning is not a capability absent from EDSL.
+\end{abstract}
+
+\section{The claim}
+
+In their related-work comparison, Yu et al. write that EDSL ``provides a
+Python domain-specific language for constructing AI agents with trait
+dictionaries and administering surveys across multiple LLMs, but its persona
+conditioning reduces to the short-attribute prompting baseline that Anthology
+was designed to supersede'' \cite{yu2026anamnesis}. This characterization is
+not accurate as a statement about EDSL's capabilities.
+
+EDSL does provide a convenient dictionary of agent traits. Its default
+presentation may serialize those traits compactly, which can resemble the
+short demographic profiles used by some persona-prompting baselines. The
+default serialization, however, is not the boundary of the abstraction.
+
+\section{Narrative backstories in EDSL}
+
+An EDSL agent has a customizable \texttt{traits\_presentation\_template}.
+This is a Jinja2 template that can reference individual traits, the complete
+trait dictionary, and an optional codebook \cite{edsl}. Consequently, a trait
+can contain a multi-paragraph life history and the template can place that
+history directly into the model prompt. For example:
+
+\begin{lstlisting}[style=python]
+from edsl import Agent
+
+agent = Agent(
+    traits={
+        "backstory": """
+        Maria grew up in ...
+        [a multi-paragraph account of formative experiences,
+        relationships, values, circumstances, and worldview]
+        """
+    },
+    traits_presentation_template="""
+    Adopt the perspective of the person described below.
+
+    {{ backstory }}
+    """,
+)
+\end{lstlisting}
+
+There is therefore no structural distinction between an ``attribute'' holding
+a short value such as an age and one holding a rich narrative. More precisely,
+the presentation template is evaluated as Jinja2 and trait values are inserted
+into it; the trait values need not themselves be templates. The practical
+limits on backstory length are the selected model's context window, inference
+cost, and experimental design---not an EDSL restriction to short profiles.
+
+The agent's general instruction is customizable as well, providing another
+way to specify how the model should inhabit or reason from the supplied life
+history.
+
+\section{Sequential survey context}
+
+Yu et al. describe Anamnesis's Anthology answering mode as prepending a
+backstory and then accumulating prior question--answer pairs so that later
+answers remain consistent \cite{yu2026anamnesis}. EDSL supports this pattern
+through survey memory. A researcher can expose every earlier answer to each
+later question:
+
+\begin{lstlisting}[style=python]
+survey = Survey(questions).set_full_memory_mode()
+results = survey.by(agent).by(model).run()
+\end{lstlisting}
+
+Alternatively, targeted memory can specify exactly which earlier answers are
+included for a given question. Thus EDSL supports both full sequential context
+accumulation and more controlled experimental variants.
+
+\section{A more precise comparison}
+
+This correction does not diminish the substantive contributions of
+Anamnesis. The system described by Yu et al. combines several features into an
+accessible application, including a pool of approximately 35,000 pre-generated
+backstories, probabilistic demographic annotations, demographic selection and
+matching procedures, and a graphical survey workflow \cite{yu2026anamnesis}.
+Those are meaningful product and methodological distinctions.
+
+The comparison would be more accurate if it separated the \emph{persona
+representation} from the \emph{surrounding workflow}. For example:
+
+\begin{quote}
+EDSL defaults to dictionary-style trait presentation, but supports arbitrary
+narrative backstories through long-form traits and customizable Jinja2 persona
+templates, as well as sequential question--answer memory. Unlike Anamnesis,
+EDSL does not provide the same pre-indexed backstory pool and probabilistic
+demographic-matching workflow out of the box.
+\end{quote}
+
+The paper also suggests that EDSL requires explicit code-based specification
+of scenarios, models, tools, policies, and evaluation hooks. These are optional
+compositional capabilities rather than requirements for a basic survey. EDSL
+also provides a command-line interface for constructing agents and surveys
+without writing Python. Finally, EDSL itself is open-source software distributed
+under the MIT License \cite{edsl}; it should be distinguished from any separate
+hosted services offered by Expected Parrot.
+
+\section{Conclusion}
+
+EDSL can implement Anthology-style narrative conditioning without a change to
+its agent abstraction: the backstory can be stored as a trait and rendered by
+a custom persona template. Its survey-memory facilities can also reproduce
+the sequential accumulation of prior responses. The statement that EDSL
+``reduces to'' short-attribute prompting therefore mistakes one default
+presentation for a capability limitation. The narrower and supportable contrast
+is that Anamnesis packages narrative generation, demographic inference and
+matching, and survey execution into a specialized graphical workflow.
+
+\begin{thebibliography}{9}
+
+\bibitem{yu2026anamnesis}
+S.-Z. Yu, J. Suh, S. Chang, and D. M. Chan.
+\newblock \emph{Anamnesis: An Open-Source Platform for Large-Scale
+Backstory-Conditioned Survey Simulation}.
+\newblock arXiv:2607.10628v1, 2026.
+\newblock \url{https://arxiv.org/abs/2607.10628}.
+
+\bibitem{edsl}
+Expected Parrot.
+\newblock \emph{EDSL: Tools for AI-powered surveys and experiments}.
+\newblock Open-source software, MIT License.
+\newblock \url{https://github.com/expectedparrot/edsl}.
+
+\end{thebibliography}
+
+\end{document}
