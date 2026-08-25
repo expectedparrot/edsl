@@ -71,6 +71,10 @@ td.column-scenario { background: #fffbf5; }
 .dimension-value { min-width: 90px; max-width: 210px; overflow: hidden; text-align: center; text-overflow: ellipsis; white-space: nowrap; }
 .dimension-nav.agent { border-color: #bfd8f2; background: #f8fbff; }
 .dimension-nav.scenario { border-color: #efd5aa; background: #fffbf5; }
+.column-picker { position: relative; }
+.column-picker-panel { position: absolute; z-index: 10; right: 0; top: calc(100% + 6px); width: 270px; max-height: 360px; overflow: auto; padding: 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); box-shadow: 0 10px 30px rgba(0,0,0,.12); }
+.column-picker-actions { display: flex; gap: 6px; margin-bottom: 8px; }
+.column-option { display: flex; align-items: center; gap: 8px; padding: 5px 3px; font-family: var(--font-mono); font-size: 12px; }
 .transcript-question { padding: 18px; margin-bottom: 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); }
 .transcript-question-name { color: var(--muted); font-family: var(--font-mono); font-size: 11px; font-weight: 700; }
 .transcript-question-text { margin: 5px 0 14px; font-size: 17px; font-weight: 700; }
@@ -142,6 +146,11 @@ BODY_HTML = f"""
     <div class="toolbar">
       <input class="search" id="search" type="search">
       <span class="muted" id="visible-count"></span>
+      <div class="column-picker">
+        <button class="btn" id="columns-button" type="button">Columns</button>
+        <div class="column-picker-panel" id="columns-panel" hidden></div>
+      </div>
+      <button class="btn" id="copy-csv" type="button">Copy shown CSV</button>
     </div>
     <div class="table-wrap">
       <table id="collection-table"></table>
@@ -163,7 +172,13 @@ BODY_HTML = f"""
 
 
 SCRIPT = r"""
-const state = { query: "", sortKey: DATA.columns[0] || "", sortDir: 1, transcriptIndex: 0 };
+const state = {
+  query: "",
+  sortKey: DATA.columns[0] || "",
+  sortDir: 1,
+  transcriptIndex: 0,
+  visibleColumns: new Set(DATA.columns || []),
+};
 const fmt = new Intl.NumberFormat();
 const escapeHtml = value => String(value)
   .replaceAll("&", "&amp;")
@@ -186,6 +201,7 @@ function init() {
   renderRemoteSummary();
   bindEvents();
   renderTable();
+  renderColumnPicker();
   initTranscript();
 }
 
@@ -233,13 +249,13 @@ function renderTranscriptToolbar(row) {
     ["agent", row.label],
     ["scenario", contextLabel(row.scenario, `Scenario ${row.index}`)],
     ["model", row.model || "NA"],
-    ["response", `${state.transcriptIndex + 1} of ${(DATA.transcript_rows || []).length}`],
+    ["iteration", String(row.iteration ?? 0)],
   ];
   document.getElementById("transcript-toolbar").innerHTML = dimensions.map(([field, value]) => `
     <div class="dimension-nav ${field}">
       <span class="dimension-label">${field}</span>
       <button class="btn" type="button" data-dimension="${field}" data-direction="-1" aria-label="Previous ${field}">‹</button>
-      <span class="dimension-value" title="${escapeHtml(value)}">${escapeHtml(value)}</span>
+      <span class="dimension-value" title="${escapeHtml(value)}">${escapeHtml(value)} <span class="muted">${dimensionPosition(row, field)}</span></span>
       <button class="btn" type="button" data-dimension="${field}" data-direction="1" aria-label="Next ${field}">›</button>
     </div>`).join("");
 }
@@ -250,38 +266,37 @@ function contextLabel(value, fallback) {
 }
 
 function dimensionKey(row, field) {
-  if (field === "response") return String(row.index);
   if (field === "agent") return JSON.stringify(row.agent);
   return JSON.stringify(row[field]);
+}
+
+function dimensionValues(field) {
+  const unique = [];
+  (DATA.transcript_rows || []).forEach(row => {
+    const key = dimensionKey(row, field);
+    if (!unique.includes(key)) unique.push(key);
+  });
+  return unique;
+}
+
+function dimensionPosition(row, field) {
+  const values = dimensionValues(field);
+  return `${values.indexOf(dimensionKey(row, field)) + 1}/${values.length}`;
 }
 
 function navigateDimension(field, direction) {
   const rows = DATA.transcript_rows || [];
   if (!rows.length) return;
-  if (field === "response") {
-    state.transcriptIndex = (state.transcriptIndex + direction + rows.length) % rows.length;
-    renderTranscript();
-    return;
-  }
-  const unique = [];
-  rows.forEach(row => {
-    const key = dimensionKey(row, field);
-    if (!unique.includes(key)) unique.push(key);
-  });
+  const unique = dimensionValues(field);
   const current = dimensionKey(rows[state.transcriptIndex], field);
   const target = unique[(unique.indexOf(current) + direction + unique.length) % unique.length];
   const otherFields = ["agent", "scenario", "model"].filter(item => item !== field);
+  if (field !== "iteration") otherFields.push("iteration");
   const currentRow = rows[state.transcriptIndex];
-  let bestScore = -1;
-  let next = -1;
-  rows.forEach((row, index) => {
-    if (dimensionKey(row, field) !== target) return;
-    const score = otherFields.filter(item => dimensionKey(row, item) === dimensionKey(currentRow, item)).length;
-    if (score > bestScore) {
-      bestScore = score;
-      next = index;
-    }
-  });
+  const next = rows.findIndex(row =>
+    dimensionKey(row, field) === target
+    && otherFields.every(item => dimensionKey(row, item) === dimensionKey(currentRow, item))
+  );
   if (next >= 0) state.transcriptIndex = next;
   renderTranscript();
 }
@@ -392,17 +407,45 @@ function filteredRows() {
 function renderTable() {
   const table = document.getElementById("collection-table");
   const rows = filteredRows();
+  const columns = DATA.columns.filter(column => state.visibleColumns.has(column));
   document.getElementById("visible-count").textContent = `${fmt.format(rows.length)} of ${fmt.format((DATA.rows || []).length)} visible`;
-  if (!DATA.columns.length) {
+  if (!columns.length) {
     table.innerHTML = "<tbody><tr><td class='empty'>No columns.</td></tr></tbody>";
     return;
   }
   table.innerHTML = `
-    <thead><tr>${DATA.columns.map(col => `<th class="${columnClass(col)}" data-sort="${escapeHtml(col)}">${escapeHtml(col)}${sortArrow(col)}</th>`).join("")}</tr></thead>
+    <thead><tr>${columns.map(col => `<th class="${columnClass(col)}" data-sort="${escapeHtml(col)}">${escapeHtml(col)}${sortArrow(col)}</th>`).join("")}</tr></thead>
     <tbody>
-      ${rows.length ? rows.map(row => `<tr>${DATA.columns.map(col => cell(row[col], col, row)).join("")}</tr>`).join("") : "<tr><td class='empty' colspan='99'>No rows.</td></tr>"}
+      ${rows.length ? rows.map(row => `<tr>${columns.map(col => cell(row[col], col, row)).join("")}</tr>`).join("") : "<tr><td class='empty' colspan='99'>No rows.</td></tr>"}
     </tbody>
   `;
+}
+
+function renderColumnPicker() {
+  const panel = document.getElementById("columns-panel");
+  panel.innerHTML = `<div class="column-picker-actions">
+    <button class="btn" type="button" data-columns="all">All</button>
+    <button class="btn" type="button" data-columns="none">None</button>
+  </div>${DATA.columns.map(column => `<label class="column-option">
+    <input type="checkbox" data-column="${escapeHtml(column)}" ${state.visibleColumns.has(column) ? "checked" : ""}>
+    ${escapeHtml(column)}
+  </label>`).join("")}`;
+}
+
+function csvCell(value) {
+  let output = value;
+  if (value?.__edsl_cell_type === "interview_transcript") {
+    output = (value.turns || []).map(turn => `${turn.role}: ${turn.text || ""}`).join("\n");
+  } else if (typeof value === "object" && value !== null) output = JSON.stringify(value);
+  const string = output === null || output === undefined ? "" : String(output);
+  return `"${string.replaceAll('"', '""')}"`;
+}
+
+function shownCsv() {
+  const columns = DATA.columns.filter(column => state.visibleColumns.has(column));
+  return [columns, ...filteredRows().map(row => columns.map(column => row[column]))]
+    .map(row => row.map(csvCell).join(","))
+    .join("\n");
 }
 
 function sortArrow(col) {
@@ -483,6 +526,30 @@ function bindEvents() {
     renderTable();
   });
   document.getElementById("copy-json").addEventListener("click", copyJson);
+  document.getElementById("columns-button").addEventListener("click", () => {
+    const panel = document.getElementById("columns-panel");
+    panel.hidden = !panel.hidden;
+  });
+  document.getElementById("columns-panel").addEventListener("change", event => {
+    const column = event.target.dataset.column;
+    if (!column) return;
+    if (event.target.checked) state.visibleColumns.add(column);
+    else state.visibleColumns.delete(column);
+    renderTable();
+  });
+  document.getElementById("columns-panel").addEventListener("click", event => {
+    const action = event.target.dataset.columns;
+    if (!action) return;
+    state.visibleColumns = new Set(action === "all" ? DATA.columns : []);
+    renderColumnPicker();
+    renderTable();
+  });
+  document.getElementById("copy-csv").addEventListener("click", () => {
+    navigator.clipboard?.writeText(shownCsv()).then(
+      () => showToast("Shown CSV copied"),
+      () => showToast("Clipboard blocked by browser")
+    );
+  });
   document.getElementById("table-tab").addEventListener("click", () => activateView("table"));
   document.getElementById("transcript-tab").addEventListener("click", () => activateView("transcript"));
   document.getElementById("transcript-toolbar").addEventListener("click", event => {

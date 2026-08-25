@@ -250,6 +250,10 @@ def test_results_git_package_html(tmp_path):
     assert 'class="${columnClass(col)}"' in html
     assert 'class="interview-link"' in html
     assert '"answer.how_feeling"' in html
+    assert 'id="columns-button"' in html
+    assert 'id="copy-csv"' in html
+    assert "function shownCsv()" in html
+    assert "dimensionPosition(row, field)" in html
     assert html_path.read_text(encoding="utf-8") == html
 
 
