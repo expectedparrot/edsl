@@ -60,6 +60,17 @@ EXTRA_CSS = """
 .context-fields { display: grid; grid-template-columns: max-content minmax(140px, 1fr); gap: 5px 14px; }
 .context-key { color: var(--muted); font-size: 12px; font-weight: 700; }
 .context-value { white-space: pre-wrap; overflow-wrap: anywhere; }
+.scenario-token { padding: 1px 4px; border-radius: 4px; background: #fff0d9; color: #8a4b08; }
+th.column-agent { background: #eef6ff; color: #245b91; }
+th.column-scenario { background: #fff4e5; color: #8a4b08; }
+td.column-agent { background: #f8fbff; }
+td.column-scenario { background: #fffbf5; }
+.interview-link { border: 1px solid var(--line); border-radius: 999px; padding: 5px 9px; background: var(--panel); color: var(--accent); cursor: pointer; white-space: nowrap; }
+.dimension-nav { display: flex; align-items: center; gap: 5px; padding: 5px; border: 1px solid var(--line); border-radius: 9px; background: var(--panel); }
+.dimension-label { margin: 0 4px; color: var(--muted); font-size: 11px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
+.dimension-value { min-width: 90px; max-width: 210px; overflow: hidden; text-align: center; text-overflow: ellipsis; white-space: nowrap; }
+.dimension-nav.agent { border-color: #bfd8f2; background: #f8fbff; }
+.dimension-nav.scenario { border-color: #efd5aa; background: #fffbf5; }
 .transcript-question { padding: 18px; margin-bottom: 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); }
 .transcript-question-name { color: var(--muted); font-family: var(--font-mono); font-size: 11px; font-weight: 700; }
 .transcript-question-text { margin: 5px 0 14px; font-size: 17px; font-weight: 700; }
@@ -138,12 +149,7 @@ BODY_HTML = f"""
   </section>
 
   <section class="transcript-panel" id="transcript-panel" hidden>
-    <div class="transcript-toolbar">
-      <button class="btn" id="transcript-prev" type="button">Previous</button>
-      <select id="transcript-select" aria-label="Choose a result"></select>
-      <span class="transcript-counter" id="transcript-counter"></span>
-      <button class="btn" id="transcript-next" type="button">Next</button>
-    </div>
+    <div class="transcript-toolbar" id="transcript-toolbar"></div>
     <div id="transcript-content"></div>
   </section>
 
@@ -193,10 +199,6 @@ function renderFacts() {
 function initTranscript() {
   if (!Array.isArray(DATA.transcript_rows)) return;
   document.getElementById("view-tabs").hidden = false;
-  const select = document.getElementById("transcript-select");
-  select.innerHTML = DATA.transcript_rows.map((row, index) =>
-    `<option value="${index}">${escapeHtml(row.index)} · ${escapeHtml(row.label)}</option>`
-  ).join("");
   renderTranscript();
 }
 
@@ -213,20 +215,91 @@ function renderTranscript() {
   const content = document.getElementById("transcript-content");
   if (!rows.length) {
     content.innerHTML = '<div class="empty">No results.</div>';
-    document.getElementById("transcript-counter").textContent = "0 of 0";
+    document.getElementById("transcript-toolbar").innerHTML = "0 results";
     return;
   }
   const row = rows[state.transcriptIndex];
-  document.getElementById("transcript-select").value = String(state.transcriptIndex);
-  document.getElementById("transcript-counter").textContent = `${state.transcriptIndex + 1} of ${rows.length}`;
-  document.getElementById("transcript-prev").disabled = state.transcriptIndex === 0;
-  document.getElementById("transcript-next").disabled = state.transcriptIndex === rows.length - 1;
+  renderTranscriptToolbar(row);
   content.innerHTML = `${metadataHtml(row)}${(row.questions || []).map(question => `
     <article class="transcript-question">
       <div class="transcript-question-name">${escapeHtml(question.name)}</div>
-      <div class="transcript-question-text">${escapeHtml(question.text || question.name)}</div>
+      <div class="transcript-question-text">${questionTextHtml(question.text || question.name, row.scenario)}</div>
       <div class="transcript-answer">${answerHtml(question.answer)}</div>
     </article>`).join("") || '<div class="empty">No answers.</div>'}`;
+}
+
+function renderTranscriptToolbar(row) {
+  const dimensions = [
+    ["agent", row.label],
+    ["scenario", contextLabel(row.scenario, `Scenario ${row.index}`)],
+    ["model", row.model || "NA"],
+    ["response", `${state.transcriptIndex + 1} of ${(DATA.transcript_rows || []).length}`],
+  ];
+  document.getElementById("transcript-toolbar").innerHTML = dimensions.map(([field, value]) => `
+    <div class="dimension-nav ${field}">
+      <span class="dimension-label">${field}</span>
+      <button class="btn" type="button" data-dimension="${field}" data-direction="-1" aria-label="Previous ${field}">‹</button>
+      <span class="dimension-value" title="${escapeHtml(value)}">${escapeHtml(value)}</span>
+      <button class="btn" type="button" data-dimension="${field}" data-direction="1" aria-label="Next ${field}">›</button>
+    </div>`).join("");
+}
+
+function contextLabel(value, fallback) {
+  if (!value || typeof value !== "object") return text(value) || fallback;
+  return text(value.name || value.title || value.product || value.label) || fallback;
+}
+
+function dimensionKey(row, field) {
+  if (field === "response") return String(row.index);
+  if (field === "agent") return JSON.stringify(row.agent);
+  return JSON.stringify(row[field]);
+}
+
+function navigateDimension(field, direction) {
+  const rows = DATA.transcript_rows || [];
+  if (!rows.length) return;
+  if (field === "response") {
+    state.transcriptIndex = (state.transcriptIndex + direction + rows.length) % rows.length;
+    renderTranscript();
+    return;
+  }
+  const unique = [];
+  rows.forEach(row => {
+    const key = dimensionKey(row, field);
+    if (!unique.includes(key)) unique.push(key);
+  });
+  const current = dimensionKey(rows[state.transcriptIndex], field);
+  const target = unique[(unique.indexOf(current) + direction + unique.length) % unique.length];
+  const otherFields = ["agent", "scenario", "model"].filter(item => item !== field);
+  const currentRow = rows[state.transcriptIndex];
+  let bestScore = -1;
+  let next = -1;
+  rows.forEach((row, index) => {
+    if (dimensionKey(row, field) !== target) return;
+    const score = otherFields.filter(item => dimensionKey(row, item) === dimensionKey(currentRow, item)).length;
+    if (score > bestScore) {
+      bestScore = score;
+      next = index;
+    }
+  });
+  if (next >= 0) state.transcriptIndex = next;
+  renderTranscript();
+}
+
+function questionTextHtml(questionText, scenario) {
+  const source = String(questionText || "");
+  const pattern = /{{\s*scenario\.([\w.-]+)\s*}}/g;
+  let html = "";
+  let cursor = 0;
+  for (const match of source.matchAll(pattern)) {
+    html += escapeHtml(source.slice(cursor, match.index));
+    const value = match[1].split(".").reduce((item, key) => item?.[key], scenario);
+    html += value === undefined
+      ? escapeHtml(match[0])
+      : `<span class="scenario-token">${escapeHtml(text(value))}</span>`;
+    cursor = match.index + match[0].length;
+  }
+  return html + escapeHtml(source.slice(cursor));
 }
 
 function metadataHtml(row) {
@@ -325,9 +398,9 @@ function renderTable() {
     return;
   }
   table.innerHTML = `
-    <thead><tr>${DATA.columns.map(col => `<th data-sort="${escapeHtml(col)}">${escapeHtml(col)}${sortArrow(col)}</th>`).join("")}</tr></thead>
+    <thead><tr>${DATA.columns.map(col => `<th class="${columnClass(col)}" data-sort="${escapeHtml(col)}">${escapeHtml(col)}${sortArrow(col)}</th>`).join("")}</tr></thead>
     <tbody>
-      ${rows.length ? rows.map(row => `<tr>${DATA.columns.map(col => cell(row[col])).join("")}</tr>`).join("") : "<tr><td class='empty' colspan='99'>No rows.</td></tr>"}
+      ${rows.length ? rows.map(row => `<tr>${DATA.columns.map(col => cell(row[col], col, row)).join("")}</tr>`).join("") : "<tr><td class='empty' colspan='99'>No rows.</td></tr>"}
     </tbody>
   `;
 }
@@ -337,12 +410,23 @@ function sortArrow(col) {
   return state.sortDir === 1 ? " ↑" : " ↓";
 }
 
-function cell(value) {
-  if (value === null || value === undefined || value === "") return "<td><span class='missing'>NA</span></td>";
-  if (hasInterviewAnswer(value)) return `<td>${answersHtml(value)}</td>`;
-  if (typeof value === "object") return `<td><div class="cell-json">${escapeHtml(JSON.stringify(value, null, 2))}</div></td>`;
-  const className = String(value).length > 80 ? "cell-json" : "value";
-  return `<td><div class="${className}">${escapeHtml(value)}</div></td>`;
+function columnClass(column) {
+  if (column.startsWith("agent.")) return "column-agent";
+  if (column.startsWith("scenario.")) return "column-scenario";
+  return "";
+}
+
+function cell(value, column, row) {
+  const groupClass = columnClass(column);
+  if (value === null || value === undefined || value === "") return `<td class="${groupClass}"><span class='missing'>NA</span></td>`;
+  if (value?.__edsl_cell_type === "interview_transcript") {
+    const count = (value.turns || []).length;
+    return `<td><button class="interview-link" type="button" data-open-transcript="${escapeHtml(row["#"])}">${fmt.format(count)}-turn interview →</button></td>`;
+  }
+  if (hasInterviewAnswer(value)) return `<td class="${groupClass}">${answersHtml(value)}</td>`;
+  if (typeof value === "object") return `<td class="${groupClass}"><div class="cell-json">${escapeHtml(JSON.stringify(value, null, 2))}</div></td>`;
+  const valueClass = String(value).length > 80 ? "cell-json" : "value";
+  return `<td class="${groupClass}"><div class="${valueClass}">${escapeHtml(value)}</div></td>`;
 }
 
 function hasInterviewAnswer(value) {
@@ -380,6 +464,14 @@ function bindEvents() {
     renderTable();
   });
   document.getElementById("collection-table").addEventListener("click", event => {
+    const transcriptLink = event.target.closest("[data-open-transcript]");
+    if (transcriptLink) {
+      const index = (DATA.transcript_rows || []).findIndex(row => String(row.index) === transcriptLink.dataset.openTranscript);
+      if (index >= 0) state.transcriptIndex = index;
+      activateView("transcript");
+      renderTranscript();
+      return;
+    }
     const th = event.target.closest("th[data-sort]");
     if (!th) return;
     const key = th.dataset.sort;
@@ -393,17 +485,10 @@ function bindEvents() {
   document.getElementById("copy-json").addEventListener("click", copyJson);
   document.getElementById("table-tab").addEventListener("click", () => activateView("table"));
   document.getElementById("transcript-tab").addEventListener("click", () => activateView("transcript"));
-  document.getElementById("transcript-select").addEventListener("change", event => {
-    state.transcriptIndex = Number(event.target.value);
-    renderTranscript();
-  });
-  document.getElementById("transcript-prev").addEventListener("click", () => {
-    state.transcriptIndex = Math.max(0, state.transcriptIndex - 1);
-    renderTranscript();
-  });
-  document.getElementById("transcript-next").addEventListener("click", () => {
-    state.transcriptIndex = Math.min((DATA.transcript_rows || []).length - 1, state.transcriptIndex + 1);
-    renderTranscript();
+  document.getElementById("transcript-toolbar").addEventListener("click", event => {
+    const button = event.target.closest("[data-dimension]");
+    if (!button) return;
+    navigateDimension(button.dataset.dimension, Number(button.dataset.direction));
   });
   document.getElementById("download-json").addEventListener("click", downloadJson);
   document.getElementById("remote-summary").addEventListener("click", event => {

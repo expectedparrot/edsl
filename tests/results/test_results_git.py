@@ -243,9 +243,13 @@ def test_results_git_package_html(tmp_path):
     assert 'id="table-tab"' in html
     assert 'id="transcript-tab"' in html
     assert 'id="transcript-panel" hidden' in html
-    assert 'id="transcript-prev"' in html
-    assert 'id="transcript-next"' in html
+    assert 'id="transcript-toolbar"' in html
+    assert 'data-dimension="${field}"' in html
     assert 'class="context-fields"' in html
+    assert 'class="scenario-token"' in html
+    assert 'class="${columnClass(col)}"' in html
+    assert 'class="interview-link"' in html
+    assert '"answer.how_feeling"' in html
     assert html_path.read_text(encoding="utf-8") == html
 
 

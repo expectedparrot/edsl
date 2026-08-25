@@ -233,6 +233,7 @@ def _render_results_package_html(path: Path, ref: str, results: "Results") -> st
         or []
     )
     rows = [_result_row(index, result) for index, result in enumerate(results, start=1)]
+    columns = _result_columns(rows)
     transcript_rows = [
         _transcript_row(index, result, question_names)
         for index, result in enumerate(results, start=1)
@@ -247,7 +248,7 @@ def _render_results_package_html(path: Path, ref: str, results: "Results") -> st
             (len(getattr(results, "agent_keys", []) or []), "Agent keys"),
             (len(getattr(results, "model_keys", []) or []), "Model keys"),
         ],
-        columns=["#", "agent", "model", "scenario", "answers"],
+        columns=columns,
         rows=rows,
         raw={"manifest": manifest, "results": serialized_results},
         search_placeholder="Search agents, models, scenarios, answers",
@@ -261,13 +262,53 @@ def _render_results_package_html(path: Path, ref: str, results: "Results") -> st
 
 def _result_row(index: int, result: object) -> dict:
     data = _result_dict(result)
-    return {
+    row = {
         "#": index,
-        "agent": _compact_json(data.get("agent")),
-        "model": _model_label(data.get("model")),
-        "scenario": _compact_json(data.get("scenario")),
-        "answers": _display_answers(data),
     }
+    row.update(_flatten_context("agent", data.get("agent"), unwrap_traits=True))
+    row["model"] = _model_label(data.get("model"))
+    row.update(_flatten_context("scenario", data.get("scenario")))
+    row.update(
+        {f"answer.{name}": answer for name, answer in _display_answers(data).items()}
+    )
+    return row
+
+
+def _flatten_context(
+    prefix: str, value: object, *, unwrap_traits: bool = False
+) -> dict[str, object]:
+    if not isinstance(value, dict):
+        return {prefix: value}
+    fields = value
+    if unwrap_traits and isinstance(value.get("traits"), dict):
+        fields = {**value["traits"]}
+        if value.get("name") is not None:
+            fields["name"] = value["name"]
+    return {f"{prefix}.{key}": field for key, field in fields.items()}
+
+
+def _result_columns(rows: list[dict]) -> list[str]:
+    groups = ("agent.", "scenario.")
+    columns = ["#"]
+    for prefix in groups:
+        columns.extend(
+            key
+            for row in rows
+            for key in row
+            if key.startswith(prefix) and key not in columns
+        )
+    if any("agent" in row for row in rows):
+        columns.append("agent")
+    columns.append("model")
+    if any("scenario" in row for row in rows):
+        columns.append("scenario")
+    columns.extend(
+        key
+        for row in rows
+        for key in row
+        if key.startswith("answer.") and key not in columns
+    )
+    return columns
 
 
 def _transcript_row(index: int, result: object, question_names: list[str]) -> dict:
