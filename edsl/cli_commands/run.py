@@ -56,6 +56,7 @@ def register(app: click.Group) -> None:
     @click.option("--fresh", is_flag=True, default=False, help="Ignore cache.")
     @click.option("--n", "-n", "iterations", default=1, type=int, show_default=True, help="Number of iterations per question/scenario/agent/model combination.")
     @click.option("--local", is_flag=True, default=False, help="Disable remote inference and run locally.")
+    @click.option("--allow-partial", is_flag=True, default=False, help="Save and return usable partial remote results.")
     @click.option("--max-concurrency", default=None, type=click.IntRange(min=1), help="Maximum concurrent local interviews.")
     @click.option("--api-timeout", default=None, type=click.FloatRange(min=0.001), help="Local model API timeout in seconds.")
     @click.option("--save", default=None, help="Save Results JSON to file.")
@@ -65,7 +66,7 @@ def register(app: click.Group) -> None:
             model_list, model, service, base_url, api_key_env, qtype, options, name, progress, background,
             wait, poll_interval, timeout, task_timeout, remote_inference_description,
             remote_inference_results_visibility, results_description, fresh,
-            iterations, local, max_concurrency, api_timeout, save, output_path, input_path):
+            iterations, local, allow_partial, max_concurrency, api_timeout, save, output_path, input_path):
         """Run question(s) and get results.
 
         \b
@@ -266,6 +267,40 @@ def register(app: click.Group) -> None:
 
         saved = None
         result_count = 0 if background else _safe_len(results_obj)
+        remote_status = None
+        if not background and not local:
+            remote_status = _remote_status_from_results(results_obj)
+            if remote_status is not None:
+                status = str(remote_status.get("status") or "").lower()
+                counts = _remote_interview_counts(remote_status, result_count)
+                if status in {"failed", "cancelled", "canceled"} or (
+                    status in {"partial_failed", "partially_failed"}
+                    and (counts["completed_interviews"] == 0 or not allow_partial)
+                ):
+                    error(
+                        "REMOTE_JOB_PARTIAL_FAILED"
+                        if status in {"partial_failed", "partially_failed"}
+                        else "REMOTE_JOB_FAILED",
+                        "Remote inference produced no successful interviews."
+                        if counts["completed_interviews"] == 0
+                        else "Remote inference did not complete successfully.",
+                        suggestion=(
+                            "Retrieve the exception report with "
+                            f"ep jobs errors {remote_status.get('job_uuid')} --output error.md."
+                        ),
+                        details=[_remote_failure_details(remote_status, counts)],
+                        exit_code=EXIT_ERROR,
+                    )
+                if status in {"partial_failed", "partially_failed"}:
+                    envelope_warnings.append(
+                        {
+                            "code": "REMOTE_PARTIAL_RESULTS",
+                            "message": (
+                                f"Remote inference completed {counts['completed_interviews']} "
+                                f"of {counts['total_interviews']} interviews."
+                            ),
+                        }
+                    )
 
         # Save if requested
         if (save or output_path) and not background:
@@ -303,10 +338,19 @@ def register(app: click.Group) -> None:
                         return
         if saved is not None:
             meta["saved"] = saved
+        if remote_status is not None:
+            meta["remote_job"] = jsonable(remote_status)
 
         if not background:
             task_history = getattr(results_obj, "task_history", None)
             failed_count = len(getattr(task_history, "unfixed_exceptions", []) or [])
+            if remote_status is not None and str(
+                remote_status.get("status") or ""
+            ).lower() in {"partial_failed", "partially_failed"}:
+                counts = _remote_interview_counts(remote_status, result_count)
+                failed_count = counts["failed_interviews"]
+                result_count = counts["total_interviews"]
+                meta["result_count"] = result_count
             meta["run_status"] = "partial" if failed_count else "complete"
             meta["failed_interview_count"] = failed_count
             meta["completed_interview_count"] = max(result_count - failed_count, 0)
@@ -428,6 +472,44 @@ def register(app: click.Group) -> None:
             return len(obj)
         except Exception:
             return None
+
+
+    def _remote_status_from_results(results_obj) -> Optional[dict]:
+        results_uuid = getattr(results_obj, "results_uuid", None)
+        if not results_uuid:
+            return None
+        from edsl.coop import Coop
+
+        return dict(Coop().remote_inference_get(results_uuid=results_uuid))
+
+
+    def _remote_interview_counts(status_data: dict, fallback_total: int) -> dict:
+        details = status_data.get("latest_job_run_details", {}) or {}
+        interview_details = details.get("interview_details", {}) or {}
+        total = interview_details.get("total_interviews")
+        completed = interview_details.get("completed_interviews")
+        with_exceptions = interview_details.get("interviews_with_exceptions") or 0
+        total = fallback_total if total is None else total
+        completed = 0 if completed is None else completed
+        successful = max(completed - with_exceptions, 0)
+        return {
+            "total_interviews": total,
+            "completed_interviews": successful,
+            "failed_interviews": max(total - successful, 0),
+        }
+
+
+    def _remote_failure_details(status_data: dict, counts: dict) -> dict:
+        latest = status_data.get("latest_job_run_details", {}) or {}
+        return {
+            "job_uuid": status_data.get("job_uuid"),
+            "results_uuid": status_data.get("results_uuid"),
+            **counts,
+            "cost_usd": latest.get("cost_usd"),
+            "error_report_uuid": latest.get("error_report_uuid"),
+            "error_report_url": latest.get("error_report_url"),
+            "remote_status": status_data.get("status"),
+        }
 
 
     def _build_job(input_mode, input_path, jobs_path, survey_path, json_str, stdin_data,

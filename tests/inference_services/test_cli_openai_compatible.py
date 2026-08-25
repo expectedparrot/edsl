@@ -2,6 +2,7 @@
 
 import json
 from types import SimpleNamespace
+from unittest.mock import Mock
 
 from click.testing import CliRunner
 
@@ -179,3 +180,106 @@ def test_run_reports_partial_results(tmp_path, monkeypatch):
     assert out["data"]["meta"]["run_status"] == "partial"
     assert out["data"]["meta"]["failed_interview_count"] == 1
     assert out["warnings"][-1]["code"] == "PARTIAL_RESULTS"
+
+
+def test_run_fails_before_saving_zero_success_remote_results(tmp_path, monkeypatch):
+    from edsl.coop import Coop
+    from edsl.jobs import Jobs
+    from edsl.results import Results
+    import edsl.cli_commands.run as run_command
+
+    fake_results = Results(data=[object(), object()])
+    fake_results.results_uuid = "results-uuid"
+    monkeypatch.setattr(Jobs, "run", lambda self, **kwargs: fake_results)
+    monkeypatch.setattr(
+        Coop,
+        "remote_inference_get",
+        lambda self, **kwargs: {
+            "job_uuid": "job-uuid",
+            "results_uuid": "results-uuid",
+            "status": "partial_failed",
+            "latest_job_run_details": {
+                "interview_details": {
+                    "total_interviews": 2,
+                    "completed_interviews": 0,
+                    "interviews_with_exceptions": 0,
+                },
+                "cost_usd": 0.0,
+                "error_report_uuid": "report-uuid",
+                "error_report_url": "https://example.test/error/report-uuid",
+            },
+        },
+    )
+    save = Mock()
+    monkeypatch.setattr(run_command, "save_results", save)
+
+    result = CliRunner().invoke(
+        cli_module.app,
+        ["run", "--question", "hi", "--output", str(tmp_path / "results.ep")],
+    )
+
+    assert result.exit_code == 1, result.output
+    out = json.loads(result.output)
+    assert out["error"]["code"] == "REMOTE_JOB_PARTIAL_FAILED"
+    assert out["error"]["details"][0]["completed_interviews"] == 0
+    assert out["error"]["details"][0]["failed_interviews"] == 2
+    assert out["error"]["details"][0]["error_report_uuid"] == "report-uuid"
+    save.assert_not_called()
+
+
+def test_run_allows_and_reports_genuine_partial_remote_results(tmp_path, monkeypatch):
+    from edsl.coop import Coop
+    from edsl.jobs import Jobs
+    from edsl.results import Results
+    import edsl.cli_commands.run as run_command
+
+    fake_results = Results(data=[object(), object()])
+    fake_results.results_uuid = "results-uuid"
+    monkeypatch.setattr(Jobs, "run", lambda self, **kwargs: fake_results)
+    monkeypatch.setattr(
+        Coop,
+        "remote_inference_get",
+        lambda self, **kwargs: {
+            "job_uuid": "job-uuid",
+            "results_uuid": "results-uuid",
+            "status": "partial_failed",
+            "latest_job_run_details": {
+                "interview_details": {
+                    "total_interviews": 3,
+                    "completed_interviews": 2,
+                    "interviews_with_exceptions": 0,
+                }
+            },
+        },
+    )
+    monkeypatch.setattr(
+        run_command,
+        "save_results",
+        lambda results, path: {
+            "path": str(path),
+            "format": "ep",
+            "object_type": "Results",
+        },
+    )
+
+    result = CliRunner().invoke(
+        cli_module.app,
+        [
+            "run",
+            "--question",
+            "hi",
+            "--allow-partial",
+            "--output",
+            str(tmp_path / "results.ep"),
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    out = json.loads(result.output)
+    assert out["data"]["meta"]["run_status"] == "partial"
+    assert out["data"]["meta"]["completed_interview_count"] == 2
+    assert out["data"]["meta"]["failed_interview_count"] == 1
+    assert {warning["code"] for warning in out["warnings"]} >= {
+        "REMOTE_PARTIAL_RESULTS",
+        "PARTIAL_RESULTS",
+    }
