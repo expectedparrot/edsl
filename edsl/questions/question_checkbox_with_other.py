@@ -16,6 +16,7 @@ def create_checkbox_with_other_response_model(
     min_selections: Optional[int] = None,
     max_selections: Optional[int] = None,
     permissive: bool = False,
+    exclusive_choices: Optional[list[Any]] = None,
 ):
     """Create a response model accepting choices and ``Other: value`` entries."""
 
@@ -26,21 +27,15 @@ def create_checkbox_with_other_response_model(
 
         @model_validator(mode="after")
         def validate_answer(self):
+            if any(choice in (exclusive_choices or []) for choice in self.answer):
+                if len(self.answer) != 1:
+                    raise ValueError("Exclusive options must be selected by themselves")
+                return self
             if not permissive:
-                if (
-                    min_selections is not None
-                    and len(self.answer) < min_selections
-                ):
-                    raise ValueError(
-                        f"Must select at least {min_selections} option(s)"
-                    )
-                if (
-                    max_selections is not None
-                    and len(self.answer) > max_selections
-                ):
-                    raise ValueError(
-                        f"Must select at most {max_selections} option(s)"
-                    )
+                if min_selections is not None and len(self.answer) < min_selections:
+                    raise ValueError(f"Must select at least {min_selections} option(s)")
+                if max_selections is not None and len(self.answer) > max_selections:
+                    raise ValueError(f"Must select at most {max_selections} option(s)")
 
             for choice in self.answer:
                 if choice in choices or choice == other_option_text:
@@ -49,8 +44,7 @@ def create_checkbox_with_other_response_model(
                     prefix, separator, custom_value = choice.partition(":")
                     if (
                         separator
-                        and prefix.strip().casefold()
-                        == other_option_text.casefold()
+                        and prefix.strip().casefold() == other_option_text.casefold()
                         and custom_value.strip()
                     ):
                         continue
@@ -66,9 +60,7 @@ def create_checkbox_with_other_response_model(
 class CheckboxWithOtherResponseValidator(CheckBoxResponseValidator):
     """Validate checkbox responses that may contain custom ``Other`` values."""
 
-    required_params = CheckBoxResponseValidator.required_params + [
-        "other_option_text"
-    ]
+    required_params = CheckBoxResponseValidator.required_params + ["other_option_text"]
 
     valid_examples = [
         (
@@ -77,6 +69,7 @@ class CheckboxWithOtherResponseValidator(CheckBoxResponseValidator):
                 "question_options": ["Good", "Great", "OK", "Bad"],
                 "use_code": False,
                 "other_option_text": "Other",
+                "exclusive_options": [],
             },
         )
     ]
@@ -87,6 +80,7 @@ class CheckboxWithOtherResponseValidator(CheckBoxResponseValidator):
                 "question_options": ["Good", "Great", "OK", "Bad"],
                 "use_code": False,
                 "other_option_text": "Other",
+                "exclusive_options": [],
             },
             "Invalid choice",
         )
@@ -101,9 +95,7 @@ class QuestionCheckBoxWithOther(QuestionCheckBox):
     """
 
     question_type = "checkbox_with_other"
-    purpose = (
-        "When multiple options can be selected and custom responses are allowed"
-    )
+    purpose = "When multiple options can be selected and custom responses are allowed"
     other_option_text = OtherOptionTextDescriptor()
     _response_model = None
     response_validator_class = CheckboxWithOtherResponseValidator
@@ -121,6 +113,7 @@ class QuestionCheckBoxWithOther(QuestionCheckBox):
         answering_instructions: Optional[str] = None,
         permissive: bool = False,
         other_option_text: str = "Other",
+        exclusive_options: Optional[list[str]] = None,
     ):
         super().__init__(
             question_name=question_name,
@@ -133,6 +126,7 @@ class QuestionCheckBoxWithOther(QuestionCheckBox):
             question_presentation=question_presentation,
             answering_instructions=answering_instructions,
             permissive=permissive,
+            exclusive_options=exclusive_options,
         )
         self.other_option_text = other_option_text
 
@@ -148,6 +142,14 @@ class QuestionCheckBoxWithOther(QuestionCheckBox):
             min_selections=self.min_selections,
             max_selections=self.max_selections,
             permissive=self.permissive,
+            exclusive_choices=(
+                [
+                    self.question_options.index(option)
+                    for option in self.exclusive_options
+                ]
+                if self._use_code
+                else self.exclusive_options
+            ),
         )
 
     @property

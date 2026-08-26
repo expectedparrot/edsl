@@ -1,6 +1,7 @@
 import pytest
 from edsl.questions.exceptions import (
     QuestionAnswerValidationError,
+    QuestionValueError,
 )
 from edsl.questions import QuestionBase
 from edsl.questions import Settings
@@ -159,28 +160,28 @@ def test_QuestionCheckBox_max_selections_allowed_above_piped_option_count():
 
 def test_QuestionCheckBox_negative_values():
     """Test QuestionCheckBox validation for negative values."""
-    
+
     # should raise an exception if min_selections is negative
     invalid_question = valid_question.copy()
     invalid_question.update({"min_selections": -1})
     with pytest.raises(ValueError) as excinfo:
         QuestionCheckBox(**invalid_question)
     assert "min_selections must be non-negative" in str(excinfo.value)
-    
+
     # should raise an exception if max_selections is negative
     invalid_question = valid_question.copy()
     invalid_question.update({"max_selections": -10})
     with pytest.raises(ValueError) as excinfo:
         QuestionCheckBox(**invalid_question)
     assert "max_selections must be non-negative" in str(excinfo.value)
-    
+
     # should raise an exception if both are negative
     invalid_question = valid_question.copy()
     invalid_question.update({"min_selections": -1, "max_selections": -10})
     with pytest.raises(ValueError) as excinfo:
         QuestionCheckBox(**invalid_question)
     assert "min_selections must be non-negative" in str(excinfo.value)
-    
+
     # should work fine with zero values
     valid_question_zero = valid_question.copy()
     valid_question_zero.update({"min_selections": 0, "max_selections": 0})
@@ -286,7 +287,7 @@ def test_int_options():
         question_text="Select all the numbers that are prime.",
         question_options=[0, 1, 2, 3, 5, 7, 9],
     )
-    results = q.by(m).run(disable_remote_inference = True)
+    results = q.by(m).run(disable_remote_inference=True)
 
 
 def test_QuestionCheckBox_answers():
@@ -330,6 +331,66 @@ def test_QuestionCheckBox_answers():
     q = QuestionCheckBox(**valid_question | {"permissive": True})
     q._validate_answer({"answer": [1]})
     q._validate_answer({"answer": [1, 2, 3, 4]})
+
+
+def test_exclusive_options_are_serialized_and_enforced():
+    q = QuestionCheckBox(
+        question_name="weekdays",
+        question_text="Which weekdays do you like?",
+        question_options=["Mon", "Tue", "None"],
+        min_selections=2,
+        exclusive_options=["None"],
+    )
+
+    assert q._validate_answer({"answer": ["None"]})["answer"] == ["None"]
+    assert q._validate_answer({"answer": ["Mon", "Tue"]})["answer"] == [
+        "Mon",
+        "Tue",
+    ]
+    with pytest.raises(QuestionAnswerValidationError, match="selected by themselves"):
+        q._validate_answer({"answer": ["Mon", "None"]})
+
+    serialized = q.to_dict()
+    assert serialized["exclusive_options"] == ["None"]
+    restored = QuestionBase.from_dict(serialized)
+    assert restored.exclusive_options == ["None"]
+    with pytest.raises(QuestionAnswerValidationError, match="selected by themselves"):
+        restored._validate_answer({"answer": ["Tue", "None"]})
+
+
+def test_exclusive_options_use_codes_and_remain_strict_when_permissive():
+    q = QuestionCheckBox(
+        question_name="weekdays",
+        question_text="Which weekdays do you like?",
+        question_options=["Mon", "Tue", "None"],
+        min_selections=2,
+        use_code=True,
+        permissive=True,
+        exclusive_options=["None"],
+    )
+
+    assert q._validate_answer({"answer": [2]})["answer"] == [2]
+    with pytest.raises(QuestionAnswerValidationError, match="selected by themselves"):
+        q._validate_answer({"answer": [0, 2]})
+
+
+def test_exclusive_options_must_be_exact_unique_question_options():
+    kwargs = {
+        "question_name": "weekdays",
+        "question_text": "Which weekdays do you like?",
+        "question_options": ["Mon", "Tue", "None"],
+    }
+    with pytest.raises(QuestionValueError, match="exactly match"):
+        QuestionCheckBox(**kwargs, exclusive_options=["none"])
+    with pytest.raises(QuestionValueError, match="duplicates"):
+        QuestionCheckBox(**kwargs, exclusive_options=["None", "None"])
+
+
+def test_exclusive_options_are_omitted_when_not_configured():
+    q = QuestionCheckBox(**valid_question_wo_extras)
+
+    assert q.exclusive_options == []
+    assert "exclusive_options" not in q.data
 
 
 def test_QuestionCheckBox_extras():

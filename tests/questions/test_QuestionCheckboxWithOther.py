@@ -101,9 +101,7 @@ def test_use_code_applies_only_to_predefined_options():
         use_code=True,
     )
 
-    validated = question.response_validator.validate(
-        {"answer": [0, 2, "Other: Sushi"]}
-    )
+    validated = question.response_validator.validate({"answer": [0, 2, "Other: Sushi"]})
 
     assert validated["answer"] == [0, 2, "Other: Sushi"]
 
@@ -121,6 +119,39 @@ def test_serialization_round_trip(question):
 
     assert isinstance(restored, QuestionCheckBoxWithOther)
     assert restored == question
+
+
+def test_exclusive_option_is_alone_and_exempt_from_selection_minimum():
+    question = QuestionCheckBoxWithOther(
+        question_name="foods",
+        question_text="Which foods do you enjoy?",
+        question_options=["Pizza", "Pasta", "None"],
+        min_selections=2,
+        exclusive_options=["None"],
+    )
+
+    assert question._validate_answer({"answer": ["None"]})["answer"] == ["None"]
+    with pytest.raises(QuestionAnswerValidationError, match="selected by themselves"):
+        question._validate_answer({"answer": ["Pizza", "None"]})
+    with pytest.raises(QuestionAnswerValidationError, match="selected by themselves"):
+        question._validate_answer({"answer": ["None", "Other: Sushi"]})
+
+    restored = QuestionBase.from_dict(question.to_dict())
+    assert restored.exclusive_options == ["None"]
+
+
+def test_exclusive_option_with_codes():
+    question = QuestionCheckBoxWithOther(
+        question_name="foods",
+        question_text="Which foods do you enjoy?",
+        question_options=["Pizza", "Pasta", "None"],
+        use_code=True,
+        exclusive_options=["None"],
+    )
+
+    assert question._validate_answer({"answer": [2]})["answer"] == [2]
+    with pytest.raises(QuestionAnswerValidationError, match="selected by themselves"):
+        question._validate_answer({"answer": [2, "Other: Sushi"]})
 
 
 def test_prompt_and_html_include_other_option(question):
