@@ -286,7 +286,7 @@ class LanguageModel(
 
         # Apply any additional kwargs that aren't part of the standard parameters
         for key, value in kwargs.items():
-            if key not in parameters:
+            if key not in parameters and key not in _INTERNAL_KWARGS:
                 setattr(self, key, value)
 
         # Handle API key check skip for testing

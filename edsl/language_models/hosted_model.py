@@ -5,6 +5,7 @@ from typing import Any, Optional
 import httpx
 
 from .language_model import LanguageModel
+from ..inference_services.decorators import report_errors_async
 from ..key_management.key_lookup import KeyLookup
 from ..inference_services.services.message_builder import MessageBuilder
 
@@ -68,6 +69,7 @@ class HostedOpenAICompatibleLanguageModel(LanguageModel):
         """Return an explicit token if set, otherwise an empty string."""
         return getattr(self, "_api_token", "")
 
+    @report_errors_async
     async def async_execute_model_call(
         self,
         user_prompt: str,
@@ -131,20 +133,6 @@ class HostedOpenAICompatibleLanguageModel(LanguageModel):
             return response.json()
 
 
-class HostedModel:
-    """Sugar constructor for OpenAI-compatible hosted endpoints."""
-
-    def __new__(
-        cls,
-        model_name: str,
-        *,
-        base_url: str,
-        api_token: Optional[str] = None,
-        **kwargs: Any,
-    ) -> HostedOpenAICompatibleLanguageModel:
-        return HostedOpenAICompatibleLanguageModel(
-            model_name,
-            base_url=base_url,
-            api_token=api_token,
-            **kwargs,
-        )
+# Public concise name for the concrete hosted-model type. An alias keeps type
+# checks, copying, and pickling honest while preserving the existing constructor.
+HostedModel = HostedOpenAICompatibleLanguageModel
