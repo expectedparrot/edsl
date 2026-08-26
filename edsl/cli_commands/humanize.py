@@ -1521,10 +1521,16 @@ def register(humanize: click.Group) -> None:
                 "Provide exactly one of --survey or --jobs.",
                 exit_code=EXIT_USAGE,
             )
-        if bool(scenario_list_path) != bool(scenario_method):
+        if scenario_list_path and not scenario_method:
             error(
                 "USAGE_ERROR",
                 "--scenario_list and --scenario_method must be supplied together.",
+                exit_code=EXIT_USAGE,
+            )
+        if scenario_method and not (scenario_list_path or jobs_path):
+            error(
+                "USAGE_ERROR",
+                "--scenario_method requires --scenario_list or --jobs.",
                 exit_code=EXIT_USAGE,
             )
         if jobs_path and (scenario_list_path or agent_list_path):
@@ -1556,6 +1562,12 @@ def register(humanize: click.Group) -> None:
                     error(
                         "USAGE_ERROR",
                         "Jobs with scenarios require --scenario_method.",
+                        exit_code=EXIT_USAGE,
+                    )
+                if scenario_list is None and scenario_method is not None:
+                    error(
+                        "USAGE_ERROR",
+                        "--scenario_method requires scenarios in the Jobs object.",
                         exit_code=EXIT_USAGE,
                     )
             else:
