@@ -102,6 +102,18 @@ def test_metadata_survives_question_transformations():
 
     assert result.select("q0").data["metadata"] == result.data["metadata"]
     assert result.rename({"q0": "renamed"}).data["metadata"] == result.data["metadata"]
+    assert result.by_question_data()["metadata_data"] == {
+        "source": {"kind": "human"}
+    }
+    metadata_column = next(
+        column["metadata_data"]
+        for column in result.to_dataset().data
+        if "metadata_data" in column
+    )
+    assert metadata_column == [
+        {"source": {"kind": "human"}},
+        {"source": {"kind": "human"}},
+    ]
 
 
 def test_metadata_rejects_non_json_values():

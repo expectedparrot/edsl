@@ -224,6 +224,8 @@ class ResultTransformer:
         # non_prepended_dicts = {'question_to_attributes': ['question_text', 'question_options', 'question_type']}
         new_dict = defaultdict(dict)
         for data_type, sub_dict in self.data.items():
+            if data_type == "metadata":
+                continue
             data_class = ResultComponentDict.get_class_by_name(data_type)
             if data_class is None:
                 print("No class found for", data_type)
@@ -238,6 +240,7 @@ class ResultTransformer:
             "question_data": new_dict,
             "agent_data": self.data["agent"].to_dict(),
             "scenario_data": self.data["scenario"].to_dict(),
+            "metadata_data": self.data.get("metadata", {}),
         }
 
         # breakpoint()
@@ -293,9 +296,10 @@ class ResultTransformer:
         Returns:
             A Dataset object containing the result data organized for analysis.
         """
-        by_question_data = self.by_question_data(
+        components = self.by_question_data(
             flatten_nested_dicts=flatten_nested_dicts, separator=separator
         )
+        by_question_data = components["question_data"]
         columns = []
         data = defaultdict(list)
         for question_name in by_question_data:
@@ -309,6 +313,10 @@ class ResultTransformer:
 
         for question_name in by_question_data:
             data["question_name"].append(question_name)
+
+        row_count = len(by_question_data)
+        for component_name in ("agent_data", "scenario_data", "metadata_data"):
+            data[component_name] = [components[component_name]] * row_count
 
         from ..dataset import Dataset
 
