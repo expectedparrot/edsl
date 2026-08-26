@@ -18,6 +18,19 @@ def test_construction_and_serialization_round_trip():
     assert QuestionBase.from_dict(message.to_dict()) == message
 
 
+def test_custom_prompt_configuration_round_trips():
+    message = SurveyMessage(
+        question_name="notice",
+        question_text="Please continue.",
+        question_presentation="Custom presentation: {{ question_text }}",
+        answering_instructions="Custom instructions",
+    )
+
+    restored = QuestionBase.from_dict(message.to_dict())
+    assert restored.question_presentation == message.question_presentation
+    assert restored.answering_instructions == message.answering_instructions
+
+
 def test_response_is_deterministic_and_strict():
     message = SurveyMessage(question_name="notice", question_text="Please continue.")
 

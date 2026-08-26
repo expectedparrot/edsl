@@ -53,6 +53,8 @@ class SurveyMessage(QuestionBase):
     ):
         self.question_name = question_name
         self.question_text = question_text
+        self.question_presentation = question_presentation
+        self.answering_instructions = answering_instructions
 
     def answer_question_directly(self, scenario=None, agent_traits=None) -> dict:
         """Return the deterministic continuation response without inference."""
