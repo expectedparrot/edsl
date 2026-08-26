@@ -87,6 +87,11 @@ def test_wikipedia_rejects_urls_outside_trust_boundary(url):
         WikipediaSource(url)
 
 
+def test_wikipedia_normalizes_malformed_port_error():
+    with pytest.raises(ScenarioError, match="Wikipedia URLs"):
+        WikipediaSource("https://en.wikipedia.org:not-a-port/wiki/Test")
+
+
 @patch("requests.get")
 def test_wikipedia_rejects_off_domain_redirect(mock_get):
     response = _response()

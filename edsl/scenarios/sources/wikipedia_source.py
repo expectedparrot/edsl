@@ -48,10 +48,16 @@ class WikipediaSource(Source):
     def _validate_url(url: str) -> None:
         parsed = urlparse(url)
         hostname = (parsed.hostname or "").lower()
+        try:
+            port = parsed.port
+        except ValueError as exc:
+            raise ScenarioError(
+                "Wikipedia URLs must use HTTPS on a wikipedia.org host and the default port."
+            ) from exc
         if (
             parsed.scheme != "https"
             or not (hostname == "wikipedia.org" or hostname.endswith(".wikipedia.org"))
-            or parsed.port not in (None, 443)
+            or port not in (None, 443)
             or parsed.username is not None
             or parsed.password is not None
         ):
