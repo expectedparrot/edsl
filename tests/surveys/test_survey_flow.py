@@ -369,6 +369,66 @@ class TestSurveyFlow(unittest.TestCase):
         )
         self.assertEqual(next_item_no.question_name, "q1")
 
+    def test_rule_can_target_instruction_by_name_or_object(self):
+        end_message = Instruction(text="Early completion", name="end_message")
+        survey = Survey([self.q0, self.q1, end_message])
+        survey.add_rule("q0", "{{ q0.answer }} == 'stop'", "end_message")
+
+        next_item = survey.next_question_with_instructions(
+            "q0", {"q0.answer": "stop"}
+        )
+        self.assertIs(next_item, end_message)
+        self.assertIs(survey.next_question("q0", {"q0.answer": "stop"}), end_message)
+        self.assertIs(
+            survey.next_question_with_instructions(
+                end_message, {"q0.answer": "stop"}
+            ),
+            EndOfSurvey,
+        )
+
+        object_target = Instruction(text="Object target", name="object_target")
+        survey = Survey([self.q0, self.q1, object_target])
+        survey.add_rule("q0", "{{ q0.answer }} == 'stop'", object_target)
+        self.assertIs(
+            survey.next_question_with_instructions(
+                "q0", {"q0.answer": "stop"}
+            ),
+            object_target,
+        )
+
+        pseudo_index = survey._pseudo_indices["object_target"]
+        survey = Survey([self.q0, self.q1, object_target])
+        survey.add_rule("q0", "{{ q0.answer }} == 'stop'", pseudo_index)
+        self.assertIs(
+            survey.next_question_with_instructions(
+                "q0", {"q0.answer": "stop"}
+            ),
+            object_target,
+        )
+
+    def test_skip_rule_preserves_trailing_instruction_on_overshoot(self):
+        end_message = Instruction(text="Thanks!", name="end_message")
+        survey = Survey([self.q0, self.q1, end_message])
+        survey.add_skip_rule("q1", "{{ q0.answer }} == 'skip'")
+
+        next_item = survey.next_question_with_instructions(
+            "q0", {"q0.answer": "skip"}
+        )
+
+        self.assertIs(next_item, end_message)
+
+    def test_instruction_rule_destination_round_trips(self):
+        end_message = Instruction(text="Early completion", name="end_message")
+        survey = Survey([self.q0, self.q1, end_message])
+        survey.add_rule("q0", "{{ q0.answer }} == 'stop'", "end_message")
+
+        restored = Survey.from_dict(survey.to_dict())
+
+        next_item = restored.next_question_with_instructions(
+            "q0", {"q0.answer": "stop"}
+        )
+        self.assertEqual(next_item.name, "end_message")
+
     def test_empty_survey(self):
         """Test behavior with an empty survey."""
         survey = Survey([])

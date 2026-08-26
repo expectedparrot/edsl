@@ -1,6 +1,7 @@
 from typing import Union, TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from ...instructions import Instruction
     from ...questions import QuestionBase
     from ..survey import Survey
 
@@ -23,8 +24,8 @@ class RuleManager:
         self.survey = survey
 
     def _get_question_index(
-        self, q: Union["QuestionBase", str, "EndOfSurvey"]
-    ) -> Union[int, "EndOfSurvey"]:
+        self, q: Union["QuestionBase", "Instruction", str, float, "EndOfSurvey"]
+    ) -> Union[int, float, "EndOfSurvey"]:
         """Return the index of the question or EndOfSurvey object.
 
         :param q: The question or question name to get the index of.
@@ -48,12 +49,20 @@ class RuleManager:
         if q == EndOfSurvey:
             return EndOfSurvey
         else:
-            question_name = q if isinstance(q, str) else q.question_name
-            if question_name not in self.survey.question_name_to_index:
-                raise SurveyError(
-                    f"""Question name {question_name} not found in survey. The current question names are {self.survey.question_name_to_index}."""
-                )
-            return self.survey.question_name_to_index[question_name]
+            if isinstance(q, float):
+                return q
+            item_name = (
+                q
+                if isinstance(q, str)
+                else getattr(q, "question_name", None) or getattr(q, "name", None)
+            )
+            if item_name in self.survey.question_name_to_index:
+                return self.survey.question_name_to_index[item_name]
+            if item_name in self.survey._instruction_names_to_instructions:
+                return self.survey._pseudo_indices[item_name]
+            raise SurveyError(
+                f"""Question or instruction name {item_name} not found in survey. The current question names are {self.survey.question_name_to_index}."""
+            )
 
     def _get_new_rule_priority(
         self, question_index: int, before_rule: bool = False
@@ -90,7 +99,7 @@ class RuleManager:
         self,
         question: Union["QuestionBase", str],
         expression: str,
-        next_question: Union["QuestionBase", str, int],
+        next_question: Union["QuestionBase", "Instruction", str, int, float],
         before_rule: bool = False,
     ) -> "Survey":
         """
@@ -108,7 +117,7 @@ class RuleManager:
         question_index = self.survey._get_question_index(question)  # Fix
 
         # Might not have the name of the next question yet
-        if isinstance(next_question, int):
+        if isinstance(next_question, (int, float)):
             next_question_index = next_question
         else:
             next_question_index = self._get_question_index(next_question)

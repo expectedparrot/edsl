@@ -47,9 +47,13 @@ class QuestionIndex:
         return getattr(obj, self.name)
 
     def __set__(self, obj, value):
-        if not isinstance(value, (int, EndOfSurvey.__class__)):
-            raise SurveyError(f"{self.name} must be an integer or EndOfSurvey")
-        if self.name == "_next_q" and isinstance(value, int):
+        allowed_index_types = (int, float) if self.name == "_next_q" else (int,)
+        if not isinstance(value, (*allowed_index_types, EndOfSurvey.__class__)):
+            raise SurveyError(
+                f"{self.name} must be a question index, instruction pseudo-index, "
+                "or EndOfSurvey"
+            )
+        if self.name == "_next_q" and isinstance(value, (int, float)):
             current_q = getattr(obj, "_current_q")
             if value <= current_q:
                 raise SurveyError("next_q must be greater than current_q")
@@ -66,7 +70,7 @@ class Rule:
         self,
         current_q: int,
         expression: str,
-        next_q: Union[int, EndOfSurvey.__class__],
+        next_q: Union[int, float, EndOfSurvey.__class__],
         question_name_to_index: dict[str, int],
         priority: int,
         before_rule: bool = False,

@@ -410,7 +410,14 @@ class RuleCollection(UserList):
                 )
             end_q = self.num_questions - 1
 
-        question_range = list(range(start_q + 1, end_q + int(right_inclusive)))
+        if isinstance(end_q, float):
+            # An instruction pseudo-index is positioned between questions. Only
+            # real questions before that instruction participate in the DAG.
+            import math
+
+            question_range = list(range(start_q + 1, math.ceil(end_q)))
+        else:
+            question_range = list(range(start_q + 1, end_q + int(right_inclusive)))
 
         return question_range
 

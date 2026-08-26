@@ -56,7 +56,7 @@ class SurveyNavigator:
         self,
         current_question: Optional[Union[str, "QuestionBase"]] = None,
         answers: Optional[Dict[str, Any]] = None,
-    ) -> Union["QuestionBase", EndOfSurveyParent]:
+    ) -> Union["QuestionBase", "Instruction", EndOfSurveyParent]:
         """
         Return the next question in a survey.
 
@@ -96,6 +96,14 @@ class SurveyNavigator:
         if next_question_object.next_q == EndOfSurvey:
             return EndOfSurvey
         else:
+            if isinstance(next_question_object.next_q, float):
+                for name, index in self.survey._pseudo_indices.items():
+                    if index == next_question_object.next_q:
+                        return self.survey._instruction_names_to_instructions[name]
+                raise SurveyError(
+                    f"Instruction pseudo-index {next_question_object.next_q} "
+                    "not found in survey."
+                )
             if next_question_object.next_q >= len(self.survey.questions):
                 return EndOfSurvey
             else:
@@ -115,6 +123,16 @@ class SurveyNavigator:
                             )
                             if skip_result.next_q == EndOfSurvey:
                                 return EndOfSurvey
+                            elif isinstance(skip_result.next_q, float):
+                                for name, index in self.survey._pseudo_indices.items():
+                                    if index == skip_result.next_q:
+                                        return self.survey._instruction_names_to_instructions[
+                                            name
+                                        ]
+                                raise SurveyError(
+                                    f"Instruction pseudo-index {skip_result.next_q} "
+                                    "not found in survey."
+                                )
                             elif skip_result.next_q >= len(self.survey.questions):
                                 return EndOfSurvey
                             else:
@@ -534,6 +552,18 @@ class SurveyNavigator:
         except ValueError:
             raise SurveyError("Current item not found in survey sequence.")
 
+        def instruction_at(pseudo_index: float):
+            for name, index in self.survey._pseudo_indices.items():
+                if index == pseudo_index:
+                    return self.survey._instruction_names_to_instructions.get(name)
+            return None
+
+        def next_remaining_instruction():
+            for item in combined_items[current_position + 1 :]:
+                if self._is_instruction(item):
+                    return item
+            return EndOfSurvey
+
         # If this is an instruction, determine what comes next
         if self._is_instruction(current_item):
             # This is an instruction
@@ -564,6 +594,17 @@ class SurveyNavigator:
                         next_question_object.num_rules_found > 0
                         and next_question_object.next_q != EndOfSurvey
                     ):
+                        if isinstance(next_question_object.next_q, float):
+                            target_instruction = instruction_at(
+                                next_question_object.next_q
+                            )
+                            if target_instruction is not None:
+                                target_position = combined_items.index(
+                                    target_instruction
+                                )
+                                if target_position > current_position:
+                                    return target_instruction
+                                return combined_items[current_position + 1]
                         # There's a rule that determined the next question
                         target_question = self.survey.questions[
                             next_question_object.next_q
@@ -605,22 +646,19 @@ class SurveyNavigator:
 
         # Handle end of survey case
         if next_question_object.next_q == EndOfSurvey:
-            # Check if there are any instructions after the current question before ending
-            next_position = current_position + 1
-            if next_position < len(combined_items):
-                next_item = combined_items[next_position]
-                if self._is_instruction(next_item):
-                    return next_item
-            return EndOfSurvey
+            return next_remaining_instruction()
+
+        if isinstance(next_question_object.next_q, float):
+            target_instruction = instruction_at(next_question_object.next_q)
+            if target_instruction is None:
+                raise SurveyError(
+                    f"Instruction pseudo-index {next_question_object.next_q} "
+                    "not found in survey."
+                )
+            return target_instruction
 
         if next_question_object.next_q >= len(self.survey.questions):
-            # Check if there are any instructions after the current question before ending
-            next_position = current_position + 1
-            if next_position < len(combined_items):
-                next_item = combined_items[next_position]
-                if self._is_instruction(next_item):
-                    return next_item
-            return EndOfSurvey
+            return next_remaining_instruction()
 
         # Check if the next question has any "before rules" (skip rules)
         candidate_next_q = next_question_object.next_q
@@ -637,21 +675,17 @@ class SurveyNavigator:
                         candidate_next_q, answer_dict
                     )
                     if skip_result.next_q == EndOfSurvey:
-                        # Check if there are any instructions after the current question before ending
-                        next_position = current_position + 1
-                        if next_position < len(combined_items):
-                            next_item = combined_items[next_position]
-                            if self._is_instruction(next_item):
-                                return next_item
-                        return EndOfSurvey
+                        return next_remaining_instruction()
+                    elif isinstance(skip_result.next_q, float):
+                        target_instruction = instruction_at(skip_result.next_q)
+                        if target_instruction is None:
+                            raise SurveyError(
+                                f"Instruction pseudo-index {skip_result.next_q} "
+                                "not found in survey."
+                            )
+                        return target_instruction
                     elif skip_result.next_q >= len(self.survey.questions):
-                        # Check if there are any instructions after the current question before ending
-                        next_position = current_position + 1
-                        if next_position < len(combined_items):
-                            next_item = combined_items[next_position]
-                            if self._is_instruction(next_item):
-                                return next_item
-                        return EndOfSurvey
+                        return next_remaining_instruction()
                     else:
                         candidate_next_q = skip_result.next_q
                 except Exception:
@@ -662,13 +696,7 @@ class SurveyNavigator:
                 break
 
         if candidate_next_q >= len(self.survey.questions):
-            # Check if there are any instructions after the current question before ending
-            next_position = current_position + 1
-            if next_position < len(combined_items):
-                next_item = combined_items[next_position]
-                if self._is_instruction(next_item):
-                    return next_item
-            return EndOfSurvey
+            return next_remaining_instruction()
 
         # Find the target question in the combined list
         target_question = self.survey.questions[candidate_next_q]

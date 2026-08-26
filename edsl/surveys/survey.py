@@ -728,7 +728,7 @@ class Survey(Base):
 
     def _get_question_index(
         self, q: Union["QuestionBase", str, EndOfSurveyParent]
-    ) -> Union[int, EndOfSurveyParent]:
+    ) -> Union[int, float, EndOfSurveyParent]:
         """Return the index of the question or EndOfSurvey object.
 
         :param q: The question or question name to get the index of.
@@ -751,12 +751,16 @@ class Survey(Base):
             elif isinstance(q, EndOfSurveyParent):
                 return EndOfSurvey
             else:
-                question_name = q.question_name
-            if question_name not in self.question_name_to_index:
-                raise SurveyError(
-                    f"""Question name {question_name} not found in survey. The current question names are {self.question_name_to_index}."""
+                question_name = getattr(q, "question_name", None) or getattr(
+                    q, "name", None
                 )
-            return self.question_name_to_index[question_name]
+            if question_name in self.question_name_to_index:
+                return self.question_name_to_index[question_name]
+            if question_name in self._instruction_names_to_instructions:
+                return self._pseudo_indices[question_name]
+            raise SurveyError(
+                f"""Question or instruction name {question_name} not found in survey. The current question names are {self.question_name_to_index}."""
+            )
 
     def _get_question_by_name(self, question_name: str) -> QuestionBase:
         """Return the question object given the question name.
@@ -2480,7 +2484,9 @@ class Survey(Base):
         self,
         question: Union["QuestionBase", str],
         expression: str,
-        next_question: Union["QuestionBase", str, int, EndOfSurveyParent],
+        next_question: Union[
+            "QuestionBase", "Instruction", str, int, float, EndOfSurveyParent
+        ],
         before_rule: bool = False,
     ) -> Survey:
         """Add a conditional rule for navigating between questions in the survey.
@@ -2498,9 +2504,9 @@ class Survey(Base):
             expression: A string expression that will be evaluated to determine if the
                 rule should trigger. Can reference previous questions' answers using
                 the template syntax, e.g., "{{ q0.answer }} == 'yes'".
-            next_question: The destination question to jump to if the expression is True.
-                Can be specified as a QuestionBase object, a question_name string, an index,
-                or the EndOfSurvey class to end the survey.
+            next_question: The destination question or instruction to jump to if the
+                expression is True. Can be specified as an object, a name, an index or
+                instruction pseudo-index, or the EndOfSurvey class to end the survey.
             before_rule: If True, the rule is evaluated before the question is presented.
                 If False (default), the rule is evaluated after the question is answered.
 
