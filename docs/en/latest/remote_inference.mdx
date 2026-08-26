@@ -3,6 +3,16 @@ title: "Remote Inference"
 description: "Remote inference allows you to run surveys at the Expected Parrot server instead of locally on your own machine, and to use [Remote Caching](/en/latest/remote_caching) to store survey results and logs at your account."
 ---
 
+## Per-interview execution timeout
+
+Use `--task-timeout` to limit how long each remotely executed interview may run:
+
+```bash
+ep run --jobs jobs.ep --task-timeout 900 --output results.ep
+```
+
+This is different from `--timeout`: `--task-timeout` is enforced for each interview on the remote worker, while `--timeout` limits how long the local CLI waits or polls. The value is specified in seconds and must be positive. It is supported by the current remote-inference format; the legacy format ignores it and emits a warning.
+
 <Note>
 *Note: You must have an Expected Parrot account in order to use remote inference and caching. By using remote inference you agree to any terms of use of service providers, which Expected Parrot may accept on your behalf and enforce in accordance with our terms of use.*
 </Note>
