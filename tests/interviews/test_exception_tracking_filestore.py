@@ -37,3 +37,35 @@ def test_filestore_reproduction_sketch_uses_path_without_truncated_payload(tmp_p
 
     restored = namespace["scenario"]["image"]
     assert restored.base64_string == file_store.base64_string
+
+
+def test_reproduction_sketch_handles_recursive_scenario_containers():
+    recursive_list = []
+    recursive_list.append(recursive_list)
+    question = QuestionMultipleChoice(
+        question_name="colors",
+        question_text="Choose a color",
+        question_options=["red", "blue"],
+    )
+    scenario = Scenario({"recursive": recursive_list})
+    agent = Agent()
+    model = Model("test", throw_exception=True)
+    invigilator = agent.create_invigilator(
+        question=question,
+        cache=Cache(),
+        survey=Survey([question]),
+        scenario=scenario,
+        model=model,
+    )
+
+    code = InterviewExceptionEntry(
+        exception=RuntimeError("forced"), invigilator=invigilator
+    ).code_to_reproduce
+
+    assert "<recursive reference omitted>" in code
+    definitions = code.rsplit("\nresults =", maxsplit=1)[0]
+    namespace = {}
+    exec(definitions, namespace)
+    assert namespace["scenario"]["recursive"] == [
+        "<recursive reference omitted>"
+    ]

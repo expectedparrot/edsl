@@ -108,6 +108,7 @@ class InterviewExceptionEntry:
         from ..scenarios import FileStore
 
         contains_files = False
+        active_container_ids = set()
 
         def diagnostic_repr(value):
             nonlocal contains_files
@@ -115,19 +116,28 @@ class InterviewExceptionEntry:
                 contains_files = True
                 path = value.path or "REPLACE_WITH_PATH_TO_FILE"
                 return f"FileStore({path!r})"
-            if isinstance(value, dict):
-                items = ", ".join(
-                    f"{key!r}: {diagnostic_repr(item)}"
-                    for key, item in value.items()
-                )
-                return "{" + items + "}"
-            if isinstance(value, list):
-                return "[" + ", ".join(diagnostic_repr(item) for item in value) + "]"
-            if isinstance(value, tuple):
-                items = ", ".join(diagnostic_repr(item) for item in value)
-                if len(value) == 1:
-                    items += ","
-                return "(" + items + ")"
+            if isinstance(value, (dict, list, tuple)):
+                container_id = id(value)
+                if container_id in active_container_ids:
+                    return repr("<recursive reference omitted>")
+                active_container_ids.add(container_id)
+                try:
+                    if isinstance(value, dict):
+                        items = ", ".join(
+                            f"{key!r}: {diagnostic_repr(item)}"
+                            for key, item in value.items()
+                        )
+                        return "{" + items + "}"
+                    if isinstance(value, list):
+                        return "[" + ", ".join(
+                            diagnostic_repr(item) for item in value
+                        ) + "]"
+                    items = ", ".join(diagnostic_repr(item) for item in value)
+                    if len(value) == 1:
+                        items += ","
+                    return "(" + items + ")"
+                finally:
+                    active_container_ids.remove(container_id)
             return repr(value)
 
         scenario_repr = "Scenario(" + diagnostic_repr(self.invigilator.scenario.data) + ")"
