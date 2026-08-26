@@ -2152,16 +2152,19 @@ class Coop(CoopFunctionsMixin):
 
         job_uuid = response_json.get("job_uuid")
 
+        uploaded_payload = {
+            "job_uuid": job_uuid,
+            "message": "Job uploaded successfully",
+            "nr_questions": job.nr_questions,
+            "initial_results_description": initial_results_description,
+        }
+        if task_timeout is not None:
+            uploaded_payload["task_timeout"] = task_timeout
+
         response = self._send_server_request(
             uri="api/v0/new-remote-inference/uploaded",
             method="POST",
-            payload={
-                "job_uuid": job_uuid,
-                "message": "Job uploaded successfully",
-                "nr_questions": job.nr_questions,
-                "initial_results_description": initial_results_description,
-                "task_timeout": task_timeout,
-            },
+            payload=uploaded_payload,
         )
         response_json = response.json()
 

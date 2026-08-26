@@ -1,6 +1,7 @@
 from typing import Optional, Union, Literal, TYPE_CHECKING, NewType, Callable, Any
 from dataclasses import dataclass
 import time
+import warnings
 from datetime import datetime
 
 
@@ -155,6 +156,7 @@ class JobsRemoteInferenceHandler:
             new_format: If True, use pull method for result retrieval; if False, use legacy get method
             alert_on_completion_config: Optional config for job completion alerts (email and/or webhooks)
             results_description: Optional description for the initial results object
+            task_timeout: Maximum execution time in seconds for each remote interview
 
         Returns:
             RemoteJobInfo: Information about the created job including UUID and logger
@@ -187,6 +189,12 @@ class JobsRemoteInferenceHandler:
                 task_timeout=task_timeout,
             )
         else:
+            if task_timeout is not None:
+                warnings.warn(
+                    "task_timeout is not supported by the legacy remote inference format and will be ignored.",
+                    UserWarning,
+                    stacklevel=2,
+                )
             remote_job_creation_data = coop.old_remote_inference_create(
                 self.jobs,
                 description=remote_inference_description,
