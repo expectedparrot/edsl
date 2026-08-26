@@ -207,13 +207,19 @@ def create_checkbox_response_model(
             @model_validator(mode="after")
             def validate_selection_count(self):
                 """Validate that the number of selections meets constraints."""
-                if any(choice in exclusive_choices for choice in self.answer):
+                has_exclusive_choice = any(
+                    choice in exclusive_choices for choice in self.answer
+                )
+                if has_exclusive_choice:
                     if len(self.answer) != 1:
                         raise ValueError(
                             "Exclusive options must be selected by themselves"
                         )
-                    return self
-                if min_selections is not None and len(self.answer) < min_selections:
+                if (
+                    not has_exclusive_choice
+                    and min_selections is not None
+                    and len(self.answer) < min_selections
+                ):
                     validation_error = ValidationError.from_exception_data(
                         title="CheckboxResponse",
                         line_errors=[
@@ -787,9 +793,11 @@ class QuestionCheckBox(QuestionBase):
         exclusive_options = list(exclusive_options or [])
         if len(exclusive_options) != len(set(exclusive_options)):
             raise QuestionValueError("exclusive_options must not contain duplicates")
-        unknown_exclusive_options = [
-            option for option in exclusive_options if option not in question_options
-        ]
+        unknown_exclusive_options = (
+            [option for option in exclusive_options if option not in question_options]
+            if isinstance(question_options, list)
+            else []
+        )
         if unknown_exclusive_options:
             raise QuestionValueError(
                 "exclusive_options must exactly match question_options; unknown: "

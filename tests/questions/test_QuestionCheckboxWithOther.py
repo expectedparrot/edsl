@@ -153,6 +153,23 @@ def test_exclusive_option_with_codes():
     with pytest.raises(QuestionAnswerValidationError, match="selected by themselves"):
         question._validate_answer({"answer": [2, "Other: Sushi"]})
 
+    instructions = question.answering_instructions.render(question.data)
+    assert "[2]" in instructions
+    assert "['None']" not in instructions
+
+
+def test_exclusive_option_with_other_still_honors_maximum_selection_count():
+    question = QuestionCheckBoxWithOther(
+        question_name="foods",
+        question_text="Which foods do you enjoy?",
+        question_options=["Pizza", "None"],
+        max_selections=0,
+        exclusive_options=["None"],
+    )
+
+    with pytest.raises(QuestionAnswerValidationError, match="at most 0"):
+        question._validate_answer({"answer": ["None"]})
+
 
 def test_prompt_and_html_include_other_option(question):
     replacements = question.data

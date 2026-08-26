@@ -27,12 +27,18 @@ def create_checkbox_with_other_response_model(
 
         @model_validator(mode="after")
         def validate_answer(self):
-            if any(choice in (exclusive_choices or []) for choice in self.answer):
+            has_exclusive_choice = any(
+                choice in (exclusive_choices or []) for choice in self.answer
+            )
+            if has_exclusive_choice:
                 if len(self.answer) != 1:
                     raise ValueError("Exclusive options must be selected by themselves")
-                return self
             if not permissive:
-                if min_selections is not None and len(self.answer) < min_selections:
+                if (
+                    not has_exclusive_choice
+                    and min_selections is not None
+                    and len(self.answer) < min_selections
+                ):
                     raise ValueError(f"Must select at least {min_selections} option(s)")
                 if max_selections is not None and len(self.answer) > max_selections:
                     raise ValueError(f"Must select at most {max_selections} option(s)")

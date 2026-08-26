@@ -373,6 +373,35 @@ def test_exclusive_options_use_codes_and_remain_strict_when_permissive():
     with pytest.raises(QuestionAnswerValidationError, match="selected by themselves"):
         q._validate_answer({"answer": [0, 2]})
 
+    instructions = q.answering_instructions.render(q.data)
+    assert "selected by itself" in instructions
+    assert "[2]" in instructions
+    assert "['None']" not in instructions
+
+
+def test_exclusive_option_still_honors_maximum_selection_count():
+    q = QuestionCheckBox(
+        question_name="weekdays",
+        question_text="Which weekdays do you like?",
+        question_options=["Mon", "None"],
+        max_selections=0,
+        exclusive_options=["None"],
+    )
+
+    with pytest.raises(QuestionAnswerValidationError, match="at most 0"):
+        q._validate_answer({"answer": ["None"]})
+
+
+def test_dynamic_options_allow_deferred_exclusive_option_membership():
+    q = QuestionCheckBox(
+        question_name="weekdays",
+        question_text="Which weekdays do you like?",
+        question_options="{{ scenario.options }}",
+        exclusive_options=["None"],
+    )
+
+    assert q.exclusive_options == ["None"]
+
 
 def test_exclusive_options_must_be_exact_unique_question_options():
     kwargs = {
