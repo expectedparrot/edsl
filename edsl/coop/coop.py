@@ -2855,10 +2855,9 @@ class Coop(CoopFunctionsMixin):
         )
         self._resolve_server_response(response)
         response_json = response.json()
-        return {
-            "credits_hold": response_json.get("cost_in_credits"),
-            "usd": response_json.get("cost_in_usd"),
-        }
+        from ..jobs.cost_estimate_contract import apply_cost_estimate_contract
+
+        return apply_cost_estimate_contract(job, response_json)
 
     ################
     # HUMAN SURVEYS
