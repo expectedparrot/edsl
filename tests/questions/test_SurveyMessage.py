@@ -40,6 +40,14 @@ def test_response_is_deterministic_and_strict():
         message._validate_answer({"answer": "skip"})
 
 
+def test_example_supports_the_question_registry():
+    from edsl.questions.question_registry import Question
+
+    message = Question.example("survey_message")
+    assert isinstance(message, SurveyMessage)
+    assert message.question_name == "survey_message"
+
+
 def test_run_records_answer_without_calling_model():
     calls = 0
 

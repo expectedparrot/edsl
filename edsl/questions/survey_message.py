@@ -72,6 +72,15 @@ class SurveyMessage(QuestionBase):
         """Return the deterministic response used by simulations."""
         return self.answer_question_directly()
 
+    @classmethod
+    def example(cls, randomize: bool = False) -> "SurveyMessage":
+        """Return an example message for registries, docs, and tests."""
+        suffix = " (example)" if randomize else ""
+        return cls(
+            question_name="survey_message",
+            question_text=f"Please review this information before continuing.{suffix}",
+        )
+
     @property
     def question_html_content(self) -> str:
         """Return simple display markup; interactive clients provide the action."""
