@@ -556,7 +556,11 @@ class QuestionBudget(QuestionBase):
         self.question_name = question_name
         self.question_text = question_text
         self.question_options = question_options
-        if remainder_option is not None and remainder_option not in question_options:
+        if (
+            remainder_option is not None
+            and isinstance(question_options, list)
+            and remainder_option not in question_options
+        ):
             from .exceptions import QuestionValueError
 
             raise QuestionValueError(

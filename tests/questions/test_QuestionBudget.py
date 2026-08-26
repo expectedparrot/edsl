@@ -223,6 +223,18 @@ def test_QuestionBudget_rejects_unknown_remainder_option():
         QuestionBudget(**valid_question, remainder_option="Other")
 
 
+def test_QuestionBudget_defers_remainder_membership_for_dynamic_options():
+    question = QuestionBudget(
+        question_name="budget",
+        question_text="Allocate your budget",
+        question_options="{{ scenario.options }}",
+        budget_sum=100,
+        remainder_option="Other",
+    )
+
+    assert question.remainder_option == "Other"
+
+
 def test_QuestionBudget_repairs_single_labeled_allocation_string():
     q = QuestionBudget(
         question_name="revenue_split",
