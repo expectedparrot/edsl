@@ -760,6 +760,14 @@ class YesNoHumanizeSchema(HumanizeSchemaBase):
     submitting_indicator: Optional[SubmittingIndicator] = None
 
 
+class SurveyMessageHumanizeSchema(HumanizeSchemaBase):
+    """Humanize marker for a display-only SurveyMessage.
+
+    Messages intentionally expose no input-oriented configuration. The client
+    chooses Continue or Finish from the message's position in the survey.
+    """
+
+
 HumanizeQuestionSchema = Union[
     FreeTextHumanizeSchema,
     BudgetHumanizeSchema,
@@ -779,6 +787,7 @@ HumanizeQuestionSchema = Union[
     RankHumanizeSchema,
     TopKHumanizeSchema,
     YesNoHumanizeSchema,
+    SurveyMessageHumanizeSchema,
 ]
 
 
@@ -811,6 +820,7 @@ QUESTION_TYPE_TO_HUMANIZE_CLASS: Dict[str, Type[BaseModel]] = {
     "rank": RankHumanizeSchema,
     "top_k": TopKHumanizeSchema,
     "yes_no": YesNoHumanizeSchema,
+    "survey_message": SurveyMessageHumanizeSchema,
 }
 
 
