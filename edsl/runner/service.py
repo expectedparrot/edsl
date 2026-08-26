@@ -2089,7 +2089,9 @@ class JobService:
                     )
                     # Apply per-interview randomized permutation if present
                     if option_permutations and q_name in option_permutations:
-                        q_options = option_permutations[q_name]
+                        q_options = self._resolve_question_options(
+                            option_permutations[q_name], answer_dict, scenario
+                        )
                     question_to_attributes[q_name] = {
                         "question_text": q_data.get("question_text", ""),
                         "question_type": q_data.get("question_type", ""),
