@@ -2089,7 +2089,9 @@ class JobService:
                     )
                     # Apply per-interview randomized permutation if present
                     if option_permutations and q_name in option_permutations:
-                        q_options = option_permutations[q_name]
+                        q_options = self._resolve_question_options(
+                            option_permutations[q_name], answer_dict, scenario
+                        )
                     question_to_attributes[q_name] = {
                         "question_text": q_data.get("question_text", ""),
                         "question_type": q_data.get("question_type", ""),
@@ -2547,8 +2549,9 @@ class JobService:
 
         Handles:
         - String templates: "{{ q1.answer }}"
+        - Lists containing templates: ["Fixed", "{{ q1.answer }}"]
         - Dict format: {"from": "{{ q1.answer }}", "add": ["Other"]}
-        - Non-template values (lists, None): returned as-is
+        - Non-template values: returned as-is
         """
 
         # Dict format: {"from": "{{ q1.answer }}", "add": ["Option X"]}
@@ -2567,7 +2570,16 @@ class JobService:
         if isinstance(options, str) and "{{" in options:
             return JobService._resolve_template_string(options, answer_dict, scenario)
 
-        # Non-template (list, None, etc.) — return as-is
+        # Mixed static/dynamic list: render each templated option independently.
+        if isinstance(options, list):
+            return [
+                JobService._resolve_template_string(option, answer_dict, scenario)
+                if isinstance(option, str) and "{{" in option
+                else option
+                for option in options
+            ]
+
+        # Non-template (None, scalar, etc.) — return as-is
         return options
 
     @staticmethod
