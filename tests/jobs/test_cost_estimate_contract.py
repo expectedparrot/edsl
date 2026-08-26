@@ -54,6 +54,31 @@ def test_non_reasoning_model_remains_point_estimate():
     assert result["warnings"] == []
 
 
+def test_question_level_reasoning_model_is_labeled_lower_bound():
+    job = _job("gpt-4o")
+    job.survey = SimpleNamespace(
+        questions=[
+            SimpleNamespace(
+                _model=SimpleNamespace(
+                    model="gpt-5-mini",
+                    _inference_service_="openai",
+                    parameters={},
+                )
+            )
+        ]
+    )
+
+    result = apply_cost_estimate_contract(
+        job,
+        {"cost_in_usd": 0.5, "cost_in_credits": 50},
+    )
+
+    assert result["estimate_kind"] == "lower_bound"
+    models = result["assumptions"]["reasoning_tokens"]["models"]
+    assert [model["model"] for model in models] == ["gpt-5-mini"]
+    assert result["warnings"]
+
+
 def test_richer_server_range_is_preserved():
     response = {
         "cost_in_usd": 1.0,

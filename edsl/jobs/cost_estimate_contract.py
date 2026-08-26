@@ -22,6 +22,17 @@ def _reasoning_model(model: Any) -> dict[str, Any] | None:
     }
 
 
+def _effective_models(job: Any) -> list[Any]:
+    """Return job-level models plus models assigned to individual questions."""
+    models = list(getattr(job, "models", []) or [])
+    survey = getattr(job, "survey", None)
+    for question in getattr(survey, "questions", []) or []:
+        question_model = getattr(question, "_model", None)
+        if question_model is not None:
+            models.append(question_model)
+    return models
+
+
 def apply_cost_estimate_contract(job: Any, response_json: dict) -> dict:
     """Normalize server cost data and expose known reasoning-token uncertainty."""
     cost = {
@@ -49,7 +60,7 @@ def apply_cost_estimate_contract(job: Any, response_json: dict) -> dict:
 
     reasoning_models = [
         details
-        for model in getattr(job, "models", [])
+        for model in _effective_models(job)
         if (details := _reasoning_model(model)) is not None
     ]
     cost["is_exact"] = False
