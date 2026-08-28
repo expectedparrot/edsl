@@ -949,7 +949,7 @@ class Jobs(Base):
                 "<tr>"
                 f"<td>{index}</td>"
                 f"<td><code>{html_module.escape(str(question_name))}</code></td>"
-                f"<td><span class=\"pill\">{html_module.escape(str(question_type))}</span></td>"
+                f'<td><span class="pill">{html_module.escape(str(question_type))}</span></td>'
                 f"<td>{html_module.escape(str(question_text))}</td>"
                 f"<td>{self._jobs_pre_html(self._jobs_question_details(question))}</td>"
                 "</tr>"
@@ -959,9 +959,7 @@ class Jobs(Base):
         return (
             "<table><thead><tr>"
             "<th>#</th><th>Name</th><th>Type</th><th>Text</th><th>Details</th>"
-            "</tr></thead><tbody>"
-            + "".join(rows)
-            + "</tbody></table>"
+            "</tr></thead><tbody>" + "".join(rows) + "</tbody></table>"
         )
 
     @staticmethod
@@ -1791,7 +1789,9 @@ class Jobs(Base):
                     found.extend(descendants(child))
                 return found
 
-            service_classes = list(dict.fromkeys(descendants(OpenAIService) + descendants(OpenAIServiceV2)))
+            service_classes = list(
+                dict.fromkeys(descendants(OpenAIService) + descendants(OpenAIServiceV2))
+            )
             for svc_cls in service_classes:
                 for client in list(svc_cls._async_client_instances.values()):
                     try:
@@ -1812,12 +1812,95 @@ class Jobs(Base):
         """Execute job locally using the Runner engine."""
         from ..runner.runner import Runner
 
+        schedule = self.run_config.parameters.interview_schedule
+        from .interview_schedule import InterviewSchedule
+
+        if schedule == "serial":
+            from .exceptions import JobsValueError
+
+            if len(self.scenarios) != 1 or len(self.models) != 1:
+                raise JobsValueError(
+                    "interview_schedule='serial' currently requires exactly one "
+                    "scenario and one model"
+                )
+            if self.run_config.parameters.n != 1:
+                raise JobsValueError(
+                    "interview_schedule='serial' currently requires n=1; run "
+                    "each discussion round as a separate serial job"
+                )
+        elif isinstance(schedule, InterviewSchedule):
+            from .exceptions import JobsValueError
+
+            if schedule.kind not in {"grouped_round_robin", "rounds"}:
+                raise JobsValueError(
+                    f"unknown interview schedule kind '{schedule.kind}'"
+                )
+            if len(self.scenarios) != 1 or len(self.models) != 1:
+                raise JobsValueError(
+                    "grouped_round_robin currently requires exactly one scenario "
+                    "and one model"
+                )
+            for condition in (schedule.stop_when, schedule.finalize_when):
+                if condition is None:
+                    continue
+                shared_state = getattr(self.survey, "shared_state", None)
+                if shared_state is None:
+                    raise JobsValueError(
+                        "a schedule state condition requires a Survey with shared state"
+                    )
+                primitive = shared_state.primitives.get(condition.target)
+                if primitive is None or not callable(
+                    getattr(primitive, condition.predicate, None)
+                ):
+                    raise JobsValueError(
+                        "schedule condition does not reference a valid shared-state predicate"
+                    )
+            required_traits = (
+                (schedule.group_by, schedule.order_by)
+                if schedule.kind == "grouped_round_robin"
+                else (schedule.group_by, schedule.order_by)
+            )
+            for agent in self.agents:
+                missing = [
+                    key
+                    for key in required_traits
+                    if key is not None and key not in agent.traits
+                ]
+                if missing:
+                    raise JobsValueError(
+                        f"agent '{agent.name}' is missing schedule traits {missing}"
+                    )
+            if schedule.kind == "grouped_round_robin":
+                seen_positions = set()
+                for agent in self.agents:
+                    position = (
+                        agent.traits[schedule.group_by],
+                        agent.traits[schedule.order_by],
+                    )
+                    if position in seen_positions:
+                        raise JobsValueError(
+                            "grouped_round_robin requires unique order values within "
+                            f"each group; duplicate position {position!r}"
+                        )
+                    seen_positions.add(position)
+        elif schedule != "concurrent":
+            from .exceptions import JobsValueError
+
+            raise JobsValueError(
+                f"unknown interview_schedule {schedule!r}; expected 'concurrent', "
+                "'serial', or an InterviewSchedule"
+            )
         runner = Runner(
-            max_workers=self.run_config.parameters.max_concurrency or 400
+            max_workers=self.run_config.parameters.max_concurrency or 400,
+            interview_schedule=schedule,
         )
         handle = runner.submit(
             self,
-            n=self.run_config.parameters.n,
+            n=(
+                schedule.count
+                if getattr(schedule, "kind", None) == "rounds"
+                else self.run_config.parameters.n
+            ),
             cache=self.run_config.environment.cache,
             stop_on_exception=self.run_config.parameters.stop_on_exception,
             stream_to_cas=True,
@@ -2132,7 +2215,7 @@ class Jobs(Base):
                 continue
 
             self._logger.info(
-                f"Running batch {i+1}/{num_batches} with {len(batch)} interviews"
+                f"Running batch {i + 1}/{num_batches} with {len(batch)} interviews"
             )
 
             # Extract just the interviews (without original indices) for this batch
@@ -2152,15 +2235,15 @@ class Jobs(Base):
                         result.order = original_index
                     else:
                         self._logger.warning(
-                            f"Batch {i+1}: more results ({len(batch_result.data)}) than expected ({len(batch)})"
+                            f"Batch {i + 1}: more results ({len(batch_result.data)}) than expected ({len(batch)})"
                         )
 
                 batch_results.append(batch_result)
                 self._logger.info(
-                    f"Batch {i+1} completed with {len(batch_result)} results"
+                    f"Batch {i + 1} completed with {len(batch_result)} results"
                 )
             else:
-                self._logger.warning(f"Batch {i+1} returned None results")
+                self._logger.warning(f"Batch {i + 1} returned None results")
 
         if not batch_results:
             self._logger.warning("No batch results to merge")

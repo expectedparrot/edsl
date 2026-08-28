@@ -9,7 +9,7 @@ The key component is an expression specifiying the logic of the rule, which can 
 The expression must be about questions "before" the current question.
 
 Only one rule should apply at each priority level.
-If multiple rules apply, the one with the highest priority is used. 
+If multiple rules apply, the one with the highest priority is used.
 If there are conflicting rules, an exception is raised.
 
 If no rule is specified, the next question is given as the default.
@@ -124,8 +124,11 @@ class Rule:
             )
 
         # make sure all the variables in the expression are known questions
+        context_names = {"agent", "scenario"}
         invalid_question_names = [
-            q for q in extracted_question_names if q not in question_name_to_index
+            q
+            for q in extracted_question_names
+            if q not in question_name_to_index and q not in context_names
         ]
         if invalid_question_names:
             available_questions = list(question_name_to_index.keys())
@@ -155,8 +158,9 @@ class Rule:
                 raise SurveyRuleRefersToFutureStateError
 
         if (
-            referenced_questions := self._prior_question_is_in_expression()
-        ) and not self._is_jinja2_expression():  # raise ValueError("This uses the old syntax!")
+            (referenced_questions := self._prior_question_is_in_expression())
+            and not self._is_jinja2_expression()
+        ):  # raise ValueError("This uses the old syntax!")
             import warnings
 
             old_expression = self.expression

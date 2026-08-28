@@ -637,8 +637,120 @@ class Survey(Base):
 
     def _process_raw_questions(self, questions: Optional[List["QuestionType"]]) -> list:
         """Process the raw questions passed to the survey."""
+        from ..sharedstate.steps import BeforeQuestionAction, Step, WriteStep
+        from ..sharedstate.exceptions import SharedStateAuthoringError
+        from ..questions import QuestionBase
+
+        ordinary, anchored_steps, before_actions = [], {}, {}
+        state = None
+        preceding_question = None
+        known_questions = set()
+        for item in questions or []:
+            if isinstance(item, BeforeQuestionAction):
+                primitive_state = item.primitive.parent
+                if state is not None and primitive_state is not state:
+                    raise SharedStateAuthoringError(
+                        "actions and steps reference different SharedState objects"
+                    )
+                state = primitive_state
+                valid_before_ops = {
+                    "SharedWorkPool": {"claim"},
+                    "SharedSignalSchedule": {"reveal"},
+                }
+                if item.op not in valid_before_ops.get(
+                    type(item.primitive).__name__, set()
+                ):
+                    raise SharedStateAuthoringError(
+                        f"operation '{item.op}' is not a valid before-question action "
+                        f"for {type(item.primitive).__name__}"
+                    )
+                if item.answer_refs:
+                    raise SharedStateAuthoringError(
+                        "before-question actions cannot reference question answers"
+                    )
+                before_actions.setdefault(item.question_name, []).append(item)
+                continue
+            if isinstance(item, Step):
+                if preceding_question is None:
+                    raise SharedStateAuthoringError(
+                        "a write step must follow the question whose answer it uses"
+                    )
+                primitive_state = item.primitive.parent
+                if state is not None and primitive_state is not state:
+                    raise SharedStateAuthoringError(
+                        "steps reference two different SharedState objects "
+                        f"('{state.scope}' and '{primitive_state.scope}'); a survey uses exactly one"
+                    )
+                state = primitive_state
+                if isinstance(item, WriteStep):
+                    valid_ops = {
+                        "SharedCounterMap": {"tally"},
+                        "SharedMatchPool": {"collect"},
+                        "SharedDeferredAcceptance": {"collect"},
+                        "SharedAuction": {"bid"},
+                        "SharedDoubleAuction": {"submit"},
+                        "SharedMessageBoard": {"add"},
+                        "SharedNegotiation": {"record"},
+                        "SharedAgenda": {"propose", "vote"},
+                        "SharedForecast": {"submit"},
+                        "SharedDelphiPanel": {"submit"},
+                        "SharedLog": {"append"},
+                        "SharedWorkPool": {"complete"},
+                        "SharedResourceBoard": {"allocate"},
+                        "SharedBinaryMarket": {"trade"},
+                        "SharedCoalitionPool": {"request"},
+                        "SharedBudgetPool": {"fund"},
+                        "SharedDocument": {"revise"},
+                        "SharedUltimatumGame": {"act", "offer", "respond"},
+                        "SharedMoneyRequestGame": {"submit"},
+                        "SharedMatrixGame": {"submit"},
+                        "SharedRepeatedMatrixGame": {"submit"},
+                        "SharedDictatorGame": {"allocate"},
+                        "SharedTrustGame": {"send", "return"},
+                        "SharedBeautyContest": {"submit"},
+                        "SharedCommonPoolGame": {"extract"},
+                        "SharedCentipedeGame": {"move"},
+                        "SharedMarketEntryGame": {"submit"},
+                        "SharedSealedAuction": {"bid"},
+                        "SharedBilateralTrade": {"offer", "respond"},
+                        "SharedSignalingGame": {"signal", "decide"},
+                        "SharedNashDemandGame": {"demand"},
+                        "SharedVotingGame": {"vote"},
+                        "SharedCheapTalkGame": {"message", "act"},
+                        "SharedPrincipalAgentGame": {"contract", "effort"},
+                    }.get(type(item.primitive).__name__, set())
+                    valid_ops = getattr(
+                        item.primitive, "valid_operations", valid_ops
+                    )
+                    if item.op not in valid_ops:
+                        raise SharedStateAuthoringError(
+                            f"operation '{item.op}' is not valid for {type(item.primitive).__name__}"
+                        )
+                    for ref in item.answer_refs:
+                        if ref.question_name not in known_questions:
+                            raise SharedStateAuthoringError(
+                                f"write step after '{preceding_question}' references '{ref.question_name}', "
+                                "which is not a question at or before the step"
+                            )
+                anchored_steps.setdefault(preceding_question, []).append(item)
+                continue
+            ordinary.append(item)
+            if isinstance(item, QuestionBase):
+                preceding_question = item.question_name
+                known_questions.add(preceding_question)
+        self.shared_state = state
+        self._shared_state_steps = anchored_steps
+        question_names = {
+            item.question_name for item in ordinary if isinstance(item, QuestionBase)
+        }
+        unknown_actions = set(before_actions) - question_names
+        if unknown_actions:
+            raise SharedStateAuthoringError(
+                f"before-question actions reference unknown questions {sorted(unknown_actions)}"
+            )
+        self._before_question_actions = before_actions
         handler = InstructionHandler(self)
-        result = handler.separate_questions_and_instructions(questions or [])
+        result = handler.separate_questions_and_instructions(ordinary)
 
         # Handle result safely for mypy
         if (
@@ -647,7 +759,9 @@ class Survey(Base):
             and hasattr(result, "pseudo_indices")
         ):
             # It's the SeparatedComponents dataclass
-            self._instruction_names_to_instructions = result.instruction_names_to_instructions  # type: ignore
+            self._instruction_names_to_instructions = (
+                result.instruction_names_to_instructions
+            )  # type: ignore
             self._pseudo_indices = PseudoIndices(result.pseudo_indices)  # type: ignore
             return result.true_questions  # type: ignore
         else:
@@ -872,6 +986,18 @@ class Survey(Base):
             ),
             "question_groups": self.question_groups,
         }
+        if self.shared_state is not None:
+            d["shared_state"] = {
+                "config": self.shared_state.to_dict(),
+                "steps": {
+                    anchor: [step.to_dict() for step in steps]
+                    for anchor, steps in self._shared_state_steps.items()
+                },
+                "before_actions": {
+                    anchor: [action.to_dict() for action in actions]
+                    for anchor, actions in self._before_question_actions.items()
+                },
+            }
         if self.name is not None:
             d["name"] = self.name
 
@@ -983,6 +1109,27 @@ class Survey(Base):
             cls_type = get_class(q_dict)
             questions.append(cls_type.from_dict(q_dict))
 
+        shared_data = data.get("shared_state")
+        if shared_data:
+            from ..sharedstate.shared_state import SharedState
+            from ..sharedstate.steps import BeforeQuestionAction, WriteStep
+
+            shared_state = SharedState.from_dict(shared_data["config"])
+            rebuilt = []
+            for question in questions:
+                for action_data in shared_data.get("before_actions", {}).get(
+                    getattr(question, "question_name", ""), []
+                ):
+                    rebuilt.append(
+                        BeforeQuestionAction.from_dict(action_data, shared_state)
+                    )
+                rebuilt.append(question)
+                for step_data in shared_data.get("steps", {}).get(
+                    getattr(question, "question_name", ""), []
+                ):
+                    rebuilt.append(WriteStep.from_dict(step_data, shared_state))
+            questions = rebuilt
+
         # Deserialize the memory plan
         memory_plan = MemoryPlan.from_dict(data["memory_plan"])
 
@@ -1005,7 +1152,9 @@ class Survey(Base):
         rule_collection_data = data["rule_collection"]
         if not rule_collection_data.get("question_name_to_index"):
             rule_collection_data["question_name_to_index"] = {
-                q.question_name: i for i, q in enumerate(questions)
+                q.question_name: i
+                for i, q in enumerate(questions)
+                if hasattr(q, "question_name")
             }
 
         # Create and return the reconstructed survey
@@ -2646,9 +2795,9 @@ class Survey(Base):
             q_and_a_dict: A dictionary of question names and answers.
         """
         try:
-            assert set(q_and_a_dict.keys()) == set(
-                self.question_names
-            ), "q_and_a_dict must have the same keys as the survey"
+            assert set(q_and_a_dict.keys()) == set(self.question_names), (
+                "q_and_a_dict must have the same keys as the survey"
+            )
         except AssertionError:
             raise ValueError(
                 "q_and_a_dict must have the same keys as the survey",

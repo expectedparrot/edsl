@@ -203,9 +203,20 @@ class RenderService:
 
         # Load stored objects
         scenario_data = self._jobs.get_scenario(job_id, task_def.scenario_id)
+        scenario_data = dict(scenario_data or {})
+        scenario_data["run"] = {"round": task_def.iteration + 1}
+        agent_data = self._jobs.get_agent(job_id, task_def.agent_id)
+        survey_data = self._jobs.get_survey(job_id)
+        if survey_data and survey_data.get("shared_state"):
+            shared_survey = Survey.from_dict(survey_data)
+            traits = dict((agent_data or {}).get("traits", {}))
+            if agent_data and agent_data.get("name"):
+                traits.setdefault("name", agent_data["name"])
+            scenario_data["shared_state"] = shared_survey.shared_state.read(
+                agent_traits=traits
+            ).state
         # Restore any offloaded FileStore blobs
         scenario_data = self._restore_scenario_filestores(scenario_data)
-        agent_data = self._jobs.get_agent(job_id, task_def.agent_id)
         model_data = self._jobs.get_model(job_id, task_def.model_id)
         question_data = self._jobs.get_question(job_id, task_def.question_id)
 
@@ -751,6 +762,10 @@ class RenderWorker:
                 cached_survey.rule_collection, "non_default_rules", None
             )
             _has_skip_rules = non_default is not None and len(non_default) > 0
+        _has_group_stop = (
+            self._job_service is not None
+            and self._job_service.has_group_stop_condition(job_id)
+        )
 
         for task_id in task_ids:
             task_def = all_task_defs.get(task_id)
@@ -766,8 +781,8 @@ class RenderWorker:
                 direct_answer_tasks.append(task_id)
                 continue
 
-            # Check skip logic only if survey has user-defined skip rules
-            if self._job_service is not None and _has_skip_rules:
+            # Group stop conditions also require just-in-time skip evaluation.
+            if self._job_service is not None and (_has_skip_rules or _has_group_stop):
                 _, interview_id = locations[task_id]
 
                 # Get cached answers for this interview
@@ -903,14 +918,14 @@ class RenderWorker:
         # Instead of checking ALL interview tasks, only fetch answers for actual dependencies
         # This reduces O(n) to O(d) where d = number of dependencies (usually small)
         _t0 = _time.time()
-        answers_cache: dict[str, dict[str, Any]] = (
-            {}
-        )  # interview_id -> {question_name -> answer}
+        answers_cache: dict[
+            str, dict[str, Any]
+        ] = {}  # interview_id -> {question_name -> answer}
 
         # Collect all dependency task IDs from tasks being rendered
-        dep_task_ids_by_interview: dict[str, set[str]] = (
-            {}
-        )  # interview_id -> set of dependency task_ids
+        dep_task_ids_by_interview: dict[
+            str, set[str]
+        ] = {}  # interview_id -> set of dependency task_ids
         for task_id in tasks_to_render:
             task_def = all_task_defs.get(task_id)
             if task_def and task_def.depends_on:
@@ -1014,9 +1029,9 @@ class RenderWorker:
         # Caches for objects that depend on per-task context
         _permuted_questions: dict[tuple, "QuestionBase"] = {}
         _survey_cache: dict[tuple, tuple] = {}
-        _prompt_cache: dict[tuple, dict] = (
-            {}
-        )  # Cache rendered prompts by input combination
+        _prompt_cache: dict[
+            tuple, dict
+        ] = {}  # Cache rendered prompts by input combination
 
         from ..questions import QuestionFreeText as _QuestionFreeText
 
@@ -1120,6 +1135,31 @@ class RenderWorker:
             survey, memory_plan = _survey_cache[survey_key]
             _survey_build_time += _time.time() - _t_survey
 
+            shared_version = None
+            render_scenario = scenario | {"run": {"round": task_def.iteration + 1}}
+            if getattr(survey, "shared_state", None) is not None:
+                traits = dict(agent.traits)
+                if agent.name:
+                    traits.setdefault("name", agent.name)
+                if self._job_service is not None:
+                    self._job_service.execute_before_question_actions(
+                        survey, task_def, interview_id, traits
+                    )
+                at_version = (
+                    self._job_service.shared_state_read_version(
+                        job_id, task_def, survey.shared_state, traits
+                    )
+                    if self._job_service is not None
+                    else None
+                )
+                shared_snapshot = survey.shared_state.read(
+                    agent_traits=traits, at_version=at_version
+                )
+                shared_version = shared_snapshot.version
+                render_scenario = render_scenario | {
+                    "shared_state": shared_snapshot.state
+                }
+
             # Render prompts using pre-built objects (cached by input combination)
             _t_edsl = _time.time()
             prompt_key = (
@@ -1127,14 +1167,16 @@ class RenderWorker:
                 task_def.agent_id,
                 task_def.model_id,
                 task_def.question_id,
+                task_def.iteration,
                 _perm_key,  # None if no permutation, otherwise (qid, perm_tuple)
                 answer_names,
+                shared_version,
             )
             if prompt_key in _prompt_cache:
                 prompts = _prompt_cache[prompt_key]
             else:
                 prompts = self._render_service._render_with_objects(
-                    scenario=scenario,
+                    scenario=render_scenario,
                     agent=agent,
                     model=model,
                     question=question,

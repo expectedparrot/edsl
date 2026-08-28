@@ -196,6 +196,19 @@ class QuestionBase(
         - Questions can be used independently or as part of surveys
     """
 
+    @property
+    def answer(self):
+        """Reference this question's answer, or return an assigned runtime answer."""
+        if "_answer" in self.__dict__:
+            return self.__dict__["_answer"]
+        from ..sharedstate.refs import AnswerRef
+
+        return AnswerRef(self.question_name)
+
+    @answer.setter
+    def answer(self, value):
+        self.__dict__["_answer"] = value
+
     question_name: str = QuestionNameDescriptor()  # type: ignore[assignment]
     question_text: str = QuestionTextDescriptor()  # type: ignore[assignment]
 

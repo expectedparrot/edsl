@@ -180,8 +180,7 @@ def _load_manifest_at_ref(path: Path, ref: str) -> dict:
         raise ValueError(f"Unsupported Jobs git package format: {manifest!r}")
     if manifest.get("format_version") != FORMAT_VERSION:
         raise ValueError(
-            "Unsupported Jobs git package version: "
-            f"{manifest.get('format_version')!r}"
+            f"Unsupported Jobs git package version: {manifest.get('format_version')!r}"
         )
     return manifest
 
@@ -448,8 +447,7 @@ def _load_manifest(path: Path) -> dict:
         raise ValueError(f"Unsupported Jobs git package format: {manifest!r}")
     if manifest.get("format_version") != FORMAT_VERSION:
         raise ValueError(
-            "Unsupported Jobs git package version: "
-            f"{manifest.get('format_version')!r}"
+            f"Unsupported Jobs git package version: {manifest.get('format_version')!r}"
         )
     return manifest
 

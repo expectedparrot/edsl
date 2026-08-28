@@ -58,14 +58,14 @@ class TimingStats:
             "=" * 50,
             "TIMING BREAKDOWN",
             "=" * 50,
-            f"Job creation:        {self.job_creation*1000:8.1f} ms",
-            f"Rendering:           {self.rendering*1000:8.1f} ms ({self.render_calls} calls, {self.tasks_rendered} tasks)",
-            f"Enqueueing:          {self.enqueueing*1000:8.1f} ms ({self.enqueue_calls} enqueues)",
-            f"Waiting for workers: {self.waiting_for_workers*1000:8.1f} ms ({self.loop_iterations} iterations)",
-            f"Results assembly:    {self.results_assembly*1000:8.1f} ms",
-            f"Loop overhead:       {self.loop_overhead*1000:8.1f} ms",
+            f"Job creation:        {self.job_creation * 1000:8.1f} ms",
+            f"Rendering:           {self.rendering * 1000:8.1f} ms ({self.render_calls} calls, {self.tasks_rendered} tasks)",
+            f"Enqueueing:          {self.enqueueing * 1000:8.1f} ms ({self.enqueue_calls} enqueues)",
+            f"Waiting for workers: {self.waiting_for_workers * 1000:8.1f} ms ({self.loop_iterations} iterations)",
+            f"Results assembly:    {self.results_assembly * 1000:8.1f} ms",
+            f"Loop overhead:       {self.loop_overhead * 1000:8.1f} ms",
             "-" * 50,
-            f"TOTAL:               {self.total*1000:8.1f} ms",
+            f"TOTAL:               {self.total * 1000:8.1f} ms",
             "=" * 50,
         ]
         return "\n".join(lines)
@@ -346,6 +346,7 @@ class Runner:
         heartbeat_interval: float = 10.0,
         dead_worker_timeout: int = 60,
         max_workers: int = 400,
+        interview_schedule: str = "concurrent",
     ):
         """
         Initialize a Runner for local execution.
@@ -365,6 +366,7 @@ class Runner:
         self._heartbeat_interval = heartbeat_interval
         self._dead_worker_timeout = dead_worker_timeout
         self._max_workers = max_workers
+        self._interview_schedule = interview_schedule
 
         # Initialize storage
         self._storage = self._create_storage(storage)
@@ -457,7 +459,11 @@ class Runner:
             JobHandle to track and retrieve results.
         """
         job_id, direct_task_info, _job_data = self._service.submit_job(
-            job, user_id=user_id, n=n, stop_on_exception=stop_on_exception
+            job,
+            user_id=user_id,
+            n=n,
+            stop_on_exception=stop_on_exception,
+            interview_schedule=self._interview_schedule,
         )
 
         # Register queues for models used in this job

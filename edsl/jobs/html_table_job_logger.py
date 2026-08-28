@@ -24,6 +24,7 @@ class HTMLTableJobLogger(JobLogger):
             class _Stub:
                 def update(self, *a, **kw):
                     pass
+
             self.display_handle = _Stub()
         self.current_message = None
         self.log_id = str(uuid.uuid4())
@@ -88,7 +89,7 @@ class HTMLTableJobLogger(JobLogger):
                 <span class="uuid-code">{short_uuid}</span>
                 {self._create_copy_button(uuid_value)}
             </div>
-            {f'<div class="helper-text">{helper_text}</div>' if helper_text else ''}
+            {f'<div class="helper-text">{helper_text}</div>' if helper_text else ""}
         </div>
         """
 
@@ -172,10 +173,10 @@ class HTMLTableJobLogger(JobLogger):
         exception_rows = "".join(
             f"""
             <tr>
-                <td>{exc.exception_type or '-'}</td>
-                <td>{exc.inference_service or '-'}</td>
-                <td>{exc.model or '-'}</td>
-                <td>{exc.question_name or '-'}</td>
+                <td>{exc.exception_type or "-"}</td>
+                <td>{exc.inference_service or "-"}</td>
+                <td>{exc.model or "-"}</td>
+                <td>{exc.question_name or "-"}</td>
                 <td class='exception-count'>{exc.exception_count:,}</td>
             </tr>
         """
@@ -198,7 +199,7 @@ class HTMLTableJobLogger(JobLogger):
 
         return f"""
         <div class="exception-section">
-            <div class="exception-header" onclick="{self._collapse(f'exception-content-{self.log_id}', f'exception-arrow-{self.log_id}')}">
+            <div class="exception-header" onclick="{self._collapse(f"exception-content-{self.log_id}", f"exception-arrow-{self.log_id}")}">
                 <span id="exception-arrow-{self.log_id}" class="expand-toggle">&#8963;</span>
                 <span>Exception Summary ({total_exceptions:,} total)</span>
                 <span style="flex-grow: 1;"></span>
@@ -258,8 +259,8 @@ class HTMLTableJobLogger(JobLogger):
         cost_rows = "".join(
             f"""
             <tr>
-                <td>{cost.service or '-'}</td>
-                <td>{cost.model or '-'}</td>
+                <td>{cost.service or "-"}</td>
+                <td>{cost.model or "-"}</td>
                 <td class='token-count'>{cost.input_tokens:,}</td>
                 <td class='cost-value'>${cost.input_cost_usd:.4f}</td>
                 <td class='token-count'>{cost.output_tokens:,}</td>
@@ -286,7 +287,7 @@ class HTMLTableJobLogger(JobLogger):
 
         return f"""
         <div class="model-costs-section">
-            <div class="model-costs-header" onclick="{self._collapse(f'model-costs-content-{self.log_id}', f'model-costs-arrow-{self.log_id}')}">
+            <div class="model-costs-header" onclick="{self._collapse(f"model-costs-content-{self.log_id}", f"model-costs-arrow-{self.log_id}")}">
                 <span id="model-costs-arrow-{self.log_id}" class="expand-toggle">&#8963;</span>
                 <span>Model Costs (${total_cost:.4f} / {total_credits:,.2f} credits total)</span>
                 <span style="flex-grow: 1;"></span>
@@ -857,7 +858,7 @@ class HTMLTableJobLogger(JobLogger):
             status_text = str(current_status).capitalize()
 
         status_banner = f"""
-        <div class="status-banner" onclick="{self._collapse(f'message-log-{self.log_id}', f'message-arrow-{self.log_id}')}">
+        <div class="status-banner" onclick="{self._collapse(f"message-log-{self.log_id}", f"message-arrow-{self.log_id}")}">
             <div style="display: flex; align-items: center; gap: 8px;">
                 <span id="message-arrow-{self.log_id}" class="expand-toggle">&#8963;</span>
                 <div style="display: flex; align-items: center;">
@@ -866,7 +867,7 @@ class HTMLTableJobLogger(JobLogger):
                 </div>
             </div>
             <span style="flex-grow: 1;"></span>
-            <span>Last updated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</span>
+            <span>Last updated: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}</span>
         </div>
         """
 
@@ -894,7 +895,7 @@ class HTMLTableJobLogger(JobLogger):
 
             message_log = f"""
             <div id="message-log-{self.log_id}" class="message-log">
-                {''.join(reversed(message_items))}
+                {"".join(reversed(message_items))}
             </div>
             """
 
@@ -920,9 +921,9 @@ class HTMLTableJobLogger(JobLogger):
         return f"""
         {css}
         <div class="jobs-container">
-            <div class="jobs-header" onclick="{self._collapse(f'content-{self.log_id}', f'arrow-{self.log_id}')}">
+            <div class="jobs-header" onclick="{self._collapse(f"content-{self.log_id}", f"arrow-{self.log_id}")}">
                 <div>
-                    <span id="arrow-{self.log_id}" class="expand-toggle">{'&#8963;' if self.is_expanded else '&#8964;'}</span>
+                    <span id="arrow-{self.log_id}" class="expand-toggle">{"&#8963;" if self.is_expanded else "&#8964;"}</span>
                     Job Status 🦜
                 </div>
                 <div class="{status_class}">{header_status_text}</div>
