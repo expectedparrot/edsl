@@ -1,0 +1,184 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://expectedparrot.com/schemas/shared-state-machine-0.1.json",
+  "title": "EDSL Shared-State Machine Envelope",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["dsl_version", "requires", "limits", "machine"],
+  "properties": {
+    "dsl_version": {"const": "0.1"},
+    "requires": {"$ref": "#/$defs/requirements"},
+    "limits": {"$ref": "#/$defs/limits"},
+    "machine": {"$ref": "#/$defs/machine"}
+  },
+  "$defs": {
+    "requirements": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["operators", "reducers", "algorithms"],
+      "properties": {
+        "operators": {"$ref": "#/$defs/versionMap"},
+        "reducers": {"$ref": "#/$defs/versionMap"},
+        "algorithms": {"$ref": "#/$defs/versionMap"}
+      }
+    },
+    "versionMap": {
+      "type": "object",
+      "propertyNames": {"pattern": "^[A-Za-z][A-Za-z0-9_]*$"},
+      "additionalProperties": {"type": "integer", "minimum": 1}
+    },
+    "limits": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "max_ast_nodes": {"type": "integer", "minimum": 1},
+        "max_ast_depth": {"type": "integer", "minimum": 1},
+        "max_state_bytes": {"type": "integer", "minimum": 1},
+        "max_collection_items": {"type": "integer", "minimum": 1},
+        "max_string_bytes": {"type": "integer", "minimum": 1},
+        "max_evaluation_steps": {"type": "integer", "minimum": 1},
+        "max_event_bytes": {"type": "integer", "minimum": 1},
+        "max_view_bytes": {"type": "integer", "minimum": 1}
+      }
+    },
+    "machine": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "constants", "fields", "commands", "view", "complete_when", "close_effects", "algorithms"],
+      "properties": {
+        "name": {"type": "string", "minLength": 1},
+        "constants": {
+          "type": "object",
+          "additionalProperties": {"$ref": "#/$defs/valueOrExpr"}
+        },
+        "fields": {
+          "type": "object",
+          "minProperties": 1,
+          "propertyNames": {"$ref": "#/$defs/identifier"},
+          "additionalProperties": {"$ref": "#/$defs/stateField"}
+        },
+        "commands": {
+          "type": "object",
+          "propertyNames": {"$ref": "#/$defs/identifier"},
+          "additionalProperties": {"$ref": "#/$defs/command"}
+        },
+        "view": {
+          "type": "object",
+          "propertyNames": {"$ref": "#/$defs/identifier"},
+          "additionalProperties": {"$ref": "#/$defs/valueOrExpr"}
+        },
+        "complete_when": {
+          "anyOf": [{"type": "null"}, {"$ref": "#/$defs/expression"}]
+        },
+        "close_effects": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/effect"}
+        },
+        "algorithms": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/capabilityReference"},
+          "uniqueItems": true
+        }
+      }
+    },
+    "identifier": {
+      "type": "string",
+      "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+    },
+    "capabilityReference": {
+      "type": "string",
+      "pattern": "^[A-Za-z_][A-Za-z0-9_]*(?:@[1-9][0-9]*)?$"
+    },
+    "stateField": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "initial"],
+      "properties": {
+        "type": {"$ref": "#/$defs/typeExpression"},
+        "initial": {"$ref": "#/$defs/valueOrExpr"}
+      }
+    },
+    "command": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["inputs", "effects", "require", "timing"],
+      "properties": {
+        "inputs": {
+          "type": "object",
+          "propertyNames": {"$ref": "#/$defs/identifier"},
+          "additionalProperties": {"$ref": "#/$defs/typeExpression"}
+        },
+        "effects": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/effect"}
+        },
+        "require": {
+          "anyOf": [{"type": "null"}, {"$ref": "#/$defs/expression"}]
+        },
+        "timing": {"enum": ["before_question", "after_answer", "explicit"]}
+      }
+    },
+    "effect": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["op", "target", "args", "options"],
+      "properties": {
+        "op": {"enum": ["set", "set_once", "put", "append", "algorithm"]},
+        "target": {"type": "string"},
+        "args": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/valueOrExpr"}
+        },
+        "options": {
+          "type": "object",
+          "additionalProperties": {"$ref": "#/$defs/valueOrExpr"}
+        }
+      }
+    },
+    "expression": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["op", "args", "kwargs"],
+      "properties": {
+        "op": {"type": "string", "minLength": 1},
+        "args": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/valueOrExpr"}
+        },
+        "kwargs": {
+          "type": "object",
+          "additionalProperties": {"$ref": "#/$defs/valueOrExpr"}
+        }
+      }
+    },
+    "typeExpression": {
+      "allOf": [
+        {"$ref": "#/$defs/expression"},
+        {"properties": {"op": {"const": "type"}}}
+      ]
+    },
+    "valueOrExpr": {
+      "anyOf": [
+        {"$ref": "#/$defs/expression"},
+        {"$ref": "#/$defs/literal"}
+      ]
+    },
+    "literal": {
+      "anyOf": [
+        {"type": "null"},
+        {"type": "boolean"},
+        {"type": "number"},
+        {"type": "string"},
+        {
+          "type": "array",
+          "items": {"$ref": "#/$defs/valueOrExpr"}
+        },
+        {
+          "type": "object",
+          "not": {"required": ["op", "args", "kwargs"]},
+          "additionalProperties": {"$ref": "#/$defs/valueOrExpr"}
+        }
+      ]
+    }
+  }
+}

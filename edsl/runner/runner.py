@@ -866,6 +866,15 @@ class Runner:
                 continue
 
             try:
+                entry = self._direct_registry.get_entry(task_id)
+                if entry is not None:
+                    state_view = self._service.state_for_direct_answer(
+                        job_id, interview_id, task_id
+                    )
+                    if state_view:
+                        entry.scenario = entry.scenario | {
+                            "shared_state": state_view
+                        }
                 result = await self._direct_registry.execute(task_id)
 
                 from .models import generate_id

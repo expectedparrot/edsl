@@ -1843,18 +1843,24 @@ class Jobs(Base):
             for condition in (schedule.stop_when, schedule.finalize_when):
                 if condition is None:
                     continue
-                shared_state = getattr(self.survey, "shared_state", None)
-                if shared_state is None:
+                from ..sharedstate.model import StateCondition
+
+                if not isinstance(condition, StateCondition):
                     raise JobsValueError(
-                        "a schedule state condition requires a Survey with shared state"
+                        "schedule state conditions must come from "
+                        "a scoped machine's is_complete() method"
                     )
-                primitive = shared_state.primitives.get(condition.target)
-                if primitive is None or not callable(
-                    getattr(primitive, condition.predicate, None)
-                ):
-                    raise JobsValueError(
-                        "schedule condition does not reference a valid shared-state predicate"
-                    )
+            if (
+                schedule.kind == "rounds"
+                and schedule.within_round == "concurrent"
+                and schedule.state_visibility == "snapshot"
+                and getattr(self.survey, "_state_before_writes", {})
+            ):
+                raise JobsValueError(
+                    "before-question state writes cannot be combined with "
+                    "concurrent snapshot rounds; use state_visibility='live' "
+                    "until pre-round write barriers are supported"
+                )
             required_traits = (
                 (schedule.group_by, schedule.order_by)
                 if schedule.kind == "grouped_round_robin"
@@ -2698,6 +2704,16 @@ class Jobs(Base):
             ],
         }
 
+        schedule = self.run_config.parameters.interview_schedule
+        if schedule != "concurrent":
+            from .interview_schedule import InterviewSchedule
+
+            d["interview_schedule"] = (
+                schedule.to_dict()
+                if isinstance(schedule, InterviewSchedule)
+                else schedule
+            )
+
         # Add _post_run_methods if not empty
         if self._post_run_methods:
             d["_post_run_methods"] = self._post_run_methods
@@ -2742,6 +2758,14 @@ class Jobs(Base):
             models=[LanguageModel.from_dict(model) for model in data["models"]],
             scenarios=[Scenario.from_dict(scenario) for scenario in data["scenarios"]],
         )
+
+        if "interview_schedule" in data:
+            from .interview_schedule import InterviewSchedule
+
+            schedule = data["interview_schedule"]
+            if isinstance(schedule, dict):
+                schedule = InterviewSchedule.from_dict(schedule)
+            job.run_config.parameters.interview_schedule = schedule
 
         # Restore _post_run_methods if present
         if "_post_run_methods" in data:

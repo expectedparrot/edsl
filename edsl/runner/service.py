@@ -86,6 +86,109 @@ class JobService:
         self._interview_schedules: dict[str, Any] = {}
         self._round_snapshot_versions: dict[tuple, int] = {}
         self._round_snapshot_lock = threading.Lock()
+        self._local_state_bindings: dict[tuple[str, str], Any] = {}
+        self._state_checkpoints: dict[tuple[str, str], int] = {}
+
+    def _state_binding(self, job_id: str, step):
+        """Return the local execution binding for a serialized state step."""
+        key = (job_id, step.state_id)
+        if key not in self._local_state_bindings:
+            import tempfile
+            from pathlib import Path
+            from ..sharedstate.backend import SQLiteStateBackend
+            from ..sharedstate.model import SharedStateMap
+
+            state_map = SharedStateMap(step.definition, state_id=step.state_id)
+            path = (
+                Path(tempfile.gettempdir())
+                / "edsl-shared-state"
+                / f"{step.state_id}.sqlite3"
+            )
+            self._local_state_bindings[key] = SQLiteStateBackend(state_map, path)
+            self._state_checkpoints[key] = self._local_state_bindings[key].checkpoint()
+        return self._local_state_bindings[key]
+
+    def read_state_for_question(
+        self, job_id, survey, task_def, interview_id: str, agent_traits: dict
+    ) -> tuple[dict[str, Any], tuple[tuple[str, int], ...]]:
+        """Execute explicit reads immediately before a question is rendered."""
+        before_steps = getattr(survey, "_state_before_writes", {}).get(
+            task_def.question_name, []
+        )
+        steps = getattr(survey, "_state_reads", {}).get(task_def.question_name, [])
+        if not steps and not before_steps:
+            return {}, ()
+        from ..sharedstate.model import resolve_read, resolve_write
+        from ..sharedstate.steps import StepContext
+
+        answers = {
+            answer.question_name: answer.answer
+            for answer in self._answers.get_all_for_interview(job_id, interview_id)
+        }
+        context = StepContext(
+            answers=answers,
+            interview_id=interview_id,
+            agent_traits=agent_traits,
+            run_context={"round": task_def.iteration + 1},
+        )
+        for step in before_steps:
+            self._state_binding(job_id, step).apply(resolve_write(step, context))
+        rendered, versions = {}, []
+        for step in steps:
+            binding = self._state_binding(job_id, step)
+            operation = resolve_read(step, context)
+            at_sequence = None
+            schedule = self._interview_schedules.get(job_id)
+            if (
+                getattr(schedule, "kind", None) == "rounds"
+                and schedule.state_visibility == "snapshot"
+            ):
+                group = (
+                    agent_traits[schedule.group_by]
+                    if schedule.group_by
+                    else "__all__"
+                )
+                snapshot_key = (
+                    job_id,
+                    step.state_id,
+                    group,
+                    task_def.iteration,
+                    operation.scope.canonical,
+                )
+                with self._round_snapshot_lock:
+                    at_sequence = self._round_snapshot_versions.setdefault(
+                        snapshot_key, binding.checkpoint()
+                    )
+            observed = binding.read(operation, at_sequence=at_sequence)
+            rendered[step.target] = observed.value
+            versions.append((observed.read_id, observed.version))
+        return rendered, tuple(versions)
+
+    def state_for_direct_answer(
+        self, job_id: str, interview_id: str, task_id: str
+    ) -> dict[str, Any]:
+        """Perform the same just-in-time reads for a non-LLM question."""
+        task_def = self._tasks.get_definition(job_id, interview_id, task_id)
+        survey_data = self._jobs.get_survey(job_id)
+        if task_def is None or not survey_data:
+            return {}
+        survey = Survey.from_dict(survey_data)
+        if not (
+            getattr(survey, "_state_reads", {}).get(task_def.question_name)
+            or getattr(survey, "_state_before_writes", {}).get(
+                task_def.question_name
+            )
+        ):
+            return {}
+        interview_def = self._interviews.get_definition(job_id, interview_id)
+        agent_data = self._jobs.get_agent(job_id, interview_def.agent_id)
+        traits = dict((agent_data or {}).get("traits", {}))
+        if agent_data and agent_data.get("name"):
+            traits.setdefault("name", agent_data["name"])
+        state, _versions = self.read_state_for_question(
+            job_id, survey, task_def, interview_id, traits
+        )
+        return state
 
     @property
     def jobs(self) -> JobStore:
@@ -138,53 +241,6 @@ class JobService:
     def has_group_stop_condition(self, job_id: str) -> bool:
         schedule = self._interview_schedules.get(job_id)
         return getattr(schedule, "stop_when", None) is not None
-
-    def shared_state_read_version(
-        self, job_id: str, task_def, shared_state, agent_traits: dict
-    ) -> int | None:
-        """Return the immutable state watermark for a snapshot-visible round."""
-        schedule = self._interview_schedules.get(job_id)
-        if not (
-            getattr(schedule, "kind", None) == "rounds"
-            and schedule.state_visibility == "snapshot"
-        ):
-            return None
-        group = agent_traits[schedule.group_by] if schedule.group_by else "__all__"
-        scope = shared_state.resolve_scope(agent_traits)
-        key = (job_id, group, task_def.iteration, scope)
-        with self._round_snapshot_lock:
-            if key not in self._round_snapshot_versions:
-                self._round_snapshot_versions[key] = shared_state.read(
-                    scope=scope
-                ).version
-            return self._round_snapshot_versions[key]
-
-    def execute_before_question_actions(
-        self,
-        survey,
-        task_def,
-        interview_id: str,
-        agent_traits: dict,
-    ) -> None:
-        """Apply idempotent actions before the question's state snapshot is read."""
-        actions = getattr(survey, "_before_question_actions", {}).get(
-            task_def.question_name, []
-        )
-        if not actions:
-            return
-        from ..sharedstate.steps import StepContext
-
-        state = survey.shared_state
-        scope = state.resolve_scope(agent_traits)
-        context = StepContext(
-            answers={},
-            interview_id=interview_id,
-            scope=scope,
-            agent_traits=agent_traits,
-            run_context={"round": task_def.iteration + 1},
-        )
-        for action in actions:
-            action.execute(context)
 
     # =========================================================================
     # Job Submission
@@ -824,17 +880,32 @@ class JobService:
 
         schedule = self._interview_schedules.get(job_id)
         stop_condition = getattr(schedule, "stop_when", None)
-        if stop_condition is not None and getattr(survey, "shared_state", None):
+        if stop_condition is not None:
+            from ..sharedstate.dsl_runtime import Runtime
+            from ..sharedstate.model import resolve, SharedStateMap
+            from ..sharedstate.steps import StepContext
+
             agent_data = cached_agent_data or self._jobs.get_agent(
                 job_id, task_def.agent_id
             )
-            traits = (agent_data or {}).get("traits", {})
-            scope = survey.shared_state.resolve_scope(traits)
-            snapshot = survey.shared_state.read(scope=scope)
-            primitive = survey.shared_state.primitives[stop_condition.target]
-            primitive_state = snapshot.state[stop_condition.target]
-            predicate = getattr(primitive, stop_condition.predicate)
-            if predicate(primitive_state):
+            traits = dict((agent_data or {}).get("traits", {}))
+            if agent_data and agent_data.get("name"):
+                traits.setdefault("name", agent_data["name"])
+            context = StepContext({}, interview_id, agent_traits=traits)
+            scope = resolve(stop_condition.scope, context)
+            state_map = SharedStateMap(
+                stop_condition.definition, state_id=stop_condition.state_id
+            )
+            binding = self._state_binding(
+                job_id,
+                type("ConditionStep", (), {
+                    "state_id": stop_condition.state_id,
+                    "definition": stop_condition.definition,
+                })(),
+            )
+            snapshot = binding.snapshot(scope)
+            machine = state_map.definition.machines[stop_condition.target]
+            if Runtime().complete(machine, snapshot.state[stop_condition.target]):
                 return True, f"Group '{scope}' reached its stop condition"
 
         # Use cached index map or search
@@ -1037,12 +1108,13 @@ class JobService:
         if validated is False:
             return
         survey_data = self._jobs.get_survey(job_id)
-        if not survey_data or not survey_data.get("shared_state"):
+        if not survey_data or not survey_data.get("state_steps"):
             return
         survey = Survey.from_dict(survey_data)
-        steps = survey._shared_state_steps.get(question_name, [])
+        steps = getattr(survey, "_state_writes", {}).get(question_name, [])
         if not steps:
             return
+        from ..sharedstate.model import resolve_write
         from ..sharedstate.steps import StepContext
 
         answers = {
@@ -1051,28 +1123,27 @@ class JobService:
         }
         answers[question_name] = answer_value
         interview_def = self._interviews.get_definition(job_id, interview_id)
-        agent_id = interview_def.agent_id
-        agent_data = self._jobs.get_agent(job_id, agent_id)
+        agent_data = self._jobs.get_agent(job_id, interview_def.agent_id)
         agent_traits = dict((agent_data or {}).get("traits", {}))
         if agent_data and agent_data.get("name"):
             agent_traits.setdefault("name", agent_data["name"])
-        scope = survey.shared_state.resolve_scope(agent_traits)
         context = StepContext(
             answers=answers,
             interview_id=interview_id,
-            scope=scope,
             agent_traits=agent_traits,
             run_context={"round": interview_def.iteration + 1},
         )
         for step in steps:
-            step.execute(context)
+            self._state_binding(job_id, step).apply(resolve_write(step, context))
         schedule = self._interview_schedules.get(job_id)
-        finalize = getattr(schedule, "finalize_when", None)
-        if finalize is not None:
-            snapshot = survey.shared_state.read(scope=scope)
-            primitive = survey.shared_state.primitives[finalize.target]
-            if getattr(primitive, finalize.predicate)(snapshot.state[finalize.target]):
-                survey.shared_state.close(scope=scope)
+        condition = getattr(schedule, "finalize_when", None)
+        if condition is not None:
+            from ..sharedstate.model import resolve
+
+            scope = resolve(condition.scope, context)
+            self._state_binding(job_id, condition).finalize(
+                condition, scope, execution_id=interview_id
+            )
 
     def on_task_completed(
         self,
@@ -2705,7 +2776,38 @@ class JobService:
                 ]
             }
         )
-        results = Results(survey=survey, data=result_list, task_history=task_history)
+        state_bindings = []
+        for (bound_job_id, state_id), binding in self._local_state_bindings.items():
+            if bound_job_id != job_id:
+                continue
+            checkpoint = self._state_checkpoints[(bound_job_id, state_id)]
+            events = binding.history(after_sequence=checkpoint)
+            scopes = []
+            for event in events:
+                if event["scope"] not in scopes:
+                    scopes.append(event["scope"])
+            state_bindings.append(
+                {
+                    "state_id": state_id,
+                    "definition": binding.state_map.definition.to_dict(),
+                    "entry_snapshots": [
+                        binding.snapshot(scope, at_sequence=checkpoint).__dict__
+                        for scope in scopes
+                    ],
+                    "events": events,
+                    "exit_snapshots": [
+                        binding.snapshot(scope).__dict__ for scope in scopes
+                    ],
+                }
+            )
+        results = Results(
+            survey=survey,
+            data=result_list,
+            task_history=task_history,
+            shared_state={"version": 1, "bindings": state_bindings}
+            if state_bindings
+            else None,
+        )
         if _timing is not None:
             _timing["create_results_object"] = (_time.time() - _t) * 1000
 
@@ -2772,7 +2874,7 @@ class JobService:
             # same interview have committed. This adds no dependencies between
             # interviews, so respondents still run concurrently and observe
             # whichever complete log prefix exists when each question becomes ready.
-            shared_steps = getattr(survey, "_shared_state_steps", {})
+            shared_steps = getattr(survey, "_state_writes", {})
             if shared_steps:
                 preceding_writes = []
                 for question in survey.questions:

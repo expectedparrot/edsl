@@ -1,0 +1,45 @@
+{
+  "name": "first write wins under a conflicting retry",
+  "envelope": {
+    "dsl_version": "0.1",
+    "requires": {
+      "operators": {"ref": 1, "put": 1},
+      "reducers": {},
+      "algorithms": {}
+    },
+    "limits": {"max_state_bytes": 10000, "max_collection_items": 100},
+    "machine": {
+      "name": "FirstWriteWins",
+      "constants": {},
+      "fields": {
+        "votes": {
+          "type": {"op": "type", "args": ["map"], "kwargs": {"key": {"op": "type", "args": ["text"], "kwargs": {}}, "value": {"op": "type", "args": ["text"], "kwargs": {}}}},
+          "initial": {}
+        }
+      },
+      "commands": {
+        "vote": {
+          "inputs": {
+            "voter": {"op": "type", "args": ["text"], "kwargs": {}},
+            "choice": {"op": "type", "args": ["text"], "kwargs": {}}
+          },
+          "effects": [
+            {"op": "put", "target": "votes", "args": [{"op": "ref", "args": [], "kwargs": {"namespace": "input", "name": "voter"}}, {"op": "ref", "args": [], "kwargs": {"namespace": "input", "name": "choice"}}], "options": {"once": true}}
+          ],
+          "require": null,
+          "timing": "after_answer"
+        }
+      },
+      "view": {"votes": {"op": "ref", "args": [], "kwargs": {"namespace": "state", "name": "votes"}}},
+      "complete_when": null,
+      "close_effects": [],
+      "algorithms": []
+    }
+  },
+  "steps": [
+    {"command": "vote", "inputs": {"voter": "Amina", "choice": "hike"}, "expect_changed": true},
+    {"command": "vote", "inputs": {"voter": "Amina", "choice": "sailing"}, "expect_changed": false}
+  ],
+  "expected_state": {"votes": {"Amina": "hike"}},
+  "expected_view": {"votes": {"Amina": "hike"}}
+}

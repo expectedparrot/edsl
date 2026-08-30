@@ -13,6 +13,8 @@ _build/*
 *json
 *jsonl
 *log
+*.aux
+*.out
 *svg
 *jpeg
 *png

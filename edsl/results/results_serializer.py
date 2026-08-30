@@ -109,6 +109,8 @@ class ResultsSerializer:
             "survey": self.results.survey.to_dict(add_edsl_version=add_edsl_version),
             "created_columns": self.results.created_columns,
         }
+        if self.results.shared_state is not None:
+            d["shared_state"] = self.results.shared_state
         if include_cache:
             d.update(
                 {
@@ -191,6 +193,7 @@ class ResultsSerializer:
             "cache": cache,
             "task_history": task_history,
             "name": name,
+            "shared_state": data.get("shared_state"),
         }
 
         try:

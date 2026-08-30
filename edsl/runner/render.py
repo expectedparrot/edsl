@@ -206,15 +206,6 @@ class RenderService:
         scenario_data = dict(scenario_data or {})
         scenario_data["run"] = {"round": task_def.iteration + 1}
         agent_data = self._jobs.get_agent(job_id, task_def.agent_id)
-        survey_data = self._jobs.get_survey(job_id)
-        if survey_data and survey_data.get("shared_state"):
-            shared_survey = Survey.from_dict(survey_data)
-            traits = dict((agent_data or {}).get("traits", {}))
-            if agent_data and agent_data.get("name"):
-                traits.setdefault("name", agent_data["name"])
-            scenario_data["shared_state"] = shared_survey.shared_state.read(
-                agent_traits=traits
-            ).state
         # Restore any offloaded FileStore blobs
         scenario_data = self._restore_scenario_filestores(scenario_data)
         model_data = self._jobs.get_model(job_id, task_def.model_id)
@@ -1137,29 +1128,18 @@ class RenderWorker:
 
             shared_version = None
             render_scenario = scenario | {"run": {"round": task_def.iteration + 1}}
-            if getattr(survey, "shared_state", None) is not None:
+            if (
+                self._job_service is not None
+                and getattr(survey, "_state_reads", {}).get(task_def.question_name)
+            ):
                 traits = dict(agent.traits)
                 if agent.name:
                     traits.setdefault("name", agent.name)
-                if self._job_service is not None:
-                    self._job_service.execute_before_question_actions(
-                        survey, task_def, interview_id, traits
-                    )
-                at_version = (
-                    self._job_service.shared_state_read_version(
-                        job_id, task_def, survey.shared_state, traits
-                    )
-                    if self._job_service is not None
-                    else None
+                state_view, read_versions = self._job_service.read_state_for_question(
+                    job_id, survey, task_def, interview_id, traits
                 )
-                shared_snapshot = survey.shared_state.read(
-                    agent_traits=traits, at_version=at_version
-                )
-                shared_version = shared_snapshot.version
-                render_scenario = render_scenario | {
-                    "shared_state": shared_snapshot.state
-                }
-
+                render_scenario = render_scenario | {"shared_state": state_view}
+                shared_version = read_versions
             # Render prompts using pre-built objects (cached by input combination)
             _t_edsl = _time.time()
             prompt_key = (
