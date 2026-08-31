@@ -1,0 +1,784 @@
+{
+  "model": "gemini-2.5-flash",
+  "rows": [
+    {
+      "agent": "Professor Alvarez",
+      "round": 1,
+      "user_prompt": "Select every time you would currently be willing to accept for the committee meeting. All listed times are possible for you, but some are more convenient than others. Balance your own preferences against your willingness to accommodate the group. Responses already submitted are {}.\n\n    \nTuesday 10:00 AM\n    \nTuesday 2:00 PM\n    \nWednesday 10:00 AM\n    \nWednesday 2:00 PM\n    \nThursday 10:00 AM\n        \n\n\n\n\nMinimum number of options that must be selected: 1.\n\n\n\nPlease respond only with a comma-separated list of the options that apply, with square brackets. E.g., ['Good', 'Bad', 'Ugly']\n\n\nAfter the answer, you can put a comment explaining your choice on the next line.",
+      "system_prompt": "You are answering questions as if you were a human. Do not break character.Your traits: {'poll_id': 'faculty-search', 'turn': 1, 'preferred_slot': 'Tuesday 10:00 AM', 'second_choice': 'Wednesday 10:00 AM', 'least_convenient_slot': 'Thursday 10:00 AM', 'flexibility': 0.35, 'group_accommodation': 0.3}",
+      "answer": [
+        "Tuesday 10:00 AM",
+        "Wednesday 10:00 AM",
+        "Tuesday 2:00 PM",
+        "Wednesday 2:00 PM"
+      ],
+      "comment": "I'm prioritizing my preferred slots and then considering other options that aren't my least convenient, given my flexibility and willingness to accommodate the group. Thursday 10:00 AM is my least convenient, so I'm leaving that out."
+    },
+    {
+      "agent": "Professor Bennett",
+      "round": 2,
+      "user_prompt": "Select every time you would currently be willing to accept for the committee meeting. All listed times are possible for you, but some are more convenient than others. Balance your own preferences against your willingness to accommodate the group. Responses already submitted are {'Professor Alvarez': ['Tuesday 10:00 AM', 'Wednesday 10:00 AM', 'Tuesday 2:00 PM', 'Wednesday 2:00 PM']}.\n\n    \nTuesday 10:00 AM\n    \nTuesday 2:00 PM\n    \nWednesday 10:00 AM\n    \nWednesday 2:00 PM\n    \nThursday 10:00 AM\n        \n\n\n\n\nMinimum number of options that must be selected: 1.\n\n\n\nPlease respond only with a comma-separated list of the options that apply, with square brackets. E.g., ['Good', 'Bad', 'Ugly']\n\n\nAfter the answer, you can put a comment explaining your choice on the next line.",
+      "system_prompt": "You are answering questions as if you were a human. Do not break character.Your traits: {'poll_id': 'faculty-search', 'turn': 2, 'preferred_slot': 'Tuesday 2:00 PM', 'second_choice': 'Wednesday 2:00 PM', 'least_convenient_slot': 'Thursday 10:00 AM', 'flexibility': 0.55, 'group_accommodation': 0.7}",
+      "answer": [
+        "Tuesday 2:00 PM",
+        "Wednesday 2:00 PM",
+        "Tuesday 10:00 AM"
+      ],
+      "comment": "I'm prioritizing my preferred slot (Tuesday 2:00 PM) and my second choice (Wednesday 2:00 PM). Given Professor Alvarez's availability, I'm also including Tuesday 10:00 AM as a good option to accommodate the group, even though it's not my top preference. I'm avoiding Thursday 10:00 AM as it's my least convenient, and Wednesday 10:00 AM is less ideal than the other options I've selected."
+    },
+    {
+      "agent": "Professor Chen",
+      "round": 3,
+      "user_prompt": "Select every time you would currently be willing to accept for the committee meeting. All listed times are possible for you, but some are more convenient than others. Balance your own preferences against your willingness to accommodate the group. Responses already submitted are {'Professor Alvarez': ['Tuesday 10:00 AM', 'Wednesday 10:00 AM', 'Tuesday 2:00 PM', 'Wednesday 2:00 PM'], 'Professor Bennett': ['Tuesday 2:00 PM', 'Wednesday 2:00 PM', 'Tuesday 10:00 AM']}.\n\n    \nTuesday 10:00 AM\n    \nTuesday 2:00 PM\n    \nWednesday 10:00 AM\n    \nWednesday 2:00 PM\n    \nThursday 10:00 AM\n        \n\n\n\n\nMinimum number of options that must be selected: 1.\n\n\n\nPlease respond only with a comma-separated list of the options that apply, with square brackets. E.g., ['Good', 'Bad', 'Ugly']\n\n\nAfter the answer, you can put a comment explaining your choice on the next line.",
+      "system_prompt": "You are answering questions as if you were a human. Do not break character.Your traits: {'poll_id': 'faculty-search', 'turn': 3, 'preferred_slot': 'Wednesday 10:00 AM', 'second_choice': 'Thursday 10:00 AM', 'least_convenient_slot': 'Tuesday 2:00 PM', 'flexibility': 0.7, 'group_accommodation': 0.85}",
+      "answer": [
+        "Wednesday 10:00 AM",
+        "Thursday 10:00 AM",
+        "Tuesday 10:00 AM",
+        "Wednesday 2:00 PM"
+      ],
+      "comment": "I'm prioritizing my preferred slots first, then considering other convenient times to accommodate the group, given my flexibility. I'm avoiding my least convenient slot."
+    },
+    {
+      "agent": "Professor Diallo",
+      "round": 4,
+      "user_prompt": "Select every time you would currently be willing to accept for the committee meeting. All listed times are possible for you, but some are more convenient than others. Balance your own preferences against your willingness to accommodate the group. Responses already submitted are {'Professor Alvarez': ['Tuesday 10:00 AM', 'Wednesday 10:00 AM', 'Tuesday 2:00 PM', 'Wednesday 2:00 PM'], 'Professor Bennett': ['Tuesday 2:00 PM', 'Wednesday 2:00 PM', 'Tuesday 10:00 AM'], 'Professor Chen': ['Wednesday 10:00 AM', 'Thursday 10:00 AM', 'Tuesday 10:00 AM', 'Wednesday 2:00 PM']}.\n\n    \nTuesday 10:00 AM\n    \nTuesday 2:00 PM\n    \nWednesday 10:00 AM\n    \nWednesday 2:00 PM\n    \nThursday 10:00 AM\n        \n\n\n\n\nMinimum number of options that must be selected: 1.\n\n\n\nPlease respond only with a comma-separated list of the options that apply, with square brackets. E.g., ['Good', 'Bad', 'Ugly']\n\n\nAfter the answer, you can put a comment explaining your choice on the next line.",
+      "system_prompt": "You are answering questions as if you were a human. Do not break character.Your traits: {'poll_id': 'faculty-search', 'turn': 4, 'preferred_slot': 'Thursday 10:00 AM', 'second_choice': 'Wednesday 2:00 PM', 'least_convenient_slot': 'Tuesday 10:00 AM', 'flexibility': 0.8, 'group_accommodation': 0.9}",
+      "answer": [
+        "Wednesday 2:00 PM",
+        "Thursday 10:00 AM"
+      ],
+      "comment": "Given my preferences and the responses from others, these two times seem to be the best balance. Thursday 10:00 AM is my preferred slot, and Wednesday 2:00 PM is my second choice and also works for many others. While Tuesday 10:00 AM is convenient for others, it's my least convenient, so I'm prioritizing the group's overall convenience while still making sure I can attend comfortably."
+    }
+  ],
+  "shared_state": {
+    "version": 1,
+    "bindings": [
+      {
+        "state_id": "gemini-meeting-poll-cf90510d-6819-4603-9238-261cd9594d7b",
+        "definition": {
+          "type": "shared_state_definition",
+          "version": 1,
+          "machines": {
+            "poll": {
+              "name": "MeetingAvailabilityPoll",
+              "constants": {
+                "slots": [
+                  "Tuesday 10:00 AM",
+                  "Tuesday 2:00 PM",
+                  "Wednesday 10:00 AM",
+                  "Wednesday 2:00 PM",
+                  "Thursday 10:00 AM"
+                ]
+              },
+              "fields": {
+                "availability": {
+                  "type": {
+                    "op": "type",
+                    "args": [
+                      "map"
+                    ],
+                    "kwargs": {
+                      "key": {
+                        "op": "type",
+                        "args": [
+                          "text"
+                        ],
+                        "kwargs": {}
+                      },
+                      "value": {
+                        "op": "type",
+                        "args": [
+                          "sequence"
+                        ],
+                        "kwargs": {
+                          "item": {
+                            "op": "type",
+                            "args": [
+                              "choice"
+                            ],
+                            "kwargs": {
+                              "options": [
+                                "Tuesday 10:00 AM",
+                                "Tuesday 2:00 PM",
+                                "Wednesday 10:00 AM",
+                                "Wednesday 2:00 PM",
+                                "Thursday 10:00 AM"
+                              ]
+                            }
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "initial": {}
+                },
+                "counts": {
+                  "type": {
+                    "op": "type",
+                    "args": [
+                      "map"
+                    ],
+                    "kwargs": {
+                      "key": {
+                        "op": "type",
+                        "args": [
+                          "text"
+                        ],
+                        "kwargs": {}
+                      },
+                      "value": {
+                        "op": "type",
+                        "args": [
+                          "integer"
+                        ],
+                        "kwargs": {
+                          "minimum": 0,
+                          "maximum": null
+                        }
+                      }
+                    }
+                  },
+                  "initial": {
+                    "Tuesday 10:00 AM": 0,
+                    "Tuesday 2:00 PM": 0,
+                    "Wednesday 10:00 AM": 0,
+                    "Wednesday 2:00 PM": 0,
+                    "Thursday 10:00 AM": 0
+                  }
+                }
+              },
+              "commands": {
+                "respond": {
+                  "inputs": {
+                    "participant": {
+                      "op": "type",
+                      "args": [
+                        "text"
+                      ],
+                      "kwargs": {}
+                    },
+                    "available_slots": {
+                      "op": "type",
+                      "args": [
+                        "sequence"
+                      ],
+                      "kwargs": {
+                        "item": {
+                          "op": "type",
+                          "args": [
+                            "choice"
+                          ],
+                          "kwargs": {
+                            "options": [
+                              "Tuesday 10:00 AM",
+                              "Tuesday 2:00 PM",
+                              "Wednesday 10:00 AM",
+                              "Wednesday 2:00 PM",
+                              "Thursday 10:00 AM"
+                            ]
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "effects": [
+                    {
+                      "op": "put",
+                      "target": "availability",
+                      "args": [
+                        {
+                          "op": "ref",
+                          "args": [],
+                          "kwargs": {
+                            "namespace": "input",
+                            "name": "participant"
+                          }
+                        },
+                        {
+                          "op": "ref",
+                          "args": [],
+                          "kwargs": {
+                            "namespace": "input",
+                            "name": "available_slots"
+                          }
+                        }
+                      ],
+                      "options": {
+                        "once": false,
+                        "when": {
+                          "op": "not",
+                          "args": [
+                            {
+                              "op": "contains",
+                              "args": [
+                                {
+                                  "op": "ref",
+                                  "args": [],
+                                  "kwargs": {
+                                    "namespace": "state",
+                                    "name": "availability"
+                                  }
+                                },
+                                {
+                                  "op": "ref",
+                                  "args": [],
+                                  "kwargs": {
+                                    "namespace": "input",
+                                    "name": "participant"
+                                  }
+                                }
+                              ],
+                              "kwargs": {}
+                            }
+                          ],
+                          "kwargs": {}
+                        }
+                      }
+                    },
+                    {
+                      "op": "set",
+                      "target": "counts",
+                      "args": [
+                        {
+                          "op": "reduce",
+                          "args": [
+                            "increment_keys",
+                            {
+                              "op": "ref",
+                              "args": [],
+                              "kwargs": {
+                                "namespace": "state",
+                                "name": "counts"
+                              }
+                            }
+                          ],
+                          "kwargs": {
+                            "keys": {
+                              "op": "ref",
+                              "args": [],
+                              "kwargs": {
+                                "namespace": "input",
+                                "name": "available_slots"
+                              }
+                            }
+                          }
+                        }
+                      ],
+                      "options": {
+                        "when": {
+                          "op": "not",
+                          "args": [
+                            {
+                              "op": "contains",
+                              "args": [
+                                {
+                                  "op": "ref",
+                                  "args": [],
+                                  "kwargs": {
+                                    "namespace": "state",
+                                    "name": "availability"
+                                  }
+                                },
+                                {
+                                  "op": "ref",
+                                  "args": [],
+                                  "kwargs": {
+                                    "namespace": "input",
+                                    "name": "participant"
+                                  }
+                                }
+                              ],
+                              "kwargs": {}
+                            }
+                          ],
+                          "kwargs": {}
+                        }
+                      }
+                    }
+                  ],
+                  "require": null,
+                  "timing": "after_answer"
+                }
+              },
+              "view": {
+                "slots": {
+                  "op": "ref",
+                  "args": [],
+                  "kwargs": {
+                    "namespace": "constant",
+                    "name": "slots"
+                  }
+                },
+                "availability": {
+                  "op": "ref",
+                  "args": [],
+                  "kwargs": {
+                    "namespace": "state",
+                    "name": "availability"
+                  }
+                },
+                "counts": {
+                  "op": "ref",
+                  "args": [],
+                  "kwargs": {
+                    "namespace": "state",
+                    "name": "counts"
+                  }
+                },
+                "response_count": {
+                  "op": "length",
+                  "args": [
+                    {
+                      "op": "ref",
+                      "args": [],
+                      "kwargs": {
+                        "namespace": "state",
+                        "name": "availability"
+                      }
+                    }
+                  ],
+                  "kwargs": {}
+                }
+              },
+              "complete_when": null,
+              "close_effects": [],
+              "algorithms": []
+            }
+          }
+        },
+        "entry_snapshots": [
+          {
+            "state_id": "gemini-meeting-poll-cf90510d-6819-4603-9238-261cd9594d7b",
+            "scope": "faculty-search",
+            "version": 0,
+            "state": {
+              "poll": {
+                "availability": {},
+                "counts": {
+                  "Tuesday 10:00 AM": 0,
+                  "Tuesday 2:00 PM": 0,
+                  "Wednesday 10:00 AM": 0,
+                  "Wednesday 2:00 PM": 0,
+                  "Thursday 10:00 AM": 0
+                }
+              }
+            }
+          }
+        ],
+        "events": [
+          {
+            "event_id": "bd568d06-08bf-435f-9998-82f17693c183",
+            "execution_id": "e2dcafa8-e9b0-46db-aa2c-6558d15141bb",
+            "format": 1,
+            "kind": "read",
+            "read_id": "bd568d06-08bf-435f-9998-82f17693c183",
+            "scope": "faculty-search",
+            "scope_canonical": "\"faculty-search\"",
+            "state_id": "gemini-meeting-poll-cf90510d-6819-4603-9238-261cd9594d7b",
+            "step_id": "b1d63462-4273-4298-8092-ed25c19342cf",
+            "target": "poll",
+            "timestamp": "2026-08-31T01:05:19.626045+00:00",
+            "value": {
+              "availability": {},
+              "counts": {
+                "Thursday 10:00 AM": 0,
+                "Tuesday 10:00 AM": 0,
+                "Tuesday 2:00 PM": 0,
+                "Wednesday 10:00 AM": 0,
+                "Wednesday 2:00 PM": 0
+              },
+              "response_count": 0,
+              "slots": [
+                "Tuesday 10:00 AM",
+                "Tuesday 2:00 PM",
+                "Wednesday 10:00 AM",
+                "Wednesday 2:00 PM",
+                "Thursday 10:00 AM"
+              ]
+            },
+            "version": 0
+          },
+          {
+            "changed": true,
+            "command": "respond",
+            "event_id": "gemini-meeting-poll-cf90510d-6819-4603-9238-261cd9594d7b:\"faculty-search\":1",
+            "execution_id": "e2dcafa8-e9b0-46db-aa2c-6558d15141bb",
+            "format": 1,
+            "idempotency_key": "943bcf91f71628516b41c81f",
+            "inputs": {
+              "available_slots": [
+                "Tuesday 10:00 AM",
+                "Wednesday 10:00 AM",
+                "Tuesday 2:00 PM",
+                "Wednesday 2:00 PM"
+              ],
+              "participant": "Professor Alvarez"
+            },
+            "kind": "write",
+            "scope": "faculty-search",
+            "scope_canonical": "\"faculty-search\"",
+            "state": {
+              "poll": {
+                "availability": {
+                  "Professor Alvarez": [
+                    "Tuesday 10:00 AM",
+                    "Wednesday 10:00 AM",
+                    "Tuesday 2:00 PM",
+                    "Wednesday 2:00 PM"
+                  ]
+                },
+                "counts": {
+                  "Thursday 10:00 AM": 0,
+                  "Tuesday 10:00 AM": 1,
+                  "Tuesday 2:00 PM": 1,
+                  "Wednesday 10:00 AM": 1,
+                  "Wednesday 2:00 PM": 1
+                }
+              }
+            },
+            "state_id": "gemini-meeting-poll-cf90510d-6819-4603-9238-261cd9594d7b",
+            "step_id": "a3a63c17-aa7e-44fe-8699-6ca820674cb3",
+            "target": "poll",
+            "timestamp": "2026-08-31T01:05:21.294223+00:00",
+            "version": 1
+          },
+          {
+            "event_id": "0c38e2d9-db50-426e-8200-10053dd6e593",
+            "execution_id": "0c05b599-bad7-4114-8fb0-5ef329154a85",
+            "format": 1,
+            "kind": "read",
+            "read_id": "0c38e2d9-db50-426e-8200-10053dd6e593",
+            "scope": "faculty-search",
+            "scope_canonical": "\"faculty-search\"",
+            "state_id": "gemini-meeting-poll-cf90510d-6819-4603-9238-261cd9594d7b",
+            "step_id": "b1d63462-4273-4298-8092-ed25c19342cf",
+            "target": "poll",
+            "timestamp": "2026-08-31T01:05:21.305773+00:00",
+            "value": {
+              "availability": {
+                "Professor Alvarez": [
+                  "Tuesday 10:00 AM",
+                  "Wednesday 10:00 AM",
+                  "Tuesday 2:00 PM",
+                  "Wednesday 2:00 PM"
+                ]
+              },
+              "counts": {
+                "Thursday 10:00 AM": 0,
+                "Tuesday 10:00 AM": 1,
+                "Tuesday 2:00 PM": 1,
+                "Wednesday 10:00 AM": 1,
+                "Wednesday 2:00 PM": 1
+              },
+              "response_count": 1,
+              "slots": [
+                "Tuesday 10:00 AM",
+                "Tuesday 2:00 PM",
+                "Wednesday 10:00 AM",
+                "Wednesday 2:00 PM",
+                "Thursday 10:00 AM"
+              ]
+            },
+            "version": 1
+          },
+          {
+            "changed": true,
+            "command": "respond",
+            "event_id": "gemini-meeting-poll-cf90510d-6819-4603-9238-261cd9594d7b:\"faculty-search\":2",
+            "execution_id": "0c05b599-bad7-4114-8fb0-5ef329154a85",
+            "format": 1,
+            "idempotency_key": "83b8eb126345b630ce0c6d3e",
+            "inputs": {
+              "available_slots": [
+                "Tuesday 2:00 PM",
+                "Wednesday 2:00 PM",
+                "Tuesday 10:00 AM"
+              ],
+              "participant": "Professor Bennett"
+            },
+            "kind": "write",
+            "scope": "faculty-search",
+            "scope_canonical": "\"faculty-search\"",
+            "state": {
+              "poll": {
+                "availability": {
+                  "Professor Alvarez": [
+                    "Tuesday 10:00 AM",
+                    "Wednesday 10:00 AM",
+                    "Tuesday 2:00 PM",
+                    "Wednesday 2:00 PM"
+                  ],
+                  "Professor Bennett": [
+                    "Tuesday 2:00 PM",
+                    "Wednesday 2:00 PM",
+                    "Tuesday 10:00 AM"
+                  ]
+                },
+                "counts": {
+                  "Thursday 10:00 AM": 0,
+                  "Tuesday 10:00 AM": 2,
+                  "Tuesday 2:00 PM": 2,
+                  "Wednesday 10:00 AM": 1,
+                  "Wednesday 2:00 PM": 2
+                }
+              }
+            },
+            "state_id": "gemini-meeting-poll-cf90510d-6819-4603-9238-261cd9594d7b",
+            "step_id": "a3a63c17-aa7e-44fe-8699-6ca820674cb3",
+            "target": "poll",
+            "timestamp": "2026-08-31T01:05:22.769925+00:00",
+            "version": 2
+          },
+          {
+            "event_id": "676ab2ef-d790-4e7f-bbef-fb8ca0edc31d",
+            "execution_id": "b552e9a1-d330-4448-a05c-4936acd38ce2",
+            "format": 1,
+            "kind": "read",
+            "read_id": "676ab2ef-d790-4e7f-bbef-fb8ca0edc31d",
+            "scope": "faculty-search",
+            "scope_canonical": "\"faculty-search\"",
+            "state_id": "gemini-meeting-poll-cf90510d-6819-4603-9238-261cd9594d7b",
+            "step_id": "b1d63462-4273-4298-8092-ed25c19342cf",
+            "target": "poll",
+            "timestamp": "2026-08-31T01:05:22.804225+00:00",
+            "value": {
+              "availability": {
+                "Professor Alvarez": [
+                  "Tuesday 10:00 AM",
+                  "Wednesday 10:00 AM",
+                  "Tuesday 2:00 PM",
+                  "Wednesday 2:00 PM"
+                ],
+                "Professor Bennett": [
+                  "Tuesday 2:00 PM",
+                  "Wednesday 2:00 PM",
+                  "Tuesday 10:00 AM"
+                ]
+              },
+              "counts": {
+                "Thursday 10:00 AM": 0,
+                "Tuesday 10:00 AM": 2,
+                "Tuesday 2:00 PM": 2,
+                "Wednesday 10:00 AM": 1,
+                "Wednesday 2:00 PM": 2
+              },
+              "response_count": 2,
+              "slots": [
+                "Tuesday 10:00 AM",
+                "Tuesday 2:00 PM",
+                "Wednesday 10:00 AM",
+                "Wednesday 2:00 PM",
+                "Thursday 10:00 AM"
+              ]
+            },
+            "version": 2
+          },
+          {
+            "changed": true,
+            "command": "respond",
+            "event_id": "gemini-meeting-poll-cf90510d-6819-4603-9238-261cd9594d7b:\"faculty-search\":3",
+            "execution_id": "b552e9a1-d330-4448-a05c-4936acd38ce2",
+            "format": 1,
+            "idempotency_key": "ae5939e14c4273d540ab2b46",
+            "inputs": {
+              "available_slots": [
+                "Wednesday 10:00 AM",
+                "Thursday 10:00 AM",
+                "Tuesday 10:00 AM",
+                "Wednesday 2:00 PM"
+              ],
+              "participant": "Professor Chen"
+            },
+            "kind": "write",
+            "scope": "faculty-search",
+            "scope_canonical": "\"faculty-search\"",
+            "state": {
+              "poll": {
+                "availability": {
+                  "Professor Alvarez": [
+                    "Tuesday 10:00 AM",
+                    "Wednesday 10:00 AM",
+                    "Tuesday 2:00 PM",
+                    "Wednesday 2:00 PM"
+                  ],
+                  "Professor Bennett": [
+                    "Tuesday 2:00 PM",
+                    "Wednesday 2:00 PM",
+                    "Tuesday 10:00 AM"
+                  ],
+                  "Professor Chen": [
+                    "Wednesday 10:00 AM",
+                    "Thursday 10:00 AM",
+                    "Tuesday 10:00 AM",
+                    "Wednesday 2:00 PM"
+                  ]
+                },
+                "counts": {
+                  "Thursday 10:00 AM": 1,
+                  "Tuesday 10:00 AM": 3,
+                  "Tuesday 2:00 PM": 2,
+                  "Wednesday 10:00 AM": 2,
+                  "Wednesday 2:00 PM": 3
+                }
+              }
+            },
+            "state_id": "gemini-meeting-poll-cf90510d-6819-4603-9238-261cd9594d7b",
+            "step_id": "a3a63c17-aa7e-44fe-8699-6ca820674cb3",
+            "target": "poll",
+            "timestamp": "2026-08-31T01:05:23.715403+00:00",
+            "version": 3
+          },
+          {
+            "event_id": "98a74870-65a4-416b-af29-932a96239f09",
+            "execution_id": "107222d1-3535-44f8-8948-2793cdf4bd36",
+            "format": 1,
+            "kind": "read",
+            "read_id": "98a74870-65a4-416b-af29-932a96239f09",
+            "scope": "faculty-search",
+            "scope_canonical": "\"faculty-search\"",
+            "state_id": "gemini-meeting-poll-cf90510d-6819-4603-9238-261cd9594d7b",
+            "step_id": "b1d63462-4273-4298-8092-ed25c19342cf",
+            "target": "poll",
+            "timestamp": "2026-08-31T01:05:23.736330+00:00",
+            "value": {
+              "availability": {
+                "Professor Alvarez": [
+                  "Tuesday 10:00 AM",
+                  "Wednesday 10:00 AM",
+                  "Tuesday 2:00 PM",
+                  "Wednesday 2:00 PM"
+                ],
+                "Professor Bennett": [
+                  "Tuesday 2:00 PM",
+                  "Wednesday 2:00 PM",
+                  "Tuesday 10:00 AM"
+                ],
+                "Professor Chen": [
+                  "Wednesday 10:00 AM",
+                  "Thursday 10:00 AM",
+                  "Tuesday 10:00 AM",
+                  "Wednesday 2:00 PM"
+                ]
+              },
+              "counts": {
+                "Thursday 10:00 AM": 1,
+                "Tuesday 10:00 AM": 3,
+                "Tuesday 2:00 PM": 2,
+                "Wednesday 10:00 AM": 2,
+                "Wednesday 2:00 PM": 3
+              },
+              "response_count": 3,
+              "slots": [
+                "Tuesday 10:00 AM",
+                "Tuesday 2:00 PM",
+                "Wednesday 10:00 AM",
+                "Wednesday 2:00 PM",
+                "Thursday 10:00 AM"
+              ]
+            },
+            "version": 3
+          },
+          {
+            "changed": true,
+            "command": "respond",
+            "event_id": "gemini-meeting-poll-cf90510d-6819-4603-9238-261cd9594d7b:\"faculty-search\":4",
+            "execution_id": "107222d1-3535-44f8-8948-2793cdf4bd36",
+            "format": 1,
+            "idempotency_key": "bf71219dbea0588e9ab755a8",
+            "inputs": {
+              "available_slots": [
+                "Wednesday 2:00 PM",
+                "Thursday 10:00 AM"
+              ],
+              "participant": "Professor Diallo"
+            },
+            "kind": "write",
+            "scope": "faculty-search",
+            "scope_canonical": "\"faculty-search\"",
+            "state": {
+              "poll": {
+                "availability": {
+                  "Professor Alvarez": [
+                    "Tuesday 10:00 AM",
+                    "Wednesday 10:00 AM",
+                    "Tuesday 2:00 PM",
+                    "Wednesday 2:00 PM"
+                  ],
+                  "Professor Bennett": [
+                    "Tuesday 2:00 PM",
+                    "Wednesday 2:00 PM",
+                    "Tuesday 10:00 AM"
+                  ],
+                  "Professor Chen": [
+                    "Wednesday 10:00 AM",
+                    "Thursday 10:00 AM",
+                    "Tuesday 10:00 AM",
+                    "Wednesday 2:00 PM"
+                  ],
+                  "Professor Diallo": [
+                    "Wednesday 2:00 PM",
+                    "Thursday 10:00 AM"
+                  ]
+                },
+                "counts": {
+                  "Thursday 10:00 AM": 2,
+                  "Tuesday 10:00 AM": 3,
+                  "Tuesday 2:00 PM": 2,
+                  "Wednesday 10:00 AM": 2,
+                  "Wednesday 2:00 PM": 4
+                }
+              }
+            },
+            "state_id": "gemini-meeting-poll-cf90510d-6819-4603-9238-261cd9594d7b",
+            "step_id": "a3a63c17-aa7e-44fe-8699-6ca820674cb3",
+            "target": "poll",
+            "timestamp": "2026-08-31T01:05:24.950963+00:00",
+            "version": 4
+          }
+        ],
+        "exit_snapshots": [
+          {
+            "state_id": "gemini-meeting-poll-cf90510d-6819-4603-9238-261cd9594d7b",
+            "scope": "faculty-search",
+            "version": 4,
+            "state": {
+              "poll": {
+                "availability": {
+                  "Professor Alvarez": [
+                    "Tuesday 10:00 AM",
+                    "Wednesday 10:00 AM",
+                    "Tuesday 2:00 PM",
+                    "Wednesday 2:00 PM"
+                  ],
+                  "Professor Bennett": [
+                    "Tuesday 2:00 PM",
+                    "Wednesday 2:00 PM",
+                    "Tuesday 10:00 AM"
+                  ],
+                  "Professor Chen": [
+                    "Wednesday 10:00 AM",
+                    "Thursday 10:00 AM",
+                    "Tuesday 10:00 AM",
+                    "Wednesday 2:00 PM"
+                  ],
+                  "Professor Diallo": [
+                    "Wednesday 2:00 PM",
+                    "Thursday 10:00 AM"
+                  ]
+                },
+                "counts": {
+                  "Thursday 10:00 AM": 2,
+                  "Tuesday 10:00 AM": 3,
+                  "Tuesday 2:00 PM": 2,
+                  "Wednesday 10:00 AM": 2,
+                  "Wednesday 2:00 PM": 4
+                }
+              }
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

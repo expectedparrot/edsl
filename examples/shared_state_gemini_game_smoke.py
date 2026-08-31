@@ -18,6 +18,7 @@ from edsl import (
     InterviewSchedule,
     Model,
     QuestionMultipleChoice,
+    QuestionCheckBox,
     QuestionNumerical,
     QuestionRank,
     QuestionFreeText,
@@ -1205,16 +1206,31 @@ def document():
     game = states.by("plan").game
     text = QuestionFreeText(
         question_name="text",
-        question_text=("Revise the activity plan into one useful sentence. Current document: "
-                       "{{ shared_state.game.text }}."),
+        question_text=(
+            "Translate the complete current document into {{ agent.target_language }}. "
+            "Preserve its meaning, tone, and five-sentence structure. Return only the "
+            "translation, without commentary.\n\nCurrent document:\n"
+            "{{ shared_state.game.text }}"
+        ),
     )
     survey = Survey([game.read(), text,
                      game.revise(author=current.agent.name, round=current.agent.turn,
                                  text=text.answer,
-                                 rationale="Improve clarity and make the plan actionable")])
-    people = AgentList([_agent("Editor 1", plan_id="p", turn=1),
-                        _agent("Editor 2", plan_id="p", turn=2),
-                        _agent("Editor 3", plan_id="p", turn=3)])
+                                 rationale="Translate the current document")])
+    people = AgentList([
+        _agent("Spanish translator", plan_id="climate", turn=1,
+               target_language="Spanish"),
+        _agent("French translator", plan_id="climate", turn=2,
+               target_language="French"),
+        _agent("German translator", plan_id="climate", turn=3,
+               target_language="German"),
+        _agent("Japanese translator", plan_id="climate", turn=4,
+               target_language="Japanese"),
+        _agent("Swahili translator", plan_id="climate", turn=5,
+               target_language="Swahili"),
+        _agent("English translator", plan_id="climate", turn=6,
+               target_language="English"),
+    ])
     return survey, people, InterviewSchedule.grouped_round_robin("plan_id", "turn")
 
 
@@ -1260,6 +1276,78 @@ def register():
     return survey, AgentList([_agent(f"Person {i}") for i in range(3)]), InterviewSchedule.rounds(
         count=1, within_round="concurrent", state_visibility="snapshot"
     )
+
+
+def meeting_poll():
+    from examples.shared_state_dsl.shared_meeting_poll import SLOTS, SPEC
+
+    states = SharedStateMap(
+        SharedState(poll=SPEC), state_id=f"gemini-meeting-poll-{uuid4()}"
+    )
+    poll = states.by("faculty-search").poll
+    availability = QuestionCheckBox(
+        question_name="available_slots",
+        question_text=(
+            "Select every time you would currently be willing to accept for the "
+            "committee meeting. All listed times are possible for you, but some are "
+            "more convenient than others. Balance your own preferences against your "
+            "willingness to accommodate the group. Responses already submitted are "
+            "{{ shared_state.poll.availability }}."
+        ),
+        question_options=list(SLOTS),
+        min_selections=1,
+    )
+    survey = Survey([
+        poll.read(),
+        availability,
+        poll.respond(
+            participant=current.agent.name,
+            available_slots=availability.answer,
+        ),
+    ])
+    people = AgentList([
+        _agent(
+            "Professor Alvarez",
+            poll_id="faculty-search",
+            turn=1,
+            preferred_slot="Tuesday 10:00 AM",
+            second_choice="Wednesday 10:00 AM",
+            least_convenient_slot="Thursday 10:00 AM",
+            flexibility=0.35,
+            group_accommodation=0.30,
+        ),
+        _agent(
+            "Professor Bennett",
+            poll_id="faculty-search",
+            turn=2,
+            preferred_slot="Tuesday 2:00 PM",
+            second_choice="Wednesday 2:00 PM",
+            least_convenient_slot="Thursday 10:00 AM",
+            flexibility=0.55,
+            group_accommodation=0.70,
+        ),
+        _agent(
+            "Professor Chen",
+            poll_id="faculty-search",
+            turn=3,
+            preferred_slot="Wednesday 10:00 AM",
+            second_choice="Thursday 10:00 AM",
+            least_convenient_slot="Tuesday 2:00 PM",
+            flexibility=0.70,
+            group_accommodation=0.85,
+        ),
+        _agent(
+            "Professor Diallo",
+            poll_id="faculty-search",
+            turn=4,
+            preferred_slot="Thursday 10:00 AM",
+            second_choice="Wednesday 2:00 PM",
+            least_convenient_slot="Tuesday 10:00 AM",
+            flexibility=0.80,
+            group_accommodation=0.90,
+        ),
+    ])
+    return survey, people, InterviewSchedule.grouped_round_robin("poll_id", "turn")
 
 
 def repeated_matrix():
@@ -1336,6 +1424,7 @@ GAMES = {
     "log": log,
     "message_board": message_board,
     "register": register,
+    "meeting_poll": meeting_poll,
     "repeated_matrix": repeated_matrix,
     "work_pool": work_pool,
 }

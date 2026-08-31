@@ -22,7 +22,7 @@ pre{overflow:auto;padding:21px 23px;border-radius:12px;background:var(--code);co
 details{margin:18px 0}summary{cursor:pointer;color:var(--green);font-weight:750}.navlinks{display:flex;justify-content:space-between;gap:14px;margin:56px 0 0;padding-top:22px;border-top:1px solid var(--line)}footer{margin-top:62px;color:var(--muted);font-size:.9rem}
 @media(max-width:720px){.two{grid-template-columns:1fr}.toolbar .wrap{align-items:stretch;flex-direction:column}.toolbar input{width:100%}header{padding-top:54px}}
 </style></head><body>
-<header><div class="wrap"><p class="eyebrow">Case study 33 · Deliberation, information, and collaborative work</p><h1>Collaborative document</h1><p>Three editors sequentially improve a one-sentence activity plan.</p><div class="stats"><div class="stat"><b>3</b><span>agents</span></div><div class="stat"><b>1</b><span>machine commands</span></div><div class="stat"><b>3</b><span>recorded reads</span></div></div></div></header>
+<header><div class="wrap"><p class="eyebrow">Case study 33 · Deliberation, information, and collaborative work</p><h1>Collaborative document</h1><p>Three editors sequentially improve a one-sentence activity plan.</p><div class="stats"><div class="stat"><b>6</b><span>agents</span></div><div class="stat"><b>1</b><span>machine commands</span></div><div class="stat"><b>6</b><span>recorded reads</span></div></div></div></header>
 <div class="toolbar"><div class="wrap"><a href="index.html">← All case studies</a><span>Gemini 2.5 Flash · local inference</span></div></div>
 <main>
 <p class="lede">This page connects one concrete social-science experiment to the state machine that enforced it and the real Gemini responses that changed its state.</p>
@@ -30,8 +30,8 @@ details{margin:18px 0}summary{cursor:pointer;color:var(--green);font-weight:750}
 <details><summary>Inspect the complete serialized Machine</summary><pre>{
   <span class="key">&quot;name&quot;</span>: <span class="str">&quot;SharedDocument&quot;</span>,
   <span class="key">&quot;constants&quot;</span>: {
-    <span class="key">&quot;title&quot;</span>: <span class="str">&quot;Activity plan&quot;</span>,
-    <span class="key">&quot;initial_text&quot;</span>: <span class="str">&quot;We need to choose an activity.&quot;</span>
+    <span class="key">&quot;title&quot;</span>: <span class="str">&quot;Climate cooperation translation chain&quot;</span>,
+    <span class="key">&quot;initial_text&quot;</span>: <span class="str">&quot;The atmosphere does not recognize national borders. Each country benefits when others reduce emissions, yet each also faces a temptation to delay its own costly action. Durable cooperation therefore requires credible commitments, transparent measurement, and a fair distribution of costs. Wealthier societies have greater capacity to finance the transition, while poorer societies often face the gravest immediate risks. A successful agreement must align individual incentives with the shared interest in a stable climate.&quot;</span>
   },
   <span class="key">&quot;fields&quot;</span>: {
     <span class="key">&quot;text&quot;</span>: {
@@ -285,8 +285,8 @@ details{margin:18px 0}summary{cursor:pointer;color:var(--green);font-weight:750}
 <span class="n">document_machine</span> <span class="o">=</span> <span class="n">Machine</span><span class="p">(</span>
     <span class="n">name</span><span class="o">=</span><span class="s2">&quot;SharedDocument&quot;</span><span class="p">,</span>
     <span class="n">constants</span><span class="o">=</span><span class="p">{</span>
-        <span class="s2">&quot;title&quot;</span><span class="p">:</span> <span class="s2">&quot;Activity plan&quot;</span><span class="p">,</span>
-        <span class="s2">&quot;initial_text&quot;</span><span class="p">:</span> <span class="s2">&quot;We need to choose an activity.&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;title&quot;</span><span class="p">:</span> <span class="s2">&quot;Climate cooperation translation chain&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;initial_text&quot;</span><span class="p">:</span> <span class="s2">&quot;The atmosphere does not recognize national borders. Each country benefits when others reduce emissions, yet each also faces a temptation to delay its own costly action. Durable cooperation therefore requires credible commitments, transparent measurement, and a fair distribution of costs. Wealthier societies have greater capacity to finance the transition, while poorer societies often face the gravest immediate risks. A successful agreement must align individual incentives with the shared interest in a stable climate.&quot;</span><span class="p">,</span>
     <span class="p">},</span>
     <span class="n">fields</span><span class="o">=</span><span class="p">{</span>
         <span class="s2">&quot;text&quot;</span><span class="p">:</span> <span class="n">state_field</span><span class="p">(</span><span class="n">T</span><span class="o">.</span><span class="n">text</span><span class="p">(),</span> <span class="n">constant</span><span class="p">(</span><span class="s2">&quot;initial_text&quot;</span><span class="p">)),</span>
@@ -330,7 +330,7 @@ details{margin:18px 0}summary{cursor:pointer;color:var(--green);font-weight:750}
     <span class="n">game</span> <span class="o">=</span> <span class="n">states</span><span class="o">.</span><span class="n">by</span><span class="p">(</span><span class="s2">&quot;plan&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">game</span>
     <span class="n">text</span> <span class="o">=</span> <span class="n">QuestionFreeText</span><span class="p">(</span>
         <span class="n">question_name</span><span class="o">=</span><span class="s2">&quot;text&quot;</span><span class="p">,</span>
-        <span class="n">question_text</span><span class="o">=</span><span class="s2">&quot;Revise the activity plan into one useful sentence. Current document: {{ shared_state.game.text }}.&quot;</span><span class="p">,</span>
+        <span class="n">question_text</span><span class="o">=</span><span class="s2">&quot;Translate the complete current document into {{ agent.target_language }}. Preserve its meaning, tone, and five-sentence structure. Return only the translation, without commentary.</span><span class="se">\n\n</span><span class="s2">Current document:</span><span class="se">\n</span><span class="s2">{{ shared_state.game.text }}&quot;</span><span class="p">,</span>
     <span class="p">)</span>
     <span class="n">survey</span> <span class="o">=</span> <span class="n">Survey</span><span class="p">(</span>
         <span class="p">[</span>
@@ -340,15 +340,36 @@ details{margin:18px 0}summary{cursor:pointer;color:var(--green);font-weight:750}
                 <span class="n">author</span><span class="o">=</span><span class="n">current</span><span class="o">.</span><span class="n">agent</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
                 <span class="nb">round</span><span class="o">=</span><span class="n">current</span><span class="o">.</span><span class="n">agent</span><span class="o">.</span><span class="n">turn</span><span class="p">,</span>
                 <span class="n">text</span><span class="o">=</span><span class="n">text</span><span class="o">.</span><span class="n">answer</span><span class="p">,</span>
-                <span class="n">rationale</span><span class="o">=</span><span class="s2">&quot;Improve clarity and make the plan actionable&quot;</span><span class="p">,</span>
+                <span class="n">rationale</span><span class="o">=</span><span class="s2">&quot;Translate the current document&quot;</span><span class="p">,</span>
             <span class="p">),</span>
         <span class="p">]</span>
     <span class="p">)</span>
     <span class="n">people</span> <span class="o">=</span> <span class="n">AgentList</span><span class="p">(</span>
         <span class="p">[</span>
-            <span class="n">Agent</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;Editor 1&quot;</span><span class="p">,</span> <span class="n">traits</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;plan_id&quot;</span><span class="p">:</span> <span class="s2">&quot;p&quot;</span><span class="p">,</span> <span class="s2">&quot;turn&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">}),</span>
-            <span class="n">Agent</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;Editor 2&quot;</span><span class="p">,</span> <span class="n">traits</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;plan_id&quot;</span><span class="p">:</span> <span class="s2">&quot;p&quot;</span><span class="p">,</span> <span class="s2">&quot;turn&quot;</span><span class="p">:</span> <span class="mi">2</span><span class="p">}),</span>
-            <span class="n">Agent</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;Editor 3&quot;</span><span class="p">,</span> <span class="n">traits</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;plan_id&quot;</span><span class="p">:</span> <span class="s2">&quot;p&quot;</span><span class="p">,</span> <span class="s2">&quot;turn&quot;</span><span class="p">:</span> <span class="mi">3</span><span class="p">}),</span>
+            <span class="n">Agent</span><span class="p">(</span>
+                <span class="n">name</span><span class="o">=</span><span class="s2">&quot;Spanish translator&quot;</span><span class="p">,</span>
+                <span class="n">traits</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;plan_id&quot;</span><span class="p">:</span> <span class="s2">&quot;climate&quot;</span><span class="p">,</span> <span class="s2">&quot;turn&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s2">&quot;target_language&quot;</span><span class="p">:</span> <span class="s2">&quot;Spanish&quot;</span><span class="p">},</span>
+            <span class="p">),</span>
+            <span class="n">Agent</span><span class="p">(</span>
+                <span class="n">name</span><span class="o">=</span><span class="s2">&quot;French translator&quot;</span><span class="p">,</span>
+                <span class="n">traits</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;plan_id&quot;</span><span class="p">:</span> <span class="s2">&quot;climate&quot;</span><span class="p">,</span> <span class="s2">&quot;turn&quot;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span> <span class="s2">&quot;target_language&quot;</span><span class="p">:</span> <span class="s2">&quot;French&quot;</span><span class="p">},</span>
+            <span class="p">),</span>
+            <span class="n">Agent</span><span class="p">(</span>
+                <span class="n">name</span><span class="o">=</span><span class="s2">&quot;German translator&quot;</span><span class="p">,</span>
+                <span class="n">traits</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;plan_id&quot;</span><span class="p">:</span> <span class="s2">&quot;climate&quot;</span><span class="p">,</span> <span class="s2">&quot;turn&quot;</span><span class="p">:</span> <span class="mi">3</span><span class="p">,</span> <span class="s2">&quot;target_language&quot;</span><span class="p">:</span> <span class="s2">&quot;German&quot;</span><span class="p">},</span>
+            <span class="p">),</span>
+            <span class="n">Agent</span><span class="p">(</span>
+                <span class="n">name</span><span class="o">=</span><span class="s2">&quot;Japanese translator&quot;</span><span class="p">,</span>
+                <span class="n">traits</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;plan_id&quot;</span><span class="p">:</span> <span class="s2">&quot;climate&quot;</span><span class="p">,</span> <span class="s2">&quot;turn&quot;</span><span class="p">:</span> <span class="mi">4</span><span class="p">,</span> <span class="s2">&quot;target_language&quot;</span><span class="p">:</span> <span class="s2">&quot;Japanese&quot;</span><span class="p">},</span>
+            <span class="p">),</span>
+            <span class="n">Agent</span><span class="p">(</span>
+                <span class="n">name</span><span class="o">=</span><span class="s2">&quot;Swahili translator&quot;</span><span class="p">,</span>
+                <span class="n">traits</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;plan_id&quot;</span><span class="p">:</span> <span class="s2">&quot;climate&quot;</span><span class="p">,</span> <span class="s2">&quot;turn&quot;</span><span class="p">:</span> <span class="mi">5</span><span class="p">,</span> <span class="s2">&quot;target_language&quot;</span><span class="p">:</span> <span class="s2">&quot;Swahili&quot;</span><span class="p">},</span>
+            <span class="p">),</span>
+            <span class="n">Agent</span><span class="p">(</span>
+                <span class="n">name</span><span class="o">=</span><span class="s2">&quot;English translator&quot;</span><span class="p">,</span>
+                <span class="n">traits</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;plan_id&quot;</span><span class="p">:</span> <span class="s2">&quot;climate&quot;</span><span class="p">,</span> <span class="s2">&quot;turn&quot;</span><span class="p">:</span> <span class="mi">6</span><span class="p">,</span> <span class="s2">&quot;target_language&quot;</span><span class="p">:</span> <span class="s2">&quot;English&quot;</span><span class="p">},</span>
+            <span class="p">),</span>
         <span class="p">]</span>
     <span class="p">)</span>
     <span class="k">return</span> <span class="p">(</span><span class="n">survey</span><span class="p">,</span> <span class="n">people</span><span class="p">,</span> <span class="n">InterviewSchedule</span><span class="o">.</span><span class="n">grouped_round_robin</span><span class="p">(</span><span class="s2">&quot;plan_id&quot;</span><span class="p">,</span> <span class="s2">&quot;turn&quot;</span><span class="p">))</span>
@@ -370,46 +391,97 @@ details{margin:18px 0}summary{cursor:pointer;color:var(--green);font-weight:750}
     <span class="nb">print</span><span class="p">(</span><span class="n">results</span><span class="p">)</span>
 </pre></div>
 </section>
-<section><h2>3. The experiment</h2><div class="facts"><div class="fact"><small>Schedule</small><b>grouped_round_robin</b></div><div class="fact"><small>Within round</small><b>serial</b></div><div class="fact"><small>State visibility</small><b>live</b></div><div class="fact"><small>Rounds</small><b>until complete</b></div></div><div class="scroll"><table><thead><tr><th>Question</th><th>Type</th><th>Prompt</th></tr></thead><tbody><tr><td><code>text</code></td><td>free_text</td><td>Revise the activity plan into one useful sentence. Current document: {{ shared_state.game.text }}.</td></tr></tbody></table></div><h3 style="margin-top:28px">Survey state sequence</h3><p>These explicit read and write steps determine when interviews observe shared state and when their answers become commands.</p><div class="scroll"><table><thead><tr><th>#</th><th>Phase</th><th>Question boundary</th><th>Operation</th></tr></thead><tbody><tr><td>1</td><td>reads</td><td><code>text</code></td><td><code>read</code></td></tr><tr><td>2</td><td>writes</td><td><code>text</code></td><td><code>revise</code></td></tr></tbody></table></div></section>
-<section><h2>4. What happened</h2><div class="two"><div class="panel result"><h3>Observed result</h3><p>The text evolved through three versions and ended as “The plan is to decide on an activity.”</p></div><div class="panel"><h3>Final shared state</h3><pre>{
+<section><h2>3. The experiment</h2><div class="facts"><div class="fact"><small>Schedule</small><b>grouped_round_robin</b></div><div class="fact"><small>Within round</small><b>serial</b></div><div class="fact"><small>State visibility</small><b>live</b></div><div class="fact"><small>Rounds</small><b>until complete</b></div></div><div class="scroll"><table><thead><tr><th>Question</th><th>Type</th><th>Prompt</th></tr></thead><tbody><tr><td><code>text</code></td><td>free_text</td><td>Translate the complete current document into {{ agent.target_language }}. Preserve its meaning, tone, and five-sentence structure. Return only the translation, without commentary.
+
+Current document:
+{{ shared_state.game.text }}</td></tr></tbody></table></div><h3 style="margin-top:28px">Survey state sequence</h3><p>These explicit read and write steps determine when interviews observe shared state and when their answers become commands.</p><div class="scroll"><table><thead><tr><th>#</th><th>Phase</th><th>Question boundary</th><th>Operation</th></tr></thead><tbody><tr><td>1</td><td>reads</td><td><code>text</code></td><td><code>read</code></td></tr><tr><td>2</td><td>writes</td><td><code>text</code></td><td><code>revise</code></td></tr></tbody></table></div></section>
+<section><h2>4. What happened</h2><div class="two"><div class="panel result"><h3>Observed result</h3><p>Six translators passed the document from English through Spanish, French, German, Japanese, and Swahili, then back to English. The final round-trip text was: “The atmosphere knows no boundaries. Every country benefits from emissions reductions made by other countries, but at the same time is tempted to delay its own costly actions. Therefore, sustained cooperation requires credible commitments, transparent actions, and an equitable sharing of costs. While richer societies have greater capacity to finance the transition, poorer societies often face the greatest immediate risks. Successful agreements must balance individual incentives with the collective benefits of a stable climate.”</p></div><div class="panel"><h3>Final shared state</h3><pre>{
   <span class="key">&quot;game&quot;</span>: {
     <span class="key">&quot;revisions&quot;</span>: [
       {
-        <span class="key">&quot;author&quot;</span>: <span class="str">&quot;Editor <span class="num">1</span>&quot;</span>,
+        <span class="key">&quot;author&quot;</span>: <span class="str">&quot;Spanish translator&quot;</span>,
         <span class="key">&quot;changed&quot;</span>: <span class="bool">true</span>,
-        <span class="key">&quot;rationale&quot;</span>: <span class="str">&quot;Improve clarity and make the plan actionable&quot;</span>,
+        <span class="key">&quot;rationale&quot;</span>: <span class="str">&quot;Translate the current document&quot;</span>,
         <span class="key">&quot;round&quot;</span>: <span class="num">1</span>
       },
       {
-        <span class="key">&quot;author&quot;</span>: <span class="str">&quot;Editor <span class="num">2</span>&quot;</span>,
+        <span class="key">&quot;author&quot;</span>: <span class="str">&quot;French translator&quot;</span>,
         <span class="key">&quot;changed&quot;</span>: <span class="bool">true</span>,
-        <span class="key">&quot;rationale&quot;</span>: <span class="str">&quot;Improve clarity and make the plan actionable&quot;</span>,
+        <span class="key">&quot;rationale&quot;</span>: <span class="str">&quot;Translate the current document&quot;</span>,
         <span class="key">&quot;round&quot;</span>: <span class="num">2</span>
       },
       {
-        <span class="key">&quot;author&quot;</span>: <span class="str">&quot;Editor <span class="num">3</span>&quot;</span>,
+        <span class="key">&quot;author&quot;</span>: <span class="str">&quot;German translator&quot;</span>,
         <span class="key">&quot;changed&quot;</span>: <span class="bool">true</span>,
-        <span class="key">&quot;rationale&quot;</span>: <span class="str">&quot;Improve clarity and make the plan actionable&quot;</span>,
+        <span class="key">&quot;rationale&quot;</span>: <span class="str">&quot;Translate the current document&quot;</span>,
         <span class="key">&quot;round&quot;</span>: <span class="num">3</span>
+      },
+      {
+        <span class="key">&quot;author&quot;</span>: <span class="str">&quot;Japanese translator&quot;</span>,
+        <span class="key">&quot;changed&quot;</span>: <span class="bool">true</span>,
+        <span class="key">&quot;rationale&quot;</span>: <span class="str">&quot;Translate the current document&quot;</span>,
+        <span class="key">&quot;round&quot;</span>: <span class="num">4</span>
+      },
+      {
+        <span class="key">&quot;author&quot;</span>: <span class="str">&quot;Swahili translator&quot;</span>,
+        <span class="key">&quot;changed&quot;</span>: <span class="bool">true</span>,
+        <span class="key">&quot;rationale&quot;</span>: <span class="str">&quot;Translate the current document&quot;</span>,
+        <span class="key">&quot;round&quot;</span>: <span class="num">5</span>
+      },
+      {
+        <span class="key">&quot;author&quot;</span>: <span class="str">&quot;English translator&quot;</span>,
+        <span class="key">&quot;changed&quot;</span>: <span class="bool">true</span>,
+        <span class="key">&quot;rationale&quot;</span>: <span class="str">&quot;Translate the current document&quot;</span>,
+        <span class="key">&quot;round&quot;</span>: <span class="num">6</span>
       }
     ],
-    <span class="key">&quot;text&quot;</span>: <span class="str">&quot;The plan is to decide on an activity.&quot;</span>
+    <span class="key">&quot;text&quot;</span>: <span class="str">&quot;The atmosphere knows no boundaries. Every country benefits from emissions reductions made by other countries, but at the same time is tempted to delay its own costly actions. Therefore, sustained cooperation requires credible commitments, transparent actions, and an equitable sharing of costs. While richer societies have greater capacity to finance the transition, poorer societies often face the greatest immediate risks. Successful agreements must balance individual incentives with the collective benefits of a stable climate.&quot;</span>
   }
-}</pre></div></div><h3 style="margin-top:28px">What each agent contributed</h3><div class="scroll"><table><thead><tr><th>#</th><th>Agent</th><th>Round</th><th>Private traits</th><th>Answer</th><th>Read version</th></tr></thead><tbody><tr><td>1</td><td>Editor 1</td><td>—</td><td><code>{&quot;plan_id&quot;: &quot;p&quot;, &quot;turn&quot;: 1}</code></td><td><code>{&quot;text&quot;: &quot;Let&#x27;s decide on an activity.&quot;}</code></td><td>0</td></tr><tr><td>2</td><td>Editor 2</td><td>—</td><td><code>{&quot;plan_id&quot;: &quot;p&quot;, &quot;turn&quot;: 2}</code></td><td><code>{&quot;text&quot;: &quot;We will decide on an activity.&quot;}</code></td><td>1</td></tr><tr><td>3</td><td>Editor 3</td><td>—</td><td><code>{&quot;plan_id&quot;: &quot;p&quot;, &quot;turn&quot;: 3}</code></td><td><code>{&quot;text&quot;: &quot;The plan is to decide on an activity.&quot;}</code></td><td>2</td></tr></tbody></table></div></section>
-<section><h2>5. State evolution</h2><p>The recorded read versions were <code>[0, 1, 2]</code>. The committed command sequence was <code>[&#x27;revise&#x27;, &#x27;revise&#x27;, &#x27;revise&#x27;]</code>.</p><div class="callout"><b>How to read this:</b> agents sharing a version decided from the same snapshot; increasing versions mean later interviews could observe earlier commits. Command order is commit order, not necessarily interview launch order.</div><details><summary>Inspect raw run summary</summary><pre>{
+}</pre></div></div><h3 style="margin-top:28px">What each agent contributed</h3><div class="scroll"><table><thead><tr><th>#</th><th>Agent</th><th>Round</th><th>Private traits</th><th>Answer</th><th>Read version</th></tr></thead><tbody><tr><td>1</td><td>Spanish translator</td><td>—</td><td><code>{&quot;plan_id&quot;: &quot;climate&quot;, &quot;turn&quot;: 1, &quot;target_language&quot;: &quot;Spanish&quot;}</code></td><td><code>{&quot;text&quot;: &quot;La atmósfera no reconoce fronteras nacionales. Cada país se beneficia cuando otros reducen las emisiones, pero cada uno también se enfrenta a la tentación de retrasar su propia acción costosa. Por lo tanto, una cooperación duradera requiere compromisos creíbles, mediciones transparentes y una distribución justa de los costos. Las sociedades más ricas tienen una mayor capacidad para financiar la transición, mientras que las sociedades más pobres a menudo enfrentan los riesgos inmediatos más graves. Un acuerdo exitoso debe alinear los incentivos individuales con el interés compartido en un clima estable.&quot;}</code></td><td>0</td></tr><tr><td>2</td><td>French translator</td><td>—</td><td><code>{&quot;plan_id&quot;: &quot;climate&quot;, &quot;turn&quot;: 2, &quot;target_language&quot;: &quot;French&quot;}</code></td><td><code>{&quot;text&quot;: &quot;L&#x27;atmosphère ne connaît pas de frontières nationales. Chaque pays bénéficie de la réduction des émissions par les autres, mais chacun est également confronté à la tentation de retarder sa propre action coûteuse. Par conséquent, une coopération durable exige des engagements crédibles, des mesures transparentes et une répartition équitable des coûts. Les sociétés plus riches ont une plus grande capacité à financer la transition, tandis que les sociétés plus pauvres sont souvent confrontées aux risques immédiats les plus graves. Un accord réussi doit aligner les incitations individuelles sur l&#x27;intérêt partagé d&#x27;un climat stable.&quot;}</code></td><td>1</td></tr><tr><td>3</td><td>German translator</td><td>—</td><td><code>{&quot;plan_id&quot;: &quot;climate&quot;, &quot;turn&quot;: 3, &quot;target_language&quot;: &quot;German&quot;}</code></td><td><code>{&quot;text&quot;: &quot;Die Atmosphäre kennt keine nationalen Grenzen. Jedes Land profitiert von der Emissionsreduzierung durch andere, aber jedes ist auch der Versuchung ausgesetzt, seine eigenen kostspieligen Maßnahmen zu verzögern. Eine dauerhafte Zusammenarbeit erfordert daher glaubwürdige Zusagen, transparente Maßnahmen und eine gerechte Kostenverteilung. Reichere Gesellschaften haben eine größere Fähigkeit, den Übergang zu finanzieren, während ärmere Gesellschaften oft mit den schwerwiegendsten unmittelbaren Risiken konfrontiert sind. Ein erfolgreiches Abkommen muss individuelle Anreize mit dem gemeinsamen Interesse an einem stabilen Klima in Einklang bringen.&quot;}</code></td><td>2</td></tr><tr><td>4</td><td>Japanese translator</td><td>—</td><td><code>{&quot;plan_id&quot;: &quot;climate&quot;, &quot;turn&quot;: 4, &quot;target_language&quot;: &quot;Japanese&quot;}</code></td><td><code>{&quot;text&quot;: &quot;大気には国境がありません。各国は他国による排出削減から利益を得ますが、同時に自国の費用のかかる対策を遅らせたいという誘惑にも駆られます。したがって、永続的な協力には、信頼できる公約、透明性のある行動、そして公正な費用分担が必要です。豊かな社会は移行に資金を提供する能力が高い一方で、貧しい社会はしばしば最も深刻な差し迫ったリスクに直面します。成功する合意は、個々のインセンティブと、安定した気候という共通の利益とのバランスを取る必要があります。&quot;}</code></td><td>3</td></tr><tr><td>5</td><td>Swahili translator</td><td>—</td><td><code>{&quot;plan_id&quot;: &quot;climate&quot;, &quot;turn&quot;: 5, &quot;target_language&quot;: &quot;Swahili&quot;}</code></td><td><code>{&quot;text&quot;: &quot;Anga haina mipaka. Kila nchi hunufaika na upunguzaji wa uzalishaji wa hewa chafu unaofanywa na nchi nyingine, lakini wakati huo huo inashawishika kuchelewesha hatua zake za gharama kubwa. Kwa hivyo, ushirikiano endelevu unahitaji ahadi za kuaminika, vitendo vya uwazi, na ugawaji wa gharama ulio sawa. Ingawa jamii tajiri zina uwezo mkubwa wa kufadhili mabadiliko, jamii maskini mara nyingi hukabili hatari kubwa zaidi zilizo karibu. Makubaliano yenye mafanikio yanahitaji kusawazisha vivutio vya kibinafsi na manufaa ya pamoja ya hali ya hewa thabiti.&quot;}</code></td><td>4</td></tr><tr><td>6</td><td>English translator</td><td>—</td><td><code>{&quot;plan_id&quot;: &quot;climate&quot;, &quot;turn&quot;: 6, &quot;target_language&quot;: &quot;English&quot;}</code></td><td><code>{&quot;text&quot;: &quot;The atmosphere knows no boundaries. Every country benefits from emissions reductions made by other countries, but at the same time is tempted to delay its own costly actions. Therefore, sustained cooperation requires credible commitments, transparent actions, and an equitable sharing of costs. While richer societies have greater capacity to finance the transition, poorer societies often face the greatest immediate risks. Successful agreements must balance individual incentives with the collective benefits of a stable climate.&quot;}</code></td><td>5</td></tr></tbody></table></div><h3 style="margin-top:30px">The complete Results rows</h3><p>This is the prompt data retained by the actual 6-row EDSL <code>Results</code> object. Nothing in these cells has been reconstructed or abbreviated. The durable package is <a href="../shared_state_document_results.ep"><code>shared_state_document_results.ep</code></a>.</p><div class="scroll"><table class="prompt-table"><thead><tr><th>Agent</th><th>Round</th><th>User prompt</th><th>System prompt</th><th>Answer</th><th>Comment</th></tr></thead><tbody><tr><td>Spanish translator</td><td>1</td><td class="prompt-cell"><pre>Translate the complete current document into Spanish. Preserve its meaning, tone, and five-sentence structure. Return only the translation, without commentary.
+
+Current document:
+The atmosphere does not recognize national borders. Each country benefits when others reduce emissions, yet each also faces a temptation to delay its own costly action. Durable cooperation therefore requires credible commitments, transparent measurement, and a fair distribution of costs. Wealthier societies have greater capacity to finance the transition, while poorer societies often face the gravest immediate risks. A successful agreement must align individual incentives with the shared interest in a stable climate.</pre></td><td class="prompt-cell"><pre>You are answering questions as if you were a human. Do not break character.Your traits: {&#x27;plan_id&#x27;: &#x27;climate&#x27;, &#x27;turn&#x27;: 1, &#x27;target_language&#x27;: &#x27;Spanish&#x27;}</pre></td><td><code>La atmósfera no reconoce fronteras nacionales. Cada país se beneficia cuando otros reducen las emisiones, pero cada uno también se enfrenta a la tentación de retrasar su propia acción costosa. Por lo tanto, una cooperación duradera requiere compromisos creíbles, mediciones transparentes y una distribución justa de los costos. Las sociedades más ricas tienen una mayor capacidad para financiar la transición, mientras que las sociedades más pobres a menudo enfrentan los riesgos inmediatos más graves. Un acuerdo exitoso debe alinear los incentivos individuales con el interés compartido en un clima estable.</code></td><td class="comment-cell">None</td></tr><tr><td>French translator</td><td>2</td><td class="prompt-cell"><pre>Translate the complete current document into French. Preserve its meaning, tone, and five-sentence structure. Return only the translation, without commentary.
+
+Current document:
+La atmósfera no reconoce fronteras nacionales. Cada país se beneficia cuando otros reducen las emisiones, pero cada uno también se enfrenta a la tentación de retrasar su propia acción costosa. Por lo tanto, una cooperación duradera requiere compromisos creíbles, mediciones transparentes y una distribución justa de los costos. Las sociedades más ricas tienen una mayor capacidad para financiar la transición, mientras que las sociedades más pobres a menudo enfrentan los riesgos inmediatos más graves. Un acuerdo exitoso debe alinear los incentivos individuales con el interés compartido en un clima estable.</pre></td><td class="prompt-cell"><pre>You are answering questions as if you were a human. Do not break character.Your traits: {&#x27;plan_id&#x27;: &#x27;climate&#x27;, &#x27;turn&#x27;: 2, &#x27;target_language&#x27;: &#x27;French&#x27;}</pre></td><td><code>L&#x27;atmosphère ne connaît pas de frontières nationales. Chaque pays bénéficie de la réduction des émissions par les autres, mais chacun est également confronté à la tentation de retarder sa propre action coûteuse. Par conséquent, une coopération durable exige des engagements crédibles, des mesures transparentes et une répartition équitable des coûts. Les sociétés plus riches ont une plus grande capacité à financer la transition, tandis que les sociétés plus pauvres sont souvent confrontées aux risques immédiats les plus graves. Un accord réussi doit aligner les incitations individuelles sur l&#x27;intérêt partagé d&#x27;un climat stable.</code></td><td class="comment-cell">None</td></tr><tr><td>German translator</td><td>3</td><td class="prompt-cell"><pre>Translate the complete current document into German. Preserve its meaning, tone, and five-sentence structure. Return only the translation, without commentary.
+
+Current document:
+L&#x27;atmosphère ne connaît pas de frontières nationales. Chaque pays bénéficie de la réduction des émissions par les autres, mais chacun est également confronté à la tentation de retarder sa propre action coûteuse. Par conséquent, une coopération durable exige des engagements crédibles, des mesures transparentes et une répartition équitable des coûts. Les sociétés plus riches ont une plus grande capacité à financer la transition, tandis que les sociétés plus pauvres sont souvent confrontées aux risques immédiats les plus graves. Un accord réussi doit aligner les incitations individuelles sur l&#x27;intérêt partagé d&#x27;un climat stable.</pre></td><td class="prompt-cell"><pre>You are answering questions as if you were a human. Do not break character.Your traits: {&#x27;plan_id&#x27;: &#x27;climate&#x27;, &#x27;turn&#x27;: 3, &#x27;target_language&#x27;: &#x27;German&#x27;}</pre></td><td><code>Die Atmosphäre kennt keine nationalen Grenzen. Jedes Land profitiert von der Emissionsreduzierung durch andere, aber jedes ist auch der Versuchung ausgesetzt, seine eigenen kostspieligen Maßnahmen zu verzögern. Eine dauerhafte Zusammenarbeit erfordert daher glaubwürdige Zusagen, transparente Maßnahmen und eine gerechte Kostenverteilung. Reichere Gesellschaften haben eine größere Fähigkeit, den Übergang zu finanzieren, während ärmere Gesellschaften oft mit den schwerwiegendsten unmittelbaren Risiken konfrontiert sind. Ein erfolgreiches Abkommen muss individuelle Anreize mit dem gemeinsamen Interesse an einem stabilen Klima in Einklang bringen.</code></td><td class="comment-cell">None</td></tr><tr><td>Japanese translator</td><td>4</td><td class="prompt-cell"><pre>Translate the complete current document into Japanese. Preserve its meaning, tone, and five-sentence structure. Return only the translation, without commentary.
+
+Current document:
+Die Atmosphäre kennt keine nationalen Grenzen. Jedes Land profitiert von der Emissionsreduzierung durch andere, aber jedes ist auch der Versuchung ausgesetzt, seine eigenen kostspieligen Maßnahmen zu verzögern. Eine dauerhafte Zusammenarbeit erfordert daher glaubwürdige Zusagen, transparente Maßnahmen und eine gerechte Kostenverteilung. Reichere Gesellschaften haben eine größere Fähigkeit, den Übergang zu finanzieren, während ärmere Gesellschaften oft mit den schwerwiegendsten unmittelbaren Risiken konfrontiert sind. Ein erfolgreiches Abkommen muss individuelle Anreize mit dem gemeinsamen Interesse an einem stabilen Klima in Einklang bringen.</pre></td><td class="prompt-cell"><pre>You are answering questions as if you were a human. Do not break character.Your traits: {&#x27;plan_id&#x27;: &#x27;climate&#x27;, &#x27;turn&#x27;: 4, &#x27;target_language&#x27;: &#x27;Japanese&#x27;}</pre></td><td><code>大気には国境がありません。各国は他国による排出削減から利益を得ますが、同時に自国の費用のかかる対策を遅らせたいという誘惑にも駆られます。したがって、永続的な協力には、信頼できる公約、透明性のある行動、そして公正な費用分担が必要です。豊かな社会は移行に資金を提供する能力が高い一方で、貧しい社会はしばしば最も深刻な差し迫ったリスクに直面します。成功する合意は、個々のインセンティブと、安定した気候という共通の利益とのバランスを取る必要があります。</code></td><td class="comment-cell">None</td></tr><tr><td>Swahili translator</td><td>5</td><td class="prompt-cell"><pre>Translate the complete current document into Swahili. Preserve its meaning, tone, and five-sentence structure. Return only the translation, without commentary.
+
+Current document:
+大気には国境がありません。各国は他国による排出削減から利益を得ますが、同時に自国の費用のかかる対策を遅らせたいという誘惑にも駆られます。したがって、永続的な協力には、信頼できる公約、透明性のある行動、そして公正な費用分担が必要です。豊かな社会は移行に資金を提供する能力が高い一方で、貧しい社会はしばしば最も深刻な差し迫ったリスクに直面します。成功する合意は、個々のインセンティブと、安定した気候という共通の利益とのバランスを取る必要があります。</pre></td><td class="prompt-cell"><pre>You are answering questions as if you were a human. Do not break character.Your traits: {&#x27;plan_id&#x27;: &#x27;climate&#x27;, &#x27;turn&#x27;: 5, &#x27;target_language&#x27;: &#x27;Swahili&#x27;}</pre></td><td><code>Anga haina mipaka. Kila nchi hunufaika na upunguzaji wa uzalishaji wa hewa chafu unaofanywa na nchi nyingine, lakini wakati huo huo inashawishika kuchelewesha hatua zake za gharama kubwa. Kwa hivyo, ushirikiano endelevu unahitaji ahadi za kuaminika, vitendo vya uwazi, na ugawaji wa gharama ulio sawa. Ingawa jamii tajiri zina uwezo mkubwa wa kufadhili mabadiliko, jamii maskini mara nyingi hukabili hatari kubwa zaidi zilizo karibu. Makubaliano yenye mafanikio yanahitaji kusawazisha vivutio vya kibinafsi na manufaa ya pamoja ya hali ya hewa thabiti.</code></td><td class="comment-cell">None</td></tr><tr><td>English translator</td><td>6</td><td class="prompt-cell"><pre>Translate the complete current document into English. Preserve its meaning, tone, and five-sentence structure. Return only the translation, without commentary.
+
+Current document:
+Anga haina mipaka. Kila nchi hunufaika na upunguzaji wa uzalishaji wa hewa chafu unaofanywa na nchi nyingine, lakini wakati huo huo inashawishika kuchelewesha hatua zake za gharama kubwa. Kwa hivyo, ushirikiano endelevu unahitaji ahadi za kuaminika, vitendo vya uwazi, na ugawaji wa gharama ulio sawa. Ingawa jamii tajiri zina uwezo mkubwa wa kufadhili mabadiliko, jamii maskini mara nyingi hukabili hatari kubwa zaidi zilizo karibu. Makubaliano yenye mafanikio yanahitaji kusawazisha vivutio vya kibinafsi na manufaa ya pamoja ya hali ya hewa thabiti.</pre></td><td class="prompt-cell"><pre>You are answering questions as if you were a human. Do not break character.Your traits: {&#x27;plan_id&#x27;: &#x27;climate&#x27;, &#x27;turn&#x27;: 6, &#x27;target_language&#x27;: &#x27;English&#x27;}</pre></td><td><code>The atmosphere knows no boundaries. Every country benefits from emissions reductions made by other countries, but at the same time is tempted to delay its own costly actions. Therefore, sustained cooperation requires credible commitments, transparent actions, and an equitable sharing of costs. While richer societies have greater capacity to finance the transition, poorer societies often face the greatest immediate risks. Successful agreements must balance individual incentives with the collective benefits of a stable climate.</code></td><td class="comment-cell">None</td></tr></tbody></table></div></section>
+<section><h2>5. State evolution</h2><p>The recorded read versions were <code>[0, 1, 2, 3, 4, 5]</code>. The committed command sequence was <code>[&#x27;revise&#x27;, &#x27;revise&#x27;, &#x27;revise&#x27;, &#x27;revise&#x27;, &#x27;revise&#x27;, &#x27;revise&#x27;]</code>.</p><div class="callout"><b>How to read this:</b> agents sharing a version decided from the same snapshot; increasing versions mean later interviews could observe earlier commits. Command order is commit order, not necessarily interview launch order.</div><details><summary>Inspect raw run summary</summary><pre>{
   <span class="key">&quot;game&quot;</span>: <span class="str">&quot;document&quot;</span>,
   <span class="key">&quot;answers&quot;</span>: [
     {
-      <span class="key">&quot;text&quot;</span>: <span class="str">&quot;Let&#x27;s decide on an activity.&quot;</span>
+      <span class="key">&quot;text&quot;</span>: <span class="str">&quot;La atmósfera no reconoce fronteras nacionales. Cada país se beneficia cuando otros reducen las emisiones, pero cada uno también se enfrenta a la tentación de retrasar su propia acción costosa. Por lo tanto, una cooperación duradera requiere compromisos creíbles, mediciones transparentes y una distribución justa de los costos. Las sociedades más ricas tienen una mayor capacidad para financiar la transición, mientras que las sociedades más pobres a menudo enfrentan los riesgos inmediatos más graves. Un acuerdo exitoso debe alinear los incentivos individuales con el interés compartido en un clima estable.&quot;</span>
     },
     {
-      <span class="key">&quot;text&quot;</span>: <span class="str">&quot;We will decide on an activity.&quot;</span>
+      <span class="key">&quot;text&quot;</span>: <span class="str">&quot;L&#x27;atmosphère ne connaît pas de frontières nationales. Chaque pays bénéficie de la réduction des émissions par les autres, mais chacun est également confronté à la tentation de retarder sa propre action coûteuse. Par conséquent, une coopération durable exige des engagements crédibles, des mesures transparentes et une répartition équitable des coûts. Les sociétés plus riches ont une plus grande capacité à financer la transition, tandis que les sociétés plus pauvres sont souvent confrontées aux risques immédiats les plus graves. Un accord réussi doit aligner les incitations individuelles sur l&#x27;intérêt partagé d&#x27;un climat stable.&quot;</span>
     },
     {
-      <span class="key">&quot;text&quot;</span>: <span class="str">&quot;The plan is to decide on an activity.&quot;</span>
+      <span class="key">&quot;text&quot;</span>: <span class="str">&quot;Die Atmosphäre kennt keine nationalen Grenzen. Jedes Land profitiert von der Emissionsreduzierung durch andere, aber jedes ist auch der Versuchung ausgesetzt, seine eigenen kostspieligen Maßnahmen zu verzögern. Eine dauerhafte Zusammenarbeit erfordert daher glaubwürdige Zusagen, transparente Maßnahmen und eine gerechte Kostenverteilung. Reichere Gesellschaften haben eine größere Fähigkeit, den Übergang zu finanzieren, während ärmere Gesellschaften oft mit den schwerwiegendsten unmittelbaren Risiken konfrontiert sind. Ein erfolgreiches Abkommen muss individuelle Anreize mit dem gemeinsamen Interesse an einem stabilen Klima in Einklang bringen.&quot;</span>
+    },
+    {
+      <span class="key">&quot;text&quot;</span>: <span class="str">&quot;大気には国境がありません。各国は他国による排出削減から利益を得ますが、同時に自国の費用のかかる対策を遅らせたいという誘惑にも駆られます。したがって、永続的な協力には、信頼できる公約、透明性のある行動、そして公正な費用分担が必要です。豊かな社会は移行に資金を提供する能力が高い一方で、貧しい社会はしばしば最も深刻な差し迫ったリスクに直面します。成功する合意は、個々のインセンティブと、安定した気候という共通の利益とのバランスを取る必要があります。&quot;</span>
+    },
+    {
+      <span class="key">&quot;text&quot;</span>: <span class="str">&quot;Anga haina mipaka. Kila nchi hunufaika na upunguzaji wa uzalishaji wa hewa chafu unaofanywa na nchi nyingine, lakini wakati huo huo inashawishika kuchelewesha hatua zake za gharama kubwa. Kwa hivyo, ushirikiano endelevu unahitaji ahadi za kuaminika, vitendo vya uwazi, na ugawaji wa gharama ulio sawa. Ingawa jamii tajiri zina uwezo mkubwa wa kufadhili mabadiliko, jamii maskini mara nyingi hukabili hatari kubwa zaidi zilizo karibu. Makubaliano yenye mafanikio yanahitaji kusawazisha vivutio vya kibinafsi na manufaa ya pamoja ya hali ya hewa thabiti.&quot;</span>
+    },
+    {
+      <span class="key">&quot;text&quot;</span>: <span class="str">&quot;The atmosphere knows no boundaries. Every country benefits from emissions reductions made by other countries, but at the same time is tempted to delay its own costly actions. Therefore, sustained cooperation requires credible commitments, transparent actions, and an equitable sharing of costs. While richer societies have greater capacity to finance the transition, poorer societies often face the greatest immediate risks. Successful agreements must balance individual incentives with the collective benefits of a stable climate.&quot;</span>
     }
   ],
   <span class="key">&quot;commands&quot;</span>: [
+    &quot;revise&quot;,
+    &quot;revise&quot;,
+    &quot;revise&quot;,
     &quot;revise&quot;,
     &quot;revise&quot;,
     &quot;revise&quot;
@@ -418,31 +490,52 @@ details{margin:18px 0}summary{cursor:pointer;color:var(--green);font-weight:750}
     <span class="key">&quot;game&quot;</span>: {
       <span class="key">&quot;revisions&quot;</span>: [
         {
-          <span class="key">&quot;author&quot;</span>: <span class="str">&quot;Editor <span class="num">1</span>&quot;</span>,
+          <span class="key">&quot;author&quot;</span>: <span class="str">&quot;Spanish translator&quot;</span>,
           <span class="key">&quot;changed&quot;</span>: <span class="bool">true</span>,
-          <span class="key">&quot;rationale&quot;</span>: <span class="str">&quot;Improve clarity and make the plan actionable&quot;</span>,
+          <span class="key">&quot;rationale&quot;</span>: <span class="str">&quot;Translate the current document&quot;</span>,
           <span class="key">&quot;round&quot;</span>: <span class="num">1</span>
         },
         {
-          <span class="key">&quot;author&quot;</span>: <span class="str">&quot;Editor <span class="num">2</span>&quot;</span>,
+          <span class="key">&quot;author&quot;</span>: <span class="str">&quot;French translator&quot;</span>,
           <span class="key">&quot;changed&quot;</span>: <span class="bool">true</span>,
-          <span class="key">&quot;rationale&quot;</span>: <span class="str">&quot;Improve clarity and make the plan actionable&quot;</span>,
+          <span class="key">&quot;rationale&quot;</span>: <span class="str">&quot;Translate the current document&quot;</span>,
           <span class="key">&quot;round&quot;</span>: <span class="num">2</span>
         },
         {
-          <span class="key">&quot;author&quot;</span>: <span class="str">&quot;Editor <span class="num">3</span>&quot;</span>,
+          <span class="key">&quot;author&quot;</span>: <span class="str">&quot;German translator&quot;</span>,
           <span class="key">&quot;changed&quot;</span>: <span class="bool">true</span>,
-          <span class="key">&quot;rationale&quot;</span>: <span class="str">&quot;Improve clarity and make the plan actionable&quot;</span>,
+          <span class="key">&quot;rationale&quot;</span>: <span class="str">&quot;Translate the current document&quot;</span>,
           <span class="key">&quot;round&quot;</span>: <span class="num">3</span>
+        },
+        {
+          <span class="key">&quot;author&quot;</span>: <span class="str">&quot;Japanese translator&quot;</span>,
+          <span class="key">&quot;changed&quot;</span>: <span class="bool">true</span>,
+          <span class="key">&quot;rationale&quot;</span>: <span class="str">&quot;Translate the current document&quot;</span>,
+          <span class="key">&quot;round&quot;</span>: <span class="num">4</span>
+        },
+        {
+          <span class="key">&quot;author&quot;</span>: <span class="str">&quot;Swahili translator&quot;</span>,
+          <span class="key">&quot;changed&quot;</span>: <span class="bool">true</span>,
+          <span class="key">&quot;rationale&quot;</span>: <span class="str">&quot;Translate the current document&quot;</span>,
+          <span class="key">&quot;round&quot;</span>: <span class="num">5</span>
+        },
+        {
+          <span class="key">&quot;author&quot;</span>: <span class="str">&quot;English translator&quot;</span>,
+          <span class="key">&quot;changed&quot;</span>: <span class="bool">true</span>,
+          <span class="key">&quot;rationale&quot;</span>: <span class="str">&quot;Translate the current document&quot;</span>,
+          <span class="key">&quot;round&quot;</span>: <span class="num">6</span>
         }
       ],
-      <span class="key">&quot;text&quot;</span>: <span class="str">&quot;The plan is to decide on an activity.&quot;</span>
+      <span class="key">&quot;text&quot;</span>: <span class="str">&quot;The atmosphere knows no boundaries. Every country benefits from emissions reductions made by other countries, but at the same time is tempted to delay its own costly actions. Therefore, sustained cooperation requires credible commitments, transparent actions, and an equitable sharing of costs. While richer societies have greater capacity to finance the transition, poorer societies often face the greatest immediate risks. Successful agreements must balance individual incentives with the collective benefits of a stable climate.&quot;</span>
     }
   },
   <span class="key">&quot;read_versions&quot;</span>: [
     <span class="num">0</span>,
     <span class="num">1</span>,
-    <span class="num">2</span>
+    <span class="num">2</span>,
+    <span class="num">3</span>,
+    <span class="num">4</span>,
+    <span class="num">5</span>
   ]
 }</pre></details></section>
 <section><h2>6. What this example teaches us</h2><p class="lede">Versioning worked, but the final text was still not actionable. The prompt needs an explicit acceptance criterion, and the machine may need a review/approval primitive rather than unconditional whole-document replacement.</p><p>This is one behavioral realization, not an estimate of Gemini's average behavior. Its main purpose is to test whether the machine, survey, visibility, and schedule jointly express the intended experiment.</p></section>

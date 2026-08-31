@@ -22,7 +22,11 @@ OUT = ROOT / "examples" / "shared_state_case_studies"
 REPORT = ROOT / "docs" / "shared_state_case_studies.md"
 AUDIT = ROOT / "examples" / "shared_state_gemini_complete_audit.json"
 RERUNS = ROOT / "examples" / "shared_state_gemini_case_study_reruns.json"
-FORECAST_RESULTS = ROOT / "examples" / "shared_state_forecast_results.json"
+CAPTURED_RESULTS = {
+    "forecast": ROOT / "examples" / "shared_state_forecast_results.json",
+    "document": ROOT / "examples" / "shared_state_document_results.json",
+    "meeting_poll": ROOT / "examples" / "shared_state_meeting_poll_results.json",
+}
 
 GAME_ORDER = [
     "dictator", "ultimatum", "trust", "bilateral_trade", "negotiation",
@@ -32,7 +36,7 @@ GAME_ORDER = [
     "binary_market", "deferred_acceptance", "serial_matching", "voting",
     "coalition", "resource_allocation", "budget", "register", "counter",
     "delphi", "forecast", "private_signal", "agenda", "document", "log",
-    "message_board", "work_pool",
+    "message_board", "work_pool", "meeting_poll",
 ]
 
 CSS = """
@@ -222,11 +226,12 @@ def standalone_source(game: str, machine_source: str, experiment_source: str) ->
         if not (isinstance(node, ast.Expr) and isinstance(node.value, ast.Constant)
                 and isinstance(node.value.value, str))
     ]
-    imports = ast.parse("""\
+    checkbox_import = "QuestionCheckBox, " if game == "meeting_poll" else ""
+    imports = ast.parse(f"""\
 from uuid import uuid4
 
 from edsl import (
-    Agent, AgentList, InterviewSchedule, Model, QuestionFreeText,
+    Agent, AgentList, InterviewSchedule, Model, {checkbox_import}QuestionFreeText,
     QuestionMultipleChoice, QuestionNumerical, QuestionRank, Survey,
 )
 """).body
@@ -292,7 +297,7 @@ def parse_report() -> list[dict]:
                       "scenario": field("Scenario"), "result": field("Result"),
                       "lesson": field("What it showed")})
     if len(found) != len(GAME_ORDER):
-        raise RuntimeError(f"Expected 36 report cases, found {len(found)}")
+        raise RuntimeError(f"Expected {len(GAME_ORDER)} report cases, found {len(found)}")
     for game, case in zip(GAME_ORDER, found):
         case["game"] = game
     return found
@@ -372,10 +377,11 @@ def contribution_rows(run: dict, agents: list[dict]) -> str:
     )
 
 
-def forecast_results_table() -> str:
-    if not FORECAST_RESULTS.exists():
+def captured_results_table(game: str) -> str:
+    artifact_path = CAPTURED_RESULTS.get(game)
+    if artifact_path is None or not artifact_path.exists():
         return ""
-    captured = json.loads(FORECAST_RESULTS.read_text())
+    captured = json.loads(artifact_path.read_text())
     rows = "".join(
         f"<tr><td>{esc(row['agent'])}</td><td>{esc(row['round'])}</td>"
         f"<td class=\"prompt-cell\"><pre>{esc(row['user_prompt'])}</pre></td>"
@@ -384,7 +390,9 @@ def forecast_results_table() -> str:
         f"<td class=\"comment-cell\">{esc(row.get('comment', ''))}</td></tr>"
         for row in captured["rows"]
     )
-    return f'''<h3 style="margin-top:30px">The complete Results rows</h3><p>This is the prompt data retained by the actual six-row EDSL <code>Results</code> object. Nothing in these cells has been reconstructed or abbreviated. The durable package is <a href="../shared_state_forecast_results.ep"><code>shared_state_forecast_results.ep</code></a>.</p><div class="scroll"><table class="prompt-table"><thead><tr><th>Agent</th><th>Round</th><th>User prompt</th><th>System prompt</th><th>Answer</th><th>Comment</th></tr></thead><tbody>{rows}</tbody></table></div>'''
+    package_name = artifact_path.with_suffix(".ep").name
+    row_count = len(captured["rows"])
+    return f'''<h3 style="margin-top:30px">The complete Results rows</h3><p>This is the prompt data retained by the actual {row_count}-row EDSL <code>Results</code> object. Nothing in these cells has been reconstructed or abbreviated. The durable package is <a href="../{esc(package_name)}"><code>{esc(package_name)}</code></a>.</p><div class="scroll"><table class="prompt-table"><thead><tr><th>Agent</th><th>Round</th><th>User prompt</th><th>System prompt</th><th>Answer</th><th>Comment</th></tr></thead><tbody>{rows}</tbody></table></div>'''
 
 
 def page(case: dict, run: dict, number: int, prev_case: dict | None, next_case: dict | None) -> str:
@@ -396,7 +404,7 @@ def page(case: dict, run: dict, number: int, prev_case: dict | None, next_case: 
     questions = experiment["questions"]
     agents = experiment["agents"]
     rows = contribution_rows(run, agents)
-    results_table = forecast_results_table() if case["game"] == "forecast" else ""
+    results_table = captured_results_table(case["game"])
     qrows = "".join(f"<tr><td><code>{esc(q['name'])}</code></td><td>{esc(q['type'])}</td><td>{esc(q['text'])}</td></tr>" for q in questions)
     steps = experiment["survey_state_steps"]
     srows = "".join(f"<tr><td>{i+1}</td><td>{esc(s['phase'].replace('_',' '))}</td><td><code>{esc(s['question'])}</code></td><td><code>{esc(s['operation'])}</code></td></tr>" for i,s in enumerate(steps))
@@ -424,7 +432,8 @@ def index_page(cases: list[dict], runs: dict[str, dict]) -> str:
         subset = [c for c in cases if c["category"] == category]
         cards = "".join(f'''<a class="card" href="{c['game']}.html" data-search="{esc((c['title']+' '+c['scenario']+' '+c['lesson']).lower())}"><small>{GAME_ORDER.index(c['game'])+1:02d}</small><h3>{esc(c['title'])}</h3><p>{esc(c['scenario'])}</p><div class="tags"><span class="tag">{len(runs[c['game']].get('answers',[]))} responses</span><span class="tag">{len(runs[c['game']].get('commands',[]))} commits</span></div></a>''' for c in subset)
         sections.append(f'<section><h2>{esc(category)}</h2><div class="grid">{cards}</div></section>')
-    body = f'''<header><div class="wrap"><p class="eyebrow">Expected Parrot · EDSL shared state</p><h1>Thirty-six machines, thirty-six real experiments</h1><p>A linked field guide to the new shared-state DSL. Every case study describes the machine, Survey design, Gemini responses, read visibility, command history, final state, and what the run exposed.</p><div class="stats"><div class="stat"><b>36</b><span>state machines</span></div><div class="stat"><b>36</b><span>completed Gemini cases</span></div><div class="stat"><b>4</b><span>research domains</span></div></div></div></header><div class="toolbar"><div class="wrap"><a href="../economic_games_lab.html">Simulation laboratory</a><input id="filter" type="search" placeholder="Filter machines, mechanisms, or findings…" aria-label="Filter case studies"></div></div><main><p class="lede">These pages are not toy descriptions detached from code. Each combines the actual serialized Machine and Survey with the saved output of a local <code>gemini-2.5-flash</code> run.</p><div class="callout"><b>Reading the collection:</b> start with the scenario, then compare the schedule's visibility rule with the read versions. That relationship tells you what information each agent could actually use.</div>{''.join(sections)}<footer>Source: <a href="../shared_state_gemini_game_smoke.py">runnable experiments</a> · <a href="../../docs/shared_state_case_studies.md">case-study analysis</a> · generated by <a href="../build_shared_state_case_study_site.py">build script</a></footer></main><script>const q=document.querySelector('#filter');q.addEventListener('input',()=>{{const s=q.value.toLowerCase();document.querySelectorAll('.card').forEach(c=>c.hidden=!c.dataset.search.includes(s));}});</script>'''
+    count = len(GAME_ORDER)
+    body = f'''<header><div class="wrap"><p class="eyebrow">Expected Parrot · EDSL shared state</p><h1>{count} machines, {count} real experiments</h1><p>A linked field guide to the new shared-state DSL. Every case study describes the machine, Survey design, Gemini responses, read visibility, command history, final state, and what the run exposed.</p><div class="stats"><div class="stat"><b>{count}</b><span>state machines</span></div><div class="stat"><b>{count}</b><span>completed Gemini cases</span></div><div class="stat"><b>4</b><span>research domains</span></div></div></div></header><div class="toolbar"><div class="wrap"><a href="../economic_games_lab.html">Simulation laboratory</a><input id="filter" type="search" placeholder="Filter machines, mechanisms, or findings…" aria-label="Filter case studies"></div></div><main><p class="lede">These pages are not toy descriptions detached from code. Each combines the actual serialized Machine and Survey with the saved output of a local <code>gemini-2.5-flash</code> run.</p><div class="callout"><b>Reading the collection:</b> start with the scenario, then compare the schedule's visibility rule with the read versions. That relationship tells you what information each agent could actually use.</div>{''.join(sections)}<footer>Source: <a href="../shared_state_gemini_game_smoke.py">runnable experiments</a> · <a href="../../docs/shared_state_case_studies.md">case-study analysis</a> · generated by <a href="../build_shared_state_case_study_site.py">build script</a></footer></main><script>const q=document.querySelector('#filter');q.addEventListener('input',()=>{{const s=q.value.toLowerCase();document.querySelectorAll('.card').forEach(c=>c.hidden=!c.dataset.search.includes(s));}});</script>'''
     return shell("EDSL Shared-State Case Studies", body, "Thirty-six real Gemini experiments built with the EDSL shared-state DSL.")
 
 
@@ -434,14 +443,21 @@ def main() -> None:
     reruns = json.loads(RERUNS.read_text())
     runs = {run["game"]: run for run in audit["runs"]}
     runs.update({run["game"]: run for run in reruns["runs"]})
-    if FORECAST_RESULTS.exists():
-        captured = json.loads(FORECAST_RESULTS.read_text())
+    answer_names = {
+        "forecast": "probability",
+        "document": "text",
+        "meeting_poll": "available_slots",
+    }
+    for game, artifact_path in CAPTURED_RESULTS.items():
+        if not artifact_path.exists():
+            continue
+        captured = json.loads(artifact_path.read_text())
         binding = captured["shared_state"]["bindings"][0]
         events = binding["events"]
-        runs["forecast"] = {
-            "game": "forecast",
+        runs[game] = {
+            "game": game,
             "answers": [
-                {"probability": row["answer"]} for row in captured["rows"]
+                {answer_names[game]: row["answer"]} for row in captured["rows"]
             ],
             "commands": [
                 event["command"] for event in events if event["kind"] == "write"
@@ -451,11 +467,21 @@ def main() -> None:
                 event["version"] for event in events if event["kind"] == "read"
             ],
         }
+    if CAPTURED_RESULTS["forecast"].exists():
         forecast_case = next(case for case in cases if case["game"] == "forecast")
         forecast_case["result"] = (
             "In the prompt-capture run, A revised 30% to 45%, B remained at "
             "50%, and C revised 70% to 54%. All second-round estimates used "
             "the same version-3 snapshot."
+        )
+    if CAPTURED_RESULTS["document"].exists():
+        document_case = next(case for case in cases if case["game"] == "document")
+        final_text = runs["document"]["final_state"]["game"]["text"]
+        document_case["result"] = (
+            "Six translators passed the document from English through Spanish, "
+            "French, German, Japanese, and Swahili, then back to English. The final "
+            "round-trip text was: "
+            f"“{final_text}”"
         )
     missing = set(GAME_ORDER) - runs.keys()
     if missing:

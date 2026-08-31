@@ -395,6 +395,23 @@ their question, then submit completion notes.
 assignment order is completion-dependent, which is correct but should be made
 explicit when reproducibility matters.
 
+### 37. Meeting availability poll
+
+**Scenario.** Four professors with different preferred slots and different degrees
+of flexibility serially mark every meeting time they would accept while seeing
+earlier responses.
+
+**Result.** Wednesday at 2:00 PM became acceptable to all four professors even
+though it was nobody's first choice. It appeared in the first response and every
+later respondent retained it. Tuesday at 10:00 AM reached three acceptances; all
+other slots reached two. Reads advanced through versions `[0,1,2,3]`.
+
+**What it showed.** A checkbox answer composes naturally with a typed sequence in
+shared state. Keeping both the per-person acceptability map and atomically updated
+slot counts makes the state useful for prompts and later analysis. Serial visibility
+allows later participants to trade off convenience against coordination, making the
+path of earlier responses behaviorally consequential.
+
 ## What these case studies suggest changing
 
 The examples point to five priorities:
