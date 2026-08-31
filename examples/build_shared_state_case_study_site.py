@@ -26,6 +26,10 @@ CAPTURED_RESULTS = {
     "forecast": ROOT / "examples" / "shared_state_forecast_results.json",
     "document": ROOT / "examples" / "shared_state_document_results.json",
     "meeting_poll": ROOT / "examples" / "shared_state_meeting_poll_results.json",
+    "ultimatum": ROOT / "examples" / "shared_state_ultimatum_results.json",
+    "agenda": ROOT / "examples" / "shared_state_agenda_results.json",
+    "message_board": ROOT / "examples" / "shared_state_message_board_results.json",
+    "work_pool": ROOT / "examples" / "shared_state_work_pool_results.json",
 }
 
 GAME_ORDER = [
@@ -382,17 +386,29 @@ def captured_results_table(game: str) -> str:
     if artifact_path is None or not artifact_path.exists():
         return ""
     captured = json.loads(artifact_path.read_text())
+    has_question = any("question" in row for row in captured["rows"])
     rows = "".join(
-        f"<tr><td>{esc(row['agent'])}</td><td>{esc(row['round'])}</td>"
-        f"<td class=\"prompt-cell\"><pre>{esc(row['user_prompt'])}</pre></td>"
-        f"<td class=\"prompt-cell\"><pre>{esc(row['system_prompt'])}</pre></td>"
-        f"<td><code>{esc(row['answer'])}</code></td>"
-        f"<td class=\"comment-cell\">{esc(row.get('comment', ''))}</td></tr>"
+        "".join(
+            [
+                f"<tr><td>{esc(row['agent'])}</td><td>{esc(row['round'])}</td>",
+                (
+                    f"<td><code>{esc(row['question'])}</code></td>"
+                    if has_question
+                    else ""
+                ),
+                f'<td class="prompt-cell"><pre>{esc(row["user_prompt"])}</pre></td>',
+                f'<td class="prompt-cell"><pre>{esc(row["system_prompt"])}</pre></td>',
+                f"<td><code>{esc(json.dumps(row['answer'], ensure_ascii=False))}</code></td>",
+                f'<td class="comment-cell">{esc(row.get("comment", ""))}</td></tr>',
+            ]
+        )
         for row in captured["rows"]
     )
     package_name = artifact_path.with_suffix(".ep").name
     row_count = len(captured["rows"])
-    return f'''<h3 style="margin-top:30px">The complete Results rows</h3><p>This is the prompt data retained by the actual {row_count}-row EDSL <code>Results</code> object. Nothing in these cells has been reconstructed or abbreviated. The durable package is <a href="../{esc(package_name)}"><code>{esc(package_name)}</code></a>.</p><div class="scroll"><table class="prompt-table"><thead><tr><th>Agent</th><th>Round</th><th>User prompt</th><th>System prompt</th><th>Answer</th><th>Comment</th></tr></thead><tbody>{rows}</tbody></table></div>'''
+    result_count = captured.get("result_count", row_count)
+    question_header = "<th>Question</th>" if has_question else ""
+    return f'''<h3 style="margin-top:30px">The complete Results prompts</h3><p>These {row_count} prompt rows are retained by the actual {result_count}-row EDSL <code>Results</code> object. Nothing in these cells has been reconstructed or abbreviated. The durable package is <a href="../{esc(package_name)}"><code>{esc(package_name)}</code></a>.</p><div class="scroll"><table class="prompt-table"><thead><tr><th>Agent</th><th>Round</th>{question_header}<th>User prompt</th><th>System prompt</th><th>Answer</th><th>Comment</th></tr></thead><tbody>{rows}</tbody></table></div>'''
 
 
 def page(case: dict, run: dict, number: int, prev_case: dict | None, next_case: dict | None) -> str:
@@ -431,8 +447,10 @@ def index_page(cases: list[dict], runs: dict[str, dict]) -> str:
     for category in dict.fromkeys(c["category"] for c in cases):
         subset = [c for c in cases if c["category"] == category]
         cards = "".join(f'''<a class="card" href="{c['game']}.html" data-search="{esc((c['title']+' '+c['scenario']+' '+c['lesson']).lower())}"><small>{GAME_ORDER.index(c['game'])+1:02d}</small><h3>{esc(c['title'])}</h3><p>{esc(c['scenario'])}</p><div class="tags"><span class="tag">{len(runs[c['game']].get('answers',[]))} responses</span><span class="tag">{len(runs[c['game']].get('commands',[]))} commits</span></div></a>''' for c in subset)
+        if category == cases[-1]["category"]:
+            cards += '''<a class="card" href="systematic_review.html" data-search="systematic review screening atomic task claiming blinded review adjudication"><small>38</small><h3>Systematic-review screening</h3><p>Six reviewers atomically claim blinded screening assignments before a separate adjudication run reads their accumulated decisions.</p><div class="tags"><span class="tag">9 agents</span><span class="tag">2 Results objects</span></div></a>'''
         sections.append(f'<section><h2>{esc(category)}</h2><div class="grid">{cards}</div></section>')
-    count = len(GAME_ORDER)
+    count = len(GAME_ORDER) + 1
     body = f'''<header><div class="wrap"><p class="eyebrow">Expected Parrot · EDSL shared state</p><h1>{count} machines, {count} real experiments</h1><p>A linked field guide to the new shared-state DSL. Every case study describes the machine, Survey design, Gemini responses, read visibility, command history, final state, and what the run exposed.</p><div class="stats"><div class="stat"><b>{count}</b><span>state machines</span></div><div class="stat"><b>{count}</b><span>completed Gemini cases</span></div><div class="stat"><b>4</b><span>research domains</span></div></div></div></header><div class="toolbar"><div class="wrap"><a href="../economic_games_lab.html">Simulation laboratory</a><input id="filter" type="search" placeholder="Filter machines, mechanisms, or findings…" aria-label="Filter case studies"></div></div><main><p class="lede">These pages are not toy descriptions detached from code. Each combines the actual serialized Machine and Survey with the saved output of a local <code>gemini-2.5-flash</code> run.</p><div class="callout"><b>Reading the collection:</b> start with the scenario, then compare the schedule's visibility rule with the read versions. That relationship tells you what information each agent could actually use.</div>{''.join(sections)}<footer>Source: <a href="../shared_state_gemini_game_smoke.py">runnable experiments</a> · <a href="../../docs/shared_state_case_studies.md">case-study analysis</a> · generated by <a href="../build_shared_state_case_study_site.py">build script</a></footer></main><script>const q=document.querySelector('#filter');q.addEventListener('input',()=>{{const s=q.value.toLowerCase();document.querySelectorAll('.card').forEach(c=>c.hidden=!c.dataset.search.includes(s));}});</script>'''
     return shell("EDSL Shared-State Case Studies", body, "Thirty-six real Gemini experiments built with the EDSL shared-state DSL.")
 
@@ -454,11 +472,14 @@ def main() -> None:
         captured = json.loads(artifact_path.read_text())
         binding = captured["shared_state"]["bindings"][0]
         events = binding["events"]
+        captured_answers = captured.get("answers")
+        if captured_answers is None:
+            captured_answers = [
+                {answer_names[game]: row["answer"]} for row in captured["rows"]
+            ]
         runs[game] = {
             "game": game,
-            "answers": [
-                {answer_names[game]: row["answer"]} for row in captured["rows"]
-            ],
+            "answers": captured_answers,
             "commands": [
                 event["command"] for event in events if event["kind"] == "write"
             ],
@@ -483,6 +504,55 @@ def main() -> None:
             "round-trip text was: "
             f"“{final_text}”"
         )
+    if CAPTURED_RESULTS["ultimatum"].exists():
+        case = next(case for case in cases if case["game"] == "ultimatum")
+        state = runs["ultimatum"]["final_state"]["game"]
+        case["result"] = (
+            f"The proposer offered ${state['offer']} from the $100 stake, and the "
+            f"responder chose to {state['decision']}. The responder's read occurred "
+            "at version 1, after the offer committed."
+        )
+    if CAPTURED_RESULTS["agenda"].exists():
+        case = next(case for case in cases if case["game"] == "agenda")
+        state = runs["agenda"]["final_state"]["game"]
+        proposals = [proposal["title"] for proposal in state["proposals"]]
+        weights = {"up": 1, "neutral": 0, "down": -1}
+        scores = {
+            proposal: sum(
+                weights[ballot["votes"][proposal]] for ballot in state["ballots"]
+            )
+            for proposal in proposals
+        }
+        winning_score = max(scores.values())
+        winners = [title for title, score in scores.items() if score == winning_score]
+        case["result"] = (
+            f"All four participants proposed and then voted on {len(proposals)} "
+            f"activities. The decoded ballots produced scores {scores}; "
+            f"the winning proposal was {winners[0]!r}."
+        )
+    if CAPTURED_RESULTS["message_board"].exists():
+        case = next(case for case in cases if case["game"] == "message_board")
+        case["result"] = (
+            "Three concise messages formed a visible chain: outdoor exercise led "
+            "to a low-cost family picnic and nature walk, then to a relaxed version "
+            "that preserved time for conversation."
+        )
+    if CAPTURED_RESULTS["work_pool"].exists():
+        case = next(case for case in cases if case["game"] == "work_pool")
+        state = runs["work_pool"]["final_state"]["game"]
+        assignments = {
+            worker: item["id"] for worker, item in state["claims"].items()
+        }
+        case["result"] = (
+            f"Both concurrent claims succeeded without collision: {assignments}. "
+            "Each worker then described only the authoritative item exposed by its "
+            "viewer-specific my_claim field."
+        )
+        case["lesson"] = (
+            "Before-question assignment is atomic, while the command outcome remains "
+            "advisory. A subsequent persistent read exposes my_claim as the "
+            "authoritative assignment without disclosing other workers' claims."
+        )
     missing = set(GAME_ORDER) - runs.keys()
     if missing:
         raise RuntimeError(f"Missing run data: {sorted(missing)}")
@@ -492,6 +562,9 @@ def main() -> None:
         following = cases[i + 1] if i + 1 < len(cases) else None
         (OUT / f"{case['game']}.html").write_text(page(case, runs[case["game"]], i + 1, previous, following))
     (OUT / "index.html").write_text(index_page(cases, runs))
+    from examples.build_systematic_review_case_study import build
+
+    build(css=CSS)
     print(f"Wrote {len(cases) + 1} pages to {OUT}")
 
 

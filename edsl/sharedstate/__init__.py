@@ -12,7 +12,7 @@ from .backend import (
 )
 from .dsl import (
     Command, Effect, Expr, Machine, T, algorithm, append, choose, constant,
-    current as current_value, expr, field, filter_items, input_, local,
+    current as current_value, decode_matrix, expr, field, filter_items, input_, local,
     map_items, map_of, map_sequence, put, record, reduce_, set_, set_once, state_field,
     when,
 )
@@ -25,7 +25,7 @@ __all__ = [
     "StateBackend", "StateSnapshot", "AdvisoryWriteOutcome", "ObservedState",
     "Machine", "Command", "Effect",
     "Expr", "T", "algorithm", "append", "choose", "constant", "current",
-    "current_value", "expr", "field", "filter_items", "input_", "local",
+    "current_value", "decode_matrix", "expr", "field", "filter_items", "input_", "local",
     "map_items", "map_of", "map_sequence", "put", "record", "reduce_", "set_",
     "set_once", "state_field", "when",
 ]

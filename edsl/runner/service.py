@@ -88,6 +88,12 @@ class JobService:
         self._round_snapshot_lock = threading.Lock()
         self._local_state_bindings: dict[tuple[str, str], Any] = {}
         self._state_checkpoints: dict[tuple[str, str], int] = {}
+        # The most recent explicit state read remains the interview's local
+        # snapshot until another read refreshes the same target.
+        self._interview_state_snapshots: dict[
+            tuple[str, str], tuple[dict[str, Any], dict[str, tuple[str, int]]]
+        ] = {}
+        self._interview_state_snapshot_lock = threading.Lock()
 
     def _state_binding(self, job_id: str, step):
         """Return the local execution binding for a serialized state step."""
@@ -116,8 +122,15 @@ class JobService:
             task_def.question_name, []
         )
         steps = getattr(survey, "_state_reads", {}).get(task_def.question_name, [])
+        cache_key = (job_id, interview_id)
+        with self._interview_state_snapshot_lock:
+            cached_view, cached_versions = self._interview_state_snapshots.get(
+                cache_key, ({}, {})
+            )
+            cached_view = dict(cached_view)
+            cached_versions = dict(cached_versions)
         if not steps and not before_steps:
-            return {}, ()
+            return dict(cached_view), tuple(sorted(cached_versions.values()))
         from ..sharedstate.model import resolve_read, resolve_write
         from ..sharedstate.steps import StepContext
 
@@ -133,7 +146,8 @@ class JobService:
         )
         for step in before_steps:
             self._state_binding(job_id, step).apply(resolve_write(step, context))
-        rendered, versions = {}, []
+        rendered = dict(cached_view)
+        versions = dict(cached_versions)
         for step in steps:
             binding = self._state_binding(job_id, step)
             operation = resolve_read(step, context)
@@ -161,8 +175,13 @@ class JobService:
                     )
             observed = binding.read(operation, at_sequence=at_sequence)
             rendered[step.target] = observed.value
-            versions.append((observed.read_id, observed.version))
-        return rendered, tuple(versions)
+            versions[step.target] = (observed.read_id, observed.version)
+        with self._interview_state_snapshot_lock:
+            self._interview_state_snapshots[cache_key] = (
+                dict(rendered),
+                dict(versions),
+            )
+        return dict(rendered), tuple(sorted(versions.values()))
 
     def state_for_direct_answer(
         self, job_id: str, interview_id: str, task_id: str
@@ -173,13 +192,6 @@ class JobService:
         if task_def is None or not survey_data:
             return {}
         survey = Survey.from_dict(survey_data)
-        if not (
-            getattr(survey, "_state_reads", {}).get(task_def.question_name)
-            or getattr(survey, "_state_before_writes", {}).get(
-                task_def.question_name
-            )
-        ):
-            return {}
         interview_def = self._interviews.get_definition(job_id, interview_id)
         agent_data = self._jobs.get_agent(job_id, interview_def.agent_id)
         traits = dict((agent_data or {}).get("traits", {}))
@@ -2890,6 +2902,34 @@ class JobService:
                                 )
                     if anchored:
                         preceding_writes.append(question_name)
+
+            # Explicit reads divide an interview into snapshot phases. Every
+            # question in a phase waits for its read anchor, and the next read
+            # waits for the preceding phase to finish. This makes snapshot
+            # identity follow Survey order rather than renderer timing.
+            read_steps = getattr(survey, "_state_reads", {})
+            read_indices = [
+                index
+                for index, question in enumerate(survey.questions)
+                if read_steps.get(question.question_name)
+            ]
+            for position, anchor_index in enumerate(read_indices):
+                anchor_name = index_to_name[anchor_index]
+                next_index = (
+                    read_indices[position + 1]
+                    if position + 1 < len(read_indices)
+                    else len(survey.questions)
+                )
+                for target_index in range(anchor_index + 1, next_index):
+                    dag.setdefault(index_to_name[target_index], set()).add(
+                        anchor_name
+                    )
+                if next_index < len(survey.questions):
+                    next_name = index_to_name[next_index]
+                    dag.setdefault(next_name, set()).update(
+                        index_to_name[index]
+                        for index in range(anchor_index, next_index)
+                    )
 
             return dag
 

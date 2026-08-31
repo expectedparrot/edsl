@@ -41,6 +41,41 @@ class Runtime:
     def register(self, name: str, version: int, implementation: Algorithm) -> None:
         self.algorithms[(name, version)] = implementation
 
+    @staticmethod
+    def _decode_matrix_answer(answer: Any, rows: Any, options: Any) -> dict[Any, Any]:
+        if not isinstance(answer, dict):
+            raise DSLValidationError("matrix answer must be a map")
+        if not isinstance(rows, list) or not isinstance(options, list):
+            raise DSLValidationError("matrix rows and options must be sequences")
+        if not rows or not options:
+            raise DSLValidationError("matrix rows and options cannot be empty")
+
+        def resolve(value: Any, values: list[Any], kind: str) -> Any:
+            if value in values:
+                return value
+            try:
+                index = int(value)
+            except (TypeError, ValueError) as exc:
+                raise DSLValidationError(
+                    f"unknown matrix {kind} {value!r}"
+                ) from exc
+            if isinstance(value, float) and not value.is_integer():
+                raise DSLValidationError(f"unknown matrix {kind} {value!r}")
+            if not 0 <= index < len(values):
+                raise DSLValidationError(f"unknown matrix {kind} {value!r}")
+            return values[index]
+
+        decoded: dict[Any, Any] = {}
+        for row, option in answer.items():
+            decoded_row = resolve(row, rows, "row")
+            if decoded_row in decoded:
+                raise DSLValidationError(f"duplicate matrix row {decoded_row!r}")
+            decoded[decoded_row] = resolve(option, options, "option")
+        missing = [row for row in rows if row not in decoded]
+        if missing:
+            raise DSLValidationError(f"matrix answer is missing rows {missing!r}")
+        return decoded
+
     def initial_state(self, spec: Machine) -> dict[str, Any]:
         context = {"constant": spec.constants, "state": {}, "input": {}, "current": {}}
         result: dict[str, Any] = {}
@@ -287,6 +322,8 @@ class Runtime:
             return min(args)
         if op == "concat":
             return "".join(str(item) for item in args)
+        if op == "decode_matrix":
+            return self._decode_matrix_answer(*args)
         if op == "reduce":
             operation, collection = args[:2]
             if operation == "tail":

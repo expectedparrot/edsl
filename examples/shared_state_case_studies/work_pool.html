@@ -26,7 +26,7 @@ details{margin:18px 0}summary{cursor:pointer;color:var(--green);font-weight:750}
 <div class="toolbar"><div class="wrap"><a href="index.html">← All case studies</a><span>Gemini 2.5 Flash · local inference</span></div></div>
 <main>
 <p class="lede">This page connects one concrete social-science experiment to the state machine that enforced it and the real Gemini responses that changed its state.</p>
-<section><h2>1. The machine</h2><div class="two"><div class="panel"><h3>What it stores</h3><p><b>SharedWorkPool</b> has 3 durable fields: <code>available</code>, <code>claims</code>, <code>completed</code>.</p><p>Its public view exposes <code>available</code>, <code>claims</code>, <code>completed</code>.</p></div><div class="panel"><h3>How it changes</h3><p>Survey interviews can issue <code>claim_before</code>, <code>complete</code>. Inputs are validated and each accepted command is applied atomically.</p><p>Completion predicate: <b>none</b>. Close effects: <b>0</b>.</p></div></div>
+<section><h2>1. The machine</h2><div class="two"><div class="panel"><h3>What it stores</h3><p><b>SharedWorkPool</b> has 3 durable fields: <code>available</code>, <code>claims</code>, <code>completed</code>.</p><p>Its public view exposes <code>available</code>, <code>my_claim</code>, <code>claim_count</code>, <code>completed</code>.</p></div><div class="panel"><h3>How it changes</h3><p>Survey interviews can issue <code>claim_before</code>, <code>complete</code>. Inputs are validated and each accepted command is applied atomically.</p><p>Completion predicate: <b>none</b>. Close effects: <b>0</b>.</p></div></div>
 <details><summary>Inspect the complete serialized Machine</summary><pre>{
   <span class="key">&quot;name&quot;</span>: <span class="str">&quot;SharedWorkPool&quot;</span>,
   <span class="key">&quot;constants&quot;</span>: {
@@ -319,13 +319,43 @@ details{margin:18px 0}summary{cursor:pointer;color:var(--green);font-weight:750}
         <span class="key">&quot;name&quot;</span>: <span class="str">&quot;available&quot;</span>
       }
     },
-    <span class="key">&quot;claims&quot;</span>: {
-      <span class="key">&quot;op&quot;</span>: <span class="str">&quot;ref&quot;</span>,
-      <span class="key">&quot;args&quot;</span>: [],
-      <span class="key">&quot;kwargs&quot;</span>: {
-        <span class="key">&quot;namespace&quot;</span>: <span class="str">&quot;state&quot;</span>,
-        <span class="key">&quot;name&quot;</span>: <span class="str">&quot;claims&quot;</span>
-      }
+    <span class="key">&quot;my_claim&quot;</span>: {
+      <span class="key">&quot;op&quot;</span>: <span class="str">&quot;get&quot;</span>,
+      <span class="key">&quot;args&quot;</span>: [
+        {
+          <span class="key">&quot;op&quot;</span>: <span class="str">&quot;ref&quot;</span>,
+          <span class="key">&quot;args&quot;</span>: [],
+          <span class="key">&quot;kwargs&quot;</span>: {
+            <span class="key">&quot;namespace&quot;</span>: <span class="str">&quot;state&quot;</span>,
+            <span class="key">&quot;name&quot;</span>: <span class="str">&quot;claims&quot;</span>
+          }
+        },
+        {
+          <span class="key">&quot;op&quot;</span>: <span class="str">&quot;ref&quot;</span>,
+          <span class="key">&quot;args&quot;</span>: [],
+          <span class="key">&quot;kwargs&quot;</span>: {
+            <span class="key">&quot;namespace&quot;</span>: <span class="str">&quot;current&quot;</span>,
+            <span class="key">&quot;name&quot;</span>: <span class="str">&quot;name&quot;</span>,
+            <span class="key">&quot;default&quot;</span>: <span class="bool">null</span>
+          }
+        },
+        <span class="bool">null</span>
+      ],
+      <span class="key">&quot;kwargs&quot;</span>: {}
+    },
+    <span class="key">&quot;claim_count&quot;</span>: {
+      <span class="key">&quot;op&quot;</span>: <span class="str">&quot;length&quot;</span>,
+      <span class="key">&quot;args&quot;</span>: [
+        {
+          <span class="key">&quot;op&quot;</span>: <span class="str">&quot;ref&quot;</span>,
+          <span class="key">&quot;args&quot;</span>: [],
+          <span class="key">&quot;kwargs&quot;</span>: {
+            <span class="key">&quot;namespace&quot;</span>: <span class="str">&quot;state&quot;</span>,
+            <span class="key">&quot;name&quot;</span>: <span class="str">&quot;claims&quot;</span>
+          }
+        }
+      ],
+      <span class="key">&quot;kwargs&quot;</span>: {}
     },
     <span class="key">&quot;completed&quot;</span>: {
       <span class="key">&quot;op&quot;</span>: <span class="str">&quot;ref&quot;</span>,
@@ -357,6 +387,7 @@ details{margin:18px 0}summary{cursor:pointer;color:var(--green);font-weight:750}
     <span class="n">Machine</span><span class="p">,</span>
     <span class="n">T</span><span class="p">,</span>
     <span class="n">constant</span><span class="p">,</span>
+    <span class="n">current</span><span class="p">,</span>
     <span class="n">field</span><span class="p">,</span>
     <span class="n">input_</span><span class="p">,</span>
     <span class="n">put</span><span class="p">,</span>
@@ -365,7 +396,6 @@ details{margin:18px 0}summary{cursor:pointer;color:var(--green);font-weight:750}
     <span class="n">state_field</span><span class="p">,</span>
     <span class="n">SharedState</span><span class="p">,</span>
     <span class="n">SharedStateMap</span><span class="p">,</span>
-    <span class="n">current</span><span class="p">,</span>
 <span class="p">)</span>
 
 <span class="n">unclaimed</span> <span class="o">=</span> <span class="o">~</span><span class="n">field</span><span class="p">(</span><span class="s2">&quot;claims&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">contains</span><span class="p">(</span><span class="n">input_</span><span class="p">(</span><span class="s2">&quot;claimant&quot;</span><span class="p">))</span>
@@ -404,7 +434,8 @@ details{margin:18px 0}summary{cursor:pointer;color:var(--green);font-weight:750}
     <span class="p">},</span>
     <span class="n">view</span><span class="o">=</span><span class="p">{</span>
         <span class="s2">&quot;available&quot;</span><span class="p">:</span> <span class="n">field</span><span class="p">(</span><span class="s2">&quot;available&quot;</span><span class="p">),</span>
-        <span class="s2">&quot;claims&quot;</span><span class="p">:</span> <span class="n">field</span><span class="p">(</span><span class="s2">&quot;claims&quot;</span><span class="p">),</span>
+        <span class="s2">&quot;my_claim&quot;</span><span class="p">:</span> <span class="n">field</span><span class="p">(</span><span class="s2">&quot;claims&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">current</span><span class="p">(</span><span class="s2">&quot;name&quot;</span><span class="p">)),</span>
+        <span class="s2">&quot;claim_count&quot;</span><span class="p">:</span> <span class="n">field</span><span class="p">(</span><span class="s2">&quot;claims&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">length</span><span class="p">(),</span>
         <span class="s2">&quot;completed&quot;</span><span class="p">:</span> <span class="n">field</span><span class="p">(</span><span class="s2">&quot;completed&quot;</span><span class="p">),</span>
     <span class="p">},</span>
 <span class="p">)</span>
@@ -417,7 +448,7 @@ details{margin:18px 0}summary{cursor:pointer;color:var(--green);font-weight:750}
     <span class="n">game</span> <span class="o">=</span> <span class="n">states</span><span class="o">.</span><span class="n">by</span><span class="p">(</span><span class="s2">&quot;queue&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">game</span>
     <span class="n">result</span> <span class="o">=</span> <span class="n">QuestionFreeText</span><span class="p">(</span>
         <span class="n">question_name</span><span class="o">=</span><span class="s2">&quot;result&quot;</span><span class="p">,</span>
-        <span class="n">question_text</span><span class="o">=</span><span class="s2">&quot;You atomically claimed work item {{ shared_state.game.claims }}. Return a short completion note for your item.&quot;</span><span class="p">,</span>
+        <span class="n">question_text</span><span class="o">=</span><span class="s2">&quot;Your authoritative atomic assignment is {{ shared_state.game.my_claim }}. Return a short completion note for that item only.&quot;</span><span class="p">,</span>
     <span class="p">)</span>
     <span class="n">survey</span> <span class="o">=</span> <span class="n">Survey</span><span class="p">(</span>
         <span class="p">[</span>
@@ -454,8 +485,8 @@ details{margin:18px 0}summary{cursor:pointer;color:var(--green);font-weight:750}
     <span class="nb">print</span><span class="p">(</span><span class="n">results</span><span class="p">)</span>
 </pre></div>
 </section>
-<section><h2>3. The experiment</h2><div class="facts"><div class="fact"><small>Schedule</small><b>rounds</b></div><div class="fact"><small>Within round</small><b>concurrent</b></div><div class="fact"><small>State visibility</small><b>live</b></div><div class="fact"><small>Rounds</small><b>1</b></div></div><div class="scroll"><table><thead><tr><th>Question</th><th>Type</th><th>Prompt</th></tr></thead><tbody><tr><td><code>result</code></td><td>free_text</td><td>You atomically claimed work item {{ shared_state.game.claims }}. Return a short completion note for your item.</td></tr></tbody></table></div><h3 style="margin-top:28px">Survey state sequence</h3><p>These explicit read and write steps determine when interviews observe shared state and when their answers become commands.</p><div class="scroll"><table><thead><tr><th>#</th><th>Phase</th><th>Question boundary</th><th>Operation</th></tr></thead><tbody><tr><td>1</td><td>before writes</td><td><code>result</code></td><td><code>claim_before</code></td></tr><tr><td>2</td><td>reads</td><td><code>result</code></td><td><code>read</code></td></tr><tr><td>3</td><td>writes</td><td><code>result</code></td><td><code>complete</code></td></tr></tbody></table></div></section>
-<section><h2>4. What happened</h2><div class="two"><div class="panel result"><h3>Observed result</h3><p>Worker A received W2 and Worker B W1; both completed distinct items.</p></div><div class="panel"><h3>Final shared state</h3><pre>{
+<section><h2>3. The experiment</h2><div class="facts"><div class="fact"><small>Schedule</small><b>rounds</b></div><div class="fact"><small>Within round</small><b>concurrent</b></div><div class="fact"><small>State visibility</small><b>live</b></div><div class="fact"><small>Rounds</small><b>1</b></div></div><div class="scroll"><table><thead><tr><th>Question</th><th>Type</th><th>Prompt</th></tr></thead><tbody><tr><td><code>result</code></td><td>free_text</td><td>Your authoritative atomic assignment is {{ shared_state.game.my_claim }}. Return a short completion note for that item only.</td></tr></tbody></table></div><h3 style="margin-top:28px">Survey state sequence</h3><p>These explicit read and write steps determine when interviews observe shared state and when their answers become commands.</p><div class="scroll"><table><thead><tr><th>#</th><th>Phase</th><th>Question boundary</th><th>Operation</th></tr></thead><tbody><tr><td>1</td><td>before writes</td><td><code>result</code></td><td><code>claim_before</code></td></tr><tr><td>2</td><td>reads</td><td><code>result</code></td><td><code>read</code></td></tr><tr><td>3</td><td>writes</td><td><code>result</code></td><td><code>complete</code></td></tr></tbody></table></div></section>
+<section><h2>4. What happened</h2><div class="two"><div class="panel result"><h3>Observed result</h3><p>Both concurrent claims succeeded without collision: {&#x27;Worker A&#x27;: &#x27;W2&#x27;, &#x27;Worker B&#x27;: &#x27;W1&#x27;}. Each worker then described only the authoritative item exposed by its viewer-specific my_claim field.</p></div><div class="panel"><h3>Final shared state</h3><pre>{
   <span class="key">&quot;game&quot;</span>: {
     <span class="key">&quot;available&quot;</span>: [],
     <span class="key">&quot;claims&quot;</span>: {
@@ -472,7 +503,7 @@ details{margin:18px 0}summary{cursor:pointer;color:var(--green);font-weight:750}
           <span class="key">&quot;id&quot;</span>: <span class="str">&quot;W2&quot;</span>
         },
         <span class="key">&quot;result&quot;</span>: {
-          <span class="key">&quot;note&quot;</span>: <span class="str">&quot;Work items claimed: Worker A (W2), Worker B (W1).&quot;</span>
+          <span class="key">&quot;note&quot;</span>: <span class="str">&quot;W2 completion note: \&quot;</span>W2: Completed.\&quot;&quot;
         }
       },
       <span class="key">&quot;Worker B&quot;</span>: {
@@ -480,20 +511,20 @@ details{margin:18px 0}summary{cursor:pointer;color:var(--green);font-weight:750}
           <span class="key">&quot;id&quot;</span>: <span class="str">&quot;W1&quot;</span>
         },
         <span class="key">&quot;result&quot;</span>: {
-          <span class="key">&quot;note&quot;</span>: <span class="str">&quot;Work item W1 for Worker B has been completed.&quot;</span>
+          <span class="key">&quot;note&quot;</span>: <span class="str">&quot;Completion Note for W1:\n\nW1 has been successfully processed.&quot;</span>
         }
       }
     }
   }
-}</pre></div></div><h3 style="margin-top:28px">What each agent contributed</h3><div class="scroll"><table><thead><tr><th>#</th><th>Agent</th><th>Round</th><th>Private traits</th><th>Answer</th><th>Read version</th></tr></thead><tbody><tr><td>1</td><td>Worker A</td><td>—</td><td><code>{}</code></td><td><code>{&quot;result&quot;: &quot;Work items claimed: Worker A (W2), Worker B (W1).&quot;}</code></td><td>1</td></tr><tr><td>2</td><td>Worker B</td><td>—</td><td><code>{}</code></td><td><code>{&quot;result&quot;: &quot;Work item W1 for Worker B has been completed.&quot;}</code></td><td>2</td></tr></tbody></table></div></section>
+}</pre></div></div><h3 style="margin-top:28px">What each agent contributed</h3><div class="scroll"><table><thead><tr><th>#</th><th>Agent</th><th>Round</th><th>Private traits</th><th>Answer</th><th>Read version</th></tr></thead><tbody><tr><td>1</td><td>Worker A</td><td>—</td><td><code>{}</code></td><td><code>{&quot;result&quot;: &quot;W2 completion note: \&quot;W2: Completed.\&quot;&quot;}</code></td><td>1</td></tr><tr><td>2</td><td>Worker B</td><td>—</td><td><code>{}</code></td><td><code>{&quot;result&quot;: &quot;Completion Note for W1:\n\nW1 has been successfully processed.&quot;}</code></td><td>2</td></tr></tbody></table></div><h3 style="margin-top:30px">The complete Results prompts</h3><p>These 2 prompt rows are retained by the actual 2-row EDSL <code>Results</code> object. Nothing in these cells has been reconstructed or abbreviated. The durable package is <a href="../shared_state_work_pool_results.ep"><code>shared_state_work_pool_results.ep</code></a>.</p><div class="scroll"><table class="prompt-table"><thead><tr><th>Agent</th><th>Round</th><th>Question</th><th>User prompt</th><th>System prompt</th><th>Answer</th><th>Comment</th></tr></thead><tbody><tr><td>Worker A</td><td>1</td><td><code>result</code></td><td class="prompt-cell"><pre>Your authoritative atomic assignment is {&#x27;id&#x27;: &#x27;W2&#x27;}. Return a short completion note for that item only.</pre></td><td class="prompt-cell"><pre></pre></td><td><code>&quot;W2 completion note: \&quot;W2: Completed.\&quot;&quot;</code></td><td class="comment-cell">None</td></tr><tr><td>Worker B</td><td>1</td><td><code>result</code></td><td class="prompt-cell"><pre>Your authoritative atomic assignment is {&#x27;id&#x27;: &#x27;W1&#x27;}. Return a short completion note for that item only.</pre></td><td class="prompt-cell"><pre></pre></td><td><code>&quot;Completion Note for W1:\n\nW1 has been successfully processed.&quot;</code></td><td class="comment-cell">None</td></tr></tbody></table></div></section>
 <section><h2>5. State evolution</h2><p>The recorded read versions were <code>[1, 2]</code>. The committed command sequence was <code>[&#x27;claim_before&#x27;, &#x27;claim_before&#x27;, &#x27;complete&#x27;, &#x27;complete&#x27;]</code>.</p><div class="callout"><b>How to read this:</b> agents sharing a version decided from the same snapshot; increasing versions mean later interviews could observe earlier commits. Command order is commit order, not necessarily interview launch order.</div><details><summary>Inspect raw run summary</summary><pre>{
   <span class="key">&quot;game&quot;</span>: <span class="str">&quot;work_pool&quot;</span>,
   <span class="key">&quot;answers&quot;</span>: [
     {
-      <span class="key">&quot;result&quot;</span>: <span class="str">&quot;Work items claimed: Worker A (W2), Worker B (W1).&quot;</span>
+      <span class="key">&quot;result&quot;</span>: <span class="str">&quot;W2 completion note: \&quot;</span>W2: Completed.\&quot;&quot;
     },
     {
-      <span class="key">&quot;result&quot;</span>: <span class="str">&quot;Work item W1 for Worker B has been completed.&quot;</span>
+      <span class="key">&quot;result&quot;</span>: <span class="str">&quot;Completion Note for W1:\n\nW1 has been successfully processed.&quot;</span>
     }
   ],
   <span class="key">&quot;commands&quot;</span>: [
@@ -519,7 +550,7 @@ details{margin:18px 0}summary{cursor:pointer;color:var(--green);font-weight:750}
             <span class="key">&quot;id&quot;</span>: <span class="str">&quot;W2&quot;</span>
           },
           <span class="key">&quot;result&quot;</span>: {
-            <span class="key">&quot;note&quot;</span>: <span class="str">&quot;Work items claimed: Worker A (W2), Worker B (W1).&quot;</span>
+            <span class="key">&quot;note&quot;</span>: <span class="str">&quot;W2 completion note: \&quot;</span>W2: Completed.\&quot;&quot;
           }
         },
         <span class="key">&quot;Worker B&quot;</span>: {
@@ -527,7 +558,7 @@ details{margin:18px 0}summary{cursor:pointer;color:var(--green);font-weight:750}
             <span class="key">&quot;id&quot;</span>: <span class="str">&quot;W1&quot;</span>
           },
           <span class="key">&quot;result&quot;</span>: {
-            <span class="key">&quot;note&quot;</span>: <span class="str">&quot;Work item W1 for Worker B has been completed.&quot;</span>
+            <span class="key">&quot;note&quot;</span>: <span class="str">&quot;Completion Note for W1:\n\nW1 has been successfully processed.&quot;</span>
           }
         }
       }
@@ -538,5 +569,5 @@ details{margin:18px 0}summary{cursor:pointer;color:var(--green);font-weight:750}
     <span class="num">2</span>
   ]
 }</pre></details></section>
-<section><h2>6. What this example teaches us</h2><p class="lede">Before-question atomic claims work under live visibility. The assignment order is completion-dependent, which is correct but should be made explicit when reproducibility matters.</p><p>This is one behavioral realization, not an estimate of Gemini's average behavior. Its main purpose is to test whether the machine, survey, visibility, and schedule jointly express the intended experiment.</p></section>
+<section><h2>6. What this example teaches us</h2><p class="lede">Before-question assignment is atomic, while the command outcome remains advisory. A subsequent persistent read exposes my_claim as the authoritative assignment without disclosing other workers&#x27; claims.</p><p>This is one behavioral realization, not an estimate of Gemini's average behavior. Its main purpose is to test whether the machine, survey, visibility, and schedule jointly express the intended experiment.</p></section>
 <div class="navlinks"><a href="message_board.html">← Family message board</a><a href="index.html">Index</a><a href="meeting_poll.html">Meeting availability poll →</a></div><footer>Generated from the runnable Survey, serialized Machine, Gemini audit, and case-study report. No result was invented for this page.</footer></main></body></html>

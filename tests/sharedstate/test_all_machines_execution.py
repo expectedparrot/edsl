@@ -15,7 +15,7 @@ from edsl.sharedstate.steps import StepContext
 VECTORS = {
     "shared_agenda": [
         ("propose", {"proposer": "Amina", "title": "Go sailing"}),
-        ("vote", {"voter": "Boris", "votes": {"A1": "up"}}),
+        ("vote", {"voter": "Boris", "votes": {"0": 0}}),
     ],
     "shared_auction": [
         ("bid", {"amount": 10}),
@@ -106,6 +106,15 @@ VECTORS = {
         ("submit", {"player": "B", "seat": "1", "action": "defect"}),
         ("$close", {}),
     ],
+    "shared_meeting_poll": [
+        (
+            "respond",
+            {
+                "participant": "Amina",
+                "available_slots": ["Tuesday 10:00 AM", "Wednesday 2:00 PM"],
+            },
+        ),
+    ],
     "shared_message_board": [
         ("add", {"author": "Amina", "message": "Let's hike", "reply_to": None}),
     ],
@@ -138,6 +147,26 @@ VECTORS = {
     ],
     "shared_resource_board": [
         ("allocate", {"responder": "Amina", "round": 1, "incident": "fire", "resource": "E1"}),
+    ],
+    "shared_review_screening": [
+        ("claim", {"reviewer": "Amina"}),
+        (
+            "review",
+            {
+                "reviewer": "Amina",
+                "decision": "include",
+                "reason": "Randomized study with attendance outcomes.",
+            },
+        ),
+        (
+            "adjudicate",
+            {
+                "paper": "P1",
+                "adjudicator": "Morgan",
+                "decision": "include",
+                "reason": "Meets the review criteria.",
+            },
+        ),
     ],
     "shared_sealed_auction": [
         ("bid", {"bidder": "A", "seat": 0, "private_value": 80, "amount": 60}),
@@ -177,7 +206,7 @@ VECTORS = {
 # target the economically or procedurally meaningful result, rather than
 # copying each machine's entire public view into the test.
 EXPECTED_PATHS = {
-    "shared_agenda": {("scores", "A1"): 1},
+    "shared_agenda": {("scores", "Go sailing"): 1},
     "shared_auction": {
         ("highest_bid",): 30,
         ("winning_bid",): 30,
@@ -210,6 +239,10 @@ EXPECTED_PATHS = {
         ("assignments",): {"A": "hike", "B": "bike ride", "C": "sailing"}
     },
     "shared_matrix_game": {("payoffs",): {"A": 0, "B": 5}},
+    "shared_meeting_poll": {
+        ("counts", "Tuesday 10:00 AM"): 1,
+        ("response_count",): 1,
+    },
     "shared_message_board": {("message_count",): 1},
     "shared_money_request_game": {("payoffs",): {"A": 39, "B": 20}},
     "shared_nash_demand_game": {("feasible",): True, ("payoffs", "B"): 50},
@@ -218,6 +251,11 @@ EXPECTED_PATHS = {
     "shared_register": {("values", "Amina"): "hike"},
     "shared_repeated_matrix_game": {("rounds", "1", "1"): "defect"},
     "shared_resource_board": {("assignments", "fire"): "E1"},
+    "shared_review_screening": {
+        ("remaining_assignment_count",): 5,
+        ("reviews", 0, "paper"): "P1",
+        ("final_decisions", "P1", "decision"): "include",
+    },
     "shared_sealed_auction": {("winner",): "A", ("price",): 50},
     "shared_signal_schedule": {("release_count",): 1},
     "shared_signaling_game": {("hired",): True, ("payoffs", "Worker"): 40},

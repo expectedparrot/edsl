@@ -501,14 +501,37 @@ details{margin:18px 0}summary{cursor:pointer;color:var(--green);font-weight:750}
 </pre></div>
 </section>
 <section><h2>3. The experiment</h2><div class="facts"><div class="fact"><small>Schedule</small><b>grouped_round_robin</b></div><div class="fact"><small>Within round</small><b>serial</b></div><div class="fact"><small>State visibility</small><b>live</b></div><div class="fact"><small>Rounds</small><b>until complete</b></div></div><div class="scroll"><table><thead><tr><th>Question</th><th>Type</th><th>Prompt</th></tr></thead><tbody><tr><td><code>offer</code></td><td>numerical</td><td>You are the proposer. Current game: {{ shared_state.game }}. How many dollars from the $100 stake do you offer the responder?</td></tr><tr><td><code>decision</code></td><td>multiple_choice</td><td>You are the responder. Current game: {{ shared_state.game }}. Do you accept or reject the recorded offer?</td></tr></tbody></table></div><h3 style="margin-top:28px">Survey state sequence</h3><p>These explicit read and write steps determine when interviews observe shared state and when their answers become commands.</p><div class="scroll"><table><thead><tr><th>#</th><th>Phase</th><th>Question boundary</th><th>Operation</th></tr></thead><tbody><tr><td>1</td><td>reads</td><td><code>offer</code></td><td><code>read</code></td></tr><tr><td>2</td><td>reads</td><td><code>decision</code></td><td><code>read</code></td></tr><tr><td>3</td><td>writes</td><td><code>offer</code></td><td><code>offer</code></td></tr><tr><td>4</td><td>writes</td><td><code>decision</code></td><td><code>respond</code></td></tr></tbody></table></div></section>
-<section><h2>4. What happened</h2><div class="two"><div class="panel result"><h3>Observed result</h3><p>The proposer offered $50 and the responder accepted.</p></div><div class="panel"><h3>Final shared state</h3><pre>{
+<section><h2>4. What happened</h2><div class="two"><div class="panel result"><h3>Observed result</h3><p>The proposer offered $50 from the $100 stake, and the responder chose to accept. The responder&#x27;s read occurred at version 1, after the offer committed.</p></div><div class="panel"><h3>Final shared state</h3><pre>{
   <span class="key">&quot;game&quot;</span>: {
     <span class="key">&quot;decision&quot;</span>: <span class="str">&quot;accept&quot;</span>,
     <span class="key">&quot;offer&quot;</span>: <span class="num">50</span>,
     <span class="key">&quot;proposer&quot;</span>: <span class="str">&quot;Proposer&quot;</span>,
     <span class="key">&quot;responder&quot;</span>: <span class="str">&quot;Responder&quot;</span>
   }
-}</pre></div></div><h3 style="margin-top:28px">What each agent contributed</h3><div class="scroll"><table><thead><tr><th>#</th><th>Agent</th><th>Round</th><th>Private traits</th><th>Answer</th><th>Read version</th></tr></thead><tbody><tr><td>1</td><td>Proposer</td><td>—</td><td><code>{&quot;role&quot;: &quot;proposer&quot;, &quot;pair_id&quot;: &quot;game&quot;, &quot;turn&quot;: 0, &quot;generosity&quot;: 0.2, &quot;inequity_aversion&quot;: 0.4}</code></td><td><code>{&quot;offer&quot;: 50, &quot;decision&quot;: null}</code></td><td>0</td></tr><tr><td>2</td><td>Responder</td><td>—</td><td><code>{&quot;role&quot;: &quot;responder&quot;, &quot;pair_id&quot;: &quot;game&quot;, &quot;turn&quot;: 1, &quot;generosity&quot;: 0.0, &quot;inequity_aversion&quot;: 0.8}</code></td><td><code>{&quot;decision&quot;: &quot;accept&quot;, &quot;offer&quot;: null}</code></td><td>1</td></tr></tbody></table></div></section>
+}</pre></div></div><h3 style="margin-top:28px">What each agent contributed</h3><div class="scroll"><table><thead><tr><th>#</th><th>Agent</th><th>Round</th><th>Private traits</th><th>Answer</th><th>Read version</th></tr></thead><tbody><tr><td>1</td><td>Proposer</td><td>—</td><td><code>{&quot;role&quot;: &quot;proposer&quot;, &quot;pair_id&quot;: &quot;game&quot;, &quot;turn&quot;: 0, &quot;generosity&quot;: 0.2, &quot;inequity_aversion&quot;: 0.4}</code></td><td><code>{&quot;offer&quot;: 50, &quot;decision&quot;: null}</code></td><td>0</td></tr><tr><td>2</td><td>Responder</td><td>—</td><td><code>{&quot;role&quot;: &quot;responder&quot;, &quot;pair_id&quot;: &quot;game&quot;, &quot;turn&quot;: 1, &quot;generosity&quot;: 0.0, &quot;inequity_aversion&quot;: 0.8}</code></td><td><code>{&quot;decision&quot;: &quot;accept&quot;, &quot;offer&quot;: null}</code></td><td>1</td></tr></tbody></table></div><h3 style="margin-top:30px">The complete Results prompts</h3><p>These 2 prompt rows are retained by the actual 2-row EDSL <code>Results</code> object. Nothing in these cells has been reconstructed or abbreviated. The durable package is <a href="../shared_state_ultimatum_results.ep"><code>shared_state_ultimatum_results.ep</code></a>.</p><div class="scroll"><table class="prompt-table"><thead><tr><th>Agent</th><th>Round</th><th>Question</th><th>User prompt</th><th>System prompt</th><th>Answer</th><th>Comment</th></tr></thead><tbody><tr><td>Proposer</td><td>0</td><td><code>offer</code></td><td class="prompt-cell"><pre>You are the proposer. Current game: {&#x27;offer&#x27;: None, &#x27;decision&#x27;: None, &#x27;payoffs&#x27;: {&#x27;proposer&#x27;: 0, &#x27;responder&#x27;: 0}}. How many dollars from the $100 stake do you offer the responder?
+
+
+    Maximum answer value: 100
+This question requires a numerical response in the form of an integer or decimal (e.g., -12, 0, 1, 2, 3.45, ...).
+Respond with just your number on a single line.
+If your response is equivalent to zero, report &#x27;0&#x27;
+
+
+After the answer, put a comment explaining your choice on the next line.</pre></td><td class="prompt-cell"><pre>You are answering questions as if you were a human. Do not break character.Your traits range from -1 to 1. generosity measures willingness to sacrifice payoff for another person; inequity_aversion measures opposition to unequal outcomes. Act consistently with these values.</pre></td><td><code>50</code></td><td class="comment-cell">I offer an equal split because it is fair and avoids any potential for inequity.</td></tr><tr><td>Responder</td><td>1</td><td><code>decision</code></td><td class="prompt-cell"><pre>
+You are the responder. Current game: {&#x27;offer&#x27;: 50, &#x27;decision&#x27;: None, &#x27;payoffs&#x27;: {&#x27;proposer&#x27;: 0, &#x27;responder&#x27;: 0}}. Do you accept or reject the recorded offer?
+
+
+accept
+
+reject
+
+
+Only 1 option may be selected.
+
+Respond only with a string corresponding to one of the options.
+
+
+After the answer, you can put a comment explaining why you chose that option on the next line.</pre></td><td class="prompt-cell"><pre>You are answering questions as if you were a human. Do not break character.Your traits range from -1 to 1. generosity measures willingness to sacrifice payoff for another person; inequity_aversion measures opposition to unequal outcomes. Act consistently with these values.</pre></td><td><code>&quot;accept&quot;</code></td><td class="comment-cell">The offer is fair, and I am not averse to unequal outcomes.</td></tr></tbody></table></div></section>
 <section><h2>5. State evolution</h2><p>The recorded read versions were <code>[0, 1]</code>. The committed command sequence was <code>[&#x27;offer&#x27;, &#x27;respond&#x27;, &#x27;$close&#x27;]</code>.</p><div class="callout"><b>How to read this:</b> agents sharing a version decided from the same snapshot; increasing versions mean later interviews could observe earlier commits. Command order is commit order, not necessarily interview launch order.</div><details><summary>Inspect raw run summary</summary><pre>{
   <span class="key">&quot;game&quot;</span>: <span class="str">&quot;ultimatum&quot;</span>,
   <span class="key">&quot;answers&quot;</span>: [

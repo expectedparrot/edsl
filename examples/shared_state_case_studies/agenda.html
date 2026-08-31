@@ -22,7 +22,7 @@ pre{overflow:auto;padding:21px 23px;border-radius:12px;background:var(--code);co
 details{margin:18px 0}summary{cursor:pointer;color:var(--green);font-weight:750}.navlinks{display:flex;justify-content:space-between;gap:14px;margin:56px 0 0;padding-top:22px;border-top:1px solid var(--line)}footer{margin-top:62px;color:var(--muted);font-size:.9rem}
 @media(max-width:720px){.two{grid-template-columns:1fr}.toolbar .wrap{align-items:stretch;flex-direction:column}.toolbar input{width:100%}header{padding-top:54px}}
 </style></head><body>
-<header><div class="wrap"><p class="eyebrow">Case study 32 · Deliberation, information, and collaborative work</p><h1>Committee agenda</h1><p>Two members propose weekend projects; two later members vote on the generated agenda.</p><div class="stats"><div class="stat"><b>4</b><span>agents</span></div><div class="stat"><b>2</b><span>machine commands</span></div><div class="stat"><b>4</b><span>recorded reads</span></div></div></div></header>
+<header><div class="wrap"><p class="eyebrow">Case study 32 · Deliberation, information, and collaborative work</p><h1>Committee agenda</h1><p>Two members propose weekend projects; two later members vote on the generated agenda.</p><div class="stats"><div class="stat"><b>8</b><span>agents</span></div><div class="stat"><b>2</b><span>machine commands</span></div><div class="stat"><b>8</b><span>recorded reads</span></div></div></div></header>
 <div class="toolbar"><div class="wrap"><a href="index.html">← All case studies</a><span>Gemini 2.5 Flash · local inference</span></div></div>
 <main>
 <p class="lede">This page connects one concrete social-science experiment to the state machine that enforced it and the real Gemini responses that changed its state.</p>
@@ -179,15 +179,9 @@ details{margin:18px 0}summary{cursor:pointer;color:var(--green);font-weight:750}
             <span class="key">&quot;value&quot;</span>: {
               <span class="key">&quot;op&quot;</span>: <span class="str">&quot;type&quot;</span>,
               <span class="key">&quot;args&quot;</span>: [
-                &quot;choice&quot;
+                &quot;any&quot;
               ],
-              <span class="key">&quot;kwargs&quot;</span>: {
-                <span class="key">&quot;options&quot;</span>: [
-                  &quot;up&quot;,
-                  &quot;neutral&quot;,
-                  &quot;down&quot;
-                ]
-              }
+              <span class="key">&quot;kwargs&quot;</span>: {}
             }
           }
         }
@@ -210,12 +204,55 @@ details{margin:18px 0}summary{cursor:pointer;color:var(--green);font-weight:750}
                   }
                 },
                 <span class="key">&quot;votes&quot;</span>: {
-                  <span class="key">&quot;op&quot;</span>: <span class="str">&quot;ref&quot;</span>,
-                  <span class="key">&quot;args&quot;</span>: [],
-                  <span class="key">&quot;kwargs&quot;</span>: {
-                    <span class="key">&quot;namespace&quot;</span>: <span class="str">&quot;input&quot;</span>,
-                    <span class="key">&quot;name&quot;</span>: <span class="str">&quot;votes&quot;</span>
-                  }
+                  <span class="key">&quot;op&quot;</span>: <span class="str">&quot;decode_matrix&quot;</span>,
+                  <span class="key">&quot;args&quot;</span>: [
+                    {
+                      <span class="key">&quot;op&quot;</span>: <span class="str">&quot;ref&quot;</span>,
+                      <span class="key">&quot;args&quot;</span>: [],
+                      <span class="key">&quot;kwargs&quot;</span>: {
+                        <span class="key">&quot;namespace&quot;</span>: <span class="str">&quot;input&quot;</span>,
+                        <span class="key">&quot;name&quot;</span>: <span class="str">&quot;votes&quot;</span>
+                      }
+                    },
+                    {
+                      <span class="key">&quot;op&quot;</span>: <span class="str">&quot;map_sequence&quot;</span>,
+                      <span class="key">&quot;args&quot;</span>: [
+                        {
+                          <span class="key">&quot;op&quot;</span>: <span class="str">&quot;ref&quot;</span>,
+                          <span class="key">&quot;args&quot;</span>: [],
+                          <span class="key">&quot;kwargs&quot;</span>: {
+                            <span class="key">&quot;namespace&quot;</span>: <span class="str">&quot;state&quot;</span>,
+                            <span class="key">&quot;name&quot;</span>: <span class="str">&quot;proposals&quot;</span>
+                          }
+                        }
+                      ],
+                      <span class="key">&quot;kwargs&quot;</span>: {
+                        <span class="key">&quot;item&quot;</span>: <span class="str">&quot;proposal&quot;</span>,
+                        <span class="key">&quot;value_expr&quot;</span>: {
+                          <span class="key">&quot;op&quot;</span>: <span class="str">&quot;get&quot;</span>,
+                          <span class="key">&quot;args&quot;</span>: [
+                            {
+                              <span class="key">&quot;op&quot;</span>: <span class="str">&quot;ref&quot;</span>,
+                              <span class="key">&quot;args&quot;</span>: [],
+                              <span class="key">&quot;kwargs&quot;</span>: {
+                                <span class="key">&quot;namespace&quot;</span>: <span class="str">&quot;local&quot;</span>,
+                                <span class="key">&quot;name&quot;</span>: <span class="str">&quot;proposal&quot;</span>
+                              }
+                            },
+                            &quot;title&quot;,
+                            <span class="bool">null</span>
+                          ],
+                          <span class="key">&quot;kwargs&quot;</span>: {}
+                        }
+                      }
+                    },
+                    [
+                      &quot;up&quot;,
+                      &quot;neutral&quot;,
+                      &quot;down&quot;
+                    ]
+                  ],
+                  <span class="key">&quot;kwargs&quot;</span>: {}
                 }
               }
             }
@@ -287,9 +324,12 @@ details{margin:18px 0}summary{cursor:pointer;color:var(--green);font-weight:750}
     <span class="n">Machine</span><span class="p">,</span>
     <span class="n">T</span><span class="p">,</span>
     <span class="n">append</span><span class="p">,</span>
+    <span class="n">decode_matrix</span><span class="p">,</span>
     <span class="n">expr</span><span class="p">,</span>
     <span class="n">field</span><span class="p">,</span>
     <span class="n">input_</span><span class="p">,</span>
+    <span class="n">local</span><span class="p">,</span>
+    <span class="n">map_sequence</span><span class="p">,</span>
     <span class="n">record</span><span class="p">,</span>
     <span class="n">reduce_</span><span class="p">,</span>
     <span class="n">state_field</span><span class="p">,</span>
@@ -299,6 +339,10 @@ details{margin:18px 0}summary{cursor:pointer;color:var(--green);font-weight:750}
 <span class="p">)</span>
 
 <span class="n">proposal_id</span> <span class="o">=</span> <span class="n">expr</span><span class="p">(</span><span class="s2">&quot;concat&quot;</span><span class="p">,</span> <span class="s2">&quot;A&quot;</span><span class="p">,</span> <span class="n">field</span><span class="p">(</span><span class="s2">&quot;proposals&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">length</span><span class="p">()</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+<span class="n">proposal_titles</span> <span class="o">=</span> <span class="n">map_sequence</span><span class="p">(</span>
+    <span class="n">field</span><span class="p">(</span><span class="s2">&quot;proposals&quot;</span><span class="p">),</span> <span class="n">item</span><span class="o">=</span><span class="s2">&quot;proposal&quot;</span><span class="p">,</span> <span class="n">value_expr</span><span class="o">=</span><span class="n">local</span><span class="p">(</span><span class="s2">&quot;proposal&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;title&quot;</span><span class="p">)</span>
+<span class="p">)</span>
+<span class="n">vote_options</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;up&quot;</span><span class="p">,</span> <span class="s2">&quot;neutral&quot;</span><span class="p">,</span> <span class="s2">&quot;down&quot;</span><span class="p">]</span>
 <span class="n">agenda_machine</span> <span class="o">=</span> <span class="n">Machine</span><span class="p">(</span>
     <span class="n">name</span><span class="o">=</span><span class="s2">&quot;SharedAgenda&quot;</span><span class="p">,</span>
     <span class="n">constants</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;vote_weights&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;up&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s2">&quot;neutral&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span> <span class="s2">&quot;down&quot;</span><span class="p">:</span> <span class="o">-</span><span class="mi">1</span><span class="p">}},</span>
@@ -321,12 +365,17 @@ details{margin:18px 0}summary{cursor:pointer;color:var(--green);font-weight:750}
             <span class="p">),</span>
         <span class="p">),</span>
         <span class="s2">&quot;vote&quot;</span><span class="p">:</span> <span class="n">Command</span><span class="p">(</span>
-            <span class="n">inputs</span><span class="o">=</span><span class="p">{</span>
-                <span class="s2">&quot;voter&quot;</span><span class="p">:</span> <span class="n">T</span><span class="o">.</span><span class="n">text</span><span class="p">(),</span>
-                <span class="s2">&quot;votes&quot;</span><span class="p">:</span> <span class="n">T</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="n">T</span><span class="o">.</span><span class="n">text</span><span class="p">(),</span> <span class="n">T</span><span class="o">.</span><span class="n">choice</span><span class="p">((</span><span class="s2">&quot;up&quot;</span><span class="p">,</span> <span class="s2">&quot;neutral&quot;</span><span class="p">,</span> <span class="s2">&quot;down&quot;</span><span class="p">))),</span>
-            <span class="p">},</span>
+            <span class="n">inputs</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;voter&quot;</span><span class="p">:</span> <span class="n">T</span><span class="o">.</span><span class="n">text</span><span class="p">(),</span> <span class="s2">&quot;votes&quot;</span><span class="p">:</span> <span class="n">T</span><span class="o">.</span><span class="n">map</span><span class="p">()},</span>
             <span class="n">effects</span><span class="o">=</span><span class="p">(</span>
-                <span class="n">append</span><span class="p">(</span><span class="s2">&quot;ballots&quot;</span><span class="p">,</span> <span class="n">record</span><span class="p">(</span><span class="n">voter</span><span class="o">=</span><span class="n">input_</span><span class="p">(</span><span class="s2">&quot;voter&quot;</span><span class="p">),</span> <span class="n">votes</span><span class="o">=</span><span class="n">input_</span><span class="p">(</span><span class="s2">&quot;votes&quot;</span><span class="p">))),</span>
+                <span class="n">append</span><span class="p">(</span>
+                    <span class="s2">&quot;ballots&quot;</span><span class="p">,</span>
+                    <span class="n">record</span><span class="p">(</span>
+                        <span class="n">voter</span><span class="o">=</span><span class="n">input_</span><span class="p">(</span><span class="s2">&quot;voter&quot;</span><span class="p">),</span>
+                        <span class="n">votes</span><span class="o">=</span><span class="n">decode_matrix</span><span class="p">(</span>
+                            <span class="n">input_</span><span class="p">(</span><span class="s2">&quot;votes&quot;</span><span class="p">),</span> <span class="n">rows</span><span class="o">=</span><span class="n">proposal_titles</span><span class="p">,</span> <span class="n">options</span><span class="o">=</span><span class="n">vote_options</span>
+                        <span class="p">),</span>
+                    <span class="p">),</span>
+                <span class="p">),</span>
             <span class="p">),</span>
         <span class="p">),</span>
     <span class="p">},</span>
@@ -349,51 +398,59 @@ details{margin:18px 0}summary{cursor:pointer;color:var(--green);font-weight:750}
     <span class="n">game</span> <span class="o">=</span> <span class="n">states</span><span class="o">.</span><span class="n">by</span><span class="p">(</span><span class="s2">&quot;committee&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">game</span>
     <span class="n">title</span> <span class="o">=</span> <span class="n">QuestionFreeText</span><span class="p">(</span>
         <span class="n">question_name</span><span class="o">=</span><span class="s2">&quot;title&quot;</span><span class="p">,</span>
-        <span class="n">question_text</span><span class="o">=</span><span class="s2">&quot;Propose one concise weekend activity for the committee&#39;s agenda.&quot;</span><span class="p">,</span>
+        <span class="n">question_text</span><span class="o">=</span><span class="s2">&quot;Propose one concise weekend activity for the committee&#39;s agenda. Your proposal should reflect this priority: {{ agent.priority }}. Return only the activity title.&quot;</span><span class="p">,</span>
     <span class="p">)</span>
-    <span class="n">vote_a1</span> <span class="o">=</span> <span class="n">QuestionMultipleChoice</span><span class="p">(</span>
-        <span class="n">question_name</span><span class="o">=</span><span class="s2">&quot;vote_a1&quot;</span><span class="p">,</span>
-        <span class="n">question_text</span><span class="o">=</span><span class="s2">&quot;Current agenda: {{ shared_state.game.proposals }}. Vote up, neutral, or down on proposal A1.&quot;</span><span class="p">,</span>
+    <span class="n">ballot</span> <span class="o">=</span> <span class="n">QuestionMatrix</span><span class="p">(</span>
+        <span class="n">question_name</span><span class="o">=</span><span class="s2">&quot;ballot&quot;</span><span class="p">,</span>
+        <span class="n">question_text</span><span class="o">=</span><span class="s2">&quot;Vote on every activity proposed by the committee. Consider your own priority ({{ agent.priority }}) as well as what would work for the group.&quot;</span><span class="p">,</span>
+        <span class="n">question_items</span><span class="o">=</span><span class="s2">&quot;{{ shared_state.game.proposals | map(attribute=&#39;title&#39;) | list }}&quot;</span><span class="p">,</span>
         <span class="n">question_options</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;up&quot;</span><span class="p">,</span> <span class="s2">&quot;neutral&quot;</span><span class="p">,</span> <span class="s2">&quot;down&quot;</span><span class="p">],</span>
-    <span class="p">)</span>
-    <span class="n">vote_a2</span> <span class="o">=</span> <span class="n">QuestionMultipleChoice</span><span class="p">(</span>
-        <span class="n">question_name</span><span class="o">=</span><span class="s2">&quot;vote_a2&quot;</span><span class="p">,</span>
-        <span class="n">question_text</span><span class="o">=</span><span class="s2">&quot;Vote up, neutral, or down on proposal A2.&quot;</span><span class="p">,</span>
-        <span class="n">question_options</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;up&quot;</span><span class="p">,</span> <span class="s2">&quot;neutral&quot;</span><span class="p">,</span> <span class="s2">&quot;down&quot;</span><span class="p">],</span>
+        <span class="n">answering_instructions</span><span class="o">=</span><span class="s1">&#39;Return one JSON object on the first line, mapping every row code to one column code, for example {&quot;0&quot;: 0, &quot;1&quot;: 2}. Include every row. Do not use a Markdown code fence. You may explain the votes on the next line.&#39;</span><span class="p">,</span>
     <span class="p">)</span>
     <span class="n">survey</span> <span class="o">=</span> <span class="n">Survey</span><span class="p">(</span>
         <span class="p">[</span>
             <span class="n">game</span><span class="o">.</span><span class="n">read</span><span class="p">(),</span>
             <span class="n">title</span><span class="p">,</span>
-            <span class="n">game</span><span class="o">.</span><span class="n">propose</span><span class="p">(</span><span class="n">proposer</span><span class="o">=</span><span class="n">current</span><span class="o">.</span><span class="n">agent</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="n">title</span><span class="o">.</span><span class="n">answer</span><span class="p">),</span>
+            <span class="n">game</span><span class="o">.</span><span class="n">propose</span><span class="p">(</span><span class="n">proposer</span><span class="o">=</span><span class="n">current</span><span class="o">.</span><span class="n">agent</span><span class="o">.</span><span class="n">participant</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="n">title</span><span class="o">.</span><span class="n">answer</span><span class="p">),</span>
             <span class="n">game</span><span class="o">.</span><span class="n">read</span><span class="p">(),</span>
-            <span class="n">vote_a1</span><span class="p">,</span>
-            <span class="n">vote_a2</span><span class="p">,</span>
-            <span class="n">game</span><span class="o">.</span><span class="n">vote</span><span class="p">(</span>
-                <span class="n">voter</span><span class="o">=</span><span class="n">current</span><span class="o">.</span><span class="n">agent</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
-                <span class="n">votes</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;A1&quot;</span><span class="p">:</span> <span class="n">vote_a1</span><span class="o">.</span><span class="n">answer</span><span class="p">,</span> <span class="s2">&quot;A2&quot;</span><span class="p">:</span> <span class="n">vote_a2</span><span class="o">.</span><span class="n">answer</span><span class="p">},</span>
-            <span class="p">),</span>
+            <span class="n">ballot</span><span class="p">,</span>
+            <span class="n">game</span><span class="o">.</span><span class="n">vote</span><span class="p">(</span><span class="n">voter</span><span class="o">=</span><span class="n">current</span><span class="o">.</span><span class="n">agent</span><span class="o">.</span><span class="n">participant</span><span class="p">,</span> <span class="n">votes</span><span class="o">=</span><span class="n">ballot</span><span class="o">.</span><span class="n">answer</span><span class="p">),</span>
         <span class="p">]</span>
     <span class="p">)</span>
-    <span class="n">survey</span><span class="o">.</span><span class="n">add_skip_rule</span><span class="p">(</span><span class="s2">&quot;title&quot;</span><span class="p">,</span> <span class="s2">&quot;&#39;{{ agent.role }}&#39; != &#39;proposer&#39;&quot;</span><span class="p">)</span>
-    <span class="n">survey</span><span class="o">.</span><span class="n">add_skip_rule</span><span class="p">(</span><span class="s2">&quot;vote_a1&quot;</span><span class="p">,</span> <span class="s2">&quot;&#39;{{ agent.role }}&#39; != &#39;voter&#39;&quot;</span><span class="p">)</span>
-    <span class="n">survey</span><span class="o">.</span><span class="n">add_skip_rule</span><span class="p">(</span><span class="s2">&quot;vote_a2&quot;</span><span class="p">,</span> <span class="s2">&quot;&#39;{{ agent.role }}&#39; != &#39;voter&#39;&quot;</span><span class="p">)</span>
+    <span class="n">survey</span><span class="o">.</span><span class="n">add_skip_rule</span><span class="p">(</span><span class="s2">&quot;title&quot;</span><span class="p">,</span> <span class="s2">&quot;&#39;{{ agent.phase }}&#39; != &#39;propose&#39;&quot;</span><span class="p">)</span>
+    <span class="n">survey</span><span class="o">.</span><span class="n">add_skip_rule</span><span class="p">(</span><span class="s2">&quot;ballot&quot;</span><span class="p">,</span> <span class="s2">&quot;&#39;{{ agent.phase }}&#39; != &#39;vote&#39;&quot;</span><span class="p">)</span>
+    <span class="n">participant_profiles</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="p">(</span><span class="s2">&quot;Avery&quot;</span><span class="p">,</span> <span class="s2">&quot;an accessible outdoor activity with light exercise&quot;</span><span class="p">),</span>
+        <span class="p">(</span><span class="s2">&quot;Blair&quot;</span><span class="p">,</span> <span class="s2">&quot;an inexpensive indoor activity that works in bad weather&quot;</span><span class="p">),</span>
+        <span class="p">(</span><span class="s2">&quot;Casey&quot;</span><span class="p">,</span> <span class="s2">&quot;accessibility and broad participation&quot;</span><span class="p">),</span>
+        <span class="p">(</span><span class="s2">&quot;Devon&quot;</span><span class="p">,</span> <span class="s2">&quot;novelty and opportunities for conversation&quot;</span><span class="p">),</span>
+    <span class="p">]</span>
     <span class="n">people</span> <span class="o">=</span> <span class="n">AgentList</span><span class="p">(</span>
         <span class="p">[</span>
             <span class="n">Agent</span><span class="p">(</span>
-                <span class="n">name</span><span class="o">=</span><span class="s2">&quot;Proposer 1&quot;</span><span class="p">,</span>
-                <span class="n">traits</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;role&quot;</span><span class="p">:</span> <span class="s2">&quot;proposer&quot;</span><span class="p">,</span> <span class="s2">&quot;committee_id&quot;</span><span class="p">:</span> <span class="s2">&quot;c&quot;</span><span class="p">,</span> <span class="s2">&quot;turn&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">},</span>
-            <span class="p">),</span>
+                <span class="n">name</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">participant</span><span class="si">}</span><span class="s2"> — proposal&quot;</span><span class="p">,</span>
+                <span class="n">traits</span><span class="o">=</span><span class="p">{</span>
+                    <span class="s2">&quot;participant&quot;</span><span class="p">:</span> <span class="n">participant</span><span class="p">,</span>
+                    <span class="s2">&quot;phase&quot;</span><span class="p">:</span> <span class="s2">&quot;propose&quot;</span><span class="p">,</span>
+                    <span class="s2">&quot;committee_id&quot;</span><span class="p">:</span> <span class="s2">&quot;c&quot;</span><span class="p">,</span>
+                    <span class="s2">&quot;turn&quot;</span><span class="p">:</span> <span class="n">index</span><span class="p">,</span>
+                    <span class="s2">&quot;priority&quot;</span><span class="p">:</span> <span class="n">priority</span><span class="p">,</span>
+                <span class="p">},</span>
+            <span class="p">)</span>
+            <span class="k">for</span> <span class="n">index</span><span class="p">,</span> <span class="p">(</span><span class="n">participant</span><span class="p">,</span> <span class="n">priority</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">participant_profiles</span><span class="p">)</span>
+        <span class="p">]</span>
+        <span class="o">+</span> <span class="p">[</span>
             <span class="n">Agent</span><span class="p">(</span>
-                <span class="n">name</span><span class="o">=</span><span class="s2">&quot;Proposer 2&quot;</span><span class="p">,</span>
-                <span class="n">traits</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;role&quot;</span><span class="p">:</span> <span class="s2">&quot;proposer&quot;</span><span class="p">,</span> <span class="s2">&quot;committee_id&quot;</span><span class="p">:</span> <span class="s2">&quot;c&quot;</span><span class="p">,</span> <span class="s2">&quot;turn&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">},</span>
-            <span class="p">),</span>
-            <span class="n">Agent</span><span class="p">(</span>
-                <span class="n">name</span><span class="o">=</span><span class="s2">&quot;Voter 1&quot;</span><span class="p">,</span> <span class="n">traits</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;role&quot;</span><span class="p">:</span> <span class="s2">&quot;voter&quot;</span><span class="p">,</span> <span class="s2">&quot;committee_id&quot;</span><span class="p">:</span> <span class="s2">&quot;c&quot;</span><span class="p">,</span> <span class="s2">&quot;turn&quot;</span><span class="p">:</span> <span class="mi">2</span><span class="p">}</span>
-            <span class="p">),</span>
-            <span class="n">Agent</span><span class="p">(</span>
-                <span class="n">name</span><span class="o">=</span><span class="s2">&quot;Voter 2&quot;</span><span class="p">,</span> <span class="n">traits</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;role&quot;</span><span class="p">:</span> <span class="s2">&quot;voter&quot;</span><span class="p">,</span> <span class="s2">&quot;committee_id&quot;</span><span class="p">:</span> <span class="s2">&quot;c&quot;</span><span class="p">,</span> <span class="s2">&quot;turn&quot;</span><span class="p">:</span> <span class="mi">3</span><span class="p">}</span>
-            <span class="p">),</span>
+                <span class="n">name</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">participant</span><span class="si">}</span><span class="s2"> — ballot&quot;</span><span class="p">,</span>
+                <span class="n">traits</span><span class="o">=</span><span class="p">{</span>
+                    <span class="s2">&quot;participant&quot;</span><span class="p">:</span> <span class="n">participant</span><span class="p">,</span>
+                    <span class="s2">&quot;phase&quot;</span><span class="p">:</span> <span class="s2">&quot;vote&quot;</span><span class="p">,</span>
+                    <span class="s2">&quot;committee_id&quot;</span><span class="p">:</span> <span class="s2">&quot;c&quot;</span><span class="p">,</span>
+                    <span class="s2">&quot;turn&quot;</span><span class="p">:</span> <span class="n">index</span> <span class="o">+</span> <span class="nb">len</span><span class="p">(</span><span class="n">participant_profiles</span><span class="p">),</span>
+                    <span class="s2">&quot;priority&quot;</span><span class="p">:</span> <span class="n">priority</span><span class="p">,</span>
+                <span class="p">},</span>
+            <span class="p">)</span>
+            <span class="k">for</span> <span class="n">index</span><span class="p">,</span> <span class="p">(</span><span class="n">participant</span><span class="p">,</span> <span class="n">priority</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">participant_profiles</span><span class="p">)</span>
         <span class="p">]</span>
     <span class="p">)</span>
     <span class="k">return</span> <span class="p">(</span>
@@ -419,66 +476,230 @@ details{margin:18px 0}summary{cursor:pointer;color:var(--green);font-weight:750}
     <span class="nb">print</span><span class="p">(</span><span class="n">results</span><span class="p">)</span>
 </pre></div>
 </section>
-<section><h2>3. The experiment</h2><div class="facts"><div class="fact"><small>Schedule</small><b>grouped_round_robin</b></div><div class="fact"><small>Within round</small><b>serial</b></div><div class="fact"><small>State visibility</small><b>live</b></div><div class="fact"><small>Rounds</small><b>until complete</b></div></div><div class="scroll"><table><thead><tr><th>Question</th><th>Type</th><th>Prompt</th></tr></thead><tbody><tr><td><code>title</code></td><td>free_text</td><td>Propose one concise weekend activity for the committee&#x27;s agenda.</td></tr><tr><td><code>vote_a1</code></td><td>multiple_choice</td><td>Current agenda: {{ shared_state.game.proposals }}. Vote up, neutral, or down on proposal A1.</td></tr><tr><td><code>vote_a2</code></td><td>multiple_choice</td><td>Vote up, neutral, or down on proposal A2.</td></tr></tbody></table></div><h3 style="margin-top:28px">Survey state sequence</h3><p>These explicit read and write steps determine when interviews observe shared state and when their answers become commands.</p><div class="scroll"><table><thead><tr><th>#</th><th>Phase</th><th>Question boundary</th><th>Operation</th></tr></thead><tbody><tr><td>1</td><td>reads</td><td><code>title</code></td><td><code>read</code></td></tr><tr><td>2</td><td>reads</td><td><code>vote_a1</code></td><td><code>read</code></td></tr><tr><td>3</td><td>writes</td><td><code>title</code></td><td><code>propose</code></td></tr><tr><td>4</td><td>writes</td><td><code>vote_a2</code></td><td><code>vote</code></td></tr></tbody></table></div></section>
-<section><h2>4. What happened</h2><div class="two"><div class="panel result"><h3>Observed result</h3><p>Proposals were a community-garden volunteer day and a picnic. Both voters supported the first and were neutral on the second.</p></div><div class="panel"><h3>Final shared state</h3><pre>{
+<section><h2>3. The experiment</h2><div class="facts"><div class="fact"><small>Schedule</small><b>grouped_round_robin</b></div><div class="fact"><small>Within round</small><b>serial</b></div><div class="fact"><small>State visibility</small><b>live</b></div><div class="fact"><small>Rounds</small><b>until complete</b></div></div><div class="scroll"><table><thead><tr><th>Question</th><th>Type</th><th>Prompt</th></tr></thead><tbody><tr><td><code>title</code></td><td>free_text</td><td>Propose one concise weekend activity for the committee&#x27;s agenda. Your proposal should reflect this priority: {{ agent.priority }}. Return only the activity title.</td></tr><tr><td><code>ballot</code></td><td>matrix</td><td>Vote on every activity proposed by the committee. Consider your own priority ({{ agent.priority }}) as well as what would work for the group.</td></tr></tbody></table></div><h3 style="margin-top:28px">Survey state sequence</h3><p>These explicit read and write steps determine when interviews observe shared state and when their answers become commands.</p><div class="scroll"><table><thead><tr><th>#</th><th>Phase</th><th>Question boundary</th><th>Operation</th></tr></thead><tbody><tr><td>1</td><td>reads</td><td><code>title</code></td><td><code>read</code></td></tr><tr><td>2</td><td>reads</td><td><code>ballot</code></td><td><code>read</code></td></tr><tr><td>3</td><td>writes</td><td><code>title</code></td><td><code>propose</code></td></tr><tr><td>4</td><td>writes</td><td><code>ballot</code></td><td><code>vote</code></td></tr></tbody></table></div></section>
+<section><h2>4. What happened</h2><div class="two"><div class="panel result"><h3>Observed result</h3><p>All four participants proposed and then voted on 4 activities. The decoded ballots produced scores {&#x27;Gentle Nature Walk &amp; Picnic&#x27;: 1, &#x27;Board Game Marathon&#x27;: 0, &#x27;Community Mural Painting Day&#x27;: 2, &#x27;Urban Exploration Photo Walk&#x27;: 0}; the winning proposal was &#x27;Community Mural Painting Day&#x27;.</p></div><div class="panel"><h3>Final shared state</h3><pre>{
   <span class="key">&quot;game&quot;</span>: {
     <span class="key">&quot;ballots&quot;</span>: [
       {
-        <span class="key">&quot;voter&quot;</span>: <span class="str">&quot;Voter <span class="num">1</span>&quot;</span>,
+        <span class="key">&quot;voter&quot;</span>: <span class="str">&quot;Avery&quot;</span>,
         <span class="key">&quot;votes&quot;</span>: {
-          <span class="key">&quot;A1&quot;</span>: <span class="str">&quot;up&quot;</span>,
-          <span class="key">&quot;A2&quot;</span>: <span class="str">&quot;neutral&quot;</span>
+          <span class="key">&quot;Board Game Marathon&quot;</span>: <span class="str">&quot;down&quot;</span>,
+          <span class="key">&quot;Community Mural Painting Day&quot;</span>: <span class="str">&quot;neutral&quot;</span>,
+          <span class="key">&quot;Gentle Nature Walk &amp; Picnic&quot;</span>: <span class="str">&quot;up&quot;</span>,
+          <span class="key">&quot;Urban Exploration Photo Walk&quot;</span>: <span class="str">&quot;neutral&quot;</span>
         }
       },
       {
-        <span class="key">&quot;voter&quot;</span>: <span class="str">&quot;Voter <span class="num">2</span>&quot;</span>,
+        <span class="key">&quot;voter&quot;</span>: <span class="str">&quot;Blair&quot;</span>,
         <span class="key">&quot;votes&quot;</span>: {
-          <span class="key">&quot;A1&quot;</span>: <span class="str">&quot;up&quot;</span>,
-          <span class="key">&quot;A2&quot;</span>: <span class="str">&quot;neutral&quot;</span>
+          <span class="key">&quot;Board Game Marathon&quot;</span>: <span class="str">&quot;up&quot;</span>,
+          <span class="key">&quot;Community Mural Painting Day&quot;</span>: <span class="str">&quot;neutral&quot;</span>,
+          <span class="key">&quot;Gentle Nature Walk &amp; Picnic&quot;</span>: <span class="str">&quot;down&quot;</span>,
+          <span class="key">&quot;Urban Exploration Photo Walk&quot;</span>: <span class="str">&quot;down&quot;</span>
+        }
+      },
+      {
+        <span class="key">&quot;voter&quot;</span>: <span class="str">&quot;Casey&quot;</span>,
+        <span class="key">&quot;votes&quot;</span>: {
+          <span class="key">&quot;Board Game Marathon&quot;</span>: <span class="str">&quot;down&quot;</span>,
+          <span class="key">&quot;Community Mural Painting Day&quot;</span>: <span class="str">&quot;up&quot;</span>,
+          <span class="key">&quot;Gentle Nature Walk &amp; Picnic&quot;</span>: <span class="str">&quot;up&quot;</span>,
+          <span class="key">&quot;Urban Exploration Photo Walk&quot;</span>: <span class="str">&quot;neutral&quot;</span>
+        }
+      },
+      {
+        <span class="key">&quot;voter&quot;</span>: <span class="str">&quot;Devon&quot;</span>,
+        <span class="key">&quot;votes&quot;</span>: {
+          <span class="key">&quot;Board Game Marathon&quot;</span>: <span class="str">&quot;up&quot;</span>,
+          <span class="key">&quot;Community Mural Painting Day&quot;</span>: <span class="str">&quot;up&quot;</span>,
+          <span class="key">&quot;Gentle Nature Walk &amp; Picnic&quot;</span>: <span class="str">&quot;neutral&quot;</span>,
+          <span class="key">&quot;Urban Exploration Photo Walk&quot;</span>: <span class="str">&quot;up&quot;</span>
         }
       }
     ],
     <span class="key">&quot;proposals&quot;</span>: [
       {
         <span class="key">&quot;id&quot;</span>: <span class="str">&quot;A1&quot;</span>,
-        <span class="key">&quot;proposer&quot;</span>: <span class="str">&quot;Proposer <span class="num">1</span>&quot;</span>,
-        <span class="key">&quot;title&quot;</span>: <span class="str">&quot;**Committee volunteer day at a local community garden.**&quot;</span>
+        <span class="key">&quot;proposer&quot;</span>: <span class="str">&quot;Avery&quot;</span>,
+        <span class="key">&quot;title&quot;</span>: <span class="str">&quot;Gentle Nature Walk &amp; Picnic&quot;</span>
       },
       {
         <span class="key">&quot;id&quot;</span>: <span class="str">&quot;A2&quot;</span>,
-        <span class="key">&quot;proposer&quot;</span>: <span class="str">&quot;Proposer <span class="num">2</span>&quot;</span>,
-        <span class="key">&quot;title&quot;</span>: <span class="str">&quot;A casual committee picnic.&quot;</span>
+        <span class="key">&quot;proposer&quot;</span>: <span class="str">&quot;Blair&quot;</span>,
+        <span class="key">&quot;title&quot;</span>: <span class="str">&quot;Board Game Marathon&quot;</span>
+      },
+      {
+        <span class="key">&quot;id&quot;</span>: <span class="str">&quot;A3&quot;</span>,
+        <span class="key">&quot;proposer&quot;</span>: <span class="str">&quot;Casey&quot;</span>,
+        <span class="key">&quot;title&quot;</span>: <span class="str">&quot;Community Mural Painting Day&quot;</span>
+      },
+      {
+        <span class="key">&quot;id&quot;</span>: <span class="str">&quot;A4&quot;</span>,
+        <span class="key">&quot;proposer&quot;</span>: <span class="str">&quot;Devon&quot;</span>,
+        <span class="key">&quot;title&quot;</span>: <span class="str">&quot;Urban Exploration Photo Walk&quot;</span>
       }
     ]
   }
-}</pre></div></div><h3 style="margin-top:28px">What each agent contributed</h3><div class="scroll"><table><thead><tr><th>#</th><th>Agent</th><th>Round</th><th>Private traits</th><th>Answer</th><th>Read version</th></tr></thead><tbody><tr><td>1</td><td>Proposer 1</td><td>—</td><td><code>{&quot;role&quot;: &quot;proposer&quot;, &quot;committee_id&quot;: &quot;c&quot;, &quot;turn&quot;: 0}</code></td><td><code>{&quot;title&quot;: &quot;**Committee volunteer day at a local community garden.**&quot;, &quot;vote_a1&quot;: null, &quot;vote_a2&quot;: null}</code></td><td>0</td></tr><tr><td>2</td><td>Proposer 2</td><td>—</td><td><code>{&quot;role&quot;: &quot;proposer&quot;, &quot;committee_id&quot;: &quot;c&quot;, &quot;turn&quot;: 1}</code></td><td><code>{&quot;title&quot;: &quot;A casual committee picnic.&quot;, &quot;vote_a1&quot;: null, &quot;vote_a2&quot;: null}</code></td><td>1</td></tr><tr><td>3</td><td>Voter 1</td><td>—</td><td><code>{&quot;role&quot;: &quot;voter&quot;, &quot;committee_id&quot;: &quot;c&quot;, &quot;turn&quot;: 2}</code></td><td><code>{&quot;vote_a1&quot;: &quot;up&quot;, &quot;vote_a2&quot;: &quot;neutral&quot;, &quot;title&quot;: null}</code></td><td>2</td></tr><tr><td>4</td><td>Voter 2</td><td>—</td><td><code>{&quot;role&quot;: &quot;voter&quot;, &quot;committee_id&quot;: &quot;c&quot;, &quot;turn&quot;: 3}</code></td><td><code>{&quot;vote_a1&quot;: &quot;up&quot;, &quot;vote_a2&quot;: &quot;neutral&quot;, &quot;title&quot;: null}</code></td><td>3</td></tr></tbody></table></div></section>
-<section><h2>5. State evolution</h2><p>The recorded read versions were <code>[0, 1, 2, 3]</code>. The committed command sequence was <code>[&#x27;propose&#x27;, &#x27;propose&#x27;, &#x27;vote&#x27;, &#x27;vote&#x27;]</code>.</p><div class="callout"><b>How to read this:</b> agents sharing a version decided from the same snapshot; increasing versions mean later interviews could observe earlier commits. Command order is commit order, not necessarily interview launch order.</div><details><summary>Inspect raw run summary</summary><pre>{
+}</pre></div></div><h3 style="margin-top:28px">What each agent contributed</h3><div class="scroll"><table><thead><tr><th>#</th><th>Agent</th><th>Round</th><th>Private traits</th><th>Answer</th><th>Read version</th></tr></thead><tbody><tr><td>1</td><td>Avery — proposal</td><td>—</td><td><code>{&quot;participant&quot;: &quot;Avery&quot;, &quot;phase&quot;: &quot;propose&quot;, &quot;committee_id&quot;: &quot;c&quot;, &quot;turn&quot;: 0, &quot;priority&quot;: &quot;an accessible outdoor activity with light exercise&quot;}</code></td><td><code>{&quot;title&quot;: &quot;Gentle Nature Walk &amp; Picnic&quot;, &quot;ballot&quot;: null}</code></td><td>0</td></tr><tr><td>2</td><td>Blair — proposal</td><td>—</td><td><code>{&quot;participant&quot;: &quot;Blair&quot;, &quot;phase&quot;: &quot;propose&quot;, &quot;committee_id&quot;: &quot;c&quot;, &quot;turn&quot;: 1, &quot;priority&quot;: &quot;an inexpensive indoor activity that works in bad weather&quot;}</code></td><td><code>{&quot;title&quot;: &quot;Board Game Marathon&quot;, &quot;ballot&quot;: null}</code></td><td>1</td></tr><tr><td>3</td><td>Casey — proposal</td><td>—</td><td><code>{&quot;participant&quot;: &quot;Casey&quot;, &quot;phase&quot;: &quot;propose&quot;, &quot;committee_id&quot;: &quot;c&quot;, &quot;turn&quot;: 2, &quot;priority&quot;: &quot;accessibility and broad participation&quot;}</code></td><td><code>{&quot;title&quot;: &quot;Community Mural Painting Day&quot;, &quot;ballot&quot;: null}</code></td><td>2</td></tr><tr><td>4</td><td>Devon — proposal</td><td>—</td><td><code>{&quot;participant&quot;: &quot;Devon&quot;, &quot;phase&quot;: &quot;propose&quot;, &quot;committee_id&quot;: &quot;c&quot;, &quot;turn&quot;: 3, &quot;priority&quot;: &quot;novelty and opportunities for conversation&quot;}</code></td><td><code>{&quot;title&quot;: &quot;Urban Exploration Photo Walk&quot;, &quot;ballot&quot;: null}</code></td><td>3</td></tr><tr><td>5</td><td>Avery — ballot</td><td>—</td><td><code>{&quot;participant&quot;: &quot;Avery&quot;, &quot;phase&quot;: &quot;vote&quot;, &quot;committee_id&quot;: &quot;c&quot;, &quot;turn&quot;: 4, &quot;priority&quot;: &quot;an accessible outdoor activity with light exercise&quot;}</code></td><td><code>{&quot;ballot&quot;: {&quot;Gentle Nature Walk &amp; Picnic&quot;: &quot;up&quot;, &quot;Board Game Marathon&quot;: &quot;down&quot;, &quot;Community Mural Painting Day&quot;: &quot;neutral&quot;, &quot;Urban Exploration Photo Walk&quot;: &quot;neutral&quot;}, &quot;title&quot;: null}</code></td><td>4</td></tr><tr><td>6</td><td>Blair — ballot</td><td>—</td><td><code>{&quot;participant&quot;: &quot;Blair&quot;, &quot;phase&quot;: &quot;vote&quot;, &quot;committee_id&quot;: &quot;c&quot;, &quot;turn&quot;: 5, &quot;priority&quot;: &quot;an inexpensive indoor activity that works in bad weather&quot;}</code></td><td><code>{&quot;ballot&quot;: {&quot;Gentle Nature Walk &amp; Picnic&quot;: &quot;down&quot;, &quot;Board Game Marathon&quot;: &quot;up&quot;, &quot;Community Mural Painting Day&quot;: &quot;neutral&quot;, &quot;Urban Exploration Photo Walk&quot;: &quot;down&quot;}, &quot;title&quot;: null}</code></td><td>5</td></tr><tr><td>7</td><td>Casey — ballot</td><td>—</td><td><code>{&quot;participant&quot;: &quot;Casey&quot;, &quot;phase&quot;: &quot;vote&quot;, &quot;committee_id&quot;: &quot;c&quot;, &quot;turn&quot;: 6, &quot;priority&quot;: &quot;accessibility and broad participation&quot;}</code></td><td><code>{&quot;ballot&quot;: {&quot;Gentle Nature Walk &amp; Picnic&quot;: &quot;up&quot;, &quot;Board Game Marathon&quot;: &quot;down&quot;, &quot;Community Mural Painting Day&quot;: &quot;up&quot;, &quot;Urban Exploration Photo Walk&quot;: &quot;neutral&quot;}, &quot;title&quot;: null}</code></td><td>6</td></tr><tr><td>8</td><td>Devon — ballot</td><td>—</td><td><code>{&quot;participant&quot;: &quot;Devon&quot;, &quot;phase&quot;: &quot;vote&quot;, &quot;committee_id&quot;: &quot;c&quot;, &quot;turn&quot;: 7, &quot;priority&quot;: &quot;novelty and opportunities for conversation&quot;}</code></td><td><code>{&quot;ballot&quot;: {&quot;Gentle Nature Walk &amp; Picnic&quot;: &quot;neutral&quot;, &quot;Board Game Marathon&quot;: &quot;up&quot;, &quot;Community Mural Painting Day&quot;: &quot;up&quot;, &quot;Urban Exploration Photo Walk&quot;: &quot;up&quot;}, &quot;title&quot;: null}</code></td><td>7</td></tr></tbody></table></div><h3 style="margin-top:30px">The complete Results prompts</h3><p>These 8 prompt rows are retained by the actual 8-row EDSL <code>Results</code> object. Nothing in these cells has been reconstructed or abbreviated. The durable package is <a href="../shared_state_agenda_results.ep"><code>shared_state_agenda_results.ep</code></a>.</p><div class="scroll"><table class="prompt-table"><thead><tr><th>Agent</th><th>Round</th><th>Question</th><th>User prompt</th><th>System prompt</th><th>Answer</th><th>Comment</th></tr></thead><tbody><tr><td>Avery — proposal</td><td>0</td><td><code>title</code></td><td class="prompt-cell"><pre>Propose one concise weekend activity for the committee&#x27;s agenda. Your proposal should reflect this priority: an accessible outdoor activity with light exercise. Return only the activity title.</pre></td><td class="prompt-cell"><pre>You are answering questions as if you were a human. Do not break character.Your traits: {&#x27;participant&#x27;: &#x27;Avery&#x27;, &#x27;phase&#x27;: &#x27;propose&#x27;, &#x27;committee_id&#x27;: &#x27;c&#x27;, &#x27;turn&#x27;: 0, &#x27;priority&#x27;: &#x27;an accessible outdoor activity with light exercise&#x27;}</pre></td><td><code>&quot;Gentle Nature Walk &amp; Picnic&quot;</code></td><td class="comment-cell">None</td></tr><tr><td>Blair — proposal</td><td>1</td><td><code>title</code></td><td class="prompt-cell"><pre>Propose one concise weekend activity for the committee&#x27;s agenda. Your proposal should reflect this priority: an inexpensive indoor activity that works in bad weather. Return only the activity title.</pre></td><td class="prompt-cell"><pre>You are answering questions as if you were a human. Do not break character.Your traits: {&#x27;participant&#x27;: &#x27;Blair&#x27;, &#x27;phase&#x27;: &#x27;propose&#x27;, &#x27;committee_id&#x27;: &#x27;c&#x27;, &#x27;turn&#x27;: 1, &#x27;priority&#x27;: &#x27;an inexpensive indoor activity that works in bad weather&#x27;}</pre></td><td><code>&quot;Board Game Marathon&quot;</code></td><td class="comment-cell">None</td></tr><tr><td>Casey — proposal</td><td>2</td><td><code>title</code></td><td class="prompt-cell"><pre>Propose one concise weekend activity for the committee&#x27;s agenda. Your proposal should reflect this priority: accessibility and broad participation. Return only the activity title.</pre></td><td class="prompt-cell"><pre>You are answering questions as if you were a human. Do not break character.Your traits: {&#x27;participant&#x27;: &#x27;Casey&#x27;, &#x27;phase&#x27;: &#x27;propose&#x27;, &#x27;committee_id&#x27;: &#x27;c&#x27;, &#x27;turn&#x27;: 2, &#x27;priority&#x27;: &#x27;accessibility and broad participation&#x27;}</pre></td><td><code>&quot;Community Mural Painting Day&quot;</code></td><td class="comment-cell">None</td></tr><tr><td>Devon — proposal</td><td>3</td><td><code>title</code></td><td class="prompt-cell"><pre>Propose one concise weekend activity for the committee&#x27;s agenda. Your proposal should reflect this priority: novelty and opportunities for conversation. Return only the activity title.</pre></td><td class="prompt-cell"><pre>You are answering questions as if you were a human. Do not break character.Your traits: {&#x27;participant&#x27;: &#x27;Devon&#x27;, &#x27;phase&#x27;: &#x27;propose&#x27;, &#x27;committee_id&#x27;: &#x27;c&#x27;, &#x27;turn&#x27;: 3, &#x27;priority&#x27;: &#x27;novelty and opportunities for conversation&#x27;}</pre></td><td><code>&quot;Urban Exploration Photo Walk&quot;</code></td><td class="comment-cell">None</td></tr><tr><td>Avery — ballot</td><td>4</td><td><code>ballot</code></td><td class="prompt-cell"><pre>Vote on every activity proposed by the committee. Consider your own priority (an accessible outdoor activity with light exercise) as well as what would work for the group.
+
+Rows:
+
+0: Gentle Nature Walk &amp; Picnic
+
+1: Board Game Marathon
+
+2: Community Mural Painting Day
+
+3: Urban Exploration Photo Walk
+
+
+Columns:
+
+0: up
+
+1: neutral
+
+2: down
+
+
+
+Select one column option for each row.
+ Return one JSON object on the first line, mapping every row code to one column code, for example {&quot;0&quot;: 0, &quot;1&quot;: 2}. Include every row. Do not use a Markdown code fence. You may explain the votes on the next line.</pre></td><td class="prompt-cell"><pre>You are answering questions as if you were a human. Do not break character.Your traits: {&#x27;participant&#x27;: &#x27;Avery&#x27;, &#x27;phase&#x27;: &#x27;vote&#x27;, &#x27;committee_id&#x27;: &#x27;c&#x27;, &#x27;turn&#x27;: 4, &#x27;priority&#x27;: &#x27;an accessible outdoor activity with light exercise&#x27;}</pre></td><td><code>{&quot;Gentle Nature Walk &amp; Picnic&quot;: &quot;up&quot;, &quot;Board Game Marathon&quot;: &quot;down&quot;, &quot;Community Mural Painting Day&quot;: &quot;neutral&quot;, &quot;Urban Exploration Photo Walk&quot;: &quot;neutral&quot;}</code></td><td class="comment-cell">A gentle nature walk and picnic sounds perfect for an accessible outdoor activity with light exercise. A board game marathon doesn&#x27;t really fit my priority for an outdoor activity. Community mural painting and urban exploration photo walk are both interesting outdoor activities, but I&#x27;m not sure how accessible they are for everyone, so I&#x27;ll put them as neutral for now.</td></tr><tr><td>Blair — ballot</td><td>5</td><td><code>ballot</code></td><td class="prompt-cell"><pre>Vote on every activity proposed by the committee. Consider your own priority (an inexpensive indoor activity that works in bad weather) as well as what would work for the group.
+
+Rows:
+
+0: Gentle Nature Walk &amp; Picnic
+
+1: Board Game Marathon
+
+2: Community Mural Painting Day
+
+3: Urban Exploration Photo Walk
+
+
+Columns:
+
+0: up
+
+1: neutral
+
+2: down
+
+
+
+Select one column option for each row.
+ Return one JSON object on the first line, mapping every row code to one column code, for example {&quot;0&quot;: 0, &quot;1&quot;: 2}. Include every row. Do not use a Markdown code fence. You may explain the votes on the next line.</pre></td><td class="prompt-cell"><pre>You are answering questions as if you were a human. Do not break character.Your traits: {&#x27;participant&#x27;: &#x27;Blair&#x27;, &#x27;phase&#x27;: &#x27;vote&#x27;, &#x27;committee_id&#x27;: &#x27;c&#x27;, &#x27;turn&#x27;: 5, &#x27;priority&#x27;: &#x27;an inexpensive indoor activity that works in bad weather&#x27;}</pre></td><td><code>{&quot;Gentle Nature Walk &amp; Picnic&quot;: &quot;down&quot;, &quot;Board Game Marathon&quot;: &quot;up&quot;, &quot;Community Mural Painting Day&quot;: &quot;neutral&quot;, &quot;Urban Exploration Photo Walk&quot;: &quot;down&quot;}</code></td><td class="comment-cell">A nature walk and picnic is out because it&#x27;s outdoors and depends on good weather. An urban exploration photo walk is also out because it&#x27;s outdoors. A board game marathon is perfect for my priority, as it&#x27;s an inexpensive indoor activity that works in bad weather. Community mural painting day is okay, but I&#x27;m not super passionate about it.</td></tr><tr><td>Casey — ballot</td><td>6</td><td><code>ballot</code></td><td class="prompt-cell"><pre>Vote on every activity proposed by the committee. Consider your own priority (accessibility and broad participation) as well as what would work for the group.
+
+Rows:
+
+0: Gentle Nature Walk &amp; Picnic
+
+1: Board Game Marathon
+
+2: Community Mural Painting Day
+
+3: Urban Exploration Photo Walk
+
+
+Columns:
+
+0: up
+
+1: neutral
+
+2: down
+
+
+
+Select one column option for each row.
+ Return one JSON object on the first line, mapping every row code to one column code, for example {&quot;0&quot;: 0, &quot;1&quot;: 2}. Include every row. Do not use a Markdown code fence. You may explain the votes on the next line.</pre></td><td class="prompt-cell"><pre>You are answering questions as if you were a human. Do not break character.Your traits: {&#x27;participant&#x27;: &#x27;Casey&#x27;, &#x27;phase&#x27;: &#x27;vote&#x27;, &#x27;committee_id&#x27;: &#x27;c&#x27;, &#x27;turn&#x27;: 6, &#x27;priority&#x27;: &#x27;accessibility and broad participation&#x27;}</pre></td><td><code>{&quot;Gentle Nature Walk &amp; Picnic&quot;: &quot;up&quot;, &quot;Board Game Marathon&quot;: &quot;down&quot;, &quot;Community Mural Painting Day&quot;: &quot;up&quot;, &quot;Urban Exploration Photo Walk&quot;: &quot;neutral&quot;}</code></td><td class="comment-cell">I&#x27;m voting up for the Gentle Nature Walk &amp; Picnic and the Community Mural Painting Day. Both of these seem like they would be very accessible to a broad range of people, regardless of physical ability or prior experience. The nature walk is a gentle activity, and the mural painting can accommodate various skill levels and contributions. I&#x27;m voting down the Board Game Marathon because while some board games are accessible, a marathon format might exclude those with less stamina or who find long periods of sitting uncomfortable. The Urban Exploration Photo Walk gets a neutral vote from me. It could be accessible depending on the route and pace, but &quot;urban exploration&quot; can sometimes imply less accessible or more strenuous routes, which might limit participation for some.</td></tr><tr><td>Devon — ballot</td><td>7</td><td><code>ballot</code></td><td class="prompt-cell"><pre>Vote on every activity proposed by the committee. Consider your own priority (novelty and opportunities for conversation) as well as what would work for the group.
+
+Rows:
+
+0: Gentle Nature Walk &amp; Picnic
+
+1: Board Game Marathon
+
+2: Community Mural Painting Day
+
+3: Urban Exploration Photo Walk
+
+
+Columns:
+
+0: up
+
+1: neutral
+
+2: down
+
+
+
+Select one column option for each row.
+ Return one JSON object on the first line, mapping every row code to one column code, for example {&quot;0&quot;: 0, &quot;1&quot;: 2}. Include every row. Do not use a Markdown code fence. You may explain the votes on the next line.</pre></td><td class="prompt-cell"><pre>You are answering questions as if you were a human. Do not break character.Your traits: {&#x27;participant&#x27;: &#x27;Devon&#x27;, &#x27;phase&#x27;: &#x27;vote&#x27;, &#x27;committee_id&#x27;: &#x27;c&#x27;, &#x27;turn&#x27;: 7, &#x27;priority&#x27;: &#x27;novelty and opportunities for conversation&#x27;}</pre></td><td><code>{&quot;Gentle Nature Walk &amp; Picnic&quot;: &quot;neutral&quot;, &quot;Board Game Marathon&quot;: &quot;up&quot;, &quot;Community Mural Painting Day&quot;: &quot;up&quot;, &quot;Urban Exploration Photo Walk&quot;: &quot;up&quot;}</code></td><td class="comment-cell">I&#x27;m really excited about the Board Game Marathon, Community Mural Painting Day, and Urban Exploration Photo Walk! They all sound like great opportunities to try something new and chat with everyone. A nature walk is nice, but I&#x27;m leaning towards activities that are a bit more interactive and offer more chances for conversation.</td></tr></tbody></table></div></section>
+<section><h2>5. State evolution</h2><p>The recorded read versions were <code>[0, 1, 2, 3, 4, 5, 6, 7]</code>. The committed command sequence was <code>[&#x27;propose&#x27;, &#x27;propose&#x27;, &#x27;propose&#x27;, &#x27;propose&#x27;, &#x27;vote&#x27;, &#x27;vote&#x27;, &#x27;vote&#x27;, &#x27;vote&#x27;]</code>.</p><div class="callout"><b>How to read this:</b> agents sharing a version decided from the same snapshot; increasing versions mean later interviews could observe earlier commits. Command order is commit order, not necessarily interview launch order.</div><details><summary>Inspect raw run summary</summary><pre>{
   <span class="key">&quot;game&quot;</span>: <span class="str">&quot;agenda&quot;</span>,
   <span class="key">&quot;answers&quot;</span>: [
     {
-      <span class="key">&quot;title&quot;</span>: <span class="str">&quot;**Committee volunteer day at a local community garden.**&quot;</span>,
-      <span class="key">&quot;vote_a1&quot;</span>: <span class="bool">null</span>,
-      <span class="key">&quot;vote_a2&quot;</span>: <span class="bool">null</span>
+      <span class="key">&quot;title&quot;</span>: <span class="str">&quot;Gentle Nature Walk &amp; Picnic&quot;</span>,
+      <span class="key">&quot;ballot&quot;</span>: <span class="bool">null</span>
     },
     {
-      <span class="key">&quot;title&quot;</span>: <span class="str">&quot;A casual committee picnic.&quot;</span>,
-      <span class="key">&quot;vote_a1&quot;</span>: <span class="bool">null</span>,
-      <span class="key">&quot;vote_a2&quot;</span>: <span class="bool">null</span>
+      <span class="key">&quot;title&quot;</span>: <span class="str">&quot;Board Game Marathon&quot;</span>,
+      <span class="key">&quot;ballot&quot;</span>: <span class="bool">null</span>
     },
     {
-      <span class="key">&quot;vote_a1&quot;</span>: <span class="str">&quot;up&quot;</span>,
-      <span class="key">&quot;vote_a2&quot;</span>: <span class="str">&quot;neutral&quot;</span>,
+      <span class="key">&quot;title&quot;</span>: <span class="str">&quot;Community Mural Painting Day&quot;</span>,
+      <span class="key">&quot;ballot&quot;</span>: <span class="bool">null</span>
+    },
+    {
+      <span class="key">&quot;title&quot;</span>: <span class="str">&quot;Urban Exploration Photo Walk&quot;</span>,
+      <span class="key">&quot;ballot&quot;</span>: <span class="bool">null</span>
+    },
+    {
+      <span class="key">&quot;ballot&quot;</span>: {
+        <span class="key">&quot;Gentle Nature Walk &amp; Picnic&quot;</span>: <span class="str">&quot;up&quot;</span>,
+        <span class="key">&quot;Board Game Marathon&quot;</span>: <span class="str">&quot;down&quot;</span>,
+        <span class="key">&quot;Community Mural Painting Day&quot;</span>: <span class="str">&quot;neutral&quot;</span>,
+        <span class="key">&quot;Urban Exploration Photo Walk&quot;</span>: <span class="str">&quot;neutral&quot;</span>
+      },
       <span class="key">&quot;title&quot;</span>: <span class="bool">null</span>
     },
     {
-      <span class="key">&quot;vote_a1&quot;</span>: <span class="str">&quot;up&quot;</span>,
-      <span class="key">&quot;vote_a2&quot;</span>: <span class="str">&quot;neutral&quot;</span>,
+      <span class="key">&quot;ballot&quot;</span>: {
+        <span class="key">&quot;Gentle Nature Walk &amp; Picnic&quot;</span>: <span class="str">&quot;down&quot;</span>,
+        <span class="key">&quot;Board Game Marathon&quot;</span>: <span class="str">&quot;up&quot;</span>,
+        <span class="key">&quot;Community Mural Painting Day&quot;</span>: <span class="str">&quot;neutral&quot;</span>,
+        <span class="key">&quot;Urban Exploration Photo Walk&quot;</span>: <span class="str">&quot;down&quot;</span>
+      },
+      <span class="key">&quot;title&quot;</span>: <span class="bool">null</span>
+    },
+    {
+      <span class="key">&quot;ballot&quot;</span>: {
+        <span class="key">&quot;Gentle Nature Walk &amp; Picnic&quot;</span>: <span class="str">&quot;up&quot;</span>,
+        <span class="key">&quot;Board Game Marathon&quot;</span>: <span class="str">&quot;down&quot;</span>,
+        <span class="key">&quot;Community Mural Painting Day&quot;</span>: <span class="str">&quot;up&quot;</span>,
+        <span class="key">&quot;Urban Exploration Photo Walk&quot;</span>: <span class="str">&quot;neutral&quot;</span>
+      },
+      <span class="key">&quot;title&quot;</span>: <span class="bool">null</span>
+    },
+    {
+      <span class="key">&quot;ballot&quot;</span>: {
+        <span class="key">&quot;Gentle Nature Walk &amp; Picnic&quot;</span>: <span class="str">&quot;neutral&quot;</span>,
+        <span class="key">&quot;Board Game Marathon&quot;</span>: <span class="str">&quot;up&quot;</span>,
+        <span class="key">&quot;Community Mural Painting Day&quot;</span>: <span class="str">&quot;up&quot;</span>,
+        <span class="key">&quot;Urban Exploration Photo Walk&quot;</span>: <span class="str">&quot;up&quot;</span>
+      },
       <span class="key">&quot;title&quot;</span>: <span class="bool">null</span>
     }
   ],
   <span class="key">&quot;commands&quot;</span>: [
     &quot;propose&quot;,
     &quot;propose&quot;,
+    &quot;propose&quot;,
+    &quot;propose&quot;,
+    &quot;vote&quot;,
+    &quot;vote&quot;,
     &quot;vote&quot;,
     &quot;vote&quot;
   ],
@@ -486,30 +707,62 @@ details{margin:18px 0}summary{cursor:pointer;color:var(--green);font-weight:750}
     <span class="key">&quot;game&quot;</span>: {
       <span class="key">&quot;ballots&quot;</span>: [
         {
-          <span class="key">&quot;voter&quot;</span>: <span class="str">&quot;Voter <span class="num">1</span>&quot;</span>,
+          <span class="key">&quot;voter&quot;</span>: <span class="str">&quot;Avery&quot;</span>,
           <span class="key">&quot;votes&quot;</span>: {
-            <span class="key">&quot;A1&quot;</span>: <span class="str">&quot;up&quot;</span>,
-            <span class="key">&quot;A2&quot;</span>: <span class="str">&quot;neutral&quot;</span>
+            <span class="key">&quot;Board Game Marathon&quot;</span>: <span class="str">&quot;down&quot;</span>,
+            <span class="key">&quot;Community Mural Painting Day&quot;</span>: <span class="str">&quot;neutral&quot;</span>,
+            <span class="key">&quot;Gentle Nature Walk &amp; Picnic&quot;</span>: <span class="str">&quot;up&quot;</span>,
+            <span class="key">&quot;Urban Exploration Photo Walk&quot;</span>: <span class="str">&quot;neutral&quot;</span>
           }
         },
         {
-          <span class="key">&quot;voter&quot;</span>: <span class="str">&quot;Voter <span class="num">2</span>&quot;</span>,
+          <span class="key">&quot;voter&quot;</span>: <span class="str">&quot;Blair&quot;</span>,
           <span class="key">&quot;votes&quot;</span>: {
-            <span class="key">&quot;A1&quot;</span>: <span class="str">&quot;up&quot;</span>,
-            <span class="key">&quot;A2&quot;</span>: <span class="str">&quot;neutral&quot;</span>
+            <span class="key">&quot;Board Game Marathon&quot;</span>: <span class="str">&quot;up&quot;</span>,
+            <span class="key">&quot;Community Mural Painting Day&quot;</span>: <span class="str">&quot;neutral&quot;</span>,
+            <span class="key">&quot;Gentle Nature Walk &amp; Picnic&quot;</span>: <span class="str">&quot;down&quot;</span>,
+            <span class="key">&quot;Urban Exploration Photo Walk&quot;</span>: <span class="str">&quot;down&quot;</span>
+          }
+        },
+        {
+          <span class="key">&quot;voter&quot;</span>: <span class="str">&quot;Casey&quot;</span>,
+          <span class="key">&quot;votes&quot;</span>: {
+            <span class="key">&quot;Board Game Marathon&quot;</span>: <span class="str">&quot;down&quot;</span>,
+            <span class="key">&quot;Community Mural Painting Day&quot;</span>: <span class="str">&quot;up&quot;</span>,
+            <span class="key">&quot;Gentle Nature Walk &amp; Picnic&quot;</span>: <span class="str">&quot;up&quot;</span>,
+            <span class="key">&quot;Urban Exploration Photo Walk&quot;</span>: <span class="str">&quot;neutral&quot;</span>
+          }
+        },
+        {
+          <span class="key">&quot;voter&quot;</span>: <span class="str">&quot;Devon&quot;</span>,
+          <span class="key">&quot;votes&quot;</span>: {
+            <span class="key">&quot;Board Game Marathon&quot;</span>: <span class="str">&quot;up&quot;</span>,
+            <span class="key">&quot;Community Mural Painting Day&quot;</span>: <span class="str">&quot;up&quot;</span>,
+            <span class="key">&quot;Gentle Nature Walk &amp; Picnic&quot;</span>: <span class="str">&quot;neutral&quot;</span>,
+            <span class="key">&quot;Urban Exploration Photo Walk&quot;</span>: <span class="str">&quot;up&quot;</span>
           }
         }
       ],
       <span class="key">&quot;proposals&quot;</span>: [
         {
           <span class="key">&quot;id&quot;</span>: <span class="str">&quot;A1&quot;</span>,
-          <span class="key">&quot;proposer&quot;</span>: <span class="str">&quot;Proposer <span class="num">1</span>&quot;</span>,
-          <span class="key">&quot;title&quot;</span>: <span class="str">&quot;**Committee volunteer day at a local community garden.**&quot;</span>
+          <span class="key">&quot;proposer&quot;</span>: <span class="str">&quot;Avery&quot;</span>,
+          <span class="key">&quot;title&quot;</span>: <span class="str">&quot;Gentle Nature Walk &amp; Picnic&quot;</span>
         },
         {
           <span class="key">&quot;id&quot;</span>: <span class="str">&quot;A2&quot;</span>,
-          <span class="key">&quot;proposer&quot;</span>: <span class="str">&quot;Proposer <span class="num">2</span>&quot;</span>,
-          <span class="key">&quot;title&quot;</span>: <span class="str">&quot;A casual committee picnic.&quot;</span>
+          <span class="key">&quot;proposer&quot;</span>: <span class="str">&quot;Blair&quot;</span>,
+          <span class="key">&quot;title&quot;</span>: <span class="str">&quot;Board Game Marathon&quot;</span>
+        },
+        {
+          <span class="key">&quot;id&quot;</span>: <span class="str">&quot;A3&quot;</span>,
+          <span class="key">&quot;proposer&quot;</span>: <span class="str">&quot;Casey&quot;</span>,
+          <span class="key">&quot;title&quot;</span>: <span class="str">&quot;Community Mural Painting Day&quot;</span>
+        },
+        {
+          <span class="key">&quot;id&quot;</span>: <span class="str">&quot;A4&quot;</span>,
+          <span class="key">&quot;proposer&quot;</span>: <span class="str">&quot;Devon&quot;</span>,
+          <span class="key">&quot;title&quot;</span>: <span class="str">&quot;Urban Exploration Photo Walk&quot;</span>
         }
       ]
     }
@@ -518,7 +771,11 @@ details{margin:18px 0}summary{cursor:pointer;color:var(--green);font-weight:750}
     <span class="num">0</span>,
     <span class="num">1</span>,
     <span class="num">2</span>,
-    <span class="num">3</span>
+    <span class="num">3</span>,
+    <span class="num">4</span>,
+    <span class="num">5</span>,
+    <span class="num">6</span>,
+    <span class="num">7</span>
   ]
 }</pre></details></section>
 <section><h2>6. What this example teaches us</h2><p class="lede">A Survey can express distinct proposal and voting phases with sequential visibility. Raw Results snapshots omit the derived score view, which is an analysis limitation.</p><p>This is one behavioral realization, not an estimate of Gemini's average behavior. Its main purpose is to test whether the machine, survey, visibility, and schedule jointly express the intended experiment.</p></section>

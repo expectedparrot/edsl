@@ -517,18 +517,21 @@ class ExecutionWorker:
         if task.question_id is None:
             return answer, comment, True, None, None, None, None
 
-        question_data = self._job_service._jobs.get_question(
-            task.job_id, task.question_id
-        )
+        question_data = task.resolved_question
+        if question_data is None:
+            question_data = self._job_service._jobs.get_question(
+                task.job_id, task.question_id
+            )
 
         if not question_data:
             return answer, comment, True, None, None, None, None
 
-        # Resolve template strings in question data before validation.
-        # This handles question_options, min_value, max_value, etc.
-        question_data = self._resolve_question_templates(
-            question_data, task.job_id, task.interview_id
-        )
+        # Compatibility fallback for execution paths that do not retain the
+        # exact question schema used during prompt construction.
+        if task.resolved_question is None:
+            question_data = self._resolve_question_templates(
+                question_data, task.job_id, task.interview_id
+            )
 
         question = QuestionBase.from_dict(question_data)
         from ..questions.probabilistic_response import ProbabilisticResponse

@@ -343,8 +343,9 @@ uses a private live view, and unsafe snapshot construction is rejected.
 **Scenario.** Two members propose weekend projects; two later members vote on the
 generated agenda.
 
-**Result.** Proposals were a community-garden volunteer day and a picnic. Both
-voters supported the first and were neutral on the second.
+**Result.** Every participant first contributes an activity and then votes on the
+complete agenda. The matrix rows are resolved from the committed proposal list,
+and positional matrix answers are decoded into semantic activity-to-vote mappings.
 
 **What it showed.** A Survey can express distinct proposal and voting phases with
 sequential visibility. Raw Results snapshots omit the derived score view, which is
@@ -391,9 +392,10 @@ their question, then submit completion notes.
 
 **Result.** Worker A received W2 and Worker B W1; both completed distinct items.
 
-**What it showed.** Before-question atomic claims work under live visibility. The
-assignment order is completion-dependent, which is correct but should be made
-explicit when reproducibility matters.
+**What it showed.** Before-question assignment is atomic, while the command outcome
+remains advisory. A subsequent persistent read exposes a viewer-specific `my_claim`
+as the authoritative assignment without disclosing other workers' claims. Assignment
+order remains completion-dependent and should be explicit when reproducibility matters.
 
 ### 37. Meeting availability poll
 

@@ -1,8 +1,28 @@
 """Proposals and matrix ballots using generated IDs and reducers."""
 
-from edsl.sharedstate import Command, Machine, T, append, expr, field, input_, record, reduce_, state_field
+from edsl.sharedstate import (
+    Command,
+    Machine,
+    T,
+    append,
+    decode_matrix,
+    expr,
+    field,
+    input_,
+    local,
+    map_sequence,
+    record,
+    reduce_,
+    state_field,
+)
 
 proposal_id = expr("concat", "A", field("proposals").length() + 1)
+proposal_titles = map_sequence(
+    field("proposals"),
+    item="proposal",
+    value_expr=local("proposal").get("title"),
+)
+vote_options = ["up", "neutral", "down"]
 
 SPEC = Machine(
     name="SharedAgenda",
@@ -14,8 +34,20 @@ SPEC = Machine(
             effects=(append("proposals", record(id=proposal_id, proposer=input_("proposer"), title=input_("title"))),),
         ),
         "vote": Command(
-            inputs={"voter": T.text(), "votes": T.map(T.text(), T.choice(("up", "neutral", "down")))},
-            effects=(append("ballots", record(voter=input_("voter"), votes=input_("votes"))),),
+            inputs={"voter": T.text(), "votes": T.map()},
+            effects=(
+                append(
+                    "ballots",
+                    record(
+                        voter=input_("voter"),
+                        votes=decode_matrix(
+                            input_("votes"),
+                            rows=proposal_titles,
+                            options=vote_options,
+                        ),
+                    ),
+                ),
+            ),
         ),
     },
     view={

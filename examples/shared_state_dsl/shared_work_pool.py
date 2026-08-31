@@ -1,6 +1,6 @@
 """Atomic work claiming using general sequence and map expressions."""
 
-from edsl.sharedstate import Command, Machine, T, constant, field, input_, put, record, set_, state_field
+from edsl.sharedstate import Command, Machine, T, constant, current, field, input_, put, record, set_, state_field
 
 unclaimed = ~field("claims").contains(input_("claimant"))
 
@@ -28,5 +28,10 @@ SPEC = Machine(
             effects=(put("completed", input_("claimant"), record(item=field("claims").get(input_("claimant")), result=input_("result"))),),
         ),
     },
-    view={"available": field("available"), "claims": field("claims"), "completed": field("completed")},
+    view={
+        "available": field("available"),
+        "my_claim": field("claims").get(current("name")),
+        "claim_count": field("claims").length(),
+        "completed": field("completed"),
+    },
 )

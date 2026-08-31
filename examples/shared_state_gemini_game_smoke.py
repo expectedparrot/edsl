@@ -22,6 +22,7 @@ from edsl import (
     QuestionNumerical,
     QuestionRank,
     QuestionFreeText,
+    QuestionMatrix,
     Survey,
 )
 from edsl.sharedstate import SharedState, SharedStateMap, current
@@ -929,45 +930,84 @@ def agenda():
     title = QuestionFreeText(
         question_name="title",
         question_text=(
-            "Propose one concise weekend activity for the committee's agenda."
+            "Propose one concise weekend activity for the committee's agenda. "
+            "Your proposal should reflect this priority: {{ agent.priority }}. "
+            "Return only the activity title."
         ),
     )
-    vote_a1 = QuestionMultipleChoice(
-        question_name="vote_a1",
+    ballot = QuestionMatrix(
+        question_name="ballot",
         question_text=(
-            "Current agenda: {{ shared_state.game.proposals }}. Vote up, neutral, "
-            "or down on proposal A1."
+            "Vote on every activity proposed by the committee. Consider your own "
+            "priority ({{ agent.priority }}) as well as what would work for the group."
+        ),
+        question_items=(
+            "{{ shared_state.game.proposals "
+            "| map(attribute='title') | list }}"
         ),
         question_options=["up", "neutral", "down"],
-    )
-    vote_a2 = QuestionMultipleChoice(
-        question_name="vote_a2",
-        question_text="Vote up, neutral, or down on proposal A2.",
-        question_options=["up", "neutral", "down"],
+        answering_instructions=(
+            'Return one JSON object on the first line, mapping every row code to '
+            'one column code, for example {"0": 0, "1": 2}. Include every row. '
+            'Do not use a Markdown code fence. You may explain the votes on the '
+            'next line.'
+        ),
     )
     survey = Survey(
         [
             game.read(),
             title,
-            game.propose(proposer=current.agent.name, title=title.answer),
+            game.propose(proposer=current.agent.participant, title=title.answer),
             game.read(),
-            vote_a1,
-            vote_a2,
+            ballot,
             game.vote(
-                voter=current.agent.name,
-                votes={"A1": vote_a1.answer, "A2": vote_a2.answer},
+                voter=current.agent.participant,
+                votes=ballot.answer,
             ),
         ]
     )
-    survey.add_skip_rule("title", "'{{ agent.role }}' != 'proposer'")
-    survey.add_skip_rule("vote_a1", "'{{ agent.role }}' != 'voter'")
-    survey.add_skip_rule("vote_a2", "'{{ agent.role }}' != 'voter'")
+    survey.add_skip_rule("title", "'{{ agent.phase }}' != 'propose'")
+    survey.add_skip_rule("ballot", "'{{ agent.phase }}' != 'vote'")
+    participant_profiles = [
+        (
+            "Avery",
+            "an accessible outdoor activity with light exercise",
+        ),
+        (
+            "Blair",
+            "an inexpensive indoor activity that works in bad weather",
+        ),
+        (
+            "Casey",
+            "accessibility and broad participation",
+        ),
+        (
+            "Devon",
+            "novelty and opportunities for conversation",
+        ),
+    ]
     people = AgentList(
         [
-            _agent("Proposer 1", role="proposer", committee_id="c", turn=0),
-            _agent("Proposer 2", role="proposer", committee_id="c", turn=1),
-            _agent("Voter 1", role="voter", committee_id="c", turn=2),
-            _agent("Voter 2", role="voter", committee_id="c", turn=3),
+            _agent(
+                f"{participant} — proposal",
+                participant=participant,
+                phase="propose",
+                committee_id="c",
+                turn=index,
+                priority=priority,
+            )
+            for index, (participant, priority) in enumerate(participant_profiles)
+        ]
+        + [
+            _agent(
+                f"{participant} — ballot",
+                participant=participant,
+                phase="vote",
+                committee_id="c",
+                turn=index + len(participant_profiles),
+                priority=priority,
+            )
+            for index, (participant, priority) in enumerate(participant_profiles)
         ]
     )
     return survey, people, InterviewSchedule.grouped_round_robin(
@@ -1255,12 +1295,22 @@ def message_board():
     game = states.by("board").game
     message = QuestionFreeText(
         question_name="message",
-        question_text=("Post a constructive message about choosing a weekend activity. "
-                       "Existing messages: {{ shared_state.game.messages }}."),
+        question_text=(
+            "Post a constructive message of at most two sentences about choosing a "
+            "weekend activity. Reflect your perspective and respond to any useful "
+            "earlier idea. Existing messages: {{ shared_state.game.messages }}."
+        ),
     )
     survey = Survey([game.read(), message,
                      game.add(author=current.agent.name, message=message.answer, reply_to=None)])
-    people = AgentList([_agent(f"Member {i}", board_id="b", turn=i) for i in range(3)])
+    people = AgentList([
+        _agent("Member 0", board_id="b", turn=0,
+               perspective="prefers outdoor exercise"),
+        _agent("Member 1", board_id="b", turn=1,
+               perspective="needs a low-cost, child-friendly option"),
+        _agent("Member 2", board_id="b", turn=2,
+               perspective="wants a relaxed activity with time to talk"),
+    ])
     return survey, people, InterviewSchedule.grouped_round_robin("board_id", "turn")
 
 
@@ -1378,8 +1428,11 @@ def work_pool():
     game = states.by("queue").game
     result = QuestionFreeText(
         question_name="result",
-        question_text=("You atomically claimed work item {{ shared_state.game.claims }}. "
-                       "Return a short completion note for your item."),
+        question_text=(
+            "Your authoritative atomic assignment is "
+            "{{ shared_state.game.my_claim }}. Return a short completion note for "
+            "that item only."
+        ),
     )
     survey = Survey([game.claim_before(claimant=current.agent.name), game.read(), result,
                      game.complete(claimant=current.agent.name,

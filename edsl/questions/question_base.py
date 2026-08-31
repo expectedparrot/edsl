@@ -472,6 +472,7 @@ class QuestionBase(
         """
         exclude_list = [
             "question_type",
+            "_answer",  # runtime answer/placeholder; not constructor data
             # "_include_comment",
             # "_use_code",
             "_model_instructions",

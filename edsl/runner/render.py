@@ -49,6 +49,9 @@ class RenderedPrompt:
     )
     agent_name: str | None = None
     question_type: str | None = None
+    # Exact question definition used to render this prompt. Validation must use
+    # this schema rather than independently resolving the original question.
+    resolved_question: dict[str, Any] | None = None
 
 
 class RenderService:
@@ -264,6 +267,7 @@ class RenderService:
             question_type=(
                 question_data.get("question_type") if question_data else None
             ),
+            resolved_question=prompts.get("resolved_question"),
         )
 
     def _get_current_answers(
@@ -393,6 +397,7 @@ class RenderService:
 
         _t0 = _t.time()
         prompts = prompt_constructor.get_prompts()
+        resolved_question = self._resolved_question(prompt_constructor)
         self._profile_times["get_prompts"] = self._profile_times.get(
             "get_prompts", 0
         ) + (_t.time() - _t0)
@@ -410,7 +415,24 @@ class RenderService:
             "system_prompt": system_prompt,
             "user_prompt": str(prompts.get("user_prompt", "")),
             "files_list": prompts.get("files_list"),
+            "resolved_question": resolved_question,
         }
+
+    @staticmethod
+    def _resolved_question(prompt_constructor: PromptConstructor) -> dict[str, Any]:
+        """Serialize the exact runtime-resolved question used for the prompt."""
+
+        from ..invigilators.question_template_replacements_builder import (
+            QuestionTemplateReplacementsBuilder,
+        )
+
+        builder = QuestionTemplateReplacementsBuilder.from_prompt_constructor(
+            prompt_constructor
+        )
+        replacements = builder.build_replacement_dict(
+            prompt_constructor.question.data
+        )
+        return prompt_constructor.question.render(replacements).to_dict()
 
     def _render_with_objects(
         self,
@@ -446,6 +468,7 @@ class RenderService:
 
         _t0 = _t.time()
         prompts = prompt_constructor.get_prompts()
+        resolved_question = self._resolved_question(prompt_constructor)
         self._profile_times["get_prompts"] = self._profile_times.get(
             "get_prompts", 0
         ) + (_t.time() - _t0)
@@ -463,6 +486,7 @@ class RenderService:
             "system_prompt": system_prompt,
             "user_prompt": str(prompts.get("user_prompt", "")),
             "files_list": prompts.get("files_list"),
+            "resolved_question": resolved_question,
         }
 
     def get_profile_stats(self) -> dict:
@@ -1128,10 +1152,7 @@ class RenderWorker:
 
             shared_version = None
             render_scenario = scenario | {"run": {"round": task_def.iteration + 1}}
-            if (
-                self._job_service is not None
-                and getattr(survey, "_state_reads", {}).get(task_def.question_name)
-            ):
+            if self._job_service is not None:
                 traits = dict(agent.traits)
                 if agent.name:
                     traits.setdefault("name", agent.name)
@@ -1203,6 +1224,7 @@ class RenderWorker:
                     iteration=task_def.iteration,
                     agent_name=agent_data.get("name") if agent_data else None,
                     question_type=getattr(question, "question_type", None),
+                    resolved_question=prompts.get("resolved_question"),
                 )
             )
             _append_time += _time.time() - _t_ap

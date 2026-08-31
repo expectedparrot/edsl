@@ -474,6 +474,19 @@ class QuestionBaseGenMixin:
             except Exception:
                 pass
 
+        # Numerical bounds must retain their native type after template
+        # substitution. The regular string renderer intentionally returns text,
+        # but question descriptors reject resolved values such as "12".
+        for key in ("min_value", "max_value"):
+            original_value = self.data.get(key)
+            if isinstance(original_value, str):
+                try:
+                    native_value = render_native(original_value)
+                    if isinstance(native_value, (int, float)) or native_value is None:
+                        rendered_dict[key] = native_value
+                except Exception:
+                    pass
+
         if return_dict:
             return rendered_dict
         else:

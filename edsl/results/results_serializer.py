@@ -250,6 +250,7 @@ class ResultsSerializer:
         yield json.dumps({
             "created_columns": self.results.created_columns,
             "name": self.results.name,
+            "shared_state": self.results.shared_state,
             "n_survey_lines": len(survey_rows),
             "n_task_history_lines": len(task_history_rows),
         })
@@ -317,6 +318,7 @@ class ResultsSerializer:
 
         created_columns = manifest.get("created_columns", [])
         name = manifest.get("name", None)
+        shared_state = manifest.get("shared_state")
 
         # Task-history section.  Older inline packages have no count and retain
         # the legacy empty-history behavior.
@@ -355,6 +357,7 @@ class ResultsSerializer:
             cache=cache,
             task_history=task_history,
             name=name,
+            shared_state=shared_state,
         )
         for result in results_data:
             results.append(result)

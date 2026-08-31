@@ -170,6 +170,17 @@ def map_sequence(collection: Any, *, item: str, value_expr: Any) -> Expr:
     return expr("map_sequence", collection, item=item, value_expr=value_expr)
 
 
+def decode_matrix(answer: Any, *, rows: Any, options: Any) -> Expr:
+    """Translate a matrix question's positional answer into domain values.
+
+    ``QuestionMatrix`` answers may use integer (or numeric-string) row and
+    column codes. Shared-state machines should generally store the resolved
+    row and option values instead. Already-decoded values are accepted too.
+    """
+
+    return expr("decode_matrix", answer, rows, options)
+
+
 class T:
     @staticmethod
     def any() -> Expr:
@@ -355,6 +366,7 @@ class Machine:
             "casefold",
             "concat",
             "contains",
+            "decode_matrix",
             "divide",
             "drop_first",
             "equals",
