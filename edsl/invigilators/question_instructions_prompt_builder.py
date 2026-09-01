@@ -243,9 +243,8 @@ class QuestionInstructionPromptBuilder:
 
         return question_data
 
-    @staticmethod
     def _enrich_with_question_options(
-        prompt_data: Dict, scenario: "Scenario", prior_answers_dict: Dict
+        self, prompt_data: Dict, scenario: "Scenario", prior_answers_dict: Dict
     ) -> Dict:
         """Enriches the prompt data with processed question options if they exist.
 
@@ -257,11 +256,16 @@ class QuestionInstructionPromptBuilder:
         Returns:
             Dict: Enriched prompt data
         """
+        item_seed = getattr(self.question, "_item_randomization_seed", None)
+        if item_seed is not None:
+            prompt_data["data"]["item_randomization_seed"] = item_seed
+
         prompt_data["data"] = (
             QuestionInstructionPromptBuilder._process_question_options(
                 prompt_data["data"], scenario, prior_answers_dict
             )
         )
+
         return prompt_data
 
     def _render_prompt(self, prompt_data: Dict) -> "Prompt":
@@ -344,9 +348,9 @@ class QuestionInstructionPromptBuilder:
 
         preamble = Prompt(text="")
         for instruction in relevant_instructions:
-            preamble += instruction.text
+            preamble += instruction.preamble + "\n" + instruction.text + "\n"
 
-        return preamble + rendered_prompt
+        return preamble + "\n" + rendered_prompt
 
 
 if __name__ == "__main__":

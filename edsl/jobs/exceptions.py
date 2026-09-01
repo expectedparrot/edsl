@@ -10,7 +10,7 @@ class JobsErrors(BaseException):
     job-specific error.
     """
 
-    relevant_doc = "https://docs.expectedparrot.com/en/latest/jobs.html"
+    relevant_doc = "https://docs.expectedparrot.com/en/latest/jobs"
 
 
 class JobsRunError(JobsErrors):
@@ -31,7 +31,7 @@ class JobsRunError(JobsErrors):
     but is kept for potential future use and test cases.
     """
 
-    relevant_doc = "https://docs.expectedparrot.com/en/latest/jobs.html"
+    relevant_doc = "https://docs.expectedparrot.com/en/latest/jobs"
 
 
 class MissingRemoteInferenceError(JobsErrors):

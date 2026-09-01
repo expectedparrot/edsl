@@ -1,3 +1,5 @@
+import random
+from ast import literal_eval
 from typing import Union, TYPE_CHECKING
 
 from .question_attribute_processor import QuestionAttributeProcessor
@@ -106,6 +108,25 @@ class QuestionItemProcessor(QuestionAttributeProcessor):
         >>> processor.get_question_items(question_data)
         ['Item 1', 'Item 2']
 
+        The case where the prior answer is the text of a list rather than a list,
+        which is what a QuestionCompute answers with:
+
+        >>> q1 = MockQuestion()
+        >>> q1.answer = "['Item 1', 'Item 2']"
+        >>> mpc.prior_answers_dict = lambda: {"q0": q0, "q1": q1}
+        >>> compute_processor = QuestionItemProcessor.from_prompt_constructor(mpc)
+        >>> compute_processor.get_question_items({"question_items": "{{ q1.answer }}"})
+        ['Item 1', 'Item 2']
+
+        A string that is not a list stays a lookup rather than being taken apart:
+
+        >>> q2 = MockQuestion()
+        >>> q2.answer = "Item 1, Item 2"
+        >>> mpc.prior_answers_dict = lambda: {"q2": q2}
+        >>> text_processor = QuestionItemProcessor.from_prompt_constructor(mpc)
+        >>> text_processor.get_question_items({"question_items": "{{ q2.answer }}"})
+        ['<< Item 1 - Placeholder >>', '<< Item 2 - Placeholder >>', '<< Item 3 - Placeholder >>']
+
         The case where no items are found:
 
         >>> processor.get_question_items({"question_items": "{{ missing }}"})
@@ -116,6 +137,21 @@ class QuestionItemProcessor(QuestionAttributeProcessor):
         >>> question_data = {"question_items": {"from": "{{ q0.answer }}", "add": ["Item 3", "Item 4"]}}
         >>> processor.get_question_items(question_data)
         ['Item 1', 'Item 2', 'Item 3', 'Item 4']
+
+        Randomization is applied only after a template resolves to a list:
+
+        >>> import random
+        >>> random.seed(1)
+        >>> question_data = {"question_items": "{{ q0.answer }}", "randomize_items": True}
+        >>> sorted(processor.get_question_items(question_data))
+        ['Item 1', 'Item 2']
+
+        Pinned rows retain their original positions:
+
+        >>> random.seed(1)
+        >>> question_data = {"question_items": ["A", "B", "Other"], "randomize_items": True, "items_to_pin": ["Other"]}
+        >>> processor.get_question_items(question_data)[-1]
+        'Other'
         """
         items_entry = question_data.get("question_items")
 
@@ -127,16 +163,41 @@ class QuestionItemProcessor(QuestionAttributeProcessor):
             base_items = self._get_items_from_template(from_template)
 
             if base_items and base_items != self._get_default_items():
-                return base_items + additional_items
+                items = base_items + additional_items
+                return self._maybe_randomize(items, question_data)
 
-            return additional_items if additional_items else self._get_default_items()
+            items = additional_items if additional_items else self._get_default_items()
+            return self._maybe_randomize(items, question_data)
 
         # If not a template string or dict, return as is or default
         if not isinstance(items_entry, str):
-            return items_entry if items_entry else self._get_default_items()
+            items = items_entry if items_entry else self._get_default_items()
+            return self._maybe_randomize(items, question_data)
 
         # Handle simple template string
-        return self._get_items_from_template(items_entry)
+        items = self._get_items_from_template(items_entry)
+        return self._maybe_randomize(items, question_data)
+
+    @staticmethod
+    def _maybe_randomize(items: list, question_data: dict) -> list:
+        """Shuffle resolved matrix rows while leaving requested positions pinned."""
+        if not question_data.get("randomize_items") or len(items) < 2:
+            return items
+
+        pinned_values = question_data.get("items_to_pin") or []
+        pinned = {i: value for i, value in enumerate(items) if value in pinned_values}
+        movable = [value for value in items if value not in pinned_values]
+        seed = question_data.get("item_randomization_seed")
+        rng = random.Random(seed) if seed is not None else random
+        shuffled = rng.sample(movable, len(movable))
+        result = [None] * len(items)
+        for index, value in pinned.items():
+            result[index] = value
+        movable_iter = iter(shuffled)
+        for index, value in enumerate(result):
+            if value is None:
+                result[index] = next(movable_iter)
+        return result
 
     def _get_items_from_template(self, template_string: str) -> list:
         """
@@ -151,6 +212,35 @@ class QuestionItemProcessor(QuestionAttributeProcessor):
         """
         if not template_string:
             return self._get_default_items()
+
+        # Render the template first and take the value it produces. A prior answer is
+        # not always a list even when it names one: a QuestionCompute answers with the
+        # rendered text of its expression, so a matrix whose rows come from one is
+        # handed "['Alpha', 'Beta']" where it needs ['Alpha', 'Beta']. Without this the
+        # lookup below finds a string, treats it as no answer at all, and the question
+        # is served "<< Item 1 - Placeholder >>" rows.
+        #
+        # QuestionOptionProcessor resolves its own templates this way and for the same
+        # reason; a matrix validates its rows through the descriptor it uses for its
+        # options, so the two are worth keeping in step.
+        try:
+            rendered_items = self._render_template_to_native_value(template_string)
+            if isinstance(rendered_items, list):
+                return rendered_items
+            if isinstance(rendered_items, tuple):
+                return list(rendered_items)
+            if isinstance(rendered_items, str):
+                try:
+                    parsed_items = literal_eval(rendered_items)
+                except (SyntaxError, ValueError):
+                    parsed_items = None
+                if isinstance(parsed_items, list):
+                    return parsed_items
+                if isinstance(parsed_items, tuple):
+                    return list(parsed_items)
+        except Exception:
+            # Fall back to the key-lookup path below.
+            pass
 
         raw_item_key = self._parse_template_variable(template_string)
 

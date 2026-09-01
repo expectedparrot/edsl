@@ -128,6 +128,12 @@ class TestInferenceServiceRegistry:
         services = registry.list_registered_services()
         assert set(services) == {"service1", "service2"}
 
+    def test_default_registry_discovers_meta_service(self):
+        registry = InferenceServiceRegistry()
+
+        assert "meta" in registry.list_registered_services()
+        assert registry.get_service_class("meta")._inference_service_ == "meta"
+
     def test_services_property(self, registry):
         """Test services property returns the internal services dict."""
         registry.register("service1", MockInferenceService)
@@ -287,6 +293,63 @@ class TestInferenceServiceRegistry:
         assert "Model 'nonexistent_model' not found in any service" in str(
             exc_info.value
         )
+
+    def test_get_service_for_model_not_found_bounds_suggestions(
+        self, registry, mock_source_handler
+    ):
+        """Unknown models return useful matches without dumping the catalog."""
+        from edsl.inference_services.model_info import ModelInfo
+
+        mock_source_handler.fetch_model_info_data.return_value = {
+            "google": [
+                ModelInfo.from_raw({"id": name}, "google", name)
+                for name in (
+                    "gemini-2.5-flash-lite", "gemini-2.5-flash",
+                    "gemini-2.5-pro", "gemini-3.1-flash-lite",
+                    "gemini-3.1-pro", "gemini-3.5-flash",
+                )
+            ]
+        }
+        registry._source_handler = mock_source_handler
+        registry._model_info_data = None
+
+        with pytest.raises(ValueError) as exc_info:
+            registry.get_service_for_model("gemini-2.0-flash")
+
+        message = str(exc_info.value)
+        assert "Suggested models:" in message
+        assert "gemini-2.5-flash" in message
+        assert message.count("gemini-") <= 6  # requested name plus at most 5 suggestions
+        assert len(message) < 1000
+        assert "Available models:" not in message
+
+    def test_get_service_for_model_archive_refresh_failure_preserves_context(
+        self, registry
+    ):
+        """Archive misses should not be replaced by opaque live-refresh errors."""
+        from edsl.inference_services.model_info import ModelInfo
+
+        handler = Mock(spec=SourcePreferenceHandler)
+        handler.used_source = "archive"
+        handler.fetch_model_info_data.side_effect = [
+            {
+                "archive_service": [
+                    ModelInfo.from_raw(
+                        {"id": "archive_model"}, "archive_service", "archive_model"
+                    )
+                ]
+            },
+            RuntimeError("network unavailable"),
+        ]
+        registry._source_handler = handler
+
+        with pytest.raises(ValueError) as exc_info:
+            registry.get_service_for_model("new_live_model")
+
+        message = str(exc_info.value)
+        assert "Model 'new_live_model' not found in any service" in message
+        assert "archive_model" in message
+        assert "Live-source refresh failed: network unavailable" in message
 
     def test_get_services_for_model(self, registry, mock_source_handler):
         """Test getting all services for a model."""
@@ -474,9 +537,11 @@ class TestInferenceServiceRegistry:
             "together",
             "xai",
             "open_router",
+            "meta",
             "bedrock",
             "azure",
             "ollama",
+            "openai_compatible",
         ]
 
         registry = InferenceServiceRegistry()

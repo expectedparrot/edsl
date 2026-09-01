@@ -301,6 +301,7 @@ class Model(metaclass=Meta):
         force_refresh: bool = False,
         local_only: bool = False,
         output_format: str = "model_list",
+        verbose: bool = False,
     ) -> Union["ModelList", "ScenarioList"]:
         """Get available models as a ModelList or ScenarioList.
 
@@ -311,6 +312,10 @@ class Model(metaclass=Meta):
             force_refresh: Whether to force refresh the model cache from services.
             local_only: If True, only return models from services with local API keys configured.
             output_format: Output format, either "model_list" (default) or "scenario_list".
+            verbose: If True, print detailed logs from each source fetcher showing which
+                sources are tried, which services are queried, and how many models each returns.
+                Only produces output when fetchers actually run; use force_refresh=True to
+                guarantee output regardless of cache state.
 
         Returns:
             ModelList or ScenarioList with model_name and service_name fields
@@ -328,6 +333,10 @@ class Model(metaclass=Meta):
             # ModelList([...])
             Model.available(output_format="scenario_list")
             # ScenarioList([...])
+            Model.available(verbose=True)
+            # [SOURCE_HANDLER] Trying source: archive
+            # ...
+            # ModelList([...])
         """
         from ..scenarios import ScenarioList
 
@@ -335,12 +344,24 @@ class Model(metaclass=Meta):
 
         if force_refresh:
             registry.refresh_model_info()
-            if local_only:
-                registry.fetch_model_info_data(
-                    source_preferences=["local"], service_name=service_name
-                )
-            else:
-                registry.fetch_model_info_data(service_name=service_name)
+            # force_refresh=True means "actually go fetch" — skip the on-disk
+            # archive (which is the first default source and would short-circuit
+            # the chain with possibly-stale data). Match user intuition: anyone
+            # who explicitly asked to refresh expects to hit upstream sources,
+            # not be served from the cache they just told us to bypass.
+            #
+            # With local_only=True we narrow further to provider APIs only;
+            # otherwise re-pull from coop_working → coop → local → default_models.
+            sources = (
+                ["local"]
+                if local_only
+                else ["coop_working", "coop", "local", "default_models"]
+            )
+            registry.fetch_model_info_data(
+                source_preferences=sources,
+                service_name=service_name,
+                verbose=verbose,
+            )
 
         # Validate service_name if provided
         if service_name is not None:

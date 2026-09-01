@@ -1,0 +1,386 @@
+from __future__ import annotations
+import math
+
+
+class OpenAIImageEstimator:
+    """Estimates token cost for images sent to OpenAI models.
+
+    Dispatches between patch-based (gpt-4.1-mini/nano, gpt-5-mini/nano, o4-mini)
+    and tile-based (gpt-4o, gpt-4.1, o1, o3, …) tokenization based on model name.
+    Falls back to GPT-4o defaults (85 base + 170/tile) when the model is unknown.
+
+    Reference: https://developers.openai.com/api/docs/guides/images-vision#calculating-costs
+    """
+
+    # Tile-based config: model_prefix -> (base_tokens, tile_tokens)
+    # Fit to 2048×2048 → scale shortest side to 768px → count 512px tiles
+    TILE_CONFIG: dict[str, tuple[int, int]] = {
+        "gpt-5-chat-latest": (70, 140),
+        "gpt-5": (70, 140),
+        "gpt-4.5": (85, 170),
+        "gpt-4.1": (85, 170),
+        "gpt-4o-mini": (2833, 5667),
+        "gpt-4o": (85, 170),
+        "o1": (75, 150),
+        "o3": (75, 150),
+        "computer-use-preview": (65, 129),
+    }
+
+    # Patch-based config: model_prefix -> (multiplier, patch_budget)
+    # Cover with 32px patches → shrink to fit budget → apply multiplier
+    PATCH_CONFIG: dict[str, tuple[float, int]] = {
+        "gpt-5.4-mini": (1.62, 1536),
+        "gpt-5.4-nano": (2.46, 1536),
+        "gpt-5-mini": (1.62, 1536),
+        "gpt-5-nano": (2.46, 1536),
+        "gpt-4.1-mini": (1.62, 1536),
+        "gpt-4.1-nano": (2.46, 1536),
+        "o4-mini": (1.72, 1536),
+    }
+
+    TILE_DEFAULT: tuple[int, int] = (85, 170)  # GPT-4o fallback
+
+    @classmethod
+    def _lookup(cls, model_name: str | None, config: dict) -> tuple | None:
+        """Longest-prefix match. Returns None if no match."""
+        if not model_name:
+            return None
+        if model_name in config:
+            return config[model_name]
+        for key in sorted(config, key=len, reverse=True):
+            if model_name.startswith(key):
+                return config[key]
+        return None
+
+    @staticmethod
+    def _tile_tokens(width: int, height: int, base: int, tile_cost: int) -> int:
+        scale = min(1.0, 2048 / max(width, height))
+        w, h = max(1, int(width * scale)), max(1, int(height * scale))
+        scale2 = 768 / min(w, h)
+        w, h = int(w * scale2), int(h * scale2)
+        tiles = math.ceil(w / 512) * math.ceil(h / 512)
+        return base + tile_cost * tiles
+
+    @staticmethod
+    def _patch_tokens(
+        width: int, height: int, multiplier: float, patch_budget: int
+    ) -> int:
+        original = math.ceil(width / 32) * math.ceil(height / 32)
+        if original <= patch_budget:
+            resized = original
+        else:
+            shrink = math.sqrt((32**2 * patch_budget) / (width * height))
+            # fractional patch count per dimension after shrinking
+            ws, hs = width * shrink / 32, height * shrink / 32
+            # floor(x)/x snaps each dimension down to a whole number of patches.
+            # Clamp to 1 before flooring: if a dimension shrinks below one patch
+            # (x < 1), floor gives 0 and zeroes out the result entirely. One patch
+            # is the minimum meaningful unit, so we treat it as the floor.
+            adjusted = shrink * min(
+                max(1, math.floor(ws)) / ws,
+                max(1, math.floor(hs)) / hs,
+            )
+            rw, rh = int(width * adjusted), int(height * adjusted)
+            resized = min(patch_budget, math.ceil(rw / 32) * math.ceil(rh / 32))
+        return round(resized * multiplier)
+
+    def estimate(self, width: int, height: int, model_name: str | None = None) -> int:
+        patch_cfg = self._lookup(model_name, self.PATCH_CONFIG)
+        if patch_cfg:
+            multiplier, patch_budget = patch_cfg
+            return self._patch_tokens(width, height, multiplier, patch_budget)
+        tile_cfg = self._lookup(model_name, self.TILE_CONFIG)
+        base, tile_cost = tile_cfg if tile_cfg else self.TILE_DEFAULT
+        return self._tile_tokens(width, height, base, tile_cost)
+
+    def breakdown(self, width: int, height: int, model_name: str | None = None) -> dict:
+        """Structured breakdown of token components for display."""
+        patch_cfg = self._lookup(model_name, self.PATCH_CONFIG)
+        if patch_cfg:
+            multiplier, patch_budget = patch_cfg
+            patches_w = math.ceil(width / 32)
+            patches_h = math.ceil(height / 32)
+            original = patches_w * patches_h
+            if original <= patch_budget:
+                resized = original
+                shrink_note = ""
+            else:
+                shrink = math.sqrt((32**2 * patch_budget) / (width * height))
+                # fractional patch count per dimension after shrinking
+                ws, hs = width * shrink / 32, height * shrink / 32
+                # floor(x)/x snaps each dimension down to a whole number of patches.
+                # Clamp to 1 before flooring: if a dimension shrinks below one patch
+                # (x < 1), floor gives 0 and zeroes out the result entirely. One patch
+                # is the minimum meaningful unit, so we treat it as the floor.
+                adjusted = shrink * min(
+                    max(1, math.floor(ws)) / ws,
+                    max(1, math.floor(hs)) / hs,
+                )
+                rw, rh = int(width * adjusted), int(height * adjusted)
+                resized = min(patch_budget, math.ceil(rw / 32) * math.ceil(rh / 32))
+                shrink_note = f" → shrunk to {resized:,} (budget: {patch_budget:,})"
+            total = round(resized * multiplier)
+            components = [
+                {"label": "dimensions", "value": f"{width:,}×{height:,} px"},
+                {
+                    "label": "32px patches",
+                    "value": f"ceil({width:,}/32) × ceil({height:,}/32) = {patches_w}×{patches_h} = {original:,} patches{shrink_note}",
+                },
+                {
+                    "label": "cost",
+                    "value": f"{resized:,} patches × {multiplier} multiplier",
+                    "tokens": total,
+                },
+            ]
+            return {
+                "provider": "OpenAI image (patch-based)",
+                "components": components,
+                "total": total,
+                "note": "",
+            }
+
+        tile_cfg = self._lookup(model_name, self.TILE_CONFIG)
+        base, tile_cost = tile_cfg if tile_cfg else self.TILE_DEFAULT
+        scale1 = min(1.0, 2048 / max(width, height))
+        w1, h1 = max(1, int(width * scale1)), max(1, int(height * scale1))
+        scale2 = 768 / min(w1, h1)
+        w2, h2 = int(w1 * scale2), int(h1 * scale2)
+        tiles_w = math.ceil(w2 / 512)
+        tiles_h = math.ceil(h2 / 512)
+        tiles = tiles_w * tiles_h
+        total = base + tile_cost * tiles
+        components = []
+        if scale1 < 1.0:
+            components.append(
+                {
+                    "label": "fit to 2048×2048",
+                    "value": f"{width:,}×{height:,} → {w1:,}×{h1:,} px",
+                }
+            )
+        else:
+            components.append(
+                {
+                    "label": "dimensions",
+                    "value": f"{width:,}×{height:,} px (fits within 2048×2048)",
+                }
+            )
+        components.append(
+            {"label": "scale short edge to 768px", "value": f"→ {w2:,}×{h2:,} px"}
+        )
+        components.append(
+            {
+                "label": "512px tiles",
+                "value": f"ceil({w2:,}/512) × ceil({h2:,}/512) = {tiles_w}×{tiles_h} = {tiles:,} tiles",
+            }
+        )
+        components.append(
+            {
+                "label": "cost",
+                "value": f"{tiles:,} tiles × {tile_cost}/tile + {base} base",
+                "tokens": total,
+            }
+        )
+        return {
+            "provider": "OpenAI image (tile-based)",
+            "components": components,
+            "total": total,
+            "note": "",
+        }
+
+    def describe(self, model_name: str | None = None) -> str:
+        patch_cfg = self._lookup(model_name, self.PATCH_CONFIG)
+        if patch_cfg:
+            multiplier, patch_budget = patch_cfg
+            return (
+                f"OpenAI patch formula: 32px patches, x{multiplier} multiplier "
+                f"(budget: {patch_budget} patches)"
+            )
+        tile_cfg = self._lookup(model_name, self.TILE_CONFIG)
+        base, tile_cost = tile_cfg if tile_cfg else self.TILE_DEFAULT
+        return (
+            f"OpenAI tile formula: fit to 2048x2048 -> shortest side 768px -> "
+            f"512px tiles ({tile_cost} tokens/tile + {base} base)"
+        )
+
+
+class GoogleImageEstimator:
+    """Estimates token cost for images sent to Google Gemini models.
+
+    - Both dimensions <= 384px -> 258 tokens (flat).
+    - Larger images are tiled: crop_unit = floor(min(w, h) / 1.5),
+      tiles = ceil(w / crop_unit) x ceil(h / crop_unit), cost = tiles x 258.
+
+    Example: 960x540 -> crop_unit=360 -> 3x2=6 tiles -> 1,548 tokens.
+
+    Reference: https://ai.google.dev/gemini-api/docs/image-understanding#technical-details-image
+    """
+
+    TOKENS_PER_TILE = 258
+    SMALL_IMAGE_THRESHOLD = 384
+
+    def estimate(self, width: int, height: int) -> int:
+        if width <= self.SMALL_IMAGE_THRESHOLD and height <= self.SMALL_IMAGE_THRESHOLD:
+            return self.TOKENS_PER_TILE
+        crop_unit = max(1, math.floor(min(width, height) / 1.5))
+        tiles = math.ceil(width / crop_unit) * math.ceil(height / crop_unit)
+        return tiles * self.TOKENS_PER_TILE
+
+    def breakdown(self, width: int, height: int) -> dict:
+        """Structured breakdown of token components for display."""
+        if width <= self.SMALL_IMAGE_THRESHOLD and height <= self.SMALL_IMAGE_THRESHOLD:
+            return {
+                "provider": "Google image",
+                "components": [
+                    {
+                        "label": "dimensions",
+                        "value": f"{width:,}×{height:,} px (both ≤ {self.SMALL_IMAGE_THRESHOLD}px — flat rate)",
+                    },
+                    {
+                        "label": "cost",
+                        "value": "flat rate",
+                        "tokens": self.TOKENS_PER_TILE,
+                    },
+                ],
+                "total": self.TOKENS_PER_TILE,
+                "note": "",
+            }
+        crop_unit = max(1, math.floor(min(width, height) / 1.5))
+        tiles_w = math.ceil(width / crop_unit)
+        tiles_h = math.ceil(height / crop_unit)
+        tiles = tiles_w * tiles_h
+        total = tiles * self.TOKENS_PER_TILE
+        return {
+            "provider": "Google image",
+            "components": [
+                {"label": "dimensions", "value": f"{width:,}×{height:,} px"},
+                {
+                    "label": "crop unit",
+                    "value": f"floor(min({width:,},{height:,}) / 1.5) = {crop_unit:,} px",
+                },
+                {
+                    "label": "tiles",
+                    "value": f"ceil({width:,}/{crop_unit:,}) × ceil({height:,}/{crop_unit:,}) = {tiles_w}×{tiles_h} = {tiles:,} tiles",
+                },
+                {
+                    "label": "cost",
+                    "value": f"{tiles:,} tiles × {self.TOKENS_PER_TILE} tokens/tile",
+                    "tokens": total,
+                },
+            ],
+            "total": total,
+            "note": "",
+        }
+
+    def describe(self) -> str:
+        return (
+            f"Google tile formula: images <= 384px -> {self.TOKENS_PER_TILE} tokens; "
+            f"larger images tiled at crop_unit=floor(short_edge/1.5), {self.TOKENS_PER_TILE} tokens/tile"
+        )
+
+
+class AnthropicImageEstimator:
+    """Estimates token cost for images sent to Anthropic models.
+
+    Formula: tokens = round(width x height / 750), after scaling the long edge
+    down to the model's limit if needed, capped at the model's token maximum.
+
+    Two tiers:
+    - Opus 4.7 / 4.8+: long edge <= 2576px, cap at 4784 tokens
+    - All other models: long edge <= 1568px, cap at 1568 tokens
+
+    Reference: https://platform.claude.com/docs/en/build-with-claude/vision
+    """
+
+    # Models with high-resolution support (long-prefix match)
+    HIGH_RES_PREFIXES: tuple[str, ...] = ("claude-opus-4-7", "claude-opus-4-8")
+    HIGH_RES_MAX_LONG_EDGE = 2576
+    HIGH_RES_MAX_TOKENS = 4784
+
+    STANDARD_MAX_LONG_EDGE = 1568
+    STANDARD_MAX_TOKENS = 1568
+
+    def _is_high_res(self, model_name: str | None) -> bool:
+        if not model_name:
+            return False
+        return any(model_name.startswith(p) for p in self.HIGH_RES_PREFIXES)
+
+    def estimate(self, width: int, height: int, model_name: str | None = None) -> int:
+        if self._is_high_res(model_name):
+            max_long_edge, max_tokens = (
+                self.HIGH_RES_MAX_LONG_EDGE,
+                self.HIGH_RES_MAX_TOKENS,
+            )
+        else:
+            max_long_edge, max_tokens = (
+                self.STANDARD_MAX_LONG_EDGE,
+                self.STANDARD_MAX_TOKENS,
+            )
+        long_edge = max(width, height)
+        if long_edge > max_long_edge:
+            scale = max_long_edge / long_edge
+            width, height = int(width * scale), int(height * scale)
+        return min(round(width * height / 750), max_tokens)
+
+    def breakdown(self, width: int, height: int, model_name: str | None = None) -> dict:
+        """Structured breakdown of token components for display."""
+        if self._is_high_res(model_name):
+            max_long_edge, max_tokens = (
+                self.HIGH_RES_MAX_LONG_EDGE,
+                self.HIGH_RES_MAX_TOKENS,
+            )
+            tier = "high-res"
+        else:
+            max_long_edge, max_tokens = (
+                self.STANDARD_MAX_LONG_EDGE,
+                self.STANDARD_MAX_TOKENS,
+            )
+            tier = "standard"
+        long_edge = max(width, height)
+        components = []
+        sw, sh = width, height
+        if long_edge > max_long_edge:
+            scale = max_long_edge / long_edge
+            sw, sh = int(width * scale), int(height * scale)
+            components.append(
+                {
+                    "label": "scale",
+                    "value": f"{width:,}×{height:,} → {sw:,}×{sh:,} px (long edge capped at {max_long_edge:,}px)",
+                }
+            )
+        else:
+            components.append(
+                {
+                    "label": "dimensions",
+                    "value": f"{width:,}×{height:,} px (long edge {long_edge:,} ≤ {max_long_edge:,}px limit)",
+                }
+            )
+        raw = round(sw * sh / 750)
+        capped = raw > max_tokens
+        cost_note = f" (capped at {max_tokens:,})" if capped else ""
+        components.append(
+            {
+                "label": "cost",
+                "value": f"{sw:,} × {sh:,} ÷ 750{cost_note}",
+                "tokens": min(raw, max_tokens),
+            }
+        )
+        total = min(raw, max_tokens)
+        return {
+            "provider": f"Anthropic image ({tier})",
+            "components": components,
+            "total": total,
+            "note": "",
+        }
+
+    def describe(self, model_name: str | None = None) -> str:
+        if self._is_high_res(model_name):
+            return (
+                f"Anthropic high-res formula: width x height / 750, "
+                f"long edge capped at {self.HIGH_RES_MAX_LONG_EDGE}px, "
+                f"max {self.HIGH_RES_MAX_TOKENS} tokens"
+            )
+        return (
+            f"Anthropic standard formula: width x height / 750, "
+            f"long edge capped at {self.STANDARD_MAX_LONG_EDGE}px, "
+            f"max {self.STANDARD_MAX_TOKENS} tokens"
+        )

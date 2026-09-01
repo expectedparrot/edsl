@@ -18,7 +18,7 @@ def _to_table(rows: list[dict]) -> str:
 
 
 class StoreSaveInfo(dict):
-    """Return type for ``obj.store.save()``.
+    """Return type for ``ObjectStore.save()``.
 
     Behaves as a plain dict with keys: ``status``, ``uuid``, ``branch``,
     ``commit``, and ``message``.
@@ -59,7 +59,7 @@ class StoreSaveInfo(dict):
 
 
 class StoreListInfo(list):
-    """Return type for ``obj.store.list()`` / ``Cls.store.list()``.
+    """Return type for ``ObjectStore.list()``.
 
     Behaves as a plain list of dicts. Displays as a rich table via
     ``ScenarioList.table()``.
@@ -96,7 +96,7 @@ class StoreListInfo(list):
 
 
 class StoreLogInfo(list):
-    """Return type for ``obj.store.log()``.
+    """Return type for ``ObjectStore.log()``.
 
     Behaves as a plain list of commit dicts. Displays as a rich table via
     ``ScenarioList.table()``.
@@ -133,7 +133,7 @@ class StoreLogInfo(list):
 
 
 class StoreDiffInfo(str):
-    """Return type for ``obj.store.diff()``.
+    """Return type for ``ObjectStore.diff()``.
 
     Subclasses ``str`` so the diff text is directly usable as a string
     while ``__repr__`` renders it with ANSI colour in terminals and

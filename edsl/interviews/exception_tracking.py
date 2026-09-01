@@ -17,12 +17,14 @@ class InterviewExceptionEntry:
         traceback_format="text",
         answers=None,
         time=None,  # Added time parameter for deserialization
+        additional_data=None,
     ):
         self.time = time or datetime.datetime.now().isoformat()
         self.exception = exception
         self.invigilator = invigilator
         self.traceback_format = traceback_format
         self.answers = answers
+        self.additional_data = additional_data or {}
 
     @property
     def exception_type(self) -> str:
@@ -252,7 +254,7 @@ class InterviewExceptionEntry:
             "time": self.time,
             "traceback": self.traceback,
             "invigilator": invigilator,
-            "additional_data": {},
+            "additional_data": dict(self.additional_data),
         }
 
         if isinstance(self.exception, QuestionAnswerValidationError):
@@ -270,7 +272,10 @@ class InterviewExceptionEntry:
         from ..invigilators import InvigilatorAI
 
         exception = cls.deserialize_exception(data["exception"])
-        if data["invigilator"] is None:
+        # The invigilator may be absent (older payloads), null, or an empty dict
+        # (task histories built outside of a live run). None of those can be
+        # deserialized, and callers already guard against a missing invigilator.
+        if not data.get("invigilator"):
             invigilator = None
         else:
             invigilator = InvigilatorAI.from_dict(data["invigilator"])
@@ -278,7 +283,12 @@ class InterviewExceptionEntry:
         # Use the original timestamp from serialization
         time = data.get("time")
 
-        return cls(exception=exception, invigilator=invigilator, time=time)
+        return cls(
+            exception=exception,
+            invigilator=invigilator,
+            time=time,
+            additional_data=data.get("additional_data"),
+        )
 
 
 class InterviewExceptionCollection(UserDict):

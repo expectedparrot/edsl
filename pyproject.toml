@@ -8,16 +8,18 @@ classifiers = [ "Topic :: Scientific/Engineering :: Artificial Intelligence", "T
 description = "Create and analyze LLM-based surveys"
 documentation = "https://docs.expectedparrot.com"
 homepage = "https://www.expectedparrot.com/"
-include = [ "edsl/questions/templates/**/*", "edsl/assistants/EDSL_SPECIFICATION.md",]
+include = [ "edsl/questions/templates/**/*", "edsl/assistants/EDSL_SPECIFICATION.md", "edsl/cli_commands/study_resources/**/*",]
 keywords = [ "LLM", "social science", "surveys", "user research",]
 license = "MIT"
 name = "edsl"
 readme = "README.md"
 version = "1.0.8.dev1"
+packages = [{ include = "edsl" }, { include = "ep_workflow" }]
 
 [tool.poetry.dependencies]
 python = ">=3.10,<3.14"
 aiohttp = "^3.9.1"
+click = "^8.0.0"
 httpx = ">=0.24.0"
 jinja2 = "^3.1.2"
 json-repair = "^0.28.4"
@@ -36,7 +38,7 @@ psutil = "^6.1.0"
 [tool.poetry.extras]
 inference = [ "openai", "groq", "boto3", "anthropic", "azure-ai-inference", "google-genai", "mistralai", "sqlalchemy",]
 file-formats = [ "python-docx", "openpyxl", "pypdf2", "python-pptx", "pandas",]
-full = [ "openai", "groq", "boto3", "anthropic", "azure-ai-inference", "google-genai", "mistralai", "sqlalchemy", "black", "pydot", "python-docx", "openpyxl", "pypdf2", "python-pptx", "playwright", "fastapi", "uvicorn", "altair", "nbformat", "nbclient", "psutil", "sentence-transformers", "seaborn", "termplotlib", "qrcode", "pandas",]
+full = [ "openai", "groq", "boto3", "anthropic", "azure-ai-inference", "google-genai", "mistralai", "sqlalchemy", "black", "pydot", "python-docx", "openpyxl", "pypdf2", "python-pptx", "playwright", "fastapi", "uvicorn", "altair", "nbformat", "nbclient", "psutil", "seaborn", "termplotlib", "qrcode", "pandas",]
 notebook = [ "nbformat", "nbclient", "psutil",]
 screenshots = [ "playwright",]
 services = [ "fastapi", "uvicorn",]
@@ -48,12 +50,13 @@ gcp = [ "google-cloud-storage",]
 
 [tool.poetry.scripts]
 edsl = "edsl.__main__:main"
+ep = "edsl.__main__:main"
 
 [tool.ty.rules]
 unresolved-import = "ignore"
 
 [tool.poetry.dependencies.openai]
-version = "^1.4.0"
+version = "^2.44.0"
 extras = [ "aiohttp",]
 optional = true
 
@@ -163,29 +166,23 @@ version = "^0.30.6"
 optional = true
 
 [tool.poetry.dependencies.typer]
-version = ">=0.12,<1"
+extras = [ "all",]
+version = ">=0.9,<1"
 
 [tool.tomlsort.overrides."tool.poetry.dependencies"]
 table_keys = false
 
 [tool.poetry.group.dev.dependencies]
 mypy = "^1.7.1"
-myst-parser = "^3.0.1"
-nbsphinx = "^0.9.3"
 objgraph = "^3.6.0"
 pre-commit = "^3.6.0"
 pydocstyle = "^6.3.0"
 pylint = "^3.1.0"
 ruff = "^0.3.0"
-sphinx = "^7.2.6"
-sphinx-copybutton = "^0.5.2"
-sphinx-fontawesome = "^0.0.6"
-sphinx-rtd-theme = "^2.0.0"
 toml-sort = "^0.23.1"
 ty = "^0.0.23"
 
 [tool.poetry.group.test.dependencies]
-click = "^8.0.0"
 coverage = "^7.3.3"
 nbformat = "^5.9.2"
 pytest = "^7.4.3"

@@ -13,6 +13,7 @@ from edsl.questions import (
     QuestionInterview,
     QuestionMultipleChoice,
     QuestionNumerical,
+    SurveyMessage,
 )
 from edsl.surveys import Survey
 
@@ -126,6 +127,18 @@ class TestValidateHumanizeSchemaGeneral:
             validate_humanize_schema(survey, humanize_schema)
         assert "demand_q" in str(exc_info.value)
         assert "not supported" in str(exc_info.value).lower()
+
+    def test_survey_message_accepts_only_empty_display_configuration(self):
+        survey = Survey(
+            [SurveyMessage(question_name="thanks", question_text="Thank you.")]
+        )
+
+        validate_humanize_schema(survey, {"questions": {"thanks": {}}})
+
+        with pytest.raises(HumanizeSchemaValidationError):
+            validate_humanize_schema(
+                survey, {"questions": {"thanks": {"optional": True}}}
+            )
 
     def test_invalid_schema_structure_raises(self):
         """Invalid top-level schema structure raises HumanizeSchemaValidationError."""
@@ -306,6 +319,167 @@ class TestValidateHumanizeSchemaInterview:
         with pytest.raises(HumanizeSchemaValidationError):
             validate_humanize_schema(survey, humanize_schema)
 
+    def test_checklist_unique_ids_passes(self):
+        """Text interview checklist with unique item ids passes."""
+        survey = Survey(
+            [
+                QuestionInterview(
+                    question_name="q1",
+                    question_text="Tell me about your experience.",
+                    interview_guide="Ask follow-up questions about details.",
+                ),
+            ]
+        )
+        humanize_schema = {
+            "questions": {
+                "q1": {
+                    "optional": False,
+                    "text_interview_config": {
+                        "checklist": {
+                            "initial": {
+                                "items": [
+                                    {
+                                        "id": "role",
+                                        "label": "Asked about their role",
+                                        "instructions": "Check once their job title is known.",
+                                    },
+                                    {
+                                        "id": "tenure",
+                                        "label": "Asked how long they've been there",
+                                        "instructions": "Check once tenure is known.",
+                                    },
+                                ]
+                            }
+                        }
+                    },
+                }
+            }
+        }
+        validate_humanize_schema(survey, humanize_schema)
+
+    def test_checklist_duplicate_ids_raises(self):
+        """Text interview checklist with duplicate item ids raises."""
+        survey = Survey(
+            [
+                QuestionInterview(
+                    question_name="q1",
+                    question_text="Tell me about your experience.",
+                    interview_guide="Ask follow-up questions about details.",
+                ),
+            ]
+        )
+        humanize_schema = {
+            "questions": {
+                "q1": {
+                    "optional": False,
+                    "text_interview_config": {
+                        "checklist": {
+                            "initial": {
+                                "items": [
+                                    {
+                                        "id": "dup",
+                                        "label": "Asked about their role",
+                                        "instructions": "Check once their job title is known.",
+                                    },
+                                    {
+                                        "id": "dup",
+                                        "label": "Asked how long they've been there",
+                                        "instructions": "Check once tenure is known.",
+                                    },
+                                ]
+                            }
+                        }
+                    },
+                }
+            }
+        }
+        with pytest.raises(HumanizeSchemaValidationError) as exc_info:
+            validate_humanize_schema(survey, humanize_schema)
+        assert "unique" in str(exc_info.value).lower()
+
+
+class TestValidateHumanizeSchemaVoice:
+    """Voice-interview-specific validate_humanize_schema behavior."""
+
+    @staticmethod
+    def _survey():
+        return Survey(
+            [
+                QuestionInterview(
+                    question_name="q1",
+                    question_text="Tell me about your experience.",
+                    interview_guide="Ask follow-up questions about details.",
+                ),
+            ]
+        )
+
+    def test_voice_config_default_language(self):
+        """voice_interview_config defaults language to the default when omitted."""
+        from edsl.coop.coop_humanize_schema import (
+            InterviewHumanizeSchema,
+        )
+        from edsl.coop.voice_interview_languages import (
+            DEFAULT_VOICE_INTERVIEW_LANGUAGE,
+        )
+
+        parsed = InterviewHumanizeSchema.model_validate(
+            {"interview_mode": "voice", "voice_interview_config": {}}
+        )
+        assert (
+            parsed.voice_interview_config.language
+            == DEFAULT_VOICE_INTERVIEW_LANGUAGE
+        )
+
+    def test_voice_config_supported_language_passes(self):
+        """A supported language validates through validate_humanize_schema."""
+        humanize_schema = {
+            "questions": {
+                "q1": {
+                    "interview_mode": "voice",
+                    "voice_interview_config": {"language": "french"},
+                }
+            }
+        }
+        validate_humanize_schema(self._survey(), humanize_schema)
+
+    def test_voice_config_language_normalized(self):
+        """The before-validator normalizes case and surrounding whitespace."""
+        from edsl.coop.coop_humanize_schema import InterviewHumanizeSchema
+
+        parsed = InterviewHumanizeSchema.model_validate(
+            {"voice_interview_config": {"language": "  French "}}
+        )
+        assert parsed.voice_interview_config.language == "french"
+
+    def test_voice_config_language_none_uses_default(self):
+        """A null language falls back to the default rather than failing."""
+        from edsl.coop.coop_humanize_schema import InterviewHumanizeSchema
+        from edsl.coop.voice_interview_languages import (
+            DEFAULT_VOICE_INTERVIEW_LANGUAGE,
+        )
+
+        parsed = InterviewHumanizeSchema.model_validate(
+            {"voice_interview_config": {"language": None}}
+        )
+        assert (
+            parsed.voice_interview_config.language
+            == DEFAULT_VOICE_INTERVIEW_LANGUAGE
+        )
+
+    def test_voice_config_unsupported_language_raises(self):
+        """An unsupported language raises HumanizeSchemaValidationError."""
+        humanize_schema = {
+            "questions": {
+                "q1": {
+                    "interview_mode": "voice",
+                    "voice_interview_config": {"language": "klingon"},
+                }
+            }
+        }
+        with pytest.raises(HumanizeSchemaValidationError) as exc_info:
+            validate_humanize_schema(self._survey(), humanize_schema)
+        assert "klingon" in str(exc_info.value).lower()
+
 
 class TestValidateHumanizeSchemaComments:
     """Comment-related validate_humanize_schema behavior."""
@@ -416,3 +590,68 @@ class TestHumanizeSchemaModel:
 
         with pytest.raises(ValidationError):
             SurveyHumanizeSchema.model_validate({"custom_css": None, "extra": "x"})
+
+
+class TestStepsProgress:
+    """Test the stepped progress indicator's boundaries."""
+
+    def test_named_boundaries_pass(self):
+        """Steps naming distinct items, with the last running to the end, parse."""
+        from edsl.coop.coop_humanize_schema import StepsProgress
+
+        parsed = StepsProgress.model_validate(
+            {
+                "steps": [
+                    {"label": "Background", "complete_after": "q1"},
+                    {"label": "Wrap-up"},
+                ]
+            }
+        )
+        assert parsed.steps[0].complete_after == "q1"
+        assert parsed.steps[1].complete_after is None
+
+    def test_boundary_is_stripped(self):
+        """Surrounding whitespace is trimmed so the name matches the survey item."""
+        from edsl.coop.coop_humanize_schema import StepsProgress
+
+        parsed = StepsProgress.model_validate(
+            {"steps": [{"complete_after": "  q1  "}, {}]}
+        )
+        assert parsed.steps[0].complete_after == "q1"
+
+    @pytest.mark.parametrize("boundary", ["", "   "])
+    def test_blank_boundary_raises(self, boundary):
+        """A blank complete_after is rejected rather than taken as a boundary."""
+        from edsl.coop.coop_humanize_schema import StepsProgress
+        from pydantic import ValidationError
+
+        with pytest.raises(ValidationError):
+            StepsProgress.model_validate({"steps": [{"complete_after": boundary}, {}]})
+
+    def test_blank_boundary_is_not_an_omission(self):
+        """A blank name on a non-final step raises on its own, not as a repeat."""
+        from edsl.coop.coop_humanize_schema import StepsProgress
+        from pydantic import ValidationError
+
+        with pytest.raises(ValidationError):
+            StepsProgress.model_validate(
+                {"steps": [{"complete_after": ""}, {"complete_after": ""}, {}]}
+            )
+
+    def test_earlier_step_must_name_a_boundary(self):
+        """Only the final step may omit complete_after."""
+        from edsl.coop.coop_humanize_schema import StepsProgress
+        from pydantic import ValidationError
+
+        with pytest.raises(ValidationError):
+            StepsProgress.model_validate({"steps": [{}, {"complete_after": "q2"}]})
+
+    def test_repeated_boundary_raises(self):
+        """Two steps may not end after the same survey item."""
+        from edsl.coop.coop_humanize_schema import StepsProgress
+        from pydantic import ValidationError
+
+        with pytest.raises(ValidationError):
+            StepsProgress.model_validate(
+                {"steps": [{"complete_after": "q1"}, {"complete_after": "q1"}, {}]}
+            )

@@ -25,6 +25,7 @@ Example:
 
 from .scenario import Scenario
 from .scenario_list import ScenarioList
+from .scenario_list_git import ScenarioListGitError, ScenarioListGitNestedRepoWarning
 from .serialization.scenario_serializer import ScenarioSerializer
 from .scenario_factory import ScenarioFactory
 from .contrib.scenario_gcs import ScenarioGCS
@@ -53,4 +54,6 @@ __all__ = [
     "AgentBlueprint",
     "ScenarioSourceInferrer",
     "from_any",
+    "ScenarioListGitError",
+    "ScenarioListGitNestedRepoWarning",
 ]

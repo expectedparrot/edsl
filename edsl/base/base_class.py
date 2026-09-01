@@ -15,6 +15,7 @@ JSON/YAML serialization, file persistence, pretty printing, and object compariso
 from abc import ABC, abstractmethod, ABCMeta
 import gzip
 import json
+import os
 from typing import Any, Optional, Union, TYPE_CHECKING, Callable
 from uuid import UUID
 import difflib
@@ -142,12 +143,9 @@ class PersistenceMixin:
         visibility: Optional[str] = "private",
         expected_parrot_url: Optional[str] = None,
         force: bool = False,
-    ) -> dict:
+    ) -> "Scenario":
         """
-        Get a signed URL for directly uploading an object to Google Cloud Storage.
-
-        This method provides a more efficient way to upload objects compared to the push() method,
-        especially for large files, by generating a direct signed URL to the storage bucket.
+        Upload this object to Coop (signed GCS URL + confirm).
 
         Args:
             description: Optional text description of the object
@@ -157,14 +155,15 @@ class PersistenceMixin:
             force: If True, patch existing object instead of creating new one when alias conflicts occur.
 
         Returns:
-            dict: A response containing the signed_url for direct upload and optionally a job_id
+            Scenario: Coop metadata (uuid, url, alias, …) wrapped in a ``Scenario`` for
+            Rich table display in terminals and notebooks; use ``response['uuid']`` or
+            ``response.to_dict()`` as needed.
 
         Example:
             >>> from edsl.surveys import Survey
             >>> survey = Survey(...)
             >>> response = survey.push()
-            >>> print(f"Upload URL: {response['signed_url']}")
-            >>> # Use the signed_url to upload the object directly
+            >>> _ = response["uuid"]
         """
         from edsl.coop import Coop
 
@@ -490,6 +489,134 @@ class PersistenceMixin:
             )
 
     @classmethod
+    def get_metadata(cls, url_or_uuid: Union[str, UUID]) -> dict:
+        """Get an object's metadata from Coop without downloading its content.
+
+        Args:
+            url_or_uuid: The UUID or URL of the object on Coop.
+
+        Returns:
+            dict: Metadata including uuid, object_type, description, visibility, url, etc.
+
+        Raises:
+            NotImplementedError: If called on Jobs.
+        """
+        from edsl.coop import Coop
+        from edsl.jobs import Jobs
+
+        if issubclass(cls, Jobs):
+            raise NotImplementedError(
+                "get_metadata is not supported for Jobs. Use remote_inference_get instead."
+            )
+
+        return Coop().get_metadata(url_or_uuid)
+
+    @classmethod
+    def patch_metadata(
+        cls,
+        url_or_uuid: Union[str, UUID],
+        description: Optional[str] = None,
+        alias: Optional[str] = None,
+        visibility: Optional[str] = None,
+    ) -> dict:
+        """Update an object's metadata (description, alias, visibility) without changing its content.
+
+        Args:
+            url_or_uuid: The UUID or URL of the object on Coop.
+            description: New description for the object.
+            alias: New alias for the object.
+            visibility: New visibility setting ("private", "public", "unlisted").
+
+        Raises:
+            NotImplementedError: If called on Jobs (use remote_inference methods instead).
+        """
+        from edsl.coop import Coop
+        from edsl.jobs import Jobs
+
+        if issubclass(cls, Jobs):
+            raise NotImplementedError(
+                "patch_metadata is not supported for Jobs. Use remote inference methods instead."
+            )
+
+        return Coop().patch_metadata(
+            url_or_uuid=url_or_uuid,
+            description=description,
+            alias=alias,
+            visibility=visibility,
+        )
+
+    @classmethod
+    def get_shared_users(cls, url_or_uuid: Union[str, UUID]) -> dict:
+        """List all users an object is currently shared with.
+
+        Args:
+            url_or_uuid: The UUID or URL of the object on Coop.
+
+        Returns:
+            dict: A dict with "shared_with" and "unregistered_shared_with" lists.
+
+        Raises:
+            NotImplementedError: If called on Jobs.
+        """
+        from edsl.coop import Coop
+        from edsl.jobs import Jobs
+
+        if issubclass(cls, Jobs):
+            raise NotImplementedError(
+                "get_shared_users is not supported for Jobs."
+            )
+
+        return Coop().get_object_shared_users(url_or_uuid)
+
+    @classmethod
+    def share(cls, url_or_uuid: Union[str, UUID], username_or_email: str) -> dict:
+        """Share an object with another Expected Parrot user.
+
+        Args:
+            url_or_uuid: The UUID or URL of the object on Coop.
+            username_or_email: The username or email of the recipient.
+
+        Returns:
+            dict: Confirmation with "message", "username", and "email" keys.
+
+        Raises:
+            NotImplementedError: If called on Jobs.
+        """
+        from edsl.coop import Coop
+        from edsl.jobs import Jobs
+
+        if issubclass(cls, Jobs):
+            raise NotImplementedError(
+                "share is not supported for Jobs."
+            )
+
+        return Coop().share_object(url_or_uuid, username_or_email)
+
+    @classmethod
+    def unshare(cls, url_or_uuid: Union[str, UUID], username_or_email: str) -> dict:
+        """Remove a user's access to an object.
+
+        Args:
+            url_or_uuid: The UUID or URL of the object on Coop.
+            username_or_email: The username or email of the user to remove.
+
+        Returns:
+            dict: Confirmation message.
+
+        Raises:
+            NotImplementedError: If called on Jobs.
+        """
+        from edsl.coop import Coop
+        from edsl.jobs import Jobs
+
+        if issubclass(cls, Jobs):
+            raise NotImplementedError(
+                "unshare is not supported for Jobs."
+            )
+
+        return Coop().unshare_object(url_or_uuid, username_or_email)
+
+    @classmethod
     def search(cls, query):
         """Search for objects on coop."""
         from edsl.coop import Coop
@@ -548,8 +675,45 @@ class PersistenceMixin:
         except Exception as e:
             print(f"Failed to copy to clipboard: {e}")
 
-    def save(self, filename: Optional[str] = None, compress: bool = True):
-        """Save the object to a file as JSON with optional compression.
+    def save(
+        self,
+        filename: Optional[str] = None,
+        compress: Optional[bool] = None,
+        **kwargs,
+    ):
+        """Save the object, choosing the format from the filename.
+
+        Objects with a Git-backed ``git`` accessor use the ``.ep`` package
+        format by default. An explicit ``.json`` or ``.json.gz`` filename, or
+        an explicit ``compress`` value, retains the legacy JSON behavior.
+        Other :class:`Base` subclasses continue to use JSON.
+
+        Use :meth:`save_json` when JSON persistence is required regardless of
+        the object type.
+        """
+        filename_text = os.fspath(filename) if filename is not None else None
+        has_git_accessor = hasattr(type(self), "git")
+        json_requested = compress is not None or (
+            filename_text is not None
+            and (filename_text.endswith(".json") or filename_text.endswith(".json.gz"))
+        )
+
+        if has_git_accessor and not json_requested:
+            return self.git.save(filename, **kwargs)
+        if kwargs:
+            unexpected = ", ".join(sorted(kwargs))
+            raise TypeError(
+                f"Unexpected keyword argument(s) for JSON save: {unexpected}"
+            )
+        json_compress = compress
+        if json_compress is None:
+            json_compress = not (
+                filename_text is not None and filename_text.endswith(".json")
+            )
+        return self.save_json(filename, compress=json_compress)
+
+    def save_json(self, filename: Optional[str] = None, compress: bool = True):
+        """Save the object to legacy JSON with optional compression.
 
         Serializes the object to JSON and writes it to the specified file.
         By default, the file will be compressed using gzip. File extensions
@@ -569,6 +733,7 @@ class PersistenceMixin:
 
         if filename is None:
             filename = f"{self.__class__.__name__}_{str(hash(self))}.json"
+        filename = os.fspath(filename)
 
         logger.debug(f"Saving {self.__class__.__name__} to file: {filename}")
 
@@ -629,7 +794,34 @@ class PersistenceMixin:
 
     @classmethod
     def load(cls, filename):
-        """Load the object from a JSON file (compressed or uncompressed).
+        """Load an object, choosing the format from the filename.
+
+        ``.ep`` packages are loaded through the class's Git accessor. For
+        Git-backed classes an extensionless path prefers an existing ``.ep``
+        package, then falls back to the legacy JSON filename lookup.
+        """
+        filename = os.fspath(filename)
+
+        from edsl.base.git_package import ARCHIVE_PACKAGE_SUFFIX
+
+        if hasattr(cls, "git"):
+            if filename.endswith(ARCHIVE_PACKAGE_SUFFIX):
+                return cls.git.load(filename)
+            if not filename.endswith((".json", ".json.gz")):
+                ep_path = filename + ARCHIVE_PACKAGE_SUFFIX
+                if os.path.exists(ep_path):
+                    return cls.git.load(ep_path)
+        elif filename.endswith(ARCHIVE_PACKAGE_SUFFIX):
+            raise ValueError(
+                f"{filename!r} is an EDSL git package but {cls.__name__} has no "
+                f"git accessor; it cannot be loaded with .load()."
+            )
+
+        return cls.load_json(filename)
+
+    @classmethod
+    def load_json(cls, filename):
+        """Load an object from legacy JSON (compressed or uncompressed).
 
         This method deserializes an object from a file, automatically detecting
         whether the file is compressed with gzip or not.
@@ -643,7 +835,8 @@ class PersistenceMixin:
         Raises:
             Various exceptions may be raised if the file doesn't exist or contains invalid data
         """
-        logger.debug(f"Loading {cls.__name__} from file: {filename}")
+        filename = os.fspath(filename)
+        logger.debug(f"Loading {cls.__name__} from JSON file: {filename}")
 
         try:
             if filename.endswith("json.gz"):
@@ -868,44 +1061,13 @@ class RepresentationMixin:
         Returns:
             str: HTML representation of the object
         """
-        return self.to_dataset().to_pandas()._repr_html_()
+        from edsl.dataset.display.table_display import TableDisplay
+
+        return TableDisplay.from_dataset(self.to_dataset())._repr_html_()
 
     def _store_info_line(self) -> str:
-        """Build a dim store-metadata line if this object has been saved."""
-        accessor = self.__dict__.get("_store_accessor")
-        if accessor is None or getattr(accessor, "uuid", None) is None:
-            return ""
-        parts: list[str] = [f"uuid: {accessor.uuid[:8]}"]
-        if accessor.current_branch:
-            parts.append(f"branch: {accessor.current_branch}")
-        if accessor.commit:
-            parts.append(f"commit: {accessor.commit[:8]}")
-        try:
-            from edsl.object_store import ObjectStore
-
-            meta = ObjectStore()._index.get(accessor.uuid)
-            if meta:
-                for field in ("title", "alias", "visibility"):
-                    val = meta.get(field)
-                    if val:
-                        parts.append(f"{field}: {val}")
-                lm = meta.get("last_modified")
-                if lm:
-                    parts.append(f"modified: {str(lm)[:10]}")
-        except Exception:
-            pass
-        raw = " | ".join(parts)
-        import io
-        import shutil
-
-        from rich.console import Console
-        from rich.text import Text
-
-        width = shutil.get_terminal_size().columns
-        t = Text(raw, style="dim italic")
-        c = Console(file=io.StringIO(), force_terminal=True, width=width)
-        c.print(t, end="")
-        return c.file.getvalue()
+        """Return store metadata for legacy display hooks."""
+        return ""
 
     def __repr__(self):
         """Return a string representation of the object.
@@ -1019,9 +1181,6 @@ class Base(
     All EDSL classes should inherit from this class to ensure consistent behavior
     and capabilities across the framework.
     """
-
-    from .store_accessor import StoreDescriptor
-    store = StoreDescriptor()
 
     def get_uuid(self) -> str:
         """

@@ -12,6 +12,7 @@ import time
 from datetime import datetime
 from typing import Any, TYPE_CHECKING
 import itertools
+import random
 
 logger = logging.getLogger(__name__)
 
@@ -72,12 +73,15 @@ class JobService:
         self._tasks = TaskStore(storage)
         self._answers = AnswerStore(storage)
         self._job_stop_on_exception: dict[str, bool] = {}  # job_id -> stop_on_exception
-        self._original_models: dict[
-            str, dict[str, Any]
-        ] = {}  # job_id -> {model_id -> model_obj}
-        self._interview_callbacks: dict[
-            str, Any
-        ] = {}  # job_id -> callable(job_id, interview_id)
+        self._original_models: dict[str, dict[str, Any]] = (
+            {}
+        )  # job_id -> {model_id -> model_obj}
+        self._original_key_lookups: dict[str, Any] = (
+            {}
+        )  # job_id -> run_config.environment.key_lookup
+        self._interview_callbacks: dict[str, Any] = (
+            {}
+        )  # job_id -> callable(job_id, interview_id)
 
     @property
     def jobs(self) -> JobStore:
@@ -122,6 +126,10 @@ class JobService:
             return None
 
         return LanguageModel.from_dict(model_data)
+
+    def get_key_lookup_for_job(self, job_id: str) -> Any:
+        """Get the original key lookup object for local job execution."""
+        return self._original_key_lookups.get(job_id)
 
     # =========================================================================
     # Job Submission
@@ -201,9 +209,9 @@ class JobService:
         # Register those models in the model store and build a mapping
         # from question_name -> model_id so tasks use the question's model.
         question_model_overrides: dict[str, str] = {}  # q_name -> model_id
-        extra_models: dict[
-            str, Any
-        ] = {}  # model_id -> model obj (NOT in cross-product)
+        extra_models: dict[str, Any] = (
+            {}
+        )  # model_id -> model obj (NOT in cross-product)
         extra_models_batch: dict[str, dict] = {}
         for q in questions:
             if hasattr(q, "_model"):
@@ -269,6 +277,9 @@ class JobService:
         all_models = dict(model_map)
         all_models.update(extra_models)
         self._original_models[job_id] = all_models
+        run_config = getattr(job, "run_config", None)
+        environment = getattr(run_config, "environment", None)
+        self._original_key_lookups[job_id] = getattr(environment, "key_lookup", None)
         logger.info(
             f"[SUBMIT {job_id[:8]}] write_models_batch ({len(models_batch)}): {(time.time() - t0)*1000:.1f}ms"
         )
@@ -316,6 +327,11 @@ class JobService:
                 question_option_permutations = self._generate_question_permutations(
                     questions, questions_to_randomize
                 )
+                question_item_randomization_seeds = {
+                    self._get_question_name(question): random.getrandbits(64)
+                    for question in questions
+                    if self._to_dict(question).get("randomize_items")
+                }
 
                 # Create tasks for this interview
                 # Pass agent and scenario objects for direct answer detection
@@ -345,9 +361,15 @@ class JobService:
                     all_direct_task_info.append(
                         {
                             **info,
+                            "interview_id": interview_id,
                             "agent": agent_obj,
                             "scenario": scenario_obj,
                             "question": questions[info["question_index"]],
+                            "item_randomization_seed": question_item_randomization_seeds.get(
+                                self._get_question_name(
+                                    questions[info["question_index"]]
+                                )
+                            ),
                         }
                     )
 
@@ -362,6 +384,7 @@ class JobService:
                     task_ids=task_ids,
                     iteration=iteration,
                     question_option_permutations=question_option_permutations,
+                    question_item_randomization_seeds=question_item_randomization_seeds,
                 )
                 interview_definitions.append(interview_def)
 
@@ -643,12 +666,6 @@ class JobService:
                 f"  [skip] Q{question_index}: {task_def.question_name}, {len(survey.questions)} questions, {non_default_count} skip rules"
             )
 
-        # First question is never skipped
-        if question_index == 0:
-            if debug:
-                print("  [skip] First question - not skipping")
-            return False, None
-
         # OPTIMIZATION: If survey has no user-defined skip rules, skip evaluation entirely
         # Default rules just say "go to next question", so nothing to skip
         # This avoids expensive rule_collection.skip_question_before_running() calls (O(N) per task)
@@ -698,7 +715,14 @@ class JobService:
             scenario_data = self._jobs.get_scenario(job_id, task_def.scenario_id)
             fallback_ops["scenario"] = 1
         if scenario_data:
-            combined_answers.update(scenario_data)
+            # Keys MUST be prefixed with "scenario." so jinja_ize_dictionary in
+            # surveys/rules/rule.py recognizes {{ scenario.X }} references. Without
+            # the prefix the value is dropped and the rule evaluates against an empty
+            # context. Mirrors SkipHandler._current_info_env in
+            # interviews/answering_function.py.
+            combined_answers.update(
+                {f"scenario.{k}": v for k, v in scenario_data.items()}
+            )
 
         if cached_agent_data is not None:
             agent_data = cached_agent_data
@@ -706,7 +730,10 @@ class JobService:
             agent_data = self._jobs.get_agent(job_id, task_def.agent_id)
             fallback_ops["agent"] = 1
         if agent_data and "traits" in agent_data:
-            combined_answers.update(agent_data["traits"])
+            # Prefix with "agent." for the same reason as scenario keys above.
+            combined_answers.update(
+                {f"agent.{k}": v for k, v in agent_data["traits"].items()}
+            )
 
         # Debug: report any fallback operations
         if debug and any(v > 0 for v in fallback_ops.values()):
@@ -715,38 +742,64 @@ class JobService:
         if debug:
             print(f"  [skip] Combined answers: {len(combined_answers)} keys")
 
-        # Check "before" skip rules
-        before_skip = survey.rule_collection.skip_question_before_running(
+        # Simulate the survey's navigation from the start to see whether
+        # `question_index` is reached at all. We need a full walk (not a single
+        # 1-step lookahead) because before-rules and after-rules can chain: a
+        # before-rule on question A can jump to D, skipping B and C in between.
+        # Mirrors SurveyNavigator's traversal but only asks "do we visit Q?".
+        #
+        # PERFORMANCE NOTE — O(Q^2) per interview when skip rules exist.
+        # Each task at index Q triggers a walk of up to Q steps. Across the Q
+        # tasks of one interview, total work is ~Q^2 / 2 walk steps. For surveys
+        # WITHOUT user-defined skip rules this code is gated out at render.py
+        # (`_has_skip_rules`) and at service.py:649 (`if not has_skip_rules`),
+        # so the cost is zero. With skip rules:
+        #   - small/medium surveys (<100 Q): negligible (<10 ms per batch)
+        #   - large surveys (1000+ Q with rules): seconds per batch
+        # The walk is correct but un-cached. The intended optimization, when
+        # this becomes a bottleneck, is to compute the set of skipped indices
+        # ONCE per interview in render.py (before the task loop) and pass it
+        # via a new `cached_skipped_indices: frozenset[int]` kwarg, reducing
+        # the per-task check to O(1) and the per-batch cost to O(Q * I).
+        rc = survey.rule_collection
+        pos = 0
+        guard = len(survey.questions) + 1  # cycle guard
+        while guard > 0 and pos < question_index:
+            guard -= 1
+
+            # Does a before-rule at `pos` fire? If yes, follow the FIRST matching
+            # before-rule's next_q (its "jump target"); the questions in
+            # [pos, jump_target) are skipped.
+            jumped = False
+            for rule in rc.applicable_rules(pos, before_rule=True):
+                try:
+                    if rule.evaluate(combined_answers):
+                        pos = rule.next_q
+                        jumped = True
+                        break
+                except Exception:
+                    continue
+
+            if not jumped:
+                # No before-rule fired -> use after-rule navigation from pos
+                # (default rule sends pos -> pos+1).
+                try:
+                    nxt = rc.next_question(pos, combined_answers).next_q
+                except Exception:
+                    nxt = pos + 1
+                pos = nxt
+
+            if pos == EndOfSurvey:
+                return True, "EndOfSurvey reached during navigation"
+            if pos > question_index:
+                return True, f"Skip rule: navigation jumped past {question_index}"
+
+        # We arrived exactly at question_index. One last check: does Q itself
+        # have a before-rule that fires?
+        if pos == question_index and rc.skip_question_before_running(
             question_index, combined_answers
-        )
-        if debug:
-            print(
-                f"  [skip] skip_question_before_running({question_index}): {before_skip}"
-            )
-        if before_skip:
+        ):
             return True, "Skip rule evaluated to true before running"
-
-        # Check if previous question's rules skip past this question
-        prev_question_index = question_index - 1
-
-        next_q_info = survey.rule_collection.next_question(
-            prev_question_index, combined_answers
-        )
-        if debug:
-            print(
-                f"  [skip] next_question({prev_question_index}): next_q={next_q_info.next_q}, current={question_index}"
-            )
-
-        if next_q_info.next_q == EndOfSurvey:
-            # End of survey - all remaining questions should be skipped
-            return True, "EndOfSurvey reached"
-
-        if next_q_info.next_q > question_index:
-            # Rule says to jump past this question
-            return (
-                True,
-                f"Skip rule: jump from {prev_question_index} to {next_q_info.next_q}",
-            )
 
         if debug:
             print(f"  [skip] No skip condition met for {task_def.question_name}")
@@ -793,6 +846,10 @@ class JobService:
         cache_key: str | None = None,
         validated: bool | None = None,
         reasoning_summary: str | None = None,
+        distribution: list[float] | None = None,
+        resolution_draw: Any = None,
+        resolution_seed: int | None = None,
+        resolution_method: str | None = None,
     ) -> None:
         """Called when a task finishes successfully with an answer."""
         import time as _time
@@ -828,6 +885,10 @@ class JobService:
             cache_key=cache_key,
             validated=validated,
             reasoning_summary=reasoning_summary,
+            distribution=distribution,
+            resolution_draw=resolution_draw,
+            resolution_seed=resolution_seed,
+            resolution_method=resolution_method,
         )
         _t = _time.monotonic()
         self._answers.store(answer)
@@ -1043,11 +1104,55 @@ class JobService:
         error_type: str,
         error_message: str,
         force_permanent: bool = False,
+        comment: str | None = None,
+        input_tokens: int | None = None,
+        output_tokens: int | None = None,
+        raw_model_response: dict | None = None,
+        generated_tokens: str | None = None,
+        cached: bool = False,
+        system_prompt: str | None = None,
+        user_prompt: str | None = None,
+        input_price_per_million_tokens: float | None = None,
+        output_price_per_million_tokens: float | None = None,
+        thinking_tokens: int | None = None,
+        cache_key: str | None = None,
+        validated: bool | None = None,
+        reasoning_summary: str | None = None,
     ) -> None:
         """Called when a task fails. Retries if policy allows, otherwise marks as permanent failure."""
         task_def = self._tasks.get_definition(job_id, interview_id, task_id)
         if task_def is None:
             raise ValueError(f"Task {task_id} not found")
+
+        if (
+            validated is False
+            or raw_model_response is not None
+            or generated_tokens is not None
+        ):
+            self._answers.store(
+                Answer(
+                    job_id=job_id,
+                    interview_id=interview_id,
+                    question_name=task_def.question_name,
+                    answer=None,
+                    created_at=datetime.utcnow(),
+                    system_prompt=system_prompt,
+                    user_prompt=user_prompt,
+                    comment=comment or error_message,
+                    cached=cached,
+                    input_tokens=input_tokens,
+                    output_tokens=output_tokens,
+                    thinking_tokens=thinking_tokens,
+                    raw_model_response=raw_model_response,
+                    generated_tokens=generated_tokens,
+                    model_id=task_def.model_id,
+                    input_price_per_million_tokens=input_price_per_million_tokens,
+                    output_price_per_million_tokens=output_price_per_million_tokens,
+                    cache_key=cache_key,
+                    validated=validated,
+                    reasoning_summary=reasoning_summary,
+                )
+            )
 
         # Check retry policy before marking as permanently failed
         # Skip retries if stop_on_exception is set for this job
@@ -1091,18 +1196,52 @@ class JobService:
     def _propagate_failure(
         self, job_id: str, interview_id: str, dependent_ids: list[str]
     ) -> None:
-        """Recursively mark dependents as blocked."""
-        for dep_id in dependent_ids:
-            self._tasks.set_status(dep_id, TaskStatus.BLOCKED)
-            self._tasks.set_error(
-                dep_id, "upstream_failure", "Blocked by failed dependency"
-            )
-            self._interviews.mark_task_blocked(job_id, interview_id)
+        """Mark every downstream task blocked exactly once.
 
-            # Recurse
-            dep_def = self._tasks.get_definition(job_id, interview_id, dep_id)
-            if dep_def:
-                self._propagate_failure(job_id, interview_id, dep_def.dependents)
+        A dependency DAG can converge, so recursive path traversal revisits the
+        same task many times (exponentially in a dense graph), over-counts
+        blocked tasks, and repeatedly finalizes the interview.  Traverse by
+        unique task ID and batch state changes instead.
+        """
+        blocked_ids: set[str] = set()
+        frontier = list(dependent_ids)
+
+        while frontier:
+            current = list(dict.fromkeys(frontier))
+            frontier = []
+            unseen = [task_id for task_id in current if task_id not in blocked_ids]
+            if not unseen:
+                continue
+
+            blocked_ids.update(unseen)
+            definitions = self._tasks.get_definitions_batch(
+                job_id, interview_id, unseen
+            )
+            for task_id in unseen:
+                task_def = definitions.get(task_id)
+                if task_def:
+                    frontier.extend(task_def.dependents)
+
+        ordered_ids = list(blocked_ids)
+        statuses = self._tasks.get_statuses_batch(ordered_ids)
+        terminal_statuses = {
+            TaskStatus.COMPLETED,
+            TaskStatus.FAILED,
+            TaskStatus.SKIPPED,
+            TaskStatus.BLOCKED,
+        }
+        newly_blocked_ids = [
+            task_id
+            for task_id in ordered_ids
+            if statuses.get(task_id) not in terminal_statuses
+        ]
+        self._tasks.set_statuses_batch(newly_blocked_ids, TaskStatus.BLOCKED)
+        self._tasks.set_errors_batch(
+            newly_blocked_ids, "upstream_failure", "Blocked by failed dependency"
+        )
+        self._interviews.mark_tasks_blocked(
+            job_id, interview_id, len(newly_blocked_ids)
+        )
 
     # =========================================================================
     # Job Status & Results
@@ -1608,6 +1747,19 @@ class JobService:
                         "attempts": state.attempts,
                     }
 
+                    if task_def is not None:
+                        failed_answer = self._answers.get(
+                            job_id, interview_id, task_def.question_name
+                        )
+                        if failed_answer is not None:
+                            error_info["response_context"] = {
+                                "raw_model_response": failed_answer.raw_model_response,
+                                "generated_tokens": failed_answer.generated_tokens,
+                                "system_prompt": failed_answer.system_prompt,
+                                "user_prompt": failed_answer.user_prompt,
+                                "validated": failed_answer.validated,
+                            }
+
                     errors.append(error_info)
 
         return errors
@@ -1795,13 +1947,13 @@ class JobService:
         # Build raw_model_response dict (matches EDSL's raw_model_results_dictionary)
         raw_model_response_dict = {}
         for a in answers:
-            raw_model_response_dict[
-                f"{a.question_name}_raw_model_response"
-            ] = a.raw_model_response
+            raw_model_response_dict[f"{a.question_name}_raw_model_response"] = (
+                a.raw_model_response
+            )
             raw_model_response_dict[f"{a.question_name}_input_tokens"] = a.input_tokens
-            raw_model_response_dict[
-                f"{a.question_name}_output_tokens"
-            ] = a.output_tokens
+            raw_model_response_dict[f"{a.question_name}_output_tokens"] = (
+                a.output_tokens
+            )
             raw_model_response_dict[f"{a.question_name}_thinking_tokens"] = getattr(
                 a, "thinking_tokens", None
             )
@@ -1830,9 +1982,9 @@ class JobService:
         # Build generated_tokens dict (matches EDSL's generated_tokens_dict)
         generated_tokens_dict = {}
         for a in answers:
-            generated_tokens_dict[
-                f"{a.question_name}_generated_tokens"
-            ] = a.generated_tokens
+            generated_tokens_dict[f"{a.question_name}_generated_tokens"] = (
+                a.generated_tokens
+            )
 
         # Build comments dict (matches EDSL's comments_dict)
         comments_dict = {}
@@ -1842,9 +1994,9 @@ class JobService:
         # Build reasoning_summaries dict (matches EDSL's reasoning_summaries_dict)
         reasoning_summaries_dict = {}
         for a in answers:
-            reasoning_summaries_dict[
-                f"{a.question_name}_reasoning_summary"
-            ] = a.reasoning_summary
+            reasoning_summaries_dict[f"{a.question_name}_reasoning_summary"] = (
+                a.reasoning_summary
+            )
 
         # Build cache_used dict (matches EDSL's cache_used_dictionary)
         cache_used_dict = {a.question_name: a.cached for a in answers}
@@ -1856,6 +2008,27 @@ class JobService:
         validated_dict = {}
         for a in answers:
             validated_dict[f"{a.question_name}_validated"] = a.validated
+
+        distribution_dict = {
+            a.question_name: a.distribution
+            for a in answers
+            if a.distribution is not None
+        }
+        resolution_draw_dict = {
+            a.question_name: a.resolution_draw
+            for a in answers
+            if a.resolution_draw is not None
+        }
+        resolution_seed_dict = {
+            a.question_name: a.resolution_seed
+            for a in answers
+            if a.resolution_seed is not None
+        }
+        resolution_method_dict = {
+            a.question_name: a.resolution_method
+            for a in answers
+            if a.resolution_method is not None
+        }
 
         if _timing is not None:
             _timing["build_dicts"] = (
@@ -1898,6 +2071,12 @@ class JobService:
             if interview_def and hasattr(interview_def, "question_option_permutations")
             else {}
         )
+        item_randomization_seeds = (
+            interview_def.question_item_randomization_seeds
+            if interview_def
+            and hasattr(interview_def, "question_item_randomization_seeds")
+            else {}
+        )
         if job_def and job_def.question_ids and questions_data:
             for q_id in job_def.question_ids:
                 q_data = questions_data.get(q_id)
@@ -1910,11 +2089,25 @@ class JobService:
                     )
                     # Apply per-interview randomized permutation if present
                     if option_permutations and q_name in option_permutations:
-                        q_options = option_permutations[q_name]
+                        q_options = self._resolve_question_options(
+                            option_permutations[q_name], answer_dict, scenario
+                        )
                     question_to_attributes[q_name] = {
                         "question_text": q_data.get("question_text", ""),
                         "question_type": q_data.get("question_type", ""),
                         "question_options": q_options,
+                        **(
+                            {
+                                "question_items": self._resolve_question_items(
+                                    q_data,
+                                    answer_dict,
+                                    scenario,
+                                    item_randomization_seeds.get(q_name),
+                                )
+                            }
+                            if "question_items" in q_data
+                            else {}
+                        ),
                     }
         if _timing is not None:
             _timing["build_question_attrs"] = (
@@ -1945,6 +2138,10 @@ class JobService:
             validated_dict=validated_dict,
             question_to_attributes=question_to_attributes,
             indices=indices,
+            distribution=distribution_dict,
+            resolution_draw=resolution_draw_dict,
+            resolution_seed=resolution_seed_dict,
+            resolution_method=resolution_method_dict,
         )
 
         # Set interview_hash for compatibility with EDSL's Interview-based results.
@@ -1953,15 +2150,21 @@ class JobService:
         from edsl.utilities.utilities import dict_hash
 
         hash_data = {
-            "agent": agent.to_dict(add_edsl_version=False)
-            if hasattr(agent, "to_dict")
-            else {},
-            "scenario": scenario.to_dict(add_edsl_version=False)
-            if hasattr(scenario, "to_dict")
-            else {},
-            "model": model.to_dict(add_edsl_version=False)
-            if model and hasattr(model, "to_dict")
-            else {},
+            "agent": (
+                agent.to_dict(add_edsl_version=False)
+                if hasattr(agent, "to_dict")
+                else {}
+            ),
+            "scenario": (
+                scenario.to_dict(add_edsl_version=False)
+                if hasattr(scenario, "to_dict")
+                else {}
+            ),
+            "model": (
+                model.to_dict(add_edsl_version=False)
+                if model and hasattr(model, "to_dict")
+                else {}
+            ),
             "iteration": iteration,
         }
         result.interview_hash = dict_hash(hash_data)
@@ -2101,6 +2304,38 @@ class JobService:
         if _timing is not None:
             _timing["get_answers_batch"] = (_time.time() - _t) * 1000
 
+        # A completed task must have a stored Answer, even when the answer value
+        # itself is legitimately None.  Treat a missing record as runner data
+        # loss instead of silently turning it into a successful null response.
+        task_interview_map = {
+            task_id: interview_id
+            for interview_id in completed_interview_ids
+            for task_id in (
+                interview_defs[interview_id].task_ids
+                if interview_defs.get(interview_id)
+                else []
+            )
+        }
+        task_statuses = self._tasks.get_statuses_batch(list(task_interview_map))
+        task_definitions = self._tasks.get_definitions_flat_batch(
+            job_id, task_interview_map
+        )
+        missing_completed_answers: list[dict[str, str]] = []
+        for task_id, interview_id in task_interview_map.items():
+            if task_statuses.get(task_id) != TaskStatus.COMPLETED:
+                continue
+            task_definition = task_definitions.get(task_id)
+            if task_definition is None:
+                continue
+            if task_definition.question_name not in all_answers.get(interview_id, {}):
+                missing_completed_answers.append(
+                    {
+                        "interview_id": interview_id,
+                        "question_name": task_definition.question_name,
+                        "task_id": task_id,
+                    }
+                )
+
         # =====================================================================
         # BUILD RESULTS: Use pre-fetched data (no more DB calls in loop)
         # =====================================================================
@@ -2155,10 +2390,61 @@ class JobService:
 
         # Create the Results object
         _t = _time.time()
-        results = Results(
-            survey=survey,
-            data=result_list,
+        from ..tasks import TaskHistory
+
+        errors_by_interview: dict[str, dict[str, list[dict]]] = {}
+        for missing in missing_completed_answers:
+            question_name = missing["question_name"]
+            task_id = missing["task_id"]
+            exception_entry = {
+                "exception": {
+                    "type": "MissingCompletedTaskAnswerError",
+                    "module": "edsl.runner",
+                    "message": (
+                        f"Task {task_id} was marked completed but no stored answer "
+                        f"was found for question {question_name}."
+                    ),
+                    "traceback": "",
+                },
+                "invigilator": None,
+                "additional_data": {"task_id": task_id},
+            }
+            errors_by_interview.setdefault(missing["interview_id"], {}).setdefault(
+                question_name, []
+            ).append(exception_entry)
+        for error in self.get_error_details(job_id):
+            question_name = error.get("question_name") or "unknown"
+            exception_entry = {
+                "exception": {
+                    "type": error.get("error_type") or "Exception",
+                    "module": "edsl.runner",
+                    "message": error.get("error_message") or "Unknown error",
+                    "traceback": f"Exception: {error.get('error_message') or 'Unknown error'}",
+                },
+                "invigilator": None,
+                "additional_data": {
+                    "attempts": error.get("attempts", {}),
+                    "response_context": error.get("response_context"),
+                },
+            }
+            errors_by_interview.setdefault(error["interview_id"], {}).setdefault(
+                question_name, []
+            ).append(exception_entry)
+
+        task_history = TaskHistory.from_dict(
+            {
+                "interviews": [
+                    {
+                        "id": interview_id,
+                        "type": "InterviewReference",
+                        "exceptions": exceptions,
+                        "task_status_logs": {},
+                    }
+                    for interview_id, exceptions in errors_by_interview.items()
+                ]
+            }
         )
+        results = Results(survey=survey, data=result_list, task_history=task_history)
         if _timing is not None:
             _timing["create_results_object"] = (_time.time() - _t) * 1000
 
@@ -2263,8 +2549,9 @@ class JobService:
 
         Handles:
         - String templates: "{{ q1.answer }}"
+        - Lists containing templates: ["Fixed", "{{ q1.answer }}"]
         - Dict format: {"from": "{{ q1.answer }}", "add": ["Other"]}
-        - Non-template values (lists, None): returned as-is
+        - Non-template values: returned as-is
         """
 
         # Dict format: {"from": "{{ q1.answer }}", "add": ["Option X"]}
@@ -2283,7 +2570,16 @@ class JobService:
         if isinstance(options, str) and "{{" in options:
             return JobService._resolve_template_string(options, answer_dict, scenario)
 
-        # Non-template (list, None, etc.) — return as-is
+        # Mixed static/dynamic list: render each templated option independently.
+        if isinstance(options, list):
+            return [
+                JobService._resolve_template_string(option, answer_dict, scenario)
+                if isinstance(option, str) and "{{" in option
+                else option
+                for option in options
+            ]
+
+        # Non-template (None, scalar, etc.) — return as-is
         return options
 
     @staticmethod
@@ -2382,6 +2678,40 @@ class JobService:
                 permutations[q_name] = random.sample(options, len(options))
 
         return permutations
+
+    @staticmethod
+    def _resolve_question_items(
+        question_data: dict,
+        answer_dict: dict,
+        scenario: Any,
+        randomization_seed: int | None = None,
+    ) -> Any:
+        """Resolve matrix rows and reproduce their per-interview randomization."""
+        items = JobService._resolve_question_options(
+            question_data.get("question_items"), answer_dict, scenario
+        )
+        if not isinstance(items, list):
+            return items
+        if not question_data.get("randomize_items") or randomization_seed is None:
+            return items
+        return JobService._shuffle_pinned(
+            items,
+            question_data.get("items_to_pin") or [],
+            random.Random(randomization_seed),
+        )
+
+    @staticmethod
+    def _shuffle_pinned(items: list, pinned_values: list, rng) -> list:
+        pinned = {i: value for i, value in enumerate(items) if value in pinned_values}
+        movable = rng.sample(
+            [value for value in items if value not in pinned_values],
+            len(items) - len(pinned),
+        )
+        result = [None] * len(items)
+        for index, value in pinned.items():
+            result[index] = value
+        movable_iter = iter(movable)
+        return [next(movable_iter) if value is None else value for value in result]
 
     # =========================================================================
     # FileStore Blob Handling

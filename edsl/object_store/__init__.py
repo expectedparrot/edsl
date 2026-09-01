@@ -1,9 +1,4 @@
-"""CAS-backed object store package.
-
-Re-exports the public API so that ``from edsl.object_store import ObjectStore``
-(and the relative ``from ..object_store import ObjectStore`` used by
-``store_accessor``) continue to work.
-"""
+"""CAS-backed object store internals."""
 
 from .store import ObjectStore
 from .cas_repository import CASRepository

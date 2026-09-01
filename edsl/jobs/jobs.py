@@ -7,7 +7,10 @@ that users run large-scale experiments or simulations in EDSL.
 """
 
 from __future__ import annotations
+import html as html_module
+import json
 from importlib import import_module
+from pathlib import Path
 from typing import (
     Optional,
     Union,
@@ -28,6 +31,7 @@ from ..logger import get_logger
 # from ..surveys import Survey
 
 from .exceptions import JobsValueError, JobsImplementationError
+from .jobs_git import JobsGitDescriptor
 from .jobs_pricing_estimation import JobsPrompts
 from .remote_inference import JobsRemoteInferenceHandler
 from .jobs_checks import JobsChecks
@@ -35,6 +39,7 @@ from .data_structures import RunEnvironment, RunParameters, RunConfig
 from .check_survey_scenario_compatibility import CheckSurveyScenarioCompatibility
 from .decorators import with_config
 from ..coop.exceptions import CoopServerResponseError
+from .cost_estimation import JobCostEstimator, JobCostEstimate, TokenOverride
 
 
 def get_bucket_collection():
@@ -105,8 +110,9 @@ class Jobs(Base):
     method chaining for concise, readable configuration.
     """
 
-    __documentation__ = "https://docs.expectedparrot.com/en/latest/jobs.html"
+    __documentation__ = "https://docs.expectedparrot.com/en/latest/jobs"
     _logger = get_logger(__name__)
+    git = JobsGitDescriptor()
 
     def __init__(
         self,
@@ -570,6 +576,41 @@ class Jobs(Base):
 
         return result
 
+    def estimate_remote_job_cost(
+        self,
+        token_overrides: dict[str, TokenOverride | list[TokenOverride]] | None = None,
+        branch_weights: dict[tuple, float] | None = None,
+        price_lookup: dict | None = None,
+        chars_per_token: int | None = None,
+    ) -> "JobCostEstimate":
+        """Estimate the cost of running this job using the new cost estimator.
+
+        Args:
+            token_overrides: Per-question-name TokenOverride overrides.
+                Only non-None fields are applied; others use the estimated value.
+            branch_weights: dict keyed by (from_question_name, to_question_name)
+                with probability of taking that branch. Used to compute expected
+                cost when the survey has skip logic.
+            price_lookup: Price dict keyed by (inference_service, model).
+                If None, fetched from Coop.
+            chars_per_token: Override the default characters-per-token ratio.
+
+        Returns:
+            JobCostEstimate with .total_cost_usd, .detail, .warnings,
+            and .to_markdown() for a human-readable summary.
+        """
+        kwargs = {}
+        if chars_per_token is not None:
+            kwargs["chars_per_token"] = chars_per_token
+
+        estimator = JobCostEstimator(**kwargs)
+        return estimator.estimate_cost(
+            self,
+            token_overrides=token_overrides,
+            branch_weights=branch_weights,
+            price_lookup=price_lookup,
+        )
+
     @staticmethod
     def compute_job_cost(job_results: Results) -> float:
         """Compute the cost of a completed job in USD."""
@@ -769,7 +810,7 @@ class Jobs(Base):
                 self.survey, scenario=scenario, agent=None
             ).show_flow(filename=filename)
 
-    def push(self, *args, **kwargs) -> None:
+    def push(self, *args, **kwargs):
         """Push the job to the remote server, in pieces."""
         from ..agents import AgentList
         from ..scenarios import ScenarioList
@@ -970,6 +1011,120 @@ class Jobs(Base):
             )
         return links
 
+    def to_html(self, filename: Optional[Union[str, Path]] = None) -> str:
+        """Create a standalone HTML artifact for this Jobs object."""
+        html = self._jobs_html_document()
+        if filename is not None:
+            Path(filename).write_text(html, encoding="utf-8")
+        return html
+
+    def save_html(self, filename: Union[str, Path]) -> Path:
+        """Write a standalone HTML artifact and return its path."""
+        path = Path(filename)
+        self.to_html(filename=path)
+        return path
+
+    def _jobs_html_document(self) -> str:
+        from .jobs_html_renderer import JobsHTMLRenderer
+
+        return JobsHTMLRenderer(self).render()
+
+    def _jobs_survey_html(self) -> str:
+        rows = []
+        for index, question in enumerate(self.survey.questions, start=1):
+            question_type = getattr(question, "question_type", type(question).__name__)
+            question_name = getattr(question, "question_name", f"q{index}")
+            question_text = getattr(question, "question_text", "")
+            rows.append(
+                "<tr>"
+                f"<td>{index}</td>"
+                f"<td><code>{html_module.escape(str(question_name))}</code></td>"
+                f"<td><span class=\"pill\">{html_module.escape(str(question_type))}</span></td>"
+                f"<td>{html_module.escape(str(question_text))}</td>"
+                f"<td>{self._jobs_pre_html(self._jobs_question_details(question))}</td>"
+                "</tr>"
+            )
+        if not rows:
+            return '<p class="empty">No questions.</p>'
+        return (
+            "<table><thead><tr>"
+            "<th>#</th><th>Name</th><th>Type</th><th>Text</th><th>Details</th>"
+            "</tr></thead><tbody>"
+            + "".join(rows)
+            + "</tbody></table>"
+        )
+
+    @staticmethod
+    def _jobs_question_details(question: Any) -> dict:
+        data = question.to_dict(add_edsl_version=False)
+        for key in ["question_name", "question_text", "question_type"]:
+            data.pop(key, None)
+        return data
+
+    def _jobs_collection_table_html(self, collection: Any, label: str) -> str:
+        rows = []
+        for index, item in enumerate(collection or [], start=1):
+            rows.append(
+                "<tr>"
+                f"<td>{index}</td>"
+                f"<td>{self._jobs_item_title(item, label, index)}</td>"
+                f"<td>{self._jobs_pre_html(self._jobs_item_dict(item))}</td>"
+                "</tr>"
+            )
+        if not rows:
+            return f'<p class="empty">No {html_module.escape(label)} entries.</p>'
+        return (
+            "<table><thead><tr><th>#</th><th>Item</th><th>Serialized data</th></tr></thead><tbody>"
+            + "".join(rows)
+            + "</tbody></table>"
+        )
+
+    @staticmethod
+    def _jobs_item_dict(item: Any) -> Any:
+        if hasattr(item, "to_dict"):
+            try:
+                return item.to_dict(add_edsl_version=False)
+            except TypeError:
+                return item.to_dict()
+        return item
+
+    @staticmethod
+    def _jobs_item_title(item: Any, label: str, index: int) -> str:
+        if label == "agent":
+            name = getattr(item, "name", None)
+            traits = getattr(item, "traits", {}) or {}
+            title = name or traits.get("name") or traits.get("status")
+            return html_module.escape(str(title or f"Agent {index}"))
+        if label == "model":
+            title = getattr(item, "model", None) or getattr(item, "_model_", None)
+            return html_module.escape(str(title or f"Model {index}"))
+        if label == "scenario":
+            keys = ", ".join(str(key) for key in getattr(item, "keys", lambda: [])())
+            return html_module.escape(keys or f"Scenario {index}")
+        return html_module.escape(f"{label.title()} {index}")
+
+    @staticmethod
+    def _jobs_pre_html(value: Any) -> str:
+        text = json.dumps(value, indent=2, default=str, ensure_ascii=False)
+        return f'<pre class="jobs-json">{html_module.escape(text)}</pre>'
+
+    def _jobs_metadata_html(
+        self,
+        post_run_methods: Any,
+        where_clauses: Any,
+        include_expression: Any,
+        dependency: Any,
+    ) -> str:
+        metadata = {
+            "post_run_methods": post_run_methods,
+            "where_clauses": where_clauses,
+            "include_expression": include_expression,
+            "has_dependency": dependency is not None,
+        }
+        if dependency is not None:
+            metadata["dependency_summary"] = dependency._summary()
+        return self._jobs_pre_html(metadata)
+
     def __hash__(self):
         """Allow the model to be used as a key in a dictionary.
 
@@ -1094,6 +1249,8 @@ class Jobs(Base):
             fresh=self.run_config.parameters.fresh,
             new_format=self.run_config.parameters.new_format,
             alert_on_completion_config=self.run_config.parameters.alert_on_completion_config,
+            results_description=self.run_config.parameters.results_description,
+            task_timeout=self.run_config.parameters.task_timeout,
         )
         return job_info
 
@@ -1139,7 +1296,23 @@ class Jobs(Base):
                     "Remote execution completed but results could not be retrieved."
                 )
         else:
-            return None, None
+            if self.run_config.parameters.disable_remote_inference:
+                return None, None
+
+            explicit_parameters = getattr(
+                self.run_config.parameters, "_explicit_parameters", set()
+            )
+            if "offload_execution" not in explicit_parameters:
+                return None, None
+
+            from .exceptions import JobsRunError
+
+            raise JobsRunError(
+                "Remote execution was requested, but remote inference is not "
+                "available. Check EXPECTED_PARROT_URL, EXPECTED_PARROT_API_KEY, "
+                "and the remote inference setting. To run locally, pass "
+                "disable_remote_inference=True or offload_execution=False."
+            )
 
     @staticmethod
     def _remote_results_are_invalid(results: "Results") -> bool:
@@ -1645,7 +1818,6 @@ class Jobs(Base):
             "concatenate",
             "collapse",
             "expand",
-            "store",
             "first",
             "last",
         }
@@ -1748,7 +1920,14 @@ class Jobs(Base):
             from ..inference_services.services.open_ai_service import OpenAIService
             from ..inference_services.services.open_ai_service_v2 import OpenAIServiceV2
 
-            for svc_cls in [OpenAIService, OpenAIServiceV2]:
+            def descendants(cls):
+                found = [cls]
+                for child in cls.__subclasses__():
+                    found.extend(descendants(child))
+                return found
+
+            service_classes = list(dict.fromkeys(descendants(OpenAIService) + descendants(OpenAIServiceV2)))
+            for svc_cls in service_classes:
                 for client in list(svc_cls._async_client_instances.values()):
                     try:
                         await client.close()
@@ -1768,7 +1947,9 @@ class Jobs(Base):
         """Execute job locally using the Runner engine."""
         from ..runner.runner import Runner
 
-        runner = Runner()
+        runner = Runner(
+            max_workers=self.run_config.parameters.max_concurrency or 400
+        )
         handle = runner.submit(
             self,
             n=self.run_config.parameters.n,
@@ -1846,6 +2027,9 @@ class Jobs(Base):
         alert_on_completion_config : dict or AlertOnCompletionConfig, optional
             Config for job completion alerts (email and/or webhooks). Pass a dict with
             "email" (bool) and "webhooks" (list of {"url": str}, max 3 items).
+        results_description : str, optional
+            Description for the initial results object. Only used with remote inference
+            (offloaded execution).
 
         Returns
         -------
@@ -1854,7 +2038,8 @@ class Jobs(Base):
         Notes
         -----
             - This method will first try to use remote inference if available
-            - If remote inference is not available, it will run locally
+            - If remote inference is unavailable (no EP API key, connection error, or setting disabled),
+              a JobsRunError is raised unless disable_remote_inference=True is explicitly passed
             - For long-running jobs, consider using progress_bar=True
             - For maximum performance, ensure appropriate caching is configured
 
@@ -1900,10 +2085,11 @@ class Jobs(Base):
             return None
 
         self._logger.info("Starting local execution with Runner")
-        results = self._execute_with_runner()
-
-        # Close cached async HTTP clients to avoid 'Unclosed client session' warnings
-        self._cleanup_async_clients()
+        try:
+            results = self._execute_with_runner()
+        finally:
+            # Close cached async HTTP clients on success, failure, or cancellation.
+            self._cleanup_async_clients()
 
         self._logger.info("Applying post-run methods to results")
         final_results = self._apply_post_run_methods(results)
@@ -2524,10 +2710,7 @@ class Jobs(Base):
         return Jobs.from_dict(self.to_dict())
 
     def to_jsonl(self, filename=None, root=None, message="", **kwargs):
-        """Export as JSONL with CAS pointers to component objects.
-
-        Components are auto-saved to the store if not already saved.
-        """
+        """Export as JSONL with an inline Jobs dictionary payload."""
         from .jobs_serializer import JobsSerializer
 
         return JobsSerializer(self).to_jsonl(
@@ -2536,7 +2719,7 @@ class Jobs(Base):
 
     @classmethod
     def from_jsonl(cls, source, root=None, **kwargs):
-        """Load a Jobs from a JSONL file with CAS pointers."""
+        """Load a Jobs from a JSONL file."""
         from .jobs_serializer import JobsSerializer
 
         return JobsSerializer.from_jsonl(source, root=root)

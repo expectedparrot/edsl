@@ -16,11 +16,17 @@ class QuestionFields:
 
     TEXT = "question_text"
     OPTIONS = "question_options"
+    ITEMS = "question_items"
     TYPE = "question_type"
 
 
 # List of all question fields for iteration
-QUESTION_FIELDS = [QuestionFields.TEXT, QuestionFields.OPTIONS, QuestionFields.TYPE]
+QUESTION_FIELDS = [
+    QuestionFields.TEXT,
+    QuestionFields.OPTIONS,
+    QuestionFields.ITEMS,
+    QuestionFields.TYPE,
+]
 
 
 class AgentNamer:
@@ -178,9 +184,11 @@ class ResultBuilder:
             if question_name in self.data["question_to_attributes"]:
                 for field_name in question_attribute_maps:
                     new_key = f"{question_name}_{field_name}"
-                    question_attribute_maps[field_name][new_key] = self.data[
-                        "question_to_attributes"
-                    ][question_name][field_name]
+                    attributes = self.data["question_to_attributes"][question_name]
+                    if field_name in attributes:
+                        question_attribute_maps[field_name][new_key] = attributes[
+                            field_name
+                        ]
         return question_attribute_maps
 
     def _build_cache_components(self) -> dict:
@@ -207,6 +215,22 @@ class ResultBuilder:
             "generated_tokens": self.data["generated_tokens"],
             "raw_model_response": self.data["raw_model_response"],
             "validated": self.data["validated_dict"],
+            "distribution": {
+                f"{key}_distribution": value
+                for key, value in self.data["distribution"].items()
+            },
+            "resolution_draw": {
+                f"{key}_resolution_draw": value
+                for key, value in self.data["resolution_draw"].items()
+            },
+            "resolution_seed": {
+                f"{key}_resolution_seed": value
+                for key, value in self.data["resolution_seed"].items()
+            },
+            "resolution_method": {
+                f"{key}_resolution_method": value
+                for key, value in self.data["resolution_method"].items()
+            },
         }
 
     # Static factory methods for sub-dictionaries

@@ -272,6 +272,8 @@ class Macro(BaseMacro):
 
         Uses the Base class 'push' method or 'patch' method when force=True.
         """
+        # Back-compat: older call sites used ``overwrite=`` like deploy() did.
+        force = force or bool(kwargs.pop("overwrite", False))
         if "alias" not in kwargs:
             kwargs["alias"] = self.alias()
         if "description" not in kwargs:

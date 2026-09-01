@@ -1,3 +1,4 @@
+from html import escape
 from typing import Optional, List, TYPE_CHECKING
 from collections import UserList
 
@@ -7,6 +8,7 @@ if TYPE_CHECKING:
     pass
 
 from ..utilities import remove_edsl_version, dict_hash
+from .model_list_git import ModelListGitDescriptor
 
 if TYPE_CHECKING:
     from ..inference_services.data_structures import AvailableModels
@@ -14,7 +16,8 @@ if TYPE_CHECKING:
 
 
 class ModelList(Base, UserList):
-    __documentation__ = """https://docs.expectedparrot.com/en/latest/language_models.html#module-edsl.language_models.ModelList"""
+    __documentation__ = """https://docs.expectedparrot.com/en/latest/language_models#module-edsl.language_models.ModelList"""
+    git = ModelListGitDescriptor()
 
     def __init__(self, data: Optional["LanguageModel"] = None):
         """Initialize the ModelList class.
@@ -111,6 +114,21 @@ class ModelList(Base, UserList):
 
         """
         return dict_hash(self.to_dict(sort=True, add_edsl_version=False))
+
+    def to_dataset(self):
+        return self.to_scenario_list().to_dataset()
+
+    def _repr_html_(self):
+        rows = "".join(
+            f"<tr><td>{escape(getattr(m, 'model', getattr(m, '_model_', '?')))}</td>"
+            f"<td>{escape(getattr(m, '_inference_service_', '?'))}</td></tr>"
+            for m in self
+        )
+        return (
+            f'<div style="max-height:400px;overflow-y:auto">'
+            f"<table><thead><tr><th>model</th><th>service</th></tr></thead>"
+            f"<tbody>{rows}</tbody></table></div>"
+        )
 
     def to_scenario_list(self):
         from ..scenarios import ScenarioList

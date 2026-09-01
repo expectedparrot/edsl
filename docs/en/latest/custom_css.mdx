@@ -1,0 +1,783 @@
+---
+title: "Custom CSS"
+description: "CSS classes and HTML structure for styling human-facing surveys with custom CSS."
+sidebarTitle: "Custom CSS"
+---
+
+Every question component supported by humanize has `edsl-*` CSS classes so you can customise the survey appearance.
+
+## Applying custom CSS
+
+### When creating a human survey
+
+Pass your CSS string in the `humanize_schema` under `survey.custom_css`.
+
+```python
+from edsl import Survey, QuestionFreeText, QuestionMultipleChoice
+
+survey = Survey([
+    QuestionMultipleChoice(
+        question_name="rating",
+        question_text="Rate your experience.",
+        question_options=["Good", "OK", "Bad"],
+    ),
+    QuestionFreeText(
+        question_name="feedback",
+        question_text="Any additional feedback you'd like to share?",
+    ),
+])
+
+custom_css = """
+.edsl-survey-container { background-color: #f9f9f9; }
+.edsl-question-text { font-weight: bold; color: #333; }
+"""
+
+humanize_schema = {
+    "questions": {
+        "rating": {"format": {"type": "dropdown"}},
+        "feedback": {"optional": True},
+    },
+    "survey": {"custom_css": custom_css},
+}
+
+survey.humanize(humanize_schema=humanize_schema)
+```
+
+Pass `"survey": {"custom_css": None}` (or omit `custom_css`) to create the survey without any custom CSS.
+
+### Updating CSS on an existing human survey
+
+Use `Coop.patch_human_survey_css` to set or clear the CSS on a human survey that already exists.
+
+```python
+from edsl import Coop
+
+coop = Coop()
+
+# Set or replace CSS
+coop.patch_human_survey_css(
+    human_survey_uuid="your-human-survey-uuid",
+    css=".edsl-survey-container { background-color: #fff; }",
+)
+
+# Clear existing CSS
+coop.patch_human_survey_css(
+    human_survey_uuid="your-human-survey-uuid",
+    css=None,
+)
+```
+
+## Survey-level classes
+
+| Class | Element | Notes |
+|---|---|---|
+| `edsl-survey-container` | Outermost container of the entire survey | Use to set background color for the whole survey |
+
+## Progress indicator
+
+The progress indicator sits above the question. Depending on how the survey is
+configured, it shows as a bar or as a row of step markers. A survey can also hide it, in
+which case nothing is rendered and there is nothing to style.
+
+Both renderings put `edsl-progress` on their outer element. Use that class for rules that
+should apply whichever one a survey uses.
+
+### Bar
+
+```html
+<div class="edsl-progress edsl-progress-bar">
+  <div class="edsl-progress-track" role="progressbar" aria-valuenow="40">
+    <div class="edsl-progress-fill"></div>
+  </div>
+  <!-- shown only when a label is configured -->
+  <span class="edsl-progress-label">40%</span>
+</div>
+```
+
+| Class | Element | Notes |
+|---|---|---|
+| `edsl-progress` | Outer element of either rendering | Present on both the bar and the steps |
+| `edsl-progress-bar` | Outer `<div>` of the bar rendering | |
+| `edsl-progress-track` | Unfilled groove | Set its `height`, `border-radius`, `background` |
+| `edsl-progress-fill` | Filled portion | Color it, but leave its width alone. See below |
+| `edsl-progress-label` | Percentage text under the bar | Absent when the label is turned off |
+
+**Recolor the fill, don't resize it.** The fill is always as wide as the whole track, and
+it slides sideways to reveal only the finished portion. Setting `width` on it will not
+shorten it. Set `background`, `border-radius`, or `transition` instead.
+
+### Steps
+
+Each step is one `<li>` holding a marker, half of the connecting line on either side of
+it, and an optional label below.
+
+```html
+<ol class="edsl-progress edsl-progress-steps">
+  <li class="edsl-progress-step edsl-progress-step-complete">
+    <div>
+      <!-- first step's incoming connector is hidden, not removed -->
+      <span class="edsl-progress-connector edsl-progress-connector-incoming edsl-progress-connector-upcoming"></span>
+      <span class="edsl-progress-marker">1</span>
+      <span class="edsl-progress-connector edsl-progress-connector-outgoing edsl-progress-connector-complete"></span>
+    </div>
+    <!-- shown only for steps that have a label -->
+    <span class="edsl-progress-label">Background</span>
+  </li>
+
+  <li class="edsl-progress-step edsl-progress-step-current">
+    <div>
+      <!-- filled, because the step before it is complete -->
+      <span class="edsl-progress-connector edsl-progress-connector-incoming edsl-progress-connector-complete"></span>
+      <span class="edsl-progress-marker">2</span>
+      <span class="edsl-progress-connector edsl-progress-connector-outgoing edsl-progress-connector-upcoming"></span>
+    </div>
+    <span class="edsl-progress-label">Experience</span>
+  </li>
+
+  <li class="edsl-progress-step edsl-progress-step-upcoming">
+    <div>
+      <span class="edsl-progress-connector edsl-progress-connector-incoming edsl-progress-connector-upcoming"></span>
+      <span class="edsl-progress-marker">3</span>
+      <!-- last step's outgoing connector is hidden, not removed -->
+      <span class="edsl-progress-connector edsl-progress-connector-outgoing edsl-progress-connector-upcoming"></span>
+    </div>
+    <span class="edsl-progress-label">Wrap-up</span>
+  </li>
+</ol>
+```
+
+| Class | Element | Notes |
+|---|---|---|
+| `edsl-progress-steps` | The `<ol>` holding the steps | |
+| `edsl-progress-step` | One `<li>` per step | Equal-width column; always carries a status class too |
+| `edsl-progress-step-complete` | A step the respondent has finished | |
+| `edsl-progress-step-current` | The step being answered | |
+| `edsl-progress-step-upcoming` | A step not yet reached | |
+| `edsl-progress-marker` | The circle for a step | Contains the step number, or is empty when markers are dots |
+| `edsl-progress-connector` | Half of the line between two markers | Two per step, one on each side of the marker |
+| `edsl-progress-connector-incoming` | The half arriving at the marker | On the left of the marker |
+| `edsl-progress-connector-outgoing` | The half leaving the marker | On the right of the marker |
+| `edsl-progress-connector-complete` | A filled half of the line | |
+| `edsl-progress-connector-upcoming` | An unfilled half of the line | |
+| `edsl-progress-label` | Text under a marker | Absent for steps without a label |
+
+**Style markers and labels through their step.** Every `<li>` says whether its step is
+complete, current, or upcoming, so those classes are how you give the current marker a
+different look from the finished ones.
+
+**Style the line through its own classes.** Each half carries its own filled or unfilled
+class, which does not match the status of the step it belongs to. The half arriving at
+the current step is filled as soon as the step before it is done, so the current step
+normally holds one filled half and one empty one. Select the filled line with
+`.edsl-progress-connector-complete`. Reaching for `.edsl-progress-step-complete
+.edsl-progress-connector` instead leaves that first half gray, and the line stops short
+of where the respondent actually is.
+
+```css
+.edsl-progress-step-current .edsl-progress-marker { border-color: #b91c1c; color: #b91c1c; }
+.edsl-progress-step-complete .edsl-progress-marker { background: #b91c1c; border-color: #b91c1c; }
+.edsl-progress-connector-complete { background: #b91c1c; }
+```
+
+**To reach a single segment, combine a step class with a connector class.** Include the
+position class as well, since a step's two halves are otherwise identical. The rule below
+picks out the filled half arriving at the step the respondent is on, and gives it a
+gradient so the line brightens as it reaches them:
+
+```css
+.edsl-progress-step-current
+  .edsl-progress-connector-incoming.edsl-progress-connector-complete {
+  background: linear-gradient(to right, #b91c1c, #f87171);
+}
+```
+
+Finally, markers come in two shapes: numbered circles and small dots. The survey's
+configuration picks the shape, not your CSS. A rule that assumes a size, such as a fixed
+`width`, will look wrong under the other shape, so check the survey renders with the
+shape you expect.
+
+## Common question classes
+
+These classes are present on every question regardless of type.
+
+| Class | Element | Notes |
+|---|---|---|
+| `edsl-question` | Outermost `<div>` of every question | Always present |
+| `edsl-question-text` | Question prompt `<div>` | Rendered from `question_text` |
+| `edsl-question-image` | `<img>` embedded in a question | Image blocks in question text |
+
+## Question-specific HTML
+
+### Budget
+
+```html
+<div class="edsl-question edsl-budget-question">
+  <div class="edsl-question-text">Allocate $100 across categories.</div>
+  <div class="edsl-budget-options">
+    <div class="edsl-budget-item">
+      <label class="edsl-budget-label">Food</label>
+      <input class="edsl-budget-input" type="text" />
+    </div>
+    <div class="edsl-budget-item">
+      <label class="edsl-budget-label">Transport</label>
+      <input class="edsl-budget-input" type="text" />
+    </div>
+    <div class="edsl-budget-total">
+      <span>Total</span>
+      <span>75</span>
+    </div>
+  </div>
+  <p class="edsl-error">…</p>
+</div>
+```
+
+### Checkbox
+
+```html
+<div class="edsl-question edsl-checkbox-question">
+  <div class="edsl-question-text">Select all that apply.</div>
+
+  <div class="edsl-select-all">
+    <input class="edsl-checkbox" type="checkbox" />
+    <label class="edsl-option-label">Select All</label>
+  </div>
+
+  <div class="edsl-options">
+    <div class="edsl-option">
+      <input class="edsl-checkbox" type="checkbox" />
+      <label class="edsl-option-label">Option A</label>
+    </div>
+    <div class="edsl-option">
+      <input class="edsl-checkbox" type="checkbox" />
+      <label class="edsl-option-label">Option B</label>
+    </div>
+  </div>
+  <p class="edsl-error">…</p>
+</div>
+```
+
+### EDSL object
+
+```html
+<div class="edsl-question edsl-object-question">
+  <div class="edsl-question-text">Select the agent list to use.</div>
+  <div>
+    <button class="edsl-object-select-btn" type="button">Select an Agent List</button>
+  </div>
+
+  <!-- shown after an object is selected -->
+  <div class="edsl-object-selected">
+    <span>Selected Agent List</span>
+    <p>My agents - Q1 2025</p>
+    <span>UUID: a1b2c3d4-…</span>
+    <div>
+      <button type="button">View</button>
+      <button type="button">Clear</button>
+    </div>
+  </div>
+
+  <p class="edsl-error">…</p>
+</div>
+```
+
+### File upload
+
+```html
+<div class="edsl-question edsl-file-upload-question">
+  <div class="edsl-question-text">Upload supporting documents.</div>
+
+  <!-- edsl-file-upload-dragging is added to this element while a drag is in progress -->
+  <div class="edsl-file-upload-dropzone [edsl-file-upload-dragging]">
+
+    <!-- clickable / drag-and-drop target -->
+    <div role="button" class="edsl-file-upload-target">
+      <input type="file" multiple class="sr-only" />
+      <div class="edsl-file-upload-icon-wrapper">
+        <!-- upload icon -->
+        <svg class="edsl-file-upload-icon">…</svg>
+      </div>
+      <p class="edsl-file-upload-title">Upload files</p>
+      <p class="edsl-file-upload-subtitle">Drag & drop or click to browse</p>
+      <!-- shown when file-type / size constraints are set -->
+      <p class="edsl-file-upload-hints">All file types · Max 10 files · Up to 1 GB per file</p>
+    </div>
+
+    <!-- shown only when there are file-level errors -->
+    <div class="edsl-file-upload-errors">
+      <!-- error messages -->
+      <button type="button"><!-- dismiss --></button>
+    </div>
+
+    <!-- shown only when files have been added -->
+    <div class="edsl-file-list">
+      <div class="edsl-file-list-header">
+        <span>Files (2)</span>
+        <button type="button" class="edsl-file-remove-all">Remove all</button>
+      </div>
+
+      <!-- card layout (small screens) -->
+      <div class="edsl-file-cards">
+        <div class="edsl-file-item">
+          <div class="edsl-file-item-icon-wrapper">
+            <svg class="edsl-file-item-icon">…</svg>
+          </div>
+          <div>
+            <p class="edsl-file-item-name">doc1.pdf</p>
+            <div>
+              <p class="edsl-file-item-size">24 KB</p>
+              <span class="edsl-file-item-status">
+                <!-- while uploading: -->
+                <span class="edsl-file-status-uploading">
+                  <div class="edsl-file-progress-track">
+                    <div class="edsl-file-progress-fill" style="width: 60%"></div>
+                  </div>
+                  Uploading…
+                </span>
+                <!-- on success: -->
+                <span class="edsl-file-status-done">Done</span>
+                <!-- on failure: -->
+                <span class="edsl-file-status-error">Failed</span>
+              </span>
+            </div>
+          </div>
+          <button type="button" class="edsl-file-item-remove"><!-- trash icon --></button>
+        </div>
+      </div>
+
+      <!-- table layout (medium+ screens) -->
+      <div class="edsl-file-table-wrapper">
+        <table class="edsl-file-table">
+          <thead class="edsl-file-table-header">
+            <tr class="edsl-file-table-header-row">
+              <th class="edsl-file-table-header-cell">Name</th>
+              <th class="edsl-file-table-header-cell">Size</th>
+              <th class="edsl-file-table-header-cell">Upload Status</th>
+              <th class="edsl-file-table-header-cell">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="edsl-file-table-row">
+              <td>
+                <svg class="edsl-file-item-icon">…</svg>
+                <span>doc1.pdf</span>
+              </td>
+              <td>24 KB</td>
+              <td>
+                <!-- one of: -->
+                <span class="edsl-file-status-uploading">
+                  <div class="edsl-file-progress-track">
+                    <div class="edsl-file-progress-fill" style="width: 60%"></div>
+                  </div>
+                </span>
+                <span class="edsl-file-status-done">Done</span>
+                <span class="edsl-file-status-error">Failed</span>
+              </td>
+              <td>
+                <button type="button" class="edsl-file-item-remove"><!-- trash icon --></button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+  <p class="edsl-error">…</p>
+</div>
+```
+
+### Free text
+
+```html
+<div class="edsl-question edsl-free-text-question">
+  <div class="edsl-question-text">Tell us about yourself.</div>
+  <textarea class="edsl-textarea" rows="4"></textarea>
+  <p class="edsl-error">…</p>
+</div>
+```
+
+### Linear scale
+
+<Tabs>
+  <Tab title="Radio">
+    When humanize format is `radio` (default):
+
+```html
+<div class="edsl-question edsl-linear-scale-question">
+  <div class="edsl-question-text">Rate from 1 to 5.</div>
+  <div class="edsl-options">
+    <label class="edsl-option">
+      <input class="edsl-radio" type="radio" value="1" />
+      <span class="edsl-option-label">1 - Very poor</span>
+    </label>
+    <label class="edsl-option">
+      <input class="edsl-radio" type="radio" value="2" />
+      <span class="edsl-option-label">2</span>
+    </label>
+    <!-- … -->
+    <label class="edsl-option">
+      <input class="edsl-radio" type="radio" value="5" />
+      <span class="edsl-option-label">5 - Excellent</span>
+    </label>
+  </div>
+  <p class="edsl-error">…</p>
+</div>
+```
+  </Tab>
+  <Tab title="Dropdown">
+    When humanize format is `dropdown`:
+
+```html
+<div class="edsl-question edsl-linear-scale-question">
+  <div class="edsl-question-text">Rate from 1 to 5.</div>
+  <div class="edsl-options">
+    <select class="edsl-select" name="q1">
+      <option value="">Select...</option>
+      <option value="1">1 - Very poor</option>
+      <option value="2">2</option>
+      <option value="3">3</option>
+      <option value="4">4</option>
+      <option value="5">5 - Excellent</option>
+    </select>
+  </div>
+  <p class="edsl-error">…</p>
+</div>
+```
+  </Tab>
+</Tabs>
+
+### Likert five
+
+<Tabs>
+  <Tab title="Radio">
+    When humanize format is `radio` (default):
+
+```html
+<div class="edsl-question edsl-likert-question">
+  <div class="edsl-question-text">How satisfied are you?</div>
+  <div class="edsl-options">
+    <label class="edsl-option">
+      <input class="edsl-radio" type="radio" value="Strongly disagree" />
+      <span class="edsl-option-label">Strongly disagree</span>
+    </label>
+    <label class="edsl-option">
+      <input class="edsl-radio" type="radio" value="Disagree" />
+      <span class="edsl-option-label">Disagree</span>
+    </label>
+    <label class="edsl-option">
+      <input class="edsl-radio" type="radio" value="Neutral" />
+      <span class="edsl-option-label">Neutral</span>
+    </label>
+    <label class="edsl-option">
+      <input class="edsl-radio" type="radio" value="Agree" />
+      <span class="edsl-option-label">Agree</span>
+    </label>
+    <label class="edsl-option">
+      <input class="edsl-radio" type="radio" value="Strongly agree" />
+      <span class="edsl-option-label">Strongly agree</span>
+    </label>
+  </div>
+  <p class="edsl-error">…</p>
+</div>
+```
+  </Tab>
+  <Tab title="Dropdown">
+    When humanize format is `dropdown`:
+
+```html
+<div class="edsl-question edsl-likert-question">
+  <div class="edsl-question-text">How satisfied are you?</div>
+  <div class="edsl-options">
+    <select class="edsl-select" name="q1">
+      <option value="">Select...</option>
+      <option value="Strongly disagree">Strongly disagree</option>
+      <option value="Disagree">Disagree</option>
+      <option value="Neutral">Neutral</option>
+      <option value="Agree">Agree</option>
+      <option value="Strongly agree">Strongly agree</option>
+    </select>
+  </div>
+  <p class="edsl-error">…</p>
+</div>
+```
+  </Tab>
+</Tabs>
+
+### List
+
+```html
+<div class="edsl-question edsl-list-question">
+  <div class="edsl-question-text">List your top hobbies.</div>
+  <p>Please enter one item per line.</p>
+  <textarea class="edsl-textarea" rows="4"></textarea>
+  <p class="edsl-error">…</p>
+</div>
+```
+
+### Matrix
+
+```html
+<div class="edsl-question edsl-matrix-question">
+  <div class="edsl-question-text">Rate each item.</div>
+  <table class="edsl-matrix-table">
+    <thead>
+      <tr class="edsl-matrix-header-row">
+        <th><!-- row label column --></th>
+        <th>1</th>
+        <th>2</th>
+        <th>3</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr class="edsl-matrix-row">
+        <td class="edsl-matrix-label-cell">Price</td>
+        <td class="edsl-matrix-cell">
+          <label>
+            <input class="edsl-radio" type="radio" value="1" />
+          </label>
+        </td>
+        <td class="edsl-matrix-cell">
+          <label>
+            <input class="edsl-radio" type="radio" value="2" />
+          </label>
+        </td>
+        <td class="edsl-matrix-cell">
+          <label>
+            <input class="edsl-radio" type="radio" value="3" />
+          </label>
+        </td>
+      </tr>
+      <tr class="edsl-matrix-row">
+        <td class="edsl-matrix-label-cell">Quality</td>
+        <!-- … -->
+      </tr>
+    </tbody>
+  </table>
+  <p class="edsl-error">…</p>
+</div>
+```
+
+### Multiple choice
+
+<Tabs>
+  <Tab title="Radio">
+    When humanize format is `radio` (default):
+
+```html
+<div class="edsl-question edsl-multiple-choice-question">
+  <div class="edsl-question-text">Which fruit do you prefer?</div>
+  <div class="edsl-options">
+    <label class="edsl-option">
+      <input class="edsl-radio" type="radio" value="Apple" />
+      <span class="edsl-option-label">Apple</span>
+    </label>
+    <label class="edsl-option">
+      <input class="edsl-radio" type="radio" value="Banana" />
+      <span class="edsl-option-label">Banana</span>
+    </label>
+    <label class="edsl-option">
+      <input class="edsl-radio" type="radio" value="Cherry" />
+      <span class="edsl-option-label">Cherry</span>
+    </label>
+  </div>
+  <!-- shown only on error -->
+  <p class="edsl-error"><svg>…</svg> Please select an option.</p>
+</div>
+```
+  </Tab>
+  <Tab title="Dropdown">
+    When humanize format is `dropdown`:
+
+```html
+<div class="edsl-question edsl-multiple-choice-question">
+  <div class="edsl-question-text">Which fruit do you prefer?</div>
+  <div class="edsl-options">
+    <select class="edsl-select" name="q1">
+      <option value="">Select...</option>
+      <option value="Apple">Apple</option>
+      <option value="Banana">Banana</option>
+      <option value="Cherry">Cherry</option>
+    </select>
+  </div>
+  <p class="edsl-error">…</p>
+</div>
+```
+  </Tab>
+</Tabs>
+
+### Multiple choice with other
+
+```html
+<div class="edsl-question edsl-multiple-choice-with-other-question">
+  <div class="edsl-question-text">How did you hear about us?</div>
+  <div class="edsl-options">
+    <label class="edsl-option">
+      <input class="edsl-radio" type="radio" value="Search engine" />
+      <span class="edsl-option-label">Search engine</span>
+    </label>
+    <label class="edsl-option">
+      <input class="edsl-radio" type="radio" value="Friend" />
+      <span class="edsl-option-label">Friend</span>
+    </label>
+
+    <div class="edsl-other-option">
+      <label class="edsl-option">
+        <input class="edsl-radio" type="radio" value="Other" />
+        <span class="edsl-option-label">Other</span>
+      </label>
+      <input class="edsl-other-input" type="text" placeholder="Please specify…" />
+    </div>
+  </div>
+  <p class="edsl-error">…</p>
+</div>
+```
+
+### Numerical
+
+<Tabs>
+  <Tab title="Input">
+    When humanize format is `input` (default):
+
+```html
+<div class="edsl-question edsl-numerical-question">
+  <div class="edsl-question-text">Enter your age.</div>
+  <input class="edsl-input" type="text" />
+  <p class="edsl-error">…</p>
+</div>
+```
+  </Tab>
+  <Tab title="Slider">
+    When humanize format is `slider`:
+
+```html
+<div class="edsl-question edsl-numerical-question">
+  <div class="edsl-question-text">On a scale of 0 to 100, how likely are you to recommend?</div>
+  <div>
+    <input class="edsl-input edsl-numerical-slider" type="range" min="0" max="100" step="1" value="50" />
+    <div>
+      <span>0</span>
+      <span>50</span>
+      <span>100</span>
+    </div>
+  </div>
+  <p class="edsl-error">…</p>
+</div>
+```
+  </Tab>
+</Tabs>
+
+### Rank
+
+```html
+<div class="edsl-question edsl-rank-question">
+  <div class="edsl-question-text">Rank these items from most to least preferred.</div>
+  <div class="edsl-rank-list">
+    <div class="edsl-rank-options">
+
+      <div class="edsl-rank-item">
+        <select class="edsl-rank-select">
+          <option value="1">1</option>
+          <option value="2">2</option>
+          <option value="3">3</option>
+          <!-- if hasRankCap: -->
+          <option value="not-ranked">Not ranked</option>
+        </select>
+        <span class="edsl-rank-item-label">Item A</span>
+        <div class="edsl-rank-drag-handle">
+          <!-- GripVertical icon (drag handle) -->
+        </div>
+      </div>
+
+      <div class="edsl-rank-item">
+        <select class="edsl-rank-select">…</select>
+        <span class="edsl-rank-item-label">Item B</span>
+        <div class="edsl-rank-drag-handle">…</div>
+      </div>
+
+      <div class="edsl-rank-item">
+        <select class="edsl-rank-select">…</select>
+        <span class="edsl-rank-item-label">Item C</span>
+        <div class="edsl-rank-drag-handle">…</div>
+      </div>
+
+    </div>
+  </div>
+  <p class="edsl-error">…</p>
+</div>
+```
+
+### Top K
+
+```html
+<div class="edsl-question edsl-top-k-question">
+  <div class="edsl-question-text">Pick your top 2.</div>
+  <div class="edsl-options">
+    <div class="edsl-option">
+      <input class="edsl-checkbox" type="checkbox" />
+      <label class="edsl-option-label">Choice A</label>
+    </div>
+    <div class="edsl-option">
+      <input class="edsl-checkbox" type="checkbox" />
+      <label class="edsl-option-label">Choice B</label>
+    </div>
+    <div class="edsl-option">
+      <input class="edsl-checkbox" type="checkbox" />
+      <label class="edsl-option-label">Choice C</label>
+    </div>
+  </div>
+  <p class="edsl-error">…</p>
+</div>
+```
+
+### Yes/no
+
+<Tabs>
+  <Tab title="Radio">
+    When humanize format is `radio` (default):
+
+```html
+<div class="edsl-question edsl-yes-no-question">
+  <div class="edsl-question-text">Do you agree?</div>
+  <div class="edsl-options">
+    <label class="edsl-option">
+      <input class="edsl-radio" type="radio" value="Yes" />
+      <span class="edsl-option-label">Yes</span>
+    </label>
+    <label class="edsl-option">
+      <input class="edsl-radio" type="radio" value="No" />
+      <span class="edsl-option-label">No</span>
+    </label>
+  </div>
+  <p class="edsl-error">…</p>
+</div>
+```
+  </Tab>
+  <Tab title="Dropdown">
+    When humanize format is `dropdown`:
+
+```html
+<div class="edsl-question edsl-yes-no-question">
+  <div class="edsl-question-text">Do you agree?</div>
+  <div class="edsl-options">
+    <select class="edsl-select" name="q1">
+      <option value="">Select...</option>
+      <option value="Yes">Yes</option>
+      <option value="No">No</option>
+    </select>
+  </div>
+  <p class="edsl-error">…</p>
+</div>
+```
+  </Tab>
+</Tabs>
+
+## Comment field
+
+If a question has `comment` configured in the humanize schema, an additional comment input is rendered under that question.
+
+```html
+<div class="edsl-comment-field">
+  <label class="edsl-question-text">Why did you choose this answer?</label>
+  <textarea class="edsl-textarea" rows="2"></textarea>
+</div>
+```

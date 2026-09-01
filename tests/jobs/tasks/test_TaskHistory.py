@@ -170,3 +170,144 @@ def test_plotting_data_method(sample_task_history):
 
 # Additional tests can be added for methods like plot(), html(), etc.
 # These methods might require more complex setup or mocking of external dependencies.
+
+
+###############################################################
+# Deserializing task histories fetched from the server
+###############################################################
+
+
+def server_side_interview():
+    """An interview dict as built server-side: exceptions, but no full interview.
+
+    The coopr runner writes this shape (see build_task_history_json), so it has
+    no "type" discriminator and an empty dict where an invigilator would be.
+    """
+    return {
+        "model": {"model": "gpt-4o", "inference_service": "openai"},
+        "exceptions": {
+            "how_feeling": [
+                {
+                    "exception": {
+                        "type": "RuntimeError",
+                        "message": "boom",
+                        "module": "builtins",
+                        "traceback": "tb",
+                    },
+                    "invigilator": {},
+                    "time": "2026-08-12T00:00:00+00:00",
+                    "additional_data": {},
+                }
+            ]
+        },
+    }
+
+
+def num_exceptions(task_history):
+    return sum(
+        interview.exceptions.num_exceptions()
+        for interview in task_history.total_interviews
+    )
+
+
+def test_from_dict_keeps_exceptions_from_partial_interviews():
+    """An interview we cannot fully rebuild must not lose its exceptions."""
+    task_history = TaskHistory.from_dict({"interviews": [server_side_interview()]})
+
+    assert task_history.has_exceptions is True
+    assert num_exceptions(task_history) == 1
+
+
+def test_from_dict_keeps_exceptions_from_interview_references():
+    interview = dict(server_side_interview(), type="InterviewReference", id=0)
+
+    task_history = TaskHistory.from_dict({"interviews": [interview]})
+
+    assert num_exceptions(task_history) == 1
+
+
+def test_from_dict_round_trips_partial_interviews():
+    task_history = TaskHistory.from_dict({"interviews": [server_side_interview()]})
+
+    round_tripped = TaskHistory.from_dict(
+        task_history.to_dict(add_edsl_version=False)
+    )
+
+    assert num_exceptions(round_tripped) == 1
+
+
+def test_from_dict_reads_exception_details_of_partial_interviews():
+    task_history = TaskHistory.from_dict({"interviews": [server_side_interview()]})
+
+    entry = task_history.total_interviews[0].exceptions["how_feeling"][0]
+
+    # No invigilator was stored, so no prompts can be recovered.
+    assert entry.invigilator is None
+    assert type(entry.exception).__name__ == "RuntimeError"
+    assert str(entry.exception) == "boom"
+
+
+def test_from_dict_tolerates_missing_invigilator_key():
+    interview = server_side_interview()
+    del interview["exceptions"]["how_feeling"][0]["invigilator"]
+
+    task_history = TaskHistory.from_dict({"interviews": [interview]})
+
+    assert num_exceptions(task_history) == 1
+
+
+def test_from_dict_on_interview_without_exceptions_adds_placeholder():
+    task_history = TaskHistory.from_dict({"interviews": [{"exceptions": {}}]})
+
+    assert len(task_history.total_interviews) == 1
+    assert task_history.has_exceptions is False
+
+
+def test_from_dict_on_empty_task_history():
+    task_history = TaskHistory.from_dict(
+        {"interviews": [], "include_traceback": False}
+    )
+
+    assert task_history.total_interviews == []
+    assert task_history.has_exceptions is False
+
+
+def test_from_dict_on_none():
+    assert TaskHistory.from_dict(None).has_exceptions is False
+
+
+def test_tally_properties_on_deserialized_task_history():
+    """Reporting properties must work on a history rebuilt from a payload.
+
+    The interview references hold a model dict rather than a Model object, so
+    these properties have to read the model without assuming attributes.
+    """
+    task_history = TaskHistory.from_dict({"interviews": [server_side_interview()]})
+
+    assert task_history.exceptions_by_type == {"RuntimeError": 1}
+    assert task_history.exceptions_by_service == {"openai": 1}
+    assert task_history.exceptions_by_model == {("openai", "gpt-4o", "how_feeling"): 1}
+    assert task_history.exceptions_by_question_name == {("how_feeling", None): 1}
+    assert list(task_history.exceptions_table.values()) == [1]
+
+
+def test_tally_properties_without_model_data():
+    """An interview reference with no model must not break the tallies."""
+    interview = server_side_interview()
+    del interview["model"]
+
+    task_history = TaskHistory.from_dict({"interviews": [interview]})
+
+    assert task_history.exceptions_by_service == {None: 1}
+    assert task_history.exceptions_by_model == {(None, "unknown", "how_feeling"): 1}
+
+
+def test_deserialized_interview_exposes_model_object_when_possible():
+    interview = dict(server_side_interview(), type="InterviewReference", id=0)
+
+    ref = TaskHistory.from_dict({"interviews": [interview]}).total_interviews[0]
+
+    assert ref.model.model == "gpt-4o"
+    assert ref.model._inference_service_ == "openai"
+    # The raw dict is what gets re-serialized.
+    assert ref.to_dict(add_edsl_version=False)["model"] == interview["model"]

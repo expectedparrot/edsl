@@ -418,7 +418,7 @@ class InvigilatorBase(ABC):
             ...
             edsl.inference_services.exceptions.InferenceServiceIntendedError: This is a test error
             ...
-            For more information, see: https://docs.expectedparrot.com/en/latest/language_models.html#model-parameters
+            For more information, see: https://docs.expectedparrot.com/en/latest/language_models#model-parameters
 
         Technical Notes:
             - Creates an anonymous subclass (InvigilatorExample) with a simplified implementation

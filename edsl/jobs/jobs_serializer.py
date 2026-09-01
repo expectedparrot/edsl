@@ -80,6 +80,23 @@ def _manifest_from_jobs(job: "Jobs", root=None, message: str = "") -> dict:
     return manifest
 
 
+def _restore_post_run_methods(value: list) -> list:
+    restored = []
+    for item in value:
+        if isinstance(item, list) and len(item) == 3:
+            restored.append((item[0], tuple(item[1]), item[2]))
+        else:
+            restored.append(item)
+    return restored
+
+
+def _restore_json_round_trip_types(job: "Jobs") -> None:
+    if job._post_run_methods:
+        job._post_run_methods = _restore_post_run_methods(job._post_run_methods)
+    if job._depends_on is not None:
+        _restore_json_round_trip_types(job._depends_on)
+
+
 class JobsSerializer:
     """JSONL serialization for Jobs objects via CAS pointers."""
 
@@ -191,4 +208,5 @@ class JobsSerializer:
             if "include_expression" in manifest:
                 job._include_expression = manifest["include_expression"]
 
+        _restore_json_round_trip_types(job)
         return job

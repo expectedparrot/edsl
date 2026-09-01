@@ -39,7 +39,7 @@ class CacheError(BaseException):
         message (str): Detailed explanation of the error
     """
 
-    relevant_doc = "https://docs.expectedparrot.com/en/latest/remote_caching.html"
+    relevant_doc = "https://docs.expectedparrot.com/en/latest/remote_caching"
 
 
 class CacheFileNotFoundError(CacheError):
@@ -61,7 +61,7 @@ class CacheFileNotFoundError(CacheError):
         ```
     """
 
-    relevant_doc = "https://docs.expectedparrot.com/en/latest/remote_caching.html"
+    relevant_doc = "https://docs.expectedparrot.com/en/latest/remote_caching"
 
 
 class CacheValueError(CacheError):
@@ -85,7 +85,7 @@ class CacheValueError(CacheError):
         ```
     """
 
-    relevant_doc = "https://docs.expectedparrot.com/en/latest/remote_caching.html"
+    relevant_doc = "https://docs.expectedparrot.com/en/latest/remote_caching"
 
 
 class CacheKeyError(CacheError):
@@ -110,7 +110,7 @@ class CacheKeyError(CacheError):
         ```
     """
 
-    relevant_doc = "https://docs.expectedparrot.com/en/latest/remote_caching.html"
+    relevant_doc = "https://docs.expectedparrot.com/en/latest/remote_caching"
 
 
 class CacheNotImplementedError(CacheError):
@@ -132,4 +132,4 @@ class CacheNotImplementedError(CacheError):
         ```
     """
 
-    relevant_doc = "https://docs.expectedparrot.com/en/latest/remote_caching.html"
+    relevant_doc = "https://docs.expectedparrot.com/en/latest/remote_caching"

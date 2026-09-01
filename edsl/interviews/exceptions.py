@@ -23,7 +23,7 @@ class InterviewError(BaseException):
         ```
     """
 
-    relevant_doc = "https://docs.expectedparrot.com/en/latest/interviews.html"
+    relevant_doc = "https://docs.expectedparrot.com/en/latest/interviews"
 
 
 class InterviewTaskError(InterviewError):
@@ -42,7 +42,7 @@ class InterviewTaskError(InterviewError):
         ```
     """
 
-    relevant_doc = "https://docs.expectedparrot.com/en/latest/interviews.html"
+    relevant_doc = "https://docs.expectedparrot.com/en/latest/interviews"
 
 
 class InterviewStatusError(InterviewError):
@@ -61,7 +61,7 @@ class InterviewStatusError(InterviewError):
         ```
     """
 
-    relevant_doc = "https://docs.expectedparrot.com/en/latest/interviews.html"
+    relevant_doc = "https://docs.expectedparrot.com/en/latest/interviews"
 
 
 class InterviewTokenError(InterviewError):
@@ -80,4 +80,4 @@ class InterviewTokenError(InterviewError):
         ```
     """
 
-    relevant_doc = "https://docs.expectedparrot.com/en/latest/token_usage.html"
+    relevant_doc = "https://docs.expectedparrot.com/en/latest/token_usage"

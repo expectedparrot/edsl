@@ -3,8 +3,15 @@ from typing import Any, Optional, TYPE_CHECKING
 
 import random
 from jinja2 import Template
-from pydantic import BaseModel, Field, model_validator, ValidationError
-from typing import List, Literal, Annotated
+from pydantic import (
+    BaseModel,
+    Field,
+    model_validator,
+    ValidationError,
+    StrictFloat,
+    StrictInt,
+)
+from typing import List, Literal, Annotated, Union
 
 from .exceptions import QuestionAnswerValidationError
 from ..scenarios import Scenario
@@ -16,6 +23,7 @@ from .descriptors import (
 )
 from .decorators import inject_exception
 from .response_validator_abc import ResponseValidatorABC
+from .probabilistic_response import ProbabilisticResponse
 
 if TYPE_CHECKING:
     pass
@@ -56,6 +64,18 @@ class CheckboxResponse(BaseModel):
     """
 
     answer: List[Any]
+    comment: Optional[str] = None
+    generated_tokens: Optional[Any] = None
+
+
+class InclusionProbabilityPayload(BaseModel):
+    inclusion_probabilities: List[Union[StrictInt, StrictFloat]] = Field(
+        description="One marginal inclusion probability per displayed option"
+    )
+
+
+class ProbabilisticCheckboxResponse(BaseModel):
+    answer: InclusionProbabilityPayload
     comment: Optional[str] = None
     generated_tokens: Optional[Any] = None
 
@@ -295,7 +315,50 @@ class CheckBoxResponseValidator(ResponseValidatorABC):
         "max_selections",
         "use_code",
         "permissive",
+        "probabilistic_response",
+        "probabilistic_seed_context",
     ]
+
+    def _post_process(self, edsl_answer_dict):
+        contract = getattr(self, "probabilistic_response", None)
+        if contract is None:
+            return edsl_answer_dict
+
+        payload = edsl_answer_dict["answer"]
+        if isinstance(payload, BaseModel):
+            payload = payload.model_dump()
+        try:
+            probabilities = contract.validate(
+                payload["inclusion_probabilities"], len(self.question_options)
+            )
+        except (KeyError, TypeError, ValueError) as exc:
+            raise QuestionAnswerValidationError(
+                message=str(exc),
+                data=edsl_answer_dict,
+                model=self.response_model,
+                pydantic_error=exc,
+            ) from exc
+
+        resolution = contract.resolve(
+            probabilities,
+            context=getattr(self, "probabilistic_seed_context", None),
+        )[0]
+        if contract.resolution == "none":
+            answer = None
+        else:
+            indices = resolution["indices"]
+            answer = (
+                indices
+                if self.use_code
+                else [self.question_options[index] for index in indices]
+            )
+
+        edsl_answer_dict["answer"] = answer
+        edsl_answer_dict["distribution"] = probabilities
+        edsl_answer_dict["resolution_draw"] = resolution["draw"]
+        edsl_answer_dict["resolution_seed"] = resolution["seed"]
+        edsl_answer_dict["resolution_method"] = resolution["method"]
+        return edsl_answer_dict
 
     valid_examples = [
         ({"answer": [1, 2]}, {"question_options": ["Good", "Great", "OK", "Bad"]})
@@ -626,6 +689,7 @@ class QuestionCheckBox(QuestionBase):
         question_presentation: Optional[str] = None,
         answering_instructions: Optional[str] = None,
         permissive: bool = False,
+        probabilistic_response: ProbabilisticResponse | dict | None = None,
     ):
         """
         Initialize a new checkbox question.
@@ -683,6 +747,24 @@ class QuestionCheckBox(QuestionBase):
         self._include_comment = include_comment
         self._use_code = use_code
         self.permissive = permissive
+        self._probabilistic_response = ProbabilisticResponse.from_value(
+            probabilistic_response
+        )
+        if self._probabilistic_response is not None:
+            if (
+                self._probabilistic_response.representation
+                != "inclusion_probabilities"
+            ):
+                raise ValueError(
+                    "Checkbox probabilistic responses require "
+                    "representation='inclusion_probabilities'."
+                )
+            if min_selections is not None or max_selections is not None:
+                raise ValueError(
+                    "Independent inclusion probabilities cannot be combined with "
+                    "min_selections or max_selections because conditioning would "
+                    "change the supplied marginal probabilities."
+                )
 
         self.question_presentation = question_presentation
         self.answering_instructions = answering_instructions
@@ -703,6 +785,8 @@ class QuestionCheckBox(QuestionBase):
             >>> model(answer=[0, 2])  # Select first and third options
             ConstrainedCheckboxResponse(answer=[0, 2], comment=None, generated_tokens=None)
         """
+        if self.probabilistic_response is not None:
+            return ProbabilisticCheckboxResponse
         if not self._use_code:
             # Use option text values as valid choices
             return create_checkbox_response_model(
@@ -719,6 +803,20 @@ class QuestionCheckBox(QuestionBase):
                 max_selections=self.max_selections,
                 permissive=self.permissive,
             )
+
+    @property
+    def probabilistic_response(self) -> ProbabilisticResponse | None:
+        return self._probabilistic_response
+
+    @property
+    def probabilistic_seed_context(self) -> dict | None:
+        return getattr(self, "_probabilistic_seed_context", None)
+
+    def to_dict(self, add_edsl_version: bool = True):
+        data = super().to_dict(add_edsl_version=add_edsl_version)
+        if self.probabilistic_response is not None:
+            data["probabilistic_response"] = self.probabilistic_response.to_dict()
+        return data
 
     def _translate_answer_code_to_answer(
         self, answer_codes, scenario: "Optional[Scenario]" = None

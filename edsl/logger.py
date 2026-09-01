@@ -1,15 +1,13 @@
 """
 Logger module for EDSL.
 
-This module provides a centralized logging configuration for the EDSL package.
-It configures console and file logging with appropriate formatting.
+This module provides centralized logging helpers for the EDSL package.
 """
 
 import logging
 import os
 import re
 from datetime import datetime, timedelta
-from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from typing import List, Optional, Union, Dict, Any, TYPE_CHECKING
 from dataclasses import dataclass
@@ -21,28 +19,9 @@ if TYPE_CHECKING:
 logger = logging.getLogger("edsl")
 logger.setLevel(logging.ERROR)  # Default level
 
-# Avoid adding handlers multiple times when imported in different modules
+# Avoid "No handler found" behavior without writing files at import time.
 if not logger.handlers:
-    # Console handler removed - logs only go to file now
-
-    # File handler - create logs directory if it doesn't exist
-    try:
-        log_dir = Path.home() / ".edsl" / "logs"
-        os.makedirs(log_dir, exist_ok=True)
-
-        file_handler = RotatingFileHandler(
-            log_dir / "edsl.log", maxBytes=5 * 1024 * 1024, backupCount=3  # 5 MB
-        )
-        file_handler.setLevel(logging.ERROR)
-        file_formatter = logging.Formatter(
-            "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-        )
-        file_handler.setFormatter(file_formatter)
-        logger.addHandler(file_handler)
-    except Exception as e:
-        # Don't fail if file logging can't be set up
-        # No console handler to adjust
-        print(f"WARNING: Could not set up file logging: {e}")
+    logger.addHandler(logging.NullHandler())
 
 
 def get_logger(name):

@@ -168,15 +168,36 @@ class InstructionsDescriptor(BaseDescriptor):
 
 
 class NumSelectionsDescriptor(BaseDescriptor):
-    """Validate that `num_selections` is an integer, is less than the number of options, and is positive."""
+    """Validate that `num_selections` is an integer, is less than the number of options, and is positive.
+
+    Left unset, `num_selections` means "all of them" — a count of the options rather
+    than a number in its own right. Options can be a template piped from an earlier
+    answer, in which case there is nothing to count until that answer arrives, so the
+    default is stored as None and worked out on read instead. Resolving it any earlier
+    counts the characters in the template.
+    """
+
+    def __get__(self, instance, owner):
+        """Fill in the "all of them" default against whatever the options are now."""
+        value = instance.__dict__.get(self.name)
+        if value is None and isinstance(instance.question_options, list):
+            return len(instance.question_options)
+        return value
 
     def validate(self, value, instance):
         """Validate the value is an integer, is less than the number of options, and is positive."""
+        if value is None:
+            return None
         if not (isinstance(value, int)):
             raise QuestionCreationValidationError(
                 f"`num_selections` must be an integer (got {value})."
             )
-        if value > len(instance.question_options):
+        # Only worth comparing once the options are a list. Against a template the
+        # comparison is to the length of a string, which lets a wrong number through
+        # and rejects a right one.
+        if isinstance(instance.question_options, list) and value > len(
+            instance.question_options
+        ):
             raise QuestionCreationValidationError(
                 f"`num_selections` must be less than the number of options (got {value})."
             )
@@ -395,10 +416,21 @@ class QuestionOptionsDescriptor(BaseDescriptor):
                 raise QuestionCreationValidationError(
                     f"You asked for at least {instance.min_selections} selections, but provided fewer options (got {value})."
                 )
+        # Warn instead of raising. A min_selections above the option count is impossible
+        # to satisfy, but a max above it is harmless: it just never comes into play.
+        #
+        # This matters when the options are piped. The cap is set when the survey is
+        # written, but the list isn't known until the question is served, so "up to 5"
+        # over a list that resolves to 3 options is normal, not a mistake. Raising would
+        # fail at render time, when the survey is already in front of a respondent.
         if hasattr(instance, "max_selections") and instance.max_selections is not None:
             if instance.max_selections > len(value):
-                raise QuestionCreationValidationError(
-                    f"You asked for at most {instance.max_selections} selections, but provided fewer options (got {value})."
+                import warnings
+
+                warnings.warn(
+                    f"You asked for at most {instance.max_selections} selections, but "
+                    f"provided fewer options (got {value}). The cap cannot bind.",
+                    UserWarning,
                 )
         if self.num_choices is not None:
             if len(value) != self.num_choices:

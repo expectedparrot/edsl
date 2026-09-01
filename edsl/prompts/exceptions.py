@@ -9,7 +9,7 @@ class PromptError(BaseException):
     rendering, and validation in the EDSL framework.
     """
 
-    relevant_doc = "https://docs.expectedparrot.com/en/latest/prompts.html"
+    relevant_doc = "https://docs.expectedparrot.com/en/latest/prompts"
 
 
 class TemplateRenderError(PromptError):
@@ -36,7 +36,7 @@ class TemplateRenderError(PromptError):
     """
 
     relevant_doc = (
-        "https://docs.expectedparrot.com/en/latest/prompts.html#template-variables"
+        "https://docs.expectedparrot.com/en/latest/prompts#template-variables"
     )
 
 

@@ -50,6 +50,7 @@ def test_invalid_fetch_order():
     [
         ("EDSL_SERVICE_RPM_OPENAI", "limit"),
         ("OPENAI_API_KEY", "api_key"),
+        ("LLAMA_API_KEY", "api_key"),
         ("AWS_ACCESS_KEY_ID", "api_id"),
         ("UNKNOWN_KEY", "unknown"),
     ],
@@ -89,6 +90,14 @@ def test_process_key_value_pairs(mock_env_vars):
         # Check API IDs were processed
         assert "bedrock" in builder.id_data
         assert isinstance(builder.id_data["bedrock"], APIIDEntry)
+
+
+def test_llama_api_key_maps_to_meta_service():
+    with patch.dict("os.environ", {"LLAMA_API_KEY": "test-meta-key"}, clear=True):
+        builder = KeyLookupBuilder(fetch_order=("env",))
+
+    assert builder.key_data["meta"][-1].value == "test-meta-key"
+    assert builder.build()["meta"].api_token == "test-meta-key"
 
 
 def test_get_language_model_input(builder):

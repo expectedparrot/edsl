@@ -14,32 +14,31 @@ if TYPE_CHECKING:
 
 
 _QUESTION_TYPE_ICONS = {
-    "free_text": "✏️",
-    "multiple_choice": "◉",
-    "checkbox": "☑",
-    "linear_scale": "⟷",
-    "numerical": "#",
-    "yes_no": "Y/N",
-    "likert_five": "★5",
-    "top_k": "🔝",
-    "rank": "↕",
-    "budget": "$",
-    "extract": "⛏",
-    "list": "▤",
-    "dropdown": "▾",
-    "matrix": "▦",
-    "file_upload": "📎",
+    "free_text": "Free Text",
+    "multiple_choice": "Multiple Choice",
+    "checkbox": "Checkbox",
+    "linear_scale": "Linear Scale",
+    "numerical": "Numerical",
+    "yes_no": "Yes/No",
+    "likert_five": "Likert",
+    "top_k": "Top-K",
+    "rank": "Rank",
+    "budget": "Budget",
+    "extract": "Extract",
+    "list": "List",
+    "dropdown": "Dropdown",
+    "matrix": "Matrix",
+    "file_upload": "File Upload",
 }
 
 
-def _question_label(question, max_text_len: int = 40) -> str:
+def _question_label(question) -> str:
     """Build a rich label for a question node."""
-    icon = _QUESTION_TYPE_ICONS.get(getattr(question, "question_type", ""), "?")
+    question_type = getattr(question, "question_type", "")
+    type_label = _QUESTION_TYPE_ICONS.get(question_type, question_type)
     name = question.question_name
     text = getattr(question, "question_text", "") or ""
-    if len(text) > max_text_len:
-        text = text[:max_text_len] + "…"
-    return f"[{icon}] {name}\n<i>{text}</i>"
+    return f"{name}\n<i>{text}</i>\n({type_label})"
 
 
 class SurveyFlowVisualization:
@@ -120,7 +119,7 @@ class SurveyFlowVisualization:
                         param_to_questions.setdefault(param, []).append(index)
                     elif "." in param:
                         source_q, ref_type = param.split(".", 1)
-                        reference_types.setdefault(ref_type, set()).add((source_q, index))
+                        reference_types.setdefault(ref_type, set()).add((source_q, index, param))
                     else:
                         params_and_refs.add(param)
                         param_to_questions.setdefault(param, []).append(index)
@@ -128,7 +127,7 @@ class SurveyFlowVisualization:
         # Add reference edges
         for ref_type, references in reference_types.items():
             color = reference_colors.get(ref_type, reference_colors["default"])
-            for source_q_name, target_q_index in references:
+            for source_q_name, target_q_index, full_param in references:
                 try:
                     source_q_index = next(
                         i for i, q in enumerate(self.survey.questions)
@@ -136,20 +135,24 @@ class SurveyFlowVisualization:
                     )
                 except StopIteration:
                     continue
+                # Skip dashed reference edge when questions are adjacent —
+                # the normal flow arrow already shows the connection.
+                if target_q_index == source_q_index + 1:
+                    continue
                 graph.add_edge(
                     f"Q{source_q_index}", f"Q{target_q_index}",
-                    label=f".{ref_type}", style="dashed", color=color, font_color=color,
+                    label=f"{{{{ {full_param} }}}}", style="dashed", color=color, font_color=color,
                 )
 
         # Add parameter nodes
         for param in params_and_refs:
             node_id = f"param_{param}"
             if param.startswith("agent."):
-                graph.add_node(node_id, label=f"Agent Trait\n{{{{ {param} }}}}", shape="box", fill_color="lightpink")
+                graph.add_node(node_id, label=f"Agent Trait\n{{{{ {param} }}}}", shape="stadium", fill_color="lightpink")
             elif self.scenario and param.startswith("scenario."):
-                graph.add_node(node_id, label=f"Scenario\n{{{{ {param} }}}}", shape="box", fill_color="lightgreen")
+                graph.add_node(node_id, label=f"Scenario\n{{{{ {param} }}}}", shape="stadium", fill_color="lightgreen")
             else:
-                graph.add_node(node_id, label=f"{{{{ {param} }}}}", shape="box", fill_color="lightgrey")
+                graph.add_node(node_id, label=f"{{{{ {param} }}}}", shape="stadium", fill_color="lightgrey")
 
             for q_index in param_to_questions[param]:
                 graph.add_edge(node_id, f"Q{q_index}", style="dotted")
@@ -178,9 +181,14 @@ class SurveyFlowVisualization:
                 if rule.next_q != EndOfSurvey and rule.next_q < num_questions
                 else "EndOfSurvey"
             )
+            if rule.before_rule and rule.current_q > 0:
+                # Skip rule: draw bypass from the question *before* the skipped one
+                source = f"Q{rule.current_q - 1}"
+            else:
+                source = f"Q{rule.current_q}"
             graph.add_edge(
-                f"Q{rule.current_q}", target,
-                label=f"if {rule.expression}", color=color, font_color=color,
+                source, target,
+                label=rule.expression, color=color, font_color=color,
             )
 
         return graph.show(filename=filename)

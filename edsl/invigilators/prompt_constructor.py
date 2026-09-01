@@ -2,6 +2,7 @@ from __future__ import annotations
 from typing import Dict, Any, Optional, TYPE_CHECKING, Literal
 from functools import cached_property
 import logging
+import re
 import time as _time
 import threading
 
@@ -164,6 +165,49 @@ class PlaceholderComment(BasePlaceholder):
 class PlaceholderGeneratedTokens(BasePlaceholder):
     def __init__(self):
         super().__init__("generated_tokens")
+
+
+class _FileRefPlaceholder(str):
+    """Stands in for a prior file-upload answer in rendered text.
+
+    ``{{ up.answer }}``    -> ``"<see file up>"``      (the whole list)
+    ``{{ up.answer[0] }}`` -> ``"<see file up[0]>"``   (a single file)
+
+    Keeps raw gcs metadata / FileStore reprs out of the prompt while the actual
+    files ride along in ``files_list``.
+    """
+
+    def __new__(cls, name: str):
+        obj = super().__new__(cls, f"<see file {name}>")
+        obj._name = name
+        return obj
+
+    def __getitem__(self, index: Any) -> str:
+        return f"<see file {self._name}[{index}]>"
+
+
+def _referenced_file_indices(question_text: str, name: str) -> tuple[bool, set]:
+    """Which files of prior answer ``name`` does ``question_text`` reference?
+
+    Returns ``(attach_all, indices)``:
+
+    - ``(False, set())`` -> ``name`` is referenced but not via ``.answer`` (e.g. a
+      bare ``{{ name }}``); it is not a file reference, so nothing attaches.
+    - ``(True, set())`` -> a bare ``{{ name.answer }}`` (or a subscript we can't
+      resolve statically, e.g. a dynamic ``{{ name.answer[i] }}``) -> attach all.
+    - ``(False, {i, ...})`` -> explicit integer subscripts ``{{ name.answer[i] }}``
+      -> attach just those files.
+    """
+    esc = re.escape(name)
+    # Every ``.answer`` reference, capturing an integer subscript when present.
+    # Bare ``.answer`` and a dynamic ``.answer[i]`` both capture "" (-> attach all);
+    # ``.answer[3]`` captures "3". No matches -> not referenced via ``.answer``.
+    refs = re.findall(rf"\b{esc}\.answer\b\s*(?:\[\s*(\d+)\s*\])?", question_text)
+    if not refs:
+        return (False, set())
+    indices = {int(r) for r in refs if r}
+    attach_all = any(r == "" for r in refs)
+    return (attach_all, indices)
 
 
 class PromptConstructor:
@@ -550,6 +594,96 @@ class PromptConstructor:
 
         return result
 
+    @staticmethod
+    def _prior_answer_file_stores(value: Any) -> list:
+        """Return the FileStore objects a prior answer represents, or [] if it has none.
+
+        A prior question's answer can carry a file in a few shapes:
+
+        - a ``FileStore`` (e.g. a wrapped local upload) -> a single-element list
+        - a ``FileStoreList`` or a plain list of ``FileStore`` objects
+
+        Anything else (a normal text answer, a placeholder, an empty list) returns [].
+
+        Note: raw ``QuestionFileUpload`` answers (a list of ``gcs_path`` dicts) are
+        realized into FileStores upstream, in the render layer's
+        ``_restore_upload_answers`` (which downloads and caches by gcs_path). Prompt
+        construction deliberately does not fetch from Coop; it only attaches files
+        that have already been materialized.
+        """
+        from ..scenarios import FileStore
+        from ..scenarios.file_store_list import FileStoreList
+
+        if isinstance(value, FileStore):
+            return [value]
+
+        if isinstance(value, FileStoreList):
+            return list(value.data)
+
+        if isinstance(value, (list, tuple)) and len(value) > 0:
+            if all(isinstance(v, FileStore) for v in value):
+                return list(value)
+
+        return []
+
+    @cached_property
+    def prior_answer_files(self) -> list:
+        """Files piped in from prior questions' answers, ready to attach to the model.
+
+        When the current question text references a prior question whose answer is a
+        file — e.g. ``{{ upload_q.answer }}`` where ``upload_q`` is a QuestionFileUpload —
+        the uploaded file(s) are attached to the model the same way scenario files are.
+        The prior answer's text rendering is swapped for a ``<see file ...>`` placeholder
+        so the raw file metadata (or a useless ``FileStore`` repr) doesn't leak into the
+        prompt. Files are only attached when explicitly referenced, mirroring how scenario
+        files behave.
+
+        Note: this reads ``prior_answers_dict()`` and rewrites the referenced answers'
+        ``.answer`` placeholder, so it must run before the question and memory prompts are
+        rendered. ``get_prompts`` calls it up front for exactly this reason.
+        """
+        question_text = getattr(self.question, "question_text", "") or ""
+        # Root variables referenced in the text (e.g. "upload" for {{ upload.answer[0] }}).
+        template_vars = QuestionTemplateReplacementsBuilder.get_jinja2_variables(
+            question_text
+        )
+        if not template_vars:  # no piping at all -> nothing to attach
+            return []
+
+        prior_answers = self.prior_answers_dict()
+        files: list = []
+        for name in template_vars:
+            # A referenced variable may not be a prior question (scenario key, agent
+            # trait, etc.); if it isn't, it can't carry a file answer.
+            question = prior_answers.get(name)
+            if question is None:
+                continue
+            # Only prior answers that are actually file(s) get attached; a normal text
+            # answer (or an unanswered placeholder) returns [] here and is skipped.
+            file_stores = self._prior_answer_file_stores(
+                getattr(question, "answer", None)
+            )
+            if not file_stores:
+                continue
+            # This variable pipes real files -> decide which ones the text asked for:
+            # a bare {{ name.answer }} attaches all, {{ name.answer[i] }} just file i.
+            attach_all, indices = _referenced_file_indices(question_text, name)
+            if not attach_all and not indices:
+                # Referenced without .answer (e.g. a bare {{ up }}) -> not a file
+                # reference; attach nothing and leave the answer untouched.
+                continue
+            if attach_all:
+                files.extend(file_stores)
+            else:
+                # Attach only the referenced files; out-of-range indices are skipped.
+                files.extend(
+                    file_stores[i] for i in sorted(indices) if 0 <= i < len(file_stores)
+                )
+            # Render a placeholder in the text; the file itself rides along in files_list.
+            # The placeholder handles both {{ name.answer }} and {{ name.answer[i] }}.
+            question.answer = _FileRefPlaceholder(name)
+        return files
+
     @cached_property
     def question_instructions_prompt(self) -> "Prompt":
         """Get question instructions prompt (cached per PromptConstructor instance).
@@ -746,6 +880,11 @@ class PromptConstructor:
             - Handles file attachments if specified in the question
             - Returns a complete dictionary ready for use with the language model
         """
+        # Resolve any files piped in from prior questions' answers first. This swaps
+        # the referenced answers' text for a placeholder, so it must happen before the
+        # question and memory prompts below are rendered.
+        prior_answer_files = self.prior_answer_files
+
         # Build all the components with timing
         _t0 = _time.time()
         agent_instructions = self.agent_instructions_prompt
@@ -775,6 +914,12 @@ class PromptConstructor:
             files_list = []
             for key in file_keys:
                 files_list.append(self.scenario[key])
+            prompts["files_list"] = files_list
+
+        # Append any files piped in from prior questions' answers.
+        if prior_answer_files:
+            files_list = prompts.get("files_list", [])
+            files_list.extend(prior_answer_files)
             prompts["files_list"] = files_list
         _t6 = _time.time()
 

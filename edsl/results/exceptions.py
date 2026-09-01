@@ -16,7 +16,7 @@ class ResultsError(BaseException):
     - When inappropriate model types are used with Results methods
     """
 
-    relevant_doc = "https://docs.expectedparrot.com/en/latest/results.html"
+    relevant_doc = "https://docs.expectedparrot.com/en/latest/results"
 
 
 class ResultsDeserializationError(ResultsError):
@@ -42,7 +42,7 @@ class ResultsDeserializationError(ResultsError):
         ```
     """
 
-    relevant_doc = "https://docs.expectedparrot.com/en/latest/results.html#saving-and-loading-results"
+    relevant_doc = "https://docs.expectedparrot.com/en/latest/results#saving-and-loading-results"
 
 
 class ResultsBadMutationstringError(ResultsError):
@@ -66,7 +66,7 @@ class ResultsBadMutationstringError(ResultsError):
     """
 
     relevant_doc = (
-        "https://docs.expectedparrot.com/en/latest/results.html#creating-new-columns"
+        "https://docs.expectedparrot.com/en/latest/results#creating-new-columns"
     )
 
 
@@ -93,7 +93,7 @@ class ResultsColumnNotFoundError(ResultsError):
     """
 
     relevant_doc = (
-        "https://docs.expectedparrot.com/en/latest/results.html#selecting-columns"
+        "https://docs.expectedparrot.com/en/latest/results#selecting-columns"
     )
 
 
@@ -120,7 +120,7 @@ class ResultsInvalidNameError(ResultsError):
     """
 
     relevant_doc = (
-        "https://docs.expectedparrot.com/en/latest/results.html#creating-new-columns"
+        "https://docs.expectedparrot.com/en/latest/results#creating-new-columns"
     )
 
 
@@ -148,7 +148,7 @@ class ResultsMutateError(ResultsError):
     """
 
     relevant_doc = (
-        "https://docs.expectedparrot.com/en/latest/results.html#creating-new-columns"
+        "https://docs.expectedparrot.com/en/latest/results#creating-new-columns"
     )
 
 
@@ -176,5 +176,5 @@ class ResultsFilterError(ResultsError):
     """
 
     relevant_doc = (
-        "https://docs.expectedparrot.com/en/latest/results.html#filtering-results"
+        "https://docs.expectedparrot.com/en/latest/results#filtering-results"
     )

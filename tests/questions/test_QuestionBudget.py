@@ -63,10 +63,10 @@ def test_QuestionBudget_construction():
     invalid_question.update({"question_options": []})
     with pytest.raises(Exception):
         QuestionBudget(**invalid_question)
-    # or has 1 item
-    invalid_question.update({"question_options": ["OK"]})
-    with pytest.raises(Exception):
-        QuestionBudget(**invalid_question)
+    # a single option is valid
+    single_option_question = valid_question.copy()
+    single_option_question.update({"question_options": ["OK"]})
+    assert QuestionBudget(**single_option_question).question_options == ["OK"]
     # or has duplicates
     invalid_question.update({"question_options": ["OK", "OK"]})
     with pytest.raises(Exception):
@@ -133,6 +133,81 @@ def test_QuestionBudget_answers():
     invalid_answer.update({"answer": {0: -1, 1: 25, 2: 25, 3: 51}})
     with pytest.raises(QuestionAnswerValidationError):
         q._validate_answer(invalid_answer)
+
+
+def test_QuestionBudget_repairs_labeled_mapping_in_question_order():
+    q = QuestionBudget(**valid_question)
+
+    validated = q.response_validator.validate(
+        {
+            "answer": {
+                "Salad": 10,
+                "Pizza": 40,
+                "Burgers": 20,
+                "Ice Cream": 30,
+            }
+        }
+    )
+
+    assert validated["answer"] == [40, 30, 20, 10]
+
+
+def test_QuestionBudget_repairs_small_rounding_residual():
+    q = QuestionBudget(**valid_question)
+
+    validated = q.response_validator.validate({"answer": [33.3, 33.3, 33.3, 0]})
+
+    assert sum(validated["answer"]) == q.budget_sum
+    assert validated["answer"] == pytest.approx([33.4, 33.3, 33.3, 0])
+
+
+def test_QuestionBudget_repairs_single_labeled_allocation_string():
+    q = QuestionBudget(
+        question_name="revenue_split",
+        question_text="Allocate revenue.",
+        question_options=["Product revenue %", "Advertising revenue %"],
+        budget_sum=100,
+    )
+
+    validated = q.response_validator.validate(
+        {"answer": ["Product revenue %: 50, Advertising revenue %: 50"]}
+    )
+
+    assert validated["answer"] == [50, 50]
+
+
+def test_QuestionBudget_rejects_partial_labeled_allocation_string():
+    q = QuestionBudget(
+        question_name="revenue_split",
+        question_text="Allocate revenue.",
+        question_options=["Product revenue %", "Advertising revenue %"],
+        budget_sum=100,
+    )
+
+    with pytest.raises(QuestionAnswerValidationError):
+        q.response_validator.validate({"answer": ["Product revenue %: 100"]})
+
+
+@pytest.mark.parametrize(
+    "answer",
+    [
+        [30, 30, 30, 0],  # discrepancy is too large to be rounding
+        [40, 30, -1, 31],  # repair must not mask a negative allocation
+        {"Pizza": 50, "unknown": 50},  # labels do not identify every option
+    ],
+)
+def test_QuestionBudget_does_not_repair_unsafe_answers(answer):
+    q = QuestionBudget(**valid_question)
+
+    with pytest.raises(QuestionAnswerValidationError):
+        q.response_validator.validate({"answer": answer})
+
+
+def test_QuestionBudget_regex_repair_preserves_negative_sign():
+    q = QuestionBudget(**valid_question)
+
+    with pytest.raises(QuestionAnswerValidationError):
+        q.response_validator.validate({"answer": "40, 30, -1, 31"})
 
 
 def test_QuestionBudget_extras():

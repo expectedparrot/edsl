@@ -1,0 +1,93 @@
+---
+title: "Survey messages"
+description: "Use SurveyMessage to add display-only, routable pages such as introductions, consent text, transitions, eligibility notices, and completion messages to an EDSL Survey."
+---
+
+`SurveyMessage` adds a page of information to a survey without asking the respondent—or a language model—to provide an answer. It behaves like a question in the survey flow: it has a `question_name`, occupies a normal survey position, and can be the source or destination of a routing rule.
+
+Use it for introductions, consent or privacy information, section transitions, eligibility notices, and thank-you pages.
+
+## Basic usage
+
+```python
+from edsl import QuestionFreeText, Survey, SurveyMessage
+
+welcome = SurveyMessage(
+    question_name="welcome",
+    question_text="Welcome. This survey takes about two minutes.",
+)
+
+feedback = QuestionFreeText(
+    question_name="feedback",
+    question_text="What could we improve?",
+)
+
+thanks = SurveyMessage(
+    question_name="thanks",
+    question_text="Thank you for your feedback.",
+)
+
+survey = Survey([welcome, feedback, thanks])
+```
+
+An interactive survey client should display the message and offer a **Continue** action (or **Finish** when it is the last node). `SurveyMessage` does not render an input control.
+
+## Routing to a message
+
+Because a message is a normal survey node, rules can route respondents to it by name. This example sends ineligible respondents to a terminal message while eligible respondents continue to a follow-up question:
+
+```python
+from edsl import EndOfSurvey, QuestionFreeText, QuestionYesNo, Survey, SurveyMessage
+
+eligible = QuestionYesNo(
+    question_name="eligible",
+    question_text="Are you at least 18 years old?",
+)
+
+follow_up = QuestionFreeText(
+    question_name="experience",
+    question_text="Tell us about your experience.",
+)
+
+ineligible = SurveyMessage(
+    question_name="ineligible",
+    question_text="You are not eligible for this survey. Thank you for your time.",
+)
+
+survey = Survey([eligible, follow_up, ineligible])
+survey.add_rule(
+    "eligible",
+    "{{ eligible.answer }} == 'No'",
+    next_question="ineligible",
+)
+survey.add_rule("experience", "True", next_question=EndOfSurvey)
+```
+
+The message participates in ordinary navigation, including back navigation and resume behavior in clients that support those features.
+
+## Running with language models
+
+When an EDSL job reaches a `SurveyMessage`, EDSL records a deterministic response and continues without calling the language model:
+
+```python
+results = survey.run()
+results.select("answer.ineligible")
+```
+
+If the message was visited, its recorded answer is `"continued"`. If routing skipped it, it has no response. The deterministic value makes the visited path observable in `Results` without spending inference tokens on display-only content.
+
+## `SurveyMessage` versus `Instruction`
+
+| Use | `SurveyMessage` | `Instruction` |
+|---|---|---|
+| Show a standalone page to a respondent | Yes | No |
+| Route to or from the item by question name | Yes | No |
+| Record that the item was visited | Yes, as `"continued"` | No |
+| Supply context to later model questions | No | Yes |
+
+Use `Instruction` when text should become model context for later questions. Use `SurveyMessage` when the text is itself a visible step in the survey experience.
+
+## Human survey clients
+
+`SurveyMessage` serializes with `question_type="survey_message"` and has an empty Humanize schema because it accepts no respondent input. A survey builder or Humanize client must explicitly support this question type by rendering the message and submitting the deterministic continuation action. Check client compatibility before deploying a human survey that contains messages.
+

@@ -139,6 +139,12 @@ class HTMLTableJobLogger(JobLogger):
         else:
             return None
 
+    def job_completed(self, status: JobsStatus = JobsStatus.COMPLETED):
+        """Final collapsed refresh after Results UUID/URL metadata has been logged."""
+        self.is_expanded = False
+        if self.verbose and self.display_handle is not None:
+            self.display_handle.update(self._HTML(self._get_html(status)))
+
     def _collapse(self, content_id: str, arrow_id: str) -> str:
         """Generate the onclick JavaScript for collapsible sections"""
         return f"""

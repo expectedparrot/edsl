@@ -335,24 +335,26 @@ class Rule:
                     return value
 
             for key, value in dictionary.items():
-                # print("Now processing key: ", key)
-                # print(f"key: {key}, value: {value}")
-
-                # Format value for safe Python evaluation
-                formatted_value = format_value_for_python(value)
-
-                # Handle special keys
+                # Scenario and agent values are rendered RAW so the documented
+                # quoting pattern works:
+                #     "'{{ scenario.x }}' == 'BC'"   (outer quotes in template)
+                # `add_rule` validation only accepts the outer-quote form for
+                # scenario/agent references (without them it treats "scenario"
+                # as an unknown question name). If we repr()'d the value here,
+                # the template would render to "''BC'' == 'BC'" which is
+                # invalid Python.
                 if "agent." in key:
-                    # print("Agent key found")
-                    jinja_dict["agent"][key.split(".")[1]] = formatted_value
-                    # print("jinja dict: ", jinja_dict)
+                    jinja_dict["agent"][key.split(".")[1]] = value
                     continue
 
                 if "scenario." in key:
-                    # print("Scenario key found")
-                    jinja_dict["scenario"][key.split(".")[1]] = formatted_value
-                    # print("jinja dict: ", jinja_dict)
+                    jinja_dict["scenario"][key.split(".")[1]] = value
                     continue
+
+                # Question answers use the bare-template form ({{ q1.answer }})
+                # and rely on repr() to add Python string quoting around string
+                # values so the rendered expression is valid Python.
+                formatted_value = format_value_for_python(value)
 
                 # O(1) lookup instead of O(n) scan over all question names
                 if key in self.question_name_to_index:

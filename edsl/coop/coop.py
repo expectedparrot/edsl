@@ -27,10 +27,13 @@ from ..logger import get_logger
 
 if TYPE_CHECKING:
     from ..agents import AgentList
+    from ..dataset import Dataset
     from ..jobs import Jobs
     from ..scenarios import Scenario, ScenarioList
+    from ..scenarios.contrib.qr_code import QRCode
     from ..surveys import Survey
     from ..results import Results
+    from ..tasks import TaskHistory
 
 from .exceptions import (
     CoopInvalidURLError,
@@ -110,6 +113,21 @@ class RemoteInferenceResponse(TypedDict):
     version: str
     visibility: VisibilityType
     results_url: str
+
+
+class ErrorReportTaskHistory(TypedDict):
+    # Bumped when the shape of this response changes
+    schema_version: str
+    job_uuid: str
+    results_uuid: Optional[str]
+    error_report_uuid: str
+
+    # False when the error report was stored without a task history, in which
+    # case task_history holds an empty one
+    has_task_history: bool
+
+    # A TaskHistory.to_dict() payload, deserializable with TaskHistory.from_dict
+    task_history: dict
 
 
 class RemoteInferenceCreationInfo(TypedDict):
@@ -1059,6 +1077,19 @@ class Coop(CoopFunctionsMixin):
         else:
             return None
 
+    @staticmethod
+    def _get_preview_url(respondent_url: Optional[str]) -> Optional[str]:
+        """
+        Build a preview URL from a respondent URL.
+
+        The preview URL lets users take the survey without saving any response
+        data - it appends ``save_response=false`` to the respondent URL.
+        """
+        if not respondent_url:
+            return None
+        separator = "&" if "?" in respondent_url else "?"
+        return f"{respondent_url}{separator}save_response=false"
+
     def _scenario_is_file_store(self, scenario_dict: dict) -> bool:
         """
         Check if the scenario object is a valid FileStore.
@@ -1739,6 +1770,235 @@ class Coop(CoopFunctionsMixin):
             "processing_started": confirm_data.get("processing_started", False),
         }
 
+    def _resolve_to_uuid(self, url_or_uuid: Union[str, UUID]) -> str:
+        """Resolve any supported identifier to a plain UUID string.
+
+        If _resolve_uuid_or_alias returns a UUID directly, use it. If it
+        returns an owner/alias pair (alias-style URL), resolve via
+        api/v0/object/alias/info — a lightweight call that returns only the
+        UUID without fetching the full object.
+        """
+        obj_uuid, owner_username, alias = self._resolve_uuid_or_alias(url_or_uuid)
+        if obj_uuid:
+            return str(obj_uuid)
+        response = self._send_server_request(
+            uri="api/v0/object/alias/info",
+            method="GET",
+            params={"owner_username": owner_username, "alias": alias},
+        )
+        self._resolve_server_response(response)
+        return str(response.json()["uuid"])
+
+    def list_human_surveys(
+        self,
+        page: int = 1,
+        page_size: int = 10,
+        search_query: Optional[str] = None,
+        sort_ascending: bool = False,
+    ) -> dict:
+        """
+        List human surveys owned by the authenticated user.
+
+        Parameters:
+            page (int): Page number (default: 1)
+            page_size (int): Number of results per page, max 100 (default: 10)
+            search_query (str, optional): Filter by name or UUID (partial matches supported)
+            sort_ascending (bool): If True, sort oldest first (default: False)
+
+        Returns:
+            dict: A dict with:
+                - human_surveys: list of dicts with uuid, name, visibility, created_ts, n_responses
+                - current_page, page_size, total_pages, total_count
+
+        Raises:
+            CoopServerResponseError: If the server returns an error.
+        """
+        params = {
+            "page": page,
+            "page_size": page_size,
+            "sort_ascending": sort_ascending,
+        }
+        if search_query is not None:
+            params["search_query"] = search_query
+
+        response = self._send_server_request(
+            uri="api/v0/human-surveys",
+            method="GET",
+            params=params,
+        )
+        self._resolve_server_response(response)
+        return response.json()
+
+    def patch_metadata(
+        self,
+        url_or_uuid: Union[str, UUID],
+        description: Optional[str] = None,
+        alias: Optional[str] = None,
+        visibility: Optional[VisibilityType] = None,
+    ) -> dict:
+        """
+        Update an object's metadata without changing its content.
+
+        This is a lighter alternative to patch() for when you only want to update
+        description, alias, or visibility — no format detection or content upload needed.
+
+        Parameters:
+            url_or_uuid (Union[str, UUID]): The UUID or URL of the object.
+            description (str, optional): New description for the object.
+            alias (str, optional): New alias for the object.
+            visibility (VisibilityType, optional): New visibility ("private", "public", "unlisted").
+
+        Returns:
+            dict: The server response.
+
+        Raises:
+            CoopPatchError: If no fields to update are provided.
+            CoopServerResponseError: If the server returns an error.
+
+        Example:
+            >>> coop.patch_metadata("123e4567-...", description="Updated description", visibility="public")
+        """
+        self._validate_alias(alias)
+
+        if description is None and alias is None and visibility is None:
+            from .exceptions import CoopPatchError
+
+            raise CoopPatchError("Nothing to patch.")
+
+        obj_uuid, owner_username, obj_alias = self._resolve_uuid_or_alias(url_or_uuid)
+
+        if obj_uuid:
+            uri = "api/v0/object"
+            params = {"uuid": obj_uuid}
+        else:
+            uri = "api/v0/object/alias"
+            params = {"owner_username": owner_username, "alias": obj_alias}
+
+        response = self._send_server_request(
+            uri=uri,
+            method="PATCH",
+            params=params,
+            payload={
+                "description": description,
+                "alias": alias,
+                "visibility": visibility,
+                "json_string": None,
+            },
+        )
+        self._resolve_server_response(response)
+        return response.json()
+
+    ################
+    # Object Sharing
+    ################
+    def get_object_shared_users(self, url_or_uuid: Union[str, UUID]) -> dict:
+        """
+        List all users an object is currently shared with.
+
+        You must be the owner of the object to call this.
+
+        Parameters:
+            url_or_uuid (Union[str, UUID]): The UUID or URL of the object.
+
+        Returns:
+            dict: A dict with:
+                - shared_with: list of dicts with "username" and "email"
+                - unregistered_shared_with: list of dicts with "email" (for non-registered users)
+
+        Raises:
+            CoopServerResponseError: If the server returns an error.
+
+        Example:
+            >>> coop.get_object_shared_users("123e4567-e89b-12d3-a456-426614174000")
+            {'shared_with': [...], 'unregistered_shared_with': [...]}
+        """
+        obj_uuid = self._resolve_to_uuid(url_or_uuid)
+        response = self._send_server_request(
+            uri="api/v0/object/share",
+            method="GET",
+            params={"uuid": obj_uuid},
+        )
+        self._resolve_server_response(response)
+        content = response.json()
+        return {
+            "shared_with": content.get("shared_with", []),
+            "unregistered_shared_with": content.get("unregistered_shared_with", []),
+        }
+
+    def share_object(
+        self, url_or_uuid: Union[str, UUID], username_or_email: str
+    ) -> dict:
+        """
+        Share an object with another Expected Parrot user.
+
+        You must be the owner of the object. The recipient can be identified by
+        username or email address. If no account exists for the email, an invitation
+        is sent and access is granted when they sign up.
+
+        Parameters:
+            url_or_uuid (Union[str, UUID]): The UUID or URL of the object to share.
+            username_or_email (str): The username or email of the recipient.
+
+        Returns:
+            dict: A dict with:
+                - message: Confirmation message
+                - username: The recipient's username (if they have an account)
+                - email: The recipient's email
+
+        Raises:
+            CoopServerResponseError: If the server returns an error (e.g., object not
+                found, already shared, sharing with yourself).
+
+        Example:
+            >>> coop.share_object("123e4567-e89b-12d3-a456-426614174000", "alice")
+            {'message': 'Successfully shared with alice.', 'username': 'alice', 'email': '...'}
+        """
+        obj_uuid = self._resolve_to_uuid(url_or_uuid)
+        response = self._send_server_request(
+            uri="api/v0/object/share",
+            method="POST",
+            payload={"uuid": obj_uuid, "username_or_email": username_or_email},
+        )
+        self._resolve_server_response(response)
+        content = response.json()
+        return {
+            "message": content.get("message"),
+            "username": content.get("username"),
+            "email": content.get("email"),
+        }
+
+    def unshare_object(
+        self, url_or_uuid: Union[str, UUID], username_or_email: str
+    ) -> dict:
+        """
+        Remove a user's access to an object.
+
+        You must be the owner of the object. Accepts either a username or email address.
+
+        Parameters:
+            url_or_uuid (Union[str, UUID]): The UUID or URL of the object.
+            username_or_email (str): The username or email of the user to remove.
+
+        Returns:
+            dict: A dict with a "message" confirmation key.
+
+        Raises:
+            CoopServerResponseError: If the server returns an error (e.g., object not
+                shared with that user).
+
+        Example:
+            >>> coop.unshare_object("123e4567-e89b-12d3-a456-426614174000", "alice")
+            {'message': 'Removed access for alice.'}
+        """
+        obj_uuid = self._resolve_to_uuid(url_or_uuid)
+        response = self._send_server_request(
+            uri="api/v0/object/unshare",
+            method="POST",
+            payload={"uuid": obj_uuid, "username_or_email": username_or_email},
+        )
+        self._resolve_server_response(response)
+        return response.json()
+
     ################
     # Remote Cache
     ################
@@ -1813,6 +2073,7 @@ class Coop(CoopFunctionsMixin):
         iterations: Optional[int] = 1,
         fresh: Optional[bool] = False,
         alert_on_completion_config: Optional[Any] = None,
+        task_timeout: Optional[int] = None,
     ) -> RemoteInferenceCreationInfo:
         """
         Create a remote inference job for execution in the Expected Parrot cloud.
@@ -1836,6 +2097,7 @@ class Coop(CoopFunctionsMixin):
             fresh (bool): If True, ignore existing cache entries and generate new results
             alert_on_completion_config (dict, optional): Config for job completion alerts
                 (email and/or webhooks). Dict with "email" (bool) and "webhooks" (list of {"url": str}, max 3).
+            task_timeout (int, optional): Maximum seconds allowed for each interview
 
         Returns:
             RemoteInferenceCreationInfo: Information about the created job including:
@@ -1916,6 +2178,7 @@ class Coop(CoopFunctionsMixin):
                 "message": "Job uploaded successfully",
                 "nr_questions": job.nr_questions,
                 "initial_results_description": initial_results_description,
+                "task_timeout": task_timeout,
             },
         )
         response_json = response.json()
@@ -1966,6 +2229,7 @@ class Coop(CoopFunctionsMixin):
         initial_results_visibility: Optional[VisibilityType] = "private",
         iterations: Optional[int] = 1,
         fresh: Optional[bool] = False,
+        task_timeout: Optional[int] = None,
     ) -> RemoteInferenceCreationInfo:
         """
         Create a remote inference job for execution in the Expected Parrot cloud.
@@ -1987,6 +2251,7 @@ class Coop(CoopFunctionsMixin):
             initial_results_visibility (VisibilityType): Access level for the job results
             iterations (int): Number of times to run each interview (default: 1)
             fresh (bool): If True, ignore existing cache entries and generate new results
+            task_timeout (int, optional): Maximum seconds allowed for each interview
 
         Returns:
             RemoteInferenceCreationInfo: Information about the created job including:
@@ -2026,6 +2291,7 @@ class Coop(CoopFunctionsMixin):
                 "version": self._edsl_version,
                 "initial_results_visibility": initial_results_visibility,
                 "fresh": fresh,
+                "task_timeout": task_timeout,
             },
         )
         self._resolve_server_response(response)
@@ -2456,6 +2722,91 @@ class Coop(CoopFunctionsMixin):
 
         return CoopJobsObjects(jobs)
 
+    def get_error_report_markdown(
+        self, job_uuid: Union[str, UUID], save_path: Optional[str] = None
+    ) -> str:
+        """
+        Retrieve the markdown-rendered exception report for the most recent error on a job.
+
+        Parameters:
+            job_uuid (Union[str, UUID]): The UUID of the remote inference job.
+            save_path (str, optional): If provided, saves the markdown report to this file path.
+
+        Returns:
+            str: The error report rendered as a markdown string.
+
+        Raises:
+            CoopServerResponseError: If the server returns an error (e.g., not found
+                or forbidden).
+
+        Example:
+            >>> print(coop.get_error_report_markdown(job_uuid))
+            >>> coop.get_error_report_markdown(job_uuid, save_path="error_report.md")
+        """
+        response = self._send_server_request(
+            uri=f"api/v0/remote-inference/job/{job_uuid}/error-report",
+            method="GET",
+        )
+        self._resolve_server_response(response)
+        report = response.json()["report"]
+        if save_path is not None:
+            with open(save_path, "w", encoding="utf-8") as f:
+                f.write(report)
+        return report
+
+    def get_error_report_task_history(
+        self,
+        job_uuid: Union[str, UUID],
+        as_object: bool = False,
+    ) -> Union[ErrorReportTaskHistory, "TaskHistory"]:
+        """
+        Retrieve the raw task history for the most recent error report on a job.
+
+        This is the structured counterpart to :meth:`get_error_report_markdown`,
+        for callers that want to inspect exceptions programmatically instead of
+        reading a rendered report.
+
+        Parameters:
+            job_uuid (Union[str, UUID]): The UUID of the remote inference job.
+            as_object (bool): If True, return the task history deserialized into a
+                TaskHistory object instead of the raw response.
+
+        Returns:
+            ErrorReportTaskHistory: The response envelope, containing the
+                schema version, job/results/error report UUIDs and the task history.
+            TaskHistory: If ``as_object`` is True.
+
+        Raises:
+            CoopServerResponseError: If the server returns an error (e.g., the job
+                does not exist, has no error report, or belongs to another user).
+
+        Notes:
+            A task history can hold prompts, agent traits, scenarios, raw model
+            responses and tracebacks, so treat it as sensitive.
+
+            ``has_task_history`` is False when the error report was stored without
+            one; ``task_history`` is then an empty task history rather than null.
+
+        Example:
+            >>> response = coop.get_error_report_task_history(job_uuid)
+            >>> response["task_history"]["interviews"][0]["exceptions"].keys()
+            >>> task_history = coop.get_error_report_task_history(job_uuid, as_object=True)
+            >>> task_history.has_exceptions
+        """
+        response = self._send_server_request(
+            uri=f"api/v0/remote-inference/job/{job_uuid}/error-report/task-history",
+            method="GET",
+        )
+        self._resolve_server_response(response)
+        content = response.json()
+
+        if as_object:
+            from ..tasks import TaskHistory
+
+            return TaskHistory.from_dict(content.get("task_history"))
+
+        return content
+
     def get_running_jobs(self) -> List[str]:
         """
         Get a list of currently running job IDs.
@@ -2504,10 +2855,9 @@ class Coop(CoopFunctionsMixin):
         )
         self._resolve_server_response(response)
         response_json = response.json()
-        return {
-            "credits_hold": response_json.get("cost_in_credits"),
-            "usd": response_json.get("cost_in_usd"),
-        }
+        from ..jobs.cost_estimate_contract import apply_cost_estimate_contract
+
+        return apply_cost_estimate_contract(job, response_json)
 
     ################
     # HUMAN SURVEYS
@@ -2582,6 +2932,20 @@ class Coop(CoopFunctionsMixin):
             )
         if humanize_schema is not None:
             self.validate_human_survey_humanize_schema(survey, humanize_schema)
+            survey_entry = humanize_schema.get("survey") or {}
+            custom_css = survey_entry.get("custom_css")
+            if custom_css:
+                css_response = self._send_server_request(
+                    uri="api/v0/human-surveys/validate-css",
+                    method="POST",
+                    payload={"css": custom_css},
+                )
+                self._resolve_server_response(css_response)
+                css_result = css_response.json()
+                if not css_result.get("valid"):
+                    raise CoopValueError(
+                        f"Invalid custom CSS: {css_result.get('explanation')}"
+                    )
         if delivery_map is not None:
             if isinstance(delivery_map, DeliveryMap):
                 delivery_map_payload = delivery_map.model_dump(exclude_none=True)
@@ -2639,11 +3003,13 @@ class Coop(CoopFunctionsMixin):
         )
         self._resolve_server_response(response)
         response_json = response.json()
+        respondent_url = f"{self.url}/respond/human-surveys/{response_json.get('uuid')}"
         return {
             "name": response_json.get("name"),
             "uuid": response_json.get("uuid"),
             "admin_url": f"{self.url}/home/human-surveys/{response_json.get('uuid')}",
-            "respondent_url": f"{self.url}/respond/human-surveys/{response_json.get('uuid')}",
+            "respondent_url": respondent_url,
+            "preview_url": self._get_preview_url(respondent_url),
             "n_responses": response_json.get("n_responses"),
             "survey_uuid": response_json.get("survey_uuid"),
             "agent_list_uuid": response_json.get("agent_list_uuid"),
@@ -2663,16 +3029,54 @@ class Coop(CoopFunctionsMixin):
         )
         self._resolve_server_response(response)
         response_json = response.json()
+        respondent_url = f"{self.url}/respond/human-surveys/{response_json.get('uuid')}"
         return {
             "name": response_json.get("name"),
             "uuid": response_json.get("uuid"),
             "admin_url": f"{self.url}/home/human-surveys/{response_json.get('uuid')}",
-            "respondent_url": f"{self.url}/respond/human-surveys/{response_json.get('uuid')}",
+            "respondent_url": respondent_url,
+            "preview_url": self._get_preview_url(respondent_url),
             "n_responses": response_json.get("n_responses"),
             "survey_uuid": response_json.get("survey_uuid"),
             "agent_list_uuid": response_json.get("agent_list_uuid"),
             "scenario_list_uuid": response_json.get("scenario_list_uuid"),
         }
+
+    def get_human_survey_qr_code(
+        self,
+        human_survey_uuid: Union[str, UUID],
+    ) -> "QRCode":
+        """
+        Get a QR code for a human survey's respondent URL.
+
+        Generates the QR code locally using the optional ``qrcode`` dependency
+        (``pip install "edsl[full]"`` or ``pip install "qrcode[pil]"``).
+
+        Parameters:
+            human_survey_uuid: UUID of the human survey.
+
+        Returns:
+            QRCode: QR code for the survey respondent URL (displays in Jupyter).
+
+        Example::
+
+            coop = Coop()
+            qr = coop.get_human_survey_qr_code("your-human-survey-uuid")
+            qr.save("qr_code.png")
+        """
+        survey = self.get_human_survey(str(human_survey_uuid))
+
+        try:
+            import qrcode  # noqa: F401
+        except ImportError:
+            raise ImportError(
+                "qrcode library is required for QR code generation. "
+                'Install it with: pip install "edsl[full]" or pip install "qrcode[pil]"'
+            )
+
+        from ..scenarios.contrib.qr_code import QRCode
+
+        return QRCode(survey["respondent_url"])
 
     @staticmethod
     def _parse_schedule_response(data: dict) -> dict:
@@ -2963,7 +3367,7 @@ class Coop(CoopFunctionsMixin):
         self._resolve_server_response(response)
         return self._parse_schedule_response(response.json())
 
-    def patch_human_survey_respondent_email_route(
+    def patch_human_survey_schedule_respondent_email_route(
         self,
         human_survey_uuid: Union[str, UUID],
         schedule_uuid: Union[str, UUID],
@@ -3334,6 +3738,173 @@ class Coop(CoopFunctionsMixin):
             "total_pages": data.get("total_pages"),
         }
 
+    def _get_all_human_survey_respondents(
+        self,
+        human_survey_uuid: Union[str, UUID],
+        page_size: int = 100,
+    ) -> List[dict]:
+        """Fetch every respondent record for a human survey, following pagination."""
+        respondents: List[dict] = []
+        page = 1
+        while True:
+            content = self.get_human_survey_respondents(
+                human_survey_uuid=human_survey_uuid,
+                page=page,
+                page_size=page_size,
+            )
+            batch = content.get("respondents") or []
+            respondents.extend(batch)
+            total_pages = content.get("total_pages") or 1
+            if not batch or page >= total_pages:
+                break
+            page += 1
+        return respondents
+
+    def get_human_survey_respondent_links(
+        self,
+        human_survey_uuid: Union[str, UUID],
+        *,
+        save_path: Optional[str] = None,
+        include_preview_urls: bool = False,
+        strict: bool = True,
+    ) -> "Dataset":
+        """
+        Merge a human survey's agent list with its respondent links.
+
+        Pulls the agent list attached to the survey and joins it to the respondent
+        records on ``agent_index``, giving one row per agent: that agent's traits
+        alongside their personal survey link.
+
+        Parameters:
+            human_survey_uuid (Union[str, UUID]): The UUID of the human survey.
+            save_path (str, optional): If provided, writes the merged table to this
+                file path as CSV.
+            include_preview_urls (bool): Add a ``preview_url`` column holding a link
+                that opens the survey without saving a response (default: False).
+            strict (bool): If True, raise when the agent list and the respondent
+                records don't line up exactly - a respondent pointing at an agent
+                that isn't in the list, two respondents sharing an agent, or an
+                agent with no respondent. If False, those rows are kept with the
+                missing columns left empty (default: True).
+
+        Returns:
+            Dataset: One row per agent, with ``agent_index``, ``respondent_uuid``,
+            ``url``, and ``response_status`` followed by the agent's traits. An
+            ``agent_name`` column is included when any agent is named. A trait
+            sharing a name with one of those columns is suffixed with ``_trait``,
+            repeated if needed until the column name is unique.
+
+        Raises:
+            CoopValueError: If the survey has no agent list attached, or if
+                ``strict`` is True and the join doesn't line up.
+            CoopServerResponseError: If the server returns an error.
+
+        Example:
+            >>> coop.get_human_survey_respondent_links(survey_uuid).table()
+            >>> coop.get_human_survey_respondent_links(survey_uuid, save_path="links.csv")
+        """
+        from ..dataset import Dataset
+
+        agent_list_config = self.get_human_survey_agent_list(
+            human_survey_uuid=human_survey_uuid,
+        )["agent_list_config"]
+        if agent_list_config is None:
+            raise CoopValueError(
+                f"Human survey {human_survey_uuid} has no agent list attached, "
+                "so it has no per-respondent links to export."
+            )
+        agent_list = self.pull(
+            agent_list_config["uuid"], expected_object_type="agent_list"
+        )
+        respondents = self._get_all_human_survey_respondents(human_survey_uuid)
+
+        # agent_index is 0-based and indexes into the attached agent list.
+        by_index: Dict[Any, dict] = {}
+        for respondent in respondents:
+            index = respondent.get("agent_index")
+            if strict and index in by_index:
+                raise CoopValueError(
+                    f"Two respondents share agent_index {index}. The agent list and "
+                    "the respondent records for this survey are out of sync."
+                )
+            by_index[index] = respondent
+
+        if strict:
+            unmatched = sorted(
+                (
+                    index
+                    for index in by_index
+                    if not isinstance(index, int) or not 0 <= index < len(agent_list)
+                ),
+                key=str,
+            )
+            if unmatched:
+                raise CoopValueError(
+                    f"Respondents reference agent indices {unmatched}, which fall "
+                    f"outside the attached agent list of {len(agent_list)} agents."
+                )
+            missing = [i for i in range(len(agent_list)) if i not in by_index]
+            if missing:
+                raise CoopValueError(
+                    f"No respondent record for agent indices {missing}. Pass "
+                    "strict=False to export those agents with empty link columns."
+                )
+
+        trait_keys: List[str] = []
+        for agent in agent_list:
+            for key in agent.traits:
+                if key not in trait_keys:
+                    trait_keys.append(key)
+
+        include_names = any(agent.name is not None for agent in agent_list)
+        base_columns = ["agent_index"]
+        if include_names:
+            base_columns.append("agent_name")
+        base_columns += ["respondent_uuid", "url"]
+        if include_preview_urls:
+            base_columns.append("preview_url")
+        base_columns.append("response_status")
+
+        # A trait named e.g. "url" would otherwise overwrite the link column. Suffix
+        # until the name is free, so a list holding both "url" and "url_trait" still
+        # gets one column per trait.
+        taken = set(base_columns)
+        trait_columns: List[str] = []
+        for key in trait_keys:
+            column = key
+            while column in taken:
+                column = f"{column}_trait"
+            taken.add(column)
+            trait_columns.append(column)
+        columns: Dict[str, list] = {name: [] for name in base_columns + trait_columns}
+
+        def append_row(index: Any, agent: Optional[Any], respondent: dict) -> None:
+            url = respondent.get("url")
+            columns["agent_index"].append(index)
+            if include_names:
+                columns["agent_name"].append(agent.name if agent is not None else None)
+            columns["respondent_uuid"].append(respondent.get("respondent_uuid"))
+            columns["url"].append(url)
+            if include_preview_urls:
+                columns["preview_url"].append(self._get_preview_url(url))
+            columns["response_status"].append(respondent.get("response_status"))
+            traits = agent.traits if agent is not None else {}
+            for trait_key, column in zip(trait_keys, trait_columns):
+                columns[column].append(traits.get(trait_key))
+
+        for index, agent in enumerate(agent_list):
+            append_row(index, agent, by_index.pop(index, None) or {})
+
+        # Only reachable with strict=False: respondents with no matching agent are
+        # appended at the bottom, with their trait columns left empty.
+        for index in sorted(by_index, key=str):
+            append_row(index, None, by_index[index])
+
+        dataset = Dataset([{name: values} for name, values in columns.items()])
+        if save_path is not None:
+            dataset.to_csv(filename=save_path)
+        return dataset
+
     def delete_human_survey_schedule(
         self,
         human_survey_uuid: Union[str, UUID],
@@ -3678,6 +4249,61 @@ class Coop(CoopFunctionsMixin):
 
         validate_humanize_schema(survey, humanize_schema)
 
+    def patch_human_survey_css(
+        self,
+        human_survey_uuid: Union[str, UUID],
+        css: Optional[str],
+    ) -> dict:
+        """
+        Set or clear the custom CSS in a human survey's humanize schema.
+
+        Pass ``css=None`` to remove any existing custom CSS.
+
+        Parameters:
+            human_survey_uuid: UUID of the human survey.
+            css: CSS string to apply, or ``None`` to clear it.
+
+        Returns:
+            dict: ``{"message": str}``
+        """
+        response = self._send_server_request(
+            uri=f"api/v0/human-surveys/{human_survey_uuid}/humanize-schema/css",
+            method="PATCH",
+            payload={"css": css},
+        )
+        self._resolve_server_response(response)
+        return response.json()
+
+    def patch_human_survey_humanize_schema(
+        self,
+        human_survey_uuid: Union[str, UUID],
+        partial_schema: Dict[str, Any],
+    ) -> dict:
+        """
+        Partially update a human survey's humanize schema.
+
+        The ``partial_schema`` is deep-merged into the stored schema: nested dicts
+        merge key-by-key, while lists, scalars, and explicit ``None`` replace the
+        existing value wholesale. For example, sending ``questions.q1.optional``
+        flips that one field, but sending a ``checklist`` list replaces the whole
+        array rather than appending to it. The merged result is validated as a
+        whole, so unknown keys or invalid values are rejected.
+
+        Parameters:
+            human_survey_uuid: UUID of the human survey.
+            partial_schema: Partial humanize schema to deep-merge into the stored one.
+
+        Returns:
+            dict: ``{"humanize_schema": <updated schema>}``
+        """
+        response = self._send_server_request(
+            uri=f"api/v0/human-surveys/{human_survey_uuid}/humanize-schema",
+            method="PATCH",
+            payload={"patch": partial_schema},
+        )
+        self._resolve_server_response(response)
+        return response.json()
+
     def _turn_human_responses_into_results(
         self,
         human_responses: List[dict],
@@ -3692,6 +4318,7 @@ class Coop(CoopFunctionsMixin):
         from ..agents import Agent, AgentList
         from ..caching import Cache
         from ..language_models import Model
+        from ..runner.models import _decode_answer_value
         from ..scenarios import Scenario, ScenarioList
         from ..surveys import Survey
 
@@ -3740,10 +4367,22 @@ class Coop(CoopFunctionsMixin):
 
                 a = Agent(name=response_uuid, instruction="", traits=agent_traits)
 
-                def create_answer_function(response_data):
+                def create_answer_function(response_data, question_names):
                     def f(self, question, scenario):
-                        return response_data.get(question.question_name, None)
+                        return _decode_answer_value(
+                            response_data.get(question.question_name)
+                        )
 
+                    # Every question in a humanized survey is answered from the
+                    # recorded response, never recomputed. Question types that can
+                    # answer themselves (image generation, compute, diagram, random)
+                    # would otherwise re-execute here and discard what the
+                    # respondent's session actually produced. Names absent from the
+                    # response - e.g. an image whose generation failed at survey
+                    # time - resolve to None rather than triggering a fresh run.
+                    f.stored_answer_question_names = set(question_names) | set(
+                        response_data
+                    )
                     return f
 
                 scenario = None
@@ -3751,7 +4390,7 @@ class Coop(CoopFunctionsMixin):
                     scenario = Scenario.from_dict(json.loads(scenario_json_string))
 
                 a.add_direct_question_answering_method(
-                    create_answer_function(response_dict)
+                    create_answer_function(response_dict, survey.question_names)
                 )
 
                 job = survey.by(a).by(model)
@@ -3907,6 +4546,58 @@ class Coop(CoopFunctionsMixin):
             filter_scenarios.append(scenario)
         return CoopProlificFilters(filter_scenarios)
 
+    def calculate_prolific_study_cost(
+        self,
+        participant_payment_cents: int,
+        num_participants: int,
+        estimated_completion_time_minutes: int,
+    ) -> dict:
+        """
+        Calculate the total cost of a Prolific study.
+
+        Parameters:
+            participant_payment_cents (int): Reward per participant in cents.
+            num_participants (int): Number of participants.
+            estimated_completion_time_minutes (int): Expected completion time in minutes,
+                used to check that the effective hourly rate meets Prolific's minimum ($8/hr).
+
+        Returns:
+            dict: A dict with:
+                - cost_cents: Total cost in cents.
+                - cost_credits: Total cost in EP credits.
+                - is_underpayment: True if the effective hourly rate is below Prolific's minimum ($8.00/hr).
+                - underpayment_warning: A warning message if is_underpayment is True, otherwise None.
+
+        Raises:
+            CoopServerResponseError: If the server returns an error.
+        """
+        is_underpayment, cost_usd_per_hour = self._validate_prolific_study_cost(
+            estimated_completion_time_minutes, participant_payment_cents
+        )
+        response = self._send_server_request(
+            uri="api/v0/prolific-studies/calculate-cost",
+            method="POST",
+            payload={
+                "reward": participant_payment_cents,
+                "total_available_places": num_participants,
+            },
+        )
+        self._resolve_server_response(response)
+        data = response.json()
+        return {
+            "cost_cents": data["cost_cents"],
+            "cost_credits": data["cost_credits"],
+            "is_underpayment": is_underpayment,
+            "underpayment_warning": (
+                (
+                    f"The current participant payment of ${cost_usd_per_hour:.2f} USD per hour "
+                    "is below the minimum payment for using Prolific ($8.00 USD per hour)."
+                )
+                if is_underpayment
+                else None
+            ),
+        }
+
     @staticmethod
     def _validate_prolific_study_cost(
         estimated_completion_time_minutes: int, participant_payment_cents: int
@@ -3916,6 +4607,8 @@ class Coop(CoopFunctionsMixin):
         Otherwise, return False.
         The second value in the tuple is the cost of the study in USD per hour.
         """
+        if estimated_completion_time_minutes <= 0:
+            raise CoopValueError("Estimated completion time must be greater than 0.")
         estimated_completion_time_hours = estimated_completion_time_minutes / 60
         participant_payment_usd = participant_payment_cents / 100
         cost_usd_per_hour = participant_payment_usd / estimated_completion_time_hours
@@ -3985,6 +4678,7 @@ class Coop(CoopFunctionsMixin):
             "status": response_json.get("status"),
             "admin_url": response_json.get("admin_url"),
             "respondent_url": response_json.get("respondent_url"),
+            "preview_url": self._get_preview_url(response_json.get("respondent_url")),
             "name": response_json.get("name"),
             "description": response_json.get("description"),
             "num_participants": response_json.get("total_available_places"),
@@ -4066,6 +4760,7 @@ class Coop(CoopFunctionsMixin):
             "status": response_json.get("status"),
             "admin_url": response_json.get("admin_url"),
             "respondent_url": response_json.get("respondent_url"),
+            "preview_url": self._get_preview_url(response_json.get("respondent_url")),
             "name": response_json.get("name"),
             "description": response_json.get("description"),
             "num_participants": response_json.get("total_available_places"),
@@ -4163,6 +4858,51 @@ class Coop(CoopFunctionsMixin):
         self._resolve_server_response(response)
         return response.json()
 
+    def list_prolific_studies(self, human_survey_uuid: str) -> List[dict]:
+        """
+        List all Prolific studies linked to a human survey.
+
+        Parameters:
+            human_survey_uuid (str): The UUID of the human survey.
+
+        Returns:
+            List[dict]: One dict per study, with these keys:
+                - study_id: The Prolific study ID
+                - name: The study name
+                - status: The study status (e.g. "UNPUBLISHED", "ACTIVE")
+                - num_participants: The number of available places
+                - participant_payment_cents: The reward per participant, in cents
+                - estimated_completion_time_minutes: The estimated completion time
+                - total_cost_cents: The total cost of the study, in cents
+
+        Raises:
+            CoopServerResponseError: If the server returns an error.
+
+        Example:
+            >>> coop.list_prolific_studies("123e4567-e89b-12d3-a456-426614174000")
+            [{'study_id': '...', 'name': 'My study', 'status': 'ACTIVE', ...}]
+        """
+        response = self._send_server_request(
+            uri=f"api/v0/human-surveys/{human_survey_uuid}/prolific-studies",
+            method="GET",
+        )
+        self._resolve_server_response(response)
+        response_json = response.json()
+        return [
+            {
+                "study_id": study.get("study_id"),
+                "name": study.get("name"),
+                "status": study.get("status"),
+                "num_participants": study.get("total_available_places"),
+                "estimated_completion_time_minutes": study.get(
+                    "estimated_completion_time"
+                ),
+                "participant_payment_cents": study.get("reward"),
+                "total_cost_cents": study.get("cost_cents"),
+            }
+            for study in response_json.get("studies", [])
+        ]
+
     def get_prolific_study(self, human_survey_uuid: str, study_id: str) -> dict:
         """
         Get a Prolific study. Returns a dict with the study details.
@@ -4178,6 +4918,7 @@ class Coop(CoopFunctionsMixin):
             "status": response_json.get("status"),
             "admin_url": response_json.get("admin_url"),
             "respondent_url": response_json.get("respondent_url"),
+            "preview_url": self._get_preview_url(response_json.get("respondent_url")),
             "name": response_json.get("name"),
             "description": response_json.get("description"),
             "num_participants": response_json.get("total_available_places"),
@@ -4324,6 +5065,17 @@ class Coop(CoopFunctionsMixin):
             async with session.post(url, json=data) as response:
                 response_data = await response.json()
         return response_data
+
+    async def remote_async_embed(self, model_dict: dict, inputs: List[str]) -> dict:
+        url = self.api_url + "/embeddings/"
+        data = {
+            "model_dict": model_dict,
+            "input": inputs,
+        }
+        async with aiohttp.ClientSession() as session:
+            async with session.post(url, json=data, headers=self.headers) as response:
+                response.raise_for_status()
+                return await response.json()
 
     def web(
         self,
@@ -4782,15 +5534,33 @@ class Coop(CoopFunctionsMixin):
 
             file_uuid = upload_result["file_uuid"]
 
-            # Update the serialized dict
-            d["base64_string"] = "offloaded"
-            if "external_locations" not in d:
-                d["external_locations"] = {}
-            d["external_locations"]["gcs"] = {
+            # Content-stable digest, computed while we still hold the bytes, so
+            # the byte-less read side (and re-uploads under a new file_uuid) can
+            # key the cache on content rather than on this upload's identity.
+            content_hash = FileStore._compute_content_hash(d.get("base64_string"))
+            gcs_info = {
                 "file_uuid": file_uuid,
                 "uploaded": True,
                 "offloaded": True,
             }
+            if content_hash:
+                gcs_info["content_hash"] = content_hash
+
+            # Stamp an input-token estimate while raw bytes are still present, so
+            # the byte-less server side can charge its rate limiter correctly for
+            # videos/images (duration/dimensions are unrecoverable once offloaded).
+            try:
+                token_estimate = FileStore.from_dict(d).estimate_media_tokens()
+                if token_estimate:
+                    gcs_info["token_estimate"] = int(token_estimate)
+            except Exception:
+                pass
+
+            # Update the serialized dict
+            d["base64_string"] = "offloaded"
+            if "external_locations" not in d:
+                d["external_locations"] = {}
+            d["external_locations"]["gcs"] = dict(gcs_info)
 
             # Update the original in-memory FileStore object
             if original_object is not None and path:
@@ -4836,11 +5606,7 @@ class Coop(CoopFunctionsMixin):
                         current_obj["base64_string"] = "offloaded"
                         if "external_locations" not in current_obj:
                             current_obj["external_locations"] = {}
-                        current_obj["external_locations"]["gcs"] = {
-                            "file_uuid": file_uuid,
-                            "uploaded": True,
-                            "offloaded": True,
-                        }
+                        current_obj["external_locations"]["gcs"] = dict(gcs_info)
                         current_obj.external_locations = current_obj[
                             "external_locations"
                         ]
@@ -4950,24 +5716,21 @@ class Coop(CoopFunctionsMixin):
         force: bool = False,
     ) -> "Scenario":
         """
-        Generate a signed URL for pushing an object directly to Google Cloud Storage.
-
-        This method gets a signed URL that allows direct upload access to Google Cloud Storage,
-        which is more efficient for large files.
+        Upload an EDSL object to Coop via a signed GCS URL (PUT), then confirm the upload.
 
         Parameters:
-            object_type (ObjectType): The type of object to be uploaded
+            object: The EDSL object to upload (e.g. Survey, Scenario).
 
         Returns:
-            dict: A response containing the signed_url for direct upload and optionally a job_id
+            Scenario: Coop upload metadata as a ``Scenario`` so notebooks/terminals keep
+            Rich table formatting; it is dict-like (``response["uuid"]``, ``response.get("url")``, …).
 
         Raises:
             CoopServerResponseError: If there's an error communicating with the server
 
         Example:
-            >>> response = coop.push("scenario")
-            >>> print(f"Upload URL: {response['signed_url']}")
-            >>> # Use the signed_url to upload the object directly
+            >>> # coop.push(some_survey)  # doctest: +SKIP
+            >>> # Scenario({'uuid': ..., 'url': ..., ...})
         """
         from ..scenarios import Scenario
 
@@ -5028,14 +5791,15 @@ class Coop(CoopFunctionsMixin):
                 # Get complete metadata after the patch
                 metadata = self.get_metadata(alias_url)
 
-                # Return in the same format as push
+                # Return as Scenario for Rich table repr (dict alone loses notebook formatting).
                 return Scenario(
                     {
-                        "description": metadata.get("description"),
                         "object_type": object_type,
                         "url": metadata.get("url"),
+                        "alias": alias,
                         "alias_url": metadata.get("alias_url"),
                         "uuid": metadata.get("uuid"),
+                        "description": metadata.get("description"),
                         "version": self._edsl_version,
                         "visibility": metadata.get("visibility"),
                     }
@@ -5106,7 +5870,7 @@ class Coop(CoopFunctionsMixin):
         if object_uuid is None:
             from .exceptions import CoopResponseError
 
-            raise CoopResponseError("No object uuid was provided received")
+            raise CoopResponseError("No object_uuid was returned from the push request")
 
         # Confirm the upload completion
         confirm_response = self._send_server_request(
@@ -5118,12 +5882,12 @@ class Coop(CoopFunctionsMixin):
 
         return Scenario(
             {
-                "description": response_json.get("description"),
                 "object_type": object_type,
                 "url": f"{self.url}/content/{object_uuid}",
                 "alias": object_alias,
                 "alias_url": self._get_alias_url(owner_username, object_alias),
                 "uuid": object_uuid,
+                "description": response_json.get("description"),
                 "version": self._edsl_version,
                 "visibility": response_json.get("visibility"),
             }

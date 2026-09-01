@@ -4,8 +4,28 @@ import base64
 from ..file_methods import FileMethods
 
 
+def count_pdf_pages_from_bytes(pdf_bytes: bytes) -> int | None:
+    """Return the number of pages in a PDF from its raw bytes. Returns None on failure."""
+    try:
+        import io
+        from PyPDF2 import PdfReader
+
+        return len(PdfReader(io.BytesIO(pdf_bytes)).pages)
+    except Exception:
+        return None
+
+
 class PdfMethods(FileMethods):
     suffix = "pdf"
+
+    def page_count(self) -> int | None:
+        """Return the number of pages in this PDF. Returns None on failure."""
+        try:
+            from PyPDF2 import PdfReader
+
+            return len(PdfReader(self.path).pages)
+        except Exception:
+            return None
 
     def extract_text(self):
         from PyPDF2 import PdfReader

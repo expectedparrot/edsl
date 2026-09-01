@@ -340,31 +340,40 @@ class BudgetResponseValidator(ResponseValidatorABC):
                 ]
             except ValueError:
                 # If conversion fails, try to extract numbers using regex
-                pattern = r"\b\d+(?:\.\d+)?\b"
+                pattern = r"[-+]?\d+(?:\.\d+)?"
                 matches = re.findall(pattern, answer.replace(",", " "))
                 if matches:
                     fixed_answer = [float(match) for match in matches]
 
         # Strategy 2: Handle dictionary inputs (convert to list)
         elif isinstance(answer, dict):
-            # If keys are numeric or string indices, convert to a list
             try:
-                # Sort by key (if keys are integers or can be converted to integers)
-                sorted_keys = sorted(
-                    answer.keys(),
-                    key=lambda k: int(k) if isinstance(k, str) and k.isdigit() else k,
-                )
-                fixed_answer = [float(answer[k]) for k in sorted_keys]
+                # Prefer semantic labels, in the same order as the question.
+                if set(answer) == set(self.question_options):
+                    fixed_answer = [
+                        float(answer[option]) for option in self.question_options
+                    ]
+                else:
+                    # Indexed mappings are safe only when every expected index exists.
+                    indexed_answer = {int(key): value for key, value in answer.items()}
+                    expected_indices = set(range(len(self.question_options)))
+                    if set(indexed_answer) == expected_indices:
+                        fixed_answer = [
+                            float(indexed_answer[index])
+                            for index in range(len(self.question_options))
+                        ]
             except (ValueError, TypeError):
-                # If we can't sort, just take values in whatever order
-                fixed_answer = [float(v) for v in answer.values()]
+                pass
 
         # Strategy 3: If it's already a list but might contain non-numeric values
         elif isinstance(answer, list):
             try:
                 fixed_answer = [float(x) for x in answer]
             except (ValueError, TypeError):
-                pass
+                if len(answer) == 1 and isinstance(answer[0], str):
+                    fixed_answer = self._parse_labeled_allocation(answer[0])
+
+        fixed_answer = self._repair_small_rounding_error(fixed_answer)
 
         if verbose:
             print(f"Fixed answer: {fixed_answer}")
@@ -377,6 +386,42 @@ class BudgetResponseValidator(ResponseValidatorABC):
             fixed_response["comment"] = response["comment"]
 
         return fixed_response
+
+    def _parse_labeled_allocation(self, text):
+        """Parse ``Option: value`` pairs only when every option is identified."""
+        values = []
+        number_pattern = r"([-+]?\d+(?:\.\d+)?)"
+        for option in self.question_options:
+            pattern = rf"{re.escape(str(option))}\s*:\s*{number_pattern}"
+            matches = re.findall(pattern, text, flags=re.IGNORECASE)
+            if len(matches) != 1:
+                return []
+            values.append(float(matches[0]))
+        return values
+
+    def _repair_small_rounding_error(self, answer):
+        """Correct a rounding-sized residual without changing an unsafe answer."""
+        if self.permissive or len(answer) != len(self.question_options):
+            return answer
+        if not answer or any(value < 0 for value in answer):
+            return answer
+
+        residual = float(self.budget_sum) - sum(answer)
+        tolerance = min(0.5, max(abs(float(self.budget_sum)) * 0.01, 1e-9))
+        if residual == 0 or abs(residual) > tolerance:
+            return answer
+
+        # Put the residual on the largest allocation. This is deterministic and
+        # avoids making a small or zero allocation negative due to rounding.
+        index = max(range(len(answer)), key=answer.__getitem__)
+        repaired = answer.copy()
+        repaired[index] += residual
+        if repaired[index] < 0:
+            return answer
+
+        # Eliminate any final binary-float residual used by the strict validator.
+        repaired[index] += float(self.budget_sum) - sum(repaired)
+        return repaired
 
     def _check_constraints(self, pydantic_edsl_answer: BaseModel):
         """Method preserved for compatibility, constraints handled in Pydantic model."""

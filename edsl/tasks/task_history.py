@@ -18,6 +18,60 @@ from .task_status_enum import TaskStatus
 from ..base import RepresentationMixin
 
 
+# A task history can be deserialized from a payload that does not carry enough
+# data to rebuild an interview (e.g. one fetched from a remote job's error
+# report). The helpers below let the reporting properties work off whatever is
+# available instead of assuming fully rehydrated objects.
+
+
+def _deserialize_model(model_data):
+    """Rebuild a language model from its dict, or return the dict unchanged."""
+    if not isinstance(model_data, dict) or not model_data:
+        return model_data
+    try:
+        from ..language_models import LanguageModel
+
+        return LanguageModel.from_dict(dict(model_data))
+    except Exception:
+        return model_data
+
+
+def _deserialize_survey(survey_data):
+    """Rebuild a survey from its dict, or return the dict unchanged."""
+    if not isinstance(survey_data, dict) or not survey_data:
+        return survey_data
+    try:
+        from ..surveys import Survey
+
+        return Survey.from_dict(dict(survey_data))
+    except Exception:
+        return survey_data
+
+
+def _model_info(interview) -> tuple:
+    """Return the (service, model name) of an interview's model."""
+    model = getattr(interview, "model", None)
+    if isinstance(model, dict):
+        return model.get("inference_service"), model.get("model", "unknown")
+    return (
+        getattr(model, "_inference_service_", None),
+        getattr(model, "model", "unknown"),
+    )
+
+
+def _question_type(interview, question_name) -> Optional[str]:
+    """Return the type of a question, or None if the survey is unavailable."""
+    get_question = getattr(
+        getattr(interview, "survey", None), "_get_question_by_name", None
+    )
+    if get_question is None:
+        return None
+    try:
+        return get_question(question_name).question_type
+    except Exception:
+        return None
+
+
 class TaskHistory(RepresentationMixin):
     """
     Records and analyzes the execution history of tasks across multiple interviews.
@@ -114,6 +168,9 @@ class TaskHistory(RepresentationMixin):
                         name: log.to_dict() if hasattr(log, "to_dict") else {}
                         for name, log in self.task_status_logs.items()
                     },
+                    "fixed_questions": sorted(
+                        getattr(self.exceptions, "fixed", set())
+                    ),
                 }
 
                 # Add model and survey info if they have to_dict methods
@@ -255,6 +312,95 @@ class TaskHistory(RepresentationMixin):
         # Create an instance without interviews
         instance = cls([], include_traceback=data.get("include_traceback", False))
 
+        class DeserializedInterviewRef:
+            def __init__(self, data):
+                # Convert exceptions dictionary to InterviewExceptionCollection
+                from ..interviews.exception_tracking import (
+                    InterviewExceptionCollection,
+                )
+
+                # Store the original data in full
+                self._original_data = data
+
+                # Preserve the original interview id
+                self._interview_id = data.get("id", None)
+
+                # Store exceptions using the original data structure
+                # This ensures when we re-serialize, we keep original data intact
+                self._exceptions_data = data.get("exceptions", {})
+
+                # Create the InterviewExceptionCollection for runtime use
+                exceptions_data = data.get("exceptions", {})
+                self.exceptions = (
+                    InterviewExceptionCollection.from_dict(exceptions_data)
+                    if exceptions_data
+                    else InterviewExceptionCollection()
+                )
+                self.exceptions.fixed.update(data.get("fixed_questions", []))
+
+                # Store other fields
+                self.task_status_logs = data.get("task_status_logs", {})
+
+                # Keep the raw dicts for re-serialization, but expose model and
+                # survey as objects where possible: the tally properties below
+                # read attributes off them, not keys.
+                self._model_data = data.get("model", {})
+                self._survey_data = data.get("survey", {})
+                self.model = _deserialize_model(self._model_data)
+                self.survey = _deserialize_survey(self._survey_data)
+
+            def to_dict(self, add_edsl_version=True):
+                # Use the original exceptions data structure when serializing again
+                # This preserves all exception details exactly as they were
+                data = {
+                    "type": "InterviewReference",
+                    "exceptions": (
+                        self._exceptions_data
+                        if hasattr(self, "_exceptions_data")
+                        else (
+                            self.exceptions.to_dict()
+                            if hasattr(self.exceptions, "to_dict")
+                            else self.exceptions
+                        )
+                    ),
+                    "task_status_logs": self.task_status_logs,
+                    "fixed_questions": sorted(
+                        getattr(self.exceptions, "fixed", set())
+                    ),
+                    "model": self._model_data,
+                    "survey": self._survey_data,
+                }
+
+                # Preserve the original interview id if it exists
+                if self._interview_id:
+                    data["id"] = self._interview_id
+
+                # Preserve original version info
+                if (
+                    add_edsl_version
+                    and hasattr(self, "_original_data")
+                    and "edsl_version" in self._original_data
+                ):
+                    data["edsl_version"] = self._original_data["edsl_version"]
+
+                return data
+
+        class MinimalInterviewRef:
+            def __init__(self):
+                from ..interviews.exception_tracking import (
+                    InterviewExceptionCollection,
+                )
+
+                self.exceptions = InterviewExceptionCollection()
+                self.task_status_logs = {}
+
+            def to_dict(self, add_edsl_version=True):
+                return {"type": "MinimalInterviewRef"}
+
+        def add_ref(ref):
+            instance.total_interviews.append(ref)
+            instance._interviews[len(instance._interviews)] = ref
+
         # Create a custom interview-like object for each serialized interview
         for interview_data in data.get("interviews", []):
             # Check if this is one of our InterviewReference objects
@@ -263,73 +409,7 @@ class TaskHistory(RepresentationMixin):
                 and interview_data.get("type") == "InterviewReference"
             ):
                 # Create our InterviewReference directly
-                class DeserializedInterviewRef:
-                    def __init__(self, data):
-                        # Convert exceptions dictionary to InterviewExceptionCollection
-                        from ..interviews.exception_tracking import (
-                            InterviewExceptionCollection,
-                        )
-
-                        # Store the original data in full
-                        self._original_data = data
-
-                        # Preserve the original interview id
-                        self._interview_id = data.get("id", None)
-
-                        # Store exceptions using the original data structure
-                        # This ensures when we re-serialize, we keep original data intact
-                        self._exceptions_data = data.get("exceptions", {})
-
-                        # Create the InterviewExceptionCollection for runtime use
-                        exceptions_data = data.get("exceptions", {})
-                        self.exceptions = (
-                            InterviewExceptionCollection.from_dict(exceptions_data)
-                            if exceptions_data
-                            else InterviewExceptionCollection()
-                        )
-
-                        # Store other fields
-                        self.task_status_logs = data.get("task_status_logs", {})
-                        self.model = data.get("model", {})
-                        self.survey = data.get("survey", {})
-
-                    def to_dict(self, add_edsl_version=True):
-                        # Use the original exceptions data structure when serializing again
-                        # This preserves all exception details exactly as they were
-                        data = {
-                            "type": "InterviewReference",
-                            "exceptions": (
-                                self._exceptions_data
-                                if hasattr(self, "_exceptions_data")
-                                else (
-                                    self.exceptions.to_dict()
-                                    if hasattr(self.exceptions, "to_dict")
-                                    else self.exceptions
-                                )
-                            ),
-                            "task_status_logs": self.task_status_logs,
-                            "model": self.model,
-                            "survey": self.survey,
-                        }
-
-                        # Preserve the original interview id if it exists
-                        if self._interview_id:
-                            data["id"] = self._interview_id
-
-                        # Preserve original version info
-                        if (
-                            add_edsl_version
-                            and hasattr(self, "_original_data")
-                            and "edsl_version" in self._original_data
-                        ):
-                            data["edsl_version"] = self._original_data["edsl_version"]
-
-                        return data
-
-                # Create the reference and add it directly
-                ref = DeserializedInterviewRef(interview_data)
-                instance.total_interviews.append(ref)
-                instance._interviews[len(instance._interviews)] = ref
+                add_ref(DeserializedInterviewRef(interview_data))
             else:
                 # For backward compatibility, try to use Interview class
                 try:
@@ -339,22 +419,17 @@ class TaskHistory(RepresentationMixin):
                     # This will make a reference copy through add_interview
                     instance.add_interview(interview)
                 except Exception:
-                    # If we can't deserialize properly, add a minimal placeholder
-                    class MinimalInterviewRef:
-                        def __init__(self):
-                            from ..interviews.exception_tracking import (
-                                InterviewExceptionCollection,
-                            )
-
-                            self.exceptions = InterviewExceptionCollection()
-                            self.task_status_logs = {}
-
-                        def to_dict(self, add_edsl_version=True):
-                            return {"type": "MinimalInterviewRef"}
-
-                    ref = MinimalInterviewRef()
-                    instance.total_interviews.append(ref)
-                    instance._interviews[len(instance._interviews)] = ref
+                    # A partial interview dict (e.g. one built server-side, which
+                    # carries exceptions but not a full agent/survey/scenario) can
+                    # still be read as an InterviewReference. Only fall back to an
+                    # empty placeholder when there is nothing to preserve, since
+                    # that silently discards the exceptions we were asked for.
+                    if isinstance(interview_data, dict) and interview_data.get(
+                        "exceptions"
+                    ):
+                        add_ref(DeserializedInterviewRef(interview_data))
+                    else:
+                        add_ref(MinimalInterviewRef())
 
         return instance
 
@@ -470,13 +545,14 @@ class TaskHistory(RepresentationMixin):
         seen_exceptions = set()
 
         for interview in self.total_interviews:
+            service, model = _model_info(interview)
             for question_name, exceptions in interview.exceptions.items():
                 for exception in exceptions:
                     # Create a unique identifier for this exception based on its content
                     exception_key = (
                         exception.exception.__class__.__name__,  # Exception type
-                        interview.model._inference_service_,  # Service
-                        interview.model.model,  # Model
+                        service,  # Service
+                        model,  # Model
                         question_name,  # Question name
                         exception.name,  # Exception name
                         (
@@ -493,8 +569,8 @@ class TaskHistory(RepresentationMixin):
                         # Add to the summary table
                         table_key = (
                             exception.exception.__class__.__name__,  # Exception type
-                            interview.model._inference_service_,  # Service
-                            interview.model.model,  # Model
+                            service,  # Service
+                            model,  # Model
                             question_name,  # Question name
                         )
 
@@ -523,7 +599,7 @@ class TaskHistory(RepresentationMixin):
         """Return a dictionary of exceptions tallied by service."""
         exceptions_by_service = {}
         for interview in self.total_interviews:
-            service = interview.model._inference_service_
+            service, _ = _model_info(interview)
             if service not in exceptions_by_service:
                 exceptions_by_service[service] = 0
             if interview.exceptions != {}:
@@ -536,16 +612,20 @@ class TaskHistory(RepresentationMixin):
         exceptions_by_question_name = {}
         for interview in self.total_interviews:
             for question_name, exceptions in interview.exceptions.items():
-                question_type = interview.survey._get_question_by_name(
-                    question_name
-                ).question_type
+                question_type = _question_type(interview, question_name)
                 if (question_name, question_type) not in exceptions_by_question_name:
                     exceptions_by_question_name[(question_name, question_type)] = 0
                 exceptions_by_question_name[(question_name, question_type)] += len(
                     exceptions
                 )
 
-        for question in self.total_interviews[0].survey.questions:
+        # Questions that raised nothing are reported with a count of zero, which
+        # needs the survey. It is absent when the history was deserialized from a
+        # payload that did not carry one.
+        first_interview = self.total_interviews[0] if self.total_interviews else None
+        for question in getattr(
+            getattr(first_interview, "survey", None), "questions", []
+        ):
             if (
                 question.question_name,
                 question.question_type,
@@ -569,8 +649,7 @@ class TaskHistory(RepresentationMixin):
         """Return a dictionary of exceptions tallied by model and question name."""
         exceptions_by_model = {}
         for interview in self.total_interviews:
-            model = interview.model.model
-            service = interview.model._inference_service_
+            service, model = _model_info(interview)
             for question_name, exceptions in interview.exceptions.items():
                 key = (service, model, question_name)
                 if key not in exceptions_by_model:

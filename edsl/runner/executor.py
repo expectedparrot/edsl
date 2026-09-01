@@ -18,8 +18,12 @@ from .models import TaskStatus, generate_id
 
 # EDSL imports - relative since this module lives inside edsl package
 from ..caching import Cache
+from ..agents import Agent
 from ..questions import QuestionBase
 from ..questions.exceptions import QuestionAnswerValidationError
+from ..scenarios import Scenario
+from ..surveys import Survey
+from ..surveys.memory import MemoryPlan
 
 if TYPE_CHECKING:
     from .worker_registry import WorkerRegistry, AsyncHeartbeatManager
@@ -53,6 +57,10 @@ class ExecutionResult:
     cache_key: str | None = None
     validated: bool | None = None
     reasoning_summary: str | None = None
+    distribution: list[float] | None = None
+    resolution_draw: Any = None
+    resolution_seed: int | None = None
+    resolution_method: str | None = None
 
 
 class ExecutionWorker:
@@ -176,6 +184,10 @@ class ExecutionWorker:
                         cache_key=result.cache_key,
                         validated=result.validated,
                         reasoning_summary=result.reasoning_summary,
+                        distribution=result.distribution,
+                        resolution_draw=result.resolution_draw,
+                        resolution_seed=result.resolution_seed,
+                        resolution_method=result.resolution_method,
                     )
                 else:
                     self._job_service.on_task_failed(
@@ -184,6 +196,20 @@ class ExecutionWorker:
                         task_id=result.task_id,
                         error_type=result.error_type or "unknown",
                         error_message=result.error_message or "Unknown error",
+                        comment=result.comment,
+                        input_tokens=result.input_tokens,
+                        output_tokens=result.output_tokens,
+                        raw_model_response=result.raw_model_response,
+                        generated_tokens=result.generated_tokens,
+                        cached=result.cached,
+                        system_prompt=result.system_prompt,
+                        user_prompt=result.user_prompt,
+                        input_price_per_million_tokens=result.input_price_per_million_tokens,
+                        output_price_per_million_tokens=result.output_price_per_million_tokens,
+                        thinking_tokens=result.thinking_tokens,
+                        cache_key=result.cache_key,
+                        validated=result.validated,
+                        reasoning_summary=result.reasoning_summary,
                     )
         finally:
             # Unregister on shutdown
@@ -224,6 +250,12 @@ class ExecutionWorker:
         """Execute a single task using the actual model object."""
         task = assignment.task
 
+        response_received = False
+        answer = comment = generated_tokens = reasoning_summary = None
+        input_tokens = output_tokens = thinking_tokens = None
+        raw_response = cache_key = input_price = output_price = None
+        cached = False
+
         try:
             # Reconstruct the model object from stored data
             model = self._job_service.get_model_for_task(task.job_id, task.model_id)
@@ -237,6 +269,13 @@ class ExecutionWorker:
                 cache = Cache()  # Create new cache
             else:
                 cache = self._cache  # Use provided cache
+
+            if task.question_id is not None:
+                question_data = self._job_service._jobs.get_question(
+                    task.job_id, task.question_id
+                )
+                if question_data and question_data.get("question_type") == "interview":
+                    return await self._execute_via_invigilator(task, model, cache)
 
             # Use model.async_get_response() like InvigilatorAI does
             # Pass iteration for cache key differentiation when n > 1
@@ -255,6 +294,7 @@ class ExecutionWorker:
             # Response is an AgentResponseDict with edsl_dict and model_outputs
             edsl_dict = response.edsl_dict
             model_outputs = response.model_outputs
+            response_received = True
 
             # From edsl_dict (EDSLOutput)
             answer = edsl_dict.answer if hasattr(edsl_dict, "answer") else None
@@ -270,47 +310,29 @@ class ExecutionWorker:
                 else None
             )
 
-            # Validate answer through question's validator (handles repair/fix)
-            answer, comment, validated = self._validate_answer(
-                task, answer, comment, generated_tokens
+            # Capture provider context before validation, which may raise.
+            input_tokens = getattr(model_outputs, "input_tokens", None)
+            output_tokens = getattr(model_outputs, "output_tokens", None)
+            raw_response = getattr(model_outputs, "response", None)
+            cached = getattr(model_outputs, "cache_used", False)
+            cache_key = getattr(model_outputs, "cache_key", None)
+            input_price = getattr(model_outputs, "input_price_per_million_tokens", None)
+            output_price = getattr(
+                model_outputs, "output_price_per_million_tokens", None
             )
+            thinking_tokens = getattr(model_outputs, "thinking_tokens", None)
 
-            # From model_outputs (ModelResponse)
-            input_tokens = (
-                model_outputs.input_tokens
-                if hasattr(model_outputs, "input_tokens")
-                else None
-            )
-            output_tokens = (
-                model_outputs.output_tokens
-                if hasattr(model_outputs, "output_tokens")
-                else None
-            )
-            raw_response = (
-                model_outputs.response if hasattr(model_outputs, "response") else None
-            )
-            cached = (
-                model_outputs.cache_used
-                if hasattr(model_outputs, "cache_used")
-                else False
-            )
-            cache_key = (
-                model_outputs.cache_key if hasattr(model_outputs, "cache_key") else None
-            )
-            input_price = (
-                model_outputs.input_price_per_million_tokens
-                if hasattr(model_outputs, "input_price_per_million_tokens")
-                else None
-            )
-            output_price = (
-                model_outputs.output_price_per_million_tokens
-                if hasattr(model_outputs, "output_price_per_million_tokens")
-                else None
-            )
-            thinking_tokens = (
-                model_outputs.thinking_tokens
-                if hasattr(model_outputs, "thinking_tokens")
-                else None
+            # Validate answer through question's validator (handles repair/fix)
+            (
+                answer,
+                comment,
+                validated,
+                distribution,
+                resolution_draw,
+                resolution_seed,
+                resolution_method,
+            ) = self._validate_answer(
+                task, answer, comment, generated_tokens
             )
 
             return ExecutionResult(
@@ -333,6 +355,10 @@ class ExecutionWorker:
                 cache_key=cache_key,
                 validated=validated,
                 reasoning_summary=reasoning_summary,
+                distribution=distribution,
+                resolution_draw=resolution_draw,
+                resolution_seed=resolution_seed,
+                resolution_method=resolution_method,
             )
 
         except Exception as e:
@@ -346,29 +372,157 @@ class ExecutionWorker:
                 job_id=task.job_id,
                 interview_id=task.interview_id,
                 success=False,
+                answer=None,
+                comment=comment,
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
+                raw_model_response=raw_response,
+                generated_tokens=generated_tokens,
+                cached=cached,
+                system_prompt=task.system_prompt if response_received else None,
+                user_prompt=task.user_prompt if response_received else None,
+                input_price_per_million_tokens=input_price,
+                output_price_per_million_tokens=output_price,
+                thinking_tokens=thinking_tokens,
+                cache_key=cache_key,
+                validated=False if response_received else None,
+                reasoning_summary=reasoning_summary,
                 error_type=error_type,
                 error_message=str(e),
             )
 
+    async def _execute_via_invigilator(
+        self, task: Any, model: Any, cache: Cache
+    ) -> ExecutionResult:
+        """Execute question types that require their own invigilator flow."""
+        question_data = self._job_service._jobs.get_question(task.job_id, task.question_id)
+        if not question_data:
+            raise ValueError(f"Question {task.question_id} not found for task {task.task_id}")
+
+        question_data = self._resolve_question_templates(
+            question_data, task.job_id, task.interview_id
+        )
+        question = QuestionBase.from_dict(question_data)
+
+        interview_def = self._job_service._interviews.get_definition(
+            task.job_id, task.interview_id
+        )
+        if interview_def is None:
+            raise ValueError(
+                f"Interview {task.interview_id} not found for task {task.task_id}"
+            )
+
+        scenario_data = self._job_service._jobs.get_scenario(
+            task.job_id, interview_def.scenario_id
+        )
+        agent_data = self._job_service._jobs.get_agent(
+            task.job_id, interview_def.agent_id
+        )
+        scenario = Scenario.from_dict(scenario_data) if scenario_data else Scenario()
+        agent = Agent.from_dict(agent_data) if agent_data else Agent()
+        current_answers = self._get_interview_answers(task.job_id, task.interview_id)
+        survey, memory_plan, question = self._build_invigilator_survey_context(
+            task.job_id, task.question_name, question
+        )
+        key_lookup = self._job_service.get_key_lookup_for_job(task.job_id)
+
+        invigilator = agent.invigilator.create_invigilator(
+            question=question,
+            scenario=scenario,
+            model=model,
+            survey=survey,
+            memory_plan=memory_plan,
+            current_answers=current_answers,
+            iteration=task.iteration,
+            cache=cache,
+            key_lookup=key_lookup,
+        )
+        result = await invigilator.async_answer_question()
+        prompts = result.prompts or {}
+        exception_occurred = result.exception_occurred
+        success = exception_occurred is None
+
+        return ExecutionResult(
+            task_id=task.task_id,
+            job_id=task.job_id,
+            interview_id=task.interview_id,
+            success=success,
+            answer=result.answer,
+            comment=result.comment,
+            input_tokens=result.input_tokens,
+            output_tokens=result.output_tokens,
+            raw_model_response=result.raw_model_response,
+            generated_tokens=result.generated_tokens,
+            cached=bool(result.cache_used),
+            system_prompt=str(prompts.get("system_prompt", "")),
+            user_prompt=str(prompts.get("user_prompt", "")),
+            input_price_per_million_tokens=result.input_price_per_million_tokens,
+            output_price_per_million_tokens=result.output_price_per_million_tokens,
+            thinking_tokens=result.thinking_tokens,
+            cache_key=result.cache_key,
+            validated=result.validated,
+            reasoning_summary=result.reasoning_summary,
+            distribution=result.distribution,
+            resolution_draw=result.resolution_draw,
+            resolution_seed=result.resolution_seed,
+            resolution_method=result.resolution_method,
+            error_type=self._classify_error(exception_occurred)
+            if exception_occurred
+            else None,
+            error_message=str(exception_occurred) if exception_occurred else None,
+        )
+
+    def _build_invigilator_survey_context(
+        self,
+        job_id: str,
+        question_name: str | None,
+        question: QuestionBase,
+    ) -> tuple[Survey, MemoryPlan, QuestionBase]:
+        """Build the survey and memory plan used by invigilator-based execution."""
+        survey_data = self._job_service._jobs.get_survey(job_id)
+        if not survey_data:
+            survey = Survey([question])
+            return survey, MemoryPlan(survey=survey), question
+
+        survey = Survey.from_dict(survey_data)
+        for index, survey_question in enumerate(survey.questions):
+            if survey_question.question_name == question.question_name:
+                survey.questions[index] = question
+                break
+            if question_name and survey_question.question_name == question_name:
+                survey.questions[index] = question
+                break
+
+        memory_plan = survey.memory_plan or MemoryPlan(survey=survey)
+        return survey, memory_plan, question
+
     def _validate_answer(
         self, task: Any, answer: Any, comment: str | None, generated_tokens: str | None
-    ) -> tuple[Any, str | None, bool]:
+    ) -> tuple[
+        Any,
+        str | None,
+        bool,
+        list[float] | None,
+        Any,
+        int | None,
+        str | None,
+    ]:
         """Validate answer through the question's response validator.
 
         Resolves template options before validation.
         Raises QuestionAnswerValidationError on failure (handled by _execute).
 
-        Returns (answer, comment, validated) tuple.
+        Returns the answer, comment, validation status, and resolution audit fields.
         """
         if task.question_id is None:
-            return answer, comment, True
+            return answer, comment, True, None, None, None, None
 
         question_data = self._job_service._jobs.get_question(
             task.job_id, task.question_id
         )
 
         if not question_data:
-            return answer, comment, True
+            return answer, comment, True, None, None, None, None
 
         # Resolve template strings in question data before validation.
         # This handles question_options, min_value, max_value, etc.
@@ -377,6 +531,29 @@ class ExecutionWorker:
         )
 
         question = QuestionBase.from_dict(question_data)
+        from ..questions.probabilistic_response import ProbabilisticResponse
+
+        task_definition = self._job_service._tasks.get_definition(
+            task.job_id, task.interview_id, task.task_id
+        )
+        agent_id = task_definition.agent_id if task_definition else None
+        scenario_id = task_definition.scenario_id if task_definition else None
+        agent_data = (
+            self._job_service._jobs.get_agent(task.job_id, agent_id) or {}
+            if agent_id is not None
+            else {}
+        )
+        scenario_data = (
+            self._job_service._jobs.get_scenario(task.job_id, scenario_id) or {}
+            if scenario_id is not None
+            else {}
+        )
+        question._probabilistic_seed_context = ProbabilisticResponse.seed_context(
+            agent=agent_data,
+            scenario=scenario_data,
+            question_name=task.question_name,
+            iteration=task.iteration,
+        )
         raw_answer_dict = {
             "answer": answer,
             "generated_tokens": generated_tokens or str(answer),
@@ -386,16 +563,30 @@ class ExecutionWorker:
 
         try:
             validated_dict = question._validate_answer(raw_answer_dict)
+            validated_answer = validated_dict.get("answer", answer)
+            # Match the legacy invigilator contract: validate the model's
+            # compact/code response first, then expose the translated answer
+            # to Results and downstream piping.  This is significant for
+            # QuestionBudget, whose validated response is a numeric list but
+            # whose public answer is a list of option-labelled allocations.
+            if getattr(question, "probabilistic_response", None) is None:
+                validated_answer = question._translate_answer_code_to_answer(
+                    validated_answer, scenario_data
+                )
             return (
-                validated_dict.get("answer", answer),
+                validated_answer,
                 validated_dict.get("comment", comment),
                 True,
+                validated_dict.get("distribution"),
+                validated_dict.get("resolution_draw"),
+                validated_dict.get("resolution_seed"),
+                validated_dict.get("resolution_method"),
             )
         except QuestionAnswerValidationError:
             raise  # Real validation failure — let _execute handle it
         except Exception:
             # Bug in validation code (e.g. type mismatch) — don't block the answer
-            return answer, comment, False
+            return answer, comment, False, None, None, None, None
 
     def _get_interview_answers(self, job_id: str, interview_id: str) -> dict:
         """Get current answers for an interview as {question_name: answer_value}."""
@@ -414,6 +605,11 @@ class ExecutionWorker:
         has_templates = False
         for key, value in question_data.items():
             if isinstance(value, str) and "{{" in value:
+                has_templates = True
+                break
+            if isinstance(value, list) and any(
+                isinstance(item, str) and "{{" in item for item in value
+            ):
                 has_templates = True
                 break
             if (

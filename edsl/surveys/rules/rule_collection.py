@@ -210,10 +210,33 @@ class RuleCollection(UserList):
         >>> rule_collection.add_rule(r)
         >>> rule_collection.skip_question_before_running(1, {})
         False
+
+        A before-rule that references a variable from a question that was
+        itself skipped (and therefore has no answer) cannot be evaluated. Rather
+        than crash the interview, the rule is treated as not applicable, matching
+        the behavior of next_question() and should_stop_survey().
+
+        >>> rule_collection = RuleCollection()
+        >>> r = Rule(current_q=1, expression="{{ q_skipped.answer }} == 'Yes'", next_q=2, priority=1, question_name_to_index={'q_skipped': 0}, before_rule = True)
+        >>> rule_collection.add_rule(r)
+        >>> rule_collection.skip_question_before_running(1, {})
+        False
         """
         for rule in self.applicable_rules(q_now, before_rule=True):
-            if rule.evaluate(answers):
-                return True
+            try:
+                if rule.evaluate(answers):
+                    return True
+            except SurveyRuleCannotEvaluateError as e:
+                # Handle undefined variable errors gracefully, consistent with
+                # next_question() and should_stop_survey(). A before-rule (skip
+                # rule) can reference a variable from a question that was itself
+                # skipped, leaving its answer undefined. Rather than crashing the
+                # whole interview, treat this rule as not applicable (i.e. it does
+                # not force a skip).
+                if "is undefined" in str(e):
+                    continue
+                # Re-raise genuine evaluation errors (syntax/type errors, etc.)
+                raise
         return False
 
     def applicable_rules(self, q_now: int, before_rule: bool = False) -> list:

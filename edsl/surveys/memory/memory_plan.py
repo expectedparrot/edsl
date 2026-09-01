@@ -35,14 +35,20 @@ class MemoryPlan(UserDict):
         """Return a dictionary mapping question names to question texts."""
         return dict(zip(self.survey_question_names, self.question_texts))
 
-    def add_question(self, question: "QuestionBase") -> None:
+    def add_question(
+        self, question: "QuestionBase", index: Optional[int] = None
+    ) -> None:
         """Add a question to the survey.
 
         :param question: A question to add to the survey
 
         """
-        self.survey_question_names.append(question.question_name)
-        self.question_texts.append(question.question_text)
+        if index is None:
+            self.survey_question_names.append(question.question_name)
+            self.question_texts.append(question.question_text)
+            return
+        self.survey_question_names.insert(index, question.question_name)
+        self.question_texts.insert(index, question.question_text)
 
     def _check_valid_question_name(self, question_name: str) -> None:
         """Ensure a passed question name is valid.
@@ -66,14 +72,19 @@ class MemoryPlan(UserDict):
         """
         from ...prompts import Prompt
 
-        self._check_valid_question_name(focal_question)
+        # A question that is not a survey member (e.g. a dynamically injected
+        # Loop & Merge block question) has no memory plan entry, so there is
+        # nothing to remember -> return an empty fragment rather than raising.
+        if focal_question not in self.survey_question_names:
+            return Prompt("")
 
         if focal_question not in self:
             return Prompt("")
 
         q_and_a_pairs = [
-            (self.name_to_text[question_name], answers.get(question_name, None))
+            (self.name_to_text[question_name], answers[question_name])
             for question_name in self[focal_question]
+            if question_name in answers
         ]
 
         base_prompt_text = """

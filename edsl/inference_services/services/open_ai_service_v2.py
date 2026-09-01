@@ -7,7 +7,7 @@ logger = logging.getLogger(__name__)
 
 from ..inference_service_abc import InferenceServiceABC
 from ..decorators import report_errors_async
-from .service_enums import OPENAI_REASONING_MODELS
+from .service_enums import OPENAI_REASONING_MODELS, openai_requires_temperature_one
 
 # Use TYPE_CHECKING to avoid circular imports at runtime
 if TYPE_CHECKING:
@@ -341,8 +341,8 @@ class OpenAIServiceV2(InferenceServiceABC):
                 # instead of max_tokens (which is for the completions API)
                 params["max_output_tokens"] = self.max_tokens
 
-                # Specifically for o-series, we also set temperature to 1
-                if is_reasoning_model:
+                # GPT-5+ and o-series models only accept temperature=1.
+                if openai_requires_temperature_one(self.model):
                     params["temperature"] = 1
 
                 client = self.async_client()

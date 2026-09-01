@@ -47,9 +47,22 @@ class ResultSerializer:
         """
 
         def convert_value(value, add_edsl_version=True):
-            """Helper function to convert values with to_dict method."""
+            """Helper function to convert nested values with to_dict methods."""
             if hasattr(value, "to_dict"):
                 return value.to_dict(add_edsl_version=add_edsl_version)
+            elif isinstance(value, dict):
+                return {
+                    k: convert_value(v, add_edsl_version=add_edsl_version)
+                    for k, v in value.items()
+                }
+            elif isinstance(value, list):
+                return [
+                    convert_value(v, add_edsl_version=add_edsl_version) for v in value
+                ]
+            elif isinstance(value, tuple):
+                return tuple(
+                    convert_value(v, add_edsl_version=add_edsl_version) for v in value
+                )
             else:
                 return value
 
@@ -112,9 +125,25 @@ class ResultSerializer:
         """
         from ..agents import Agent
         from ..scenarios import Scenario
+        from ..scenarios import FileStore
         from ..language_models import LanguageModel
         from ..prompts import Prompt
         from .result import Result
+
+        def restore_value(value):
+            """Restore nested serialized answer values that need object types."""
+            if isinstance(value, dict):
+                if (
+                    value.get("edsl_class_name") == "FileStore"
+                    or ("base64_string" in value and "path" in value)
+                ):
+                    return FileStore.from_dict(value)
+                return {k: restore_value(v) for k, v in value.items()}
+            elif isinstance(value, list):
+                return [restore_value(v) for v in value]
+            elif isinstance(value, tuple):
+                return tuple(restore_value(v) for v in value)
+            return value
 
         prompt_data = json_dict.get("prompt", {})
         prompt_d = {}
@@ -126,7 +155,7 @@ class ResultSerializer:
             scenario=Scenario.from_dict(json_dict["scenario"]),
             model=LanguageModel.from_dict(json_dict["model"]),
             iteration=json_dict["iteration"],
-            answer=json_dict["answer"],
+            answer=restore_value(json_dict["answer"]),
             prompt=prompt_d,
             raw_model_response=json_dict.get(
                 "raw_model_response", {"raw_model_response": "No raw model response"}
@@ -139,6 +168,10 @@ class ResultSerializer:
             cache_keys=json_dict.get("cache_keys", {}),
             indices=json_dict.get("indices", None),
             validated_dict=json_dict.get("validated_dict", {}),
+            distribution=json_dict.get("distribution", {}),
+            resolution_draw=json_dict.get("resolution_draw", {}),
+            resolution_seed=json_dict.get("resolution_seed", {}),
+            resolution_method=json_dict.get("resolution_method", {}),
         )
 
         if "interview_hash" in json_dict:

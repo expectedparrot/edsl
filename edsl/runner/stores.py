@@ -432,6 +432,26 @@ class InterviewStore:
             return None
         return InterviewDefinition.from_dict(interview_id, job_id, data)
 
+    def extend_definition_tasks(
+        self, job_id: str, interview_id: str, new_task_ids: list[str]
+    ) -> "InterviewDefinition | None":
+        """Append task IDs to an interview definition and bump ``total_tasks``.
+
+        Used by dynamic Loop & Merge to inject follow-up tasks *after* an
+        interview has already been submitted. Rewrites the persistent
+        definition so that finalization (``is_done``) waits for the newly
+        injected tasks instead of finalizing the interview early.
+
+        Returns the updated definition, or ``None`` if the interview is unknown.
+        """
+        definition = self.get_definition(job_id, interview_id)
+        if definition is None:
+            return None
+        definition.task_ids = list(definition.task_ids) + list(new_task_ids)
+        definition.total_tasks = definition.total_tasks + len(new_task_ids)
+        self._storage.write_persistent(definition.storage_key(), definition.to_dict())
+        return definition
+
     def get_status(self, interview_id: str) -> InterviewStatus:
         return InterviewStatus(
             interview_id=interview_id,
@@ -548,6 +568,17 @@ class InterviewStore:
 
     def mark_task_blocked(self, job_id: str, interview_id: str) -> None:
         self.increment_blocked(interview_id)
+        self._maybe_finalize(job_id, interview_id)
+
+    def mark_tasks_blocked(
+        self, job_id: str, interview_id: str, count: int
+    ) -> None:
+        """Record several blocked tasks and finalize the interview once."""
+        if count <= 0:
+            return
+        self._storage.increment_volatile(
+            f"interview:{interview_id}:blocked", count
+        )
         self._maybe_finalize(job_id, interview_id)
 
     def _maybe_finalize(self, job_id: str, interview_id: str) -> None:
@@ -905,6 +936,16 @@ class TaskStore:
         if not task_ids:
             return
         items = {f"task:{task_id}:status": status.value for task_id in task_ids}
+        self._storage.batch_write_volatile(items)
+
+    def set_errors_batch(
+        self, task_ids: list[str], error_type: str, error_message: str
+    ) -> None:
+        """Set the same error on several tasks in one storage operation."""
+        if not task_ids:
+            return
+        error = {"type": error_type, "message": error_message}
+        items = {f"task:{task_id}:error": error for task_id in task_ids}
         self._storage.batch_write_volatile(items)
 
     # Ready task operations

@@ -10,11 +10,11 @@ EDSL makes it easy to conduct computational social science and market research w
 
 1. Run `pip install edsl` to install the package. See <a href="https://www.expectedparrot.com/getting-started" target="_blank" rel="noopener noreferrer">instructions</a>.
 
-2. <a href="https://www.expectedparrot.com/login" target="_blank" rel="noopener noreferrer">Create an account</a> to run surveys at the Expected Parrot server and access a <a href="https://docs.expectedparrot.com/en/latest/remote_caching.html" target="_blank" rel="noopener noreferrer">universal remote cache</a> of stored responses for reproducing results.
+2. <a href="https://www.expectedparrot.com/login" target="_blank" rel="noopener noreferrer">Create an account</a> to run surveys at the Expected Parrot server and access a <a href="https://docs.expectedparrot.com/en/latest/remote_caching" target="_blank" rel="noopener noreferrer">universal remote cache</a> of stored responses for reproducing results.
 
 3. Choose whether to use your own keys for language models or get an Expected Parrot key to access all available models at once. Securely <a href="https://www.expectedparrot.com/getting-started/edsl-api-keys" target="_blank" rel="noopener noreferrer">manage keys</a>,  expenses and usage for your team from your account.
 
-4. Run the <a href="https://docs.expectedparrot.com/en/latest/starter_tutorial.html" target="_blank" rel="noopener noreferrer">starter tutorial</a> and explore other demo notebooks for a variety of use cases. 
+4. Run the <a href="https://docs.expectedparrot.com/en/latest/starter_tutorial" target="_blank" rel="noopener noreferrer">starter tutorial</a> and explore other demo notebooks for a variety of use cases. 
 
 5. Share workflows and survey results at <a href="https://www.expectedparrot.com/login" target="_blank" rel="noopener noreferrer">Coop</a>: a free platform for creating and sharing AI research.
 
@@ -28,7 +28,7 @@ EDSL makes it easy to conduct computational social science and market research w
 ## Requirements
 - Python 3.9 - 3.13
 - API keys for language models. You can use your own keys or an Expected Parrot key that provides access to all available models.
-See instructions on <a href="https://docs.expectedparrot.com/en/latest/api_keys.html" target="_blank" rel="noopener noreferrer">managing keys</a> and <a href="https://www.expectedparrot.com/models" target="_blank" rel="noopener noreferrer">model pricing and performance</a> information.
+See instructions on <a href="https://docs.expectedparrot.com/en/latest/api_keys" target="_blank" rel="noopener noreferrer">managing keys</a> and <a href="https://www.expectedparrot.com/models" target="_blank" rel="noopener noreferrer">model pricing and performance</a> information.
 
 ## Coop
 Expected Parrot provides a free platform for creating, storing and sharing AI-based research, and validating it with human respondents.
@@ -48,7 +48,7 @@ Expected Parrot provides a free platform for creating, storing and sharing AI-ba
 ## Features 
 
 **Declarative design**: 
-Specified <a href="https://docs.expectedparrot.com/en/latest/questions.html" target="_blank" rel="noopener noreferrer">question types</a> ensure consistent results without requiring a JSON schema (<a href="https://www.expectedparrot.com/content/2a848a0e-f9de-46bc-98d0-a13b9a1caf11" target="_blank" rel="noopener noreferrer">view at Coop</a>):
+Specified <a href="https://docs.expectedparrot.com/en/latest/questions" target="_blank" rel="noopener noreferrer">question types</a> ensure consistent results without requiring a JSON schema (<a href="https://www.expectedparrot.com/content/2a848a0e-f9de-46bc-98d0-a13b9a1caf11" target="_blank" rel="noopener noreferrer">view at Coop</a>):
 
 ```python
 from edsl import QuestionMultipleChoice
@@ -72,7 +72,7 @@ results.select("example")
 <br>
 
 **Parameterized prompts**: 
-Easily parameterize and control prompts with "<a href="https://docs.expectedparrot.com/en/latest/scenarios.html" target="_blank" rel="noopener noreferrer">scenarios</a>" of data automatically imported from many sources (CSV, PDF, PNG, etc.) (<a href="https://www.expectedparrot.com/content/7bb9ec2e-827b-4867-ac02-33163df1a1d1" target="_blank" rel="noopener noreferrer">view at Coop</a>):
+Easily parameterize and control prompts with "<a href="https://docs.expectedparrot.com/en/latest/scenarios" target="_blank" rel="noopener noreferrer">scenarios</a>" of data automatically imported from many sources (CSV, PDF, PNG, etc.) (<a href="https://www.expectedparrot.com/content/7bb9ec2e-827b-4867-ac02-33163df1a1d1" target="_blank" rel="noopener noreferrer">view at Coop</a>):
 
 ```python
 from edsl import ScenarioList, QuestionLinearScale
@@ -180,7 +180,7 @@ results.select("color", "flower")
 <br>
 
 **Caching & reproducibility**: 
-API calls to LLMs are cached automatically. When you run a survey remotely, results are stored at the Expected Parrot server with verified prompts and timestamps. Share your code and anyone can retrieve your exact outputs at no cost, with no setup or API keys required. Learn more about how the <a href="https://docs.expectedparrot.com/en/latest/remote_caching.html" target="_blank" rel="noopener noreferrer">universal remote cache</a> works.
+API calls to LLMs are cached automatically. When you run a survey remotely, results are stored at the Expected Parrot server with verified prompts and timestamps. Share your code and anyone can retrieve your exact outputs at no cost, with no setup or API keys required. Learn more about how the <a href="https://docs.expectedparrot.com/en/latest/remote_caching" target="_blank" rel="noopener noreferrer">universal remote cache</a> works.
 
 **Flexibility**: 
 Choose whether to run surveys on your own computer or at the Expected Parrot server.

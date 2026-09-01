@@ -17,6 +17,11 @@ class Memory(UserList):
         else:
             raise ValueError(f"{prior_question} is already in the memory.")
 
+    def remove_prior_question(self, prior_question):
+        """Remove a prior question from the memory if present."""
+        if prior_question in self:
+            self.remove(prior_question)
+
     def __repr__(self):
         """Return a string representation of the Memory object."""
         return f"Memory(prior_questions={self.data})"

@@ -100,7 +100,7 @@ def test_notebook_creation_from_path_invalid():
         notebook = Notebook("docs/notebooks/invalid_path_to_starter_tutorial.ipynb")
     # File exists, but is not JSON
     with pytest.raises(NotJSONError):
-        notebook = Notebook("docs/agents.rst")
+        notebook = Notebook("docs/en/latest/agents.mdx")
     # No path - not implemented in environments other than VS Code
     with pytest.raises(NotebookEnvironmentError):
         notebook = Notebook()
