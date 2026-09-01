@@ -44,7 +44,9 @@ def _open_lines(source: Union[str, Path, Iterable[str]]) -> Iterable[str]:
 def _component_pointer(component, name: str, root=None, message: str = "") -> dict:
     """Return a CAS pointer dict for a component, auto-saving if needed."""
     if component.store.uuid is None:
-        component.store.save(message=message or "auto-saved by Jobs.to_jsonl()", root=root)
+        component.store.save(
+            message=message or "auto-saved by Jobs.to_jsonl()", root=root
+        )
     return {
         "uuid": component.store.uuid,
         "branch": component.store.current_branch,
@@ -58,12 +60,23 @@ def _manifest_from_jobs(job: "Jobs", root=None, message: str = "") -> dict:
         "survey": _component_pointer(job.survey, "survey", root=root, message=message),
         "agents": _component_pointer(job.agents, "agents", root=root, message=message),
         "models": _component_pointer(job.models, "models", root=root, message=message),
-        "scenarios": _component_pointer(job.scenarios, "scenarios", root=root, message=message),
+        "scenarios": _component_pointer(
+            job.scenarios, "scenarios", root=root, message=message
+        ),
     }
     if job._post_run_methods:
         manifest["_post_run_methods"] = job._post_run_methods
     if job._depends_on is not None:
-        manifest["_depends_on"] = _manifest_from_jobs(job._depends_on, root=root, message=message)
+        manifest["_depends_on"] = _manifest_from_jobs(
+            job._depends_on, root=root, message=message
+        )
+    if job._assignment_plan is not None:
+        manifest.update(job._assignment_plan.to_dict())
+        if job._include_expression is not None:
+            manifest["include_expression"] = job._include_expression
+    elif job._include_expression is not None:
+        manifest.update(job.assignment_plan.to_dict())
+        manifest["include_expression"] = job._include_expression
     return manifest
 
 
@@ -98,7 +111,9 @@ class JobsSerializer:
         auto-saved before serialization.
         """
         header = json.dumps(self._build_header())
-        manifest = json.dumps(_manifest_from_jobs(self._jobs, root=root, message=message))
+        manifest = json.dumps(
+            _manifest_from_jobs(self._jobs, root=root, message=message)
+        )
         content = header + "\n" + manifest + "\n"
 
         if filename is not None:
@@ -167,5 +182,13 @@ class JobsSerializer:
             job._depends_on = JobsSerializer.from_jsonl(
                 dep_header + "\n" + dep_manifest + "\n", root=root
             )
+
+        if "assignments" in manifest:
+            from .assignment_plan import AssignmentPlan
+
+            job._assignment_plan = AssignmentPlan.from_dict(manifest)
+            job._assignment_plan.validate(job.agents, job.scenarios, job.models)
+            if "include_expression" in manifest:
+                job._include_expression = manifest["include_expression"]
 
         return job

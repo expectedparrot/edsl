@@ -41,7 +41,7 @@ def test_jobs_simple_stuf(valid_job):
     assert valid_job.scenarios[0].get("price") == 100
     # Check the eval repr string contains expected components
     assert "Jobs(survey=Survey(" in valid_job._eval_repr_()
-    
+
     # Skip the eval part as it requires too many imports
     # assert isinstance(eval(repr(valid_job)), Jobs)
     # serialization
@@ -129,6 +129,7 @@ def test_agent_info():
 
 def test_jobs_by_models():
     import warnings
+
     q = QuestionMultipleChoice(
         question_text="How are you?",
         question_options=["Good", "Great", "OK", "Bad"],
@@ -156,7 +157,9 @@ def test_jobs_by_models():
     with warnings.catch_warnings(record=True) as w:
         warnings.simplefilter("always")
         job = survey.by(model1).by(model2)
-        model_warnings = [x for x in w if "one model is replacing another" in str(x.message)]
+        model_warnings = [
+            x for x in w if "one model is replacing another" in str(x.message)
+        ]
         assert len(model_warnings) == 1, "Expected a warning about model replacement"
     assert job.models == ModelList([model2])
     assert len(job) == 1
@@ -182,11 +185,146 @@ def test_jobs_interviews(valid_job):
     # assert interviews[0].model.model == "test"
 
 
+def test_jobs_explicit_assignments_preserve_order_and_duplicates():
+    survey = Survey(
+        questions=[
+            QuestionFreeText(question_text="How are you in {{ s }}?", question_name="q")
+        ]
+    )
+    agents = [Agent(traits={"agent_id": i}) for i in range(3)]
+    scenarios = [Scenario({"s": i}) for i in range(2)]
+    models = [Model("test", canned_response=f"m{i}") for i in range(2)]
+
+    job = Jobs(survey=survey, agents=agents, scenarios=scenarios, models=models).assign(
+        [
+            {"agent": 2, "scenario": 1, "model": 0},
+            (0, 0, 1),
+            {"agent": 2, "scenario": 1, "model": 0},
+        ]
+    )
+
+    assert len(job) == 3
+    assert job.num_interviews == 3
+    assert [interview.indices for interview in job.interviews()] == [
+        {"agent": 2, "model": 0, "scenario": 1},
+        {"agent": 0, "model": 1, "scenario": 0},
+        {"agent": 2, "model": 0, "scenario": 1},
+    ]
+
+
+def test_jobs_assignment_validation():
+    survey = Survey(
+        questions=[
+            QuestionFreeText(question_text="How are you in {{ s }}?", question_name="q")
+        ]
+    )
+    job = Jobs(
+        survey=survey,
+        agents=[Agent()],
+        scenarios=[Scenario({"s": 0})],
+        models=[Model("test")],
+    )
+
+    with pytest.raises(Exception):
+        job.assign([{"agent": 1, "scenario": 0, "model": 0}])
+
+    with pytest.raises(Exception):
+        job.assign([{"agent": 0, "scenario": 0}])
+
+
+def test_jobs_zip_assign_pairs_axes_and_crosses_remaining_models():
+    survey = Survey(
+        questions=[
+            QuestionFreeText(question_text="How are you in {{ s }}?", question_name="q")
+        ]
+    )
+    agents = [Agent(traits={"agent_id": i}) for i in range(2)]
+    scenarios = [Scenario({"s": i}) for i in range(2)]
+    models = [Model("test", canned_response=f"m{i}") for i in range(2)]
+
+    job = Jobs(survey=survey, agents=agents, scenarios=scenarios, models=models)
+    job.zip_assign(over=("agents", "scenarios"))
+
+    assert len(job) == 4
+    assert [interview.indices for interview in job.interviews()] == [
+        {"agent": 0, "model": 0, "scenario": 0},
+        {"agent": 0, "model": 1, "scenario": 0},
+        {"agent": 1, "model": 0, "scenario": 1},
+        {"agent": 1, "model": 1, "scenario": 1},
+    ]
+
+
+def test_jobs_zip_assign_strict_length_mismatch():
+    survey = Survey(
+        questions=[
+            QuestionFreeText(question_text="How are you in {{ s }}?", question_name="q")
+        ]
+    )
+    job = Jobs(
+        survey=survey,
+        agents=[Agent(), Agent()],
+        scenarios=[Scenario({"s": 0})],
+        models=[Model("test")],
+    )
+
+    with pytest.raises(Exception):
+        job.zip_assign(over=("agents", "scenarios"), strict=True)
+
+
+def test_jobs_include_when_uses_assignment_plan_for_counts():
+    survey = Survey(
+        questions=[
+            QuestionFreeText(question_text="How are you in {{ s }}?", question_name="q")
+        ]
+    )
+    job = Jobs(
+        survey=survey,
+        agents=[Agent(), Agent(), Agent()],
+        scenarios=[Scenario({"s": 0}), Scenario({"s": 1}), Scenario({"s": 2})],
+        models=[Model("test")],
+    ).include_when("{{ agent._index == scenario._index }}")
+
+    assert len(job) == 3
+    assert [interview.indices for interview in job.interviews()] == [
+        {"agent": 0, "model": 0, "scenario": 0},
+        {"agent": 1, "model": 0, "scenario": 1},
+        {"agent": 2, "model": 0, "scenario": 2},
+    ]
+
+
+def test_jobs_assignments_round_trip_through_dict():
+    survey = Survey(
+        questions=[
+            QuestionFreeText(question_text="How are you in {{ s }}?", question_name="q")
+        ]
+    )
+    job = Jobs(
+        survey=survey,
+        agents=[Agent(), Agent()],
+        scenarios=[Scenario({"s": 0}), Scenario({"s": 1})],
+        models=[Model("test")],
+    ).assign([(1, 1, 0)])
+
+    restored = Jobs.from_dict(job.to_dict())
+
+    assert len(restored) == 1
+    assert restored.to_dict()["assignments"] == [
+        {"agent": 1, "scenario": 1, "model": 0}
+    ]
+    assert restored.interviews()[0].indices == {
+        "agent": 1,
+        "model": 0,
+        "scenario": 1,
+    }
+
+
 def test_jobs_run(valid_job):
 
     cache = Cache()
 
-    results = valid_job.run(cache=cache, check_api_keys=False, disable_remote_inference = True)
+    results = valid_job.run(
+        cache=cache, check_api_keys=False, disable_remote_inference=True
+    )
     # breakpoint()
 
     assert len(results) == 1
@@ -273,7 +411,7 @@ def test_normal_run():
     from edsl.caching import Cache
 
     cache = Cache()
-    results = q.by(model).run(cache=cache, disable_remote_inference = True)
+    results = q.by(model).run(cache=cache, disable_remote_inference=True)
     # breakpoint()
     assert results[0]["answer"]["name"] == "SPAM!"
 
@@ -330,7 +468,6 @@ def test_jobs_bucket_creator(valid_job):
     # Test bucket collection directly without using the removed JobsRunnerAsyncio class
     assert bc_to_use[valid_job.models[0]].requests_bucket.tokens > 10
     assert bc_to_use[valid_job.models[0]].tokens_bucket.tokens > 10
-
 
 
 if __name__ == "__main__":

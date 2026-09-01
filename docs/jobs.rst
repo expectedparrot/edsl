@@ -119,6 +119,43 @@ Or to fetch the associated results:
    jobs = Jobs.list(page_size=1).fetch_results()
 
 
+Non-Cartesian Assignments
+-------------------------
+
+By default, a job runs the Cartesian product of its agents, scenarios, and
+models. Use `assign()` when you want to run only specific source-indexed
+combinations:
+
+.. code-block:: python
+
+   job = (
+      survey
+      .by(agents)
+      .by(scenarios)
+      .by(models)
+      .assign([
+         {"agent": 0, "scenario": 0, "model": 0},
+         {"agent": 1, "scenario": 1, "model": 0},
+         {"agent": 2, "scenario": 1, "model": 1},
+      ])
+   )
+
+Use `zip_assign()` for index-matched pairing. This example pairs
+`agents[i]` with `scenarios[i]` and runs each pair with every model:
+
+.. code-block:: python
+
+   job = (
+      survey
+      .by(agents)
+      .by(scenarios)
+      .by(models)
+      .zip_assign(over=("agents", "scenarios"))
+   )
+
+`len(job)`, prompt inspection, cost estimation, and execution all use the
+assignment plan when one is present.
+
 
 Prompts 
 -------
