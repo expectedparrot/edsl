@@ -1,0 +1,422 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Workflow language stress gallery</title><style>body{margin:0;background:#eef1f5;color:#172033;font:14px/1.5 system-ui,sans-serif}header{padding:38px;max-width:1400px;margin:auto}header h1{margin:0}header p{max-width:850px;color:#5d6878}.case{margin:0 auto 34px;max-width:1400px;background:white;border:1px solid #d7dde6;border-radius:14px;overflow:hidden;box-shadow:0 5px 18px #18212f12}.case-head{display:flex;justify-content:space-between;align-items:center;padding:20px 24px}h2{margin:3px 0 0}.pattern{color:#6d28d9;font-size:11px;font-weight:800;text-transform:uppercase}button{border:1px solid #cbd3df;background:white;border-radius:7px;padding:7px 11px;cursor:pointer}iframe{display:block;width:100%;height:760px;border:0;border-top:1px solid #dde2ea;border-bottom:1px solid #dde2ea}.analysis{display:grid;grid-template-columns:1fr 1fr;gap:28px;padding:22px}h3{font-size:13px}table{width:100%;border-collapse:collapse}td{border-top:1px solid #e5e7eb;padding:8px;vertical-align:top}pre{white-space:pre-wrap;margin:0;font:11px/1.4 ui-monospace,monospace}code{color:#6d28d9}.source{padding:22px;background:#111827;color:#dbeafe;max-height:520px;overflow:auto}@media(max-width:800px){.analysis{grid-template-columns:1fr}}</style></head><body><header><h1>Workflow language stress gallery</h1><p>7 workflows executed with LLM respondents through simulated inboxes. Each case preserves its detailed DAG, rendered surveys, responses, state transitions, authoring friction, and proposed language concepts.</p></header><section class="case"><div class="case-head"><div><span class="pattern">fan-out → fan-in</span><h2>Parallel brainstorm</h2></div><button onclick="toggleSource(this)">Show source</button></div><iframe src="workflow_gallery_artifacts/run-20260901-115607/brainstorm/dag.html" loading="lazy"></iframe><div class="analysis"><div><h3>LLM responses</h3><table><tr><td>suggest</td><td><pre>{&#x27;idea&#x27;: &#x27;Host a &quot;Creative Collaboration Workshop&quot; where team members are divided into small groups and tasked with solving a fictional company challenge. Each group presents their innovative solutions, fostering teamwork and creative thinking while building camaraderie.&#x27;}</pre></td></tr><tr><td>suggest</td><td><pre>{&#x27;idea&#x27;: &#x27;Host a &quot;Team Innovation Challenge,&quot; where small groups brainstorm and prototype solutions to a real company problem. Provide materials for quick mock-ups and allocate time for presentations, fostering creativity and collaboration.&#x27;}</pre></td></tr><tr><td>suggest</td><td><pre>{&#x27;idea&#x27;: &#x27;Organize a &quot;Team Innovation Workshop&quot; where team members are divided into small groups to brainstorm and prototype solutions for a real challenge the organization is facing. Each group presents their ideas, fostering collaboration and creativity while addressing a meaningful issue.&#x27;}</pre></td></tr><tr><td>select</td><td><pre>{&#x27;choice&#x27;: &#x27;I choose the idea: **&quot;Organize a \&#x27;Team Innovation Workshop\&#x27; where team members are divided into small groups to brainstorm and prototype solutions for a real challenge the organization is facing. Each group presents their ideas, fostering collaboration and creativity while addressing a meaningful issue.&quot;**\n\nThis idea stands out because it directly addresses a real challenge the organization is facing, making the workshop not only a creative exercise but also a practical solution-finding initiative. By focusing on a meaningful issue, it increases engagement and investment from team members, as they can see the direct impact of their contributions. Additionally, the combination of brainstorming and prototyping encourages hands-on creativity and collaboration, which can lead to innovative and actionable outcomes. This approach aligns well with fostering a strong team dynamic while delivering tangible benefits to the organization.&#x27;}</pre></td></tr></table></div><div><h3>Awkward / risky</h3><ul><li>Every ideator shares one step, so per-person deadlines or prompts cannot be expressed.</li><li>Typed outputs remove the log machine, but per-person output schemas are still inferred from survey answers.</li></ul><h3>Candidate concepts</h3><ul><li><code>TaskPool(step, participants)</code></li><li><code>typed output schema</code></li></ul></div></div><pre class="source" hidden>def brainstorm_case() -&gt; GalleryCase:
+    builder = Workflow(&quot;Parallel brainstorm and selection&quot;)
+    idea = QuestionFreeText(
+        question_name=&quot;idea&quot;,
+        question_text=&quot;Suggest one concrete activity for the team retreat.&quot;,
+    )
+    suggestions = builder.step(&quot;suggest&quot;, Survey([idea]), assigned_to=role(&quot;ideator&quot;))
+    choice = QuestionFreeText(
+        question_name=&quot;choice&quot;,
+        question_text=(
+            &quot;Choose the strongest idea from &quot;
+            f&quot;{suggestions.outputs(idea).template} and briefly explain why.&quot;
+        ),
+    )
+    builder.step(
+        &quot;select&quot;, Survey([choice]), assigned_to=role(&quot;chair&quot;), after=suggestions
+    )
+    workflow = builder.compile()
+    agents = tuple(
+        Agent(
+            name=f&quot;ideator-{n}@simulated.email&quot;,
+            traits={&quot;role&quot;: &quot;ideator&quot;},
+            instruction=f&quot;You are ideator {n}; be distinctive and concise.&quot;,
+        )
+        for n in range(1, 4)
+    ) + (
+        Agent(
+            name=&quot;chair@simulated.email&quot;,
+            traits={&quot;role&quot;: &quot;chair&quot;},
+            instruction=&quot;Choose exactly one submitted idea.&quot;,
+        ),
+    )
+    return GalleryCase(
+        &quot;brainstorm&quot;,
+        &quot;Parallel brainstorm&quot;,
+        &quot;fan-out → fan-in&quot;,
+        workflow,
+        (),
+        agents,
+        brainstorm_case,
+        (
+            &quot;Every ideator shares one step, so per-person deadlines or prompts cannot be expressed.&quot;,
+            &quot;Typed outputs remove the log machine, but per-person output schemas are still inferred from survey answers.&quot;,
+        ),
+        (&quot;TaskPool(step, participants)&quot;, &quot;typed output schema&quot;),
+    )
+</pre></section><section class="case"><div class="case-head"><div><span class="pattern">private reads + fan-in</span><h2>Double-blind review</h2></div><button onclick="toggleSource(this)">Show source</button></div><iframe src="workflow_gallery_artifacts/run-20260901-115607/blind-review/dag.html" loading="lazy"></iframe><div class="analysis"><div><h3>LLM responses</h3><table><tr><td>submit</td><td><pre>{&#x27;draft&#x27;: &quot;Remote work has been shown to enhance productivity for many employees, as it offers greater flexibility and reduces the time wasted on commuting. By creating a personalized work environment, individuals can tailor their surroundings to maximize comfort and focus, leading to improved concentration and efficiency. Additionally, the ability to manage one&#x27;s own schedule allows for a better work-life balance, which can reduce stress and increase overall job satisfaction. Studies have indicated that remote workers often exceed their in-office counterparts in output, highlighting the potential of remote work as a viable and effective model for modern employment.&quot;}</pre></td></tr><tr><td>review</td><td><pre>{&#x27;review&#x27;: &#x27;This submission presents a positive view of remote work, highlighting its benefits such as increased productivity, flexibility, and improved work-life balance. However, there are several areas that warrant a critical examination:\n\n1. **Overgeneralization**: The claim that remote work enhances productivity for &quot;many employees&quot; lacks specificity. The submission does not acknowledge that remote work may not be beneficial for all employees or industries. Individual differences in work styles, job requirements, and personal circumstances can significantly affect productivity outcomes.\n\n2. **Lack of Counterarguments**: The submission fails to address the potential downsides of remote work, such as feelings of isolation, difficulty in collaboration, and challenges in communication. A balanced critique would consider both the advantages and disadvantages to provide a more nuanced perspective.\n\n3. **Insufficient Evidence**: While the submission mentions &quot;studies&quot; that indicate remote workers often exceed their in-office counterparts, it does not provide specific references or data to support these claims. Citing concrete studies or statistics would strengthen the argument and lend credibility to the assertions made.\n\n4. **Assumption of Personalization**: The idea that individuals can create a personalized work environment assumes that all employees have the resources and means to do so. This may not be the case for everyone, particularly those who may lack a conducive home environment or face distractions that hinder their productivity.\n\n5. **Implications for Management**: The submission does not consider how remote work might affect managerial practices or team dynamics. Effective management and team cohesion can be more challenging in a remote setting, which could impact overall productivity and job satisfaction.\n\n6. **Temporal Context**: The discussion seems to imply that remote work is a universally applicable model for modern employment. However, the long-term effects of remote work, especially as organizations transition back to in-person or hybrid models post-pandemic, remain to be fully understood.\n\nIn conclusion, while the submission offers a positive perspective on remote work, it would benefit from a more balanced approach that considers various viewpoints, provides supporting evidence, and acknowledges potential challenges.&#x27;}</pre></td></tr><tr><td>review</td><td><pre>{&#x27;review&#x27;: &quot;This submission presents a well-structured argument in favor of remote work, highlighting several key benefits such as enhanced productivity, flexibility, and improved work-life balance. Here are some constructive critiques to consider for strengthening the piece:\n\n1. **Evidence and Sources**: While the submission mentions studies indicating that remote workers often exceed their in-office counterparts, it would benefit from specific references or citations to credible research. Providing concrete data or studies would enhance the argument&#x27;s credibility and persuasiveness.\n\n2. **Counterarguments**: The piece focuses solely on the advantages of remote work. Including potential drawbacks or challenges, such as feelings of isolation, difficulties in team collaboration, or the blurring of work-life boundaries, would present a more balanced view. Acknowledging these issues and suggesting ways to mitigate them could strengthen the argument.\n\n3. **Personalization of Work Environment**: The mention of creating a personalized work environment is a strong point, but it could be elaborated further. Discussing specific examples of how individuals can tailor their workspace (e.g., ergonomic furniture, lighting, or noise control) would add depth to this argument.\n\n4. **Diversity of Experiences**: The submission implies that remote work benefits all employees equally. It might be useful to consider how different roles, industries, or personality types may experience remote work differently. For instance, some employees may thrive in a remote setting, while others may struggle without the structure of a traditional office.\n\n5. **Conclusion and Call to Action**: The piece could benefit from a stronger conclusion that not only summarizes the key points but also encourages further discussion or action. This could involve suggesting companies consider more flexible work arrangements or recommending further research into the long-term effects of remote work.\n\n6. **Language and Tone**: The tone is generally positive and informative, which is appropriate for the subject matter. However, varying the sentence structure and incorporating more engaging language could enhance the overall readability and impact of the piece.\n\nIn summary, while the submission effectively outlines the benefits of remote work, incorporating evidence, addressing counterarguments, and expanding on certain points could create a more comprehensive and compelling argument.&quot;}</pre></td></tr><tr><td>decide</td><td><pre>{&#x27;decision&#x27;: &#x27;The submission on remote work presents a largely positive view of its benefits, including enhanced productivity, flexibility, and improved work-life balance. However, both reviewers highlight several areas for improvement that could strengthen the argument and provide a more nuanced perspective.\n\n### Key Strengths:\n1. **Positive Framing**: The submission effectively outlines the advantages of remote work, such as increased productivity and the ability to create a personalized work environment.\n2. **Focus on Flexibility**: It emphasizes the flexibility remote work provides, which can lead to better work-life balance and reduced stress.\n\n### Areas for Improvement:\n1. **Evidence and Citations**: Both reviewers note the lack of specific references to studies that support the claims made. Including concrete data or citations would enhance the credibility of the argument and provide a solid foundation for the assertions about productivity and job satisfaction.\n\n2. **Addressing Counterarguments**: The submission primarily focuses on the benefits of remote work but fails to acknowledge potential drawbacks, such as feelings of isolation, challenges in team collaboration, and the blurring of work-life boundaries. A balanced discussion that includes these challenges, along with suggestions for mitigating them, would create a more comprehensive argument.\n\n3. **Diversity of Experiences**: The implication that remote work benefits all employees equally is a point of contention. It would be beneficial to explore how different roles, industries, and individual circumstances can influence the effectiveness of remote work. Recognizing that some employees may thrive in a remote setting while others may struggle would add depth to the discussion.\n\n4. **Personalization of Work Environment**: While the idea of a personalized workspace is mentioned, elaborating on specific ways individuals can tailor their environments (e.g., ergonomic furniture, lighting, noise control) would strengthen this point and provide practical insights for readers.\n\n5. **Conclusion and Call to Action**: The submission could benefit from a stronger conclusion that not only summarizes the key points but also encourages further discussion or action. Suggestions for companies to consider flexible work arrangements or recommendations for future research into the long-term effects of remote work would enhance the piece.\n\n6. **Language and Tone**: While the tone is generally positive and informative, varying sentence structure and incorporating more engaging language could improve readability and impact.\n\n### Conclusion:\nIn summary, the submission presents a solid foundation for discussing the benefits of remote work but would greatly benefit from incorporating evidence, addressing counterarguments, and expanding on specific points. A more balanced and well-supported approach would create a more compelling argument for the viability of remote work as a modern employment model.&#x27;}</pre></td></tr></table></div><div><h3>Awkward / risky</h3><ul><li>Privacy requires two separate state machines; reading the review log would leak earlier reviews to later reviewers.</li><li>Visibility is an accidental consequence of which StateRead objects are attached.</li></ul><h3>Candidate concepts</h3><ul><li><code>private_output / reveal_to</code></li><li><code>step.output visible_to=...</code></li></ul></div></div><pre class="source" hidden>def blind_review_case() -&gt; GalleryCase:
+    submission = artifact_map(&quot;gallery-submission&quot;, &quot;text&quot;)
+    reviews = log_map(&quot;gallery-reviews&quot;)
+    paper, review_log = submission.by(&quot;paper&quot;).artifact, reviews.by(&quot;paper&quot;).log
+    draft = QuestionFreeText(
+        question_name=&quot;draft&quot;,
+        question_text=&quot;Write a one-paragraph claim about remote work productivity.&quot;,
+    )
+    verdict = QuestionFreeText(
+        question_name=&quot;review&quot;,
+        question_text=&quot;Independently critique this submission: {{ shared_state.artifact.text }}&quot;,
+    )
+    decision = QuestionFreeText(
+        question_name=&quot;decision&quot;,
+        question_text=&quot;Synthesize the independent reviews {{ shared_state.log.entries }} for submission {{ shared_state.artifact.text }}.&quot;,
+    )
+    workflow = HumanWorkflow(
+        &quot;Double-blind review&quot;,
+        [
+            HumanStep(
+                &quot;submit&quot;,
+                Survey([draft]),
+                ParticipantSelector.role(&quot;author&quot;),
+                writes=(paper.submit(value=draft.answer),),
+            ),
+            HumanStep(
+                &quot;review&quot;,
+                Survey([verdict]),
+                ParticipantSelector.role(&quot;reviewer&quot;),
+                after=(&quot;submit&quot;,),
+                reads=(paper.read(),),
+                writes=(
+                    review_log.add(actor=current.agent.name, value=verdict.answer),
+                ),
+            ),
+            HumanStep(
+                &quot;decide&quot;,
+                Survey([decision]),
+                ParticipantSelector.role(&quot;editor&quot;),
+                after=(&quot;review&quot;,),
+                reads=(paper.read(), review_log.read()),
+            ),
+        ],
+    )
+    agents = (
+        Agent(name=&quot;author@simulated.email&quot;, traits={&quot;role&quot;: &quot;author&quot;}),
+        Agent(
+            name=&quot;reviewer-a@simulated.email&quot;,
+            traits={&quot;role&quot;: &quot;reviewer&quot;},
+            instruction=&quot;Be skeptical.&quot;,
+        ),
+        Agent(
+            name=&quot;reviewer-b@simulated.email&quot;,
+            traits={&quot;role&quot;: &quot;reviewer&quot;},
+            instruction=&quot;Be constructive.&quot;,
+        ),
+        Agent(name=&quot;editor@simulated.email&quot;, traits={&quot;role&quot;: &quot;editor&quot;}),
+    )
+    return GalleryCase(
+        &quot;blind-review&quot;,
+        &quot;Double-blind review&quot;,
+        &quot;private reads + fan-in&quot;,
+        workflow,
+        (submission, reviews),
+        agents,
+        blind_review_case,
+        (
+            &quot;Privacy requires two separate state machines; reading the review log would leak earlier reviews to later reviewers.&quot;,
+            &quot;Visibility is an accidental consequence of which StateRead objects are attached.&quot;,
+        ),
+        (&quot;private_output / reveal_to&quot;, &quot;step.output visible_to=...&quot;),
+    )
+</pre></section><section class="case"><div class="case-head"><div><span class="pattern">answer-gated branch</span><h2>Incident escalation</h2></div><button onclick="toggleSource(this)">Show source</button></div><iframe src="workflow_gallery_artifacts/run-20260901-115607/escalation/dag.html" loading="lazy"></iframe><div class="analysis"><div><h3>LLM responses</h3><table><tr><td>classify</td><td><pre>{&#x27;severity&#x27;: &#x27;High&#x27;}</pre></td></tr><tr><td>escalate</td><td><pre>{&#x27;response&#x27;: &#x27;In the event of a high-severity incident, it is critical to respond swiftly and effectively. Here’s an immediate response plan:\n\n1. **Assessment and Confirmation**:\n   - Quickly assess the situation to confirm the severity and scope of the incident.\n   - Gather initial data and reports from relevant teams or monitoring systems.\n\n2. **Activate Incident Response Team**:\n   - Assemble the incident response team (IRT) immediately, including key stakeholders from IT, security, communications, and management.\n   - Assign roles and responsibilities to ensure a coordinated effort.\n\n3. **Establish Communication**:\n   - Set up a secure communication channel for the IRT to share updates and information.\n   - Designate a spokesperson for external communications to maintain a consistent message.\n\n4. **Containment**:\n   - Implement containment measures to prevent further damage or escalation. This may involve isolating affected systems or networks.\n   - Ensure that any critical operations are maintained as much as possible.\n\n5. **Investigation**:\n   - Begin a thorough investigation to determine the root cause and impact of the incident.\n   - Document all findings and actions taken for future reference and analysis.\n\n6. **Mitigation**:\n   - Develop and execute a plan to mitigate the immediate threat. This could include patching vulnerabilities, removing malicious software, or restoring systems from backups.\n\n7. **Notification**:\n   - Notify affected parties, including internal teams and potentially impacted customers or clients, about the incident and any necessary steps they should take.\n   - Depending on the nature of the incident, consider regulatory or legal obligations for reporting.\n\n8. **Monitoring**:\n   - Increase monitoring of systems and networks to detect any signs of further issues or related incidents.\n   - Keep an eye on communications and social media for public response.\n\n9. **Review and Learn**:\n   - Once the immediate threat is managed, conduct a post-incident review to analyze the response and identify areas for improvement.\n   - Update incident response plans and training based on lessons learned.\n\n10. **Documentation**:\n    - Ensure that all actions taken during the incident are documented comprehensively for compliance and future reference.\n\nThis plan should be adapted based on the specific nature of the incident and the organization’s protocols. Swift and decisive action is essential to minimize impact and restore normal operations.&#x27;}</pre></td></tr></table></div><div><h3>Awkward / risky</h3><ul><li>The condition repeats step and question names as unchecked strings.</li><li>A skipped escalation makes the whole workflow complete; there is no explicit terminal outcome.</li></ul><h3>Candidate concepts</h3><ul><li><code>classify.answer.equals(&#x27;High&#x27;)</code></li><li><code>WorkflowOutcome</code></li></ul></div></div><pre class="source" hidden>def escalation_case() -&gt; GalleryCase:
+    report = artifact_map(&quot;gallery-incident&quot;, &quot;report&quot;)
+    incident = report.by(&quot;incident-7&quot;).artifact
+    severity = QuestionMultipleChoice(
+        question_name=&quot;severity&quot;,
+        question_text=&quot;Classify this incident: production login failures affect all users.&quot;,
+        question_options=[&quot;Low&quot;, &quot;Medium&quot;, &quot;High&quot;],
+    )
+    response = QuestionFreeText(
+        question_name=&quot;response&quot;,
+        question_text=&quot;Give the immediate response plan for this High-severity incident: {{ shared_state.artifact.report }}&quot;,
+    )
+    workflow = HumanWorkflow(
+        &quot;Conditional incident escalation&quot;,
+        [
+            HumanStep(
+                &quot;classify&quot;,
+                Survey([severity]),
+                ParticipantSelector.role(&quot;on_call&quot;),
+                writes=(incident.submit(value=severity.answer),),
+            ),
+            HumanStep(
+                &quot;escalate&quot;,
+                Survey([response]),
+                ParticipantSelector.role(&quot;commander&quot;),
+                after=(&quot;classify&quot;,),
+                enabled_when=AnswerCondition(&quot;classify&quot;, &quot;severity&quot;, &quot;High&quot;),
+                reads=(incident.read(),),
+            ),
+        ],
+    )
+    agents = (
+        Agent(
+            name=&quot;on-call@simulated.email&quot;,
+            traits={&quot;role&quot;: &quot;on_call&quot;},
+            instruction=&quot;Classify widespread production login failure as High.&quot;,
+        ),
+        Agent(name=&quot;commander@simulated.email&quot;, traits={&quot;role&quot;: &quot;commander&quot;}),
+    )
+    return GalleryCase(
+        &quot;escalation&quot;,
+        &quot;Incident escalation&quot;,
+        &quot;answer-gated branch&quot;,
+        workflow,
+        (report,),
+        agents,
+        escalation_case,
+        (
+            &quot;The condition repeats step and question names as unchecked strings.&quot;,
+            &quot;A skipped escalation makes the whole workflow complete; there is no explicit terminal outcome.&quot;,
+        ),
+        (&quot;classify.answer.equals(&#x27;High&#x27;)&quot;, &quot;WorkflowOutcome&quot;),
+    )
+</pre></section><section class="case"><div class="case-head"><div><span class="pattern">exclusive branches</span><h2>Editorial revision</h2></div><button onclick="toggleSource(this)">Show source</button></div><iframe src="workflow_gallery_artifacts/run-20260901-115607/editorial/dag.html" loading="lazy"></iframe><div class="analysis"><div><h3>LLM responses</h3><table><tr><td>draft</td><td><pre>{&#x27;draft_1&#x27;: &#x27;We are thrilled to announce the grand opening of our community garden this Saturday at 10 AM! Join us for a day of celebration, planting, and connecting with fellow gardening enthusiasts as we cultivate both plants and community spirit together.&#x27;}</pre></td></tr><tr><td>check</td><td><pre>{&#x27;approved&#x27;: &#x27;No&#x27;}</pre></td></tr><tr><td>revise</td><td><pre>{&#x27;draft_2&#x27;: &#x27;We’re excited to invite you to the grand opening of our community garden this Saturday at 10 AM! Come celebrate with us as we dig into a day filled with planting, laughter, and the joy of connecting with fellow gardening lovers. Let’s grow not just beautiful plants, but also a strong sense of community together. We can’t wait to see you there!&#x27;}</pre></td></tr><tr><td>publish</td><td><pre>{&#x27;publication&#x27;: &#x27;**FOR IMMEDIATE RELEASE**\n\n**Join Us for the Grand Opening of Our Community Garden!**\n\nWe’re excited to invite you to the grand opening of our community garden this Saturday at 10 AM! Come celebrate with us as we dig into a day filled with planting, laughter, and the joy of connecting with fellow gardening lovers. \n\nLet’s grow not just beautiful plants, but also a strong sense of community together. We can’t wait to see you there!\n\n**Event Details:**\n- **Date:** [Insert Date]\n- **Time:** 10 AM\n- **Location:** [Insert Location]\n\nFor more information, please contact:  \n[Your Name]  \n[Your Phone Number]  \n[Your Email Address]\n\n**### END ###**&#x27;}</pre></td></tr></table></div><div><h3>Awkward / risky</h3><ul><li>The typed layer removes duplicated publisher steps, but template_or is still a specialized branch-merge operation.</li><li>The compiled graph remains more verbose than a structured if/else block.</li></ul><h3>Candidate concepts</h3><ul><li><code>if_/else_ branch block</code></li><li><code>typed union output for branch merges</code></li></ul></div></div><pre class="source" hidden>def editorial_case() -&gt; GalleryCase:
+    builder = Workflow(&quot;Editorial branch join&quot;)
+    first = QuestionFreeText(
+        question_name=&quot;draft_1&quot;,
+        question_text=&quot;Draft a two-sentence announcement for a community garden opening.&quot;,
+    )
+    draft = builder.step(&quot;draft&quot;, Survey([first]), assigned_to=role(&quot;writer&quot;))
+    check = QuestionYesNo(
+        question_name=&quot;approved&quot;,
+        question_text=f&quot;Approve this draft? {draft.answer(first).template}&quot;,
+    )
+    review = builder.step(
+        &quot;check&quot;, Survey([check]), assigned_to=role(&quot;editor&quot;), after=draft
+    )
+    approval_branch = if_(review.answer(check).equals(&quot;Yes&quot;))
+    revision = QuestionFreeText(
+        question_name=&quot;draft_2&quot;,
+        question_text=(
+            &quot;Revise the rejected draft using a warmer tone: &quot;
+            f&quot;{draft.answer(first).template}&quot;
+        ),
+    )
+    revised = builder.step(
+        &quot;revise&quot;,
+        Survey([revision]),
+        assigned_to=role(&quot;writer&quot;),
+        when=approval_branch.otherwise,
+    )
+    accepted_copy = revised.answer(revision).template_or(draft.answer(first))
+    publication = QuestionFreeText(
+        question_name=&quot;publication&quot;,
+        question_text=f&quot;Prepare this accepted copy for publication: {accepted_copy}&quot;,
+    )
+    builder.step(
+        &quot;publish&quot;,
+        Survey([publication]),
+        assigned_to=role(&quot;publisher&quot;),
+        when=join_any(approval_branch.then, revised.completed),
+    )
+    workflow = builder.compile()
+    agents = (
+        Agent(name=&quot;writer@simulated.email&quot;, traits={&quot;role&quot;: &quot;writer&quot;}),
+        Agent(
+            name=&quot;editor@simulated.email&quot;,
+            traits={&quot;role&quot;: &quot;editor&quot;},
+            instruction=&quot;Reject announcements that do not explicitly welcome families.&quot;,
+        ),
+        Agent(name=&quot;publisher@simulated.email&quot;, traits={&quot;role&quot;: &quot;publisher&quot;}),
+    )
+    return GalleryCase(
+        &quot;editorial&quot;,
+        &quot;Editorial revision&quot;,
+        &quot;exclusive branches&quot;,
+        workflow,
+        (),
+        agents,
+        editorial_case,
+        (
+            &quot;The typed layer removes duplicated publisher steps, but template_or is still a specialized branch-merge operation.&quot;,
+            &quot;The compiled graph remains more verbose than a structured if/else block.&quot;,
+        ),
+        (&quot;if_/else_ branch block&quot;, &quot;typed union output for branch merges&quot;),
+    )
+</pre></section><section class="case"><div class="case-head"><div><span class="pattern">confidential fan-in</span><h2>Sealed procurement</h2></div><button onclick="toggleSource(this)">Show source</button></div><iframe src="workflow_gallery_artifacts/run-20260901-115607/procurement/dag.html" loading="lazy"></iframe><div class="analysis"><div><h3>LLM responses</h3><table><tr><td>bid</td><td><pre>{&#x27;bid&#x27;: &#x27;**Laptop Supply Bid**\n\n**Quantity:** 57 Laptops  \n**Unit Price:** $850 each  \n**Total Price:** $48,450  \n\n**Delivery Time:** 4 weeks from order confirmation  \n\nThank you for considering our bid. We look forward to your response.&#x27;}</pre></td></tr><tr><td>bid</td><td><pre>{&#x27;bid&#x27;: &#x27;We are pleased to offer 64 laptops at a unit price of $750 each. The total cost for the order will be $48,000. We can ensure delivery within 4 weeks from the date of order confirmation. \n\nPlease let us know if you have any questions or require further details.&#x27;}</pre></td></tr><tr><td>bid</td><td><pre>{&#x27;bid&#x27;: &#x27;**Laptop Supply Bid**\n\n- **Quantity:** 71 Laptops\n- **Unit Price:** $750 per laptop\n- **Total Price:** $53,250\n- **Delivery Time:** 4 weeks from order confirmation\n\nThank you for considering our bid. We look forward to the opportunity to supply you with high-quality laptops.&#x27;}</pre></td></tr><tr><td>award</td><td><pre>{&#x27;award&#x27;: &quot;Based on the bids provided, the best option is from **vendor-2@simulated.email**. Here&#x27;s the breakdown:\n\n- **Vendor 1**: 57 laptops at $850 each, total $48,450.\n- **Vendor 2**: 64 laptops at $750 each, total $48,000.\n- **Vendor 3**: 71 laptops at $750 each, total $53,250.\n\nWhile Vendor 3 offers the most laptops, their total price is higher than Vendor 2&#x27;s. Vendor 2 also has the lowest total price of $48,000 and a delivery time of 4 weeks, which matches the other bids. Therefore, Vendor 2&#x27;s offer is the most cost-effective while still meeting the delivery timeline.&quot;}</pre></td></tr></table></div><div><h3>Awkward / risky</h3><ul><li>The bids are confidential only because the vendor step has writes without reads.</li><li>There is no schema for bids, so the buyer parses prose.</li></ul><h3>Candidate concepts</h3><ul><li><code>sealed_collection</code></li><li><code>typed step output schema</code></li></ul></div></div><pre class="source" hidden>def procurement_case() -&gt; GalleryCase:
+    bids = log_map(&quot;gallery-bids&quot;, &quot;bids&quot;)
+    bid_log = bids.by(&quot;laptops&quot;).log
+    bid = QuestionFreeText(
+        question_name=&quot;bid&quot;,
+        question_text=&quot;Submit a concise laptop supply bid with unit price and delivery time.&quot;,
+    )
+    award = QuestionFreeText(
+        question_name=&quot;award&quot;,
+        question_text=&quot;Select the best bid from {{ shared_state.log.bids }} using price and delivery time.&quot;,
+    )
+    workflow = HumanWorkflow(
+        &quot;Sealed procurement&quot;,
+        [
+            HumanStep(
+                &quot;bid&quot;,
+                Survey([bid]),
+                ParticipantSelector.role(&quot;vendor&quot;),
+                writes=(bid_log.add(actor=current.agent.name, value=bid.answer),),
+            ),
+            HumanStep(
+                &quot;award&quot;,
+                Survey([award]),
+                ParticipantSelector.role(&quot;buyer&quot;),
+                after=(&quot;bid&quot;,),
+                reads=(bid_log.read(),),
+            ),
+        ],
+    )
+    agents = tuple(
+        Agent(
+            name=f&quot;vendor-{n}@simulated.email&quot;,
+            traits={&quot;role&quot;: &quot;vendor&quot;},
+            instruction=f&quot;Offer {50 + n * 7} laptops at a plausible price; do not mention other vendors.&quot;,
+        )
+        for n in range(1, 4)
+    ) + (Agent(name=&quot;buyer@simulated.email&quot;, traits={&quot;role&quot;: &quot;buyer&quot;}),)
+    return GalleryCase(
+        &quot;procurement&quot;,
+        &quot;Sealed procurement&quot;,
+        &quot;confidential fan-in&quot;,
+        workflow,
+        (bids,),
+        agents,
+        procurement_case,
+        (
+            &quot;The bids are confidential only because the vendor step has writes without reads.&quot;,
+            &quot;There is no schema for bids, so the buyer parses prose.&quot;,
+        ),
+        (&quot;sealed_collection&quot;, &quot;typed step output schema&quot;),
+    )
+</pre></section><section class="case"><div class="case-head"><div><span class="pattern">quorum + adjudication</span><h2>Moderation panel</h2></div><button onclick="toggleSource(this)">Show source</button></div><iframe src="workflow_gallery_artifacts/run-20260901-115607/moderation/dag.html" loading="lazy"></iframe><div class="analysis"><div><h3>LLM responses</h3><table><tr><td>vote</td><td><pre>{&#x27;label&#x27;: &#x27;Remove&#x27;}</pre></td></tr><tr><td>vote</td><td><pre>{&#x27;label&#x27;: &#x27;Remove&#x27;}</pre></td></tr></table></div><div><h3>Awkward / risky</h3><ul><li>A response already in flight may arrive after quorum and must be ignored safely.</li><li>Quorum counts responses, not distinct semantic positions or confidence.</li></ul><h3>Candidate concepts</h3><ul><li><code>timeout fallback</code></li><li><code>weighted or confidence-aware aggregation</code></li></ul></div></div><pre class="source" hidden>def moderation_case() -&gt; GalleryCase:
+    vote = QuestionMultipleChoice(
+        question_name=&quot;label&quot;,
+        question_text=&quot;Label this post: &#x27;You are an idiot and nobody wants you here.&#x27;&quot;,
+        question_options=[&quot;Allow&quot;, &quot;Warn&quot;, &quot;Remove&quot;],
+    )
+    builder = Workflow(&quot;Moderation panel&quot;)
+    panel = builder.step(
+        &quot;vote&quot;,
+        Survey([vote]),
+        assigned_to=role(&quot;moderator&quot;),
+        completion=quorum(2),
+        visible_to=role(&quot;lead&quot;),
+    )
+    adjudicate = QuestionFreeText(
+        question_name=&quot;decision&quot;,
+        question_text=(
+            f&quot;Make a final moderation decision from {panel.outputs(vote).template}.&quot;
+        ),
+    )
+    builder.step(
+        &quot;adjudicate&quot;,
+        Survey([adjudicate]),
+        assigned_to=role(&quot;lead&quot;),
+        after=panel,
+        when=panel.outputs(vote).has_disagreement,
+    )
+    workflow = builder.compile()
+    agents = (
+        Agent(
+            name=&quot;strict@simulated.email&quot;,
+            traits={&quot;role&quot;: &quot;moderator&quot;},
+            instruction=&quot;Apply policy strictly.&quot;,
+        ),
+        Agent(
+            name=&quot;contextual@simulated.email&quot;,
+            traits={&quot;role&quot;: &quot;moderator&quot;},
+            instruction=&quot;Consider proportionality.&quot;,
+        ),
+        Agent(
+            name=&quot;safety@simulated.email&quot;,
+            traits={&quot;role&quot;: &quot;moderator&quot;},
+            instruction=&quot;Prioritize user safety.&quot;,
+        ),
+        Agent(name=&quot;lead@simulated.email&quot;, traits={&quot;role&quot;: &quot;lead&quot;}),
+    )
+    return GalleryCase(
+        &quot;moderation&quot;,
+        &quot;Moderation panel&quot;,
+        &quot;quorum + adjudication&quot;,
+        workflow,
+        (),
+        agents,
+        moderation_case,
+        (
+            &quot;A response already in flight may arrive after quorum and must be ignored safely.&quot;,
+            &quot;Quorum counts responses, not distinct semantic positions or confidence.&quot;,
+        ),
+        (&quot;timeout fallback&quot;, &quot;weighted or confidence-aware aggregation&quot;),
+    )
+</pre></section><section class="case"><div class="case-head"><div><span class="pattern">five-stage chain</span><h2>Translation QA</h2></div><button onclick="toggleSource(this)">Show source</button></div><iframe src="workflow_gallery_artifacts/run-20260901-115607/translation/dag.html" loading="lazy"></iframe><div class="analysis"><div><h3>LLM responses</h3><table><tr><td>brief</td><td><pre>{&#x27;brief&#x27;: &#x27;**Emergency Weather Notice**\n\nAttention Residents:\n\nSevere weather conditions are expected in our area over the next 24 hours. Please prepare for heavy rain, strong winds, and potential flooding. \n\n- Secure outdoor items and stay indoors if possible.\n- Avoid driving unless absolutely necessary.\n- Monitor local news and weather updates for the latest information.\n\nYour safety is our top priority. Stay safe!\n\nSincerely,  \n[Your Name]  \n[Your Title/Organization]&#x27;}</pre></td></tr><tr><td>translate</td><td><pre>{&#x27;translation&#x27;: &#x27;**Aviso de Clima de Emergencia**\n\nAtención Residentes:\n\nSe esperan condiciones climáticas severas en nuestra área durante las próximas 24 horas. Por favor, prepárense para fuertes lluvias, vientos fuertes y posibles inundaciones.\n\n- Aseguren los objetos exteriores y permanezcan en interiores si es posible.\n- Eviten conducir a menos que sea absolutamente necesario.\n- Manténganse informados a través de las noticias locales y actualizaciones meteorológicas para obtener la información más reciente.\n\nSu seguridad es nuestra máxima prioridad. ¡Manténganse a salvo!\n\nAtentamente,  \n[Su Nombre]  \n[Su Cargo/Organización]&#x27;}</pre></td></tr><tr><td>backcheck</td><td><pre>{&#x27;critique&#x27;: &#x27;**Emergency Weather Advisory**\n\nAttention Residents:\n\nSevere weather conditions are expected in our area over the next 24 hours. Please prepare for heavy rains, strong winds, and possible flooding.\n\n- Secure outdoor objects and stay indoors if possible.\n- Avoid driving unless absolutely necessary.\n- Stay informed through local news and weather updates for the latest information.\n\nYour safety is our top priority. Stay safe!\n\nSincerely,  \n[Your Name]  \n[Your Position/Organization]\n\n---\n\n**Analysis of Lost Meaning:**\n\n1. **Tone and Urgency:** The original message uses &quot;Atención&quot; which conveys a sense of urgency. The back-translation uses &quot;Attention,&quot; which has a similar meaning but may lack the same level of immediacy in English. \n\n2. **&quot;Su seguridad es nuestra máxima prioridad&quot;:** The phrase translates well to &quot;Your safety is our top priority,&quot; but the original Spanish phrase carries a slightly more personal tone with &quot;su&quot; (your) that emphasizes care for the residents.\n\n3. **Phrasing:** The phrase &quot;permanezcan en interiores&quot; translates to &quot;stay indoors,&quot; which is accurate, but the original Spanish implies a stronger recommendation than the translated version might suggest.\n\n4. **&quot;Aseguren los objetos exteriores&quot;:** This translates directly to &quot;Secure outdoor objects,&quot; which is clear, but the original Spanish has a more direct imperative feel that may be slightly softened in English.\n\nOverall, the back-translation retains the core message and urgency, but some nuances and the directness of the original Spanish may be slightly diminished in the English version.&#x27;}</pre></td></tr><tr><td>revise</td><td><pre>{&#x27;revision&#x27;: &#x27;Here’s a revised version of the Spanish translation, taking into account the feedback and analysis provided:\n\n---\n\n**Aviso de Clima de Emergencia**\n\nAtención Residentes:\n\nSe esperan condiciones climáticas severas en nuestra área durante las próximas 24 horas. Por favor, prepárense para fuertes lluvias, vientos intensos y posibles inundaciones.\n\n- Aseguren los objetos exteriores y permanezcan en casa si es posible.\n- Eviten conducir a menos que sea absolutamente necesario.\n- Manténganse informados a través de las noticias locales y actualizaciones meteorológicas para obtener la información más reciente.\n\nSu seguridad es nuestra máxima prioridad. ¡Manténganse a salvo!\n\nAtentamente,  \n[Su Nombre]  \n[Su Cargo/Organización]\n\n---\n\n### Changes Made:\n1. **&quot;vientos fuertes&quot; changed to &quot;vientos intensos&quot;:** This enhances the urgency and severity of the warning.\n2. **&quot;permanecen en interiores&quot; changed to &quot;permanecen en casa&quot;:** This is a more direct and personal recommendation.\n3. **Minor adjustments in phrasing for clarity and impact while maintaining the tone of urgency.**\n\nThese adjustments aim to retain the original message\&#x27;s urgency and personal touch while ensuring clarity and directness.&#x27;}</pre></td></tr><tr><td>accept</td><td><pre>{&#x27;accepted&#x27;: &#x27;Yes&#x27;}</pre></td></tr></table></div><div><h3>Awkward / risky</h3><ul><li>The same translator receives two separate static steps; a reusable role task is not available.</li><li>Passing artifacts requires a log machine and repeated Jinja indexing.</li></ul><h3>Candidate concepts</h3><ul><li><code>artifact.latest</code></li><li><code>repeat_until(accepted)</code></li></ul></div></div><pre class="source" hidden>def translation_case() -&gt; GalleryCase:
+    text = log_map(&quot;gallery-translation&quot;, &quot;versions&quot;)
+    versions = text.by(&quot;notice&quot;).log
+    questions = [
+        QuestionFreeText(
+            question_name=&quot;brief&quot;,
+            question_text=&quot;Write a short English emergency-weather notice.&quot;,
+        ),
+        QuestionFreeText(
+            question_name=&quot;translation&quot;,
+            question_text=&quot;Translate the latest version into Spanish: {{ shared_state.log.versions[-1].value }}&quot;,
+        ),
+        QuestionFreeText(
+            question_name=&quot;critique&quot;,
+            question_text=&quot;Back-translate and identify any lost meaning: {{ shared_state.log.versions[-1].value }}&quot;,
+        ),
+        QuestionFreeText(
+            question_name=&quot;revision&quot;,
+            question_text=&quot;Revise the Spanish translation using this history: {{ shared_state.log.versions }}&quot;,
+        ),
+        QuestionYesNo(
+            question_name=&quot;accepted&quot;,
+            question_text=&quot;Is the final Spanish notice ready? {{ shared_state.log.versions[-1].value }}&quot;,
+        ),
+    ]
+    names_roles = [
+        (&quot;brief&quot;, &quot;owner&quot;),
+        (&quot;translate&quot;, &quot;translator&quot;),
+        (&quot;backcheck&quot;, &quot;reviewer&quot;),
+        (&quot;revise&quot;, &quot;translator&quot;),
+        (&quot;accept&quot;, &quot;owner&quot;),
+    ]
+    steps = []
+    for index, ((name, role_name), question) in enumerate(zip(names_roles, questions)):
+        steps.append(
+            HumanStep(
+                name,
+                Survey([question]),
+                ParticipantSelector.role(role_name),
+                after=((names_roles[index - 1][0],) if index else ()),
+                reads=((versions.read(),) if index else ()),
+                writes=(
+                    (versions.add(actor=current.agent.name, value=question.answer),)
+                    if name != &quot;accept&quot;
+                    else ()
+                ),
+            )
+        )
+    workflow = HumanWorkflow(&quot;Translation QA chain&quot;, steps)
+    agents = (
+        Agent(name=&quot;owner@simulated.email&quot;, traits={&quot;role&quot;: &quot;owner&quot;}),
+        Agent(
+            name=&quot;translator@simulated.email&quot;,
+            traits={&quot;role&quot;: &quot;translator&quot;},
+            instruction=&quot;You are a professional Spanish translator.&quot;,
+        ),
+        Agent(
+            name=&quot;reviewer@simulated.email&quot;,
+            traits={&quot;role&quot;: &quot;reviewer&quot;},
+            instruction=&quot;Check semantic fidelity carefully.&quot;,
+        ),
+    )
+    return GalleryCase(
+        &quot;translation&quot;,
+        &quot;Translation QA&quot;,
+        &quot;five-stage chain&quot;,
+        workflow,
+        (text,),
+        agents,
+        translation_case,
+        (
+            &quot;The same translator receives two separate static steps; a reusable role task is not available.&quot;,
+            &quot;Passing artifacts requires a log machine and repeated Jinja indexing.&quot;,
+        ),
+        (&quot;artifact.latest&quot;, &quot;repeat_until(accepted)&quot;),
+    )
+</pre></section><script>function toggleSource(b){const p=b.closest('.case').querySelector('.source');p.hidden=!p.hidden;b.textContent=p.hidden?'Show source':'Hide source'}</script></body></html>
