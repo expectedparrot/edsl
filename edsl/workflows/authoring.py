@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Iterable, Mapping, Sequence
+from typing import Any, Callable, Iterable, Mapping, Sequence
 
 from edsl.sharedstate import StateRead, StateWrite
 from edsl.surveys import Survey
@@ -13,17 +13,24 @@ from .definition import (
     AllCondition,
     AnswerCondition,
     AnyCondition,
+    ChanceCondition,
+    DerivedValue,
+    ExpressionCondition,
     HumanStep,
     HumanWorkflow,
     NotCondition,
     OutputCountCondition,
     OutputDisagreementCondition,
     OutputMajorityCondition,
+    OutputRangeCondition,
     ParticipantSelector,
     CompletionPolicy,
     Quorum,
+    RepeatBlock,
+    RepeatIteration,
     StepCompletedCondition,
     WorkflowCondition,
+    WorkflowExpression,
 )
 
 
@@ -37,6 +44,11 @@ def quorum(count: int) -> Quorum:
 
 def all_assigned() -> AllAssigned:
     return AllAssigned()
+
+
+def chance(probability: float, *, key: str) -> ChanceCondition:
+    """Continue with ``probability``, stably sampled once per workflow instance/key."""
+    return ChanceCondition(probability, key)
 
 
 def all_of(*conditions: WorkflowCondition) -> AllCondition:
@@ -53,6 +65,15 @@ def any_of(*conditions: WorkflowCondition) -> AnyCondition:
 
 def not_(condition: WorkflowCondition) -> NotCondition:
     return NotCondition(condition)
+
+
+def choose(condition: WorkflowExpression, then: Any, otherwise: Any) -> WorkflowExpression:
+    """A serializable piecewise expression."""
+    return WorkflowExpression("if_else", (condition, then, otherwise))
+
+
+def _expression(value: Any) -> WorkflowExpression:
+    return value if isinstance(value, WorkflowExpression) else WorkflowExpression("literal", (value,))
 
 
 def join_any(*conditions: WorkflowCondition) -> AnyCondition:
@@ -81,6 +102,10 @@ class StepAnswerRef:
 
     def equals(self, value: Any) -> AnswerCondition:
         return AnswerCondition(self.step_name, self.question_name, value)
+
+    @property
+    def value(self) -> WorkflowExpression:
+        return WorkflowExpression("step_answer", options={"step_name": self.step_name, "question_name": self.question_name})
 
     @property
     def expression(self) -> str:
@@ -137,6 +162,13 @@ class StepOutputsRef:
             raise ValueError("aggregation requires outputs(question), not outputs()")
         return self.question_name
 
+    def optional(self, default: Any = ()) -> str:
+        """Render outputs as an empty/default value when an optional step was skipped."""
+        base = "workflow.outputs.get(" + repr(self.step_name) + ", " + repr(list(default)) + ")"
+        if self.question_name is None:
+            return "{{ " + base + " }}"
+        return "{{ " + base + " | map(attribute=" + repr(self.question_name) + ") | list }}"
+
     def count(self, value: Any) -> "OutputCountRef":
         return OutputCountRef(self.step_name, self._question(), value)
 
@@ -146,6 +178,136 @@ class StepOutputsRef:
 
     def majority_is(self, value: Any) -> OutputMajorityCondition:
         return OutputMajorityCondition(self.step_name, self._question(), value)
+
+    def range_at_most(self, maximum: float) -> OutputRangeCondition:
+        return OutputRangeCondition(self.step_name, self._question(), maximum)
+
+    @property
+    def value(self) -> WorkflowExpression:
+        return WorkflowExpression(
+            "step_outputs",
+            options={
+                "step_name": self.step_name,
+                "question_name": self._question(),
+            },
+        )
+
+    def mean(self) -> WorkflowExpression:
+        return WorkflowExpression("mean", (self.value,))
+
+    def median(self) -> WorkflowExpression:
+        return WorkflowExpression("median", (self.value,))
+
+    def minimum(self) -> WorkflowExpression:
+        return WorkflowExpression("minimum", (self.value,))
+
+    def maximum(self) -> WorkflowExpression:
+        return WorkflowExpression("maximum", (self.value,))
+
+    def range(self) -> WorkflowExpression:
+        return WorkflowExpression("range", (self.value,))
+
+
+@dataclass(frozen=True)
+class DerivedFieldRef:
+    derived_name: str
+    field_name: str
+    dependencies: frozenset[str]
+
+    @property
+    def expression(self) -> WorkflowExpression:
+        return WorkflowExpression(
+            "derived_ref",
+            options={
+                "name": self.derived_name,
+                "field": self.field_name,
+                "dependencies": sorted(self.dependencies),
+            },
+        )
+
+    @property
+    def template(self) -> str:
+        return (
+            "{{ workflow.derived["
+            + repr(self.derived_name)
+            + "]["
+            + repr(self.field_name)
+            + "] }}"
+        )
+
+    def at_most(self, value: Any) -> ExpressionCondition:
+        return self.expression.at_most(value)
+
+    def at_least(self, value: Any) -> ExpressionCondition:
+        return self.expression.at_least(value)
+
+    def equals(self, value: Any) -> ExpressionCondition:
+        return self.expression.equals(value)
+
+    def for_participant(self) -> str:
+        return "{{ workflow.derived[" + repr(self.derived_name) + "][" + repr(self.field_name) + "][participant.name] }}"
+
+
+@dataclass(frozen=True)
+class DerivedValuesRef:
+    definition: DerivedValue
+
+    def field(self, name: str) -> DerivedFieldRef:
+        if name not in self.definition.fields:
+            raise KeyError(f"unknown derived field {name!r}")
+        return DerivedFieldRef(self.definition.name, name, self.definition.dependencies)
+
+
+@dataclass(frozen=True)
+class StepSubmissionsRef:
+    """Identity-preserving submissions for scoring and personalized routing."""
+
+    step_name: str
+
+    @property
+    def expression(self) -> str:
+        return "workflow.submissions[" + repr(self.step_name) + "]"
+
+    @property
+    def template(self) -> str:
+        return "{{ " + self.expression + " }}"
+
+    @property
+    def value(self) -> WorkflowExpression:
+        return WorkflowExpression("step_submissions", options={"step_name": self.step_name})
+
+    def payoff_matrix(
+        self,
+        question: str,
+        matrix: Mapping[str, Sequence[float]],
+        *,
+        action_codes: Mapping[Any, str] | None = None,
+    ) -> WorkflowExpression:
+        """Compute two-player payoffs using explicit, stable action codes.
+
+        ``action_codes`` maps submitted answers to the one-character codes used by
+        the matrix keys.  It is optional for compatibility; without it, the
+        historical first-character convention is used.
+        """
+        options: dict[str, Any] = {
+            "question_name": question,
+            "matrix": {str(key): list(value) for key, value in matrix.items()},
+        }
+        if action_codes is not None:
+            codes = {str(action): str(code) for action, code in action_codes.items()}
+            if not codes:
+                raise ValueError("action_codes cannot be empty")
+            if any(len(code) != 1 for code in codes.values()):
+                raise ValueError("payoff-matrix action codes must be one character")
+            if len(set(codes.values())) != len(codes):
+                raise ValueError("payoff-matrix action codes must be unique")
+            options["action_codes"] = codes
+        return WorkflowExpression("payoff_matrix", (self.value,), options)
+
+    def closest_to(self, question: str, target: WorkflowExpression, *, ties: str = "all") -> WorkflowExpression:
+        if ties not in {"all", "first"}:
+            raise ValueError("ties must be 'all' or 'first'")
+        return WorkflowExpression("argmin_by", (self.value, target), {"question_name": question, "ties": ties})
 
 
 @dataclass(frozen=True)
@@ -187,11 +349,77 @@ class StepHandle:
         return StepOutputsRef(self.name, answer.question_name)
 
     @property
+    def submissions(self) -> StepSubmissionsRef:
+        return StepSubmissionsRef(self.name)
+
+    @property
     def completed(self) -> StepCompletedCondition:
         return StepCompletedCondition(self.name)
 
     def __repr__(self) -> str:
         return f"StepHandle({self.name!r})"
+
+
+@dataclass(frozen=True)
+class RepeatResult:
+    block: RepeatBlock
+    tails: tuple[StepHandle, ...]
+
+    @property
+    def final_tail(self) -> StepHandle:
+        return self.tails[-1]
+
+
+class RepeatIterationBuilder:
+    """Authoring context for one materialized iteration of a repeat block."""
+
+    def __init__(
+        self,
+        workflow: "Workflow",
+        block_name: str,
+        number: int,
+        previous_tail: StepHandle | None,
+        continuation: WorkflowCondition | None,
+    ):
+        self.workflow = workflow
+        self.block_name = block_name
+        self.number = number
+        self.previous_tail = previous_tail
+        self.continuation = continuation
+        self.handles: list[StepHandle] = []
+        self.until: WorkflowCondition | None = None
+
+    def step(self, name: str, survey: Survey, **kwargs: Any) -> StepHandle:
+        after = kwargs.pop("after", None)
+        when = kwargs.pop("when", None)
+        if not self.handles and self.previous_tail is not None:
+            after = after or self.previous_tail
+            if self.continuation is not None:
+                when = (
+                    self.continuation
+                    if when is None
+                    else all_of(self.continuation, when)
+                )
+        metadata = {
+            **dict(kwargs.pop("metadata", {}) or {}),
+            "repeat": {"name": self.block_name, "iteration": self.number},
+        }
+        handle = self.workflow.step(
+            f"{name}-{self.number}",
+            survey,
+            after=after,
+            when=when,
+            metadata=metadata,
+            **kwargs,
+        )
+        self.handles.append(handle)
+        return handle
+
+    def stop_when(self, condition: WorkflowCondition) -> None:
+        self.until = condition
+
+
+RepeatFactory = Callable[[RepeatIterationBuilder], None]
 
 
 class Workflow:
@@ -202,6 +430,63 @@ class Workflow:
         self.metadata = dict(metadata or {})
         self._steps: list[HumanStep] = []
         self._handles: dict[str, StepHandle] = {}
+        self._derived_values: list[DerivedValue] = []
+        self._repeat_blocks: list[RepeatBlock] = []
+
+    def derive(self, name: str, **fields: WorkflowExpression) -> DerivedValuesRef:
+        if any(item.name == name for item in self._derived_values):
+            raise ValueError(f"derived value {name!r} already exists")
+        if not all(isinstance(value, WorkflowExpression) for value in fields.values()):
+            raise TypeError("derived fields must be serializable workflow expressions")
+        definition = DerivedValue(name, fields)
+        self._derived_values.append(definition)
+        return DerivedValuesRef(definition)
+
+    def repeat(
+        self,
+        name: str,
+        *,
+        max_iterations: int,
+        build: RepeatFactory,
+        min_iterations: int = 1,
+        after: StepHandle | None = None,
+    ) -> RepeatResult:
+        """Materialize a bounded loop whose compiled form contains only data."""
+        if max_iterations < min_iterations or min_iterations < 1:
+            raise ValueError("repeat bounds must satisfy 1 <= min <= max")
+        if any(item.name == name for item in self._repeat_blocks):
+            raise ValueError(f"repeat block {name!r} already exists")
+        previous_tail = after
+        previous_until: WorkflowCondition | None = None
+        iterations: list[RepeatIteration] = []
+        tails: list[StepHandle] = []
+        for number in range(1, max_iterations + 1):
+            continuation = (
+                not_(previous_until)
+                if previous_until is not None and number > min_iterations
+                else None
+            )
+            iteration = RepeatIterationBuilder(
+                self, name, number, previous_tail, continuation
+            )
+            build(iteration)
+            if not iteration.handles:
+                raise ValueError("repeat iteration must define at least one step")
+            if number < max_iterations and iteration.until is None:
+                raise ValueError("repeat iteration must define a stop condition")
+            previous_tail = iteration.handles[-1]
+            previous_until = iteration.until
+            tails.append(previous_tail)
+            iterations.append(
+                RepeatIteration(
+                    number,
+                    tuple(handle.name for handle in iteration.handles),
+                    iteration.until,
+                )
+            )
+        block = RepeatBlock(name, min_iterations, max_iterations, tuple(iterations))
+        self._repeat_blocks.append(block)
+        return RepeatResult(block, tuple(tails))
 
     def step(
         self,
@@ -210,16 +495,19 @@ class Workflow:
         *,
         assigned_to: ParticipantSelector | None = None,
         after: StepHandle | Sequence[StepHandle] | None = None,
+        after_settled: StepHandle | Sequence[StepHandle] | None = None,
         when: WorkflowCondition | None = None,
         completion: CompletionPolicy | None = None,
         visible_to: ParticipantSelector | Sequence[ParticipantSelector] | None = None,
         reads: Iterable[StateRead] = (),
         writes: Iterable[StateWrite] = (),
         metadata: Mapping[str, Any] | None = None,
+        answer_bounds: Mapping[str | Any, tuple[Any, Any]] | None = None,
     ) -> StepHandle:
         if name in self._handles:
             raise ValueError(f"workflow step {name!r} already exists")
         dependencies = self._dependencies(after)
+        settled_dependencies = self._dependencies(after_settled)
         if when is not None:
             dependencies.extend(
                 dependency
@@ -236,12 +524,17 @@ class Workflow:
             survey=survey,
             assignee=assigned_to or ParticipantSelector.all(),
             after=tuple(dependencies),
+            settled_after=tuple(settled_dependencies),
             enabled_when=when,
             completion=completion or AllAssigned(),
             output_visibility=self._visibility(visible_to),
             reads=tuple(reads),
             writes=tuple(writes),
             metadata=dict(metadata or {}),
+            answer_bounds={
+                (key if isinstance(key, str) else key.question_name): (_expression(low), _expression(high))
+                for key, (low, high) in (answer_bounds or {}).items()
+            },
         )
         handle = StepHandle(self, name, survey)
         self._steps.append(step)
@@ -266,7 +559,13 @@ class Workflow:
         return tuple(selectors)
 
     def compile(self) -> HumanWorkflow:
-        return HumanWorkflow(self.name, self._steps, self.metadata)
+        return HumanWorkflow(
+            self.name,
+            self._steps,
+            self.metadata,
+            self._derived_values,
+            self._repeat_blocks,
+        )
 
     @staticmethod
     def _dependencies(

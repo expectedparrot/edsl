@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 import json
 from pathlib import Path
 import sqlite3
@@ -72,6 +72,17 @@ class SQLiteWorkflowStore:
                     shared_state TEXT NOT NULL, state_versions TEXT NOT NULL,
                     rendered_at TEXT NOT NULL
                 );
+                CREATE TABLE IF NOT EXISTS workflow_attempts (
+                    id TEXT PRIMARY KEY, work_item_id TEXT NOT NULL,
+                    attempt_number INTEGER NOT NULL, status TEXT NOT NULL,
+                    lease_expires_at TEXT NOT NULL, error_kind TEXT,
+                    error_message TEXT, started_at TEXT NOT NULL, finished_at TEXT,
+                    UNIQUE(work_item_id, attempt_number)
+                );
+                CREATE TABLE IF NOT EXISTS workflow_executor_resolutions (
+                    work_item_id TEXT PRIMARY KEY, kind TEXT NOT NULL,
+                    options TEXT NOT NULL, resolved_at TEXT NOT NULL
+                );
                 """
             )
 
@@ -134,6 +145,18 @@ class SQLiteWorkflowStore:
             raise KeyError(f"unknown participant {participant_id!r}")
         return json.loads(rows[0]["agent"])
 
+    def record_executor(self, work_item_id: str, kind: str, options: Mapping[str, Any]) -> None:
+        with self.connect() as db:
+            db.execute(
+                "INSERT INTO workflow_executor_resolutions VALUES (?, ?, ?, ?) "
+                "ON CONFLICT(work_item_id) DO UPDATE SET kind=excluded.kind, options=excluded.options",
+                (work_item_id, kind, json.dumps(dict(options)), _now()),
+            )
+
+    def executor(self, work_item_id: str) -> dict[str, Any] | None:
+        rows = self.rows("SELECT * FROM workflow_executor_resolutions WHERE work_item_id = ?", (work_item_id,))
+        return None if not rows else {"kind": rows[0]["kind"], "options": json.loads(rows[0]["options"])}
+
     def make_ready(self, item_id: str) -> bool:
         with self.connect() as db:
             db.execute("BEGIN IMMEDIATE")
@@ -156,7 +179,12 @@ class SQLiteWorkflowStore:
                 "participant_id": item["participant_id"],
             }
             db.execute(
-                "INSERT INTO workflow_outbox VALUES (?, ?, 'pending', ?, ?)",
+                """
+                INSERT INTO workflow_outbox VALUES (?, ?, 'pending', ?, ?)
+                ON CONFLICT(work_item_id) DO UPDATE SET
+                    status = 'pending', payload = excluded.payload,
+                    created_at = excluded.created_at
+                """,
                 (str(uuid4()), item_id, json.dumps(payload), _now()),
             )
             self._event(
@@ -270,6 +298,190 @@ class SQLiteWorkflowStore:
                 "UPDATE workflow_items SET status = 'in_progress', opened_at = COALESCE(opened_at, ?) WHERE id = ? AND status IN ('ready', 'in_progress')",
                 (_now(), item_id),
             )
+
+    def start_attempt(self, item_id: str, *, lease_seconds: float) -> dict[str, Any]:
+        now = datetime.now(timezone.utc)
+        expires = now + timedelta(seconds=lease_seconds)
+        with self.connect() as db:
+            db.execute("BEGIN IMMEDIATE")
+            item = db.execute(
+                "SELECT * FROM workflow_items WHERE id = ?", (item_id,)
+            ).fetchone()
+            if item is None or item["status"] not in ("ready", "in_progress"):
+                db.rollback()
+                raise ValueError(f"work item {item_id!r} cannot start an attempt")
+            active = db.execute(
+                """
+                SELECT * FROM workflow_attempts
+                WHERE work_item_id = ? AND status = 'running'
+                  AND lease_expires_at > ?
+                """,
+                (item_id, now.isoformat()),
+            ).fetchone()
+            if active is not None:
+                db.rollback()
+                raise ValueError(f"work item {item_id!r} already has an active lease")
+            number = (
+                db.execute(
+                    "SELECT COUNT(*) AS n FROM workflow_attempts WHERE work_item_id = ?",
+                    (item_id,),
+                ).fetchone()["n"]
+                + 1
+            )
+            attempt_id = str(uuid4())
+            db.execute(
+                """
+                INSERT INTO workflow_attempts VALUES
+                    (?, ?, ?, 'running', ?, NULL, NULL, ?, NULL)
+                """,
+                (attempt_id, item_id, number, expires.isoformat(), now.isoformat()),
+            )
+            db.execute(
+                "UPDATE workflow_items SET status = 'in_progress', opened_at = COALESCE(opened_at, ?) WHERE id = ?",
+                (now.isoformat(), item_id),
+            )
+            self._event(
+                db,
+                item["instance_id"],
+                "work_item.attempt_started",
+                {
+                    "work_item_id": item_id,
+                    "attempt_id": attempt_id,
+                    "attempt_number": number,
+                    "lease_expires_at": expires.isoformat(),
+                },
+            )
+            db.commit()
+        return {"id": attempt_id, "number": number, "lease_expires_at": expires}
+
+    def finish_attempt(
+        self,
+        attempt_id: str,
+        *,
+        status: str,
+        error_kind: str | None = None,
+        error_message: str | None = None,
+    ) -> None:
+        if status not in ("succeeded", "failed", "abandoned"):
+            raise ValueError(f"unsupported attempt status {status!r}")
+        with self.connect() as db:
+            db.execute("BEGIN IMMEDIATE")
+            attempt = db.execute(
+                "SELECT * FROM workflow_attempts WHERE id = ?", (attempt_id,)
+            ).fetchone()
+            if attempt is None or attempt["status"] != "running":
+                db.rollback()
+                return
+            item = db.execute(
+                "SELECT * FROM workflow_items WHERE id = ?",
+                (attempt["work_item_id"],),
+            ).fetchone()
+            db.execute(
+                """
+                UPDATE workflow_attempts SET status = ?, error_kind = ?,
+                    error_message = ?, finished_at = ? WHERE id = ?
+                """,
+                (status, error_kind, error_message, _now(), attempt_id),
+            )
+            self._event(
+                db,
+                item["instance_id"],
+                "work_item.attempt_finished",
+                {
+                    "work_item_id": item["id"],
+                    "attempt_id": attempt_id,
+                    "attempt_number": attempt["attempt_number"],
+                    "status": status,
+                    "error_kind": error_kind,
+                },
+            )
+            db.commit()
+
+    def attempts(self, item_id: str) -> list[sqlite3.Row]:
+        return self.rows(
+            "SELECT * FROM workflow_attempts WHERE work_item_id = ? ORDER BY attempt_number",
+            (item_id,),
+        )
+
+    def retry_item(self, item_id: str, *, reason: str) -> bool:
+        changed = self.make_ready(item_id)
+        if changed:
+            item = self.item(item_id)
+            with self.connect() as db:
+                self._event(
+                    db,
+                    item["instance_id"],
+                    "work_item.retry_scheduled",
+                    {"work_item_id": item_id, "reason": reason},
+                )
+        return changed
+
+    def fail_item(self, item_id: str, *, reason: str) -> bool:
+        with self.connect() as db:
+            db.execute("BEGIN IMMEDIATE")
+            item = db.execute(
+                "SELECT * FROM workflow_items WHERE id = ?", (item_id,)
+            ).fetchone()
+            if item is None or item["status"] not in ("ready", "in_progress"):
+                db.rollback()
+                return False
+            db.execute(
+                "UPDATE workflow_items SET status = 'failed', completed_at = ? WHERE id = ?",
+                (_now(), item_id),
+            )
+            db.execute(
+                "UPDATE workflow_instances SET status = 'failed', completed_at = ? WHERE id = ?",
+                (_now(), item["instance_id"]),
+            )
+            self._event(
+                db,
+                item["instance_id"],
+                "work_item.failed",
+                {"work_item_id": item_id, "reason": reason},
+            )
+            db.commit()
+            return True
+
+    def recover_items(self, instance_id: str, *, max_attempts: int) -> list[str]:
+        """Requeue abandoned deliveries and attempts whose leases have expired."""
+        recovered: list[str] = []
+        now = datetime.now(timezone.utc).isoformat()
+        for item in self.items(instance_id):
+            if item["status"] not in ("ready", "in_progress"):
+                continue
+            if item["status"] == "ready":
+                pending = self.rows(
+                    "SELECT id FROM workflow_outbox WHERE work_item_id = ? AND status = 'pending'",
+                    (item["id"],),
+                )
+                if pending:
+                    continue
+            attempts = self.attempts(item["id"])
+            active = next(
+                (
+                    attempt
+                    for attempt in attempts
+                    if attempt["status"] == "running"
+                    and attempt["lease_expires_at"] > now
+                ),
+                None,
+            )
+            if active is not None:
+                continue
+            for attempt in attempts:
+                if attempt["status"] == "running":
+                    self.finish_attempt(
+                        attempt["id"],
+                        status="abandoned",
+                        error_kind="lease_expired",
+                        error_message="attempt lease expired before completion",
+                    )
+            if len(attempts) >= max_attempts:
+                self.fail_item(item["id"], reason="retry attempts exhausted")
+                continue
+            self.retry_item(item["id"], reason="resuming abandoned work item")
+            recovered.append(item["id"])
+        return recovered
 
     def record_render(
         self,

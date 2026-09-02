@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from datetime import timedelta
 
+import pytest
+
 from edsl import Agent, Model, QuestionFreeText, Survey
 from edsl.sharedstate import (
     Command,
@@ -24,10 +26,39 @@ from edsl.workflows import (
     HumanWorkflow,
     OutboxDispatcher,
     ParticipantSelector,
+    RetryPolicy,
     SQLiteWorkflowStore,
     WorkflowCoordinator,
     WorkflowSimulation,
+    ExecutionPlan,
+    human,
+    llm,
+    role,
 )
+
+
+def test_simulation_routes_answerers_through_execution_plan(tmp_path):
+    question = QuestionFreeText(question_name="reply", question_text="Reply.")
+    workflow = HumanWorkflow("routed", [HumanStep("reply", Survey([question]))])
+    store = SQLiteWorkflowStore(tmp_path / "routed.sqlite")
+    coordinator = WorkflowCoordinator(workflow, store)
+    agent = Agent(name="person", traits={"role": "person"})
+    instance = coordinator.launch([agent])
+
+    class Answerer:
+        def __init__(self, value): self.value = value
+        def answer(self, agent, opened): return {"reply": self.value}
+
+    plan = ExecutionPlan().bind(role("person"), human(channel="email"))
+    WorkflowSimulation(
+        coordinator, {agent.name: agent}, Answerer("fallback"),
+        execution_plan=plan,
+        answerers={"human": Answerer("human-route"), "llm": Answerer("llm-route")},
+    ).run(instance)
+    assert store.step_answers(instance, "reply") == [{"reply": "human-route"}]
+    assert store.executor(store.items(instance)[0]["id"]) == {
+        "kind": "human", "options": {"channel": "email"}
+    }
 
 
 class ScriptedAnswerer:
@@ -134,6 +165,7 @@ def test_two_reviews_fan_in_before_adjudication_and_write_shared_state(tmp_path)
     assert simulation.clock.now.hour == 4
     assert all(item["status"] == "completed" for item in store.items(instance_id))
     kinds = [event["kind"] for event in store.events(instance_id)]
+    assert kinds.count("workflow.completed") == 1
     assert kinds[-1] == "workflow.completed"
 
 
@@ -187,3 +219,109 @@ def test_delivery_adapter_is_thin_and_outbox_driven(tmp_path):
     assert len(receipts) == 1
     assert adapter.requests[0].participant_id == "person"
     assert store.pending_outbox() == []
+
+
+def test_retryable_failure_is_persisted_and_then_succeeds(tmp_path):
+    question = QuestionFreeText(question_name="reply", question_text="Reply.")
+    workflow = HumanWorkflow("retry", [HumanStep("reply", Survey([question]))])
+    store = SQLiteWorkflowStore(tmp_path / "retry.sqlite")
+    coordinator = WorkflowCoordinator(workflow, store)
+    agent = Agent(name="person")
+    instance_id = coordinator.launch([agent])
+
+    class FlakyAnswerer:
+        calls = 0
+
+        def answer(self, agent, opened):
+            self.calls += 1
+            if self.calls == 1:
+                raise TimeoutError("temporary timeout")
+            return {"reply": "recovered"}
+
+    simulation = WorkflowSimulation(coordinator, {agent.name: agent}, FlakyAnswerer())
+    simulation.run(
+        instance_id,
+        retry_policy=RetryPolicy(max_attempts=2, lease_seconds=30),
+    )
+
+    item = store.items(instance_id)[0]
+    assert store.item_answers(item["id"]) == {"reply": "recovered"}
+    assert [attempt["status"] for attempt in store.attempts(item["id"])] == [
+        "failed",
+        "succeeded",
+    ]
+    kinds = [event["kind"] for event in store.events(instance_id)]
+    assert "work_item.retry_scheduled" in kinds
+
+
+def test_fresh_simulation_resumes_an_expired_lease(tmp_path):
+    question = QuestionFreeText(question_name="reply", question_text="Reply.")
+    workflow = HumanWorkflow("resume", [HumanStep("reply", Survey([question]))])
+    path = tmp_path / "resume.sqlite"
+    store = SQLiteWorkflowStore(path)
+    coordinator = WorkflowCoordinator(workflow, store)
+    agent = Agent(name="person")
+    instance_id = coordinator.launch([agent])
+    outbox = store.pending_outbox()[0]
+    store.mark_delivered(outbox["id"])
+    item_id = outbox["work_item_id"]
+    store.start_attempt(item_id, lease_seconds=300)
+    with store.connect() as db:
+        db.execute(
+            "UPDATE workflow_attempts SET lease_expires_at = ? WHERE work_item_id = ?",
+            ("2000-01-01T00:00:00+00:00", item_id),
+        )
+
+    restarted_store = SQLiteWorkflowStore(path)
+    restarted = WorkflowCoordinator(
+        HumanWorkflow.from_dict(workflow.to_dict()), restarted_store
+    )
+
+    class Answerer:
+        def answer(self, agent, opened):
+            return {"reply": "after restart"}
+
+    WorkflowSimulation(restarted, {agent.name: agent}, Answerer()).run(
+        instance_id,
+        resume=True,
+        retry_policy=RetryPolicy(max_attempts=2),
+    )
+    attempts = restarted_store.attempts(item_id)
+    assert [attempt["status"] for attempt in attempts] == [
+        "abandoned",
+        "succeeded",
+    ]
+    assert restarted_store.item_answers(item_id) == {"reply": "after restart"}
+
+
+def test_exhausted_attempts_fail_item_and_instance(tmp_path):
+    question = QuestionFreeText(question_name="reply", question_text="Reply.")
+    workflow = HumanWorkflow("failure", [HumanStep("reply", Survey([question]))])
+    store = SQLiteWorkflowStore(tmp_path / "failure.sqlite")
+    coordinator = WorkflowCoordinator(workflow, store)
+    agent = Agent(name="person")
+    instance_id = coordinator.launch([agent])
+
+    class BrokenAnswerer:
+        def answer(self, agent, opened):
+            raise RuntimeError("permanent failure")
+
+    simulation = WorkflowSimulation(coordinator, {agent.name: agent}, BrokenAnswerer())
+    with pytest.raises(RuntimeError, match="workflow execution failed"):
+        simulation.run(
+            instance_id,
+            retry_policy=RetryPolicy(max_attempts=2, retryable=("exception",)),
+        )
+    item = store.items(instance_id)[0]
+    assert item["status"] == "failed"
+    assert len(store.attempts(item["id"])) == 2
+    assert store.rows("SELECT status FROM workflow_instances")[0]["status"] == "failed"
+
+
+def test_retry_policy_is_serializable():
+    policy = RetryPolicy(
+        max_attempts=4,
+        lease_seconds=90,
+        retryable=("timeout", "remote_error"),
+    )
+    assert RetryPolicy.from_dict(policy.to_dict()) == policy

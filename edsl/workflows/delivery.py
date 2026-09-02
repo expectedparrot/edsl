@@ -14,6 +14,7 @@ if TYPE_CHECKING:
     from .coordinator import WorkflowCoordinator
 
 from .store import SQLiteWorkflowStore
+from .execution import ExecutionPlan
 
 
 @dataclass(frozen=True)
@@ -58,6 +59,27 @@ class OutboxDispatcher:
             )
             self.store.mark_delivered(row["id"])
             receipts.append(receipt)
+        return receipts
+
+
+class RoutedOutboxDispatcher:
+    """Dispatch each pending item through its execution-plan adapter."""
+
+    def __init__(self, store: SQLiteWorkflowStore, plan: ExecutionPlan, adapters: Mapping[str, DeliveryAdapter]):
+        self.store, self.plan, self.adapters = store, plan, dict(adapters)
+
+    def dispatch(self) -> list[DeliveryReceipt]:
+        receipts = []
+        for row in self.store.pending_outbox():
+            payload = json.loads(row["payload"])
+            agent = self.store.participant(payload["instance_id"], payload["participant_id"])
+            spec = self.plan.resolve(agent.get("traits", {}))
+            if spec.kind not in self.adapters:
+                raise ValueError(f"no delivery adapter configured for executor {spec.kind!r}")
+            self.store.record_executor(row["work_item_id"], spec.kind, spec.options)
+            request = DeliveryRequest(row["id"], payload["instance_id"], row["work_item_id"], payload["step_name"], payload["participant_id"])
+            receipts.append(self.adapters[spec.kind].deliver(request))
+            self.store.mark_delivered(row["id"])
         return receipts
 
 
