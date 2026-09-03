@@ -106,8 +106,11 @@ class Conversation:
     stop: StopRule
     transcript_visibility: str = "public"
     include_remaining_turns: bool = True
+    turn_instructions: Mapping[str, str] | None = None
+    retire_on: Mapping[str, tuple[str, ...]] | None = None
+    turn_contracts: Mapping[str, Mapping[str, Any]] | None = None
 
-    def __init__(self, name: str, roles: Sequence[str], scenario: str, protocol: ConversationProtocol, stop: StopRule, *, transcript_visibility: str = "public", include_remaining_turns: bool = True):
+    def __init__(self, name: str, roles: Sequence[str], scenario: str, protocol: ConversationProtocol, stop: StopRule, *, transcript_visibility: str = "public", include_remaining_turns: bool = True, turn_instructions: Mapping[str, str] | None = None, retire_on: Mapping[str, Sequence[str]] | None = None, turn_contracts: Mapping[str, Mapping[str, Any]] | None = None):
         object.__setattr__(self, "name", name)
         object.__setattr__(self, "roles", tuple(roles))
         object.__setattr__(self, "scenario", scenario)
@@ -115,6 +118,9 @@ class Conversation:
         object.__setattr__(self, "stop", stop)
         object.__setattr__(self, "transcript_visibility", transcript_visibility)
         object.__setattr__(self, "include_remaining_turns", include_remaining_turns)
+        object.__setattr__(self, "turn_instructions", dict(turn_instructions or {}))
+        object.__setattr__(self, "retire_on", {role: tuple(values) for role, values in (retire_on or {}).items()})
+        object.__setattr__(self, "turn_contracts", {role: dict(contract) for role, contract in (turn_contracts or {}).items()})
         if not name or not scenario or not self.roles or len(set(self.roles)) != len(self.roles):
             raise ValueError("conversation requires a name, scenario, and unique roles")
         referenced = set(protocol.options.get("order", ())) | set(protocol.options.get("others", ()))
@@ -125,12 +131,23 @@ class Conversation:
             raise ValueError("conversation protocol roles must exactly match conversation roles")
         if transcript_visibility not in {"public", "role_filtered"}:
             raise ValueError("unsupported transcript visibility")
+        invalid_instruction_roles = set(self.turn_instructions) - set(self.roles) - {"*"}
+        if invalid_instruction_roles or any(not str(value).strip() for value in self.turn_instructions.values()):
+            raise ValueError(f"turn instructions reference invalid roles: {sorted(invalid_instruction_roles)}")
+        invalid_retirement_roles = set(self.retire_on) - set(self.roles)
+        center_role = self.protocol.options.get("center")
+        if invalid_retirement_roles or center_role in self.retire_on or any(not values or any(not str(value).strip() for value in values) for values in self.retire_on.values()):
+            raise ValueError(f"retirement rules reference invalid roles: {sorted(invalid_retirement_roles)}")
+        invalid_contract_roles = set(self.turn_contracts) - set(self.roles)
+        supported_contracts = {"numeric_offer_or_pass"}
+        if invalid_contract_roles or any(contract.get("kind") not in supported_contracts for contract in self.turn_contracts.values()):
+            raise ValueError(f"turn contracts reference invalid roles or kinds: {sorted(invalid_contract_roles)}")
 
     def to_dict(self) -> dict[str, Any]:
-        return {"type": "conversation", "name": self.name, "roles": list(self.roles), "scenario": self.scenario, "protocol": self.protocol.to_dict(), "stop": _encode_stop(self.stop), "transcript_visibility": self.transcript_visibility, "include_remaining_turns": self.include_remaining_turns}
+        return {"type": "conversation", "name": self.name, "roles": list(self.roles), "scenario": self.scenario, "protocol": self.protocol.to_dict(), "stop": _encode_stop(self.stop), "transcript_visibility": self.transcript_visibility, "include_remaining_turns": self.include_remaining_turns, "turn_instructions": dict(self.turn_instructions), "retire_on": {role: list(values) for role, values in self.retire_on.items()}, "turn_contracts": {role: dict(contract) for role, contract in self.turn_contracts.items()}}
 
     @classmethod
     def from_dict(cls, data: Mapping[str, Any]) -> "Conversation":
         if data.get("type") != "conversation":
             raise ValueError("not a conversation")
-        return cls(data["name"], data["roles"], data["scenario"], ConversationProtocol.from_dict(data["protocol"]), StopRule.from_dict(data["stop"]), transcript_visibility=data.get("transcript_visibility", "public"), include_remaining_turns=bool(data.get("include_remaining_turns", True)))
+        return cls(data["name"], data["roles"], data["scenario"], ConversationProtocol.from_dict(data["protocol"]), StopRule.from_dict(data["stop"]), transcript_visibility=data.get("transcript_visibility", "public"), include_remaining_turns=bool(data.get("include_remaining_turns", True)), turn_instructions=data.get("turn_instructions"), retire_on=data.get("retire_on"), turn_contracts=data.get("turn_contracts"))

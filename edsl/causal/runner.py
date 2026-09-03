@@ -19,6 +19,9 @@ class ConversationTurnRequest:
     public_context: Mapping[str, Any]
     private_context: Mapping[str, Any]
     transcript: tuple[Mapping[str, Any], ...]
+    turn_instruction: str = ""
+    private_values: Mapping[str, Any] | None = None
+    turn_contract: Mapping[str, Any] | None = None
 
 
 @dataclass(frozen=True)
@@ -79,7 +82,15 @@ class CausalExperimentRunner:
                 break
             role = runtime.next_role(replication.instance_id)
             participant = by_role[role]
-            request = ConversationTurnRequest(replication.instance_id, role, participant, self.conversation.scenario, replication.public_context, participant.private_context, tuple(transcript))
+            instruction_parts = [
+                self.conversation.turn_instructions.get("*", ""),
+                self.conversation.turn_instructions.get(role, ""),
+            ]
+            recipient = runtime.next_recipient(replication.instance_id) if role == self.conversation.protocol.options.get("center") else None
+            if recipient:
+                instruction_parts.append(f"The next eligible participant is {recipient}; address that role, not a retired role.")
+            private_values = {name: replication.system_context[name] for name in participant.private_context}
+            request = ConversationTurnRequest(replication.instance_id, role, participant, self.conversation.scenario, replication.public_context, participant.private_context, tuple(transcript), "\n".join(item for item in instruction_parts if item), private_values, self.conversation.turn_contracts.get(role))
             text = self.speakers[role](request)
             runtime.append(replication.instance_id, role=role, text=text, expected_version=state["version"], metadata={"executor": "callback"})
             state = self.store.state(replication.instance_id)

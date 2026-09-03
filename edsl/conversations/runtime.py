@@ -27,21 +27,35 @@ class ConversationRuntime:
     def next_role(self, instance_id: str, coordinator: Coordinator | None = None) -> str:
         state = self.store.state(instance_id)
         transcript = self.store.transcript(instance_id)
-        roles = list(self.definition.roles)
+        retired = self._retired_roles(transcript)
+        roles = [role for role in self.definition.roles if role not in retired]
         previous = transcript[-1]["role"] if transcript else None
         protocol = self.definition.protocol
         n = len(transcript)
         if protocol.kind == "ordered":
-            return protocol.options["order"][n % len(roles)]
+            order = [role for role in protocol.options["order"] if role not in retired]
+            if not order:
+                raise ValueError("conversation has no eligible next speaker")
+            if previous in order:
+                return order[(order.index(previous) + 1) % len(order)]
+            original = list(protocol.options["order"])
+            previous_index = original.index(previous) if previous in original else -1
+            return next((original[(previous_index + offset) % len(original)] for offset in range(1, len(original) + 1) if original[(previous_index + offset) % len(original)] in order), order[0])
         if protocol.kind == "random":
             eligible = [role for role in roles if not protocol.options.get("no_immediate_repeat") or role != previous]
             return self._stable_choice(instance_id, state["version"], protocol.options["seed"], eligible)
         if protocol.kind in {"central_ordered", "central_random"}:
-            if n % 2 == 0:
+            if previous is None or previous != protocol.options["center"]:
                 return protocol.options["center"]
-            others = list(protocol.options["others"])
+            others = [role for role in protocol.options["others"] if role not in retired]
+            if not others:
+                return protocol.options["center"]
             if protocol.kind == "central_ordered":
-                return others[(n // 2) % len(others)]
+                spoken_others = [item["role"] for item in transcript if item["role"] in protocol.options["others"]]
+                last_other = spoken_others[-1] if spoken_others else None
+                original = list(protocol.options["others"])
+                start = original.index(last_other) if last_other in original else -1
+                return next(original[(start + offset) % len(original)] for offset in range(1, len(original) + 1) if original[(start + offset) % len(original)] in others)
             return self._stable_choice(instance_id, state["version"], protocol.options["seed"], others)
         if protocol.kind == "coordinator_before":
             if coordinator is None:
@@ -54,6 +68,34 @@ class ConversationRuntime:
         if protocol.kind == "coordinator_after":
             raise ValueError("coordinator-after chooses among candidate responses, not a next role")
         raise ValueError(f"unsupported conversation protocol {protocol.kind!r}")
+
+    def next_recipient(self, instance_id: str) -> str | None:
+        """Return the participant a central speaker should address next."""
+        protocol = self.definition.protocol
+        if protocol.kind not in {"central_ordered", "central_random"}:
+            return None
+        transcript = self.store.transcript(instance_id)
+        retired = self._retired_roles(transcript)
+        others = [role for role in protocol.options["others"] if role not in retired]
+        if not others:
+            return None
+        if protocol.kind == "central_random":
+            state = self.store.state(instance_id)
+            return self._stable_choice(instance_id, state["version"] + 1, protocol.options["seed"], others)
+        spoken_others = [item["role"] for item in transcript if item["role"] in protocol.options["others"]]
+        last_other = spoken_others[-1] if spoken_others else None
+        original = list(protocol.options["others"])
+        start = original.index(last_other) if last_other in original else -1
+        return next(original[(start + offset) % len(original)] for offset in range(1, len(original) + 1) if original[(start + offset) % len(original)] in others)
+
+    def _retired_roles(self, transcript: Sequence[Mapping]) -> set[str]:
+        retired = set()
+        for item in transcript:
+            phrases = self.definition.retire_on.get(item["role"], ())
+            normalized = str(item["text"]).strip().lower().rstrip(".! ")
+            if normalized in {str(value).strip().lower().rstrip(".! ") for value in phrases}:
+                retired.add(item["role"])
+        return retired
 
     @staticmethod
     def _stable_choice(instance_id: str, version: int, seed: str, eligible: Sequence[str]) -> str:

@@ -5,7 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Mapping, Sequence
 
-from edsl import Agent, Model, QuestionFreeText, QuestionYesNo, Survey
+from edsl import Agent, Model, QuestionFreeText, QuestionMultipleChoice, QuestionYesNo, Survey
+import re
 
 from .runner import ConversationTurnRequest, MeasurementRequest
 
@@ -65,8 +66,27 @@ Private information known only to you:
 Conversation so far:
 {self._transcript_text(request.transcript)}
 
+Turn instructions:
+{request.turn_instruction or "No additional turn instructions."}
+
 Provide only your next public utterance. Do not describe your reasoning or another participant's response."""
-        survey = Survey([QuestionFreeText(question_name="utterance", question_text=prompt)])
+        if request.turn_contract and request.turn_contract.get("kind") == "numeric_offer_or_pass":
+            contract = request.turn_contract
+            currency = str(contract.get("currency", "$"))
+            amounts = [float(value) for item in request.transcript for value in re.findall(rf"{re.escape(currency)}\s*([0-9]+(?:\.[0-9]+)?)", str(item["text"]))]
+            standing = max(amounts, default=float(contract.get("opening", 0)))
+            maximum = float((request.private_values or {})[contract["maximum_context"]])
+            increment = float(contract["increment"])
+            max_jump = float(contract.get("max_jump", increment))
+            legal = []
+            candidate = standing + increment
+            while candidate <= maximum and candidate <= standing + max_jump:
+                legal.append(f"{currency}{candidate:g}")
+                candidate += increment
+            choices = legal + [str(contract.get("pass_token", "pass"))]
+            survey = Survey([QuestionMultipleChoice(question_name="utterance", question_text=prompt, question_options=choices)])
+        else:
+            survey = Survey([QuestionFreeText(question_name="utterance", question_text=prompt)])
         answers = self._run(survey, request.participant.to_agent(), self.model, kind="speaker", instance_id=request.instance_id, role=request.role, input_data={"prompt": prompt, "transcript_version": len(request.transcript)})
         return str(answers["utterance"]).strip()
 

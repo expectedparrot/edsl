@@ -28,6 +28,8 @@ _build/*
 .coverage
 .edsl_cache
 .edsl_objects/
+**/_object_store/
+examples/automated_social_science/runs/paper-replications*/
 .edsl/
 .claude/
 .tmp/

@@ -1,0 +1,108 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Original vs new fitted SCMs</title><style>
+:root{--ink:#172033;--muted:#657087;--paper:#fff;--wash:#eef3f1;--line:#d7e0dd;--green:#167354;--violet:#6842d8}
+*{box-sizing:border-box} html{scroll-behavior:smooth} body{margin:0;background:var(--wash);color:var(--ink);font:16px/1.55 Inter,ui-sans-serif,system-ui,sans-serif}
+.hero{background:#152339;color:white;padding:64px max(28px,calc((100vw - 1180px)/2));background-image:radial-gradient(circle at 85% 15%,#28765d88,transparent 34%)}
+.hero h1{font-size:clamp(2.3rem,5vw,4.5rem);line-height:1.02;max-width:900px;margin:.15em 0} .hero p{max-width:760px;color:#d5ddea;font-size:1.12rem}
+nav{display:flex;gap:12px;flex-wrap:wrap;margin-top:28px} nav a{color:white;text-decoration:none;border:1px solid #ffffff55;padding:8px 14px;border-radius:999px}
+main{max-width:1180px;margin:auto;padding:28px} .study{background:var(--paper);margin:30px 0;padding:36px;border:1px solid var(--line);border-radius:20px;box-shadow:0 14px 42px #1720330d}
+.section-heading{display:flex;align-items:end;justify-content:space-between;gap:24px;border-bottom:1px solid var(--line);padding-bottom:22px} h2{font-size:2.1rem;margin:.15em 0} h3{margin-top:0}
+.eyebrow{color:var(--green);font-weight:750;text-transform:uppercase;letter-spacing:.08em;font-size:.76rem} .means{text-align:right} .means span,.means small{display:block;color:var(--muted)} .means strong{font-size:2rem}
+.study-grid{display:grid;grid-template-columns:minmax(360px,.85fr) minmax(520px,1.15fr);gap:25px;margin-top:26px} .diagram-card,.table-card{border:1px solid var(--line);border-radius:15px;padding:20px;overflow:hidden}
+.scm{display:block;width:100%;height:auto} .node-label{fill:white;font-size:13px;font-weight:750} .node-kind{fill:#dce8e4;font-size:9px;font-weight:800;letter-spacing:.12em} .edge-paper{fill:#59657b;font-size:11px} .edge-new{fill:#172033;font-size:11px;font-weight:800}
+.legend{font-size:.82rem;color:var(--muted);text-align:center} .original-dot,.new-dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin:0 5px 0 14px} .original-dot{background:#9ba5b6} .new-dot{background:var(--green)}
+.table-wrap{overflow:auto} table{width:100%;border-collapse:collapse} th,td{padding:13px 11px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap} th:first-child{text-align:left} thead th{font-size:.72rem;text-transform:uppercase;color:var(--muted)} tbody th{white-space:normal} tbody th code{display:block;color:var(--muted);font-weight:400;font-size:.73rem} td small{display:block;color:var(--muted)} .new-estimate{font-weight:800;color:var(--green)}
+.direction{font-size:.72rem;padding:4px 8px;border-radius:999px;background:#e6f5ed;color:#126044} .direction.opposite{background:#fff0df;color:#8c4a0e} .caveat{background:#f6f8f7;border-left:4px solid var(--green);padding:15px 18px;border-radius:6px;color:#465268}
+footer{max-width:1180px;margin:0 auto 60px;padding:0 28px;color:var(--muted)}
+@media(max-width:950px){.study-grid{grid-template-columns:1fr}} @media(max-width:600px){main{padding:12px}.study{padding:20px}.section-heading{align-items:start;flex-direction:column}.means{text-align:left}}
+</style></head><body><header class="hero"><span class="eyebrow">Manning, Zhu &amp; Horton (2024) · contemporary-model replication</span><h1>Original vs new fitted causal models</h1><p>Side-by-side results from 668 real-model simulations using <strong>gemini-2.5-flash-lite</strong>. Edge labels report unstandardized coefficients from the paper and the new EDSL replication.</p><nav><a href="#bail">Bail hearing</a><a href="#interview">Job interview</a><a href="#auction">Art auction</a></nav></header><main><section id="bail" class="study">
+          <div class="section-heading"><div><span class="eyebrow">245 factorial cells · 0 failures</span><h2>Bail hearing</h2></div>
+          <div class="means"><span>Outcome mean</span><strong>42204.082</strong><small>Original 54428.570</small></div></div>
+          <div class="study-grid"><div class="diagram-card"><h3>Fitted structural causal model</h3><svg class="scm" viewBox="0 0 480 350" role="img" aria-label="Fitted structural causal model for Bail hearing">
+      <defs><marker id="arrow-bail" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#667085"/></marker></defs>
+      <path d="M85 112 C85 175 240 172 240 244" fill="none" stroke="#206f57" stroke-width="3" marker-end="url(#arrow-bail)"/><rect x="21" y="155" width="128" height="45" rx="8" fill="#fff" stroke="#206f57"/><text x="85" y="173" text-anchor="middle" class="edge-paper">Original +521.530</text><text x="85" y="190" text-anchor="middle" class="edge-new">New +741.456</text><path d="M240 112 C240 175 240 172 240 244" fill="none" stroke="#315ca8" stroke-width="3" marker-end="url(#arrow-bail)"/><rect x="176" y="155" width="128" height="45" rx="8" fill="#fff" stroke="#315ca8"/><text x="240" y="173" text-anchor="middle" class="edge-paper">Original -1153.061</text><text x="240" y="190" text-anchor="middle" class="edge-new">New -4102.041</text><path d="M395 112 C395 175 240 172 240 244" fill="none" stroke="#9a5a18" stroke-width="3" marker-end="url(#arrow-bail)"/><rect x="331" y="155" width="128" height="45" rx="8" fill="#fff" stroke="#9a5a18"/><text x="395" y="173" text-anchor="middle" class="edge-paper">Original -74.632</text><text x="395" y="190" text-anchor="middle" class="edge-new">New +72.098</text><rect x="18" y="42" width="134" height="70" rx="14" fill="#206f57"/><text x="85" y="72" text-anchor="middle" class="node-label">Criminal history</text><text x="85" y="92" text-anchor="middle" class="node-kind">TREATMENT</text><rect x="173" y="42" width="134" height="70" rx="14" fill="#315ca8"/><text x="240" y="72" text-anchor="middle" class="node-label">Defendant remorse</text><text x="240" y="92" text-anchor="middle" class="node-kind">TREATMENT</text><rect x="328" y="42" width="134" height="70" rx="14" fill="#9a5a18"/><text x="395" y="72" text-anchor="middle" class="node-label">Judge case count</text><text x="395" y="92" text-anchor="middle" class="node-kind">TREATMENT</text>
+      <rect x="163" y="244" width="154" height="78" rx="39" fill="#18243a"/>
+      <text x="240" y="276" text-anchor="middle" class="node-label">Bail amount</text>
+      <text x="240" y="298" text-anchor="middle" class="node-kind">OUTCOME</text>
+    </svg>
+          <p class="legend"><span class="original-dot"></span> Original paper <span class="new-dot"></span> New EDSL replication</p></div>
+          <div class="table-card"><h3>Coefficient comparison</h3><div class="table-wrap"><table><thead><tr><th>Path</th><th>Original</th><th>New</th><th>Δ</th><th>Sign</th></tr></thead><tbody><tr>
+              <th>Criminal history<code>criminal_history</code></th>
+              <td>+521.530<small>SE 206.567</small></td>
+              <td class="new-estimate">+741.456<small>HC3 SE 228.836</small></td>
+              <td>+219.926</td><td><span class="direction same">same</span></td>
+            </tr><tr>
+              <th>Defendant remorse<code>defendant_remorse</code></th>
+              <td>-1153.061<small>SE 603.325</small></td>
+              <td class="new-estimate">-4102.041<small>HC3 SE 769.137</small></td>
+              <td>-2948.980</td><td><span class="direction same">same</span></td>
+            </tr><tr>
+              <th>Judge case count<code>judge_case_count</code></th>
+              <td>-74.632<small>SE 109.263</small></td>
+              <td class="new-estimate">+72.098<small>HC3 SE 138.658</small></td>
+              <td>+146.730</td><td><span class="direction opposite">opposite</span></td>
+            </tr></tbody></table></div></div></div>
+          <p class="caveat"><strong>Interpretation note.</strong> Canonical run shares criminal history and expressed remorse as courtroom information; judge workload remains private. Figure 3&#x27;s 243 is a typo—the appendix confirms 245 cells.</p>
+        </section><section id="interview" class="study">
+          <div class="section-heading"><div><span class="eyebrow">80 factorial cells · 0 failures</span><h2>Lawyer job interview</h2></div>
+          <div class="means"><span>Outcome mean</span><strong>0.575</strong><small>Original 0.620</small></div></div>
+          <div class="study-grid"><div class="diagram-card"><h3>Fitted structural causal model</h3><svg class="scm" viewBox="0 0 480 350" role="img" aria-label="Fitted structural causal model for Lawyer job interview">
+      <defs><marker id="arrow-interview" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#667085"/></marker></defs>
+      <path d="M85 112 C85 175 240 172 240 244" fill="none" stroke="#206f57" stroke-width="3" marker-end="url(#arrow-interview)"/><rect x="21" y="155" width="128" height="45" rx="8" fill="#fff" stroke="#206f57"/><text x="85" y="173" text-anchor="middle" class="edge-paper">Original +0.003</text><text x="85" y="190" text-anchor="middle" class="edge-new">New -0.008</text><path d="M240 112 C240 175 240 172 240 244" fill="none" stroke="#315ca8" stroke-width="3" marker-end="url(#arrow-interview)"/><rect x="176" y="155" width="128" height="45" rx="8" fill="#fff" stroke="#315ca8"/><text x="240" y="173" text-anchor="middle" class="edge-paper">Original -0.002</text><text x="240" y="190" text-anchor="middle" class="edge-new">New +0.025</text><path d="M395 112 C395 175 240 172 240 244" fill="none" stroke="#9a5a18" stroke-width="3" marker-end="url(#arrow-interview)"/><rect x="331" y="155" width="128" height="45" rx="8" fill="#fff" stroke="#9a5a18"/><text x="395" y="173" text-anchor="middle" class="edge-paper">Original +0.750</text><text x="395" y="190" text-anchor="middle" class="edge-new">New +0.350</text><rect x="18" y="42" width="134" height="70" rx="14" fill="#206f57"/><text x="85" y="72" text-anchor="middle" class="node-label">Applicant height</text><text x="85" y="92" text-anchor="middle" class="node-kind">TREATMENT</text><rect x="173" y="42" width="134" height="70" rx="14" fill="#315ca8"/><text x="240" y="72" text-anchor="middle" class="node-label">Interviewer friendliness</text><text x="240" y="92" text-anchor="middle" class="node-kind">TREATMENT</text><rect x="328" y="42" width="134" height="70" rx="14" fill="#9a5a18"/><text x="395" y="72" text-anchor="middle" class="node-label">Passed bar</text><text x="395" y="92" text-anchor="middle" class="node-kind">TREATMENT</text>
+      <rect x="163" y="244" width="154" height="78" rx="39" fill="#18243a"/>
+      <text x="240" y="276" text-anchor="middle" class="node-label">Hired</text>
+      <text x="240" y="298" text-anchor="middle" class="node-kind">OUTCOME</text>
+    </svg>
+          <p class="legend"><span class="original-dot"></span> Original paper <span class="new-dot"></span> New EDSL replication</p></div>
+          <div class="table-card"><h3>Coefficient comparison</h3><div class="table-wrap"><table><thead><tr><th>Path</th><th>Original</th><th>New</th><th>Δ</th><th>Sign</th></tr></thead><tbody><tr>
+              <th>Applicant height<code>applicant_height</code></th>
+              <td>+0.003<small>SE 0.003</small></td>
+              <td class="new-estimate">-0.008<small>HC3 SE 0.004</small></td>
+              <td>-0.011</td><td><span class="direction opposite">opposite</span></td>
+            </tr><tr>
+              <th>Interviewer friendliness<code>interviewer_friendliness</code></th>
+              <td>-0.002<small>SE 0.005</small></td>
+              <td class="new-estimate">+0.025<small>HC3 SE 0.007</small></td>
+              <td>+0.027</td><td><span class="direction opposite">opposite</span></td>
+            </tr><tr>
+              <th>Passed bar<code>passed_bar</code></th>
+              <td>+0.750<small>SE 0.068</small></td>
+              <td class="new-estimate">+0.350<small>HC3 SE 0.098</small></td>
+              <td>-0.400</td><td><span class="direction same">same</span></td>
+            </tr></tbody></table></div></div></div>
+          <p class="caveat"><strong>Interpretation note.</strong> Figure 4&#x27;s 405 is a typo; the stated 2×5×8 factorial and text establish 80 cells. Friendliness and height differ in direction from the original estimates.</p>
+        </section><section id="auction" class="study">
+          <div class="section-heading"><div><span class="eyebrow">343 factorial cells · 0 failures</span><h2>Art auction</h2></div>
+          <div class="means"><span>Outcome mean</span><strong>277.609</strong><small>Original 186.530</small></div></div>
+          <div class="study-grid"><div class="diagram-card"><h3>Fitted structural causal model</h3><svg class="scm" viewBox="0 0 480 350" role="img" aria-label="Fitted structural causal model for Art auction">
+      <defs><marker id="arrow-auction" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#667085"/></marker></defs>
+      <path d="M85 112 C85 175 240 172 240 244" fill="none" stroke="#206f57" stroke-width="3" marker-end="url(#arrow-auction)"/><rect x="21" y="155" width="128" height="45" rx="8" fill="#fff" stroke="#206f57"/><text x="85" y="173" text-anchor="middle" class="edge-paper">Original +0.350</text><text x="85" y="190" text-anchor="middle" class="edge-new">New +0.260</text><path d="M240 112 C240 175 240 172 240 244" fill="none" stroke="#315ca8" stroke-width="3" marker-end="url(#arrow-auction)"/><rect x="176" y="155" width="128" height="45" rx="8" fill="#fff" stroke="#315ca8"/><text x="240" y="173" text-anchor="middle" class="edge-paper">Original +0.290</text><text x="240" y="190" text-anchor="middle" class="edge-new">New +0.332</text><path d="M395 112 C395 175 240 172 240 244" fill="none" stroke="#9a5a18" stroke-width="3" marker-end="url(#arrow-auction)"/><rect x="331" y="155" width="128" height="45" rx="8" fill="#fff" stroke="#9a5a18"/><text x="395" y="173" text-anchor="middle" class="edge-paper">Original +0.310</text><text x="395" y="190" text-anchor="middle" class="edge-new">New +0.330</text><rect x="18" y="42" width="134" height="70" rx="14" fill="#206f57"/><text x="85" y="72" text-anchor="middle" class="node-label">Bidder 1 budget</text><text x="85" y="92" text-anchor="middle" class="node-kind">TREATMENT</text><rect x="173" y="42" width="134" height="70" rx="14" fill="#315ca8"/><text x="240" y="72" text-anchor="middle" class="node-label">Bidder 2 budget</text><text x="240" y="92" text-anchor="middle" class="node-kind">TREATMENT</text><rect x="328" y="42" width="134" height="70" rx="14" fill="#9a5a18"/><text x="395" y="72" text-anchor="middle" class="node-label">Bidder 3 budget</text><text x="395" y="92" text-anchor="middle" class="node-kind">TREATMENT</text>
+      <rect x="163" y="244" width="154" height="78" rx="39" fill="#18243a"/>
+      <text x="240" y="276" text-anchor="middle" class="node-label">Final price</text>
+      <text x="240" y="298" text-anchor="middle" class="node-kind">OUTCOME</text>
+    </svg>
+          <p class="legend"><span class="original-dot"></span> Original paper <span class="new-dot"></span> New EDSL replication</p></div>
+          <div class="table-card"><h3>Coefficient comparison</h3><div class="table-wrap"><table><thead><tr><th>Path</th><th>Original</th><th>New</th><th>Δ</th><th>Sign</th></tr></thead><tbody><tr>
+              <th>Bidder 1 budget<code>bidder_1_budget</code></th>
+              <td>+0.350<small>SE 0.015</small></td>
+              <td class="new-estimate">+0.260<small>HC3 SE 0.028</small></td>
+              <td>-0.090</td><td><span class="direction same">same</span></td>
+            </tr><tr>
+              <th>Bidder 2 budget<code>bidder_2_budget</code></th>
+              <td>+0.290<small>SE 0.015</small></td>
+              <td class="new-estimate">+0.332<small>HC3 SE 0.027</small></td>
+              <td>+0.042</td><td><span class="direction same">same</span></td>
+            </tr><tr>
+              <th>Bidder 3 budget<code>bidder_3_budget</code></th>
+              <td>+0.310<small>SE 0.015</small></td>
+              <td class="new-estimate">+0.330<small>HC3 SE 0.027</small></td>
+              <td>+0.020</td><td><span class="direction same">same</span></td>
+            </tr></tbody></table></div></div></div>
+          <p class="caveat"><strong>Interpretation note.</strong> 120 of 343 auctions reached the cap, down from 329. All bids satisfy private maxima, but faster bid jumps raised the mean price above the paper&#x27;s result.</p>
+        </section><section class="study"><span class="eyebrow">Auction protocol iteration</span><h2>Did terseness reduce cap pressure?</h2>
+      <div class="table-wrap"><table><thead><tr><th>Metric</th><th>Procedural v2</th><th>Terse + retirement + contracts</th></tr></thead><tbody>
+      <tr><th>Mean turns</th><td>19.79</td><td class="new-estimate">14.75</td></tr>
+      <tr><th>Cap hits</th><td>329 / 343</td><td class="new-estimate">120 / 343</td></tr>
+      <tr><th>Mean final price</th><td>$148.95</td><td>$277.61</td></tr>
+      <tr><th>Feasibility violations</th><td>Observed</td><td class="new-estimate">0</td></tr>
+      </tbody></table></div><p class="caveat"><strong>Result.</strong> The new protocol cut mean turns by 25% and cap hits by 64%. Structured choices made over-budget bids impossible. Faster bid increments increased prices, demonstrating that conversational efficiency is part of the experimental treatment unless held fixed.</p></section></main><footer>Design replication, not an exact computational reproduction: the historical April 2024 GPT-4 snapshot and full prompt stack are unavailable. Standard errors for the new estimates are HC3.</footer></body></html>

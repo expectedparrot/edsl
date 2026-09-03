@@ -63,6 +63,30 @@ def test_central_ordered_alternates_center_and_others(tmp_path):
     assert runtime.should_stop("hearing") is True
 
 
+def test_central_ordered_skips_roles_after_serializable_retirement(tmp_path):
+    definition = Conversation(
+        "auction",
+        ["auctioneer", "a", "b", "c"],
+        "Auction an item.",
+        CentralOrdered(center="auctioneer", others=["a", "b", "c"]),
+        MaxUtterances(20),
+        turn_instructions={"*": "Be terse.", "a": "Bid or pass."},
+        retire_on={"a": ["pass"], "b": ["pass"], "c": ["pass"]},
+    )
+    assert Conversation.from_dict(json.loads(json.dumps(definition.to_dict()))) == definition
+    store = SQLiteConversationStore(tmp_path / "retirement.sqlite")
+    runtime = ConversationRuntime(definition, store)
+    runtime.launch({role: role for role in definition.roles}, instance_id="auction")
+    turns = [("auctioneer", "Bid?"), ("a", "Pass."), ("auctioneer", "Next?"), ("b", "$50")]
+    for version, (role, text) in enumerate(turns):
+        assert runtime.next_role("auction") == role
+        runtime.append("auction", role=role, text=text, expected_version=version)
+    assert runtime.next_role("auction") == "auctioneer"
+    runtime.append("auction", role="auctioneer", text="Next?", expected_version=4)
+    assert runtime.next_role("auction") == "c"
+    assert runtime.next_recipient("auction") == "c"
+
+
 def test_coordinator_before_validates_selected_role(tmp_path):
     definition = Conversation("dynamic", ["a", "b"], "Discuss.", CoordinatorBefore(coordinator="hidden"), MaxUtterances(2))
     runtime = ConversationRuntime(definition, SQLiteConversationStore(tmp_path / "before.sqlite"))
