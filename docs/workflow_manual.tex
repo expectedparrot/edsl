@@ -806,16 +806,25 @@ The current evaluator supports:
 
 \begin{Shaded}
 \begin{Highlighting}[]
-\NormalTok{Sources:      step\_outputs, derived\_ref}
-\NormalTok{Aggregates:   mean, median, minimum, maximum, range}
-\NormalTok{Arithmetic:   add, subtract, multiply, divide}
+\NormalTok{Sources:      step\_outputs, step\_answer, step\_submissions, derived\_ref,}
+\NormalTok{              seeded\_uniform}
+\NormalTok{Aggregates:   mean, median, minimum, maximum, range, sum, count\_value,}
+\NormalTok{              order\_statistic, all\_equal}
+\NormalTok{Arithmetic:   add, subtract, multiply, divide, absolute}
 \NormalTok{Comparisons:  at\_most, at\_least, equals}
 \end{Highlighting}
 \end{Shaded}
 
 Missing source outputs delay availability. Non-numeric values cause
 numeric aggregates to fail rather than silently inventing coercions
-beyond \texttt{float()}.
+beyond \texttt{float()}. \texttt{all\_equal()} compares canonical
+serialized values, so it also works for lists and mappings such as
+complete rankings.
+
+\texttt{choose(condition,\ then,\ otherwise)} evaluates only the
+selected branch. This short-circuit behavior permits settlement
+expressions to reference answers on optional branches: outputs from
+correctly skipped branches are never requested.
 
 \chapter{Economic settlement
 primitives}\label{economic-settlement-primitives}
@@ -858,6 +867,184 @@ identity-aware ranking. \texttt{DerivedFieldRef.for\_participant()}
 projects an identity-keyed mapping into a private recipient prompt.
 \texttt{match(role("player"),\ size=2)} deterministically partitions a
 roster and round-trips as data.
+
+Collections also expose serializable reductions:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{total }\OperatorTok{=}\NormalTok{ contributions.outputs(}\StringTok{"contribution"}\NormalTok{).}\BuiltInTok{sum}\NormalTok{()}
+\NormalTok{number\_free\_riding }\OperatorTok{=}\NormalTok{ contributions.outputs(}\StringTok{"contribution"}\NormalTok{).count\_value(}\DecValTok{0}\NormalTok{)}
+\NormalTok{second\_price }\OperatorTok{=}\NormalTok{ bids.outputs(}\StringTok{"bid"}\NormalTok{).nth\_largest(}\DecValTok{2}\NormalTok{)}
+\NormalTok{lowest\_cost }\OperatorTok{=}\NormalTok{ bids.outputs(}\StringTok{"bid"}\NormalTok{).nth\_smallest(}\DecValTok{1}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\texttt{nth\_largest()} and \texttt{nth\_smallest()} use one-based
+ranks. During fan-out, an order statistic with too few responses is
+treated as not yet available, allowing remaining participants to answer
+before dependent work is rendered.
+
+Use a symbolic per-submission binding to apply one expression to every
+response while retaining participant identity:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{own }\OperatorTok{=}\NormalTok{ contributions.submissions.each(}\StringTok{"contribution"}\NormalTok{)}
+\NormalTok{payoffs }\OperatorTok{=}\NormalTok{ builder.derive(}
+    \StringTok{"payoffs"}\NormalTok{,}
+\NormalTok{    by\_participant}\OperatorTok{=}\NormalTok{own.}\BuiltInTok{map}\NormalTok{(}\DecValTok{2} \OperatorTok{*}\NormalTok{ best\_shot.expression }\OperatorTok{{-}}\NormalTok{ own.value),}
+\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+The serialized expression contains \texttt{map\_submissions} and
+\texttt{submission\_value} operators; it does not contain a Python
+function. Evaluation returns a mapping from participant ID to result,
+which can be privately projected with
+\texttt{payoffs.field("by\_participant").for\_participant()}. A free
+\texttt{own.value} outside its map is rejected during authoring.
+
+Mapped expressions support the same arithmetic and comparisons as other
+workflow expressions, including symbolic absolute value:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{own }\OperatorTok{=}\NormalTok{ actions.submissions.each(}\StringTok{"action"}\NormalTok{)}
+\NormalTok{median }\OperatorTok{=}\NormalTok{ actions.outputs(}\StringTok{"action"}\NormalTok{).median()}
+\NormalTok{payoffs }\OperatorTok{=}\NormalTok{ own.}\BuiltInTok{map}\NormalTok{(}\DecValTok{10} \OperatorTok{{-}}\NormalTok{ (own.value }\OperatorTok{{-}}\NormalTok{ median).absolute())}
+\end{Highlighting}
+\end{Shaded}
+
+This keeps distance-based scoring declarative and portable.
+
+Answers from multiple stages can be joined by participant identity
+before mapping a longitudinal payoff:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{history }\OperatorTok{=}\NormalTok{ join\_by\_participant(}
+\NormalTok{    contribution}\OperatorTok{=}\NormalTok{contribute.submissions,}
+\NormalTok{    punishment}\OperatorTok{=}\NormalTok{punish.submissions,}
+\NormalTok{)}
+\NormalTok{payoffs }\OperatorTok{=}\NormalTok{ history.}\BuiltInTok{map}\NormalTok{(}
+    \DecValTok{10}
+    \OperatorTok{{-}}\NormalTok{ history.value(}\StringTok{"contribution"}\NormalTok{, }\StringTok{"contribution"}\NormalTok{)}
+    \OperatorTok{+}\NormalTok{ public\_return}
+    \OperatorTok{{-}}\NormalTok{ history.value(}\StringTok{"punishment"}\NormalTok{, }\StringTok{"punishment\_points"}\NormalTok{)}
+\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+Every source must contain the same nonempty participant set. Incomplete
+joins remain unavailable rather than silently dropping respondents. The
+serialized tree uses \texttt{join\_submissions}, \texttt{joined\_value},
+and \texttt{map\_joined\_submissions}.
+
+Static tables can select values or expressions without raw Python:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{implemented\_transfer }\OperatorTok{=}\NormalTok{ lookup(}
+\NormalTok{    \{}\DecValTok{0}\NormalTok{: transfer\_if\_zero, }\DecValTok{5}\NormalTok{: transfer\_if\_five, }\DecValTok{10}\NormalTok{: transfer\_if\_ten\},}
+\NormalTok{    realized\_endowment,}
+\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+Keys are normalized to strings during serialization. A missing key
+raises an error unless \texttt{default=} is supplied.
+
+Named experimental constants belong in workflow metadata rather than
+being repeated throughout settlement expressions:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{endowment }\OperatorTok{=}\NormalTok{ builder.parameter(}\StringTok{"endowment"}\NormalTok{, }\DecValTok{10}\NormalTok{, unit}\OperatorTok{=}\StringTok{"tokens"}\NormalTok{)}
+\NormalTok{multiplier }\OperatorTok{=}\NormalTok{ builder.parameter(}\StringTok{"mpcr"}\NormalTok{, }\FloatTok{0.4}\NormalTok{)}
+\NormalTok{payoff }\OperatorTok{=}\NormalTok{ endowment }\OperatorTok{{-}}\NormalTok{ own\_contribution }\OperatorTok{+}\NormalTok{ multiplier }\OperatorTok{*}\NormalTok{ total\_contribution}
+\end{Highlighting}
+\end{Shaded}
+
+Parameters round-trip with the workflow and evaluate as ordinary
+expressions. Names must be unique and values must be JSON-serializable.
+Units are retained as metadata; automatic unit checking and prompt
+formatting are intentionally not yet implied.
+
+\chapter{Structured response
+contracts}\label{structured-response-contracts}
+
+Structured contracts compile into standard EDSL questions and a
+data-only validation contract in step metadata. The coordinator
+revalidates submissions, so correctness does not depend on a particular
+Humanize form or model adapter.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{risk }\OperatorTok{=}\NormalTok{ ChoiceTable(}
+    \StringTok{"choices"}\NormalTok{,}
+    \StringTok{"Choose A or B in every row."}\NormalTok{,}
+\NormalTok{    rows}\OperatorTok{=}\NormalTok{[}\BuiltInTok{str}\NormalTok{(i) }\ControlFlowTok{for}\NormalTok{ i }\KeywordTok{in} \BuiltInTok{range}\NormalTok{(}\DecValTok{1}\NormalTok{, }\DecValTok{11}\NormalTok{)],}
+\NormalTok{    options}\OperatorTok{=}\NormalTok{[}\StringTok{"A"}\NormalTok{, }\StringTok{"B"}\NormalTok{],}
+\NormalTok{    require\_monotone}\OperatorTok{=}\VariableTok{True}\NormalTok{,}
+\NormalTok{)}
+\NormalTok{choice }\OperatorTok{=}\NormalTok{ builder.structured\_step(}\StringTok{"risk{-}list"}\NormalTok{, risk, assigned\_to}\OperatorTok{=}\NormalTok{role(}\StringTok{"player"}\NormalTok{))}
+\end{Highlighting}
+\end{Shaded}
+
+\texttt{ChoiceTable} requires every declared row, validates cell values
+against the shared option set, and can enforce monotone movement through
+the ordered options. \texttt{StrategyTable} has the same tabular
+representation without implying monotonicity and is intended for
+complete contingent plans.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{sanctions }\OperatorTok{=}\NormalTok{ AllocationVector(}
+    \StringTok{"points"}\NormalTok{,}
+    \StringTok{"Allocate at most five points."}\NormalTok{,}
+\NormalTok{    targets}\OperatorTok{=}\NormalTok{[}\StringTok{"p2"}\NormalTok{, }\StringTok{"p3"}\NormalTok{, }\StringTok{"p4"}\NormalTok{],}
+\NormalTok{    budget}\OperatorTok{=}\DecValTok{5}\NormalTok{,}
+\NormalTok{    exact}\OperatorTok{=}\VariableTok{False}\NormalTok{,}
+\NormalTok{)}
+\NormalTok{builder.structured\_step(}\StringTok{"sanction"}\NormalTok{, sanctions, assigned\_to}\OperatorTok{=}\NormalTok{role(}\StringTok{"player"}\NormalTok{))}
+\end{Highlighting}
+\end{Shaded}
+
+\texttt{AllocationVector} requires exactly the declared targets,
+nonnegative numeric allocations, and either equality with or an upper
+bound on the budget. All three contract definitions have
+\texttt{to\_dict()} and \texttt{from\_dict()} representations; compiled
+workflows retain the dictionaries under \texttt{response\_contracts}.
+
+A table answer is an ordinary mapping-valued workflow expression.
+Dynamic row selection therefore uses the general \texttt{get\_item}
+operator:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{paid\_row }\OperatorTok{=}\NormalTok{ seeded\_integer(}\DecValTok{1}\NormalTok{, }\DecValTok{10}\NormalTok{, key}\OperatorTok{=}\StringTok{"paid{-}row"}\NormalTok{)}
+\NormalTok{implemented\_choice }\OperatorTok{=}\NormalTok{ choice.answer(}\StringTok{"choices"}\NormalTok{).value.item(paid\_row)}
+\end{Highlighting}
+\end{Shaded}
+
+Experiments that require a random value can use a stable,
+instance-scoped draw:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{offer }\OperatorTok{=}\NormalTok{ seeded\_uniform(}\DecValTok{0}\NormalTok{, }\DecValTok{20}\NormalTok{, key}\OperatorTok{=}\StringTok{"bdm{-}offer"}\NormalTok{)}
+\NormalTok{event }\OperatorTok{=}\NormalTok{ seeded\_uniform(key}\OperatorTok{=}\StringTok{"forecast{-}event"}\NormalTok{).compare\_at\_most(}\FloatTok{0.6}\NormalTok{)}
+\NormalTok{paid\_row }\OperatorTok{=}\NormalTok{ seeded\_integer(}\DecValTok{1}\NormalTok{, }\DecValTok{10}\NormalTok{, key}\OperatorTok{=}\StringTok{"paid{-}choice{-}row"}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+The coordinator hashes the workflow instance ID and explicit key.
+Consequently, retries and resumed execution see the same draw, while
+another instance receives a different draw. The expression is fully
+serialized; the value is not sampled while the workflow is authored. Use
+distinct semantic keys for independent draws. \texttt{seeded\_integer()}
+samples both endpoints inclusively and is useful for selecting rows,
+rounds, and treatment cells.
 
 Dynamic answer bounds are enforced when an answer is submitted:
 
@@ -1745,6 +1932,8 @@ extend the serializable DSL and coordinator evaluator.
 \NormalTok{not\_(condition)}
 \NormalTok{if\_(condition)}
 \NormalTok{chance(probability, key}\OperatorTok{=}\NormalTok{stable\_key)}
+\NormalTok{seeded\_uniform(low}\OperatorTok{=}\DecValTok{0}\NormalTok{, high}\OperatorTok{=}\DecValTok{1}\NormalTok{, key}\OperatorTok{=}\NormalTok{stable\_key)  }\CommentTok{\# expression, not a condition}
+\NormalTok{seeded\_integer(low, high, key}\OperatorTok{=}\NormalTok{stable\_key)       }\CommentTok{\# inclusive expression draw}
 \NormalTok{outputs.count(value).at\_least(count)}
 \NormalTok{outputs.has\_disagreement}
 \NormalTok{outputs.majority\_is(value)}

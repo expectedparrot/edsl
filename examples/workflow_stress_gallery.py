@@ -20,6 +20,7 @@ from edsl import (
     QuestionFreeText,
     QuestionMultipleChoice,
     QuestionNumerical,
+    QuestionRank,
     QuestionYesNo,
     Survey,
 )
@@ -53,6 +54,10 @@ from edsl.workflows import (
     ExecutionPlan,
     any_of,
     chance,
+    seeded_uniform,
+    seeded_integer,
+    join_by_participant,
+    lookup,
     choose,
     if_,
     join_any,
@@ -62,6 +67,8 @@ from edsl.workflows import (
     human,
     llm,
     match,
+    ChoiceTable,
+    StrategyTable,
 )
 
 
@@ -170,6 +177,114 @@ CASE_NARRATIVES = {
     "chicken": CaseNarrative(
         "Two drivers simultaneously choose Swerve or Straight. Standing firm against a yielding opponent pays best, mutual yielding is safe, and mutual aggression produces the worst outcome.",
         "This second asymmetric matrix confirms that settlement is general rather than Prisoner's-Dilemma-specific, while highlighting the need for a reusable two-player normal-form-game constructor.",
+    ),
+    "minimum-effort": CaseNarrative(
+        "Six players privately choose effort from one through seven. The workflow computes the group minimum, which raises everyone's return, while effort above that minimum is individually costly.",
+        "The group minimum and every individual payoff are now authoritative: a symbolic per-submission binding maps the same serialized expression over all identities. Delivery and ledger posting, rather than arithmetic, are the remaining gaps.",
+    ),
+    "threshold-public-good": CaseNarrative(
+        "Six players contribute from ten-token endowments toward a thirty-token provision point. The workflow computes total contributions, contributor count, provision status, and the resulting public return.",
+        "Serializable reductions determine provision, and the generic submission map computes every private balance without Python callbacks. Optional rebate treatments and passive payment delivery remain useful additions.",
+    ),
+    "second-price-auction": CaseNarrative(
+        "Five private-value bidders submit sealed bids. The workflow identifies the highest bidder but charges the second-highest bid, implementing the defining Vickrey payment rule.",
+        "The new order-statistic operator makes the payment authoritative and generalizes to third-price auctions. Seeded tie-breaking and participant-specific utility remain unresolved.",
+    ),
+    "best-shot": CaseNarrative(
+        "Six players privately choose costly contributions, but the public benefit is determined only by the largest contribution—the group's best shot—rather than by their sum.",
+        "Maximum, sum, contributor count, and identity-keyed net payoffs are all authoritative. The same generic map expression used here also settles minimum-effort and threshold public-good games.",
+    ),
+    "impunity": CaseNarrative(
+        "An allocator proposes a split and keeps their allocation regardless of the recipient's response. The recipient may reject, but rejection destroys only the recipient's proposed share.",
+        "Piecewise expressions represent the asymmetric rejection rule cleanly and distinguish impunity from ultimatum without a new operator. Repeated settlement and notice boilerplate suggests a reusable allocation-game helper.",
+    ),
+    "third-price-auction": CaseNarrative(
+        "Five private-value bidders submit sealed bids; the highest bidder wins but pays the third-highest bid, a mechanism used to test bidding behavior beyond standard first- and second-price formats.",
+        "The generic one-based order-statistic operator handles third-price settlement without special auction code. Ties and winner-specific utility remain common unresolved concerns across auction formats.",
+    ),
+    "schelling-claims": CaseNarrative(
+        "Two players independently claim part of a one-hundred-token prize without communicating. Both claims are honored when their sum is feasible; otherwise both players receive zero.",
+        "A sum, feasibility comparison, conditional, and identity-preserving map express the complete settlement without a game-specific operator. The result is a compact demonstration of compositional payoff logic.",
+    ),
+    "commons-dilemma": CaseNarrative(
+        "Eight participants independently conserve or exploit a shared resource. At most two exploiters preserve the resource; exploitation has a private premium, while overuse sharply lowers everyone's return.",
+        "Counts, nested conditionals, and a symbolic own-action binding produce all participant payoffs. The remaining limitation is that the fixed survival threshold is metadata rather than a reusable capacity abstraction.",
+    ),
+    "median-effort": CaseNarrative(
+        "Seven players choose actions from one through seven and are rewarded for proximity to the group median, creating an order-statistic coordination target rather than a minimum-effort target.",
+        "Median plus symbolic absolute distance produces authoritative identity-keyed payoffs. This validates that the generic map supports nonlinear unary operations rather than only linear payoff formulas.",
+    ),
+    "allais": CaseNarrative(
+        "A decision maker completes the two canonical common-consequence lottery choices. A separate analyst receives an authoritative classification of the resulting choice pattern.",
+        "Linked choices and deterministic classification fit the workflow model, but typed lottery objects and incentive-compatible random implementation are absent, leaving probability descriptions embedded in prose.",
+    ),
+    "ellsberg": CaseNarrative(
+        "A decision maker chooses between known and ambiguous urn bets in two linked decisions. The workflow classifies whether the pair displays the standard ambiguity-averse Ellsberg pattern.",
+        "The classification is serializable, but urn composition and ambiguous events are plain text. A typed lottery/urn resource would support validation, display, and eventual random resolution.",
+    ),
+    "preference-reversal": CaseNarrative(
+        "A participant first chooses between a high-probability modest-prize lottery and a low-probability large-prize lottery, then independently states selling prices for both.",
+        "The workflow can flag whether choice and valuation rankings conflict. It cannot yet randomize which elicitation becomes payoff-relevant or apply a reusable incentive-compatible valuation mechanism.",
+    ),
+    "bdm-valuation": CaseNarrative(
+        "A participant states a minimum selling price. The workflow draws a stable random offer and authoritatively determines whether the item is sold and at what price.",
+        "A generic seeded draw plus ordinary comparisons and conditionals implement BDM without a named executor. The awkward part is presentation: typed monetary units and a reusable mechanism component would prevent scale and inequality mistakes.",
+    ),
+    "binary-lottery": CaseNarrative(
+        "A participant chooses a safe payment or a risky binary lottery; one stable draw resolves the selected option and the workflow records the authoritative payoff.",
+        "The same random primitive used for BDM resolves a lottery cleanly. Probabilities and prizes are still duplicated between prose and expressions, strongly supporting a typed Lottery value object.",
+    ),
+    "probability-calibration": CaseNarrative(
+        "A forecaster reports a probability for a binary event. A stable draw realizes the event and a deterministic quadratic score rewards calibrated probability reports.",
+        "Arithmetic composition is enough for a Brier-style score, but the verbose formula is easy to mis-scale. Named, serializable scoring-rule constructors should compile to these primitive expressions.",
+    ),
+    "bayesian-updating": CaseNarrative(
+        "A participant states a prior, receives a randomly generated diagnostic signal, and then reports a posterior probability before an analyst sees the benchmark.",
+        "Staged revelation works with a derived random signal. Conditional Bayes arithmetic is cumbersome and experiment parameters are repeated, suggesting declared parameters and a small library of audited formula constructors.",
+    ),
+    "intertemporal-choice": CaseNarrative(
+        "A participant makes an immediate-versus-delayed monetary choice and then a second delayed-versus-more-delayed choice; the workflow classifies the pattern.",
+        "Sequential elicitation and classification need no special engine feature. Dates, delays, and amounts remain prose, so a typed dated-payment option would make equivalence and schedule validation possible.",
+    ),
+    "holt-laury": CaseNarrative(
+        "A participant answers every row of a ten-row Holt–Laury lottery list, the contract validates a monotone A-to-B pattern, and one row is selected reproducibly for payment.",
+        "The structured choice table preserves every decision and rejects multiple switching at submission time. Lottery outcomes inside each row still need typed representations and resolution.",
+    ),
+    "time-price-list": CaseNarrative(
+        "A participant answers every row of an immediate-versus-delayed payment list, while a stable integer draw chooses the payoff-relevant row.",
+        "The same serialized choice-table contract serves risk and time tasks, confirming it is a general primitive. Actual delayed fulfillment remains outside the coordinator.",
+    ),
+    "dictator-strategy-method": CaseNarrative(
+        "A dictator states transfers for three possible recipient endowments before a stable draw reveals which contingency determines the implemented allocation.",
+        "Contingent plans can be represented as several named answers, but selecting the realized answer requires a verbose conditional tree. Structured strategy tables and keyed lookup expressions would help.",
+    ),
+    "public-goods-punishment": CaseNarrative(
+        "Four players contribute simultaneously, observe the group result, then independently buy punishment points before the workflow settles contribution and punishment costs.",
+        "Two-stage group interaction composes from ordinary fan-out and aggregation. Target-specific sanctions require matrices or keyed allocations, which the current scalar punishment question deliberately exposes as missing.",
+    ),
+    "volunteers-dilemma": CaseNarrative(
+        "Six players independently choose whether to incur the cost of volunteering; everyone benefits if at least one volunteer exists, while volunteers bear an individual cost.",
+        "Count, conditional provision, and identity-preserving payoff mapping express the mechanism completely. This is strong evidence that threshold games need no game-specific runtime support.",
+    ),
+    "cournot": CaseNarrative(
+        "Five firms simultaneously choose quantities; the workflow computes inverse-demand price and every firm's profit from its own quantity and the market total.",
+        "Parameters, sum, and identity-preserving mapping provide complete authoritative settlement. Repeated Cournot now mainly needs convenient history views rather than a market-specific executor.",
+    ),
+    "monopoly": CaseNarrative(
+        "A monopolist selects one of several posted prices and a serialized demand schedule determines quantity, revenue, cost, and profit.",
+        "The general lookup operator cleanly represents a discrete demand curve. Continuous curves would benefit from reusable piecewise or interpolation expressions.",
+    ),
+    "schelling-ranking": CaseNarrative(
+        "Three participants independently rank A, B, and C; the workflow tests whether their complete rankings coincide before announcing coordination.",
+        "A generic all-equal reduction works for structured list values. Converting the agreed ranking into identity-specific rank prizes still needs list-position or inverse-ranking helpers.",
+    ),
+    "curse-of-knowledge": CaseNarrative(
+        "An uninformed judge answers a factual question, while an informed predictor is shown the truth and predicts the uninformed answer before comparison.",
+        "Asymmetric information and counterfactual prediction fit ordinary visibility rules. Cohort-level versions need deterministic matching between informed predictors and uninformed observations.",
+    ),
+    "sequential-search": CaseNarrative(
+        "A searcher receives reproducible offers sequentially, may accept either of the first two, and otherwise receives the final offer after paying accumulated search costs.",
+        "Conditional branching works, but settlement exposed that conditionals must evaluate lazily when an unchosen branch references a skipped step. The evaluator now has that general short-circuit behavior.",
     ),
 }
 
@@ -1320,6 +1435,453 @@ def chicken_case() -> GalleryCase:
         ("normal_form_game(actions=..., payoffs=...)",))
 
 
+def minimum_effort_case() -> GalleryCase:
+    builder = Workflow("Minimum-effort coordination", metadata={"effort_range": [1, 7], "payoff": "2 * group_minimum - own_effort", "source_pages": "209-218"})
+    effort_q = QuestionNumerical(question_name="effort", question_text="Privately choose an integer effort from 1 to 7. Group productivity depends on the minimum effort, but effort above the minimum is costly to you.", min_value=1, max_value=7, include_comment=False)
+    efforts = builder.step("choose-effort", Survey([effort_q]), assigned_to=role("player"), visible_to=role("analyst"))
+    outcome = builder.derive("outcome", minimum=efforts.outputs("effort").minimum(), mean=efforts.outputs("effort").mean())
+    own = efforts.submissions.each("effort")
+    payoffs = builder.derive("payoffs", by_participant=own.map(2 * outcome.field("minimum").expression - own.value))
+    report_q = QuestionFreeText(question_name="result", question_text=f"Report the authoritative group minimum {outcome.field('minimum').template} and mean {outcome.field('mean').template}. Explain that individual payoff also depends on excess effort, without recomputing these statistics.")
+    settled = builder.step("settle", Survey([report_q]), assigned_to=role("analyst"), after=efforts)
+    notice_q = QuestionFreeText(question_name="payoff", question_text=f"Your authoritative payoff is {payoffs.field('by_participant').for_participant()} tokens. Acknowledge it.")
+    builder.step("payoff-notice", Survey([notice_q]), assigned_to=role("player"), after=settled)
+    players = tuple(Agent(name=f"player-{i}@simulated.email", traits={"role": "player"}, instruction="Balance payoff-dominant coordination against the risk that another player chooses low effort.") for i in range(1, 7))
+    return GalleryCase("minimum-effort", "Minimum-effort coordination", "parallel effort -> group minimum", builder.compile(), (), players + _game_agents("analyst"), minimum_effort_case,
+        ("Payoff notices remain survey-shaped acknowledgements rather than passive notifications or ledger credits.",),
+        ("notify_each(payoffs)", "credit_each(payoffs)"))
+
+
+def threshold_public_good_case() -> GalleryCase:
+    builder = Workflow("Threshold public good", metadata={"endowment": 10, "provision_point": 30, "public_return": 60})
+    contribution_q = QuestionNumerical(question_name="contribution", question_text="You have 10 tokens. Contribute an integer from 0 to 10. If the group contributes at least 30 total, a 60-token public return is created.", min_value=0, max_value=10, include_comment=False)
+    contributions = builder.step("contribute", Survey([contribution_q]), assigned_to=role("player"), visible_to=role("analyst"))
+    total = contributions.outputs("contribution").sum()
+    provided = total.compare_at_least(30)
+    outcome = builder.derive("outcome", total=total, contributors=6 - contributions.outputs("contribution").count_value(0), provided=provided, public_return=choose(provided, 60, 0))
+    own = contributions.submissions.each("contribution")
+    payoffs = builder.derive("payoffs", by_participant=own.map(10 - own.value + outcome.field("public_return").expression / 6))
+    report_q = QuestionFreeText(question_name="result", question_text=f"Report authoritative total contributions={outcome.field('total').template}, contributors={outcome.field('contributors').template}, provision={outcome.field('provided').template}, and public return={outcome.field('public_return').template}.")
+    settled = builder.step("settle", Survey([report_q]), assigned_to=role("analyst"), after=contributions)
+    notice_q = QuestionFreeText(question_name="payoff", question_text=f"Your authoritative balance is {payoffs.field('by_participant').for_participant()} tokens. Acknowledge it.")
+    builder.step("payoff-notice", Survey([notice_q]), assigned_to=role("player"), after=settled)
+    players = tuple(Agent(name=f"player-{i}@simulated.email", traits={"role": "player"}, instruction="Choose strategically, balancing private tokens against the risk that the provision point is missed.") for i in range(1, 7))
+    return GalleryCase("threshold-public-good", "Threshold public good", "contributions -> provision point -> return", builder.compile(), (), players + _game_agents("analyst"), threshold_public_good_case,
+        ("Contributor count is written as roster size minus zero contributions.", "The example has no rebate-on-failure treatment."),
+        ("outputs.count_where(predicate)", "rebate_if_unprovided(...)", "credit_each(payoffs)"))
+
+
+def second_price_auction_case() -> GalleryCase:
+    builder = Workflow("Second-price sealed-bid auction", metadata={"source_pages": "503-512"})
+    bid_q = QuestionNumerical(question_name="bid", question_text="Privately bid an integer from 0 to 100. The highest bidder wins and pays the second-highest bid.", min_value=0, max_value=100, include_comment=False)
+    bids = builder.step("sealed-bid", Survey([bid_q]), assigned_to=role("bidder"), visible_to=role("auctioneer"))
+    auction = builder.derive("auction", highest_bid=bids.outputs("bid").maximum(), price=bids.outputs("bid").nth_largest(2))
+    winners = builder.derive("ranking", winners=bids.submissions.closest_to("bid", auction.field("highest_bid").expression, ties="all"))
+    result_q = QuestionFreeText(question_name="result", question_text=f"Announce authoritative winner list={winners.field('winners').template}, highest bid={auction.field('highest_bid').template}, and second-price payment={auction.field('price').template}. Do not alter ties.")
+    builder.step("settle", Survey([result_q]), assigned_to=role("auctioneer"), after=bids)
+    bidders = tuple(Agent(name=f"bidder-{i}@simulated.email", traits={"role": "bidder", "private_value": 15 + 14 * i}, instruction="This is a Vickrey auction. Bid according to your private value in your traits.") for i in range(1, 6))
+    return GalleryCase("second-price-auction", "Second-price sealed-bid auction", "sealed bids -> top two -> Vickrey payment", builder.compile(), (), bidders + _game_agents("auctioneer"), second_price_auction_case,
+        ("A tie at the highest bid produces multiple winners for one indivisible item.", "Winner utility is not yet projected as value minus price."),
+        ("tie_break(strategy='seeded-random')", "private_value.for_participant()", "credit(winner, value-price)"))
+
+
+def best_shot_case() -> GalleryCase:
+    builder = Workflow("Best-shot public good", metadata={"endowment": 10, "benefit_multiplier": 2})
+    contribution_q = QuestionNumerical(question_name="contribution", question_text="Choose a costly contribution from 0 to 10. Everyone receives twice the largest contribution in the group; you additionally pay your own contribution.", min_value=0, max_value=10, include_comment=False)
+    contributions = builder.step("contribute", Survey([contribution_q]), assigned_to=role("player"), visible_to=role("analyst"))
+    outcome = builder.derive("outcome", best_shot=contributions.outputs("contribution").maximum(), total_cost=contributions.outputs("contribution").sum(), contributors=6 - contributions.outputs("contribution").count_value(0))
+    own = contributions.submissions.each("contribution")
+    payoffs = builder.derive("payoffs", by_participant=own.map(2 * outcome.field("best_shot").expression - own.value))
+    result_q = QuestionFreeText(question_name="result", question_text=f"Report authoritative best shot={outcome.field('best_shot').template}, total contribution cost={outcome.field('total_cost').template}, and contributor count={outcome.field('contributors').template}. The common gross benefit is twice the best shot.")
+    settled = builder.step("settle", Survey([result_q]), assigned_to=role("analyst"), after=contributions)
+    notice_q = QuestionFreeText(question_name="payoff", question_text=f"Your authoritative payoff is {payoffs.field('by_participant').for_participant()} tokens. Acknowledge it.")
+    builder.step("payoff-notice", Survey([notice_q]), assigned_to=role("player"), after=settled)
+    players = tuple(Agent(name=f"player-{i}@simulated.email", traits={"role": "player"}, instruction="Choose strategically in a best-shot public-good game, anticipating that only the maximum contribution affects the shared benefit.") for i in range(1, 7))
+    return GalleryCase("best-shot", "Best-shot public good", "parallel contributions -> maximum benefit", builder.compile(), (), players + _game_agents("analyst"), best_shot_case,
+        ("Payoff notices remain survey-shaped acknowledgements rather than passive notifications or ledger credits.",),
+        ("notify_each(payoffs)", "credit_each(payoffs)"))
+
+
+def impunity_case() -> GalleryCase:
+    builder = Workflow("Impunity game", metadata={"endowment": 10})
+    offer_q = QuestionNumerical(question_name="offer", question_text="Allocate 0 to 10 tokens to the recipient. You keep the remainder regardless of whether the recipient accepts.", min_value=0, max_value=10, include_comment=False)
+    offer = builder.step("allocate", Survey([offer_q]), assigned_to=role("allocator"))
+    response_q = QuestionYesNo(question_name="accept", question_text=f"The allocator offered you {offer.answer('offer').template} tokens. Accept? Rejecting gives you zero but does not change the allocator's payoff.")
+    response = builder.step("respond", Survey([response_q]), assigned_to=role("recipient"), after=offer)
+    accepted = response.answer("accept").value.compare_equals("Yes")
+    payoffs = builder.derive("payoffs", allocator=10 - offer.answer("offer").value, recipient=choose(accepted, offer.answer("offer").value, 0))
+    allocator_notice = QuestionFreeText(question_name="payoff", question_text=f"Your authoritative payoff is {payoffs.field('allocator').template}. Acknowledge it.")
+    recipient_notice = QuestionFreeText(question_name="payoff", question_text=f"Your authoritative payoff is {payoffs.field('recipient').template}. Acknowledge it.")
+    builder.step("allocator-notice", Survey([allocator_notice]), assigned_to=role("allocator"), after=response)
+    builder.step("recipient-notice", Survey([recipient_notice]), assigned_to=role("recipient"), after=response)
+    return GalleryCase("impunity", "Impunity game", "allocation -> costless-to-allocator rejection", builder.compile(), (), _game_agents("allocator", "recipient"), impunity_case,
+        ("Allocation games repeat nearly identical private-notice steps.",),
+        ("allocation_game(rejection_effect=...)", "notify_each(payoffs)"))
+
+
+def third_price_auction_case() -> GalleryCase:
+    builder = Workflow("Third-price sealed-bid auction", metadata={"source_pages": "504, 515-517"})
+    bid_q = QuestionNumerical(question_name="bid", question_text="Privately bid an integer from 0 to 100. The highest bidder wins and pays the third-highest bid.", min_value=0, max_value=100, include_comment=False)
+    bids = builder.step("sealed-bid", Survey([bid_q]), assigned_to=role("bidder"), visible_to=role("auctioneer"))
+    auction = builder.derive("auction", highest_bid=bids.outputs("bid").maximum(), price=bids.outputs("bid").nth_largest(3))
+    winners = builder.derive("ranking", winners=bids.submissions.closest_to("bid", auction.field("highest_bid").expression, ties="all"))
+    result_q = QuestionFreeText(question_name="result", question_text=f"Announce authoritative winner list={winners.field('winners').template}, highest bid={auction.field('highest_bid').template}, and third-price payment={auction.field('price').template}.")
+    builder.step("settle", Survey([result_q]), assigned_to=role("auctioneer"), after=bids)
+    bidders = tuple(Agent(name=f"bidder-{i}@simulated.email", traits={"role": "bidder", "private_value": 18 + 13 * i}, instruction="Bid strategically in a third-price auction using the private value in your traits.") for i in range(1, 6))
+    return GalleryCase("third-price-auction", "Third-price sealed-bid auction", "sealed bids -> third order statistic", builder.compile(), (), bidders + _game_agents("auctioneer"), third_price_auction_case,
+        ("Highest-bid ties remain unresolved for an indivisible item.", "Bidder utility cannot yet combine a private trait with a derived payment."),
+        ("tie_break(strategy='seeded-random')", "trait('private_value')", "credit(winner, value-price)"))
+
+
+def schelling_claims_case() -> GalleryCase:
+    builder = Workflow("Schelling tacit claims", metadata={"prize": 100, "source_page": 12})
+    claim_q = QuestionNumerical(question_name="claim", question_text="Without communicating, claim an integer amount from a 100-token prize. If the two claims total at most 100, each receives their claim; otherwise both receive zero.", min_value=0, max_value=100, include_comment=False)
+    claims = builder.step("claim", Survey([claim_q]), assigned_to=role("player"), visible_to=role("settler"))
+    total = claims.outputs("claim").sum()
+    feasible = total.compare_at_most(100)
+    own = claims.submissions.each("claim")
+    outcome = builder.derive("outcome", total=total, feasible=feasible, payoffs=own.map(choose(feasible, own.value, 0)))
+    settle_q = QuestionFreeText(question_name="result", question_text=f"Record authoritative total claims={outcome.field('total').template} and feasibility={outcome.field('feasible').template}.")
+    settled = builder.step("settle", Survey([settle_q]), assigned_to=role("settler"), after=claims)
+    notice_q = QuestionFreeText(question_name="payoff", question_text=f"Your authoritative payoff is {outcome.field('payoffs').for_participant()} tokens. Acknowledge it.")
+    builder.step("payoff-notice", Survey([notice_q]), assigned_to=role("player"), after=settled)
+    players = tuple(Agent(name=f"player-{i}@simulated.email", traits={"role": "player"}, instruction="Choose a tacit claim strategically without communication.") for i in range(1, 3))
+    return GalleryCase("schelling-claims", "Schelling tacit claims", "sealed claims -> feasibility -> mapped payoff", builder.compile(), (), players + _game_agents("settler"), schelling_claims_case,
+        ("The fixed prize appears in the question, metadata, and expression.",),
+        ("workflow.parameter('prize')", "credit_each(payoffs)"))
+
+
+def commons_dilemma_case() -> GalleryCase:
+    builder = Workflow("Commons dilemma", metadata={"capacity": 2})
+    action_q = QuestionMultipleChoice(question_name="action", question_text="Choose privately whether to Conserve or Exploit. The commons survives if at most two of eight participants exploit it. Exploitation pays a private premium but risks collapse.", question_options=["Conserve", "Exploit"])
+    actions = builder.step("choose", Survey([action_q]), assigned_to=role("player"), visible_to=role("analyst"))
+    exploiters = actions.outputs("action").count_value("Exploit")
+    survives = exploiters.compare_at_most(2)
+    own = actions.submissions.each("action")
+    exploits = own.value.compare_equals("Exploit")
+    outcome = builder.derive("outcome", exploiters=exploiters, survives=survives, payoffs=own.map(choose(survives, choose(exploits, 9, 6), choose(exploits, 3, 2))))
+    settle_q = QuestionFreeText(question_name="result", question_text=f"Record authoritative exploiter count={outcome.field('exploiters').template}, survival={outcome.field('survives').template}, and participant payoffs={outcome.field('payoffs').template}.")
+    settled = builder.step("settle", Survey([settle_q]), assigned_to=role("analyst"), after=actions)
+    notice_q = QuestionFreeText(question_name="payoff", question_text=f"Your authoritative payoff is {outcome.field('payoffs').for_participant()} tokens. Acknowledge it.")
+    builder.step("payoff-notice", Survey([notice_q]), assigned_to=role("player"), after=settled)
+    players = tuple(Agent(name=f"player-{i}@simulated.email", traits={"role": "player"}, instruction="Balance the private exploitation premium against the shared risk of commons collapse.") for i in range(1, 9))
+    return GalleryCase("commons-dilemma", "Commons dilemma", "parallel use decisions -> capacity -> mapped payoff", builder.compile(), (), players + _game_agents("analyst"), commons_dilemma_case,
+        ("Capacity is duplicated in prose and the expression.", "This one-shot version does not model resource stock across rounds."),
+        ("workflow.parameter('capacity')", "durable resource stock"))
+
+
+def median_effort_case() -> GalleryCase:
+    builder = Workflow("Median-action coordination", metadata={"action_range": [1, 7], "base_payoff": 10})
+    action_q = QuestionNumerical(question_name="action", question_text="Choose an integer from 1 through 7. Your payoff is 10 minus your absolute distance from the group median.", min_value=1, max_value=7, include_comment=False)
+    actions = builder.step("choose", Survey([action_q]), assigned_to=role("player"), visible_to=role("analyst"))
+    median = actions.outputs("action").median()
+    own = actions.submissions.each("action")
+    outcome = builder.derive("outcome", median=median, payoffs=own.map(10 - (own.value - median).absolute()))
+    settle_q = QuestionFreeText(question_name="result", question_text=f"Record authoritative median={outcome.field('median').template} and identity-keyed payoffs={outcome.field('payoffs').template}.")
+    settled = builder.step("settle", Survey([settle_q]), assigned_to=role("analyst"), after=actions)
+    notice_q = QuestionFreeText(question_name="payoff", question_text=f"Your authoritative payoff is {outcome.field('payoffs').for_participant()} tokens. Acknowledge it.")
+    builder.step("payoff-notice", Survey([notice_q]), assigned_to=role("player"), after=settled)
+    players = tuple(Agent(name=f"player-{i}@simulated.email", traits={"role": "player"}, instruction="Choose strategically to coordinate near the group median.") for i in range(1, 8))
+    return GalleryCase("median-effort", "Median-action coordination", "parallel actions -> median -> distance payoff", builder.compile(), (), players + _game_agents("analyst"), median_effort_case,
+        ("Base payoff and action bounds are repeated as literals.",),
+        ("workflow.parameter('base_payoff')", "credit_each(payoffs)"))
+
+
+def allais_case() -> GalleryCase:
+    builder = Workflow("Allais common-consequence choices", metadata={"source_pages": "619-643"})
+    first_q = QuestionMultipleChoice(question_name="first_choice", question_text="Choose one lottery. A: receive $1 million for certain. B: 10% chance of $5 million, 89% chance of $1 million, and 1% chance of $0.", question_options=["A: certain $1m", "B: three-outcome lottery"])
+    first = builder.step("first-choice", Survey([first_q]), assigned_to=role("decision-maker"))
+    second_q = QuestionMultipleChoice(question_name="second_choice", question_text="Now choose one lottery. C: 11% chance of $1 million and 89% chance of $0. D: 10% chance of $5 million and 90% chance of $0.", question_options=["C: 11% of $1m", "D: 10% of $5m"])
+    second = builder.step("second-choice", Survey([second_q]), assigned_to=role("decision-maker"), after=first)
+    chose_a = first.answer("first_choice").value.compare_equals("A: certain $1m")
+    chose_d = second.answer("second_choice").value.compare_equals("D: 10% of $5m")
+    classification = builder.derive("classification", pattern=choose(chose_a, choose(chose_d, "common-consequence reversal pattern", "certainty-oriented consistent pattern"), choose(chose_d, "risk-oriented consistent pattern", "opposite reversal pattern")))
+    report_q = QuestionFreeText(question_name="result", question_text=f"Record the authoritative choice-pattern classification: {classification.field('pattern').template}.")
+    builder.step("classify", Survey([report_q]), assigned_to=role("analyst"), after=second)
+    return GalleryCase("allais", "Allais common-consequence choices", "linked lottery choices -> deterministic pattern", builder.compile(), (), _game_agents("decision-maker", "analyst"), allais_case,
+        ("Lottery probabilities and prizes are embedded in prose.", "A nested choose expression is needed to classify a two-answer pattern."),
+        ("Lottery(outcomes=...)", "choice_pattern({...})", "randomly_pay_one(choice_steps)"))
+
+
+def ellsberg_case() -> GalleryCase:
+    builder = Workflow("Ellsberg ambiguity choices", metadata={"urn": "30 red; 60 split unknown between black and yellow", "source_pages": "644-649"})
+    first_q = QuestionMultipleChoice(question_name="first_bet", question_text="An urn has 30 red balls and 60 balls split in an unknown proportion between black and yellow. Choose a bet paying $100 on Red or a bet paying $100 on Black.", question_options=["Red", "Black"])
+    first = builder.step("single-color-bet", Survey([first_q]), assigned_to=role("decision-maker"))
+    second_q = QuestionMultipleChoice(question_name="second_bet", question_text="Using the same urn, choose a bet paying $100 on Red or Yellow, or a bet paying $100 on Black or Yellow.", question_options=["Red or Yellow", "Black or Yellow"])
+    second = builder.step("two-color-bet", Survey([second_q]), assigned_to=role("decision-maker"), after=first)
+    chose_red = first.answer("first_bet").value.compare_equals("Red")
+    chose_black_yellow = second.answer("second_bet").value.compare_equals("Black or Yellow")
+    classification = builder.derive("classification", pattern=choose(chose_red, choose(chose_black_yellow, "standard ambiguity-averse Ellsberg pattern", "known-red preference only"), choose(chose_black_yellow, "ambiguous-black preference only", "reverse Ellsberg pattern")))
+    report_q = QuestionFreeText(question_name="result", question_text=f"Record the authoritative choice-pattern classification: {classification.field('pattern').template}.")
+    builder.step("classify", Survey([report_q]), assigned_to=role("analyst"), after=second)
+    return GalleryCase("ellsberg", "Ellsberg ambiguity choices", "known versus ambiguous bets -> pattern", builder.compile(), (), _game_agents("decision-maker", "analyst"), ellsberg_case,
+        ("The urn and winning events are unvalidated prose.", "Pattern classification repeats nested conditionals."),
+        ("Urn(known=..., ambiguous=...)", "Bet(event=..., prize=...)", "choice_pattern({...})"))
+
+
+def preference_reversal_case() -> GalleryCase:
+    builder = Workflow("Preference-reversal task", metadata={"source_pages": "657-665"})
+    choice_q = QuestionMultipleChoice(question_name="preferred", question_text="Choose one lottery. P-bet: 90% chance of $10. Dollar-bet: 10% chance of $80.", question_options=["P-bet", "Dollar-bet"])
+    choice = builder.step("choose-lottery", Survey([choice_q]), assigned_to=role("decision-maker"))
+    prices = Survey([
+        QuestionNumerical(question_name="p_price", question_text="State your minimum selling price from $0 to $10 for the P-bet.", min_value=0, max_value=10, include_comment=False),
+        QuestionNumerical(question_name="dollar_price", question_text="State your minimum selling price from $0 to $80 for the Dollar-bet.", min_value=0, max_value=80, include_comment=False),
+    ])
+    valuation = builder.step("value-lotteries", prices, assigned_to=role("decision-maker"), after=choice)
+    chose_p = choice.answer("preferred").value.compare_equals("P-bet")
+    dollar_at_least_p = valuation.answer("dollar_price").value.compare_at_least(valuation.answer("p_price").value)
+    classification = builder.derive("classification", pattern=choose(chose_p, choose(dollar_at_least_p, "choice-price preference reversal", "choice and price rankings agree"), choose(dollar_at_least_p, "choice and price rankings agree", "reverse choice-price reversal")))
+    report_q = QuestionFreeText(question_name="result", question_text=f"Record the authoritative classification: {classification.field('pattern').template}.")
+    builder.step("classify", Survey([report_q]), assigned_to=role("analyst"), after=valuation)
+    return GalleryCase("preference-reversal", "Preference-reversal task", "choice -> valuations -> consistency test", builder.compile(), (), _game_agents("decision-maker", "analyst"), preference_reversal_case,
+        ("Selling prices are elicited directly rather than through BDM.", "Ties are treated as Dollar-bet valued at least as highly."),
+        ("BDM(valuation, random_price)", "strictly_greater_than", "randomly_pay_one(step)"))
+
+
+def bdm_valuation_case() -> GalleryCase:
+    builder = Workflow("BDM valuation", metadata={"mechanism": "Becker-DeGroot-Marschak"})
+    value_q = QuestionNumerical(question_name="reservation_price", question_text="You own a voucher. State the minimum price from $0 to $20 at which you would sell it.", min_value=0, max_value=20, include_comment=False)
+    value = builder.step("state-value", Survey([value_q]), assigned_to=role("decision-maker"))
+    offer = seeded_uniform(0, 20, key="bdm-offer")
+    sold = offer.compare_at_least(value.answer("reservation_price").value)
+    outcome = builder.derive("outcome", random_offer=offer, sold=sold, cash_payment=choose(sold, offer, 0))
+    report_q = QuestionFreeText(question_name="result", question_text=f"Record the authoritative random offer {outcome.field('random_offer').template}, sale decision {outcome.field('sold').template}, and cash payment {outcome.field('cash_payment').template}.")
+    builder.step("settle", Survey([report_q]), assigned_to=role("analyst"), after=value)
+    return GalleryCase("bdm-valuation", "BDM valuation", "stated value -> random offer -> incentive-compatible settlement", builder.compile(), (), _game_agents("decision-maker", "analyst"), bdm_valuation_case,
+        ("Currency and range appear in both question text and expression bounds.", "The economically important weak inequality is handwritten."),
+        ("Money(amount, currency)", "bdm(reservation_price, offer)", "workflow.parameter('offer_range')"))
+
+
+def binary_lottery_case() -> GalleryCase:
+    builder = Workflow("Binary lottery choice")
+    q = QuestionMultipleChoice(question_name="choice", question_text="Choose: Safe pays $4 for certain; Risky pays $10 with probability 0.5 and $0 otherwise.", question_options=["Safe", "Risky"])
+    choice_step = builder.step("choose", Survey([q]), assigned_to=role("decision-maker"))
+    draw = seeded_uniform(key="lottery-resolution")
+    chose_risky = choice_step.answer("choice").value.compare_equals("Risky")
+    risky_payoff = choose(draw.compare_at_most(0.5), 10, 0)
+    outcome = builder.derive("outcome", draw=draw, payoff=choose(chose_risky, risky_payoff, 4))
+    report_q = QuestionFreeText(question_name="result", question_text=f"Record draw={outcome.field('draw').template} and authoritative payoff={outcome.field('payoff').template}.")
+    builder.step("resolve", Survey([report_q]), assigned_to=role("analyst"), after=choice_step)
+    return GalleryCase("binary-lottery", "Binary lottery choice", "choice -> seeded draw -> monetary resolution", builder.compile(), (), _game_agents("decision-maker", "analyst"), binary_lottery_case,
+        ("The lottery is duplicated in prose and payoff logic.",),
+        ("Lottery.binary(probability, high, low)", "resolve(choice, draw)", "Money"))
+
+
+def probability_calibration_case() -> GalleryCase:
+    builder = Workflow("Probability calibration")
+    q = QuestionNumerical(question_name="forecast", question_text="An event has a stated base rate of 60%. Report your probability from 0 to 100 that it occurs.", min_value=0, max_value=100, include_comment=False)
+    forecast = builder.step("forecast", Survey([q]), assigned_to=role("forecaster"))
+    draw = seeded_uniform(key="event")
+    occurred = draw.compare_at_most(0.6)
+    realized_percent = choose(occurred, 100, 0)
+    error = forecast.answer("forecast").value - realized_percent
+    outcome = builder.derive("score", draw=draw, occurred=occurred, quadratic_score=100 - error * error / 100)
+    report_q = QuestionFreeText(question_name="result", question_text=f"Record occurred={outcome.field('occurred').template} and authoritative quadratic score={outcome.field('quadratic_score').template}.")
+    builder.step("score", Survey([report_q]), assigned_to=role("analyst"), after=forecast)
+    return GalleryCase("probability-calibration", "Probability calibration", "forecast -> realized event -> proper score", builder.compile(), (), _game_agents("forecaster", "analyst"), probability_calibration_case,
+        ("The 0-100 scaling convention is implicit.", "The scoring formula is easy to transcribe incorrectly."),
+        ("Probability(scale='percent')", "brier_score(report, outcome)", "Bernoulli(probability)"))
+
+
+def bayesian_updating_case() -> GalleryCase:
+    builder = Workflow("Bayesian updating")
+    prior_q = QuestionNumerical(question_name="prior", question_text="Before a diagnostic signal, report P(disease) from 0 to 100. The stated base rate is 20%.", min_value=0, max_value=100, include_comment=False)
+    prior = builder.step("prior", Survey([prior_q]), assigned_to=role("decision-maker"))
+    draw = seeded_uniform(key="diagnostic-signal")
+    positive = draw.compare_at_most(0.26)  # .8*.2 + .125*.8
+    signal = builder.derive("signal", value=choose(positive, "Positive", "Negative"))
+    posterior_q = QuestionNumerical(question_name="posterior", question_text=f"The diagnostic signal is {signal.field('value').template}. Sensitivity is 80%, false-positive rate is 12.5%, and base rate is 20%. Report P(disease) from 0 to 100.", min_value=0, max_value=100, include_comment=False)
+    posterior = builder.step("posterior", Survey([posterior_q]), assigned_to=role("decision-maker"), after=prior)
+    benchmark = choose(positive, 100 * (0.8 * 0.2) / 0.26, 100 * (0.2 * 0.2) / 0.74)
+    outcome = builder.derive("assessment", benchmark=benchmark, absolute_error=(posterior.answer("posterior").value - benchmark).absolute())
+    report_q = QuestionFreeText(question_name="result", question_text=f"Record benchmark posterior={outcome.field('benchmark').template} and absolute error={outcome.field('absolute_error').template}.")
+    builder.step("assess", Survey([report_q]), assigned_to=role("analyst"), after=posterior)
+    return GalleryCase("bayesian-updating", "Bayesian updating", "prior -> private diagnostic signal -> posterior", builder.compile(), (), _game_agents("decision-maker", "analyst"), bayesian_updating_case,
+        ("Signal-generation and Bayes formulas repeat treatment parameters.", "The prior report is observational rather than used by the benchmark."),
+        ("DiagnosticTest(sensitivity, specificity, prevalence)", "bayes_posterior(signal)", "workflow.parameter(...)"))
+
+
+def intertemporal_choice_case() -> GalleryCase:
+    builder = Workflow("Intertemporal choice")
+    q1 = QuestionMultipleChoice(question_name="choice", question_text="Choose one payment: $10 today or $12 in 30 days.", question_options=["$10 today", "$12 in 30 days"])
+    first = builder.step("near-term-choice", Survey([q1]), assigned_to=role("decision-maker"))
+    q2 = QuestionMultipleChoice(question_name="choice", question_text="Choose one payment: $10 in 365 days or $12 in 395 days.", question_options=["$10 in 365 days", "$12 in 395 days"])
+    second = builder.step("future-choice", Survey([q2]), assigned_to=role("decision-maker"), after=first)
+    immediate = first.answer("choice").value.compare_equals("$10 today")
+    delayed_later = second.answer("choice").value.compare_equals("$12 in 395 days")
+    outcome = builder.derive("classification", pattern=choose(immediate, choose(delayed_later, "present-biased reversal", "earlier-payment pattern"), choose(delayed_later, "later-payment pattern", "reverse inconsistency")))
+    report_q = QuestionFreeText(question_name="result", question_text=f"Record authoritative classification={outcome.field('pattern').template}.")
+    builder.step("classify", Survey([report_q]), assigned_to=role("analyst"), after=second)
+    return GalleryCase("intertemporal-choice", "Intertemporal choice", "dated payment choices -> consistency classification", builder.compile(), (), _game_agents("decision-maker", "analyst"), intertemporal_choice_case,
+        ("Amounts and dates are embedded in labels.",),
+        ("DatedPayment(amount, date)", "discount_rate(choice)", "choice_pattern({...})"))
+
+
+def holt_laury_case() -> GalleryCase:
+    builder = Workflow("Holt-Laury risk list")
+    table = ChoiceTable("choices", "For every row choose A ($2.00/$1.60) or B ($3.85/$0.10). The chance of the high payoff is row number times 10 percent.", [str(i) for i in range(1, 11)], ["A", "B"], require_monotone=True)
+    choice = builder.structured_step("risk-list", table, assigned_to=role("decision-maker"))
+    paid_row = seeded_integer(1, 10, key="paid-risk-row")
+    selected = choice.answer("choices").value.item(paid_row)
+    outcome = builder.derive("selection", paid_row=paid_row, selected_option=selected)
+    report_q = QuestionFreeText(question_name="result", question_text=f"Record paid row={outcome.field('paid_row').template} and selected option={outcome.field('selected_option').template}.")
+    builder.step("select-row", Survey([report_q]), assigned_to=role("analyst"), after=choice)
+    return GalleryCase("holt-laury", "Holt–Laury risk list", "choice list -> random paid row -> selected lottery", builder.compile(), (), _game_agents("decision-maker", "analyst"), holt_laury_case,
+        ("Lottery rows exist only in prose and the selected lottery is not yet resolved.",),
+        ("Lottery.resolve()", "typed row payloads"))
+
+
+def time_price_list_case() -> GalleryCase:
+    builder = Workflow("Time-preference price list")
+    table = ChoiceTable("choices", "For every row choose $10 today or the delayed payment in 30 days. Delayed amounts rise from $10.50 in row 1 by $0.50 per row.", [str(i) for i in range(1, 11)], ["$10 today", "Delayed"], require_monotone=True)
+    choice = builder.structured_step("time-list", table, assigned_to=role("decision-maker"))
+    paid_row = seeded_integer(1, 10, key="paid-time-row")
+    payment = choice.answer("choices").value.item(paid_row)
+    outcome = builder.derive("selection", paid_row=paid_row, payment=payment)
+    report_q = QuestionFreeText(question_name="result", question_text=f"Record paid row={outcome.field('paid_row').template} and selected payment={outcome.field('payment').template}.")
+    builder.step("select-row", Survey([report_q]), assigned_to=role("analyst"), after=choice)
+    return GalleryCase("time-price-list", "Time-preference multiple price list", "dated choice list -> random paid row", builder.compile(), (), _game_agents("decision-maker", "analyst"), time_price_list_case,
+        ("The row-to-amount schedule is encoded only in prose.", "There is no fulfillment record for delayed payment."),
+        ("DatedPayment", "FulfillmentSchedule", "typed row payloads"))
+
+
+def dictator_strategy_method_case() -> GalleryCase:
+    builder = Workflow("Dictator strategy method")
+    plan = StrategyTable("transfers", "For each possible recipient endowment, choose how many of your 10 tokens to transfer.", ["0", "5", "10"], list(range(11)))
+    strategy = builder.structured_step("strategy", plan, assigned_to=role("dictator"))
+    contingency = seeded_integer(0, 2, key="recipient-endowment")
+    transfer = strategy.answer("transfers").value.item(contingency * 5)
+    outcome = builder.derive("outcome", recipient_endowment=contingency * 5, transfer=transfer, dictator_payoff=10 - transfer, recipient_payoff=contingency * 5 + transfer)
+    report_q = QuestionFreeText(question_name="result", question_text=f"Record endowment={outcome.field('recipient_endowment').template}, transfer={outcome.field('transfer').template}, and payoffs dictator={outcome.field('dictator_payoff').template}, recipient={outcome.field('recipient_payoff').template}.")
+    builder.step("implement", Survey([report_q]), assigned_to=role("analyst"), after=strategy)
+    return GalleryCase("dictator-strategy-method", "Dictator strategy method", "contingent transfer plan -> random contingency", builder.compile(), (), _game_agents("dictator", "analyst"), dictator_strategy_method_case,
+        ("All rows share one option set; richer contingent plans may require row-specific response schemas.",),
+        ("row-specific table options", "ContingentPlan"))
+
+
+def public_goods_punishment_case() -> GalleryCase:
+    builder = Workflow("Public goods with punishment")
+    cq = QuestionNumerical(question_name="contribution", question_text="You have 10 tokens. Privately contribute 0-10. Each contributed token produces 0.4 tokens for every group member.", min_value=0, max_value=10, include_comment=False)
+    contribute = builder.step("contribute", Survey([cq]), assigned_to=role("player"), visible_to=(role("player"), role("analyst")))
+    total = contribute.outputs("contribution").sum()
+    group = builder.derive("group", total_contribution=total)
+    pq = QuestionNumerical(question_name="punishment_points", question_text=f"The group contributed {group.field('total_contribution').template}. Buy 0-3 total punishment points at a cost of 1 token each. (This simplified stress test does not yet support target-specific allocations.)", min_value=0, max_value=3, include_comment=False)
+    punish = builder.step("punish", Survey([pq]), assigned_to=role("player"), after=contribute, visible_to=role("analyst"))
+    total_punishment = punish.outputs("punishment_points").sum()
+    history = join_by_participant(contribution=contribute.submissions, punishment=punish.submissions)
+    public_return = 0.4 * total
+    payoffs = history.map(10 - history.value("contribution", "contribution") + public_return - history.value("punishment", "punishment_points"))
+    outcome = builder.derive("outcome", total_contribution=total, public_return=public_return, punishment_points=total_punishment, payoffs=payoffs)
+    report_q = QuestionFreeText(question_name="result", question_text=f"Record total contribution={outcome.field('total_contribution').template}, equal public return={outcome.field('public_return').template}, punishment points purchased={outcome.field('punishment_points').template}, and identity-keyed payoffs={outcome.field('payoffs').template}.")
+    builder.step("settle", Survey([report_q]), assigned_to=role("analyst"), after=punish)
+    players = tuple(Agent(name=f"player-{i}@simulated.email", traits={"role": "player"}, instruction="Choose strategically in a public-goods game with a later punishment stage.") for i in range(1, 5))
+    return GalleryCase("public-goods-punishment", "Public goods with punishment", "contributions -> observed outcome -> punishment stage", builder.compile(), (), players + _game_agents("analyst"), public_goods_punishment_case,
+        ("Punishment is scalar because target-by-target allocation lacks a structured response.",),
+        ("AllocationVector(targets, budget)", "step.output_table", "sanction_matrix"))
+
+
+def volunteers_dilemma_case() -> GalleryCase:
+    builder = Workflow("Volunteer's dilemma")
+    benefit = builder.parameter("benefit", 10, unit="tokens")
+    volunteer_cost = builder.parameter("volunteer_cost", 4, unit="tokens")
+    q = QuestionMultipleChoice(question_name="action", question_text="Choose privately. If anyone volunteers, all receive benefit 10; each volunteer pays cost 4. If nobody volunteers, all receive 0.", question_options=["Volunteer", "Do not volunteer"])
+    actions = builder.step("choose", Survey([q]), assigned_to=role("player"), visible_to=role("analyst"))
+    volunteers = actions.outputs("action").count_value("Volunteer")
+    provided = volunteers.compare_at_least(1)
+    own = actions.submissions.each("action")
+    payoff = choose(provided, benefit - choose(own.value.compare_equals("Volunteer"), volunteer_cost, 0), 0)
+    outcome = builder.derive("outcome", volunteer_count=volunteers, provided=provided, payoffs=own.map(payoff))
+    report_q = QuestionFreeText(question_name="result", question_text=f"Record volunteers={outcome.field('volunteer_count').template}, provision={outcome.field('provided').template}, and payoffs={outcome.field('payoffs').template}.")
+    builder.step("settle", Survey([report_q]), assigned_to=role("analyst"), after=actions)
+    players = tuple(Agent(name=f"player-{i}@simulated.email", traits={"role": "player"}, instruction="Choose strategically in the volunteer's dilemma.") for i in range(1, 7))
+    return GalleryCase("volunteers-dilemma", "Volunteer's dilemma", "parallel volunteering -> threshold benefit -> mapped cost", builder.compile(), (), players + _game_agents("analyst"), volunteers_dilemma_case,
+        ("Benefit and cost parameters are authoritative metadata and expressions, but prompt rendering does not yet consume parameter units automatically.",),
+        ("parameter.template", "credit_each(payoffs)"))
+
+
+def cournot_case() -> GalleryCase:
+    builder = Workflow("Cournot oligopoly")
+    demand_intercept = builder.parameter("demand_intercept", 100)
+    marginal_cost = builder.parameter("marginal_cost", 10)
+    q = QuestionNumerical(question_name="quantity", question_text="Choose a quantity from 0 to 25. Market price is max(0, 100 minus total industry quantity); marginal cost is 10.", min_value=0, max_value=25, include_comment=False)
+    quantities = builder.step("choose-quantity", Survey([q]), assigned_to=role("firm"), visible_to=role("analyst"))
+    total = quantities.outputs("quantity").sum()
+    price = choose(demand_intercept.compare_at_least(total), demand_intercept - total, 0)
+    own = quantities.submissions.each("quantity")
+    profits = own.map((price - marginal_cost) * own.value)
+    outcome = builder.derive("market", total_quantity=total, price=price, profits=profits)
+    report = QuestionFreeText(question_name="result", question_text=f"Record total quantity={outcome.field('total_quantity').template}, price={outcome.field('price').template}, and firm profits={outcome.field('profits').template}.")
+    builder.step("settle", Survey([report]), assigned_to=role("analyst"), after=quantities)
+    firms = tuple(Agent(name=f"firm-{i}@simulated.email", traits={"role": "firm"}, instruction="Choose quantity strategically as a Cournot competitor.") for i in range(1, 6))
+    return GalleryCase("cournot", "Cournot quantity competition", "parallel quantities -> inverse demand -> mapped profits", builder.compile(), (), firms + _game_agents("analyst"), cournot_case,
+        ("The prompt manually repeats parameter values.", "The nonnegative price floor is a hand-built conditional."),
+        ("parameter.template", "maximum(expression, 0)", "history.lag()"))
+
+
+def monopoly_case() -> GalleryCase:
+    builder = Workflow("Experimental monopoly")
+    q = QuestionMultipleChoice(question_name="price", question_text="Choose a posted price. Demand is 8 units at 2, 6 at 4, 4 at 6, 2 at 8, and 0 at 10. Unit cost is 1.", question_options=[2, 4, 6, 8, 10])
+    decision = builder.step("set-price", Survey([q]), assigned_to=role("monopolist"))
+    price = decision.answer("price").value
+    quantity = lookup({2: 8, 4: 6, 6: 4, 8: 2, 10: 0}, price)
+    outcome = builder.derive("market", price=price, quantity=quantity, profit=(price - 1) * quantity)
+    report = QuestionFreeText(question_name="result", question_text=f"Record price={outcome.field('price').template}, quantity={outcome.field('quantity').template}, and profit={outcome.field('profit').template}.")
+    builder.step("settle", Survey([report]), assigned_to=role("analyst"), after=decision)
+    return GalleryCase("monopoly", "Experimental monopoly", "posted price -> demand lookup -> profit", builder.compile(), (), _game_agents("monopolist", "analyst"), monopoly_case,
+        ("Demand is duplicated between prose and lookup data.",),
+        ("DemandSchedule.render()", "piecewise_linear", "Money"))
+
+
+def schelling_ranking_case() -> GalleryCase:
+    builder = Workflow("Schelling tacit ranking")
+    q = QuestionRank(question_name="ranking", question_text="Without communicating, rank A, B, and C in the order you expect everyone else to choose.", question_options=["A", "B", "C"], num_selections=3, use_code=False, include_comment=False)
+    rankings = builder.step("rank", Survey([q]), assigned_to=role("player"), visible_to=role("analyst"))
+    outcome = builder.derive("outcome", coordinated=rankings.outputs("ranking").all_equal())
+    report = QuestionFreeText(question_name="result", question_text=f"Record whether every complete ranking matched: {outcome.field('coordinated').template}. Rankings: {rankings.outputs('ranking').template}.")
+    builder.step("settle", Survey([report]), assigned_to=role("analyst"), after=rankings)
+    players = tuple(Agent(name=f"player-{label}@simulated.email", traits={"role": "player"}, instruction="Seek a salient common ranking without communication.") for label in "ABC")
+    return GalleryCase("schelling-ranking", "Schelling tacit ranking", "parallel rankings -> structural equality -> coordination", builder.compile(), (), players + _game_agents("analyst"), schelling_ranking_case,
+        ("Rank-dependent prizes require finding each participant label's position in the agreed list.",),
+        ("list.index(value)", "invert_ranking", "rank_payoffs"))
+
+
+def curse_of_knowledge_case() -> GalleryCase:
+    builder = Workflow("Curse of knowledge")
+    baseline_q = QuestionMultipleChoice(question_name="guess", question_text="Without looking anything up: which city is farther north, Rome or New York?", question_options=["Rome", "New York"])
+    baseline = builder.step("uninformed-guess", Survey([baseline_q]), assigned_to=role("uninformed"), visible_to=role("analyst"))
+    predict_q = QuestionMultipleChoice(question_name="prediction", question_text="The correct answer is Rome. Predict which answer the uninformed participant gave.", question_options=["Rome", "New York"])
+    prediction = builder.step("informed-prediction", Survey([predict_q]), assigned_to=role("informed"), after=baseline, visible_to=role("analyst"))
+    matched = prediction.answer("prediction").value.compare_equals(baseline.answer("guess").value)
+    outcome = builder.derive("outcome", prediction_matched=matched)
+    report = QuestionFreeText(question_name="result", question_text=f"Record whether the informed prediction matched the uninformed response: {outcome.field('prediction_matched').template}.")
+    builder.step("score", Survey([report]), assigned_to=role("analyst"), after=prediction)
+    return GalleryCase("curse-of-knowledge", "Curse-of-knowledge task", "uninformed response -> truth reveal -> informed prediction", builder.compile(), (), _game_agents("uninformed", "informed", "analyst"), curse_of_knowledge_case,
+        ("The truth is repeated as prompt text rather than a typed information release.",),
+        ("InformationPacket", "reveal_to(role)", "match_predictions"))
+
+
+def sequential_search_case() -> GalleryCase:
+    builder = Workflow("Sequential search")
+    offer1 = builder.derive("offer1", value=seeded_integer(5, 20, key="offer-1"))
+    q1 = QuestionYesNo(question_name="accept", question_text=f"Offer 1 pays {offer1.field('value').template}. Accept it, or pay 1 token to search again?")
+    first = builder.step("offer-1", Survey([q1]), assigned_to=role("searcher"))
+    offer2 = builder.derive("offer2", value=seeded_integer(5, 20, key="offer-2"))
+    q2 = QuestionYesNo(question_name="accept", question_text=f"After one search cost, offer 2 pays {offer2.field('value').template}. Accept it, or pay another token for a final draw?")
+    second = builder.step("offer-2", Survey([q2]), assigned_to=role("searcher"), after=first, when=first.answer("accept").equals("No"))
+    offer3 = builder.derive("offer3", value=seeded_integer(5, 20, key="offer-3"))
+    q3 = QuestionFreeText(question_name="acknowledge", question_text=f"The final mandatory offer is {offer3.field('value').template}. Acknowledge receipt.")
+    third = builder.step("offer-3", Survey([q3]), assigned_to=role("searcher"), after=second, when=second.answer("accept").equals("No"))
+    accepted_first = first.answer("accept").value.compare_equals("Yes")
+    accepted_second = second.answer("accept").value.compare_equals("Yes")
+    payoff = choose(accepted_first, offer1.field("value").expression, choose(accepted_second, offer2.field("value").expression - 1, offer3.field("value").expression - 2))
+    outcome = builder.derive("outcome", payoff=payoff)
+    report = QuestionFreeText(question_name="result", question_text=f"Record authoritative net payoff={outcome.field('payoff').template}.")
+    builder.step("settle", Survey([report]), assigned_to=role("analyst"), after_settled=third)
+    return GalleryCase("sequential-search", "Sequential search task", "offer -> accept or costly continuation -> terminal payoff", builder.compile(), (), _game_agents("searcher", "analyst"), sequential_search_case,
+        ("Offer stages are manually unrolled.", "The final settlement join depends on skipped-step propagation."),
+        ("search_until(accept, cost, max_draws)", "on_termination", "OfferStream"))
+
+
 def cases() -> list[GalleryCase]:
     return [
         brainstorm_case(),
@@ -1343,6 +1905,33 @@ def cases() -> list[GalleryCase]:
         market_entry_case(),
         battle_of_sexes_case(),
         chicken_case(),
+        minimum_effort_case(),
+        threshold_public_good_case(),
+        second_price_auction_case(),
+        best_shot_case(),
+        impunity_case(),
+        third_price_auction_case(),
+        schelling_claims_case(),
+        commons_dilemma_case(),
+        median_effort_case(),
+        allais_case(),
+        ellsberg_case(),
+        preference_reversal_case(),
+        bdm_valuation_case(),
+        binary_lottery_case(),
+        probability_calibration_case(),
+        bayesian_updating_case(),
+        intertemporal_choice_case(),
+        holt_laury_case(),
+        time_price_list_case(),
+        dictator_strategy_method_case(),
+        public_goods_punishment_case(),
+        volunteers_dilemma_case(),
+        cournot_case(),
+        monopoly_case(),
+        schelling_ranking_case(),
+        curse_of_knowledge_case(),
+        sequential_search_case(),
     ]
 
 
@@ -1498,6 +2087,104 @@ def describe_run(
     elif case.slug in {"battle-of-sexes", "chicken"}:
         actions = [answer["action"] for answer in store.step_answers(instance_id, "choose")]
         summary += f" The two sealed actions were {actions}."
+    elif case.slug == "minimum-effort":
+        efforts = [float(answer["effort"]) for answer in store.step_answers(instance_id, "choose-effort")]
+        summary += f" Efforts were {efforts}; the authoritative group minimum was {min(efforts):g}."
+    elif case.slug == "threshold-public-good":
+        contributions = [float(answer["contribution"]) for answer in store.step_answers(instance_id, "contribute")]
+        summary += f" Contributions were {contributions}; their total was {sum(contributions):g}, so provision was {sum(contributions) >= 30}."
+    elif case.slug == "second-price-auction":
+        bids = sorted((float(answer["bid"]) for answer in store.step_answers(instance_id, "sealed-bid")), reverse=True)
+        summary += f" Descending bids were {bids}; the authoritative second-price payment was {bids[1]:g}."
+    elif case.slug == "best-shot":
+        contributions = [float(answer["contribution"]) for answer in store.step_answers(instance_id, "contribute")]
+        summary += f" Contributions were {contributions}; the best shot was {max(contributions):g} and total cost was {sum(contributions):g}."
+    elif case.slug == "impunity":
+        offer = store.step_answers(instance_id, "allocate")[0]["offer"]
+        accepted = store.step_answers(instance_id, "respond")[0]["accept"]
+        summary += f" The allocator offered {offer} and the recipient answered {accepted}; the allocator's payoff was unaffected by that response."
+    elif case.slug == "third-price-auction":
+        bids = sorted((float(answer["bid"]) for answer in store.step_answers(instance_id, "sealed-bid")), reverse=True)
+        summary += f" Descending bids were {bids}; the authoritative third-price payment was {bids[2]:g}."
+    elif case.slug == "schelling-claims":
+        claims = [float(answer["claim"]) for answer in store.step_answers(instance_id, "claim")]
+        summary += f" Claims were {claims}; total claims were {sum(claims):g}, so feasibility was {sum(claims) <= 100}."
+    elif case.slug == "commons-dilemma":
+        actions = [answer["action"] for answer in store.step_answers(instance_id, "choose")]
+        summary += f" Actions were {actions}; {actions.count('Exploit')} participants exploited and commons survival was {actions.count('Exploit') <= 2}."
+    elif case.slug == "median-effort":
+        actions = sorted(float(answer["action"]) for answer in store.step_answers(instance_id, "choose"))
+        summary += f" Sorted actions were {actions}; the authoritative median was {actions[len(actions) // 2]:g}."
+    elif case.slug == "allais":
+        first = store.step_answers(instance_id, "first-choice")[0]["first_choice"]
+        second = store.step_answers(instance_id, "second-choice")[0]["second_choice"]
+        summary += f" The decision maker chose {first!r}, then {second!r}."
+    elif case.slug == "ellsberg":
+        first = store.step_answers(instance_id, "single-color-bet")[0]["first_bet"]
+        second = store.step_answers(instance_id, "two-color-bet")[0]["second_bet"]
+        summary += f" The decision maker chose {first!r}, then {second!r}."
+    elif case.slug == "preference-reversal":
+        choice = store.step_answers(instance_id, "choose-lottery")[0]["preferred"]
+        prices = store.step_answers(instance_id, "value-lotteries")[0]
+        summary += f" The participant chose {choice} and priced P at {prices['p_price']} versus Dollar at {prices['dollar_price']}."
+    elif case.slug == "bdm-valuation":
+        report = store.step_answers(instance_id, "state-value")[0]["reservation_price"]
+        derived = WorkflowCoordinator(case.workflow, store)._evaluate_derived(instance_id)["outcome"]
+        summary += f" The participant reported {report}; the stable offer was {derived['random_offer']:.2f}, so sold={derived['sold']}."
+    elif case.slug == "binary-lottery":
+        choice = store.step_answers(instance_id, "choose")[0]["choice"]
+        derived = WorkflowCoordinator(case.workflow, store)._evaluate_derived(instance_id)["outcome"]
+        summary += f" The participant chose {choice}; draw={derived['draw']:.3f} produced payoff={derived['payoff']}."
+    elif case.slug == "probability-calibration":
+        forecast = store.step_answers(instance_id, "forecast")[0]["forecast"]
+        derived = WorkflowCoordinator(case.workflow, store)._evaluate_derived(instance_id)["score"]
+        summary += f" The forecast was {forecast}%; occurred={derived['occurred']}; quadratic score={derived['quadratic_score']:.2f}."
+    elif case.slug == "bayesian-updating":
+        prior = store.step_answers(instance_id, "prior")[0]["prior"]
+        posterior = store.step_answers(instance_id, "posterior")[0]["posterior"]
+        derived = WorkflowCoordinator(case.workflow, store)._evaluate_derived(instance_id)
+        summary += f" Prior={prior}%, signal={derived['signal']['value']}, posterior={posterior}%, benchmark={derived['assessment']['benchmark']:.2f}%."
+    elif case.slug == "intertemporal-choice":
+        first = store.step_answers(instance_id, "near-term-choice")[0]["choice"]
+        second = store.step_answers(instance_id, "future-choice")[0]["choice"]
+        pattern = WorkflowCoordinator(case.workflow, store)._evaluate_derived(instance_id)["classification"]["pattern"]
+        summary += f" Choices were {first!r} and {second!r}; classification={pattern}."
+    elif case.slug in {"holt-laury", "time-price-list"}:
+        step = "risk-list" if case.slug == "holt-laury" else "time-list"
+        choices = store.step_answers(instance_id, step)[0]["choices"]
+        selection = WorkflowCoordinator(case.workflow, store)._evaluate_derived(instance_id)["selection"]
+        summary += f" The complete row choices were {choices}; row {selection['paid_row']} was selected, implementing {selection.get('selected_option', selection.get('payment'))}."
+    elif case.slug == "dictator-strategy-method":
+        strategy = store.step_answers(instance_id, "strategy")[0]["transfers"]
+        outcome = WorkflowCoordinator(case.workflow, store)._evaluate_derived(instance_id)["outcome"]
+        summary += f" The contingent transfers were {strategy}; the realized recipient endowment was {outcome['recipient_endowment']} and transfer was {outcome['transfer']}."
+    elif case.slug == "public-goods-punishment":
+        contributions = [answer["contribution"] for answer in store.step_answers(instance_id, "contribute")]
+        punishments = [answer["punishment_points"] for answer in store.step_answers(instance_id, "punish")]
+        summary += f" Contributions were {contributions}; subsequent punishment purchases were {punishments}."
+    elif case.slug == "volunteers-dilemma":
+        actions = [answer["action"] for answer in store.step_answers(instance_id, "choose")]
+        outcome = WorkflowCoordinator(case.workflow, store)._evaluate_derived(instance_id)["outcome"]
+        summary += f" Actions were {actions}; {outcome['volunteer_count']} volunteered and provision={outcome['provided']}."
+    elif case.slug == "cournot":
+        quantities = [answer["quantity"] for answer in store.step_answers(instance_id, "choose-quantity")]
+        market = WorkflowCoordinator(case.workflow, store)._evaluate_derived(instance_id)["market"]
+        summary += f" Firm quantities were {quantities}; total={market['total_quantity']}, price={market['price']}, profits={market['profits']}."
+    elif case.slug == "monopoly":
+        market = WorkflowCoordinator(case.workflow, store)._evaluate_derived(instance_id)["market"]
+        summary += f" The monopolist chose price {market['price']}; demand was {market['quantity']} and profit was {market['profit']}."
+    elif case.slug == "schelling-ranking":
+        rankings = [answer["ranking"] for answer in store.step_answers(instance_id, "rank")]
+        coordinated = WorkflowCoordinator(case.workflow, store)._evaluate_derived(instance_id)["outcome"]["coordinated"]
+        summary += f" Rankings were {rankings}; complete coordination={coordinated}."
+    elif case.slug == "curse-of-knowledge":
+        guess = store.step_answers(instance_id, "uninformed-guess")[0]["guess"]
+        prediction = store.step_answers(instance_id, "informed-prediction")[0]["prediction"]
+        summary += f" The uninformed answer was {guess}; the informed participant predicted {prediction}."
+    elif case.slug == "sequential-search":
+        derived = WorkflowCoordinator(case.workflow, store)._evaluate_derived(instance_id)
+        decisions = {step: store.step_answers(instance_id, step) for step in ("offer-1", "offer-2", "offer-3")}
+        summary += f" Search decisions were {decisions}; authoritative net payoff={derived['outcome']['payoff']}."
     return summary
 
 

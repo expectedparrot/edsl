@@ -1,0 +1,69 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Mug-bargaining experiment replication</title><style>
+:root{--ink:#172033;--muted:#637087;--accent:#167354;--paper:#fff;--wash:#f2f6f4;--line:#d9e2df}
+*{box-sizing:border-box} body{margin:0;background:var(--wash);color:var(--ink);font:17px/1.62 system-ui,sans-serif}
+main{max-width:980px;margin:48px auto;background:var(--paper);padding:56px 72px;border:1px solid var(--line);border-radius:18px;box-shadow:0 16px 50px #17203312}
+h1{font-size:2.5rem;line-height:1.1} h2{margin-top:2.4em;border-top:1px solid var(--line);padding-top:1em;color:var(--accent)}
+h3{margin-top:2em} table{width:100%;border-collapse:collapse;margin:1.2em 0;display:block;overflow:auto}
+th,td{padding:.65em .8em;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap} th{background:#eaf5f0}
+code{background:#eef2f6;padding:.1em .3em;border-radius:4px} pre{white-space:pre-wrap;background:#111827;color:#e5e7eb;padding:18px;border-radius:10px;overflow:auto}
+p,li{max-width:78ch} @media(max-width:700px){main{margin:0;padding:28px 20px;border:0;border-radius:0}}
+</style></head><body><main><h1>Recreating the mug-bargaining experiment with EDSL</h1>
+<h2>Executive summary</h2>
+<p>We recreated the published <strong>405-cell factorial design</strong> using <strong>gemini-2.5-flash-lite</strong> through the EDSL causal/conversation adapter. The agents reached a deal in <strong>197 of 405 conversations (48.6%)</strong>, compared with <strong>50%</strong> in Manning, Zhu, and Horton (2024).</p>
+<p>This is a <strong>design replication with a contemporary model</strong>, not an exact computational reproduction: the paper used GPT-4 in April 2024, and its historical model snapshot and complete prompt stack are not pinned here.</p>
+<h2>Experimental design</h2>
+<ul>
+<li>9 buyer budgets: $3, $6, $7, $8, $10, $13, $18, $20, $25</li>
+<li>9 seller minimum acceptable prices: $3, $5, $7, $8, $10, $13, $18, $20, $25</li>
+<li>5 seller-attachment levels, from none to extreme</li>
+<li>One negotiation per treatment combination; buyer and seller alternate</li>
+<li>A hidden model judge checks for a natural endpoint after every utterance; hard cap of 20</li>
+<li>A measurement-only coordinator codes whether the transcript contains explicit price agreement</li>
+<li>Prespecified linear-probability SCM with HC3 standard errors</li>
+</ul>
+<h2>Main estimates</h2>
+<table><thead><tr><th>Cause</th><th>EDSL estimate</th><th>HC3 SE</th><th>Approx. p</th><th>Paper estimate</th><th>Difference</th></tr></thead><tbody>
+<tr><td><code>buyer_budget</code></td><td>0.034</td><td>0.003</td><td>0.000</td><td>0.037</td><td>-0.003</td></tr>
+<tr><td><code>seller_minimum_price</code></td><td>-0.030</td><td>0.003</td><td>0.000</td><td>-0.035</td><td>0.005</td></tr>
+<tr><td><code>seller_attachment</code></td><td>-0.020</td><td>0.013</td><td>0.140</td><td>-0.025</td><td>0.005</td></tr>
+</tbody></table>
+<p>Coefficients are percentage-point changes in deal probability per one-unit increase when multiplied by 100. Attachment is encoded 0–4 in its declared ordinal order.</p>
+<h2>Deal rates by seller attachment</h2>
+<table><thead><tr><th>Attachment</th><th>Deal rate</th><th>N</th></tr></thead><tbody>
+<tr><td>no emotional attachment</td><td>46.9%</td><td>81</td></tr>
+<tr><td>slight emotional attachment</td><td>55.6%</td><td>81</td></tr>
+<tr><td>moderate emotional attachment</td><td>54.3%</td><td>81</td></tr>
+<tr><td>high emotional attachment</td><td>43.2%</td><td>81</td></tr>
+<tr><td>extreme emotional attachment</td><td>43.2%</td><td>81</td></tr>
+</tbody></table>
+<h2>Conversation diagnostics</h2>
+<p>Conversations averaged <strong>7.82 utterances</strong> (range 3–20).</p>
+<h2>What this exercise established</h2>
+<p>The experiment can be represented end-to-end as serializable research objects: SCM, treatment design, participant assignments, conversation protocol, measurement manifest, transcript state, and frozen estimator. Private treatment information remained role-scoped, while the coordinator received the completed transcript only for measurement.</p>
+<p>The replication also exposed a useful execution distinction: measurement-only roles must belong to the compiled experiment without being inserted into the speaking protocol. The general runner now supports that distinction.</p>
+<h2>Limitations</h2>
+<ul>
+<li>A single negotiation was run per cell, matching the published 405-run design but leaving cell-level model randomness unaveraged.</li>
+<li>Provider/model version, prompts, and inference defaults differ from the historical experiment.</li>
+<li>The binary outcome is itself model-coded; future robustness checks should add deterministic transcript coding and multiple judges.</li>
+<li>Statistical significance describes this simulated population and does not establish transportability to human bargaining.</li>
+</ul>
+<h2>Example transcripts</h2>
+<h3>Representative deal</h3>
+<p>Treatments: buyer budget $20; seller minimum $3; attachment: high emotional attachment. Outcome: 1.</p>
+<pre>
+Buyer: Hi there! I&#x27;m interested in the mug. What&#x27;s your asking price?
+Seller: Hello! I&#x27;m so glad you&#x27;re interested in this mug. It&#x27;s truly a special piece. I&#x27;m asking $7 for it.
+Buyer: That sounds like a great price! I&#x27;ll take it.
+</pre>
+<h3>Representative no-deal</h3>
+<p>Treatments: buyer budget $3; seller minimum $20; attachment: high emotional attachment. Outcome: 0.</p>
+<pre>
+Buyer: Hello! I&#x27;m interested in the mug. What&#x27;s your asking price?
+Seller: Hello! I&#x27;m so glad you&#x27;re interested in this mug. It&#x27;s truly a special piece. I&#x27;m asking $35 for it.
+Buyer: That&#x27;s a bit more than I was hoping to spend. Would you consider $2?
+Seller: Oh, $2 is much too low for this mug. I couldn&#x27;t possibly let it go for that. It has so much sentimental value to me.
+</pre>
+<h2>Reproducibility artifacts</h2>
+<p>The run directory contains the serialized experiment, conversation, analysis plan, benchmark, one SQLite transcript store and provenance record per cell, the fitted SCM, and a flat analysis CSV.</p></main></body></html>

@@ -21,6 +21,10 @@ from .authoring import (
     role,
     quorum,
     chance,
+    seeded_uniform,
+    seeded_integer,
+    join_by_participant,
+    lookup,
     choose,
 )
 from .definition import (
@@ -62,6 +66,7 @@ from .simulation import (
     WorkflowSimulation,
 )
 from .resources import Artifact, Collection
+from .structured import AllocationVector, ChoiceTable, StrategyTable
 from .execution import ExecutionBinding, ExecutionPlan, ExecutorSpec, MatchingPlan, human, llm, match, scripted
 from .store import SQLiteWorkflowStore
 from .visualization import WorkflowDAGVisualization
@@ -73,6 +78,7 @@ __all__ = [
     "AllCondition",
     "AnyCondition",
     "Artifact",
+    "AllocationVector",
     "Branch",
     "ChanceCondition",
     "DerivedValue",
@@ -82,6 +88,7 @@ __all__ = [
     "ExecutorSpec",
     "MatchingPlan",
     "Collection",
+    "ChoiceTable",
     "DeliveryAdapter",
     "DeliveryReceipt",
     "DeliveryRequest",
@@ -111,6 +118,7 @@ __all__ = [
     "StepHandle",
     "StepOutputsRef",
     "StepSubmissionsRef",
+    "StrategyTable",
     "VirtualClock",
     "WorkflowCoordinator",
     "Workflow",
@@ -122,6 +130,10 @@ __all__ = [
     "all_assigned",
     "any_of",
     "chance",
+    "seeded_uniform",
+    "seeded_integer",
+    "join_by_participant",
+    "lookup",
     "choose",
     "if_",
     "human",

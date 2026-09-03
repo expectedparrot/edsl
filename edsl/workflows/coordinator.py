@@ -225,20 +225,78 @@ class WorkflowCoordinator:
         instance_id: str,
         expression,
         derived: Mapping[str, Mapping[str, Any]] | None = None,
+        bindings: Mapping[str, Any] | None = None,
     ) -> Any:
         from .definition import WorkflowExpression
 
         def evaluate(value):
             return (
-                self._evaluate_expression(instance_id, value, derived)
+                self._evaluate_expression(instance_id, value, derived, bindings)
                 if isinstance(value, WorkflowExpression)
                 else value
             )
 
         op = expression.op
+        if op == "submission_value":
+            if bindings is None or "submission_value" not in bindings:
+                raise ValueError("submission_value is only valid inside a submission map")
+            return bindings["submission_value"]
+        if op == "joined_value":
+            if bindings is None or "joined_values" not in bindings:
+                raise ValueError("joined_value is only valid inside a participant join map")
+            return bindings["joined_values"][expression.options["source"]][expression.options["question_name"]]
+        if op == "map_submissions":
+            submissions = evaluate(expression.args[0])
+            question = expression.options["question_name"]
+            mapped = {}
+            for submission in submissions:
+                try:
+                    own_value = submission["answers"][question]
+                except KeyError as exc:
+                    raise ValueError(
+                        f"submission has no answer for mapped question {question!r}"
+                    ) from exc
+                mapped[submission["participant_id"]] = self._evaluate_expression(
+                    instance_id,
+                    expression.args[1],
+                    derived,
+                    {"submission_value": own_value},
+                )
+            if not mapped:
+                raise LookupError("submission-map inputs are not available")
+            return mapped
+        if op == "map_joined_submissions":
+            rows = evaluate(expression.args[0])
+            if not rows:
+                raise LookupError("joined submission inputs are not available")
+            return {
+                row["participant_id"]: self._evaluate_expression(
+                    instance_id, expression.args[1], derived, {"joined_values": row["sources"]}
+                )
+                for row in rows
+            }
+        if op == "if_else":
+            condition = evaluate(expression.args[0])
+            return evaluate(expression.args[1] if condition else expression.args[2])
         args = [evaluate(item) for item in expression.args]
         if op == "literal":
             return args[0]
+        if op == "parameter":
+            try:
+                return self.workflow.metadata["parameters"][expression.options["name"]]["value"]
+            except KeyError as exc:
+                raise ValueError(f"unknown workflow parameter {expression.options['name']!r}") from exc
+        if op == "seeded_uniform":
+            digest = hashlib.sha256(
+                f"{instance_id}:{expression.options['key']}".encode("utf-8")
+            ).digest()
+            unit = int.from_bytes(digest, "big") / (1 << (8 * len(digest)))
+            return args[0] + (args[1] - args[0]) * unit
+        if op == "seeded_integer":
+            digest = hashlib.sha256(
+                f"{instance_id}:{expression.options['key']}".encode("utf-8")
+            ).digest()
+            return args[0] + int.from_bytes(digest, "big") % (args[1] - args[0] + 1)
         if op == "step_outputs":
             values = self._output_values(
                 instance_id,
@@ -259,12 +317,25 @@ class WorkflowCoordinator:
                 for item in self.store.items(instance_id, step_name=expression.options["step_name"])
                 if (answers := self.store.item_answers(item["id"])) is not None
             ]
+        if op == "join_submissions":
+            names = tuple(expression.options["names"])
+            indexed = [
+                {item["participant_id"]: item["answers"] for item in submissions}
+                for submissions in args
+            ]
+            participant_sets = [set(items) for items in indexed]
+            if not participant_sets or not participant_sets[0] or any(items != participant_sets[0] for items in participant_sets[1:]):
+                raise LookupError("participant join inputs are incomplete or do not match")
+            return [
+                {"participant_id": participant_id, "sources": {name: indexed[position][participant_id] for position, name in enumerate(names)}}
+                for participant_id in sorted(participant_sets[0])
+            ]
         if op == "derived_ref":
             available = (
                 derived if derived is not None else self._evaluate_derived(instance_id)
             )
             return available[expression.options["name"]][expression.options["field"]]
-        if op in {"mean", "median", "minimum", "maximum", "range"}:
+        if op in {"mean", "median", "minimum", "maximum", "range", "sum"}:
             values = [float(value) for value in args[0]]
             if not values:
                 raise ValueError(f"{op} requires at least one numeric value")
@@ -274,8 +345,28 @@ class WorkflowCoordinator:
                 "minimum": min,
                 "maximum": max,
                 "range": lambda items: max(items) - min(items),
+                "sum": sum,
             }
             return operations[op](values)
+        if op == "count_value":
+            return sum(value == args[1] for value in args[0])
+        if op == "all_equal":
+            if not args[0]:
+                raise LookupError("all_equal inputs are not available")
+            return len({self._hashable(value) for value in args[0]}) == 1
+        if op == "absolute":
+            return abs(args[0])
+        if op == "order_statistic":
+            values = [float(value) for value in args[0]]
+            rank = int(expression.options["rank"])
+            if rank < 1 or rank > len(values):
+                raise LookupError(
+                    f"order-statistic rank {rank} is unavailable for {len(values)} values"
+                )
+            reverse = expression.options.get("direction") == "largest"
+            if expression.options.get("direction") not in {"largest", "smallest"}:
+                raise ValueError("order-statistic direction must be 'largest' or 'smallest'")
+            return sorted(values, reverse=reverse)[rank - 1]
         binary = {
             "add": lambda left, right: left + right,
             "subtract": lambda left, right: left - right,
@@ -287,8 +378,19 @@ class WorkflowCoordinator:
         }
         if op in binary:
             return binary[op](*args)
-        if op == "if_else":
-            return args[1] if args[0] else args[2]
+        if op == "get_item":
+            collection, key = args
+            if isinstance(collection, Mapping):
+                return collection[str(key)]
+            return collection[int(key)]
+        if op == "lookup":
+            key = str(args[0])
+            mapping = expression.options["mapping"]
+            if key in mapping:
+                return evaluate(mapping[key])
+            if expression.options.get("has_default"):
+                return evaluate(expression.options["default"])
+            raise KeyError(f"lookup has no value for key {key!r}")
         if op == "payoff_matrix":
             submissions = sorted(args[0], key=lambda item: item["participant_id"])
             if len(submissions) != 2:
@@ -440,6 +542,9 @@ class WorkflowCoordinator:
                     self.store.finish_attempt(attempt_id, status="succeeded")
                 return
         step = self.workflow.step(item["step_name"])
+        from .structured import structured_contract_from_dict
+        for contract_data in step.metadata.get("response_contracts", ()):
+            structured_contract_from_dict(contract_data).validate(answers)
         for question_name, (minimum, maximum) in step.answer_bounds.items():
             if question_name not in answers:
                 continue

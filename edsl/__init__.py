@@ -59,6 +59,8 @@ _LAZY_MODULES = {
     "extensions",
     "macros",
     "study",
+    "causal",
+    "conversations",
 }
 
 # Cache for lazy-loaded modules

@@ -49,6 +49,11 @@ class WorkflowExpression:
             "minimum",
             "maximum",
             "range",
+            "sum",
+            "count_value",
+            "all_equal",
+            "order_statistic",
+            "absolute",
             "add",
             "subtract",
             "multiply",
@@ -61,6 +66,16 @@ class WorkflowExpression:
             "payoff_matrix",
             "argmin_by",
             "literal",
+            "submission_value",
+            "map_submissions",
+            "seeded_uniform",
+            "seeded_integer",
+            "lookup",
+            "join_submissions",
+            "joined_value",
+            "map_joined_submissions",
+            "parameter",
+            "get_item",
         }
         if self.op not in allowed:
             raise ValueError(f"unsupported workflow expression operator {self.op!r}")
@@ -72,6 +87,18 @@ class WorkflowExpression:
                 raise ValueError("payoff-matrix action codes must be one character")
             if len(set(codes.values())) != len(codes):
                 raise ValueError("payoff-matrix action codes must be unique")
+        if self.op == "seeded_uniform":
+            low, high = self.args
+            if not isinstance(low, (int, float)) or not isinstance(high, (int, float)) or low >= high:
+                raise ValueError("seeded_uniform requires numeric low < high")
+            if not self.options.get("key"):
+                raise ValueError("seeded_uniform key must be non-empty")
+        if self.op == "seeded_integer":
+            low, high = self.args
+            if not isinstance(low, int) or not isinstance(high, int) or low > high:
+                raise ValueError("seeded_integer requires integer low <= high")
+            if not self.options.get("key"):
+                raise ValueError("seeded_integer key must be non-empty")
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -97,7 +124,7 @@ class WorkflowExpression:
     @property
     def dependencies(self) -> frozenset[str]:
         dependencies: set[str] = set(self.options.get("dependencies", ()))
-        if self.op in {"step_outputs", "step_answer"}:
+        if self.op in {"step_outputs", "step_answer", "step_submissions"}:
             dependencies.add(str(self.options["step_name"]))
         for value in (*self.args, *self.options.values()):
             if isinstance(value, WorkflowExpression):
@@ -106,6 +133,13 @@ class WorkflowExpression:
                 dependencies.update(
                     dependency
                     for item in value
+                    if isinstance(item, WorkflowExpression)
+                    for dependency in item.dependencies
+                )
+            elif isinstance(value, Mapping):
+                dependencies.update(
+                    dependency
+                    for item in value.values()
                     if isinstance(item, WorkflowExpression)
                     for dependency in item.dependencies
                 )
@@ -132,6 +166,12 @@ class WorkflowExpression:
     def __rsub__(self, other: Any) -> "WorkflowExpression":
         return WorkflowExpression("subtract", (other, self))
 
+    def __rmul__(self, other: Any) -> "WorkflowExpression":
+        return WorkflowExpression("multiply", (other, self))
+
+    def __rtruediv__(self, other: Any) -> "WorkflowExpression":
+        return WorkflowExpression("divide", (other, self))
+
     def at_most(self, value: Any) -> "ExpressionCondition":
         return ExpressionCondition(self.compare_at_most(value))
 
@@ -139,13 +179,23 @@ class WorkflowExpression:
         return self._binary("at_most", value)
 
     def at_least(self, value: Any) -> "ExpressionCondition":
-        return ExpressionCondition(self._binary("at_least", value))
+        return ExpressionCondition(self.compare_at_least(value))
+
+    def compare_at_least(self, value: Any) -> "WorkflowExpression":
+        return self._binary("at_least", value)
 
     def equals(self, value: Any) -> "ExpressionCondition":
         return ExpressionCondition(self._binary("equals", value))
 
     def compare_equals(self, value: Any) -> "WorkflowExpression":
         return self._binary("equals", value)
+
+    def absolute(self) -> "WorkflowExpression":
+        return WorkflowExpression("absolute", (self,))
+
+    def item(self, key: Any) -> "WorkflowExpression":
+        """Select a key or index from a serialized mapping or sequence value."""
+        return WorkflowExpression("get_item", (self, key))
 
 
 class WorkflowCondition:

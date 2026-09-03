@@ -591,14 +591,22 @@ definition and an existing field.
 The current evaluator supports:
 
 ```text
-Sources:      step_outputs, derived_ref
-Aggregates:   mean, median, minimum, maximum, range
-Arithmetic:   add, subtract, multiply, divide
+Sources:      step_outputs, step_answer, step_submissions, derived_ref,
+              seeded_uniform
+Aggregates:   mean, median, minimum, maximum, range, sum, count_value,
+              order_statistic, all_equal
+Arithmetic:   add, subtract, multiply, divide, absolute
 Comparisons:  at_most, at_least, equals
 ```
 
 Missing source outputs delay availability. Non-numeric values cause numeric
 aggregates to fail rather than silently inventing coercions beyond `float()`.
+`all_equal()` compares canonical serialized values, so it also works for lists
+and mappings such as complete rankings.
+
+`choose(condition, then, otherwise)` evaluates only the selected branch. This
+short-circuit behavior permits settlement expressions to reference answers on
+optional branches: outputs from correctly skipped branches are never requested.
 
 # Economic settlement primitives
 
@@ -635,6 +643,154 @@ option was introduced.
 `DerivedFieldRef.for_participant()` projects an identity-keyed mapping into a
 private recipient prompt. `match(role("player"), size=2)` deterministically
 partitions a roster and round-trips as data.
+
+Collections also expose serializable reductions:
+
+```python
+total = contributions.outputs("contribution").sum()
+number_free_riding = contributions.outputs("contribution").count_value(0)
+second_price = bids.outputs("bid").nth_largest(2)
+lowest_cost = bids.outputs("bid").nth_smallest(1)
+```
+
+`nth_largest()` and `nth_smallest()` use one-based ranks. During fan-out, an
+order statistic with too few responses is treated as not yet available, allowing
+remaining participants to answer before dependent work is rendered.
+
+Use a symbolic per-submission binding to apply one expression to every response
+while retaining participant identity:
+
+```python
+own = contributions.submissions.each("contribution")
+payoffs = builder.derive(
+    "payoffs",
+    by_participant=own.map(2 * best_shot.expression - own.value),
+)
+```
+
+The serialized expression contains `map_submissions` and `submission_value`
+operators; it does not contain a Python function. Evaluation returns a mapping
+from participant ID to result, which can be privately projected with
+`payoffs.field("by_participant").for_participant()`. A free `own.value` outside
+its map is rejected during authoring.
+
+Mapped expressions support the same arithmetic and comparisons as other
+workflow expressions, including symbolic absolute value:
+
+```python
+own = actions.submissions.each("action")
+median = actions.outputs("action").median()
+payoffs = own.map(10 - (own.value - median).absolute())
+```
+
+This keeps distance-based scoring declarative and portable.
+
+Answers from multiple stages can be joined by participant identity before
+mapping a longitudinal payoff:
+
+```python
+history = join_by_participant(
+    contribution=contribute.submissions,
+    punishment=punish.submissions,
+)
+payoffs = history.map(
+    10
+    - history.value("contribution", "contribution")
+    + public_return
+    - history.value("punishment", "punishment_points")
+)
+```
+
+Every source must contain the same nonempty participant set. Incomplete joins
+remain unavailable rather than silently dropping respondents. The serialized
+tree uses `join_submissions`, `joined_value`, and `map_joined_submissions`.
+
+Static tables can select values or expressions without raw Python:
+
+```python
+implemented_transfer = lookup(
+    {0: transfer_if_zero, 5: transfer_if_five, 10: transfer_if_ten},
+    realized_endowment,
+)
+```
+
+Keys are normalized to strings during serialization. A missing key raises an
+error unless `default=` is supplied.
+
+Named experimental constants belong in workflow metadata rather than being
+repeated throughout settlement expressions:
+
+```python
+endowment = builder.parameter("endowment", 10, unit="tokens")
+multiplier = builder.parameter("mpcr", 0.4)
+payoff = endowment - own_contribution + multiplier * total_contribution
+```
+
+Parameters round-trip with the workflow and evaluate as ordinary expressions.
+Names must be unique and values must be JSON-serializable. Units are retained as
+metadata; automatic unit checking and prompt formatting are intentionally not
+yet implied.
+
+# Structured response contracts
+
+Structured contracts compile into standard EDSL questions and a data-only
+validation contract in step metadata. The coordinator revalidates submissions,
+so correctness does not depend on a particular Humanize form or model adapter.
+
+```python
+risk = ChoiceTable(
+    "choices",
+    "Choose A or B in every row.",
+    rows=[str(i) for i in range(1, 11)],
+    options=["A", "B"],
+    require_monotone=True,
+)
+choice = builder.structured_step("risk-list", risk, assigned_to=role("player"))
+```
+
+`ChoiceTable` requires every declared row, validates cell values against the
+shared option set, and can enforce monotone movement through the ordered
+options. `StrategyTable` has the same tabular representation without implying
+monotonicity and is intended for complete contingent plans.
+
+```python
+sanctions = AllocationVector(
+    "points",
+    "Allocate at most five points.",
+    targets=["p2", "p3", "p4"],
+    budget=5,
+    exact=False,
+)
+builder.structured_step("sanction", sanctions, assigned_to=role("player"))
+```
+
+`AllocationVector` requires exactly the declared targets, nonnegative numeric
+allocations, and either equality with or an upper bound on the budget. All
+three contract definitions have `to_dict()` and `from_dict()` representations;
+compiled workflows retain the dictionaries under `response_contracts`.
+
+A table answer is an ordinary mapping-valued workflow expression. Dynamic row
+selection therefore uses the general `get_item` operator:
+
+```python
+paid_row = seeded_integer(1, 10, key="paid-row")
+implemented_choice = choice.answer("choices").value.item(paid_row)
+```
+
+Experiments that require a random value can use a stable, instance-scoped draw:
+
+```python
+offer = seeded_uniform(0, 20, key="bdm-offer")
+event = seeded_uniform(key="forecast-event").compare_at_most(0.6)
+paid_row = seeded_integer(1, 10, key="paid-choice-row")
+```
+
+The coordinator hashes the workflow instance ID and explicit key. Consequently,
+retries and resumed execution see the same draw, while another instance receives
+a different draw. The expression is fully serialized; the value is not sampled
+while the workflow is authored. Use distinct semantic keys for independent draws.
+`seeded_integer()` samples both endpoints inclusively and is useful for selecting
+rows, rounds, and treatment cells.
 
 Dynamic answer bounds are enforced when an answer is submitted:
 
@@ -1317,6 +1473,8 @@ any_of(*conditions)
 not_(condition)
 if_(condition)
 chance(probability, key=stable_key)
+seeded_uniform(low=0, high=1, key=stable_key)  # expression, not a condition
+seeded_integer(low, high, key=stable_key)       # inclusive expression draw
 outputs.count(value).at_least(count)
 outputs.has_disagreement
 outputs.majority_is(value)

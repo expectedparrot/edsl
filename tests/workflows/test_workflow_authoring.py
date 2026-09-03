@@ -24,6 +24,8 @@ from edsl.workflows import (
     all_of,
     any_of,
     chance,
+    seeded_uniform,
+    seeded_integer,
     not_,
     quorum,
     role,
@@ -31,6 +33,11 @@ from edsl.workflows import (
     llm,
     choose,
     match,
+    join_by_participant,
+    lookup,
+    AllocationVector,
+    ChoiceTable,
+    StrategyTable,
 )
 
 
@@ -297,6 +304,53 @@ def test_payoff_matrix_rejects_ambiguous_action_codes():
         choices.submissions.payoff_matrix(
             "action", {"XX": (0, 0)}, action_codes={"A": "X", "B": "X"}
         )
+
+
+def test_collection_reductions_round_trip_and_render(tmp_path):
+    builder = Workflow("Collection reductions")
+    value_q = QuestionNumerical(
+        question_name="value", question_text="Choose.", min_value=0, max_value=20
+    )
+    values = builder.step("choose", Survey([value_q]), assigned_to=role("player"))
+    own = values.submissions.each("value")
+    total = values.outputs("value").sum()
+    stats = builder.derive(
+        "stats",
+        total=total,
+        second=values.outputs("value").nth_largest(2),
+        threes=values.outputs("value").count_value(3),
+        others_total=own.map(total - own.value),
+        distance_from_eight=own.map((own.value - 8).absolute()),
+    )
+    report_q = QuestionFreeText(
+        question_name="report",
+        question_text=f"{stats.field('total').template}|{stats.field('second').template}|{stats.field('threes').template}|{stats.field('others_total').template}|{stats.field('distance_from_eight').template}",
+    )
+    builder.step("report", Survey([report_q]), assigned_to=role("analyst"), after=values)
+    workflow = HumanWorkflow.from_dict(builder.compile().to_dict())
+    store = SQLiteWorkflowStore(tmp_path / "reductions.sqlite")
+    coordinator = WorkflowCoordinator(workflow, store)
+    agents = [
+        Agent(name=f"player-{value}", traits={"role": "player", "value": value})
+        for value in (3, 8, 12)
+    ] + [Agent(name="analyst", traits={"role": "analyst"})]
+
+    class Answers:
+        def answer(self, agent, opened):
+            return {"value": agent.traits["value"]} if opened.step_name == "choose" else {"report": "done"}
+
+    instance = coordinator.launch(agents)
+    WorkflowSimulation(coordinator, {a.name: a for a in agents}, Answers()).run(instance)
+    rendered = store.rendered_item(store.items(instance, step_name="report")[0]["id"])
+    assert rendered["survey"]["questions"][0]["question_text"] == "23.0|8.0|1|{'player-3': 20.0, 'player-8': 15.0, 'player-12': 11.0}|{'player-3': 5, 'player-8': 0, 'player-12': 4}"
+
+
+def test_submission_value_cannot_be_evaluated_outside_map(tmp_path):
+    builder = Workflow("Invalid free submission variable")
+    value_q = QuestionNumerical(question_name="value", question_text="Choose.")
+    values = builder.step("choose", Survey([value_q]), assigned_to=role("player"))
+    with pytest.raises(ValueError, match="only valid inside a submission map"):
+        builder.derive("dangling", value=values.submissions.each("value").value)
 
 
 def test_standard_artifact_and_collection_resources_execute(tmp_path):
@@ -718,3 +772,189 @@ def test_chance_condition_is_stable_serializable_and_can_end_rounds(tmp_path):
         "probability": 0,
         "key": "stop-after-first",
     }
+
+
+def test_seeded_uniform_is_stable_serializable_and_instance_scoped(tmp_path):
+    builder = Workflow("Stable draw")
+    outcome = builder.derive("outcome", draw=seeded_uniform(10, 20, key="price"))
+    builder.step(
+        "report",
+        Survey([QuestionFreeText(question_name="value", question_text=outcome.field("draw").template)]),
+        assigned_to=role("player"),
+    )
+    workflow = HumanWorkflow.from_dict(builder.compile().to_dict())
+    coordinator = WorkflowCoordinator(workflow, SQLiteWorkflowStore(tmp_path / "draw.sqlite"))
+    agent = Agent(name="player", traits={"role": "player"})
+    first = coordinator.launch([agent], instance_id="first")
+    second = coordinator.launch([agent], instance_id="second")
+    first_draw = coordinator._evaluate_derived(first)["outcome"]["draw"]
+    assert 10 <= first_draw < 20
+    assert first_draw == coordinator._evaluate_derived(first)["outcome"]["draw"]
+    assert first_draw != coordinator._evaluate_derived(second)["outcome"]["draw"]
+
+
+def test_seeded_uniform_validates_bounds_and_key():
+    with pytest.raises(ValueError, match="low < high"):
+        seeded_uniform(1, 1, key="draw")
+    with pytest.raises(ValueError, match="key must be non-empty"):
+        seeded_uniform(key="")
+
+
+def test_seeded_integer_is_inclusive_stable_and_serializable(tmp_path):
+    builder = Workflow("Integer draw")
+    result = builder.derive("result", row=seeded_integer(1, 10, key="paid-row"))
+    builder.step("report", Survey([QuestionFreeText(question_name="value", question_text=result.field("row").template)]), assigned_to=role("player"))
+    workflow = HumanWorkflow.from_dict(builder.compile().to_dict())
+    coordinator = WorkflowCoordinator(workflow, SQLiteWorkflowStore(tmp_path / "integer.sqlite"))
+    instance_id = coordinator.launch([Agent(name="player", traits={"role": "player"})])
+    row = coordinator._evaluate_derived(instance_id)["result"]["row"]
+    assert 1 <= row <= 10
+    assert row == coordinator._evaluate_derived(instance_id)["result"]["row"]
+
+
+def test_seeded_integer_validates_bounds_and_key():
+    with pytest.raises(ValueError, match="integer low <= high"):
+        seeded_integer(2, 1, key="row")
+    with pytest.raises(ValueError, match="key must be non-empty"):
+        seeded_integer(1, 2, key="")
+
+
+def test_lookup_selects_serializable_expression_and_default(tmp_path):
+    builder = Workflow("Lookup")
+    choice = builder.step("choice", Survey([QuestionMultipleChoice(question_name="key", question_text="Pick", question_options=["A", "B"])]), assigned_to=role("player"))
+    outcome = builder.derive("outcome", payoff=lookup({"A": 3, "B": 7}, choice.answer("key").value), fallback=lookup({"x": 1}, "missing", default=9))
+    workflow = HumanWorkflow.from_dict(builder.compile().to_dict())
+    store = SQLiteWorkflowStore(tmp_path / "lookup.sqlite")
+    coordinator = WorkflowCoordinator(workflow, store)
+    instance_id = coordinator.launch([Agent(name="player", traits={"role": "player"})])
+    item = store.items(instance_id, step_name="choice")[0]
+    coordinator.open(item["id"])
+    coordinator.submit(item["id"], {"key": "B"}, idempotency_key="choice")
+    assert coordinator._evaluate_derived(instance_id)["outcome"] == {"payoff": 7, "fallback": 9}
+
+
+def test_join_by_participant_maps_answers_across_steps(tmp_path):
+    builder = Workflow("Joined history")
+    first = builder.step("first", Survey([QuestionNumerical(question_name="x", question_text="X", min_value=0, max_value=10)]), assigned_to=role("player"))
+    second = builder.step("second", Survey([QuestionNumerical(question_name="y", question_text="Y", min_value=0, max_value=10)]), assigned_to=role("player"), after=first)
+    rows = join_by_participant(first=first.submissions, second=second.submissions)
+    outcome = builder.derive("outcome", totals=rows.map(rows.value("first", "x") + rows.value("second", "y")))
+    workflow = HumanWorkflow.from_dict(builder.compile().to_dict())
+    store = SQLiteWorkflowStore(tmp_path / "join.sqlite")
+    coordinator = WorkflowCoordinator(workflow, store)
+    agents = [Agent(name=name, traits={"role": "player"}) for name in ("p1", "p2")]
+    instance_id = coordinator.launch(agents)
+    for step_name, answer_name, values in (("first", "x", (2, 4)), ("second", "y", (3, 5))):
+        for item, value in zip(store.items(instance_id, step_name=step_name), values):
+            coordinator.open(item["id"])
+            coordinator.submit(item["id"], {answer_name: value}, idempotency_key=f"{step_name}-{item['participant_id']}")
+    assert coordinator._evaluate_derived(instance_id)["outcome"]["totals"] == {"p1": 5, "p2": 9}
+
+
+def test_joined_value_must_be_bound_inside_join_map():
+    builder = Workflow("Invalid join binding")
+    first = builder.step("first", Survey([QuestionFreeText(question_name="x", question_text="X")]), assigned_to=role("player"))
+    second = builder.step("second", Survey([QuestionFreeText(question_name="y", question_text="Y")]), assigned_to=role("player"), after=first)
+    rows = join_by_participant(first=first.submissions, second=second.submissions)
+    with pytest.raises(ValueError, match="only valid inside"):
+        builder.derive("bad", value=rows.value("first", "x"))
+
+
+def test_workflow_parameter_round_trips_and_evaluates(tmp_path):
+    builder = Workflow("Parameters")
+    endowment = builder.parameter("endowment", 10, unit="tokens")
+    outcome = builder.derive("outcome", doubled=2 * endowment)
+    builder.step("report", Survey([QuestionFreeText(question_name="value", question_text=outcome.field("doubled").template)]), assigned_to=role("player"))
+    workflow = HumanWorkflow.from_dict(builder.compile().to_dict())
+    assert workflow.metadata["parameters"]["endowment"] == {"value": 10, "unit": "tokens"}
+    coordinator = WorkflowCoordinator(workflow, SQLiteWorkflowStore(tmp_path / "parameter.sqlite"))
+    instance_id = coordinator.launch([Agent(name="player", traits={"role": "player"})])
+    assert coordinator._evaluate_derived(instance_id)["outcome"]["doubled"] == 20
+
+
+def test_workflow_parameter_rejects_duplicates_and_non_json_values():
+    builder = Workflow("Parameters")
+    builder.parameter("x", 1)
+    with pytest.raises(ValueError, match="already exists"):
+        builder.parameter("x", 2)
+    with pytest.raises(TypeError, match="JSON-serializable"):
+        builder.parameter("bad", object())
+
+
+def test_choice_table_contract_round_trips_and_rejects_multiple_switching(tmp_path):
+    builder = Workflow("Risk table")
+    table = ChoiceTable("choices", "Choose for every row", ["row-1", "row-2", "row-3"], ["A", "B"], require_monotone=True)
+    builder.structured_step("choose", table, assigned_to=role("player"))
+    workflow = HumanWorkflow.from_dict(builder.compile().to_dict())
+    contract = workflow.steps[0].metadata["response_contracts"][0]
+    assert contract == table.to_dict()
+    store = SQLiteWorkflowStore(tmp_path / "choice-table.sqlite")
+    coordinator = WorkflowCoordinator(workflow, store)
+    instance_id = coordinator.launch([Agent(name="player", traits={"role": "player"})])
+    item = store.items(instance_id)[0]
+    with pytest.raises(ValueError, match="monotone"):
+        coordinator.submit(item["id"], {"choices": {"row-1": "A", "row-2": "B", "row-3": "A"}}, idempotency_key="invalid")
+    coordinator.submit(item["id"], {"choices": {"row-1": "A", "row-2": "B", "row-3": "B"}}, idempotency_key="valid")
+
+
+def test_strategy_table_is_distinct_serializable_contract():
+    table = StrategyTable("plan", "Respond in every state", ["low", "high"], ["accept", "reject"])
+    assert table.to_dict()["type"] == "strategy_table"
+    assert StrategyTable.from_dict(table.to_dict()) == table
+
+
+def test_allocation_vector_contract_enforces_targets_and_budget(tmp_path):
+    builder = Workflow("Allocation")
+    allocation = AllocationVector("points", "Allocate up to five points", ["p2", "p3"], 5, exact=False)
+    builder.structured_step("allocate", allocation, assigned_to=role("player"))
+    workflow = HumanWorkflow.from_dict(builder.compile().to_dict())
+    store = SQLiteWorkflowStore(tmp_path / "allocation.sqlite")
+    coordinator = WorkflowCoordinator(workflow, store)
+    instance_id = coordinator.launch([Agent(name="player", traits={"role": "player"})])
+    item = store.items(instance_id)[0]
+    with pytest.raises(ValueError, match="not exceed"):
+        coordinator.submit(item["id"], {"points": {"p2": 3, "p3": 3}}, idempotency_key="invalid")
+    coordinator.submit(item["id"], {"points": {"p2": 2, "p3": 3}}, idempotency_key="valid")
+
+
+def test_get_item_selects_dynamic_mapping_key(tmp_path):
+    builder = Workflow("Dynamic item")
+    table = ChoiceTable("choices", "Choose", ["1", "2"], ["A", "B"])
+    choice = builder.structured_step("choose", table, assigned_to=role("player"))
+    outcome = builder.derive("outcome", selected=choice.answer("choices").value.item(seeded_integer(1, 2, key="row")))
+    workflow = HumanWorkflow.from_dict(builder.compile().to_dict())
+    store = SQLiteWorkflowStore(tmp_path / "item.sqlite")
+    coordinator = WorkflowCoordinator(workflow, store)
+    instance_id = coordinator.launch([Agent(name="player", traits={"role": "player"})])
+    item = store.items(instance_id)[0]
+    coordinator.submit(item["id"], {"choices": {"1": "A", "2": "B"}}, idempotency_key="valid")
+    assert coordinator._evaluate_derived(instance_id)["outcome"]["selected"] in {"A", "B"}
+
+
+def test_all_equal_reduces_structured_outputs(tmp_path):
+    builder = Workflow("Agreement")
+    q = QuestionMultipleChoice(question_name="vote", question_text="Vote", question_options=["A", "B"])
+    votes = builder.step("vote", Survey([q]), assigned_to=role("player"))
+    outcome = builder.derive("outcome", unanimous=votes.outputs("vote").all_equal())
+    workflow = HumanWorkflow.from_dict(builder.compile().to_dict())
+    store = SQLiteWorkflowStore(tmp_path / "equal.sqlite")
+    coordinator = WorkflowCoordinator(workflow, store)
+    instance_id = coordinator.launch([Agent(name=name, traits={"role": "player"}) for name in ("p1", "p2")])
+    for item in store.items(instance_id):
+        coordinator.submit(item["id"], {"vote": "A"}, idempotency_key=item["id"])
+    assert coordinator._evaluate_derived(instance_id)["outcome"]["unanimous"] is True
+
+
+def test_choose_evaluates_only_selected_branch(tmp_path):
+    builder = Workflow("Lazy conditional")
+    q = QuestionMultipleChoice(question_name="answer", question_text="Choose", question_options=["yes", "no"])
+    first = builder.step("first", Survey([q]), assigned_to=role("player"))
+    never = builder.step("never", Survey([QuestionNumerical(question_name="value", question_text="Value")]), assigned_to=role("player"), after=first, when=first.answer("answer").equals("no"))
+    outcome = builder.derive("outcome", value=choose(first.answer("answer").value.compare_equals("yes"), 1, never.answer("value").value))
+    workflow = HumanWorkflow.from_dict(builder.compile().to_dict())
+    store = SQLiteWorkflowStore(tmp_path / "lazy.sqlite")
+    coordinator = WorkflowCoordinator(workflow, store)
+    instance_id = coordinator.launch([Agent(name="player", traits={"role": "player"})])
+    item = store.items(instance_id, step_name="first")[0]
+    coordinator.submit(item["id"], {"answer": "yes"}, idempotency_key="yes")
+    assert coordinator._evaluate_derived(instance_id)["outcome"]["value"] == 1
