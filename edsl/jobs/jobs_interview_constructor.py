@@ -1,12 +1,9 @@
-from typing import Generator, TYPE_CHECKING, Optional
+from typing import Generator, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from ..interviews import Interview
     from .jobs import Jobs
     from ..caching import Cache
-
-from .interview_tuple_filter import InterviewTupleFilter
-
 
 # Module-level timing dictionary for create_interviews performance tracking
 _create_interviews_timing = {
@@ -27,9 +24,7 @@ class InterviewsConstructor:
         self.jobs = jobs
         self.cache = cache
 
-    def create_interviews(
-        self, include_expression: Optional[str] = None
-    ) -> Generator["Interview", None, None]:
+    def create_interviews(self) -> Generator["Interview", None, None]:
         """
         Generates interviews.
 
@@ -47,28 +42,30 @@ class InterviewsConstructor:
 
         t0 = time.time()
         for index, agent in enumerate(self.jobs.agents):
+            agent._index = index
             agent._position_index = index
         _create_interviews_timing["hash_agents"] += time.time() - t0
 
         t1 = time.time()
         for index, model in enumerate(self.jobs.models):
+            model._index = index
             model._position_index = index
         _create_interviews_timing["hash_models"] += time.time() - t1
 
         t2 = time.time()
         for index, scenario in enumerate(self.jobs.scenarios):
+            scenario._index = index
             scenario._position_index = index
             scenario.my_hash = hash(scenario)
         _create_interviews_timing["hash_scenarios"] += time.time() - t2
 
         t3 = time.time()
-        tuple_filter = InterviewTupleFilter(
-            self.jobs.agents,
-            self.jobs.scenarios,
-            self.jobs.models,
-            include_expression,
-        )
-        for agent, scenario, model in tuple_filter:
+        assignment_plan = self.jobs.assignment_plan
+        for agent_index, scenario_index, model_index in assignment_plan.iter_indices():
+            agent = self.jobs.agents[agent_index]
+            scenario = self.jobs.scenarios[scenario_index]
+            model = self.jobs.models[model_index]
+
             t5 = time.time()
             drawn_survey = (
                 self.jobs.survey.draw()
@@ -85,9 +82,9 @@ class InterviewsConstructor:
                 skip_retry=self.jobs.run_config.parameters.skip_retry,
                 raise_validation_errors=self.jobs.run_config.parameters.raise_validation_errors,
                 indices={
-                    "agent": agent._position_index,
-                    "model": model._position_index,
-                    "scenario": scenario._position_index,
+                    "agent": agent_index,
+                    "model": model_index,
+                    "scenario": scenario_index,
                 },
             )
             _create_interviews_timing["interview_creation"] += time.time() - t6
