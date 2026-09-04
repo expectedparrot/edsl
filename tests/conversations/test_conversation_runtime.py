@@ -4,6 +4,7 @@ import pytest
 
 from edsl.conversations import (
     AnyStop,
+    AllStop,
     CentralOrdered,
     Conversation,
     ConversationRuntime,
@@ -12,6 +13,7 @@ from edsl.conversations import (
     MaxUtterances,
     OrderedTurns,
     RandomTurns,
+    RolesSpoken,
     SQLiteConversationStore,
     SemanticStop,
 )
@@ -47,6 +49,23 @@ def test_random_turns_are_stable_and_do_not_repeat(tmp_path):
     assert first == runtime.next_role("random-1")
     runtime.append("random-1", role=first, text="First", expected_version=0)
     assert runtime.next_role("random-1") != first
+
+
+def test_roles_spoken_can_guard_semantic_stop_and_round_trip(tmp_path):
+    definition = Conversation(
+        "guarded",
+        ["a", "b"],
+        "Both must speak.",
+        OrderedTurns(["a", "b"]),
+        AnyStop(AllStop(RolesSpoken(["a", "b"]), SemanticStop(judge="judge", question="Done?")), MaxUtterances(4)),
+    )
+    assert Conversation.from_dict(json.loads(json.dumps(definition.to_dict()))) == definition
+    runtime = ConversationRuntime(definition, SQLiteConversationStore(tmp_path / "guarded.sqlite"))
+    runtime.launch({"a": "a1", "b": "b1"}, instance_id="guarded")
+    runtime.append("guarded", role="a", text="done", expected_version=0)
+    assert runtime.should_stop("guarded", lambda *_: True) is False
+    runtime.append("guarded", role="b", text="done", expected_version=1)
+    assert runtime.should_stop("guarded", lambda *_: True) is True
 
 
 def test_central_ordered_alternates_center_and_others(tmp_path):

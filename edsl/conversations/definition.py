@@ -65,9 +65,9 @@ class StopRule:
     def from_dict(cls, data: Mapping[str, Any]) -> "StopRule":
         kind = str(data["kind"])
         options = dict(data.get("options", {}))
-        if kind == "any":
+        if kind in {"any", "all"}:
             options["rules"] = [cls.from_dict(item) for item in options.get("rules", ())]
-        if kind not in {"max_utterances", "semantic", "any"}:
+        if kind not in {"max_utterances", "semantic", "roles_spoken", "any", "all"}:
             raise ValueError(f"unsupported conversation stop rule {kind!r}")
         return cls(kind, options)
 
@@ -90,9 +90,21 @@ def AnyStop(*rules: StopRule) -> StopRule:
     return StopRule("any", {"rules": list(rules)})
 
 
+def AllStop(*rules: StopRule) -> StopRule:
+    if not rules:
+        raise ValueError("AllStop requires at least one rule")
+    return StopRule("all", {"rules": list(rules)})
+
+
+def RolesSpoken(roles: Sequence[str]) -> StopRule:
+    if not roles or len(set(roles)) != len(roles):
+        raise ValueError("RolesSpoken requires nonempty unique roles")
+    return StopRule("roles_spoken", {"roles": list(roles)})
+
+
 def _encode_stop(rule: StopRule) -> dict[str, Any]:
     data = rule.to_dict()
-    if rule.kind == "any":
+    if rule.kind in {"any", "all"}:
         data["options"]["rules"] = [_encode_stop(item) for item in rule.options["rules"]]
     return data
 
@@ -129,6 +141,15 @@ class Conversation:
             referenced.add(center)
         if referenced and referenced != set(self.roles):
             raise ValueError("conversation protocol roles must exactly match conversation roles")
+        def stop_roles(rule: StopRule) -> set[str]:
+            if rule.kind == "roles_spoken":
+                return set(rule.options.get("roles", ()))
+            if rule.kind in {"any", "all"}:
+                return set().union(*(stop_roles(item) for item in rule.options.get("rules", ())))
+            return set()
+        invalid_stop_roles = stop_roles(stop) - set(self.roles)
+        if invalid_stop_roles:
+            raise ValueError(f"stop rules reference invalid roles: {sorted(invalid_stop_roles)}")
         if transcript_visibility not in {"public", "role_filtered"}:
             raise ValueError("unsupported transcript visibility")
         invalid_instruction_roles = set(self.turn_instructions) - set(self.roles) - {"*"}

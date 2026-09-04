@@ -138,8 +138,12 @@ class ConversationRuntime:
                 if semantic_judge is None:
                     raise ValueError("semantic stop rule requires a judge callback")
                 return bool(semantic_judge(self.definition, transcript, rule.options["question"]))
+            if rule.kind == "roles_spoken":
+                return set(rule.options["roles"]).issubset({item["role"] for item in transcript})
             if rule.kind == "any":
                 return any(evaluate(item) for item in rule.options["rules"])
+            if rule.kind == "all":
+                return all(evaluate(item) for item in rule.options["rules"])
             raise ValueError(f"unsupported stop rule {rule.kind!r}")
         stopped = evaluate(self.definition.stop)
         if stopped:
