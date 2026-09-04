@@ -1,7 +1,7 @@
 import pytest
 
 from edsl import Model, ProbabilisticResponse, QuestionCheckBox, Results
-from edsl.questions.exceptions import QuestionAnswerValidationError
+from edsl.questions.exceptions import QuestionAnswerValidationError, QuestionValueError
 from edsl.questions.question_base import QuestionBase
 
 
@@ -40,6 +40,19 @@ def test_selection_constraints_are_rejected(constraint):
             question_options=["Library", "Transit", "Parks"],
             probabilistic_response=make_contract(),
             **constraint,
+        )
+
+
+def test_exclusive_options_are_rejected_for_probabilistic_responses():
+    with pytest.raises(
+        QuestionValueError, match="exclusive_options cannot be combined"
+    ):
+        QuestionCheckBox(
+            question_name="services",
+            question_text="Which services would you use?",
+            question_options=["Library", "Transit", "None"],
+            exclusive_options=["None"],
+            probabilistic_response=make_contract(),
         )
 
 
