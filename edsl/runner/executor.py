@@ -607,6 +607,11 @@ class ExecutionWorker:
             if isinstance(value, str) and "{{" in value:
                 has_templates = True
                 break
+            if isinstance(value, list) and any(
+                isinstance(item, str) and "{{" in item for item in value
+            ):
+                has_templates = True
+                break
             if (
                 isinstance(value, dict)
                 and key == "question_options"

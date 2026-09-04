@@ -92,6 +92,28 @@ This will return:
 {'credits_hold': 0.1, 'usd': 0.001}
 ```
 
+### Reasoning-model uncertainty
+
+Reasoning-token usage depends on the workload and may not be included in a server point estimate. For reasoning models, EDSL labels the returned amount as a lower bound instead of presenting it as an exact prediction. Inspect `estimate_kind`, `warnings`, and the `assumptions.reasoning_tokens` object before using an estimate as a budget:
+
+```bash
+ep jobs cost jobs.ep
+```
+
+```json
+{
+  "usd": 0.01,
+  "credits_hold": 1.0,
+  "estimate_kind": "lower_bound",
+  "lower_bound_usd": 0.01,
+  "expected_usd": null,
+  "upper_bound_usd": null,
+  "warnings": ["The server point estimate does not specify a reasoning-token assumption..."]
+}
+```
+
+`null` expected or upper values mean EDSL does not have enough information to produce those bounds; they do not mean zero additional cost. If the server supplies a richer range, EDSL preserves that range and its assumptions.
+
 ## Calculations
 
 The above-mentioned methods use the following calculation for each question in a survey to estimate the total cost of the job:

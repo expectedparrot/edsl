@@ -13,6 +13,7 @@ from edsl.questions import (
     QuestionInterview,
     QuestionMultipleChoice,
     QuestionNumerical,
+    SurveyMessage,
 )
 from edsl.surveys import Survey
 
@@ -126,6 +127,18 @@ class TestValidateHumanizeSchemaGeneral:
             validate_humanize_schema(survey, humanize_schema)
         assert "demand_q" in str(exc_info.value)
         assert "not supported" in str(exc_info.value).lower()
+
+    def test_survey_message_accepts_only_empty_display_configuration(self):
+        survey = Survey(
+            [SurveyMessage(question_name="thanks", question_text="Thank you.")]
+        )
+
+        validate_humanize_schema(survey, {"questions": {"thanks": {}}})
+
+        with pytest.raises(HumanizeSchemaValidationError):
+            validate_humanize_schema(
+                survey, {"questions": {"thanks": {"optional": True}}}
+            )
 
     def test_invalid_schema_structure_raises(self):
         """Invalid top-level schema structure raises HumanizeSchemaValidationError."""

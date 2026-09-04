@@ -2089,7 +2089,9 @@ class JobService:
                     )
                     # Apply per-interview randomized permutation if present
                     if option_permutations and q_name in option_permutations:
-                        q_options = option_permutations[q_name]
+                        q_options = self._resolve_question_options(
+                            option_permutations[q_name], answer_dict, scenario
+                        )
                     question_to_attributes[q_name] = {
                         "question_text": q_data.get("question_text", ""),
                         "question_type": q_data.get("question_type", ""),
@@ -2302,6 +2304,38 @@ class JobService:
         if _timing is not None:
             _timing["get_answers_batch"] = (_time.time() - _t) * 1000
 
+        # A completed task must have a stored Answer, even when the answer value
+        # itself is legitimately None.  Treat a missing record as runner data
+        # loss instead of silently turning it into a successful null response.
+        task_interview_map = {
+            task_id: interview_id
+            for interview_id in completed_interview_ids
+            for task_id in (
+                interview_defs[interview_id].task_ids
+                if interview_defs.get(interview_id)
+                else []
+            )
+        }
+        task_statuses = self._tasks.get_statuses_batch(list(task_interview_map))
+        task_definitions = self._tasks.get_definitions_flat_batch(
+            job_id, task_interview_map
+        )
+        missing_completed_answers: list[dict[str, str]] = []
+        for task_id, interview_id in task_interview_map.items():
+            if task_statuses.get(task_id) != TaskStatus.COMPLETED:
+                continue
+            task_definition = task_definitions.get(task_id)
+            if task_definition is None:
+                continue
+            if task_definition.question_name not in all_answers.get(interview_id, {}):
+                missing_completed_answers.append(
+                    {
+                        "interview_id": interview_id,
+                        "question_name": task_definition.question_name,
+                        "task_id": task_id,
+                    }
+                )
+
         # =====================================================================
         # BUILD RESULTS: Use pre-fetched data (no more DB calls in loop)
         # =====================================================================
@@ -2359,6 +2393,25 @@ class JobService:
         from ..tasks import TaskHistory
 
         errors_by_interview: dict[str, dict[str, list[dict]]] = {}
+        for missing in missing_completed_answers:
+            question_name = missing["question_name"]
+            task_id = missing["task_id"]
+            exception_entry = {
+                "exception": {
+                    "type": "MissingCompletedTaskAnswerError",
+                    "module": "edsl.runner",
+                    "message": (
+                        f"Task {task_id} was marked completed but no stored answer "
+                        f"was found for question {question_name}."
+                    ),
+                    "traceback": "",
+                },
+                "invigilator": None,
+                "additional_data": {"task_id": task_id},
+            }
+            errors_by_interview.setdefault(missing["interview_id"], {}).setdefault(
+                question_name, []
+            ).append(exception_entry)
         for error in self.get_error_details(job_id):
             question_name = error.get("question_name") or "unknown"
             exception_entry = {
@@ -2496,8 +2549,9 @@ class JobService:
 
         Handles:
         - String templates: "{{ q1.answer }}"
+        - Lists containing templates: ["Fixed", "{{ q1.answer }}"]
         - Dict format: {"from": "{{ q1.answer }}", "add": ["Other"]}
-        - Non-template values (lists, None): returned as-is
+        - Non-template values: returned as-is
         """
 
         # Dict format: {"from": "{{ q1.answer }}", "add": ["Option X"]}
@@ -2516,7 +2570,16 @@ class JobService:
         if isinstance(options, str) and "{{" in options:
             return JobService._resolve_template_string(options, answer_dict, scenario)
 
-        # Non-template (list, None, etc.) — return as-is
+        # Mixed static/dynamic list: render each templated option independently.
+        if isinstance(options, list):
+            return [
+                JobService._resolve_template_string(option, answer_dict, scenario)
+                if isinstance(option, str) and "{{" in option
+                else option
+                for option in options
+            ]
+
+        # Non-template (None, scalar, etc.) — return as-is
         return options
 
     @staticmethod
