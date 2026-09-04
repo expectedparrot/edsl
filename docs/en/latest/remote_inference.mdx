@@ -1,4 +1,14 @@
 ---
+
+## Partial remote results
+
+`ep run` fails closed when a remote job reports `failed` or `partial_failed`; it does not save incomplete Results through the normal success path. If a partially failed job contains useful successful interviews and you intentionally want them, opt in explicitly:
+
+```bash
+ep run --jobs jobs.ep --allow-partial --output partial-results.ep
+```
+
+The command reports authoritative successful and failed interview counts. A partial job with zero successful interviews is always an error. Use the reported `ep jobs errors ...` command to retrieve its exception report.
 title: "Remote Inference"
 description: "Remote inference allows you to run surveys at the Expected Parrot server instead of locally on your own machine, and to use [Remote Caching](/en/latest/remote_caching) to store survey results and logs at your account."
 ---

@@ -43,6 +43,7 @@
           "en/latest/questions",
           "en/latest/scenarios",
           "en/latest/surveys",
+          "en/latest/survey_messages",
           "en/latest/survey_ep_format",
           "en/latest/agents",
           "en/latest/prompts",

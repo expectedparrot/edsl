@@ -2855,10 +2855,9 @@ class Coop(CoopFunctionsMixin):
         )
         self._resolve_server_response(response)
         response_json = response.json()
-        return {
-            "credits_hold": response_json.get("cost_in_credits"),
-            "usd": response_json.get("cost_in_usd"),
-        }
+        from ..jobs.cost_estimate_contract import apply_cost_estimate_contract
+
+        return apply_cost_estimate_contract(job, response_json)
 
     ################
     # HUMAN SURVEYS
@@ -4429,15 +4428,54 @@ class Coop(CoopFunctionsMixin):
     def get_human_survey_responses(
         self,
         human_survey_uuid: str,
+        *,
+        started_after: Optional[Union[str, datetime]] = None,
+        started_before: Optional[Union[str, datetime]] = None,
     ) -> Union["Results", "ScenarioList"]:
         """
         Return a Results object with the responses for a human survey.
 
+        By default this pulls every completed response. Pass ``started_after`` and/or
+        ``started_before`` to narrow it to the responses started within a window - a
+        response is "started" when the respondent opened the survey, not when they
+        submitted it. Both bounds are inclusive.
+
+        Parameters:
+            human_survey_uuid (str): The UUID of the human survey.
+            started_after: Only include responses started at or after this time.
+                A timezone-aware datetime, or an ISO 8601 string.
+            started_before: Only include responses started at or before this time.
+                A timezone-aware datetime, or an ISO 8601 string.
+
         If generating the Results object fails, a ScenarioList will be returned instead.
+
+        Example:
+            >>> from datetime import datetime, timezone
+            >>> coop.get_human_survey_responses(
+            ...     survey_uuid,
+            ...     started_after=datetime(2026, 9, 1, tzinfo=timezone.utc),
+            ... )
         """
+        params: Dict[str, Any] = {}
+        if started_after is not None:
+            if isinstance(started_after, datetime):
+                self._human_survey_datetime_must_be_tz_aware(
+                    started_after, "started_after"
+                )
+                started_after = started_after.isoformat()
+            params["started_after"] = started_after
+        if started_before is not None:
+            if isinstance(started_before, datetime):
+                self._human_survey_datetime_must_be_tz_aware(
+                    started_before, "started_before"
+                )
+                started_before = started_before.isoformat()
+            params["started_before"] = started_before
+
         response = self._send_server_request(
             uri=f"api/v0/human-surveys/{human_survey_uuid}/responses",
             method="GET",
+            params=params or None,
         )
         self._resolve_server_response(response)
         response_json = response.json()
