@@ -215,11 +215,38 @@ def register(jobs_group: click.Group) -> None:
 
     @jobs_group.command("errors")
     @click.argument("job_uuid")
-    @click.option("--output", "-o", "output_path", default=None, help="Write markdown error report to this path.")
-    def jobs_errors(job_uuid, output_path):
-        """Fetch the latest remote job error report as markdown."""
+    @click.option("--format", "error_format", type=click.Choice(["markdown", "json"]), default="markdown", show_default=True, help="Rendered report, or the raw task history.")
+    @click.option("--output", "-o", "output_path", default=None, help="Write the error report to this path.")
+    def jobs_errors(job_uuid, error_format, output_path):
+        """Fetch the latest remote job error report.
+
+        \b
+        Examples:
+          ep jobs errors 0b8f4e12-1234-5678-9abc-def012345678
+          ep jobs errors 0b8f4e12-1234-5678-9abc-def012345678 --output errors.md
+          ep jobs errors 0b8f4e12-1234-5678-9abc-def012345678 --format json
+
+        \b
+        Notes:
+          A task history can contain prompts, agent traits, scenarios, raw model
+          responses and tracebacks, so treat --format json output as sensitive.
+        """
         try:
+            import json as json_mod
+
             from edsl.coop import Coop
+
+            if error_format == "json":
+                task_history = Coop().get_error_report_task_history(job_uuid)
+                data = {**task_history, "saved_to": None}
+                if output_path:
+                    path = Path(output_path)
+                    path.write_text(
+                        json_mod.dumps(task_history, indent=2), encoding="utf-8"
+                    )
+                    data["saved_to"] = str(path)
+                output(data)
+                return
 
             report = Coop().get_error_report_markdown(job_uuid)
             data = {"job_uuid": job_uuid, "markdown": report, "saved_to": None}
@@ -336,11 +363,13 @@ def register(jobs_group: click.Group) -> None:
     @jobs_group.command("cost")
     @click.argument("object_path", type=click.Path(exists=True))
     @click.option("--iterations", default=1, type=int, help="Number of iterations.")
-    def jobs_cost(object_path, iterations):
+    @click.option("--model", default=None, help="Model name to use for this estimate.")
+    def jobs_cost(object_path, iterations, model):
         """Estimate remote run cost for a local Jobs or Survey object."""
         try:
             from edsl.coop import Coop
             from edsl.jobs import Jobs
+            from edsl.language_models import Model
             from edsl.surveys import Survey
 
             obj = _load_costable_object(Path(object_path))
@@ -350,14 +379,29 @@ def register(jobs_group: click.Group) -> None:
                     f"Cost estimation requires a Jobs or Survey object, got {type(obj).__name__}.",
                     exit_code=EXIT_VALIDATION,
                 )
-            output(jsonable(Coop().remote_inference_cost(obj, iterations=iterations)))
+            if model:
+                if isinstance(obj, Survey):
+                    obj = Jobs(survey=obj, models=[Model(model)])
+                else:
+                    obj = Jobs(
+                        survey=obj.survey,
+                        agents=obj.agents,
+                        models=[Model(model)],
+                        scenarios=obj.scenarios,
+                    )
+            cost_data = Coop().remote_inference_cost(obj, iterations=iterations)
+            cost_warnings = [
+                {"code": "COST_ESTIMATE_UNCERTAIN", "message": message}
+                for message in (cost_data.get("warnings") or [])
+            ]
+            output(jsonable(cost_data), warnings=cost_warnings)
         except SystemExit:
             raise
         except Exception as e:
             error(
                 "JOBS_ERROR",
                 str(e),
-                suggestion="Check the object path, iterations, and Expected Parrot API key.",
+                suggestion="Check the object path, model, iterations, and Expected Parrot API key.",
                 exit_code=EXIT_REMOTE,
             )
 

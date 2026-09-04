@@ -16,11 +16,17 @@ class QuestionFields:
 
     TEXT = "question_text"
     OPTIONS = "question_options"
+    ITEMS = "question_items"
     TYPE = "question_type"
 
 
 # List of all question fields for iteration
-QUESTION_FIELDS = [QuestionFields.TEXT, QuestionFields.OPTIONS, QuestionFields.TYPE]
+QUESTION_FIELDS = [
+    QuestionFields.TEXT,
+    QuestionFields.OPTIONS,
+    QuestionFields.ITEMS,
+    QuestionFields.TYPE,
+]
 
 
 class AgentNamer:
@@ -178,9 +184,11 @@ class ResultBuilder:
             if question_name in self.data["question_to_attributes"]:
                 for field_name in question_attribute_maps:
                     new_key = f"{question_name}_{field_name}"
-                    question_attribute_maps[field_name][new_key] = self.data[
-                        "question_to_attributes"
-                    ][question_name][field_name]
+                    attributes = self.data["question_to_attributes"][question_name]
+                    if field_name in attributes:
+                        question_attribute_maps[field_name][new_key] = attributes[
+                            field_name
+                        ]
         return question_attribute_maps
 
     def _build_cache_components(self) -> dict:

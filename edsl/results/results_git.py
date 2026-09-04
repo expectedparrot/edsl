@@ -226,22 +226,34 @@ def _render_results_package_html(path: Path, ref: str, results: "Results") -> st
     manifest = _load_manifest_at_ref(path, ref)
     raw = results.to_dict(add_edsl_version=False)
     serialized_results = raw.get("data") or raw.get("results") or []
+    survey = getattr(results, "survey", None)
+    question_names = list(
+        getattr(survey, "question_names", None)
+        or getattr(results, "question_names", [])
+        or []
+    )
     rows = [_result_row(index, result) for index, result in enumerate(results, start=1)]
-    question_names = list(getattr(results, "question_names", []) or [])
+    columns = _result_columns(rows)
+    transcript_rows = [
+        _transcript_row(index, result, question_names)
+        for index, result in enumerate(results, start=1)
+    ]
 
     return render_collection_html(
-        title="EDSL Results",
+        title="Results",
         subtitle=f"{path.name} · {ref}",
         facts=[
-            (len(results), "results"),
-            (len(question_names), "questions"),
-            (len(getattr(results, "agent_keys", []) or []), "agent keys"),
-            (len(getattr(results, "model_keys", []) or []), "model keys"),
+            (len(results), "Results"),
+            (len(question_names), "Questions"),
+            (len(getattr(results, "agent_keys", []) or []), "Agent keys"),
+            (len(getattr(results, "model_keys", []) or []), "Model keys"),
         ],
-        columns=["#", "agent", "model", "scenario", "answers"],
+        columns=columns,
         rows=rows,
         raw={"manifest": manifest, "results": serialized_results},
         search_placeholder="Search agents, models, scenarios, answers",
+        facts_layout="table",
+        transcript_rows=transcript_rows,
         remote_context=package_remote_context(
             path, ref, manifest=manifest, error_cls=ResultsGitError
         ),
@@ -250,13 +262,132 @@ def _render_results_package_html(path: Path, ref: str, results: "Results") -> st
 
 def _result_row(index: int, result: object) -> dict:
     data = _result_dict(result)
-    return {
+    answers = data.get("answer") or data.get("answers") or {}
+    attributes = data.get("question_to_attributes") or {}
+    answers = answers if isinstance(answers, dict) else {}
+    row = {
         "#": index,
-        "agent": _compact_json(data.get("agent")),
+        "__interview_transcripts": {
+            name: turns
+            for name, answer in answers.items()
+            if (turns := _question_interview_turns(name, answer, attributes))
+            is not None
+        },
+    }
+    row.update(_flatten_context("agent", data.get("agent"), unwrap_traits=True))
+    row["model"] = _model_label(data.get("model"))
+    row.update(_flatten_context("scenario", data.get("scenario")))
+    row.update({f"answer.{name}": answer for name, answer in answers.items()})
+    return row
+
+
+def _flatten_context(
+    prefix: str, value: object, *, unwrap_traits: bool = False
+) -> dict[str, object]:
+    if not isinstance(value, dict):
+        return {prefix: value}
+    fields = value
+    if unwrap_traits and isinstance(value.get("traits"), dict):
+        fields = {**value["traits"]}
+        if value.get("name") is not None:
+            fields["name"] = value["name"]
+    return {f"{prefix}.{key}": field for key, field in fields.items()}
+
+
+def _result_columns(rows: list[dict]) -> list[str]:
+    groups = ("agent.", "scenario.")
+    columns = ["#"]
+    for prefix in groups:
+        columns.extend(
+            key
+            for row in rows
+            for key in row
+            if key.startswith(prefix) and key not in columns
+        )
+    if any("agent" in row for row in rows):
+        columns.append("agent")
+    columns.append("model")
+    if any("scenario" in row for row in rows):
+        columns.append("scenario")
+    columns.extend(
+        key
+        for row in rows
+        for key in row
+        if key.startswith("answer.") and key not in columns
+    )
+    return columns
+
+
+def _transcript_row(index: int, result: object, question_names: list[str]) -> dict:
+    data = _result_dict(result)
+    answers = data.get("answer") or data.get("answers") or {}
+    attributes = data.get("question_to_attributes") or {}
+    answers = answers if isinstance(answers, dict) else {}
+    ordered_names = list(question_names)
+    ordered_names.extend(name for name in answers if name not in ordered_names)
+    agent = data.get("agent")
+    return {
+        "index": index,
+        "label": _result_label(index, agent),
+        "agent": _compact_json(agent),
         "model": _model_label(data.get("model")),
         "scenario": _compact_json(data.get("scenario")),
-        "answers": data.get("answer") or data.get("answers") or {},
+        "iteration": data.get("iteration"),
+        "questions": [
+            {
+                "name": name,
+                "text": (attributes.get(name) or {}).get("question_text") or name,
+                "answer": answers.get(name),
+                "interview_turns": _question_interview_turns(
+                    name, answers.get(name), attributes
+                ),
+            }
+            for name in ordered_names
+            if name in answers
+        ],
     }
+
+
+def _result_label(index: int, agent: object) -> str:
+    if isinstance(agent, dict):
+        name = agent.get("name")
+        traits = agent.get("traits") or {}
+        name = name or (traits.get("agent_name") if isinstance(traits, dict) else None)
+        if name:
+            return str(name)
+    return f"Result {index}"
+
+
+def _question_interview_turns(
+    question_name: str, answer: object, attributes: dict
+) -> list[dict[str, str]] | None:
+    question_attributes = attributes.get(question_name) or {}
+    if question_attributes.get("question_type") == "interview":
+        return _interview_turns(answer)
+    return None
+
+
+def _interview_turns(answer: object) -> list[dict[str, str]] | None:
+    """Normalize the public text blocks in an interview answer, or decline it."""
+    if not isinstance(answer, list):
+        return None
+
+    turns: list[dict[str, str]] = []
+    for turn in answer:
+        if not isinstance(turn, dict) or not isinstance(turn.get("role"), str):
+            return None
+        content = turn.get("content")
+        if not isinstance(content, list):
+            return None
+        text = "\n".join(
+            str(block["text"])
+            for block in content
+            if isinstance(block, dict)
+            and block.get("type") == "text"
+            and isinstance(block.get("text"), str)
+        )
+        turns.append({"role": turn["role"], "text": text})
+    return turns
 
 
 def _result_dict(result: object) -> dict:

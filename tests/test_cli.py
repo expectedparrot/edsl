@@ -16,6 +16,7 @@ import pytest
 from click.testing import CliRunner
 
 import edsl.__main__ as cli_module
+from edsl.cli_commands.models import _select_model_profile
 
 try:
     import tomllib
@@ -106,6 +107,7 @@ class TestCliModuleBoundaries:
             "profiles",
             "results",
             "run",
+            "run_manifest",
             "schema",
             "scenarios",
             "validate",
@@ -170,12 +172,14 @@ class TestCliModuleBoundaries:
             ["humanize", "schema", "set", "--help"],
             ["credits", "--help"],
             ["run", "--help"],
+            ["run-manifest", "--help"],
             ["inspect", "--help"],
             ["unpack", "--help"],
             ["unzip", "--help"],
             ["schema", "show", "--help"],
             ["results", "select", "--help"],
             ["results", "export", "--help"],
+            ["results", "review", "--help"],
             ["jobs", "build", "--help"],
             ["models", "--help"],
             ["models", "create", "--help"],
@@ -1099,10 +1103,14 @@ class TestObjectTransformCli:
         results = Results.git.load(results_path)
         assert len(results) == 2
 
-    def test_models_sort_filter_with_fake_coop(self, monkeypatch):
+    def test_models_sort_filter_with_fake_coop(self, monkeypatch, tmp_path):
         import edsl.coop
 
+        monkeypatch.setenv("EDSL_MODEL_CATALOG_CACHE_DIR", str(tmp_path / "model-cache"))
+
         class FakeCoop:
+            api_url = "https://api.example.test"
+
             def fetch_working_models(self):
                 return [
                     {
@@ -1132,6 +1140,82 @@ class TestObjectTransformCli:
         assert result.exit_code == 0, result.output
         out = json.loads(result.output)
         assert [m["model_name"] for m in out["data"]["models"]] == ["cheap", "expensive"]
+
+    def test_models_limit_bounds_sorted_output(self, monkeypatch, tmp_path):
+        import edsl.coop
+
+        monkeypatch.setenv("EDSL_MODEL_CATALOG_CACHE_DIR", str(tmp_path / "model-cache"))
+
+        class FakeCoop:
+            api_url = "https://api.example.test"
+
+            def fetch_working_models(self):
+                return [
+                    {
+                        "service": "openai", "model": name,
+                        "works_with_text": True, "works_with_images": False,
+                        "usd_per_1M_input_tokens": price,
+                        "usd_per_1M_output_tokens": price * 2,
+                    }
+                    for name, price in (("medium", 2), ("expensive", 3), ("cheap", 1))
+                ]
+
+        monkeypatch.setattr(edsl.coop, "Coop", FakeCoop)
+        result = CliRunner().invoke(
+            cli_module.app,
+            ["models", "--text", "--sort", "input-price", "--limit", "2"],
+        )
+
+        assert result.exit_code == 0, result.output
+        out = json.loads(result.output)["data"]
+        assert [m["model_name"] for m in out["models"]] == ["cheap", "medium"]
+        assert out["count"] == 2
+        assert out["total_count"] == 3
+        assert out["filters"]["limit"] == 2
+
+    def test_report_review_profile_selects_latest_vision_models_from_distinct_providers(self):
+        available = [
+            {"service": "anthropic", "model": "claude-sonnet-4-6", "works_with_images": True},
+            {"service": "anthropic", "model": "claude-sonnet-5", "works_with_images": True},
+            {"service": "openai", "model": "gpt-5.4-mini", "works_with_images": True},
+            {"service": "openai", "model": "gpt-5.5", "works_with_images": True},
+            {"service": "openai", "model": "gpt-5-2025-08-07", "works_with_images": True},
+            {"service": "google", "model": "gemini-3.1-pro", "works_with_images": True},
+            {"service": "google", "model": "gemini-3.2-pro-preview-customtools", "works_with_images": True},
+            {"service": "google", "model": "gemini-3.5-pro", "works_with_images": False},
+        ]
+
+        selected = _select_model_profile(available, "report-review", 3)
+
+        assert [(item["service"], item["model"]) for item in selected] == [
+            ("anthropic", "claude-sonnet-5"),
+            ("openai", "gpt-5.5"),
+            ("google", "gemini-3.1-pro"),
+        ]
+
+    def test_report_review_profile_requires_requested_provider_count(self, monkeypatch, tmp_path):
+        import edsl.coop
+
+        monkeypatch.setenv("EDSL_MODEL_CATALOG_CACHE_DIR", str(tmp_path / "model-cache"))
+
+        class FakeCoop:
+            api_url = "https://api.example.test"
+
+            def fetch_working_models(self):
+                return [{
+                    "service": "anthropic", "model": "claude-sonnet-5",
+                    "works_with_images": True,
+                }]
+
+        monkeypatch.setattr(edsl.coop, "Coop", FakeCoop)
+        result = CliRunner().invoke(
+            cli_module.app,
+            ["models", "create", "--profile", "report-review", "--count", "3",
+             "--output", str(tmp_path / "models.ep")],
+        )
+
+        assert result.exit_code == 6, result.output
+        assert json.loads(result.output)["error"]["code"] == "MODEL_PROFILE_UNAVAILABLE"
 
 
 # ---------------------------------------------------------------------------
@@ -1497,7 +1581,7 @@ class TestOpen:
         assert out["data"]["object_type"] == "Results"
         assert opened_urls == [html_path.resolve().as_uri()]
         html = html_path.read_text(encoding="utf-8")
-        assert "<title>EDSL Results</title>" in html
+        assert "<title>Results</title>" in html
         assert "Expected Parrot" in html
         assert "collection-table" in html
         assert "<table" in html
@@ -1772,10 +1856,14 @@ class TestValidate:
 
 class TestModels:
     @pytest.fixture
-    def fake_model_catalog(self, monkeypatch):
+    def fake_model_catalog(self, monkeypatch, tmp_path):
         import edsl.coop
 
+        monkeypatch.setenv("EDSL_MODEL_CATALOG_CACHE_DIR", str(tmp_path / "model-cache"))
+
         class FakeCoop:
+            api_url = "https://api.example.test"
+
             def fetch_working_models(self):
                 return [
                     {
@@ -1816,6 +1904,7 @@ class TestModels:
         assert isinstance(data["models"], list)
         assert len(data["models"]) == 3
         assert data["source"] == "expected_parrot"
+        assert data["cache"]["hit"] is False
         assert data["count"] == 3
         assert data["filters"] == {
             "service": None,
@@ -1823,6 +1912,7 @@ class TestModels:
             "text": None,
             "vision": None,
             "sort": "service",
+            "limit": None,
         }
 
     def test_model_entries_have_fields(self, fake_model_catalog):
@@ -1866,6 +1956,7 @@ class TestModels:
             "text": None,
             "vision": None,
             "sort": "service",
+            "limit": None,
         }
         assert out["data"]["models"] == [
             {
@@ -1878,6 +1969,56 @@ class TestModels:
                 "usd_per_1M_output_tokens": 10.0,
             }
         ]
+
+    def test_models_reuses_cached_remote_catalog(self, monkeypatch, tmp_path):
+        import edsl.coop
+
+        monkeypatch.setenv("EDSL_MODEL_CATALOG_CACHE_DIR", str(tmp_path / "model-cache"))
+        calls = 0
+
+        class FakeCoop:
+            api_url = "https://api.example.test"
+
+            def fetch_working_models(self):
+                nonlocal calls
+                calls += 1
+                return [{
+                    "service": "openai", "model": "gpt-test",
+                    "works_with_text": True, "works_with_images": False,
+                    "usd_per_1M_input_tokens": 1.0,
+                    "usd_per_1M_output_tokens": 2.0,
+                }]
+
+        monkeypatch.setattr(edsl.coop, "Coop", FakeCoop)
+        first = CliRunner().invoke(cli_module.app, ["models", "--search", "gpt"])
+        second = CliRunner().invoke(cli_module.app, ["models", "--search", "test"])
+
+        assert first.exit_code == second.exit_code == 0
+        assert calls == 1
+        assert json.loads(first.output)["data"]["cache"]["hit"] is False
+        assert json.loads(second.output)["data"]["cache"]["hit"] is True
+
+    def test_models_refresh_bypasses_cache(self, monkeypatch, tmp_path):
+        import edsl.coop
+
+        monkeypatch.setenv("EDSL_MODEL_CATALOG_CACHE_DIR", str(tmp_path / "model-cache"))
+        calls = 0
+
+        class FakeCoop:
+            api_url = "https://api.example.test"
+
+            def fetch_working_models(self):
+                nonlocal calls
+                calls += 1
+                return []
+
+        monkeypatch.setattr(edsl.coop, "Coop", FakeCoop)
+        first = CliRunner().invoke(cli_module.app, ["models"])
+        second = CliRunner().invoke(cli_module.app, ["models", "--refresh"])
+
+        assert first.exit_code == second.exit_code == 0
+        assert calls == 2
+        assert json.loads(second.output)["data"]["cache"]["hit"] is False
 
     def test_models_filters_by_capability(self, fake_model_catalog):
         result = CliRunner().invoke(
@@ -2669,6 +2810,81 @@ class TestJobsCli:
         assert out["data"]["saved_to"] == str(output_path)
         assert output_path.read_text(encoding="utf-8") == "# Error report\n\nDetails"
 
+    def test_jobs_errors_json_format_returns_task_history(self, monkeypatch):
+        import edsl.coop
+
+        envelope = {
+            "schema_version": "1.0",
+            "job_uuid": "job-uuid",
+            "results_uuid": None,
+            "error_report_uuid": "report-uuid",
+            "has_task_history": True,
+            "task_history": {
+                "interviews": [
+                    {
+                        "type": "InterviewReference",
+                        "id": 0,
+                        "exceptions": {"q0": [{"exception": {"type": "RuntimeError"}}]},
+                    }
+                ],
+                "include_traceback": True,
+            },
+        }
+
+        class FakeCoop:
+            def get_error_report_task_history(self, job_uuid):
+                assert job_uuid == "job-uuid"
+                return envelope
+
+        monkeypatch.setattr(edsl.coop, "Coop", FakeCoop)
+
+        result = CliRunner().invoke(
+            cli_module.app, ["jobs", "errors", "job-uuid", "--format", "json"]
+        )
+
+        assert result.exit_code == 0, result.output
+        data = json.loads(result.output)["data"]
+        assert data["schema_version"] == "1.0"
+        assert data["has_task_history"] is True
+        assert data["task_history"]["interviews"][0]["exceptions"]["q0"]
+        assert data["saved_to"] is None
+        assert "markdown" not in data
+
+    def test_jobs_errors_json_format_saves_task_history(self, tmp_path, monkeypatch):
+        import edsl.coop
+
+        output_path = tmp_path / "task_history.json"
+        envelope = {
+            "schema_version": "1.0",
+            "job_uuid": "job-uuid",
+            "results_uuid": None,
+            "error_report_uuid": "report-uuid",
+            "has_task_history": False,
+            "task_history": {"interviews": [], "include_traceback": False},
+        }
+
+        class FakeCoop:
+            def get_error_report_task_history(self, job_uuid):
+                return envelope
+
+        monkeypatch.setattr(edsl.coop, "Coop", FakeCoop)
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            ["jobs", "errors", "job-uuid", "--format", "json", "--output", str(output_path)],
+        )
+
+        assert result.exit_code == 0, result.output
+        assert json.loads(result.output)["data"]["saved_to"] == str(output_path)
+        assert json.loads(output_path.read_text(encoding="utf-8")) == envelope
+
+    def test_jobs_errors_rejects_unknown_format(self, monkeypatch):
+        result = CliRunner().invoke(
+            cli_module.app, ["jobs", "errors", "job-uuid", "--format", "html"]
+        )
+
+        assert result.exit_code != 0
+
     def test_jobs_manifest(self, monkeypatch):
         import edsl.coop
 
@@ -2758,6 +2974,62 @@ class TestJobsCli:
         out = json.loads(result.output)
         assert out["data"]["credits_hold"] == 2.34
 
+    def test_jobs_cost_surfaces_reasoning_uncertainty_warning(
+        self, tmp_path, monkeypatch
+    ):
+        from edsl.jobs import Jobs
+        import edsl.coop
+
+        jobs_path = tmp_path / "jobs.ep"
+        Jobs.example().git.save(jobs_path)
+        warning = "Reasoning tokens are not included; this is a lower bound."
+
+        class FakeCoop:
+            def remote_inference_cost(self, obj, iterations=1):
+                return {
+                    "credits_hold": 0.19,
+                    "usd": 0.0019,
+                    "estimate_kind": "lower_bound",
+                    "warnings": [warning],
+                }
+
+        monkeypatch.setattr(edsl.coop, "Coop", FakeCoop)
+
+        result = CliRunner().invoke(
+            cli_module.app, ["jobs", "cost", str(jobs_path)]
+        )
+
+        assert result.exit_code == 0, result.output
+        out = json.loads(result.output)
+        assert out["data"]["estimate_kind"] == "lower_bound"
+        assert out["warnings"] == [
+            {"code": "COST_ESTIMATE_UNCERTAIN", "message": warning}
+        ]
+
+    def test_jobs_cost_accepts_model_override(self, tmp_path, monkeypatch):
+        from edsl.jobs import Jobs
+        import edsl.coop
+
+        jobs_path = tmp_path / "model-free.jobs.ep"
+        job = Jobs(survey=Jobs.example().survey, models=[])
+        job.git.save(jobs_path)
+
+        class FakeCoop:
+            def remote_inference_cost(self, obj, iterations=1):
+                assert type(obj).__name__ == "Jobs"
+                assert [item.model for item in obj.models] == ["test"]
+                return {"credits_hold": 1.0, "usd": 0.01}
+
+        monkeypatch.setattr(edsl.coop, "Coop", FakeCoop)
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            ["jobs", "cost", str(jobs_path), "--model", "test"],
+        )
+
+        assert result.exit_code == 0, result.output
+        assert json.loads(result.output)["data"]["usd"] == 0.01
+
 
 # ---------------------------------------------------------------------------
 # ep humanize
@@ -2777,6 +3049,7 @@ class TestHumanizeCli:
             "qr",
             "preview",
             "respondents",
+            "links",
             "schedules",
             "deliveries",
             "callbacks",
@@ -3193,6 +3466,77 @@ class TestHumanizeCli:
         out = json.loads(result.output)
         assert out["error"]["code"] == "USAGE_ERROR"
 
+    def test_humanize_create_uses_scenarios_from_jobs(self, tmp_path, monkeypatch):
+        from edsl.jobs import Jobs
+        from edsl.questions import QuestionFreeText
+        from edsl.scenarios import ScenarioList
+        from edsl.surveys import Survey
+        import edsl.coop
+
+        jobs_path = tmp_path / "jobs.ep"
+        scenarios = ScenarioList.from_list("city", ["Boston"])
+        Jobs(
+            survey=Survey(
+                [
+                    QuestionFreeText(
+                        question_name="visit",
+                        question_text="What would you visit in {{ city }}?",
+                    )
+                ]
+            ),
+            models=[],
+            scenarios=scenarios,
+        ).git.save(jobs_path)
+
+        class FakeCoop:
+            def create_human_survey(
+                self, survey, scenario_list=None, scenario_list_method=None, **kwargs
+            ):
+                assert type(survey).__name__ == "Survey"
+                assert scenario_list == scenarios
+                assert scenario_list_method == "ordered"
+                return {"uuid": "human-survey-uuid"}
+
+        monkeypatch.setattr(edsl.coop, "Coop", FakeCoop)
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            [
+                "humanize",
+                "create",
+                "--jobs",
+                str(jobs_path),
+                "--scenario_method",
+                "ordered",
+            ],
+        )
+
+        assert result.exit_code == 0, result.output
+        assert json.loads(result.output)["data"]["uuid"] == "human-survey-uuid"
+
+    def test_humanize_create_rejects_scenario_method_for_empty_jobs(self, tmp_path):
+        from edsl.jobs import Jobs
+
+        jobs_path = tmp_path / "jobs.ep"
+        Jobs(survey=Jobs.example().survey, models=[], scenarios=[]).git.save(jobs_path)
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            [
+                "humanize",
+                "create",
+                "--jobs",
+                str(jobs_path),
+                "--scenario_method",
+                "ordered",
+            ],
+        )
+
+        assert result.exit_code == cli_module.EXIT_USAGE
+        out = json.loads(result.output)
+        assert out["error"]["code"] == "USAGE_ERROR"
+        assert "requires scenarios" in out["error"]["message"]
+
     def test_humanize_responses_fetches_and_saves_results(self, tmp_path, monkeypatch):
         from edsl.results import Results
         import edsl.coop
@@ -3316,6 +3660,80 @@ class TestHumanizeCli:
         assert json.loads(schema_result.output)["data"]["humanize_schema"]["questions"]["q0"]["optional"] is True
         assert json.loads(css_result.output)["data"]["message"] == "updated"
         assert json.loads(respondents_result.output)["data"]["respondents"][0]["respondent_uuid"] == "resp-uuid"
+
+    def test_humanize_links_exports_csv_without_printing_tokens(self, tmp_path, monkeypatch):
+        from edsl.dataset import Dataset
+        import edsl.coop
+
+        output_path = tmp_path / "respondent-links.csv"
+        personal_url = "https://example.test/respond?token=secret-token"
+
+        class FakeCoop:
+            def get_human_survey_respondent_links(self, human_survey_uuid, *, include_preview_urls=False, strict=True):
+                assert human_survey_uuid == "human-survey-uuid"
+                assert include_preview_urls is False
+                assert strict is True
+                return Dataset([
+                    {"agent_name": ["Alice"]},
+                    {"respondent_uuid": ["respondent-uuid"]},
+                    {"url": [personal_url]},
+                    {"response_status": ["not_started"]},
+                ])
+
+        monkeypatch.setattr(edsl.coop, "Coop", FakeCoop)
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            ["humanize", "links", "human-survey-uuid", "--output", str(output_path)],
+        )
+
+        assert result.exit_code == 0, result.output
+        out = json.loads(result.output)
+        assert out["data"]["saved_to"] == str(output_path)
+        assert out["data"]["respondent_count"] == 1
+        assert out["data"]["qr_count"] == 0
+        assert out["data"]["sensitive"] is True
+        assert personal_url not in result.output
+        assert personal_url in output_path.read_text(encoding="utf-8")
+
+    def test_humanize_links_can_generate_personal_qr_codes(self, tmp_path, monkeypatch):
+        from edsl.dataset import Dataset
+        import edsl.coop
+        import edsl.scenarios.contrib.qr_code
+
+        output_path = tmp_path / "respondent-links.csv"
+        qr_dir = tmp_path / "qr"
+
+        class FakeCoop:
+            def get_human_survey_respondent_links(self, *args, **kwargs):
+                return Dataset([
+                    {"agent_name": ["Alice"]},
+                    {"respondent_uuid": ["respondent-uuid"]},
+                    {"url": ["https://example.test/respond?token=secret-token"]},
+                    {"response_status": ["not_started"]},
+                ])
+
+        class FakeQRCode:
+            def __init__(self, url):
+                assert "secret-token" in url
+
+            def save(self, path):
+                Path(path).write_bytes(b"png")
+
+        monkeypatch.setattr(edsl.coop, "Coop", FakeCoop)
+        monkeypatch.setattr(edsl.scenarios.contrib.qr_code, "QRCode", FakeQRCode)
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            ["humanize", "links", "human-survey-uuid", "--output", str(output_path), "--qr-dir", str(qr_dir)],
+        )
+
+        assert result.exit_code == 0, result.output
+        out = json.loads(result.output)
+        qr_path = qr_dir / "respondent-respondent-uuid.png"
+        assert out["data"]["qr_count"] == 1
+        assert qr_path.read_bytes() == b"png"
+        assert str(qr_path) in output_path.read_text(encoding="utf-8")
 
     def test_humanize_schema_set_from_direct_controls(self, monkeypatch):
         import edsl.coop
@@ -3921,6 +4339,64 @@ class TestResults:
         assert first.exit_code == 0, first.output
         assert second.exit_code == 0, second.output
         assert json.loads(first.output)["data"] == json.loads(second.output)["data"]
+
+    def test_results_review_is_bounded_and_agent_oriented(self, results_file):
+        result = CliRunner().invoke(
+            cli_module.app,
+            [
+                "results", "review", results_file, "--rows", "1",
+                "--columns", "2", "--values", "1", "--text-chars", "40",
+            ],
+        )
+
+        assert result.exit_code == 0, result.output
+        review = json.loads(result.output)["data"]
+        assert review["result_count"] == 1
+        assert len(review["selected_columns"]) <= 2
+        assert len(review["representative_rows"]) == 1
+        assert all(len(item["top_values"]) <= 1 for item in review["answer_distributions"])
+        assert review["bounds"] == {
+            "max_rows": 1, "max_columns": 2, "max_values": 1, "text_chars": 40,
+        }
+        assert "raw_model_response.q0_raw_model_response" not in review["selected_columns"]
+
+    def test_results_review_accepts_repeated_explicit_columns(self, results_file):
+        result = CliRunner().invoke(
+            cli_module.app,
+            [
+                "results", "review", results_file,
+                "--column", "answer.q0", "--column", "agent.age",
+            ],
+        )
+
+        assert result.exit_code == 0, result.output
+        review = json.loads(result.output)["data"]
+        assert review["selected_columns"] == ["answer.q0", "agent.age"]
+
+    def test_results_review_returns_report_ready_summaries(self, tmp_path):
+        from edsl import Agent, AgentList, QuestionLinearScale, Survey
+
+        results = Survey([QuestionLinearScale(
+            question_name="score", question_text="Score?",
+            question_options=[1, 2, 3, 4, 5],
+        )]).by(AgentList([
+            Agent(traits={"segment": "a"}), Agent(traits={"segment": "b"}),
+        ])).run(cache=False, disable_remote_inference=True)
+        # Deterministically replace generated answers for summary coverage.
+        results[0].answer["score"] = 2
+        results[1].answer["score"] = 4
+        path = tmp_path / "review.ep"
+        results.git.save(str(path))
+
+        result = CliRunner().invoke(cli_module.app, [
+            "results", "review", str(path), "--group-by", "agent.segment",
+        ])
+
+        assert result.exit_code == 0, result.output
+        review = json.loads(result.output)["data"]
+        assert review["numeric_summaries"][0]["mean"] == 3.0
+        assert review["segment_summaries"][0]["group_by"] == "agent.segment"
+        assert [g["means"]["answer.score"] for g in review["segment_summaries"][0]["groups"]] == [2.0, 4.0]
 
     def test_results_values_and_first(self, results_file):
         values = CliRunner().invoke(

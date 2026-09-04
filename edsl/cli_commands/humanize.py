@@ -517,6 +517,82 @@ def register(humanize: click.Group) -> None:
             error("HUMANIZE_ERROR", str(e), exit_code=EXIT_REMOTE)
 
 
+    @humanize.command("links")
+    @click.argument("human_survey_uuid")
+    @click.option("--output", "-o", "output_path", required=True, type=click.Path(dir_okay=False), help="CSV output path. Required because respondent links are sensitive.")
+    @click.option("--qr-dir", default=None, type=click.Path(file_okay=False), help="Also write one personal QR-code PNG per respondent.")
+    @click.option("--include-preview-urls", is_flag=True, help="Include non-saving preview URLs in the CSV.")
+    @click.option("--no-strict", is_flag=True, help="Keep unmatched agent/respondent rows instead of failing.")
+    def humanize_links(human_survey_uuid, output_path, qr_dir, include_preview_urls, no_strict):
+        """Export roster traits and personal respondent links to CSV.
+
+        Personal links and QR codes are bearer credentials. The command writes
+        them to files and returns metadata only; it never prints the links.
+        """
+        try:
+            from edsl.coop import Coop
+
+            links = Coop().get_human_survey_respondent_links(
+                human_survey_uuid,
+                include_preview_urls=include_preview_urls,
+                strict=not no_strict,
+            )
+            rows = links.to_dicts(remove_prefix=False)
+            qr_paths = []
+
+            if qr_dir is not None:
+                from edsl.dataset import Dataset
+                from edsl.scenarios.contrib.qr_code import QRCode
+
+                qr_directory = Path(qr_dir)
+                qr_directory.mkdir(parents=True, exist_ok=True)
+                for row in rows:
+                    url = row.get("url")
+                    respondent_uuid = row.get("respondent_uuid")
+                    if not url or not respondent_uuid:
+                        row["qr_path"] = None
+                        continue
+                    qr_path = qr_directory / f"respondent-{respondent_uuid}.png"
+                    QRCode(url).save(str(qr_path))
+                    row["qr_path"] = str(qr_path)
+                    qr_paths.append(str(qr_path))
+                column_names = list(rows[0]) if rows else ["qr_path"]
+                links = Dataset([
+                    {column: [row.get(column) for row in rows]}
+                    for column in column_names
+                ])
+
+            links.to_csv(filename=output_path)
+            output({
+                "human_survey_uuid": human_survey_uuid,
+                "saved_to": output_path,
+                "respondent_count": len(rows),
+                "qr_directory": qr_dir,
+                "qr_count": len(qr_paths),
+                "sensitive": True,
+                "warning": (
+                    "Personal respondent links and QR codes are bearer credentials; "
+                    "share each one only with its intended respondent."
+                ),
+            })
+        except ImportError as e:
+            error(
+                "DEPENDENCY_ERROR",
+                str(e),
+                suggestion='Install QR support with pip install "edsl[full]" or pip install "qrcode[pil]".',
+                exit_code=EXIT_ERROR,
+            )
+        except SystemExit:
+            raise
+        except Exception as e:
+            error(
+                "HUMANIZE_ERROR",
+                str(e),
+                suggestion="Check that the survey has an attached agent list and that the output paths are writable.",
+                exit_code=EXIT_REMOTE,
+            )
+
+
     @humanize_schema.command("patch")
     @click.argument("human_survey_uuid")
     @click.option("--schema", "schema_path", required=True, type=click.Path(exists=True), help="Partial humanize schema JSON.")
@@ -1459,10 +1535,16 @@ def register(humanize: click.Group) -> None:
                 "Provide exactly one of --survey or --jobs.",
                 exit_code=EXIT_USAGE,
             )
-        if bool(scenario_list_path) != bool(scenario_method):
+        if scenario_list_path and not scenario_method:
             error(
                 "USAGE_ERROR",
                 "--scenario_list and --scenario_method must be supplied together.",
+                exit_code=EXIT_USAGE,
+            )
+        if scenario_method and not (scenario_list_path or jobs_path):
+            error(
+                "USAGE_ERROR",
+                "--scenario_method requires --scenario_list or --jobs.",
                 exit_code=EXIT_USAGE,
             )
         if jobs_path and (scenario_list_path or agent_list_path):
@@ -1494,6 +1576,12 @@ def register(humanize: click.Group) -> None:
                     error(
                         "USAGE_ERROR",
                         "Jobs with scenarios require --scenario_method.",
+                        exit_code=EXIT_USAGE,
+                    )
+                if scenario_list is None and scenario_method is not None:
+                    error(
+                        "USAGE_ERROR",
+                        "--scenario_method requires scenarios in the Jobs object.",
                         exit_code=EXIT_USAGE,
                     )
             else:

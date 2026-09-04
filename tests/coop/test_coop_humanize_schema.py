@@ -13,6 +13,7 @@ from edsl.questions import (
     QuestionInterview,
     QuestionMultipleChoice,
     QuestionNumerical,
+    SurveyMessage,
 )
 from edsl.surveys import Survey
 
@@ -144,6 +145,18 @@ class TestValidateHumanizeSchemaGeneral:
             validate_humanize_schema(survey, humanize_schema)
         assert "demand_q" in str(exc_info.value)
         assert "not supported" in str(exc_info.value).lower()
+
+    def test_survey_message_accepts_only_empty_display_configuration(self):
+        survey = Survey(
+            [SurveyMessage(question_name="thanks", question_text="Thank you.")]
+        )
+
+        validate_humanize_schema(survey, {"questions": {"thanks": {}}})
+
+        with pytest.raises(HumanizeSchemaValidationError):
+            validate_humanize_schema(
+                survey, {"questions": {"thanks": {"optional": True}}}
+            )
 
     def test_invalid_schema_structure_raises(self):
         """Invalid top-level schema structure raises HumanizeSchemaValidationError."""
@@ -593,3 +606,68 @@ class TestHumanizeSchemaModel:
 
         with pytest.raises(ValidationError):
             SurveyHumanizeSchema.model_validate({"custom_css": None, "extra": "x"})
+
+
+class TestStepsProgress:
+    """Test the stepped progress indicator's boundaries."""
+
+    def test_named_boundaries_pass(self):
+        """Steps naming distinct items, with the last running to the end, parse."""
+        from edsl.coop.coop_humanize_schema import StepsProgress
+
+        parsed = StepsProgress.model_validate(
+            {
+                "steps": [
+                    {"label": "Background", "complete_after": "q1"},
+                    {"label": "Wrap-up"},
+                ]
+            }
+        )
+        assert parsed.steps[0].complete_after == "q1"
+        assert parsed.steps[1].complete_after is None
+
+    def test_boundary_is_stripped(self):
+        """Surrounding whitespace is trimmed so the name matches the survey item."""
+        from edsl.coop.coop_humanize_schema import StepsProgress
+
+        parsed = StepsProgress.model_validate(
+            {"steps": [{"complete_after": "  q1  "}, {}]}
+        )
+        assert parsed.steps[0].complete_after == "q1"
+
+    @pytest.mark.parametrize("boundary", ["", "   "])
+    def test_blank_boundary_raises(self, boundary):
+        """A blank complete_after is rejected rather than taken as a boundary."""
+        from edsl.coop.coop_humanize_schema import StepsProgress
+        from pydantic import ValidationError
+
+        with pytest.raises(ValidationError):
+            StepsProgress.model_validate({"steps": [{"complete_after": boundary}, {}]})
+
+    def test_blank_boundary_is_not_an_omission(self):
+        """A blank name on a non-final step raises on its own, not as a repeat."""
+        from edsl.coop.coop_humanize_schema import StepsProgress
+        from pydantic import ValidationError
+
+        with pytest.raises(ValidationError):
+            StepsProgress.model_validate(
+                {"steps": [{"complete_after": ""}, {"complete_after": ""}, {}]}
+            )
+
+    def test_earlier_step_must_name_a_boundary(self):
+        """Only the final step may omit complete_after."""
+        from edsl.coop.coop_humanize_schema import StepsProgress
+        from pydantic import ValidationError
+
+        with pytest.raises(ValidationError):
+            StepsProgress.model_validate({"steps": [{}, {"complete_after": "q2"}]})
+
+    def test_repeated_boundary_raises(self):
+        """Two steps may not end after the same survey item."""
+        from edsl.coop.coop_humanize_schema import StepsProgress
+        from pydantic import ValidationError
+
+        with pytest.raises(ValidationError):
+            StepsProgress.model_validate(
+                {"steps": [{"complete_after": "q1"}, {"complete_after": "q1"}, {}]}
+            )

@@ -43,10 +43,12 @@
           "en/latest/questions",
           "en/latest/scenarios",
           "en/latest/surveys",
+          "en/latest/survey_messages",
           "en/latest/survey_ep_format",
           "en/latest/agents",
           "en/latest/prompts",
-          "en/latest/language_models"
+          "en/latest/language_models",
+          "en/latest/local_openai_compatible"
         ]
       },
       {

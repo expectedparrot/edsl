@@ -77,6 +77,25 @@ class TestMemoryPlan(unittest.TestCase):
         prompt = memory_plan.get_memory_prompt_fragment("q2", self.answers_dict)
         self.assertIn("How are you?", prompt)
 
+    def test_prompt_fragment_omits_unanswered_memory(self):
+        memory_plan = self.example()
+        memory_plan.add_memory_collection("q3", ["q1", "q2"])
+
+        prompt = memory_plan.get_memory_prompt_fragment("q3", {"q1": "Good!"})
+
+        self.assertIn("How are you?", prompt)
+        self.assertNotIn("What is your age?", prompt)
+        self.assertNotIn("Answer: None", prompt)
+
+    def test_prompt_fragment_preserves_explicit_none_answer(self):
+        memory_plan = self.example()
+        memory_plan.add_single_memory("q2", "q1")
+
+        prompt = memory_plan.get_memory_prompt_fragment("q2", {"q1": None})
+
+        self.assertIn("How are you?", prompt)
+        self.assertIn("Answer: None", prompt)
+
 
 if __name__ == "__main__":
     unittest.main()

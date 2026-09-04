@@ -128,6 +128,7 @@ class RunParameters(Base):
     alert_on_completion_config: Optional[dict] = None
     results_description: Optional[str] = None
     task_timeout: Optional[int] = None
+    max_concurrency: Optional[int] = None
 
     def to_dict(self, add_edsl_version=False) -> dict:
         d = asdict(self)

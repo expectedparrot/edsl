@@ -973,7 +973,11 @@ class Scenario(Base, UserDict):
 
     @classmethod
     def from_url(
-        cls, url: str, field_name: Optional[str] = "text", testing: bool = False
+        cls,
+        url: str,
+        field_name: Optional[str] = "text",
+        testing: bool = False,
+        timeout: float = 30.0,
     ) -> "Scenario":
         """
         Creates a Scenario from the content of a URL.
@@ -1012,7 +1016,7 @@ class Scenario(Base, UserDict):
         """
         from .scenario_factory import ScenarioFactory
 
-        return ScenarioFactory.from_url(url, field_name, testing)
+        return ScenarioFactory.from_url(url, field_name, testing, timeout)
 
     @classmethod
     def from_file(cls, file_path: str, field_name: str) -> "Scenario":

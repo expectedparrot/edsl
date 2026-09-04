@@ -83,17 +83,163 @@ class MCSubclassFormatSchema(HumanizeSchemaBase):
     type: Literal["radio", "dropdown"] = "radio"
 
 
+class PercentBarLabel(HumanizeSchemaBase):
+    """The share of the survey completed, e.g. "33%"."""
+
+    type: Literal["percent"] = "percent"
+
+
+# Discriminated on ``type`` so other label kinds (a "3 of 9" fraction, a static
+# caption, a percentage with wording around it) can join as sibling variants
+# without reshaping stored configs. "percent" is the only variant today, and the
+# discriminator default, so a config that only asks for a label lands on percent.
+BarLabel = Annotated[
+    Union[PercentBarLabel],
+    Field(discriminator="type"),
+]
+
+
+class BarProgress(HumanizeSchemaBase):
+    """A filled bar with an optional label beneath it."""
+
+    type: Literal["bar"] = "bar"
+    # None keeps the bar and drops the label; the default is today's "33%".
+    label: Optional[BarLabel] = Field(default_factory=PercentBarLabel)
+
+
+class HiddenProgress(HumanizeSchemaBase):
+    """No progress indicator anywhere in the survey.
+
+    A variant rather than ``progress: None``, because None already means
+    "unconfigured" — and unconfigured has to keep meaning ``bar``, or every
+    survey stored before this field existed would silently lose the bar it
+    renders today.
+    """
+
+    type: Literal["hidden"] = "hidden"
+
+
+class ProgressStep(HumanizeSchemaBase):
+    """One step of a stepped progress indicator.
+
+    A step is a *boundary*, not a bucket: it covers every survey item from the
+    end of the previous step through ``complete_after``, so questions can be
+    added or removed inside a step without touching this config, and the items
+    a respondent skips past inside a step don't move the marker.
+    """
+
+    # The word under the marker. None renders the marker alone.
+    label: Annotated[
+        Optional[str],
+        StringConstraints(strip_whitespace=True, min_length=1, max_length=60),
+    ] = None
+    # The survey item (question or instruction) after which this step is
+    # complete. None means the step runs to the end of the survey, which only
+    # the final step can do. A blank name is rejected rather than read as None:
+    # it would satisfy every check here as a named boundary and then match no
+    # item at all, leaving the marker with nothing to advance on.
+    complete_after: Annotated[
+        Optional[str],
+        StringConstraints(strip_whitespace=True, min_length=1),
+    ] = None
+
+
+class StepsProgress(HumanizeSchemaBase):
+    """Markers joined by a connector, one per step, the current one highlighted."""
+
+    type: Literal["steps"] = "steps"
+    # Whether a marker carries its step number or is a bare dot.
+    marker: Literal["number", "dot"] = "number"
+    steps: Annotated[list[ProgressStep], Field(min_length=2)]
+
+    @model_validator(mode="after")
+    def _boundaries_well_formed(self) -> "StepsProgress":
+        if any(step.complete_after is None for step in self.steps[:-1]):
+            raise ValueError(
+                "Only the final step may omit complete_after; every earlier step "
+                "must name the survey item it ends after."
+            )
+        boundaries = [
+            s.complete_after for s in self.steps if s.complete_after is not None
+        ]
+        if len(boundaries) != len(set(boundaries)):
+            raise ValueError("complete_after must not repeat across steps.")
+        return self
+
+
+# Discriminated on ``type`` so a rendering with its own options (a chevron bar,
+# say) joins as a sibling without reshaping stored configs.
+SurveyProgress = Annotated[
+    Union[BarProgress, HiddenProgress, StepsProgress],
+    Field(discriminator="type"),
+]
+
+
 class SurveyHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the survey (e.g. custom styling)."""
 
     custom_css: Optional[str] = None
     navigation: Optional[SurveyNavigationConfig] = None
+    # How the respondent is shown their position in the survey. Defaults to the
+    # bar that shipped before this field existed, so stored configs render
+    # identically.
+    progress: SurveyProgress = Field(default_factory=BarProgress)
 
 
 class CommentConfig(HumanizeSchemaBase):
     """Configuration for the optional comment field on a question."""
 
     label: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
+
+
+class AllSelector(HumanizeSchemaBase):
+    """Every member of a list.
+
+    The catch-all, and the only selector that reaches a list piped from a prior
+    answer without the author knowing what arrives there.
+    """
+
+    type: Literal["all"] = "all"
+
+
+# Which members of a list something applies to. Discriminated on ``type`` so
+# predicates over the members — an exact text, a prefix, a position — join as
+# siblings without reshaping stored configs. "all" is the only variant today, and
+# the discriminator default.
+#
+# Deliberately separate from ``OptionTarget`` below, and split by *arity* rather
+# than by axis: a selector picks a set (a predicate matching three rows fills
+# three cells), a target picks exactly one (a cell holds one answer, so a target
+# matching two options would be undefined). A matrix's rows take selectors and its
+# column takes a target; a checkbox's options would take selectors, for the same
+# reason its answer is a set.
+Selector = Annotated[
+    Union[AllSelector],
+    Field(discriminator="type"),
+]
+
+
+class TextOptionTarget(HumanizeSchemaBase):
+    """An option named by its exact text, matched against the list as served.
+
+    Compared stringified, because an option list may be numbers carrying
+    ``option_labels`` — the same comparison the grid itself makes when deciding
+    which radio is checked. Not stripped, because the text has to match an entry
+    of ``question_options`` and those are never stripped either.
+    """
+
+    type: Literal["text"] = "text"
+    value: Annotated[str, StringConstraints(min_length=1)]
+
+
+# Which single option something names. Discriminated on ``type`` so a target that
+# names an option by position, by a scale's midpoint, or by a template resolved
+# from a prior answer can join as a sibling without reshaping stored configs.
+# "text" is the only variant today, and the discriminator default.
+OptionTarget = Annotated[
+    Union[TextOptionTarget],
+    Field(discriminator="type"),
+]
 
 
 class FreeTextHumanizeSchema(QuestionHumanizeSchemaBase):
@@ -164,6 +310,17 @@ class ComputeHumanizeSchema(QuestionHumanizeSchemaBase):
 
     No ``submitting_indicator``: compute questions run locally (no LLM) and are
     auto-advanced, so they are never the question a respondent submits.
+    """
+
+    pass
+
+
+class ImageGenerationHumanizeSchema(QuestionHumanizeSchemaBase):
+    """Humanize options for the image generation question type (none).
+
+    Like compute, image generation is a background/auto-advanced question the
+    respondent never submits, so there are no per-question humanize options and
+    no ``submitting_indicator``. Empty schema kept for parity/registration.
     """
 
     pass
@@ -431,10 +588,105 @@ class ListHumanizeSchema(QuestionHumanizeSchemaBase):
     submitting_indicator: Optional[SubmittingIndicator] = None
 
 
+class MatrixFormatTableSchema(HumanizeSchemaBase):
+    """The whole grid at once: one row per item, one column per option."""
+
+    type: Literal["table"] = "table"
+
+
+class MatrixFormatCarouselSchema(HumanizeSchemaBase):
+    """One item at a time, its options listed beneath it, the respondent moving
+    between items with the carousel's own controls.
+
+    The grid is the point of a matrix — every item on one screen, the shared
+    option scale obvious at a glance — and that same shape is what breaks it on a
+    narrow screen: five columns of prose headings are either scrolled sideways or
+    squeezed until they cannot be read. The carousel spends the overview to buy
+    the room, which is the trade worth making for long option labels or a survey
+    answered mostly on phones.
+    """
+
+    type: Literal["carousel"] = "carousel"
+    # Whether answering an item moves to the next one on its own. On by default:
+    # the format exists to turn a long matrix into a run of small questions, and
+    # reaching for Next after every answer undoes that. Every answer advances,
+    # corrections included — the rule respondents have already met in Qualtrics,
+    # and one with no exception to notice. Set False when they are expected to
+    # revise as they go, since a correction costs the way back as well.
+    advance_on_select: bool = True
+
+
+# Discriminated on ``type`` so each shape carries only the options it can act on,
+# and so a third rendering can join as a sibling without reshaping stored configs.
+# "table" is the default, which is what every matrix rendered before this field
+# existed, so stored configs are unaffected.
+MatrixFormatSchema = Annotated[
+    Union[MatrixFormatTableSchema, MatrixFormatCarouselSchema],
+    Field(discriminator="type"),
+]
+
+
+class MatrixPreselectionRule(HumanizeSchemaBase):
+    """The column preselected for the rows a selector picks out."""
+
+    # Required, with no default. "Every row" is a claim about the design, not a
+    # fallback: an author who has not said which rows they mean has not finished
+    # writing the rule, and a defaulted catch-all would silently swallow the case
+    # where they meant to name only some. It also keeps stored configs
+    # self-describing under any serializer, rather than relying on defaults being
+    # emitted.
+    match: Selector
+    option: OptionTarget
+
+
+class MatrixPreselection(HumanizeSchemaBase):
+    """Cells checked before the respondent touches the grid.
+
+    Rules are tried in order and the first match wins, so a config reads like a
+    routing table: the specific rows first, the catch-all last. First-match rather
+    than last-match because a row then belongs to exactly one rule, which is what
+    makes a filled grid explainable after the fact — with piped rows, the cells
+    two respondents were shown are not the same cells, and "which rule did this"
+    is the only way to reconstruct either.
+
+    A target naming no option fills nothing rather than raising: a matrix's
+    columns can be piped, so the author cannot always know at authoring time that
+    the text will be there, and a survey must not fail in front of a respondent
+    over it. Where the columns are literal the same mistake is caught at save time
+    instead, while the author can still fix it.
+
+    A rule whose target misses leaves its cells empty rather than falling through
+    to the next rule, or a row's exception would silently inherit the catch-all it
+    was written to override.
+    """
+
+    rules: Annotated[list[MatrixPreselectionRule], Field(min_length=1)]
+
+    @model_validator(mode="after")
+    def _no_rules_after_catch_all(self) -> "MatrixPreselection":
+        # An `all` selector matches every remaining row, so anything behind it can
+        # never be reached — today that means exactly one rule, since `all` is the
+        # only selector there is. Almost always a rule list written in the wrong
+        # order, and silently dropping the author's exceptions is the worst way to
+        # find out.
+        for position, rule in enumerate(self.rules[:-1]):
+            if rule.match.type == "all":
+                raise ValueError(
+                    f"Rule {position + 1} matches every item, leaving the rules "
+                    "after it unreachable; put the catch-all last."
+                )
+        return self
+
+
 class MatrixHumanizeSchema(QuestionHumanizeSchemaBase):
     """Humanize options for the matrix question type."""
 
     optional: bool = False
+    format: MatrixFormatSchema = Field(default_factory=MatrixFormatTableSchema)
+    # Cells filled in before the respondent arrives. None means an empty grid —
+    # what every matrix rendered before this field existed, so stored configs are
+    # unaffected.
+    preselection: Optional[MatrixPreselection] = None
     comment: Optional[CommentConfig] = None
     submitting_indicator: Optional[SubmittingIndicator] = None
 
@@ -528,6 +780,14 @@ class YesNoHumanizeSchema(QuestionHumanizeSchemaBase):
     submitting_indicator: Optional[SubmittingIndicator] = None
 
 
+class SurveyMessageHumanizeSchema(QuestionHumanizeSchemaBase):
+    """Humanize marker for a display-only SurveyMessage.
+
+    Messages intentionally expose no input-oriented configuration. The client
+    chooses Continue or Finish from the message's position in the survey.
+    """
+
+
 HumanizeQuestionSchema = Union[
     FreeTextHumanizeSchema,
     BudgetHumanizeSchema,
@@ -535,6 +795,7 @@ HumanizeQuestionSchema = Union[
     CheckboxWithOtherHumanizeSchema,
     ComputeHumanizeSchema,
     FileUploadHumanizeSchema,
+    ImageGenerationHumanizeSchema,
     InterviewHumanizeSchema,
     LikertHumanizeSchema,
     LinearScaleHumanizeSchema,
@@ -546,6 +807,7 @@ HumanizeQuestionSchema = Union[
     RankHumanizeSchema,
     TopKHumanizeSchema,
     YesNoHumanizeSchema,
+    SurveyMessageHumanizeSchema,
 ]
 
 
@@ -566,6 +828,7 @@ QUESTION_TYPE_TO_HUMANIZE_CLASS: Dict[str, Type[BaseModel]] = {
     "checkbox_with_other": CheckboxWithOtherHumanizeSchema,
     "compute": ComputeHumanizeSchema,
     "file_upload": FileUploadHumanizeSchema,
+    "image_generation": ImageGenerationHumanizeSchema,
     "interview": InterviewHumanizeSchema,
     "likert_five": LikertHumanizeSchema,
     "linear_scale": LinearScaleHumanizeSchema,
@@ -577,7 +840,41 @@ QUESTION_TYPE_TO_HUMANIZE_CLASS: Dict[str, Type[BaseModel]] = {
     "rank": RankHumanizeSchema,
     "top_k": TopKHumanizeSchema,
     "yes_no": YesNoHumanizeSchema,
+    "survey_message": SurveyMessageHumanizeSchema,
 }
+
+
+def _validate_preselection_targets(
+    question_name: str,
+    question: QuestionBase,
+    question_schema: BaseModel,
+) -> None:
+    """Reject a preselection naming a column the question does not have.
+
+    Only checkable when ``question_options`` is a literal list. A matrix whose
+    columns are a template string has nothing to compare against until a
+    respondent has answered the question they pipe from, so the mismatch is left
+    to the runtime miss policy — which fills nothing and raises nothing, because a
+    survey must not fail in front of a respondent over it.
+
+    That policy is exactly why this check earns its place: where the columns *are*
+    literal, a typo would otherwise be a silent no-op that previews fine and
+    preselects nothing in the field.
+    """
+    preselection = getattr(question_schema, "preselection", None)
+    if preselection is None:
+        return
+    options = getattr(question, "question_options", None)
+    if not isinstance(options, list):
+        return
+    option_texts = {str(option) for option in options}
+    for position, rule in enumerate(preselection.rules):
+        if rule.option.type == "text" and rule.option.value not in option_texts:
+            raise HumanizeSchemaValidationError(
+                f"Preselection rule {position + 1} for question {question_name!r} "
+                f"names option {rule.option.value!r}, which is not one of that "
+                "question's options."
+            )
 
 
 def validate_humanize_schema(
@@ -626,6 +923,10 @@ def validate_humanize_schema(
             )
         raw_entry = raw_questions.get(question_name)
         try:
-            model_class.model_validate(raw_entry)
+            validated_entry = model_class.model_validate(raw_entry)
         except ValidationError as e:
             raise HumanizeSchemaValidationError(str(e)) from e
+        # Checked here rather than on the model, which sees the entry alone: whether
+        # an option exists is a fact about the question, and only this function has
+        # both halves.
+        _validate_preselection_targets(question_name, q, validated_entry)

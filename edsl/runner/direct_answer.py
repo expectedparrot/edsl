@@ -25,6 +25,7 @@ class DirectAnswerEntry:
     scenario: Any  # EDSL Scenario object
     job_id: str | None = None
     interview_id: str | None = None
+    item_randomization_seed: int | None = None
 
 
 class DirectAnswerRegistry:
@@ -135,8 +136,9 @@ class DirectAnswerRegistry:
         that returns either the answer directly or a dict with "answer" and
         optional "comment" keys.
         """
+        question = self._question_for_interview(entry)
         result = await self._maybe_await(
-            entry.agent.answer_question_directly(entry.question, entry.scenario)
+            entry.agent.answer_question_directly(question, entry.scenario)
         )
         # Handle dicts with answer and comment keys - this is used for humanize
         # to turn responses into results
@@ -155,6 +157,25 @@ class DirectAnswerRegistry:
             "input_tokens": 0,
             "output_tokens": 0,
         }
+
+    def _question_for_interview(self, entry: DirectAnswerEntry):
+        """Return an isolated question with this interview's resolved row order."""
+        if not self._job_service or not entry.job_id or not entry.interview_id:
+            return entry.question
+        question = entry.question.duplicate()
+        current_answers = self._job_service._gather_current_answers(
+            entry.job_id, entry.interview_id
+        )
+        question_data = question.to_dict(add_edsl_version=False)
+        items = self._job_service._resolve_question_items(
+            question_data,
+            current_answers,
+            entry.scenario,
+            entry.item_randomization_seed,
+        )
+        if isinstance(items, list) and hasattr(question, "question_items"):
+            question.question_items = items
+        return question
 
     async def _execute_functional(self, entry: DirectAnswerEntry) -> dict:
         """

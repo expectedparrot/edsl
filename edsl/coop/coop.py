@@ -33,6 +33,7 @@ if TYPE_CHECKING:
     from ..scenarios.contrib.qr_code import QRCode
     from ..surveys import Survey
     from ..results import Results
+    from ..tasks import TaskHistory
 
 from .exceptions import (
     CoopInvalidURLError,
@@ -112,6 +113,21 @@ class RemoteInferenceResponse(TypedDict):
     version: str
     visibility: VisibilityType
     results_url: str
+
+
+class ErrorReportTaskHistory(TypedDict):
+    # Bumped when the shape of this response changes
+    schema_version: str
+    job_uuid: str
+    results_uuid: Optional[str]
+    error_report_uuid: str
+
+    # False when the error report was stored without a task history, in which
+    # case task_history holds an empty one
+    has_task_history: bool
+
+    # A TaskHistory.to_dict() payload, deserializable with TaskHistory.from_dict
+    task_history: dict
 
 
 class RemoteInferenceCreationInfo(TypedDict):
@@ -2738,6 +2754,59 @@ class Coop(CoopFunctionsMixin):
                 f.write(report)
         return report
 
+    def get_error_report_task_history(
+        self,
+        job_uuid: Union[str, UUID],
+        as_object: bool = False,
+    ) -> Union[ErrorReportTaskHistory, "TaskHistory"]:
+        """
+        Retrieve the raw task history for the most recent error report on a job.
+
+        This is the structured counterpart to :meth:`get_error_report_markdown`,
+        for callers that want to inspect exceptions programmatically instead of
+        reading a rendered report.
+
+        Parameters:
+            job_uuid (Union[str, UUID]): The UUID of the remote inference job.
+            as_object (bool): If True, return the task history deserialized into a
+                TaskHistory object instead of the raw response.
+
+        Returns:
+            ErrorReportTaskHistory: The response envelope, containing the
+                schema version, job/results/error report UUIDs and the task history.
+            TaskHistory: If ``as_object`` is True.
+
+        Raises:
+            CoopServerResponseError: If the server returns an error (e.g., the job
+                does not exist, has no error report, or belongs to another user).
+
+        Notes:
+            A task history can hold prompts, agent traits, scenarios, raw model
+            responses and tracebacks, so treat it as sensitive.
+
+            ``has_task_history`` is False when the error report was stored without
+            one; ``task_history`` is then an empty task history rather than null.
+
+        Example:
+            >>> response = coop.get_error_report_task_history(job_uuid)
+            >>> response["task_history"]["interviews"][0]["exceptions"].keys()
+            >>> task_history = coop.get_error_report_task_history(job_uuid, as_object=True)
+            >>> task_history.has_exceptions
+        """
+        response = self._send_server_request(
+            uri=f"api/v0/remote-inference/job/{job_uuid}/error-report/task-history",
+            method="GET",
+        )
+        self._resolve_server_response(response)
+        content = response.json()
+
+        if as_object:
+            from ..tasks import TaskHistory
+
+            return TaskHistory.from_dict(content.get("task_history"))
+
+        return content
+
     def get_running_jobs(self) -> List[str]:
         """
         Get a list of currently running job IDs.
@@ -2786,10 +2855,9 @@ class Coop(CoopFunctionsMixin):
         )
         self._resolve_server_response(response)
         response_json = response.json()
-        return {
-            "credits_hold": response_json.get("cost_in_credits"),
-            "usd": response_json.get("cost_in_usd"),
-        }
+        from ..jobs.cost_estimate_contract import apply_cost_estimate_contract
+
+        return apply_cost_estimate_contract(job, response_json)
 
     ################
     # HUMAN SURVEYS
@@ -4360,15 +4428,54 @@ class Coop(CoopFunctionsMixin):
     def get_human_survey_responses(
         self,
         human_survey_uuid: str,
+        *,
+        started_after: Optional[Union[str, datetime]] = None,
+        started_before: Optional[Union[str, datetime]] = None,
     ) -> Union["Results", "ScenarioList"]:
         """
         Return a Results object with the responses for a human survey.
 
+        By default this pulls every completed response. Pass ``started_after`` and/or
+        ``started_before`` to narrow it to the responses started within a window - a
+        response is "started" when the respondent opened the survey, not when they
+        submitted it. Both bounds are inclusive.
+
+        Parameters:
+            human_survey_uuid (str): The UUID of the human survey.
+            started_after: Only include responses started at or after this time.
+                A timezone-aware datetime, or an ISO 8601 string.
+            started_before: Only include responses started at or before this time.
+                A timezone-aware datetime, or an ISO 8601 string.
+
         If generating the Results object fails, a ScenarioList will be returned instead.
+
+        Example:
+            >>> from datetime import datetime, timezone
+            >>> coop.get_human_survey_responses(
+            ...     survey_uuid,
+            ...     started_after=datetime(2026, 9, 1, tzinfo=timezone.utc),
+            ... )
         """
+        params: Dict[str, Any] = {}
+        if started_after is not None:
+            if isinstance(started_after, datetime):
+                self._human_survey_datetime_must_be_tz_aware(
+                    started_after, "started_after"
+                )
+                started_after = started_after.isoformat()
+            params["started_after"] = started_after
+        if started_before is not None:
+            if isinstance(started_before, datetime):
+                self._human_survey_datetime_must_be_tz_aware(
+                    started_before, "started_before"
+                )
+                started_before = started_before.isoformat()
+            params["started_before"] = started_before
+
         response = self._send_server_request(
             uri=f"api/v0/human-surveys/{human_survey_uuid}/responses",
             method="GET",
+            params=params or None,
         )
         self._resolve_server_response(response)
         response_json = response.json()

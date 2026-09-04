@@ -7,7 +7,6 @@ import sys
 import time
 from contextlib import redirect_stdout
 from io import StringIO
-from pathlib import Path
 from typing import Optional
 
 import click
@@ -21,7 +20,6 @@ from edsl.cli_shared import (
     load_any_object,
     output,
     raw_output_written,
-    read_json_file,
     save_results,
 )
 
@@ -40,6 +38,9 @@ def register(app: click.Group) -> None:
     @click.option("--scenario_list", default=None, help="Path to ScenarioList JSON.")
     @click.option("--model_list", default=None, help="Path to ModelList JSON.")
     @click.option("--model", "-m", default=None, help="Model name.")
+    @click.option("--service", default=None, help="Inference service for --model.")
+    @click.option("--base-url", default=None, help="Base URL for an OpenAI-compatible --model endpoint.")
+    @click.option("--api-key-env", default=None, help="Environment variable containing the endpoint API key.")
     @click.option("--type", "-t", "qtype", default="free_text", help="Question type.")
     @click.option("--options", default=None, help="JSON array for MC/checkbox.")
     @click.option("--name", default=None, help="Question name.")
@@ -55,14 +56,17 @@ def register(app: click.Group) -> None:
     @click.option("--fresh", is_flag=True, default=False, help="Ignore cache.")
     @click.option("--n", "-n", "iterations", default=1, type=int, show_default=True, help="Number of iterations per question/scenario/agent/model combination.")
     @click.option("--local", is_flag=True, default=False, help="Disable remote inference and run locally.")
+    @click.option("--allow-partial", is_flag=True, default=False, help="Save and return usable partial remote results.")
+    @click.option("--max-concurrency", default=None, type=click.IntRange(min=1), help="Maximum concurrent local interviews.")
+    @click.option("--api-timeout", default=None, type=click.FloatRange(min=0.001), help="Local model API timeout in seconds.")
     @click.option("--save", default=None, help="Save Results JSON to file.")
     @click.option("--output", "-o", "output_path", default=None, help="Save Results to a file or .ep package.")
     @click.argument("input_path", required=False, type=click.Path(exists=True))
     def run(jobs, survey, json_data, question, agent_list, scenario_list,
-            model_list, model, qtype, options, name, progress, background,
+            model_list, model, service, base_url, api_key_env, qtype, options, name, progress, background,
             wait, poll_interval, timeout, task_timeout, remote_inference_description,
             remote_inference_results_visibility, results_description, fresh,
-            iterations, local, save, output_path, input_path):
+            iterations, local, allow_partial, max_concurrency, api_timeout, save, output_path, input_path):
         """Run question(s) and get results.
 
         \b
@@ -86,6 +90,8 @@ def register(app: click.Group) -> None:
         if model and model_list:
             error("USAGE_ERROR", "--model and --model_list are mutually exclusive.",
                    exit_code=EXIT_USAGE)
+        if (service or base_url or api_key_env) and not model:
+            error("USAGE_ERROR", "--service, --base-url, and --api-key-env require --model.", exit_code=EXIT_USAGE)
         if wait and not background:
             error("USAGE_ERROR", "--wait requires --background.",
                    exit_code=EXIT_USAGE)
@@ -189,10 +195,15 @@ def register(app: click.Group) -> None:
                     scenarios=job.scenarios,
                 )
             if model:
+                connection_kwargs = {}
+                if base_url:
+                    connection_kwargs["base_url"] = base_url
+                if api_key_env:
+                    connection_kwargs["api_key_env"] = api_key_env
                 job = Jobs(
                     survey=job.survey,
                     agents=job.agents,
-                    models=[ModelClass(model)],
+                    models=[ModelClass(model, service_name=service, **connection_kwargs)],
                     scenarios=job.scenarios,
                 )
         except SystemExit:
@@ -219,35 +230,93 @@ def register(app: click.Group) -> None:
                    exit_code=EXIT_USAGE)
 
         envelope_warnings = []
+        from edsl.config import CONFIG
+        original_api_timeout = CONFIG.EDSL_API_TIMEOUT
         try:
-            stdout_buffer = StringIO()
-            with redirect_stdout(stdout_buffer):
-                results_obj = job.run(
-                    progress_bar=progress,
-                    background=background,
-                    remote_inference_description=remote_inference_description,
-                    remote_inference_results_visibility=remote_inference_results_visibility,
-                    results_description=results_description,
-                    task_timeout=task_timeout,
-                    fresh=fresh,
-                    n=iterations,
-                    disable_remote_inference=local,
-                    verbose=False,
-                )
-            captured_stdout = stdout_buffer.getvalue().strip()
-            if captured_stdout:
-                envelope_warnings.append(
-                    {
-                        "code": "SUPPRESSED_STDOUT",
-                        "message": "Output emitted during job execution was captured to keep stdout as a single JSON envelope.",
-                        "output": captured_stdout,
-                    }
-                )
-        except Exception as e:
-            error("RUN_ERROR", f"Job execution failed: {e}", exit_code=EXIT_ERROR)
+            if api_timeout is not None:
+                CONFIG.EDSL_API_TIMEOUT = str(api_timeout)
+            try:
+                stdout_buffer = StringIO()
+                with redirect_stdout(stdout_buffer):
+                    results_obj = job.run(
+                        progress_bar=progress,
+                        background=background,
+                        remote_inference_description=remote_inference_description,
+                        remote_inference_results_visibility=remote_inference_results_visibility,
+                        results_description=results_description,
+                        task_timeout=task_timeout,
+                        fresh=fresh,
+                        n=iterations,
+                        disable_remote_inference=local,
+                        verbose=False,
+                        max_concurrency=max_concurrency,
+                    )
+                captured_stdout = stdout_buffer.getvalue().strip()
+                if captured_stdout:
+                    envelope_warnings.append(
+                        {
+                            "code": "SUPPRESSED_STDOUT",
+                            "message": "Output emitted during job execution was captured to keep stdout as a single JSON envelope.",
+                            "output": captured_stdout,
+                        }
+                    )
+            except Exception as e:
+                error("RUN_ERROR", f"Job execution failed: {e}", exit_code=EXIT_ERROR)
+        finally:
+            CONFIG.EDSL_API_TIMEOUT = original_api_timeout
 
         saved = None
         result_count = 0 if background else _safe_len(results_obj)
+        remote_status = None
+        if not background and not local:
+            try:
+                remote_status = _remote_status_from_results(results_obj)
+            except Exception as e:
+                recovery_details = {"status_error": str(e)}
+                if save or output_path:
+                    try:
+                        saved = save_results(results_obj, output_path or save)
+                        recovery_details["saved"] = saved
+                    except Exception as save_error:
+                        recovery_details["save_error"] = str(save_error)
+                error(
+                    "REMOTE_STATUS_UNAVAILABLE",
+                    "Remote inference finished, but its authoritative status could not be verified.",
+                    suggestion="Check the remote job status before using the saved Results.",
+                    details=[recovery_details],
+                    exit_code=EXIT_ERROR,
+                )
+            if remote_status is not None:
+                status = str(remote_status.get("status") or "").lower()
+                counts = _remote_interview_counts(remote_status, result_count)
+                if status in {"failed", "cancelled", "canceled"} or (
+                    status in {"partial_failed", "partially_failed"}
+                    and (counts["completed_interviews"] == 0 or not allow_partial)
+                ):
+                    error(
+                        "REMOTE_JOB_PARTIAL_FAILED"
+                        if status in {"partial_failed", "partially_failed"}
+                        else "REMOTE_JOB_FAILED",
+                        "Remote inference produced no successful interviews."
+                        if counts["completed_interviews"] == 0
+                        else "Remote inference did not complete successfully.",
+                        suggestion=(
+                            "Retrieve the exception report with "
+                            f"ep jobs errors {remote_status.get('job_uuid')} --output error.md."
+                        ),
+                        details=[_remote_failure_details(remote_status, counts)],
+                        exit_code=EXIT_ERROR,
+                    )
+                if status in {"partial_failed", "partially_failed"}:
+                    envelope_warnings.append(
+                        {
+                            "code": "REMOTE_PARTIAL_RESULTS",
+                            "message": (
+                                f"Remote inference completed {counts['completed_interviews']} "
+                                f"of {counts['total_interviews']} interviews."
+                            ),
+                        }
+                    )
 
         # Save if requested
         if (save or output_path) and not background:
@@ -285,6 +354,27 @@ def register(app: click.Group) -> None:
                         return
         if saved is not None:
             meta["saved"] = saved
+        if remote_status is not None:
+            meta["remote_job"] = jsonable(remote_status)
+
+        if not background:
+            task_history = getattr(results_obj, "task_history", None)
+            failed_count = len(getattr(task_history, "unfixed_exceptions", []) or [])
+            if remote_status is not None and str(
+                remote_status.get("status") or ""
+            ).lower() in {"partial_failed", "partially_failed"}:
+                counts = _remote_interview_counts(remote_status, result_count)
+                failed_count = counts["failed_interviews"]
+                result_count = counts["total_interviews"]
+                meta["result_count"] = result_count
+            meta["run_status"] = "partial" if failed_count else "complete"
+            meta["failed_interview_count"] = failed_count
+            meta["completed_interview_count"] = max(result_count - failed_count, 0)
+            if failed_count:
+                envelope_warnings.append({
+                    "code": "PARTIAL_RESULTS",
+                    "message": f"{failed_count} of {result_count} interviews had unfixed exceptions.",
+                })
 
         output({"results": [], "meta": meta}, warnings=envelope_warnings)
 
@@ -398,6 +488,48 @@ def register(app: click.Group) -> None:
             return len(obj)
         except Exception:
             return None
+
+
+    def _remote_status_from_results(results_obj) -> Optional[dict]:
+        results_uuid = getattr(results_obj, "results_uuid", None)
+        job_uuid = getattr(results_obj, "job_uuid", None) or getattr(
+            results_obj, "_job_uuid", None
+        )
+        if not (results_uuid or job_uuid):
+            return None
+        from edsl.coop import Coop
+
+        lookup = {"results_uuid": results_uuid} if results_uuid else {"job_uuid": job_uuid}
+        return dict(Coop().remote_inference_get(**lookup))
+
+
+    def _remote_interview_counts(status_data: dict, fallback_total: int) -> dict:
+        details = status_data.get("latest_job_run_details", {}) or {}
+        interview_details = details.get("interview_details", {}) or {}
+        total = interview_details.get("total_interviews")
+        completed = interview_details.get("completed_interviews")
+        with_exceptions = interview_details.get("interviews_with_exceptions") or 0
+        total = fallback_total if total is None else total
+        completed = 0 if completed is None else completed
+        successful = max(completed - with_exceptions, 0)
+        return {
+            "total_interviews": total,
+            "completed_interviews": successful,
+            "failed_interviews": max(total - successful, 0),
+        }
+
+
+    def _remote_failure_details(status_data: dict, counts: dict) -> dict:
+        latest = status_data.get("latest_job_run_details", {}) or {}
+        return {
+            "job_uuid": status_data.get("job_uuid"),
+            "results_uuid": status_data.get("results_uuid"),
+            **counts,
+            "cost_usd": latest.get("cost_usd"),
+            "error_report_uuid": latest.get("error_report_uuid"),
+            "error_report_url": latest.get("error_report_url"),
+            "remote_status": status_data.get("status"),
+        }
 
 
     def _build_job(input_mode, input_path, jobs_path, survey_path, json_str, stdin_data,

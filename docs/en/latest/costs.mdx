@@ -92,6 +92,28 @@ This will return:
 {'credits_hold': 0.1, 'usd': 0.001}
 ```
 
+### Reasoning-model uncertainty
+
+Reasoning-token usage depends on the workload and may not be included in a server point estimate. For reasoning models, EDSL labels the returned amount as a lower bound instead of presenting it as an exact prediction. Inspect `estimate_kind`, `warnings`, and the `assumptions.reasoning_tokens` object before using an estimate as a budget:
+
+```bash
+ep jobs cost jobs.ep
+```
+
+```json
+{
+  "usd": 0.01,
+  "credits_hold": 1.0,
+  "estimate_kind": "lower_bound",
+  "lower_bound_usd": 0.01,
+  "expected_usd": null,
+  "upper_bound_usd": null,
+  "warnings": ["The server point estimate does not specify a reasoning-token assumption..."]
+}
+```
+
+`null` expected or upper values mean EDSL does not have enough information to produce those bounds; they do not mean zero additional cost. If the server supplies a richer range, EDSL preserves that range and its assumptions.
+
 ## Calculations
 
 The above-mentioned methods use the following calculation for each question in a survey to estimate the total cost of the job:
@@ -102,10 +124,11 @@ The above-mentioned methods use the following calculation for each question in a
 	- Convert the number of characters into the number of input tokens using a conversion factor of 4 characters per token, rounding down to the nearest whole number. (This approximation was [established by OpenAI](https://help.openai.com/en/articles/4936856-what-are-tokens-and-how-to-count-them).)
 2. **Estimate the output tokens.**
 	- Apply a multiplier of 0.75 to the number of input tokens, rounding up to the nearest whole number.
-3. **Apply the token rates for the model and inference service.**
-	- Find the model and inference service for the question in the [Pricing](https://www.expectedparrot.com/getting-started/coop-pricing) page:
+3. **Apply the Expected Parrot rates for the model and inference service.**
+	- Find the model and inference service on the Expected Parrot [Pricing](https://www.expectedparrot.com/getting-started/coop-pricing) page. The rates listed there are used to calculate costs for jobs run using an Expected Parrot API key:
 		*Total cost = (input tokens * input token rate) + (output tokens * output token rate)*
-	- If the model is not found, a default price for the inference service provider is used. If both the model and the inference service provider are not found, the following fallback token rates are applied (you will also see a warning message that a model price was not found):
+	- Expected Parrot rates may differ from rates charged by the underlying service provider and do not necessarily reflect provider-specific discounts, promotions, time-based pricing, caching discounts, batch pricing, volume pricing, service tiers, or other specialized pricing mechanisms.
+	- If a current price for the model is not available, a default price for the inference service provider is used. If both the model and the inference service provider are not found, the following fallback token rates are applied (you will also see a warning message that a model price was not found):
 		- USD 1.00 per 1M input tokens
 		- USD 1.00 per 1M ouput tokens
 4. **Convert the total cost in USD to credits.**
@@ -115,7 +138,7 @@ Then sum the costs for all question prompts to get the total cost of the job. A 
 
 ## Tracking costs
 
-After running a survey job, you can track the actual token costs incurred for each question in the raw_model_response columns of the Results that are generated for your survey:
+After running a survey job, you can track the token costs calculated for each question in the raw_model_response columns of the Results generated for your survey:
 
 - **raw_model_response.&lt;question_name&gt;_cost**: The cost of the result for the relevant question, applying the token quanities & prices.
 - **raw_model_response.&lt;question_name&gt;_input_price_per_million_tokenss**: The price per million input tokens for the relevant question for the relevant model.

@@ -64,6 +64,7 @@ class InferenceServiceType(EnumWithChecks):
     GROQ = "groq"
     AZURE = "azure"
     OLLAMA = "ollama"
+    OPENAI_COMPATIBLE = "openai_compatible"
     MISTRAL = "mistral"
     TOGETHER = "together"
     PERPLEXITY = "perplexity"
@@ -87,6 +88,7 @@ InferenceServiceLiteral = Literal[
     "groq",
     "azure",
     "ollama",
+    "openai_compatible",
     "mistral",
     "together",
     "perplexity",
