@@ -2045,6 +2045,21 @@ q = QuestionBudget(
    budget_sum = 100
 )
 ```
+
+Use `remainder_option` when one category should receive any amount left unallocated by the response:
+
+```python
+q = QuestionBudget(
+    question_name="food_budget",
+    question_text="How would you allocate $100?",
+    question_options=["Meals", "Snacks", "Other"],
+    budget_sum=100,
+    remainder_option="Other",
+)
+```
+
+For example, `{"Meals": 60, "Snacks": 25, "Other": 0}` is repaired to allocate the remaining 15 to `"Other"`. Small floating-point overages are corrected against the same option, while material overallocations remain invalid. The option must exactly match an entry in the rendered `question_options`.
+
 An example can also be created using the example method:
 
 ```python
