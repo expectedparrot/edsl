@@ -110,6 +110,48 @@ def test_validation_failure_preserves_response_and_task_history(tmp_path):
     assert package_round_tripped[0]["validated_dict"]["budget_validated"] is False
 
 
+def test_completed_task_without_stored_answer_is_reported_as_failure():
+    question = QuestionFreeText(question_name="response", question_text="Respond?")
+    job = question.by(Model("test"))
+    storage = InMemoryStorage()
+    service = JobService(storage)
+    job_id, _, _ = service.submit_job(job, job_id="job")
+    interview_id = service.jobs.get_definition(job_id).interview_ids[0]
+    interview = service.interviews.get_definition(job_id, interview_id)
+    task_id = interview.task_ids[0]
+
+    service.on_task_completed(job_id, interview_id, task_id, "present")
+    answer_key = f"job:{job_id}:interview:{interview_id}:answer:response"
+    storage.delete_volatile(answer_key)
+    storage.delete_persistent(answer_key)
+
+    results = service.build_edsl_results(job_id)
+
+    assert results[0].answer["response"] is None
+    assert results.has_unfixed_exceptions
+    exception = results.task_history.to_dict()["interviews"][0]["exceptions"][
+        "response"
+    ][0]["exception"]
+    assert exception["type"] == "MissingCompletedTaskAnswerError"
+    assert task_id in exception["message"]
+
+
+def test_skipped_task_without_stored_answer_is_not_reported_as_failure():
+    question = QuestionFreeText(question_name="response", question_text="Respond?")
+    job = question.by(Model("test"))
+    storage = InMemoryStorage()
+    service = JobService(storage)
+    job_id, _, _ = service.submit_job(job, job_id="job")
+    interview_id = service.jobs.get_definition(job_id).interview_ids[0]
+    interview = service.interviews.get_definition(job_id, interview_id)
+
+    service.on_task_skipped(job_id, interview_id, interview.task_ids[0])
+    results = service.build_edsl_results(job_id)
+
+    assert results[0].answer["response"] is None
+    assert not results.has_unfixed_exceptions
+
+
 def test_failure_propagation_blocks_converging_dag_nodes_once():
     root = QuestionFreeText(question_name="root", question_text="Root?")
     left = QuestionCompute(question_name="left", question_text="{{ root.answer }}")

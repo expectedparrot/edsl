@@ -389,7 +389,12 @@ def register(jobs_group: click.Group) -> None:
                         models=[Model(model)],
                         scenarios=obj.scenarios,
                     )
-            output(jsonable(Coop().remote_inference_cost(obj, iterations=iterations)))
+            cost_data = Coop().remote_inference_cost(obj, iterations=iterations)
+            cost_warnings = [
+                {"code": "COST_ESTIMATE_UNCERTAIN", "message": message}
+                for message in (cost_data.get("warnings") or [])
+            ]
+            output(jsonable(cost_data), warnings=cost_warnings)
         except SystemExit:
             raise
         except Exception as e:
