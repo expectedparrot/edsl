@@ -23,6 +23,7 @@ maintaining a rich object model.
 
 from __future__ import annotations
 import inspect
+import math
 from collections import UserDict
 from typing import Any, Callable, Optional, TYPE_CHECKING, Union, List
 
@@ -37,6 +38,29 @@ if TYPE_CHECKING:
 
 QuestionName = str
 AnswerValue = Any
+
+
+def _validate_json_value(value: Any, path: str = "metadata") -> None:
+    """Raise TypeError when a value cannot be represented faithfully as JSON."""
+    if value is None or isinstance(value, (str, bool, int)):
+        return
+    if isinstance(value, float):
+        if not math.isfinite(value):
+            raise TypeError(f"{path} contains a non-finite float")
+        return
+    if isinstance(value, list):
+        for index, item in enumerate(value):
+            _validate_json_value(item, f"{path}[{index}]")
+        return
+    if isinstance(value, dict):
+        for key, item in value.items():
+            if not isinstance(key, str):
+                raise TypeError(f"{path} contains a non-string object key: {key!r}")
+            _validate_json_value(item, f"{path}.{key}")
+        return
+    raise TypeError(
+        f"{path} contains {type(value).__name__}, which is not JSON-compatible"
+    )
 
 
 class Result(Base, UserDict):
@@ -93,6 +117,7 @@ class Result(Base, UserDict):
         resolution_draw: Optional[dict[QuestionName, Any]] = None,
         resolution_seed: Optional[dict[QuestionName, int]] = None,
         resolution_method: Optional[dict[QuestionName, str]] = None,
+        metadata: Optional[dict[str, Any]] = None,
     ):
         """Initialize a Result object.
 
@@ -113,12 +138,20 @@ class Result(Base, UserDict):
             indices: Dictionary of indices for data organization. Defaults to None.
             cache_keys: Dictionary of cache keys for each question. Defaults to None.
             validated_dict: Dictionary indicating validation status for each question. Defaults to None.
+            metadata: Arbitrary JSON-compatible result-level metadata, such as
+                collection timestamps, browser context, or navigation history.
+                Defaults to an empty dictionary.
         """
         if not question_to_attributes:
             if survey:
                 question_to_attributes = survey.question_to_attributes()
             else:
                 question_to_attributes = {}
+
+        metadata = metadata or {}
+        if not isinstance(metadata, dict):
+            raise TypeError("metadata must be a JSON object")
+        _validate_json_value(metadata)
 
         data = {
             "agent": agent,
@@ -139,6 +172,7 @@ class Result(Base, UserDict):
             "resolution_draw": resolution_draw or {},
             "resolution_seed": resolution_seed or {},
             "resolution_method": resolution_method or {},
+            "metadata": metadata,
         }
         super().__init__(**data)
         self.indices = indices
@@ -263,6 +297,7 @@ class Result(Base, UserDict):
             "resolution_draw": filter_keys(self.data.get("resolution_draw", {})),
             "resolution_seed": filter_keys(self.data.get("resolution_seed", {})),
             "resolution_method": filter_keys(self.data.get("resolution_method", {})),
+            "metadata": self.data.get("metadata", {}),
         }
 
         return Result(**new_data, indices=self.indices)
@@ -363,6 +398,7 @@ class Result(Base, UserDict):
             "validated_dict": rename_keys(
                 self.data.get("validated_dict", {}), handle_prefixes=True
             ),
+            "metadata": self.data.get("metadata", {}),
         }
 
         return Result(**new_data, indices=self.indices)
@@ -470,6 +506,11 @@ class Result(Base, UserDict):
     def answer(self) -> dict[QuestionName, AnswerValue]:
         """Return the answers."""
         return self.data["answer"]
+
+    @property
+    def metadata(self) -> dict[str, Any]:
+        """Return arbitrary JSON-compatible metadata for this result."""
+        return self.data["metadata"]
 
     def check_expression(self, expression: str) -> None:
         """Check if an expression references a problematic key.

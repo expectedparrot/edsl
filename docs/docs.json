@@ -61,6 +61,7 @@
         "group": "Working with Results",
         "pages": [
           "en/latest/results",
+          "en/latest/result_metadata",
           "en/latest/dataset",
           "en/latest/data",
           "en/latest/exceptions",
@@ -72,6 +73,7 @@
         "group": "Validating with Humans",
         "pages": [
           "en/latest/humanize",
+          "en/latest/humanize_navigation",
           "en/latest/humanize_schema",
           "en/latest/humanize_notifications",
           "en/latest/custom_css",
