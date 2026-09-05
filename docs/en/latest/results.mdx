@@ -94,6 +94,10 @@ This will count 2 (scenarios) x 2 (agents) x 2 (models) = 8 Result objects:
 8
 ```
 
+## Attaching result metadata
+
+Pass a JSON-compatible `metadata` dictionary when constructing a `Result` to attach collection details or navigation history to an interview. Query these values with `results.select("metadata.*")`. See [Result metadata](/en/latest/result_metadata) for examples and serialization behavior introduced in PR #2577.
+
 ## Generating multiple results
 
 If we want to generate multiple results for a survey–i.e., more than 1 result for each combination of Agent, Model and Scenario objects used–we can pass the desired number of iterations when calling the run() method. For example, the following code will generate 3 results for our survey (n=3):

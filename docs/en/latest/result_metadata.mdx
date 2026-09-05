@@ -1,0 +1,100 @@
+---
+title: "Result metadata"
+description: "Attach JSON-compatible metadata to individual results, query it, and preserve it in saved packages."
+---
+
+Each `Result` can hold a `metadata` dictionary alongside its answers. Use it for collection details, study tags, or navigation history associated with that interview.
+
+<Note>
+This API is introduced in [PR #2577](https://github.com/expectedparrot/edsl/pull/2577). The examples require an EDSL version containing the change. Per-result metadata is separate from a remote object's description, visibility, and other sharing metadata.
+</Note>
+
+## Create a result with metadata
+
+This example constructs a result locally without making model calls:
+
+```python
+from edsl import Agent, Scenario, Survey, QuestionFreeText
+from edsl.language_models import LanguageModel
+from edsl.results import Result, Results
+
+survey = Survey([
+    QuestionFreeText(question_name="feedback", question_text="Any feedback?"),
+])
+result = Result(
+    agent=Agent.example(),
+    scenario=Scenario({}),
+    model=LanguageModel.example(),  # Example object; no inference is performed.
+    iteration=0,
+    survey=survey,
+    answer={"feedback": "More examples, please."},
+    metadata={
+        "collection": {"wave": 2, "source": "pilot"},
+        "tags": ["reviewed", "complete"],
+    },
+)
+results = Results(survey=survey, data=[result])
+
+assert result.metadata["collection"]["wave"] == 2
+assert result["metadata"] == result.metadata
+```
+
+Metadata defaults to an empty dictionary. Its values may contain strings, booleans, integers, finite floats, `None`, lists, and nested dictionaries with string keys. Convert dates to strings and other custom objects to JSON-compatible values before attaching them. Sets, tuples, non-string dictionary keys, and non-finite floats are rejected with `TypeError` during construction.
+
+## Select metadata alongside answers
+
+Top-level metadata keys become columns under `metadata.*`:
+
+```python
+assert results.select("metadata.collection").to_list() == [
+    {"wave": 2, "source": "pilot"}
+]
+results.select("answer.feedback", "metadata.tags").print()
+```
+
+Selecting a nested object returns that object as a column value. For example, select `metadata.collection`, then read `value["wave"]`; this API does not flatten every nested key into its own column.
+
+## Save and restore
+
+Metadata survives dictionary serialization and `.ep` package round trips:
+
+```python
+restored_result = Result.from_dict(result.to_dict())
+assert restored_result.metadata == result.metadata
+
+results.git.save("feedback-results.ep")
+loaded = Results.git.load("feedback-results.ep")
+assert loaded.first().metadata == result.metadata
+```
+
+Older serialized results without a metadata field load with an empty dictionary. Metadata is preserved when selecting or renaming questions, and remote result reconstruction carries through metadata supplied in the response. Metadata remains opaque JSON: dictionaries that resemble serialized EDSL objects are not converted into those objects.
+
+## Preserve a local session's navigation history
+
+`SurveySession` exposes active answers and audit metadata separately. Starting from the survey above, explicitly combine them in a `Result`:
+
+```python
+session = survey.start_session(
+    humanize_schema={"survey": {"navigation": {"back_button": True}}}
+)
+session.answer("feedback", "More examples, please.")
+session.forward()
+
+session_result = Result(
+    agent=Agent.example(),
+    scenario=Scenario({}),
+    model=LanguageModel.example(),
+    iteration=0,
+    survey=survey,
+    answer=session.final_answers(),
+    metadata=session.final_result_metadata(),
+)
+
+navigation = session_result.metadata["humanize_navigation"]
+assert navigation["events"][0]["event"] == "answer"
+assert navigation["inactive_answers"] == {}
+```
+
+`humanize_navigation` contains `events` and `inactive_answers`. Events record answer revisions and navigation actions; inactive answers retain values removed when a revised answer invalidates the later path. Only active answers appear in `session_result.answer`. History includes the recorded answer values, so it can retain answers that are no longer active.
+
+This attachment is explicit in the local API. The PR does not by itself establish that hosted Humanize responses automatically populate navigation metadata. See [Back navigation](/en/latest/humanize_navigation) for boundaries, branching, and session behavior.
