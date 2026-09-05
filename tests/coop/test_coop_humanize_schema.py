@@ -63,6 +63,22 @@ class TestValidateHumanizeSchemaGeneral:
         }
         validate_humanize_schema(survey, humanize_schema)
 
+    def test_valid_schema_with_group_presentation_passes(self):
+        """Humanize schema can request grouped survey presentation."""
+        survey = Survey(
+            [
+                QuestionFreeText(
+                    question_name="q1",
+                    question_text="How are you?",
+                ),
+            ]
+        )
+        humanize_schema = {
+            "questions": {"q1": {"optional": False}},
+            "survey": {"presentation": "group"},
+        }
+        validate_humanize_schema(survey, humanize_schema)
+
     def test_valid_schema_with_format_passes(self):
         """Humanize schema with format (radio/dropdown) for supported question type passes."""
         survey = Survey(
