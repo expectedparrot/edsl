@@ -106,6 +106,12 @@ preview_url = survey.preview(humanize_schema=schema)
 
 ---
 
+## Back navigation
+
+Use `humanize_schema={"survey": {"navigation": {"back_button": True}}}` to request Back navigation. Question-level `navigation.allow_back_past` controls boundaries. See [Back navigation](/en/latest/humanize_navigation) for a complete example, CLI controls, local sessions, and availability requirements.
+
+---
+
 ## With scenarios
 
 When using scenarios, call `.humanize()` on a `Jobs` object (not directly on the survey). You must specify a `scenario_list_method`.

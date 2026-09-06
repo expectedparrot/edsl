@@ -2995,6 +2995,12 @@ class Survey(Base):
         """
         return self._navigator.next_question_with_instructions(current_item, answers)
 
+    def start_session(self, humanize_schema=None):
+        """Start a stateful local session using human navigation policy."""
+        from .survey_session import SurveySession
+
+        return SurveySession(self, humanize_schema=humanize_schema)
+
     def next_question_group_with_instructions(
         self,
         current_item: Optional[Union[str, "QuestionBase", "Instruction"]] = None,

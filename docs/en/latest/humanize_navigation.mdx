@@ -1,0 +1,155 @@
+---
+title: "Back navigation"
+description: "Enable Back, set navigation boundaries, and inspect answer revisions in a local survey session."
+---
+
+Enable back navigation to let respondents revisit questions and revise answers. You can also mark a question as a boundary: respondents may return to it, but cannot move back to earlier questions.
+
+<Note>
+This guide describes [PR #2577](https://github.com/expectedparrot/edsl/pull/2577). Use an EDSL version containing that change. The PR adds schema controls, CLI options, and a local session API; hosted Back behavior also requires support in the Humanize application. Local session examples do not create a hosted survey.
+</Note>
+
+## Enable Back in a human survey
+
+Set `survey.navigation.back_button` to `True` in the humanize schema. Back is disabled by default.
+
+```python
+from edsl import Survey, QuestionFreeText
+
+survey = Survey([
+    QuestionFreeText(question_name="role", question_text="What is your role?"),
+    QuestionFreeText(question_name="rating", question_text="How was your experience?"),
+    QuestionFreeText(question_name="feedback", question_text="What could improve?"),
+])
+
+schema = {
+    "survey": {"navigation": {"back_button": True}},
+    "questions": {
+        "rating": {"navigation": {"allow_back_past": False}},
+    },
+}
+```
+
+In this example, the respondent can go back from `feedback` to `rating` and revise the rating. At `rating`, Back is unavailable, so they cannot return to `role`.
+
+| Current question | Back behavior |
+| --- | --- |
+| `role` | Unavailable: this is the first item |
+| `rating` | Unavailable: this question is a boundary |
+| `feedback` | Returns to `rating` |
+
+Preview the configuration, then use the same schema to create the human survey:
+
+```python
+print(survey.preview(humanize_schema=schema))
+```
+
+```python
+info = survey.humanize(
+    human_survey_name="Experience survey",
+    humanize_schema=schema,
+)
+print(info["respondent_url"])
+```
+
+`allow_back_past` defaults to `True`. Setting it to `False` creates a boundary; it does not lock the boundary question's answer. A boundary alone does not enable Back. These navigation fields require actual booleans (`True`/`False` in Python or `true`/`false` in JSON), and schema validation rejects unknown navigation fields.
+
+## Configure navigation with the CLI
+
+For an existing `survey.ep` containing the questions above:
+
+```bash
+ep humanize schema create --help
+ep humanize schema create --survey survey.ep \
+  --back-button --no-back-past rating --output navigation.json
+ep humanize schema validate --survey survey.ep --schema navigation.json
+ep humanize create --survey survey.ep --schema navigation.json \
+  --name "Experience survey"
+```
+
+Repeat `--no-back-past` to mark more than one boundary. Both controls are also available on `ep humanize schema set` for updating an existing human survey. Omitting `--back-button` does not disable a previously enabled setting; to disable it, supply a schema with `survey.navigation.back_button` set to `false`.
+
+CLI stdout is a JSON envelope. Check `status` and read `warnings` after each command; stop on an error before creating the human survey.
+
+## Try a session locally
+
+`survey.start_session(humanize_schema=...)` creates a stateful `SurveySession`. Starting a session does not collect responses remotely or run a model. Using the survey and schema above:
+
+```python
+session = survey.start_session(humanize_schema=schema)
+assert session.current_name == "role"
+session.answer("role", "Researcher")
+session.forward()
+session.answer("rating", "Good")
+session.forward()
+
+assert session.can_back()
+assert session.back().question_name == "rating"
+assert not session.can_back()
+session.answer("rating", "Excellent")
+session.forward()
+session.answer("feedback", "More examples")
+
+assert session.final_answers() == {
+    "role": "Researcher",
+    "rating": "Excellent",
+    "feedback": "More examples",
+}
+```
+
+Call `answer()` with the current question's name. It records the answer; call `forward()` separately to move on. The local session does not validate answer values or require an answer before advancing. Validate inputs in your renderer or collection code.
+
+## What changes when an answer is revised?
+
+Moving back alone preserves the visited path and its answers. Moving forward without changing an answer follows that path again.
+
+Changing an existing answer removes **all later visited items** from the active path and invalidates their answers, even if the revised answer would ultimately take the same branch. Moving forward then recomputes the route using survey rules. The respondent must answer later questions again.
+
+This example changes a commute answer after answering a follow-up:
+
+```python
+branching_survey = Survey([
+    QuestionFreeText(question_name="drive", question_text="Do you drive?"),
+    QuestionFreeText(question_name="car", question_text="Which car do you drive?"),
+    QuestionFreeText(question_name="transit", question_text="Which transit do you use?"),
+])
+branching_survey.add_rule("drive", "{{ drive.answer }} == 'no'", "transit")
+branching_survey.add_stop_rule("car", "True")
+
+branch = branching_survey.start_session(
+    humanize_schema={"survey": {"navigation": {"back_button": True}}}
+)
+branch.answer("drive", "no")
+assert branch.forward().question_name == "transit"
+branch.answer("transit", "bus")
+branch.back()
+branch.answer("drive", "yes")
+assert branch.forward().question_name == "car"
+
+assert branch.final_answers() == {"drive": "yes"}
+assert branch.inactive_answers()["transit"] == {
+    "answer": "bus",
+    "revision": 1,
+    "reason": "path_truncated",
+}
+```
+
+The old transit answer remains available for auditing, but is excluded from active answers. Answering that question again removes its entry from `inactive_answers()`. Every `answer()` call records a new revision, including a repeated value; only a changed value triggers downstream invalidation.
+
+## Session methods and history
+
+| Method or property | Returns or behavior |
+| --- | --- |
+| `current()` / `current_name` | Current question or instruction / its name; `EndOfSurvey` / `None` at the end |
+| `answer(name, value)` | Records a revision for the current question; raises `ValueError` for another question |
+| `forward()` | Moves to the next item, or returns `EndOfSurvey` |
+| `can_back()` | Whether Back is currently available |
+| `back()` | Returns the previous item; raises `RuntimeError` when unavailable |
+| `final_answers()` | Active answers keyed by question name, without the `.answer` suffix |
+| `navigation_history()` | Recorded `answer`, `forward`, `back`, and `invalidate` events |
+| `inactive_answers()` | Latest invalidated answer records, keyed by question name |
+| `final_result_metadata()` | History and inactive answers under `humanize_navigation` |
+
+Instructions appear as navigable items. Use `forward()` to advance past one without answering it. When Back is enabled, a local session can also return from `EndOfSurvey` to the last visited item; revising an answer there can change a stop-rule outcome. This does not imply that a submitted hosted response can be reopened.
+
+The `final_*` methods return snapshots of current state; they do not require completion or finalize the session. To preserve the navigation audit data, explicitly pass `session.final_result_metadata()` when constructing a `Result`. See [Result metadata](/en/latest/result_metadata) for an example.

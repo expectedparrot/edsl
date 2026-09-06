@@ -63,6 +63,24 @@ class TestValidateHumanizeSchemaGeneral:
         }
         validate_humanize_schema(survey, humanize_schema)
 
+    def test_navigation_schema_validation(self):
+        survey = Survey([QuestionFreeText(question_name="q1", question_text="Q")])
+        validate_humanize_schema(
+            survey,
+            {
+                "survey": {"navigation": {"back_button": True}},
+                "questions": {"q1": {"navigation": {"allow_back_past": False}}},
+            },
+        )
+
+        for schema in (
+            {"survey": {"navigation": {"unknown": True}}, "questions": {}},
+            {"questions": {"q1": {"navigation": {"unknown": True}}}},
+            {"questions": {"q1": {"navigation": {"allow_back_past": "false"}}}},
+        ):
+            with pytest.raises(HumanizeSchemaValidationError):
+                validate_humanize_schema(survey, schema)
+
     def test_valid_schema_with_format_passes(self):
         """Humanize schema with format (radio/dropdown) for supported question type passes."""
         survey = Survey(
@@ -426,8 +444,7 @@ class TestValidateHumanizeSchemaVoice:
             {"interview_mode": "voice", "voice_interview_config": {}}
         )
         assert (
-            parsed.voice_interview_config.language
-            == DEFAULT_VOICE_INTERVIEW_LANGUAGE
+            parsed.voice_interview_config.language == DEFAULT_VOICE_INTERVIEW_LANGUAGE
         )
 
     def test_voice_config_supported_language_passes(self):
@@ -462,8 +479,7 @@ class TestValidateHumanizeSchemaVoice:
             {"voice_interview_config": {"language": None}}
         )
         assert (
-            parsed.voice_interview_config.language
-            == DEFAULT_VOICE_INTERVIEW_LANGUAGE
+            parsed.voice_interview_config.language == DEFAULT_VOICE_INTERVIEW_LANGUAGE
         )
 
     def test_voice_config_unsupported_language_raises(self):
