@@ -73,6 +73,9 @@ class TestValidateHumanizeSchemaGeneral:
                 ),
             ]
         )
+        # A survey needs a group before it can be presented by group; see
+        # TestValidateGroupPresentation for what is checked once one is asked for.
+        survey.add_question_group("q1", "q1", "page_0")
         humanize_schema = {
             "questions": {"q1": {"optional": False}},
             "survey": {"presentation": "group"},
@@ -671,3 +674,130 @@ class TestStepsProgress:
             StepsProgress.model_validate(
                 {"steps": [{"complete_after": "q1"}, {"complete_after": "q1"}, {}]}
             )
+
+
+class TestValidateGroupPresentation:
+    """Checks that only apply under ``presentation: "group"``.
+
+    Each guards a failure that is silent at render time: a question that is never
+    served, an instruction nobody reads, or a page that cannot be submitted. They
+    exist so the author hears about it here, with the survey still unpublished,
+    rather than a respondent meeting it later.
+    """
+
+    GROUP = {"survey": {"presentation": "group"}}
+
+    @staticmethod
+    def _survey(names):
+        return Survey(
+            [QuestionFreeText(question_name=n, question_text=n) for n in names]
+        )
+
+    def test_well_formed_groups_pass(self):
+        survey = self._survey(["a", "b", "c", "d"])
+        survey.question_groups = {"g0": (0, 1), "g1": (2, 3)}
+        validate_humanize_schema(survey, self.GROUP)
+
+    def test_group_presentation_without_groups_raises(self):
+        """The one case with no legitimate reading: nothing to page by."""
+        survey = self._survey(["a", "b"])
+        with pytest.raises(HumanizeSchemaValidationError, match="no question groups"):
+            validate_humanize_schema(survey, self.GROUP)
+
+    def test_groups_are_ignored_when_presentation_is_not_group(self):
+        """Malformed groups are inert unless the schema asks to page by them."""
+        survey = self._survey(["a", "b", "c"])
+        survey.question_groups = {"g0": (0, 0)}  # b and c in no group
+        validate_humanize_schema(survey, {"questions": {}})
+
+    def test_uncovered_question_raises(self):
+        """A question in no group is never served and is recorded as skipped."""
+        survey = self._survey(["a", "b", "c", "d"])
+        survey.question_groups = {"g0": (0, 0), "g1": (3, 3)}
+        with pytest.raises(HumanizeSchemaValidationError, match="'b', 'c'"):
+            validate_humanize_schema(survey, self.GROUP)
+
+    def test_overlapping_groups_raise(self):
+        """Which page a shared question lands on would be settled by ordering."""
+        survey = self._survey(["a", "b", "c"])
+        survey.question_groups = {"g0": (0, 1), "g1": (1, 2)}
+        with pytest.raises(HumanizeSchemaValidationError, match="more than one"):
+            validate_humanize_schema(survey, self.GROUP)
+
+    def test_interview_sharing_a_page_raises(self):
+        """An interview fills the screen and ends itself; Next cannot submit it."""
+        survey = Survey(
+            [
+                QuestionFreeText(question_name="a", question_text="a"),
+                QuestionInterview(
+                    question_name="iv", question_text="t", interview_guide="g"
+                ),
+            ]
+        )
+        survey.question_groups = {"g0": (0, 1)}
+        with pytest.raises(HumanizeSchemaValidationError, match="page of its own"):
+            validate_humanize_schema(survey, self.GROUP)
+
+    def test_interview_alone_in_its_group_passes(self):
+        survey = Survey(
+            [
+                QuestionFreeText(question_name="a", question_text="a"),
+                QuestionInterview(
+                    question_name="iv", question_text="t", interview_guide="g"
+                ),
+            ]
+        )
+        survey.question_groups = {"g0": (0, 0), "g1": (1, 1)}
+        validate_humanize_schema(survey, self.GROUP)
+
+    def test_trailing_instruction_raises(self):
+        """An instruction past the last group has no page to appear on."""
+        survey = Survey(
+            [
+                QuestionFreeText(question_name="a", question_text="a"),
+                Instruction(name="outro", text="Thanks!"),
+            ]
+        )
+        survey.question_groups = {"g0": (0, 0)}
+        with pytest.raises(HumanizeSchemaValidationError, match="after the last"):
+            validate_humanize_schema(survey, self.GROUP)
+
+    def test_group_range_may_extend_to_catch_a_trailing_instruction(self):
+        """Instructions attach by pseudo-index, so a range past the last question
+        legitimately pulls a trailing one onto the final page."""
+        survey = Survey(
+            [
+                QuestionFreeText(question_name="a", question_text="a"),
+                Instruction(name="outro", text="Thanks!"),
+            ]
+        )
+        survey.question_groups = {"g0": (0, 1)}
+        validate_humanize_schema(survey, self.GROUP)
+
+    def test_leading_and_mid_survey_instructions_pass(self):
+        survey = Survey(
+            [
+                Instruction(name="intro", text="Welcome"),
+                QuestionFreeText(question_name="a", question_text="a"),
+                Instruction(name="mid", text="Part two"),
+                QuestionFreeText(question_name="b", question_text="b"),
+            ]
+        )
+        survey.question_groups = {"g0": (0, 0), "g1": (1, 1)}
+        validate_humanize_schema(survey, self.GROUP)
+
+    def test_instruction_on_a_background_only_group_raises(self):
+        """That group is run and passed over, taking the instruction with it."""
+        from edsl.questions import QuestionCompute
+
+        survey = Survey(
+            [
+                QuestionFreeText(question_name="a", question_text="a"),
+                Instruction(name="mid", text="Part two"),
+                QuestionCompute(question_name="c0", question_text="{{ 1 + 1 }}"),
+                QuestionFreeText(question_name="b", question_text="b"),
+            ]
+        )
+        survey.question_groups = {"g0": (0, 0), "g1": (1, 1), "g2": (2, 2)}
+        with pytest.raises(HumanizeSchemaValidationError, match="never be read"):
+            validate_humanize_schema(survey, self.GROUP)
