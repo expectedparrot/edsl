@@ -19,6 +19,7 @@ class QuestionType(EnumWithChecks):
     MULTIPLE_CHOICE = "multiple_choice"
     YES_NO = "yes_no"
     FREE_TEXT = "free_text"
+    URL = "url"
     RANK = "rank"
     BUDGET = "budget"
     CHECKBOX = "checkbox"
