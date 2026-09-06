@@ -8,9 +8,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 import hashlib
-import json
 from typing import Any, Mapping
 from uuid import uuid4
+
+from edsl._data_contracts import canonical_data
 
 from .dsl import Machine
 from .exceptions import SharedStateAuthoringError
@@ -20,7 +21,7 @@ from .refs import AnswerRef, ContextRef
 def canonical_json(value: Any) -> str:
     """Return a stable encoding suitable for identity and idempotency keys."""
 
-    return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+    return canonical_data(value)
 
 
 @dataclass(frozen=True)
@@ -171,6 +172,23 @@ class WriteOperation:
     runtime_context: Mapping[str, Any]
     idempotency_key: str
 
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "state_id": self.state_id,
+            "scope": self.scope.value,
+            "target": self.target,
+            "command": self.command,
+            "inputs": dict(self.inputs),
+            "step_id": self.step_id,
+            "execution_id": self.execution_id,
+            "runtime_context": dict(self.runtime_context),
+            "idempotency_key": self.idempotency_key,
+        }
+
+    @classmethod
+    def from_dict(cls, data: Mapping[str, Any]) -> "WriteOperation":
+        return cls(**{**data, "scope": ScopeKey(data["scope"])})
+
 
 @dataclass(frozen=True)
 class ReadOperation:
@@ -284,6 +302,10 @@ class SharedStateMap:
 
     @classmethod
     def from_dict(cls, data: Mapping[str, Any]) -> "SharedStateMap":
+        if data.get("type") != "shared_state_map" or data.get("version") != 1:
+            raise SharedStateAuthoringError(
+                "unsupported shared state map serialization"
+            )
         return cls(
             SharedState.from_dict(data["definition"]), state_id=data["state_id"]
         )
@@ -321,7 +343,8 @@ def resolve_write(step: StateWrite, context) -> WriteOperation:
         "scope": scope.value,
         "step_id": step.step_id,
         "execution_id": context.interview_id,
-        "inputs": inputs,
+        "target": step.target,
+        "command": step.command,
     }
     return WriteOperation(
         state_id=step.state_id,

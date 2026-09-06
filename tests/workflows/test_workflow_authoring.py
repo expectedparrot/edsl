@@ -476,6 +476,34 @@ def test_identity_preserving_submissions_render_for_authorized_consumer(tmp_path
     assert "respondent-b" in rendered
 
 
+def test_participant_relative_submission_view_renders_and_round_trips(tmp_path):
+    builder = Workflow("Participant-relative submissions")
+    response = QuestionFreeText(question_name="response", question_text="Respond")
+    first = builder.step("first", Survey([response]), assigned_to=role("respondent"),
+                         visible_to=role("respondent"))
+    prior = first.submissions.for_current_participant("prior")
+    second_question = QuestionFreeText(
+        question_name="response", question_text=f"Self: {prior.own}; peers: {prior.others}"
+    )
+    builder.step("second", Survey([second_question]), assigned_to=role("respondent"),
+                 after=first, participant_views=(prior,))
+    workflow = HumanWorkflow.from_dict(builder.compile().to_dict())
+    store = SQLiteWorkflowStore(tmp_path / "workflow.sqlite")
+    coordinator = WorkflowCoordinator(workflow, store)
+    agents = [Agent(name="respondent-a", traits={"role": "respondent"}),
+              Agent(name="respondent-b", traits={"role": "respondent"})]
+    instance_id = coordinator.launch(agents)
+    for item in store.items(instance_id, step_name="first"):
+        coordinator.open(item["id"])
+        coordinator.submit(item["id"], {"response": item["participant_id"]},
+                           idempotency_key=f"submission:{item['id']}")
+    second = next(item for item in store.items(instance_id, step_name="second")
+                  if item["participant_id"] == "respondent-a")
+    rendered = coordinator.open(second["id"]).survey.questions[0].question_text
+    assert "Self: {'participant_id': 'respondent-a'" in rendered
+    assert "peers: [{'participant_id': 'respondent-b'" in rendered
+
+
 class QuorumAnswers:
     def __init__(self):
         self.voters = []
@@ -530,7 +558,7 @@ def test_quorum_supersedes_remaining_work_and_enables_disagreement_review(tmp_pa
 
     statuses = [item["status"] for item in store.items(instance_id, step_name="vote")]
     assert statuses.count("completed") == 2
-    assert statuses.count("skipped") == 1
+    assert statuses.count("superseded") == 1
     assert len(answerer.voters) == 2
     assert store.step_answers(instance_id, "adjudicate") == [{"decision": "Remove"}]
 

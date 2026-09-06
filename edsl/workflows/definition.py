@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+from copy import deepcopy
 from dataclasses import dataclass, field
 from typing import Any, Mapping, Sequence
 
+from edsl._data_contracts import check_arity, symbolic_bool, validate_data
 from edsl.sharedstate import StateRead, StateWrite, step_from_dict, step_to_dict
 from edsl.surveys import Survey
 
@@ -38,6 +40,9 @@ class WorkflowExpression:
     op: str
     args: tuple[Any, ...] = ()
     options: Mapping[str, Any] = field(default_factory=dict)
+
+    def __bool__(self) -> bool:
+        return symbolic_bool()
 
     def __post_init__(self) -> None:
         allowed = {
@@ -79,6 +84,56 @@ class WorkflowExpression:
         }
         if self.op not in allowed:
             raise ValueError(f"unsupported workflow expression operator {self.op!r}")
+        zero = {
+            "step_outputs",
+            "step_answer",
+            "derived_ref",
+            "step_submissions",
+            "submission_value",
+            "joined_value",
+            "parameter",
+        }
+        unary = {
+            "mean",
+            "median",
+            "minimum",
+            "maximum",
+            "range",
+            "sum",
+            "all_equal",
+            "order_statistic",
+            "absolute",
+            "payoff_matrix",
+            "literal",
+            "lookup",
+        }
+        if self.op == "join_submissions":
+            check_arity(self.op, self.args, 1)
+            if len(self.options.get("names", ())) != len(self.args):
+                raise ValueError("join_submissions requires a name for each source")
+        else:
+            arity = (
+                0
+                if self.op in zero
+                else 1 if self.op in unary else 3 if self.op == "if_else" else 2
+            )
+            check_arity(self.op, self.args, arity, arity)
+        required = {
+            "step_outputs": {"step_name", "question_name"},
+            "step_answer": {"step_name", "question_name"},
+            "step_submissions": {"step_name"},
+            "derived_ref": {"name", "field", "dependencies"},
+            "order_statistic": {"rank", "direction"},
+            "payoff_matrix": {"question_name", "matrix"},
+            "argmin_by": {"question_name", "ties"},
+            "map_submissions": {"question_name"},
+            "joined_value": {"source", "question_name"},
+            "parameter": {"name"},
+            "lookup": {"mapping"},
+        }.get(self.op, set())
+        if not required <= self.options.keys():
+            raise ValueError(f"{self.op} requires options {sorted(required)}")
+        validate_data(self.to_dict(), path=f"workflow expression {self.op}")
         if self.op == "payoff_matrix" and "action_codes" in self.options:
             codes = self.options["action_codes"]
             if not isinstance(codes, Mapping) or not codes:
@@ -89,13 +144,25 @@ class WorkflowExpression:
                 raise ValueError("payoff-matrix action codes must be unique")
         if self.op == "seeded_uniform":
             low, high = self.args
-            if not isinstance(low, (int, float)) or not isinstance(high, (int, float)) or low >= high:
+            if (
+                isinstance(low, bool)
+                or isinstance(high, bool)
+                or not isinstance(low, (int, float))
+                or not isinstance(high, (int, float))
+                or low >= high
+            ):
                 raise ValueError("seeded_uniform requires numeric low < high")
             if not self.options.get("key"):
                 raise ValueError("seeded_uniform key must be non-empty")
         if self.op == "seeded_integer":
             low, high = self.args
-            if not isinstance(low, int) or not isinstance(high, int) or low > high:
+            if (
+                isinstance(low, bool)
+                or isinstance(high, bool)
+                or not isinstance(low, int)
+                or not isinstance(high, int)
+                or low > high
+            ):
                 raise ValueError("seeded_integer requires integer low <= high")
             if not self.options.get("key"):
                 raise ValueError("seeded_integer key must be non-empty")
@@ -126,23 +193,19 @@ class WorkflowExpression:
         dependencies: set[str] = set(self.options.get("dependencies", ()))
         if self.op in {"step_outputs", "step_answer", "step_submissions"}:
             dependencies.add(str(self.options["step_name"]))
-        for value in (*self.args, *self.options.values()):
+
+        def collect(value):
             if isinstance(value, WorkflowExpression):
                 dependencies.update(value.dependencies)
             elif isinstance(value, (tuple, list)):
-                dependencies.update(
-                    dependency
-                    for item in value
-                    if isinstance(item, WorkflowExpression)
-                    for dependency in item.dependencies
-                )
+                for item in value:
+                    collect(item)
             elif isinstance(value, Mapping):
-                dependencies.update(
-                    dependency
-                    for item in value.values()
-                    if isinstance(item, WorkflowExpression)
-                    for dependency in item.dependencies
-                )
+                for item in value.values():
+                    collect(item)
+
+        for value in (*self.args, *self.options.values()):
+            collect(value)
         return frozenset(dependencies)
 
     def _binary(self, op: str, other: Any) -> "WorkflowExpression":
@@ -200,6 +263,9 @@ class WorkflowExpression:
 
 class WorkflowCondition:
     """Serializable predicate over workflow steps and their submissions."""
+
+    def __bool__(self) -> bool:
+        return symbolic_bool()
 
     def to_dict(self) -> dict[str, Any]:
         raise NotImplementedError
@@ -551,7 +617,11 @@ class Quorum(CompletionPolicy):
     count: int
 
     def __post_init__(self) -> None:
-        if self.count < 1:
+        if (
+            isinstance(self.count, bool)
+            or not isinstance(self.count, int)
+            or self.count < 1
+        ):
             raise ValueError("quorum count must be positive")
 
     def to_dict(self) -> dict[str, Any]:
@@ -592,6 +662,45 @@ class ParticipantSelector:
 
 
 @dataclass(frozen=True)
+class ParticipantSubmissionView:
+    """A participant-relative projection of one step's submissions."""
+
+    name: str
+    source_step: str
+    own_key: str = "self_response"
+    others_key: str = "peer_responses"
+
+    def __post_init__(self) -> None:
+        if not self.name or not self.name.strip():
+            raise ValueError("participant submission view name must be non-empty")
+        if not self.source_step or not self.source_step.strip():
+            raise ValueError(
+                "participant submission view source step must be non-empty"
+            )
+        if not self.own_key or not self.others_key or self.own_key == self.others_key:
+            raise ValueError(
+                "participant submission view keys must be non-empty and distinct"
+            )
+
+    def to_dict(self) -> dict[str, str]:
+        return {
+            "name": self.name,
+            "source_step": self.source_step,
+            "own_key": self.own_key,
+            "others_key": self.others_key,
+        }
+
+    @classmethod
+    def from_dict(cls, data: Mapping[str, Any]) -> "ParticipantSubmissionView":
+        return cls(
+            data["name"],
+            data["source_step"],
+            data.get("own_key", "self_response"),
+            data.get("others_key", "peer_responses"),
+        )
+
+
+@dataclass(frozen=True)
 class HumanStep:
     """A survey task that becomes ready after all named predecessor steps finish."""
 
@@ -603,6 +712,7 @@ class HumanStep:
     enabled_when: WorkflowCondition | None = None
     completion: CompletionPolicy = field(default_factory=AllAssigned)
     output_visibility: tuple[ParticipantSelector, ...] | None = None
+    participant_submission_views: tuple[ParticipantSubmissionView, ...] = ()
     reads: tuple[StateRead, ...] = ()
     writes: tuple[StateWrite, ...] = ()
     metadata: Mapping[str, Any] = field(default_factory=dict)
@@ -628,10 +738,19 @@ class HumanStep:
                 if self.output_visibility is not None
                 else None
             ),
+            "participant_submission_views": [
+                view.to_dict() for view in self.participant_submission_views
+            ],
             "reads": [step_to_dict(item) for item in self.reads],
             "writes": [step_to_dict(item) for item in self.writes],
             "metadata": dict(self.metadata),
-            "answer_bounds": {name: [low.to_dict() if low else None, high.to_dict() if high else None] for name, (low, high) in self.answer_bounds.items()},
+            "answer_bounds": {
+                name: [
+                    low.to_dict() if low is not None else None,
+                    high.to_dict() if high is not None else None,
+                ]
+                for name, (low, high) in self.answer_bounds.items()
+            },
         }
 
     @classmethod
@@ -656,16 +775,26 @@ class HumanStep:
                 if data.get("output_visibility") is not None
                 else None
             ),
+            participant_submission_views=tuple(
+                ParticipantSubmissionView.from_dict(view)
+                for view in data.get("participant_submission_views", ())
+            ),
             reads=tuple(step_from_dict(item) for item in data.get("reads", ())),
             writes=tuple(step_from_dict(item) for item in data.get("writes", ())),
             metadata=data.get("metadata", {}),
-            answer_bounds={name: (WorkflowExpression.from_dict(bounds[0]) if bounds[0] else None, WorkflowExpression.from_dict(bounds[1]) if bounds[1] else None) for name, bounds in data.get("answer_bounds", {}).items()},
+            answer_bounds={
+                name: (
+                    WorkflowExpression.from_dict(bounds[0]) if bounds[0] else None,
+                    WorkflowExpression.from_dict(bounds[1]) if bounds[1] else None,
+                )
+                for name, bounds in data.get("answer_bounds", {}).items()
+            },
         )
 
 
 @dataclass(frozen=True)
 class HumanWorkflow:
-    """An immutable workflow graph whose edges express response dependencies."""
+    """A detached workflow snapshot whose edges express response dependencies."""
 
     name: str
     steps: tuple[HumanStep, ...]
@@ -682,13 +811,14 @@ class HumanWorkflow:
         repeat_blocks: Sequence[RepeatBlock] = (),
     ):
         object.__setattr__(self, "name", name)
-        object.__setattr__(self, "steps", tuple(steps))
-        object.__setattr__(self, "metadata", dict(metadata or {}))
-        object.__setattr__(self, "derived_values", tuple(derived_values))
-        object.__setattr__(self, "repeat_blocks", tuple(repeat_blocks))
+        object.__setattr__(self, "steps", deepcopy(tuple(steps)))
+        object.__setattr__(self, "metadata", deepcopy(dict(metadata or {})))
+        object.__setattr__(self, "derived_values", deepcopy(tuple(derived_values)))
+        object.__setattr__(self, "repeat_blocks", deepcopy(tuple(repeat_blocks)))
         self._validate()
 
     def _validate(self) -> None:
+        validate_data(self.to_dict(), path="workflow definition")
         names = [step.name for step in self.steps]
         derived_names = [item.name for item in self.derived_values]
         repeat_names = [item.name for item in self.repeat_blocks]
@@ -745,6 +875,18 @@ class HumanWorkflow:
                 raise ValueError(
                     f"step {step.name!r} depends on unknown or later steps: {sorted(missing)}"
                 )
+            view_names = [view.name for view in step.participant_submission_views]
+            if len(view_names) != len(set(view_names)):
+                raise ValueError(
+                    f"step {step.name!r} participant submission view names must be unique"
+                )
+            view_sources = {
+                view.source_step for view in step.participant_submission_views
+            }
+            if view_sources - set((*step.after, *step.settled_after)):
+                raise ValueError(
+                    f"step {step.name!r} participant submission views must reference dependencies"
+                )
             if step.enabled_when is not None:
                 missing_conditions = set(step.enabled_when.dependencies) - set(
                     (*step.after, *step.settled_after)
@@ -778,50 +920,51 @@ class HumanWorkflow:
 
     @staticmethod
     def _expression_nodes(expression: WorkflowExpression):
-        yield expression
-        for value in (*expression.args, *expression.options.values()):
-            if isinstance(value, WorkflowExpression):
+        if isinstance(expression, WorkflowExpression):
+            yield expression
+            for value in (*expression.args, *expression.options.values()):
                 yield from HumanWorkflow._expression_nodes(value)
-            elif isinstance(value, (tuple, list)):
-                for item in value:
-                    if isinstance(item, WorkflowExpression):
-                        yield from HumanWorkflow._expression_nodes(item)
+        elif isinstance(expression, Mapping):
+            for value in expression.values():
+                yield from HumanWorkflow._expression_nodes(value)
+        elif isinstance(expression, (tuple, list)):
+            for value in expression:
+                yield from HumanWorkflow._expression_nodes(value)
 
     def _validate_output_visibility(self, consumer: HumanStep, known: set[str]) -> None:
-        """Reject typed references that the consumer's role can never read."""
-        import json
+        """Reject statically identifiable unauthorized references."""
+        from .visibility import OWN, participant_keyed, template_references
 
-        serialized_survey = json.dumps(consumer.survey.to_dict())
-        participant_projection = "[participant.name]" in serialized_survey
-        derived_dependencies = {
-            source_name
-            for derived in self.derived_values
-            if any(
-                marker in serialized_survey
-                for marker in (
-                    f"workflow.derived['{derived.name}']",
-                    f'workflow.derived["{derived.name}"]',
-                )
-            )
-            for source_name in derived.dependencies
+        definitions = {
+            definition.name: definition for definition in self.derived_values
         }
-        for source_name in known:
+        sources = {view.source_step for view in consumer.participant_submission_views}
+        for reference in template_references(consumer.survey.to_dict()):
+            if len(reference) < 3 or reference[0] != "workflow":
+                continue
+            if reference[1] in {"answers", "outputs", "submissions"}:
+                if reference[2] in known:
+                    sources.add(reference[2])
+            elif reference[1] == "derived" and reference[2] in definitions:
+                definition = definitions[reference[2]]
+                expression = (
+                    definition.fields.get(reference[3]) if len(reference) >= 4 else None
+                )
+                if (
+                    expression is not None
+                    and len(reference) >= 5
+                    and reference[4] is OWN
+                    and participant_keyed(expression, definitions)
+                ):
+                    continue
+                sources.update(
+                    expression.dependencies
+                    if expression is not None
+                    else definition.dependencies
+                )
+        for source_name in sources:
             source = self.step(source_name)
             if source.output_visibility is None:
-                continue
-            markers = (
-                f"workflow.answers['{source_name}']",
-                f'workflow.answers["{source_name}"]',
-                f"workflow.outputs['{source_name}']",
-                f'workflow.outputs["{source_name}"]',
-                f"workflow.submissions['{source_name}']",
-                f'workflow.submissions["{source_name}"]',
-            )
-            if participant_projection and source_name in derived_dependencies:
-                continue
-            if source_name not in derived_dependencies and not any(
-                marker in serialized_survey for marker in markers
-            ):
                 continue
             if not any(
                 all(
@@ -841,7 +984,7 @@ class HumanWorkflow:
     def to_dict(self) -> dict[str, Any]:
         return {
             "type": "human_workflow",
-            "version": 1,
+            "version": 2,
             "name": self.name,
             "steps": [step.to_dict() for step in self.steps],
             "metadata": dict(self.metadata),
@@ -851,7 +994,7 @@ class HumanWorkflow:
 
     @classmethod
     def from_dict(cls, data: Mapping[str, Any]) -> "HumanWorkflow":
-        if data.get("type") != "human_workflow" or data.get("version") != 1:
+        if data.get("type") != "human_workflow" or data.get("version") not in {1, 2}:
             raise ValueError("unsupported human workflow serialization")
         return cls(
             data["name"],

@@ -24,6 +24,7 @@ from .definition import (
     OutputMajorityCondition,
     OutputRangeCondition,
     ParticipantSelector,
+    ParticipantSubmissionView,
     CompletionPolicy,
     Quorum,
     RepeatBlock,
@@ -362,6 +363,35 @@ class StepSubmissionsRef:
         """Bind each participant's answer for an identity-preserving map."""
         return SubmissionEachRef(self, question)
 
+    def for_current_participant(
+        self, name: str, *, own: str = "self_response", others: str = "peer_responses"
+    ) -> "ParticipantSubmissionViewRef":
+        """Split submissions into the current participant's own and peers' entries."""
+        return ParticipantSubmissionViewRef(
+            ParticipantSubmissionView(name, self.step_name, own, others)
+        )
+
+
+@dataclass(frozen=True)
+class ParticipantSubmissionViewRef:
+    definition: ParticipantSubmissionView
+
+    @property
+    def expression(self) -> str:
+        return "workflow.participant_views[" + repr(self.definition.name) + "]"
+
+    @property
+    def template(self) -> str:
+        return "{{ " + self.expression + " }}"
+
+    @property
+    def own(self) -> str:
+        return "{{ " + self.expression + "[" + repr(self.definition.own_key) + "] }}"
+
+    @property
+    def others(self) -> str:
+        return "{{ " + self.expression + "[" + repr(self.definition.others_key) + "] }}"
+
 
 @dataclass(frozen=True)
 class SubmissionEachRef:
@@ -629,6 +659,7 @@ class Workflow:
         when: WorkflowCondition | None = None,
         completion: CompletionPolicy | None = None,
         visible_to: ParticipantSelector | Sequence[ParticipantSelector] | None = None,
+        participant_views: Iterable[ParticipantSubmissionViewRef] = (),
         reads: Iterable[StateRead] = (),
         writes: Iterable[StateWrite] = (),
         metadata: Mapping[str, Any] | None = None,
@@ -649,6 +680,12 @@ class Workflow:
             raise ValueError(
                 f"step {name!r} refers to unknown or later steps: {sorted(unknown)}"
             )
+        views = tuple(participant_views)
+        if not all(isinstance(view, ParticipantSubmissionViewRef) for view in views):
+            raise TypeError("participant_views accepts ParticipantSubmissionViewRef values")
+        view_sources = {view.definition.source_step for view in views}
+        if view_sources - set((*dependencies, *settled_dependencies)):
+            raise ValueError("participant views must reference an after/after_settled dependency")
         step = HumanStep(
             name=name,
             survey=survey,
@@ -658,6 +695,7 @@ class Workflow:
             enabled_when=when,
             completion=completion or AllAssigned(),
             output_visibility=self._visibility(visible_to),
+            participant_submission_views=tuple(view.definition for view in views),
             reads=tuple(reads),
             writes=tuple(writes),
             metadata=dict(metadata or {}),

@@ -4,12 +4,14 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import hashlib
+import math
 import statistics
 from typing import Any, Mapping, Sequence
 from uuid import uuid4
 
+from edsl._data_contracts import definition_fingerprint, validate_data
 from edsl.agents import Agent
-from edsl.sharedstate import SQLiteStateBackend, resolve_read, resolve_write
+from edsl.sharedstate import StateBackend, WriteOperation, resolve_read, resolve_write
 from edsl.sharedstate.steps import StepContext
 from edsl.surveys import Survey
 
@@ -36,16 +38,49 @@ class WorkflowCoordinator:
         workflow: HumanWorkflow,
         store: SQLiteWorkflowStore,
         *,
-        state_backends: Mapping[str, SQLiteStateBackend] | None = None,
+        state_backends: Mapping[str, StateBackend] | None = None,
     ):
-        self.workflow = workflow
+        self.workflow = HumanWorkflow.from_dict(workflow.to_dict())
         self.store = store
         self.state_backends = dict(state_backends or {})
+        for step in self.workflow.steps:
+            for operation in (*step.reads, *step.writes):
+                backend = self._backend(operation.state_id)
+                if (
+                    backend.state_map.state_id != operation.state_id
+                    or definition_fingerprint(backend.state_map.definition.to_dict())
+                    != definition_fingerprint(operation.definition.to_dict())
+                ):
+                    raise ValueError(
+                        "workflow operation and state backend use different definitions"
+                    )
+
+    @classmethod
+    def restore(
+        cls,
+        instance_id: str,
+        store: SQLiteWorkflowStore,
+        *,
+        state_backends: Mapping[str, StateBackend] | None = None,
+    ) -> "WorkflowCoordinator":
+        """Restore a coordinator from the instance's pinned protocol snapshot."""
+        workflow = HumanWorkflow.from_dict(store.definition(instance_id))
+        coordinator = cls(workflow, store, state_backends=state_backends)
+        store.assert_definition(instance_id, coordinator.workflow.to_dict())
+        return coordinator
 
     def launch(
-        self, participants: Sequence[Agent], *, instance_id: str | None = None
+        self,
+        participants: Sequence[Agent],
+        *,
+        instance_id: str | None = None,
+        random_seed: str | int | None = None,
     ) -> str:
         instance_id = instance_id or str(uuid4())
+        if random_seed is not None and (
+            isinstance(random_seed, bool) or not isinstance(random_seed, (str, int))
+        ):
+            raise TypeError("random_seed must be a string or integer")
         encoded: list[tuple[str, dict[str, Any]]] = []
         seen: set[str] = set()
         for index, agent in enumerate(participants):
@@ -56,7 +91,7 @@ class WorkflowCoordinator:
                 )
             seen.add(participant_id)
             encoded.append((participant_id, agent.to_dict()))
-        self.store.create_instance(instance_id, self.workflow.to_dict(), encoded)
+        assignments = []
         for step in self.workflow.steps:
             matches = [
                 participant_id
@@ -74,12 +109,21 @@ class WorkflowCoordinator:
                     f"step {step.name!r} requires quorum {step.completion.count}, "
                     f"but only {len(matches)} participants match"
                 )
-            for participant_id in matches:
-                self.store.create_item(instance_id, step.name, participant_id)
+            assignments.extend(
+                (step.name, participant_id) for participant_id in matches
+            )
+        self.store.create_instance(
+            instance_id,
+            self.workflow.to_dict(),
+            encoded,
+            random_seed=random_seed,
+            assignments=assignments,
+        )
         self.reevaluate(instance_id)
         return instance_id
 
     def reevaluate(self, instance_id: str) -> None:
+        self.store.assert_definition(instance_id, self.workflow.to_dict())
         self._settle_quorums(instance_id)
         for item in self.store.items(instance_id):
             if item["status"] != "blocked":
@@ -93,13 +137,13 @@ class WorkflowCoordinator:
                 )
             ]
             if not all(
-                dependency["status"] in ("completed", "skipped")
+                dependency["status"] in ("completed", "skipped", "superseded")
                 for dependency in dependencies
             ):
                 continue
             if step.enabled_when is None and any(
-                dependency["status"] == "skipped" for dependency in dependencies
-                if dependency["step_name"] in step.after
+                not self._step_succeeded(instance_id, dependency)
+                for dependency in step.after
             ):
                 self.store.skip(item["id"], reason="dependency skipped")
             elif self._enabled(instance_id, step.enabled_when):
@@ -125,13 +169,29 @@ class WorkflowCoordinator:
             completed = sum(item["status"] == "completed" for item in items)
             if completed >= step.completion.count:
                 for item in items:
-                    if item["status"] not in ("completed", "skipped"):
-                        self.store.skip(item["id"], reason="quorum reached")
+                    if item["status"] not in (
+                        "completed",
+                        "skipped",
+                        "superseded",
+                        "committing",
+                    ):
+                        self.store.skip(
+                            item["id"], reason="quorum reached", superseded=True
+                        )
+
+    def _step_succeeded(self, instance_id: str, step_name: str) -> bool:
+        from .definition import Quorum
+
+        items = self.store.items(instance_id, step_name=step_name)
+        policy = self.workflow.step(step_name).completion
+        if isinstance(policy, Quorum):
+            return sum(item["status"] == "completed" for item in items) >= policy.count
+        return bool(items) and all(item["status"] == "completed" for item in items)
 
     def _step_complete(self, instance_id: str, step_name: str) -> bool:
         items = self.store.items(instance_id, step_name=step_name)
         return bool(items) and all(
-            item["status"] in ("completed", "skipped") for item in items
+            item["status"] in ("completed", "skipped", "superseded") for item in items
         )
 
     def _enabled(self, instance_id: str, condition) -> bool:
@@ -158,8 +218,7 @@ class WorkflowCoordinator:
                 for answer in answers
             )
         if isinstance(condition, StepCompletedCondition):
-            items = self.store.items(instance_id, step_name=condition.step_name)
-            return bool(items) and all(item["status"] == "completed" for item in items)
+            return self._step_succeeded(instance_id, condition.step_name)
         if isinstance(condition, AllCondition):
             return all(
                 self._enabled(instance_id, item) for item in condition.conditions
@@ -172,7 +231,7 @@ class WorkflowCoordinator:
             return not self._enabled(instance_id, condition.condition)
         if isinstance(condition, ChanceCondition):
             digest = hashlib.sha256(
-                f"{instance_id}:{condition.key}".encode("utf-8")
+                f"{self.store.random_seed(instance_id)}:{condition.key}".encode("utf-8")
             ).digest()
             draw = int.from_bytes(digest, "big") / (1 << (8 * len(digest)))
             return draw < condition.probability
@@ -239,12 +298,18 @@ class WorkflowCoordinator:
         op = expression.op
         if op == "submission_value":
             if bindings is None or "submission_value" not in bindings:
-                raise ValueError("submission_value is only valid inside a submission map")
+                raise ValueError(
+                    "submission_value is only valid inside a submission map"
+                )
             return bindings["submission_value"]
         if op == "joined_value":
             if bindings is None or "joined_values" not in bindings:
-                raise ValueError("joined_value is only valid inside a participant join map")
-            return bindings["joined_values"][expression.options["source"]][expression.options["question_name"]]
+                raise ValueError(
+                    "joined_value is only valid inside a participant join map"
+                )
+            return bindings["joined_values"][expression.options["source"]][
+                expression.options["question_name"]
+            ]
         if op == "map_submissions":
             submissions = evaluate(expression.args[0])
             question = expression.options["question_name"]
@@ -271,7 +336,10 @@ class WorkflowCoordinator:
                 raise LookupError("joined submission inputs are not available")
             return {
                 row["participant_id"]: self._evaluate_expression(
-                    instance_id, expression.args[1], derived, {"joined_values": row["sources"]}
+                    instance_id,
+                    expression.args[1],
+                    derived,
+                    {"joined_values": row["sources"]},
                 )
                 for row in rows
             }
@@ -283,18 +351,26 @@ class WorkflowCoordinator:
             return args[0]
         if op == "parameter":
             try:
-                return self.workflow.metadata["parameters"][expression.options["name"]]["value"]
+                return self.workflow.metadata["parameters"][expression.options["name"]][
+                    "value"
+                ]
             except KeyError as exc:
-                raise ValueError(f"unknown workflow parameter {expression.options['name']!r}") from exc
+                raise ValueError(
+                    f"unknown workflow parameter {expression.options['name']!r}"
+                ) from exc
         if op == "seeded_uniform":
             digest = hashlib.sha256(
-                f"{instance_id}:{expression.options['key']}".encode("utf-8")
+                f"{self.store.random_seed(instance_id)}:{expression.options['key']}".encode(
+                    "utf-8"
+                )
             ).digest()
             unit = int.from_bytes(digest, "big") / (1 << (8 * len(digest)))
             return args[0] + (args[1] - args[0]) * unit
         if op == "seeded_integer":
             digest = hashlib.sha256(
-                f"{instance_id}:{expression.options['key']}".encode("utf-8")
+                f"{self.store.random_seed(instance_id)}:{expression.options['key']}".encode(
+                    "utf-8"
+                )
             ).digest()
             return args[0] + int.from_bytes(digest, "big") % (args[1] - args[0] + 1)
         if op == "step_outputs":
@@ -307,14 +383,22 @@ class WorkflowCoordinator:
                 raise LookupError("workflow output is not available")
             return values
         if op == "step_answer":
-            values = self._output_values(instance_id, expression.options["step_name"], expression.options["question_name"])
+            values = self._output_values(
+                instance_id,
+                expression.options["step_name"],
+                expression.options["question_name"],
+            )
             if len(values) != 1:
-                raise LookupError("workflow answer requires exactly one available value")
+                raise LookupError(
+                    "workflow answer requires exactly one available value"
+                )
             return values[0]
         if op == "step_submissions":
             return [
                 {"participant_id": item["participant_id"], "answers": dict(answers)}
-                for item in self.store.items(instance_id, step_name=expression.options["step_name"])
+                for item in self.store.items(
+                    instance_id, step_name=expression.options["step_name"]
+                )
                 if (answers := self.store.item_answers(item["id"])) is not None
             ]
         if op == "join_submissions":
@@ -324,10 +408,22 @@ class WorkflowCoordinator:
                 for submissions in args
             ]
             participant_sets = [set(items) for items in indexed]
-            if not participant_sets or not participant_sets[0] or any(items != participant_sets[0] for items in participant_sets[1:]):
-                raise LookupError("participant join inputs are incomplete or do not match")
+            if (
+                not participant_sets
+                or not participant_sets[0]
+                or any(items != participant_sets[0] for items in participant_sets[1:])
+            ):
+                raise LookupError(
+                    "participant join inputs are incomplete or do not match"
+                )
             return [
-                {"participant_id": participant_id, "sources": {name: indexed[position][participant_id] for position, name in enumerate(names)}}
+                {
+                    "participant_id": participant_id,
+                    "sources": {
+                        name: indexed[position][participant_id]
+                        for position, name in enumerate(names)
+                    },
+                }
                 for participant_id in sorted(participant_sets[0])
             ]
         if op == "derived_ref":
@@ -365,7 +461,9 @@ class WorkflowCoordinator:
                 )
             reverse = expression.options.get("direction") == "largest"
             if expression.options.get("direction") not in {"largest", "smallest"}:
-                raise ValueError("order-statistic direction must be 'largest' or 'smallest'")
+                raise ValueError(
+                    "order-statistic direction must be 'largest' or 'smallest'"
+                )
             return sorted(values, reverse=reverse)[rank - 1]
         binary = {
             "add": lambda left, right: left + right,
@@ -418,26 +516,45 @@ class WorkflowCoordinator:
                 raise ValueError(
                     f"payoff matrix outcome {key!r} must contain {len(submissions)} payoffs"
                 )
-            return {item["participant_id"]: values[index] for index, item in enumerate(submissions)}
+            return {
+                item["participant_id"]: values[index]
+                for index, item in enumerate(submissions)
+            }
         if op == "argmin_by":
             submissions, target = args
             if not submissions:
                 raise LookupError("ranking inputs are not available")
             question = expression.options["question_name"]
-            distances = [(abs(float(item["answers"][question]) - float(target)), item["participant_id"]) for item in submissions]
+            distances = [
+                (
+                    abs(float(item["answers"][question]) - float(target)),
+                    item["participant_id"],
+                )
+                for item in submissions
+            ]
             best = min(distance for distance, _ in distances)
-            winners = [participant for distance, participant in distances if distance == best]
+            winners = [
+                participant for distance, participant in distances if distance == best
+            ]
             return winners if expression.options["ties"] == "all" else winners[:1]
         raise ValueError(f"unsupported workflow expression operator {op!r}")
 
     def _evaluate_derived(self, instance_id: str) -> dict[str, dict[str, Any]]:
         derived: dict[str, dict[str, Any]] = {}
         for definition in self.workflow.derived_values:
+            if not all(
+                self._step_complete(instance_id, name)
+                for name in definition.dependencies
+            ):
+                continue
             try:
                 derived[definition.name] = {
                     name: self._evaluate_expression(instance_id, expression, derived)
                     for name, expression in definition.fields.items()
                 }
+                validate_data(
+                    derived[definition.name], path=f"derived value {definition.name}"
+                )
             except (LookupError, KeyError):
                 continue
         return derived
@@ -449,12 +566,19 @@ class WorkflowCoordinator:
         return json.dumps(value, sort_keys=True, default=str)
 
     def open(self, item_id: str) -> OpenedWorkItem:
+        from .visibility import visible_derived
+
         item = self.store.item(item_id)
+        self.store.assert_definition(item["instance_id"], self.workflow.to_dict())
         if item["status"] not in ("ready", "in_progress"):
             raise ValueError(f"work item {item_id!r} is not ready")
+        saved = self.store.rendered_item(item_id)
+        if saved is not None:
+            self.store.mark_opened(item_id)
+            return self._opened(item, saved)
         step = self.workflow.step(item["step_name"])
         agent_data = self.store.participant(item["instance_id"], item["participant_id"])
-        traits = {"name": item["participant_id"], **dict(agent_data.get("traits", {}))}
+        traits = {**dict(agent_data.get("traits", {})), "name": item["participant_id"]}
         context = StepContext({}, item_id, agent_traits=traits)
         views: dict[str, Any] = {}
         versions: dict[str, int] = {}
@@ -468,9 +592,13 @@ class WorkflowCoordinator:
                 item["instance_id"], workflow_step.name
             )
             for workflow_step in self.workflow.steps
-            if workflow_step.output_visibility is None
-            or any(
-                selector.matches(traits) for selector in workflow_step.output_visibility
+            if self._step_complete(item["instance_id"], workflow_step.name)
+            and (
+                workflow_step.output_visibility is None
+                or any(
+                    selector.matches(traits)
+                    for selector in workflow_step.output_visibility
+                )
             )
         }
         prior_submissions = {
@@ -487,6 +615,25 @@ class WorkflowCoordinator:
             for workflow_step in self.workflow.steps
             if workflow_step.name in prior_answers
         }
+        participant_views = {}
+        for view in step.participant_submission_views:
+            submissions = prior_submissions.get(view.source_step, [])
+            own = next(
+                (
+                    submission
+                    for submission in submissions
+                    if submission["participant_id"] == item["participant_id"]
+                ),
+                None,
+            )
+            participant_views[view.name] = {
+                view.own_key: own,
+                view.others_key: [
+                    submission
+                    for submission in submissions
+                    if submission["participant_id"] != item["participant_id"]
+                ],
+            }
         replacements = {
             "shared_state": views,
             "participant": traits,
@@ -504,27 +651,46 @@ class WorkflowCoordinator:
                     for name, submissions in prior_submissions.items()
                     if submissions
                 },
-                "derived": self._evaluate_derived(item["instance_id"]),
+                "participant_views": participant_views,
+                "derived": visible_derived(
+                    self.workflow,
+                    step,
+                    traits,
+                    self._evaluate_derived(item["instance_id"]),
+                ),
             },
         }
-        rendered = Survey(
-            [question.render(replacements) for question in step.survey.questions]
-        )
-        self.store.record_render(
+        survey_data = step.survey.to_dict()
+        questions = {
+            q.question_name: q.render(replacements).to_dict()
+            for q in step.survey.questions
+        }
+        survey_data["questions"] = [
+            questions.get(q.get("question_name"), q) for q in survey_data["questions"]
+        ]
+        survey_data["memory_plan"]["survey_question_texts"] = [
+            questions[q.question_name]["question_text"] for q in step.survey.questions
+        ]
+        rendered = Survey.from_dict(survey_data)
+        saved = self.store.record_render(
             item_id,
             survey=rendered.to_dict(),
             shared_state=views,
             state_versions=versions,
         )
         self.store.mark_opened(item_id)
+        return self._opened(item, saved)
+
+    @staticmethod
+    def _opened(item, saved) -> OpenedWorkItem:
         return OpenedWorkItem(
-            id=item_id,
+            id=item["id"],
             instance_id=item["instance_id"],
             step_name=item["step_name"],
             participant_id=item["participant_id"],
-            survey=rendered,
-            shared_state=views,
-            state_versions=versions,
+            survey=Survey.from_dict(saved["survey"]),
+            shared_state=saved["shared_state"],
+            state_versions=saved["state_versions"],
         )
 
     def submit(
@@ -536,42 +702,88 @@ class WorkflowCoordinator:
         attempt_id: str | None = None,
     ) -> None:
         item = self.store.item(item_id)
-        if item["status"] == "completed":
-            if self.store.complete(item_id, answers, idempotency_key):
-                if attempt_id is not None:
-                    self.store.finish_attempt(attempt_id, status="succeeded")
-                return
+        self.store.assert_definition(item["instance_id"], self.workflow.to_dict())
+        validate_data(dict(answers), path="workflow answers")
+        if self.store.submission_intent(item_id) is not None:
+            # Retry validation is against the accepted response, not live bounds
+            # or a newly resolved set of effects.
+            self.store.prepare_submission(
+                item_id, answers, idempotency_key, attempt_id=attempt_id, operations=()
+            )
+            self._commit_submission(item_id)
+            self.reevaluate(item["instance_id"])
+            return
         step = self.workflow.step(item["step_name"])
         from .structured import structured_contract_from_dict
+
         for contract_data in step.metadata.get("response_contracts", ()):
             structured_contract_from_dict(contract_data).validate(answers)
         for question_name, (minimum, maximum) in step.answer_bounds.items():
             if question_name not in answers:
                 continue
             value = float(answers[question_name])
-            low = self._evaluate_expression(item["instance_id"], minimum) if minimum else None
-            high = self._evaluate_expression(item["instance_id"], maximum) if maximum else None
-            if (low is not None and value < float(low)) or (high is not None and value > float(high)):
-                raise ValueError(f"answer {question_name!r}={value:g} is outside dynamic bounds [{low}, {high}]")
+            if not math.isfinite(value):
+                raise ValueError(f"answer {question_name!r} must be finite")
+            low = (
+                self._evaluate_expression(item["instance_id"], minimum)
+                if minimum is not None
+                else None
+            )
+            high = (
+                self._evaluate_expression(item["instance_id"], maximum)
+                if maximum is not None
+                else None
+            )
+            if (low is not None and value < float(low)) or (
+                high is not None and value > float(high)
+            ):
+                raise ValueError(
+                    f"answer {question_name!r}={value:g} is outside dynamic bounds [{low}, {high}]"
+                )
         agent_data = self.store.participant(item["instance_id"], item["participant_id"])
         context = StepContext(
             dict(answers),
             item_id,
             agent_traits={
-                "name": item["participant_id"],
                 **dict(agent_data.get("traits", {})),
+                "name": item["participant_id"],
             },
         )
-        for write in step.writes:
-            outcome = self._backend(write.state_id).apply(resolve_write(write, context))
-            if not outcome.accepted:
-                raise RuntimeError(f"shared-state write {write.step_id!r} was rejected")
-        self.store.complete(item_id, answers, idempotency_key)
-        if attempt_id is not None:
-            self.store.finish_attempt(attempt_id, status="succeeded")
+        operations = [resolve_write(write, context).to_dict() for write in step.writes]
+        self.store.prepare_submission(
+            item_id,
+            answers,
+            idempotency_key,
+            attempt_id=attempt_id,
+            operations=operations,
+        )
+        self._commit_submission(item_id)
         self.reevaluate(item["instance_id"])
 
-    def _backend(self, state_id: str) -> SQLiteStateBackend:
+    def _commit_submission(self, item_id: str) -> None:
+        intent = self.store.submission_intent(item_id)
+        if intent is None:
+            raise ValueError("work item has no accepted submission")
+        for effect in self.store.pending_effects(item_id):
+            operation = WriteOperation.from_dict(effect["operation"])
+            outcome = self._backend(operation.state_id).apply(operation)
+            if not outcome.accepted:
+                raise RuntimeError(
+                    f"shared-state write {operation.step_id!r} was rejected"
+                )
+            self.store.effect_applied(item_id, effect["position"])
+        self.store.complete(item_id, intent["answers"], intent["idempotency_key"])
+
+    def recover(self, instance_id: str, *, max_attempts: int = 1) -> None:
+        """Finish accepted effects before scheduling any new model or human work."""
+        self.store.assert_definition(instance_id, self.workflow.to_dict())
+        for item in self.store.items(instance_id):
+            if item["status"] == "committing":
+                self._commit_submission(item["id"])
+        self.store.recover_items(instance_id, max_attempts=max_attempts)
+        self.reevaluate(instance_id)
+
+    def _backend(self, state_id: str) -> StateBackend:
         try:
             return self.state_backends[state_id]
         except KeyError as exc:

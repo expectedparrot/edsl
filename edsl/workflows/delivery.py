@@ -65,19 +65,34 @@ class OutboxDispatcher:
 class RoutedOutboxDispatcher:
     """Dispatch each pending item through its execution-plan adapter."""
 
-    def __init__(self, store: SQLiteWorkflowStore, plan: ExecutionPlan, adapters: Mapping[str, DeliveryAdapter]):
+    def __init__(
+        self,
+        store: SQLiteWorkflowStore,
+        plan: ExecutionPlan,
+        adapters: Mapping[str, DeliveryAdapter],
+    ):
         self.store, self.plan, self.adapters = store, plan, dict(adapters)
 
     def dispatch(self) -> list[DeliveryReceipt]:
         receipts = []
         for row in self.store.pending_outbox():
             payload = json.loads(row["payload"])
-            agent = self.store.participant(payload["instance_id"], payload["participant_id"])
+            agent = self.store.participant(
+                payload["instance_id"], payload["participant_id"]
+            )
             spec = self.plan.resolve(agent.get("traits", {}))
             if spec.kind not in self.adapters:
-                raise ValueError(f"no delivery adapter configured for executor {spec.kind!r}")
+                raise ValueError(
+                    f"no delivery adapter configured for executor {spec.kind!r}"
+                )
             self.store.record_executor(row["work_item_id"], spec.kind, spec.options)
-            request = DeliveryRequest(row["id"], payload["instance_id"], row["work_item_id"], payload["step_name"], payload["participant_id"])
+            request = DeliveryRequest(
+                row["id"],
+                payload["instance_id"],
+                row["work_item_id"],
+                payload["step_name"],
+                payload["participant_id"],
+            )
             receipts.append(self.adapters[spec.kind].deliver(request))
             self.store.mark_delivered(row["id"])
         return receipts
@@ -147,6 +162,16 @@ class HumanizeDeliveryAdapter:
     def poll_completed(self) -> int:
         completed = 0
         for external in self.coordinator.store.external_tasks(self.provider):
+            item = self.coordinator.store.item(external["work_item_id"])
+            if item["status"] in {"completed", "skipped", "superseded", "failed"}:
+                self.coordinator.store.complete_external_task(
+                    self.provider,
+                    external["work_item_id"],
+                    status=(
+                        "completed" if item["status"] == "completed" else "cancelled"
+                    ),
+                )
+                continue
             details = self.coop.get_human_survey(external["resource_id"])
             if not details.get("n_responses"):
                 continue

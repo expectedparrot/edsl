@@ -147,18 +147,18 @@ class WorkflowSimulation:
     ) -> None:
         policy = retry_policy or RetryPolicy()
         if resume:
-            self.coordinator.store.recover_items(
-                instance_id, max_attempts=policy.max_attempts
-            )
+            self.coordinator.recover(instance_id, max_attempts=policy.max_attempts)
+        else:
+            self.coordinator.reevaluate(instance_id)
         while True:
-            delivered = self._deliver_pending(policy)
+            delivered = self._deliver_pending(policy, instance_id)
             ran = self.clock.run_next()
             if not delivered and not ran:
                 break
         remaining = [
             item
             for item in self.coordinator.store.items(instance_id)
-            if item["status"] not in ("completed", "skipped", "failed")
+            if item["status"] not in ("completed", "skipped", "superseded", "failed")
         ]
         failed = [
             item
@@ -174,8 +174,8 @@ class WorkflowSimulation:
                 f"workflow reached quiescence with unfinished work: {blocked}"
             )
 
-    def _deliver_pending(self, policy: RetryPolicy) -> bool:
-        rows = self.coordinator.store.pending_outbox()
+    def _deliver_pending(self, policy: RetryPolicy, instance_id: str) -> bool:
+        rows = self.coordinator.store.pending_outbox(instance_id)
         for row in rows:
             payload = json.loads(row["payload"])
             participant_id = payload["participant_id"]
@@ -184,7 +184,10 @@ class WorkflowSimulation:
             self.coordinator.store.mark_delivered(row["id"])
 
             def respond(item_id=item_id, participant_id=participant_id):
-                if self.coordinator.store.item(item_id)["status"] == "skipped":
+                if self.coordinator.store.item(item_id)["status"] not in (
+                    "ready",
+                    "in_progress",
+                ):
                     return
                 attempt = self.coordinator.store.start_attempt(
                     item_id, lease_seconds=policy.lease_seconds
@@ -202,6 +205,10 @@ class WorkflowSimulation:
                             raise ValueError(
                                 f"no answerer configured for executor {spec.kind!r}"
                             ) from exc
+                    if isinstance(selected, EDSLAgentAnswerer):
+                        self.coordinator.store.record_model(
+                            item_id, selected.model.to_dict()
+                        )
                     answers = selected.answer(agent, opened)
                     self.coordinator.submit(
                         item_id,
@@ -210,6 +217,10 @@ class WorkflowSimulation:
                         attempt_id=attempt["id"],
                     )
                 except Exception as exc:
+                    if self.coordinator.store.item(item_id)["status"] == "committing":
+                        raise RuntimeError(
+                            "accepted submission has pending effects; resume the workflow to recover without regenerating the answer"
+                        ) from exc
                     kind = self._error_kind(exc)
                     self.coordinator.store.finish_attempt(
                         attempt["id"],

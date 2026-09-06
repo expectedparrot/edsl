@@ -6,6 +6,8 @@ from dataclasses import asdict, dataclass, field as dc_field, fields
 import json
 from typing import Any
 
+from edsl._data_contracts import check_arity, symbolic_bool, validate_data
+
 
 def encode(value: Any) -> Any:
     if hasattr(value, "to_dict"):
@@ -22,6 +24,9 @@ class Expr:
     op: str
     args: tuple[Any, ...] = ()
     kwargs: dict[str, Any] = dc_field(default_factory=dict)
+
+    def __bool__(self) -> bool:
+        return symbolic_bool()
 
     def to_dict(self) -> dict[str, Any]:
         return {"op": self.op, "args": encode(self.args), "kwargs": encode(self.kwargs)}
@@ -216,11 +221,16 @@ class T:
 
     @staticmethod
     def sequence(item: Expr | None = None) -> Expr:
-        return expr("type", "sequence", item=item or T.any())
+        return expr("type", "sequence", item=T.any() if item is None else item)
 
     @staticmethod
     def map(key: Expr | None = None, value: Expr | None = None) -> Expr:
-        return expr("type", "map", key=key or T.text(), value=value or T.any())
+        return expr(
+            "type",
+            "map",
+            key=T.text() if key is None else key,
+            value=T.any() if value is None else value,
+        )
 
 
 @dataclass(frozen=True)
@@ -298,13 +308,15 @@ class Machine:
     algorithms: tuple[str, ...] = ()
 
     def to_dict(self) -> dict[str, Any]:
-        return encode(asdict(self))
+        return {"version": 1, **encode(asdict(self))}
 
     def to_json(self) -> str:
         return json.dumps(self.to_dict(), sort_keys=True)
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "Machine":
+        if data.get("version", 1) != 1:
+            raise ValueError("unsupported machine language version")
         constants = decode(data["constants"])
         state_fields = {
             name: StateField(decode(definition["type"]), decode(definition["initial"]))
@@ -354,6 +366,8 @@ class Machine:
     def validate(self) -> None:
         from .dsl_runtime import DSLValidationError, Runtime
 
+        validate_data(self.to_dict(), path=self.name)
+
         allowed_ops = {
             "absolute",
             "add",
@@ -397,10 +411,127 @@ class Machine:
         }
         namespaces = {"state", "input", "constant", "current", "local"}
         declared_algorithms = set(self.algorithms)
+        for capability in declared_algorithms:
+            if not isinstance(capability, str) or "@" not in capability:
+                raise ValueError("algorithm capabilities require name@version")
+            name, version = capability.rsplit("@", 1)
+            if not name or not version.isdigit() or int(version) < 1:
+                raise ValueError("algorithm capabilities require a positive version")
+        unary = {
+            "absolute",
+            "casefold",
+            "drop_first",
+            "length",
+            "not",
+            "strip",
+            "values",
+            "filter_items",
+            "map_items",
+            "map_sequence",
+            "type",
+        }
+        binary = {
+            "add",
+            "and",
+            "append_value",
+            "at",
+            "at_least",
+            "at_most",
+            "contains",
+            "divide",
+            "equals",
+            "first",
+            "greater_than",
+            "less_than",
+            "multiply",
+            "not_equals",
+            "or",
+            "reduce",
+            "remove_value",
+            "subtract",
+        }
+        reducers = {
+            "tail",
+            "count_by",
+            "sum",
+            "mean",
+            "median",
+            "max",
+            "argmax",
+            "sort_records",
+            "latest_by",
+            "count_equal",
+            "increment_keys",
+            "keys_min_distance",
+            "weighted_matrix_tally",
+            "ranked_ballot_results",
+            "group_numeric_summary",
+            "series_converged",
+        }
         for item in walk(self):
+            if isinstance(item, Effect):
+                arities = {
+                    "set": 1,
+                    "set_once": 1,
+                    "put": 2,
+                    "append": 1,
+                    "algorithm": 0,
+                }
+                if item.op not in arities:
+                    raise ValueError(f"{self.name} uses unknown effect {item.op!r}")
+                check_arity(item.op, item.args, arities[item.op], arities[item.op])
+                allowed_options = {"when"} | ({"once"} if item.op == "put" else set())
+                if item.op == "algorithm":
+                    allowed_options |= {"name", "version", "bindings"}
+                    if not {"name", "version", "bindings"} <= item.options.keys():
+                        raise ValueError(
+                            "algorithm effect requires name, version and bindings"
+                        )
+                if set(item.options) - allowed_options:
+                    raise ValueError(
+                        f"unknown {item.op} effect options: {set(item.options) - allowed_options}"
+                    )
             if isinstance(item, Expr) and item.op not in allowed_ops:
                 raise ValueError(f"{self.name} uses unknown expression {item.op!r}")
+            if isinstance(item, Expr):
+                arity = (
+                    1
+                    if item.op in unary
+                    else (
+                        2
+                        if item.op in binary
+                        else (
+                            3
+                            if item.op in {"get", "if", "put_value", "decode_matrix"}
+                            else 0 if item.op in {"ref", "record"} else None
+                        )
+                    )
+                )
+                if arity is not None:
+                    check_arity(item.op, item.args, arity, arity)
+                if item.op == "minimum":
+                    check_arity(item.op, item.args, 1)
+                if item.op == "map_of" and any(
+                    not isinstance(pair, (tuple, list)) or len(pair) != 2
+                    for pair in item.args
+                ):
+                    raise ValueError("map_of requires key/value pairs")
+                if item.op == "reduce" and item.args[0] not in reducers:
+                    raise ValueError(f"unknown reducer {item.args[0]!r}")
+                required = {
+                    "ref": {"namespace", "name"},
+                    "map_items": {"key", "value", "key_expr", "value_expr"},
+                    "filter_items": {"item", "predicate"},
+                    "map_sequence": {"item", "value_expr"},
+                }.get(item.op, set())
+                if not required <= item.kwargs.keys():
+                    raise ValueError(f"{item.op} requires options {sorted(required)}")
+                if item.op == "type":
+                    _validate_type_expression(item)
             if isinstance(item, Expr) and item.op == "algorithm_view":
+                check_arity(item.op, item.args, 4, 4)
+                if item.args[0] != "lmsr_prices" or item.kwargs.get("version", 1) != 1:
+                    raise ValueError("unsupported algorithm view capability")
                 capability = f"{item.args[0]}@{item.kwargs.get('version', 1)}"
                 if capability not in declared_algorithms:
                     raise ValueError(
@@ -448,6 +579,10 @@ class Machine:
                         raise ValueError(
                             f"{self.name}.{command_name} references unknown constant {name!r}"
                         )
+            for type_expression in command.inputs.values():
+                _validate_type_expression(type_expression)
+        for definition in self.fields.values():
+            _validate_type_expression(definition.type)
         for effect in self.close_effects:
             if effect.op != "algorithm" and effect.target not in self.fields:
                 raise ValueError(
@@ -481,6 +616,38 @@ class Machine:
             self.to_json()
         except (TypeError, ValueError) as exc:
             raise ValueError(f"{self.name} contains a non-serializable value") from exc
+
+
+def _validate_type_expression(type_expr: Expr) -> None:
+    if not isinstance(type_expr, Expr) or type_expr.op != "type":
+        raise ValueError("type declaration must be a T expression")
+    check_arity("type", type_expr.args, 1, 1)
+    kind = type_expr.args[0]
+    options = {
+        "any": set(),
+        "boolean": set(),
+        "text": set(),
+        "integer": {"minimum", "maximum"},
+        "number": {"minimum", "maximum"},
+        "choice": {"options"},
+        "rank": {"options"},
+        "optional": {"item"},
+        "sequence": {"item"},
+        "map": {"key", "value"},
+    }
+    if kind not in options:
+        raise ValueError(f"unknown type {kind!r}")
+    required = options[kind] if kind not in {"integer", "number"} else set()
+    if not required <= type_expr.kwargs.keys() or set(type_expr.kwargs) - options[kind]:
+        raise ValueError(f"invalid {kind} type options")
+    for name in {"item", "key", "value"} & options[kind]:
+        _validate_type_expression(type_expr.kwargs[name])
+    if kind == "map" and type_expr.kwargs["key"].args[0] not in {
+        "text",
+        "choice",
+        "any",
+    }:
+        raise ValueError("maps require string map keys for JSON storage; use T.text()")
 
 
 def walk(value: Any):

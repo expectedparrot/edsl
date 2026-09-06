@@ -10,6 +10,8 @@ from pathlib import Path
 import sqlite3
 from typing import Any, Protocol, runtime_checkable
 
+from edsl._data_contracts import canonical_data, definition_fingerprint, validate_data
+
 from .dsl_runtime import Runtime, default_runtime
 from .exceptions import SharedStateRuntimeError
 from .model import ReadOperation, SharedStateMap, StateCondition, WriteOperation
@@ -78,10 +80,25 @@ class SQLiteStateBackend:
         path: str | Path,
         *,
         runtime: Runtime | None = None,
+        adopt_legacy_definition: bool = False,
     ):
-        self.state_map = state_map
+        self.state_map = SharedStateMap.from_dict(state_map.to_dict())
+        self.definition_hash = definition_fingerprint(
+            self.state_map.definition.to_dict()
+        )
+        self._adopt_legacy_definition = adopt_legacy_definition
         self.path = str(path)
         self.runtime = runtime or default_runtime()
+        for machine in self.state_map.definition.machines.values():
+            for capability in machine.algorithms:
+                name, version = capability.rsplit("@", 1)
+                if (
+                    name,
+                    int(version),
+                ) not in self.runtime.algorithms and capability != "lmsr_prices@1":
+                    raise SharedStateRuntimeError(
+                        f"unregistered algorithm capability {capability!r}"
+                    )
         Path(self.path).parent.mkdir(parents=True, exist_ok=True)
         self._initialize()
 
@@ -111,6 +128,53 @@ class SQLiteStateBackend:
                 "CREATE INDEX IF NOT EXISTS state_events_lookup "
                 "ON state_events(state_id, scope_canonical, sequence)"
             )
+            connection.execute(
+                "CREATE TABLE IF NOT EXISTS state_definitions ("
+                "state_id TEXT PRIMARY KEY, definition_hash TEXT NOT NULL, "
+                "definition TEXT NOT NULL, runtime_version INTEGER NOT NULL, adopted_legacy INTEGER NOT NULL)"
+            )
+            connection.execute("BEGIN IMMEDIATE")
+            stored = connection.execute(
+                "SELECT * FROM state_definitions WHERE state_id = ?",
+                (self.state_map.state_id,),
+            ).fetchone()
+            if stored is not None:
+                if (
+                    stored["definition_hash"] != self.definition_hash
+                    or stored["runtime_version"] != 1
+                ):
+                    raise SharedStateRuntimeError(
+                        "state definition changed; use a new state_id or an explicit migration"
+                    )
+                if (
+                    definition_fingerprint(json.loads(stored["definition"]))
+                    != stored["definition_hash"]
+                ):
+                    raise SharedStateRuntimeError(
+                        "persisted state definition does not match its fingerprint"
+                    )
+            else:
+                legacy = (
+                    connection.execute(
+                        "SELECT 1 FROM state_events WHERE state_id = ? LIMIT 1",
+                        (self.state_map.state_id,),
+                    ).fetchone()
+                    is not None
+                )
+                if legacy and not self._adopt_legacy_definition:
+                    raise SharedStateRuntimeError(
+                        "legacy state store has no pinned definition; verify its original definition and explicitly set adopt_legacy_definition=True, or use a new state_id"
+                    )
+                connection.execute(
+                    "INSERT INTO state_definitions VALUES (?, ?, ?, 1, ?)",
+                    (
+                        self.state_map.state_id,
+                        self.definition_hash,
+                        canonical_data(self.state_map.definition.to_dict()),
+                        int(legacy),
+                    ),
+                )
+            connection.commit()
 
     def _initial_state(self) -> dict[str, Any]:
         return {
@@ -172,14 +236,35 @@ class SQLiteStateBackend:
 
     def apply(self, operation: WriteOperation) -> AdvisoryWriteOutcome:
         self._check_state_id(operation.state_id)
+        validate_data(operation.to_dict())
         connection = self._connect()
         try:
             connection.execute("BEGIN IMMEDIATE")
             duplicate = connection.execute(
-                "SELECT version FROM state_events WHERE idempotency_key = ?",
+                "SELECT version, payload FROM state_events WHERE idempotency_key = ?",
                 (operation.idempotency_key,),
             ).fetchone()
             if duplicate is not None:
+                previous = json.loads(duplicate["payload"])
+                for name, value in (
+                    ("state_id", operation.state_id),
+                    ("scope", operation.scope.value),
+                    ("target", operation.target),
+                    ("command", operation.command),
+                    ("inputs", dict(operation.inputs)),
+                    ("step_id", operation.step_id),
+                    ("execution_id", operation.execution_id),
+                ):
+                    if canonical_data(previous.get(name)) != canonical_data(value):
+                        raise SharedStateRuntimeError(
+                            "state idempotency key was reused with different content"
+                        )
+                if "runtime_context" in previous and canonical_data(
+                    previous["runtime_context"]
+                ) != canonical_data(dict(operation.runtime_context)):
+                    raise SharedStateRuntimeError(
+                        "state idempotency key was reused with different runtime context"
+                    )
                 connection.commit()
                 return AdvisoryWriteOutcome(True, None, duplicate["version"])
 
@@ -211,6 +296,7 @@ class SQLiteStateBackend:
             new_version = version + 1
             event = {
                 "format": 1,
+                "definition_hash": self.definition_hash,
                 "kind": "write",
                 "event_id": (
                     f"{operation.state_id}:{operation.scope.canonical}:{new_version}"
@@ -224,6 +310,7 @@ class SQLiteStateBackend:
                 "inputs": dict(operation.inputs),
                 "step_id": operation.step_id,
                 "execution_id": operation.execution_id,
+                "runtime_context": dict(operation.runtime_context),
                 "idempotency_key": operation.idempotency_key,
                 "changed": changed,
                 "state": state,
@@ -240,7 +327,7 @@ class SQLiteStateBackend:
                     event["version"],
                     event["kind"],
                     event["idempotency_key"],
-                    json.dumps(event, sort_keys=True, separators=(",", ":")),
+                    canonical_data(event),
                 ),
             )
             connection.commit()
@@ -284,6 +371,7 @@ class SQLiteStateBackend:
             )
             event = {
                 "format": 1,
+                "definition_hash": self.definition_hash,
                 "kind": "read",
                 "event_id": operation.read_id,
                 "read_id": operation.read_id,
@@ -307,7 +395,7 @@ class SQLiteStateBackend:
                     event["scope_canonical"],
                     event["version"],
                     event["kind"],
-                    json.dumps(event, sort_keys=True, separators=(",", ":")),
+                    canonical_data(event),
                 ),
             )
             connection.commit()
@@ -332,6 +420,13 @@ class SQLiteStateBackend:
         from .model import ScopeKey
 
         self._check_state_id(condition.state_id)
+        if (
+            definition_fingerprint(condition.definition.to_dict())
+            != self.definition_hash
+        ):
+            raise SharedStateRuntimeError(
+                "completion condition uses a different state definition"
+            )
         key = ScopeKey(scope)
         idempotency_key = f"{condition.state_id}:{key.canonical}:{condition.target}:close"
         connection = self._connect()
@@ -356,6 +451,7 @@ class SQLiteStateBackend:
             new_version = version + 1
             event = {
                 "format": 1,
+                "definition_hash": self.definition_hash,
                 "kind": "write",
                 "event_id": f"{condition.state_id}:{key.canonical}:{new_version}",
                 "state_id": condition.state_id,
@@ -377,9 +473,13 @@ class SQLiteStateBackend:
                 "(event_id,state_id,scope_canonical,version,kind,idempotency_key,payload) "
                 "VALUES (?,?,?,?,?,?,?)",
                 (
-                    event["event_id"], event["state_id"], event["scope_canonical"],
-                    event["version"], event["kind"], event["idempotency_key"],
-                    json.dumps(event, sort_keys=True, separators=(",", ":")),
+                    event["event_id"],
+                    event["state_id"],
+                    event["scope_canonical"],
+                    event["version"],
+                    event["kind"],
+                    event["idempotency_key"],
+                    canonical_data(event),
                 ),
             )
             connection.commit()
@@ -395,6 +495,7 @@ class SQLiteStateBackend:
     ) -> StateSnapshot:
         from .model import ScopeKey
 
+        self._check_state_id(self.state_map.state_id)
         key = ScopeKey(scope)
         with self._connect() as connection:
             state, version = self._materialized(
@@ -408,8 +509,8 @@ class SQLiteStateBackend:
     def history(self, *, after_sequence: int = 0) -> list[dict[str, Any]]:
         with self._connect() as connection:
             rows = connection.execute(
-                "SELECT payload FROM state_events WHERE sequence > ? ORDER BY sequence",
-                (after_sequence,),
+                "SELECT payload FROM state_events WHERE state_id = ? AND sequence > ? ORDER BY sequence",
+                (self.state_map.state_id, after_sequence),
             ).fetchall()
         return [json.loads(row["payload"]) for row in rows]
 
@@ -423,3 +524,8 @@ class SQLiteStateBackend:
     def _check_state_id(self, state_id: str) -> None:
         if state_id != self.state_map.state_id:
             raise SharedStateRuntimeError("operation targets a different state backend")
+        if (
+            definition_fingerprint(self.state_map.definition.to_dict())
+            != self.definition_hash
+        ):
+            raise SharedStateRuntimeError("state definition was mutated after binding")

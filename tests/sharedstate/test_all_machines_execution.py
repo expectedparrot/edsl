@@ -225,7 +225,7 @@ EXPECTED_PATHS = {
     "shared_common_pool_game": {("total_requested",): 45, ("overdrawn",): False},
     "shared_counter_map": {("counts", "hike"): 2},
     "shared_deferred_acceptance": {("matches",): {"A": "North", "B": "South"}},
-    "shared_delphi_panel": {("summaries", 2, "range"): 2},
+    "shared_delphi_panel": {("summaries", "2", "range"): 2},
     "shared_dictator_game": {("payoffs",): {"A": 70, "B": 30}},
     "shared_document": {("text",): "We will hike.", ("revision_count",): 1},
     "shared_double_auction": {

@@ -9,6 +9,8 @@ import sqlite3
 from typing import Any, Iterable, Mapping
 from uuid import uuid4
 
+from edsl._data_contracts import canonical_data, definition_fingerprint
+
 
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
@@ -83,6 +85,23 @@ class SQLiteWorkflowStore:
                     work_item_id TEXT PRIMARY KEY, kind TEXT NOT NULL,
                     options TEXT NOT NULL, resolved_at TEXT NOT NULL
                 );
+                CREATE TABLE IF NOT EXISTS workflow_model_resolutions (
+                    work_item_id TEXT PRIMARY KEY, definition TEXT NOT NULL,
+                    definition_hash TEXT NOT NULL
+                );
+                CREATE TABLE IF NOT EXISTS workflow_instance_contracts (
+                    instance_id TEXT PRIMARY KEY, definition_hash TEXT NOT NULL,
+                    random_seed TEXT NOT NULL
+                );
+                CREATE TABLE IF NOT EXISTS workflow_submission_intents (
+                    work_item_id TEXT PRIMARY KEY, idempotency_key TEXT NOT NULL UNIQUE,
+                    answers TEXT NOT NULL, attempt_id TEXT, created_at TEXT NOT NULL
+                );
+                CREATE TABLE IF NOT EXISTS workflow_effects (
+                    work_item_id TEXT NOT NULL, position INTEGER NOT NULL,
+                    operation TEXT NOT NULL, applied INTEGER NOT NULL DEFAULT 0,
+                    PRIMARY KEY(work_item_id, position)
+                );
                 """
             )
 
@@ -91,21 +110,73 @@ class SQLiteWorkflowStore:
         instance_id: str,
         definition: Mapping[str, Any],
         participants: Iterable[tuple[str, Mapping[str, Any]]],
+        *,
+        random_seed: str | int | None = None,
+        assignments: Iterable[tuple[str, str]] = (),
     ) -> None:
         now = _now()
         with self.connect() as db:
             db.execute("BEGIN IMMEDIATE")
             db.execute(
                 "INSERT INTO workflow_instances VALUES (?, ?, 'running', ?, NULL)",
-                (instance_id, json.dumps(definition), now),
+                (instance_id, canonical_data(dict(definition)), now),
             )
             for participant_id, agent in participants:
                 db.execute(
                     "INSERT INTO workflow_participants VALUES (?, ?, ?)",
-                    (instance_id, participant_id, json.dumps(agent)),
+                    (instance_id, participant_id, canonical_data(dict(agent))),
                 )
+            for step_name, participant_id in assignments:
+                db.execute(
+                    "INSERT INTO workflow_items VALUES (?, ?, ?, ?, 'blocked', ?, NULL, NULL)",
+                    (str(uuid4()), instance_id, step_name, participant_id, _now()),
+                )
+            db.execute(
+                "INSERT INTO workflow_instance_contracts VALUES (?, ?, ?)",
+                (
+                    instance_id,
+                    definition_fingerprint(definition),
+                    canonical_data(instance_id if random_seed is None else random_seed),
+                ),
+            )
             self._event(db, instance_id, "workflow.started", {})
             db.commit()
+
+    def assert_definition(
+        self, instance_id: str, definition: Mapping[str, Any]
+    ) -> None:
+        stored_definition = self.definition(instance_id)
+        stored = definition_fingerprint(stored_definition)
+        if stored != definition_fingerprint(definition):
+            raise ValueError(
+                "workflow definition changed; start a new instance or explicitly migrate the stored definition"
+            )
+
+    def definition(self, instance_id: str) -> dict[str, Any]:
+        """Return the pinned workflow definition after verifying its fingerprint."""
+        rows = self.rows(
+            "SELECT definition FROM workflow_instances WHERE id = ?", (instance_id,)
+        )
+        if not rows:
+            raise KeyError(f"unknown workflow instance {instance_id!r}")
+        definition = json.loads(rows[0]["definition"])
+        stored = definition_fingerprint(definition)
+        contracts = self.rows(
+            "SELECT definition_hash FROM workflow_instance_contracts WHERE instance_id = ?",
+            (instance_id,),
+        )
+        if contracts and contracts[0]["definition_hash"] != stored:
+            raise ValueError(
+                "persisted workflow definition does not match its fingerprint"
+            )
+        return definition
+
+    def random_seed(self, instance_id: str) -> str | int:
+        rows = self.rows(
+            "SELECT random_seed FROM workflow_instance_contracts WHERE instance_id = ?",
+            (instance_id,),
+        )
+        return json.loads(rows[0]["random_seed"]) if rows else instance_id
 
     def create_item(self, instance_id: str, step_name: str, participant_id: str) -> str:
         item_id = str(uuid4())
@@ -145,17 +216,64 @@ class SQLiteWorkflowStore:
             raise KeyError(f"unknown participant {participant_id!r}")
         return json.loads(rows[0]["agent"])
 
-    def record_executor(self, work_item_id: str, kind: str, options: Mapping[str, Any]) -> None:
+    def record_executor(
+        self, work_item_id: str, kind: str, options: Mapping[str, Any]
+    ) -> None:
+        encoded = canonical_data(dict(options))
         with self.connect() as db:
+            db.execute("BEGIN IMMEDIATE")
             db.execute(
                 "INSERT INTO workflow_executor_resolutions VALUES (?, ?, ?, ?) "
-                "ON CONFLICT(work_item_id) DO UPDATE SET kind=excluded.kind, options=excluded.options",
-                (work_item_id, kind, json.dumps(dict(options)), _now()),
+                "ON CONFLICT(work_item_id) DO NOTHING",
+                (work_item_id, kind, encoded, _now()),
             )
+            saved = db.execute(
+                "SELECT kind, options FROM workflow_executor_resolutions WHERE work_item_id = ?",
+                (work_item_id,),
+            ).fetchone()
+            if (
+                saved["kind"] != kind
+                or canonical_data(json.loads(saved["options"])) != encoded
+            ):
+                raise ValueError(
+                    "work item executor changed after its first resolution"
+                )
+            db.commit()
 
     def executor(self, work_item_id: str) -> dict[str, Any] | None:
-        rows = self.rows("SELECT * FROM workflow_executor_resolutions WHERE work_item_id = ?", (work_item_id,))
-        return None if not rows else {"kind": rows[0]["kind"], "options": json.loads(rows[0]["options"])}
+        rows = self.rows(
+            "SELECT * FROM workflow_executor_resolutions WHERE work_item_id = ?",
+            (work_item_id,),
+        )
+        return (
+            None
+            if not rows
+            else {"kind": rows[0]["kind"], "options": json.loads(rows[0]["options"])}
+        )
+
+    def record_model(self, work_item_id: str, definition: Mapping[str, Any]) -> None:
+        """Pin the concrete EDSL model, independently of executor routing policy."""
+        fingerprint = definition_fingerprint(definition)
+        with self.connect() as db:
+            db.execute("BEGIN IMMEDIATE")
+            db.execute(
+                "INSERT INTO workflow_model_resolutions VALUES (?, ?, ?) ON CONFLICT(work_item_id) DO NOTHING",
+                (work_item_id, canonical_data(dict(definition)), fingerprint),
+            )
+            saved = db.execute(
+                "SELECT definition_hash FROM workflow_model_resolutions WHERE work_item_id = ?",
+                (work_item_id,),
+            ).fetchone()
+            if saved["definition_hash"] != fingerprint:
+                raise ValueError("work item model changed after its first resolution")
+            db.commit()
+
+    def model(self, work_item_id: str) -> dict[str, Any] | None:
+        rows = self.rows(
+            "SELECT definition FROM workflow_model_resolutions WHERE work_item_id = ?",
+            (work_item_id,),
+        )
+        return json.loads(rows[0]["definition"]) if rows else None
 
     def make_ready(self, item_id: str) -> bool:
         with self.connect() as db:
@@ -196,7 +314,7 @@ class SQLiteWorkflowStore:
             db.commit()
             return True
 
-    def skip(self, item_id: str, *, reason: str) -> bool:
+    def skip(self, item_id: str, *, reason: str, superseded: bool = False) -> bool:
         with self.connect() as db:
             db.execute("BEGIN IMMEDIATE")
             item = db.execute(
@@ -210,8 +328,8 @@ class SQLiteWorkflowStore:
                 db.rollback()
                 return False
             db.execute(
-                "UPDATE workflow_items SET status = 'skipped', completed_at = ? WHERE id = ?",
-                (_now(), item_id),
+                "UPDATE workflow_items SET status = ?, completed_at = ? WHERE id = ?",
+                ("superseded" if superseded else "skipped", _now(), item_id),
             )
             db.execute(
                 "UPDATE workflow_outbox SET status = 'cancelled' WHERE work_item_id = ? AND status = 'pending'",
@@ -220,7 +338,7 @@ class SQLiteWorkflowStore:
             self._event(
                 db,
                 item["instance_id"],
-                "work_item.skipped",
+                "work_item.superseded" if superseded else "work_item.skipped",
                 {
                     "work_item_id": item_id,
                     "step_name": item["step_name"],
@@ -246,9 +364,16 @@ class SQLiteWorkflowStore:
             )
         ]
 
-    def pending_outbox(self) -> list[sqlite3.Row]:
+    def pending_outbox(self, instance_id: str | None = None) -> list[sqlite3.Row]:
+        if instance_id is None:
+            return self.rows(
+                "SELECT * FROM workflow_outbox WHERE status = 'pending' ORDER BY created_at, id"
+            )
         return self.rows(
-            "SELECT * FROM workflow_outbox WHERE status = 'pending' ORDER BY created_at, id"
+            "SELECT outbox.* FROM workflow_outbox AS outbox JOIN workflow_items AS items "
+            "ON items.id = outbox.work_item_id WHERE outbox.status = 'pending' AND items.instance_id = ? "
+            "ORDER BY outbox.created_at, outbox.id",
+            (instance_id,),
         )
 
     def mark_delivered(self, outbox_id: str) -> None:
@@ -285,11 +410,15 @@ class SQLiteWorkflowStore:
             (provider, status),
         )
 
-    def complete_external_task(self, provider: str, work_item_id: str) -> None:
+    def complete_external_task(
+        self, provider: str, work_item_id: str, *, status: str = "completed"
+    ) -> None:
+        if status not in {"completed", "cancelled"}:
+            raise ValueError(f"unsupported external task status {status!r}")
         with self.connect() as db:
             db.execute(
-                "UPDATE workflow_external_tasks SET status = 'completed', completed_at = ? WHERE provider = ? AND work_item_id = ?",
-                (_now(), provider, work_item_id),
+                "UPDATE workflow_external_tasks SET status = ?, completed_at = ? WHERE provider = ? AND work_item_id = ?",
+                (status, _now(), provider, work_item_id),
             )
 
     def mark_opened(self, item_id: str) -> None:
@@ -300,6 +429,8 @@ class SQLiteWorkflowStore:
             )
 
     def start_attempt(self, item_id: str, *, lease_seconds: float) -> dict[str, Any]:
+        if lease_seconds <= 0:
+            raise ValueError("lease duration must be positive")
         now = datetime.now(timezone.utc)
         expires = now + timedelta(seconds=lease_seconds)
         with self.connect() as db:
@@ -490,7 +621,7 @@ class SQLiteWorkflowStore:
         survey: Mapping[str, Any],
         shared_state: Mapping[str, Any],
         state_versions: Mapping[str, int],
-    ) -> None:
+    ) -> dict[str, Any]:
         with self.connect() as db:
             db.execute(
                 """
@@ -507,6 +638,7 @@ class SQLiteWorkflowStore:
                     _now(),
                 ),
             )
+        return self.rendered_item(item_id)
 
     def rendered_item(self, item_id: str) -> dict[str, Any] | None:
         rows = self.rows(
@@ -535,20 +667,47 @@ class SQLiteWorkflowStore:
         with self.connect() as db:
             db.execute("BEGIN IMMEDIATE")
             duplicate = db.execute(
-                "SELECT work_item_id FROM workflow_submissions WHERE idempotency_key = ?",
+                "SELECT work_item_id, answers FROM workflow_submissions WHERE idempotency_key = ?",
                 (idempotency_key,),
             ).fetchone()
             if duplicate is not None:
+                if duplicate["work_item_id"] != item_id or canonical_data(
+                    json.loads(duplicate["answers"])
+                ) != canonical_data(dict(answers)):
+                    raise ValueError(
+                        "submission idempotency key was reused with different content"
+                    )
                 db.rollback()
-                return duplicate["work_item_id"] == item_id
+                return True
             item = db.execute(
                 "SELECT * FROM workflow_items WHERE id = ?", (item_id,)
             ).fetchone()
-            if item is None or item["status"] not in ("ready", "in_progress"):
+            if item is None or item["status"] not in (
+                "ready",
+                "in_progress",
+                "committing",
+            ):
                 db.rollback()
                 raise ValueError(
                     f"work item {item_id!r} cannot be submitted from its current state"
                 )
+            intent = db.execute(
+                "SELECT * FROM workflow_submission_intents WHERE work_item_id = ?",
+                (item_id,),
+            ).fetchone()
+            if intent is not None:
+                if intent["idempotency_key"] != idempotency_key or intent[
+                    "answers"
+                ] != canonical_data(dict(answers)):
+                    raise ValueError("accepted submission is immutable")
+                pending = db.execute(
+                    "SELECT 1 FROM workflow_effects WHERE work_item_id = ? AND applied = 0",
+                    (item_id,),
+                ).fetchone()
+                if pending:
+                    raise ValueError(
+                        "submission still has pending shared-state effects"
+                    )
             db.execute(
                 "INSERT INTO workflow_submissions VALUES (?, ?, ?, ?, ?)",
                 (
@@ -573,14 +732,165 @@ class SQLiteWorkflowStore:
                     "participant_id": item["participant_id"],
                 },
             )
+            if intent is not None and intent["attempt_id"] is not None:
+                attempt = db.execute(
+                    "SELECT * FROM workflow_attempts WHERE id = ?",
+                    (intent["attempt_id"],),
+                ).fetchone()
+                if attempt is not None and attempt["status"] == "running":
+                    db.execute(
+                        "UPDATE workflow_attempts SET status = 'succeeded', finished_at = ? WHERE id = ?",
+                        (_now(), attempt["id"]),
+                    )
+                    self._event(
+                        db,
+                        item["instance_id"],
+                        "work_item.attempt_finished",
+                        {
+                            "work_item_id": item_id,
+                            "attempt_id": attempt["id"],
+                            "attempt_number": attempt["attempt_number"],
+                            "status": "succeeded",
+                            "error_kind": None,
+                        },
+                    )
             db.commit()
             return True
+
+    def prepare_submission(
+        self,
+        item_id: str,
+        answers: Mapping[str, Any],
+        idempotency_key: str,
+        *,
+        attempt_id: str | None,
+        operations: Iterable[Mapping[str, Any]],
+    ) -> bool:
+        """Accept one immutable response and its effects before any external write.
+
+        Returns false for an already completed identical submission. A response
+        accepted here owns its effects even if the answering worker later exits.
+        """
+        encoded = canonical_data(dict(answers))
+        effects = [canonical_data(dict(operation)) for operation in operations]
+        if not idempotency_key:
+            raise ValueError("submission idempotency key must be non-empty")
+        with self.connect() as db:
+            db.execute("BEGIN IMMEDIATE")
+            item = db.execute(
+                "SELECT * FROM workflow_items WHERE id = ?", (item_id,)
+            ).fetchone()
+            if item is None:
+                raise KeyError(f"unknown work item {item_id!r}")
+            accepted = db.execute(
+                "SELECT idempotency_key, answers FROM workflow_submission_intents WHERE work_item_id = ?",
+                (item_id,),
+            ).fetchone()
+            if accepted is not None:
+                if (
+                    accepted["idempotency_key"] != idempotency_key
+                    or canonical_data(json.loads(accepted["answers"])) != encoded
+                ):
+                    raise ValueError(
+                        "work item already has different content; its accepted submission is immutable"
+                    )
+                db.commit()
+                return item["status"] != "completed"
+            for table in ("workflow_submissions", "workflow_submission_intents"):
+                duplicate = db.execute(
+                    f"SELECT work_item_id, answers FROM {table} WHERE idempotency_key = ?",
+                    (idempotency_key,),
+                ).fetchone()
+                if duplicate is not None:
+                    if (
+                        duplicate["work_item_id"] != item_id
+                        or canonical_data(json.loads(duplicate["answers"])) != encoded
+                    ):
+                        raise ValueError(
+                            "submission idempotency key was reused with different content"
+                        )
+                    db.commit()
+                    return item["status"] != "completed"
+            if item["status"] not in ("ready", "in_progress"):
+                raise ValueError(
+                    f"work item {item_id!r} cannot accept a submission from {item['status']!r}"
+                )
+            instance = db.execute(
+                "SELECT status FROM workflow_instances WHERE id = ?",
+                (item["instance_id"],),
+            ).fetchone()
+            if instance["status"] != "running":
+                raise ValueError("workflow instance is not running")
+            if attempt_id is not None:
+                attempt = db.execute(
+                    "SELECT * FROM workflow_attempts WHERE id = ?", (attempt_id,)
+                ).fetchone()
+                if (
+                    attempt is None
+                    or attempt["work_item_id"] != item_id
+                    or attempt["status"] != "running"
+                    or attempt["lease_expires_at"] <= _now()
+                ):
+                    raise ValueError("submission attempt does not own a current lease")
+            elif db.execute(
+                "SELECT 1 FROM workflow_attempts WHERE work_item_id = ? AND status = 'running'",
+                (item_id,),
+            ).fetchone():
+                raise ValueError(
+                    "submission must identify the attempt holding the lease"
+                )
+            db.execute(
+                "INSERT INTO workflow_submission_intents VALUES (?, ?, ?, ?, ?)",
+                (item_id, idempotency_key, encoded, attempt_id, _now()),
+            )
+            for position, operation in enumerate(effects):
+                db.execute(
+                    "INSERT INTO workflow_effects VALUES (?, ?, ?, 0)",
+                    (item_id, position, operation),
+                )
+            db.execute(
+                "UPDATE workflow_items SET status = 'committing' WHERE id = ?",
+                (item_id,),
+            )
+            self._event(
+                db,
+                item["instance_id"],
+                "work_item.submission_accepted",
+                {"work_item_id": item_id, "attempt_id": attempt_id},
+            )
+            db.commit()
+            return True
+
+    def submission_intent(self, item_id: str) -> dict[str, Any] | None:
+        rows = self.rows(
+            "SELECT * FROM workflow_submission_intents WHERE work_item_id = ?",
+            (item_id,),
+        )
+        if not rows:
+            return None
+        return {**dict(rows[0]), "answers": json.loads(rows[0]["answers"])}
+
+    def pending_effects(self, item_id: str) -> list[dict[str, Any]]:
+        return [
+            {"position": row["position"], "operation": json.loads(row["operation"])}
+            for row in self.rows(
+                "SELECT * FROM workflow_effects WHERE work_item_id = ? AND applied = 0 ORDER BY position",
+                (item_id,),
+            )
+        ]
+
+    def effect_applied(self, item_id: str, position: int) -> None:
+        with self.connect() as db:
+            db.execute(
+                "UPDATE workflow_effects SET applied = 1 WHERE work_item_id = ? AND position = ?",
+                (item_id, position),
+            )
 
     def finish_instance_if_complete(self, instance_id: str) -> bool:
         with self.connect() as db:
             db.execute("BEGIN IMMEDIATE")
             remaining = db.execute(
-                "SELECT COUNT(*) AS n FROM workflow_items WHERE instance_id = ? AND status NOT IN ('completed', 'skipped')",
+                "SELECT COUNT(*) AS n FROM workflow_items WHERE instance_id = ? AND status NOT IN ('completed', 'skipped', 'superseded')",
                 (instance_id,),
             ).fetchone()["n"]
             if remaining:

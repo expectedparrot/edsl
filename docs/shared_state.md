@@ -191,6 +191,15 @@ rejection. A returned write outcome is always advisory: callers must not interpr
 as a durable receipt or use it to coordinate later work. Coordination comes from
 subsequent reads and the schedule. Invalid definitions, unresolved references, and
 type violations are programming errors and roll back before an event is committed.
+An operation ID is stable across answer changes: reusing it with different inputs
+or runtime context raises an error instead of becoming a second write.
+
+The SQLite backend pins each state ID to its definition and runtime version.
+Changed definitions require a new state ID or an explicitly audited migration.
+Legacy stores without a definition record require verified, explicit adoption
+using `adopt_legacy_definition=True`; this cannot prove their original definition.
+See [Workflow and shared-state execution contracts](workflow_state_contracts.md)
+for recovery across separate workflow/state databases and rollout guidance.
 
 ## Results provenance
 
@@ -215,10 +224,16 @@ Creating `SharedState(...)` validates every machine recursively. Validation cove
 
 - field and nested container initial values;
 - known expression operations and reference namespaces;
+- effect/reducer/type names and expression argument counts;
 - declared fields, constants, and command inputs;
 - command targets and declared algorithms;
 - public views against the initial state; and
 - complete JSON serialization.
+
+Persisted inputs, states, and public views require finite numbers and string map
+keys, including under `T.any()`. Encode numeric grouping keys explicitly in JSON
+views. Symbolic expressions reject Python truth-value coercion; use DSL `&`, `|`,
+`~`, and `choose()` instead of Python `and`, `or`, `not`, and `if`.
 
 The DSL does not execute Python source, import modules, access files, or perform
 network operations. More complicated algorithms must be registered under explicit,

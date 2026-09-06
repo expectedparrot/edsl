@@ -45,6 +45,8 @@ This manual describes the implementation in `edsl.workflows`. It covers:
 
 The workflow API is experimental. The serialized form and behavior described
 here are the current implementation, not a promise of permanent compatibility.
+The detailed recovery, visibility, and migration guarantees are documented in
+[Workflow and shared-state execution contracts](workflow_state_contracts.md).
 
 # The central idea
 
@@ -296,19 +298,28 @@ Completed, skipped, and failed are terminal.}
 `in_progress`
 : The survey was opened or an execution attempt acquired a lease.
 
+`committing`
+: An immutable response and its effects have been accepted. Recovery finishes
+  those effects without asking the respondent or model for another answer.
+
 `completed`
-: A valid answer was submitted exactly once.
+: The accepted answer and all of its state effects have completed.
 
 `skipped`
-: A dependency was skipped, a condition evaluated false, quorum superseded the
-  assignment, or a repeat terminated before this iteration.
+: A dependency was skipped, a condition evaluated false, or a repeat terminated
+  before this iteration.
+
+`superseded`
+: Quorum succeeded before this assignment accepted a response. This does not
+  propagate a branch skip to ordinary downstream dependencies.
 
 `failed`
 : The configured retry budget was exhausted or an error was classified as
   non-retryable.
 
-A dependency is settled when all of its work items are `completed` or
-`skipped`. A failed item instead fails its workflow instance.
+A dependency is settled when all of its work items are `completed`, `skipped`,
+or `superseded`. A failed item instead fails its workflow instance. The lifecycle
+diagram above omits the intermediate `committing` state and quorum supersession.
 
 # Participant selection and fan-out
 
@@ -480,9 +491,10 @@ estimates.outputs("value").range_at_most(10)
 chance(0.70, key="continue-after-round-2")
 ```
 
-Chance is deterministic for one `(instance_id, key)` pair. Reevaluation and
-process restart therefore cannot change the draw. Always choose a stable,
-meaningful key.
+Chance is deterministic for one `(random_seed, key)` pair. The stored seed
+defaults to the instance ID. Pass `coordinator.launch(..., random_seed="replicate-1")`
+to reproduce randomization across new instances. Reevaluation and process restart
+cannot change the draw. This does not control LLM sampling.
 
 # Completion policies and quorum
 
@@ -499,9 +511,11 @@ votes = builder.step(
 )
 ```
 
-Once two submissions complete, remaining work items for that step are skipped
-as superseded. Downstream work may then proceed. A quorum larger than the number
-of matching participants is rejected during launch.
+Once two submissions complete, outstanding unaccepted work items become
+`superseded`. Already accepted responses finish their effects before the step
+settles; quorum is a minimum rather than a strict response cap. Ordinary `after`
+dependencies then proceed, and `votes.completed` is true. A quorum larger than
+the number of matching participants is rejected during launch.
 
 Quorum does not presently express weighted votes, role-specific quotas, or
 deadline-based partial completion.
@@ -882,8 +896,13 @@ can never satisfy the source visibility policy. Visibility also propagates
 through derived values: computing a mean from sealed bids does not make that
 mean public automatically.
 
-This is a definition-level information-flow check, not a complete security
-system. Operational deployments must also secure SQLite files, application
+The runtime also excludes unauthorized fields from the rendering context,
+including whole-container or dynamic access. An explicit participant-keyed
+`for_participant()` projection exposes only the recipient's entry, not unrelated
+private fields. Source outputs enter the context only after the source settles.
+
+This is not a complete security system or an untrusted-template sandbox.
+Operational deployments must also secure SQLite files, application
 logs, email content, Humanize access, credentials, and administrator tooling.
 
 An explicit anonymity policy with pseudonyms and identity audit rules remains a
@@ -935,9 +954,11 @@ builder.step(
 )
 ```
 
-The coordinator renders reads into `shared_state`, records the observed state
-versions, applies writes after answer submission, and rejects a submission if a
-shared-state command rejects its transition.
+The coordinator renders reads into `shared_state` and records the observed state
+versions. It accepts an immutable answer and effect intents before applying any
+writes. Pending effects are replayed after failure; an accepted answer is never
+regenerated for recovery. A permanent effect failure leaves the item `committing`
+for operator repair. Separate state databases do not form one atomic transaction.
 
 Shared-state semantics are documented in `docs/shared_state_dsl_manual.md` and
 the normative material under `docs/shared_state_semantics/`.
@@ -963,9 +984,14 @@ The store maintains these logical records:
 | `workflow_external_tasks` | Humanize/provider identifiers |
 | `workflow_item_renders` | Exact rendered survey and state snapshot |
 | `workflow_attempts` | Attempt number, lease, outcome, and error class |
+| `workflow_submission_intents` / `workflow_effects` | Accepted answers and recoverable state effects |
+| `workflow_instance_contracts` | Definition fingerprints and scientific seeds |
+| `workflow_executor_resolutions` / `workflow_model_resolutions` | Pinned routing and concrete model configurations |
 
 The database is initialized additively. Opening an older workflow database
 creates newly introduced tables without deleting existing execution data.
+Resumption still requires compatible pinned definitions; see the version-2
+migration guidance in `workflow_state_contracts.md`.
 
 # Opening and submitting work
 
@@ -981,7 +1007,8 @@ creates newly introduced tables without deleting existing execution data.
 8. marks the item in progress.
 
 The returned `OpenedWorkItem` contains the rendered survey and execution
-context.
+context. Reopening reuses the first saved render and observations, preserving
+survey rules, memory, instructions, and groups. It does not refresh shared state.
 
 Submit an answer with a stable idempotency key:
 
@@ -994,8 +1021,9 @@ coordinator.submit(
 ```
 
 Submitting the same key for the same item twice produces one durable submission
-and one completion event. Reusing it for a different item is not accepted as a
-valid completion.
+and one completion event. Reusing it with different content or for a different
+item raises an error. Leased workers must pass their current `attempt_id`; stale
+workers cannot accept new responses.
 
 # The durable outbox
 
@@ -1190,17 +1218,19 @@ instances do not silently masquerade as completed runs.
 
 ## Restarting in a fresh process
 
-Reconstruct the definition and coordinator, then resume against the same file:
+Restore the pinned definition and coordinator, then resume against the same file:
 
 ```python
-restored = HumanWorkflow.from_dict(saved_definition)
 store = SQLiteWorkflowStore("workflow.sqlite")
-coordinator = WorkflowCoordinator(restored, store)
+coordinator = WorkflowCoordinator.restore(
+    instance_id, store, state_backends=state_backends
+)
 simulation = WorkflowSimulation(coordinator, agents, answerer)
 simulation.run(instance_id, resume=True, retry_policy=policy)
 ```
 
-Recovery requeues:
+Recovery first finishes accepted `committing` responses without another answerer
+call. It then requeues:
 
 * ready items whose earlier delivery record is no longer pending;
 * in-progress items with no active attempt; and
@@ -1223,7 +1253,7 @@ The serialized object includes:
 ```json
 {
   "type": "human_workflow",
-  "version": 1,
+  "version": 2,
   "name": "Example",
   "steps": [],
   "metadata": {},
@@ -1239,6 +1269,9 @@ round-trip as data.
 Execution policy such as a `RetryPolicy` is separately serializable but is not
 currently embedded in `HumanWorkflow`. This lets one deployment use a different
 operational retry budget without changing the research design.
+The saved workflow definition must match when resuming. Version-1 definition
+files can be imported for a new run, but existing version-1 instances require an
+explicit migration or a new instance; they are not silently upgraded.
 
 # Visualization and audit evidence
 
@@ -1429,7 +1462,8 @@ The following are important but not yet first-class:
 * automatic cancellation of external work after quorum or branch supersession;
 * deadlines, reminders, priorities, and escalation schedules;
 * explicit anonymous-panel and pseudonym policies;
-* per-recipient projection of a batch result;
+* general-purpose projection and declassification policies beyond the supported
+  participant submission and own-derived-value views;
 * persisted snapshots of every derived value and condition evaluation;
 * weighted quorum and richer participant selectors;
 * deterministic quantiles, variance, standard deviation, and frequency tables;

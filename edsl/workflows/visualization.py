@@ -17,8 +17,10 @@ STATUS_LABELS = {
     "blocked": "Blocked",
     "ready": "Ready",
     "in_progress": "In progress",
+    "committing": "Committing accepted response",
     "completed": "Completed",
     "skipped": "Skipped",
+    "superseded": "Superseded by quorum",
     "failed": "Failed",
 }
 

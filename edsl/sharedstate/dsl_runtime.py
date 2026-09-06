@@ -8,7 +8,9 @@ from dataclasses import dataclass
 import math
 from typing import Any, Callable
 
-from .dsl import Command, Effect, Expr, Machine
+from edsl._data_contracts import validate_data
+
+from .dsl import Command, Effect, Expr, Machine, _validate_type_expression
 
 
 class DSLValidationError(ValueError):
@@ -82,6 +84,7 @@ class Runtime:
         context["state"] = result
         for name, definition in spec.fields.items():
             result[name] = deepcopy(self.evaluate(definition.initial, context))
+        validate_data(result, path="initial state")
         return result
 
     def execute(
@@ -150,9 +153,11 @@ class Runtime:
             "input": {},
             "current": (current or {}) | {"closed": closed},
         }
-        return {
+        result = {
             name: self.evaluate(value, context) for name, value in spec.view.items()
         }
+        validate_data(result, path="state view")
+        return result
 
     def close(self, spec: Machine, state: dict[str, Any]) -> dict[str, Any]:
         working = deepcopy(state)
@@ -555,6 +560,11 @@ class Runtime:
     def _validate_type(
         self, name: str, value: Any, type_expr: Expr, context: dict[str, Any]
     ) -> None:
+        try:
+            _validate_type_expression(type_expr)
+            validate_data(value, path=name)
+        except (TypeError, ValueError) as exc:
+            raise DSLValidationError(str(exc)) from exc
         kind = type_expr.args[0]
         constraints = {
             key: self.evaluate(item, context) for key, item in type_expr.kwargs.items()

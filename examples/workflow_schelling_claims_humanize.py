@@ -61,15 +61,17 @@ def build_workflow() -> HumanWorkflow:
     own = claims.submissions.each("claim")
     outcome = builder.derive(
         "outcome",
-        total=total,
-        feasible=feasible,
+        # Explicitly release these aggregate outcomes to each player. Raw claims
+        # remain private; a payoff projection does not grant access to other fields.
+        total=own.map(total),
+        feasible=own.map(feasible),
         payoffs=own.map(choose(feasible, own.value, 0)),
     )
     notice_q = QuestionFreeText(
         question_name="acknowledgement",
         question_text=(
-            f"The two claims totaled {outcome.field('total').template}. "
-            f"Feasible allocation: {outcome.field('feasible').template}. "
+            f"The two claims totaled {outcome.field('total').for_participant()}. "
+            f"Feasible allocation: {outcome.field('feasible').for_participant()}. "
             f"Your authoritative payoff is "
             f"{outcome.field('payoffs').for_participant()} tokens. "
             "Please acknowledge receipt."

@@ -1,6 +1,26 @@
 """Configured private signals revealed once per participant and round."""
 
-from edsl.sharedstate import Command, Machine, T, append, choose, constant, current, field, filter_items, input_, local, map_sequence, put, record, reduce_, state_field, when
+from edsl.sharedstate import (
+    Command,
+    Machine,
+    T,
+    append,
+    choose,
+    constant,
+    current,
+    expr,
+    field,
+    filter_items,
+    input_,
+    local,
+    map_items,
+    map_sequence,
+    put,
+    record,
+    reduce_,
+    state_field,
+    when,
+)
 
 participant_history = field("revealed").get(input_("participant"), [])
 same_round = filter_items(participant_history, item="release", predicate=local("release").get("round") == input_("round"))
@@ -13,22 +33,54 @@ rounds = map_sequence(field("events"), item="event", value_expr=local("event").g
 SPEC = Machine(
     name="SharedSignalSchedule",
     constants={"signals": {"Amina": ["sunny", "windy"], "Boris": ["cloudy", "calm"]}},
-    fields={"revealed": state_field(T.map(), {}), "events": state_field(T.sequence(T.map()), [])},
+    fields={
+        "revealed": state_field(T.map(), {}),
+        "events": state_field(T.sequence(T.map()), []),
+    },
     commands={
         "reveal": Command(
             inputs={"participant": T.text(), "round": T.integer(minimum=1)},
-            require=constant("signals").contains(input_("participant")) & (input_("round") <= constant("signals").get(input_("participant")).length()),
+            require=constant("signals").contains(input_("participant"))
+            & (
+                input_("round")
+                <= constant("signals").get(input_("participant")).length()
+            ),
             effects=(
-                when(is_new, put("revealed", input_("participant"), participant_history.appended(new_release))),
-                when(is_new, append("events", record(participant=input_("participant"), round=input_("round")))),
+                when(
+                    is_new,
+                    put(
+                        "revealed",
+                        input_("participant"),
+                        participant_history.appended(new_release),
+                    ),
+                ),
+                when(
+                    is_new,
+                    append(
+                        "events",
+                        record(
+                            participant=input_("participant"), round=input_("round")
+                        ),
+                    ),
+                ),
             ),
             timing="before_question",
         )
     },
     view={
-        "your_signal": choose(viewer_history.length() > 0, viewer_history.at(viewer_history.length() - 1).get("signal"), None),
+        "your_signal": choose(
+            viewer_history.length() > 0,
+            viewer_history.at(viewer_history.length() - 1).get("signal"),
+            None,
+        ),
         "your_signal_history": viewer_history,
         "release_count": field("events").length(),
-        "released_by_round": reduce_("count_by", rounds),
+        "released_by_round": map_items(
+            reduce_("count_by", rounds),
+            key="round",
+            value="count",
+            key_expr=expr("concat", "", local("round")),
+            value_expr=local("count"),
+        ),
     },
 )
