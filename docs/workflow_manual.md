@@ -45,6 +45,7 @@ This manual describes the implementation in `edsl.workflows`. It covers:
 
 The workflow API is experimental. The serialized form and behavior described
 here are the current implementation, not a promise of permanent compatibility.
+The published quick start is `docs/en/latest/workflows.mdx`.
 The detailed recovery, visibility, and migration guarantees are documented in
 [Workflow and shared-state execution contracts](workflow_state_contracts.md).
 
@@ -224,9 +225,11 @@ Four terms should remain distinct.
 
 ## Workflow definition
 
-A `HumanWorkflow` is immutable, serializable data. It contains steps, metadata,
-derived-value declarations, and repeat-block declarations. It does not contain
-a database connection, model client, active respondent, or Python callback.
+A `HumanWorkflow` is treated as immutable, serializable data. Construction and
+coordinator binding detach it from mutable authoring objects. It contains steps,
+metadata, derived-value declarations, and repeat-block declarations. It does not
+contain a database connection, model client, active respondent, or Python
+callback.
 
 ## Workflow instance
 
@@ -901,6 +904,28 @@ including whole-container or dynamic access. An explicit participant-keyed
 `for_participant()` projection exposes only the recipient's entry, not unrelated
 private fields. Source outputs enter the context only after the source settles.
 
+For fan-out steps that need a participant's own prior submission and the peer
+submissions separately, declare a participant-relative view:
+
+```python
+prior = first.submissions.for_current_participant("prior")
+revision = QuestionFreeText(
+    question_name="revision",
+    question_text=f"Your response: {prior.own}; peers: {prior.others}",
+)
+builder.step(
+    "revise",
+    Survey([revision]),
+    assigned_to=role("respondent"),
+    after=first,
+    participant_views=(prior,),
+)
+```
+
+This projection preserves participant identity without exposing a different
+participant's answer as the current participant's own. It inherits the source
+step's visibility policy and is available only after the source settles.
+
 This is not a complete security system or an untrusted-template sandbox.
 Operational deployments must also secure SQLite files, application
 logs, email content, Humanize access, credentials, and administrator tooling.
@@ -1459,7 +1484,8 @@ The following are important but not yet first-class:
 * runtime or unbounded repeat materialization;
 * lease heartbeat and active renewal;
 * a typed provider-error protocol;
-* automatic cancellation of external work after quorum or branch supersession;
+* provider-side recall or invalidation of already delivered external work after
+  quorum or branch supersession (local work items are canceled);
 * deadlines, reminders, priorities, and escalation schedules;
 * explicit anonymous-panel and pseudonym policies;
 * general-purpose projection and declassification policies beyond the supported
@@ -1524,6 +1550,8 @@ derived_field.equals(value)
 SQLiteWorkflowStore(path)
 WorkflowCoordinator(workflow, store, state_backends=None)
 coordinator.launch(participants, instance_id=None)
+WorkflowCoordinator.restore(instance_id, store, state_backends=None)
+coordinator.recover(instance_id, max_attempts=1)
 coordinator.open(work_item_id)
 coordinator.submit(work_item_id, answers, idempotency_key=...)
 OutboxDispatcher(store, adapter).dispatch()

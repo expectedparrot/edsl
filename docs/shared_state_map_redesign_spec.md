@@ -27,12 +27,14 @@ header-includes:
 
 # Status
 
-This document specifies a redesign of experimental EDSL shared state. It is an
-implementation target, not documentation of the current branch.
+This document records the redesign that led to the current experimental shared
+state API. It is a historical design specification, not current usage
+documentation. For supported syntax, start with
+`docs/en/latest/shared_state.mdx` and `docs/shared_state_dsl_manual.md`; use
+`docs/workflow_state_contracts.md` for the current persistence contract.
 
-The working collection name is `SharedStateMap`. The name can change before
-implementation, but the distinction between one state and a keyed collection
-of states is normative.
+The implemented collection name is `SharedStateMap`. The distinction between
+one state and a keyed collection of states remains part of the current design.
 
 The redesign has four related goals:
 

@@ -19,14 +19,12 @@ numbersections: true
 
 # Status
 
-This document is both the target specification and the design record for an
-initial local vertical slice. The current `edsl.workflows` implementation
-includes serializable workflow/step definitions, fixed participant selection,
-ordered dependencies, SQLite work items/events/submissions/outbox storage,
-shared-state reads and writes, idempotent submission, a delivery adapter port,
-and virtual-clock EDSL-agent simulation. Later sections explicitly identify
-production features that remain, including conditional predicates, deadlines,
-replacement policies, and a remote Coop coordinator.
+This is the historical target specification and design record for the initial
+local vertical slice. It includes proposal-era APIs and a version-1 serialized
+shape, so it is not the current usage reference. Start with
+`docs/en/latest/workflows.mdx` and `docs/workflow_manual.md`; the current
+recovery, visibility, and migration guarantees are specified in
+`docs/workflow_state_contracts.md`.
 
 The normative terms **MUST**, **SHOULD**, and **MAY** have their usual RFC-style
 meaning.

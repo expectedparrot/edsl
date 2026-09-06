@@ -25,6 +25,14 @@ header-includes:
     \setlength{\emergencystretch}{3em}
 ---
 
+# Document status
+
+This is a historical foundation document and uses an earlier prototype API such
+as `SharedRegister`. It is retained as a design record, not as current usage
+documentation. For supported syntax, start with `docs/en/latest/shared_state.mdx`
+and `docs/shared_state_dsl_manual.md`. Persistence and recovery guarantees are
+specified in `docs/workflow_state_contracts.md`.
+
 # Why shared state exists
 
 An ordinary EDSL survey interview is self-contained. An agent answers

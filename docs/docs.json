@@ -79,6 +79,13 @@
         ]
       },
       {
+        "group": "Coordinated Research",
+        "pages": [
+          "en/latest/shared_state",
+          "en/latest/workflows"
+        ]
+      },
+      {
         "group": "No-code Apps",
         "pages": [
           "en/latest/survey_builder"

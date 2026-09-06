@@ -40,6 +40,11 @@ box labeled **Design pressure** identifies places where the proposed interface
 is incomplete or where an apparently simple abstraction conceals an important
 research choice.
 
+Do not use this document as an API reference. The supported foundation is
+documented in `docs/en/latest/shared_state.mdx` and
+`docs/shared_state_dsl_manual.md`; durable workflow orchestration is documented
+in `docs/en/latest/workflows.mdx` and `docs/workflow_manual.md`.
+
 The manual has two goals:
 
 1. Show an academic reader how to specify a reproducible simulation: who acts,

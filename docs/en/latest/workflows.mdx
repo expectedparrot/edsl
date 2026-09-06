@@ -1,0 +1,162 @@
+---
+title: "Research workflows"
+description: "Coordinate dependent tasks across human and simulated participants with durable execution, visibility controls, and recovery."
+---
+
+Use a workflow when one participant's completed task determines who can act
+next or what they are allowed to see. A workflow is a serializable graph;
+`WorkflowCoordinator` is the sole authority that opens ready work, accepts
+answers, applies shared-state effects, and releases downstream tasks.
+
+<Note>
+Humanize and model runners deliver ready tasks. They do not decide task order.
+This separation lets you test a protocol with scripted or LLM respondents and
+then deliver the same protocol to people.
+</Note>
+
+## Define a workflow
+
+This two-step protocol asks one participant for a proposal and shows the saved
+answer to a second participant:
+
+```python
+from edsl import Agent, QuestionFreeText, QuestionYesNo, Survey
+from edsl.workflows import Workflow, role
+
+builder = Workflow("Weekend activity approval")
+
+activity = QuestionFreeText(
+    question_name="activity",
+    question_text="Suggest a weekend activity.",
+)
+proposal = builder.step(
+    "propose",
+    Survey([activity]),
+    assigned_to=role("proposer"),
+)
+
+approved = QuestionYesNo(
+    question_name="approved",
+    question_text=(
+        "The proposed activity is "
+        f"{proposal.answer(activity).template}. Do you approve?"
+    ),
+)
+builder.step(
+    "approve",
+    Survey([approved]),
+    assigned_to=role("approver"),
+    after=proposal,
+)
+
+workflow = builder.compile()
+```
+
+Participants are EDSL agents. Their traits determine which steps they receive:
+
+```python
+participants = [
+    Agent(name="p1", traits={"role": "proposer"}),
+    Agent(name="p2", traits={"role": "approver"}),
+]
+```
+
+## Launch and complete work
+
+Use a SQLite store for durable local execution. A stable scientific seed makes
+workflow chance expressions reproducible independently of the generated
+instance ID.
+
+```python
+from edsl.workflows import SQLiteWorkflowStore, WorkflowCoordinator
+
+store = SQLiteWorkflowStore("weekend-workflow.sqlite")
+coordinator = WorkflowCoordinator(workflow, store)
+instance_id = coordinator.launch(participants, random_seed="pilot-1")
+
+proposal_item = store.items(instance_id, step_name="propose")[0]
+coordinator.open(proposal_item["id"])
+coordinator.submit(
+    proposal_item["id"],
+    {"activity": "Hiking"},
+    idempotency_key="response:p1:pilot-1",
+)
+
+approval_item = store.items(instance_id, step_name="approve")[0]
+opened = coordinator.open(approval_item["id"])
+assert "Hiking" in opened.survey.questions[0].question_text
+coordinator.submit(
+    approval_item["id"],
+    {"approved": "Yes"},
+    idempotency_key="response:p2:pilot-1",
+)
+```
+
+An idempotency key identifies one immutable response. Repeating the same
+submission is safe; reusing the key with different content is an error.
+
+## Visibility is enforced twice
+
+Restrict an output with `visible_to`. EDSL checks typed references while
+compiling and filters the rendering context again at runtime, including dynamic
+Jinja access.
+
+```python
+sealed = builder.step(
+    "sealed-report",
+    report_survey,
+    assigned_to=role("reviewer"),
+    visible_to=role("chair"),
+)
+```
+
+For repeated participant steps, explicitly project a submission into the
+current participant's own response and peer responses:
+
+```python
+prior = first.submissions.for_current_participant("prior")
+followup = QuestionFreeText(
+    question_name="revision",
+    question_text=f"Your response: {prior.own}\nPeer responses: {prior.others}",
+)
+builder.step(
+    "revise",
+    Survey([followup]),
+    assigned_to=role("respondent"),
+    after=first,
+    participant_views=(prior,),
+)
+```
+
+Participant views inherit the source step's visibility policy. They do not
+declassify otherwise hidden answers.
+
+## Recover after a restart
+
+The store retains the exact first render, accepted answers, state-effect
+intents, attempt leases, model selection, and definition fingerprint. Restore
+the pinned definition from the store rather than rebuilding it from mutable
+Python objects:
+
+```python
+store = SQLiteWorkflowStore("weekend-workflow.sqlite")
+coordinator = WorkflowCoordinator.restore(instance_id, store)
+coordinator.recover(instance_id)
+```
+
+Recovery finishes an already accepted response without asking the respondent
+or model to answer again. A changed workflow definition is rejected instead of
+silently resuming a different experiment.
+
+## Choose the adjacent abstraction
+
+- Use [Shared state](/en/latest/shared_state) for typed data that several
+  interviews read or change.
+- Use [Humanize](/en/latest/humanize) to deliver ready work to people and import
+  their responses.
+- Use an ordinary survey when interviews are independent and no durable
+  dependency graph is needed.
+
+The workflow API is experimental. Serialized workflow definitions currently
+use schema version 2; version-1 definitions can start a new run, but existing
+version-1 instances require explicit migration or a new instance.

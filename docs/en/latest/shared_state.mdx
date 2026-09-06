@@ -1,0 +1,171 @@
+---
+title: "Shared state"
+description: "Define typed, serializable state machines that coordinated EDSL interviews can read and update."
+---
+
+Shared state is durable data that several EDSL interviews can read and change.
+It supports polls, bargaining, discussion logs, task pools, auctions, and other
+studies in which one participant's action changes the context for another.
+
+Shared state complements rather than replaces `Results`:
+
+- `Results` preserve answers, prompts, and interview metadata.
+- Shared state preserves coordinated actions and the evolving study state.
+
+## The four layers
+
+| Layer | Purpose |
+| --- | --- |
+| `Machine` | Defines fields, commands, validation, and reader-facing views. |
+| `SharedState` | Groups one or more named machines in a state space. |
+| `SharedStateMap` | Selects independent spaces using scope keys such as a family or treatment group. |
+| State backend | Persists snapshots and an auditable event history. |
+
+Definitions contain no database connection or executable callback. They are
+plain serializable data.
+
+## Define a poll
+
+```python
+from edsl.sharedstate import (
+    Command,
+    Machine,
+    SharedState,
+    SharedStateMap,
+    T,
+    field,
+    input_,
+    put,
+    reduce_,
+    state_field,
+)
+
+activities = ["bike ride", "sailing", "hike", "beach day"]
+
+activity_poll = Machine(
+    name="ActivityPoll",
+    constants={"activities": activities},
+    fields={
+        "votes": state_field(
+            T.map(T.text(), T.choice(activities)),
+            initial={},
+        ),
+    },
+    commands={
+        "vote": Command(
+            inputs={
+                "voter": T.text(),
+                "activity": T.choice(activities),
+            },
+            effects=(
+                put(
+                    "votes",
+                    key=input_("voter"),
+                    value=input_("activity"),
+                    once=True,
+                ),
+            ),
+        ),
+    },
+    view={
+        "votes": field("votes"),
+        "counts": reduce_("count_by", field("votes").values()),
+    },
+)
+
+polls = SharedStateMap(
+    SharedState(poll=activity_poll),
+    state_id="activity-study",
+)
+```
+
+`once=True` gives each voter a first-write-wins ballot. Commands validate all
+inputs and the complete proposed state before committing atomically.
+
+## Add reads and writes to a survey
+
+A scope separates independent shared worlds. Here every agent carries a
+`family_id` trait, so members of one family share a poll without seeing another
+family's state.
+
+```python
+from edsl import QuestionMultipleChoice, Survey
+from edsl.sharedstate import current
+
+family_poll = polls.by(current.agent.family_id).poll
+
+activity = QuestionMultipleChoice(
+    question_name="activity",
+    question_text=(
+        "Current votes: {{ shared_state.poll.votes }}. "
+        "What should we do?"
+    ),
+    question_options=activities,
+)
+
+survey = Survey([
+    family_poll.read(),
+    activity,
+    family_poll.vote(
+        voter=current.agent.name,
+        activity=activity.answer,
+    ),
+])
+```
+
+The order is explicit: read a snapshot, ask the question using that snapshot,
+then apply the validated answer as a command. Reads and writes survive survey
+serialization.
+
+When order matters within each group, use a serializable interview schedule:
+
+```python
+from edsl import InterviewSchedule
+
+schedule = InterviewSchedule.grouped_round_robin(
+    group_by="family_id",
+    order_by="turn",
+)
+
+results = survey.by(agents).by(model).run(
+    interview_schedule=schedule,
+)
+```
+
+Each agent must have `family_id` and `turn` traits, with unique turn values
+inside a family. Different families may progress independently.
+
+## Serialization and persistence contracts
+
+Machine and state-map formats are versioned and round-trip as JSON:
+
+```python
+payload = polls.to_dict()
+restored = SharedStateMap.from_dict(payload)
+assert restored.to_dict() == payload
+```
+
+Persisted values obey a strict JSON contract: dictionary keys are strings and
+numbers must be finite. Use `&`, `|`, and `~` for symbolic Boolean expressions;
+Python `and`, `or`, and `not` try to evaluate the expression immediately and
+raise an error.
+
+A state backend records the definition fingerprint on first use. Reopening the
+database with a behaviorally different definition fails explicitly. A legacy
+database without a fingerprint is not adopted unless the operator opts in with
+`adopt_legacy_definition=True` after verifying its definition.
+
+An operation ID identifies one exact write. Retrying the same write is safe;
+reusing its identity with different inputs or runtime context is rejected.
+
+## Shared state and workflows
+
+[Research workflows](/en/latest/workflows) determine who may act and when.
+Shared-state machines determine which transitions are legal. Keep those
+responsibilities separate: workflow dependencies should not be hidden inside a
+machine, and authoritative arithmetic or state transitions should not be
+delegated to an LLM prompt.
+
+The shared-state API is experimental. `Machine` and `SharedStateMap` currently
+serialize as version 1, and incompatible versions fail rather than being
+silently interpreted.

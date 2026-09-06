@@ -6,9 +6,10 @@ Shared state is data that several EDSL interviews can read and change. It makes
 group voting, bargaining, discussion boards, forecasting, auctions, and common
 task pools possible.
 
-The precise execution contract is maintained separately in
-`docs/shared_state_semantics/`. That specification is normative when an example
-in this teaching guide is ambiguous.
+The language semantics are maintained in `docs/shared_state_semantics/`. The
+persistence, retry, definition-binding, and workflow integration guarantees are
+maintained in `docs/workflow_state_contracts.md`. Those specifications are
+normative when an example in this teaching guide is ambiguous.
 
 This guide constructs one shared data structure explicitly. Nothing is hidden
 behind a recipe factory. Once every part is understood, we add grouping,
@@ -381,10 +382,12 @@ transition through a transactional store.
 
 ## 11. Serialization
 
-The machine can be serialized:
+Machines and state maps use versioned JSON representations:
 
 ```python
-payload = activity_poll.to_json()
+payload = activity_poll.to_dict()
+restored = Machine.from_dict(payload)
+assert restored.to_dict() == payload
 ```
 
 An input reference becomes data resembling:
@@ -400,6 +403,20 @@ An input reference becomes data resembling:
 The payload contains no executable Python. Serialization is why the DSL uses
 `field("votes")` rather than a closure and `input_("activity")` rather than a
 lambda.
+
+Persisted values follow a deliberately narrow JSON contract:
+
+* mapping keys are strings;
+* numbers are finite, so `NaN` and infinity are rejected;
+* expression and effect operators have validated names and arities; and
+* symbolic conditions use `&`, `|`, and `~`, not Python `and`, `or`, and `not`.
+
+Python Boolean operators attempt to ask an expression for its truth value while
+the definition is being built. EDSL raises a `TypeError` instead of accidentally
+collapsing a symbolic condition to `True` or `False`.
+
+`Machine` and `SharedStateMap` currently serialize as version 1. Unsupported
+versions fail explicitly rather than being interpreted as the current language.
 
 ## 12. Creating one SharedState space
 
@@ -453,10 +470,10 @@ family_1 = groups.by("family-1")
 family_2 = groups.by("family-2")
 ```
 
-In a survey, selection usually comes from agent grouping metadata:
+In a survey, selection usually comes from agent traits:
 
 ```python
-family = groups.by(current.group.family_id)
+family = groups.by(current.agent.family_id)
 ```
 
 One `SharedStateMap` contains many scopes. One `SharedState` contains the named
@@ -469,29 +486,25 @@ Define the question:
 ```python
 activity = QuestionMultipleChoice(
     question_name="activity",
-    question_text=Stem(
-        """
+    question_text="""
         Current votes:
-        {{ poll.votes }}
+        {{ shared_state.poll.votes }}
 
         Which activity would you most prefer?
-        """
-    ),
+        """,
     question_options=activities,
 )
 ```
 
-`Stem` preserves structured question text and references through local or remote
-serialization. Jinja belongs inside the presentation. State commands use typed
-references.
+Jinja belongs inside the presentation. State commands use typed references.
 
 Put an explicit read before the question and the write after it:
 
 ```python
-family = groups.by(current.group.family_id)
+family = groups.by(current.agent.family_id)
 
 survey = Survey([
-    family.poll.refresh(),
+    family.poll.read(),
     activity,
     family.poll.vote(
         voter=current.agent.name,
@@ -502,7 +515,7 @@ survey = Survey([
 
 Read the sequence literally:
 
-1. refresh this family's poll;
+1. read this family's poll;
 2. ask the question using that snapshot;
 3. submit the answer as a vote.
 
@@ -512,43 +525,34 @@ placeholder string.
 ## 15. Why reads are explicit
 
 A state value rendered when a survey launches can be stale before a participant
-reaches the question. `family.poll.refresh()` states exactly when freshness
+reaches the question. `family.poll.read()` states exactly when freshness
 matters.
 
-Every refresh is logged at the `Results` level with a read ID, selected scope,
+Every read is logged at the `Results` level with a read ID, selected scope,
 machine name, snapshot ID, interview ID, and survey position. This supports
 auditing without promising that a snapshot remains newest after it is read.
 
 ## 16. Agent grouping and scheduling
 
-Grouping is metadata associated with agents, not a secret persona trait:
+Scope and schedule fields are ordinary agent traits:
 
 ```python
-grouping = AgentGrouping(
-    family_id={
-        "Amina": "family-1",
-        "Boris": "family-1",
-        "Chen": "family-2",
-        "Daria": "family-2",
-    },
-    turn={
-        "Amina": 1,
-        "Boris": 2,
-        "Chen": 1,
-        "Daria": 2,
-    },
-)
-
-people = people.with_grouping(grouping)
+people = AgentList([
+    Agent(name="Amina", traits={"family_id": "family-1", "turn": 1}),
+    Agent(name="Boris", traits={"family_id": "family-1", "turn": 2}),
+    Agent(name="Chen", traits={"family_id": "family-2", "turn": 1}),
+    Agent(name="Daria", traits={"family_id": "family-2", "turn": 2}),
+])
 ```
 
-The schedule consumes the same named grouping:
+The serializable schedule consumes those trait names:
 
 ```python
-schedule = GroupedRoundRobin(
-    group_by=current.group.family_id,
-    order_by=current.group.turn,
-    max_concurrent_groups=10,
+from edsl import InterviewSchedule
+
+schedule = InterviewSchedule.grouped_round_robin(
+    group_by="family_id",
+    order_by="turn",
 )
 ```
 
@@ -563,32 +567,44 @@ Attach storage when executing, not when defining data:
 job = (
     survey
     .by(people)
-    .using(shared_state=groups)
-    .with_schedule(schedule)
+    .by(model)
 )
 
-results = job.run()
+results = job.run(interview_schedule=schedule)
 ```
 
-For local execution, EDSL manages a local state service. For remote execution,
-it creates or attaches to a remote store and sends a durable reference with the
-job:
+The survey's explicit state steps carry the serializable definition and state
+ID; no database handle belongs in the job definition. Local execution manages a
+SQLite state service. Remote execution creates or attaches to a remote store and
+sends a durable reference with the job:
 
 ```python
-results = job.run(remote=True)
+results = job.run(offload_execution=True)
 ```
 
-`Results` contains state provenance:
+`Results` contains state provenance for each binding:
 
 ```python
-results.shared_state.incoming
-results.shared_state.reads
-results.shared_state.writes
-results.shared_state.outgoing
+binding = results.shared_state["bindings"][0]
+binding["entry_snapshots"]
+binding["events"]
+binding["exit_snapshots"]
 ```
 
-Incoming and outgoing values are snapshots. A later run can continue from the
-outgoing state or deliberately branch from an earlier snapshot.
+Entry and exit values are snapshots; reads and writes appear in the ordered
+event history. Together they record which state the run inherited, what it did,
+and what state it left behind.
+
+When binding a state map directly to `SQLiteStateBackend`, the backend records
+the serialized definition fingerprint. Reopening the path with a behaviorally
+different definition is an error. Databases created before fingerprints existed
+require an explicit, audited `adopt_legacy_definition=True`; normal execution
+never silently adopts them.
+
+Write retries are content-bound. Reusing the same operation identity with the
+same inputs and runtime context returns the earlier outcome. Reusing it with
+different content is an error, preventing an idempotency retry from becoming a
+different scientific action.
 
 ## 18. Building a log from first principles
 
@@ -1077,7 +1093,7 @@ committee_state = SharedState(
 )
 
 committees = SharedStateMap(committee_state)
-committee = committees.by(current.group.committee_id)
+committee = committees.by(current.agent.committee_id)
 ```
 
 Do not combine unrelated fields into one large machine merely because they
@@ -1088,9 +1104,9 @@ share a scope.
 Define the machine once and vary only the scope key:
 
 ```python
-family = families.by(current.group.family_id)
-market = markets.by(current.group.market_id)
-pair = bargaining_pairs.by(current.group.pair_id)
+family = families.by(current.agent.family_id)
+market = markets.by(current.agent.market_id)
+pair = bargaining_pairs.by(current.agent.pair_id)
 ```
 
 The selected space changes; the machine definition and survey remain the same.

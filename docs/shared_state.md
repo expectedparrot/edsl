@@ -4,6 +4,9 @@ Shared state lets several interviews read and update the same serializable state
 machine. The authoring objects describe behavior and routing; execution storage is
 chosen by EDSL.
 
+For the published quick start, see `docs/en/latest/shared_state.mdx`. For a
+longer construction tutorial, see `docs/shared_state_dsl_manual.md`.
+
 ## The four authoring objects
 
 `Machine` defines one state machine. It contains constants, typed fields, commands,
