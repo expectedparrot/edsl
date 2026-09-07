@@ -3064,7 +3064,51 @@ class TestHumanizeCli:
 
         assert result.exit_code == 0, result.output
         out = json.loads(result.output)
-        assert out["data"]["commands"] == ["create", "validate", "patch", "set"]
+        assert out["data"]["commands"] == ["create", "validate", "get", "patch", "set"]
+
+    def test_humanize_schema_get(self, monkeypatch):
+        import edsl.coop
+
+        class FakeCoop:
+            def get_human_survey_humanize_schema(self, human_survey_uuid):
+                assert human_survey_uuid == "human-survey-uuid"
+                return {"questions": {"q1": {"optional": True}}}
+
+        monkeypatch.setattr(edsl.coop, "Coop", FakeCoop)
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            ["humanize", "schema", "get", "human-survey-uuid"],
+        )
+
+        assert result.exit_code == 0, result.output
+        out = json.loads(result.output)
+        assert out["data"]["humanize_schema"] == {"questions": {"q1": {"optional": True}}}
+
+    def test_humanize_schema_get_writes_file(self, tmp_path, monkeypatch):
+        import edsl.coop
+
+        class FakeCoop:
+            def get_human_survey_humanize_schema(self, human_survey_uuid):
+                return {"questions": {}}
+
+        monkeypatch.setattr(edsl.coop, "Coop", FakeCoop)
+        out_path = tmp_path / "humanize.json"
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            [
+                "humanize",
+                "schema",
+                "get",
+                "human-survey-uuid",
+                "--out",
+                str(out_path),
+            ],
+        )
+
+        assert result.exit_code == 0, result.output
+        assert json.loads(out_path.read_text()) == {"questions": {}}
 
     def test_humanize_schema_validate(self, tmp_path):
         from edsl.surveys import Survey

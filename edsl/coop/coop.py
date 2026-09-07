@@ -4274,6 +4274,29 @@ class Coop(CoopFunctionsMixin):
         self._resolve_server_response(response)
         return response.json()
 
+    def get_human_survey_humanize_schema(
+        self,
+        human_survey_uuid: Union[str, UUID],
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Get a deployed human survey's humanize schema.
+
+        Parameters:
+            human_survey_uuid: UUID of the human survey.
+
+        Returns:
+            The stored humanize schema, or None if the survey has none.
+
+        Example:
+            >>> schema = coop.get_human_survey_humanize_schema("your-human-survey-uuid")  # doctest: +SKIP
+        """
+        response = self._send_server_request(
+            uri=f"api/v0/human-surveys/{human_survey_uuid}/humanize-schema",
+            method="GET",
+        )
+        self._resolve_server_response(response)
+        return response.json().get("humanize_schema")
+
     def patch_human_survey_humanize_schema(
         self,
         human_survey_uuid: Union[str, UUID],
