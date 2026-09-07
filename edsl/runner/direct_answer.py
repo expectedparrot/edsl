@@ -159,7 +159,7 @@ class DirectAnswerRegistry:
         }
 
     def _question_for_interview(self, entry: DirectAnswerEntry):
-        """Return an isolated question with this interview's resolved row order."""
+        """Return an isolated question with this interview's option and row orders."""
         if not self._job_service or not entry.job_id or not entry.interview_id:
             return entry.question
         question = entry.question.duplicate()
@@ -167,6 +167,18 @@ class DirectAnswerRegistry:
             entry.job_id, entry.interview_id
         )
         question_data = question.to_dict(add_edsl_version=False)
+        interview_def = self._job_service._interviews.get_definition(
+            entry.job_id, entry.interview_id
+        )
+        if interview_def and hasattr(question, "question_options"):
+            options = interview_def.question_option_permutations.get(
+                question.question_name, question_data.get("question_options")
+            )
+            options = self._job_service._resolve_question_options(
+                options, current_answers, entry.scenario
+            )
+            if isinstance(options, list):
+                question.question_options = list(options)
         items = self._job_service._resolve_question_items(
             question_data,
             current_answers,
