@@ -2157,6 +2157,17 @@ class Survey(Base):
     ) -> None:
         """Validate that questions in a group don't have dependencies on each other.
 
+        A group is served as one page, so every question on it is rendered before any
+        of it is answered. A question may therefore not need anything else in the same
+        group: not its text, through piping or memory, and not its presence, through a
+        rule reading an answer given on that page.
+
+        Uses :meth:`rendering_dag` rather than :meth:`dag`. The two differ only for
+        skip rules, where `dag` reports a dependency on every preceding question
+        because that is the order they are reached in. That would refuse a page holding
+        a question skipped on an answer given pages earlier, which renders perfectly
+        well -- the answer is in hand before the page is built.
+
         Args:
             start_index: Starting index of the group
             end_index: Ending index of the group
@@ -2166,8 +2177,7 @@ class Survey(Base):
             SurveyCreationError: If any question in the group depends on another
                 question in the same group.
         """
-        # Get the complete dependency DAG
-        dag = self.dag()
+        dag = self.rendering_dag()
 
         # Get all question indices in the proposed group
         group_indices = set(range(start_index, end_index + 1))
@@ -3185,6 +3195,33 @@ class Survey(Base):
         from .dag import ConstructDAG
 
         return ConstructDAG(self).dag(textify)
+
+    def rendering_dag(self, textify: bool = False) -> "DAG":
+        """Return the DAG of what each question needs in order to be rendered.
+
+        Differs from :meth:`dag` only in what a skip rule contributes. `dag` treats a
+        skippable question as depending on every question before it, which describes
+        the order it is reached in; here it depends only on the questions its skip
+        expression reads. Ask this when questions are served together -- a page of a
+        grouped survey -- and :meth:`dag` when you mean traversal order.
+
+        Args:
+            textify: If True, use question names as nodes instead of indices.
+
+        Examples:
+            >>> from edsl.questions import QuestionMultipleChoice
+            >>> q0 = QuestionMultipleChoice(question_name="q0", question_text="?", question_options=["y", "n"])
+            >>> q1 = QuestionMultipleChoice(question_name="q1", question_text="?", question_options=["y", "n"])
+            >>> q2 = QuestionMultipleChoice(question_name="q2", question_text="?", question_options=["y", "n"])
+            >>> s = Survey([q0, q1, q2]).add_skip_rule("q2", "{{ q0.answer }} == 'y'")
+            >>> s.dag()[2] == {0, 1}
+            True
+            >>> s.rendering_dag()[2] == {0}
+            True
+        """
+        from .dag import ConstructDAG
+
+        return ConstructDAG(self).rendering_dag(textify)
 
     ###################
     # DUNDER METHODS
