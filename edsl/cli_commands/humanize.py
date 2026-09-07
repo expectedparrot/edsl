@@ -346,7 +346,7 @@ def register(humanize: click.Group) -> None:
 
     @humanize_schema.command("create")
     @click.option("--survey", "survey_path", required=True, type=click.Path(exists=True), help="Survey .ep, JSON, or package directory.")
-    @click.option("--output", "-o", "output_path", default=None, help="Write schema JSON to this path. Omit to return it in the JSON envelope.")
+    @click.option("--output", "-o", "output_path", default=None, help="Write schema to this .json or .json.gz path. Omit to return it in the JSON envelope.")
     @click.option("--optional", "optional_questions", multiple=True, help="Question to mark optional. Repeat or use 'all'.")
     @click.option("--required", "required_questions", multiple=True, help="Question to mark required. Repeat or use 'all'.")
     @click.option("--format", "format_specs", multiple=True, help="QUESTION=radio|dropdown|input. Repeat for multiple questions.")
@@ -590,7 +590,7 @@ def register(humanize: click.Group) -> None:
 
     @humanize_schema.command("get")
     @click.argument("human_survey_uuid")
-    @click.option("--out", "out_path", default=None, type=click.Path(), help="Write the schema to this file instead of stdout.")
+    @click.option("--out", "out_path", default=None, type=click.Path(), help="Write the schema to this .json or .json.gz file instead of stdout.")
     def humanize_schema_get(human_survey_uuid, out_path):
         """Get a deployed human survey's humanize schema."""
         try:
@@ -598,9 +598,10 @@ def register(humanize: click.Group) -> None:
 
             schema = Coop().get_human_survey_humanize_schema(human_survey_uuid)
             if out_path:
-                with open(out_path, "w", encoding="utf-8") as f:
-                    json.dump(schema, f, indent=2)
-                output({"human_survey_uuid": human_survey_uuid, "path": out_path})
+                output({
+                    "human_survey_uuid": human_survey_uuid,
+                    "saved": _write_json_schema(schema, out_path),
+                })
             else:
                 output(jsonable({"humanize_schema": schema}))
         except SystemExit:
@@ -1845,8 +1846,29 @@ def register(humanize: click.Group) -> None:
     def _write_json_schema(schema: dict, output_path: str) -> dict:
         path = Path(output_path)
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps(schema, indent=2, default=str), encoding="utf-8")
-        return {"path": str(path), "format": "json", "object_type": "HumanizeSchema"}
+        if path.name.endswith(".json.gz"):
+            with gzip.open(path, "wt", encoding="utf-8") as f:
+                json.dump(schema, f, indent=2, default=str)
+            return {
+                "path": str(path),
+                "format": "json.gz",
+                "object_type": "HumanizeSchema",
+            }
+        if path.suffix == ".json":
+            path.write_text(
+                json.dumps(schema, indent=2, default=str), encoding="utf-8"
+            )
+            return {
+                "path": str(path),
+                "format": "json",
+                "object_type": "HumanizeSchema",
+            }
+        error(
+            "USAGE_ERROR",
+            f"Unsupported output extension: {path}",
+            suggestion="Use .json or .json.gz.",
+            exit_code=EXIT_USAGE,
+        )
 
 
     def _load_survey_object(path: str):

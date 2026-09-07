@@ -327,6 +327,8 @@ schema = Coop().get_human_survey_humanize_schema("your-human-survey-uuid")
 It returns the schema as stored, or `None` if the survey was created without one.
 From the CLI, `ep humanize schema get <uuid>` prints it, and `--out schema.json`
 writes it to a file you can edit and send back with `ep humanize schema patch`.
+The `--out` path must end in `.json` or `.json.gz`; the suffix picks the format,
+and both are readable by the commands that take `--schema`.
 
 ## Validation
 
