@@ -11,7 +11,7 @@ Defines the core domain objects:
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any
+from typing import Any, TypedDict
 import uuid
 
 
@@ -250,6 +250,13 @@ class JobStatus:
 # =============================================================================
 
 
+class OptionRandomization(TypedDict):
+    """Persisted draw parameters for an option list resolved at interview time."""
+
+    seed: int
+    pin_options: list
+
+
 @dataclass
 class InterviewDefinition:
     """
@@ -272,6 +279,9 @@ class InterviewDefinition:
     # Only populated for questions in survey.questions_to_randomize
     question_option_permutations: dict[str, list] = field(default_factory=dict)
     question_item_randomization_seeds: dict[str, int] = field(default_factory=dict)
+    question_option_randomizations: dict[str, OptionRandomization] = field(
+        default_factory=dict
+    )
 
     def storage_key(self) -> str:
         return f"job:{self.job_id}:interview:{self.interview_id}"
@@ -286,6 +296,7 @@ class InterviewDefinition:
             "iteration": self.iteration,
             "question_option_permutations": self.question_option_permutations,
             "question_item_randomization_seeds": self.question_item_randomization_seeds,
+            "question_option_randomizations": self.question_option_randomizations,
         }
 
     @classmethod
@@ -304,6 +315,9 @@ class InterviewDefinition:
             question_option_permutations=data.get("question_option_permutations", {}),
             question_item_randomization_seeds=data.get(
                 "question_item_randomization_seeds", {}
+            ),
+            question_option_randomizations=data.get(
+                "question_option_randomizations", {}
             ),
         )
 
