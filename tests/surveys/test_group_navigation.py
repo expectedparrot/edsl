@@ -1155,6 +1155,23 @@ class TestGroupDependencyValidation(unittest.TestCase):
         with self.assertRaises(SurveyCreationError):
             survey.add_question_group("gate", "branched", "page")
 
+    def test_skip_rule_reading_the_same_group_via_keyword_argument(self):
+        """A name in a keyword argument is a dependency like any other.
+
+        The group check is only as complete as the list of questions a skip
+        expression is known to read, so a name the extractor misses is a page that
+        validates and then cannot be rendered.
+        """
+        gate = self._choice("gate")
+        branched = self._choice("branched")
+        survey = Survey([gate, branched]).add_skip_rule(
+            "branched", "min(a={{ gate.answer }}, b=10) == 5"
+        )
+
+        self.assertEqual(survey.rendering_dag()[1], {0})
+        with self.assertRaises(SurveyCreationError):
+            survey.add_question_group("gate", "branched", "page")
+
     def test_two_branched_questions_may_share_a_group(self):
         """The either/or pattern: one question per answer, both on one page."""
         gate = self._choice("gate")
