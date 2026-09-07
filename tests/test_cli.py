@@ -3174,7 +3174,10 @@ class TestHumanizeCli:
         assert result.exit_code == 0, result.output
         assert patched["partial"] == schema
 
-    def test_humanize_schema_get_rejects_unknown_extension(self, tmp_path, monkeypatch):
+    def test_humanize_schema_get_writes_plain_json_for_other_extensions(
+        self, tmp_path, monkeypatch
+    ):
+        """Only .json.gz switches format; every other suffix stays plain JSON."""
         import edsl.coop
 
         class FakeCoop:
@@ -3182,15 +3185,17 @@ class TestHumanizeCli:
                 return {"questions": {}}
 
         monkeypatch.setattr(edsl.coop, "Coop", FakeCoop)
-        out_path = tmp_path / "humanize.yaml"
+        out_path = tmp_path / "humanize.custom"
 
         result = CliRunner().invoke(
             cli_module.app,
             ["humanize", "schema", "get", "human-survey-uuid", "--out", str(out_path)],
         )
 
-        assert result.exit_code != 0
-        assert not out_path.exists()
+        assert result.exit_code == 0, result.output
+        out = json.loads(result.output)
+        assert out["data"]["saved"]["format"] == "json"
+        assert json.loads(out_path.read_text()) == {"questions": {}}
 
     def test_humanize_schema_validate(self, tmp_path):
         from edsl.surveys import Survey
