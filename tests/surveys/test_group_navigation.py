@@ -1025,5 +1025,92 @@ class TestGroupNavigationWithInstructions(unittest.TestCase):
         self.assertGreater(len(result), 0)
 
 
+class TestNextGroup(unittest.TestCase):
+    """Test human-facing group/page navigation."""
+
+    def test_next_group_returns_first_group(self):
+        q0 = QuestionFreeText(question_text="First", question_name="q0")
+        q1 = QuestionFreeText(question_text="Second", question_name="q1")
+        survey = Survey([q0, q1])
+        survey.question_groups = {"page_0": (0, 0), "page_1": (1, 1)}
+
+        result = survey.next_group()
+
+        self.assertEqual(result["group_name"], "page_0")
+        self.assertEqual(result["question_names"], ["q0"])
+        self.assertFalse(result["is_end"])
+
+    def test_next_group_uses_after_rule_to_choose_target_group(self):
+        q0 = QuestionYesNo(question_text="Skip to final?", question_name="q0")
+        q1 = QuestionFreeText(question_text="Middle", question_name="q1")
+        q2 = QuestionFreeText(question_text="Final", question_name="q2")
+        survey = Survey([q0, q1, q2])
+        survey.question_groups = {
+            "page_0": (0, 0),
+            "page_1": (1, 1),
+            "page_2": (2, 2),
+        }
+        survey.add_rule("q0", "{{ q0.answer }} == 'Yes'", "q2")
+
+        result = survey.next_group("page_0", {"q0.answer": "Yes"})
+
+        self.assertEqual(result["group_name"], "page_2")
+        self.assertEqual(result["question_names"], ["q2"])
+
+    def test_next_group_starts_at_jump_target_inside_group(self):
+        q0 = QuestionYesNo(
+            question_text="Skip first grouped question?", question_name="q0"
+        )
+        q1 = QuestionFreeText(question_text="Middle", question_name="q1")
+        q2 = QuestionFreeText(question_text="Final", question_name="q2")
+        survey = Survey([q0, q1, q2])
+        survey.question_groups = {"page_0": (0, 0), "page_1": (1, 2)}
+        survey.add_rule("q0", "{{ q0.answer }} == 'Yes'", "q2")
+
+        result = survey.next_group("page_0", {"q0.answer": "Yes"})
+
+        self.assertEqual(result["group_name"], "page_1")
+        self.assertEqual(result["question_names"], ["q2"])
+
+    def test_next_group_filters_skip_rules_inside_target_group(self):
+        q0 = QuestionYesNo(question_text="Expert?", question_name="q0")
+        q1 = QuestionFreeText(question_text="Beginner question", question_name="q1")
+        q2 = QuestionFreeText(question_text="Common question", question_name="q2")
+        survey = Survey([q0, q1, q2])
+        survey.question_groups = {"page_0": (0, 0), "page_1": (1, 2)}
+        survey.add_skip_rule("q1", "{{ q0.answer }} == 'Yes'")
+
+        result = survey.next_group("page_0", {"q0.answer": "Yes"})
+
+        self.assertEqual(result["group_name"], "page_1")
+        self.assertEqual(result["question_names"], ["q2"])
+
+    def test_next_group_includes_relevant_instructions(self):
+        intro = Instruction(text="Welcome", name="intro")
+        middle = Instruction(text="Next section", name="middle")
+        q0 = QuestionFreeText(question_text="First", question_name="q0")
+        q1 = QuestionFreeText(question_text="Second", question_name="q1")
+        survey = Survey([intro, q0, middle, q1])
+        survey.question_groups = {"page_0": (0, 0), "page_1": (1, 1)}
+
+        first_page = survey.next_group()
+        second_page = survey.next_group("page_0", {"q0.answer": "answer"})
+
+        self.assertEqual([item.name for item in first_page["items"]], ["intro", "q0"])
+        self.assertEqual([item.name for item in second_page["items"]], ["middle", "q1"])
+
+    def test_next_group_end_of_survey(self):
+        q0 = QuestionFreeText(question_text="Only", question_name="q0")
+        survey = Survey([q0])
+        survey.question_groups = {"page_0": (0, 0)}
+
+        result = survey.next_group("page_0", {"q0.answer": "answer"})
+
+        self.assertIsNone(result["group_name"])
+        self.assertEqual(result["items"], [EndOfSurvey])
+        self.assertEqual(result["question_names"], [])
+        self.assertTrue(result["is_end"])
+
+
 if __name__ == "__main__":
     unittest.main()

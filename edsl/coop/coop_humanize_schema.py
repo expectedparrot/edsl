@@ -14,7 +14,7 @@ from pydantic import (
     model_validator,
 )
 
-from ..questions import QuestionBase
+from ..questions import QuestionBase, QuestionCompute, QuestionImageGeneration
 
 from .exceptions import HumanizeSchemaValidationError
 from .voice_interview_languages import (
@@ -160,6 +160,7 @@ class SurveyHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the survey (e.g. custom styling)."""
 
     custom_css: Optional[str] = None
+    presentation: Literal["question", "group"] = "question"
     # How the respondent is shown their position in the survey. Defaults to the
     # bar that shipped before this field existed, so stored configs render
     # identically.
@@ -857,6 +858,147 @@ def _validate_preselection_targets(
             )
 
 
+def _is_background_question(question: Any) -> bool:
+    """Whether a question is answered by the server rather than the respondent.
+
+    Thinking, compute and image generation questions all run without the
+    respondent and are never rendered to one, so a group made up entirely of them
+    is never shown as a page.
+    """
+    return isinstance(question, QuestionBase) and (
+        getattr(question, "_is_thinking_question", False)
+        or isinstance(question, (QuestionCompute, QuestionImageGeneration))
+    )
+
+
+def _validate_group_presentation(survey: Survey) -> None:
+    """Check the survey can actually be presented one question group per page.
+
+    Only meaningful under ``presentation: "group"``; by default each question is
+    its own page and ``question_groups`` does not affect what is served.
+
+    Every rule here guards a failure that is otherwise silent in front of a
+    respondent — a question that never appears, an instruction nobody reads, a
+    page that cannot be submitted. They are raised here, while the author is still
+    at their keyboard and the survey has no responses, rather than left for the
+    survey platform to absorb at render time.
+    """
+    groups = survey.question_groups
+    if not groups:
+        raise HumanizeSchemaValidationError(
+            "Humanize schema sets presentation to 'group', but this survey has no "
+            "question groups, so there is nothing to page by. Call "
+            "survey.create_allowable_groups(...) or survey.add_question_group(...) "
+            "first, or drop the presentation setting."
+        )
+
+    ordered = sorted(
+        ((name, start, end) for name, (start, end) in groups.items()),
+        key=lambda group: group[1],
+    )
+    question_count = len(survey.questions)
+
+    def members_of(start: int, end: int) -> list:
+        """The survey questions a group's range covers."""
+        return [
+            survey.questions[index]
+            for index in range(max(start, 0), min(end, question_count - 1) + 1)
+        ]
+
+    # Which group owns each question. A range may deliberately run past the last
+    # question to pull in a trailing instruction (see below), so an index beyond
+    # the survey is not evidence of anything and is simply ignored.
+    owners: Dict[int, list] = {index: [] for index in range(question_count)}
+    for name, start, end in ordered:
+        for index in range(max(start, 0), min(end, question_count - 1) + 1):
+            owners[index].append(name)
+
+    uncovered = [index for index, names in owners.items() if not names]
+    if uncovered:
+        shown = ", ".join(
+            repr(survey.questions[index].question_name) for index in uncovered[:5]
+        )
+        more = "" if len(uncovered) <= 5 else f", and {len(uncovered) - 5} more"
+        raise HumanizeSchemaValidationError(
+            f"Question groups do not cover every question: {shown}{more} "
+            f"belong{'s' if len(uncovered) == 1 else ''} to no group. A question "
+            "outside every group is never served and is recorded as skipped, so it "
+            "would drop out of the survey without anything being raised."
+        )
+
+    # Overlaps do not duplicate a question — a group's start is clamped to wherever
+    # the respondent actually is, so a shared question is served once, with whichever
+    # group starts earlier. What they do instead is repaginate the survey: the other
+    # group can be left with nothing to serve and produce no page at all. Where two
+    # starts tie, the groups are ordered by a stable sort on start index, so the
+    # tie-break is the order they sit in the dict — the same two groups added the
+    # other way round page the survey differently.
+    for index, names in owners.items():
+        if len(names) > 1:
+            raise HumanizeSchemaValidationError(
+                f"Question {survey.questions[index].question_name!r} belongs to more "
+                f"than one question group "
+                f"({', '.join(repr(name) for name in names)}). The question is not "
+                "duplicated — it is served once, with the earlier-starting group — "
+                "but the other group can be left serving nothing at all, so the "
+                "survey is paged differently from the way these groups read. Give "
+                "each question exactly one group."
+            )
+
+    # An interview fills the screen and ends itself, so the shared Next button on a
+    # group page has no conversation to submit.
+    for name, start, end in ordered:
+        members = members_of(start, end)
+        interviews = [
+            question.question_name
+            for question in members
+            if getattr(question, "question_type", None) == "interview"
+        ]
+        if interviews and len(members) > 1:
+            raise HumanizeSchemaValidationError(
+                f"Question group {name!r} puts interview {interviews[0]!r} on a page "
+                "with other questions. An interview needs a page of its own — it "
+                "fills the screen and ends itself, so a shared Next button has no "
+                "conversation to submit. Give it a group holding only that question."
+            )
+
+    # Instructions attach to a group by pseudo-index, so one sitting past the last
+    # group has no page to land on and is never rendered. The same goes for one
+    # attached to a group whose questions are all answered by the server: that group
+    # is run and passed over, and the instruction goes with it.
+    last_group_end = max(end for _, _, end in ordered)
+    background_only_windows = []
+    previous_end = -1
+    for name, start, end in ordered:
+        members = members_of(start, end)
+        if members and all(_is_background_question(question) for question in members):
+            # The window a group draws instructions from: before the first group, or
+            # after the previous one, through to the group's own end.
+            background_only_windows.append((name, previous_end, end))
+        previous_end = end
+
+    for instruction_name in survey._instruction_names_to_instructions:
+        pseudo_index = survey._pseudo_indices.get(instruction_name)
+        if pseudo_index is None:
+            continue
+        if pseudo_index > last_group_end:
+            raise HumanizeSchemaValidationError(
+                f"Instruction {instruction_name!r} falls after the last question "
+                "group, so there is no page for it to appear on and it would never "
+                "be shown. Move it inside a group, or use a SurveyMessage question "
+                "if it should be the last thing the respondent reads."
+            )
+        for group_name, window_start, window_end in background_only_windows:
+            if window_start < pseudo_index <= window_end:
+                raise HumanizeSchemaValidationError(
+                    f"Instruction {instruction_name!r} is attached to question group "
+                    f"{group_name!r}, whose questions are all answered without the "
+                    "respondent. That group is never shown as a page, so the "
+                    "instruction would never be read. Move it to a group the "
+                    "respondent sees."
+                )
+
+
 def validate_humanize_schema(
     survey: Survey,
     humanize_schema: Dict[str, Any],
@@ -910,3 +1052,8 @@ def validate_humanize_schema(
         # an option exists is a fact about the question, and only this function has
         # both halves.
         _validate_preselection_targets(question_name, q, validated_entry)
+
+    # Paging by group is a claim about the survey's structure, not about any one
+    # question, so it is checked once at the end with the whole survey in hand.
+    if validated_schema.survey and validated_schema.survey.presentation == "group":
+        _validate_group_presentation(survey)

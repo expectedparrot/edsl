@@ -106,6 +106,12 @@ preview_url = survey.preview(humanize_schema=schema)
 
 ---
 
+## Present questions in groups
+
+To request one group per page, define contiguous question groups on the survey and pass `humanize_schema={"survey": {"presentation": "group"}}` to `.humanize()`. See [Grouped surveys](/en/latest/humanize_groups) for a complete example, branching behavior, and availability requirements.
+
+---
+
 ## With scenarios
 
 When using scenarios, call `.humanize()` on a `Jobs` object (not directly on the survey). You must specify a `scenario_list_method`.

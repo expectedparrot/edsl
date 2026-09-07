@@ -2927,6 +2927,47 @@ class Survey(Base):
         """
         return self._navigator.next_question_group(current_question, answers)
 
+    def next_group(
+        self,
+        current_group: Optional[str] = None,
+        answers: Optional[Dict[str, Any]] = None,
+        include_instructions: bool = True,
+    ) -> Dict[str, Any]:
+        """
+        Return the next renderable group for human-facing grouped survey presentation.
+
+        This method treats a question group as a page. When called with no current
+        group, it returns the first renderable group. When called after a group has
+        been submitted, it advances from that group's last renderable question using
+        the same rule logic as ``next_question`` and returns the target group.
+
+        Args:
+            current_group: The name of the group that was just submitted. If None,
+                returns the first renderable group.
+            answers: Answers collected so far, including answers from current_group.
+            include_instructions: Whether to include instructions that fall before or
+                inside the returned group.
+
+        Returns:
+            A dictionary with ``group_name``, ``items``, ``question_names``, and
+            ``is_end`` keys. ``items`` contains questions and optional instructions;
+            at the end of the survey it contains ``[EndOfSurvey]``.
+
+        Examples:
+            >>> from edsl.questions import QuestionFreeText
+            >>> q0 = QuestionFreeText(question_name="q0", question_text="First")
+            >>> q1 = QuestionFreeText(question_name="q1", question_text="Second")
+            >>> survey = Survey([q0, q1])
+            >>> survey.question_groups = {"page_0": (0, 0), "page_1": (1, 1)}
+            >>> survey.next_group()["group_name"]
+            'page_0'
+        """
+        return self._navigator.next_group(
+            current_group=current_group,
+            answers=answers,
+            include_instructions=include_instructions,
+        )
+
     def get_question_group(self, question: Union[str, "QuestionBase"]) -> Optional[str]:
         """
         Get the group name that contains the specified question.

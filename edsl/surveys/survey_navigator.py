@@ -75,6 +75,9 @@ class SurveyNavigator:
         'q1'
 
         """
+        if not self.survey.questions:
+            return EndOfSurvey
+
         if current_question is None:
             return self.survey.questions[0]
 
@@ -255,6 +258,232 @@ class SurveyNavigator:
             return self.next_question_group(
                 self.survey.questions[next_sequential - 1], answers
             )
+
+    def _ordered_question_groups(self) -> List[Tuple[str, int, int]]:
+        """Return question groups ordered by their start index."""
+        return sorted(
+            (
+                (group_name, start_idx, end_idx)
+                for group_name, (
+                    start_idx,
+                    end_idx,
+                ) in self.survey.question_groups.items()
+            ),
+            key=lambda group: group[1],
+        )
+
+    def _group_containing_question_index(
+        self, question_index: int
+    ) -> Optional[Tuple[str, int, int]]:
+        """Return the ordered group tuple containing a question index."""
+        for group_name, start_idx, end_idx in self._ordered_question_groups():
+            if start_idx <= question_index <= end_idx:
+                return group_name, start_idx, end_idx
+        return None
+
+    def _group_by_name(self, group_name: str) -> Optional[Tuple[str, int, int]]:
+        """Return the ordered group tuple with a given name."""
+        for candidate_name, start_idx, end_idx in self._ordered_question_groups():
+            if candidate_name == group_name:
+                return candidate_name, start_idx, end_idx
+        return None
+
+    def _previous_group_end(self, start_idx: int) -> int:
+        """Return the end index of the group immediately before start_idx."""
+        previous_end = -1
+        for _, group_start, group_end in self._ordered_question_groups():
+            if group_start < start_idx and group_end > previous_end:
+                previous_end = group_end
+        return previous_end
+
+    def _next_renderable_question_index(
+        self, question_index: int, answers: Dict[str, Any]
+    ) -> Union[int, EndOfSurveyParent]:
+        """Advance through before-rules until a renderable question is found."""
+        candidate_next_q = question_index
+
+        while candidate_next_q < len(self.survey.questions):
+            if self.survey.rule_collection.skip_question_before_running(
+                candidate_next_q, answers
+            ):
+                try:
+                    skip_result = self.survey.rule_collection.next_question(
+                        candidate_next_q, answers
+                    )
+                    if skip_result.next_q == EndOfSurvey or skip_result.next_q >= len(
+                        self.survey.questions
+                    ):
+                        return EndOfSurvey
+                    candidate_next_q = skip_result.next_q
+                except Exception:
+                    candidate_next_q += 1
+            else:
+                return candidate_next_q
+
+        return EndOfSurvey
+
+    def _renderable_group_items(
+        self,
+        group_name: str,
+        start_idx: int,
+        end_idx: int,
+        answers: Dict[str, Any],
+        target_idx: Optional[int] = None,
+        include_instructions: bool = True,
+    ) -> List[Union["QuestionBase", "Instruction"]]:
+        """Collect renderable questions and related instructions for a group."""
+        question_start = start_idx if target_idx is None else max(start_idx, target_idx)
+        renderable_question_names = set()
+
+        for question_idx in range(question_start, end_idx + 1):
+            if question_idx >= len(self.survey.questions):
+                continue
+            if not self.survey.rule_collection.skip_question_before_running(
+                question_idx, answers
+            ):
+                renderable_question_names.add(
+                    self.survey.questions[question_idx].question_name
+                )
+
+        combined_items = self.survey._recombined_questions_and_instructions()
+        previous_group_end = self._previous_group_end(start_idx)
+        group_items: List[Union["QuestionBase", "Instruction"]] = []
+
+        for item in combined_items:
+            item_name = item.name
+            if item_name is None:
+                continue
+
+            pseudo_index = self.survey._pseudo_indices.get(item_name)
+            if pseudo_index is None:
+                continue
+
+            if hasattr(item, "question_name"):
+                if item.question_name in renderable_question_names:
+                    group_items.append(item)
+                continue
+
+            if not include_instructions or not self._is_instruction(item):
+                continue
+
+            if start_idx == 0 and pseudo_index < question_start:
+                group_items.append(item)
+            elif previous_group_end < pseudo_index < question_start:
+                group_items.append(item)
+            elif question_start <= pseudo_index <= end_idx:
+                group_items.append(item)
+
+        group_items.sort(
+            key=lambda item: self.survey._pseudo_indices.get(item.name, float("inf"))
+        )
+        return group_items
+
+    def next_group(
+        self,
+        current_group: Optional[str] = None,
+        answers: Optional[Dict[str, Any]] = None,
+        include_instructions: bool = True,
+    ) -> Dict[str, Any]:
+        """Return the next renderable page when presenting a survey by group."""
+        answer_dict = answers if answers is not None else {}
+
+        if not self.survey.questions:
+            return {
+                "group_name": None,
+                "items": [EndOfSurvey],
+                "question_names": [],
+                "is_end": True,
+            }
+
+        if not self.survey.question_groups:
+            next_item = self.next_question_with_instructions(None, answer_dict)
+            if next_item == EndOfSurvey:
+                return {
+                    "group_name": None,
+                    "items": [EndOfSurvey],
+                    "question_names": [],
+                    "is_end": True,
+                }
+            question_names = (
+                [next_item.question_name] if hasattr(next_item, "question_name") else []
+            )
+            return {
+                "group_name": None,
+                "items": [next_item],
+                "question_names": question_names,
+                "is_end": False,
+            }
+
+        if current_group is None:
+            target_idx = self._next_renderable_question_index(0, answer_dict)
+        else:
+            current_group_tuple = self._group_by_name(current_group)
+            if current_group_tuple is None:
+                raise SurveyError(f"Group name {current_group!r} not found in survey.")
+
+            _, start_idx, end_idx = current_group_tuple
+            current_items = self._renderable_group_items(
+                current_group,
+                start_idx,
+                end_idx,
+                answer_dict,
+                include_instructions=False,
+            )
+            current_questions = [
+                item for item in current_items if hasattr(item, "question_name")
+            ]
+            if current_questions:
+                last_question = current_questions[-1]
+                next_question = self.next_question(last_question, answer_dict)
+                if next_question == EndOfSurvey:
+                    target_idx = EndOfSurvey
+                else:
+                    target_idx = self.survey.question_name_to_index[
+                        next_question.question_name
+                    ]
+            else:
+                target_idx = self._next_renderable_question_index(
+                    end_idx + 1, answer_dict
+                )
+
+        while target_idx != EndOfSurvey:
+            assert isinstance(target_idx, int)
+            group_tuple = self._group_containing_question_index(target_idx)
+            if group_tuple is None:
+                target_idx = self._next_renderable_question_index(
+                    target_idx + 1, answer_dict
+                )
+                continue
+
+            group_name, start_idx, end_idx = group_tuple
+            items = self._renderable_group_items(
+                group_name,
+                start_idx,
+                end_idx,
+                answer_dict,
+                target_idx=target_idx,
+                include_instructions=include_instructions,
+            )
+            question_names = [
+                item.question_name for item in items if hasattr(item, "question_name")
+            ]
+
+            if question_names:
+                return {
+                    "group_name": group_name,
+                    "items": items,
+                    "question_names": question_names,
+                    "is_end": False,
+                }
+
+            target_idx = self._next_renderable_question_index(end_idx + 1, answer_dict)
+
+        return {
+            "group_name": None,
+            "items": [EndOfSurvey],
+            "question_names": [],
+            "is_end": True,
+        }
 
     def get_question_group(self, question: Union[str, "QuestionBase"]) -> Optional[str]:
         """
