@@ -647,8 +647,8 @@ class ExecutionWorker:
         resolved_data = question_data.copy()
         for key, value in question_data.items():
             if key == "question_options":
-                resolved = JobService._resolve_question_options(
-                    value, answer_dict, scenario
+                resolved = JobService._resolve_interview_options(
+                    question_data, interview_def, answer_dict, scenario
                 )
                 if resolved != value:
                     resolved_data[key] = resolved
