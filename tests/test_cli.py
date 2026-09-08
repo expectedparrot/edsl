@@ -5,6 +5,7 @@ Uses subprocess to invoke the CLI exactly as an agent would,
 then parses stdout as JSON and checks structure.
 """
 
+import gzip
 import importlib
 import json
 import subprocess
@@ -3064,7 +3065,137 @@ class TestHumanizeCli:
 
         assert result.exit_code == 0, result.output
         out = json.loads(result.output)
-        assert out["data"]["commands"] == ["create", "validate", "patch", "set"]
+        assert out["data"]["commands"] == ["create", "validate", "get", "patch", "set"]
+
+    def test_humanize_schema_get(self, monkeypatch):
+        import edsl.coop
+
+        class FakeCoop:
+            def get_human_survey_humanize_schema(self, human_survey_uuid):
+                assert human_survey_uuid == "human-survey-uuid"
+                return {"questions": {"q1": {"optional": True}}}
+
+        monkeypatch.setattr(edsl.coop, "Coop", FakeCoop)
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            ["humanize", "schema", "get", "human-survey-uuid"],
+        )
+
+        assert result.exit_code == 0, result.output
+        out = json.loads(result.output)
+        assert out["data"]["humanize_schema"] == {"questions": {"q1": {"optional": True}}}
+
+    def test_humanize_schema_get_writes_file(self, tmp_path, monkeypatch):
+        import edsl.coop
+
+        class FakeCoop:
+            def get_human_survey_humanize_schema(self, human_survey_uuid):
+                return {"questions": {}}
+
+        monkeypatch.setattr(edsl.coop, "Coop", FakeCoop)
+        out_path = tmp_path / "humanize.json"
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            [
+                "humanize",
+                "schema",
+                "get",
+                "human-survey-uuid",
+                "--out",
+                str(out_path),
+            ],
+        )
+
+        assert result.exit_code == 0, result.output
+        assert json.loads(out_path.read_text()) == {"questions": {}}
+
+    def test_humanize_schema_get_writes_gzip_for_gz_suffix(self, tmp_path, monkeypatch):
+        import edsl.coop
+
+        class FakeCoop:
+            def get_human_survey_humanize_schema(self, human_survey_uuid):
+                return {"questions": {"q1": {"optional": True}}}
+
+        monkeypatch.setattr(edsl.coop, "Coop", FakeCoop)
+        out_path = tmp_path / "humanize.json.gz"
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            ["humanize", "schema", "get", "human-survey-uuid", "--out", str(out_path)],
+        )
+
+        assert result.exit_code == 0, result.output
+        out = json.loads(result.output)
+        assert out["data"]["saved"]["format"] == "json.gz"
+        with gzip.open(out_path, "rt", encoding="utf-8") as f:
+            assert json.load(f) == {"questions": {"q1": {"optional": True}}}
+
+    def test_humanize_schema_get_gzip_round_trips_through_patch(
+        self, tmp_path, monkeypatch
+    ):
+        """A schema exported to .json.gz must be readable by `schema patch`."""
+        import edsl.coop
+
+        schema = {"questions": {"q1": {"optional": True}}}
+        patched = {}
+
+        class FakeCoop:
+            def get_human_survey_humanize_schema(self, human_survey_uuid):
+                return schema
+
+            def patch_human_survey_humanize_schema(self, human_survey_uuid, partial):
+                patched["partial"] = partial
+                return {"humanize_schema": partial}
+
+        monkeypatch.setattr(edsl.coop, "Coop", FakeCoop)
+        out_path = tmp_path / "humanize.json.gz"
+
+        runner = CliRunner()
+        export = runner.invoke(
+            cli_module.app,
+            ["humanize", "schema", "get", "human-survey-uuid", "--out", str(out_path)],
+        )
+        assert export.exit_code == 0, export.output
+
+        result = runner.invoke(
+            cli_module.app,
+            [
+                "humanize",
+                "schema",
+                "patch",
+                "human-survey-uuid",
+                "--schema",
+                str(out_path),
+            ],
+        )
+
+        assert result.exit_code == 0, result.output
+        assert patched["partial"] == schema
+
+    def test_humanize_schema_get_writes_plain_json_for_other_extensions(
+        self, tmp_path, monkeypatch
+    ):
+        """Only .json.gz switches format; every other suffix stays plain JSON."""
+        import edsl.coop
+
+        class FakeCoop:
+            def get_human_survey_humanize_schema(self, human_survey_uuid):
+                return {"questions": {}}
+
+        monkeypatch.setattr(edsl.coop, "Coop", FakeCoop)
+        out_path = tmp_path / "humanize.custom"
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            ["humanize", "schema", "get", "human-survey-uuid", "--out", str(out_path)],
+        )
+
+        assert result.exit_code == 0, result.output
+        out = json.loads(result.output)
+        assert out["data"]["saved"]["format"] == "json"
+        assert json.loads(out_path.read_text()) == {"questions": {}}
 
     def test_humanize_schema_validate(self, tmp_path):
         from edsl.surveys import Survey
