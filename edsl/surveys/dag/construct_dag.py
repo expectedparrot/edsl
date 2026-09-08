@@ -12,8 +12,20 @@ class ConstructDAG:
         self.question_name_to_index = self.survey.question_name_to_index
 
     def dag(self, textify: bool = False) -> DAG:
+        return self._dag(self.survey.rule_collection.dag, textify)
+
+    def rendering_dag(self, textify: bool = False) -> DAG:
+        """The DAG of what each question needs in order to be rendered.
+
+        Differs from :meth:`dag` only in what a skip rule contributes: the questions
+        its expression names, rather than every question before it. See
+        :attr:`RuleCollection.rendering_dag`. Use this to ask whether questions can be
+        shown together; use :meth:`dag` to ask what order they are reached in.
+        """
+        return self._dag(self.survey.rule_collection.rendering_dag, textify)
+
+    def _dag(self, rule_dag: DAG, textify: bool) -> DAG:
         memory_dag = self.survey.memory_plan.dag
-        rule_dag = self.survey.rule_collection.dag
         piping_dag = self.piping_dag
         if textify:
             memory_dag = DAG(self.textify(memory_dag))
