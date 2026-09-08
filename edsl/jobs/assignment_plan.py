@@ -67,6 +67,19 @@ class AssignmentRow:
         }
 
 
+class _CartesianRows:
+    """A reusable lazy iterable, so inspection cannot exhaust a cross plan."""
+
+    def __init__(self, lengths):
+        self.lengths = lengths
+
+    def __iter__(self):
+        return (
+            AssignmentRow(*indices)
+            for indices in product(*(range(length) for length in self.lengths))
+        )
+
+
 class AssignmentPlan:
     def __init__(
         self,
@@ -100,12 +113,7 @@ class AssignmentPlan:
         scenarios: Sequence[Any],
         models: Sequence[Any],
     ) -> "AssignmentPlan":
-        rows = (
-            AssignmentRow(agent_index, scenario_index, model_index)
-            for agent_index, scenario_index, model_index in product(
-                range(len(agents)), range(len(scenarios)), range(len(models))
-            )
-        )
+        rows = _CartesianRows((len(agents), len(scenarios), len(models)))
         return cls(
             rows,
             mode="cross",

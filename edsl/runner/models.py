@@ -162,6 +162,7 @@ class JobDefinition:
 
     # Iterations - number of times to run each interview
     n_iterations: int = 1
+    preserve_interview_order: bool = False
 
     def storage_key(self) -> str:
         return f"job:{self.job_id}:meta"
@@ -179,6 +180,7 @@ class JobDefinition:
             "model_ids": self.model_ids,
             "question_ids": self.question_ids,
             "n_iterations": self.n_iterations,
+            "preserve_interview_order": self.preserve_interview_order,
         }
 
     @classmethod
@@ -198,6 +200,7 @@ class JobDefinition:
             model_ids=data["model_ids"],
             question_ids=data["question_ids"],
             n_iterations=data.get("n_iterations", 1),
+            preserve_interview_order=data.get("preserve_interview_order", False),
         )
 
 
@@ -272,6 +275,7 @@ class InterviewDefinition:
     # Only populated for questions in survey.questions_to_randomize
     question_option_permutations: dict[str, list] = field(default_factory=dict)
     question_item_randomization_seeds: dict[str, int] = field(default_factory=dict)
+    indices: dict[str, int] | None = None
 
     def storage_key(self) -> str:
         return f"job:{self.job_id}:interview:{self.interview_id}"
@@ -286,6 +290,7 @@ class InterviewDefinition:
             "iteration": self.iteration,
             "question_option_permutations": self.question_option_permutations,
             "question_item_randomization_seeds": self.question_item_randomization_seeds,
+            "indices": self.indices,
         }
 
     @classmethod
@@ -305,6 +310,7 @@ class InterviewDefinition:
             question_item_randomization_seeds=data.get(
                 "question_item_randomization_seeds", {}
             ),
+            indices=data.get("indices"),
         )
 
 

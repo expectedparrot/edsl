@@ -304,6 +304,7 @@ class Jobs(Base):
     def models(self, value) -> None:
         from ..language_models import ModelList
 
+        self._validate_assignment_component("models", value)
         if value:
             if not isinstance(value, ModelList):
                 self._models = ModelList(value)
@@ -317,7 +318,7 @@ class Jobs(Base):
             self.run_config.environment.bucket_collection = (
                 self.create_bucket_collection()
             )
-        self._clear_assignment_plan()
+        self._invalidate_filtered_assignment_plan()
 
     @property
     def agents(self):
@@ -334,6 +335,7 @@ class Jobs(Base):
     def agents(self, value):
         from ..agents import AgentList
 
+        self._validate_assignment_component("agents", value)
         if value:
             if not isinstance(value, AgentList):
                 self._agents = AgentList(value)
@@ -341,7 +343,7 @@ class Jobs(Base):
                 self._agents = value
         else:
             self._agents = AgentList([])
-        self._clear_assignment_plan()
+        self._invalidate_filtered_assignment_plan()
 
     def where(self, expression: str) -> Jobs:
         """Filter the agents, scenarios, and models based on a condition.
@@ -414,19 +416,17 @@ class Jobs(Base):
         from ..scenarios import ScenarioList
         from ..dataset import Dataset
 
+        if isinstance(value, Dataset):
+            value = value.to_scenario_list()
+        self._validate_assignment_component("scenarios", value)
         if value:
-            if isinstance(
-                value, Dataset
-            ):  # if the user passes in a Dataset, convert it to a ScenarioList
-                value = value.to_scenario_list()
-
             if not isinstance(value, ScenarioList):
                 self._scenarios = ScenarioList(value)
             else:
                 self._scenarios = value
         else:
             self._scenarios = ScenarioList([])
-        self._clear_assignment_plan()
+        self._invalidate_filtered_assignment_plan()
 
         # Validate that scenario fields are used in the survey
         if hasattr(self, "survey") and self.survey is not None:
@@ -437,9 +437,42 @@ class Jobs(Base):
             checker = CheckSurveyScenarioCompatibility(self.survey, self._scenarios)
             checker.check()
 
-    def _clear_assignment_plan(self) -> None:
-        if "_assignment_plan" in self.__dict__:
+    def _invalidate_filtered_assignment_plan(self) -> None:
+        # Explicit and zipped rows refer to source positions, so same-length
+        # replacements preserve them. Only expression-derived plans are caches.
+        if self.__dict__.get("_include_expression") is not None:
             self._assignment_plan = None
+
+    def _validate_assignment_component(self, axis, value) -> None:
+        plan = self.__dict__.get("_assignment_plan")
+        if plan is None or self.__dict__.get("_include_expression") is not None:
+            return
+        if len(value or []) != len(getattr(self, axis)):
+            from .exceptions import JobsValueError
+
+            raise JobsValueError(
+                f"Cannot change the number of {axis} after assign() or zip_assign(). "
+                "Build a new job with the desired collections and assignments."
+            )
+
+    def _assignment_metadata(self) -> dict:
+        """Resolve defaults before any serializer captures source collections."""
+        if self._assignment_plan is None and self._include_expression is None:
+            return {}
+        metadata = self.assignment_plan.to_dict()
+        if self._include_expression is not None:
+            metadata["include_expression"] = self._include_expression
+        return metadata
+
+    def _restore_assignment_metadata(self, data) -> None:
+        if "assignments" in data:
+            from .assignment_plan import AssignmentPlan
+
+            plan = AssignmentPlan.from_dict(data)
+            plan.validate(self.agents, self.scenarios, self.models)
+            self._assignment_plan = plan
+        if "include_expression" in data:
+            self._include_expression = data["include_expression"]
 
     def by(
         self,
@@ -1281,11 +1314,13 @@ class Jobs(Base):
                 results, reason = jh.poll_remote_inference_job(job_info)
                 if results is not None:
                     if self._remote_results_are_invalid(results):
-                        self._logger.warning(
-                            "Remote execution returned structurally invalid results; "
-                            "falling back to local execution."
+                        from .exceptions import JobsRunError
+
+                        raise JobsRunError(
+                            "Remote execution returned structurally invalid results. "
+                            "Inspect the remote job before retrying; local execution "
+                            "was not started."
                         )
-                        return None, "invalid_remote_results"
                     return results, reason
                 # Remote was used but returned no results — don't fall back to local
                 if reason:
@@ -2737,6 +2772,7 @@ class Jobs(Base):
             dict: Dictionary representation of this Jobs instance.
 
         """
+        assignment_metadata = self._assignment_metadata()
         d = {
             "survey": self.survey.to_dict(add_edsl_version=add_edsl_version),
             "agents": [
@@ -2763,13 +2799,7 @@ class Jobs(Base):
                 add_edsl_version=add_edsl_version
             )
 
-        if self._assignment_plan is not None:
-            d.update(self._assignment_plan.to_dict())
-            if self._include_expression is not None:
-                d["include_expression"] = self._include_expression
-        elif self._include_expression is not None:
-            d.update(self.assignment_plan.to_dict())
-            d["include_expression"] = self._include_expression
+        d.update(assignment_metadata)
 
         if add_edsl_version:
             from .. import __version__
@@ -2814,13 +2844,7 @@ class Jobs(Base):
         if "_depends_on" in data:
             job._depends_on = cls.from_dict(data["_depends_on"])
 
-        if "assignments" in data:
-            from .assignment_plan import AssignmentPlan
-
-            job._assignment_plan = AssignmentPlan.from_dict(data)
-            job._assignment_plan.validate(job.agents, job.scenarios, job.models)
-            if "include_expression" in data:
-                job._include_expression = data["include_expression"]
+        job._restore_assignment_metadata(data)
 
         return job
 
