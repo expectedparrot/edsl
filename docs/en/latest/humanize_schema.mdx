@@ -121,6 +121,18 @@ Each `questions[question_name]` value is a `HumanizeQuestionSchema` object.
   </Expandable>
 </ParamField>
 
+<ParamField path="select_all" type="dict" required={false}>
+  **Checkbox only** (`checkbox`; not `checkbox_with_other`, which shows no such box). The Select all box beneath the options: ticking it selects every option, unticking it clears them. Omit it to keep the box, which every checkbox question shows by default, or set it to `null` to remove it.
+
+  Exclusive options are left out of "all", since checking one clears every other selection.
+
+  <Expandable title="properties">
+    <ParamField path="label" type="string" required={false}>
+      The box's wording. `"Select all"` is the only accepted value, so setting it changes nothing.
+    </ParamField>
+  </Expandable>
+</ParamField>
+
 <ParamField path="exclusive_options" type="array" default={[]}>
   **Checkbox only** (`checkbox`, `checkbox_with_other`). Options that stand alone: checking one clears every other selection — including any other exclusive option, and for `checkbox_with_other` the respondent's "other" entries — and selecting anything else clears it. Use for options like `"None of the above"` or `"Prefer not to say"`.
 
