@@ -8,6 +8,8 @@ from edsl.coop.coop_humanize_schema import (
 from edsl.coop.exceptions import HumanizeSchemaValidationError
 from edsl.instructions import Instruction
 from edsl.questions import (
+    QuestionCheckBox,
+    QuestionCheckBoxWithOther,
     QuestionDemand,
     QuestionFreeText,
     QuestionInterview,
@@ -567,6 +569,69 @@ class TestValidateHumanizeSchemaComments:
         with pytest.raises(HumanizeSchemaValidationError) as exc_info:
             validate_humanize_schema(survey, humanize_schema)
         assert "comment" in str(exc_info.value).lower()
+
+
+class TestValidateHumanizeSchemaSelectAll:
+    """The Select all box on a checkbox question."""
+
+    @staticmethod
+    def _checkbox_survey() -> Survey:
+        return Survey(
+            [
+                QuestionCheckBox(
+                    question_name="q1",
+                    question_text="Which did you order?",
+                    question_options=["Starters", "Dessert"],
+                ),
+            ]
+        )
+
+    def test_default_keeps_the_box(self):
+        """An entry that says nothing leaves the box a checkbox already shows.
+
+        Read off the checkbox model rather than a parsed schema: an entry as
+        sparse as ``{}`` fits every question type, so the union would land on
+        whichever comes first rather than on the one under test.
+        """
+        from edsl.coop.coop_humanize_schema import CheckboxHumanizeSchema
+
+        parsed = CheckboxHumanizeSchema.model_validate({})
+        assert parsed.select_all is not None
+        assert parsed.select_all.label is None
+
+    def test_null_removes_the_box(self):
+        """Explicit null is how an author takes the box away."""
+        humanize_schema = {"questions": {"q1": {"select_all": None}}}
+        validate_humanize_schema(self._checkbox_survey(), humanize_schema)
+
+    def test_default_label_passes(self):
+        """Naming today's wording is accepted, and says no more than omitting it."""
+        humanize_schema = {"questions": {"q1": {"select_all": {"label": "Select all"}}}}
+        validate_humanize_schema(self._checkbox_survey(), humanize_schema)
+
+    @pytest.mark.parametrize("label", ["Pick every one", "select all", " Select all "])
+    def test_other_label_raises(self, label):
+        """No other wording is accepted yet, whitespace and case included."""
+        humanize_schema = {"questions": {"q1": {"select_all": {"label": label}}}}
+        with pytest.raises(HumanizeSchemaValidationError) as exc_info:
+            validate_humanize_schema(self._checkbox_survey(), humanize_schema)
+        assert "label" in str(exc_info.value).lower()
+
+    def test_checkbox_with_other_raises(self):
+        """checkbox_with_other has no Select all box, so it has no field for one."""
+        survey = Survey(
+            [
+                QuestionCheckBoxWithOther(
+                    question_name="q1",
+                    question_text="Any dietary requirements?",
+                    question_options=["Vegetarian", "Vegan"],
+                ),
+            ]
+        )
+        humanize_schema = {"questions": {"q1": {"select_all": None}}}
+        with pytest.raises(HumanizeSchemaValidationError) as exc_info:
+            validate_humanize_schema(survey, humanize_schema)
+        assert "select_all" in str(exc_info.value).lower()
 
 
 class TestHumanizeSchemaModel:

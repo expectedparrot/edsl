@@ -239,10 +239,36 @@ class BudgetHumanizeSchema(HumanizeSchemaBase):
     submitting_indicator: Optional[SubmittingIndicator] = None
 
 
+class SelectAllControl(HumanizeSchemaBase):
+    """The Select all box beneath a checkbox question's options.
+
+    Ticking it selects every option the respondent could have ticked one at a
+    time, and unticking it clears them again. Exclusive options are left out of
+    "all": checking one clears every other selection, so counting them would
+    leave the box unable to settle.
+
+    ``label`` is optional; when None the frontend supplies its own wording (so it
+    can be reworded, or translated, without a data migration).
+    """
+
+    # Today's wording is the only one accepted. The field exists so other
+    # wordings can join this literal — or it can widen to a free string — without
+    # reshaping stored configs, not because there is a choice to make yet. Naming
+    # it says no more than leaving it None does.
+    label: Optional[Literal["Select all"]] = None
+
+
 class CheckboxHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the checkbox question type."""
 
     optional: bool = False
+    # The Select all box beneath the options; None removes it. Present by
+    # default, because that is what every checkbox question rendered before this
+    # field existed, so stored configs are unaffected. Deliberately not on
+    # ``CheckboxWithOtherHumanizeSchema``: that type has never rendered the box,
+    # and what "all" should mean where the respondent also has write-in entries
+    # is a question of its own.
+    select_all: Optional[SelectAllControl] = Field(default_factory=SelectAllControl)
     # Options that stand alone: checking one clears every other selection —
     # including any other exclusive option — and selecting anything else clears
     # it. Identified by their exact text in ``question_options``, i.e. a "None of
