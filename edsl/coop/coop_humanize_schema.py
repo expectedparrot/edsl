@@ -223,12 +223,65 @@ OptionTarget = Annotated[
 ]
 
 
+# A hook body is a whole script, so the cap is generous. It is here to stop a runaway
+# paste from bloating every page load, not to express a style.
+MAX_HOOK_SOURCE_CHARS = 64_000
+MAX_TOTAL_HOOK_CHARS = 256_000
+
+# The lifecycle events the respond page knows how to fire. An event it cannot fire is
+# rejected here rather than stored and ignored: to an author, a hook that never runs
+# and a hook with a bug in it look exactly alike, and only one of those is theirs to
+# fix. A name joins this set in the same change that teaches the runtime to fire it.
+QUESTION_HOOK_EVENTS = frozenset({"question.ready"})
+
+
+class QuestionJavaScript(HumanizeSchemaBase):
+    """Author-supplied JavaScript for one question, keyed by the event that runs it.
+
+    Deliberately not validated or sanitized, unlike ``custom_css``. CSS is a small
+    closed grammar, so a validator can genuinely enumerate what is unsafe; JavaScript
+    cannot be filtered that way, and a check that looked like it worked would be worse
+    than none, because it would be trusted. What contains it is the access check the
+    server makes when the schema is pushed, and the origin the survey is served from
+    later.
+
+    Declared on each question schema that a respondent actually sees, rather than on a
+    shared base. A base would reach the compute and image-generation schemas too, and
+    those questions are run by the navigator and dropped from the page, so there is no
+    rendered question for a hook to attach to and no honest way to run one.
+    """
+
+    hooks: dict[str, str] = Field(default_factory=dict)
+
+    @field_validator("hooks")
+    @classmethod
+    def _check_hooks(cls, hooks: dict[str, str]) -> dict[str, str]:
+        for event, source in hooks.items():
+            if event not in QUESTION_HOOK_EVENTS:
+                raise ValueError(
+                    f"Unknown hook {event!r}; expected one of "
+                    f"{sorted(QUESTION_HOOK_EVENTS)}."
+                )
+            if len(source) > MAX_HOOK_SOURCE_CHARS:
+                raise ValueError(
+                    f"Hook {event!r} is {len(source)} characters; "
+                    f"the limit is {MAX_HOOK_SOURCE_CHARS}."
+                )
+        total = sum(len(source) for source in hooks.values())
+        if total > MAX_TOTAL_HOOK_CHARS:
+            raise ValueError(
+                f"Hooks total {total} characters; the limit is {MAX_TOTAL_HOOK_CHARS}."
+            )
+        return hooks
+
+
 class FreeTextHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the free text question type."""
 
     optional: bool = False
     comment: Optional[CommentConfig] = None
     submitting_indicator: Optional[SubmittingIndicator] = None
+    javascript: Optional[QuestionJavaScript] = None
 
 
 class BudgetHumanizeSchema(HumanizeSchemaBase):
@@ -237,6 +290,7 @@ class BudgetHumanizeSchema(HumanizeSchemaBase):
     optional: bool = False
     comment: Optional[CommentConfig] = None
     submitting_indicator: Optional[SubmittingIndicator] = None
+    javascript: Optional[QuestionJavaScript] = None
 
 
 class SelectAllControl(HumanizeSchemaBase):
@@ -281,6 +335,7 @@ class CheckboxHumanizeSchema(HumanizeSchemaBase):
     exclusive_options: list[Annotated[str, StringConstraints(min_length=1)]] = []
     comment: Optional[CommentConfig] = None
     submitting_indicator: Optional[SubmittingIndicator] = None
+    javascript: Optional[QuestionJavaScript] = None
 
     @model_validator(mode="after")
     def _unique_exclusive_options(self) -> "CheckboxHumanizeSchema":
@@ -304,6 +359,7 @@ class CheckboxWithOtherHumanizeSchema(HumanizeSchemaBase):
     exclusive_options: list[Annotated[str, StringConstraints(min_length=1)]] = []
     comment: Optional[CommentConfig] = None
     submitting_indicator: Optional[SubmittingIndicator] = None
+    javascript: Optional[QuestionJavaScript] = None
 
     @model_validator(mode="after")
     def _unique_exclusive_options(self) -> "CheckboxWithOtherHumanizeSchema":
@@ -338,6 +394,7 @@ class FileUploadHumanizeSchema(HumanizeSchemaBase):
 
     optional: bool = False
     submitting_indicator: Optional[SubmittingIndicator] = None
+    javascript: Optional[QuestionJavaScript] = None
 
 
 class ChecklistItemSchema(HumanizeSchemaBase):
@@ -567,6 +624,7 @@ class InterviewHumanizeSchema(HumanizeSchemaBase):
     intro_screen: Optional[DefaultIntroScreen] = None
     voice_interview_config: Optional[VoiceInterviewConfig] = None
     text_interview_config: Optional[TextInterviewConfig] = None
+    javascript: Optional[QuestionJavaScript] = None
 
 
 class LikertHumanizeSchema(HumanizeSchemaBase):
@@ -576,6 +634,7 @@ class LikertHumanizeSchema(HumanizeSchemaBase):
     format: MCSubclassFormatSchema = Field(default_factory=MCSubclassFormatSchema)
     comment: Optional[CommentConfig] = None
     submitting_indicator: Optional[SubmittingIndicator] = None
+    javascript: Optional[QuestionJavaScript] = None
 
 
 class LinearScaleHumanizeSchema(HumanizeSchemaBase):
@@ -585,6 +644,7 @@ class LinearScaleHumanizeSchema(HumanizeSchemaBase):
     format: MCSubclassFormatSchema = Field(default_factory=MCSubclassFormatSchema)
     comment: Optional[CommentConfig] = None
     submitting_indicator: Optional[SubmittingIndicator] = None
+    javascript: Optional[QuestionJavaScript] = None
 
 
 class ListHumanizeSchema(HumanizeSchemaBase):
@@ -593,6 +653,7 @@ class ListHumanizeSchema(HumanizeSchemaBase):
     optional: bool = False
     comment: Optional[CommentConfig] = None
     submitting_indicator: Optional[SubmittingIndicator] = None
+    javascript: Optional[QuestionJavaScript] = None
 
 
 class MatrixFormatTableSchema(HumanizeSchemaBase):
@@ -696,6 +757,7 @@ class MatrixHumanizeSchema(HumanizeSchemaBase):
     preselection: Optional[MatrixPreselection] = None
     comment: Optional[CommentConfig] = None
     submitting_indicator: Optional[SubmittingIndicator] = None
+    javascript: Optional[QuestionJavaScript] = None
 
 
 class MultipleChoiceCustomValidation(HumanizeSchemaBase):
@@ -712,6 +774,7 @@ class MultipleChoiceHumanizeSchema(HumanizeSchemaBase):
     custom_validation: Optional[MultipleChoiceCustomValidation] = None
     comment: Optional[CommentConfig] = None
     submitting_indicator: Optional[SubmittingIndicator] = None
+    javascript: Optional[QuestionJavaScript] = None
 
 
 class MultipleChoiceWithOtherHumanizeSchema(HumanizeSchemaBase):
@@ -720,6 +783,7 @@ class MultipleChoiceWithOtherHumanizeSchema(HumanizeSchemaBase):
     optional: bool = False
     comment: Optional[CommentConfig] = None
     submitting_indicator: Optional[SubmittingIndicator] = None
+    javascript: Optional[QuestionJavaScript] = None
 
 
 class NumericalFormatInputSchema(HumanizeSchemaBase):
@@ -760,6 +824,7 @@ class NumericalHumanizeSchema(HumanizeSchemaBase):
     format: NumericalFormatSchema = Field(default_factory=NumericalFormatInputSchema)
     comment: Optional[CommentConfig] = None
     submitting_indicator: Optional[SubmittingIndicator] = None
+    javascript: Optional[QuestionJavaScript] = None
 
 
 class RankHumanizeSchema(HumanizeSchemaBase):
@@ -768,6 +833,7 @@ class RankHumanizeSchema(HumanizeSchemaBase):
     optional: bool = False
     comment: Optional[CommentConfig] = None
     submitting_indicator: Optional[SubmittingIndicator] = None
+    javascript: Optional[QuestionJavaScript] = None
 
 
 class TopKHumanizeSchema(HumanizeSchemaBase):
@@ -776,6 +842,7 @@ class TopKHumanizeSchema(HumanizeSchemaBase):
     optional: bool = False
     comment: Optional[CommentConfig] = None
     submitting_indicator: Optional[SubmittingIndicator] = None
+    javascript: Optional[QuestionJavaScript] = None
 
 
 class YesNoHumanizeSchema(HumanizeSchemaBase):
@@ -785,14 +852,21 @@ class YesNoHumanizeSchema(HumanizeSchemaBase):
     format: MCSubclassFormatSchema = Field(default_factory=MCSubclassFormatSchema)
     comment: Optional[CommentConfig] = None
     submitting_indicator: Optional[SubmittingIndicator] = None
+    javascript: Optional[QuestionJavaScript] = None
 
 
 class SurveyMessageHumanizeSchema(HumanizeSchemaBase):
     """Humanize marker for a display-only SurveyMessage.
 
-    Messages intentionally expose no input-oriented configuration. The client
-    chooses Continue or Finish from the message's position in the survey.
+    A message asks nothing, so it exposes no input-oriented configuration: no
+    ``optional``, no comment field, no submitting indicator. The client chooses
+    Continue or Finish from the message's position in the survey.
+
+    ``javascript`` is the exception. A message is rendered to the respondent like any
+    other item, so a hook has a real question to run against.
     """
+
+    javascript: Optional[QuestionJavaScript] = None
 
 
 HumanizeQuestionSchema = Union[
