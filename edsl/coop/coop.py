@@ -2096,7 +2096,9 @@ class Coop(CoopFunctionsMixin):
             iterations (int): Number of times to run each interview (default: 1)
             fresh (bool): If True, ignore existing cache entries and generate new results
             alert_on_completion_config (dict, optional): Config for job completion alerts
-                (email and/or webhooks). Dict with "email" (bool) and "webhooks" (list of {"url": str}, max 3).
+                (email and/or webhooks). Dict with "email" (bool), "webhooks" (list of {"url": str}, max 3),
+                and optional "filters" ({"status": a terminal status or list of them}) to only alert on
+                certain outcomes, e.g. {"email": True, "filters": {"status": ["failed", "partial_failed"]}}.
             task_timeout (int, optional): Maximum seconds allowed for each interview
 
         Returns:
