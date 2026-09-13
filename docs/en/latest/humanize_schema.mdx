@@ -167,6 +167,20 @@ Each `questions[question_name]` value is a `HumanizeQuestionSchema` object.
 
       **Supported languages:** `english`, `french`, `german`, `spanish`, `portuguese`, `chinese`, `japanese`, `hindi`, `italian`, `korean`, `dutch`, `polish`, `russian`, `swedish`, `turkish`, `tagalog`, `bulgarian`, `romanian`, `arabic`, `czech`, `greek`, `finnish`, `croatian`, `malay`, `slovak`, `danish`, `tamil`, `ukrainian`, `hungarian`, `norwegian`, `vietnamese`, `bangla`, `thai`, `hebrew`, `georgian`, `indonesian`, `telugu`, `gujarati`, `kannada`, `malayalam`, `marathi`, `punjabi`, `multilingual`.
     </ParamField>
+    <ParamField path="turn_taking" type="dict" required={false}>
+      How the interviewer decides the respondent has finished speaking. Omit to use the default (`{"initial_speed": "default"}`).
+      <Expandable title="properties">
+        <ParamField path="initial_speed" type="string" default="default">
+          How long the interviewer waits after the respondent pauses before it speaks, at the start of the call. The respondent can change it from the interview screen.
+
+          - `"fastest"` — jumps in almost as soon as the respondent pauses.
+          - `"faster"`
+          - `"default"` — a natural pause (default).
+          - `"slower"`
+          - `"slowest"` — waits a long time, for respondents who pause mid-thought.
+        </ParamField>
+      </Expandable>
+    </ParamField>
   </Expandable>
 </ParamField>
 

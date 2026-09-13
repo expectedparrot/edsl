@@ -525,6 +525,21 @@ class TextInterviewConfig(HumanizeSchemaBase):
         return normalize_voice_interview_language(v)
 
 
+# How long the voice interviewer waits after the respondent pauses before it
+# speaks, from "fastest" (jumps in almost at once) to "slowest" (waits a long time).
+VoiceTurnSpeed = Literal["fastest", "faster", "default", "slower", "slowest"]
+
+
+class TurnTakingConfig(HumanizeSchemaBase):
+    """How the voice interviewer decides the respondent has finished speaking."""
+
+    # The speed the call starts at. "initial" because the respondent can still
+    # change it from the interview screen, the same reading as
+    # ``ChecklistConfig.initial``. "default" is the natural pause every voice
+    # interview used before this setting existed.
+    initial_speed: VoiceTurnSpeed = "default"
+
+
 class VoiceInterviewConfig(HumanizeSchemaBase):
     """Configuration specific to voice-mode interviews."""
 
@@ -532,6 +547,9 @@ class VoiceInterviewConfig(HumanizeSchemaBase):
     # (e.g. "english"); the before-validator normalizes case/whitespace, maps
     # None/blank to the default, and rejects unsupported languages.
     language: str = DEFAULT_VOICE_INTERVIEW_LANGUAGE
+    # Always present rather than Optional: every voice call has a starting speed,
+    # so None would only mean "use the default" anyway.
+    turn_taking: TurnTakingConfig = Field(default_factory=TurnTakingConfig)
 
     @field_validator("language", mode="before")
     @classmethod
