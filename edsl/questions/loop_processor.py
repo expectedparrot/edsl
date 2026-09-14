@@ -1,4 +1,5 @@
 from typing import List, Any, Dict, Tuple
+from ast import literal_eval
 from jinja2 import Environment, Undefined
 from .question_base import QuestionBase
 from ..scenarios import Scenario, ScenarioList
@@ -71,7 +72,7 @@ class LoopProcessor:
 
         if key == "option_labels":
             return (
-                eval(self._render_template(value, scenario))
+                literal_eval(self._render_template(value, scenario))
                 if isinstance(value, str)
                 else value
             )
@@ -313,7 +314,7 @@ class LongSurveyLoopProcessor:
 
         if key == "option_labels":
             return (
-                eval(self._render_template(value, scenario, scenario_index))
+                literal_eval(self._render_template(value, scenario, scenario_index))
                 if isinstance(value, str)
                 else value
             )

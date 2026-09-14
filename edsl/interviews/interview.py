@@ -741,7 +741,7 @@ class Interview:
             >>> i.include("{{ agent.age < 18 or agent.height > 5.0 }}")
             True
         """
-        from jinja2 import Environment
+        from ..utilities.jinja import make_environment
 
         # Create context with interview components
         context = {
@@ -751,7 +751,7 @@ class Interview:
             "survey": self.survey,
         }
 
-        env = Environment()
+        env = make_environment()
         template = env.from_string(jinja2_string)
         result = template.render(**context).strip()
 

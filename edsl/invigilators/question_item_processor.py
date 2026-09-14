@@ -1,3 +1,4 @@
+from jinja2.exceptions import SecurityError
 import random
 from ast import literal_eval
 from typing import Union, TYPE_CHECKING
@@ -238,6 +239,8 @@ class QuestionItemProcessor(QuestionAttributeProcessor):
                     return parsed_items
                 if isinstance(parsed_items, tuple):
                     return list(parsed_items)
+        except SecurityError:
+            raise
         except Exception:
             # Fall back to the key-lookup path below.
             pass

@@ -78,7 +78,7 @@ class QuestionImageGeneration(QuestionBase):
     async def answer_question_directly(
         self, scenario, agent_traits=None, current_answers=None
     ):
-        from jinja2 import Template
+        from ..utilities.jinja import safe_template as Template
 
         current_answers = current_answers or {}
         template_context = dict(scenario) | self._prior_answer_template_context(

@@ -1,5 +1,6 @@
 from __future__ import annotations
 from typing import Optional, Any
+from jinja2.exceptions import SecurityError
 
 from pydantic import BaseModel
 
@@ -150,6 +151,8 @@ class QuestionCompute(QuestionBase):
             # Validate the result using the Pydantic model
             return self._response_model(**result).model_dump()
 
+        except SecurityError:
+            raise
         except Exception as e:
             print("Compute question error:", e)
             return {

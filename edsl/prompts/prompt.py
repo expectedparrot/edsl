@@ -8,6 +8,7 @@ from functools import lru_cache
 
 from jinja2 import meta, Undefined
 from jinja2.sandbox import SandboxedEnvironment
+from ..utilities.jinja import make_environment
 
 from .exceptions import TemplateRenderError, PromptValueError, PromptImplementationError
 from ..base import PersistenceMixin, RepresentationMixin
@@ -76,11 +77,11 @@ def make_env() -> SandboxedEnvironment:
     attacks by blocking access to dangerous attributes like __class__, __mro__,
     __globals__, etc.
     """
-    return SandboxedEnvironment(undefined=PreserveUndefined)
+    return make_environment(undefined=PreserveUndefined)
 
 
 # Module-level cached environment for parsing/compilation (no globals mutation)
-_PARSE_ENV = SandboxedEnvironment(undefined=PreserveUndefined)
+_PARSE_ENV = make_env()
 
 
 @lru_cache(maxsize=100000)
