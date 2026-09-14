@@ -121,6 +121,8 @@ class ResultsSerializer:
                     )
                 }
             )
+        if self.results._total_results is not None:
+            d["total_results"] = self.results._total_results
         if self.results.name is not None:
             d["name"] = self.results.name
 
@@ -191,6 +193,7 @@ class ResultsSerializer:
             "cache": cache,
             "task_history": task_history,
             "name": name,
+            "total_results": data.get("total_results"),
         }
 
         try:
@@ -244,12 +247,15 @@ class ResultsSerializer:
         })
 
         # Manifest
-        yield json.dumps({
-            "created_columns": self.results.created_columns,
-            "name": self.results.name,
-            "n_survey_lines": len(survey_rows),
-            "n_task_history_lines": len(task_history_rows),
-        })
+        yield json.dumps(
+            {
+                "created_columns": self.results.created_columns,
+                "name": self.results.name,
+                "n_survey_lines": len(survey_rows),
+                "total_results": self.results._total_results,
+                "n_task_history_lines": len(task_history_rows),
+            }
+        )
 
         # Survey lines
         yield from survey_rows
@@ -352,6 +358,7 @@ class ResultsSerializer:
             cache=cache,
             task_history=task_history,
             name=name,
+            total_results=manifest.get("total_results"),
         )
         for result in results_data:
             results.append(result)

@@ -294,10 +294,13 @@ def register(results_group: click.Group) -> None:
             output(
                 {
                     "result_count": len(results_obj),
+                    "completion": results_obj.completion_summary(),
                     "column_count": len(columns),
                     "columns": columns,
                     "answer_columns": [c for c in columns if c.startswith("answer.")],
-                    "scenario_columns": [c for c in columns if c.startswith("scenario.")],
+                    "scenario_columns": [
+                        c for c in columns if c.startswith("scenario.")
+                    ],
                     "agent_columns": [c for c in columns if c.startswith("agent.")],
                     "model_columns": [c for c in columns if c.startswith("model.")],
                 }

@@ -176,6 +176,9 @@ class JobService:
         # Prepare the job - fills in default Agent(), Model(), Scenario() if missing
         t0 = time.time()
         job.replace_missing_objects()
+        from ..language_models.output_token_policy import token_limit_warnings
+
+        token_limit_warnings(job.models, emit=True)
         logger.info(
             f"[SUBMIT {job_id[:8]}] replace_missing_objects: {(time.time() - t0)*1000:.1f}ms"
         )
@@ -828,6 +831,52 @@ class JobService:
     # Task Completion
     # =========================================================================
 
+    def _response_diagnostics(
+        self, job_id, interview_id, question_name, raw, cached, metadata=None
+    ):
+        from ..language_models.response_metadata import response_metadata
+
+        current = {**response_metadata(raw), **(metadata or {})}
+        previous = self._answers.get(job_id, interview_id, question_name)
+        prior = (previous.response_metadata or {}) if previous else {}
+        history = list(prior.get("attempt_history", []))
+        if previous and prior.get("failure"):
+            history.append(
+                {
+                    **{
+                        key: value
+                        for key, value in prior.items()
+                        if key != "attempt_history"
+                    },
+                    "raw_model_response": previous.raw_model_response,
+                    "user_prompt": previous.user_prompt,
+                    "system_prompt": previous.system_prompt,
+                    "generated_tokens": previous.generated_tokens,
+                    "cache_key": previous.cache_key,
+                }
+            )
+        if history:
+            current["attempt_history"] = history
+        current["attempt_count"] = prior.get("attempt_count", 0) + 1
+        current["retry_count"] = current["attempt_count"] - 1
+        calls = current.get("provider_calls_attempted")
+        if calls is None:
+            # A raw response can represent multiple calls (e.g. an interview
+            # question). Older workers without an explicit count remain unknown.
+            calls = 0 if cached else None
+        prior_calls = prior.get("provider_calls_attempted", 0)
+        current["provider_calls_attempted"] = (
+            prior_calls + calls
+            if prior_calls is not None and calls is not None
+            else None
+        )
+        if "failure" in current:
+            current["failure"] = {
+                **current["failure"],
+                "retry_count": current["retry_count"],
+            }
+        return current
+
     def on_task_completed(
         self,
         job_id: str,
@@ -852,6 +901,7 @@ class JobService:
         resolution_draw: Any = None,
         resolution_seed: int | None = None,
         resolution_method: str | None = None,
+        response_metadata: dict | None = None,
     ) -> None:
         """Called when a task finishes successfully with an answer."""
         import time as _time
@@ -866,6 +916,12 @@ class JobService:
             raise ValueError(f"Task {task_id} not found")
 
         # Store answer with all metadata
+        if (
+            response_metadata is None
+            and task_def.execution_type != "llm"
+            and raw_model_response is None
+        ):
+            response_metadata = {"provider_calls_attempted": 0}
         answer = Answer(
             job_id=job_id,
             interview_id=interview_id,
@@ -891,6 +947,14 @@ class JobService:
             resolution_draw=resolution_draw,
             resolution_seed=resolution_seed,
             resolution_method=resolution_method,
+            response_metadata=self._response_diagnostics(
+                job_id,
+                interview_id,
+                task_def.question_name,
+                raw_model_response,
+                cached,
+                response_metadata,
+            ),
         )
         _t = _time.monotonic()
         self._answers.store(answer)
@@ -998,6 +1062,14 @@ class JobService:
                     cache_key=task_info.get("cache_key"),
                     validated=task_info.get("validated"),
                     reasoning_summary=task_info.get("reasoning_summary"),
+                    response_metadata=self._response_diagnostics(
+                        job_id,
+                        task_info["interview_id"],
+                        task_def.question_name,
+                        task_info.get("raw_model_response"),
+                        task_info.get("cached", False),
+                        task_info.get("response_metadata"),
+                    ),
                 )
             )
         self._answers.store_batch(answers)
@@ -1120,41 +1192,54 @@ class JobService:
         cache_key: str | None = None,
         validated: bool | None = None,
         reasoning_summary: str | None = None,
+        response_metadata: dict | None = None,
     ) -> None:
         """Called when a task fails. Retries if policy allows, otherwise marks as permanent failure."""
         task_def = self._tasks.get_definition(job_id, interview_id, task_id)
         if task_def is None:
             raise ValueError(f"Task {task_id} not found")
 
-        if (
-            validated is False
-            or raw_model_response is not None
-            or generated_tokens is not None
-        ):
-            self._answers.store(
-                Answer(
-                    job_id=job_id,
-                    interview_id=interview_id,
-                    question_name=task_def.question_name,
-                    answer=None,
-                    created_at=datetime.utcnow(),
-                    system_prompt=system_prompt,
-                    user_prompt=user_prompt,
-                    comment=comment or error_message,
-                    cached=cached,
-                    input_tokens=input_tokens,
-                    output_tokens=output_tokens,
-                    thinking_tokens=thinking_tokens,
-                    raw_model_response=raw_model_response,
-                    generated_tokens=generated_tokens,
-                    model_id=task_def.model_id,
-                    input_price_per_million_tokens=input_price_per_million_tokens,
-                    output_price_per_million_tokens=output_price_per_million_tokens,
-                    cache_key=cache_key,
-                    validated=validated,
-                    reasoning_summary=reasoning_summary,
-                )
+        metadata = dict(response_metadata or {})
+        metadata.setdefault(
+            "failure",
+            {
+                "stage": "render" if error_type == "render_error" else "execution",
+                "code": error_type.upper(),
+                "message": error_message,
+            },
+        )
+        self._answers.store(
+            Answer(
+                job_id=job_id,
+                interview_id=interview_id,
+                question_name=task_def.question_name,
+                answer=None,
+                created_at=datetime.utcnow(),
+                system_prompt=system_prompt,
+                user_prompt=user_prompt,
+                comment=comment or error_message,
+                cached=cached,
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
+                thinking_tokens=thinking_tokens,
+                raw_model_response=raw_model_response,
+                generated_tokens=generated_tokens,
+                model_id=task_def.model_id,
+                input_price_per_million_tokens=input_price_per_million_tokens,
+                output_price_per_million_tokens=output_price_per_million_tokens,
+                cache_key=cache_key,
+                validated=False,
+                reasoning_summary=reasoning_summary,
+                response_metadata=self._response_diagnostics(
+                    job_id,
+                    interview_id,
+                    task_def.question_name,
+                    raw_model_response,
+                    cached,
+                    metadata,
+                ),
             )
+        )
 
         # Check retry policy before marking as permanently failed
         # Skip retries if stop_on_exception is set for this job
@@ -1952,6 +2037,12 @@ class JobService:
             raw_model_response_dict[f"{a.question_name}_raw_model_response"] = (
                 a.raw_model_response
             )
+            from ..language_models.response_metadata import response_metadata
+
+            raw_model_response_dict[f"{a.question_name}_response_metadata"] = {
+                **response_metadata(a.raw_model_response),
+                **(a.response_metadata or {}),
+            }
             raw_model_response_dict[f"{a.question_name}_input_tokens"] = a.input_tokens
             raw_model_response_dict[f"{a.question_name}_output_tokens"] = (
                 a.output_tokens
@@ -2010,6 +2101,41 @@ class JobService:
         validated_dict = {}
         for a in answers:
             validated_dict[f"{a.question_name}_validated"] = a.validated
+
+        missing = set(question_names) - {a.question_name for a in answers}
+        if missing:
+            task_defs = self._tasks.get_definitions_batch(
+                job_id, interview_id, interview_def.task_ids
+            )
+            for task_id, task_def in task_defs.items():
+                if task_def is None or task_def.question_name not in missing:
+                    continue
+                state = self._tasks.get_state(task_id)
+                metadata = {"task_status": state.status.value}
+                if state.status in (TaskStatus.SKIPPED, TaskStatus.BLOCKED):
+                    metadata["provider_calls_attempted"] = 0
+                if state.status in (
+                    TaskStatus.FAILED,
+                    TaskStatus.BLOCKED,
+                    TaskStatus.COMPLETED,
+                ):
+                    metadata["failure"] = {
+                        "stage": (
+                            "scheduling"
+                            if state.status is TaskStatus.BLOCKED
+                            else "execution"
+                        ),
+                        "code": (
+                            state.last_error_type or "MISSING_ANSWER_RECORD"
+                        ).upper(),
+                        "message": state.last_error_message
+                        or "No stored answer record for a finished task",
+                        "retry_count": max(0, sum(state.attempts.values()) - 1),
+                    }
+                    validated_dict[f"{task_def.question_name}_validated"] = False
+                raw_model_response_dict[
+                    f"{task_def.question_name}_response_metadata"
+                ] = metadata
 
         distribution_dict = {
             a.question_name: a.distribution
@@ -2446,7 +2572,12 @@ class JobService:
                 ]
             }
         )
-        results = Results(survey=survey, data=result_list, task_history=task_history)
+        results = Results(
+            survey=survey,
+            data=result_list,
+            task_history=task_history,
+            total_results=job_def.total_interviews,
+        )
         if _timing is not None:
             _timing["create_results_object"] = (_time.time() - _t) * 1000
 

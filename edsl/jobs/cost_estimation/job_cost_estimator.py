@@ -229,6 +229,9 @@ class JobCostEstimator:
 
         # Ensure job has agents/models/scenarios populated
         job.replace_missing_objects()
+        from ...language_models.output_token_policy import token_limit_warnings
+
+        warnings.extend(token_limit_warnings(job.models))
 
         # Build interview list
         interviews: list["Interview"] = list(job.generate_interviews())
@@ -455,6 +458,17 @@ class JobCostEstimator:
                 **full_estimate.to_detail_row(),
                 "cost_usd": cost_usd,
             }
+            from ...language_models.output_token_policy import model_token_policy
+
+            limit = model_token_policy(model)["effective_max_tokens"]
+            row["output_token_limit"] = limit
+            # A separate ceiling, not a prediction that every call will consume
+            # its entire output allowance. Explicit retry budgets change it.
+            row["output_budget_cost_usd"] = (
+                limit * output_price_per_million / 1_000_000 * reach
+                if full_estimate.billable and isinstance(limit, (int, float))
+                else 0.0 if not full_estimate.billable else None
+            )
             rows.append(row)
 
         return rows, warnings

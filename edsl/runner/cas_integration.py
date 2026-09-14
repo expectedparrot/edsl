@@ -63,7 +63,10 @@ class RunnerCASIntegration:
         self._writer = StreamingCASWriter(self._backend, branch="main")
 
         # Write preamble (header + manifest + survey rows)
-        preamble = self._build_preamble(survey)
+        definition = service.jobs.get_definition(job_id)
+        preamble = self._build_preamble(
+            survey, total_results=definition.total_interviews
+        )
         self._writer.write_preamble(preamble)
 
         # Register as callback
@@ -133,7 +136,7 @@ class RunnerCASIntegration:
             )
 
     @staticmethod
-    def _build_preamble(survey: "Survey") -> list[str]:
+    def _build_preamble(survey: "Survey", total_results=None) -> list[str]:
         from .. import __version__
 
         header = json.dumps({
@@ -143,9 +146,12 @@ class RunnerCASIntegration:
             "format": "inline",
         })
         survey_rows = list(survey.to_jsonl_rows())
-        manifest = json.dumps({
-            "created_columns": [],
-            "name": None,
-            "n_survey_lines": len(survey_rows),
-        })
+        manifest = json.dumps(
+            {
+                "created_columns": [],
+                "name": None,
+                "n_survey_lines": len(survey_rows),
+                "total_results": total_results,
+            }
+        )
         return [header, manifest] + survey_rows
