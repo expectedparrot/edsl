@@ -77,7 +77,10 @@ def make_env() -> SandboxedEnvironment:
     attacks by blocking access to dangerous attributes like __class__, __mro__,
     __globals__, etc.
     """
-    return make_environment(undefined=PreserveUndefined)
+    return make_environment(
+        undefined=PreserveUndefined,
+        allowed_methods=((TemplateVars, ("set", "get", "get_all")),),
+    )
 
 
 # Module-level cached environment for parsing/compilation (no globals mutation)

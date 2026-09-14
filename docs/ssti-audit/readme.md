@@ -8,9 +8,10 @@ Scope: EDSL template rendering, especially Jinja2 and use on coopr servers
 
 ## Local patch status
 
-A local patch on `security/sandbox-template-rendering` now addresses the unrestricted renderers described below. Nothing has been pushed or deployed. The findings and source line numbers in this report describe the baseline commit above.
+The patch on `security/sandbox-template-rendering`, proposed in [PR #2647](https://github.com/expectedparrot/edsl/pull/2647), addresses the unrestricted renderers described below. Deployment has not been verified. The findings and source line numbers in this report describe the baseline commit above.
 
 - Added shared sandboxed string/native rendering, including preservation of a caller's custom sandbox policy in native rendering. Ordinary unrestricted environment overrides are rejected.
+- Denied arbitrary function and method calls, including on live or nested context objects. A reviewed allowlist retains read-only methods on exact builtin types, Jinja range/dictionary/namespace helpers and macros, and Prompt's variable-capture methods. Custom sandbox overrides retain their stricter policies while also enforcing this callable restriction.
 - Switched dynamic attributes, Runner options, question rendering, answer translation, rules, filters, image prompts, reports, and macro arguments to sandboxed rendering. The existing `Prompt` also uses the shared factory.
 - Made security failures propagate through the relevant rendering fallbacks, removed generated-HTML recompilation, and replaced both loop-label `eval()` calls with `ast.literal_eval()`.
 - Raised the Jinja2 dependency floor to 3.1.6 and refreshed lockfile metadata without changing locked dependency versions.
@@ -22,7 +23,26 @@ The focused tests live in [`tests/security/test_ssti.py`](../../tests/security/t
 python -m pytest -q --confcutdir=tests/security tests/security/test_ssti.py
 ```
 
-Deployment reachability, live-object/callable restrictions, resource limits, and the broader recursive-template data policy remain follow-up work. Passing these checks establishes that the tested access paths are blocked; it does not certify all template execution as safe.
+Deployment reachability, reducing live-object exposure (including properties and implicit Python operations), resource limits, and the broader recursive-template data policy remain follow-up work. Custom filters, tests, and explicitly allowlisted methods are trusted application code. Passing these checks establishes that the tested access paths are blocked; it does not certify all template execution as safe.
+
+### Callable-policy review fix — September 14, 2026 UTC
+
+Greptile identified that the default Jinja callable policy still allowed
+`Interview.include()` to execute `survey.delete_question(0)`. A local reproduction
+confirmed the survey changed before this follow-up. The regression now requires
+`SecurityError` and verifies the complete serialized survey remains unchanged.
+
+After restricting calls in both shared environments and caller-supplied sandbox
+overlays, **54 security/compatibility tests and 94 focused regression tests pass**
+with Python 3.11.0 and Jinja2 3.1.6. Run the security command and focused regression
+command below to reproduce them. Coverage includes nested public methods,
+context-supplied functions, container mutation, native-rendering fallbacks,
+custom policies, legitimate read-only lookups, macros, and prompt variable capture.
+
+Compatibility change: templates can no longer invoke arbitrary context functions
+or methods, even with an ordinary `SandboxedEnvironment` override. Use data lookup
+and Jinja filters for computations. Explicit application-level allowlists must
+only contain reviewed methods; they are not configuration for untrusted authors.
 
 ### Branch validation — September 13, 2026
 

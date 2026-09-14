@@ -367,3 +367,159 @@ def test_looped_option_labels_preserve_valid_mapping():
     labels = {1: "Low", 2: "High"}
     result = question.loop(ScenarioList([Scenario({"labels": labels})]))
     assert result[0].option_labels == labels
+
+
+def test_interview_filter_cannot_mutate_live_survey():
+    from edsl.interviews import Interview
+
+    survey = Survey(
+        [
+            QuestionFreeText(question_name="first", question_text="First?"),
+            QuestionFreeText(question_name="second", question_text="Second?"),
+        ]
+    )
+    interview = Interview(
+        agent=Agent(traits={"age": 22}),
+        scenario=Scenario({"city": "Boston"}),
+        model=Model("test"),
+        survey=survey,
+    )
+    before = survey.to_dict()
+    with pytest.raises(SecurityError):
+        interview.include("{% set _ = survey.delete_question(0) %}true")
+    assert survey.to_dict() == before
+    assert interview.include(
+        "{{ agent.age == 22 and scenario.city == 'Boston' "
+        "and model.model == 'test' and survey.questions | length == 2 }}"
+    )
+
+
+@pytest.mark.parametrize(
+    "surface",
+    [
+        "string",
+        "native",
+        "native_override",
+        "question",
+        "question_override",
+        "native_options",
+        "prompt",
+        "runner",
+        "job_filter",
+    ],
+)
+def test_public_callables_are_blocked_across_renderers(surface):
+    from edsl.jobs.interview_tuple_filter import InterviewTupleFilter
+    from edsl.utilities.jinja import make_environment, make_native_environment
+
+    mutate = Mock(return_value="changed", unsafe_callable=False, alters_data=False)
+    context = {"nested": {"obj": SimpleNamespace(mutate=mutate)}}
+    template = "{{ nested.obj.mutate() }}"
+    with pytest.raises(SecurityError):
+        if surface == "string":
+            make_environment().from_string(template).render(context)
+        elif surface == "native":
+            make_native_environment().from_string(template).render(context)
+        elif surface == "native_override":
+            make_native_environment(SandboxedEnvironment()).from_string(
+                template
+            ).render(context)
+        elif surface in ("question", "question_override"):
+            question = QuestionFreeText(question_name="q", question_text=template)
+            kwargs = (
+                {"jinja_env": SandboxedEnvironment()}
+                if surface == "question_override"
+                else {}
+            )
+            question.render(context, **kwargs)
+        elif surface == "native_options":
+            question = QuestionMultipleChoice(
+                question_name="q",
+                question_text="Pick",
+                question_options="{{ [nested.obj.mutate(), 'safe'] }}",
+            )
+            question.render(context, jinja_env=SandboxedEnvironment())
+        elif surface == "prompt":
+            Prompt(template).render(context)
+        elif surface == "runner":
+            JobService._resolve_template_string(template, {}, context)
+        elif surface == "job_filter":
+            list(
+                InterviewTupleFilter(
+                    [{}], [context], [{}], "{{ scenario.nested.obj.mutate() }}"
+                )
+            )
+    mutate.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "template",
+    [
+        "{{ data.clear() }}",
+        "{{ data.update({'new': 1}) }}",
+        "{{ data['values'].append(3) }}",
+        "{{ action() }}",
+    ],
+)
+def test_context_functions_and_container_mutations_are_denied(template):
+    from edsl.utilities.jinja import make_environment
+
+    data = {"values": [1, 2]}
+    action = Mock(return_value="changed", unsafe_callable=False, alters_data=False)
+    with pytest.raises(SecurityError):
+        make_environment().from_string(template).render(data=data, action=action)
+    assert data == {"values": [1, 2]}
+    action.assert_not_called()
+
+
+def test_read_only_method_names_do_not_allow_custom_implementations():
+    from edsl.utilities.jinja import make_environment
+
+    called = Mock()
+
+    class CustomDict(dict):
+        def get(self, key):
+            called()
+
+    with pytest.raises(SecurityError):
+        make_environment().from_string("{{ obj.get('x') }}").render(obj=CustomDict())
+    called.assert_not_called()
+
+
+def test_allowed_template_helpers_and_capture_still_work():
+    from edsl.utilities.jinja import make_environment, make_native_environment
+
+    source = (
+        "{% macro label(x) %}{{ x.strip().upper() }}{% endmacro %}"
+        "{% set ns = namespace(total=0) %}"
+        "{% for i in range(3) %}{% set ns.total = ns.total + i %}{% endfor %}"
+        "{{ label(data.get('name')) }}:{{ ns.total }}:"
+        "{{ dict(data.items()).keys() | list | join(',') }}"
+    )
+    assert (
+        make_environment().from_string(source).render(data={"name": " Ada "})
+        == "ADA:3:name"
+    )
+    assert make_native_environment().from_string("{{ data.get('values') }}").render(
+        data={"values": [1, 2]}
+    ) == [1, 2]
+    prompt = Prompt("{{ vars.set('x', 5) }}{{ vars.get('x') }}").render({})
+    assert str(prompt) == "5"
+    assert prompt.captured_variables == {"x": 5}
+
+
+def test_custom_callable_policy_is_preserved_without_mutating_override():
+    from edsl.utilities.jinja import make_native_environment, require_sandbox
+
+    class NoCalls(SandboxedEnvironment):
+        def is_safe_callable(self, obj):
+            return False
+
+    for environment in (require_sandbox(NoCalls()), make_native_environment(NoCalls())):
+        with pytest.raises(SecurityError):
+            environment.from_string("{{ data.get('x') }}").render(data={"x": 1})
+    original = SandboxedEnvironment()
+    mutate = Mock(return_value="changed", unsafe_callable=False, alters_data=False)
+    restricted = require_sandbox(original)
+    assert original.is_safe_callable(mutate)
+    assert not restricted.is_safe_callable(mutate)
