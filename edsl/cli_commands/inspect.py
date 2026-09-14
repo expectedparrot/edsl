@@ -42,11 +42,20 @@ def register(app: click.Group) -> None:
         try:
             obj = load_any_object(target, expected_object_type=object_type)
             data = _summary(obj, sample=max(0, sample))
+            from edsl.language_models.output_token_policy import token_limit_warnings
+
+            model_warnings = token_limit_warnings(getattr(obj, "models", []))
             if save_path:
                 data["saved"] = save_edsl_object(obj, save_path)
                 if raw_output_written(data["saved"]):
                     return
-            output(data)
+            output(
+                data,
+                warnings=[
+                    {"code": "LOW_REASONING_OUTPUT_LIMIT", "message": message}
+                    for message in model_warnings
+                ],
+            )
         except SystemExit:
             raise
         except Exception as e:
@@ -106,6 +115,8 @@ def _summary(obj, sample: int) -> dict:
             }
         )
     elif class_name == "Jobs":
+        from edsl.language_models.output_token_policy import model_token_policy
+
         survey = getattr(obj, "survey", None)
         data.update(
             {
@@ -114,6 +125,9 @@ def _summary(obj, sample: int) -> dict:
                 "agent_count": _safe_len(getattr(obj, "agents", None)),
                 "scenario_count": _safe_len(getattr(obj, "scenarios", None)),
                 "model_count": _safe_len(getattr(obj, "models", None)),
+                "output_token_policies": [
+                    model_token_policy(model) for model in obj.models
+                ],
             }
         )
     elif class_name == "Results":
@@ -121,6 +135,7 @@ def _summary(obj, sample: int) -> dict:
         data.update(
             {
                 "result_count": len(obj),
+                "completion": obj.completion_summary(),
                 "columns": columns,
                 "answer_columns": [c for c in columns if c.startswith("answer.")],
                 "scenario_columns": [c for c in columns if c.startswith("scenario.")],
