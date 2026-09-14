@@ -35,7 +35,13 @@ class OpenAIParameterBuilder:
     def build_params(model: str, messages: list, **model_params) -> dict:
         """Build API parameters, adjusting for specific model types."""
 
-        default_max_tokens = model_params.get("max_tokens", 1000)
+        from ...language_models.output_token_policy import resolve_output_token_limit
+
+        default_max_tokens = (
+            model_params["max_tokens"]
+            if "max_tokens" in model_params
+            else resolve_output_token_limit(model)
+        )
         default_temperature = model_params.get("temperature", 0.5)
         default_reasoning_effort = model_params.get("reasoning_effort", "medium")
         # Substring match so suffixed variants (e.g. gpt-5.6-terra) are still
@@ -43,7 +49,7 @@ class OpenAIParameterBuilder:
         is_reasoning_model = any(tag in model for tag in OPENAI_REASONING_MODELS)
         if is_reasoning_model:
             # For reasoning models, use much higher completion tokens to allow for reasoning + response
-            max_tokens = max(default_max_tokens, 5000)
+            max_tokens = default_max_tokens
             # If no reasoning effort is provided, use "medium" as the default
             # Some models (e.g. gpt-5) do not support null values for reasoning_effort
             reasoning_effort = default_reasoning_effort or "medium"

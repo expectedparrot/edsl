@@ -120,6 +120,7 @@ class MistralAIService(InferenceServiceABC):
 
                 res = await s.chat.complete_async(
                     model=model_name,
+                    max_tokens=self.max_tokens,
                     messages=[
                         {
                             "content": user_prompt,

@@ -160,10 +160,9 @@ class OpenAIServiceV2(InferenceServiceABC):
             thinking_token_sequence = cls.thinking_token_sequence
             _inference_service_ = cls._inference_service_
             _model_ = model_name
-            _is_reasoning = any(tag in model_name for tag in OPENAI_REASONING_MODELS)
             _parameters_ = {
                 "temperature": 0.5,
-                "max_tokens": 16000 if _is_reasoning else 2000,
+                "max_tokens": None,  # Resolved by LanguageModel's shared policy.
                 "top_p": 1,
                 "frequency_penalty": 0,
                 "presence_penalty": 0,

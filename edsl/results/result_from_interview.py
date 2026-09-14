@@ -298,6 +298,11 @@ class ResultFromInterview:
         cache_used_dictionary = {}
         for result in model_response_objects:
             question_name = result.question_name
+            from ..language_models.response_metadata import response_metadata
+
+            raw_model_results_dictionary[question_name + "_response_metadata"] = (
+                response_metadata(result.raw_model_response)
+            )
             raw_model_results_dictionary[question_name + "_raw_model_response"] = (
                 result.raw_model_response
             )
