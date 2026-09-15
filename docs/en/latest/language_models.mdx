@@ -46,6 +46,45 @@ Output:
 We recently added support for OpenAI reasoning models. See an example notebook for usage [here](https://www.expectedparrot.com/content/RobinHorton/reasoning-model-example). Use service_name = “openai_v2” when using these models. The Results that are generated with reasoning models include additional fields for reasoning summaries.
 </Note>
 
+## OpenAI reasoning settings
+
+Both `openai` (Chat Completions) and `openai_v2` (Responses) accept
+`reasoning_effort`, including for the GPT-6 family:
+
+```python
+model = Model(
+    "gpt-6-astra",
+    service_name="openai_v2",
+    reasoning_effort="xhigh",
+    max_tokens=64000,
+)
+```
+
+EDSL sends this as `reasoning_effort` for Chat Completions and as
+`reasoning.effort` for Responses. With `openai_v2`, you can also supply a
+`reasoning` dictionary, such as `{"effort": "high", "summary": "auto"}`.
+A non-`None` `reasoning_effort` overrides the dictionary's `effort`; other
+dictionary fields are preserved.
+
+Explicit effort values are forwarded unchanged for provider validation, even
+when EDSL does not recognize the model. Unsupported values produce a provider
+error rather than being silently removed or reduced. Supported effort values
+depend on the model; see [OpenAI's model guidance](https://developers.openai.com/api/docs/guides/latest-model).
+`reasoning` must be a dictionary or `None`.
+
+When effort is omitted or `None`, Chat Completions uses `medium` for recognized
+reasoning models. Responses requests an automatic reasoning summary and leaves
+effort to the provider unless the dictionary specifies it. Ordinary models get
+no reasoning parameters unless explicitly requested.
+
+Explicit `max_tokens` values are preserved, including small limits. The current
+reasoning-model defaults are 5,000 for Chat Completions and 16,000 for Responses;
+ordinary-model defaults are 1,000 and 2,000, respectively.
+
+Remote workers must run the corrected adapter implementation too: serializing a
+model or Jobs object only saves configuration. When verifying an adapter change,
+use a fresh call with cache bypass and inspect the effective provider request.
+
 ## Local and self-hosted models
 
 Use the `openai_compatible` service to connect EDSL to a local or self-hosted server that implements the OpenAI chat-completions API, including llama.cpp, Ollama, LM Studio, vLLM, and SGLang. Connection details can be saved in a portable `ModelList` without storing an API-key value.
