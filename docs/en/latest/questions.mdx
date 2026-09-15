@@ -135,6 +135,22 @@ q = QuestionCheckBox(
 )
 ```
 
+exclusive_options - *Optional* checkbox and checkbox-with-other options that must be selected alone. An exclusive option may satisfy the response even when `min_selections` is greater than one, but it still honors `max_selections`. Values must exactly match the corresponding entries in `question_options` (use labels even when `use_code=True`):
+
+```python
+from edsl import QuestionCheckBox
+
+q = QuestionCheckBox(
+    question_name="transport",
+    question_text="Which forms of transportation do you use?",
+    question_options=["Car", "Bus", "Bicycle", "None of these"],
+    min_selections=2,
+    exclusive_options=["None of these"],
+)
+```
+
+`["None of these"]` is valid, while `["Car", "None of these"]` is rejected. Exclusive options cannot be combined with probabilistic checkbox responses.
+
 min_value and max_value - *Optional* parameters of numerical questions to specify the minimum and maximum values that can be entered. For example, in a numerical question where the respondent must enter a number between 1 and 100:
 
 ```python
