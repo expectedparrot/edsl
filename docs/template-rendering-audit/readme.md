@@ -1,4 +1,4 @@
-# EDSL server-side template injection audit and patch recommendations
+# EDSL template rendering audit and patch recommendations
 
 Date: September 7, 2026
 
@@ -17,10 +17,10 @@ The patch on `security/sandbox-template-rendering`, proposed in [PR #2647](https
 - Raised the Jinja2 dependency floor to 3.1.6 and refreshed lockfile metadata without changing locked dependency versions.
 - The initial regression suite exposed **27 canary-access failures**; its four controls passed. This also confirmed the previously source-reviewed rule, filter, answer-translation, image-prompt, report, and macro sinks locally. After patching and adding compatibility checks, **37 security/compatibility tests pass**, along with **80 existing focused regression tests**.
 
-The focused tests live in [`tests/security/test_ssti.py`](../../tests/security/test_ssti.py). Run them independently of the repository's service/cleanup hooks:
+The focused tests live in [`tests/security/test_template_sandbox.py`](../../tests/security/test_template_sandbox.py). Run them independently of the repository's service/cleanup hooks:
 
 ```bash
-python -m pytest -q --confcutdir=tests/security tests/security/test_ssti.py
+python -m pytest -q --confcutdir=tests/security tests/security/test_template_sandbox.py
 ```
 
 Deployment reachability, reducing live-object exposure (including properties and implicit Python operations), resource limits, and the broader recursive-template data policy remain follow-up work. Custom filters, tests, and explicitly allowlisted methods are trusted application code. Passing these checks establishes that the tested access paths are blocked; it does not certify all template execution as safe.

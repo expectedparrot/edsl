@@ -73,9 +73,8 @@ class TemplateVars:
 def make_env() -> SandboxedEnvironment:
     """Create a fresh sandboxed Jinja environment each time.
 
-    Uses SandboxedEnvironment to prevent Server-Side Template Injection (SSTI)
-    attacks by blocking access to dangerous attributes like __class__, __mro__,
-    __globals__, etc.
+    Uses SandboxedEnvironment to prevent unsafe template execution by blocking
+    access to dangerous attributes like __class__, __mro__, __globals__, etc.
     """
     return make_environment(
         undefined=PreserveUndefined,

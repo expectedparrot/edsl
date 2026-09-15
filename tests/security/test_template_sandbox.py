@@ -1,7 +1,7 @@
-"""Local SSTI regression checks; no remote inference or real credentials.
+"""Local template sandbox regression checks; no remote inference or real credentials.
 
 Run in isolation from the repository's service/cleanup hooks:
-python -m pytest -q --confcutdir=tests/security tests/security/test_ssti.py
+python -m pytest -q --confcutdir=tests/security tests/security/test_template_sandbox.py
 """
 
 import asyncio
@@ -35,7 +35,7 @@ from edsl.runner.service import JobService
 
 @pytest.fixture
 def canary(monkeypatch):
-    key = "EDSL_SSTI_TEST_" + uuid4().hex
+    key = "EDSL_TEMPLATE_SANDBOX_TEST_" + uuid4().hex
     value = "synthetic-" + uuid4().hex
     monkeypatch.setenv(key, value)
     getter = Mock(wraps=os.getenv)
