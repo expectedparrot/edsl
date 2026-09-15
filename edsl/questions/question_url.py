@@ -42,6 +42,12 @@ class QuestionURL(QuestionBase):
     _response_model = URLResponse
     response_validator_class = URLResponseValidator
 
+    def _simulate_answer(self, human_readable: bool = False) -> dict:
+        return {
+            "answer": "https://example.com",
+            "comment": "Simulated answer",
+        }
+
     def __init__(
         self,
         question_name: str,
