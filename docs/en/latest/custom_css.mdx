@@ -71,9 +71,34 @@ coop.patch_human_survey_css(
 
 | Class | Element | Notes |
 |---|---|---|
-| `edsl-survey-container` | Outermost container of the entire survey | Use to set background color for the whole survey |
+| `edsl-survey-container` | Outermost container of the entire survey | Use to set background color for the whole survey. Carries `data-group-name` when the survey is presented by question group; see below |
 | `edsl-survey-banner` | `<div>` holding the survey's logo, at the top of the survey | Only present when the survey has a logo. Give it a `background` for a banner; see below |
-| `edsl-logo` | The logo `<img>` inside `edsl-survey-banner` | 48px tall by default, width following the image. Resize with `height`; see below |
+| `edsl-survey-banner-content` | Column inside `edsl-survey-banner` holding the logo | Lined up with `edsl-survey-content` |
+| `edsl-logo` | The logo `<img>` inside `edsl-survey-banner` | 40px tall by default, width following the image. Resize with `height`; see below |
+| `edsl-survey-content` | Column holding the page's questions and `edsl-survey-nav` | Questions are spaced by its `gap` |
+| `edsl-survey-item` | `<div>` wrapping each question or instruction on the page | Carries `data-question-name` or `data-instruction-name`; see below |
+| `edsl-instruction` | `<div>` holding an instruction's text | Inside `edsl-survey-item` |
+| `edsl-survey-nav` | Row `<div>` holding the page's navigation buttons | Below the questions |
+| `edsl-next-button` | `<button>` that submits the page | Disabled while the page submits; style that with `.edsl-next-button:disabled` |
+
+## Targeting one question or page
+
+Each question and instruction on a page is wrapped in `edsl-survey-item`, which carries
+the item's name: `data-question-name` for a question, `data-instruction-name` for an
+instruction. When the survey is presented by question group, `edsl-survey-container`
+carries `data-group-name`, the group shown on the page.
+
+```css
+/* One question */
+.edsl-survey-item[data-question-name="age"] .edsl-question-text {
+  font-weight: 700;
+}
+
+/* Every page of one group */
+.edsl-survey-container[data-group-name="demographics"] {
+  background: #f8fafc;
+}
+```
 
 ## Survey banner and logo
 
@@ -85,7 +110,7 @@ Set the logo itself in the humanize schema under `survey.branding.logo`, referen
 image you uploaded with `Coop().upload_human_survey_asset(...)`. See
 [Humanize schema](/en/latest/humanize_schema).
 
-The logo is 48px tall by default, and its width follows the image's proportions. To resize
+The logo is 40px tall by default, and its width follows the image's proportions. To resize
 it, set its **height** and let the width follow:
 
 ```css
@@ -98,19 +123,26 @@ it, set its **height** and let the width follow:
 To size it by width instead, set `width` together with `height: auto`. Setting both to
 fixed values fits the logo inside that box without stretching it.
 
-For a colored strip behind the logo, style the banner itself:
+For a colored strip behind the logo, give the banner a background:
 
 ```css
 /* Logo on a colored banner */
 .edsl-survey-banner {
   background: #2e7d32;
-  padding: 12px 16px;
-  border-radius: 8px;
 }
 ```
 
-The banner sits inside the survey's page padding, so its background does not reach the
-edges of the screen.
+The banner spans the full width of the screen, and the logo inside it lines up with the
+questions. To place the logo somewhere else, such as near the edge of the screen, style
+`edsl-survey-banner-content`:
+
+```css
+/* Logo near the edge of the screen */
+.edsl-survey-banner-content {
+  width: auto;
+  padding: 0 24px;
+}
+```
 
 ## Progress indicator
 
@@ -152,33 +184,33 @@ it, and an optional label below.
 
 ```html
 <ol class="edsl-progress edsl-progress-steps">
-  <li class="edsl-progress-step edsl-progress-step-complete">
+  <li class="edsl-progress-step" data-status="complete">
     <div>
       <!-- first step's incoming connector is hidden, not removed -->
-      <span class="edsl-progress-connector edsl-progress-connector-incoming edsl-progress-connector-upcoming"></span>
+      <span class="edsl-progress-connector edsl-progress-connector-incoming" data-status="upcoming"></span>
       <span class="edsl-progress-marker">1</span>
-      <span class="edsl-progress-connector edsl-progress-connector-outgoing edsl-progress-connector-complete"></span>
+      <span class="edsl-progress-connector edsl-progress-connector-outgoing" data-status="complete"></span>
     </div>
     <!-- shown only for steps that have a label -->
     <span class="edsl-progress-label">Background</span>
   </li>
 
-  <li class="edsl-progress-step edsl-progress-step-current">
+  <li class="edsl-progress-step" data-status="current">
     <div>
       <!-- filled, because the step before it is complete -->
-      <span class="edsl-progress-connector edsl-progress-connector-incoming edsl-progress-connector-complete"></span>
+      <span class="edsl-progress-connector edsl-progress-connector-incoming" data-status="complete"></span>
       <span class="edsl-progress-marker">2</span>
-      <span class="edsl-progress-connector edsl-progress-connector-outgoing edsl-progress-connector-upcoming"></span>
+      <span class="edsl-progress-connector edsl-progress-connector-outgoing" data-status="upcoming"></span>
     </div>
     <span class="edsl-progress-label">Experience</span>
   </li>
 
-  <li class="edsl-progress-step edsl-progress-step-upcoming">
+  <li class="edsl-progress-step" data-status="upcoming">
     <div>
-      <span class="edsl-progress-connector edsl-progress-connector-incoming edsl-progress-connector-upcoming"></span>
+      <span class="edsl-progress-connector edsl-progress-connector-incoming" data-status="upcoming"></span>
       <span class="edsl-progress-marker">3</span>
       <!-- last step's outgoing connector is hidden, not removed -->
-      <span class="edsl-progress-connector edsl-progress-connector-outgoing edsl-progress-connector-upcoming"></span>
+      <span class="edsl-progress-connector edsl-progress-connector-outgoing" data-status="upcoming"></span>
     </div>
     <span class="edsl-progress-label">Wrap-up</span>
   </li>
@@ -188,44 +220,39 @@ it, and an optional label below.
 | Class | Element | Notes |
 |---|---|---|
 | `edsl-progress-steps` | The `<ol>` holding the steps | |
-| `edsl-progress-step` | One `<li>` per step | Equal-width column; always carries a status class too |
-| `edsl-progress-step-complete` | A step the respondent has finished | |
-| `edsl-progress-step-current` | The step being answered | |
-| `edsl-progress-step-upcoming` | A step not yet reached | |
+| `edsl-progress-step` | One `<li>` per step | Equal-width column. Carries `data-status`: `complete`, `current` or `upcoming` |
 | `edsl-progress-marker` | The circle for a step | Contains the step number, or is empty when markers are dots |
-| `edsl-progress-connector` | Half of the line between two markers | Two per step, one on each side of the marker |
+| `edsl-progress-connector` | Half of the line between two markers | Two per step, one on each side of the marker. Carries `data-status`: `complete` when filled, `upcoming` when not |
 | `edsl-progress-connector-incoming` | The half arriving at the marker | On the left of the marker |
 | `edsl-progress-connector-outgoing` | The half leaving the marker | On the right of the marker |
-| `edsl-progress-connector-complete` | A filled half of the line | |
-| `edsl-progress-connector-upcoming` | An unfilled half of the line | |
 | `edsl-progress-label` | Text under a marker | Absent for steps without a label |
 
-**Style markers and labels through their step.** Every `<li>` says whether its step is
-complete, current, or upcoming, so those classes are how you give the current marker a
-different look from the finished ones.
+**Style markers and labels through their step.** Every `<li>` carries its step's
+`data-status`, which is how you give the current marker a different look from the
+finished ones.
 
-**Style the line through its own classes.** Each half carries its own filled or unfilled
-class, which does not match the status of the step it belongs to. The half arriving at
-the current step is filled as soon as the step before it is done, so the current step
+**Style the line through its own status.** Each half carries its own `data-status`,
+which does not match the status of the step it belongs to. The half arriving at the
+current step is filled as soon as the step before it is done, so the current step
 normally holds one filled half and one empty one. Select the filled line with
-`.edsl-progress-connector-complete`. Reaching for `.edsl-progress-step-complete
-.edsl-progress-connector` instead leaves that first half gray, and the line stops short
-of where the respondent actually is.
+`.edsl-progress-connector[data-status="complete"]`. Reaching for
+`.edsl-progress-step[data-status="complete"] .edsl-progress-connector` instead leaves
+that first half gray, and the line stops short of where the respondent actually is.
 
 ```css
-.edsl-progress-step-current .edsl-progress-marker { border-color: #b91c1c; color: #b91c1c; }
-.edsl-progress-step-complete .edsl-progress-marker { background: #b91c1c; border-color: #b91c1c; }
-.edsl-progress-connector-complete { background: #b91c1c; }
+.edsl-progress-step[data-status="current"] .edsl-progress-marker { border-color: #b91c1c; color: #b91c1c; }
+.edsl-progress-step[data-status="complete"] .edsl-progress-marker { background: #b91c1c; border-color: #b91c1c; }
+.edsl-progress-connector[data-status="complete"] { background: #b91c1c; }
 ```
 
-**To reach a single segment, combine a step class with a connector class.** Include the
-position class as well, since a step's two halves are otherwise identical. The rule below
+**To reach a single segment, combine a step's status with a connector's.** Include the
+connector's position class as well, since a step's two halves are otherwise identical. The rule below
 picks out the filled half arriving at the step the respondent is on, and gives it a
 gradient so the line brightens as it reaches them:
 
 ```css
-.edsl-progress-step-current
-  .edsl-progress-connector-incoming.edsl-progress-connector-complete {
+.edsl-progress-step[data-status="current"]
+  .edsl-progress-connector-incoming[data-status="complete"] {
   background: linear-gradient(to right, #b91c1c, #f87171);
 }
 ```
@@ -244,6 +271,78 @@ These classes are present on every question regardless of type.
 | `edsl-question` | Outermost `<div>` of every question | Always present |
 | `edsl-question-text` | Question prompt `<div>` | Rendered from `question_text` |
 | `edsl-question-image` | `<img>` embedded in a question | Image blocks in question text |
+| `edsl-error` | Error message `<p>` | Shown only when the answer is invalid |
+
+### Options
+
+Questions answered by picking from a list share these classes.
+
+| Class | Element | Notes |
+|---|---|---|
+| `edsl-options` | Container wrapping all of a question's options | |
+| `edsl-option` | `<label>` for one option | Wraps the control and its text, so a click anywhere in the row answers |
+| `edsl-option-label` | `<span>` next to the radio or checkbox | |
+| `edsl-option-content` | `<span>` wrapping an option's rendered label | Also used for budget labels, rank items, and matrix rows and columns |
+| `edsl-option-text` | Text `<span>` inside `edsl-option-content` | |
+| `edsl-option-image` | `<img>` inside `edsl-option-content` | When an option references an image |
+| `edsl-option-media-unavailable` | `<span>` shown in place of an option's file | When the file isn't an image or can't be found |
+| `edsl-select` | `<select>` | When the humanize format is `dropdown`. Its options are plain text |
+
+```html
+<label class="edsl-option">
+  <!-- the radio or checkbox; see below -->
+  <span class="edsl-radio-control" data-unchecked>…</span>
+  <span class="edsl-option-label">
+    <span class="edsl-option-content">
+      <span class="edsl-option-text">Golden retriever</span>
+      <!-- only when the option references an image -->
+      <img class="edsl-option-image" src="…" alt="dog.jpg" />
+    </span>
+  </span>
+</label>
+```
+
+### Radios and checkboxes
+
+Each radio and checkbox is drawn by a `<span>`, with the `<input>` inside it hidden from
+view. Style the span, not the input.
+
+```html
+<span class="edsl-radio-control" data-checked>
+  <input class="edsl-radio" type="radio" checked />
+  <span class="edsl-radio-indicator" data-checked></span>
+</span>
+
+<span class="edsl-checkbox-control" data-unchecked>
+  <input class="edsl-checkbox" type="checkbox" />
+  <span class="edsl-checkbox-indicator" data-unchecked><svg>…</svg></span>
+</span>
+```
+
+| Class | Element | Notes |
+|---|---|---|
+| `edsl-radio-control` | `<span>` drawn in the radio's place: the circle | Carries `data-checked` while selected and `data-unchecked` while not |
+| `edsl-radio` | The `<input type="radio">` | Hidden, so styling it has no visible effect |
+| `edsl-radio-indicator` | `<span>` for the dot | Carries `data-checked` or `data-unchecked`. Hidden while unselected |
+| `edsl-checkbox-control` | `<span>` drawn in the checkbox's place: the box | Carries `data-checked` while selected and `data-unchecked` while not |
+| `edsl-checkbox` | The `<input type="checkbox">` | Hidden, so styling it has no visible effect |
+| `edsl-checkbox-indicator` | `<span>` around the tick `<svg>` | Carries `data-checked` or `data-unchecked`. The tick is drawn in `currentColor` |
+
+```css
+/* Green controls */
+.edsl-radio-control[data-checked],
+.edsl-checkbox-control[data-checked] {
+  border-color: #2e7d32;
+}
+.edsl-checkbox-control[data-checked] {
+  background: #2e7d32;
+}
+.edsl-radio-indicator {
+  background: #2e7d32;
+}
+```
+
+To style the row of a selected option, use `.edsl-option:has(.edsl-radio:checked)`.
 
 ## Question-specific HTML
 
@@ -254,12 +353,24 @@ These classes are present on every question regardless of type.
   <div class="edsl-question-text">Allocate $100 across categories.</div>
   <div class="edsl-budget-options">
     <div class="edsl-budget-item">
-      <label class="edsl-budget-label">Food</label>
-      <input class="edsl-budget-input" type="text" />
+      <div>
+        <label class="edsl-budget-label">
+          <span class="edsl-option-content">
+            <span class="edsl-option-text">Food</span>
+          </span>
+        </label>
+        <input class="edsl-budget-input" type="text" />
+      </div>
     </div>
     <div class="edsl-budget-item">
-      <label class="edsl-budget-label">Transport</label>
-      <input class="edsl-budget-input" type="text" />
+      <div>
+        <label class="edsl-budget-label">
+          <span class="edsl-option-content">
+            <span class="edsl-option-text">Transport</span>
+          </span>
+        </label>
+        <input class="edsl-budget-input" type="text" />
+      </div>
     </div>
     <div class="edsl-budget-total">
       <span>Total</span>
@@ -276,19 +387,86 @@ These classes are present on every question regardless of type.
 <div class="edsl-question edsl-checkbox-question">
   <div class="edsl-question-text">Select all that apply.</div>
 
-  <div class="edsl-select-all">
-    <input class="edsl-checkbox" type="checkbox" />
-    <label class="edsl-option-label">Select All</label>
+  <div class="edsl-options">
+    <label class="edsl-option">
+      <span class="edsl-checkbox-control" data-checked>
+        <input class="edsl-checkbox" type="checkbox" checked />
+        <span class="edsl-checkbox-indicator" data-checked><svg>…</svg></span>
+      </span>
+      <span class="edsl-option-label">
+        <span class="edsl-option-content">
+          <span class="edsl-option-text">Option A</span>
+        </span>
+      </span>
+    </label>
+    <label class="edsl-option">
+      <span class="edsl-checkbox-control" data-unchecked>
+        <input class="edsl-checkbox" type="checkbox" />
+        <span class="edsl-checkbox-indicator" data-unchecked><svg>…</svg></span>
+      </span>
+      <span class="edsl-option-label">
+        <span class="edsl-option-content">
+          <span class="edsl-option-text">Option B</span>
+        </span>
+      </span>
+    </label>
   </div>
 
+  <!-- shown unless the humanize schema turns it off -->
+  <label class="edsl-select-all">
+    <span class="edsl-checkbox-control" data-unchecked>
+      <input class="edsl-checkbox" type="checkbox" />
+      <span class="edsl-checkbox-indicator" data-unchecked><svg>…</svg></span>
+    </span>
+    <span class="edsl-option-label">Select all</span>
+  </label>
+
+  <p class="edsl-error">…</p>
+</div>
+```
+
+### Checkbox with other
+
+```html
+<div class="edsl-question edsl-checkbox-with-other-question">
+  <div class="edsl-question-text">Which tools do you use?</div>
   <div class="edsl-options">
-    <div class="edsl-option">
-      <input class="edsl-checkbox" type="checkbox" />
-      <label class="edsl-option-label">Option A</label>
-    </div>
-    <div class="edsl-option">
-      <input class="edsl-checkbox" type="checkbox" />
-      <label class="edsl-option-label">Option B</label>
+    <label class="edsl-option">
+      <span class="edsl-checkbox-control" data-unchecked>
+        <input class="edsl-checkbox" type="checkbox" />
+        <span class="edsl-checkbox-indicator" data-unchecked><svg>…</svg></span>
+      </span>
+      <span class="edsl-option-label">
+        <span class="edsl-option-content">
+          <span class="edsl-option-text">Spreadsheets</span>
+        </span>
+      </span>
+    </label>
+    <!-- … -->
+
+    <div class="edsl-other-option">
+      <label class="edsl-option">
+        <span class="edsl-checkbox-control" data-checked>
+          <input class="edsl-checkbox" type="checkbox" checked />
+          <span class="edsl-checkbox-indicator" data-checked><svg>…</svg></span>
+        </span>
+        <span class="edsl-option-label">Other</span>
+      </label>
+      <div>
+        <p class="edsl-other-hint">Please enter one item per box.</p>
+        <ul>
+          <!-- one per item entered -->
+          <li>
+            <input class="edsl-other-input" type="text" placeholder="Enter an item" />
+            <!-- hidden while there is only one box -->
+            <button class="edsl-other-remove" type="button"><svg>…</svg></button>
+          </li>
+        </ul>
+        <!-- shown once an item has been entered -->
+        <div>
+          <button class="edsl-other-add" type="button"><svg>…</svg> Add another</button>
+        </div>
+      </div>
     </div>
   </div>
   <p class="edsl-error">…</p>
@@ -325,8 +503,8 @@ These classes are present on every question regardless of type.
 <div class="edsl-question edsl-file-upload-question">
   <div class="edsl-question-text">Upload supporting documents.</div>
 
-  <!-- edsl-file-upload-dragging is added to this element while a drag is in progress -->
-  <div class="edsl-file-upload-dropzone [edsl-file-upload-dragging]">
+  <!-- carries data-dragging while a drag is in progress -->
+  <div class="edsl-file-upload-dropzone" data-dragging>
 
     <!-- clickable / drag-and-drop target -->
     <div role="button" class="edsl-file-upload-target">
@@ -356,7 +534,8 @@ These classes are present on every question regardless of type.
 
       <!-- card layout (small screens) -->
       <div class="edsl-file-cards">
-        <div class="edsl-file-item">
+        <!-- data-status: uploading, done or error -->
+        <div class="edsl-file-item" data-status="uploading">
           <div class="edsl-file-item-icon-wrapper">
             <svg class="edsl-file-item-icon">…</svg>
           </div>
@@ -395,7 +574,8 @@ These classes are present on every question regardless of type.
             </tr>
           </thead>
           <tbody>
-            <tr class="edsl-file-table-row">
+            <!-- data-status: uploading, done or error -->
+            <tr class="edsl-file-table-row" data-status="uploading">
               <td>
                 <svg class="edsl-file-item-icon">…</svg>
                 <span>doc1.pdf</span>
@@ -446,17 +626,38 @@ These classes are present on every question regardless of type.
   <div class="edsl-question-text">Rate from 1 to 5.</div>
   <div class="edsl-options">
     <label class="edsl-option">
-      <input class="edsl-radio" type="radio" value="1" />
-      <span class="edsl-option-label">1 - Very poor</span>
+      <span class="edsl-radio-control" data-unchecked>
+        <input class="edsl-radio" type="radio" value="1" />
+        <span class="edsl-radio-indicator" data-unchecked></span>
+      </span>
+      <span class="edsl-option-label">
+        <span class="edsl-option-content">
+          <span class="edsl-option-text">1 - Very poor</span>
+        </span>
+      </span>
     </label>
     <label class="edsl-option">
-      <input class="edsl-radio" type="radio" value="2" />
-      <span class="edsl-option-label">2</span>
+      <span class="edsl-radio-control" data-unchecked>
+        <input class="edsl-radio" type="radio" value="2" />
+        <span class="edsl-radio-indicator" data-unchecked></span>
+      </span>
+      <span class="edsl-option-label">
+        <span class="edsl-option-content">
+          <span class="edsl-option-text">2</span>
+        </span>
+      </span>
     </label>
     <!-- … -->
     <label class="edsl-option">
-      <input class="edsl-radio" type="radio" value="5" />
-      <span class="edsl-option-label">5 - Excellent</span>
+      <span class="edsl-radio-control" data-unchecked>
+        <input class="edsl-radio" type="radio" value="5" />
+        <span class="edsl-radio-indicator" data-unchecked></span>
+      </span>
+      <span class="edsl-option-label">
+        <span class="edsl-option-content">
+          <span class="edsl-option-text">5 - Excellent</span>
+        </span>
+      </span>
     </label>
   </div>
   <p class="edsl-error">…</p>
@@ -496,24 +697,27 @@ These classes are present on every question regardless of type.
   <div class="edsl-question-text">How satisfied are you?</div>
   <div class="edsl-options">
     <label class="edsl-option">
-      <input class="edsl-radio" type="radio" value="Strongly disagree" />
-      <span class="edsl-option-label">Strongly disagree</span>
+      <span class="edsl-radio-control" data-unchecked>
+        <input class="edsl-radio" type="radio" value="Strongly disagree" />
+        <span class="edsl-radio-indicator" data-unchecked></span>
+      </span>
+      <span class="edsl-option-label">
+        <span class="edsl-option-content">
+          <span class="edsl-option-text">Strongly disagree</span>
+        </span>
+      </span>
     </label>
+    <!-- … -->
     <label class="edsl-option">
-      <input class="edsl-radio" type="radio" value="Disagree" />
-      <span class="edsl-option-label">Disagree</span>
-    </label>
-    <label class="edsl-option">
-      <input class="edsl-radio" type="radio" value="Neutral" />
-      <span class="edsl-option-label">Neutral</span>
-    </label>
-    <label class="edsl-option">
-      <input class="edsl-radio" type="radio" value="Agree" />
-      <span class="edsl-option-label">Agree</span>
-    </label>
-    <label class="edsl-option">
-      <input class="edsl-radio" type="radio" value="Strongly agree" />
-      <span class="edsl-option-label">Strongly agree</span>
+      <span class="edsl-radio-control" data-unchecked>
+        <input class="edsl-radio" type="radio" value="Strongly agree" />
+        <span class="edsl-radio-indicator" data-unchecked></span>
+      </span>
+      <span class="edsl-option-label">
+        <span class="edsl-option-content">
+          <span class="edsl-option-text">Strongly agree</span>
+        </span>
+      </span>
     </label>
   </div>
   <p class="edsl-error">…</p>
@@ -555,46 +759,165 @@ These classes are present on every question regardless of type.
 
 ### Matrix
 
+<Tabs>
+  <Tab title="Table">
+    When humanize format is `table` (default):
+
 ```html
 <div class="edsl-question edsl-matrix-question">
   <div class="edsl-question-text">Rate each item.</div>
-  <table class="edsl-matrix-table">
-    <thead>
-      <tr class="edsl-matrix-header-row">
-        <th><!-- row label column --></th>
-        <th>1</th>
-        <th>2</th>
-        <th>3</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr class="edsl-matrix-row">
-        <td class="edsl-matrix-label-cell">Price</td>
-        <td class="edsl-matrix-cell">
-          <label>
-            <input class="edsl-radio" type="radio" value="1" />
-          </label>
-        </td>
-        <td class="edsl-matrix-cell">
-          <label>
-            <input class="edsl-radio" type="radio" value="2" />
-          </label>
-        </td>
-        <td class="edsl-matrix-cell">
-          <label>
-            <input class="edsl-radio" type="radio" value="3" />
-          </label>
-        </td>
-      </tr>
-      <tr class="edsl-matrix-row">
-        <td class="edsl-matrix-label-cell">Quality</td>
-        <!-- … -->
-      </tr>
-    </tbody>
-  </table>
+  <div class="edsl-matrix-views">
+
+    <!-- shown below 768px -->
+    <div class="edsl-matrix-stack-view">
+      <div class="edsl-matrix-stack">
+        <div class="edsl-matrix-stack-row">
+          <div class="edsl-matrix-stack-item">
+            <span class="edsl-option-content">
+              <span class="edsl-option-text">Price</span>
+            </span>
+          </div>
+          <div class="edsl-options" role="radiogroup">
+            <label class="edsl-option">
+              <span class="edsl-radio-control" data-unchecked>
+                <input class="edsl-radio" type="radio" value="1" />
+                <span class="edsl-radio-indicator" data-unchecked></span>
+              </span>
+              <span class="edsl-option-label">
+                <span class="edsl-option-content">
+                  <span class="edsl-option-text">1 - Poor</span>
+                </span>
+              </span>
+            </label>
+            <!-- … -->
+          </div>
+        </div>
+        <div class="edsl-matrix-stack-row"><!-- … --></div>
+      </div>
+    </div>
+
+    <!-- shown from 768px up -->
+    <div class="edsl-matrix-table-view">
+      <div>
+        <table class="edsl-matrix-table">
+          <colgroup>
+            <col class="edsl-matrix-item-column" />
+            <!-- one per option -->
+            <col class="edsl-matrix-option-column" />
+            <col class="edsl-matrix-option-column" />
+            <col class="edsl-matrix-option-column" />
+          </colgroup>
+          <thead>
+            <tr class="edsl-matrix-header-row">
+              <th><!-- row label column --></th>
+              <th>
+                <div>
+                  <!-- shown only when the option has a label -->
+                  <span>Poor</span>
+                  <span>
+                    <span class="edsl-option-content">
+                      <span class="edsl-option-text">1</span>
+                    </span>
+                  </span>
+                </div>
+              </th>
+              <!-- … -->
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="edsl-matrix-row">
+              <td class="edsl-matrix-label-cell">
+                <span class="edsl-option-content">
+                  <span class="edsl-option-text">Price</span>
+                </span>
+              </td>
+              <td class="edsl-matrix-cell">
+                <label>
+                  <span>
+                    <span class="edsl-radio-control" data-unchecked>
+                      <input class="edsl-radio" type="radio" value="1" />
+                      <span class="edsl-radio-indicator" data-unchecked></span>
+                    </span>
+                  </span>
+                </label>
+              </td>
+              <!-- … -->
+            </tr>
+            <tr class="edsl-matrix-row"><!-- … --></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
   <p class="edsl-error">…</p>
 </div>
 ```
+
+Both views are always in the page, and CSS picks which one shows. To keep the table at
+every width:
+
+```css
+.edsl-matrix-stack-view { display: none; }
+.edsl-matrix-table-view { display: block; }
+```
+
+Row labels take 25% of the table's width by default, and the option columns share the
+rest. To change that, set `--edsl-matrix-item-column` to a percentage, on
+`.edsl-matrix-table` or on `.edsl-survey-container`:
+
+```css
+.edsl-matrix-table { --edsl-matrix-item-column: 40%; }
+```
+  </Tab>
+  <Tab title="Carousel">
+    When humanize format is `carousel`, rows are shown one at a time:
+
+```html
+<div class="edsl-question edsl-matrix-question">
+  <div class="edsl-question-text">Rate each item.</div>
+  <div class="edsl-matrix-carousel">
+    <div>
+      <div>
+        <!-- one slide per row -->
+        <div class="edsl-matrix-carousel-slide">
+          <div class="edsl-matrix-carousel-item">
+            <span class="edsl-option-content">
+              <span class="edsl-option-text">Price</span>
+            </span>
+          </div>
+        </div>
+        <div class="edsl-matrix-carousel-slide"><!-- … --></div>
+      </div>
+    </div>
+
+    <div class="edsl-matrix-carousel-nav">
+      <button class="edsl-matrix-carousel-button" type="button" aria-label="Previous item"><svg>…</svg></button>
+      <span class="edsl-matrix-carousel-status">1 of 8</span>
+      <button class="edsl-matrix-carousel-button" type="button" aria-label="Next item"><svg>…</svg></button>
+    </div>
+
+    <!-- the options for the row on screen -->
+    <div class="edsl-options" role="radiogroup">
+      <label class="edsl-option">
+        <span class="edsl-radio-control" data-unchecked>
+          <input class="edsl-radio" type="radio" value="1" />
+          <span class="edsl-radio-indicator" data-unchecked></span>
+        </span>
+        <span class="edsl-option-label">
+          <span class="edsl-option-content">
+            <span class="edsl-option-text">1 - Poor</span>
+          </span>
+        </span>
+      </label>
+      <!-- … -->
+    </div>
+  </div>
+  <p class="edsl-error">…</p>
+</div>
+```
+  </Tab>
+</Tabs>
 
 ### Multiple choice
 
@@ -607,16 +930,37 @@ These classes are present on every question regardless of type.
   <div class="edsl-question-text">Which fruit do you prefer?</div>
   <div class="edsl-options">
     <label class="edsl-option">
-      <input class="edsl-radio" type="radio" value="Apple" />
-      <span class="edsl-option-label">Apple</span>
+      <span class="edsl-radio-control" data-unchecked>
+        <input class="edsl-radio" type="radio" value="Apple" />
+        <span class="edsl-radio-indicator" data-unchecked></span>
+      </span>
+      <span class="edsl-option-label">
+        <span class="edsl-option-content">
+          <span class="edsl-option-text">Apple</span>
+        </span>
+      </span>
     </label>
     <label class="edsl-option">
-      <input class="edsl-radio" type="radio" value="Banana" />
-      <span class="edsl-option-label">Banana</span>
+      <span class="edsl-radio-control" data-unchecked>
+        <input class="edsl-radio" type="radio" value="Banana" />
+        <span class="edsl-radio-indicator" data-unchecked></span>
+      </span>
+      <span class="edsl-option-label">
+        <span class="edsl-option-content">
+          <span class="edsl-option-text">Banana</span>
+        </span>
+      </span>
     </label>
     <label class="edsl-option">
-      <input class="edsl-radio" type="radio" value="Cherry" />
-      <span class="edsl-option-label">Cherry</span>
+      <span class="edsl-radio-control" data-unchecked>
+        <input class="edsl-radio" type="radio" value="Cherry" />
+        <span class="edsl-radio-indicator" data-unchecked></span>
+      </span>
+      <span class="edsl-option-label">
+        <span class="edsl-option-content">
+          <span class="edsl-option-text">Cherry</span>
+        </span>
+      </span>
     </label>
   </div>
   <!-- shown only on error -->
@@ -651,20 +995,39 @@ These classes are present on every question regardless of type.
   <div class="edsl-question-text">How did you hear about us?</div>
   <div class="edsl-options">
     <label class="edsl-option">
-      <input class="edsl-radio" type="radio" value="Search engine" />
-      <span class="edsl-option-label">Search engine</span>
+      <span class="edsl-radio-control" data-unchecked>
+        <input class="edsl-radio" type="radio" value="Search engine" />
+        <span class="edsl-radio-indicator" data-unchecked></span>
+      </span>
+      <span class="edsl-option-label">
+        <span class="edsl-option-content">
+          <span class="edsl-option-text">Search engine</span>
+        </span>
+      </span>
     </label>
     <label class="edsl-option">
-      <input class="edsl-radio" type="radio" value="Friend" />
-      <span class="edsl-option-label">Friend</span>
+      <span class="edsl-radio-control" data-unchecked>
+        <input class="edsl-radio" type="radio" value="Friend" />
+        <span class="edsl-radio-indicator" data-unchecked></span>
+      </span>
+      <span class="edsl-option-label">
+        <span class="edsl-option-content">
+          <span class="edsl-option-text">Friend</span>
+        </span>
+      </span>
     </label>
 
     <div class="edsl-other-option">
       <label class="edsl-option">
-        <input class="edsl-radio" type="radio" value="Other" />
+        <span class="edsl-radio-control" data-unchecked>
+          <input class="edsl-radio" type="radio" value="Other" />
+          <span class="edsl-radio-indicator" data-unchecked></span>
+        </span>
         <span class="edsl-option-label">Other</span>
       </label>
-      <input class="edsl-other-input" type="text" placeholder="Please specify…" />
+      <div>
+        <input class="edsl-other-input" type="text" />
+      </div>
     </div>
   </div>
   <p class="edsl-error">…</p>
@@ -680,7 +1043,7 @@ These classes are present on every question regardless of type.
 ```html
 <div class="edsl-question edsl-numerical-question">
   <div class="edsl-question-text">Enter your age.</div>
-  <input class="edsl-input" type="text" />
+  <input class="edsl-input" type="number" />
   <p class="edsl-error">…</p>
 </div>
 ```
@@ -718,10 +1081,14 @@ These classes are present on every question regardless of type.
           <option value="1">1</option>
           <option value="2">2</option>
           <option value="3">3</option>
-          <!-- if hasRankCap: -->
+          <!-- only when the question limits how many items are ranked -->
           <option value="not-ranked">Not ranked</option>
         </select>
-        <span class="edsl-rank-item-label">Item A</span>
+        <span class="edsl-rank-item-label">
+          <span class="edsl-option-content">
+            <span class="edsl-option-text">Item A</span>
+          </span>
+        </span>
         <div class="edsl-rank-drag-handle">
           <!-- GripVertical icon (drag handle) -->
         </div>
@@ -745,24 +1112,53 @@ These classes are present on every question regardless of type.
 </div>
 ```
 
+### Survey message
+
+```html
+<div class="edsl-question edsl-survey-message-question">
+  <div class="edsl-question-text">Thanks! The next few questions are about your work.</div>
+</div>
+```
+
 ### Top K
 
 ```html
 <div class="edsl-question edsl-top-k-question">
   <div class="edsl-question-text">Pick your top 2.</div>
   <div class="edsl-options">
-    <div class="edsl-option">
-      <input class="edsl-checkbox" type="checkbox" />
-      <label class="edsl-option-label">Choice A</label>
-    </div>
-    <div class="edsl-option">
-      <input class="edsl-checkbox" type="checkbox" />
-      <label class="edsl-option-label">Choice B</label>
-    </div>
-    <div class="edsl-option">
-      <input class="edsl-checkbox" type="checkbox" />
-      <label class="edsl-option-label">Choice C</label>
-    </div>
+    <label class="edsl-option">
+      <span class="edsl-checkbox-control" data-unchecked>
+        <input class="edsl-checkbox" type="checkbox" />
+        <span class="edsl-checkbox-indicator" data-unchecked><svg>…</svg></span>
+      </span>
+      <span class="edsl-option-label">
+        <span class="edsl-option-content">
+          <span class="edsl-option-text">Choice A</span>
+        </span>
+      </span>
+    </label>
+    <label class="edsl-option">
+      <span class="edsl-checkbox-control" data-unchecked>
+        <input class="edsl-checkbox" type="checkbox" />
+        <span class="edsl-checkbox-indicator" data-unchecked><svg>…</svg></span>
+      </span>
+      <span class="edsl-option-label">
+        <span class="edsl-option-content">
+          <span class="edsl-option-text">Choice B</span>
+        </span>
+      </span>
+    </label>
+    <label class="edsl-option">
+      <span class="edsl-checkbox-control" data-unchecked>
+        <input class="edsl-checkbox" type="checkbox" />
+        <span class="edsl-checkbox-indicator" data-unchecked><svg>…</svg></span>
+      </span>
+      <span class="edsl-option-label">
+        <span class="edsl-option-content">
+          <span class="edsl-option-text">Choice C</span>
+        </span>
+      </span>
+    </label>
   </div>
   <p class="edsl-error">…</p>
 </div>
@@ -779,12 +1175,26 @@ These classes are present on every question regardless of type.
   <div class="edsl-question-text">Do you agree?</div>
   <div class="edsl-options">
     <label class="edsl-option">
-      <input class="edsl-radio" type="radio" value="Yes" />
-      <span class="edsl-option-label">Yes</span>
+      <span class="edsl-radio-control" data-unchecked>
+        <input class="edsl-radio" type="radio" value="Yes" />
+        <span class="edsl-radio-indicator" data-unchecked></span>
+      </span>
+      <span class="edsl-option-label">
+        <span class="edsl-option-content">
+          <span class="edsl-option-text">Yes</span>
+        </span>
+      </span>
     </label>
     <label class="edsl-option">
-      <input class="edsl-radio" type="radio" value="No" />
-      <span class="edsl-option-label">No</span>
+      <span class="edsl-radio-control" data-unchecked>
+        <input class="edsl-radio" type="radio" value="No" />
+        <span class="edsl-radio-indicator" data-unchecked></span>
+      </span>
+      <span class="edsl-option-label">
+        <span class="edsl-option-content">
+          <span class="edsl-option-text">No</span>
+        </span>
+      </span>
     </label>
   </div>
   <p class="edsl-error">…</p>
