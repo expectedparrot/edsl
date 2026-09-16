@@ -2575,9 +2575,11 @@ class JobService:
         # Mixed static/dynamic list: render each templated option independently.
         if isinstance(options, list):
             return [
-                JobService._resolve_template_string(option, answer_dict, scenario)
-                if isinstance(option, str) and "{{" in option
-                else option
+                (
+                    JobService._resolve_template_string(option, answer_dict, scenario)
+                    if isinstance(option, str) and "{{" in option
+                    else option
+                )
                 for option in options
             ]
 
@@ -2589,7 +2591,8 @@ class JobService:
         template: str, answer_dict: dict, scenario: Any
     ) -> Any:
         """Resolve a single template string like '{{ q1.answer }}' or '{{ scenario.var }}'."""
-        from jinja2.nativetypes import NativeEnvironment
+        from jinja2.exceptions import SecurityError
+        from ..utilities.jinja import make_native_environment
         import re
 
         scenario_dict = dict(scenario) if scenario else {}
@@ -2606,9 +2609,13 @@ class JobService:
         }
 
         try:
-            rendered = NativeEnvironment().from_string(template).render(render_context)
+            rendered = (
+                make_native_environment().from_string(template).render(render_context)
+            )
             if rendered != template:
                 return rendered
+        except SecurityError:
+            raise
         except Exception:
             pass
 

@@ -1,5 +1,5 @@
 from jinja2 import Environment
-from jinja2.nativetypes import NativeEnvironment
+from ..utilities.jinja import make_native_environment
 from typing import Any, List, Union
 
 import edsl.scenarios.scenario  # noqa: F401
@@ -127,7 +127,11 @@ class QuestionAttributeProcessor:
             **self.prior_answers_dict,
             "scenario": scenario_namespace,
         }
-        return NativeEnvironment().from_string(template_string).render(render_context)
+        return (
+            make_native_environment()
+            .from_string(template_string)
+            .render(render_context)
+        )
 
     @staticmethod
     def _parse_template_variable(template_str: str) -> Union[str, tuple]:

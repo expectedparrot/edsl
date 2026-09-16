@@ -1,4 +1,5 @@
 from typing import Optional
+from jinja2.exceptions import SecurityError
 
 
 class HTMLQuestion:
@@ -16,7 +17,7 @@ class HTMLQuestion:
         iframe=False,
     ):
         """Return the question in HTML format."""
-        from jinja2 import Template
+        from ..utilities.jinja import safe_template as Template
 
         if scenario is None:
             scenario = {}
@@ -42,34 +43,23 @@ class HTMLQuestion:
         if not hasattr(self.question, "question_type"):
             self.question.question_type = "unknown"
 
-        if hasattr(self.question, "question_html_content"):
-            question_content = self.question.question_html_content
-        else:
-            question_content = Template("")
-
         base_template = Template(base_template)
 
-        context = {
-            "scenario": scenario,
-            "agent": agent,
-        } | prior_answers_dict
-
-        # Render the question text
+        # Resolve fields before placing their values into the fixed HTML shell.
+        # Never compile the generated HTML: interpolated option/label strings
+        # must not become a second template program.
+        context = dict(scenario) | {"agent": agent} | prior_answers_dict
         try:
-            question_text = Template(self.question.question_text).render(context)
+            rendered_question = self.question.render(context)
+        except SecurityError:
+            raise
         except Exception as e:
             print(
                 f"Error rendering question: question_text = {self.question.question_text}, error = {e}"
             )
-            question_text = self.question.question_text
-
-        try:
-            question_content = Template(question_content).render(context)
-        except Exception as e:
-            print(
-                f"Error rendering question: question_content = {question_content}, error = {e}"
-            )
-            question_content = question_content
+            rendered_question = self.question
+        question_text = rendered_question.question_text
+        question_content = getattr(rendered_question, "question_html_content", "")
 
         try:
             params = {

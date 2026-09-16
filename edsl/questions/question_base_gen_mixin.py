@@ -4,7 +4,8 @@ import itertools
 import random
 from typing import Optional, List, Callable, TYPE_CHECKING, Union
 from jinja2 import Environment, meta
-from jinja2.nativetypes import NativeEnvironment
+from jinja2.exceptions import SecurityError
+from ..utilities.jinja import make_environment, make_native_environment, require_sandbox
 
 if TYPE_CHECKING:
     from .question_base import QuestionBase
@@ -26,7 +27,9 @@ class TemplateRenderer:
             jinja_env: Optional Jinja2 Environment to use for rendering
         """
         self.max_nesting = max_nesting
-        self.jinja_env = jinja_env or Environment()
+        self.jinja_env = (
+            require_sandbox(jinja_env) if jinja_env is not None else make_environment()
+        )
 
     def has_jinja_syntax(self, template_str: str) -> bool:
         """Check if the template string contains any Jinja2 syntax.
@@ -103,6 +106,8 @@ class TemplateRenderer:
                 should_render = self.has_unrendered_variables(result)
 
             return result
+        except SecurityError:
+            raise
         except exception_class:  # type: ignore[misc]
             raise
         except Exception:
@@ -447,7 +452,7 @@ class QuestionBaseGenMixin:
             )
 
         def render_native(value: str):
-            native_env = NativeEnvironment()
+            native_env = make_native_environment(template_renderer.jinja_env)
             return native_env.from_string(value).render(strings_only_replacement_dict)
 
         rendered_dict = self._apply_function_dict(render_string)
@@ -460,6 +465,8 @@ class QuestionBaseGenMixin:
                     native_question_options = list(native_question_options)
                 if isinstance(native_question_options, list):
                     rendered_dict["question_options"] = native_question_options
+            except SecurityError:
+                raise
             except Exception:
                 pass
 
@@ -471,6 +478,8 @@ class QuestionBaseGenMixin:
                     native_question_items = list(native_question_items)
                 if isinstance(native_question_items, list):
                     rendered_dict["question_items"] = native_question_items
+            except SecurityError:
+                raise
             except Exception:
                 pass
 
