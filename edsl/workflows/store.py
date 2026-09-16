@@ -102,6 +102,11 @@ class SQLiteWorkflowStore:
                     operation TEXT NOT NULL, applied INTEGER NOT NULL DEFAULT 0,
                     PRIMARY KEY(work_item_id, position)
                 );
+                CREATE TABLE IF NOT EXISTS workflow_pause_checks (
+                    instance_id TEXT NOT NULL, rule_name TEXT NOT NULL,
+                    matched INTEGER NOT NULL, evidence TEXT NOT NULL,
+                    PRIMARY KEY(instance_id, rule_name)
+                );
                 """
             )
 
@@ -365,16 +370,66 @@ class SQLiteWorkflowStore:
         ]
 
     def pending_outbox(self, instance_id: str | None = None) -> list[sqlite3.Row]:
-        if instance_id is None:
-            return self.rows(
-                "SELECT * FROM workflow_outbox WHERE status = 'pending' ORDER BY created_at, id"
-            )
         return self.rows(
             "SELECT outbox.* FROM workflow_outbox AS outbox JOIN workflow_items AS items "
-            "ON items.id = outbox.work_item_id WHERE outbox.status = 'pending' AND items.instance_id = ? "
-            "ORDER BY outbox.created_at, outbox.id",
-            (instance_id,),
+            "ON items.id = outbox.work_item_id JOIN workflow_instances AS instances "
+            "ON instances.id = items.instance_id WHERE outbox.status = 'pending' "
+            "AND instances.status = 'running' "
+            + ("AND items.instance_id = ? " if instance_id is not None else "")
+            + "ORDER BY outbox.created_at, outbox.id",
+            (instance_id,) if instance_id is not None else (),
         )
+
+    def instance_status(self, instance_id: str) -> str:
+        return self.rows(
+            "SELECT status FROM workflow_instances WHERE id = ?", (instance_id,)
+        )[0]["status"]
+
+    def pause_checks(self, instance_id: str) -> set[str]:
+        return {
+            r["rule_name"]
+            for r in self.rows(
+                "SELECT rule_name FROM workflow_pause_checks WHERE instance_id = ?",
+                (instance_id,),
+            )
+        }
+
+    def record_pause_check(self, instance_id, rule_name, matched, evidence):
+        with self.connect() as db:
+            db.execute("BEGIN IMMEDIATE")
+            status = db.execute(
+                "SELECT status FROM workflow_instances WHERE id = ?", (instance_id,)
+            ).fetchone()["status"]
+            if status != "running":
+                db.rollback()
+                return False
+            changed = db.execute(
+                "INSERT OR IGNORE INTO workflow_pause_checks VALUES (?, ?, ?, ?)",
+                (instance_id, rule_name, int(matched), canonical_data(evidence)),
+            ).rowcount
+            if changed and matched:
+                db.execute(
+                    "UPDATE workflow_instances SET status = 'paused' WHERE id = ?",
+                    (instance_id,),
+                )
+                self._event(
+                    db, instance_id, "workflow.paused", {"rule": rule_name, **evidence}
+                )
+            db.commit()
+            return bool(changed and matched)
+
+    def resume_paused(self, instance_id: str) -> None:
+        with self.connect() as db:
+            db.execute("BEGIN IMMEDIATE")
+            changed = db.execute(
+                "UPDATE workflow_instances SET status = 'running' WHERE id = ? AND status = 'paused'",
+                (instance_id,),
+            ).rowcount
+            if not changed:
+                db.rollback()
+                raise ValueError("workflow is not paused")
+            self._event(db, instance_id, "workflow.resumed", {})
+            db.commit()
 
     def mark_delivered(self, outbox_id: str) -> None:
         with self.connect() as db:

@@ -1,0 +1,23 @@
+{
+  "passive_terminal_cash": 648.69,
+  "forecast_opportunities_beyond_terminal": 204,
+  "noncompliant_forecasts": 9,
+  "affected_decisions": 8,
+  "affected_traders": 5,
+  "personas": {
+    "trader-00": "MC",
+    "trader-01": "RA",
+    "trader-02": "NT",
+    "trader-03": "NT",
+    "trader-04": "RA",
+    "trader-05": "OC",
+    "trader-06": "PC",
+    "trader-07": "BT",
+    "trader-08": "MC",
+    "trader-09": "PC",
+    "trader-10": "BT",
+    "trader-11": "OC"
+  },
+  "terminal_cash_total": 7784.339999999998,
+  "vwap": 29.094473684210527
+}

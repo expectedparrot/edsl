@@ -1,0 +1,10 @@
+trader,persona,period,horizon,forecast,required
+trader-02,NT,26,5,25.0,14
+trader-03,NT,26,5,15.0,14
+trader-08,MC,26,5,33.5,14
+trader-10,BT,26,5,19.0,14
+trader-00,MC,27,5,35.0,14
+trader-03,NT,27,5,15.0,14
+trader-00,MC,28,5,35.0,14
+trader-00,MC,29,2,33.0,14
+trader-00,MC,29,5,35.0,14

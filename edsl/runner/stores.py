@@ -41,7 +41,9 @@ class JobStore:
 
         # Volatile - initialize counters
         status = JobStatus(job_id=definition.job_id)
-        self._storage.write_volatile(status.state_key, JobState.RUNNING.value)
+        self._storage.write_volatile(
+            status.state_key, status.compute_state(definition.total_interviews).value
+        )
         self._storage.write_volatile(status.completed_interviews_key, 0)
         self._storage.write_volatile(status.failed_interviews_key, 0)
 
@@ -570,15 +572,11 @@ class InterviewStore:
         self.increment_blocked(interview_id)
         self._maybe_finalize(job_id, interview_id)
 
-    def mark_tasks_blocked(
-        self, job_id: str, interview_id: str, count: int
-    ) -> None:
+    def mark_tasks_blocked(self, job_id: str, interview_id: str, count: int) -> None:
         """Record several blocked tasks and finalize the interview once."""
         if count <= 0:
             return
-        self._storage.increment_volatile(
-            f"interview:{interview_id}:blocked", count
-        )
+        self._storage.increment_volatile(f"interview:{interview_id}:blocked", count)
         self._maybe_finalize(job_id, interview_id)
 
     def _maybe_finalize(self, job_id: str, interview_id: str) -> None:
@@ -646,9 +644,11 @@ class TaskStore:
             "calls": cls._batch_call_count,
             "total_time_ms": cls._batch_total_time_ms,
             "total_tasks": cls._batch_total_tasks,
-            "avg_time_per_call_ms": cls._batch_total_time_ms / cls._batch_call_count
-            if cls._batch_call_count > 0
-            else 0,
+            "avg_time_per_call_ms": (
+                cls._batch_total_time_ms / cls._batch_call_count
+                if cls._batch_call_count > 0
+                else 0
+            ),
         }
 
     def __init__(self, storage: StorageProtocol):
@@ -700,9 +700,9 @@ class TaskStore:
         # Collect all data for batch writes
         persistent_items = {}  # Task definitions
         volatile_items = {}  # Task states (status, unmet_deps, attempts, location)
-        ready_task_ids_by_job: dict[
-            str, list[str]
-        ] = {}  # job_id -> list of ready task_ids
+        ready_task_ids_by_job: dict[str, list[str]] = (
+            {}
+        )  # job_id -> list of ready task_ids
 
         for defn in definitions:
             # Persistent - task definition

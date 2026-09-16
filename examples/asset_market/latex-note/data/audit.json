@@ -1,0 +1,16 @@
+{
+  "checks_passed": true,
+  "observed_periods": 17,
+  "economic_horizon": 30,
+  "accepted_decisions": 204,
+  "model_calls": 204,
+  "commands": {
+    "submit": 204,
+    "settle": 17
+  },
+  "attempt_status": {
+    "succeeded": 221
+  },
+  "no_early_redemption": true,
+  "all_private_views_and_prompts_verified": true
+}

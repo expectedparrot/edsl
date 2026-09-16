@@ -69,11 +69,24 @@ from .simulation import (
 )
 from .resources import Artifact, Collection
 from .structured import AllocationVector, ChoiceTable, StrategyTable
-from .execution import ExecutionBinding, ExecutionPlan, ExecutorSpec, MatchingPlan, human, llm, match, scripted
+from .execution import (
+    ExecutionBinding,
+    ExecutionPlan,
+    ExecutorSpec,
+    MatchingPlan,
+    human,
+    llm,
+    match,
+    scripted,
+)
 from .store import SQLiteWorkflowStore
+from .pause import PauseRule
+from .experiment import WorkflowExperiment
 from .visualization import WorkflowDAGVisualization
 
 __all__ = [
+    "PauseRule",
+    "WorkflowExperiment",
     "EDSLAgentAnswerer",
     "AnswerCondition",
     "AllAssigned",

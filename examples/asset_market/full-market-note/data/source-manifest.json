@@ -1,0 +1,7 @@
+{
+  "examples/asset_market/portable.py": "06b75373bfd1a0a2eb10f4d917dc2d646f39845ce4d2de33c673da542f8f2dea",
+  "examples/asset_market/run_full_market.py": "f25a678cfcf93140ba93080d699ee22993a731e164a19e2a6b70a4ea0a06bf1a",
+  "edsl/sharedstate/call_market.py": "2f07c4f0fa0501b4684e5247e30dab01f47ef549607c6f3266bcef08ccc5032e",
+  "edsl/workflows/experiment.py": "4bcab07f68fe0ff6d3f83168562a7cbc72e3d1a28733bbbcfa1778605a910d5b",
+  "edsl/workflows/coordinator.py": "168a8c0ada07bb09ba283e9f7c36cd553f37913e1121b6b9822534ca27c674d0"
+}

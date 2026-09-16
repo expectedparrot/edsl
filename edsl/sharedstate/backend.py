@@ -56,7 +56,9 @@ class StateBackend(Protocol):
         self, operation: ReadOperation, *, at_sequence: int | None = None
     ) -> ObservedState: ...
 
-    def snapshot(self, scope: Any, *, at_sequence: int | None = None) -> StateSnapshot: ...
+    def snapshot(
+        self, scope: Any, *, at_sequence: int | None = None
+    ) -> StateSnapshot: ...
 
     def history(self, *, after_sequence: int = 0) -> list[dict[str, Any]]: ...
 
@@ -99,6 +101,7 @@ class SQLiteStateBackend:
                     raise SharedStateRuntimeError(
                         f"unregistered algorithm capability {capability!r}"
                     )
+            self.runtime.validate_capabilities(machine)
         Path(self.path).parent.mkdir(parents=True, exist_ok=True)
         self._initialize()
 
@@ -428,7 +431,9 @@ class SQLiteStateBackend:
                 "completion condition uses a different state definition"
             )
         key = ScopeKey(scope)
-        idempotency_key = f"{condition.state_id}:{key.canonical}:{condition.target}:close"
+        idempotency_key = (
+            f"{condition.state_id}:{key.canonical}:{condition.target}:close"
+        )
         connection = self._connect()
         try:
             connection.execute("BEGIN IMMEDIATE")
@@ -490,9 +495,7 @@ class SQLiteStateBackend:
         finally:
             connection.close()
 
-    def snapshot(
-        self, scope: Any, *, at_sequence: int | None = None
-    ) -> StateSnapshot:
+    def snapshot(self, scope: Any, *, at_sequence: int | None = None) -> StateSnapshot:
         from .model import ScopeKey
 
         self._check_state_id(self.state_map.state_id)

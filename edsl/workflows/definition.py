@@ -137,8 +137,12 @@ class WorkflowExpression:
         if self.op == "payoff_matrix" and "action_codes" in self.options:
             codes = self.options["action_codes"]
             if not isinstance(codes, Mapping) or not codes:
-                raise ValueError("payoff-matrix action_codes must be a nonempty mapping")
-            if any(not isinstance(code, str) or len(code) != 1 for code in codes.values()):
+                raise ValueError(
+                    "payoff-matrix action_codes must be a nonempty mapping"
+                )
+            if any(
+                not isinstance(code, str) or len(code) != 1 for code in codes.values()
+            ):
                 raise ValueError("payoff-matrix action codes must be one character")
             if len(set(codes.values())) != len(codes):
                 raise ValueError("payoff-matrix action codes must be unique")
@@ -716,7 +720,9 @@ class HumanStep:
     reads: tuple[StateRead, ...] = ()
     writes: tuple[StateWrite, ...] = ()
     metadata: Mapping[str, Any] = field(default_factory=dict)
-    answer_bounds: Mapping[str, tuple[WorkflowExpression | None, WorkflowExpression | None]] = field(default_factory=dict)
+    answer_bounds: Mapping[
+        str, tuple[WorkflowExpression | None, WorkflowExpression | None]
+    ] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         if not self.name or not self.name.strip():
@@ -801,6 +807,7 @@ class HumanWorkflow:
     metadata: Mapping[str, Any] = field(default_factory=dict)
     derived_values: tuple[DerivedValue, ...] = ()
     repeat_blocks: tuple[RepeatBlock, ...] = ()
+    pause_rules: tuple = ()
 
     def __init__(
         self,
@@ -809,17 +816,27 @@ class HumanWorkflow:
         metadata: Mapping[str, Any] | None = None,
         derived_values: Sequence[DerivedValue] = (),
         repeat_blocks: Sequence[RepeatBlock] = (),
+        pause_rules: Sequence = (),
     ):
         object.__setattr__(self, "name", name)
         object.__setattr__(self, "steps", deepcopy(tuple(steps)))
         object.__setattr__(self, "metadata", deepcopy(dict(metadata or {})))
         object.__setattr__(self, "derived_values", deepcopy(tuple(derived_values)))
         object.__setattr__(self, "repeat_blocks", deepcopy(tuple(repeat_blocks)))
+        object.__setattr__(self, "pause_rules", deepcopy(tuple(pause_rules)))
         self._validate()
 
     def _validate(self) -> None:
         validate_data(self.to_dict(), path="workflow definition")
         names = [step.name for step in self.steps]
+        from .pause import PauseRule
+
+        if any(not isinstance(rule, PauseRule) for rule in self.pause_rules):
+            raise TypeError("pause_rules must contain PauseRule values")
+        if len({rule.name for rule in self.pause_rules}) != len(self.pause_rules):
+            raise ValueError("pause rule names must be unique")
+        if any(rule.after not in names for rule in self.pause_rules):
+            raise ValueError("pause rule references an unknown boundary step")
         derived_names = [item.name for item in self.derived_values]
         repeat_names = [item.name for item in self.repeat_blocks]
         if not self.name or not self.name.strip():
@@ -898,7 +915,9 @@ class HumanWorkflow:
                     )
             question_names = {q.question_name for q in step.survey.questions}
             if set(step.answer_bounds) - question_names:
-                raise ValueError(f"step {step.name!r} has bounds for an unknown question")
+                raise ValueError(
+                    f"step {step.name!r} has bounds for an unknown question"
+                )
             bound_dependencies = {
                 dependency
                 for bounds in step.answer_bounds.values()
@@ -907,7 +926,9 @@ class HumanWorkflow:
                 for dependency in expression.dependencies
             }
             if bound_dependencies - set((*step.after, *step.settled_after)):
-                raise ValueError(f"step {step.name!r} answer bounds reference non-dependencies")
+                raise ValueError(
+                    f"step {step.name!r} answer bounds reference non-dependencies"
+                )
             self._validate_output_visibility(step, known)
             known.add(step.name)
         for derived in self.derived_values:
@@ -984,17 +1005,24 @@ class HumanWorkflow:
     def to_dict(self) -> dict[str, Any]:
         return {
             "type": "human_workflow",
-            "version": 2,
+            "version": 3 if self.pause_rules else 2,
             "name": self.name,
             "steps": [step.to_dict() for step in self.steps],
             "metadata": dict(self.metadata),
             "derived_values": [item.to_dict() for item in self.derived_values],
             "repeat_blocks": [item.to_dict() for item in self.repeat_blocks],
+            **(
+                {"pause_rules": [rule.to_dict() for rule in self.pause_rules]}
+                if self.pause_rules
+                else {}
+            ),
         }
 
     @classmethod
     def from_dict(cls, data: Mapping[str, Any]) -> "HumanWorkflow":
-        if data.get("type") != "human_workflow" or data.get("version") not in {1, 2}:
+        from .pause import PauseRule
+
+        if data.get("type") != "human_workflow" or data.get("version") not in {1, 2, 3}:
             raise ValueError("unsupported human workflow serialization")
         return cls(
             data["name"],
@@ -1002,4 +1030,5 @@ class HumanWorkflow:
             data.get("metadata", {}),
             [DerivedValue.from_dict(item) for item in data.get("derived_values", ())],
             [RepeatBlock.from_dict(item) for item in data.get("repeat_blocks", ())],
+            [PauseRule.from_dict(item) for item in data.get("pause_rules", ())],
         )

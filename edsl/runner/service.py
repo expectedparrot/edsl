@@ -11,7 +11,6 @@ import logging
 import time
 from datetime import datetime
 from typing import Any, TYPE_CHECKING
-import itertools
 import random
 import threading
 
@@ -74,15 +73,15 @@ class JobService:
         self._tasks = TaskStore(storage)
         self._answers = AnswerStore(storage)
         self._job_stop_on_exception: dict[str, bool] = {}  # job_id -> stop_on_exception
-        self._original_models: dict[
-            str, dict[str, Any]
-        ] = {}  # job_id -> {model_id -> model_obj}
-        self._original_key_lookups: dict[
-            str, Any
-        ] = {}  # job_id -> run_config.environment.key_lookup
-        self._interview_callbacks: dict[
-            str, Any
-        ] = {}  # job_id -> callable(job_id, interview_id)
+        self._original_models: dict[str, dict[str, Any]] = (
+            {}
+        )  # job_id -> {model_id -> model_obj}
+        self._original_key_lookups: dict[str, Any] = (
+            {}
+        )  # job_id -> run_config.environment.key_lookup
+        self._interview_callbacks: dict[str, Any] = (
+            {}
+        )  # job_id -> callable(job_id, interview_id)
         self._interview_schedules: dict[str, Any] = {}
         self._round_snapshot_versions: dict[tuple, int] = {}
         self._round_snapshot_lock = threading.Lock()
@@ -158,9 +157,7 @@ class JobService:
                 and schedule.state_visibility == "snapshot"
             ):
                 group = (
-                    agent_traits[schedule.group_by]
-                    if schedule.group_by
-                    else "__all__"
+                    agent_traits[schedule.group_by] if schedule.group_by else "__all__"
                 )
                 snapshot_key = (
                     job_id,
@@ -301,6 +298,7 @@ class JobService:
         # Prepare the job - fills in default Agent(), Model(), Scenario() if missing
         t0 = time.time()
         job.replace_missing_objects()
+        assignment_plan = job.assignment_plan
         logger.info(
             f"[SUBMIT {job_id[:8]}] replace_missing_objects: {(time.time() - t0) * 1000:.1f}ms"
         )
@@ -319,9 +317,12 @@ class JobService:
         questions = self._extract_questions(survey)
 
         # Assign IDs to all resources
-        scenario_map = {self._get_or_create_id(s): s for s in scenarios}
-        agent_map = {self._get_or_create_id(a): a for a in agents}
-        model_map = {self._get_or_create_id(m): m for m in models}
+        scenario_ids = [self._get_or_create_id(s) for s in scenarios]
+        agent_ids = [self._get_or_create_id(a) for a in agents]
+        model_ids = [self._get_or_create_id(m) for m in models]
+        scenario_map = dict(zip(scenario_ids, scenarios))
+        agent_map = dict(zip(agent_ids, agents))
+        model_map = dict(zip(model_ids, models))
         question_map = {self._get_or_create_id(q): q for q in questions}
 
         # Build question_name -> question_id mapping
@@ -334,9 +335,9 @@ class JobService:
         # Register those models in the model store and build a mapping
         # from question_name -> model_id so tasks use the question's model.
         question_model_overrides: dict[str, str] = {}  # q_name -> model_id
-        extra_models: dict[
-            str, Any
-        ] = {}  # model_id -> model obj (NOT in cross-product)
+        extra_models: dict[str, Any] = (
+            {}
+        )  # model_id -> model obj (NOT in cross-product)
         extra_models_batch: dict[str, dict] = {}
         for q in questions:
             if hasattr(q, "_model"):
@@ -427,8 +428,7 @@ class JobService:
         # Get questions to randomize (if any)
         questions_to_randomize = getattr(survey, "questions_to_randomize", []) or []
 
-        # Generate interviews as cross-product x iterations
-        # For n_iterations > 1, we create n copies of each (scenario, agent, model) combination
+        # Resolve source positions in plan order, including duplicate rows.
         t0 = time.time()
         interview_ids = []
         interview_definitions = []  # Collect for batch creation
@@ -436,12 +436,11 @@ class JobService:
         all_direct_task_info = []  # Collect all direct-answer task info
         total_tasks_created = 0
 
-        for scenario, agent, model in itertools.product(
-            scenario_map.items(), agent_map.items(), model_map.items()
-        ):
-            scenario_id, scenario_obj = scenario
-            agent_id, agent_obj = agent
-            model_id, _ = model
+        for agent_index, scenario_index, model_index in assignment_plan.iter_indices():
+            scenario_id = scenario_ids[scenario_index]
+            scenario_obj = scenarios[scenario_index]
+            agent_id, agent_obj = agent_ids[agent_index], agents[agent_index]
+            model_id = model_ids[model_index]
 
             # Create n_iterations interviews for this combination
             for iteration in range(n_iterations):
@@ -510,6 +509,11 @@ class JobService:
                     iteration=iteration,
                     question_option_permutations=question_option_permutations,
                     question_item_randomization_seeds=question_item_randomization_seeds,
+                    indices={
+                        "agent": agent_index,
+                        "scenario": scenario_index,
+                        "model": model_index,
+                    },
                 )
                 interview_definitions.append(interview_def)
 
@@ -687,6 +691,7 @@ class JobService:
             model_ids=list(model_map.keys()),
             question_ids=list(question_map.keys()),
             n_iterations=n_iterations,
+            preserve_interview_order=assignment_plan.mode != "cross",
         )
         self._jobs.create(job_def)
         logger.info(
@@ -910,10 +915,14 @@ class JobService:
             )
             binding = self._state_binding(
                 job_id,
-                type("ConditionStep", (), {
-                    "state_id": stop_condition.state_id,
-                    "definition": stop_condition.definition,
-                })(),
+                type(
+                    "ConditionStep",
+                    (),
+                    {
+                        "state_id": stop_condition.state_id,
+                        "definition": stop_condition.definition,
+                    },
+                )(),
             )
             snapshot = binding.snapshot(scope)
             machine = state_map.definition.machines[stop_condition.target]
@@ -2185,6 +2194,9 @@ class JobService:
         if interview_def is None:
             raise ValueError(f"Interview {interview_id} not found")
 
+        if indices is None:
+            indices = interview_def.indices
+
         # Use pre-fetched object data if available, otherwise fetch
         if all_object_data is not None:
             agent_data = all_object_data.get(
@@ -2626,8 +2638,8 @@ class JobService:
         # Determine which interviews are completed
         completed_interview_ids = [
             iid
-            for iid, state in interview_states.items()
-            if state
+            for iid in job_def.interview_ids
+            if interview_states.get(iid)
             in (InterviewState.COMPLETED, InterviewState.COMPLETED_WITH_FAILURES)
         ]
 
@@ -2699,7 +2711,7 @@ class JobService:
             # Compute indices for this interview
             indices = None
             if interview_def:
-                indices = {
+                indices = interview_def.indices or {
                     "agent": agent_index_map.get(interview_def.agent_id, 0),
                     "scenario": scenario_index_map.get(interview_def.scenario_id, 0),
                     "model": model_index_map.get(interview_def.model_id, 0),
@@ -2723,14 +2735,15 @@ class JobService:
 
         # Sort results to match the old system's ordering:
         # agent-major, then scenario, then model, then iteration.
-        result_list.sort(
-            key=lambda r: (
-                r.indices.get("agent", 0) if r.indices else 0,
-                r.indices.get("scenario", 0) if r.indices else 0,
-                r.indices.get("model", 0) if r.indices else 0,
-                r.data.get("iteration", 0),
+        if not job_def.preserve_interview_order:
+            result_list.sort(
+                key=lambda r: (
+                    r.indices.get("agent", 0) if r.indices else 0,
+                    r.indices.get("scenario", 0) if r.indices else 0,
+                    r.indices.get("model", 0) if r.indices else 0,
+                    r.data.get("iteration", 0),
+                )
             )
-        )
 
         # Create the Results object
         _t = _time.time()
@@ -2816,9 +2829,9 @@ class JobService:
             survey=survey,
             data=result_list,
             task_history=task_history,
-            shared_state={"version": 1, "bindings": state_bindings}
-            if state_bindings
-            else None,
+            shared_state=(
+                {"version": 1, "bindings": state_bindings} if state_bindings else None
+            ),
         )
         if _timing is not None:
             _timing["create_results_object"] = (_time.time() - _t) * 1000
@@ -2921,9 +2934,7 @@ class JobService:
                     else len(survey.questions)
                 )
                 for target_index in range(anchor_index + 1, next_index):
-                    dag.setdefault(index_to_name[target_index], set()).add(
-                        anchor_name
-                    )
+                    dag.setdefault(index_to_name[target_index], set()).add(anchor_name)
                 if next_index < len(survey.questions):
                     next_name = index_to_name[next_index]
                     dag.setdefault(next_name, set()).update(
@@ -2998,9 +3009,11 @@ class JobService:
         # Mixed static/dynamic list: render each templated option independently.
         if isinstance(options, list):
             return [
-                JobService._resolve_template_string(option, answer_dict, scenario)
-                if isinstance(option, str) and "{{" in option
-                else option
+                (
+                    JobService._resolve_template_string(option, answer_dict, scenario)
+                    if isinstance(option, str) and "{{" in option
+                    else option
+                )
                 for option in options
             ]
 

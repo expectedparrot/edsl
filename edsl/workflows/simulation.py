@@ -168,7 +168,10 @@ class WorkflowSimulation:
         if failed:
             names = [item["step_name"] for item in failed]
             raise RuntimeError(f"workflow execution failed for steps: {names}")
-        if remaining:
+        if (
+            remaining
+            and self.coordinator.store.instance_status(instance_id) != "paused"
+        ):
             blocked = [(item["step_name"], item["status"]) for item in remaining]
             raise RuntimeError(
                 f"workflow reached quiescence with unfinished work: {blocked}"
@@ -198,7 +201,9 @@ class WorkflowSimulation:
                     selected = self.answerer
                     if self.execution_plan is not None:
                         spec = self.execution_plan.resolve(agent.traits)
-                        self.coordinator.store.record_executor(item_id, spec.kind, spec.options)
+                        self.coordinator.store.record_executor(
+                            item_id, spec.kind, spec.options
+                        )
                         try:
                             selected = self.answerers[spec.kind]
                         except KeyError as exc:

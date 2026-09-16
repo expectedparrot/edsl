@@ -39,9 +39,31 @@ Algorithm = Callable[[dict[str, Any], dict[str, Any], dict[str, Any]], None]
 class Runtime:
     def __init__(self):
         self.algorithms: dict[tuple[str, int], Algorithm] = {}
+        self.validators: dict[tuple[str, int], Callable] = {}
 
-    def register(self, name: str, version: int, implementation: Algorithm) -> None:
+    def register(
+        self,
+        name: str,
+        version: int,
+        implementation: Algorithm,
+        *,
+        validate_constants=None,
+    ) -> None:
         self.algorithms[(name, version)] = implementation
+        if validate_constants is not None:
+            self.validators[(name, version)] = validate_constants
+
+    def validate_capabilities(self, spec: Machine) -> None:
+        """Preflight explicit implementation dependencies and their parameters."""
+        for capability in spec.algorithms:
+            name, version = capability.rsplit("@", 1)
+            key = (name, int(version))
+            if key not in self.algorithms and capability != "lmsr_prices@1":
+                raise DSLValidationError(
+                    f"unregistered algorithm capability {capability!r}"
+                )
+            if key in self.validators:
+                self.validators[key](spec.constants)
 
     @staticmethod
     def _decode_matrix_answer(answer: Any, rows: Any, options: Any) -> dict[Any, Any]:
@@ -58,9 +80,7 @@ class Runtime:
             try:
                 index = int(value)
             except (TypeError, ValueError) as exc:
-                raise DSLValidationError(
-                    f"unknown matrix {kind} {value!r}"
-                ) from exc
+                raise DSLValidationError(f"unknown matrix {kind} {value!r}") from exc
             if isinstance(value, float) and not value.is_integer():
                 raise DSLValidationError(f"unknown matrix {kind} {value!r}")
             if not 0 <= index < len(values):
@@ -845,4 +865,12 @@ def default_runtime() -> Runtime:
 
     runtime = mechanism_runtime()
     runtime.algorithms.update(lmsr_runtime().algorithms)
+    from .call_market import submit_order, settle_market, validate_rules
+
+    runtime.register(
+        "call_market_submit", 1, submit_order, validate_constants=validate_rules
+    )
+    runtime.register(
+        "call_market_settle", 1, settle_market, validate_constants=validate_rules
+    )
     return runtime

@@ -62,11 +62,15 @@ def seeded_integer(low: int, high: int, *, key: str) -> WorkflowExpression:
     return WorkflowExpression("seeded_integer", (low, high), {"key": key})
 
 
-def lookup(mapping: Mapping[Any, Any], key: Any, *, default: Any = ...) -> WorkflowExpression:
+def lookup(
+    mapping: Mapping[Any, Any], key: Any, *, default: Any = ...
+) -> WorkflowExpression:
     """Select from a serializable mapping using a literal or symbolic key."""
     if not mapping:
         raise ValueError("lookup mapping cannot be empty")
-    options: dict[str, Any] = {"mapping": {str(k): _expression(v) for k, v in mapping.items()}}
+    options: dict[str, Any] = {
+        "mapping": {str(k): _expression(v) for k, v in mapping.items()}
+    }
     if default is not ...:
         options.update(has_default=True, default=_expression(default))
     return WorkflowExpression("lookup", (_expression(key),), options)
@@ -76,7 +80,10 @@ def join_by_participant(**sources: "StepSubmissionsRef") -> "ParticipantJoinRef"
     """Join completed step submissions by participant identity."""
     if len(sources) < 2:
         raise ValueError("join_by_participant requires at least two named sources")
-    if any(not name or not isinstance(source, StepSubmissionsRef) for name, source in sources.items()):
+    if any(
+        not name or not isinstance(source, StepSubmissionsRef)
+        for name, source in sources.items()
+    ):
         raise TypeError("join sources must be named StepSubmissionsRef values")
     return ParticipantJoinRef(dict(sources))
 
@@ -97,13 +104,19 @@ def not_(condition: WorkflowCondition) -> NotCondition:
     return NotCondition(condition)
 
 
-def choose(condition: WorkflowExpression, then: Any, otherwise: Any) -> WorkflowExpression:
+def choose(
+    condition: WorkflowExpression, then: Any, otherwise: Any
+) -> WorkflowExpression:
     """A serializable piecewise expression."""
     return WorkflowExpression("if_else", (condition, then, otherwise))
 
 
 def _expression(value: Any) -> WorkflowExpression:
-    return value if isinstance(value, WorkflowExpression) else WorkflowExpression("literal", (value,))
+    return (
+        value
+        if isinstance(value, WorkflowExpression)
+        else WorkflowExpression("literal", (value,))
+    )
 
 
 def join_any(*conditions: WorkflowCondition) -> AnyCondition:
@@ -135,7 +148,10 @@ class StepAnswerRef:
 
     @property
     def value(self) -> WorkflowExpression:
-        return WorkflowExpression("step_answer", options={"step_name": self.step_name, "question_name": self.question_name})
+        return WorkflowExpression(
+            "step_answer",
+            options={"step_name": self.step_name, "question_name": self.question_name},
+        )
 
     @property
     def expression(self) -> str:
@@ -194,10 +210,22 @@ class StepOutputsRef:
 
     def optional(self, default: Any = ()) -> str:
         """Render outputs as an empty/default value when an optional step was skipped."""
-        base = "workflow.outputs.get(" + repr(self.step_name) + ", " + repr(list(default)) + ")"
+        base = (
+            "workflow.outputs.get("
+            + repr(self.step_name)
+            + ", "
+            + repr(list(default))
+            + ")"
+        )
         if self.question_name is None:
             return "{{ " + base + " }}"
-        return "{{ " + base + " | map(attribute=" + repr(self.question_name) + ") | list }}"
+        return (
+            "{{ "
+            + base
+            + " | map(attribute="
+            + repr(self.question_name)
+            + ") | list }}"
+        )
 
     def count(self, value: Any) -> "OutputCountRef":
         return OutputCountRef(self.step_name, self._question(), value)
@@ -250,12 +278,16 @@ class StepOutputsRef:
     def nth_largest(self, rank: int) -> WorkflowExpression:
         if rank < 1:
             raise ValueError("order-statistic rank must be positive")
-        return WorkflowExpression("order_statistic", (self.value,), {"rank": rank, "direction": "largest"})
+        return WorkflowExpression(
+            "order_statistic", (self.value,), {"rank": rank, "direction": "largest"}
+        )
 
     def nth_smallest(self, rank: int) -> WorkflowExpression:
         if rank < 1:
             raise ValueError("order-statistic rank must be positive")
-        return WorkflowExpression("order_statistic", (self.value,), {"rank": rank, "direction": "smallest"})
+        return WorkflowExpression(
+            "order_statistic", (self.value,), {"rank": rank, "direction": "smallest"}
+        )
 
 
 @dataclass(frozen=True)
@@ -295,7 +327,13 @@ class DerivedFieldRef:
         return self.expression.equals(value)
 
     def for_participant(self) -> str:
-        return "{{ workflow.derived[" + repr(self.derived_name) + "][" + repr(self.field_name) + "][participant.name] }}"
+        return (
+            "{{ workflow.derived["
+            + repr(self.derived_name)
+            + "]["
+            + repr(self.field_name)
+            + "][participant.name] }}"
+        )
 
 
 @dataclass(frozen=True)
@@ -324,7 +362,9 @@ class StepSubmissionsRef:
 
     @property
     def value(self) -> WorkflowExpression:
-        return WorkflowExpression("step_submissions", options={"step_name": self.step_name})
+        return WorkflowExpression(
+            "step_submissions", options={"step_name": self.step_name}
+        )
 
     def payoff_matrix(
         self,
@@ -354,10 +394,14 @@ class StepSubmissionsRef:
             options["action_codes"] = codes
         return WorkflowExpression("payoff_matrix", (self.value,), options)
 
-    def closest_to(self, question: str, target: WorkflowExpression, *, ties: str = "all") -> WorkflowExpression:
+    def closest_to(
+        self, question: str, target: WorkflowExpression, *, ties: str = "all"
+    ) -> WorkflowExpression:
         if ties not in {"all", "first"}:
             raise ValueError("ties must be 'all' or 'first'")
-        return WorkflowExpression("argmin_by", (self.value, target), {"question_name": question, "ties": ties})
+        return WorkflowExpression(
+            "argmin_by", (self.value, target), {"question_name": question, "ties": ties}
+        )
 
     def each(self, question: str) -> "SubmissionEachRef":
         """Bind each participant's answer for an identity-preserving map."""
@@ -429,10 +473,14 @@ class ParticipantJoinRef:
     def value(self, source: str, question: str) -> WorkflowExpression:
         if source not in self.sources:
             raise KeyError(f"unknown joined source {source!r}")
-        return WorkflowExpression("joined_value", options={"source": source, "question_name": question})
+        return WorkflowExpression(
+            "joined_value", options={"source": source, "question_name": question}
+        )
 
     def map(self, expression: Any) -> WorkflowExpression:
-        return WorkflowExpression("map_joined_submissions", (self.expression, _expression(expression)))
+        return WorkflowExpression(
+            "map_joined_submissions", (self.expression, _expression(expression))
+        )
 
 
 @dataclass(frozen=True)
@@ -551,14 +599,22 @@ def _has_free_submission_value(value: Any, *, inside_map: bool = False) -> bool:
     """Return whether an expression contains an unbound per-submission value."""
     if not isinstance(value, WorkflowExpression):
         if isinstance(value, (tuple, list)):
-            return any(_has_free_submission_value(item, inside_map=inside_map) for item in value)
+            return any(
+                _has_free_submission_value(item, inside_map=inside_map)
+                for item in value
+            )
         if isinstance(value, Mapping):
-            return any(_has_free_submission_value(item, inside_map=inside_map) for item in value.values())
+            return any(
+                _has_free_submission_value(item, inside_map=inside_map)
+                for item in value.values()
+            )
         return False
     if value.op in {"submission_value", "joined_value"}:
         return not inside_map
     if value.op in {"map_submissions", "map_joined_submissions"}:
-        return _has_free_submission_value(value.args[0]) or _has_free_submission_value(value.args[1], inside_map=True)
+        return _has_free_submission_value(value.args[0]) or _has_free_submission_value(
+            value.args[1], inside_map=True
+        )
     return any(
         _has_free_submission_value(item, inside_map=inside_map)
         for item in (*value.args, *value.options.values())
@@ -575,8 +631,19 @@ class Workflow:
         self._handles: dict[str, StepHandle] = {}
         self._derived_values: list[DerivedValue] = []
         self._repeat_blocks: list[RepeatBlock] = []
+        self._pause_rules = []
 
-    def parameter(self, name: str, value: Any, *, unit: str | None = None) -> WorkflowExpression:
+    def pause_after(self, step, *, name, read, condition=True, resume_when=True):
+        """Declare a durable pause at a completed step, preserving future work."""
+        from .pause import PauseRule
+
+        rule = PauseRule(name, step.name, read, condition, resume_when)
+        self._pause_rules.append(rule)
+        return rule
+
+    def parameter(
+        self, name: str, value: Any, *, unit: str | None = None
+    ) -> WorkflowExpression:
         """Declare a named, serialized constant reusable in prompts and expressions."""
         if not name:
             raise ValueError("parameter name must be non-empty")
@@ -584,10 +651,13 @@ class Workflow:
         if name in parameters:
             raise ValueError(f"workflow parameter {name!r} already exists")
         import json
+
         try:
             json.dumps(value)
         except TypeError as exc:
-            raise TypeError("workflow parameter values must be JSON-serializable") from exc
+            raise TypeError(
+                "workflow parameter values must be JSON-serializable"
+            ) from exc
         parameters[name] = {"value": value, "unit": unit}
         return WorkflowExpression("parameter", options={"name": name})
 
@@ -682,10 +752,14 @@ class Workflow:
             )
         views = tuple(participant_views)
         if not all(isinstance(view, ParticipantSubmissionViewRef) for view in views):
-            raise TypeError("participant_views accepts ParticipantSubmissionViewRef values")
+            raise TypeError(
+                "participant_views accepts ParticipantSubmissionViewRef values"
+            )
         view_sources = {view.definition.source_step for view in views}
         if view_sources - set((*dependencies, *settled_dependencies)):
-            raise ValueError("participant views must reference an after/after_settled dependency")
+            raise ValueError(
+                "participant views must reference an after/after_settled dependency"
+            )
         step = HumanStep(
             name=name,
             survey=survey,
@@ -700,7 +774,10 @@ class Workflow:
             writes=tuple(writes),
             metadata=dict(metadata or {}),
             answer_bounds={
-                (key if isinstance(key, str) else key.question_name): (_expression(low), _expression(high))
+                (key if isinstance(key, str) else key.question_name): (
+                    _expression(low),
+                    _expression(high),
+                )
                 for key, (low, high) in (answer_bounds or {}).items()
             },
         )
@@ -712,6 +789,7 @@ class Workflow:
     def structured_step(self, name: str, contract: Any, **kwargs: Any) -> StepHandle:
         """Add a step backed by a serializable structured-response contract."""
         from .structured import AllocationVector, ChoiceTable, StrategyTable
+
         if not isinstance(contract, (ChoiceTable, StrategyTable, AllocationVector)):
             raise TypeError("structured_step requires a structured workflow contract")
         metadata = dict(kwargs.pop("metadata", {}) or {})
@@ -744,6 +822,7 @@ class Workflow:
             self.metadata,
             self._derived_values,
             self._repeat_blocks,
+            self._pause_rules,
         )
 
     @staticmethod

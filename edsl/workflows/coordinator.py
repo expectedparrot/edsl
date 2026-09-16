@@ -13,6 +13,7 @@ from edsl._data_contracts import definition_fingerprint, validate_data
 from edsl.agents import Agent
 from edsl.sharedstate import StateBackend, WriteOperation, resolve_read, resolve_write
 from edsl.sharedstate.steps import StepContext
+from edsl.sharedstate.dsl_runtime import Runtime
 from edsl.surveys import Survey
 
 from .definition import HumanWorkflow
@@ -54,6 +55,80 @@ class WorkflowCoordinator:
                     raise ValueError(
                         "workflow operation and state backend use different definitions"
                     )
+        for rule in self.workflow.pause_rules:
+            backend = self._backend(rule.read.state_id)
+            if definition_fingerprint(
+                backend.state_map.definition.to_dict()
+            ) != definition_fingerprint(rule.read.definition.to_dict()):
+                raise ValueError(
+                    "pause rule and state backend use different definitions"
+                )
+
+    def resume(self, instance_id: str) -> None:
+        """Acknowledge a declared observation pause without terminating the market."""
+        self.store.assert_definition(instance_id, self.workflow.to_dict())
+        pauses = [
+            e for e in self.store.events(instance_id) if e["kind"] == "workflow.paused"
+        ]
+        if pauses:
+            rule = next(
+                r for r in self.workflow.pause_rules if r.name == pauses[-1]["rule"]
+            )
+            backend = self._backend(rule.read.state_id)
+            machine = backend.state_map.definition.machines[rule.read.target]
+            permitted = Runtime().evaluate(
+                rule.resume_when,
+                {
+                    "state": backend.snapshot(rule.read.scope).state[rule.read.target],
+                    "constant": machine.constants,
+                    "input": {},
+                    "current": {},
+                },
+            )
+            if permitted is not True:
+                raise ValueError("workflow pause's resume condition is not satisfied")
+        self.store.resume_paused(instance_id)
+        self.reevaluate(instance_id)
+
+    def _pause_at_boundary(self, instance_id: str) -> bool:
+        if self.store.instance_status(instance_id) == "paused":
+            return True
+        checked = self.store.pause_checks(instance_id)
+        for rule in self.workflow.pause_rules:
+            if rule.name in checked or not self._step_succeeded(
+                instance_id, rule.after
+            ):
+                continue
+            # A global pause is applied only when no other work is in flight.
+            if any(
+                i["status"] in {"ready", "in_progress", "committing"}
+                for i in self.store.items(instance_id)
+            ):
+                # Drain already released work, but do not release successors
+                # past this boundary until its pause predicate is checked.
+                return True
+            backend = self._backend(rule.read.state_id)
+            snapshot = backend.snapshot(rule.read.scope)
+            machine = backend.state_map.definition.machines[rule.read.target]
+            matched = Runtime().evaluate(
+                rule.condition,
+                {
+                    "state": snapshot.state[rule.read.target],
+                    "constant": machine.constants,
+                    "input": {},
+                    "current": {},
+                },
+            )
+            if not isinstance(matched, bool):
+                raise ValueError("pause condition must evaluate to a boolean")
+            if self.store.record_pause_check(
+                instance_id,
+                rule.name,
+                matched,
+                {"after": rule.after, "state_version": snapshot.version},
+            ):
+                return True
+        return False
 
     @classmethod
     def restore(
@@ -125,6 +200,8 @@ class WorkflowCoordinator:
     def reevaluate(self, instance_id: str) -> None:
         self.store.assert_definition(instance_id, self.workflow.to_dict())
         self._settle_quorums(instance_id)
+        if self._pause_at_boundary(instance_id):
+            return
         for item in self.store.items(instance_id):
             if item["status"] != "blocked":
                 continue
@@ -569,6 +646,10 @@ class WorkflowCoordinator:
         from .visibility import visible_derived
 
         item = self.store.item(item_id)
+        if self.store.instance_status(item["instance_id"]) == "paused":
+            raise ValueError(
+                "workflow is paused; explicitly resume before opening work"
+            )
         self.store.assert_definition(item["instance_id"], self.workflow.to_dict())
         if item["status"] not in ("ready", "in_progress"):
             raise ValueError(f"work item {item_id!r} is not ready")
@@ -713,6 +794,10 @@ class WorkflowCoordinator:
             self._commit_submission(item_id)
             self.reevaluate(item["instance_id"])
             return
+        if self.store.instance_status(item["instance_id"]) == "paused":
+            raise ValueError(
+                "workflow is paused; explicitly resume before submitting work"
+            )
         step = self.workflow.step(item["step_name"])
         from .structured import structured_contract_from_dict
 
