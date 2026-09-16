@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Annotated, Any, Dict, Literal, Optional, Type, Union
+from uuid import UUID
 
 from pydantic import (
     BaseModel,
     ConfigDict,
     Field,
+    PlainSerializer,
     StringConstraints,
     ValidationError,
     field_validator,
@@ -156,6 +158,52 @@ SurveyProgress = Annotated[
 ]
 
 
+class AssetImageSource(HumanizeSchemaBase):
+    """An image from the author's asset library, named by uuid.
+
+    Only the shape is checked here. Whether the asset exists and this author may
+    use it is decided when the schema is written: a uuid the caller cannot reach
+    is rejected with "Asset <uuid> not found", and a uuid belonging to someone
+    else's survey is copied into the caller's library and rewritten, with the
+    response's ``asset_substitutions`` reporting the new uuid.
+
+    Upload an image with ``Coop().upload_human_survey_asset`` to get a uuid.
+    """
+
+    type: Literal["asset"] = "asset"
+    # Dumped as a string so a validated schema stays JSON-serializable. Typing it
+    # as a UUID means a malformed uuid is caught here rather than by the server.
+    asset_uuid: Annotated[UUID, PlainSerializer(str, return_type=str)]
+
+
+# Discriminated on ``type`` so other sources (a per-scenario image for branding as
+# a manipulation, an opted-in external URL) can join as siblings without
+# reshaping stored configs. "asset" is the only variant today.
+ImageSource = Annotated[
+    Union[AssetImageSource],
+    Field(discriminator="type"),
+]
+
+
+class SurveyLogo(HumanizeSchemaBase):
+    """A logo in the survey's banner."""
+
+    source: ImageSource
+    # Required so leaving it out is a decision rather than an accident. An empty
+    # string marks the image decorative (rendered with alt="").
+    alt: Annotated[str, StringConstraints(strip_whitespace=True, max_length=200)]
+    position: Literal["left", "center", "right"] = "left"
+    # No size field: the frontend picks a default height, and authors who want
+    # another size style `.edsl-logo` in custom_css.
+
+
+class SurveyBranding(HumanizeSchemaBase):
+    """The author's brand on the respondent page."""
+
+    # None: no logo.
+    logo: Optional[SurveyLogo] = None
+
+
 class SurveyHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the survey (e.g. custom styling)."""
 
@@ -165,6 +213,9 @@ class SurveyHumanizeSchema(HumanizeSchemaBase):
     # bar that shipped before this field existed, so stored configs render
     # identically.
     progress: SurveyProgress = Field(default_factory=BarProgress)
+    # None: no banner, which is how every survey stored before this field existed
+    # renders. Assets it names are checked when the schema is written.
+    branding: Optional[SurveyBranding] = None
 
 
 class CommentConfig(HumanizeSchemaBase):

@@ -3057,6 +3057,7 @@ class TestHumanizeCli:
             "agent-list",
             "schema",
             "css",
+            "assets",
             "prolific",
         ]
 
@@ -3066,6 +3067,138 @@ class TestHumanizeCli:
         assert result.exit_code == 0, result.output
         out = json.loads(result.output)
         assert out["data"]["commands"] == ["create", "validate", "get", "patch", "set"]
+
+    def test_humanize_assets_group_lists_commands(self):
+        result = CliRunner().invoke(cli_module.app, ["humanize", "assets"])
+
+        assert result.exit_code == 0, result.output
+        out = json.loads(result.output)
+        assert out["data"]["commands"] == ["upload", "list", "get", "delete"]
+
+    def test_humanize_assets_upload(self, tmp_path, monkeypatch):
+        import edsl.coop
+
+        logo_path = tmp_path / "lab_logo.png"
+        logo_path.write_bytes(b"bytes the server decodes, not the client")
+        captured = {}
+
+        class FakeCoop:
+            def upload_human_survey_asset(self, file_path):
+                captured["file_path"] = str(file_path)
+                return {
+                    "uuid": "asset-uuid",
+                    "name": "lab_logo.png",
+                    "deduplicated": False,
+                }
+
+        monkeypatch.setattr(edsl.coop, "Coop", FakeCoop)
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            ["humanize", "assets", "upload", str(logo_path)],
+        )
+
+        assert result.exit_code == 0, result.output
+        out = json.loads(result.output)
+        assert out["data"]["uuid"] == "asset-uuid"
+        assert out["data"]["name"] == "lab_logo.png"
+        assert out["data"]["deduplicated"] is False
+        assert captured["file_path"] == str(logo_path)
+
+    def test_humanize_assets_upload_rejects_unsupported_file(self, tmp_path):
+        """The local check runs before any server call, so no Coop fake is needed."""
+        bad_path = tmp_path / "logo.svg"
+        bad_path.write_text("<svg/>", encoding="utf-8")
+
+        result = CliRunner().invoke(
+            cli_module.app, ["humanize", "assets", "upload", str(bad_path)]
+        )
+
+        assert result.exit_code == 2, result.output
+        out = json.loads(result.output)
+        assert out["error"]["code"] == "USAGE_ERROR"
+        assert "PNG" in out["error"]["suggestion"]
+
+    def test_humanize_assets_list(self, monkeypatch):
+        import edsl.coop
+
+        class FakeCoop:
+            def list_human_survey_assets(self, page=1, page_size=10):
+                return {
+                    "assets": [{"uuid": "a1", "source": "copy"}],
+                    "total_count": 1,
+                }
+
+        monkeypatch.setattr(edsl.coop, "Coop", FakeCoop)
+
+        result = CliRunner().invoke(cli_module.app, ["humanize", "assets", "list"])
+
+        assert result.exit_code == 0, result.output
+        out = json.loads(result.output)
+        assert out["data"]["returned_count"] == 1
+        assert out["data"]["assets"][0]["source"] == "copy"
+
+    def test_humanize_assets_get_saves_the_image(self, tmp_path, monkeypatch):
+        import edsl.coop
+
+        saved_to = tmp_path / "logo.png"
+
+        class FakeAsset(dict):
+            def download(self, path):
+                with open(path, "wb") as f:
+                    f.write(b"image bytes")
+                return str(path)
+
+        class FakeCoop:
+            def get_human_survey_asset(self, asset_uuid):
+                return FakeAsset(
+                    {"uuid": asset_uuid, "name": "lab_logo.png", "url": "https://signed"}
+                )
+
+        monkeypatch.setattr(edsl.coop, "Coop", FakeCoop)
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            ["humanize", "assets", "get", "asset-uuid", "-o", str(saved_to)],
+        )
+
+        assert result.exit_code == 0, result.output
+        out = json.loads(result.output)
+        assert out["data"]["saved_to"] == str(saved_to)
+        assert saved_to.read_bytes() == b"image bytes"
+
+    def test_humanize_assets_get_hints_how_to_save(self, monkeypatch):
+        import edsl.coop
+
+        class FakeCoop:
+            def get_human_survey_asset(self, asset_uuid):
+                return {"uuid": asset_uuid, "url": "https://signed"}
+
+        monkeypatch.setattr(edsl.coop, "Coop", FakeCoop)
+
+        result = CliRunner().invoke(
+            cli_module.app, ["humanize", "assets", "get", "asset-uuid"]
+        )
+
+        assert result.exit_code == 0, result.output
+        out = json.loads(result.output)
+        assert "assets get" in out["data"]["next_step"]
+
+    def test_humanize_assets_delete_reports_surveys_still_using_it(self, monkeypatch):
+        import edsl.coop
+
+        class FakeCoop:
+            def delete_human_survey_asset(self, asset_uuid):
+                return {"uuid": asset_uuid, "used_by_human_surveys": 2}
+
+        monkeypatch.setattr(edsl.coop, "Coop", FakeCoop)
+
+        result = CliRunner().invoke(
+            cli_module.app, ["humanize", "assets", "delete", "asset-uuid"]
+        )
+
+        assert result.exit_code == 0, result.output
+        assert json.loads(result.output)["data"]["used_by_human_surveys"] == 2
 
     def test_humanize_schema_get(self, monkeypatch):
         import edsl.coop
@@ -3298,6 +3431,311 @@ class TestHumanizeCli:
         }
         assert schema["survey"]["custom_css"] == ".edsl-root { color: red; }"
         assert json.loads(schema_path.read_text(encoding="utf-8")) == schema
+
+    def _logo_survey_path(self, tmp_path):
+        from edsl.questions import QuestionFreeText
+        from edsl.surveys import Survey
+
+        survey_path = tmp_path / "survey.json"
+        survey = Survey(
+            [
+                QuestionFreeText(
+                    question_name="feedback",
+                    question_text="Any feedback?",
+                )
+            ]
+        )
+        survey_path.write_text(json.dumps(survey.to_dict()), encoding="utf-8")
+        return survey_path
+
+    def test_humanize_schema_create_logo_controls(self, tmp_path):
+        asset_uuid = "3f8b1c2e-0000-4a0b-8c1d-2e3f4a5b6c7d"
+        survey_path = self._logo_survey_path(tmp_path)
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            [
+                "humanize",
+                "schema",
+                "create",
+                "--survey",
+                str(survey_path),
+                "--logo-asset",
+                asset_uuid,
+                "--logo-alt",
+                "Lab name",
+                "--logo-position",
+                "center",
+            ],
+        )
+
+        assert result.exit_code == 0, result.output
+        out = json.loads(result.output)
+        assert out["data"]["valid"] is True
+        logo = out["data"]["schema"]["survey"]["branding"]["logo"]
+        assert logo["source"] == {"type": "asset", "asset_uuid": asset_uuid}
+        assert logo["alt"] == "Lab name"
+        assert logo["position"] == "center"
+        # Logo flags count as controls, so questions are not seeded with empties.
+        assert out["data"]["schema"]["questions"] == {}
+
+    def test_humanize_schema_create_decorative_logo_has_empty_alt(self, tmp_path):
+        survey_path = self._logo_survey_path(tmp_path)
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            [
+                "humanize",
+                "schema",
+                "create",
+                "--survey",
+                str(survey_path),
+                "--logo-asset",
+                "3f8b1c2e-0000-4a0b-8c1d-2e3f4a5b6c7d",
+                "--logo-decorative",
+            ],
+        )
+
+        assert result.exit_code == 0, result.output
+        out = json.loads(result.output)
+        assert out["data"]["schema"]["survey"]["branding"]["logo"]["alt"] == ""
+
+    def test_humanize_schema_create_rejects_logo_file(self, tmp_path):
+        """schema create makes no server calls, so it cannot upload."""
+        survey_path = self._logo_survey_path(tmp_path)
+        logo_path = tmp_path / "lab_logo.png"
+        logo_path.write_bytes(b"bytes")
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            [
+                "humanize",
+                "schema",
+                "create",
+                "--survey",
+                str(survey_path),
+                "--logo-file",
+                str(logo_path),
+            ],
+        )
+
+        assert result.exit_code == 2, result.output
+        out = json.loads(result.output)
+        assert out["error"]["code"] == "USAGE_ERROR"
+        assert "assets upload" in out["error"]["suggestion"]
+
+    def test_humanize_schema_create_logo_requires_alt(self, tmp_path):
+        survey_path = self._logo_survey_path(tmp_path)
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            [
+                "humanize",
+                "schema",
+                "create",
+                "--survey",
+                str(survey_path),
+                "--logo-asset",
+                "3f8b1c2e-0000-4a0b-8c1d-2e3f4a5b6c7d",
+            ],
+        )
+
+        assert result.exit_code == 2, result.output
+        out = json.loads(result.output)
+        assert out["error"]["code"] == "USAGE_ERROR"
+        assert "--logo-decorative" in out["error"]["message"]
+
+    def test_humanize_schema_set_logo_file_uploads_then_patches(
+        self, tmp_path, monkeypatch
+    ):
+        import edsl.coop
+
+        logo_path = tmp_path / "lab_logo.png"
+        logo_path.write_bytes(b"bytes")
+        captured = {}
+
+        class FakeCoop:
+            def upload_human_survey_asset(self, file_path):
+                captured["uploaded"] = str(file_path)
+                return {"uuid": "new-asset-uuid", "name": "lab_logo.png"}
+
+            def patch_human_survey_humanize_schema(self, human_survey_uuid, partial):
+                captured["patch"] = partial
+                return {"humanize_schema": partial, "asset_substitutions": {}}
+
+        monkeypatch.setattr(edsl.coop, "Coop", FakeCoop)
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            [
+                "humanize",
+                "schema",
+                "set",
+                "survey-uuid",
+                "--logo-file",
+                str(logo_path),
+                "--logo-alt",
+                "Lab name",
+            ],
+        )
+
+        assert result.exit_code == 0, result.output
+        out = json.loads(result.output)
+        assert captured["uploaded"] == str(logo_path)
+        logo = captured["patch"]["survey"]["branding"]["logo"]
+        assert logo["source"]["asset_uuid"] == "new-asset-uuid"
+        assert logo["alt"] == "Lab name"
+        assert out["data"]["uploaded_assets"][0]["uuid"] == "new-asset-uuid"
+
+    def test_humanize_schema_set_echoes_substituted_asset_uuid(
+        self, tmp_path, monkeypatch
+    ):
+        """Reusing another author's schema copies the asset, so the echo must
+        show the copy's uuid rather than the one that was sent."""
+        import edsl.coop
+
+        schema_path = tmp_path / "schema.json"
+        schema_path.write_text(
+            json.dumps(
+                {
+                    "questions": {},
+                    "survey": {
+                        "branding": {
+                            "logo": {
+                                "source": {"type": "asset", "asset_uuid": "theirs"},
+                                "alt": "Lab name",
+                            }
+                        }
+                    },
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        class FakeCoop:
+            def patch_human_survey_humanize_schema(self, human_survey_uuid, partial):
+                return {
+                    "humanize_schema": partial,
+                    "asset_substitutions": {"theirs": "mine"},
+                }
+
+        monkeypatch.setattr(edsl.coop, "Coop", FakeCoop)
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            [
+                "humanize",
+                "schema",
+                "set",
+                "survey-uuid",
+                "--schema",
+                str(schema_path),
+            ],
+        )
+
+        assert result.exit_code == 0, result.output
+        out = json.loads(result.output)
+        echoed = out["data"]["schema"]["survey"]["branding"]["logo"]["source"]
+        assert echoed["asset_uuid"] == "mine"
+
+    def test_humanize_schema_set_clear_logo(self, monkeypatch):
+        import edsl.coop
+
+        captured = {}
+
+        class FakeCoop:
+            def patch_human_survey_humanize_schema(self, human_survey_uuid, partial):
+                captured["patch"] = partial
+                return {"humanize_schema": partial}
+
+        monkeypatch.setattr(edsl.coop, "Coop", FakeCoop)
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            ["humanize", "schema", "set", "survey-uuid", "--clear-logo"],
+        )
+
+        assert result.exit_code == 0, result.output
+        assert captured["patch"]["survey"]["branding"] == {"logo": None}
+
+    def test_humanize_schema_set_logo_position_alone_patches_one_field(
+        self, monkeypatch
+    ):
+        """The server merges this into the stored logo, which supplies the rest."""
+        import edsl.coop
+
+        captured = {}
+
+        class FakeCoop:
+            def patch_human_survey_humanize_schema(self, human_survey_uuid, partial):
+                captured["patch"] = partial
+                return {"humanize_schema": partial}
+
+        monkeypatch.setattr(edsl.coop, "Coop", FakeCoop)
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            [
+                "humanize",
+                "schema",
+                "set",
+                "survey-uuid",
+                "--logo-position",
+                "right",
+            ],
+        )
+
+        assert result.exit_code == 0, result.output
+        assert captured["patch"]["survey"]["branding"]["logo"] == {"position": "right"}
+
+    def test_humanize_schema_set_clear_logo_rejects_other_logo_flags(self):
+        result = CliRunner().invoke(
+            cli_module.app,
+            [
+                "humanize",
+                "schema",
+                "set",
+                "survey-uuid",
+                "--clear-logo",
+                "--logo-position",
+                "left",
+            ],
+        )
+
+        assert result.exit_code == 2, result.output
+        assert json.loads(result.output)["error"]["code"] == "USAGE_ERROR"
+
+    def test_humanize_schema_set_suggests_uploading_an_unreachable_asset(
+        self, monkeypatch
+    ):
+        """A bare uuid is not a credential, so the fix is to upload the image."""
+        import edsl.coop
+
+        asset_uuid = "3f8b1c2e-0000-4a0b-8c1d-2e3f4a5b6c7d"
+
+        class FakeCoop:
+            def patch_human_survey_humanize_schema(self, human_survey_uuid, partial):
+                raise Exception(f"Asset {asset_uuid} not found.")
+
+        monkeypatch.setattr(edsl.coop, "Coop", FakeCoop)
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            [
+                "humanize",
+                "schema",
+                "set",
+                "survey-uuid",
+                "--logo-asset",
+                asset_uuid,
+                "--logo-alt",
+                "Lab name",
+            ],
+        )
+
+        assert result.exit_code == 6, result.output
+        out = json.loads(result.output)
+        assert "--logo-file" in out["error"]["suggestion"]
 
     def test_humanize_schema_create_interview_controls(self, tmp_path):
         from edsl.questions import QuestionInterview
@@ -3562,6 +4000,45 @@ class TestHumanizeCli:
         assert result.exit_code == 0, result.output
         out = json.loads(result.output)
         assert out["data"]["uuid"] == "human-survey-uuid"
+        # Nothing was copied, so nothing is said about it.
+        assert out["warnings"] == []
+
+    def test_humanize_create_warns_when_assets_were_copied(self, tmp_path, monkeypatch):
+        """Naming another author's asset copies it, so the uuid the survey now
+        references is not the one that was sent."""
+        from edsl.surveys import Survey
+        import edsl.coop
+
+        survey_path = tmp_path / "survey.json"
+        survey_path.write_text(json.dumps(Survey.example().to_dict()), encoding="utf-8")
+
+        class FakeCoop:
+            def create_human_survey(self, survey, **kwargs):
+                return {
+                    "uuid": "human-survey-uuid",
+                    "name": "Demo survey",
+                    "asset_substitutions": {"theirs": "mine"},
+                }
+
+        monkeypatch.setattr(edsl.coop, "Coop", FakeCoop)
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            [
+                "humanize",
+                "create",
+                "--survey",
+                str(survey_path),
+                "--name",
+                "Demo survey",
+            ],
+        )
+
+        assert result.exit_code == 0, result.output
+        out = json.loads(result.output)
+        assert out["data"]["asset_substitutions"] == {"theirs": "mine"}
+        assert len(out["warnings"]) == 1
+        assert "theirs -> mine" in out["warnings"][0]
 
     def test_humanize_create_requires_exactly_one_source(self):
         result = CliRunner().invoke(cli_module.app, ["humanize", "create"])

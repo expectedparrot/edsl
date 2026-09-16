@@ -866,3 +866,104 @@ class TestValidateGroupPresentation:
         survey.question_groups = {"g0": (0, 0), "g1": (1, 1), "g2": (2, 2)}
         with pytest.raises(HumanizeSchemaValidationError, match="never be read"):
             validate_humanize_schema(survey, self.GROUP)
+
+
+class TestSurveyBranding:
+    """The logo a survey draws in its banner, under survey.branding.
+
+    Only the shape is checked here. Whether the asset exists and this author may
+    use it needs the server, which checks it when the schema is written.
+    """
+
+    ASSET_UUID = "3f8b1c2e-0000-4a0b-8c1d-2e3f4a5b6c7d"
+
+    def survey(self):
+        return Survey(
+            [QuestionFreeText(question_name="q1", question_text="How are you?")]
+        )
+
+    def schema(self, **logo):
+        return {
+            "questions": {},
+            "survey": {
+                "branding": {
+                    "logo": {
+                        "source": {"type": "asset", "asset_uuid": self.ASSET_UUID},
+                        "alt": "Lab name",
+                        **logo,
+                    }
+                }
+            },
+        }
+
+    def test_a_logo_passes(self):
+        validate_humanize_schema(self.survey(), self.schema())
+
+    def test_each_position_passes(self):
+        for position in ("left", "center", "right"):
+            validate_humanize_schema(self.survey(), self.schema(position=position))
+
+    def test_position_defaults_to_left(self):
+        """Omitting position is not an error; the frontend default applies."""
+        validated = HumanizeSchema.model_validate(self.schema())
+        assert validated.survey.branding.logo.position == "left"
+
+    def test_a_decorative_logo_passes(self):
+        """An empty alt is how a logo is marked decorative."""
+        validate_humanize_schema(self.survey(), self.schema(alt=""))
+
+    def test_branding_without_a_logo_passes(self):
+        schema = {"questions": {}, "survey": {"branding": {"logo": None}}}
+        validate_humanize_schema(self.survey(), schema)
+
+    def test_branding_is_optional(self):
+        """Every schema written before branding existed stays valid."""
+        validated = HumanizeSchema.model_validate({"questions": {}, "survey": {}})
+        assert validated.survey.branding is None
+
+    def test_a_logo_without_alt_raises(self):
+        """alt is required, so leaving it out is a decision rather than an accident."""
+        schema = self.schema()
+        del schema["survey"]["branding"]["logo"]["alt"]
+        with pytest.raises(HumanizeSchemaValidationError):
+            validate_humanize_schema(self.survey(), schema)
+
+    def test_a_logo_without_a_source_raises(self):
+        schema = self.schema()
+        del schema["survey"]["branding"]["logo"]["source"]
+        with pytest.raises(HumanizeSchemaValidationError):
+            validate_humanize_schema(self.survey(), schema)
+
+    def test_an_unknown_source_type_raises(self):
+        """An asset in the author's library is the only source today."""
+        schema = self.schema()
+        schema["survey"]["branding"]["logo"]["source"] = {
+            "type": "url",
+            "url": "https://example.com/logo.png",
+        }
+        with pytest.raises(HumanizeSchemaValidationError):
+            validate_humanize_schema(self.survey(), schema)
+
+    def test_a_malformed_asset_uuid_raises(self):
+        """Caught here rather than by the server."""
+        schema = self.schema()
+        schema["survey"]["branding"]["logo"]["source"]["asset_uuid"] = "not-a-uuid"
+        with pytest.raises(HumanizeSchemaValidationError):
+            validate_humanize_schema(self.survey(), schema)
+
+    def test_an_invalid_position_raises(self):
+        with pytest.raises(HumanizeSchemaValidationError):
+            validate_humanize_schema(self.survey(), self.schema(position="middle"))
+
+    def test_an_extra_field_in_the_logo_raises(self):
+        """Sizing is done in custom_css, not by a field the server would ignore."""
+        with pytest.raises(HumanizeSchemaValidationError):
+            validate_humanize_schema(self.survey(), self.schema(width=200))
+
+    def test_alt_is_stripped(self):
+        validated = HumanizeSchema.model_validate(self.schema(alt="  Lab name  "))
+        assert validated.survey.branding.logo.alt == "Lab name"
+
+    def test_an_overlong_alt_raises(self):
+        with pytest.raises(HumanizeSchemaValidationError):
+            validate_humanize_schema(self.survey(), self.schema(alt="x" * 201))

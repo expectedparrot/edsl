@@ -142,6 +142,13 @@ edsl humanize preview --survey survey.ep --schema humanize.json
 edsl humanize schema validate --survey survey.ep --schema humanize.json
 edsl humanize schema patch <human_survey_uuid> --schema schema_patch.json
 edsl humanize css patch <human_survey_uuid> --file style.css
+edsl humanize assets upload lab_logo.png
+edsl humanize assets list --page 1 --page_size 20
+edsl humanize assets get <asset_uuid> --output logo.png
+edsl humanize assets delete <asset_uuid>
+edsl humanize schema set <human_survey_uuid> --logo-asset <asset_uuid> --logo-alt "Acme Research logo"
+edsl humanize schema set <human_survey_uuid> --logo-file lab_logo.png --logo-alt "Acme Research logo"
+edsl humanize schema set <human_survey_uuid> --clear-logo
 edsl humanize respondents <human_survey_uuid> --page 1 --page_size 50
 edsl humanize agent-list get <human_survey_uuid>
 edsl humanize agent-list patch <human_survey_uuid> --delivery_map delivery_map.json
@@ -159,6 +166,8 @@ edsl humanize callbacks list <human_survey_uuid>
 `edsl humanize create` accepts either `--survey` or `--jobs`. Use `--survey survey.ep` when starting from a survey package. Use `--jobs jobs.ep` when the package already includes agents or scenarios; jobs used for humanize must not include models. Jobs with scenarios require `--scenario_method`.
 
 `edsl humanize list` is paginated and echoes `page`, `page_size`, and `returned_count`.
+
+`edsl humanize assets` manages the image library a survey's logo is drawn from. Upload once and reference the asset uuid with `--logo-asset`, or pass `--logo-file` to `edsl humanize schema set` to upload and apply in one step. `edsl humanize schema create` accepts `--logo-asset` only, because it makes no server calls. Setting a new logo requires `--logo-alt` or `--logo-decorative`.
 
 Delivery, schedule, and callback commands accept optional `--routes` JSON files where supported. A route file may be a single route object or a list of route objects. Simple routes can also be created with helper flags such as `--owner-email-template owner_response_received` or `--respondent-email-template respondent_invitation`.
 

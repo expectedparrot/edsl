@@ -550,6 +550,19 @@ ep humanize schema patch <human_survey_uuid> --schema schema_patch.json
 ep humanize css patch <human_survey_uuid> --file style.css
 ```
 
+Logos and the image library:
+
+```bash
+ep humanize assets upload lab_logo.png
+ep humanize assets list --page 1 --page_size 20
+ep humanize assets get <asset_uuid> --output logo.png
+ep humanize assets delete <asset_uuid>
+ep humanize schema set <human_survey_uuid> --logo-asset <asset_uuid> --logo-alt "Acme Research logo"
+ep humanize schema set <human_survey_uuid> --logo-file lab_logo.png --logo-alt "Acme Research logo"
+ep humanize schema set <human_survey_uuid> --logo-position center
+ep humanize schema set <human_survey_uuid> --clear-logo
+```
+
 Respondents, deliveries, schedules, and callbacks:
 
 ```bash
@@ -573,6 +586,12 @@ Rules:
 - Use `--jobs` when the package includes agents or scenarios.
 - Jobs used for humanize must not include models.
 - Jobs with scenarios require `--scenario_method`.
+- `schema create` accepts `--logo-asset` only; it makes no server calls, so upload with `humanize assets upload` first.
+- `schema set` also accepts `--logo-file`, which uploads the image and applies it in one step.
+- `--logo-asset` and `--logo-file` are mutually exclusive.
+- Setting a new logo requires `--logo-alt` or `--logo-decorative`, because alt text is required.
+- `--clear-logo` removes the logo and cannot be combined with the other logo flags.
+- Uploading a file already in the library returns the existing asset with `deduplicated: true`.
 
 ## Opening Objects
 

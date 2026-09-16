@@ -72,6 +72,45 @@ coop.patch_human_survey_css(
 | Class | Element | Notes |
 |---|---|---|
 | `edsl-survey-container` | Outermost container of the entire survey | Use to set background color for the whole survey |
+| `edsl-survey-banner` | `<div>` holding the survey's logo, at the top of the survey | Only present when the survey has a logo. Give it a `background` for a banner; see below |
+| `edsl-logo` | The logo `<img>` inside `edsl-survey-banner` | 48px tall by default, width following the image. Resize with `height`; see below |
+
+## Survey banner and logo
+
+A survey with a logo shows it in `edsl-survey-banner` at the top of the survey, positioned
+left, center or right as the author chose. Surveys without a logo have no banner, so rules
+for these classes simply do nothing there.
+
+Set the logo itself in the humanize schema under `survey.branding.logo`, referencing an
+image you uploaded with `Coop().upload_human_survey_asset(...)`. See
+[Humanize schema](/en/latest/humanize_schema).
+
+The logo is 48px tall by default, and its width follows the image's proportions. To resize
+it, set its **height** and let the width follow:
+
+```css
+/* A larger logo */
+.edsl-logo {
+  height: 80px;
+}
+```
+
+To size it by width instead, set `width` together with `height: auto`. Setting both to
+fixed values fits the logo inside that box without stretching it.
+
+For a colored strip behind the logo, style the banner itself:
+
+```css
+/* Logo on a colored banner */
+.edsl-survey-banner {
+  background: #2e7d32;
+  padding: 12px 16px;
+  border-radius: 8px;
+}
+```
+
+The banner sits inside the survey's page padding, so its background does not reach the
+edges of the screen.
 
 ## Progress indicator
 
