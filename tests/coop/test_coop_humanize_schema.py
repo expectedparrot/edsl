@@ -1,7 +1,9 @@
 """Tests for humanize schema validation (coop_humanize_schema module)."""
 
 import pytest
+from pydantic import ValidationError
 from edsl.coop.coop_humanize_schema import (
+    QUESTION_TYPE_TO_HUMANIZE_CLASS,
     HumanizeSchema,
     validate_humanize_schema,
 )
@@ -632,6 +634,139 @@ class TestValidateHumanizeSchemaSelectAll:
         with pytest.raises(HumanizeSchemaValidationError) as exc_info:
             validate_humanize_schema(survey, humanize_schema)
         assert "select_all" in str(exc_info.value).lower()
+
+
+class TestValidateHumanizeSchemaTimeLimit:
+    """The per-question time limit."""
+
+    SUPPORTED_TYPES = [
+        "free_text",
+        "budget",
+        "checkbox",
+        "checkbox_with_other",
+        "file_upload",
+        "likert_five",
+        "linear_scale",
+        "list",
+        "matrix",
+        "multiple_choice",
+        "multiple_choice_with_other",
+        "numerical",
+        "rank",
+        "top_k",
+        "yes_no",
+    ]
+
+    @staticmethod
+    def _survey() -> Survey:
+        return Survey(
+            [
+                QuestionFreeText(
+                    question_name="q1",
+                    question_text="How are you?",
+                ),
+            ]
+        )
+
+    @staticmethod
+    def _schema(time_limit) -> dict:
+        return {"questions": {"q1": {"time_limit": time_limit}}}
+
+    @pytest.mark.parametrize("seconds", [30, 300, 7200])
+    def test_fixed_duration_within_bounds_passes(self, seconds):
+        """Both bounds are inclusive."""
+        time_limit = {"duration": {"type": "fixed", "seconds": seconds}}
+        validate_humanize_schema(self._survey(), self._schema(time_limit))
+
+    @pytest.mark.parametrize("seconds", [0, 29, 7201])
+    def test_fixed_duration_out_of_bounds_raises(self, seconds):
+        time_limit = {"duration": {"type": "fixed", "seconds": seconds}}
+        with pytest.raises(HumanizeSchemaValidationError) as exc_info:
+            validate_humanize_schema(self._survey(), self._schema(time_limit))
+        assert "seconds" in str(exc_info.value).lower()
+
+    def test_null_time_limit_passes(self):
+        """Null is how an author says there is no limit."""
+        validate_humanize_schema(self._survey(), self._schema(None))
+
+    def test_untagged_duration_raises(self):
+        """The type tag is required, even though "fixed" is its only value."""
+        time_limit = {"duration": {"seconds": 300}}
+        with pytest.raises(HumanizeSchemaValidationError) as exc_info:
+            validate_humanize_schema(self._survey(), self._schema(time_limit))
+        assert "type" in str(exc_info.value).lower()
+
+    def test_unknown_duration_type_raises(self):
+        time_limit = {"duration": {"type": "per_respondent", "seconds": 300}}
+        with pytest.raises(HumanizeSchemaValidationError):
+            validate_humanize_schema(self._survey(), self._schema(time_limit))
+
+    def test_duration_without_seconds_raises(self):
+        """A limit whose duration was never chosen is not a limit."""
+        time_limit = {"duration": {"type": "fixed"}}
+        with pytest.raises(HumanizeSchemaValidationError) as exc_info:
+            validate_humanize_schema(self._survey(), self._schema(time_limit))
+        assert "seconds" in str(exc_info.value).lower()
+
+    def test_time_limit_without_duration_raises(self):
+        with pytest.raises(HumanizeSchemaValidationError) as exc_info:
+            validate_humanize_schema(self._survey(), self._schema({}))
+        assert "duration" in str(exc_info.value).lower()
+
+    def test_flat_seconds_raises(self):
+        """Seconds belong inside ``duration``, not directly on the time limit."""
+        time_limit = {"seconds": 300}
+        with pytest.raises(HumanizeSchemaValidationError):
+            validate_humanize_schema(self._survey(), self._schema(time_limit))
+
+    @pytest.mark.parametrize("question_type", SUPPORTED_TYPES)
+    def test_supported_question_types_accept_a_time_limit(self, question_type):
+        """Read off each type's model rather than a parsed schema: the union would
+        accept the entry for whichever type fits first, not the one under test.
+        """
+        model_class = QUESTION_TYPE_TO_HUMANIZE_CLASS[question_type]
+        parsed = model_class.model_validate(
+            {"time_limit": {"duration": {"type": "fixed", "seconds": 300}}}
+        )
+        assert parsed.time_limit.duration.seconds == 300
+
+    @pytest.mark.parametrize(
+        "question_type",
+        sorted(set(QUESTION_TYPE_TO_HUMANIZE_CLASS) - set(SUPPORTED_TYPES)),
+    )
+    def test_other_question_types_reject_a_time_limit(self, question_type):
+        """Interviews, background questions and survey messages have no field for one."""
+        model_class = QUESTION_TYPE_TO_HUMANIZE_CLASS[question_type]
+        with pytest.raises(ValidationError):
+            model_class.model_validate(
+                {"time_limit": {"duration": {"type": "fixed", "seconds": 300}}}
+            )
+
+    def test_interview_raises(self):
+        """The same rejection, through validate_humanize_schema."""
+        survey = Survey(
+            [
+                QuestionInterview(
+                    question_name="q1",
+                    question_text="Tell me about your experience.",
+                    interview_guide="Ask follow-up questions about details.",
+                ),
+            ]
+        )
+        time_limit = {"duration": {"type": "fixed", "seconds": 300}}
+        with pytest.raises(HumanizeSchemaValidationError) as exc_info:
+            validate_humanize_schema(survey, self._schema(time_limit))
+        assert "time_limit" in str(exc_info.value).lower()
+
+    def test_group_presentation_accepts_a_time_limit(self):
+        """Under group presentation a question's limit is ignored, not rejected."""
+        survey = self._survey()
+        survey.add_question_group("q1", "q1", "page_0")
+        humanize_schema = {
+            **self._schema({"duration": {"type": "fixed", "seconds": 300}}),
+            "survey": {"presentation": "group"},
+        }
+        validate_humanize_schema(survey, humanize_schema)
 
 
 class TestHumanizeSchemaModel:
