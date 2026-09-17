@@ -60,6 +60,37 @@ SubmittingIndicator = Annotated[
 ]
 
 
+class FixedDuration(HumanizeSchemaBase):
+    """A literal number of seconds, the same for every respondent."""
+
+    type: Literal["fixed"] = "fixed"
+    # Required, with no default: a limit whose duration was never chosen is not a
+    # limit. The floor is a duration no respondent could beat; past the ceiling a
+    # per-question clock has stopped measuring anything.
+    seconds: int = Field(ge=30, le=7200)
+
+
+# How long the respondent has. Discriminated on ``type``, and the tag is required:
+# pydantic rejects an untagged payload against a discriminated union even while it
+# has a single member.
+Duration = Annotated[
+    Union[FixedDuration],
+    Field(discriminator="type"),
+]
+
+
+class TimeLimit(HumanizeSchemaBase):
+    """A wall-clock budget for answering one question.
+
+    When it runs out the answer locks, and the respondent clicks Next to go on
+    with whatever they had entered. Applies only while the question is alone on
+    its page: under ``presentation: "group"`` the page is the group rather than
+    the question, so every question's limit is ignored.
+    """
+
+    duration: Duration
+
+
 class MCSubclassFormatSchema(HumanizeSchemaBase):
     """Display format for MC-style questions: radio list or dropdown."""
 
@@ -278,6 +309,7 @@ class FreeTextHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the free text question type."""
 
     optional: bool = False
+    time_limit: Optional[TimeLimit] = None
     comment: Optional[CommentConfig] = None
     submitting_indicator: Optional[SubmittingIndicator] = None
 
@@ -286,6 +318,7 @@ class BudgetHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the budget question type."""
 
     optional: bool = False
+    time_limit: Optional[TimeLimit] = None
     comment: Optional[CommentConfig] = None
     submitting_indicator: Optional[SubmittingIndicator] = None
 
@@ -313,6 +346,7 @@ class CheckboxHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the checkbox question type."""
 
     optional: bool = False
+    time_limit: Optional[TimeLimit] = None
     # The Select all box beneath the options; None removes it. Present by
     # default, because that is what every checkbox question rendered before this
     # field existed, so stored configs are unaffected. Deliberately not on
@@ -344,6 +378,7 @@ class CheckboxWithOtherHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the checkbox with other question type."""
 
     optional: bool = False
+    time_limit: Optional[TimeLimit] = None
     # Options that stand alone: checking one clears every other selection —
     # including the respondent's "other" entries and any other exclusive
     # option — and selecting anything else clears it. Identified by their exact
@@ -388,6 +423,7 @@ class FileUploadHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the file upload question type."""
 
     optional: bool = False
+    time_limit: Optional[TimeLimit] = None
     submitting_indicator: Optional[SubmittingIndicator] = None
 
 
@@ -642,6 +678,7 @@ class LikertHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the likert question type."""
 
     optional: bool = False
+    time_limit: Optional[TimeLimit] = None
     format: MCSubclassFormatSchema = Field(default_factory=MCSubclassFormatSchema)
     comment: Optional[CommentConfig] = None
     submitting_indicator: Optional[SubmittingIndicator] = None
@@ -651,6 +688,7 @@ class LinearScaleHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the linear scale question type."""
 
     optional: bool = False
+    time_limit: Optional[TimeLimit] = None
     format: MCSubclassFormatSchema = Field(default_factory=MCSubclassFormatSchema)
     comment: Optional[CommentConfig] = None
     submitting_indicator: Optional[SubmittingIndicator] = None
@@ -660,6 +698,7 @@ class ListHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the list question type."""
 
     optional: bool = False
+    time_limit: Optional[TimeLimit] = None
     comment: Optional[CommentConfig] = None
     submitting_indicator: Optional[SubmittingIndicator] = None
 
@@ -758,6 +797,7 @@ class MatrixHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the matrix question type."""
 
     optional: bool = False
+    time_limit: Optional[TimeLimit] = None
     format: MatrixFormatSchema = Field(default_factory=MatrixFormatTableSchema)
     # Cells filled in before the respondent arrives. None means an empty grid —
     # what every matrix rendered before this field existed, so stored configs are
@@ -777,6 +817,7 @@ class MultipleChoiceHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the multiple choice question type."""
 
     optional: bool = False
+    time_limit: Optional[TimeLimit] = None
     format: MCSubclassFormatSchema = Field(default_factory=MCSubclassFormatSchema)
     custom_validation: Optional[MultipleChoiceCustomValidation] = None
     comment: Optional[CommentConfig] = None
@@ -787,6 +828,7 @@ class MultipleChoiceWithOtherHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the multiple choice with other question type."""
 
     optional: bool = False
+    time_limit: Optional[TimeLimit] = None
     comment: Optional[CommentConfig] = None
     submitting_indicator: Optional[SubmittingIndicator] = None
 
@@ -826,6 +868,7 @@ class NumericalHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the numerical question type."""
 
     optional: bool = False
+    time_limit: Optional[TimeLimit] = None
     format: NumericalFormatSchema = Field(default_factory=NumericalFormatInputSchema)
     comment: Optional[CommentConfig] = None
     submitting_indicator: Optional[SubmittingIndicator] = None
@@ -835,6 +878,7 @@ class RankHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the rank question type."""
 
     optional: bool = False
+    time_limit: Optional[TimeLimit] = None
     comment: Optional[CommentConfig] = None
     submitting_indicator: Optional[SubmittingIndicator] = None
 
@@ -843,6 +887,7 @@ class TopKHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the top k question type."""
 
     optional: bool = False
+    time_limit: Optional[TimeLimit] = None
     comment: Optional[CommentConfig] = None
     submitting_indicator: Optional[SubmittingIndicator] = None
 
@@ -851,6 +896,7 @@ class YesNoHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the yes/no question type."""
 
     optional: bool = False
+    time_limit: Optional[TimeLimit] = None
     format: MCSubclassFormatSchema = Field(default_factory=MCSubclassFormatSchema)
     comment: Optional[CommentConfig] = None
     submitting_indicator: Optional[SubmittingIndicator] = None
