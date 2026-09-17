@@ -56,6 +56,31 @@ When creating a human survey or preview (e.g. `survey.humanize()` or `survey.pre
         </ParamField>
       </Expandable>
     </ParamField>
+    <ParamField path="survey.branding" type="dict" required={false}>
+      The author's brand on the respondent page. Omit or set to `null` for no banner, which is how a survey without this field renders.
+
+      <Expandable title="properties">
+        <ParamField path="logo" type="dict" required={false}>
+          The logo drawn in the survey banner, above the questions. Set to `null` to remove it.
+
+          Upload the image first, with `Coop().upload_human_survey_asset("lab_logo.png")` or `ep humanize assets upload lab_logo.png`, and reference the uuid it returns. A schema never carries image bytes.
+
+          There is no size field: the banner picks a default height. Style `.edsl-logo` in `custom_css` to change it. See [Custom CSS](/en/latest/custom_css).
+
+          <Expandable title="properties">
+            <ParamField path="source" type="dict" required={true}>
+              Where the image comes from. Must be `{"type": "asset", "asset_uuid": "<uuid>"}`, naming an image in your asset library.
+            </ParamField>
+            <ParamField path="alt" type="string" required={true}>
+              Alt text for screen readers, up to 200 characters. Required, so that leaving it out is a decision rather than an accident. Use an empty string to mark the logo decorative, which renders it with `alt=""`.
+            </ParamField>
+            <ParamField path="position" type="string" default="left">
+              Where the logo sits in the banner: `"left"`, `"center"`, or `"right"`.
+            </ParamField>
+          </Expandable>
+        </ParamField>
+      </Expandable>
+    </ParamField>
   </Expandable>
 </ParamField>
 
@@ -306,7 +331,10 @@ Each `questions[question_name]` value is a `HumanizeQuestionSchema` object.
 ## Example
 
 ```python
-from edsl import Survey, QuestionFreeText, QuestionMultipleChoice
+from edsl import Coop, Survey, QuestionFreeText, QuestionMultipleChoice
+
+# Upload the logo once; the schema references it by uuid
+logo = Coop().upload_human_survey_asset("lab_logo.png")
 
 survey = Survey([
     QuestionMultipleChoice(
@@ -333,6 +361,13 @@ humanize_schema = {
     "survey": {
         "custom_css": None,
         "progress": {"type": "bar", "label": {"type": "percent"}},
+        "branding": {
+            "logo": {
+                "source": {"type": "asset", "asset_uuid": logo.uuid},
+                "alt": "Acme Research logo",
+                "position": "center",
+            }
+        },
     },
 }
 
