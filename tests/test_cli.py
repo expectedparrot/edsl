@@ -3587,6 +3587,119 @@ class TestHumanizeCli:
         assert logo["alt"] == "Lab name"
         assert out["data"]["uploaded_assets"][0]["uuid"] == "new-asset-uuid"
 
+    def test_humanize_schema_set_logo_file_not_uploaded_when_schema_invalid(
+        self, tmp_path, monkeypatch
+    ):
+        """A logo without alt text fails locally, before anything is uploaded."""
+        import edsl.coop
+
+        logo_path = tmp_path / "lab_logo.png"
+        logo_path.write_bytes(b"bytes")
+        calls = []
+
+        class FakeCoop:
+            def upload_human_survey_asset(self, file_path):
+                calls.append("upload")
+                return {"uuid": "new-asset-uuid"}
+
+            def patch_human_survey_humanize_schema(self, human_survey_uuid, partial):
+                calls.append("patch")
+                return {"humanize_schema": partial}
+
+        monkeypatch.setattr(edsl.coop, "Coop", FakeCoop)
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            ["humanize", "schema", "set", "survey-uuid", "--logo-file", str(logo_path)],
+        )
+
+        assert result.exit_code == 2, result.output
+        out = json.loads(result.output)
+        assert out["error"]["code"] == "USAGE_ERROR"
+        assert calls == []
+
+    def test_humanize_schema_set_failed_patch_reports_kept_logo(
+        self, tmp_path, monkeypatch
+    ):
+        """The upload is kept, never deleted, and the error names it."""
+        import edsl.coop
+
+        logo_path = tmp_path / "lab_logo.png"
+        logo_path.write_bytes(b"bytes")
+        calls = []
+
+        class FakeCoop:
+            def upload_human_survey_asset(self, file_path):
+                calls.append("upload")
+                return {"uuid": "new-asset-uuid", "deduplicated": False}
+
+            def patch_human_survey_humanize_schema(self, human_survey_uuid, partial):
+                calls.append("patch")
+                raise RuntimeError("Request timed out")
+
+            def delete_human_survey_asset(self, asset_uuid):
+                calls.append("delete")
+
+        monkeypatch.setattr(edsl.coop, "Coop", FakeCoop)
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            [
+                "humanize",
+                "schema",
+                "set",
+                "survey-uuid",
+                "--logo-file",
+                str(logo_path),
+                "--logo-alt",
+                "Lab name",
+            ],
+        )
+
+        assert result.exit_code != 0, result.output
+        out = json.loads(result.output)
+        assert out["error"]["code"] == "HUMANIZE_ERROR"
+        assert out["error"]["message"] == "Request timed out"
+        assert "new-asset-uuid" in out["error"]["suggestion"]
+        assert calls == ["upload", "patch"]
+
+    def test_humanize_schema_set_failed_patch_quiet_about_existing_logo(
+        self, tmp_path, monkeypatch
+    ):
+        """A deduplicated upload was already in the library, so it isn't news."""
+        import edsl.coop
+
+        logo_path = tmp_path / "lab_logo.png"
+        logo_path.write_bytes(b"bytes")
+
+        class FakeCoop:
+            def upload_human_survey_asset(self, file_path):
+                return {"uuid": "existing-asset-uuid", "deduplicated": True}
+
+            def patch_human_survey_humanize_schema(self, human_survey_uuid, partial):
+                raise RuntimeError("Request timed out")
+
+        monkeypatch.setattr(edsl.coop, "Coop", FakeCoop)
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            [
+                "humanize",
+                "schema",
+                "set",
+                "survey-uuid",
+                "--logo-file",
+                str(logo_path),
+                "--logo-alt",
+                "Lab name",
+            ],
+        )
+
+        assert result.exit_code != 0, result.output
+        out = json.loads(result.output)
+        assert out["error"]["code"] == "HUMANIZE_ERROR"
+        assert "existing-asset-uuid" not in out["error"].get("suggestion", "")
+
     def test_humanize_schema_set_echoes_substituted_asset_uuid(
         self, tmp_path, monkeypatch
     ):

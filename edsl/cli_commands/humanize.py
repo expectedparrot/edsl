@@ -42,6 +42,10 @@ _ASSET_NOT_FOUND_SUGGESTION = (
     "with --logo-file PATH to upload your own copy."
 )
 
+# Stands in for the uuid of a --logo-file upload while the schema is built and
+# validated, so that nothing is uploaded for a command that fails locally.
+_PENDING_LOGO_ASSET_UUID = "00000000-0000-0000-0000-000000000000"
+
 
 def register(humanize: click.Group) -> None:
     @humanize.group("schema", invoke_without_command=True)
@@ -790,11 +794,9 @@ def register(humanize: click.Group) -> None:
             from edsl.coop import Coop
 
             coop = Coop()
-            uploaded_asset = None
             if logo_file:
                 _check_asset_file(logo_file)
-                uploaded_asset = coop.upload_human_survey_asset(logo_file)
-                logo_asset = uploaded_asset["uuid"]
+                logo_asset = _PENDING_LOGO_ASSET_UUID
 
             survey = _load_survey_object(survey_path) if survey_path else None
             schema = _build_humanize_schema_from_controls(
@@ -824,10 +826,22 @@ def register(humanize: click.Group) -> None:
             )
             if survey is not None and validate_schema:
                 _validate_humanize_schema(survey, _schema_for_local_validation(schema))
-            result = jsonable(coop.patch_human_survey_humanize_schema(
-                human_survey_uuid,
-                schema,
-            ))
+
+            uploaded_asset = None
+            if logo_file:
+                uploaded_asset = coop.upload_human_survey_asset(logo_file)
+                schema["survey"]["branding"]["logo"]["source"]["asset_uuid"] = (
+                    uploaded_asset["uuid"]
+                )
+            try:
+                result = jsonable(coop.patch_human_survey_humanize_schema(
+                    human_survey_uuid,
+                    schema,
+                ))
+            except Exception as e:
+                if uploaded_asset is None or uploaded_asset.get("deduplicated"):
+                    raise
+                _report_retained_logo(e, uploaded_asset["uuid"])
             if isinstance(result, dict):
                 result.setdefault(
                     "schema",
@@ -2205,6 +2219,28 @@ def register(humanize: click.Group) -> None:
                 suggestion=_ASSET_FORMATS_SUGGESTION,
                 exit_code=EXIT_USAGE,
             )
+
+
+    def _report_retained_logo(exc: Exception, asset_uuid: str) -> None:
+        """Fail a patch whose --logo-file upload was kept, naming the asset.
+
+        The upload is not deleted: a patch that errored on the way back may still
+        have been stored, and the survey would then be showing that logo.
+        """
+        suggestion = (
+            f"The logo was added to your asset library as {asset_uuid}. Retry with "
+            f"--logo-asset {asset_uuid}, or, if no survey uses it, remove it with "
+            f"'ep humanize assets delete {asset_uuid}'."
+        )
+        asset_suggestion = _asset_error_suggestion(str(exc))
+        if asset_suggestion:
+            suggestion = f"{asset_suggestion} {suggestion}"
+        error(
+            "HUMANIZE_ERROR",
+            str(exc),
+            suggestion=suggestion,
+            exit_code=EXIT_REMOTE,
+        )
 
 
     def _asset_error_suggestion(message: str) -> str:
