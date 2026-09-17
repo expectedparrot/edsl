@@ -16,7 +16,7 @@ When creating a human survey or preview (e.g. `survey.humanize()` or `survey.pre
   Optional survey-level options (e.g. custom CSS).
   <Expandable title="properties">
     <ParamField path="survey.presentation" type="string" default="question">
-      `"question"` requests question-by-question presentation (the default); `"group"` requests one question group per page. Define groups on the survey with `add_question_group()` and include every question you want displayed. See [Grouped surveys](/en/latest/humanize_groups) for setup, navigation behavior, and availability requirements for PR #2623.
+      `"question"` requests question-by-question presentation (the default); `"group"` requests one question group per page. Define groups on the survey with `add_question_group()` and include every question you want displayed. See [Grouped surveys](/en/latest/humanize_groups) for setup, navigation behavior, and availability requirements for PR #2623. Question time limits (`time_limit`) are ignored under `"group"`.
     </ParamField>
     <ParamField path="survey.custom_css" type="string" required={false}>
       Optional custom CSS for the survey. Can be `null` or omitted. See [Custom CSS](/en/latest/custom_css) for the `edsl-*` CSS classes and HTML structure per question type.
@@ -94,6 +94,22 @@ Each `questions[question_name]` value is a `HumanizeQuestionSchema` object.
   **Supported question types:** `free_text`, `budget`, `checkbox`, `checkbox_with_other`, `file_upload`, `interview`, `likert_five`, `linear_scale`, `list`, `matrix`, `multiple_choice`, `multiple_choice_with_other`, `numerical`, `rank`, `top_k`, `yes_no`.
 
   Note: `optional` currently has no effect for `interview` and `rank`.
+</ParamField>
+
+<ParamField path="time_limit" type="dict" required={false}>
+  A limit on how long the respondent may spend answering the question. Omit or set to `null` for no limit.
+
+  While the limit runs, a countdown is shown above the question. When it reaches zero the answer locks: the respondent can no longer change it and clicks **Next** to continue. They are not moved on automatically. Whatever they had entered is submitted as their answer, and a question they had not answered is recorded as unanswered, even if it is not `optional`.
+
+  A time limit applies only while the question is alone on its page. When `survey.presentation` is `"group"`, every question's `time_limit` is ignored, including a question that is the only one in its group. The countdown runs in the respondent's browser, so reloading the page starts it again.
+
+  **Supported question types:** `free_text`, `budget`, `checkbox`, `checkbox_with_other`, `file_upload`, `likert_five`, `linear_scale`, `list`, `matrix`, `multiple_choice`, `multiple_choice_with_other`, `numerical`, `rank`, `top_k`, `yes_no`.
+
+  <Expandable title="properties">
+    <ParamField path="duration" type="dict" required={true}>
+      How long the respondent has. Must be `{"type": "fixed", "seconds": <seconds>}`, the same number of seconds for every respondent. `seconds` must be between 30 and 7200 (two hours). `type` is required, even though `"fixed"` is its only value.
+    </ParamField>
+  </Expandable>
 </ParamField>
 
 <ParamField path="format" type="dict" required={false}>
@@ -356,7 +372,10 @@ humanize_schema = {
             "comment": {"label": "Why did you choose this rating?"},
             "submitting_indicator": {"type": "callout", "title": "Analyzing your answer…"},
         },
-        "feedback": {"optional": True},
+        "feedback": {
+            "optional": True,
+            "time_limit": {"duration": {"type": "fixed", "seconds": 300}},
+        },
     },
     "survey": {
         "custom_css": None,
@@ -398,6 +417,7 @@ If the schema is invalid, Expected Parrot raises `HumanizeSchemaValidationError`
 - A key in `questions` is not a question name in the survey, or is an instruction.
 - A question's type is not supported for humanize schema (e.g. `demand`, `dropdown`).
 - A question's entry has the wrong shape for its type (e.g. wrong field types or extra fields that aren’t allowed).
+- A `time_limit` has `seconds` outside 30–7200, or a `duration` without its `"type": "fixed"`.
 - Top-level structure is invalid (e.g. `questions` not a dict, or an entry not a dict).
 
 You can also pass the schema to `survey.preview(humanize_schema=...)` to get a preview URL.
