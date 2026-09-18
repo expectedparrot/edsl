@@ -1,0 +1,72 @@
+{
+  "phase": "warmup",
+  "inputs": 5,
+  "questions_per_input": 5,
+  "concurrency": 8,
+  "request_rate_cap": 18.0,
+  "planned_requests": 5,
+  "logical_calls": 5,
+  "http_attempts": 5,
+  "retries": 0,
+  "http_statuses": {
+    "200": 5
+  },
+  "completed_rows": 5,
+  "completed_judgments": 25,
+  "failed_batches": [],
+  "build_seconds": 0.005447041941806674,
+  "compile_seconds": 0.01691620796918869,
+  "execute_seconds": 0.859980084002018,
+  "end_to_end_seconds": 0.8823433339130133,
+  "inputs_per_second": 5.814088131822675,
+  "judgments_per_second": 29.070440659113377,
+  "http_latency_seconds": {
+    "n": 5,
+    "mean": 0.4242412250023335,
+    "p50": 0.4315601249691099,
+    "p95": 0.46831850002054126,
+    "p99": 0.4738590000057593,
+    "max": 0.4752441250020638
+  },
+  "logical_latency_including_pacing_and_retries_seconds": {
+    "n": 5,
+    "mean": 0.5378741584019735,
+    "p50": 0.5541978749679402,
+    "p95": 0.6109555831877514,
+    "p99": 0.6153872830374166,
+    "max": 0.6164952079998329
+  },
+  "pacing_wait_seconds": {
+    "n": 5,
+    "mean": 0.11326991701498627,
+    "p50": 0.11334016697946936,
+    "p95": 0.21491140839643774,
+    "p99": 0.2239099816698581,
+    "max": 0.22615962498821318
+  },
+  "usage": {
+    "input_tokens": 3737,
+    "output_tokens": 630
+  },
+  "estimated_usd": 0.000156954,
+  "actual_models": [
+    "jev-1.13.0"
+  ],
+  "accuracy": {
+    "n": 5,
+    "accuracy": 1.0,
+    "majority_baseline": 0.8,
+    "spam_precision": 1.0,
+    "spam_recall": 1.0,
+    "brier_score": 0.0010600000000000002,
+    "confusion": {
+      "true_spam": 1,
+      "true_ham": 4,
+      "false_spam": 0,
+      "missed_spam": 0
+    },
+    "errors": []
+  },
+  "cache_entries": 5,
+  "save_packages_seconds": 0.14575404208153486
+}
