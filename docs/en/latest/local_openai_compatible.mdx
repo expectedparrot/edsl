@@ -30,6 +30,33 @@ ep models create \
 
 API-key values are not serialized into the model package.
 
+## Python API
+
+Use `HostedModel` when constructing one hosted model directly in Python:
+
+```python
+from edsl import HostedModel, QuestionFreeText
+
+model = HostedModel(
+    "my-model",
+    base_url="https://models.example.com/v1",
+    api_key_env="LOCAL_MODEL_API_KEY",
+    temperature=0.2,
+)
+question = QuestionFreeText(
+    question_name="hello",
+    question_text="Reply with exactly: hello",
+)
+results = question.by(model).run(disable_remote_inference=True)
+```
+
+`HostedModel` is a convenience factory for `Model(...,
+service_name="openai_compatible")`. It returns a regular EDSL language model,
+so model execution, error reporting, serialization, and client cleanup follow
+the standard OpenAI-compatible service path. Use `api_key_env` to name the
+credential environment variable; do not put the credential itself in a
+serialized model.
+
 ## Run locally
 
 ```bash
