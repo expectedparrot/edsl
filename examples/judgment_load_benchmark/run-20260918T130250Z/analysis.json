@@ -1,0 +1,11 @@
+{
+  "matched_speedup": 4.644691819149955,
+  "matched_input_token_savings": 0.6352975695633039,
+  "score_consistency": {
+    "nonzero_differences": 230,
+    "max_absolute_difference": 0.010000000000000231,
+    "normalized_probability_vectors": 8
+  },
+  "all_recorded_runs_estimated_usd": 0.09575420400000001,
+  "all_recorded_runs_http_attempts": 4314
+}
