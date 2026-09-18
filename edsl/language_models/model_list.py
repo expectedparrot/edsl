@@ -301,9 +301,9 @@ class ModelList(Base, UserList):
         >>> newm = ModelList.from_dict(ModelList.example().to_dict())
         >>> assert ModelList.example() == newm
         """
-        from ..language_models import LanguageModel
+        from .model_list_serializer import model_from_dict
 
-        return cls(data=[LanguageModel.from_dict(model) for model in data["models"]])
+        return cls(data=[model_from_dict(model) for model in data["models"]])
 
     def code(self):
         pass

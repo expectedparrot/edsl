@@ -1,0 +1,81 @@
+{
+  "phase": "matched_batched",
+  "inputs": 100,
+  "questions_per_input": 5,
+  "concurrency": 8,
+  "request_rate_cap": 18.0,
+  "planned_requests": 100,
+  "logical_calls": 100,
+  "http_attempts": 100,
+  "retries": 0,
+  "http_statuses": {
+    "200": 100
+  },
+  "completed_rows": 99,
+  "completed_judgments": 495,
+  "failed_batches": [
+    "batch 98: Probabilities must sum to 1 within tolerance 1e-06; got 0.9900000000000001."
+  ],
+  "build_seconds": 0.0002525410382077098,
+  "compile_seconds": 0.3038273330312222,
+  "execute_seconds": 5.888713458087295,
+  "end_to_end_seconds": 6.192793332156725,
+  "inputs_per_second": 16.811821581170303,
+  "judgments_per_second": 84.05910790585152,
+  "http_latency_seconds": {
+    "n": 100,
+    "mean": 0.22436090540955775,
+    "p50": 0.1991966255591251,
+    "p95": 0.42650517738657073,
+    "p99": 0.5210161531413906,
+    "max": 0.5274084999691695
+  },
+  "logical_latency_including_pacing_and_retries_seconds": {
+    "n": 100,
+    "mean": 0.4488203321141191,
+    "p50": 0.43404158344492316,
+    "p95": 0.6464504131523426,
+    "p99": 0.7790247341513176,
+    "max": 0.9236580000724643
+  },
+  "pacing_wait_seconds": {
+    "n": 100,
+    "mean": 0.22412014503963293,
+    "p50": 0.2428885210538283,
+    "p95": 0.29314214169280606,
+    "p99": 0.3396334944490812,
+    "max": 0.395794750074856
+  },
+  "usage": {
+    "input_tokens": 74578,
+    "output_tokens": 12600
+  },
+  "estimated_usd": 0.0031322760000000002,
+  "actual_models": [
+    "jev-1.13.0"
+  ],
+  "accuracy": {
+    "n": 99,
+    "accuracy": 0.98989898989899,
+    "majority_baseline": 0.8787878787878788,
+    "spam_precision": 1.0,
+    "spam_recall": 0.9166666666666666,
+    "brier_score": 0.012183838383838385,
+    "confusion": {
+      "true_spam": 11,
+      "true_ham": 87,
+      "false_spam": 0,
+      "missed_spam": 1
+    },
+    "errors": [
+      {
+        "source_id": 4394,
+        "gold": "spam",
+        "predicted": "ham",
+        "p_spam": 0.09
+      }
+    ]
+  },
+  "cache_entries": 99,
+  "save_packages_seconds": 0.2184356659417972
+}

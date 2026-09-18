@@ -1,0 +1,27 @@
+{
+  "dataset": "UCI SMS Spam Collection",
+  "dataset_url": "https://archive.ics.uci.edu/dataset/228/sms%2Bspam%2Bcollection",
+  "download_url": "https://archive.ics.uci.edu/static/public/228/sms%2Bspam%2Bcollection.zip",
+  "citation": "Almeida, T. & Hidalgo, J. (2011). SMS Spam Collection. https://doi.org/10.24432/C5CC84",
+  "license": "CC BY 4.0",
+  "source_sha256": "1587ea43e58e82b14ff1f5425c88e17f8496bfcdb67a583dbff9eefaf9963ce3",
+  "downloaded_rows": 5574,
+  "unique_nonconflicting_messages": 5171,
+  "conflicting_messages_excluded": 0,
+  "sampling": "uniform without replacement after exact-text deduplication",
+  "seed": 20260918,
+  "sample_count": 1000,
+  "class_counts": {
+    "ham": 882,
+    "spam": 118
+  },
+  "text_characters": {
+    "n": 1000,
+    "mean": 78.105,
+    "p50": 60.0,
+    "p95": 160.0,
+    "p99": 240.03999999999996,
+    "max": 446
+  },
+  "labels_sent_to_model": false
+}

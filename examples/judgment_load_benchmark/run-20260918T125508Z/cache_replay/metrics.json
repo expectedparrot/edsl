@@ -1,0 +1,211 @@
+{
+  "phase": "cache_replay",
+  "inputs": 1000,
+  "questions_per_input": 5,
+  "concurrency": 8,
+  "request_rate_cap": 18.0,
+  "planned_requests": 1000,
+  "logical_calls": 7,
+  "http_attempts": 7,
+  "retries": 0,
+  "http_statuses": {
+    "200": 7
+  },
+  "completed_rows": 1000,
+  "completed_judgments": 5000,
+  "failed_batches": [],
+  "build_seconds": 0.0008076250087469816,
+  "compile_seconds": 2.7940172919770703,
+  "execute_seconds": 0.7988432080019265,
+  "end_to_end_seconds": 3.593668124987744,
+  "inputs_per_second": 1251.8101048905562,
+  "judgments_per_second": 6259.05052445278,
+  "http_latency_seconds": {
+    "n": 7,
+    "mean": 0.4064547915310998,
+    "p50": 0.3980697919614613,
+    "p95": 0.45540373300900683,
+    "p99": 0.4623837130027823,
+    "max": 0.4641287080012262
+  },
+  "logical_latency_including_pacing_and_retries_seconds": {
+    "n": 7,
+    "mean": 0.6327832081754293,
+    "p50": 0.6801746661076322,
+    "p95": 0.7178279212326742,
+    "p99": 0.7183661514823325,
+    "max": 0.718500709044747
+  },
+  "pacing_wait_seconds": {
+    "n": 7,
+    "mean": 0.2259371365653351,
+    "p50": 0.23046491597779095,
+    "p95": 0.35166295378003265,
+    "p99": 0.3593456235574558,
+    "max": 0.3612662910018116
+  },
+  "usage": {
+    "input_tokens": 5256,
+    "output_tokens": 882
+  },
+  "estimated_usd": 0.000220752,
+  "actual_models": [
+    "jev-1.13.0"
+  ],
+  "accuracy": {
+    "n": 1000,
+    "accuracy": 0.977,
+    "majority_baseline": 0.882,
+    "spam_precision": 0.8925619834710744,
+    "spam_recall": 0.9152542372881356,
+    "brier_score": 0.0181677,
+    "confusion": {
+      "true_spam": 108,
+      "true_ham": 869,
+      "false_spam": 13,
+      "missed_spam": 10
+    },
+    "errors": [
+      {
+        "source_id": 4394,
+        "gold": "spam",
+        "predicted": "ham",
+        "p_spam": 0.09
+      },
+      {
+        "source_id": 3805,
+        "gold": "ham",
+        "predicted": "spam",
+        "p_spam": 0.98
+      },
+      {
+        "source_id": 375,
+        "gold": "spam",
+        "predicted": "ham",
+        "p_spam": 0.25
+      },
+      {
+        "source_id": 5361,
+        "gold": "ham",
+        "predicted": "spam",
+        "p_spam": 0.96
+      },
+      {
+        "source_id": 2833,
+        "gold": "ham",
+        "predicted": "spam",
+        "p_spam": 0.58
+      },
+      {
+        "source_id": 3849,
+        "gold": "ham",
+        "predicted": "spam",
+        "p_spam": 0.59
+      },
+      {
+        "source_id": 941,
+        "gold": "ham",
+        "predicted": "spam",
+        "p_spam": 0.58
+      },
+      {
+        "source_id": 4048,
+        "gold": "spam",
+        "predicted": "ham",
+        "p_spam": 0.1
+      },
+      {
+        "source_id": 2250,
+        "gold": "spam",
+        "predicted": "ham",
+        "p_spam": 0.06
+      },
+      {
+        "source_id": 1638,
+        "gold": "spam",
+        "predicted": "ham",
+        "p_spam": 0.07
+      },
+      {
+        "source_id": 529,
+        "gold": "spam",
+        "predicted": "ham",
+        "p_spam": 0.36
+      },
+      {
+        "source_id": 852,
+        "gold": "ham",
+        "predicted": "spam",
+        "p_spam": 0.74
+      },
+      {
+        "source_id": 3742,
+        "gold": "spam",
+        "predicted": "ham",
+        "p_spam": 0.38
+      },
+      {
+        "source_id": 1260,
+        "gold": "ham",
+        "predicted": "spam",
+        "p_spam": 0.79
+      },
+      {
+        "source_id": 4764,
+        "gold": "ham",
+        "predicted": "spam",
+        "p_spam": 0.54
+      },
+      {
+        "source_id": 66,
+        "gold": "ham",
+        "predicted": "spam",
+        "p_spam": 0.51
+      },
+      {
+        "source_id": 1077,
+        "gold": "ham",
+        "predicted": "spam",
+        "p_spam": 0.62
+      },
+      {
+        "source_id": 2227,
+        "gold": "ham",
+        "predicted": "spam",
+        "p_spam": 0.56
+      },
+      {
+        "source_id": 5451,
+        "gold": "spam",
+        "predicted": "ham",
+        "p_spam": 0.2
+      },
+      {
+        "source_id": 2068,
+        "gold": "ham",
+        "predicted": "spam",
+        "p_spam": 0.6
+      },
+      {
+        "source_id": 4914,
+        "gold": "spam",
+        "predicted": "ham",
+        "p_spam": 0.01
+      },
+      {
+        "source_id": 751,
+        "gold": "spam",
+        "predicted": "ham",
+        "p_spam": 0.0
+      },
+      {
+        "source_id": 4659,
+        "gold": "ham",
+        "predicted": "spam",
+        "p_spam": 0.62
+      }
+    ]
+  },
+  "cache_entries": 1000,
+  "save_packages_seconds": 0.31500466691795737
+}
