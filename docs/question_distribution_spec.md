@@ -315,6 +315,16 @@ is no `resolution`, `permissive`, `budget_sum`, or implicit remainder in this AP
 
 ## Recommended scope decisions
 
+Humanize's planned painting widget has a per-question setting:
+`{"questions": {"forecast": {"initial_distribution": "empty"}}}`.
+The accepted values are `"uniform"` (default) and `"empty"`. Uniform means equal
+probability per supplied bucket or outcome, even for unequal-width intervals.
+Empty means unanswered until the respondent allocates probability. A saved
+response takes precedence over either initial state. This setting belongs to
+Humanize configuration, not the question constructor, and does not affect LLM
+answers. Schema validation is available; hosted elicitation still requires the
+coordinated coopr widget release described above.
+
 The proposal above chooses string-labelled objects, explicit interval strings,
 inclusive finite support, shortened final buckets, strict probability validation,
 and preservation of answers within tolerance. These are the implemented v1 choices.

@@ -323,6 +323,17 @@ class BudgetHumanizeSchema(HumanizeSchemaBase):
     submitting_indicator: Optional[SubmittingIndicator] = None
 
 
+class DistributionHumanizeSchema(HumanizeSchemaBase):
+    """Starting state for the distribution painting widget.
+
+    Uniform means equal probability per supplied bucket/outcome, including
+    unequal-width intervals. Empty requires an allocation before submission.
+    This setting applies only when there is no saved respondent answer.
+    """
+
+    initial_distribution: Literal["uniform", "empty"] = "uniform"
+
+
 class SelectAllControl(HumanizeSchemaBase):
     """The Select all box beneath a checkbox question's options.
 
@@ -913,6 +924,7 @@ class SurveyMessageHumanizeSchema(HumanizeSchemaBase):
 HumanizeQuestionSchema = Union[
     FreeTextHumanizeSchema,
     BudgetHumanizeSchema,
+    DistributionHumanizeSchema,
     CheckboxHumanizeSchema,
     CheckboxWithOtherHumanizeSchema,
     ComputeHumanizeSchema,
@@ -946,6 +958,7 @@ class HumanizeSchema(HumanizeSchemaBase):
 QUESTION_TYPE_TO_HUMANIZE_CLASS: Dict[str, Type[BaseModel]] = {
     "free_text": FreeTextHumanizeSchema,
     "budget": BudgetHumanizeSchema,
+    "distribution": DistributionHumanizeSchema,
     "checkbox": CheckboxHumanizeSchema,
     "checkbox_with_other": CheckboxWithOtherHumanizeSchema,
     "compute": ComputeHumanizeSchema,

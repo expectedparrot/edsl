@@ -13,6 +13,7 @@ from edsl.questions import (
     QuestionCheckBox,
     QuestionCheckBoxWithOther,
     QuestionDemand,
+    QuestionDistribution,
     QuestionFreeText,
     QuestionInterview,
     QuestionMultipleChoice,
@@ -20,6 +21,41 @@ from edsl.questions import (
     SurveyMessage,
 )
 from edsl.surveys import Survey
+
+
+@pytest.mark.parametrize("initial", ["uniform", "empty"])
+def test_distribution_initial_state_is_humanize_only(initial):
+    question = QuestionDistribution(
+        question_name="forecast", question_text="Predict.", question_options=["a", "b"]
+    )
+    original = question.to_dict()
+    validate_humanize_schema(
+        Survey([question]),
+        {"questions": {"forecast": {"initial_distribution": initial}}},
+    )
+    assert question.to_dict() == original
+
+
+@pytest.mark.parametrize("initial", [None, "normal", True])
+def test_distribution_rejects_invalid_initial_state(initial):
+    question = QuestionDistribution.example()
+    with pytest.raises(HumanizeSchemaValidationError):
+        validate_humanize_schema(
+            Survey([question]),
+            {"questions": {question.question_name: {"initial_distribution": initial}}},
+        )
+
+
+def test_distribution_initial_state_default_and_question_type():
+    model = QUESTION_TYPE_TO_HUMANIZE_CLASS["distribution"]
+    assert model().initial_distribution == "uniform"
+    assert model().model_dump(exclude_unset=True) == {}
+    question = QuestionFreeText.example()
+    with pytest.raises(HumanizeSchemaValidationError):
+        validate_humanize_schema(
+            Survey([question]),
+            {"questions": {question.question_name: {"initial_distribution": "empty"}}},
+        )
 
 
 class TestValidateHumanizeSchemaGeneral:
