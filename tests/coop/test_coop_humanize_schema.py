@@ -58,6 +58,20 @@ def test_distribution_initial_state_default_and_question_type():
         )
 
 
+@pytest.mark.parametrize("show", [True, False])
+def test_distribution_optional_moments(show):
+    question = QuestionDistribution.example()
+    validate_humanize_schema(Survey([question]), {"questions": {question.question_name: {"show_moments": show}}})
+    assert QUESTION_TYPE_TO_HUMANIZE_CLASS["distribution"]().show_moments is False
+
+
+@pytest.mark.parametrize("show", [None, "true", 1])
+def test_distribution_moments_requires_boolean(show):
+    question = QuestionDistribution.example()
+    with pytest.raises(HumanizeSchemaValidationError):
+        validate_humanize_schema(Survey([question]), {"questions": {question.question_name: {"show_moments": show}}})
+
+
 class TestValidateHumanizeSchemaGeneral:
     """General validate_humanize_schema behavior."""
 

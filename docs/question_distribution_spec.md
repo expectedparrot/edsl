@@ -325,6 +325,14 @@ Humanize configuration, not the question constructor, and does not affect LLM
 answers. Schema validation is available; hosted elicitation still requires the
 coordinated coopr widget release described above.
 
+An optional `show_moments: true` in that per-question Humanize schema shows the
+implied mean and variance for finite numeric bins; it defaults to false. This
+assumes probability is uniform within each bin, an assumption labelled in the UI.
+For midpoint `m_i`, width `w_i` and bin probability `p_i`, the mean is
+`sum(p_i * m_i)` and variance is `sum(p_i * ((m_i - mean)^2 + w_i^2 / 12))`.
+Categories and unbounded intervals do not receive moment summaries. This display
+setting does not change the answer or add assumptions to LLM elicitation.
+
 The proposal above chooses string-labelled objects, explicit interval strings,
 inclusive finite support, shortened final buckets, strict probability validation,
 and preservation of answers within tolerance. These are the implemented v1 choices.

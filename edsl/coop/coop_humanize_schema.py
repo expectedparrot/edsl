@@ -332,6 +332,11 @@ class DistributionHumanizeSchema(HumanizeSchemaBase):
     """
 
     initial_distribution: Literal["uniform", "empty"] = "uniform"
+    show_moments: bool = Field(
+        default=False,
+        strict=True,
+        description="Show implied mean and variance for finite numeric bins, assuming uniform probability within each bin.",
+    )
 
 
 class SelectAllControl(HumanizeSchemaBase):
