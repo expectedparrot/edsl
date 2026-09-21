@@ -2925,6 +2925,10 @@ class Coop(CoopFunctionsMixin):
         Create a human survey on Coop, first creating any linked agent list,
         then the survey and scenario list (if scenarios are used).
         """
+        if any(q.question_type == "distribution" for q in survey.questions):
+            raise CoopValueError(
+                "QuestionDistribution is not yet supported by hosted Humanize."
+            )
         if scenario_list is None and scenario_list_method is not None:
             raise CoopValueError(
                 "You must specify both a scenario list and a scenario list method to use scenarios with your survey."

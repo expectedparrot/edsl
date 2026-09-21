@@ -82,6 +82,10 @@ class DirectAnswerRegistry:
             result = await self._maybe_await(self._execute_functional(entry))
         else:
             raise ValueError(f"Unknown execution type: {entry.execution_type}")
+        if entry.question.question_type == "distribution":
+            result["answer"] = entry.question._validate_answer(
+                {"answer": result["answer"]}
+            )["answer"]
         return self._resolve_probabilistic_answer(entry, result)
 
     def _resolve_probabilistic_answer(
@@ -142,7 +146,13 @@ class DirectAnswerRegistry:
         )
         # Handle dicts with answer and comment keys - this is used for humanize
         # to turn responses into results
-        if isinstance(result, dict) and "answer" in result:
+        distribution_mapping = (
+            question.question_type == "distribution"
+            and isinstance(result, dict)
+            and set(result) == set(question.answer_keys)
+            and not isinstance(result.get("answer"), dict)
+        )
+        if isinstance(result, dict) and "answer" in result and not distribution_mapping:
             return {
                 "answer": result["answer"],
                 "comment": result.get("comment"),
@@ -170,7 +180,11 @@ class DirectAnswerRegistry:
         interview_def = self._job_service._interviews.get_definition(
             entry.job_id, entry.interview_id
         )
-        if interview_def and hasattr(question, "question_options"):
+        if (
+            interview_def
+            and hasattr(question, "question_options")
+            and question.question_type != "distribution"
+        ):
             options = interview_def.question_option_permutations.get(
                 question.question_name, question_data.get("question_options")
             )
