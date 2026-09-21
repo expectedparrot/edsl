@@ -277,6 +277,28 @@ class QuestionDistribution(QuestionBase):
             "QuestionDistribution does not support option randomization."
         )
 
+    def human_readable(self) -> str:
+        """Describe the complete allocation rather than a single-choice answer."""
+        lines = [
+            f"Question Type: {self.question_type}",
+            f"Question: {self.question_text}",
+            "Allocate probability across every outcome below:",
+            *(json.dumps(key, ensure_ascii=False) for key in self.answer_keys),
+        ]
+        if self.resolved_bins is not None:
+            lines.append(
+                "Each value is probability mass in the whole interval, not a density height. "
+                "Square brackets include endpoints; parentheses exclude them. "
+                "Inf denotes an unbounded tail."
+            )
+        lines.extend([
+            "Return a JSON object mapping every exact label to its probability, "
+            "including zero-probability outcomes.",
+            "Use numeric probabilities from 0 to 1, not percentages. "
+            f"Probabilities must sum to 1 within a tolerance of {self.tolerance}.",
+        ])
+        return "\n".join(lines)
+
     @property
     def unselected(self):
         # Every outcome is represented, including those assigned zero mass.

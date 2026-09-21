@@ -202,6 +202,26 @@ def test_registration_prompts_html_and_randomization():
         Survey([q], questions_to_randomize=["x"])
 
 
+@pytest.mark.parametrize("kwargs", [
+    {"question_options": ["a", 'b "quoted"', "c"]},
+    {"bins": ["[0,10)", "[10, Inf]"]},
+    {"min_value": 0, "max_value": 25, "bucket_size": 10},
+])
+def test_human_readable_describes_complete_probability_allocation(kwargs):
+    question = make(tolerance=0.00001, **kwargs)
+    text = question.human_readable()
+    assert text.startswith("Question Type: distribution\nQuestion: Predict the outcome.")
+    assert "Allocate probability across every outcome" in text
+    assert "JSON object mapping every exact label" in text
+    assert "including zero-probability outcomes" in text
+    assert "from 0 to 1, not percentages" in text
+    assert f"sum to 1 within a tolerance of {question.tolerance}" in text
+    assert "Please name the option you choose" not in text
+    for key in question.answer_keys:
+        assert json.dumps(key, ensure_ascii=False) in text.splitlines()
+    assert ("not a density height" in text) == (question.resolved_bins is not None)
+
+
 def test_explicit_infinite_bounds_use_strict_json():
     q = make(bins=["(-Inf,Inf)"], min_value=-math.inf, max_value=math.inf)
     data = json.loads(json.dumps(q.to_dict(), allow_nan=False))
