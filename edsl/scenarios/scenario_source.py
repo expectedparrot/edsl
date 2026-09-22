@@ -20,7 +20,6 @@ from typing import (
     List,
     Literal,
     Optional,
-    TYPE_CHECKING,
 )
 
 # Import all source classes from the sources package
@@ -49,10 +48,6 @@ from .sources import (
 # Local imports
 from .scenario import Scenario
 from .exceptions import UnsupportedSourceTypeError, ScenarioError
-
-if TYPE_CHECKING:
-    from .scenario_list import ScenarioList
-
 
 class ScenarioSource:
     """
@@ -106,15 +101,21 @@ class ScenarioSource:
                 )
 
     @staticmethod
-    def _from_urls(urls: list[str], field_name: Optional[str] = "text"):
+    def _from_urls(
+        urls: list[str], field_name: Optional[str] = "text", timeout: float = 30.0
+    ):
         """Create a ScenarioList from a list of URLs."""
 
         import requests
+        from .network import validate_request_timeout
+        from .scenario_list import ScenarioList
+
+        timeout = validate_request_timeout(timeout)
 
         result = ScenarioList()
         for url in urls:
             try:
-                response = requests.get(url)
+                response = requests.get(url, timeout=timeout)
                 response.raise_for_status()
                 scenario = Scenario({field_name: response.text})
                 result.append(scenario)
@@ -229,14 +230,19 @@ class ScenarioSource:
         return source.to_scenario_list()
 
     @staticmethod
-    def _from_wikipedia(url: str, table_index: int = 0, header: bool = True):
+    def _from_wikipedia(
+        url: str,
+        table_index: int = 0,
+        header: bool = True,
+        timeout: float = 30.0,
+    ):
         """Create a ScenarioList from a table on a Wikipedia page."""
         warnings.warn(
             "_from_wikipedia is deprecated. Use WikipediaSource directly or ScenarioSource.from_source('wikipedia', ...) instead.",
             DeprecationWarning,
             stacklevel=2,
         )
-        source = WikipediaSource(url, table_index, header)
+        source = WikipediaSource(url, table_index, header, timeout)
         return source.to_scenario_list()
 
     @staticmethod

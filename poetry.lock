@@ -6401,4 +6401,4 @@ viz = ["altair", "nbclient", "nbformat", "pydot", "termplotlib"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10,<3.14"
-content-hash = "01e8b404a532195a4937f98f0e9e9cd1b6d47cb69a928bfca6c6af99a45e4d11"
+content-hash = "52a4434713dff042c409a92c9ae29d12f6817ef92624614a945a1ecc32266b3c"

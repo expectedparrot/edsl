@@ -1133,11 +1133,11 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
 
     @classmethod
     def from_urls(
-        cls, urls: list[str], field_name: str = "text"
+        cls, urls: list[str], field_name: str = "text", timeout: float = 30.0
     ) -> ScenarioList:
         from .scenario_source import URLSource
 
-        return URLSource(urls, field_name).to_scenario_list()
+        return URLSource(urls, field_name, timeout).to_scenario_list()
 
     @classmethod
     def from_list(

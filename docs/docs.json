@@ -72,6 +72,7 @@
         "group": "Validating with Humans",
         "pages": [
           "en/latest/humanize",
+          "en/latest/humanize_groups",
           "en/latest/humanize_schema",
           "en/latest/humanize_notifications",
           "en/latest/custom_css",

@@ -2299,6 +2299,17 @@ class Survey(Base):
     ) -> None:
         """Validate that questions in a group don't have dependencies on each other.
 
+        A group is served as one page, so every question on it is rendered before any
+        of it is answered. A question may therefore not need anything else in the same
+        group: not its text, through piping or memory, and not its presence, through a
+        rule reading an answer given on that page.
+
+        Uses :meth:`rendering_dag` rather than :meth:`dag`. The two differ only for
+        skip rules, where `dag` reports a dependency on every preceding question
+        because that is the order they are reached in. That would refuse a page holding
+        a question skipped on an answer given pages earlier, which renders perfectly
+        well -- the answer is in hand before the page is built.
+
         Args:
             start_index: Starting index of the group
             end_index: Ending index of the group
@@ -2308,8 +2319,7 @@ class Survey(Base):
             SurveyCreationError: If any question in the group depends on another
                 question in the same group.
         """
-        # Get the complete dependency DAG
-        dag = self.dag()
+        dag = self.rendering_dag()
 
         # Get all question indices in the proposed group
         group_indices = set(range(start_index, end_index + 1))
@@ -3069,6 +3079,47 @@ class Survey(Base):
         """
         return self._navigator.next_question_group(current_question, answers)
 
+    def next_group(
+        self,
+        current_group: Optional[str] = None,
+        answers: Optional[Dict[str, Any]] = None,
+        include_instructions: bool = True,
+    ) -> Dict[str, Any]:
+        """
+        Return the next renderable group for human-facing grouped survey presentation.
+
+        This method treats a question group as a page. When called with no current
+        group, it returns the first renderable group. When called after a group has
+        been submitted, it advances from that group's last renderable question using
+        the same rule logic as ``next_question`` and returns the target group.
+
+        Args:
+            current_group: The name of the group that was just submitted. If None,
+                returns the first renderable group.
+            answers: Answers collected so far, including answers from current_group.
+            include_instructions: Whether to include instructions that fall before or
+                inside the returned group.
+
+        Returns:
+            A dictionary with ``group_name``, ``items``, ``question_names``, and
+            ``is_end`` keys. ``items`` contains questions and optional instructions;
+            at the end of the survey it contains ``[EndOfSurvey]``.
+
+        Examples:
+            >>> from edsl.questions import QuestionFreeText
+            >>> q0 = QuestionFreeText(question_name="q0", question_text="First")
+            >>> q1 = QuestionFreeText(question_name="q1", question_text="Second")
+            >>> survey = Survey([q0, q1])
+            >>> survey.question_groups = {"page_0": (0, 0), "page_1": (1, 1)}
+            >>> survey.next_group()["group_name"]
+            'page_0'
+        """
+        return self._navigator.next_group(
+            current_group=current_group,
+            answers=answers,
+            include_instructions=include_instructions,
+        )
+
     def get_question_group(self, question: Union[str, "QuestionBase"]) -> Optional[str]:
         """
         Get the group name that contains the specified question.
@@ -3286,6 +3337,33 @@ class Survey(Base):
         from .dag import ConstructDAG
 
         return ConstructDAG(self).dag(textify)
+
+    def rendering_dag(self, textify: bool = False) -> "DAG":
+        """Return the DAG of what each question needs in order to be rendered.
+
+        Differs from :meth:`dag` only in what a skip rule contributes. `dag` treats a
+        skippable question as depending on every question before it, which describes
+        the order it is reached in; here it depends only on the questions its skip
+        expression reads. Ask this when questions are served together -- a page of a
+        grouped survey -- and :meth:`dag` when you mean traversal order.
+
+        Args:
+            textify: If True, use question names as nodes instead of indices.
+
+        Examples:
+            >>> from edsl.questions import QuestionMultipleChoice
+            >>> q0 = QuestionMultipleChoice(question_name="q0", question_text="?", question_options=["y", "n"])
+            >>> q1 = QuestionMultipleChoice(question_name="q1", question_text="?", question_options=["y", "n"])
+            >>> q2 = QuestionMultipleChoice(question_name="q2", question_text="?", question_options=["y", "n"])
+            >>> s = Survey([q0, q1, q2]).add_skip_rule("q2", "{{ q0.answer }} == 'y'")
+            >>> s.dag()[2] == {0, 1}
+            True
+            >>> s.rendering_dag()[2] == {0}
+            True
+        """
+        from .dag import ConstructDAG
+
+        return ConstructDAG(self).rendering_dag(textify)
 
     ###################
     # DUNDER METHODS

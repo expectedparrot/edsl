@@ -1,8 +1,8 @@
-from typing import Optional, Literal, TYPE_CHECKING, Any, List
+from typing import Optional, Literal, TYPE_CHECKING, Any, List, Union
 from dataclasses import dataclass, asdict
 from collections import UserDict
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from ..data_transfer_models import EDSLResultObjectInput
 from ..base import Base
@@ -18,16 +18,53 @@ if TYPE_CHECKING:
 
 VisibilityType = Literal["private", "public", "unlisted"]
 
+JobTerminalStatus = Literal["completed", "failed", "cancelled", "partial_failed"]
+
 
 class WebhookConfig(BaseModel):
     """Config for a single completion webhook."""
 
+    model_config = ConfigDict(extra="forbid")
+
     url: str
+
+
+class AlertFilters(BaseModel):
+    """Conditions a finished job must meet for alerts to fire.
+
+    Every filter that is set must match. A filter left as None matches anything.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    # Only alert when the job ends in one of these statuses.
+    status: Optional[Union[JobTerminalStatus, List[JobTerminalStatus]]] = None
+
+    @field_validator("status")
+    @classmethod
+    def _normalize_status(cls, value):
+        """Store a list, whichever form was sent.
+
+        A bare string would make ``matches`` a substring test, and
+        "failed" in "partial_failed" is True.
+        """
+        if value is None:
+            return None
+        values = [value] if isinstance(value, str) else list(dict.fromkeys(value))
+        if not values:
+            raise ValueError("status cannot be an empty list; omit it instead.")
+        return values
+
+    def matches(self, job_status: JobTerminalStatus) -> bool:
+        return self.status is None or job_status in self.status
 
 
 class AlertOnCompletionConfig(BaseModel):
     """Config for job completion alerts (email and/or webhooks)."""
 
+    model_config = ConfigDict(extra="forbid")
+
+    filters: AlertFilters = Field(default_factory=AlertFilters)
     email: bool = False
     webhooks: List[WebhookConfig] = Field(default_factory=list, max_length=3)
 
@@ -87,7 +124,7 @@ class RunParameters(Base):
         job_uuid (str, optional): UUID for the job, used for tracking
         fresh (bool): If True, ignore cache and generate new results, default is False
         new_format (bool): If True, uses remote_inference_create method, if False uses old_remote_inference_create method, default is True
-        alert_on_completion_config (dict, optional): Config for job completion alerts (email and/or webhooks). Dict with "email" (bool) and "webhooks" (list of {"url": str}, max 3).
+        alert_on_completion_config (dict, optional): Config for job completion alerts (email and/or webhooks). Dict with "email" (bool), "webhooks" (list of {"url": str}, max 3), and optional "filters" ({"status": a terminal status or list of them}) to only alert on certain outcomes.
         results_description (str, optional): Description for the initial results object created by remote inference. Only used with offloaded execution.
         task_timeout (int, optional): Maximum seconds allowed for each remotely
             executed interview. The service may impose an upper bound.

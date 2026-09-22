@@ -10,6 +10,7 @@ from .jobs_git import JobsGitError, JobsGitNestedRepoWarning
 from .jobs import RunConfig, RunParameters, RunEnvironment  # noqa: F401
 from .data_structures import (  # noqa: F401
     WebhookConfig,
+    AlertFilters,
     AlertOnCompletionConfig,
 )
 from .remote_inference import JobsRemoteInferenceHandler  # noqa: F401
@@ -50,6 +51,7 @@ __all__ = [
     "RunParameters",
     "RunEnvironment",
     "WebhookConfig",
+    "AlertFilters",
     "AlertOnCompletionConfig",
     "InterviewSchedule",
 ]

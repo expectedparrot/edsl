@@ -39,7 +39,16 @@ Group discovery:
       "responses",
       "qr",
       "preview",
-      "schema"
+      "respondents",
+      "links",
+      "schedules",
+      "deliveries",
+      "callbacks",
+      "agent-list",
+      "schema",
+      "css",
+      "assets",
+      "prolific"
     ],
     "help": "Use 'edsl humanize <command> --help' for details."
   },
@@ -212,7 +221,8 @@ Output:
     "n_responses": 0,
     "survey_uuid": "survey-uuid",
     "agent_list_uuid": null,
-    "scenario_list_uuid": null
+    "scenario_list_uuid": null,
+    "asset_substitutions": {}
   },
   "warnings": []
 }
@@ -413,6 +423,154 @@ Failure:
   }
 }
 ```
+
+### `edsl humanize assets`
+
+Manage the image library a survey's logo is drawn from. A humanize schema references an
+image by uuid under `survey.branding.logo.source`, so a schema never carries image bytes.
+
+Group discovery:
+
+```json
+{
+  "status": "ok",
+  "data": {
+    "commands": [
+      "upload",
+      "list",
+      "get",
+      "delete"
+    ],
+    "help": "Use 'edsl humanize assets <command> --help' for details."
+  },
+  "warnings": []
+}
+```
+
+#### `edsl humanize assets upload <path>`
+
+Backs onto:
+
+```python
+Coop.upload_human_survey_asset(file_path)
+```
+
+Takes no flags. The asset is listed under the file's own name, which is also the default
+filename when it is downloaded again.
+
+Accepted formats are PNG, JPEG, WebP, and static GIF, at most 2 MB and 4096 pixels on each
+side. The extension and size are checked locally before uploading; a file that fails those
+checks is a `USAGE_ERROR`. Uploading a file already in the library returns the existing
+asset rather than a second copy.
+
+Output:
+
+```json
+{
+  "status": "ok",
+  "data": {
+    "uuid": "asset-uuid",
+    "name": "lab_logo.png",
+    "mime_type": "image/png",
+    "width": 640,
+    "height": 160,
+    "size_bytes": 20480,
+    "source": "upload",
+    "deduplicated": false
+  },
+  "warnings": []
+}
+```
+
+#### `edsl humanize assets list`
+
+Backs onto:
+
+```python
+Coop.list_human_survey_assets(page, page_size)
+```
+
+Flags:
+
+| Flag | Type | Required | Description |
+|------|------|----------|-------------|
+| `--page` | int | no | Page number; default `1` |
+| `--page_size` | int | no | Results per page (max 100); default `10` |
+
+Lists your live assets, newest first, and echoes `returned_count`. Each row carries
+`source`, which is `"upload"` for one you uploaded and `"copy"` for one made when you
+reused another author's schema. Deleted assets are not listed.
+
+#### `edsl humanize assets get <asset_uuid>`
+
+Backs onto:
+
+```python
+Coop.get_human_survey_asset(asset_uuid)
+```
+
+Flags:
+
+| Flag | Type | Required | Description |
+|------|------|----------|-------------|
+| `--output` / `-o` | path | no | Save the image to this path |
+
+Returns the asset's metadata and a signed `url`. With `--output` the image is saved and
+the response adds `saved_to`; without it, the response adds a `next_step` hint. Allowed
+for your own assets and for those used by a survey you can view.
+
+#### `edsl humanize assets delete <asset_uuid>`
+
+Backs onto:
+
+```python
+Coop.delete_human_survey_asset(asset_uuid)
+```
+
+Takes no flags and prompts for no confirmation. Surveys already using the asset keep
+showing it.
+
+Output:
+
+```json
+{
+  "status": "ok",
+  "data": {
+    "uuid": "asset-uuid",
+    "deleted_ts": "2026-09-15T14:12:00+00:00",
+    "used_by_human_surveys": 2
+  },
+  "warnings": []
+}
+```
+
+### Logo flags on `schema create` and `schema set`
+
+| Flag | Effect |
+|------|--------|
+| `--logo-asset UUID` | Use this asset as the survey's logo |
+| `--logo-file PATH` | **`schema set` only.** Upload the image and use it, in one step |
+| `--logo-alt TEXT` | Alt text for screen readers, up to 200 characters |
+| `--logo-decorative` | Mark the logo decorative, rendering it with an empty alt |
+| `--logo-position` | `left`, `center`, or `right`; omit to leave it unchanged |
+| `--clear-logo` | **`schema set` only.** Remove the survey's logo |
+
+Validation:
+
+- `--logo-asset` and `--logo-file` are mutually exclusive.
+- `schema create` rejects `--logo-file` with a `USAGE_ERROR`, because it makes no server
+  calls; upload first and pass `--logo-asset`.
+- Setting a new logo requires `--logo-alt` or `--logo-decorative`, since alt text is
+  required. A base `--schema` whose logo already has alt satisfies this.
+- `--logo-alt`, `--logo-decorative` or `--logo-position` alone patches just that field of
+  an existing logo.
+- `--clear-logo` cannot be combined with the other logo flags.
+
+When applying a schema that names an asset belonging to another author, the asset is
+copied into your library and the uuid rewritten. The response carries
+`asset_substitutions`, and the echoed `schema` shows the new uuid. An asset you cannot
+reach at all fails with a `HUMANIZE_ERROR` whose suggestion is to obtain the image file
+and re-run with `--logo-file`.
 
 ## Deferred Command Groups
 

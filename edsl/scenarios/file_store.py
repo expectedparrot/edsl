@@ -1035,6 +1035,7 @@ class FileStore(Scenario):
         mime_type: Optional[str] = None,
         field_name: Optional[str] = None,
         testing: bool = False,
+        timeout: float = 30.0,
     ) -> "FileStore":
         """
         :param url: The URL of the file to download.
@@ -1043,25 +1044,29 @@ class FileStore(Scenario):
         """
         import requests
         from urllib.parse import urlparse
+        from .network import validate_request_timeout
 
-        response = requests.get(url, stream=True)
-        response.raise_for_status()  # Raises an HTTPError for bad responses
+        timeout = validate_request_timeout(timeout)
+        response = requests.get(url, stream=True, timeout=timeout)
+        try:
+            response.raise_for_status()  # Raises an HTTPError for bad responses
 
-        # Get the filename from the URL if download_path is not provided
-        if download_path is None:
-            filename = os.path.basename(urlparse(url).path)
-            if not filename:
-                filename = "downloaded_file"
-            # download_path = filename
-            download_path = os.path.join(os.getcwd(), filename)
+            # Get the filename from the URL if download_path is not provided
+            if download_path is None:
+                filename = os.path.basename(urlparse(url).path)
+                if not filename:
+                    filename = "downloaded_file"
+                download_path = os.path.join(os.getcwd(), filename)
 
-        # Ensure the directory exists
-        os.makedirs(os.path.dirname(download_path), exist_ok=True)
+            # Ensure the directory exists
+            os.makedirs(os.path.dirname(download_path), exist_ok=True)
 
-        # Write the file
-        with open(download_path, "wb") as file:
-            for chunk in response.iter_content(chunk_size=8192):
-                file.write(chunk)
+            # Write the file
+            with open(download_path, "wb") as file:
+                for chunk in response.iter_content(chunk_size=8192):
+                    file.write(chunk)
+        finally:
+            response.close()
 
         # Create and return a new File instance
         return cls(download_path, mime_type=mime_type)

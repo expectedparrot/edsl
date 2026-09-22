@@ -305,7 +305,7 @@ class Rule:
         ...     assert len(w) == 1  # Verify warning was issued
         ...     assert result == True
         """
-        from jinja2 import Template
+        from ...utilities.jinja import safe_template as Template
 
         def jinja_ize_dictionary(dictionary):
             """Convert a dictionary to a Jinja2 dictionary.

@@ -34,6 +34,7 @@ if TYPE_CHECKING:
     from ..surveys import Survey
     from ..results import Results
     from ..tasks import TaskHistory
+    from .coop_human_survey_assets import HumanSurveyAsset
 
 from .exceptions import (
     CoopInvalidURLError,
@@ -2096,7 +2097,9 @@ class Coop(CoopFunctionsMixin):
             iterations (int): Number of times to run each interview (default: 1)
             fresh (bool): If True, ignore existing cache entries and generate new results
             alert_on_completion_config (dict, optional): Config for job completion alerts
-                (email and/or webhooks). Dict with "email" (bool) and "webhooks" (list of {"url": str}, max 3).
+                (email and/or webhooks). Dict with "email" (bool), "webhooks" (list of {"url": str}, max 3),
+                and optional "filters" ({"status": a terminal status or list of them}) to only alert on
+                certain outcomes, e.g. {"email": True, "filters": {"status": ["failed", "partial_failed"]}}.
             task_timeout (int, optional): Maximum seconds allowed for each interview
 
         Returns:
@@ -3014,6 +3017,9 @@ class Coop(CoopFunctionsMixin):
             "survey_uuid": response_json.get("survey_uuid"),
             "agent_list_uuid": response_json.get("agent_list_uuid"),
             "scenario_list_uuid": response_json.get("scenario_list_uuid"),
+            # Old asset uuid -> new one, when the schema named assets that were
+            # copied into your library. Empty when nothing was copied.
+            "asset_substitutions": response_json.get("asset_substitutions") or {},
         }
 
     def get_human_survey(
@@ -4274,6 +4280,29 @@ class Coop(CoopFunctionsMixin):
         self._resolve_server_response(response)
         return response.json()
 
+    def get_human_survey_humanize_schema(
+        self,
+        human_survey_uuid: Union[str, UUID],
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Get a deployed human survey's humanize schema.
+
+        Parameters:
+            human_survey_uuid: UUID of the human survey.
+
+        Returns:
+            The stored humanize schema, or None if the survey has none.
+
+        Example:
+            >>> schema = coop.get_human_survey_humanize_schema("your-human-survey-uuid")  # doctest: +SKIP
+        """
+        response = self._send_server_request(
+            uri=f"api/v0/human-surveys/{human_survey_uuid}/humanize-schema",
+            method="GET",
+        )
+        self._resolve_server_response(response)
+        return response.json().get("humanize_schema")
+
     def patch_human_survey_humanize_schema(
         self,
         human_survey_uuid: Union[str, UUID],
@@ -4300,6 +4329,119 @@ class Coop(CoopFunctionsMixin):
             uri=f"api/v0/human-surveys/{human_survey_uuid}/humanize-schema",
             method="PATCH",
             payload={"patch": partial_schema},
+        )
+        self._resolve_server_response(response)
+        return response.json()
+
+    def upload_human_survey_asset(
+        self,
+        file_path: Union[str, "os.PathLike"],
+    ) -> "HumanSurveyAsset":
+        """
+        Upload an image to your human survey asset library.
+
+        The uuid it returns is what a humanize schema references, e.g.
+        ``{"survey": {"branding": {"logo": {"source": {"type": "asset",
+        "asset_uuid": asset.uuid}, "alt": "Lab name"}}}}``.
+
+        Uploading a file you have already uploaded returns the existing asset
+        rather than a second copy, with ``deduplicated`` set to True, so
+        re-running a script is safe.
+
+        The asset is listed under the file's own name, which is also the default
+        filename when you download it again.
+
+        Parameters:
+            file_path: PNG, JPEG, WebP, or static GIF, at most 2 MB.
+
+        Returns:
+            HumanSurveyAsset: metadata including ``uuid`` and ``deduplicated``.
+
+        Example:
+            >>> asset = coop.upload_human_survey_asset("lab_logo.png")  # doctest: +SKIP
+        """
+        from pathlib import Path
+
+        from .coop_human_survey_assets import HumanSurveyAsset, validate_asset_file
+
+        path = Path(file_path)
+        validate_asset_file(path)
+
+        # Multipart, not the signed-PUT flow FileStores use: logos are small, and
+        # the server validates the image before any row or blob exists, so there
+        # is no pending upload to clean up. _send_server_request sends JSON only.
+        with path.open("rb") as file_object:
+            response = requests.post(
+                f"{self.api_url}/api/v0/human-surveys/assets",
+                files={"file": (path.name, file_object)},
+                headers=self.headers,
+                timeout=120,
+            )
+        self._resolve_server_response(response)
+        return HumanSurveyAsset(response.json())
+
+    def list_human_survey_assets(
+        self,
+        page: int = 1,
+        page_size: int = 10,
+    ) -> dict:
+        """
+        List your human survey asset library, newest first.
+
+        Includes copies made when you reused another author's survey schema,
+        marked ``source: "copy"``. Deleted assets are not listed.
+
+        Returns:
+            dict: ``{"assets": [...], "current_page", "page_size",
+            "total_pages", "total_count"}``
+        """
+        response = self._send_server_request(
+            uri="api/v0/human-surveys/assets",
+            method="GET",
+            params={"page": page, "page_size": page_size},
+        )
+        self._resolve_server_response(response)
+        return response.json()
+
+    def get_human_survey_asset(
+        self,
+        asset_uuid: Union[str, UUID],
+    ) -> "HumanSurveyAsset":
+        """
+        Get an asset's metadata and a signed download URL.
+
+        Allowed for the owner, and for anyone who can view a human survey that
+        uses the asset — which is how you fetch the logo of a survey shared with
+        you. Call ``.download(path)`` on the result to save the image.
+
+        Example:
+            >>> coop.get_human_survey_asset(uuid).download("logo.png")  # doctest: +SKIP
+        """
+        from .coop_human_survey_assets import HumanSurveyAsset
+
+        response = self._send_server_request(
+            uri=f"api/v0/human-surveys/assets/{asset_uuid}",
+            method="GET",
+        )
+        self._resolve_server_response(response)
+        return HumanSurveyAsset(response.json())
+
+    def delete_human_survey_asset(
+        self,
+        asset_uuid: Union[str, UUID],
+    ) -> dict:
+        """
+        Remove an asset from your library.
+
+        Surveys already using it keep showing it; ``used_by_human_surveys`` says
+        how many do.
+
+        Returns:
+            dict: ``{"uuid", "deleted_ts", "used_by_human_surveys"}``
+        """
+        response = self._send_server_request(
+            uri=f"api/v0/human-surveys/assets/{asset_uuid}",
+            method="DELETE",
         )
         self._resolve_server_response(response)
         return response.json()
@@ -4428,15 +4570,54 @@ class Coop(CoopFunctionsMixin):
     def get_human_survey_responses(
         self,
         human_survey_uuid: str,
+        *,
+        started_after: Optional[Union[str, datetime]] = None,
+        started_before: Optional[Union[str, datetime]] = None,
     ) -> Union["Results", "ScenarioList"]:
         """
         Return a Results object with the responses for a human survey.
 
+        By default this pulls every completed response. Pass ``started_after`` and/or
+        ``started_before`` to narrow it to the responses started within a window - a
+        response is "started" when the respondent opened the survey, not when they
+        submitted it. Both bounds are inclusive.
+
+        Parameters:
+            human_survey_uuid (str): The UUID of the human survey.
+            started_after: Only include responses started at or after this time.
+                A timezone-aware datetime, or an ISO 8601 string.
+            started_before: Only include responses started at or before this time.
+                A timezone-aware datetime, or an ISO 8601 string.
+
         If generating the Results object fails, a ScenarioList will be returned instead.
+
+        Example:
+            >>> from datetime import datetime, timezone
+            >>> coop.get_human_survey_responses(
+            ...     survey_uuid,
+            ...     started_after=datetime(2026, 9, 1, tzinfo=timezone.utc),
+            ... )
         """
+        params: Dict[str, Any] = {}
+        if started_after is not None:
+            if isinstance(started_after, datetime):
+                self._human_survey_datetime_must_be_tz_aware(
+                    started_after, "started_after"
+                )
+                started_after = started_after.isoformat()
+            params["started_after"] = started_after
+        if started_before is not None:
+            if isinstance(started_before, datetime):
+                self._human_survey_datetime_must_be_tz_aware(
+                    started_before, "started_before"
+                )
+                started_before = started_before.isoformat()
+            params["started_before"] = started_before
+
         response = self._send_server_request(
             uri=f"api/v0/human-surveys/{human_survey_uuid}/responses",
             method="GET",
+            params=params or None,
         )
         self._resolve_server_response(response)
         response_json = response.json()

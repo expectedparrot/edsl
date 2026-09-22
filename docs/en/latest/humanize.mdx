@@ -107,6 +107,7 @@ print(info["uuid"])            # save this to retrieve results later
 | `n_responses` | Response count (0 at creation) |
 | `survey_uuid` | UUID of the pushed survey object |
 | `scenario_list_uuid` | UUID of the pushed scenario list (if any) |
+| `asset_substitutions` | Old asset uuid → new one, when the schema named assets that were copied into your library. Empty when nothing was copied |
 
 **Save the `uuid`** — you need it to retrieve responses.
 
@@ -123,6 +124,55 @@ print(preview_url)
 # With schema customization
 preview_url = survey.preview(humanize_schema=schema)
 ```
+
+---
+
+## Present questions in groups
+
+To request one group per page, define contiguous question groups on the survey and pass `humanize_schema={"survey": {"presentation": "group"}}` to `.humanize()`. See [Grouped surveys](/en/latest/humanize_groups) for a complete example, branching behavior, and availability requirements.
+
+---
+
+## Add your logo
+
+To show your own logo above the questions, upload the image once and reference it from the humanize schema:
+
+```python
+from edsl import Coop
+
+logo = Coop().upload_human_survey_asset("lab_logo.png")
+
+survey.humanize(
+    human_survey_name="Customer feedback",
+    humanize_schema={
+        "survey": {
+            "branding": {
+                "logo": {
+                    "source": {"type": "asset", "asset_uuid": logo.uuid},
+                    "alt": "Acme Research logo",
+                }
+            }
+        }
+    },
+)
+```
+
+Uploading the same file again returns the asset you already have, so re-running a script does not fill your library with copies.
+
+From the CLI, upload once and apply it to a survey that already exists:
+
+```bash
+ep humanize assets upload lab_logo.png
+ep humanize schema set <human-survey-uuid> --logo-asset <asset-uuid> --logo-alt "Acme Research logo"
+```
+
+Or do both in one step:
+
+```bash
+ep humanize schema set <human-survey-uuid> --logo-file lab_logo.png --logo-alt "Acme Research logo"
+```
+
+See [Humanize schema](/en/latest/humanize_schema) for the `branding` fields, and [Custom CSS](/en/latest/custom_css) for resizing the logo or putting it on a colored banner.
 
 ---
 

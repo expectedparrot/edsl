@@ -8,7 +8,7 @@ This module provides the InterviewTupleFilter class which generates
 from typing import Generator, Tuple, Optional, Any, Sequence
 from itertools import product
 
-from jinja2 import Environment
+from ..utilities.jinja import make_environment
 
 
 class InterviewTupleFilter:
@@ -42,7 +42,7 @@ class InterviewTupleFilter:
         self.include_expression = include_expression
 
         if include_expression:
-            self._env = Environment()
+            self._env = make_environment()
             self._template = self._env.from_string(include_expression)
         else:
             self._template = None

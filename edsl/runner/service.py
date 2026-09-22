@@ -449,7 +449,9 @@ class JobService:
 
                 # Generate randomized question options for this interview
                 question_option_permutations = self._generate_question_permutations(
-                    questions, questions_to_randomize
+                    questions,
+                    questions_to_randomize,
+                    getattr(survey, "options_to_pin", None),
                 )
                 question_item_randomization_seeds = {
                     self._get_question_name(question): random.getrandbits(64)
@@ -3025,7 +3027,8 @@ class JobService:
         template: str, answer_dict: dict, scenario: Any
     ) -> Any:
         """Resolve a single template string like '{{ q1.answer }}' or '{{ scenario.var }}'."""
-        from jinja2.nativetypes import NativeEnvironment
+        from jinja2.exceptions import SecurityError
+        from ..utilities.jinja import make_native_environment
         import re
 
         scenario_dict = dict(scenario) if scenario else {}
@@ -3042,9 +3045,13 @@ class JobService:
         }
 
         try:
-            rendered = NativeEnvironment().from_string(template).render(render_context)
+            rendered = (
+                make_native_environment().from_string(template).render(render_context)
+            )
             if rendered != template:
                 return rendered
+        except SecurityError:
+            raise
         except Exception:
             pass
 
@@ -3077,7 +3084,10 @@ class JobService:
         return {"_repr": repr(obj), "_type": type(obj).__name__}
 
     def _generate_question_permutations(
-        self, questions: list, questions_to_randomize: list[str]
+        self,
+        questions: list,
+        questions_to_randomize: list[str],
+        options_to_pin: dict[str, list] | None = None,
     ) -> dict[str, list]:
         """
         Generate randomized question option permutations.
@@ -3089,6 +3099,8 @@ class JobService:
             questions: List of question objects from the survey
             questions_to_randomize: List of question names that should have
                                     their options randomized
+            options_to_pin: Option values to retain at their original positions,
+                            keyed by question name.
 
         Returns:
             Dict mapping question_name -> permuted options list
@@ -3113,7 +3125,9 @@ class JobService:
 
             if options and isinstance(options, list) and len(options) > 1:
                 # Generate a random permutation
-                permutations[q_name] = random.sample(options, len(options))
+                permutations[q_name] = self._shuffle_pinned(
+                    options, (options_to_pin or {}).get(q_name, []), random
+                )
 
         return permutations
 

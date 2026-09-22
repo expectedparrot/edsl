@@ -15,6 +15,9 @@ When creating a human survey or preview (e.g. `survey.humanize()` or `survey.pre
 <ParamField path="survey" type="dict" required={false}>
   Optional survey-level options (e.g. custom CSS).
   <Expandable title="properties">
+    <ParamField path="survey.presentation" type="string" default="question">
+      `"question"` requests question-by-question presentation (the default); `"group"` requests one question group per page. Define groups on the survey with `add_question_group()` and include every question you want displayed. See [Grouped surveys](/en/latest/humanize_groups) for setup, navigation behavior, and availability requirements for PR #2623. Question time limits (`time_limit`) are ignored under `"group"`.
+    </ParamField>
     <ParamField path="survey.custom_css" type="string" required={false}>
       Optional custom CSS for the survey. Can be `null` or omitted. See [Custom CSS](/en/latest/custom_css) for the `edsl-*` CSS classes and HTML structure per question type.
     </ParamField>
@@ -53,6 +56,31 @@ When creating a human survey or preview (e.g. `survey.humanize()` or `survey.pre
         </ParamField>
       </Expandable>
     </ParamField>
+    <ParamField path="survey.branding" type="dict" required={false}>
+      The author's brand on the respondent page. Omit or set to `null` for no banner, which is how a survey without this field renders.
+
+      <Expandable title="properties">
+        <ParamField path="logo" type="dict" required={false}>
+          The logo drawn in the survey banner, above the questions. Set to `null` to remove it.
+
+          Upload the image first, with `Coop().upload_human_survey_asset("lab_logo.png")` or `ep humanize assets upload lab_logo.png`, and reference the uuid it returns. A schema never carries image bytes.
+
+          There is no size field: the banner picks a default height. Style `.edsl-logo` in `custom_css` to change it. See [Custom CSS](/en/latest/custom_css).
+
+          <Expandable title="properties">
+            <ParamField path="source" type="dict" required={true}>
+              Where the image comes from. Must be `{"type": "asset", "asset_uuid": "<uuid>"}`, naming an image in your asset library.
+            </ParamField>
+            <ParamField path="alt" type="string" required={true}>
+              Alt text for screen readers, up to 200 characters. Required, so that leaving it out is a decision rather than an accident. Use an empty string to mark the logo decorative, which renders it with `alt=""`.
+            </ParamField>
+            <ParamField path="position" type="string" default="left">
+              Where the logo sits in the banner: `"left"`, `"center"`, or `"right"`.
+            </ParamField>
+          </Expandable>
+        </ParamField>
+      </Expandable>
+    </ParamField>
   </Expandable>
 </ParamField>
 
@@ -66,6 +94,22 @@ Each `questions[question_name]` value is a `HumanizeQuestionSchema` object.
   **Supported question types:** `free_text`, `budget`, `checkbox`, `checkbox_with_other`, `file_upload`, `interview`, `likert_five`, `linear_scale`, `list`, `matrix`, `multiple_choice`, `multiple_choice_with_other`, `numerical`, `rank`, `top_k`, `yes_no`.
 
   Note: `optional` currently has no effect for `interview` and `rank`.
+</ParamField>
+
+<ParamField path="time_limit" type="dict" required={false}>
+  A limit on how long the respondent may spend answering the question. Omit or set to `null` for no limit.
+
+  While the limit runs, a countdown is shown above the question. When it reaches zero the answer locks: the respondent can no longer change it and clicks **Next** to continue. They are not moved on automatically. Whatever they had entered is submitted as their answer, and a question they had not answered is recorded as unanswered, even if it is not `optional`.
+
+  A time limit applies only while the question is alone on its page. When `survey.presentation` is `"group"`, every question's `time_limit` is ignored, including a question that is the only one in its group. The countdown runs in the respondent's browser, so reloading the page starts it again.
+
+  **Supported question types:** `free_text`, `budget`, `checkbox`, `checkbox_with_other`, `file_upload`, `likert_five`, `linear_scale`, `list`, `matrix`, `multiple_choice`, `multiple_choice_with_other`, `numerical`, `rank`, `top_k`, `yes_no`.
+
+  <Expandable title="properties">
+    <ParamField path="duration" type="dict" required={true}>
+      How long the respondent has. Must be `{"type": "fixed", "seconds": <seconds>}`, the same number of seconds for every respondent. `seconds` must be between 30 and 7200 (two hours). `type` is required, even though `"fixed"` is its only value.
+    </ParamField>
+  </Expandable>
 </ParamField>
 
 <ParamField path="format" type="dict" required={false}>
@@ -118,6 +162,18 @@ Each `questions[question_name]` value is a `HumanizeQuestionSchema` object.
   </Expandable>
 </ParamField>
 
+<ParamField path="select_all" type="dict" required={false}>
+  **Checkbox only** (`checkbox`; not `checkbox_with_other`, which shows no such box). The Select all box beneath the options: ticking it selects every option, unticking it clears them. Omit it to keep the box, which every checkbox question shows by default, or set it to `null` to remove it.
+
+  Exclusive options are left out of "all", since checking one clears every other selection.
+
+  <Expandable title="properties">
+    <ParamField path="label" type="string" required={false}>
+      The box's wording. `"Select all"` is the only accepted value, so setting it changes nothing.
+    </ParamField>
+  </Expandable>
+</ParamField>
+
 <ParamField path="exclusive_options" type="array" default={[]}>
   **Checkbox only** (`checkbox`, `checkbox_with_other`). Options that stand alone: checking one clears every other selection — including any other exclusive option, and for `checkbox_with_other` the respondent's "other" entries — and selecting anything else clears it. Use for options like `"None of the above"` or `"Prefer not to say"`.
 
@@ -151,6 +207,20 @@ Each `questions[question_name]` value is a `HumanizeQuestionSchema` object.
       The spoken language for the voice interview. A lowercase language id from the supported set below. Case and surrounding whitespace are normalized (e.g. `"  French "` becomes `"french"`); omit or set to `null` to use the default (`"english"`). An unsupported value raises a validation error.
 
       **Supported languages:** `english`, `french`, `german`, `spanish`, `portuguese`, `chinese`, `japanese`, `hindi`, `italian`, `korean`, `dutch`, `polish`, `russian`, `swedish`, `turkish`, `tagalog`, `bulgarian`, `romanian`, `arabic`, `czech`, `greek`, `finnish`, `croatian`, `malay`, `slovak`, `danish`, `tamil`, `ukrainian`, `hungarian`, `norwegian`, `vietnamese`, `bangla`, `thai`, `hebrew`, `georgian`, `indonesian`, `telugu`, `gujarati`, `kannada`, `malayalam`, `marathi`, `punjabi`, `multilingual`.
+    </ParamField>
+    <ParamField path="turn_taking" type="dict" required={false}>
+      How the interviewer decides the respondent has finished speaking. Omit to use the default (`{"initial_speed": "default"}`).
+      <Expandable title="properties">
+        <ParamField path="initial_speed" type="string" default="default">
+          How long the interviewer waits after the respondent pauses before it speaks, at the start of the call. The respondent can change it from the interview screen.
+
+          - `"fastest"` — jumps in almost as soon as the respondent pauses.
+          - `"faster"`
+          - `"default"` — a natural pause (default).
+          - `"slower"`
+          - `"slowest"` — waits a long time, for respondents who pause mid-thought.
+        </ParamField>
+      </Expandable>
     </ParamField>
   </Expandable>
 </ParamField>
@@ -277,7 +347,10 @@ Each `questions[question_name]` value is a `HumanizeQuestionSchema` object.
 ## Example
 
 ```python
-from edsl import Survey, QuestionFreeText, QuestionMultipleChoice
+from edsl import Coop, Survey, QuestionFreeText, QuestionMultipleChoice
+
+# Upload the logo once; the schema references it by uuid
+logo = Coop().upload_human_survey_asset("lab_logo.png")
 
 survey = Survey([
     QuestionMultipleChoice(
@@ -299,17 +372,43 @@ humanize_schema = {
             "comment": {"label": "Why did you choose this rating?"},
             "submitting_indicator": {"type": "callout", "title": "Analyzing your answer…"},
         },
-        "feedback": {"optional": True},
+        "feedback": {
+            "optional": True,
+            "time_limit": {"duration": {"type": "fixed", "seconds": 300}},
+        },
     },
     "survey": {
         "custom_css": None,
         "progress": {"type": "bar", "label": {"type": "percent"}},
+        "branding": {
+            "logo": {
+                "source": {"type": "asset", "asset_uuid": logo.uuid},
+                "alt": "Acme Research logo",
+                "position": "center",
+            }
+        },
     },
 }
 
 # Validation runs before creating the human survey
 survey.humanize(humanize_schema=humanize_schema)
 ```
+
+## Retrieving a deployed schema
+
+To read back the schema stored on a survey you already deployed:
+
+```python
+from edsl import Coop
+
+schema = Coop().get_human_survey_humanize_schema("your-human-survey-uuid")
+```
+
+It returns the schema as stored, or `None` if the survey was created without one.
+From the CLI, `ep humanize schema get <uuid>` prints it, and `--out schema.json`
+writes it to a file you can edit and send back with `ep humanize schema patch`.
+Give `--out` a `.json.gz` suffix to write the schema gzipped; any other suffix
+writes plain JSON. Both are readable by the commands that take `--schema`.
 
 ## Validation
 
@@ -318,6 +417,7 @@ If the schema is invalid, Expected Parrot raises `HumanizeSchemaValidationError`
 - A key in `questions` is not a question name in the survey, or is an instruction.
 - A question's type is not supported for humanize schema (e.g. `demand`, `dropdown`).
 - A question's entry has the wrong shape for its type (e.g. wrong field types or extra fields that aren’t allowed).
+- A `time_limit` has `seconds` outside 30–7200, or a `duration` without its `"type": "fixed"`.
 - Top-level structure is invalid (e.g. `questions` not a dict, or an entry not a dict).
 
 You can also pass the schema to `survey.preview(humanize_schema=...)` to get a preview URL.
