@@ -126,7 +126,7 @@ class ResultSerializer:
         from ..agents import Agent
         from ..scenarios import Scenario
         from ..scenarios import FileStore
-        from ..language_models import LanguageModel
+        from ..language_models.model_list_serializer import model_from_dict
         from ..prompts import Prompt
         from .result import Result
 
@@ -153,7 +153,7 @@ class ResultSerializer:
         result = Result(
             agent=Agent.from_dict(json_dict["agent"]),
             scenario=Scenario.from_dict(json_dict["scenario"]),
-            model=LanguageModel.from_dict(json_dict["model"]),
+            model=model_from_dict(json_dict["model"]),
             iteration=json_dict["iteration"],
             answer=restore_value(json_dict["answer"]),
             prompt=prompt_d,
