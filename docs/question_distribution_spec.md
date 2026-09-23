@@ -316,8 +316,10 @@ is no `resolution`, `permissive`, `budget_sum`, or implicit remainder in this AP
 ## Recommended scope decisions
 
 Humanize's planned painting widget has a per-question setting:
-`{"questions": {"forecast": {"initial_distribution": "empty"}}}`.
-The accepted values are `"uniform"` (default) and `"empty"`. Uniform means equal
+`{"questions": {"forecast": {"initial_distribution": {"type": "empty"}}}}`.
+It is a discriminated union on `type`: `{"type": "uniform"}` (the default) or
+`{"type": "empty"}`, leaving room for starting states with parameters of their
+own (author-set weights, a piped prior answer). Uniform means equal
 probability per supplied bucket or outcome, even for unequal-width intervals.
 Empty means unanswered until the respondent allocates probability. A saved
 response takes precedence over either initial state. This setting belongs to
@@ -325,8 +327,11 @@ Humanize configuration, not the question constructor, and does not affect LLM
 answers. Schema validation is available; hosted elicitation still requires the
 coordinated coopr widget release described above.
 
-An optional `show_moments: true` in that per-question Humanize schema shows the
-implied mean and variance for finite numeric bins; it defaults to false. This
+An optional `distribution_summary` in that per-question Humanize schema shows
+implied statistics for finite numeric bins; it is off when absent. Its
+`statistics` list picks which appear and in what order, each tagged by `type`
+(`mean`, `variance`), defaulting to mean then variance:
+`{"questions": {"forecast": {"distribution_summary": {}}}}`. This
 assumes probability is uniform within each bin, an assumption labelled in the UI.
 For midpoint `m_i`, width `w_i` and bin probability `p_i`, the mean is
 `sum(p_i * m_i)` and variance is `sum(p_i * ((m_i - mean)^2 + w_i^2 / 12))`.

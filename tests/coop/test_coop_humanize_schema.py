@@ -23,6 +23,14 @@ from edsl.questions import (
 from edsl.surveys import Survey
 
 
+def _distribution_schema(config):
+    question = QuestionDistribution(
+        question_name="forecast", question_text="Predict.", question_options=["a", "b"]
+    )
+    validate_humanize_schema(Survey([question]), {"questions": {"forecast": config}})
+    return question
+
+
 @pytest.mark.parametrize("initial", ["uniform", "empty"])
 def test_distribution_initial_state_is_humanize_only(initial):
     question = QuestionDistribution(
@@ -31,45 +39,67 @@ def test_distribution_initial_state_is_humanize_only(initial):
     original = question.to_dict()
     validate_humanize_schema(
         Survey([question]),
-        {"questions": {"forecast": {"initial_distribution": initial}}},
+        {"questions": {"forecast": {"initial_distribution": {"type": initial}}}},
     )
     assert question.to_dict() == original
 
 
-@pytest.mark.parametrize("initial", [None, "normal", True])
+@pytest.mark.parametrize(
+    "initial",
+    [None, "uniform", {}, {"type": "normal"}, {"type": "empty", "weights": [1]}],
+)
 def test_distribution_rejects_invalid_initial_state(initial):
-    question = QuestionDistribution.example()
     with pytest.raises(HumanizeSchemaValidationError):
-        validate_humanize_schema(
-            Survey([question]),
-            {"questions": {question.question_name: {"initial_distribution": initial}}},
-        )
+        _distribution_schema({"initial_distribution": initial})
 
 
 def test_distribution_initial_state_default_and_question_type():
     model = QUESTION_TYPE_TO_HUMANIZE_CLASS["distribution"]
-    assert model().initial_distribution == "uniform"
+    assert model().initial_distribution.type == "uniform"
     assert model().model_dump(exclude_unset=True) == {}
     question = QuestionFreeText.example()
     with pytest.raises(HumanizeSchemaValidationError):
         validate_humanize_schema(
             Survey([question]),
-            {"questions": {question.question_name: {"initial_distribution": "empty"}}},
+            {
+                "questions": {
+                    question.question_name: {
+                        "initial_distribution": {"type": "empty"}
+                    }
+                }
+            },
         )
 
 
-@pytest.mark.parametrize("show", [True, False])
-def test_distribution_optional_moments(show):
-    question = QuestionDistribution.example()
-    validate_humanize_schema(Survey([question]), {"questions": {question.question_name: {"show_moments": show}}})
-    assert QUESTION_TYPE_TO_HUMANIZE_CLASS["distribution"]().show_moments is False
+@pytest.mark.parametrize(
+    "summary, expected",
+    [
+        ({}, ["mean", "variance"]),
+        ({"statistics": [{"type": "variance"}]}, ["variance"]),
+        ({"statistics": [{"type": "variance"}, {"type": "mean"}]}, ["variance", "mean"]),
+    ],
+)
+def test_distribution_summary(summary, expected):
+    _distribution_schema({"distribution_summary": summary})
+    model = QUESTION_TYPE_TO_HUMANIZE_CLASS["distribution"]
+    parsed = model.model_validate({"distribution_summary": summary})
+    assert [s.type for s in parsed.distribution_summary.statistics] == expected
+    assert model().distribution_summary is None
 
 
-@pytest.mark.parametrize("show", [None, "true", 1])
-def test_distribution_moments_requires_boolean(show):
-    question = QuestionDistribution.example()
+@pytest.mark.parametrize(
+    "summary",
+    [
+        True,
+        {"statistics": []},
+        {"statistics": ["mean"]},
+        {"statistics": [{"type": "median"}]},
+        {"statistics": [{"type": "mean"}, {"type": "mean"}]},
+    ],
+)
+def test_distribution_rejects_invalid_summary(summary):
     with pytest.raises(HumanizeSchemaValidationError):
-        validate_humanize_schema(Survey([question]), {"questions": {question.question_name: {"show_moments": show}}})
+        _distribution_schema({"distribution_summary": summary})
 
 
 class TestValidateHumanizeSchemaGeneral:
