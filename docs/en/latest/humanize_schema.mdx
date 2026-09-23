@@ -180,6 +180,36 @@ Each `questions[question_name]` value is a `HumanizeQuestionSchema` object.
   Each entry must be the exact text of an option in the question's `question_options` — matching is literal, so surrounding whitespace is not trimmed for you. Entries must be non-empty and unique. Because an exclusive option is an ordinary member of the option list, the submitted answer looks like any other selection. Defaults to an empty list, meaning no option is exclusive.
 </ParamField>
 
+<ParamField path="initial_distribution" type="dict" default={{"type": "uniform"}}>
+  **Distribution only** (`distribution`). What the chart shows before the respondent touches it. Respondents answer a distribution question by painting probability across its outcomes or bins; the percentages always add up to 100%.
+
+  <Expandable title="properties">
+    <ParamField path="type" type="string" default="uniform">
+      Which starting state to show. Required, even though `"uniform"` is the default when `initial_distribution` is omitted.
+
+      - `"uniform"` — equal probability for every outcome or bin (default). This is equal probability *per bin*, not per unit of width, so bins of unequal width still start equal. It is the answer's starting value: a respondent who agrees with it can click **Next** without painting.
+      - `"empty"` — nothing allocated. The respondent must paint at least one bar before they can continue.
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField path="distribution_summary" type="dict" required={false}>
+  **Distribution only** (`distribution`). Statistics implied by the respondent's distribution, shown beneath the chart and updated as they paint. Omit or set to `null` for no summary, which is the default.
+
+  The statistics assume probability is spread evenly within each bin, and the chart says so. They appear only for finite numeric bins: categories have no values to average, and an open-ended bin such as `[10,Inf)` has no midpoint. They are a display aid and do not change the submitted answer.
+
+  <Expandable title="properties">
+    <ParamField path="statistics" type="array" default={[{"type": "mean"}, {"type": "variance"}]}>
+      Which statistics to show, in the order to show them. Each entry is an object with a `type`:
+
+      - `{"type": "mean"}` — the implied mean: each bin's midpoint weighted by its probability.
+      - `{"type": "variance"}` — the implied variance, including each bin's own spread (width² / 12), in squared units of the bins.
+
+      Must be non-empty (omit `distribution_summary` instead of passing an empty list) and must not repeat a type. Defaults to mean, then variance.
+    </ParamField>
+  </Expandable>
+</ParamField>
+
 <ParamField path="interview_mode" type="string" default="text">
   **Interview only** (`interview`). Controls the input mode offered to respondents.
 
@@ -347,7 +377,13 @@ Each `questions[question_name]` value is a `HumanizeQuestionSchema` object.
 ## Example
 
 ```python
-from edsl import Coop, Survey, QuestionFreeText, QuestionMultipleChoice
+from edsl import (
+    Coop,
+    Survey,
+    QuestionDistribution,
+    QuestionFreeText,
+    QuestionMultipleChoice,
+)
 
 # Upload the logo once; the schema references it by uuid
 logo = Coop().upload_human_survey_asset("lab_logo.png")
@@ -357,6 +393,11 @@ survey = Survey([
         question_name="rating",
         question_text="Rate your experience.",
         question_options=["Good", "OK", "Bad"],
+    ),
+    QuestionDistribution(
+        question_name="wait",
+        question_text="How many minutes do you expect to wait next time?",
+        min_value=0, max_value=30, bucket_size=5,
     ),
     QuestionFreeText(
         question_name="feedback",
@@ -371,6 +412,10 @@ humanize_schema = {
             "format": {"type": "dropdown"},
             "comment": {"label": "Why did you choose this rating?"},
             "submitting_indicator": {"type": "callout", "title": "Analyzing your answer…"},
+        },
+        "wait": {
+            "initial_distribution": {"type": "empty"},
+            "distribution_summary": {"statistics": [{"type": "mean"}]},
         },
         "feedback": {
             "optional": True,

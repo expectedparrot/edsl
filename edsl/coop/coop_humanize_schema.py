@@ -323,6 +323,88 @@ class BudgetHumanizeSchema(HumanizeSchemaBase):
     submitting_indicator: Optional[SubmittingIndicator] = None
 
 
+class UniformInitialDistribution(HumanizeSchemaBase):
+    """Equal probability per outcome or bin, including unequal-width intervals.
+
+    It is the answer's starting value, so a respondent can submit it untouched.
+    """
+
+    type: Literal["uniform"] = "uniform"
+
+
+class EmptyInitialDistribution(HumanizeSchemaBase):
+    """Nothing allocated; the respondent must paint before submitting.
+
+    A variant rather than ``initial_distribution: None``, because None already means
+    "unconfigured", which has to keep meaning uniform.
+    """
+
+    type: Literal["empty"] = "empty"
+
+
+# What the painter shows before the respondent touches it. Discriminated on
+# ``type`` so starting states with parameters of their own (author-set weights, a
+# peak at a chosen bin, the respondent's answer to an earlier question) can join
+# as siblings without reshaping stored configs. A saved answer always takes
+# precedence over it.
+InitialDistribution = Annotated[
+    Union[UniformInitialDistribution, EmptyInitialDistribution],
+    Field(discriminator="type"),
+]
+
+
+class MeanStatistic(HumanizeSchemaBase):
+    """The implied mean: each bin's midpoint weighted by its probability."""
+
+    type: Literal["mean"] = "mean"
+
+
+class VarianceStatistic(HumanizeSchemaBase):
+    """The implied variance, including each bin's own spread (width² / 12)."""
+
+    type: Literal["variance"] = "variance"
+
+
+# One statistic in a distribution's summary. Discriminated on ``type`` because
+# statistics differ in shape — a central interval needs its coverage, a mean
+# needs nothing — so each can carry only the options it acts on.
+SummaryStatistic = Annotated[
+    Union[MeanStatistic, VarianceStatistic],
+    Field(discriminator="type"),
+]
+
+
+class DistributionSummary(HumanizeSchemaBase):
+    """Statistics implied by the painted distribution, shown beneath the chart.
+
+    Computed assuming probability is spread uniformly within each bin, and shown
+    only for finite numeric bins: categories have no values to average, and an
+    open-ended bin has no midpoint.
+    """
+
+    # Rendered in list order.
+    statistics: Annotated[list[SummaryStatistic], Field(min_length=1)] = Field(
+        default_factory=lambda: [MeanStatistic(), VarianceStatistic()]
+    )
+
+    @model_validator(mode="after")
+    def _unique_statistics(self) -> "DistributionSummary":
+        types = [statistic.type for statistic in self.statistics]
+        if len(types) != len(set(types)):
+            raise ValueError("statistics must not repeat a type.")
+        return self
+
+
+class DistributionHumanizeSchema(HumanizeSchemaBase):
+    """Humanize options for the distribution question type."""
+
+    initial_distribution: InitialDistribution = Field(
+        default_factory=UniformInitialDistribution
+    )
+    # None: no summary.
+    distribution_summary: Optional[DistributionSummary] = None
+
+
 class SelectAllControl(HumanizeSchemaBase):
     """The Select all box beneath a checkbox question's options.
 
@@ -913,6 +995,7 @@ class SurveyMessageHumanizeSchema(HumanizeSchemaBase):
 HumanizeQuestionSchema = Union[
     FreeTextHumanizeSchema,
     BudgetHumanizeSchema,
+    DistributionHumanizeSchema,
     CheckboxHumanizeSchema,
     CheckboxWithOtherHumanizeSchema,
     ComputeHumanizeSchema,
@@ -946,6 +1029,7 @@ class HumanizeSchema(HumanizeSchemaBase):
 QUESTION_TYPE_TO_HUMANIZE_CLASS: Dict[str, Type[BaseModel]] = {
     "free_text": FreeTextHumanizeSchema,
     "budget": BudgetHumanizeSchema,
+    "distribution": DistributionHumanizeSchema,
     "checkbox": CheckboxHumanizeSchema,
     "checkbox_with_other": CheckboxWithOtherHumanizeSchema,
     "compute": ComputeHumanizeSchema,

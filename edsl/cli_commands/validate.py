@@ -79,7 +79,7 @@ def register(app: click.Group) -> None:
                 obj_type = "job"
             elif "questions" in raw and isinstance(raw.get("questions"), list):
                 obj_type = "job_lightweight"
-            elif "type" in raw and "question_text" in raw:
+            elif ("type" in raw or "question_type" in raw) and "question_text" in raw:
                 obj_type = "question"
             else:
                 obj_type = "unknown"
@@ -139,7 +139,9 @@ def register(app: click.Group) -> None:
                 "message": "question_name was omitted and set to 'q0'",
             })
 
-        kwargs = {k: v for k, v in raw.items() if k not in ("type", "question_type")}
+        kwargs = {k: v for k, v in raw.items() if k not in (
+            "type", "question_type", "edsl_class_name", "edsl_version"
+        )}
 
         cls = type_map[qtype]
         q = cls(**kwargs)
