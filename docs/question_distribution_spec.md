@@ -277,9 +277,9 @@ is no `resolution`, `permissive`, `budget_sum`, or implicit remainder in this AP
   numerical bin order is ascending. Do not let generic option-randomization
   machinery rearrange intervals or change label/value associations.
 - Provide a local HTML representation showing each label and its allocation,
-  a total, and validation feedback. Hosted Humanize support requires a matching
-  server/client implementation; until available, surface an unsupported-type
-  error instead of converting this to Budget and changing its contract.
+  a total, and validation feedback. Hosted Humanize presents the type with its
+  own painting widget rather than converting it to Budget and changing its
+  contract.
 - Remote workers must recognize the type and validate its contract before
   claiming execution support. Old installations may reject the new type; they
   must not reinterpret it as another question type.
@@ -310,12 +310,12 @@ is no `resolution`, `permissive`, `budget_sum`, or implicit remainder in this AP
    intervals using strict JSON. `ep results select` returns the mapping; standard
    export behavior preserves every key/value without flattening ambiguities.
 9. The supported remote worker passes an end-to-end round trip; unsupported
-   runtimes and Humanize deployments report a clear unsupported-type failure.
+   runtimes report a clear unsupported-type failure.
 10. Existing Budget and probabilistic-choice regression tests continue to pass.
 
 ## Recommended scope decisions
 
-Humanize's planned painting widget has a per-question setting:
+Humanize's painting widget has a per-question setting:
 `{"questions": {"forecast": {"initial_distribution": {"type": "empty"}}}}`.
 It is a discriminated union on `type`: `{"type": "uniform"}` (the default) or
 `{"type": "empty"}`, leaving room for starting states with parameters of their
@@ -324,8 +324,7 @@ probability per supplied bucket or outcome, even for unequal-width intervals.
 Empty means unanswered until the respondent allocates probability. A saved
 response takes precedence over either initial state. This setting belongs to
 Humanize configuration, not the question constructor, and does not affect LLM
-answers. Schema validation is available; hosted elicitation still requires the
-coordinated coopr widget release described above.
+answers.
 
 An optional `distribution_summary` in that per-question Humanize schema shows
 implied statistics for finite numeric bins; it is off when absent. Its

@@ -2096,8 +2096,11 @@ ep schema show --question_type distribution
 ep validate --json '{"type":"distribution","question_name":"duration","question_text":"Predict a duration from 0 to 25.","min_value":0,"max_value":25,"bucket_size":10}'
 ```
 
-Option randomization is unsupported. Hosted Humanize does not yet support this
-type and rejects it before creating a survey. Remote inference requires workers
+Option randomization is unsupported. In Humanize, respondents answer by painting
+probability across the outcomes. The per-question humanize settings
+`initial_distribution` (`{"type": "uniform"}`, the default, or `{"type": "empty"}`)
+and `distribution_summary` (implied mean and variance for finite numeric bins)
+control its starting state and optional summary. Remote inference requires workers
 with `QuestionDistribution` installed. Bin masses alone do not determine an
 interpolated quantile or a density within a bin.
 

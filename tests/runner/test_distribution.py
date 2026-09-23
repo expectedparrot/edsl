@@ -170,20 +170,6 @@ def test_cli_schema_and_validation():
     assert payload["error"]["code"] == "VALIDATION_ERROR"
 
 
-def test_humanize_rejects_before_remote_calls(monkeypatch):
-    from edsl import Coop
-
-    def unexpected(*args, **kwargs):
-        pytest.fail("No remote call should be made for an unsupported question.")
-
-    monkeypatch.setattr(Coop, "push", unexpected)
-    with pytest.raises(Exception, match="not yet supported by hosted Humanize"):
-        Coop(api_key="test").create_human_survey(
-            survey=Survey([QuestionDistribution.example()]),
-            human_survey_name="Distribution",
-        )
-
-
 def test_worker_transport_and_downstream_piping():
     from edsl import QuestionNumerical
     from edsl.runner.serialization import serialize_job, deserialize_job
