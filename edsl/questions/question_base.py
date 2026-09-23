@@ -434,7 +434,8 @@ class QuestionBase(
         options = getattr(self, "question_options", None)
         if not isinstance(options, (list, tuple)):
             return []
-        answer = getattr(self, "answer", None)
+        # The public answer property returns an AnswerRef during authoring.
+        answer = self.__dict__.get("_answer")
         if answer is None:
             return []
         selected = set(answer) if isinstance(answer, (list, tuple, set)) else {answer}

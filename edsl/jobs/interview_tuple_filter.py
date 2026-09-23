@@ -8,7 +8,24 @@ This module provides the InterviewTupleFilter class which generates
 from typing import Generator, Tuple, Optional, Any, Sequence
 from itertools import product
 
-from ..utilities.jinja import make_environment
+from jinja2 import StrictUndefined
+
+from ..utilities.jinja import EDSLSandboxedEnvironment
+
+
+class _InterviewFilterEnvironment(EDSLSandboxedEnvironment):
+    """Expose positional indices only on the supplied interview components."""
+
+    def __init__(self, *components):
+        super().__init__(undefined=StrictUndefined)
+        self._indexed_objects = {
+            id(item) for component in components for item in component
+        }
+
+    def is_safe_attribute(self, obj, attr, value):
+        if attr == "_index" and id(obj) in self._indexed_objects and type(value) is int:
+            return True
+        return super().is_safe_attribute(obj, attr, value)
 
 
 class InterviewTupleFilter:
@@ -19,12 +36,12 @@ class InterviewTupleFilter:
     If no expression is provided, yields all combinations (equivalent to itertools.product).
 
     Example expressions:
-        - "{{ scenario._index }} == {{ agent._index }}"  # Only matching indices
-        - "{{ agent._index }} < 5"  # First 5 agents only
-        - "{{ scenario._index }} % 2 == 0"  # Even-indexed scenarios
+        - "{{ scenario._index == agent._index }}"  # Only matching indices
+        - "{{ agent._index < 5 }}"  # First 5 agents only
+        - "{{ scenario._index % 2 == 0 }}"  # Even-indexed scenarios
 
     Usage:
-        filter = InterviewTupleFilter(agents, scenarios, models, "{{ scenario._index }} == {{ agent._index }}")
+        filter = InterviewTupleFilter(agents, scenarios, models, "{{ scenario._index == agent._index }}")
         for agent, scenario, model in filter:
             # process matching tuples
     """
@@ -42,7 +59,7 @@ class InterviewTupleFilter:
         self.include_expression = include_expression
 
         if include_expression:
-            self._env = make_environment()
+            self._env = _InterviewFilterEnvironment(agents, scenarios, models)
             self._template = self._env.from_string(include_expression)
         else:
             self._template = None
@@ -57,7 +74,6 @@ class InterviewTupleFilter:
             scenario=scenario,
             model=model,
         )
-        # breakpoint()
         # Handle string results from Jinja2
         result_str = result.strip().lower()
         return result_str == "true"

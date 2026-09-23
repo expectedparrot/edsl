@@ -137,6 +137,12 @@ class StateCondition:
     scope: Any
     target: str
 
+    def __eq__(self, other: Any) -> bool:
+        """Compare definitions without evaluating symbolic DSL equality."""
+        if other.__class__ is not self.__class__:
+            return NotImplemented
+        return self.to_dict() == other.to_dict()
+
     def to_dict(self) -> dict[str, Any]:
         """Return a portable reference to the predicate and its state target."""
         return {
