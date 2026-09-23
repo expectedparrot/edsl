@@ -1074,9 +1074,20 @@ An adapter must use the idempotency key when its external system supports one.
 The outbox protects the ready decision from a process failure between graph
 evaluation and delivery.
 
-The current dispatcher marks delivery after the adapter returns. Production
-adapters must themselves be idempotent because a crash after external delivery
-but before the local mark can cause redelivery.
+Dispatchers atomically claim each record before calling the adapter and mark
+delivery using the claim token after the adapter returns. Concurrent dispatchers
+cannot deliver the same claimed record. Claims persist in
+`workflow_outbox_claims` across failures and restarts, and do not expire
+automatically: a slow request or a crash after external delivery must not cause
+another invitation.
+
+After stopping the original dispatcher, reconcile an abandoned claim with the
+external provider. If delivery succeeded, call
+`store.mark_delivered(outbox_id, claim_token=token)`. If retry is safe, call
+`store.release_outbox_claim(outbox_id, claim_token=token)` before dispatching
+again. The table records the outbox ID, ownership token, and claim time.
+Humanize does not provide end-to-end exactly-once delivery here; a failure
+between its remote calls and the local task record requires this reconciliation.
 
 # Humanize and real respondents
 

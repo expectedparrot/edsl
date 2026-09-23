@@ -38,7 +38,7 @@ class DeliveryAdapter(Protocol):
 
 
 class OutboxDispatcher:
-    """Reliably dispatch ready work using adapter-level idempotency."""
+    """Claim ready work before delivery; retain ambiguous claims for reconciliation."""
 
     def __init__(self, store: SQLiteWorkflowStore, adapter: DeliveryAdapter):
         self.store = store
@@ -47,6 +47,9 @@ class OutboxDispatcher:
     def dispatch(self) -> list[DeliveryReceipt]:
         receipts: list[DeliveryReceipt] = []
         for row in self.store.pending_outbox():
+            claim = self.store.claim_outbox(row["id"])
+            if claim is None:
+                continue
             payload: Mapping[str, str] = json.loads(row["payload"])
             receipt = self.adapter.deliver(
                 DeliveryRequest(
@@ -57,7 +60,7 @@ class OutboxDispatcher:
                     participant_id=payload["participant_id"],
                 )
             )
-            self.store.mark_delivered(row["id"])
+            self.store.mark_delivered(row["id"], claim_token=claim)
             receipts.append(receipt)
         return receipts
 
@@ -85,6 +88,9 @@ class RoutedOutboxDispatcher:
                 raise ValueError(
                     f"no delivery adapter configured for executor {spec.kind!r}"
                 )
+            claim = self.store.claim_outbox(row["id"])
+            if claim is None:
+                continue
             self.store.record_executor(row["work_item_id"], spec.kind, spec.options)
             request = DeliveryRequest(
                 row["id"],
@@ -94,7 +100,7 @@ class RoutedOutboxDispatcher:
                 payload["participant_id"],
             )
             receipts.append(self.adapters[spec.kind].deliver(request))
-            self.store.mark_delivered(row["id"])
+            self.store.mark_delivered(row["id"], claim_token=claim)
         return receipts
 
 

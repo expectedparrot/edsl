@@ -62,6 +62,10 @@ class SQLiteWorkflowStore:
                     id TEXT PRIMARY KEY, work_item_id TEXT NOT NULL UNIQUE,
                     status TEXT NOT NULL, payload TEXT NOT NULL, created_at TEXT NOT NULL
                 );
+                CREATE TABLE IF NOT EXISTS workflow_outbox_claims (
+                    outbox_id TEXT PRIMARY KEY, token TEXT NOT NULL,
+                    claimed_at TEXT NOT NULL
+                );
                 CREATE TABLE IF NOT EXISTS workflow_external_tasks (
                     provider TEXT NOT NULL, work_item_id TEXT NOT NULL,
                     resource_id TEXT NOT NULL UNIQUE, delivery_id TEXT,
@@ -375,6 +379,9 @@ class SQLiteWorkflowStore:
             "ON items.id = outbox.work_item_id JOIN workflow_instances AS instances "
             "ON instances.id = items.instance_id WHERE outbox.status = 'pending' "
             "AND instances.status = 'running' "
+            "AND items.status IN ('ready', 'in_progress') "
+            "AND NOT EXISTS (SELECT 1 FROM workflow_outbox_claims AS claims "
+            "WHERE claims.outbox_id = outbox.id) "
             + ("AND items.instance_id = ? " if instance_id is not None else "")
             + "ORDER BY outbox.created_at, outbox.id",
             (instance_id,) if instance_id is not None else (),
@@ -431,11 +438,54 @@ class SQLiteWorkflowStore:
             self._event(db, instance_id, "workflow.resumed", {})
             db.commit()
 
-    def mark_delivered(self, outbox_id: str) -> None:
+    def claim_outbox(self, outbox_id: str) -> str | None:
+        """Exclusively claim pending delivery before calling an external adapter.
+
+        Claims survive errors and restarts. Reconcile any external side effect
+        before explicitly releasing an abandoned claim; automatic expiry could
+        let a second dispatcher duplicate a slow or interrupted delivery.
+        """
+        token = str(uuid4())
         with self.connect() as db:
-            db.execute(
-                "UPDATE workflow_outbox SET status = 'delivered' WHERE id = ?",
+            changed = db.execute(
+                "INSERT OR IGNORE INTO workflow_outbox_claims "
+                "SELECT outbox.id, ?, ? FROM workflow_outbox AS outbox "
+                "JOIN workflow_items AS items ON items.id = outbox.work_item_id "
+                "JOIN workflow_instances AS instances ON instances.id = items.instance_id "
+                "WHERE outbox.id = ? AND outbox.status = 'pending' "
+                "AND instances.status = 'running' "
+                "AND items.status IN ('ready', 'in_progress')",
+                (token, _now(), outbox_id),
+            ).rowcount
+        return token if changed else None
+
+    def release_outbox_claim(self, outbox_id: str, *, claim_token: str) -> None:
+        """Allow retry after the owner has stopped and delivery was reconciled."""
+        with self.connect() as db:
+            changed = db.execute(
+                "DELETE FROM workflow_outbox_claims WHERE outbox_id = ? AND token = ?",
+                (outbox_id, claim_token),
+            ).rowcount
+            if not changed:
+                raise ValueError("outbox claim is no longer owned by this dispatcher")
+
+    def mark_delivered(self, outbox_id: str, *, claim_token: str | None = None) -> None:
+        with self.connect() as db:
+            db.execute("BEGIN IMMEDIATE")
+            claim = db.execute(
+                "SELECT token FROM workflow_outbox_claims WHERE outbox_id = ?",
                 (outbox_id,),
+            ).fetchone()
+            if (claim["token"] if claim else None) != claim_token:
+                raise ValueError("outbox claim is no longer owned by this dispatcher")
+            changed = db.execute(
+                "UPDATE workflow_outbox SET status = 'delivered' WHERE id = ? AND status = 'pending'",
+                (outbox_id,),
+            ).rowcount
+            if not changed:
+                raise ValueError("outbox delivery is no longer pending")
+            db.execute(
+                "DELETE FROM workflow_outbox_claims WHERE outbox_id = ?", (outbox_id,)
             )
 
     def record_external_task(

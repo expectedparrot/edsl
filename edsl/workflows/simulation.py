@@ -180,11 +180,14 @@ class WorkflowSimulation:
     def _deliver_pending(self, policy: RetryPolicy, instance_id: str) -> bool:
         rows = self.coordinator.store.pending_outbox(instance_id)
         for row in rows:
+            claim = self.coordinator.store.claim_outbox(row["id"])
+            if claim is None:
+                continue
             payload = json.loads(row["payload"])
             participant_id = payload["participant_id"]
             item_id = row["work_item_id"]
             self.inbox.deliver(participant_id, item_id, self.clock.now)
-            self.coordinator.store.mark_delivered(row["id"])
+            self.coordinator.store.mark_delivered(row["id"], claim_token=claim)
 
             def respond(item_id=item_id, participant_id=participant_id):
                 if self.coordinator.store.item(item_id)["status"] not in (

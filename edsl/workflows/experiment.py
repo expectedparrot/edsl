@@ -183,7 +183,10 @@ class WorkflowExperiment:
         while pending := store.pending_outbox(instance_id):
             opened_items = []
             for row in pending:
-                store.mark_delivered(row["id"])
+                claim = store.claim_outbox(row["id"])
+                if claim is None:
+                    continue
+                store.mark_delivered(row["id"], claim_token=claim)
                 opened_items.append(coordinator.open(row["work_item_id"]))
             if replay is None:
                 llm_items = [

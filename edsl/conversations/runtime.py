@@ -5,6 +5,8 @@ from __future__ import annotations
 import hashlib
 from typing import Callable, Mapping, Sequence
 
+from edsl._data_contracts import canonical_data
+
 from .definition import Conversation, StopRule
 from .store import SQLiteConversationStore
 
@@ -24,8 +26,21 @@ class ConversationRuntime:
         self.store.create(instance_id, self.definition.to_dict(), participants)
         return instance_id
 
-    def next_role(self, instance_id: str, coordinator: Coordinator | None = None) -> str:
+    def _state(self, instance_id: str) -> dict:
         state = self.store.state(instance_id)
+        stored = Conversation.from_dict(state["definition"])
+        if canonical_data(stored.to_dict()) != canonical_data(
+            self.definition.to_dict()
+        ):
+            raise ValueError(
+                "conversation definition differs from persisted definition"
+            )
+        return state
+
+    def next_role(
+        self, instance_id: str, coordinator: Coordinator | None = None
+    ) -> str:
+        state = self._state(instance_id)
         transcript = self.store.transcript(instance_id)
         retired = self._retired_roles(transcript)
         roles = [role for role in self.definition.roles if role not in retired]
@@ -71,6 +86,7 @@ class ConversationRuntime:
 
     def next_recipient(self, instance_id: str) -> str | None:
         """Return the participant a central speaker should address next."""
+        state = self._state(instance_id)
         protocol = self.definition.protocol
         if protocol.kind not in {"central_ordered", "central_random"}:
             return None
@@ -80,7 +96,6 @@ class ConversationRuntime:
         if not others:
             return None
         if protocol.kind == "central_random":
-            state = self.store.state(instance_id)
             return self._stable_choice(instance_id, state["version"] + 1, protocol.options["seed"], others)
         spoken_others = [item["role"] for item in transcript if item["role"] in protocol.options["others"]]
         last_other = spoken_others[-1] if spoken_others else None
@@ -111,26 +126,60 @@ class ConversationRuntime:
         participant = self.store.state(instance_id)["participants"][role]
         return self.store.append(instance_id, expected_version=expected_version, role=role, participant_id=participant, text=text, metadata=metadata)
 
-    def realize_candidates(self, instance_id: str, candidates: Sequence[Mapping], *, expected_version: int, coordinator: Coordinator) -> str:
+    def realize_candidates(
+        self,
+        instance_id: str,
+        candidates: Sequence[Mapping],
+        *,
+        expected_version: int,
+        coordinator: Coordinator,
+    ) -> str:
+        state = self._state(instance_id)
         if self.definition.protocol.kind != "coordinator_after":
-            raise ValueError("candidate realization requires coordinator-after protocol")
-        state = self.store.state(instance_id)
+            raise ValueError(
+                "candidate realization requires coordinator-after protocol"
+            )
+        if state["version"] != expected_version or state["status"] != "running":
+            raise ValueError("stale transcript version or completed conversation")
         participants = state["participants"]
         transcript = self.store.transcript(instance_id)
         previous = transcript[-1]["role"] if transcript else None
-        eligible = [role for role in self.definition.roles if role != previous]
+        retired = self._retired_roles(transcript)
+        eligible = [
+            role
+            for role in self.definition.roles
+            if role != previous and role not in retired
+        ]
         by_role = {item["role"]: item for item in candidates}
-        if set(by_role) != set(eligible) or any(item["participant_id"] != participants[item["role"]] for item in candidates):
-            raise ValueError("coordinator-after requires exactly one valid candidate per eligible role")
-        ids = self.store.record_candidates(instance_id, expected_version + 1, candidates)
+        if (
+            len(candidates) != len(eligible)
+            or set(by_role) != set(eligible)
+            or any(
+                item["participant_id"] != participants[item["role"]]
+                for item in candidates
+            )
+        ):
+            raise ValueError(
+                "coordinator-after requires exactly one valid candidate per eligible role"
+            )
         selected_role = coordinator(self.definition, transcript, eligible)
         if selected_role not in eligible:
-            raise ValueError("conversation coordinator selected an ineligible candidate")
-        selected_id = ids[[item["role"] for item in candidates].index(selected_role)]
-        return self.store.select_candidate(instance_id, selected_id, expected_version=expected_version)
+            raise ValueError(
+                "conversation coordinator selected an ineligible candidate"
+            )
+        return self.store.realize_candidates(
+            instance_id,
+            candidates,
+            selected_role=selected_role,
+            expected_version=expected_version,
+        )
 
-    def should_stop(self, instance_id: str, semantic_judge: SemanticJudge | None = None) -> bool:
+    def should_stop(
+        self, instance_id: str, semantic_judge: SemanticJudge | None = None
+    ) -> bool:
+        self._state(instance_id)
         transcript = self.store.transcript(instance_id)
+
         def evaluate(rule: StopRule) -> bool:
             if rule.kind == "max_utterances":
                 return len(transcript) >= int(rule.options["count"])
@@ -145,6 +194,7 @@ class ConversationRuntime:
             if rule.kind == "all":
                 return all(evaluate(item) for item in rule.options["rules"])
             raise ValueError(f"unsupported stop rule {rule.kind!r}")
+
         stopped = evaluate(self.definition.stop)
         if stopped:
             self.store.complete(instance_id)

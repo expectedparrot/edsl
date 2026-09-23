@@ -55,44 +55,103 @@ class SQLiteConversationStore:
             result.append(item)
         return result
 
-    def append(self, instance_id: str, *, expected_version: int, role: str, participant_id: str, text: str, metadata: Mapping[str, Any] | None = None) -> str:
+    @staticmethod
+    def _check_version(db, instance_id: str, expected_version: int) -> None:
+        state = db.execute(
+            "SELECT version, status FROM conversation_instances WHERE id=?",
+            (instance_id,),
+        ).fetchone()
+        if state is None:
+            raise KeyError(instance_id)
+        if state["status"] != "running" or state["version"] != expected_version:
+            raise ValueError("stale transcript version or completed conversation")
+
+    @staticmethod
+    def _append(
+        db, instance_id, expected_version, role, participant_id, text, metadata
+    ):
         if not text.strip():
             raise ValueError("conversation utterance cannot be empty")
         utterance_id = str(uuid4())
-        with self.connect() as db:
-            db.execute("BEGIN IMMEDIATE")
-            state = db.execute("SELECT version, status FROM conversation_instances WHERE id=?", (instance_id,)).fetchone()
-            if state is None:
-                db.execute("ROLLBACK")
-                raise KeyError(instance_id)
-            if state["status"] != "running" or state["version"] != expected_version:
-                db.execute("ROLLBACK")
-                raise ValueError("stale transcript version or completed conversation")
-            db.execute("INSERT INTO conversation_utterances VALUES (?, ?, ?, ?, ?, ?, ?, ?)", (utterance_id, instance_id, expected_version + 1, role, participant_id, text, json.dumps(dict(metadata or {})), _now()))
-            db.execute("UPDATE conversation_instances SET version=version+1 WHERE id=?", (instance_id,))
-            db.execute("COMMIT")
+        db.execute(
+            "INSERT INTO conversation_utterances VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                utterance_id,
+                instance_id,
+                expected_version + 1,
+                role,
+                participant_id,
+                text,
+                json.dumps(dict(metadata or {})),
+                _now(),
+            ),
+        )
+        db.execute(
+            "UPDATE conversation_instances SET version=version+1 WHERE id=?",
+            (instance_id,),
+        )
         return utterance_id
 
-    def record_candidates(self, instance_id: str, sequence: int, candidates: Sequence[Mapping[str, Any]]) -> list[str]:
-        ids = []
+    def append(
+        self,
+        instance_id: str,
+        *,
+        expected_version: int,
+        role: str,
+        participant_id: str,
+        text: str,
+        metadata: Mapping[str, Any] | None = None,
+    ) -> str:
         with self.connect() as db:
             db.execute("BEGIN IMMEDIATE")
+            self._check_version(db, instance_id, expected_version)
+            return self._append(
+                db, instance_id, expected_version, role, participant_id, text, metadata
+            )
+
+    def realize_candidates(
+        self,
+        instance_id: str,
+        candidates: Sequence[Mapping[str, Any]],
+        *,
+        selected_role: str,
+        expected_version: int,
+    ) -> str:
+        """Commit all candidates and the selected utterance as one versioned write."""
+        roles = [candidate["role"] for candidate in candidates]
+        if len(set(roles)) != len(roles) or selected_role not in roles:
+            raise ValueError("candidate roles must be unique and include the selection")
+        with self.connect() as db:
+            db.execute("BEGIN IMMEDIATE")
+            self._check_version(db, instance_id, expected_version)
             for candidate in candidates:
                 candidate_id = str(uuid4())
-                ids.append(candidate_id)
-                db.execute("INSERT INTO conversation_candidates VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?)", (candidate_id, instance_id, sequence, candidate["role"], candidate["participant_id"], candidate["text"], json.dumps(dict(candidate.get("metadata", {}))), _now()))
-            db.execute("COMMIT")
-        return ids
-
-    def select_candidate(self, instance_id: str, candidate_id: str, *, expected_version: int) -> str:
-        with self.connect() as db:
-            candidate = db.execute("SELECT * FROM conversation_candidates WHERE id=? AND instance_id=?", (candidate_id, instance_id)).fetchone()
-        if candidate is None:
-            raise KeyError(candidate_id)
-        utterance_id = self.append(instance_id, expected_version=expected_version, role=candidate["role"], participant_id=candidate["participant_id"], text=candidate["text"], metadata={"candidate_id": candidate_id})
-        with self.connect() as db:
-            db.execute("UPDATE conversation_candidates SET selected=1 WHERE id=?", (candidate_id,))
-        return utterance_id
+                selected = candidate["role"] == selected_role
+                db.execute(
+                    "INSERT INTO conversation_candidates VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    (
+                        candidate_id,
+                        instance_id,
+                        expected_version + 1,
+                        candidate["role"],
+                        candidate["participant_id"],
+                        candidate["text"],
+                        int(selected),
+                        json.dumps(dict(candidate.get("metadata", {}))),
+                        _now(),
+                    ),
+                )
+                if selected:
+                    utterance_id = self._append(
+                        db,
+                        instance_id,
+                        expected_version,
+                        selected_role,
+                        candidate["participant_id"],
+                        candidate["text"],
+                        {**candidate.get("metadata", {}), "candidate_id": candidate_id},
+                    )
+            return utterance_id
 
     def complete(self, instance_id: str) -> None:
         with self.connect() as db:
