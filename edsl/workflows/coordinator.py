@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from collections import defaultdict
 import hashlib
 import math
 import statistics
@@ -202,16 +203,18 @@ class WorkflowCoordinator:
         self._settle_quorums(instance_id)
         if self._pause_at_boundary(instance_id):
             return
-        for item in self.store.items(instance_id):
+        items = [dict(item) for item in self.store.items(instance_id)]
+        by_step = defaultdict(list)
+        for item in items:
+            by_step[item["step_name"]].append(item)
+        for item in items:
             if item["status"] != "blocked":
                 continue
             step = self.workflow.step(item["step_name"])
             dependencies = [
                 dependency_item
                 for dependency in (*step.after, *step.settled_after)
-                for dependency_item in self.store.items(
-                    instance_id, step_name=dependency
-                )
+                for dependency_item in by_step[dependency]
             ]
             if not all(
                 dependency["status"] in ("completed", "skipped", "superseded")
@@ -219,12 +222,14 @@ class WorkflowCoordinator:
             ):
                 continue
             if step.enabled_when is None and any(
-                not self._step_succeeded(instance_id, dependency)
+                not self._items_succeeded(dependency, by_step[dependency])
                 for dependency in step.after
             ):
-                self.store.skip(item["id"], reason="dependency skipped")
+                if self.store.skip(item["id"], reason="dependency skipped"):
+                    item["status"] = "skipped"
             elif self._enabled(instance_id, step.enabled_when):
-                self.store.make_ready(item["id"])
+                if self.store.make_ready(item["id"]):
+                    item["status"] = "ready"
             else:
                 repeat = step.metadata.get("repeat")
                 reason = (
@@ -233,7 +238,8 @@ class WorkflowCoordinator:
                     if repeat
                     else "enable condition was false"
                 )
-                self.store.skip(item["id"], reason=reason)
+                if self.store.skip(item["id"], reason=reason):
+                    item["status"] = "skipped"
         self.store.finish_instance_if_complete(instance_id)
 
     def _settle_quorums(self, instance_id: str) -> None:
@@ -257,9 +263,13 @@ class WorkflowCoordinator:
                         )
 
     def _step_succeeded(self, instance_id: str, step_name: str) -> bool:
+        return self._items_succeeded(
+            step_name, self.store.items(instance_id, step_name=step_name)
+        )
+
+    def _items_succeeded(self, step_name: str, items) -> bool:
         from .definition import Quorum
 
-        items = self.store.items(instance_id, step_name=step_name)
         policy = self.workflow.step(step_name).completion
         if isinstance(policy, Quorum):
             return sum(item["status"] == "completed" for item in items) >= policy.count
@@ -668,12 +678,13 @@ class WorkflowCoordinator:
             observed = backend.read(resolve_read(read, context))
             views[read.target] = observed.value
             versions[read.target] = observed.version
-        prior_answers = {
-            workflow_step.name: self.store.step_answers(
-                item["instance_id"], workflow_step.name
-            )
+        history_answers, history_submissions = self.store.render_history(
+            item["instance_id"]
+        )
+        visible_steps = {
+            workflow_step.name
             for workflow_step in self.workflow.steps
-            if self._step_complete(item["instance_id"], workflow_step.name)
+            if workflow_step.name in history_answers
             and (
                 workflow_step.output_visibility is None
                 or any(
@@ -682,19 +693,15 @@ class WorkflowCoordinator:
                 )
             )
         }
+        prior_answers = {
+            name: answers
+            for name, answers in history_answers.items()
+            if name in visible_steps
+        }
         prior_submissions = {
-            workflow_step.name: [
-                {
-                    "participant_id": prior_item["participant_id"],
-                    "answers": dict(answers),
-                }
-                for prior_item in self.store.items(
-                    item["instance_id"], step_name=workflow_step.name
-                )
-                if (answers := self.store.item_answers(prior_item["id"])) is not None
-            ]
-            for workflow_step in self.workflow.steps
-            if workflow_step.name in prior_answers
+            name: submissions
+            for name, submissions in history_submissions.items()
+            if name in visible_steps
         }
         participant_views = {}
         for view in step.participant_submission_views:

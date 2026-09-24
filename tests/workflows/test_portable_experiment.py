@@ -231,6 +231,12 @@ def test_saved_market_replays_in_process_that_forbids_example_imports(tmp_path):
     script = """
 import importlib.abc, json, sys
 from pathlib import Path
+network_attempts = []
+def forbid_network(event, args):
+    if event in {"socket.connect", "socket.getaddrinfo"}:
+        network_attempts.append(event)
+        raise AssertionError("replay attempted network access: " + event)
+sys.addaudithook(forbid_network)
 class BlockExamples(importlib.abc.MetaPathFinder):
     def find_spec(self, fullname, path=None, target=None):
         if fullname == "examples" or fullname.startswith("examples."):
@@ -256,6 +262,7 @@ assert state["accounts"] == expected["accounts"]
 assert state["order_log"] == expected["orders"]
 assert not state["finished"] and state["period"] == 18
 assert not (output / "model-calls.jsonl").exists()
+assert not network_attempts, network_attempts
 print(json.dumps({"matched": True, "rounds": len(state["tape"]), "decisions": len(state["order_log"])}))
 """
     result = subprocess.run(

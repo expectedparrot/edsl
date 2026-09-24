@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
+from collections import defaultdict
+from functools import lru_cache
 import json
 from pathlib import Path
 import sqlite3
@@ -14,6 +16,12 @@ from edsl._data_contracts import canonical_data, definition_fingerprint
 
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+@lru_cache(maxsize=8)
+def _definition_fingerprint(encoded: str) -> str:
+    """Reuse validation only for identical serialized definitions, never identity."""
+    return definition_fingerprint(json.loads(encoded))
 
 
 class SQLiteWorkflowStore:
@@ -154,31 +162,39 @@ class SQLiteWorkflowStore:
     def assert_definition(
         self, instance_id: str, definition: Mapping[str, Any]
     ) -> None:
-        stored_definition = self.definition(instance_id)
-        stored = definition_fingerprint(stored_definition)
-        if stored != definition_fingerprint(definition):
+        _, stored = self._checked_definition(instance_id)
+        if stored != _definition_fingerprint(canonical_data(definition)):
             raise ValueError(
                 "workflow definition changed; start a new instance or explicitly migrate the stored definition"
             )
 
     def definition(self, instance_id: str) -> dict[str, Any]:
         """Return the pinned workflow definition after verifying its fingerprint."""
+        encoded, _ = self._checked_definition(instance_id)
+        return json.loads(encoded)
+
+    def _checked_definition(self, instance_id: str) -> tuple[str, str]:
+        # Read both values every time, including changes made by other processes.
+        # Only the expensive hash computation is cached, keyed by exact content.
         rows = self.rows(
-            "SELECT definition FROM workflow_instances WHERE id = ?", (instance_id,)
+            "SELECT instances.definition, contracts.definition_hash "
+            "FROM workflow_instances AS instances "
+            "LEFT JOIN workflow_instance_contracts AS contracts "
+            "ON contracts.instance_id = instances.id WHERE instances.id = ?",
+            (instance_id,),
         )
         if not rows:
             raise KeyError(f"unknown workflow instance {instance_id!r}")
-        definition = json.loads(rows[0]["definition"])
-        stored = definition_fingerprint(definition)
-        contracts = self.rows(
-            "SELECT definition_hash FROM workflow_instance_contracts WHERE instance_id = ?",
-            (instance_id,),
-        )
-        if contracts and contracts[0]["definition_hash"] != stored:
+        encoded = rows[0]["definition"]
+        stored = _definition_fingerprint(encoded)
+        if (
+            rows[0]["definition_hash"] is not None
+            and rows[0]["definition_hash"] != stored
+        ):
             raise ValueError(
                 "persisted workflow definition does not match its fingerprint"
             )
-        return definition
+        return encoded, stored
 
     def random_seed(self, instance_id: str) -> str | int:
         rows = self.rows(
@@ -372,6 +388,46 @@ class SQLiteWorkflowStore:
                 (instance_id, step_name),
             )
         ]
+
+    def render_history(self, instance_id: str) -> tuple[dict, dict]:
+        """Read completed-step answers and participant submissions in one snapshot.
+
+        Answers retain submission order; participant submissions retain item
+        order. Callers must apply the consuming participant's visibility rules.
+        """
+        by_step = defaultdict(list)
+        for row in self.rows(
+            "SELECT items.step_name, items.participant_id, items.status, "
+            "submissions.answers, submissions.created_at AS submitted_at "
+            "FROM workflow_items AS items LEFT JOIN workflow_submissions AS submissions "
+            "ON submissions.work_item_id = items.id WHERE items.instance_id = ? "
+            "ORDER BY items.created_at, items.id",
+            (instance_id,),
+        ):
+            by_step[row["step_name"]].append(row)
+        answers, submissions = {}, {}
+        for name, items in by_step.items():
+            if not all(
+                item["status"] in ("completed", "skipped", "superseded")
+                for item in items
+            ):
+                continue
+            submitted = [
+                (item, json.loads(item["answers"]))
+                for item in items
+                if item["answers"] is not None
+            ]
+            answers[name] = [
+                answer
+                for item, answer in sorted(
+                    submitted, key=lambda pair: pair[0]["submitted_at"]
+                )
+            ]
+            submissions[name] = [
+                {"participant_id": item["participant_id"], "answers": dict(answer)}
+                for item, answer in submitted
+            ]
+        return answers, submissions
 
     def pending_outbox(self, instance_id: str | None = None) -> list[sqlite3.Row]:
         return self.rows(
