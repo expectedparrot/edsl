@@ -8,6 +8,9 @@ from jinja2.utils import Namespace
 from types import BuiltinMethodType, MethodType
 
 
+_MISSING_TRAIT = object()
+
+
 _READ_ONLY_METHODS = {
     dict: frozenset({"get", "items", "keys", "values", "copy"}),
     list: frozenset({"count", "index", "copy"}),
@@ -85,6 +88,33 @@ class EDSLSandboxedEnvironment(SandboxedEnvironment):
     def __init__(self, *args, allowed_methods=(), **kwargs):
         super().__init__(*args, **kwargs)
         self.allowed_methods = tuple(allowed_methods)
+
+    def _get_agent_trait(self, obj, attribute):
+        # Import lazily: Agent itself uses the shared template environment.
+        from ..agents import Agent
+
+        if isinstance(obj, Agent) and isinstance(attribute, str):
+            traits = obj.traits
+            if attribute in traits:
+                value = traits[attribute]
+                if self.is_safe_attribute(obj, attribute, value):
+                    return value
+                return self.unsafe_undefined(obj, attribute)
+        return _MISSING_TRAIT
+
+    def getattr(self, obj, attribute):
+        """Prefer agent traits over colliding Python attributes in templates."""
+        value = self._get_agent_trait(obj, attribute)
+        if value is not _MISSING_TRAIT:
+            return value
+        return super().getattr(obj, attribute)
+
+    def getitem(self, obj, argument):
+        """Give bracket notation the same agent-trait precedence as dot notation."""
+        value = self._get_agent_trait(obj, argument)
+        if value is not _MISSING_TRAIT:
+            return value
+        return super().getitem(obj, argument)
 
     def is_safe_callable(self, obj):
         return _allowed_callable(
