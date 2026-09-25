@@ -41,7 +41,9 @@ class JobStore:
 
         # Volatile - initialize counters
         status = JobStatus(job_id=definition.job_id)
-        self._storage.write_volatile(status.state_key, JobState.RUNNING.value)
+        self._storage.write_volatile(
+            status.state_key, status.compute_state(definition.total_interviews).value
+        )
         self._storage.write_volatile(status.completed_interviews_key, 0)
         self._storage.write_volatile(status.failed_interviews_key, 0)
 
