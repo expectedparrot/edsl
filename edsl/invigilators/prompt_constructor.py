@@ -399,14 +399,14 @@ class PromptConstructor:
         """
         from ..prompts import Prompt
 
-        # Check if agent is empty by checking if it has any traits
-        # This is much faster than creating Agent() and comparing hashes
-        is_empty = not self.agent.traits
-
-        if is_empty:  # if agent is empty, then return an empty prompt
+        # Suppress the default instruction for traitless agents, but preserve
+        # custom instructions without constructing and hashing a default Agent.
+        if (
+            not self.agent.traits
+            and self.agent.instruction == self.agent.default_instruction
+        ):
             return Prompt(text="")
-        else:
-            return Prompt(text=self.agent.instruction)
+        return Prompt(text=self.agent.instruction)
 
     @cached_property
     def agent_persona_prompt(self) -> "Prompt":
@@ -424,14 +424,10 @@ class PromptConstructor:
         """
         from ..prompts import Prompt
 
-        # Check if agent is empty by checking if it has any traits
-        # This is much faster than creating Agent() and comparing hashes
-        is_empty = not self.agent.traits
-
-        if is_empty:  # if agent is empty, then return an empty prompt
+        # A custom persona template may contain useful text even without traits.
+        if not self.agent.traits and not self.agent.set_traits_presentation_template:
             return Prompt(text="")
-        else:
-            return self.agent.prompt()  # This calls AgentPrompt.prompt()
+        return self.agent.prompt()
 
     def prior_answers_dict(self) -> dict[str, "QuestionBase"]:
         """
