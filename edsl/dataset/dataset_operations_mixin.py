@@ -605,17 +605,39 @@ class DataOperationsBase:
         return self.to_pandas()
 
     def to_pandas(self, remove_prefix: bool = False, lists_as_strings=False):
-        """Convert the results to a pandas DataFrame, ensuring that lists remain as lists.
+        """Convert the results to a pandas DataFrame, preserving structured values.
 
         Args:
             remove_prefix: Whether to remove the prefix from the column names.
-            lists_as_strings: Whether to convert lists to strings.
+            lists_as_strings: If True, use CSV conversion to stringify lists and
+                dictionaries. Defaults to False, preserving these values as Python
+                objects without parsing strings as CSV values.
 
         Returns:
             A pandas DataFrame.
+
+        Examples:
+            >>> from edsl import Dataset
+            >>> data = Dataset([{'answer.colors': [['red', 'blue']]}])
+            >>> data.to_pandas()['answer.colors'].iloc[0]
+            ['red', 'blue']
+            >>> data.to_pandas(lists_as_strings=True)['answer.colors'].iloc[0]
+            "['red', 'blue']"
         """
-        # pandas is imported in _to_pandas_strings
-        return self._to_pandas_strings(remove_prefix)
+        if lists_as_strings:
+            return self._to_pandas_strings(remove_prefix)
+
+        try:
+            import pandas as pd
+        except ImportError:
+            from ..base.exceptions import MissingOptionalDependencyError
+
+            raise MissingOptionalDependencyError("pandas", "file-formats")
+
+        # Avoid the CSV round trip, which stringifies lists/dicts and coerces
+        # literal strings. Tabular rows also preserve duplicate column names.
+        header, rows = self.make_tabular(remove_prefix=remove_prefix)
+        return pd.DataFrame(rows, columns=header)
 
     def _to_pandas_strings(self, remove_prefix: bool = False):
         """Convert the results to a pandas DataFrame.
