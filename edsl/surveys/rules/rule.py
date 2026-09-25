@@ -154,21 +154,13 @@ class Rule:
                 )
                 raise SurveyRuleRefersToFutureStateError
 
-        if (
+        if not self._is_jinja2_expression() and (
             referenced_questions := self._prior_question_is_in_expression()
-        ) and not self._is_jinja2_expression():  # raise ValueError("This uses the old syntax!")
+        ):
             import warnings
 
             old_expression = self.expression
-            for q in referenced_questions:
-                if q + ".answer" in self.expression:
-                    self.expression = self.expression.replace(
-                        q + ".answer", f"{{{{ {q}.answer }}}}"
-                    )
-                else:
-                    self.expression = self.expression.replace(
-                        q, f"{{{{ {q}.answer }}}}"
-                    )
+            self.expression = self._convert_legacy_expression(referenced_questions)
             warnings.warn(
                 f"This uses the old syntax! Converting to Jinja2 style with {{ }}.\nOld expression: {old_expression}\nNew expression: {self.expression}"
             )
@@ -265,8 +257,56 @@ class Rule:
         return d
 
     def _prior_question_is_in_expression(self) -> set:
-        """Check if the expression contains a reference to a prior question."""
-        return {q for q in self.question_name_to_index.keys() if q in self.expression}
+        """Find question references, excluding literals and called function names."""
+        return set(self._extracted_question_names).intersection(
+            self.question_name_to_index
+        )
+
+    def _convert_legacy_expression(self, referenced_questions: set[str]) -> str:
+        """Wrap exact AST source spans without modifying the cached tree or literals."""
+        references = []
+
+        def visit(node):
+            if isinstance(node, ast.Call):
+                # Match extract_variable_names: the called function is not a
+                # question reference, even when a question has the same name.
+                for argument in node.args:
+                    visit(argument)
+                for keyword in node.keywords:
+                    visit(keyword.value)
+            elif (
+                isinstance(node, ast.Attribute)
+                and node.attr == "answer"
+                and isinstance(node.value, ast.Name)
+                and node.value.id in referenced_questions
+            ):
+                references.append((node, node.value.id))
+            elif isinstance(node, ast.Name) and node.id in referenced_questions:
+                references.append((node, node.id))
+            else:
+                for child in ast.iter_child_nodes(node):
+                    visit(child)
+
+        visit(self.ast_tree)
+
+        # AST column offsets count UTF-8 bytes, not characters. Work in bytes so
+        # non-ASCII literals before a reference do not shift its replacement.
+        source = self.expression.encode("utf-8")
+        line_offsets = [0]
+        for line in source.splitlines(keepends=True):
+            line_offsets.append(line_offsets[-1] + len(line))
+        replacements = [
+            (
+                line_offsets[node.lineno - 1] + node.col_offset,
+                line_offsets[node.end_lineno - 1] + node.end_col_offset,
+                f"{{{{ {name}.answer }}}}".encode("utf-8"),
+            )
+            for node, name in references
+        ]
+        # Work backwards so inserted text is never revisited or shifts a span.
+        for start, end, replacement in sorted(replacements, reverse=True):
+            source = source[:start] + replacement + source[end:]
+        return source.decode("utf-8")
 
     def _is_jinja2_expression(self):
         """Check if the expression is a Jinja2 expression."""
@@ -375,11 +415,9 @@ class Rule:
                 jinja_dict = jinja_ize_dictionary(current_info_env)
                 to_evaluate = template_expression.render(jinja_dict)
             else:
-                # For legacy non-Jinja2 expressions, use _prepare_replacement
-                current_info = self._prepare_replacement(current_info_env)
+                # Question references were converted to Jinja in __init__.
+                # Constant expressions and function calls need no substitution.
                 to_evaluate = expression
-                for var, value in current_info.items():
-                    to_evaluate = to_evaluate.replace(var, value)
 
             return to_evaluate
 
