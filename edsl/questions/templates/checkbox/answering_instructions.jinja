@@ -10,6 +10,9 @@ Please respond only with a comma-separated list of the code of the options that 
 {% else %}
 Please respond only with a comma-separated list of the options that apply, with square brackets. E.g., ['Good', 'Bad', 'Ugly']
 {% endif %}
+{% if exclusive_options %}
+Each of these options must be selected by itself and never with another option: {% if use_code %}[{% for option in exclusive_options %}{{ question_options.index(option) }}{% if not loop.last %}, {% endif %}{% endfor %}]{% else %}{{ exclusive_options }}{% endif %}.
+{% endif %}
 {% if include_comment and not probabilistic_response %}
 After the answer, you can put a comment explaining your choice on the next line.
 {% endif %}
