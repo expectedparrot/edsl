@@ -32,8 +32,70 @@ survey, states, schedule = build_survey(
 results = Runner(interview_schedule=schedule).submit(
     survey.by(demo_agents()).by(Model("test")), cache=False
 ).results()
-results.select("answer.price_interval")
+print(results.select("answer.price_interval").to_list())
 ```
+
+## Watch one respondent's offers change
+
+Run the Python blocks on this page in order from a repository checkout. The
+`results` variable above contains four independent interviews. R1's scripted
+threshold is 37: they answer Yes exactly when the offer is at most 37. The Machine
+does not read that hidden simulation trait; it only receives the Yes/No answers.
+
+| Question | Range before | Offer | Answer | Range after |
+| --- | --- | --- | --- | --- |
+| 1 | 0..100 | 50 | No | 0..49 |
+| 2 | 0..49 | 25 | Yes | 25..49 |
+| 3 | 25..49 | 37 | Yes | 37..49 |
+| 4 | 37..49 | 43 | No | 37..42 |
+| 5 | 37..42 | 40 | No | 37..39 |
+| 6 | 37..39 | 38 | No | 37..37 |
+
+After the sixth response, the interval has one integer left. The seventh
+multiple-choice question is skipped. Notice that a Yes at 37 alone did not end
+the search: values 38 through 49 were still consistent until later No answers
+ruled them out.
+
+```python
+row = next(r for r in results if r.agent.traits["value"] == 37)
+asked = [
+    (int(row.answer[f"price_{i}"]), row.answer[f"buy_{i}"])
+    for i in range(7)
+    if row.answer.get(f"buy_{i}") is not None
+]
+assert asked == [(50, "No"), (25, "Yes"), (37, "Yes"),
+                 (43, "No"), (40, "No"), (38, "No")]
+assert row.answer["price_6"] == "skip"
+assert row.answer["buy_6"] is None
+assert row.answer["price_interval"] == "37..37"
+```
+
+### Compare precision with a smaller question budget
+
+The same respondent can be surveyed with only two offers. This is a new study
+state, not a continuation of the completed run above:
+
+```python
+short_survey, _, short_schedule = build_survey(max_questions=2)
+short_results = Runner(interview_schedule=short_schedule).submit(
+    short_survey.by(demo_agents([37])).by(Model("test")), cache=False
+).results()
+assert short_results[0].answer["price_interval"] == "25..49"
+
+last_write = [
+    event for event in short_results.shared_state["bindings"][0]["events"]
+    if event["kind"] == "write"
+][-1]
+assert len(last_write["state"]["pricing"]["history"]) == 2
+```
+
+| Configuration | Questions asked | Final interval | Why it stopped |
+| --- | --- | --- | --- |
+| Seven slots, tolerance zero | 6 | 37..37 | Exact integer threshold under the assumptions |
+| Two slots, tolerance zero | 2 | 25..49 | Question budget exhausted |
+
+An interval is the result. A limited budget does not justify replacing it with
+an exact estimate or describing it as a statistical confidence interval.
 
 ## Integer search policy
 
@@ -73,6 +135,39 @@ Model-path tests inspect every quoted price in the actual prompts and saved
 presentation metadata. Scripted respondents use the read view to make their
 choice. The [presentation contract](/en/latest/shared-state/scopes-and-surveys#which-options-did-this-respondent-see)
 distinguishes the direct question object from a rendered model prompt.
+
+## Interrupt after two answers, then resume
+
+This intentionally interrupted survey has the full seven-slot definition but
+ends after its second response. Restoring the original Survey preserves the state
+map ID, so the next job continues that same personal search.
+
+```python
+from edsl import Survey
+
+full_survey, _, resume_schedule = build_survey()
+people = demo_agents([37])
+interrupted = Survey.from_dict(full_survey.to_dict())
+interrupted.add_stop_rule("buy_1", "{{ buy_1.answer }} in ['Yes', 'No']")
+first = Runner(interview_schedule=resume_schedule).submit(
+    interrupted.by(people).by(Model("test")), cache=False
+).results()
+assert first[0].answer["buy_1"] == "Yes"
+assert first[0].answer["buy_2"] is None
+
+continued_survey = Survey.from_dict(full_survey.to_dict())
+continued = Runner(interview_schedule=resume_schedule).submit(
+    continued_survey.by(people).by(Model("test")), cache=False
+).results()
+assert continued[0].answer["buy_0"] is None
+assert continued[0].answer["buy_1"] is None
+assert continued[0].answer["price_interval"] == "37..37"
+```
+
+The two `None` answers in the second Results object mean those questions were not
+asked **in that job**. Their earlier observations remain in the shared-state
+history. Calling `build_survey()` again instead would create a fresh state map
+and restart the search. Resuming also requires the same study and respondent IDs.
 
 ## Assumptions and design findings
 

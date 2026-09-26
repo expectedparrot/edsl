@@ -33,8 +33,71 @@ survey, states, schedule = build_survey(
 results = Runner(interview_schedule=schedule).submit(
     survey.by(demo_agents()).by(Model("test")), cache=False
 ).results()
-results.select("answer.role", "answer.joined_team", "answer.introduction")
+print(results.select("answer.role", "answer.joined_team", "answer.introduction").to_list())
 ```
+
+## Watch the roles fill, respondent by respondent
+
+Run the Python blocks on this page in order from a repository checkout. In this
+scripted population, the first three respondents choose Designer and the next
+five would choose Builder. Everyone selects the first team they are shown.
+
+| Respondent | Role answer | Teams actually shown | Joined | What happened next |
+| --- | --- | --- | --- | --- |
+| R0 | Designer | Orion, Lyra | Orion | Introduction answered |
+| R1 | Designer | Lyra | Lyra | Introduction answered |
+| R2 | Designer | Not asked | — | No Designer seat remains |
+| R3 | Builder | Orion, Lyra | Orion | Introduction answered |
+| R4 | Builder | Orion, Lyra | Orion | Introduction answered |
+| R5 | Builder | Lyra | Lyra | Introduction answered |
+| R6 | Builder | Lyra | Lyra | Introduction answered |
+| R7 | Not asked | Not asked | — | All teams full at entry |
+
+R2 encounters a closed **role**, not a full study: four Builder seats are still
+open. R3 can therefore join Orion. R4 still sees both teams because Orion has
+one Builder seat left; only after R4 joins does Orion disappear for later Builders.
+
+R6 takes the final seat and still receives the introduction question. R7 stops
+before being asked a role. These are two different stop points in the same Survey.
+
+```mermaid
+flowchart TD
+    Entry[Read team state] --> Full{Full and not already a member?}
+    Full -->|Yes| Stop[End interview]
+    Full -->|No| Role[Ask and register role]
+    Role --> Options{Any team seats for this role?}
+    Options -->|No| Stop
+    Options -->|Yes| Choice[Ask for team]
+    Choice --> Join[Attempt atomic join and read outcome]
+    Join --> Admitted{Member now?}
+    Admitted -->|No| Stop
+    Admitted -->|Yes| Intro[Ask introduction]
+```
+
+### Check the last seat and the two screened-out respondents
+
+```python
+rows = {r.agent.traits["respondent_id"]: r for r in results}
+assert rows["R1"].get_question_options("team") == ["Lyra"]
+assert rows["R4"].get_question_options("team") == ["Orion", "Lyra"]
+assert rows["R2"].answer["role"] == "Designer"
+assert rows["R2"].answer["team"] is None
+assert rows["R6"].answer["joined_team"] == "Lyra"
+assert rows["R6"].answer["introduction"] == "Happy to join."
+assert rows["R7"].answer["role"] is None
+
+last_join = [
+    event for event in results.shared_state["bindings"][0]["events"]
+    if event["kind"] == "write" and event["command"] == "join"
+][-1]
+members = last_join["state"]["teams"]["members"]
+assert len(members) == 6
+assert members["R6"] == {"team": "Lyra", "role": "Builder"}
+```
+
+The admitted membership and the completed introduction are separate facts.
+Inspecting only the membership count would miss a routing mistake that stopped
+R6's interview immediately after admission.
 
 ## Machine policy
 
@@ -80,6 +143,36 @@ A race can invalidate a displayed option. The post-join gate stops the losing
 interview; this adapter does not implement a reselection loop. Results preserves
 the options actually shown, so a rejected join can still be audited against its
 [read-version-linked presentation](/en/latest/shared-state/scopes-and-surveys#which-options-did-this-respondent-see).
+
+## Try a population with no Builders
+
+Population exhaustion is different from Machine completion. Reuse the adapter
+with only the first three scripted respondents, all Designers, and a fresh state
+map:
+
+```python
+from edsl import AgentList
+
+small_survey, _, small_schedule = build_survey()
+designers = AgentList(list(demo_agents())[:3])
+small_results = Runner(interview_schedule=small_schedule).submit(
+    small_survey.by(designers).by(Model("test")), cache=False
+).results()
+assert sum(r.answer.get("introduction") is not None for r in small_results) == 2
+assert all(r.answer.get("role") == "Designer" for r in small_results)
+
+last_read = [
+    event for event in small_results.shared_state["bindings"][0]["events"]
+    if event["kind"] == "read"
+][-1]
+assert last_read["value"]["members"] == 2
+assert last_read["value"]["complete"] is False
+```
+
+The run ends because there are no more respondents. Each team has its Designer
+and still needs two Builders. The Machine does not lower the role requirements,
+move a Designer into a Builder seat, or declare completion to accommodate the
+available pool. Those would be additional policies to specify explicitly.
 
 ## Tests and design findings
 

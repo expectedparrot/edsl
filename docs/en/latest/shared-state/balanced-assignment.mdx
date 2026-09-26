@@ -29,7 +29,79 @@ survey, states, schedule = build_survey(seed="balanced-2026")
 results = Runner(interview_schedule=schedule).submit(
     survey.by(demo_agents()).by(Model("test")), cache=False
 ).results()
-results.select("answer.age_group", "answer.experience", "answer.assigned_arm")
+print(results.select("answer.age_group", "answer.experience", "answer.assigned_arm").to_list())
+```
+
+## Follow the first six assignments
+
+Run this page's Python examples in order from a repository checkout. The table
+below comes from the default run above, with seed `balanced-2026` and study ID
+`study`. Candidate scores are computed from the ledger **before** each assignment.
+A lower score wins; a tie uses the seeded draw.
+
+| Respondent | Age band | Experience | Control score | Treatment score | Assigned arm |
+| --- | --- | --- | --- | --- | --- |
+| R0 | Younger | New | 0 | 0 | Control |
+| R1 | Older | New | 2 | 0 | Treatment |
+| R2 | Younger | Experienced | 2 | 1 | Treatment |
+| R3 | Older | Experienced | 1 | 4 | Control |
+| R4 | Younger | New | 4 | 4 | Control |
+| R5 | Older | New | 6 | 4 | Treatment |
+
+R1 enters while Control already contains one New respondent. Assigning R1 to
+Control would add to both its total count and its New count, so Control's score
+is two. Treatment is empty and scores zero. By R4, the scores tie again; the
+stable seed and respondent ID determine the arm.
+
+This is what makes the example adaptive across people: R4's assignment depends
+on the four preceding records, while repeated delivery for R4 keeps the original
+assignment rather than rerunning the allocation as a new person.
+
+### Inspect the final balance, including a limitation
+
+The complete twelve-person run has these **marginal** counts:
+
+| Characteristic | Control | Treatment |
+| --- | --- | --- |
+| All respondents | 6 | 6 |
+| Younger | 3 | 3 |
+| Older | 3 | 3 |
+| New | 3 | 3 |
+| Experienced | 3 | 3 |
+
+But the joint age-by-experience cells look different:
+
+| Joint cell | Control | Treatment |
+| --- | --- | --- |
+| Younger, New | 3 | 0 |
+| Younger, Experienced | 0 | 3 |
+| Older, New | 0 | 3 |
+| Older, Experienced | 3 | 0 |
+
+The implementation worked as specified, but this is not a balanced design for
+comparing every subgroup. Good marginal balance can hide very poor joint balance.
+If the joint cells matter, they must become part of the assignment objective;
+changing the seed alone is not a guarantee.
+
+Reproduce both views from Results instead of relying only on the total split:
+
+```python
+from collections import Counter
+
+marginals = {arm: Counter() for arm in ("Control", "Treatment")}
+joint = {arm: Counter() for arm in marginals}
+for row in results:
+    arm = row.answer["assigned_arm"]
+    age = row.answer["age_group"]
+    experience = row.answer["experience"]
+    marginals[arm].update(["All", age, experience])
+    joint[arm][(age, experience)] += 1
+
+assert marginals["Control"] == marginals["Treatment"]
+assert marginals["Control"]["All"] == 6
+assert joint["Control"][("Younger", "New")] == 3
+assert joint["Treatment"][("Younger", "New")] == 0
+print({arm: dict(counts) for arm, counts in marginals.items()})
 ```
 
 ## Assignment policy
@@ -76,6 +148,36 @@ A grouped sequential schedule makes the demo's arrival order reproducible even
 if the supplied AgentList is reversed. Concurrent writers still make atomic
 assignments, but their transaction order can change the result. Reuse the saved
 state map and stable IDs to resume without recounting respondents.
+
+## Replay an assignment without admitting someone twice
+
+The record, not the current balancing score, governs a returning respondent.
+This small example also shows how a conflicting report is represented without
+partially changing the state:
+
+```python
+from edsl.sharedstate import Machine
+from edsl.sharedstate.dsl_runtime import Runtime
+from examples.machine_primitives.balanced_assignment import build_machine
+
+machine = Machine.from_json(build_machine().to_json())
+runtime = Runtime()
+initial = runtime.initial_state(machine)
+inputs = {"respondent_id": "R0", "age": "Younger", "experience": "New"}
+first = runtime.execute(machine, initial, "assign", inputs)
+repeat = runtime.execute(machine, first.state, "assign", inputs)
+changed = runtime.execute(machine, repeat.state, "assign", {
+    **inputs, "age": "Older"
+})
+assert first.state["assignments"]["R0"]["arm"] == "Control"
+assert repeat.event["status"] == "noop"
+assert changed.event["reason_code"] == "characteristics_changed"
+assert changed.state == first.state
+```
+
+The Survey checks the personal view after assignment. A refused changed report
+therefore cannot silently continue into the final question as if the old arm
+had been selected from the newly reported characteristics.
 
 ## Tests and design findings
 

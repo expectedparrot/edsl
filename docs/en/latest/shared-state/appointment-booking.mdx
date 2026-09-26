@@ -31,8 +31,68 @@ survey, states, schedule = build_survey(slots=["09:00", "10:00", "11:00"])
 results = Runner(interview_schedule=schedule).submit(
     survey.by(demo_agents()).by(Model("test")), cache=False
 ).results()
-results.select("answer.slot", "answer.booking_outcome")
+print(results.select("answer.slot", "answer.booking_outcome").to_list())
 ```
+
+## Follow five respondents through the same calendar
+
+Read the Python blocks on this page in order, starting with the run above. These
+examples use the repository's `examples` modules, so run them from a checkout with
+EDSL installed. Each `build_survey()` call creates fresh state unless you explicitly
+reuse a saved map. The following table is output from the scripted demo, not a
+hypothetical calendar. Every respondent picks their first displayed slot.
+
+| Respondent | Slots actually shown | Choice | Decision | Outcome |
+| --- | --- | --- | --- | --- |
+| R0 | 09:00, 10:00, 11:00 | 09:00 | Release | released |
+| R1 | 09:00, 10:00, 11:00 | 09:00 | Confirm | confirmed |
+| R2 | 10:00, 11:00 | 10:00 | Confirm | confirmed |
+| R3 | 11:00 | 11:00 | Confirm | confirmed |
+| R4 | Not asked | — | — | Stopped at entry |
+
+R0 temporarily removes 09:00 from availability, then releases it. R1 can therefore
+choose 09:00. Once R1 confirms, it disappears from R2's list. R4 is screened out
+before the slot question: an empty list is never presented as a multiple-choice
+question.
+
+The reservation ledger still includes R0's released reservation. Availability
+comes from active holds and confirmations, not from deleting history. This is
+why a late action on R0's old reservation can be recognized safely.
+
+### Check the choices against saved Results
+
+```python
+rows = {r.agent.traits["respondent_id"]: r for r in results}
+assert rows["R0"].get_question_options("slot") == ["09:00", "10:00", "11:00"]
+assert rows["R2"].get_question_options("slot") == ["10:00", "11:00"]
+assert rows["R4"].answer["slot"] is None
+
+attributes = rows["R2"].data["question_to_attributes"]["slot"]
+reference = attributes["presentation"]["shared_state_reads"][0]
+read = next(
+    event
+    for binding in results.shared_state["bindings"]
+    for event in binding["events"]
+    if event["kind"] == "read" and event["read_id"] == reference["read_id"]
+)
+assert read["version"] == reference["version"]
+assert read["value"]["options"] == ["10:00", "11:00"]
+```
+
+This joins the answer's displayed options to the exact state read used for that
+question. It does not reconstruct R2's choices from the final, fully booked state.
+Save the evidence with the Results object:
+
+```python
+from edsl import Results
+
+results.git.save("booking-results.ep")
+restored = Results.git.load("booking-results.ep")
+restored_r2 = next(r for r in restored if r.agent.traits["respondent_id"] == "R2")
+assert restored_r2.get_question_options("slot") == ["10:00", "11:00"]
+```
+
+Use a fresh output path if that package already exists.
 
 ## State and commands
 
@@ -68,6 +128,60 @@ A failed command leaves the state unchanged. Examples include
 SQLite also retains completed operation outcomes: retrying a rejected operation
 replays its rejection. Trying again after availability changes requires a new
 operation identity, not reuse of a rejected delivery key.
+
+## Work through a stale-read race
+
+Two people can both see 09:00 before either has submitted a choice. The following
+reproducible interleaving uses the transported Machine directly, separating the
+read from the atomic write. Real concurrent SQLite writers are covered by the
+application tests.
+
+```python
+from edsl.sharedstate import Machine
+from edsl.sharedstate.dsl_runtime import Runtime
+from examples.machine_primitives.appointment_booking import build_machine
+
+machine = Machine.from_json(build_machine(slots=["09:00"]).to_json())
+runtime = Runtime()
+state = runtime.initial_state(machine)
+assert runtime.render_view(machine, state)["options"] == ["09:00"]
+# A and B both observed this same availability.
+
+a = runtime.execute(machine, state, "hold", {
+    "respondent_id": "A", "reservation_id": "a1", "slot": "09:00"
+})
+b = runtime.execute(machine, a.state, "hold", {
+    "respondent_id": "B", "reservation_id": "b1", "slot": "09:00"
+})
+assert a.event["status"] == "applied"
+assert b.event["reason_code"] == "slot_unavailable"
+assert b.state == a.state
+
+released = runtime.execute(machine, b.state, "decide", {
+    "respondent_id": "A", "reservation_id": "a1", "decision": "Release"
+})
+new_hold = runtime.execute(machine, released.state, "hold", {
+    "respondent_id": "B", "reservation_id": "b2", "slot": "09:00"
+})
+late_confirmation = runtime.execute(machine, new_hold.state, "decide", {
+    "respondent_id": "A", "reservation_id": "a1", "decision": "Confirm"
+})
+assert late_confirmation.event["reason_code"] == "reservation_released"
+assert late_confirmation.state["bookings"]["b2"]["status"] == "held"
+```
+
+| Point in the interleaving | Slot occupant | Available to a new respondent? |
+| --- | --- | --- |
+| Both initial reads | Nobody | Yes |
+| A holds; B's stale attempt rejects | A's `a1` | No |
+| A releases | Nobody | Yes |
+| B starts a new attempt | B's `b2` | No |
+| A's delayed confirmation rejects | B's `b2` | No |
+
+The choices shown to B were valid when read, but did not reserve capacity. The
+write decides admission. In the Survey, a rejected hold leads to the status gate
+and ends that interview; a UI that offers another attempt would need to add that
+interaction explicitly.
 
 ## Survey routing and resumption
 
