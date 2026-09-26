@@ -61,6 +61,7 @@ class ExecutionResult:
     resolution_draw: Any = None
     resolution_seed: int | None = None
     resolution_method: str | None = None
+    question_presentation: dict[str, Any] | None = None
 
 
 class ExecutionWorker:
@@ -188,6 +189,7 @@ class ExecutionWorker:
                         resolution_draw=result.resolution_draw,
                         resolution_seed=result.resolution_seed,
                         resolution_method=result.resolution_method,
+                        question_presentation=result.question_presentation,
                     )
                 else:
                     self._job_service.on_task_failed(
@@ -340,6 +342,7 @@ class ExecutionWorker:
                 job_id=task.job_id,
                 interview_id=task.interview_id,
                 success=True,
+                question_presentation=getattr(task, "question_presentation", None),
                 answer=answer,
                 comment=comment,
                 input_tokens=input_tokens,

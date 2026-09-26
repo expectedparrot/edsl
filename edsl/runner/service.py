@@ -184,22 +184,21 @@ class JobService:
 
     def state_for_direct_answer(
         self, job_id: str, interview_id: str, task_id: str
-    ) -> dict[str, Any]:
+    ) -> tuple[dict[str, Any], tuple[tuple[str, int], ...]]:
         """Perform the same just-in-time reads for a non-LLM question."""
         task_def = self._tasks.get_definition(job_id, interview_id, task_id)
         survey_data = self._jobs.get_survey(job_id)
         if task_def is None or not survey_data:
-            return {}
+            return {}, ()
         survey = self._survey_cache.get(survey_data)
         interview_def = self._interviews.get_definition(job_id, interview_id)
         agent_data = self._jobs.get_agent(job_id, interview_def.agent_id)
         traits = dict((agent_data or {}).get("traits", {}))
         if agent_data and agent_data.get("name"):
             traits.setdefault("name", agent_data["name"])
-        state, _versions = self.read_state_for_question(
+        return self.read_state_for_question(
             job_id, survey, task_def, interview_id, traits
         )
-        return state
 
     @property
     def jobs(self) -> JobStore:
@@ -1198,6 +1197,7 @@ class JobService:
         resolution_draw: Any = None,
         resolution_seed: int | None = None,
         resolution_method: str | None = None,
+        question_presentation: dict[str, Any] | None = None,
     ) -> None:
         """Called when a task finishes successfully with an answer."""
         import time as _time
@@ -1237,6 +1237,7 @@ class JobService:
             resolution_draw=resolution_draw,
             resolution_seed=resolution_seed,
             resolution_method=resolution_method,
+            question_presentation=question_presentation,
         )
         _t = _time.monotonic()
         self._answers.store(answer)
@@ -1347,6 +1348,7 @@ class JobService:
                     cache_key=task_info.get("cache_key"),
                     validated=task_info.get("validated"),
                     reasoning_summary=task_info.get("reasoning_summary"),
+                    question_presentation=task_info.get("question_presentation"),
                 )
             )
         self._answers.store_batch(answers)
@@ -2473,6 +2475,23 @@ class JobService:
                             else {}
                         ),
                     }
+        # Prefer answer-associated presentation over a reconstruction from the
+        # final answers/scenario. Shared-state options may have changed since
+        # presentation, and template resolution here has no historical view.
+        from copy import deepcopy
+
+        for answer in answers:
+            captured = answer.question_presentation
+            if captured is not None:
+                attributes = question_to_attributes.setdefault(answer.question_name, {})
+                attributes.update(deepcopy(captured["attributes"]))
+                attributes["presentation"] = deepcopy(
+                    {
+                        key: value
+                        for key, value in captured.items()
+                        if key != "attributes"
+                    }
+                )
         if _timing is not None:
             _timing["build_question_attrs"] = (
                 _timing.get("build_question_attrs", 0)

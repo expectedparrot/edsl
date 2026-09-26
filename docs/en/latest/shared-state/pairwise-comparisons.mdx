@@ -182,18 +182,18 @@ score totals, extreme score gaps, exact stopping, retries, concurrent budget
 bounds, independent scopes, SQLite restart, and fresh-process replay without the
 authoring module. End-to-end tests reverse the supplied agent list to check
 schedule ordering and inspect the actual choices received by scripted agents.
+Those choices must also match `row.get_question_options("preference")` and the
+saved assignment. The Runner preserves their order and the observed read/version
+in [per-question presentation metadata](/en/latest/shared-state/scopes-and-surveys#which-options-did-this-respondent-see),
+including after Results serialization. This closes the reporting gap first
+exposed by this example without changing Survey navigation.
 
-This application exposes three useful boundaries:
+This application exposes two further boundaries:
 
 - **Decision policy versus statistical uncertainty.** Similar scores are a
   selection heuristic. They are not confidence intervals or evidence that a
   pair is poorly measured. The fixed budget does not claim convergence. Ties,
   respondent-specific tastes, and preference cycles need explicit models.
-- **Rendered-option provenance.** Results' ordinary question-option metadata
-  does not yet reliably preserve options rendered from shared-state views.
-  This demo checks actual options in the scripted answering function against
-  saved assignments. Shared-state read events retain the viewed options, but a
-  first-class per-question rendered snapshot would make inspection easier.
 - **Candidate-set growth.** The definition enumerates all unordered pairs, so
   candidate storage grows quadratically with the number of items. A much larger
   catalog should probe candidate generation, evaluation budgets, and bounded

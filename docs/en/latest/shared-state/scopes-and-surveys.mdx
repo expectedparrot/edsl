@@ -201,6 +201,56 @@ Entry and exit values are snapshots; reads and writes appear in the ordered
 event history. Together they record which state the run inherited, what it did,
 and what state it left behind.
 
+### Which options did this respondent see?
+
+For completed ordinary model questions and agent-direct answers, the Runner
+captures the question's options before execution. Results uses this snapshot
+instead of resolving the template against later answers or shared state. The
+snapshot retains option order, matrix row order, question text and type, and
+option labels when present. It survives JSON and `.ep` save/reload.
+
+For example, with the [pairwise survey](/en/latest/shared-state/pairwise-comparisons):
+
+```python
+row = next(r for r in results if r.answer.get("preference") is not None)
+options = row.get_question_options("preference")
+# The same options are available through results.select("question_options.preference").
+attributes = row.data["question_to_attributes"]["preference"]
+presentation = attributes["presentation"]
+# {"version": 1, "source": "agent_direct", "shared_state_reads": [...]}
+
+reads = {
+    event["read_id"]: event
+    for binding in results.shared_state["bindings"]
+    for event in binding["events"]
+    if event["kind"] == "read"
+}
+for reference in presentation["shared_state_reads"]:
+    read = reads[reference["read_id"]]
+    assert read["version"] == reference["version"]
+    # read also records the target, scope, and value of the observed view.
+```
+
+`source="prompt"` identifies the resolved question used to construct a model
+prompt; `source="agent_direct"` identifies the question object passed to a
+direct-answering method. Direct methods can receive unrendered question text;
+the snapshot records that object faithfully. It does not certify what an
+external human-survey UI displayed when replaying previously collected answers.
+
+The references identify all shared-state reads available in that question's
+context, including reads inherited from an earlier question. They are not an
+analysis of which fields the template used. No private state is copied into
+the question metadata. A model-cache hit retains the current question's read
+references, even when another run produced the cached answer.
+
+The `presentation` marker is absent for older stored answers, skipped questions,
+computed/functional questions, failed tasks, and the special interview-question
+execution path. Those entries retain the existing reconstructed metadata, which
+must not be treated as evidence that a question was presented. Check for the
+marker when auditing historical choices.
+
+### Durable state and retries
+
 When binding a state map directly to `SQLiteStateBackend`, the backend records
 the serialized definition fingerprint. Reopening the path with a behaviorally
 different definition is an error. Databases created before fingerprints existed

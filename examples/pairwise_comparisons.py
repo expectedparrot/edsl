@@ -119,7 +119,11 @@ def run_demo(count=60, budget=40):
         rid = row.agent.traits["respondent_id"]
         assert row.answer.get("preference") == final["responses"].get(rid)
         if rid in final["responses"]:
-            assert observed[rid] == final["assignments"][rid]["options"]
+            assert (
+                row.get_question_options("preference")
+                == observed[rid]
+                == final["assignments"][rid]["options"]
+            )
     assert set(observed) == set(final["responses"])
     ranking = sorted(DEFAULT_ITEMS, key=lambda x: (-final["ratings"][x], x))
     return {

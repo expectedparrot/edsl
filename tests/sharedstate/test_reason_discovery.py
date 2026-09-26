@@ -8,7 +8,7 @@ import sys
 
 import pytest
 
-from edsl import AgentList, InterviewSchedule, Model, Survey
+from edsl import AgentList, InterviewSchedule, Model, Results, Survey
 from edsl.runner import Runner
 from edsl.sharedstate import (
     Machine,
@@ -325,6 +325,16 @@ def test_actual_options_grow_and_only_other_asks_for_text():
         rows["R1"]["reason"] == "Convenience" and rows["R1"].get("other_reason") is None
     )
     assert "R8" not in observed and rows["R8"].get("reason") is None
+    # Catalog growth later in this job must not rewrite an earlier presentation.
+    restored = Results.from_dict(json.loads(json.dumps(results.to_dict())))
+    for row in restored:
+        rid = row.agent.traits["respondent_id"]
+        attrs = row.data["question_to_attributes"]["reason"]
+        if rid in observed:
+            assert row.get_question_options("reason") == observed[rid]
+            assert attrs["presentation"]["source"] == "agent_direct"
+        else:
+            assert "presentation" not in attrs
     writes = [
         e
         for e in results.shared_state["bindings"][0]["events"]

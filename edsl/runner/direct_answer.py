@@ -13,6 +13,8 @@ from dataclasses import dataclass
 from typing import Any
 import inspect
 
+from .presentation import capture_presentation
+
 
 @dataclass
 class DirectAnswerEntry:
@@ -26,6 +28,7 @@ class DirectAnswerEntry:
     job_id: str | None = None
     interview_id: str | None = None
     item_randomization_seed: int | None = None
+    shared_state_reads: tuple[tuple[str, int], ...] = ()
 
 
 class DirectAnswerRegistry:
@@ -137,6 +140,11 @@ class DirectAnswerRegistry:
         optional "comment" keys.
         """
         question = self._question_for_interview(entry)
+        presentation = capture_presentation(
+            question.to_dict(add_edsl_version=False),
+            source="agent_direct",
+            read_versions=entry.shared_state_reads,
+        )
         result = await self._maybe_await(
             entry.agent.answer_question_directly(question, entry.scenario)
         )
@@ -149,10 +157,12 @@ class DirectAnswerRegistry:
                 "cached": False,
                 "input_tokens": 0,
                 "output_tokens": 0,
+                "question_presentation": presentation,
             }
         return {
             "answer": result,
             "comment": "Direct answer from agent method",
+            "question_presentation": presentation,
             "cached": False,
             "input_tokens": 0,
             "output_tokens": 0,

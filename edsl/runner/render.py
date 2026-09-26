@@ -25,6 +25,7 @@ from ..surveys.memory import MemoryPlan
 from ..invigilators.prompt_constructor import PromptConstructor
 from ..invigilators.prompt_helpers import PromptPlan
 from ..caching import CacheEntry
+from .presentation import capture_presentation
 
 
 @dataclass
@@ -52,6 +53,7 @@ class RenderedPrompt:
     # Exact question definition used to render this prompt. Validation must use
     # this schema rather than independently resolving the original question.
     resolved_question: dict[str, Any] | None = None
+    question_presentation: dict[str, Any] | None = None
 
 
 class RenderService:
@@ -268,6 +270,9 @@ class RenderService:
                 question_data.get("question_type") if question_data else None
             ),
             resolved_question=prompts.get("resolved_question"),
+            question_presentation=capture_presentation(
+                prompts.get("resolved_question"), source="prompt"
+            ),
         )
 
     def _get_current_answers(
@@ -1225,6 +1230,11 @@ class RenderWorker:
                     agent_name=agent_data.get("name") if agent_data else None,
                     question_type=getattr(question, "question_type", None),
                     resolved_question=prompts.get("resolved_question"),
+                    question_presentation=capture_presentation(
+                        prompts.get("resolved_question"),
+                        source="prompt",
+                        read_versions=shared_version or (),
+                    ),
                 )
             )
             _append_time += _time.time() - _t_ap
