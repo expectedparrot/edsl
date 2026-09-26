@@ -345,7 +345,7 @@ a request to execute a Python callback of the same name.
 ### Admission and transport boundaries
 
 All public Machine execution entry points (`initial_state`, `execute`, `close`,
-`render_view`, and `complete`) preflight the complete definition before executing
+`render_view`, `close_result`, and `complete`) preflight the complete definition before executing
 expressions or algorithm validators. Standalone `evaluate` checks the entire
 supplied expression tree. `SQLiteStateBackend` checks before creating its
 directory/database or opening an existing database. `WorkflowExperiment` checks
@@ -466,6 +466,118 @@ no state change.
 Writes are accepted for processing atomically. Any returned command status is
 advisory: it is not a durable receipt or a promise that the caller possesses the
 newest state after other concurrent writes.
+
+## Explicit rejection and outcomes
+
+Use `require=` for the existing behavior: if its condition is false, the command
+is processed as a no-op. Use `assert_` or `reject` when an attempted action should
+be explicitly refused:
+
+```python
+from edsl.sharedstate import Command, T, assert_, field, input_, reject, set_, when
+
+withdraw = Command(
+    inputs={"amount": T.number()},
+    effects=(
+        assert_(input_("amount") > 0, code="invalid_amount"),
+        assert_(field("balance") >= input_("amount"), code="insufficient_funds"),
+        set_("balance", field("balance") - input_("amount")),
+    ),
+)
+
+# A conditional refusal can also be written as an effect:
+closed_guard = when(field("closed"), reject("account_closed"))
+```
+
+The surrounding Machine declares the referenced `balance` and `closed` fields.
+Both helpers serialize as ordinary effects and require `effect:assert@1` or
+`effect:reject@1` support. An older interpreter cannot silently ignore them.
+`assert_` requires a Boolean result. A malformed predicate, invalid input type,
+output type mismatch, missing capability, arithmetic error, or exhausted quota
+is an **execution failure**, not an explicit rejection.
+
+Effects are visited in order. The first failing assertion or enabled `reject`
+stops the transition, discards **all** proposed changes, and skips later effects.
+Assertions, like other expressions, read the pre-command snapshot. A preceding
+`set_` does not change what an assertion reads. Put admission checks before
+expensive computations and trusted callback effects; the interpreter cannot
+undo external side effects performed by Python extensions.
+
+`Runtime.execute()` returns a `CommandResult`. Its `event` and `advisory` include
+`status` and `reason_code`:
+
+| Outcome | `status` | Persistent fields | SQLite event / version | Retry of the same key |
+| --- | --- | --- | --- | --- |
+| Successful change | `applied` | Commit validated proposed state | Record event; advance version | Replay original decision |
+| Intentional no-op | `noop` | Unchanged | Record event; advance version | Replay original decision |
+| Explicit refusal | `rejected` | Unchanged, including earlier effects | Record rejection; advance version | Replay original reason |
+| Execution failure | No result; raises | Unchanged | No completed event or version advance | Key remains available |
+
+A rejection advances the **event version**, not the field values. Raw in-memory
+Runtime calls have no persistence or idempotency; those guarantees come from the
+backend. `reason_code` is null for applied/no-op decisions. Rejected results omit
+the outcomes of discarded effects, so they do not report rolled-back writes as
+successful. A false `require` remains a `noop` with the existing
+`requirement_not_met` effect outcome, preserving old definitions' behavior.
+
+### Reasons and disclosure
+
+Codes must be literal strings matching `[A-Za-z][A-Za-z0-9_.-]{0,63}`. They cannot
+be expressions, templates, or dynamically generated messages. Return a stable
+identifier such as `insufficient_funds`; do not include balances, bids, participant
+traits, or other private values in it. The engine returns the code without
+attaching failed operand values or proposed state to the advisory response.
+
+Choosing different codes still reveals which condition failed. Machine authors
+must choose codes appropriate for the recipient; these checks are not a complete
+information-flow policy. Internal event history includes inputs and stored state
+and must retain its existing access controls. An advisory decision describes an
+attempt, not the latest state; use an authorized read for current state.
+
+### Retries and workflow recovery
+
+`SQLiteStateBackend.apply()` returns an `AdvisoryWriteOutcome` with `status` and
+`reason_code`. Its existing `accepted=True` means **accepted for durable
+processing**, including a recorded rejection. It does not mean the business
+action was admitted. This preserves workflow acknowledgement semantics. Custom
+backends predating this API may leave the two new fields unset.
+
+A retry returns the original decision and `observed_version`, with `changed=None`
+as before. Correcting state does not turn an old rejected attempt into a success.
+Submit a new operation/idempotency key to make a new attempt. Reusing an existing
+key with changed inputs or context is an error. Historical events without these
+new fields remain replayable: their status is inferred from the stored `changed`
+flag, and they have no explicit reason code.
+
+A workflow can finish acknowledging a rejected write after a lost response
+without executing it twice or becoming stuck retrying the same business refusal.
+The accepted survey response and the outcome of its state action are separate
+facts. A workflow submission containing multiple writes is not one atomic Machine
+command; rejection rolls back only its own command. Design subsequent work from
+explicit state reads or public domain fields when participants need to respond
+to a refusal. There is no automatic participant-facing retry prompt.
+
+### Close and finalization
+
+`Runtime.close_result()` returns the same structured result as `execute`.
+`Runtime.close()` preserves its existing dictionary return on success and raises
+`CommandRejected`, with a `reason_code`, on explicit refusal. Both discard partial
+settlement on rejection. SQLite records a rejected close without marking the
+machine closed. A successful close can report `noop` for unchanged stored fields
+while still recording that the lifecycle has closed.
+
+Explicit close operations use their normal idempotency keys. Automatic
+`finalize()` keeps successful settlement once per scope/target. A rejected
+automatic attempt is keyed by its execution identity: the same execution replays
+its rejection; a later execution can try again after the cause is addressed.
+The Runner surfaces `CommandRejected` if automatic settlement is refused, rather
+than treating the interview as having successfully finalized the scope. A
+completion condition that is still false remains an unrecorded pending check.
+
+The [continuous auction example](/en/latest/shared-state/algorithms-and-reference)
+uses ordered assertions for an existing open order, nonpositive price,
+insufficient cash, and insufficient inventory. Its replay includes successful
+trades, an explicit rejection, and an intentional hold no-op.
 
 ## Views
 

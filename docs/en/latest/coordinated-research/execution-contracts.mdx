@@ -150,3 +150,18 @@ can duplicate an invitation. This hardening does not claim exactly-once delivery
 Regression coverage lives in `tests/workflows/test_workflow_contracts.py` and
 `tests/sharedstate/test_state_contracts.py`, alongside the workflow gallery,
 machine execution, serialization round-trip, and runner integration suites.
+
+## Explicit Machine rejections
+
+Machine `assert_`/`reject` effects abort all proposed field changes and return a
+literal public reason code. SQLite records this as a completed `rejected` attempt
+with unchanged field values and an advanced event version. Applied, no-op, and
+rejected attempts replay the original decision on retries; execution failures
+raise without consuming the key. Existing `require=False` behavior stays a no-op.
+
+Workflow processing acknowledgements include recorded rejections, so an outbox
+recovery does not repeat a terminal refusal indefinitely. This is separate from
+whether the domain action succeeded, and does not make multiple workflow writes
+one atomic transition. Rejected close attempts do not mark the scope closed.
+See [Explicit rejection and outcomes](/en/latest/shared-state/machines#explicit-rejection-and-outcomes)
+for the supported API, reason disclosure limits, and finalization retry rules.

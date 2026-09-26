@@ -257,3 +257,18 @@ A registered effect invokes an allowlisted algorithm capability. It receives
 only evaluated plain data and a copy of proposed state. Its complete output MUST
 pass the same type and resource validation before commit. Failure commits
 nothing.
+
+## Implemented explicit rejection extension
+
+The current interpreter additionally supports ordered `assert_(condition,
+code=...)` and `reject(code)` effects. An assertion must evaluate to a Boolean.
+An explicit rejection discards all proposed effects, stops evaluation, and returns
+a fixed public reason code. It is distinct from the legacy unmet-requirement
+no-op and from an execution exception. SQLite durably records applied, no-op, and
+rejected decisions; execution failures leave no completed event. Guards keep the
+same pre-command snapshot semantics as ordinary effects.
+
+This extension is advertised through `effect:assert@1` and `effect:reject@1`,
+without changing older command serialization. See
+[Explicit rejection and outcomes](/en/latest/shared-state/machines#explicit-rejection-and-outcomes)
+for current close, acknowledgement, disclosure, and idempotency contracts.

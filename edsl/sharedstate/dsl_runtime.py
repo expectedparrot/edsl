@@ -11,6 +11,7 @@ from typing import Any, Callable, Iterable
 from edsl._data_contracts import validate_data
 
 from .dsl import Command, Effect, Expr, Machine, _validate_type_expression
+from .exceptions import CommandRejected, validate_reason_code
 from .resources import (
     ExecutionLimits,
     BoundedCollection,
@@ -36,6 +37,8 @@ class CommandResult:
             "processed": True,
             "changed": self.event["changed"],
             "outcomes": self.event["outcomes"],
+            "status": self.event["status"],
+            "reason_code": self.event["reason_code"],
         }
 
 
@@ -166,7 +169,6 @@ class Runtime:
             raise DSLValidationError(f"unknown command {command_name!r}")
         command = spec.commands[command_name]
         self._validate_inputs(command, inputs, spec.constants)
-        working = deepcopy(state)
         context = {
             "constant": spec.constants,
             # Every expression in one command observes the same pre-command
@@ -176,37 +178,52 @@ class Runtime:
             "current": current or {},
         }
         if command.require is not None and not self.evaluate(command.require, context):
-            return CommandResult(
-                state=working,
-                event={
-                    "command": command_name,
-                    "inputs": deepcopy(inputs),
-                    "processed": True,
-                    "changed": False,
-                    "outcomes": [{"status": "requirement_not_met"}],
-                },
+            return self._result(
+                state, command_name, inputs, False, [{"status": "requirement_not_met"}]
             )
+        return self._run_effects(
+            spec, state, command.effects, context, command_name, inputs
+        )
 
-        before = deepcopy(working)
+    @staticmethod
+    def _result(state, command, inputs, changed, outcomes, reason_code=None):
+        return CommandResult(
+            state=deepcopy(state),
+            event={
+                "command": command,
+                "inputs": deepcopy(inputs),
+                "processed": True,
+                "changed": changed,
+                "status": (
+                    "rejected" if reason_code else "applied" if changed else "noop"
+                ),
+                "reason_code": reason_code,
+                "outcomes": outcomes,
+            },
+        )
+
+    def _run_effects(self, spec, state, effects, context, command, inputs):
+        working = deepcopy(state)
         outcomes = []
-        for effect in command.effects:
-            outcomes.append(self._apply(effect, working, context))
-            _active_budget.get().tree(working)
+        try:
+            for effect in effects:
+                outcomes.append(self._apply(effect, working, context))
+                _active_budget.get().tree(working)
+        except CommandRejected as rejection:
+            return self._result(
+                state,
+                command,
+                inputs,
+                False,
+                [{"status": "rejected", "reason_code": rejection.reason_code}],
+                rejection.reason_code,
+            )
         state_context = context | {"state": working}
         for field_name, definition in spec.fields.items():
             self._validate_type(
                 field_name, working[field_name], definition.type, state_context
             )
-        return CommandResult(
-            state=working,
-            event={
-                "command": command_name,
-                "inputs": deepcopy(inputs),
-                "processed": True,
-                "changed": working != before,
-                "outcomes": outcomes,
-            },
-        )
+        return self._result(working, command, inputs, working != state, outcomes)
 
     @bounded_operation
     def render_view(
@@ -243,23 +260,23 @@ class Runtime:
 
     @bounded_operation
     def close(self, spec: Machine, state: dict[str, Any]) -> dict[str, Any]:
+        """Return closed state, or raise CommandRejected for an explicit refusal."""
+        result = self.close_result(spec, state)
+        if result.event["status"] == "rejected":
+            raise CommandRejected(result.event["reason_code"])
+        return result.state
+
+    @bounded_operation
+    def close_result(self, spec: Machine, state: dict[str, Any]) -> CommandResult:
+        """Close with the same structured outcome contract as execute."""
         self.validate_capabilities(spec)
-        working = deepcopy(state)
         context = {
             "constant": spec.constants,
             "state": deepcopy(state),
             "input": {},
             "current": {"closed": True},
         }
-        for effect in spec.close_effects:
-            self._apply(effect, working, context)
-            _active_budget.get().tree(working)
-        state_context = context | {"state": working}
-        for field_name, definition in spec.fields.items():
-            self._validate_type(
-                field_name, working[field_name], definition.type, state_context
-            )
-        return working
+        return self._run_effects(spec, state, spec.close_effects, context, "$close", {})
 
     @bounded_operation
     def complete(self, spec: Machine, state: dict[str, Any]) -> bool:
@@ -754,6 +771,17 @@ class Runtime:
         budget = _active_budget.get()
         if budget is not None:
             budget.charge()
+        if effect.op in {"assert", "reject"}:
+            code = effect.options.get("code")
+            validate_reason_code(code)
+            if effect.op == "reject":
+                raise CommandRejected(code)
+            condition = self.evaluate(effect.args[0], context)
+            if not isinstance(condition, bool):
+                raise DSLValidationError("assert condition must evaluate to a Boolean")
+            if not condition:
+                raise CommandRejected(code)
+            return {"effect": "assert", "status": "passed"}
         if effect.op == "algorithm":
             name = effect.options["name"]
             version = effect.options["version"]

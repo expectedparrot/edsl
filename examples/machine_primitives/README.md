@@ -11,7 +11,7 @@ Python helpers construct expressions. They are never callbacks during execution.
 | [Running ledger](running_ledger.py) | Ordered fold with a structured accumulator | No account authorization |
 | [Serial dictatorship](serial_dictatorship.py) | Latest submissions, priority ordering, evolving capacity | One selected item per claimant |
 | [Deferred acceptance](deferred_acceptance.py) | Lexical bindings, bounded queue processing, tentative matching | Strict, possibly incomplete rankings; unmatched applicants permitted |
-| [Continuous double auction](double_auction.py) | Price/time ordering, atomic account and order updates | One-unit orders; admission failures are `require` no-ops |
+| [Continuous double auction](double_auction.py) | Price/time ordering, atomic account and order updates | One-unit orders; assertions report explicit admission rejections |
 | [Binary LMSR](binary_market.py) | Stable numerical expressions, portfolio transformations | Unconstrained purchases; negative cash permitted |
 | [Batch auction](batch_auction.py) | Stop-on-first-failure fold, deterministic ties, uniform clearing price | Clearing only; one unit per trader; no cash settlement or income schedule |
 
@@ -67,3 +67,11 @@ again before execution. The separate `.machine.json` artifact and its fingerprin
 are unchanged by deriving this metadata. See the canonical manual's
 [interpreter capabilities](https://docs.expectedparrot.com/en/latest/shared-state/machines#interpreter-capabilities)
 for exact-version matching and the local/remote deployment boundary.
+
+The continuous auction now uses `assert_(condition, code="...")` for admission.
+Its demo includes a refused order and a hold no-op; exported replays include a
+`decisions` list with status and reason code for every command. Successful paths
+still match the registered algorithm; invalid admission preserves state while
+returning a rejection instead of the registered implementation's exception.
+See [explicit rejection](https://docs.expectedparrot.com/en/latest/shared-state/machines#explicit-rejection-and-outcomes)
+for disclosure, idempotency, failure, and close semantics.

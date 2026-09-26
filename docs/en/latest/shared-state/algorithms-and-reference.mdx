@@ -130,9 +130,14 @@ permits negative cash, as the comparison implementation does, and explicitly
 prevents further trading after settlement.
 
 The continuous auction admits one open order per trader and executes at the
-resting order's price. Unmet admission requirements produce an unchanged state;
-the older callback raises exceptions for some of those cases. The corpus tests
-compare valid execution paths rather than claiming identical error behavior.
+resting order's price. Ordered `assert_` effects return `open_order_exists`,
+`invalid_price`, `insufficient_cash`, or `insufficient_inventory` for refused
+orders. `hold` remains a no-op. The older callback raises exceptions for those
+admission failures; tests compare both unchanged state on rejected paths and
+state/conservation on valid paths. This is a deliberate difference in outcome
+reporting. Invalid trader/action types still fail input validation. See
+[explicit rejection semantics](/en/latest/shared-state/machines#explicit-rejection-and-outcomes).
+Replay exports include a `decisions` list aligned with their `commands`.
 
 ## What the examples reveal about the language
 
@@ -143,7 +148,7 @@ compare valid execution paths rather than claiming identical error behavior.
 | Matching must not return a half-finished answer | Per-loop bounds plus shared evaluation, tree, growth, and output limits; exhaustion fails atomically | Portable cost schedules and isolation of trusted Python extensions |
 | Structured state needs declared members | Records, lexical checks, conservative operand/branch analysis, and explicit loop invariants | Complete inference, flow-sensitive null safety, and dynamic lookup proofs |
 | Market formulas need numerical stability | General `exp` and `logsumexp` | Defined decimal rounding and reproducible seeded random primitives for full asset-market parity |
-| Error policy differs across mechanisms | Document requirement no-ops versus execution failures | Structured rejection reasons and assertions |
+| Error policy differs across mechanisms | Explicit assertion/rejection effects, literal reason codes, and durable retry decisions | Full information-flow checks and deliberate migration of older callback error policies |
 | New operations must run on the receiving interpreter | Derived exact-version manifests and destination preflight, including loop options | Deployment of capability discovery and checks on hosted services |
 
 The examples do not solve every limitation by adding a special operation. In

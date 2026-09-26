@@ -63,12 +63,13 @@ def test_effects_share_one_budget():
 
 
 @pytest.mark.parametrize(
-    "operation", ["execute", "close", "render_view", "complete", "initial_state"]
+    "operation",
+    ["execute", "close", "close_result", "render_view", "complete", "initial_state"],
 )
 def test_all_entry_points_are_bounded(operation):
     spec = machine(nested_work())
     runtime = Runtime(limits=ExecutionLimits(max_steps=2000))
-    if operation == "close":
+    if operation in {"close", "close_result"}:
         spec = replace(spec, close_effects=(set_("answer", nested_work()),))
     elif operation == "render_view":
         spec = replace(spec, view={"answer": nested_work()})

@@ -19,11 +19,17 @@ from .model import ReadOperation, SharedStateMap, StateCondition, WriteOperation
 
 @dataclass(frozen=True)
 class AdvisoryWriteOutcome:
-    """Advisory acknowledgement; never a transactional state receipt."""
+    """Processing acknowledgement; never a transactional state receipt.
+
+    accepted includes durably recorded rejections. Inspect status/reason_code
+    for the action's decision; legacy backends may leave them unspecified.
+    """
 
     accepted: bool
     changed: bool | None = None
     observed_version: int | None = None
+    status: str | None = None
+    reason_code: str | None = None
 
 
 @dataclass(frozen=True)
@@ -199,7 +205,9 @@ class SQLiteStateBackend:
             parameters,
         ).fetchall()
         return any(
-            event.get("target") == target and event.get("command") == "$close"
+            event.get("target") == target
+            and event.get("command") == "$close"
+            and event.get("status") != "rejected"
             for event in (json.loads(row["payload"]) for row in rows)
         )
 
@@ -260,7 +268,7 @@ class SQLiteStateBackend:
                         "state idempotency key was reused with different runtime context"
                     )
                 connection.commit()
-                return AdvisoryWriteOutcome(True, None, duplicate["version"])
+                return self._acknowledge(previous, duplicate=True)
 
             state, version = self._materialized(
                 connection, operation.state_id, operation.scope.canonical
@@ -272,11 +280,7 @@ class SQLiteStateBackend:
                     f"unknown state target {operation.target!r}"
                 ) from exc
             if operation.command == "$close":
-                before_target = deepcopy(state[operation.target])
-                state[operation.target] = self.runtime.close(
-                    machine, state[operation.target]
-                )
-                changed = state[operation.target] != before_target
+                result = self.runtime.close_result(machine, state[operation.target])
             else:
                 result = self.runtime.execute(
                     machine,
@@ -285,8 +289,8 @@ class SQLiteStateBackend:
                     dict(operation.inputs),
                     current=dict(operation.runtime_context),
                 )
-                state[operation.target] = result.state
-                changed = result.event["changed"]
+            state[operation.target] = result.state
+            changed = result.event["changed"]
             new_version = version + 1
             event = {
                 "format": 1,
@@ -307,6 +311,8 @@ class SQLiteStateBackend:
                 "runtime_context": dict(operation.runtime_context),
                 "idempotency_key": operation.idempotency_key,
                 "changed": changed,
+                "status": result.event["status"],
+                "reason_code": result.event["reason_code"],
                 "state": state,
                 "timestamp": datetime.now(timezone.utc).isoformat(),
             }
@@ -325,12 +331,24 @@ class SQLiteStateBackend:
                 ),
             )
             connection.commit()
-            return AdvisoryWriteOutcome(True, changed, new_version)
+            return self._acknowledge(event)
         except Exception:
             connection.rollback()
             raise
         finally:
             connection.close()
+
+    @staticmethod
+    def _acknowledge(event, *, duplicate=False):
+        # accepted acknowledges durable processing, not admission of the action.
+        status = event.get("status", "applied" if event["changed"] else "noop")
+        return AdvisoryWriteOutcome(
+            True,
+            None if duplicate else event["changed"],
+            event["version"],
+            status,
+            event.get("reason_code"),
+        )
 
     def read(
         self, operation: ReadOperation, *, at_sequence: int | None = None
@@ -425,25 +443,33 @@ class SQLiteStateBackend:
         idempotency_key = (
             f"{condition.state_id}:{key.canonical}:{condition.target}:close"
         )
+        # A successful finalization remains once per scope/target. Rejected
+        # attempts are terminal only for this execution, so a later execution
+        # can try again after the cause has been addressed.
+        rejection_key = f"{idempotency_key}:rejected:{canonical_data(execution_id)}"
         connection = self._connect()
         try:
             connection.execute("BEGIN IMMEDIATE")
             duplicate = connection.execute(
-                "SELECT version FROM state_events WHERE idempotency_key = ?",
-                (idempotency_key,),
+                "SELECT version, payload FROM state_events WHERE idempotency_key IN (?, ?) "
+                "ORDER BY CASE WHEN idempotency_key = ? THEN 0 ELSE 1 END LIMIT 1",
+                (rejection_key, idempotency_key, rejection_key),
             ).fetchone()
             if duplicate is not None:
                 connection.commit()
-                return AdvisoryWriteOutcome(True, None, duplicate["version"])
+                return self._acknowledge(
+                    json.loads(duplicate["payload"]), duplicate=True
+                )
             state, version = self._materialized(
                 connection, condition.state_id, key.canonical
             )
             machine = condition.definition.machines[condition.target]
             if not self.runtime.complete(machine, state[condition.target]):
                 connection.commit()
-                return AdvisoryWriteOutcome(True, False, version)
+                return AdvisoryWriteOutcome(True, False, version, "noop")
             before = deepcopy(state[condition.target])
-            state[condition.target] = self.runtime.close(machine, before)
+            result = self.runtime.close_result(machine, before)
+            state[condition.target] = result.state
             new_version = version + 1
             event = {
                 "format": 1,
@@ -459,8 +485,14 @@ class SQLiteStateBackend:
                 "inputs": {},
                 "step_id": "$finalize",
                 "execution_id": execution_id,
-                "idempotency_key": idempotency_key,
-                "changed": state[condition.target] != before,
+                "idempotency_key": (
+                    rejection_key
+                    if result.event["status"] == "rejected"
+                    else idempotency_key
+                ),
+                "changed": result.event["changed"],
+                "status": result.event["status"],
+                "reason_code": result.event["reason_code"],
                 "state": state,
                 "timestamp": datetime.now(timezone.utc).isoformat(),
             }
@@ -479,7 +511,7 @@ class SQLiteStateBackend:
                 ),
             )
             connection.commit()
-            return AdvisoryWriteOutcome(True, event["changed"], new_version)
+            return self._acknowledge(event)
         except Exception:
             connection.rollback()
             raise

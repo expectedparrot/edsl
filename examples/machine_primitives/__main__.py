@@ -43,11 +43,21 @@ def run_example(name):
     )
     runtime = Runtime()  # Empty registry: examples cannot silently use built-ins.
     state = runtime.initial_state(machine)
+    decisions = []
     for command, inputs in module.DEMO:
-        state = (
-            runtime.close(machine, state)
+        result = (
+            runtime.close_result(machine, state)
             if command == "$close"
-            else runtime.execute(machine, state, command, inputs).state
+            else runtime.execute(machine, state, command, inputs)
+        )
+        state = result.state
+        decisions.append(
+            {
+                "command": command,
+                "status": result.event["status"],
+                "reason_code": result.event["reason_code"],
+                "changed": result.event["changed"],
+            }
         )
     return {
         "operations": sorted(
@@ -57,6 +67,7 @@ def run_example(name):
         "definition_bytes": len(machine.to_json().encode()),
         "definition": payload,
         "commands": module.DEMO,
+        "decisions": decisions,
         "state": state,
         "view": runtime.render_view(machine, state, closed=True),
     }

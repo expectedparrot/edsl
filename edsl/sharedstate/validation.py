@@ -167,6 +167,11 @@ class _References:
                 )
             )
         if isinstance(value, Effect):
+            if value.op == "assert":
+                condition = self.expression(
+                    value.args[0], path + ".args[0]", locals_, inputs
+                )
+                self.expect(condition, {"boolean"}, path + ".args[0]", "assert")
             self.expression(value.args, path + ".args", locals_, inputs)
             self.expression(value.options, path + ".options", locals_, inputs)
             return T.any()

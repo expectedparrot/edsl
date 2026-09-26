@@ -606,3 +606,55 @@ def test_humanize_poll_drains_a_superseded_external_task(tmp_path):
         store.external_tasks("humanize", status="cancelled")[0]["work_item_id"]
         == late["id"]
     )
+
+
+def test_rejected_machine_action_is_terminal_during_outbox_recovery(
+    tmp_path, monkeypatch
+):
+    from edsl.sharedstate import (
+        Command,
+        Machine,
+        SharedState,
+        SharedStateMap,
+        T,
+        reject,
+        state_field,
+    )
+
+    machine = Machine(
+        name="Decline",
+        constants={},
+        fields={"count": state_field(T.integer(), 0)},
+        commands={"act": Command({}, (reject("not_allowed"),))},
+        view={},
+    )
+    spaces = SharedStateMap(SharedState(data=machine))
+    backend = SQLiteStateBackend(spaces, tmp_path / "state.sqlite")
+    q = question()
+    builder = Workflow("rejected action recovery")
+    builder.step("respond", Survey([q]), writes=(spaces.by("scope").data.act(),))
+    store = SQLiteWorkflowStore(tmp_path / "workflow.sqlite")
+    coordinator = WorkflowCoordinator(
+        builder.compile(), store, state_backends={spaces.state_id: backend}
+    )
+    instance = coordinator.launch([Agent(name="person")])
+    item = store.items(instance, step_name="respond")[0]["id"]
+    apply = backend.apply
+
+    def commit_then_crash(operation):
+        result = apply(operation)
+        assert result.status == "rejected"
+        raise RuntimeError("lost rejection acknowledgement")
+
+    monkeypatch.setattr(backend, "apply", commit_then_crash)
+    with pytest.raises(RuntimeError, match="lost rejection"):
+        coordinator.submit(item, {"reply": "try"}, idempotency_key="answer")
+    assert store.item(item)["status"] == "committing"
+    assert len(backend.history()) == 1
+    monkeypatch.setattr(backend, "apply", apply)
+    coordinator.recover(instance)
+    assert store.item(item)["status"] == "completed"
+    assert store.pending_effects(item) == []
+    assert len(backend.history()) == 1
+    assert backend.history()[0]["status"] == "rejected"
+    assert backend.snapshot("scope").state["data"]["count"] == 0

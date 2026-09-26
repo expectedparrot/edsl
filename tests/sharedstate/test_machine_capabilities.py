@@ -113,7 +113,8 @@ def test_all_definition_contexts_are_checked(location):
 
 
 @pytest.mark.parametrize(
-    "entry", ["execute", "initial_state", "render_view", "complete", "close"]
+    "entry",
+    ["execute", "initial_state", "render_view", "complete", "close", "close_result"],
 )
 def test_every_machine_entry_point_preflights_before_callbacks(entry):
     calls = []

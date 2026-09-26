@@ -1,11 +1,13 @@
 """One-unit continuous auction using filtering, sorting, and immutable updates.
 
 Orders match at the resting order's price; price then arrival order determines
-priority. Invalid admission conditions are no-ops, following Machine.require.
+priority. Invalid admission conditions return explicit, public rejection codes.
 """
 
 from edsl.sharedstate import (
     Command,
+    assert_,
+    when,
     Machine,
     T,
     choose,
@@ -39,18 +41,18 @@ def build_machine(accounts=None):
         predicate=(row.get("status") == "open") & (row.get("trader") == trader),
     )
     account = book.get("accounts").get(trader)
+    trading = (action == "buy") | (action == "sell")
     admission = (
-        (action == "hold")
-        | (action == "cancel")
-        | (
-            (price > 0)
-            & (open_owned.length() == 0)
-            & choose(
-                action == "buy",
-                account.get("cash") >= price,
-                account.get("inventory") >= 1,
-            )
-        )
+        when(trading, assert_(open_owned.length() == 0, code="open_order_exists")),
+        when(trading, assert_(price > 0, code="invalid_price")),
+        when(
+            action == "buy",
+            assert_(account.get("cash") >= price, code="insufficient_cash"),
+        ),
+        when(
+            action == "sell",
+            assert_(account.get("inventory") >= 1, code="insufficient_inventory"),
+        ),
     )
     order = record(
         id=expr("concat", "O", book.get("orders").length() + 1),
@@ -179,11 +181,11 @@ def build_machine(accounts=None):
                 inputs={
                     "trader": T.choice(list(accounts)),
                     "action": T.choice(["buy", "sell", "cancel", "hold"]),
-                    "price": T.number(minimum=0),
+                    "price": T.number(),
                     "round": T.integer(minimum=1),
                 },
-                require=admission,
                 effects=(
+                    *admission,
                     set_(
                         "market",
                         choose(
@@ -203,5 +205,7 @@ def build_machine(accounts=None):
 DEMO = [
     ("submit", {"trader": "Seller", "action": "sell", "price": 40, "round": 1}),
     ("submit", {"trader": "Buyer", "action": "buy", "price": 50, "round": 1}),
+    ("submit", {"trader": "Buyer", "action": "buy", "price": 1000, "round": 2}),
+    ("submit", {"trader": "Buyer", "action": "hold", "price": 0, "round": 2}),
     ("$close", {}),
 ]

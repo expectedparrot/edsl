@@ -328,6 +328,16 @@ class Effect:
         return encode(asdict(self))
 
 
+def assert_(condition: Any, *, code: str) -> Effect:
+    """Reject the entire transition with a public literal code unless true."""
+    return Effect("assert", "", (condition,), {"code": code})
+
+
+def reject(code: str) -> Effect:
+    """Reject the entire transition; use when(condition, reject(code)) to branch."""
+    return Effect("reject", "", (), {"code": code})
+
+
 def set_(target: str, value: Any) -> Effect:
     return Effect("set", target, (value,))
 
@@ -539,15 +549,29 @@ class Machine:
                         "put": 2,
                         "append": 1,
                         "algorithm": 0,
+                        "assert": 1,
+                        "reject": 0,
                     }
                     if item.op not in arities:
                         raise ValueError(f"{self.name} uses unknown effect {item.op!r}")
                     check_arity(item.op, item.args, arities[item.op], arities[item.op])
-                    if item.op != "algorithm" and item.target not in self.fields:
+                    if (
+                        item.op not in {"algorithm", "assert", "reject"}
+                        and item.target not in self.fields
+                    ):
                         raise ValueError(f"unknown target field {item.target!r}")
                     allowed_options = {"when"} | (
                         {"once"} if item.op == "put" else set()
                     )
+                    if item.op in {"assert", "reject"}:
+                        from .exceptions import validate_reason_code
+
+                        if item.target != "":
+                            raise ValueError(
+                                "rejection effects must not name a target field"
+                            )
+                        validate_reason_code(item.options.get("code"))
+                        allowed_options.add("code")
                     if item.op == "algorithm":
                         allowed_options |= {"name", "version", "bindings"}
                         if not {"name", "version", "bindings"} <= item.options.keys():

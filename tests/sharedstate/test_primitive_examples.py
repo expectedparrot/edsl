@@ -214,3 +214,16 @@ def test_batch_auction_boundaries(orders, volume, price):
     assert clearing["volume"] == volume
     assert clearing["price"] == price
     assert len(clearing["buyers"]) == len(clearing["sellers"]) == volume
+
+
+def test_auction_replay_distinguishes_rejection_from_hold():
+    result = run_example("double_auction")
+    assert [decision["status"] for decision in result["decisions"]] == [
+        "applied",
+        "applied",
+        "rejected",
+        "noop",
+        "noop",
+    ]
+    assert result["decisions"][2]["reason_code"] == "insufficient_cash"
+    assert result["decisions"][3]["reason_code"] is None

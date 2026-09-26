@@ -1164,9 +1164,13 @@ class JobService:
             from ..sharedstate.model import resolve
 
             scope = resolve(condition.scope, context)
-            self._state_binding(job_id, condition).finalize(
+            outcome = self._state_binding(job_id, condition).finalize(
                 condition, scope, execution_id=interview_id
             )
+            if getattr(outcome, "status", None) == "rejected":
+                from ..sharedstate.exceptions import CommandRejected
+
+                raise CommandRejected(outcome.reason_code)
 
     def on_task_completed(
         self,

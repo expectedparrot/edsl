@@ -89,7 +89,9 @@ TYPE_KINDS = frozenset(
         "record",
     }
 )
-EFFECT_OPERATORS = frozenset({"set", "set_once", "put", "append", "algorithm"})
+EFFECT_OPERATORS = frozenset(
+    {"set", "set_once", "put", "append", "algorithm", "assert", "reject"}
+)
 FEATURES = frozenset({"fold.accumulator_type", "iterate.state_type"})
 BUILTIN_CAPABILITIES = frozenset(
     {"language:machine@1", "algorithm_view:lmsr_prices@1", "dependency:lmsr_prices@1"}

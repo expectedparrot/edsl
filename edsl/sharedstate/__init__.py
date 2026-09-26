@@ -1,6 +1,10 @@
 """Declarative, scoped shared state for coordinated surveys."""
 
-from .exceptions import MachineValidationError, UnsupportedCapabilityError
+from .exceptions import (
+    MachineValidationError,
+    UnsupportedCapabilityError,
+    CommandRejected,
+)
 from .resources import ExecutionLimits, ResourceLimitError
 from .refs import current
 from .call_market import call_market
@@ -52,6 +56,8 @@ from .dsl import (
     Machine,
     T,
     algorithm,
+    assert_,
+    reject,
     append,
     choose,
     constant,
@@ -82,6 +88,9 @@ from .dsl import (
 
 __all__ = [
     "MachineValidationError",
+    "CommandRejected",
+    "assert_",
+    "reject",
     "UnsupportedCapabilityError",
     "ExecutionLimits",
     "ResourceLimitError",

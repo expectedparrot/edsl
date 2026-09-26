@@ -42,3 +42,29 @@ class UnsupportedCapabilityError(SharedStateRuntimeError, ValueError):
             "missing": list(self.missing),
             "paths": {name: list(paths) for name, paths in self.paths.items()},
         }
+
+
+def validate_reason_code(code):
+    """Rejection metadata is a bounded public identifier, never an expression."""
+    import re
+
+    if (
+        not isinstance(code, str)
+        or re.fullmatch(r"[A-Za-z][A-Za-z0-9_.-]{0,63}", code) is None
+    ):
+        raise ValueError(
+            "rejection code must be a literal identifier of 1 to 64 ASCII characters"
+        )
+
+
+class CommandRejected(SharedStateRuntimeError, ValueError):
+    """An intentional domain rejection, distinct from an execution failure.
+
+    Command execution returns a rejected result. The legacy dict-returning
+    Runtime.close convenience API raises this exception instead.
+    """
+
+    def __init__(self, reason_code):
+        validate_reason_code(reason_code)
+        self.reason_code = reason_code
+        super().__init__(f"command rejected: {reason_code}")
