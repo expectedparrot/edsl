@@ -1,0 +1,199 @@
+---
+title: "Adaptive question coverage"
+description: "Give each agent a small, fixed set of under-covered questions and stop when every question has enough answers."
+---
+
+Suppose a survey has **20 questions**, each needing **10 valid answers**. Each
+agent answers at most **3 questions** in a single interview. Before that
+interview starts, a Machine assigns the questions with the fewest recorded
+answers. Later agents see a different subset as coverage changes. Once all
+questions reach their targets, the study stops.
+
+The [primitive Machine](https://github.com/expectedparrot/edsl/blob/feature/shared-state-v0/examples/machine_primitives/question_coverage.py)
+uses existing map/filter, sorting, assertions, and atomic effects. The
+[survey adapter](https://github.com/expectedparrot/edsl/blob/feature/shared-state-v0/examples/question_coverage.py)
+generates the skip rules and runs interviews sequentially. No new interpreter
+operation or registered algorithm is needed.
+
+## Run the example
+
+```bash
+python -m examples.question_coverage
+```
+
+The local simulation creates 100 scripted agents and uses a test model, making
+no model API calls. Its actual survey run produces:
+
+| Outcome | Result |
+| --- | --- |
+| Agents answering questions | 67 |
+| Agents answering three questions | 66 |
+| Final agent's questions | 2 |
+| Total valid answers | 200 |
+| Coverage of each of the 20 questions | Exactly 10 |
+| Remaining agents | 33, with no substantive questions asked |
+| Stop reason | `coverage_complete` |
+
+The demo compares each agent's actual survey answers against the Machine's
+ledger, so accidentally asking extra questions fails verification. With an
+insufficient population, such as `run_demo(count=1)`, the report instead says
+`population_exhausted` and reports the coverage achieved.
+
+This is a correctness demonstration rather than a performance benchmark. The
+full run can take several minutes on the current local Runner; repeated survey
+reconstruction and Machine validation are a design finding below.
+
+## Assignments and answer counts
+
+```python
+from examples.machine_primitives.question_coverage import build_machine
+
+machine = build_machine(
+    question_ids=["q01", "q02", "q03", "q04", "q05"],
+    target=10,
+    per_agent=3,
+)
+machine.validate()
+```
+
+Question IDs must be distinct identifiers outside the reserved `coverage_`
+namespace. The target and per-agent limit must be positive integers. The sample
+uses 1–5 integer ratings; another answer type requires changing both the survey
+question and the Machine's answer schema.
+
+The fields are `counts` per question, `assignments` per respondent, an `answers`
+ledger keyed by respondent and question, and an explicit `closed` flag.
+
+`assign(respondent_id=...)` filters out questions already at target, sorts the
+rest by `(answer count, question ID)`, and saves up to `per_agent` IDs. Ties use
+lexical question-ID order. A repeated assignment request retains the original
+list, even if coverage has changed. The survey asks the selected subset in its
+normal question order.
+
+**An assignment does not count as an answer and does not reserve capacity.**
+If an agent leaves a question unanswered, its count stays unchanged and a later
+agent can receive it. The original assignment remains available for resumption;
+already answered or subsequently filled questions are omitted from the
+respondent's `pending` view.
+
+`record_answer(respondent_id=..., question=..., answer=...)` validates the rating
+and checks that the question belongs to that respondent's saved assignment.
+It atomically records a new answer and increments that question's count. Each
+respondent/question pair counts once. Retrying the same answer is a no-op;
+changing it is rejected with `answer_changed`. An unassigned question is rejected
+with `question_not_assigned`; a new answer to a full question is rejected with
+`question_full`. Invalid answers do not advance coverage.
+
+Completion requires every count to reach its target. An explicit close blocks
+new assignments and answers but does not claim full coverage. Harmless retries
+of recorded answers remain allowed. Stable respondent IDs and trusted study
+scope are host responsibilities.
+
+## Generate the survey routing
+
+```python
+from examples.question_coverage import build_survey
+
+survey, states, schedule = build_survey(target=10, per_agent=3)
+```
+
+The adapter installs these steps:
+
+1. Before the first question, request the respondent's fixed assignment.
+2. Read the Machine view, including that respondent's pending question IDs.
+3. Compute three internal scalar slots containing those IDs.
+4. Ask each real question only if its ID appears in a slot.
+5. After a validated answer, execute its attached `record_answer` command.
+
+The default survey therefore contains 20 substantive questions, three computed
+routing slots, 20 generated skip rules, and one stop rule. The computed slots do
+not call a model or request respondent input. They translate the Machine's list
+view into ordinary answer references supported by the survey rule engine.
+
+For example, the first computed slot contains:
+
+```jinja
+{{ shared_state.coverage.pending[0] if shared_state.coverage.pending | length > 0 else 'coverage_none' }}
+```
+
+An unused slot contains `coverage_none`, a value excluded from actual question
+IDs. An empty string is unsuitable: computed-question rendering currently
+validates the rendered text as a question and rejects empty text.
+
+The rule for `q01` is equivalent to:
+
+```python
+survey.add_skip_rule(
+    "q01",
+    "'q01' not in [{{ coverage_slot_1.answer }}, "
+    "{{ coverage_slot_2.answer }}, {{ coverage_slot_3.answer }}]",
+)
+```
+
+These fragments explain rules already generated by `build_survey()`; do not add
+them again. Membership compares exact IDs, so `q1` cannot accidentally match
+`q10`. If the first slot is `coverage_none`, a stop rule ends that interview.
+A skipped question does not execute its attached answer write.
+
+## Ordering and resumption
+
+Each agent has `study_id`, a stable `respondent_id`, and a numeric `turn`. The
+returned schedule runs whole interviews one at a time within each study:
+
+```python
+from edsl import Model
+from edsl.runner import Runner
+from examples.question_coverage import demo_agents
+
+results = (
+    Runner(interview_schedule=schedule)
+    .submit(survey.by(demo_agents()).by(Model("test")), cache=False)
+    .results()
+)
+```
+
+Its `grouped_round_robin("study_id", "turn", stop_when=coverage.is_complete())`
+ordering ensures the next agent's assignment sees previous answers. Preserve
+the survey, its state identity, and the schedule when resuming. JSON transport
+preserves the generated routing and command bindings. SQLite retains assignments
+and answers; the pending view prevents reasking previously recorded answers.
+
+Concurrent interviews are outside this adapter's allocation contract. The
+Machine still prevents counts exceeding their targets, but simultaneous agents
+can receive the same remaining capacity and one answer may be rejected. A
+concurrent version needs explicit reservations and an abandonment/release policy.
+This sample makes neither capacity reservations nor replacement assignments.
+
+## Tests and design findings
+
+The [tests](https://github.com/expectedparrot/edsl/blob/feature/shared-state-v0/tests/sharedstate/test_question_coverage.py)
+cover independent reference streams with abandoned answers, fixed assignments,
+invalid answers, exact membership, retries, concurrent count bounds, SQLite
+restart, fresh-process Machine replay, and survey/schedule JSON transport.
+End-to-end tests check actual asked questions, suppressed writes for skipped
+questions, partial interview resumption, the final two-question assignment,
+and population exhaustion.
+
+Three limitations are especially useful for future designs:
+
+- **Typed state-to-routing bindings.** The current adapter expands a list into
+  scalar computed slots and generated rules. Direct typed membership against a
+  shared-state view would remove this plumbing and the nonempty-slot marker.
+- **Repeated definition work.** Survey reconstruction repeats embedded Machine
+  deserialization and validation along the Runner's direct-answer path. The
+  full simulation exposes this cost even without model calls. Safe reuse of
+  validated immutable definitions deserves profiling and a separate change.
+- **Concurrent allocation policy.** Answer counting alone cannot prevent two
+  active respondents receiving the same last place. Reservations require clear
+  expiry, abandonment, and resume semantics.
+
+The Machine definition is **12,831 JSON bytes**, with **159 expression
+occurrences and 62 distinct trees**. Its short corpus replay uses at most
+**12,514 host budget steps per transition**. Reproduce these measurements with
+`python -m examples.machine_primitives.profile_corpus`. They describe that replay,
+not the larger completed survey, and are not portable runtime-cost guarantees.
+
+Local tests do not establish deployment support in a hosted human-survey
+service. Such a host must preserve trusted IDs, shared state, computed routing,
+validated-answer writes, and the required interview ordering. Remaining work is
+tracked in the [design checklist](https://github.com/expectedparrot/edsl/issues/2665).

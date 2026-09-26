@@ -20,6 +20,7 @@ EXAMPLES = (
     "monetary_settlement",
     "survey_quota",
     "reason_discovery",
+    "question_coverage",
 )
 
 

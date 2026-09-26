@@ -18,6 +18,7 @@ Python helpers construct expressions. They are never callbacks during execution.
 | [Monetary settlement](monetary_settlement.py) | Exact decimal text, integer balances, fee rounding | Fixed accounts; no authorization or currency conversion |
 | [Survey quotas](survey_quota.py) | Atomic per-type admission and personal eligibility | Counts admissions; no abandonment reclamation or authentication |
 | [Reason discovery](reason_discovery.py) | Growing catalog and streak-based stopping across distinct agents | Text normalization only; saturation can miss rare reasons |
+| [Question coverage](question_coverage.py) | Fixed personal assignments and idempotent answer counting | Sequential interviews; assignments do not reserve capacity |
 
 Run from the repository root with an installed EDSL development environment:
 
@@ -109,3 +110,11 @@ agents. `python -m examples.reason_discovery` runs a seeded five-reason populati
 sequentially until ten valid observations add nothing new. The canonical
 [walkthrough](https://docs.expectedparrot.com/en/latest/shared-state/reason-discovery)
 documents stopping, normalization, ordering, replay, and semantic-deduplication limits.
+
+The [adaptive question-coverage adapter](../question_coverage.py) generates skip
+rules to ask each agent up to three under-covered questions. Run
+`python -m examples.question_coverage` for a local simulation: 67 agents provide
+200 answers, reaching ten answers on each of 20 questions. The canonical
+[walkthrough](https://docs.expectedparrot.com/en/latest/shared-state/question-coverage)
+explains fixed assignments, partial resumption, generated routing, and the
+remaining routing, performance, and concurrent-reservation limitations.
