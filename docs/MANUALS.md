@@ -15,7 +15,14 @@ Edit these sources and keep their chapter navigation in `docs.json`. The former
 manual Markdown paths are relocation notices to preserve incoming repository
 links. Existing PDF/LaTeX files are historical snapshots; do not edit or rebuild
 them as a competing manual. Any future print export must be generated from the
-canonical MDX chapters. Prospective simulation/design studies are design material,
+canonical MDX chapters.
+
+The obsolete standalone HTML stylesheet is preserved as
+`archive/human_workflow_simulation_spec.css.txt`. Keep it inactive: Mintlify
+automatically loads CSS files under the documentation root, and those global
+print styles override the site’s light and dark themes.
+
+Prospective simulation/design studies are design material,
 not API documentation or promises of supported behavior.
 
 From this directory, use the Mintlify CLI to check and preview changes:
