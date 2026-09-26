@@ -88,6 +88,7 @@
               "en/latest/shared_state",
               "en/latest/shared-state/machines",
               "en/latest/shared-state/randomization-and-money",
+              "en/latest/shared-state/survey-quotas",
               "en/latest/shared-state/testing-and-serialization",
               "en/latest/shared-state/scopes-and-surveys",
               "en/latest/shared-state/collections-and-lifecycle",

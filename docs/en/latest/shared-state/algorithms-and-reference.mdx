@@ -27,6 +27,7 @@ counting values.
 | [Batch auction](https://github.com/expectedparrot/edsl/blob/feature/shared-state-v0/examples/machine_primitives/batch_auction.py) | Uniform-price clearing with deterministic ties | Full asset-market settlement, interest, dividends, or randomized priority |
 | [Seeded allocation](https://github.com/expectedparrot/edsl/blob/feature/shared-state-v0/examples/machine_primitives/seeded_allocation.py) | Stable-ID lottery priority and a separately keyed draw | Secret randomness or participant-chosen IDs |
 | [Monetary settlement](https://github.com/expectedparrot/edsl/blob/feature/shared-state-v0/examples/machine_primitives/monetary_settlement.py) | Exact decimal input, integer balances, explicit fee rounding | Currency conversion or account authorization |
+| [Survey quotas](/en/latest/shared-state/survey-quotas) | Atomic admission, durable personal eligibility, and actual survey stop rules | Completion quotas, abandonment reclamation, or hosted deployment |
 
 These are executable reference examples, not claims of a complete production
 market or matching library. The batch auction is intentionally smaller than the
@@ -163,6 +164,7 @@ rounding policies unchanged.
 | Market formulas need numerical stability | General `exp` and `logsumexp`; exact `decimal_units` and `round_ratio` for money | Full asset-market settlement and deliberate rounding-policy migration |
 | Stochastic priority must replay independently of call order | Keyed SHA-256 `seeded_integer` and stable-ID `seeded_order` | Full asset-market comparisons and migration of legacy random streams |
 | Error policy differs across mechanisms | Explicit assertion/rejection effects, literal reason codes, and durable retry decisions | Full information-flow checks and deliberate migration of older callback error policies |
+| Survey admission must control question flow | Atomic quota Machine plus explicit reads and computed gates | Direct typed state-to-survey branches; completion/expiry policies |
 | New operations must run on the receiving interpreter | Derived exact-version manifests and destination preflight, including loop options | Deployment of capability discovery and checks on hosted services |
 
 The examples do not solve every limitation by adding a special operation. In
@@ -210,3 +212,12 @@ isolation of arbitrary Python extensions remain conformance targets in the
 
 The ordered implementation checklist and progress are tracked in
 [Machine design gaps, issue #2665](https://github.com/expectedparrot/edsl/issues/2665).
+
+
+## Measure composition costs
+
+`python -m examples.machine_primitives.profile_corpus` reports serialized size,
+repeated expression trees, and existing host budget charges for each replayed
+transition. See the [survey quota walkthrough](/en/latest/shared-state/survey-quotas#what-this-application-reveals-about-composition)
+for a measured example and the accounting limits. These are development probes,
+not portable performance promises or a new tracing API.

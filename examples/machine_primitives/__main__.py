@@ -18,6 +18,7 @@ EXAMPLES = (
     "batch_auction",
     "seeded_allocation",
     "monetary_settlement",
+    "survey_quota",
 )
 
 

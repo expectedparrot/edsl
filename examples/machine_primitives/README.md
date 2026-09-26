@@ -16,6 +16,7 @@ Python helpers construct expressions. They are never callbacks during execution.
 | [Batch auction](batch_auction.py) | Stop-on-first-failure fold, deterministic ties, uniform clearing price | Clearing only; one unit per trader; no cash settlement or income schedule |
 | [Seeded allocation](seeded_allocation.py) | Stable-ID lottery and independent keyed bonus | Study-assigned IDs; predictable seed |
 | [Monetary settlement](monetary_settlement.py) | Exact decimal text, integer balances, fee rounding | Fixed accounts; no authorization or currency conversion |
+| [Survey quotas](survey_quota.py) | Atomic per-type admission and personal eligibility | Counts admissions; no abandonment reclamation or authentication |
 
 Run from the repository root with an installed EDSL development environment:
 
@@ -87,3 +88,15 @@ defines the versioned byte protocol and signed rounding rules. Tests in
 cover protocol vectors, arrival-order independence, exact conservation,
 SQLite reopen/retry, and fresh-process replay. Existing market callbacks retain
 their original random streams and rounding behavior.
+
+
+The [survey-quota adapter](../survey_quota.py) asks respondents their type and
+uses computed gates plus real survey stop rules. Run `python -m examples.survey_quota`
+for a local 27-respondent demo: ten A and ten B admitted, seven screened out.
+The canonical [survey-quota walkthrough](https://docs.expectedparrot.com/en/latest/shared-state/survey-quotas)
+documents admission timing, concurrency, restart, identity, and deployment limits.
+
+Run `python -m examples.machine_primitives.profile_corpus` to measure all examples'
+serialized size, expression repetition, and per-transition host budget work.
+This development instrumentation uses internal accounting; its measurements are
+not a stable tracing API or cross-host cost schedule.
