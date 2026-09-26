@@ -350,6 +350,7 @@ def test_runner_surfaces_rejected_automatic_close(tmp_path):
     from types import SimpleNamespace
     from edsl import QuestionFreeText, Survey
     from edsl.runner.service import JobService
+    from edsl.runner.survey_cache import SurveyCache
 
     machine = replace(
         spec(), complete_when=True, close_effects=(reject("settlement_denied"),)
@@ -360,6 +361,7 @@ def test_runner_surfaces_rejected_automatic_close(tmp_path):
     q = QuestionFreeText(question_name="reply", question_text="Reply")
     survey = Survey([q, bound.prepare()])
     service = SimpleNamespace(
+        _survey_cache=SurveyCache(),
         _jobs=SimpleNamespace(
             get_survey=lambda _: survey.to_dict(), get_agent=lambda *_: {"traits": {}}
         ),

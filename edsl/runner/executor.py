@@ -484,7 +484,7 @@ class ExecutionWorker:
             survey = Survey([question])
             return survey, MemoryPlan(survey=survey), question
 
-        survey = Survey.from_dict(survey_data)
+        survey = self._job_service._survey_cache.get(survey_data)
         for index, survey_question in enumerate(survey.questions):
             if survey_question.question_name == question.question_name:
                 survey.questions[index] = question

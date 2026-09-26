@@ -220,9 +220,7 @@ class DirectAnswerRegistry:
         if current_answers and self._job_service and entry.job_id:
             survey_data = self._job_service._jobs.get_survey(entry.job_id)
             if survey_data:
-                from ..surveys import Survey
-
-                answered_questions = Survey.from_dict(
+                answered_questions = self._job_service._survey_cache.get(
                     survey_data
                 ).question_names_to_questions()
                 for question_name, answer in current_answers.items():

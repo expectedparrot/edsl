@@ -117,4 +117,9 @@ rules to ask each agent up to three under-covered questions. Run
 200 answers, reaching ten answers on each of 20 questions. The canonical
 [walkthrough](https://docs.expectedparrot.com/en/latest/shared-state/question-coverage)
 explains fixed assignments, partial resumption, generated routing, and the
-remaining routing, performance, and concurrent-reservation limitations.
+remaining routing and concurrent-reservation limitations. The Runner now reuses
+validated survey templates while giving callers isolated copies. Compare the
+local five-agent execution with and without reuse using
+`python -m examples.machine_primitives.profile_survey_runner` and its `--uncached`
+option. This diagnostic makes no model calls and reports decode/validation
+counts alongside elapsed time and the verified coverage result.

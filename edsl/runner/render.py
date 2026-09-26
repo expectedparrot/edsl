@@ -687,13 +687,13 @@ class RenderWorker:
         # Debug counters to verify optimization
         ops_counter = {
             "get_survey": 0,
-            "survey_from_dict": 0,
+            "survey_copies": 0,
             "gather_answers": 0,
             "skip_task_calls": 0,
         }
 
         if self._job_service is not None:
-            # Fetch and reconstruct survey ONCE
+            # Fetch one isolated copy of the validated survey template per batch.
             # Use job_data if available, otherwise fetch from PostgreSQL
             _t_survey = _time.time()
             if job_data and job_data.get("survey"):
@@ -706,8 +706,8 @@ class RenderWorker:
 
             _t_survey_parse = _time.time()
             if survey_data:
-                cached_survey = Survey.from_dict(survey_data)
-                ops_counter["survey_from_dict"] = 1
+                cached_survey = self._job_service._survey_cache.get(survey_data)
+                ops_counter["survey_copies"] = 1
 
                 # Build question_name -> index map ONCE
                 cached_question_index_map = {
@@ -872,7 +872,7 @@ class RenderWorker:
                 f"    - get_survey() calls: {ops_counter['get_survey']} (was {len(task_ids)} before)"
             )
             print(
-                f"    - Survey.from_dict() calls: {ops_counter['survey_from_dict']} (was {len(task_ids)} before)"
+                f"    - Survey template copies: {ops_counter['survey_copies']} (one per batch)"
             )
             print(
                 f"    - _gather_current_answers() calls: {ops_counter['gather_answers']} (was {len(task_ids)} before)"
@@ -883,7 +883,7 @@ class RenderWorker:
             )  # 2 DB calls + ~50 answer fetches per task
             new_complexity = (
                 ops_counter["get_survey"]
-                + ops_counter["survey_from_dict"]
+                + ops_counter["survey_copies"]
                 + ops_counter["gather_answers"] * 50
             )
             print(

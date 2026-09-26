@@ -39,9 +39,9 @@ ledger, so accidentally asking extra questions fails verification. With an
 insufficient population, such as `run_demo(count=1)`, the report instead says
 `population_exhausted` and reports the coverage achieved.
 
-This is a correctness demonstration rather than a performance benchmark. The
-full run can take several minutes on the current local Runner; repeated survey
-reconstruction and Machine validation are a design finding below.
+This is a correctness demonstration. The local Runner now reuses validated
+survey templates; the performance probe below measures that improvement without
+changing the survey's navigation or the Machine's execution checks.
 
 ## Assignments and answer counts
 
@@ -179,10 +179,9 @@ Three limitations are especially useful for future designs:
 - **Typed state-to-routing bindings.** The current adapter expands a list into
   scalar computed slots and generated rules. Direct typed membership against a
   shared-state view would remove this plumbing and the nonempty-slot marker.
-- **Repeated definition work.** Survey reconstruction repeats embedded Machine
-  deserialization and validation along the Runner's direct-answer path. The
-  full simulation exposes this cost even without model calls. Safe reuse of
-  validated immutable definitions deserves profiling and a separate change.
+- **Repeated definition work.** The original Runner repeatedly reconstructed
+  the survey and validated its embedded Machines. A bounded local template
+  cache now removes that repetition; measurements and isolation rules follow.
 - **Concurrent allocation policy.** Answer counting alone cannot prevent two
   active respondents receiving the same last place. Reservations require clear
   expiry, abandonment, and resume semantics.
@@ -197,3 +196,37 @@ Local tests do not establish deployment support in a hosted human-survey
 service. Such a host must preserve trusted IDs, shared state, computed routing,
 validated-answer writes, and the required interview ordering. Remaining work is
 tracked in the [design checklist](https://github.com/expectedparrot/edsl/issues/2665).
+
+## Runner definition reuse
+
+The Runner keeps at most 16 decoded survey templates per `JobService`. Each
+lookup identifies the complete stored payload, including its Machine definitions
+and rules. A changed payload goes through normal deserialization and validation.
+Failed definitions never enter the cache. Eviction or a new service instance
+simply causes the definition to be reconstructed again.
+
+Every caller receives a deep copy. Attaching a respondent's answers, rendering
+personal options, changing question objects, or editing returned Results cannot
+change the cached template or another caller's copy. Incoming dictionaries are
+also detached from templates. State views, answers, SQLite state, capability
+admission, and execution budgets are not cached by this optimization.
+
+Use the reproducible local probe to compare cached execution with the previous
+per-use decoding path:
+
+```bash
+python -m examples.machine_primitives.profile_survey_runner --agents 5 --uncached
+python -m examples.machine_primitives.profile_survey_runner --agents 5
+```
+
+In the measured five-agent run, elapsed time fell from **34.8 seconds to 4.8
+seconds**, with identical answer counts and stop reason. Survey decoding fell
+from **186 calls to one**, and Machine validation from **4,094 calls to 24**.
+The full 100-agent coverage regression fell from roughly **635 seconds to 112
+seconds**, retaining the 67-answering-agent, 200-answer result. Timings are local
+observations, not cross-host guarantees; the probe deliberately uses no model
+calls. Initial definition validation and actual state execution still have costs.
+
+This change preserves ordinary skip/stop rules and the existing survey API.
+Direct typed state-to-routing bindings and state-machine navigation remain
+separate, deferred design work.

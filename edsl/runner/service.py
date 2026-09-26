@@ -18,6 +18,7 @@ logger = logging.getLogger(__name__)
 
 from .storage import StorageProtocol
 from .stores import JobStore, InterviewStore, TaskStore, AnswerStore
+from .survey_cache import SurveyCache
 
 try:
     from .storage_sqlalchemy import reset_db_stats, get_db_stats
@@ -72,6 +73,7 @@ class JobService:
         self._interviews = InterviewStore(storage)
         self._tasks = TaskStore(storage)
         self._answers = AnswerStore(storage)
+        self._survey_cache = SurveyCache()
         self._job_stop_on_exception: dict[str, bool] = {}  # job_id -> stop_on_exception
         self._original_models: dict[str, dict[str, Any]] = (
             {}
@@ -188,7 +190,7 @@ class JobService:
         survey_data = self._jobs.get_survey(job_id)
         if task_def is None or not survey_data:
             return {}
-        survey = Survey.from_dict(survey_data)
+        survey = self._survey_cache.get(survey_data)
         interview_def = self._interviews.get_definition(job_id, interview_id)
         agent_data = self._jobs.get_agent(job_id, interview_def.agent_id)
         traits = dict((agent_data or {}).get("traits", {}))
@@ -895,7 +897,7 @@ class JobService:
                     print(f"  [skip] No survey data for job {job_id}")
                 return False, None
 
-            survey = Survey.from_dict(survey_data)
+            survey = self._survey_cache.get(survey_data)
 
         schedule = self._interview_schedules.get(job_id)
         stop_condition = getattr(schedule, "stop_when", None)
@@ -1133,7 +1135,7 @@ class JobService:
         survey_data = self._jobs.get_survey(job_id)
         if not survey_data or not survey_data.get("state_steps"):
             return
-        survey = Survey.from_dict(survey_data)
+        survey = self._survey_cache.get(survey_data)
         steps = getattr(survey, "_state_writes", {}).get(question_name, [])
         if not steps:
             return
@@ -2419,7 +2421,7 @@ class JobService:
 
             _t = _time.time()
             if survey_data:
-                survey = Survey.from_dict(survey_data)
+                survey = self._survey_cache.get(survey_data)
             if _timing is not None:
                 _timing["deserialize_survey"] = (
                     _timing.get("deserialize_survey", 0) + (_time.time() - _t) * 1000
@@ -2589,7 +2591,7 @@ class JobService:
         # Parse survey from batch1
         _t = _time.time()
         survey_data = batch1_data.get(f"job:{job_id}:survey")
-        survey = Survey.from_dict(survey_data) if survey_data else None
+        survey = self._survey_cache.get(survey_data) if survey_data else None
         if _timing is not None:
             _timing["deserialize_survey"] = (_time.time() - _t) * 1000
 

@@ -13,6 +13,7 @@ from edsl import (
 )
 from edsl.inference_services.services.test_service import TestService
 from edsl.runner.direct_answer import DirectAnswerEntry, DirectAnswerRegistry
+from edsl.runner.survey_cache import SurveyCache
 
 
 @pytest.mark.asyncio
@@ -25,6 +26,7 @@ async def test_compute_direct_answer_receives_prior_answer_piping_context():
     survey = Survey([prior, compute])
 
     service = SimpleNamespace(
+        _survey_cache=SurveyCache(),
         _gather_current_answers=lambda job_id, interview_id: {
             "channels": ["Channel A", "Channel B"],
             "channels.answer": ["Channel A", "Channel B"],
