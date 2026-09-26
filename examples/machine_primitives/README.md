@@ -20,6 +20,10 @@ Python helpers construct expressions. They are never callbacks during execution.
 | [Reason discovery](reason_discovery.py) | Growing catalog and streak-based stopping across distinct agents | Text normalization only; saturation can miss rare reasons |
 | [Question coverage](question_coverage.py) | Fixed personal assignments and idempotent answer counting | Sequential interviews; assignments do not reserve capacity |
 | [Pairwise comparisons](pairwise_comparisons.py) | Online logistic scores, adaptive pair selection, exploration, and fixed randomized options | No uncertainty estimates or concurrent assignment reservations |
+| [Appointment booking](appointment_booking.py) | Hold/confirm/release lifecycle with fenced reservation IDs | Explicit release; no automatic abandonment expiry |
+| [Price elicitation](price_elicitation.py) | Integer binary search with replayable observations | Assumed in-range monotone threshold; bounded Survey slots |
+| [Balanced assignment](balanced_assignment.py) | Greedy marginal balance and seeded ties | Order-dependent; no concealment or exact-balance guarantee |
+| [Team formation](team_formation.py) | Atomic role seats and persistent personal membership | No departures, waitlists, or role verification |
 
 Run from the repository root with an installed EDSL development environment:
 
@@ -131,4 +135,27 @@ close-score comparisons with exploration. `python -m examples.pairwise_compariso
 collects 40 comparisons from a scripted five-product population. Its
 [canonical chapter](https://docs.expectedparrot.com/en/latest/shared-state/pairwise-comparisons)
 documents the exact policy, scoring, resumption, actual rendered-choice tests,
-and the remaining statistical, provenance, and candidate-scaling boundaries.
+and the remaining statistical and candidate-scaling boundaries; Results now preserves presented options and their read-version provenance.
+
+
+Four more single-pass Survey adapters run without model calls:
+
+```sh
+python -m examples.appointment_booking
+python -m examples.price_elicitation
+python -m examples.balanced_assignment
+python -m examples.team_formation
+```
+
+Their canonical Mintlify chapters are
+[booking](../../docs/en/latest/shared-state/appointment-booking.mdx),
+[price elicitation](../../docs/en/latest/shared-state/price-elicitation.mdx),
+[balanced assignment](../../docs/en/latest/shared-state/balanced-assignment.mdx), and
+[team formation](../../docs/en/latest/shared-state/team-formation.mdx).
+The shared [application tests](../../tests/sharedstate/test_survey_applications.py)
+cover independent policy references, concurrent writes, restart/replay, fresh-process
+transport, actual displayed choices, and resumption. Booking probes reversible
+reservations; price elicitation uses personal scopes; assignment tests competing
+balance margins; team formation distinguishes stopping new enrollment from stopping
+the last admitted interview. All sixteen corpus definitions execute with general
+primitives and an empty algorithm registry.

@@ -1,0 +1,101 @@
+---
+title: "Team formation"
+description: "Let respondents choose teams while atomically enforcing each team's role composition."
+---
+
+This application combines personal choice with composition constraints. Each
+team needs one Designer and two Builders. Respondents choose their role, see only
+teams with a seat for it, and join at most one team during a single survey pass.
+
+## Run it
+
+```bash
+python -m examples.team_formation
+```
+
+The default eight-person demo fills Orion and Lyra with one Designer and two
+Builders each. A third Designer cannot join even while Builder seats remain.
+A final excess Builder is screened out before the role question because all
+teams are full. All six admitted respondents receive their introduction question.
+No model API calls are made.
+
+See the [Machine builder](https://github.com/expectedparrot/edsl/blob/feature/shared-state-v0/examples/machine_primitives/team_formation.py)
+and [Survey adapter](https://github.com/expectedparrot/edsl/blob/feature/shared-state-v0/examples/team_formation.py).
+
+```python
+from edsl import Model
+from edsl.runner import Runner
+from examples.team_formation import build_survey, demo_agents
+
+survey, states, schedule = build_survey(
+    teams=["Orion", "Lyra"], role_seats={"Designer": 1, "Builder": 2}
+)
+results = Runner(interview_schedule=schedule).submit(
+    survey.by(demo_agents()).by(Model("test")), cache=False
+).results()
+results.select("answer.role", "answer.joined_team", "answer.introduction")
+```
+
+## Machine policy
+
+A study scope stores two maps: `profiles` records one role per respondent, and
+`members` records their chosen team and role. Each configured role has the same
+positive seat count in every configured team.
+
+| Command | Behavior |
+| --- | --- |
+| `register(respondent_id, role)` | Records the first role; identical retries are no-ops and changes reject. |
+| `join(respondent_id, team)` | Requires a profile and an available seat for that role, then saves membership atomically. |
+| Close | Blocks new registrations and memberships while preserving valid retries. |
+
+The view derives available team IDs by counting members with the respondent's
+role in each team. An existing member sees their own team even when it is full.
+A respondent with no profile sees no eligible options. A new join rechecks live
+capacity; an earlier view is not an admission guarantee. Concurrent attempts for
+the last role seat cannot overfill it.
+
+Membership is immutable. A changed team or role is rejected rather than silently
+moving someone. Completion means that all configured role seats across all teams
+are filled. Lacking applicants for one role can therefore leave the study
+incomplete even when many other applicants have been screened out.
+
+## Survey routing
+
+The adapter uses ordinary reads, computed gates, and Survey stop rules:
+
+1. Stop new respondents at entry if all teams are full; let existing members resume.
+2. Ask and register the role, then read role-specific availability.
+3. Stop if there are no options or the reported role conflicts with a saved profile.
+4. Ask for a team and attempt the atomic join.
+5. Read the outcome; only an admitted member receives the introduction question.
+
+The grouped schedule serializes the demo but does **not** use a schedule-wide
+`stop_when=teams.is_complete()` rule. Such a condition can become true immediately
+after the last join and suppress that member's remaining questions. The entry
+gate prevents new admissions while allowing the last member to finish. This
+behavior has a dedicated end-to-end regression test and illustrates the difference
+between closing enrollment and stopping all remaining tasks.
+
+A race can invalidate a displayed option. The post-join gate stops the losing
+interview; this adapter does not implement a reselection loop. Results preserves
+the options actually shown, so a rejected join can still be audited against its
+[read-version-linked presentation](/en/latest/shared-state/scopes-and-surveys#which-options-did-this-respondent-see).
+
+## Tests and design findings
+
+The [application tests](https://github.com/expectedparrot/edsl/blob/feature/shared-state-v0/tests/sharedstate/test_survey_applications.py)
+cover role exhaustion with other seats still available, immutable profiles and
+teams, missing roles, explicit close, competing joins, SQLite restart/replay,
+isolated scopes, fresh-process serialization, changed reports across jobs,
+actual displayed choices, and completion of the final admitted interview.
+
+This example enforces role composition, not skill verification or interpersonal
+compatibility. The host supplies stable identities and authenticates actions;
+self-reported roles are accepted as given. There is no departure/replacement
+policy, waitlist, automatic relaxation of missing roles, or global matching
+objective. Those are distinct mechanisms to specify before extending the example.
+
+The definition is 10,516 JSON bytes; its six-member corpus replay peaks at 5,581
+host budget steps per transition. The profiler reproduces these development
+measurements, which do not establish hosted human-survey support or a portable
+execution-cost bound.

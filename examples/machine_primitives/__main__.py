@@ -22,6 +22,10 @@ EXAMPLES = (
     "reason_discovery",
     "question_coverage",
     "pairwise_comparisons",
+    "appointment_booking",
+    "price_elicitation",
+    "balanced_assignment",
+    "team_formation",
 )
 
 
