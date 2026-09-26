@@ -114,6 +114,22 @@ def test_validator_regular_answer():
     assert validated["answer"] == "Blue"
 
 
+def test_validator_repairs_long_option_with_trailing_punctuation():
+    long_option = (
+        "Share complete data with the selected partner and limited data with "
+        "the other non-selected partners"
+    )
+    q = QuestionMultipleChoiceWithOther(
+        question_name="sharing_policy",
+        question_text="Choose a sharing policy.",
+        question_options=["Do not share data", long_option, "Not sure"],
+    )
+
+    validated = q.response_validator.validate({"answer": f"{long_option}."})
+
+    assert validated["answer"] == long_option
+
+
 def test_validator_invalid_answer():
     """Test that invalid answers (not in options) are rejected."""
     # Create the question

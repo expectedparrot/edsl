@@ -1,10 +1,14 @@
 {# Answering Instructions #}
-{% if use_code %}
+{% if probabilistic_response %}
+Respond only with a JSON object containing a "probabilities" array.
+Provide exactly one probability per Likert option in the displayed order.
+Every probability must be nonnegative and the probabilities must sum to 1.
+Do not choose an option or generate a random draw.
+{% elif use_code %}
 Respond only with the code corresponding to one of the options.
 {% else %}
 Respond only with a string corresponding to one of the options.
 {% endif %}
-{% if include_comment %}
+{% if include_comment and not probabilistic_response %}
 After the answer, you can put a comment explaining why you chose that option on the next line.
 {% endif %}
-

@@ -797,6 +797,8 @@ class QuestionMatrix(QuestionBase):
         answering_instructions: Optional[str] = None,
         question_presentation: Optional[str] = None,
         permissive: bool = False,
+        randomize_items: bool = False,
+        items_to_pin: Optional[List[str]] = None,
     ):
         """
         Initialize a matrix question.
@@ -811,6 +813,8 @@ class QuestionMatrix(QuestionBase):
             answering_instructions: Custom instructions template
             question_presentation: Custom presentation template
             permissive: Whether to allow any values & extra items instead of strictly checking
+            randomize_items: Whether to randomize the matrix rows for each interview
+            items_to_pin: Row values that should remain in their declared positions
         """
         self.question_name = question_name
 
@@ -829,6 +833,20 @@ class QuestionMatrix(QuestionBase):
         self.answering_instructions = answering_instructions
         self.question_presentation = question_presentation
         self.permissive = permissive
+        if randomize_items:
+            self._randomize_items = True
+        if items_to_pin:
+            self._items_to_pin = items_to_pin
+
+    @property
+    def randomize_items(self) -> bool:
+        """Whether matrix rows should be randomized after they are resolved."""
+        return getattr(self, "_randomize_items", False)
+
+    @property
+    def items_to_pin(self) -> List[str]:
+        """Rows that retain their declared positions during randomization."""
+        return getattr(self, "_items_to_pin", [])
 
     def create_response_model(self) -> Type[BaseModel]:
         """

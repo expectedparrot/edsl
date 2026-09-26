@@ -1,5 +1,9 @@
 import pytest
-from edsl.questions import QuestionList, QuestionMultipleChoice
+from edsl.questions import (
+    QuestionList,
+    QuestionMultipleChoice,
+    QuestionMultipleChoiceWithOther,
+)
 from edsl.surveys import Survey
 from edsl.agents import Agent, AgentList
 from edsl.language_models import LanguageModel
@@ -105,6 +109,32 @@ def test_comment_piping():
         results.select("prompt.why_bird_user_prompt").first().text
         == "Why do you like Parrots - you also said I think they are cool?"
     )
+
+
+def test_multiple_choice_with_other_answer_pipes_as_custom_option():
+    from edsl import Model
+
+    favorite = QuestionMultipleChoiceWithOther(
+        question_name="favorite",
+        question_text="Which fruit do you like best?",
+        question_options=["apple", "blueberry", "cranberry"],
+    )
+    least_favorite = QuestionMultipleChoice(
+        question_name="least_favorite",
+        question_text="Which fruit do you like least?",
+        question_options=["cherry", "blackberry", "{{ favorite.answer }}"],
+    )
+
+    results = (
+        Survey([favorite, least_favorite])
+        .by(Model("test", canned_response="Other: mango"))
+        .run(disable_remote_inference=True, cache=False)
+    )
+
+    assert results.select(
+        "question_options.least_favorite_question_options"
+    ).first() == ["cherry", "blackberry", "Other: mango"]
+    assert results.select("answer.least_favorite").first() == "Other: mango"
 
 
 def test_option_piping_across_agents():

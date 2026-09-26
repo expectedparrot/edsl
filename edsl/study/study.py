@@ -1,4 +1,4 @@
-"""Study — captures a directory as a CAS-storable snapshot."""
+"""Study — captures a directory as a serializable snapshot."""
 
 from __future__ import annotations
 
@@ -14,7 +14,7 @@ _BLOB_HASH_KEY = "__blob_hash__"
 
 
 class Study:
-    """A snapshot of a directory tree, storable in the EDSL CAS.
+    """A serializable snapshot of a directory tree.
 
     Examples:
         >>> import tempfile
@@ -35,10 +35,6 @@ class Study:
         ...     s == s2
         True
     """
-
-    _store_class_name = "Study"
-    from edsl.base.store_accessor import StoreDescriptor
-    store = StoreDescriptor()
 
     def __init__(
         self,

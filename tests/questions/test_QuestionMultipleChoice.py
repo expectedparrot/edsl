@@ -59,10 +59,10 @@ def test_QuestionMultipleChoice_construction():
     invalid_question.update({"question_options": []})
     with pytest.raises(Exception):
         QuestionMultipleChoice(**invalid_question)
-    invalid_question.update({"question_options": ["OK"]})
-    # or has 1 item
-    with pytest.raises(Exception):
-        QuestionMultipleChoice(**invalid_question)
+    # a single option is valid
+    single_option_question = valid_question.copy()
+    single_option_question.update({"question_options": ["OK"]})
+    assert QuestionMultipleChoice(**single_option_question).question_options == ["OK"]
     # or has duplicates
     invalid_question.update({"question_options": ["OK", "OK"]})
     with pytest.raises(Exception):

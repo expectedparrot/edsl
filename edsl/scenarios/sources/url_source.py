@@ -16,9 +16,12 @@ class URLSource(Source):
 
     source_type = "urls"
 
-    def __init__(self, urls: list[str], field_name: str):
+    def __init__(self, urls: list[str], field_name: str, timeout: float = 30.0):
+        from ..network import validate_request_timeout
+
         self.urls = urls
         self.field_name = field_name
+        self.timeout = validate_request_timeout(timeout)
 
     @classmethod
     def example(cls) -> "URLSource":
@@ -69,7 +72,7 @@ class URLSource(Source):
         result = ScenarioList()
         for url in self.urls:
             try:
-                response = requests.get(url)
+                response = requests.get(url, timeout=self.timeout)
                 response.raise_for_status()
                 scenario = Scenario({self.field_name: response.text})
                 result.append(scenario)

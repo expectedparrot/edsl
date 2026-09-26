@@ -212,6 +212,15 @@ class AgentDirectAnswering:
             def transferred_method(self, question, scenario):
                 return answer_question_directly(question, scenario)
 
+            # Agents are duplicated through to_dict/from_dict, which drops
+            # attributes hung on the instance - this wrapper is the only thing
+            # that survives, so any routing metadata has to ride along on it.
+            stored = getattr(
+                answer_question_directly, "stored_answer_question_names", None
+            )
+            if stored is not None:
+                transferred_method.stored_answer_question_names = stored
+
             target_agent.direct_answering.add_method(transferred_method)
 
     def has_method(self) -> bool:

@@ -1,6 +1,7 @@
 from typing import Dict, List, Optional, TYPE_CHECKING, Tuple
 from datetime import datetime
 from collections import defaultdict
+from difflib import get_close_matches
 import fnmatch
 
 from .source_preference_handler import SourcePreferenceHandler
@@ -118,9 +119,11 @@ class InferenceServiceRegistry:
         "together",
         "xai",
         "open_router",
+        "meta",
         "bedrock",
         "azure",
         "ollama",
+        "openai_compatible",
     )
     # Use lazy loading - discover service modules without importing them
     _default_service_module_map = discover_service_modules()
@@ -279,6 +282,7 @@ class InferenceServiceRegistry:
         self,
         source_preferences: Optional[List[str]] = None,
         service_name: Optional[str] = None,
+        verbose: bool = False,
     ) -> Dict[str, List["ModelInfo"]]:
         """
         Refreshes the model info data and rebuilds the model-to-service and service-to-model mappings, taking source preferences into account.
@@ -286,13 +290,14 @@ class InferenceServiceRegistry:
         Args:
             source_preferences: Optional list of source preferences to override the default
             service_name: Optional service name to fetch models only for that service
+            verbose: If True, print detailed logs from each source fetcher for this call only
 
         Returns:
             Dictionary mapping service names to lists of ModelInfo objects
         """
         if self._model_info_data is None:
             self._model_info_data = self._source_handler.fetch_model_info_data(
-                source_preferences, service_name=service_name
+                source_preferences, service_name=service_name, verbose=verbose
             )
 
         return self._model_info_data
@@ -331,12 +336,43 @@ class InferenceServiceRegistry:
             return "test"
 
         services = self.model_to_services.get(model_name, [])
+        refresh_error = None
+        if not services and self._source_handler.used_source == "archive":
+            # A stale or partial local model archive can yield a false negative
+            # for a model that live sources (and remote inference) actually
+            # support. Refresh from live sources once, skipping the archive,
+            # before giving up.
+            try:
+                self._model_info_data = self._source_handler.fetch_model_info_data(
+                    source_preferences=[
+                        "coop_working",
+                        "coop",
+                        "local",
+                        "default_models",
+                    ]
+                )
+                self._model_to_services = None
+                self._service_to_models = None
+                services = self.model_to_services.get(model_name, [])
+            except Exception as e:
+                refresh_error = e
         if not services:
+            available_models = sorted(self.model_to_services)
+            suggested_models = get_close_matches(
+                model_name, available_models, n=5, cutoff=0.35
+            )
+            if not suggested_models:
+                suggested_models = available_models[:5]
+            refresh_context = (
+                f"\n                             Live-source refresh failed: {refresh_error}"
+                if refresh_error is not None
+                else ""
+            )
             raise ValueError(
-                f"""Model '{model_name}' not found in any service. 
-                             Available models: {list(self.model_to_services.keys())}. 
+                f"""Model '{model_name}' not found in any service.
+                             Suggested models: {suggested_models}.
                              Available services: {list(self.service_to_models.keys())}
-                            Used source: {self._source_handler.used_source}"""
+                            Used source: {self._source_handler.used_source}{refresh_context}"""
             )
 
         # Find the first preferred service that provides this model

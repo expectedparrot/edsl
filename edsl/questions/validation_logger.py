@@ -28,24 +28,29 @@ except Exception:
     LOG_DIR = DEFAULT_LOG_DIR
 VALIDATION_LOG_FILE = LOG_DIR / "validation_failures.log"
 
-# Create log directory if it doesn't exist
-os.makedirs(LOG_DIR, exist_ok=True)
+_FILE_LOGGING_AVAILABLE = False
+try:
+    # Create log directory if it doesn't exist
+    os.makedirs(LOG_DIR, exist_ok=True)
 
-# Create file handler
-file_handler = logging.FileHandler(VALIDATION_LOG_FILE)
-file_handler.setLevel(logging.INFO)
+    # Create file handler
+    file_handler = logging.FileHandler(VALIDATION_LOG_FILE)
+    file_handler.setLevel(logging.INFO)
 
-# Create formatter
-formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-file_handler.setFormatter(formatter)
+    # Create formatter
+    formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+    file_handler.setFormatter(formatter)
 
-# Add handler to logger
-logger.addHandler(file_handler)
+    # Add handler to logger
+    logger.addHandler(file_handler)
 
-# Touch the log file to make sure it exists
-if not os.path.exists(VALIDATION_LOG_FILE):
-    with open(VALIDATION_LOG_FILE, "a"):
-        pass
+    # Touch the log file to make sure it exists
+    if not os.path.exists(VALIDATION_LOG_FILE):
+        with open(VALIDATION_LOG_FILE, "a"):
+            pass
+    _FILE_LOGGING_AVAILABLE = True
+except OSError:
+    logger.addHandler(logging.NullHandler())
 
 
 def log_validation_failure(
@@ -78,15 +83,21 @@ def log_validation_failure(
         "traceback": traceback.format_exc(),
     }
 
-    # Log as JSON for easier parsing
-    logger.info(json.dumps(log_entry))
+    if not _FILE_LOGGING_AVAILABLE:
+        return
 
-    # Write directly to the file as well to ensure it's written
-    with open(VALIDATION_LOG_FILE, "a") as f:
-        f.write(
-            f"{datetime.datetime.now().isoformat()} - validation_failures - INFO - {json.dumps(log_entry)}\n"
-        )
-        f.flush()
+    try:
+        # Log as JSON for easier parsing
+        logger.info(json.dumps(log_entry))
+
+        # Write directly to the file as well to ensure it's written
+        with open(VALIDATION_LOG_FILE, "a") as f:
+            f.write(
+                f"{datetime.datetime.now().isoformat()} - validation_failures - INFO - {json.dumps(log_entry)}\n"
+            )
+            f.flush()
+    except OSError:
+        return
 
 
 def get_validation_failure_logs(n: int = 10) -> list:
@@ -102,10 +113,14 @@ def get_validation_failure_logs(n: int = 10) -> list:
     logs = []
 
     # Check if log file exists
-    if not os.path.exists(VALIDATION_LOG_FILE):
+    if not _FILE_LOGGING_AVAILABLE or not os.path.exists(VALIDATION_LOG_FILE):
         return logs
 
-    with open(VALIDATION_LOG_FILE, "r") as f:
+    try:
+        f = open(VALIDATION_LOG_FILE, "r")
+    except OSError:
+        return logs
+    with f:
         for line in f:
             try:
                 # Skip non-JSON lines (like logger initialization)
@@ -133,6 +148,6 @@ def get_validation_failure_logs(n: int = 10) -> list:
 
 def clear_validation_logs() -> None:
     """Clear all validation failure logs."""
-    if os.path.exists(VALIDATION_LOG_FILE):
+    if _FILE_LOGGING_AVAILABLE and os.path.exists(VALIDATION_LOG_FILE):
         with open(VALIDATION_LOG_FILE, "w") as f:
             f.write("")

@@ -351,6 +351,7 @@ DEFAULT_RATE_LIMITS = {
     "xai": {"rpm": 10_000, "tpm": 1_000_000},
     "together": {"rpm": 10_000, "tpm": 1_000_000},
     "perplexity": {"rpm": 10_000, "tpm": 1_000_000},
+    "meta": {"rpm": 10_000, "tpm": 1_000_000},
     "bedrock": {"rpm": 10_000, "tpm": 1_000_000},
     "azure": {"rpm": 10_000, "tpm": 1_000_000},
     "test": {"rpm": 10_000, "tpm": 1_000_000},
@@ -557,6 +558,8 @@ def load_queues_from_env(
         "XAI_API_KEY": ("xai", ["grok-2-latest"]),
         "TOGETHER_API_KEY": ("together", ["meta-llama/Llama-3.3-70B-Instruct-Turbo"]),
         "PERPLEXITY_API_KEY": ("perplexity", ["llama-3.1-sonar-large-128k-online"]),
+        "META_API_KEY": ("meta", ["muse-spark-1.1"]),
+        "LLAMA_API_KEY": ("meta", ["muse-spark-1.1"]),
         "AWS_ACCESS_KEY_ID": (
             "bedrock",
             [],

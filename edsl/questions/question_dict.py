@@ -1,11 +1,11 @@
 """
 question_dict.py
 
-Drop-in replacement for `QuestionDict`, with dynamic creation of a Pydantic model 
+Drop-in replacement for `QuestionDict`, with dynamic creation of a Pydantic model
 to validate user responses automatically (just like QuestionNumerical).
 
 
-Failure: 
+Failure:
 
 ```python { "first_name": "Kris", "last_name": "Rosemann", "phone": "(262) 506-6064", "email": "InvestorRelations@generac.com", "title": "Senior Manager Corporate Development & Investor Relations", "external": False } ``` The first name and last name are extracted directly from the text. The phone number and email are provided in the text. The title is also given in the text. The email domain "generac.com" suggests that it is an internal email address, so "external" is set to False.
 """
@@ -16,6 +16,8 @@ from pydantic import BaseModel, Field, create_model, ConfigDict
 from jinja2 import Environment, FileSystemLoader, TemplateNotFound
 from pathlib import Path
 import ast
+import json
+import re
 
 from .question_base import QuestionBase
 from .descriptors import (
@@ -126,6 +128,67 @@ class DictResponseValidator(ResponseValidatorABC):
 
     required_params = ["answer_keys", "permissive"]
 
+    def _recover_from_generated_tokens(self, text, verbose=False):
+        """Recover a dict answer from the raw generated text.
+
+        The model typically emits a JSON object, optionally wrapped in a
+        Markdown fence and followed by commentary. Decode the first complete
+        object, preserve later prose as the comment, and fall back to
+        ``repair_json`` for malformed JSON.
+
+        Returns a ``{"answer", "comment", "generated_tokens"}`` dict on success,
+        or ``None`` if nothing parsed to a dict.
+        """
+        if not isinstance(text, str) or not text.strip():
+            return None
+
+        candidate = text.strip()
+        candidate = re.sub(
+            r"^```(?:json)?[ \t]*(?:\r?\n)?",
+            "",
+            candidate,
+            count=1,
+            flags=re.IGNORECASE,
+        )
+        object_start = candidate.find("{")
+        if object_start < 0:
+            return None
+
+        parsed = None
+        object_end = None
+        try:
+            parsed, consumed = json.JSONDecoder().raw_decode(candidate[object_start:])
+            object_end = object_start + consumed
+        except (ValueError, TypeError):
+            # Retain support for malformed, otherwise recoverable model JSON.
+            try:
+                from json_repair import repair_json
+
+                parsed = json.loads(repair_json(candidate[object_start:]))
+                object_end = len(candidate)
+            except Exception:
+                return None
+
+        if not isinstance(parsed, dict):
+            return None
+
+        remainder = candidate[object_end:].strip()
+        remainder = re.sub(r"^```[ \t]*(?:\r?\n|$)", "", remainder, count=1).strip()
+        comment = remainder.lstrip("#").strip() or None
+        recovered = {
+            "answer": parsed,
+            "comment": comment,
+            "generated_tokens": text,
+        }
+        try:
+            self.response_model.model_validate(recovered)
+        except Exception:
+            return None
+
+        if verbose:
+            print(f"[QDICT fix] recovered JSON with comment: {comment!r}")
+        return recovered
+
     def fix(self, response, verbose=False):
         """
         Attempt to fix an invalid dictionary response.
@@ -187,6 +250,31 @@ class DictResponseValidator(ResponseValidatorABC):
             >>> validator.fix(response)
             'not a dictionary'
         """
+        # Validation normally happens before fix() is called, but fix() is also a
+        # public hook. Preserve an already valid response before considering the
+        # raw generated text.
+        if isinstance(response, dict):
+            try:
+                validated = self.response_model.model_validate(response)
+                validated_answer = validated.model_dump()["answer"]
+                # Pydantic may accept the input by coercing values (for example,
+                # ``"23"`` to ``23``).  In that case return the normalized model
+                # output; otherwise retain the original object and its shape.
+                if validated_answer != response.get("answer"):
+                    return validated.model_dump()
+                return response
+            except Exception:
+                pass
+
+        # The upstream parser may leave an invalid first line in `answer` while
+        # preserving the complete response in `generated_tokens`.
+        if isinstance(response, dict) and response.get("generated_tokens"):
+            recovered = self._recover_from_generated_tokens(
+                response.get("generated_tokens"), verbose=verbose
+            )
+            if recovered is not None:
+                return recovered
+
         # First try to separate dictionary from trailing comment if they're on the same line
         original_response = response
         if isinstance(response, str):
@@ -496,7 +584,7 @@ class QuestionDict(QuestionBase):
     with specific keys and value types. It dynamically builds a pydantic model
     so that Pydantic automatically raises ValidationError for missing/invalid fields.
 
-    Documentation: https://docs.expectedparrot.com/en/latest/questions.html#questiondict
+    Documentation: https://docs.expectedparrot.com/en/latest/questions#questiondict
 
     Parameters
     ----------
@@ -635,7 +723,7 @@ class QuestionDict(QuestionBase):
 
     @staticmethod
     def _normalize_value_types(
-        value_types: Optional[List[Union[str, type]]]
+        value_types: Optional[List[Union[str, type]]],
     ) -> Optional[List[str]]:
         """
         Convert all value_types to string representations (e.g. "int", "list[str]", etc.).
@@ -665,7 +753,7 @@ class QuestionDict(QuestionBase):
 
     def to_dict(self, add_edsl_version: bool = True) -> dict:
         """Serialize to JSON-compatible dictionary."""
-        return {
+        d = {
             "question_type": self.question_type,
             "question_name": self.question_name,
             "question_text": self.question_text,
@@ -675,11 +763,24 @@ class QuestionDict(QuestionBase):
             "include_comment": self.include_comment,
             "permissive": self.permissive,
         }
+        # Preserve thinking_question() wrapper data so it round-trips. The base
+        # QuestionBase.to_dict emits these via its `data` property, but this
+        # override doesn't call super(), so they'd otherwise be dropped and the
+        # wrapper silently lost on serialization (e.g. when humanizing a survey).
+        if getattr(self, "_thinking_model", None) is not None:
+            d["thinking_model"] = self._thinking_model
+            d["thinking_system_prompt"] = getattr(self, "_thinking_system_prompt", "")
+        if add_edsl_version:
+            from .. import __version__
+
+            d["edsl_version"] = __version__
+            d["edsl_class_name"] = "QuestionBase"
+        return d
 
     @classmethod
     def from_dict(cls, data: dict) -> "QuestionDict":
         """Recreate from a dictionary."""
-        return cls(
+        question = cls(
             question_name=data["question_name"],
             question_text=data["question_text"],
             answer_keys=data["answer_keys"],
@@ -688,6 +789,21 @@ class QuestionDict(QuestionBase):
             include_comment=data.get("include_comment", True),
             permissive=data.get("permissive", False),
         )
+
+        # Re-wrap as a thinking question if the serialized dict carries the
+        # thinking_question() wrapper data. This mirrors QuestionBase.from_dict
+        # so both deserialization paths preserve the wrapper.
+        thinking_model_data = data.get("thinking_model")
+        if thinking_model_data is not None:
+            from .question_thinking import thinking_question
+
+            question = thinking_question(
+                question,
+                model=thinking_model_data,
+                system_prompt=data.get("thinking_system_prompt", ""),
+            )
+
+        return question
 
     @classmethod
     @inject_exception

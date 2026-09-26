@@ -42,6 +42,10 @@ def test_QuestionYesNo_construction():
     with pytest.raises(Exception):
         QuestionYesNo(**invalid_question)
 
+    invalid_question.update({"question_options": ["Yes"]})
+    with pytest.raises(Exception):
+        QuestionYesNo(**invalid_question)
+
 
 def test_QuestionYesNo_serialization():
     """Test QuestionYesNo serialization."""

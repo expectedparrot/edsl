@@ -1,0 +1,9 @@
+{# Answering Instructions #}
+{% if use_code %}
+Please respond only with a comma-separated list in square brackets. Use option codes for predefined choices and "{{other_option_text}}: your response" for a custom choice. E.g., [0, 2, "{{other_option_text}}: another choice"]
+{% else %}
+Please respond only with a comma-separated list in square brackets. Use the option text for predefined choices and "{{other_option_text}}: your response" for a custom choice. E.g., ["Good", "{{other_option_text}}: another choice"]
+{% endif %}
+{% if include_comment %}
+After the answer, you can put a comment explaining your choice on the next line.
+{% endif %}

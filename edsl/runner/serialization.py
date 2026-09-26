@@ -468,6 +468,10 @@ def serialize_execution_result(result: Any) -> dict:
             "cached": result.cached,
             "error_type": result.error_type,
             "error_message": result.error_message,
+            "distribution": result.distribution,
+            "resolution_draw": result.resolution_draw,
+            "resolution_seed": result.resolution_seed,
+            "resolution_method": result.resolution_method,
         }
 
     if isinstance(result, dict):

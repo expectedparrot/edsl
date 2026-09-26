@@ -68,7 +68,40 @@ def coop_object_api_workflows(object_type, object_examples):
         )
         assert response.get("status") == "success"
 
-    # 5. Cleanup
+    # 5. Test get_metadata and patch_metadata
+    first_uuid = responses[0].get("uuid")
+
+    metadata = coop.get_metadata(first_uuid)
+    assert metadata.get("uuid") == first_uuid
+    assert metadata.get("object_type") == object_type
+
+    coop.patch_metadata(first_uuid, description="updated description")
+    updated_metadata = coop.get_metadata(first_uuid)
+    assert updated_metadata.get("description") == "updated description"
+
+    coop.patch_metadata(first_uuid, visibility="public")
+    updated_metadata = coop.get_metadata(first_uuid)
+    assert updated_metadata.get("visibility") == "public"
+
+    # 6. Test sharing
+    sharing_info = coop.get_object_shared_users(first_uuid)
+    assert sharing_info.get("shared_with") == []
+    assert sharing_info.get("unregistered_shared_with") == []
+
+    share_with_email = "a@a.a"
+    coop.share_object(first_uuid, share_with_email)
+
+    sharing_info = coop.get_object_shared_users(first_uuid)
+    shared_emails = [u.get("email") for u in sharing_info.get("shared_with", [])]
+    assert share_with_email in shared_emails
+
+    coop.unshare_object(first_uuid, share_with_email)
+
+    sharing_info = coop.get_object_shared_users(first_uuid)
+    assert sharing_info.get("shared_with") == []
+    assert sharing_info.get("unregistered_shared_with") == []
+
+    # 7. Cleanup
     for object in coop.list(object_type):
         response = coop.delete(object.get("uuid"))
         assert response.get("status") == "success"

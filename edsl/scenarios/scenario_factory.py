@@ -35,7 +35,11 @@ class ScenarioFactory:
 
     @classmethod
     def from_url(
-        cls, url: str, field_name: Optional[str] = "text", testing: bool = False
+        cls,
+        url: str,
+        field_name: Optional[str] = "text",
+        testing: bool = False,
+        timeout: float = 30.0,
     ) -> "Scenario":
         """
         Creates a Scenario from the content of a URL.
@@ -73,10 +77,13 @@ class ScenarioFactory:
             - When using BeautifulSoup, it extracts text from paragraph and heading tags.
         """
         import requests
+        from .network import validate_request_timeout
+
+        timeout = validate_request_timeout(timeout)
 
         if testing:
             # Use simple requests method for testing
-            response = requests.get(url)
+            response = requests.get(url, timeout=timeout)
             text = response.text
         else:
             try:
@@ -91,7 +98,7 @@ class ScenarioFactory:
                     "Accept-Language": "en-US,en;q=0.5",
                 }
 
-                response = requests.get(url, headers=headers)
+                response = requests.get(url, headers=headers, timeout=timeout)
                 soup = BeautifulSoup(response.content, "html.parser")
 
                 # Get text content while preserving some structure
@@ -109,7 +116,7 @@ class ScenarioFactory:
                 print(
                     "BeautifulSoup/fake_useragent not available. Falling back to basic requests."
                 )
-                response = requests.get(url)
+                response = requests.get(url, timeout=timeout)
                 text = response.text
 
         # Import here to avoid circular imports

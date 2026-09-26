@@ -1,12 +1,8 @@
-"""Jobs JSONL serialization via CAS pointers.
-
-Unlike the component serializers (ScenarioListSerializer, etc.) which
-inline all data, the Jobs serializer stores **pointers** (UUID + branch
-+ commit) to component objects already saved in the ObjectStore.
+"""Jobs JSONL serialization.
 
 JSONL format:
   - Line 1: metadata header (``__header__: true``, class name, version)
-  - Line 2: manifest with CAS pointers for survey, agents, models, scenarios
+  - Line 2: inline Jobs dictionary representation
 """
 
 from __future__ import annotations
@@ -41,34 +37,25 @@ def _open_lines(source: Union[str, Path, Iterable[str]]) -> Iterable[str]:
         yield from source
 
 
-def _component_pointer(component, name: str, root=None, message: str = "") -> dict:
-    """Return a CAS pointer dict for a component, auto-saving if needed."""
-    if component.store.uuid is None:
-        component.store.save(message=message or "auto-saved by Jobs.to_jsonl()", root=root)
-    return {
-        "uuid": component.store.uuid,
-        "branch": component.store.current_branch,
-        "commit": component.store.commit,
-    }
+def _restore_post_run_methods(value: list) -> list:
+    restored = []
+    for item in value:
+        if isinstance(item, list) and len(item) == 3:
+            restored.append((item[0], tuple(item[1]), item[2]))
+        else:
+            restored.append(item)
+    return restored
 
 
-def _manifest_from_jobs(job: "Jobs", root=None, message: str = "") -> dict:
-    """Build a manifest dict with CAS pointers for all components."""
-    manifest: dict = {
-        "survey": _component_pointer(job.survey, "survey", root=root, message=message),
-        "agents": _component_pointer(job.agents, "agents", root=root, message=message),
-        "models": _component_pointer(job.models, "models", root=root, message=message),
-        "scenarios": _component_pointer(job.scenarios, "scenarios", root=root, message=message),
-    }
+def _restore_json_round_trip_types(job: "Jobs") -> None:
     if job._post_run_methods:
-        manifest["_post_run_methods"] = job._post_run_methods
+        job._post_run_methods = _restore_post_run_methods(job._post_run_methods)
     if job._depends_on is not None:
-        manifest["_depends_on"] = _manifest_from_jobs(job._depends_on, root=root, message=message)
-    return manifest
+        _restore_json_round_trip_types(job._depends_on)
 
 
 class JobsSerializer:
-    """JSONL serialization for Jobs objects via CAS pointers."""
+    """JSONL serialization for Jobs objects."""
 
     def __init__(self, jobs: "Jobs") -> None:
         self._jobs = jobs
@@ -92,14 +79,10 @@ class JobsSerializer:
         root=None,
         message: str = "",
     ) -> Optional[str]:
-        """Export as JSONL string or write to *filename*.
-
-        Components that haven't been saved to the store yet will be
-        auto-saved before serialization.
-        """
+        """Export as JSONL string or write to *filename*."""
         header = json.dumps(self._build_header())
-        manifest = json.dumps(_manifest_from_jobs(self._jobs, root=root, message=message))
-        content = header + "\n" + manifest + "\n"
+        payload = json.dumps(self._jobs.to_dict(add_edsl_version=True))
+        content = header + "\n" + payload + "\n"
 
         if filename is not None:
             with open(filename, "w") as f:
@@ -113,59 +96,12 @@ class JobsSerializer:
 
     @staticmethod
     def from_jsonl(source: Union[str, Path, Iterable[str]], root=None) -> "Jobs":
-        """Create a Jobs instance from a JSONL source.
-
-        Each component is loaded from the ObjectStore by its CAS pointer
-        (UUID + commit + branch).
-        """
+        """Create a Jobs instance from a JSONL source."""
         from .jobs import Jobs
-        from ..surveys import Survey
-        from ..agents import AgentList
-        from ..language_models import ModelList
-        from ..scenarios import ScenarioList
 
         line_iter = iter(_open_lines(source))
         _header = json.loads(next(line_iter))  # noqa: F841
-        manifest = json.loads(next(line_iter))
-
-        def _load_component(cls, pointer, root):
-            return cls.store.load(
-                pointer["uuid"],
-                commit=pointer["commit"],
-                branch=pointer["branch"],
-                root=root,
-            )
-
-        survey = _load_component(Survey, manifest["survey"], root)
-        agents = _load_component(AgentList, manifest["agents"], root)
-        models = _load_component(ModelList, manifest["models"], root)
-        scenarios = _load_component(ScenarioList, manifest["scenarios"], root)
-
-        job = Jobs(survey=survey, agents=agents, models=models, scenarios=scenarios)
-
-        # Re-attach CAS tracking for components whose setters may have
-        # created new wrapper objects (e.g. empty ModelList is falsy).
-        for attr, component, pointer in [
-            ("survey", survey, manifest["survey"]),
-            ("_agents", agents, manifest["agents"]),
-            ("_models", models, manifest["models"]),
-            ("_scenarios", scenarios, manifest["scenarios"]),
-        ]:
-            current = getattr(job, attr)
-            if current is not component and current.store.uuid is None:
-                current.store.uuid = pointer["uuid"]
-                current.store.commit = pointer["commit"]
-                current.store.current_branch = pointer["branch"]
-
-        if "_post_run_methods" in manifest:
-            job._post_run_methods = manifest["_post_run_methods"]
-
-        if "_depends_on" in manifest:
-            # Reconstruct the dependent job from its nested manifest
-            dep_header = json.dumps({"__header__": True, "edsl_class_name": "Jobs"})
-            dep_manifest = json.dumps(manifest["_depends_on"])
-            job._depends_on = JobsSerializer.from_jsonl(
-                dep_header + "\n" + dep_manifest + "\n", root=root
-            )
-
+        payload = json.loads(next(line_iter))
+        job = Jobs.from_dict(payload)
+        _restore_json_round_trip_types(job)
         return job

@@ -74,7 +74,7 @@ class Cache(Base):
         - Integrates with the broader EDSL caching infrastructure via CacheHandler
     """
 
-    __documentation__ = "https://docs.expectedparrot.com/en/latest/caching.html"
+    __documentation__ = "https://docs.expectedparrot.com/en/latest/remote_caching"
 
     data = {}
 

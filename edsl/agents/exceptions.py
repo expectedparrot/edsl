@@ -17,7 +17,7 @@ class AgentListError(BaseException):
         ```
     """
 
-    relevant_doc = "https://docs.expectedparrot.com/en/latest/agents.html#agent-lists"
+    relevant_doc = "https://docs.expectedparrot.com/en/latest/agents#agent-lists"
 
 
 class AgentErrors(BaseException):
@@ -28,7 +28,7 @@ class AgentErrors(BaseException):
     when modifying agent traits or during operations like renaming or adding traits.
     """
 
-    relevant_doc = "https://docs.expectedparrot.com/en/latest/agents.html"
+    relevant_doc = "https://docs.expectedparrot.com/en/latest/agents"
 
 
 class AgentDynamicTraitsFunctionError(AgentErrors):
@@ -50,9 +50,9 @@ class AgentDynamicTraitsFunctionError(AgentErrors):
     """
 
     relevant_doc = (
-        "https://docs.expectedparrot.com/en/latest/agents.html#dynamic-traits-function"
+        "https://docs.expectedparrot.com/en/latest/agents#dynamic-traits-function"
     )
-    relevant_notebook = "https://docs.expectedparrot.com/en/latest/notebooks/example_agent_dynamic_traits.html"
+    relevant_notebook = "https://docs.expectedparrot.com/en/latest/notebooks/example_agent_dynamic_traits"
 
 
 class AgentDirectAnswerFunctionError(AgentErrors):
@@ -69,7 +69,7 @@ class AgentDirectAnswerFunctionError(AgentErrors):
         ```
     """
 
-    relevant_doc = "https://docs.expectedparrot.com/en/latest/agents.html#agent-direct-answering-methods"
+    relevant_doc = "https://docs.expectedparrot.com/en/latest/agents#agent-direct-answering-methods"
 
 
 class AgentCombinationError(AgentErrors):
@@ -91,7 +91,7 @@ class AgentCombinationError(AgentErrors):
     """
 
     relevant_doc = (
-        "https://docs.expectedparrot.com/en/latest/agents.html#combining-agents"
+        "https://docs.expectedparrot.com/en/latest/agents#combining-agents"
     )
 
 
@@ -109,7 +109,7 @@ class AgentNameError(AgentErrors):
         ```
     """
 
-    relevant_doc = "https://docs.expectedparrot.com/en/latest/agents.html#agent-names"
+    relevant_doc = "https://docs.expectedparrot.com/en/latest/agents#agent-names"
 
 
 class AgentTraitKeyError(AgentErrors):
@@ -128,7 +128,7 @@ class AgentTraitKeyError(AgentErrors):
     """
 
     relevant_doc = (
-        "https://docs.expectedparrot.com/en/latest/agents.html#constructing-an-agent"
+        "https://docs.expectedparrot.com/en/latest/agents#constructing-an-agent"
     )
 
 
@@ -146,7 +146,7 @@ class AgentAttributeError(AgentErrors):
         ```
     """
 
-    relevant_doc = "https://docs.expectedparrot.com/en/latest/agents.html#agent-traits"
+    relevant_doc = "https://docs.expectedparrot.com/en/latest/agents#agent-traits"
 
     def __init__(self, message):
         super().__init__(message)

@@ -23,7 +23,7 @@ class KeyManagementError(BaseException):
         ```
     """
 
-    relevant_doc = "https://docs.expectedparrot.com/en/latest/api_keys.html"
+    relevant_doc = "https://docs.expectedparrot.com/en/latest/api_keys"
 
 
 class KeyManagementValueError(KeyManagementError):
@@ -42,7 +42,7 @@ class KeyManagementValueError(KeyManagementError):
         ```
     """
 
-    relevant_doc = "https://docs.expectedparrot.com/en/latest/api_keys.html"
+    relevant_doc = "https://docs.expectedparrot.com/en/latest/api_keys"
 
 
 class KeyManagementDuplicateError(KeyManagementError):
@@ -62,7 +62,7 @@ class KeyManagementDuplicateError(KeyManagementError):
         ```
     """
 
-    relevant_doc = "https://docs.expectedparrot.com/en/latest/api_keys.html"
+    relevant_doc = "https://docs.expectedparrot.com/en/latest/api_keys"
 
 
 class KeyManagementMissingKeyError(KeyManagementError):
@@ -81,7 +81,7 @@ class KeyManagementMissingKeyError(KeyManagementError):
         ```
     """
 
-    relevant_doc = "https://docs.expectedparrot.com/en/latest/api_keys.html"
+    relevant_doc = "https://docs.expectedparrot.com/en/latest/api_keys"
     doc_page = "api_keys"
 
     def __init__(

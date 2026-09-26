@@ -22,7 +22,7 @@ class BaseValueError(BaseException):
         - Incompatible parameter combinations
     """
 
-    relevant_doc = "https://docs.expectedparrot.com/en/latest/base.html"
+    relevant_doc = "https://docs.expectedparrot.com/en/latest/base"
 
     def __init__(self, message="Invalid value provided", **kwargs):
         super().__init__(message, **kwargs)
@@ -42,7 +42,7 @@ class BaseNotImplementedError(BaseException):
         - Placeholder methods requiring implementation
     """
 
-    relevant_doc = "https://docs.expectedparrot.com/en/latest/base.html"
+    relevant_doc = "https://docs.expectedparrot.com/en/latest/base"
 
     def __init__(self, message="This method is not implemented yet", **kwargs):
         super().__init__(message, **kwargs)
@@ -60,7 +60,7 @@ class BaseKeyError(BaseException):
         - Missing required fields in serialized data
     """
 
-    relevant_doc = "https://docs.expectedparrot.com/en/latest/base.html"
+    relevant_doc = "https://docs.expectedparrot.com/en/latest/base"
 
     def __init__(self, message="Required key not found", **kwargs):
         super().__init__(message, **kwargs)
@@ -79,7 +79,7 @@ class BaseFileError(BaseException):
         - Permission denied when accessing a file
     """
 
-    relevant_doc = "https://docs.expectedparrot.com/en/latest/base.html"
+    relevant_doc = "https://docs.expectedparrot.com/en/latest/base"
 
     def __init__(self, message="Error in file operation", **kwargs):
         super().__init__(message, **kwargs)
@@ -92,7 +92,7 @@ class MissingOptionalDependencyError(BaseException):
     Install it with pip, e.g.: pip install edsl[file-formats]
     """
 
-    relevant_doc = "https://docs.expectedparrot.com/en/latest/installation.html"
+    relevant_doc = "https://docs.expectedparrot.com/en/latest/installation"
 
     def __init__(self, package: str, extras_group: str = "full", **kwargs):
         message = (
@@ -115,7 +115,7 @@ class BaseTypeError(BaseException):
         - Incompatible types in operations
     """
 
-    relevant_doc = "https://docs.expectedparrot.com/en/latest/base.html"
+    relevant_doc = "https://docs.expectedparrot.com/en/latest/base"
 
     def __init__(self, message="Invalid type provided", **kwargs):
         super().__init__(message, **kwargs)

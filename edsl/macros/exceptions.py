@@ -13,8 +13,6 @@ class ClientModeError(BaseException):
     Exception raised when a method is called in client mode.
     """
 
-    relevant_doc = "https://docs.expectedparrot.com/en/latest/macros.html"
-
     def __init__(self, message="Method called in client mode", **kwargs):
         super().__init__(message, **kwargs)
 
@@ -23,8 +21,6 @@ class FailedToDeleteMacroError(BaseException):
     """
     Exception raised when a failed to delete a macro.
     """
-
-    relevant_doc = "https://docs.expectedparrot.com/en/latest/macros.html"
 
     def __init__(self, message="Failed to delete macro", **kwargs):
         super().__init__(message, **kwargs)
@@ -37,8 +33,6 @@ class MacroError(BaseException):
     This exception is the parent class for all macro-specific exceptions in EDSL.
     It provides consistent error handling and documentation links for macro-related issues.
     """
-
-    relevant_doc = "https://docs.expectedparrot.com/en/latest/macros.html"
 
     def __init__(self, message="Macro error occurred", **kwargs):
         super().__init__(message, **kwargs)
@@ -57,8 +51,6 @@ class MacroValueError(MacroError):
         - Parameter values outside acceptable ranges
     """
 
-    relevant_doc = "https://docs.expectedparrot.com/en/latest/macros.html"
-
     def __init__(self, message="Invalid value provided for macro operation", **kwargs):
         super().__init__(message, **kwargs)
 
@@ -75,8 +67,6 @@ class MacroTypeError(MacroError):
         - Type conversion failures
         - Incompatible types in operations
     """
-
-    relevant_doc = "https://docs.expectedparrot.com/en/latest/macros.html"
 
     def __init__(self, message="Invalid type provided for macro operation", **kwargs):
         super().__init__(message, **kwargs)
@@ -98,8 +88,6 @@ class MacroNameError(MacroValueError):
         - Missing required name or alias
     """
 
-    relevant_doc = "https://docs.expectedparrot.com/en/latest/macros.html"
-
     def __init__(self, message="Invalid macro name", **kwargs):
         super().__init__(message, **kwargs)
 
@@ -120,8 +108,6 @@ class DescriptionError(MacroValueError):
         - Missing required description fields
     """
 
-    relevant_doc = "https://docs.expectedparrot.com/en/latest/macros.html"
-
     def __init__(self, message="Invalid macro description", **kwargs):
         super().__init__(message, **kwargs)
 
@@ -133,8 +119,6 @@ class DuplicateMacroException(MacroError):
     This is raised by the client when the server responds with HTTP 409 Conflict
     due to an existing macro with the same "owner/alias" combination.
     """
-
-    relevant_doc = "https://docs.expectedparrot.com/en/latest/macros.html"
 
     def __init__(
         self, message: str = "Duplicate macro: owner/alias already exists", **kwargs

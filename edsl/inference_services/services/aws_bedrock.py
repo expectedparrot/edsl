@@ -24,26 +24,252 @@ class AwsBedrockService(InferenceServiceABC):
 
     @classmethod
     def get_model_info(cls):
-        """Get raw model info from AWS Bedrock."""
+        """Get raw model info from AWS Bedrock — only the IDs the account can
+        actually invoke on-demand.
+
+        Two AWS Bedrock APIs together describe what's callable on-demand:
+
+        * ``list_inference_profiles`` — returns cross-region routing profiles
+          (``us.*``, ``global.*``, ``eu.*``, ``apac.*``). Most modern models
+          (Claude 3.5+, Llama 3.1+, etc.) can ONLY be invoked via one of
+          these; AWS rejects their bare foundation IDs with::
+
+              ValidationException: Invocation of model ID <id> with on-demand
+              throughput isn't supported. Retry your request with the ID or ARN
+              of an inference profile that contains this model.
+
+        * ``list_foundation_models`` — returns the regional catalog of every
+          model AWS hosts. Some models (notably the OpenAI ``gpt-oss-*``
+          family) support on-demand invocation with their BARE ID and have
+          no inference profile; for those, the foundation ID is the only
+          invocable form.
+
+        We return the union: all profile IDs, plus any foundation ID whose
+        ``inferenceTypesSupported`` includes ``ON_DEMAND`` AND that does not
+        already appear as a profile target. This avoids hiding the OpenAI
+        gpt-oss models (and any future on-demand-bare-ID models) while still
+        steering users to the profile ID for everything that requires one.
+        """
         region = os.getenv("AWS_REGION", "us-east-1")
         client = boto3.client("bedrock", region_name=region)
-        return client.list_foundation_models()["modelSummaries"]
 
-    # @classmethod
-    # def available(cls):
-    #     """Fetch available models from AWS Bedrock."""
+        # 1) Inference profiles (cross-region routing IDs).
+        profiles: list = []
+        try:
+            profiles = client.list_inference_profiles().get(
+                "inferenceProfileSummaries", []
+            )
+        except Exception:
+            pass
 
-    #     region = os.getenv("AWS_REGION", "us-east-1")
+        # Track the bare model IDs each profile contains so we can skip the
+        # bare entries in step 2 — the profile ID is the canonical form.
+        bare_ids_covered_by_profile: set = set()
+        for p in profiles:
+            for routed in p.get("models", []) or []:
+                arn = routed.get("modelArn", "")
+                # ARN tail looks like ".../foundation-model/<model-id>"
+                if "/" in arn:
+                    bare_ids_covered_by_profile.add(arn.rsplit("/", 1)[-1])
+            # Also strip the routing prefix from the profile ID itself; that's
+            # always the bare ID the profile fronts.
+            pid = p.get("inferenceProfileId", "")
+            for pref in cls._PROFILE_PREFERENCE:
+                if pid.startswith(pref):
+                    bare_ids_covered_by_profile.add(pid[len(pref) :])
+                    break
 
-    #     if not cls._models_list_cache:
-    #         client = boto3.client("bedrock", region_name=region)
-    #         all_models_ids = [
-    #             x["modelId"] for x in client.list_foundation_models()["modelSummaries"]
-    #         ]
-    #     else:
-    #         all_models_ids = cls._models_list_cache
+        # 2) Foundation models with ON_DEMAND inference (bare-ID invokable
+        #    and not already covered by a profile).
+        foundation_on_demand: list = []
+        try:
+            catalog = client.list_foundation_models().get("modelSummaries", [])
+            for m in catalog:
+                if "ON_DEMAND" not in (m.get("inferenceTypesSupported") or []):
+                    continue
+                if m.get("modelId") in bare_ids_covered_by_profile:
+                    continue
+                foundation_on_demand.append(m)
+        except Exception:
+            pass
 
-    #     return [m for m in all_models_ids if m not in cls.model_exclude_list]
+        # Reshape profiles to the {"modelId": ...} shape ModelInfo expects.
+        profile_entries = [
+            {
+                "modelId": p["inferenceProfileId"],
+                "providerName": p.get("inferenceProfileName", ""),
+                "inferenceProfileArn": p.get("inferenceProfileArn", ""),
+            }
+            for p in profiles
+        ]
+
+        result = profile_entries + foundation_on_demand
+        # If both APIs failed, fall back to whatever the catalog has so
+        # discovery isn't completely broken in degraded environments.
+        if not result:
+            try:
+                return client.list_foundation_models()["modelSummaries"]
+            except Exception:
+                return []
+        return result
+
+    # Cache: region -> {bare_model_id: profile_id}. Populated lazily on first
+    # resolve call per region and reused for the rest of the process.
+    _profile_cache_by_region: dict = {}
+
+    # Prefixes that mark an ID as already an inference profile (or ARN); these
+    # are passed through to the Converse API untouched.
+    _PROFILE_PREFIXES = ("us.", "global.", "eu.", "apac.", "arn:")
+
+    # Preference order when multiple cross-region profiles exist for the same
+    # bare model ID. US accounts typically have us.* granted; global.* exists
+    # for newer models; eu.*/apac.* for those regions.
+    _PROFILE_PREFERENCE = ("us.", "global.", "eu.", "apac.")
+
+    @classmethod
+    def _load_profile_map(cls, region: str) -> dict:
+        """Return {bare_model_id: profile_id} for `region`, caching per process.
+
+        Builds the map by listing all inference profiles in the region and
+        stripping the routing prefix from each profile ID. When several
+        profiles map to the same bare ID (e.g. both ``us.X`` and ``global.X``),
+        ``_PROFILE_PREFERENCE`` decides which one wins.
+        """
+        if region in cls._profile_cache_by_region:
+            return cls._profile_cache_by_region[region]
+
+        mapping: dict = {}
+        try:
+            client = boto3.client("bedrock", region_name=region)
+            profiles = client.list_inference_profiles().get(
+                "inferenceProfileSummaries", []
+            )
+            # Group bare-id -> [profile_id, ...] then pick by preference order.
+            by_bare: dict = {}
+            for p in profiles:
+                pid = p.get("inferenceProfileId", "")
+                for pref in cls._PROFILE_PREFERENCE:
+                    if pid.startswith(pref):
+                        bare = pid[len(pref) :]
+                        by_bare.setdefault(bare, []).append(pid)
+                        break
+            for bare, candidates in by_bare.items():
+                for pref in cls._PROFILE_PREFERENCE:
+                    match = next((c for c in candidates if c.startswith(pref)), None)
+                    if match:
+                        mapping[bare] = match
+                        break
+        except Exception:
+            # On failure leave the cache empty for this region; resolve() will
+            # return the original ID and AWS will produce its native error.
+            pass
+
+        cls._profile_cache_by_region[region] = mapping
+        return mapping
+
+    @classmethod
+    def _build_inference_config(
+        cls, model_id: str, max_tokens, temperature, top_p
+    ) -> dict:
+        """Build a Converse ``inferenceConfig`` tuned to per-model restrictions.
+
+        AWS Bedrock validates ``inferenceConfig`` per model and rejects
+        parameters the target model doesn't accept. The known restrictions for
+        Anthropic Claude on Bedrock:
+
+        * **Claude (all)**: ``temperature`` and ``top_p`` cannot both be set.
+          AWS error: ``temperature and top_p cannot both be specified for this
+          model``. We send ``temperature`` only and omit ``topP``.
+        * **Claude Opus 4.7 / 4.8** (extended-thinking / reasoning variants):
+          ``temperature`` is deprecated entirely — the model hard-codes it.
+          AWS error: ``temperature is deprecated for this model``. We send
+          only ``maxTokens``.
+
+        Models not matched here get the full ``{maxTokens, temperature, topP}``
+        triple. ``_converse_with_param_retry`` is the safety net for models
+        whose restrictions we haven't enumerated yet.
+        """
+        cfg: dict = {"maxTokens": max_tokens}
+        mid = (model_id or "").lower()
+        is_claude = "anthropic" in mid or "claude" in mid
+        is_thinking = any(s in mid for s in ("opus-4-7", "opus-4-8"))
+
+        if is_thinking:
+            return cfg
+        if is_claude:
+            cfg["temperature"] = temperature
+            return cfg
+        cfg["temperature"] = temperature
+        cfg["topP"] = top_p
+        return cfg
+
+    @staticmethod
+    def _converse_with_param_retry(client, params):
+        """Call ``client.converse(**params)`` with a one-shot retry that prunes
+        inference-config params AWS reports as invalid.
+
+        AWS keeps tightening per-model parameter rules (most recently:
+        Claude Opus 4.7/4.8 deprecating ``temperature``). A static lookup in
+        ``_build_inference_config`` will inevitably miss future models, so this
+        safety net inspects the ValidationException message, drops the offending
+        param, and tries once more. If pruning would not change anything, the
+        original AWS error is re-raised so users still see the real message.
+        """
+        from botocore.exceptions import ClientError
+
+        try:
+            return client.converse(**params)
+        except ClientError as e:
+            err = e.response.get("Error", {}) if hasattr(e, "response") else {}
+            if err.get("Code") != "ValidationException":
+                raise
+            msg = (err.get("Message") or "").lower()
+            cfg = params.get("inferenceConfig", {})
+            before = dict(cfg)
+
+            # "`temperature` is deprecated for this model" -> drop temperature
+            if "temperature" in msg and "deprecated" in msg:
+                cfg.pop("temperature", None)
+            # "`top_p` is deprecated for this model" -> drop topP
+            if "top_p" in msg and "deprecated" in msg:
+                cfg.pop("topP", None)
+            # "temperature and top_p cannot both be specified" -> keep temperature
+            if "cannot both be specified" in msg:
+                if "temperature" in cfg and "topP" in cfg:
+                    cfg.pop("topP", None)
+
+            if cfg == before:
+                # Nothing we know how to fix; surface the original error.
+                raise
+            return client.converse(**params)
+
+    @classmethod
+    def _resolve_inference_profile(cls, model_id: str, region: str) -> str:
+        """Translate a bare Bedrock foundation-model ID into the inference
+        profile ID the account can invoke on-demand.
+
+        Restores the silent translation the deleted ``remote_proxy`` used to
+        perform server-side (removed in commit 04e6ffff, March 2026). Without
+        this, pre-existing user code like ``Model("meta.llama3-1-70b-instruct-v1:0",
+        service_name="bedrock")`` fails with::
+
+            ValidationException: Invocation of model ID <bare_id> with on-demand
+            throughput isn't supported. Retry your request with the ID or ARN
+            of an inference profile that contains this model.
+
+        Rules:
+          * IDs already starting with ``us.``/``global.``/``eu.``/``apac.`` or
+            ARNs are passed through unchanged.
+          * Otherwise the cached profile map for the region is consulted. The
+            preferred match (US first, then global, then EU, then APAC) is
+            returned.
+          * If no profile matches, the original ID is returned so AWS produces
+            its native error message (which is more informative than anything
+            EDSL could synthesize here).
+        """
+        if not model_id or model_id.startswith(cls._PROFILE_PREFIXES):
+            return model_id
+        return cls._load_profile_map(region).get(model_id, model_id)
 
     @classmethod
     def create_model(
@@ -86,6 +312,14 @@ class AwsBedrockService(InferenceServiceABC):
                 _ = self.api_token  # call to check if env variables are set.
 
                 region = os.getenv("AWS_REGION", "us-east-1")
+                # Translate a bare foundation-model ID (e.g.
+                # "meta.llama3-1-70b-instruct-v1:0") into the inference profile
+                # the account can actually invoke (e.g.
+                # "us.meta.llama3-1-70b-instruct-v1:0"). Profile IDs and ARNs
+                # pass through unchanged.
+                effective_model_id = cls._resolve_inference_profile(
+                    self._model_, region
+                )
                 client = boto3.client("bedrock-runtime", region_name=region)
 
                 # Build content array for the user message
@@ -154,15 +388,18 @@ class AwsBedrockService(InferenceServiceABC):
                     }
                 ]
 
-                # Build converse parameters
+                # Build converse parameters. inferenceConfig is tuned per model
+                # because some Bedrock models (Claude 4-family especially)
+                # reject specific params with ValidationException.
                 converse_params = {
-                    "modelId": self._model_,
+                    "modelId": effective_model_id,
                     "messages": conversation,
-                    "inferenceConfig": {
-                        "maxTokens": self.max_tokens,
-                        "temperature": self.temperature,
-                        "topP": self.top_p,
-                    },
+                    "inferenceConfig": cls._build_inference_config(
+                        effective_model_id,
+                        self.max_tokens,
+                        self.temperature,
+                        self.top_p,
+                    ),
                     "additionalModelRequestFields": {},
                 }
 
@@ -170,7 +407,10 @@ class AwsBedrockService(InferenceServiceABC):
                 if system_prompt:
                     converse_params["system"] = [{"text": system_prompt}]
 
-                response = client.converse(**converse_params)
+                # Safety net: prune AWS-rejected inference-config params and
+                # retry once, so we survive future model-specific restrictions
+                # not yet enumerated in _build_inference_config.
+                response = cls._converse_with_param_retry(client, converse_params)
                 return response
 
             def _get_file_format(self, file_path: str) -> str:

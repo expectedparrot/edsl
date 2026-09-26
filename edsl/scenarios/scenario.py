@@ -74,12 +74,7 @@ class Scenario(Base, UserDict):
         >>> os.unlink(data_path) # Clean up temp file
     """
 
-    __documentation__ = "https://docs.expectedparrot.com/en/latest/scenarios.html"
-
-    # CAS store support
-    _store_class_name = "Scenario"
-    from edsl.base.store_accessor import StoreDescriptor
-    store = StoreDescriptor()
+    __documentation__ = "https://docs.expectedparrot.com/en/latest/scenarios"
 
     def __init__(
         self,
@@ -715,9 +710,10 @@ class Scenario(Base, UserDict):
         """Return display sections as (title, Dataset) pairs."""
         from edsl.dataset import Dataset
 
-        keys = list(self.data.keys())
-        values = [repr(v) for v in self.data.values()]
-        types = [self._type_label(v) for v in self.data.values()]
+        items = list(self.data.items())
+        keys = [k for k, _ in items]
+        values = [repr(v) for _, v in items]
+        types = [self._type_label(v) for _, v in items]
         return [("Scenario", Dataset([{"key": keys}, {"value": values}, {"type": types}]))]
 
     def _summary_repr(self, max_items: int = 500) -> str:
@@ -977,7 +973,11 @@ class Scenario(Base, UserDict):
 
     @classmethod
     def from_url(
-        cls, url: str, field_name: Optional[str] = "text", testing: bool = False
+        cls,
+        url: str,
+        field_name: Optional[str] = "text",
+        testing: bool = False,
+        timeout: float = 30.0,
     ) -> "Scenario":
         """
         Creates a Scenario from the content of a URL.
@@ -1016,7 +1016,7 @@ class Scenario(Base, UserDict):
         """
         from .scenario_factory import ScenarioFactory
 
-        return ScenarioFactory.from_url(url, field_name, testing)
+        return ScenarioFactory.from_url(url, field_name, testing, timeout)
 
     @classmethod
     def from_file(cls, file_path: str, field_name: str) -> "Scenario":

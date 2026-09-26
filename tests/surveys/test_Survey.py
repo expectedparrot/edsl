@@ -46,6 +46,12 @@ class TestSurvey(unittest.TestCase):
         next_question = survey.next_question("like_school", {})
         assert next_question == q3
 
+    def test_empty_survey_next_question(self):
+        from edsl.surveys.base import EndOfSurvey
+
+        survey = Survey([])
+        assert survey.next_question() == EndOfSurvey
+
     def test_add_memory(self):
         survey = self.gen_survey()
         # breakpoint()
@@ -286,6 +292,31 @@ class TestSurvey(unittest.TestCase):
         # Verify all orderings contain the same elements (just in different order)
         for ordering in color_list:
             assert set(ordering) == {"Red", "Blue", "Green"}
+
+    def test_draw_preserves_unresolved_dynamic_options(self):
+        static = QuestionMultipleChoice(
+            question_name="static",
+            question_text="Pick one.",
+            question_options=["A", "B", "C"],
+        )
+        dynamic = QuestionMultipleChoice(
+            question_name="dynamic",
+            question_text="Pick a prior answer.",
+            question_options="{{ static.answer }}",
+        )
+        survey = Survey(
+            [static, dynamic],
+            questions_to_randomize=["static", "dynamic"],
+        )
+
+        drawn = survey.draw()
+
+        self.assertEqual(
+            sorted(drawn.questions[0].question_options), ["A", "B", "C"]
+        )
+        self.assertEqual(
+            drawn.questions[1].question_options, "{{ static.answer }}"
+        )
 
     @unittest.skip("Pre-existing bug: question_name_to_index cache not invalidated after rename")
     def test_with_renamed_question_basic(self):

@@ -42,7 +42,12 @@ jobs:
       - name: Run Docker Compose
         run: |
           cd /home/stefan/expectedparrot/coopr
-          docker compose up --build --wait
+          # Scale voice-agent to 0: the LiveKit agent has no healthcheck and
+          # exits (0) in CI (no LiveKit backend to attach to), and `--wait`
+          # treats any container stopping mid-wait as a failure -> exit 1,
+          # failing the build before make test-coop even runs. Nothing
+          # depends_on voice-agent, so skipping it is safe.
+          docker compose up --build --wait --scale voice-agent=0
 
       - name: Fetch and checkout last commit in EDSL
         run: |

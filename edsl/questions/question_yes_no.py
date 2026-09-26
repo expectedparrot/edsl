@@ -2,6 +2,7 @@ from __future__ import annotations
 from typing import Optional
 from .descriptors import QuestionOptionsDescriptor
 from .question_multiple_choice import QuestionMultipleChoice
+from .probabilistic_response import ProbabilisticResponse
 from .decorators import inject_exception
 
 
@@ -19,6 +20,7 @@ class QuestionYesNo(QuestionMultipleChoice):
         answering_instructions: Optional[str] = None,
         question_presentation: Optional[str] = None,
         include_comment: Optional[bool] = True,
+        probabilistic_response: ProbabilisticResponse | dict | None = None,
     ):
         """Instantiate a new QuestionYesNo.
 
@@ -34,6 +36,7 @@ class QuestionYesNo(QuestionMultipleChoice):
             answering_instructions=answering_instructions,
             question_presentation=question_presentation,
             include_comment=include_comment,
+            probabilistic_response=probabilistic_response,
         )
         self.question_options = question_options
 

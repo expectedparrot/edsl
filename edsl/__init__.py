@@ -29,6 +29,10 @@ __all__ = [
     "logger",
     "Config",
     "CONFIG",
+    "EmbeddingCache",
+    "EmbeddingCacheEntry",
+    "EmbeddingModel",
+    "EmbeddingResult",
     "__version__",
     "modify_settings",
     "show_settings",
@@ -40,8 +44,10 @@ _LAZY_MODULES = {
     "agents",
     "surveys",
     "questions",
+    "image_generation",
     "scenarios",
     "language_models",
+    "embeddings",
     "results",
     "caching",
     "notebooks",
@@ -52,7 +58,6 @@ _LAZY_MODULES = {
     "extensions",
     "macros",
     "study",
-    "store",
 }
 
 # Cache for lazy-loaded modules
@@ -63,7 +68,9 @@ _module_cache = {}
 _EXPORT_TO_MODULE = {
     # questions
     "QuestionFreeText": "questions",
+    "QuestionURL": "questions",
     "QuestionMultipleChoice": "questions",
+    "ProbabilisticResponse": "questions",
     "QuestionCheckBox": "questions",
     "QuestionLinearScale": "questions",
     "QuestionNumerical": "questions",
@@ -71,11 +78,15 @@ _EXPORT_TO_MODULE = {
     "QuestionList": "questions",
     "QuestionRank": "questions",
     "QuestionBudget": "questions",
+    "QuestionDistribution": "questions",
     "QuestionExtract": "questions",
     "QuestionMatrix": "questions",
     "QuestionTopK": "questions",
     "QuestionFunctional": "questions",
     "QuestionBase": "questions",
+    "QuestionDiagram": "questions",
+    "QuestionImageGeneration": "questions",
+    "SurveyMessage": "questions",
     # surveys
     "Survey": "surveys",
     # agents
@@ -89,6 +100,14 @@ _EXPORT_TO_MODULE = {
     "Model": "language_models",
     "ModelList": "language_models",
     "LanguageModel": "language_models",
+    # embeddings
+    "EmbeddingModel": "embeddings",
+    "EmbeddingResult": "embeddings",
+    "EmbeddingCache": "embeddings",
+    "EmbeddingCacheEntry": "embeddings",
+    # image generation
+    "ImageGeneration": "image_generation",
+    "GeneratedImage": "image_generation",
     # results
     "Results": "results",
     # dataset

@@ -72,7 +72,7 @@ class SQLiteDict:
         # Strip the sqlite:/// prefix for sqlite3 module
         raw_path = self.db_path
         if raw_path.startswith("sqlite:///"):
-            raw_path = raw_path[len("sqlite:///"):]
+            raw_path = raw_path[len("sqlite:///") :]
         else:
             # Ensure db_path keeps the prefix for repr compatibility
             self.db_path = f"sqlite:///{raw_path}"
@@ -181,12 +181,17 @@ class SQLiteDict:
             >>> d.get("foo", "bar")
             'bar'
         """
-        from .exceptions import CacheKeyError
-
-        try:
-            return self[key]
-        except (KeyError, CacheKeyError):
+        # Query directly rather than delegating to ``__getitem__``. A normal
+        # cache miss is not an error, but ``__getitem__`` raises CacheKeyError
+        # on a miss and EDSL's BaseException logs itself at ERROR on
+        # construction (even when immediately caught) — which spammed
+        # "ERROR:edsl:Key '<hash>' not found." on every cold-cache lookup.
+        row = self._conn.execute(
+            "SELECT value FROM data WHERE key = ?", (key,)
+        ).fetchone()
+        if not row:
             return default
+        return CacheEntry.from_dict(json.loads(row[0]))
 
     def __bool__(self) -> bool:
         """
@@ -304,9 +309,7 @@ class SQLiteDict:
         >>> "bar" in d
         False
         """
-        row = self._conn.execute(
-            "SELECT 1 FROM data WHERE key = ?", (key,)
-        ).fetchone()
+        row = self._conn.execute("SELECT 1 FROM data WHERE key = ?", (key,)).fetchone()
         return row is not None
 
     def __iter__(self) -> Generator[str, None, None]:

@@ -1,4 +1,5 @@
 import base64
+import hashlib
 import io
 import tempfile
 import mimetypes
@@ -62,7 +63,7 @@ class FileStore(Scenario):
         # >>> _ = [FileStore.example(format) for format in formats]
     """
 
-    __documentation__ = "https://docs.expectedparrot.com/en/latest/filestore.html"
+    __documentation__ = "https://docs.expectedparrot.com/en/latest/filestore"
 
     # Class-level client cache for Google API
     _cached_client = None
@@ -124,12 +125,25 @@ class FileStore(Scenario):
 
         self.suffix = suffix or (path.split(".")[-1] if path else "")
         self.binary = binary or False
+        # Python's mimetypes registry misses some common types (notably the
+        # OOXML office formats, which .guess_type() returns None for on Windows),
+        # which would otherwise fall back to application/octet-stream and make
+        # downstream consumers treat the file as unsupported. Map those from the
+        # suffix before giving up.
+        _suffix_mime_types = {
+            "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            "xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            "pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+        }
         self.mime_type = (
             mime_type
             or (mimetypes.guess_type(path)[0] if path else None)
+            or _suffix_mime_types.get((self.suffix or "").lower())
             or "application/octet-stream"
         )
-        self.base64_string = base64_string or self.encode_file_to_base64_string(path or "")
+        self.base64_string = base64_string or self.encode_file_to_base64_string(
+            path or ""
+        )
         self.external_locations = external_locations or {}
 
         self.extracted_text = (
@@ -153,6 +167,60 @@ class FileStore(Scenario):
         if key_name is None:
             key_name = "file_store"
         return Scenario({key_name: self})
+
+    @staticmethod
+    def _compute_content_hash(base64_string: Optional[str]) -> Optional[str]:
+        """Return a content-stable digest (md5 of the decoded bytes).
+
+        This is the cache identity of a file's *content*, independent of where a
+        given upload happened to store it (GCS ``file_uuid`` etc.). Returns None
+        when no real content is available (e.g. an offloaded ``base64_string``),
+        so callers can fall back to another identity.
+        """
+        if not base64_string or base64_string == "offloaded":
+            return None
+        try:
+            raw = base64.b64decode(base64_string)
+        except Exception:
+            return None
+        return hashlib.md5(raw).hexdigest()
+
+    def _content_identity_hash(self) -> int:
+        """Hash a file by *content*, never by per-upload storage metadata.
+
+        Identity = (content digest, mime_type). The content digest is read from
+        ``external_locations["gcs"]["content_hash"]`` when present (stamped at
+        offload, so the byte-less read side can use it without downloading),
+        otherwise computed live from the bytes. As a last resort — a legacy file
+        that arrived offloaded with no stamped ``content_hash`` — we fall back to
+        the per-upload ``file_uuid`` so that different files never collide onto a
+        shared cache entry (correctness over reuse).
+        """
+        from ..utilities.utilities import dict_hash
+
+        ext = self.get("external_locations") or {}
+        gcs = ext.get("gcs", {}) if isinstance(ext, dict) else {}
+
+        content_hash = gcs.get("content_hash")
+        if not content_hash:
+            content_hash = getattr(self, "_cached_content_hash", None)
+            if content_hash is None:
+                content_hash = self._compute_content_hash(self.get("base64_string"))
+                try:
+                    self._cached_content_hash = content_hash
+                except Exception:
+                    pass
+        if not content_hash:
+            # No content identity available (offloaded, unstamped): stay
+            # collision-free by keying on the upload id even though it is not
+            # content-stable.
+            content_hash = gcs.get("file_uuid")
+
+        identity = {"content_hash": content_hash, "mime_type": self.get("mime_type")}
+        return dict_hash(identity)
+
+    def __hash__(self) -> int:
+        return self._content_identity_hash()
 
     def _restore_from_gcs(self) -> None:
         """
@@ -296,7 +364,9 @@ class FileStore(Scenario):
     ) -> "FileStore":
         """Async version of screenshot functionality"""
         try:
-            from playwright.async_api import async_playwright  # ty: ignore[unresolved-import]
+            from playwright.async_api import (
+                async_playwright,
+            )  # ty: ignore[unresolved-import]
         except ImportError:
             raise ImportError(
                 "Screenshot functionality requires additional dependencies.\n"
@@ -789,16 +859,39 @@ class FileStore(Scenario):
         """
         if inplace:
             if hasattr(self, "base64_string"):
+                content_hash = self._compute_content_hash(self.base64_string)
                 self.base64_string = "offloaded"
+                if content_hash:
+                    ext = self.get("external_locations") or {}
+                    if not isinstance(ext, dict):
+                        ext = {}
+                    gcs = dict(ext.get("gcs") or {})
+                    gcs["content_hash"] = content_hash
+                    ext["gcs"] = gcs
+                    self["external_locations"] = ext
+                    self.external_locations = ext
             return self
         else:
             # Create a copy and offload it
             file_store_dict = self.to_dict()
             if "base64_string" in file_store_dict:
+                content_hash = self._compute_content_hash(
+                    file_store_dict["base64_string"]
+                )
                 file_store_dict["base64_string"] = "offloaded"
+                if content_hash:
+                    ext = file_store_dict.get("external_locations") or {}
+                    if not isinstance(ext, dict):
+                        ext = {}
+                    gcs = dict(ext.get("gcs") or {})
+                    gcs["content_hash"] = content_hash
+                    ext["gcs"] = gcs
+                    file_store_dict["external_locations"] = ext
             return self.__class__.from_dict(file_store_dict)
 
-    def save_to_gcs_bucket(self, signed_url_or_dict: Union[str, Dict[str, str]]) -> dict:
+    def save_to_gcs_bucket(
+        self, signed_url_or_dict: Union[str, Dict[str, str]]
+    ) -> dict:
         """
         Saves the FileStore's file content to a Google Cloud Storage bucket using a signed URL.
 
@@ -834,7 +927,11 @@ class FileStore(Scenario):
         }
 
         # Upload to GCS using the signed URL
-        signed_url = signed_url_or_dict if isinstance(signed_url_or_dict, str) else signed_url_or_dict.get("url", "")
+        signed_url = (
+            signed_url_or_dict
+            if isinstance(signed_url_or_dict, str)
+            else signed_url_or_dict.get("url", "")
+        )
         response = requests.put(signed_url, data=file_content, headers=headers)
         response.raise_for_status()
 
@@ -845,6 +942,71 @@ class FileStore(Scenario):
             "mime_type": self.mime_type,
             "file_extension": self.suffix,
         }
+
+    @classmethod
+    def from_file_upload_answer(
+        cls,
+        file_info: dict,
+        expected_parrot_url: Optional[str] = None,
+        download_url: Optional[str] = None,
+    ) -> "FileStore":
+        """
+        Create a FileStore from a single entry in a QuestionFileUpload answer.
+
+        By default this calls the Coop endpoint to obtain a signed download URL,
+        then fetches the file and wraps it in a FileStore. A caller that already
+        has bucket access (e.g. the backend) can pass ``download_url`` to skip the
+        Coop round-trip and fetch the file directly.
+
+        Args:
+            file_info: A dict with at minimum a 'gcs_path' key, as returned in
+                       the answer list for a QuestionFileUpload question.
+                       Optionally includes 'name', 'mime_type', and 'extension'.
+            expected_parrot_url: Optional override for the Coop server URL.
+            download_url: Optional pre-obtained download URL. When provided, the
+                       Coop signed-URL request is skipped and the file is fetched
+                       from this URL directly.
+
+        Returns:
+            FileStore: The downloaded file.
+
+        Example::
+
+            answer = results[0]['answer']['my_upload_question']
+            for file_info in answer:
+                fs = FileStore.from_file_upload_answer(file_info)
+        """
+        if download_url is None:
+            from ..coop import Coop
+
+            coop = Coop(url=expected_parrot_url) if expected_parrot_url else Coop()
+            response = coop._send_server_request(
+                uri="api/v0/human-survey-file-uploads/download-url",
+                method="POST",
+                payload={"gcs_path": file_info["gcs_path"]},
+            )
+            response.raise_for_status()
+            response_data = response.json()
+            download_url = response_data.get("url")
+            if not download_url:
+                raise ValueError(
+                    f"Server did not return a download URL. Response: {response_data}"
+                )
+
+        # Save under the original filename in a fresh temp dir so the suffix is
+        # correct and there's no collision if the same name appears in multiple uploads.
+
+        name = os.path.basename(file_info.get("name") or "")
+        if not name:
+            extension = file_info.get("extension", "")
+            name = f"file.{extension}" if extension else "file"
+        download_path = os.path.join(tempfile.mkdtemp(), name)
+
+        return cls.from_url(
+            download_url,
+            download_path=download_path,
+            mime_type=file_info.get("mime_type"),
+        )
 
     @classmethod
     def pull(
@@ -873,6 +1035,7 @@ class FileStore(Scenario):
         mime_type: Optional[str] = None,
         field_name: Optional[str] = None,
         testing: bool = False,
+        timeout: float = 30.0,
     ) -> "FileStore":
         """
         :param url: The URL of the file to download.
@@ -881,25 +1044,29 @@ class FileStore(Scenario):
         """
         import requests
         from urllib.parse import urlparse
+        from .network import validate_request_timeout
 
-        response = requests.get(url, stream=True)
-        response.raise_for_status()  # Raises an HTTPError for bad responses
+        timeout = validate_request_timeout(timeout)
+        response = requests.get(url, stream=True, timeout=timeout)
+        try:
+            response.raise_for_status()  # Raises an HTTPError for bad responses
 
-        # Get the filename from the URL if download_path is not provided
-        if download_path is None:
-            filename = os.path.basename(urlparse(url).path)
-            if not filename:
-                filename = "downloaded_file"
-            # download_path = filename
-            download_path = os.path.join(os.getcwd(), filename)
+            # Get the filename from the URL if download_path is not provided
+            if download_path is None:
+                filename = os.path.basename(urlparse(url).path)
+                if not filename:
+                    filename = "downloaded_file"
+                download_path = os.path.join(os.getcwd(), filename)
 
-        # Ensure the directory exists
-        os.makedirs(os.path.dirname(download_path), exist_ok=True)
+            # Ensure the directory exists
+            os.makedirs(os.path.dirname(download_path), exist_ok=True)
 
-        # Write the file
-        with open(download_path, "wb") as file:
-            for chunk in response.iter_content(chunk_size=8192):
-                file.write(chunk)
+            # Write the file
+            with open(download_path, "wb") as file:
+                for chunk in response.iter_content(chunk_size=8192):
+                    file.write(chunk)
+        finally:
+            response.close()
 
         # Create and return a new File instance
         return cls(download_path, mime_type=mime_type)
@@ -908,24 +1075,33 @@ class FileStore(Scenario):
         try:
             from edsl.utilities.display_utils import HTML
         except ImportError:
+
             class HTML:
                 def __init__(self, content):
                     self.content = content
+
                 def _repr_html_(self):
                     return self.content
+
         return HTML(self._html_download_link(custom_filename or self.path, style))
 
     def _html_download_link(self, custom_filename=None, style=None):
         """Generate an HTML download link string for this FileStore."""
         import os as _os
+
         filename = _os.path.basename(custom_filename or self.path)
         b64_data = self.base64_string
         mime_type = self.mime_type
         default_style = {
-            "background-color": "#4CAF50", "color": "white",
-            "padding": "10px 20px", "text-decoration": "none",
-            "border-radius": "4px", "display": "inline-block",
-            "margin": "10px 0", "font-family": "sans-serif", "cursor": "pointer",
+            "background-color": "#4CAF50",
+            "color": "white",
+            "padding": "10px 20px",
+            "text-decoration": "none",
+            "border-radius": "4px",
+            "display": "inline-block",
+            "margin": "10px 0",
+            "font-family": "sans-serif",
+            "cursor": "pointer",
         }
         button_style = style or default_style
         style_str = "; ".join(f"{k}: {v}" for k, v in button_style.items())
@@ -1179,6 +1355,59 @@ class FileStore(Scenario):
                 "mime_type": self.mime_type,
                 "size_bytes": self.size,
             }
+
+    # Approx input-token cost of media when sent to an LLM. Video dominates a
+    # per-minute token rate limit (Gemini bills ~295 tokens/sec of video+audio),
+    # and an offloaded FileStore has no bytes, a bogus ``size`` and cannot run
+    # ffprobe — so this is computed while content is still present and stamped
+    # into ``external_locations`` at offload for the byte-less server to read.
+    _VIDEO_TOKENS_PER_SECOND = 295
+    # Fallback when ffprobe is unavailable: tokens-per-byte proxy derived from
+    # _VIDEO_TOKENS_PER_SECOND at an assumed ~2 Mbps bitrate.
+    _VIDEO_TOKENS_PER_BYTE_FALLBACK = 0.0012
+
+    @staticmethod
+    def _approx_image_tokens(width: int, height: int) -> int:
+        """Approx Gemini image tokens: 258 per 768px tile, 258 for <=384px."""
+        import math
+
+        if width <= 0 or height <= 0:
+            return 258
+        if width <= 384 and height <= 384:
+            return 258
+        return math.ceil(width / 768) * math.ceil(height / 768) * 258
+
+    def estimate_media_tokens(self) -> int:
+        """Best-effort estimate of the input tokens this file costs an LLM.
+
+        Must be called while the file still holds real content (e.g. just
+        before offload); an offloaded FileStore has no bytes, a bogus ``size``
+        and cannot run ffprobe, so the result is stamped into
+        ``external_locations`` at offload for the server side to read.
+        Model-agnostic. Returns 0 if nothing can be determined.
+        """
+        try:
+            if self.is_video():
+                dur = 0.0
+                try:
+                    meta = self.get_video_metadata()
+                    dur = float(meta.get("simplified", {}).get("duration_seconds") or 0)
+                except Exception:
+                    dur = 0.0
+                if dur > 0:
+                    return int(dur * self._VIDEO_TOKENS_PER_SECOND)
+                # ffprobe unavailable — fall back to a size-based proxy
+                return int(self.size * self._VIDEO_TOKENS_PER_BYTE_FALLBACK)
+            if self.is_image():
+                try:
+                    width, height = self.get_image_dimensions()
+                    return int(self._approx_image_tokens(int(width), int(height)))
+                except Exception:
+                    return 1500
+            # Non-media file: coarse size-based proxy
+            return int(self.size * 0.25)
+        except Exception:
+            return 0
 
     def get_image_dimensions(self) -> tuple:
         """

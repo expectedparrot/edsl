@@ -1,4 +1,5 @@
 import os
+import re
 from typing import Any, Optional, List, TYPE_CHECKING
 from anthropic import AsyncAnthropic
 
@@ -23,6 +24,8 @@ class AnthropicService(InferenceServiceABC):
     input_token_name = "input_tokens"
     output_token_name = "output_tokens"
     available_models_url = "https://docs.anthropic.com/en/docs/about-claude/models"
+    _temperature_deprecation_date = 20260205
+    _temperature_deprecation_version = (4, 6)
 
     @classmethod
     def get_model_info(cls, api_key: Optional[str] = None):
@@ -35,6 +38,67 @@ class AnthropicService(InferenceServiceABC):
         response = requests.get("https://api.anthropic.com/v1/models", headers=headers)
         response.raise_for_status()
         return response.json()["data"]
+
+    @classmethod
+    def _requires_temperature_one(cls, model_name: str) -> bool:
+        """Return whether Anthropic only accepts temperature=1.0 for this model."""
+        model_name = model_name.lower()
+
+        version_match = re.search(
+            r"claude-(?P<family>opus|sonnet|haiku)-(?P<major>\d+)-(?P<minor>\d+)",
+            model_name,
+        )
+
+        if version_match:
+            version = (
+                int(version_match.group("major")),
+                int(version_match.group("minor")),
+            )
+            family = version_match.group("family")
+
+            if version > cls._temperature_deprecation_version:
+                return True
+            # Opus at the boundary version is exempt regardless of any date suffix
+            if version == cls._temperature_deprecation_version and family == "opus":
+                return False
+
+        date_match = re.search(r"(?<!\d)(\d{8})(?!\d)", model_name)
+        if date_match:
+            return int(date_match.group(1)) > cls._temperature_deprecation_date
+
+        if not version_match:
+            return False
+
+        return version == cls._temperature_deprecation_version and family != "opus"
+
+    @classmethod
+    def _temperature_unsupported(cls, model_name: str) -> bool:
+        """Return whether this Anthropic model rejects the ``temperature`` parameter.
+
+        Claude Fable 5 / Mythos 5 and the Claude 4.7+/5 generation removed sampling
+        parameters: sending ``temperature`` at all (any value, including 1.0) returns
+        ``400 invalid_request_error``. It must be omitted from the request, not set.
+        """
+        name = model_name.lower()
+        if re.search(r"claude-(fable|mythos)", name):
+            return True
+        version_match = re.search(
+            r"claude-(?:opus|sonnet|haiku)-(\d+)-(\d+)", name
+        )
+        if version_match:
+            version = (int(version_match.group(1)), int(version_match.group(2)))
+            return version >= (4, 7)
+        # Single-number generation ids (e.g. claude-sonnet-5) also reject it.
+        single_version = re.search(r"claude-(?:opus|sonnet|haiku)-(\d+)(?!-?\d)", name)
+        if single_version:
+            return int(single_version.group(1)) >= 5
+        return False
+
+    @classmethod
+    def _api_temperature(cls, model_name: str, temperature: float) -> float:
+        if cls._requires_temperature_one(model_name):
+            return 1.0
+        return temperature
 
     @classmethod
     def create_model(
@@ -112,6 +176,18 @@ class AnthropicService(InferenceServiceABC):
                                     "text": f"\n--- Content from '{filename}' ---\n{text_content}\n--- End of {filename} ---\n",
                                 }
                             )
+                        # Handle .docx by including their extracted text
+                        elif msg_builder._is_docx_file(file_entry):
+                            text_content = msg_builder.decode_docx_text(file_entry)
+                            filename = getattr(
+                                file_entry, "filename", "document.docx"
+                            )
+                            messages[0]["content"].append(
+                                {
+                                    "type": "text",
+                                    "text": f"\n--- Content from '{filename}' ---\n{text_content}\n--- End of {filename} ---\n",
+                                }
+                            )
                         # Handle PDFs as documents
                         elif msg_builder._is_pdf_file(file_entry):
                             encoded_data = file_entry.base64_string
@@ -152,10 +228,14 @@ class AnthropicService(InferenceServiceABC):
                 create_kwargs = dict(
                     model=model_name,
                     max_tokens=self.max_tokens,
-                    temperature=self.temperature,
                     system=system_prompt,  # note that the Anthropic API uses "system" parameter rather than put it in the message
                     messages=messages,
                 )
+                # Fable 5 / Opus 4.7+ / Sonnet 5 reject `temperature` entirely; omit it.
+                if not cls._temperature_unsupported(model_name):
+                    create_kwargs["temperature"] = cls._api_temperature(
+                        model_name, self.temperature
+                    )
                 if self.thinking is not None:
                     create_kwargs["thinking"] = self.thinking
                 if self.output_config is not None:

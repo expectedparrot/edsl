@@ -1,5 +1,8 @@
 import pytest
-from edsl.questions.exceptions import QuestionAnswerValidationError
+from edsl.questions.exceptions import (
+    QuestionAnswerValidationError,
+    QuestionValueError,
+)
 from edsl.questions import QuestionBudget
 from edsl.questions.question_budget import QuestionBudget
 
@@ -63,10 +66,10 @@ def test_QuestionBudget_construction():
     invalid_question.update({"question_options": []})
     with pytest.raises(Exception):
         QuestionBudget(**invalid_question)
-    # or has 1 item
-    invalid_question.update({"question_options": ["OK"]})
-    with pytest.raises(Exception):
-        QuestionBudget(**invalid_question)
+    # a single option is valid
+    single_option_question = valid_question.copy()
+    single_option_question.update({"question_options": ["OK"]})
+    assert QuestionBudget(**single_option_question).question_options == ["OK"]
     # or has duplicates
     invalid_question.update({"question_options": ["OK", "OK"]})
     with pytest.raises(Exception):
@@ -133,6 +136,152 @@ def test_QuestionBudget_answers():
     invalid_answer.update({"answer": {0: -1, 1: 25, 2: 25, 3: 51}})
     with pytest.raises(QuestionAnswerValidationError):
         q._validate_answer(invalid_answer)
+
+
+def test_QuestionBudget_repairs_labeled_mapping_in_question_order():
+    q = QuestionBudget(**valid_question)
+
+    validated = q.response_validator.validate(
+        {
+            "answer": {
+                "Salad": 10,
+                "Pizza": 40,
+                "Burgers": 20,
+                "Ice Cream": 30,
+            }
+        }
+    )
+
+    assert validated["answer"] == [40, 30, 20, 10]
+
+
+def test_QuestionBudget_repairs_small_rounding_residual():
+    q = QuestionBudget(**valid_question)
+
+    validated = q.response_validator.validate({"answer": [33.3, 33.3, 33.3, 0]})
+
+    assert sum(validated["answer"]) == q.budget_sum
+    assert validated["answer"] == pytest.approx([33.4, 33.3, 33.3, 0])
+    assert validated["repair"]["rule"] == "correct_budget_rounding"
+
+
+def test_QuestionBudget_assigns_underallocation_to_remainder_option():
+    q = QuestionBudget(
+        **valid_question,
+        remainder_option="Salad",
+    )
+
+    raw = {"answer": [20, 20, 20, 5]}
+    validated = q.response_validator.validate(raw)
+
+    assert validated["answer"] == [20, 20, 20, 40]
+    assert raw == {"answer": [20, 20, 20, 5]}
+    assert validated["repair"] == {
+        "rule": "assign_budget_residual",
+        "original_total": 65.0,
+        "residual": 35.0,
+        "remainder_option": "Salad",
+        "original_answer": [20.0, 20.0, 20.0, 5.0],
+    }
+
+
+def test_QuestionBudget_remainder_option_handles_small_overage_only():
+    q = QuestionBudget(**valid_question, remainder_option="Salad")
+
+    validated = q.response_validator.validate({"answer": [30, 30, 30, 10.09]})
+    assert validated["answer"] == pytest.approx([30, 30, 30, 10])
+    assert validated["repair"]["residual"] == pytest.approx(-0.09)
+
+    with pytest.raises(QuestionAnswerValidationError):
+        q.response_validator.validate({"answer": [30, 30, 30, 13]})
+
+
+def test_QuestionBudget_remainder_option_leaves_exact_total_unchanged():
+    q = QuestionBudget(**valid_question, remainder_option="Salad")
+
+    validated = q.response_validator.validate({"answer": [25, 25, 25, 25]})
+
+    assert validated["answer"] == [25, 25, 25, 25]
+    assert validated.get("repair") is None
+
+
+def test_QuestionBudget_remainder_option_round_trips_with_same_validation():
+    from edsl.questions import QuestionBase
+
+    local = QuestionBudget(**valid_question, remainder_option="Salad")
+    remote = QuestionBase.from_dict(local.to_dict())
+    raw = {"answer": [10, 10, 10, 0], "generated_tokens": "[10,10,10,0]"}
+
+    assert remote.remainder_option == "Salad"
+    assert remote.response_validator.validate(raw) == local.response_validator.validate(
+        raw
+    )
+
+
+def test_QuestionBudget_rejects_unknown_remainder_option():
+    with pytest.raises(QuestionValueError, match="remainder_option must be one of"):
+        QuestionBudget(**valid_question, remainder_option="Other")
+
+
+def test_QuestionBudget_defers_remainder_membership_for_dynamic_options():
+    question = QuestionBudget(
+        question_name="budget",
+        question_text="Allocate your budget",
+        question_options="{{ scenario.options }}",
+        budget_sum=100,
+        remainder_option="Other",
+    )
+
+    assert question.remainder_option == "Other"
+
+
+def test_QuestionBudget_repairs_single_labeled_allocation_string():
+    q = QuestionBudget(
+        question_name="revenue_split",
+        question_text="Allocate revenue.",
+        question_options=["Product revenue %", "Advertising revenue %"],
+        budget_sum=100,
+    )
+
+    validated = q.response_validator.validate(
+        {"answer": ["Product revenue %: 50, Advertising revenue %: 50"]}
+    )
+
+    assert validated["answer"] == [50, 50]
+
+
+def test_QuestionBudget_rejects_partial_labeled_allocation_string():
+    q = QuestionBudget(
+        question_name="revenue_split",
+        question_text="Allocate revenue.",
+        question_options=["Product revenue %", "Advertising revenue %"],
+        budget_sum=100,
+    )
+
+    with pytest.raises(QuestionAnswerValidationError):
+        q.response_validator.validate({"answer": ["Product revenue %: 100"]})
+
+
+@pytest.mark.parametrize(
+    "answer",
+    [
+        [30, 30, 30, 0],  # discrepancy is too large to be rounding
+        [40, 30, -1, 31],  # repair must not mask a negative allocation
+        {"Pizza": 50, "unknown": 50},  # labels do not identify every option
+    ],
+)
+def test_QuestionBudget_does_not_repair_unsafe_answers(answer):
+    q = QuestionBudget(**valid_question)
+
+    with pytest.raises(QuestionAnswerValidationError):
+        q.response_validator.validate({"answer": answer})
+
+
+def test_QuestionBudget_regex_repair_preserves_negative_sign():
+    q = QuestionBudget(**valid_question)
+
+    with pytest.raises(QuestionAnswerValidationError):
+        q.response_validator.validate({"answer": "40, 30, -1, 31"})
 
 
 def test_QuestionBudget_extras():

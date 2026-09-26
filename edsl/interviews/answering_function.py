@@ -96,8 +96,8 @@ class SkipHandler:
             )
 
         combined_answers = dict(self._answers)
-        combined_answers.update(scenario_dict)
-        combined_answers.update(self._agent_traits)
+        combined_answers.update({f"scenario.{k}": v for k, v in scenario_dict.items()})
+        combined_answers.update({f"agent.{k}": v for k, v in self._agent_traits.items()})
 
         return self.skip_function(current_question_index, combined_answers)
 
@@ -381,6 +381,7 @@ class AnswerQuestionFunctionConstructor:
                 )
 
             had_language_model_no_response_error = False
+            response = None
             try:
                 import time
 
@@ -435,6 +436,10 @@ class AnswerQuestionFunctionConstructor:
 
             except QuestionAnswerValidationError as e:
                 self._handle_exception(e, invigilator, task)
+                if response is not None:
+                    return response._replace(
+                        comment="Question answer validation failed."
+                    )
                 return invigilator.get_failed_task_result(
                     failure_reason="Question answer validation failed."
                 )

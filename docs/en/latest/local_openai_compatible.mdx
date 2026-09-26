@@ -1,0 +1,147 @@
+---
+title: Local OpenAI-compatible models
+description: Run EDSL locally with llama.cpp, Ollama, LM Studio, vLLM, SGLang, or another OpenAI-compatible server.
+---
+
+# Local OpenAI-compatible models
+
+EDSL can run surveys against any server that implements the OpenAI chat-completions API, including llama.cpp, Ollama, LM Studio, vLLM, SGLang, and LocalAI.
+
+## Create a portable model list
+
+```bash
+ep models create \
+  --service openai_compatible \
+  --model lfm2.5-2.6b \
+  --base-url http://127.0.0.1:11434/v1 \
+  --output local-models.ep
+```
+
+For an authenticated endpoint, store only the credential environment-variable name:
+
+```bash
+ep models create \
+  --service openai_compatible \
+  --model my-model \
+  --base-url https://models.example.com/v1 \
+  --api-key-env LOCAL_MODEL_API_KEY \
+  --output local-models.ep
+```
+
+API-key values are not serialized into the model package.
+
+## Run locally
+
+```bash
+ep run \
+  --survey survey.ep \
+  --agent_list agents.ep \
+  --model_list local-models.ep \
+  --local \
+  --max-concurrency 4 \
+  --api-timeout 300 \
+  --output results.ep
+```
+
+`--local` disables Expected Parrot inference. Match `--max-concurrency` to the number of server slots or workers.
+
+## llama.cpp example
+
+```bash
+llama-server \
+  -hf LiquidAI/LFM2.5-2.6B-GGUF:Q4_K_M \
+  --alias lfm2.5-2.6b \
+  --host 127.0.0.1 \
+  --port 11434 \
+  -c 16384 \
+  --parallel 4 \
+  --reasoning off
+```
+
+With separate KV caches, divide the total context by `--parallel` to obtain the context available to each request. For simple structured surveys, disabling optional reasoning can prevent hidden reasoning tokens from exhausting the response budget.
+
+## Other servers
+
+Point `--base-url` at the server's OpenAI-compatible `/v1` endpoint:
+
+- Ollama: `http://127.0.0.1:11434/v1`
+- LM Studio: commonly `http://127.0.0.1:1234/v1`
+- vLLM: commonly `http://127.0.0.1:8000/v1`
+- SGLang: commonly `http://127.0.0.1:30000/v1`
+
+The existing `ollama` service remains available as a convenience alias for its default local endpoint.
+
+## Verify the connection
+
+First check the server directly:
+
+```bash
+curl http://127.0.0.1:11434/v1/models
+```
+
+Then run a one-question EDSL smoke test:
+
+```bash
+ep run \
+  --question "Reply with exactly: local works" \
+  --model lfm2.5-2.6b \
+  --service openai_compatible \
+  --base-url http://127.0.0.1:11434/v1 \
+  --local \
+  --api-timeout 300 \
+  --output smoke-results.ep
+```
+
+Inspect the saved answer:
+
+```bash
+ep results select --file smoke-results.ep --column "answer.*"
+```
+
+## Partial results
+
+Local runs report completion information in the CLI response:
+
+```json
+{
+  "run_status": "complete",
+  "completed_interview_count": 20,
+  "failed_interview_count": 0
+}
+```
+
+If some interviews fail, `run_status` is `partial` and the warnings array contains `PARTIAL_RESULTS`. The successfully completed rows are still saved.
+
+## Troubleshooting
+
+### Requests time out in a batch
+
+Match `--max-concurrency` to the server's slots or workers and increase `--api-timeout`. A four-slot server is a good match for `--max-concurrency 4`.
+
+### Parallel requests have too little context
+
+Some llama.cpp configurations divide the total context across parallel slots. For example, `-c 16384 --parallel 4` provides 4096 tokens per slot when separate KV caches are used.
+
+### Simple structured questions exhaust the output limit
+
+Reasoning-capable models may consume hidden reasoning tokens before returning JSON. For simple surveys, disable reasoning in the server or increase the reasoning/output budget intentionally. With llama.cpp, use `--reasoning off` when reasoning is not needed.
+
+### Authentication
+
+Use `--api-key-env NAME` for authenticated endpoints and export the corresponding environment variable before running EDSL. EDSL serializes the variable name, not its secret value.
+
+## Tests
+
+The self-contained tests run as part of `make test`. Run only this feature's tests with:
+
+```bash
+make test-openai-compatible
+```
+
+To include the live integration test:
+
+```bash
+EDSL_OPENAI_COMPATIBLE_TEST_URL=http://127.0.0.1:11434/v1 \
+EDSL_OPENAI_COMPATIBLE_TEST_MODEL=lfm2.5-2.6b \
+make test-openai-compatible
+```

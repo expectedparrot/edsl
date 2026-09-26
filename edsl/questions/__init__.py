@@ -26,11 +26,13 @@ Core Question Types:
 - QuestionDict: Responses with key-value pairs
 - QuestionMatrix: Grid-based responses with rows and columns
 - QuestionBudget: Allocation of a budget across multiple options
+- QuestionDistribution: Probability mass across outcomes or numerical intervals
 - QuestionDemand: Quantities demanded at various price points (demand curve)
 - QuestionRank: Ordering of items by preference or other criteria
 - QuestionExtract: Extraction of specific information from text or data
 - QuestionDropdown: BM25-powered search through large option sets
 - QuestionInterview: Simulates interview dialogue between interviewer and respondent
+- QuestionDiagram: Renders Graphviz DOT source as an SVG or PNG FileStore
 
 Derived Question Types:
 - QuestionLikertFive: Standard 5-point Likert scale (agree/disagree)
@@ -38,6 +40,7 @@ Derived Question Types:
 - QuestionYesNo: Simple binary yes/no response
 - QuestionTopK: Selection of top K items from a list of options
 - QuestionMultipleChoiceWithOther: Multiple choice with option to specify "Other" custom response
+- QuestionCheckBoxWithOther: Selection of multiple options with custom "Other" responses
 - QuestionEDSLObject: Expects JSON representation of any EDSL object (questions, surveys, agents, scenarios, etc.) as answer
 
 Technical Architecture:
@@ -115,6 +118,7 @@ from .question_registry import Question
 from .question_check_box import QuestionCheckBox
 from .question_extract import QuestionExtract
 from .question_free_text import QuestionFreeText
+from .question_url import QuestionURL
 from .question_markdown import QuestionMarkdown
 from .question_functional import QuestionFunctional
 from .question_compute import QuestionCompute
@@ -122,13 +126,16 @@ from .question_list import QuestionList
 from .question_matrix import QuestionMatrix
 from .question_dict import QuestionDict
 from .question_multiple_choice import QuestionMultipleChoice
+from .probabilistic_response import ProbabilisticResponse
 from .question_numerical import QuestionNumerical
 from .question_budget import QuestionBudget
+from .question_distribution import QuestionDistribution
 from .question_demand import QuestionDemand
 from .question_rank import QuestionRank
 from .question_random import QuestionRandom
 from .question_dropdown import QuestionDropdown
 from .question_interview import QuestionInterview
+from .question_diagram import QuestionDiagram
 
 # Questions derived from core questions
 from .question_likert_five import QuestionLikertFive
@@ -136,10 +143,13 @@ from .question_linear_scale import QuestionLinearScale
 from .question_yes_no import QuestionYesNo
 from .question_top_k import QuestionTopK
 from .question_multiple_choice_with_other import QuestionMultipleChoiceWithOther
+from .question_checkbox_with_other import QuestionCheckBoxWithOther
 from .question_file_upload import QuestionFileUpload
 from .question_edsl_object import QuestionEDSLObject
 from .question_pydantic import QuestionPydantic
 from .question_thinking import QuestionThinking, thinking_question
+from .question_image_generation import QuestionImageGeneration
+from .survey_message import SurveyMessage
 
 from .exceptions import QuestionScenarioRenderError
 
@@ -167,6 +177,7 @@ __all__ = [
     "Question",
     # Core question types
     "QuestionFreeText",
+    "QuestionURL",
     "QuestionMarkdown",
     "QuestionMultipleChoice",
     "QuestionCheckBox",
@@ -183,16 +194,20 @@ __all__ = [
     "QuestionRandom",
     "QuestionDropdown",
     "QuestionInterview",
+    "QuestionDiagram",
     # Derived question types
     "QuestionLinearScale",
     "QuestionTopK",
     "QuestionLikertFive",
     "QuestionYesNo",
     "QuestionMultipleChoiceWithOther",
+    "QuestionCheckBoxWithOther",
     "QuestionFileUpload",
     "QuestionEDSLObject",
     "QuestionPydantic",
     "QuestionThinking",
+    "QuestionImageGeneration",
+    "SurveyMessage",
     "thinking_question",
     # Validation utilities
     "log_validation_failure",

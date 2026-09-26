@@ -90,6 +90,7 @@ from ..utilities import (
 from ..dataset import ScenarioListOperationsMixin
 
 from .exceptions import ScenarioError
+from .scenario_list_git import ScenarioListGitDescriptor
 from .scenario import Scenario
 from .transforms.transformer import ScenarioListTransformer
 from .join.scenario_list_joiner import ScenarioListJoiner
@@ -143,8 +144,10 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
     """
 
     __documentation__ = (
-        "https://docs.expectedparrot.com/en/latest/scenarios.html#scenariolist"
+        "https://docs.expectedparrot.com/en/latest/scenarios#scenariolist"
     )
+
+    git = ScenarioListGitDescriptor()
 
     def __init__(
         self,
@@ -1130,11 +1133,11 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
 
     @classmethod
     def from_urls(
-        cls, urls: list[str], field_name: str = "text"
+        cls, urls: list[str], field_name: str = "text", timeout: float = 30.0
     ) -> ScenarioList:
         from .scenario_source import URLSource
 
-        return URLSource(urls, field_name).to_scenario_list()
+        return URLSource(urls, field_name, timeout).to_scenario_list()
 
     @classmethod
     def from_list(
@@ -1350,6 +1353,28 @@ class ScenarioList(MutableSequence, Base, ScenarioListOperationsMixin):
     @_delegate_doc(ScenarioListTransformer.add_list)
     def add_list(self, name: str, values: List[Any]) -> ScenarioList:
         return self._transformer.add_list(name, values)
+
+    def embed(
+        self,
+        field: str,
+        *,
+        model: Optional[Any] = None,
+        output_field: str = "embedding",
+        cache: Optional[Any] = None,
+    ) -> ScenarioList:
+        """Embed a text field and return a ScenarioList with an embedding field.
+
+        >>> ScenarioList.from_list("text", ["a", "bb"]).embed("text", model=__import__("edsl").EmbeddingModel("test", service_name="test"))  # doctest: +ELLIPSIS
+        ScenarioList(...)
+        """
+        from ..embeddings import EmbeddingModel
+
+        embedding_model = model or EmbeddingModel()
+        texts = [scenario.get(field) for scenario in self]
+        if any(not isinstance(text, str) for text in texts):
+            raise TypeError(f"All values in field '{field}' must be strings.")
+        result = embedding_model.embed(texts, cache=cache)
+        return self.add_list(output_field, result.embeddings)
 
     @classmethod
     def create_empty_scenario_list(cls, n: int) -> ScenarioList:

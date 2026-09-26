@@ -108,6 +108,26 @@ class ResultComponentPrependedKeys(ResultComponentDict):
         return d
 
 
+class DistributionDict(ResultComponentPrependedKeys):
+    name = "distribution"
+    special_keys = ["distribution"]
+
+
+class ResolutionDrawDict(ResultComponentPrependedKeys):
+    name = "resolution_draw"
+    special_keys = ["resolution_draw"]
+
+
+class ResolutionSeedDict(ResultComponentPrependedKeys):
+    name = "resolution_seed"
+    special_keys = ["resolution_seed"]
+
+
+class ResolutionMethodDict(ResultComponentPrependedKeys):
+    name = "resolution_method"
+    special_keys = ["resolution_method"]
+
+
 class PromptDict(ResultComponentPrependedKeys):
     name = "prompt"
     special_keys = ["user_prompt", "system_prompt"]
@@ -148,7 +168,12 @@ class ValidatedDict(ResultComponentPrependedKeys):
 
 class ResultComponentNested(ResultComponentDict):
     name = "question_to_attributes"
-    special_keys = ["question_text", "question_options", "question_type"]
+    special_keys = [
+        "question_text",
+        "question_options",
+        "question_items",
+        "question_type",
+    ]
 
     def generate_by_question_dict(self):
         d = defaultdict(dict)

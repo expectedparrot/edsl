@@ -111,7 +111,7 @@ class EditSurvey:
             for rule in self.survey.rule_collection:
                 if rule.current_q >= index:
                     rule.current_q += 1
-                if rule.next_q >= index:
+                if isinstance(rule.next_q, int) and rule.next_q >= index:
                     rule.next_q += 1
 
         # add a new rule
@@ -128,7 +128,7 @@ class EditSurvey:
         # a question might be added before the memory plan is created
         # it's ok because the memory plan will be updated when it is created
         if hasattr(self.survey, "memory_plan"):
-            self.survey.memory_plan.add_question(question)
+            self.survey.memory_plan.add_question(question, index=index)
 
         return self.survey
 
@@ -186,13 +186,13 @@ class EditSurvey:
         # Update rules
         from .rules import RuleCollection
 
-        new_rule_collection = RuleCollection()
+        new_rule_collection = RuleCollection(num_questions=len(self.survey.questions))
         for rule in self.survey.rule_collection:
             if rule.current_q == index:
                 continue  # Remove rules associated with the deleted question
             if rule.current_q > index:
                 rule.current_q -= 1
-            if rule.next_q > index:
+            if isinstance(rule.next_q, int) and rule.next_q > index:
                 rule.next_q -= 1
 
             if rule.next_q == index:

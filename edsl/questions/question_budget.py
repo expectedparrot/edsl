@@ -47,6 +47,7 @@ class BudgetResponse(BaseModel):
     answer: List[float]
     comment: Optional[str] = None
     generated_tokens: Optional[Any] = None
+    repair: Optional[dict[str, Any]] = None
 
 
 def create_budget_model(
@@ -249,7 +250,12 @@ class BudgetResponseValidator(ResponseValidatorABC):
         True
     """
 
-    required_params = ["budget_sum", "question_options", "permissive"]
+    required_params = [
+        "budget_sum",
+        "question_options",
+        "permissive",
+        "remainder_option",
+    ]
 
     valid_examples = [
         (
@@ -258,6 +264,7 @@ class BudgetResponseValidator(ResponseValidatorABC):
                 "budget_sum": 100,
                 "question_options": ["A", "B", "C", "D"],
                 "permissive": False,
+                "remainder_option": None,
             },
         ),
         (
@@ -266,6 +273,7 @@ class BudgetResponseValidator(ResponseValidatorABC):
                 "budget_sum": 100,
                 "question_options": ["A", "B", "C", "D"],
                 "permissive": True,
+                "remainder_option": None,
             },
         ),
     ]
@@ -277,6 +285,7 @@ class BudgetResponseValidator(ResponseValidatorABC):
                 "budget_sum": 100,
                 "question_options": ["A", "B", "C", "D"],
                 "permissive": False,
+                "remainder_option": None,
             },
             "Sum must equal budget",
         ),
@@ -286,6 +295,7 @@ class BudgetResponseValidator(ResponseValidatorABC):
                 "budget_sum": 100,
                 "question_options": ["A", "B", "C", "D"],
                 "permissive": False,
+                "remainder_option": None,
             },
             "Must provide correct number of values",
         ),
@@ -295,6 +305,7 @@ class BudgetResponseValidator(ResponseValidatorABC):
                 "budget_sum": 100,
                 "question_options": ["A", "B", "C", "D"],
                 "permissive": False,
+                "remainder_option": None,
             },
             "Values must be non-negative",
         ),
@@ -340,43 +351,117 @@ class BudgetResponseValidator(ResponseValidatorABC):
                 ]
             except ValueError:
                 # If conversion fails, try to extract numbers using regex
-                pattern = r"\b\d+(?:\.\d+)?\b"
+                pattern = r"[-+]?\d+(?:\.\d+)?"
                 matches = re.findall(pattern, answer.replace(",", " "))
                 if matches:
                     fixed_answer = [float(match) for match in matches]
 
         # Strategy 2: Handle dictionary inputs (convert to list)
         elif isinstance(answer, dict):
-            # If keys are numeric or string indices, convert to a list
             try:
-                # Sort by key (if keys are integers or can be converted to integers)
-                sorted_keys = sorted(
-                    answer.keys(),
-                    key=lambda k: int(k) if isinstance(k, str) and k.isdigit() else k,
-                )
-                fixed_answer = [float(answer[k]) for k in sorted_keys]
+                # Prefer semantic labels, in the same order as the question.
+                if set(answer) == set(self.question_options):
+                    fixed_answer = [
+                        float(answer[option]) for option in self.question_options
+                    ]
+                else:
+                    # Indexed mappings are safe only when every expected index exists.
+                    indexed_answer = {int(key): value for key, value in answer.items()}
+                    expected_indices = set(range(len(self.question_options)))
+                    if set(indexed_answer) == expected_indices:
+                        fixed_answer = [
+                            float(indexed_answer[index])
+                            for index in range(len(self.question_options))
+                        ]
             except (ValueError, TypeError):
-                # If we can't sort, just take values in whatever order
-                fixed_answer = [float(v) for v in answer.values()]
+                pass
 
         # Strategy 3: If it's already a list but might contain non-numeric values
         elif isinstance(answer, list):
             try:
                 fixed_answer = [float(x) for x in answer]
             except (ValueError, TypeError):
-                pass
+                if len(answer) == 1 and isinstance(answer[0], str):
+                    fixed_answer = self._parse_labeled_allocation(answer[0])
+
+        original_answer = fixed_answer.copy()
+        fixed_answer, repair = self._repair_budget_residual(fixed_answer)
 
         if verbose:
             print(f"Fixed answer: {fixed_answer}")
 
         # Construct the response
         fixed_response = {"answer": fixed_answer}
+        if repair is not None:
+            repair["original_answer"] = original_answer
+            fixed_response["repair"] = repair
 
         # Preserve comment if present
         if "comment" in response:
             fixed_response["comment"] = response["comment"]
 
         return fixed_response
+
+    def _parse_labeled_allocation(self, text):
+        """Parse ``Option: value`` pairs only when every option is identified."""
+        values = []
+        number_pattern = r"([-+]?\d+(?:\.\d+)?)"
+        for option in self.question_options:
+            pattern = rf"{re.escape(str(option))}\s*:\s*{number_pattern}"
+            matches = re.findall(pattern, text, flags=re.IGNORECASE)
+            if len(matches) != 1:
+                return []
+            values.append(float(matches[0]))
+        return values
+
+    def _repair_budget_residual(self, answer):
+        """Assign a semantic remainder or correct a rounding-sized residual."""
+        if len(answer) != len(self.question_options):
+            return answer, None
+        if not answer or any(value < 0 for value in answer):
+            return answer, None
+
+        original_total = sum(answer)
+        residual = float(self.budget_sum) - sum(answer)
+        tolerance = min(0.5, max(abs(float(self.budget_sum)) * 0.01, 1e-9))
+        if residual == 0:
+            return answer, None
+
+        if self.remainder_option is not None:
+            index = self.question_options.index(self.remainder_option)
+            if residual < 0 and abs(residual) > tolerance:
+                return answer, None
+            repaired = answer.copy()
+            repaired[index] += residual
+            if repaired[index] < 0:
+                return answer, None
+            repaired[index] += float(self.budget_sum) - sum(repaired)
+            return repaired, {
+                "rule": "assign_budget_residual",
+                "original_total": original_total,
+                "residual": residual,
+                "remainder_option": self.remainder_option,
+            }
+
+        if self.permissive or abs(residual) > tolerance:
+            return answer, None
+
+        # Put the residual on the largest allocation. This is deterministic and
+        # avoids making a small or zero allocation negative due to rounding.
+        index = max(range(len(answer)), key=answer.__getitem__)
+        repaired = answer.copy()
+        repaired[index] += residual
+        if repaired[index] < 0:
+            return answer, None
+
+        # Eliminate any final binary-float residual used by the strict validator.
+        repaired[index] += float(self.budget_sum) - sum(repaired)
+        return repaired, {
+            "rule": "correct_budget_rounding",
+            "original_total": original_total,
+            "residual": residual,
+            "remainder_option": None,
+        }
 
     def _check_constraints(self, pydantic_edsl_answer: BaseModel):
         """Method preserved for compatibility, constraints handled in Pydantic model."""
@@ -418,6 +503,18 @@ class QuestionBudget(QuestionBase):
     _response_model = None
     response_validator_class = BudgetResponseValidator
 
+    @property
+    def remainder_option(self) -> Optional[str]:
+        """Option that receives a valid unallocated budget residual."""
+        return getattr(self, "_remainder_option", None)
+
+    @remainder_option.setter
+    def remainder_option(self, value: Optional[str]) -> None:
+        if value is None:
+            self.__dict__.pop("_remainder_option", None)
+        else:
+            self._remainder_option = value
+
     def __init__(
         self,
         question_name: str,
@@ -428,6 +525,7 @@ class QuestionBudget(QuestionBase):
         question_presentation: Optional[str] = None,
         answering_instructions: Optional[str] = None,
         permissive: bool = False,
+        remainder_option: Optional[str] = None,
     ):
         """
         Initialize a new budget allocation question.
@@ -439,8 +537,11 @@ class QuestionBudget(QuestionBase):
             budget_sum: The total amount of the budget to be allocated
             include_comment: Whether to allow comments with the answer
             question_presentation: Optional custom presentation template
-            answering_instructions: Optional additional instructions
-            permissive: If True, allow allocations less than budget_sum
+        answering_instructions: Optional additional instructions
+        permissive: If True, allow allocations less than budget_sum
+        remainder_option: Option that receives any underallocated residual. Small
+            floating-point overages are also corrected against this option, while
+            material overages remain invalid.
 
         Examples:
             >>> q = QuestionBudget(
@@ -455,10 +556,21 @@ class QuestionBudget(QuestionBase):
         self.question_name = question_name
         self.question_text = question_text
         self.question_options = question_options
+        if (
+            remainder_option is not None
+            and isinstance(question_options, list)
+            and remainder_option not in question_options
+        ):
+            from .exceptions import QuestionValueError
+
+            raise QuestionValueError(
+                f"remainder_option must be one of question_options; got {remainder_option!r}"
+            )
         self.budget_sum = budget_sum
         self.question_presentation = question_presentation
         self.answering_instructions = answering_instructions
         self.permissive = permissive
+        self.remainder_option = remainder_option
         self.include_comment = include_comment
 
     def create_response_model(self):

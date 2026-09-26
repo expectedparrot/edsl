@@ -27,7 +27,7 @@ class MissingAPIKeyError(BaseException):
                 f"""
                 An API Key for model `{model_name}` is missing from the .env file.
                 This key is associated with the inference service `{inference_service}`.
-                Please see https://docs.expectedparrot.com/en/latest/api_keys.html for more information.
+                Please see https://docs.expectedparrot.com/en/latest/api_keys for more information.
                 """
             )
         super().__init__(full_message, show_docs=False, silent=silent)
@@ -44,6 +44,7 @@ for service, key in service_to_api_keyname.items():
             api_keyname_to_service[k] = service
     else:
         api_keyname_to_service[key] = service
+api_keyname_to_service["LLAMA_API_KEY"] = "meta"
 
 api_id_to_service = {"AWS_ACCESS_KEY_ID": "bedrock"}
 
@@ -195,6 +196,13 @@ class KeyLookupBuilder:
                         api_token="ollama", rpm=1000, tpm=2000000
                     )
                 }
+            )
+
+        if "openai_compatible" not in d:
+            d["openai_compatible"] = LanguageModelInput(
+                api_token=os.getenv("OPENAI_COMPATIBLE_API_KEY", "local"),
+                rpm=1000,
+                tpm=2000000,
             )
 
         return KeyLookup(d)

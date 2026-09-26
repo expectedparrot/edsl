@@ -130,8 +130,9 @@ class ScenarioSerializer:
         except ImportError:
             from edsl.dataset import Dataset
 
-        keys = list(self.scenario.keys())
-        values = list(self.scenario.values())
+        items = list(self.scenario.items())
+        keys = [k for k, _ in items]
+        values = [v for _, v in items]
         return Dataset([{"key": keys}, {"value": values}])
 
     @classmethod

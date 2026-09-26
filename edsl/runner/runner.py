@@ -22,7 +22,7 @@ import asyncio
 
 from .storage import InMemoryStorage, StorageProtocol
 from .service import JobService
-from .models import JobState, TaskExecutionError
+from .models import JobState, TaskExecutionError, TaskStatus
 from .queues import QueueRegistry, load_queues_from_env
 from .coordinator import ExecutionCoordinator
 from .render import RenderWorker
@@ -210,12 +210,6 @@ class JobHandle:
             )
             print(stats.report())
 
-        # Attach CAS metadata so results.store.log() works
-        if cas is not None:
-            results.store.uuid = cas.uuid
-            results.store.commit = cas.tip
-            results.store.current_branch = "main"
-
         return results
 
     def cancel(self) -> None:
@@ -351,6 +345,7 @@ class Runner:
         distributed: bool = False,
         heartbeat_interval: float = 10.0,
         dead_worker_timeout: int = 60,
+        max_workers: int = 400,
     ):
         """
         Initialize a Runner for local execution.
@@ -364,10 +359,12 @@ class Runner:
             distributed: If True, enable distributed execution features.
             heartbeat_interval: Seconds between worker heartbeats.
             dead_worker_timeout: Seconds after which a worker is considered dead.
+            max_workers: Maximum number of concurrent execution workers.
         """
         self._distributed = distributed
         self._heartbeat_interval = heartbeat_interval
         self._dead_worker_timeout = dead_worker_timeout
+        self._max_workers = max_workers
 
         # Initialize storage
         self._storage = self._create_storage(storage)
@@ -400,7 +397,7 @@ class Runner:
         self._render_worker = RenderWorker(self._storage, job_service=self._service)
 
         # Client-side registry for direct answer tasks
-        self._direct_registry = DirectAnswerRegistry()
+        self._direct_registry = DirectAnswerRegistry(job_service=self._service)
 
         # CAS streaming integrations per job
         self._job_cas: dict[str, Any] = {}
@@ -474,6 +471,9 @@ class Runner:
                 agent=info["agent"],
                 question=info["question"],
                 scenario=info["scenario"],
+                job_id=job_id,
+                interview_id=info.get("interview_id"),
+                item_randomization_seed=info.get("item_randomization_seed"),
             )
             self._direct_registry.register(info["task_id"], entry)
 
@@ -488,7 +488,9 @@ class Runner:
         if stream_to_cas:
             from .cas_integration import RunnerCASIntegration
 
-            survey = job.survey if hasattr(job, "survey") else getattr(job, "_survey", None)
+            survey = (
+                job.survey if hasattr(job, "survey") else getattr(job, "_survey", None)
+            )
             if survey is not None:
                 self._job_cas[job_id] = RunnerCASIntegration(
                     job_id, survey, self._service, batch_size=cas_batch_size
@@ -620,7 +622,6 @@ class Runner:
         self,
         job_id: str,
         debug: bool = False,
-        max_workers: int = 400,
         cache: Any = None,
         stats: TimingStats | None = None,
         stop_on_exception: bool = False,
@@ -633,8 +634,8 @@ class Runner:
         pool = ExecutionWorkerPool(
             coordinator=self._coordinator,
             job_service=self._service,
-            min_workers=max_workers,
-            max_workers=max_workers,
+            min_workers=self._max_workers,
+            max_workers=self._max_workers,
             cache=cache,
             worker_registry=self._worker_registry,
             heartbeat_interval=self._heartbeat_interval,
@@ -667,7 +668,7 @@ class Runner:
                 loop_start = time.time()
 
                 # 1. Execute any ready direct-answer tasks first (no LLM needed)
-                self._execute_ready_direct_answers(
+                await self._execute_ready_direct_answers(
                     job_id, debug=debug, stop_on_exception=stop_on_exception
                 )
 
@@ -826,7 +827,7 @@ class Runner:
                 stream.write(f"\r{line}")
             stream.flush()
 
-    def _execute_ready_direct_answers(
+    async def _execute_ready_direct_answers(
         self,
         job_id: str,
         debug: bool = False,
@@ -859,7 +860,7 @@ class Runner:
                 continue
 
             try:
-                result = self._direct_registry.execute(task_id)
+                result = await self._direct_registry.execute(task_id)
 
                 from .models import generate_id
 
@@ -871,8 +872,24 @@ class Runner:
                     comment=result.get("comment"),
                     input_tokens=result.get("input_tokens", 0),
                     output_tokens=result.get("output_tokens", 0),
+                    thinking_tokens=result.get("thinking_tokens"),
+                    input_price_per_million_tokens=result.get(
+                        "input_price_per_million_tokens"
+                    ),
+                    output_price_per_million_tokens=result.get(
+                        "output_price_per_million_tokens"
+                    ),
+                    raw_model_response=result.get("raw_model_response"),
+                    generated_tokens=result.get("generated_tokens"),
                     cached=result.get("cached", False),
+                    system_prompt=result.get("system_prompt"),
+                    user_prompt=result.get("user_prompt"),
                     cache_key=generate_id(),
+                    validated=True,
+                    distribution=result.get("distribution"),
+                    resolution_draw=result.get("resolution_draw"),
+                    resolution_seed=result.get("resolution_seed"),
+                    resolution_method=result.get("resolution_method"),
                 )
 
                 self._direct_registry.remove(task_id)
@@ -888,7 +905,11 @@ class Runner:
                     error_type=error_type,
                     error_message=error_message,
                 )
-                self._direct_registry.remove(task_id)
+                # on_task_failed may have reset the task to READY for a retry.
+                # The registry entry has to survive that, or the retry finds no
+                # entry, gets re-queued, and the task stays READY forever.
+                if self._service._tasks.get_status(task_id) != TaskStatus.READY:
+                    self._direct_registry.remove(task_id)
 
                 if stop_on_exception:
                     self._service.jobs.set_state(job_id, JobState.CANCELLED)

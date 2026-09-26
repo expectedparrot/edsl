@@ -63,7 +63,7 @@ class SurveyHasNoRulesError(SurveyError):
         ```
     """
 
-    relevant_doc = "https://docs.expectedparrot.com/en/latest/surveys.html#rules"
+    relevant_doc = "https://docs.expectedparrot.com/en/latest/surveys#rules"
 
 
 class SurveyRuleSendsYouBackwardsError(SurveyError):
@@ -87,7 +87,7 @@ class SurveyRuleSendsYouBackwardsError(SurveyError):
         ```
     """
 
-    relevant_doc = "https://docs.expectedparrot.com/en/latest/surveys.html#rules"
+    relevant_doc = "https://docs.expectedparrot.com/en/latest/surveys#rules"
 
 
 class SurveyRuleSkipLogicSyntaxError(SurveyError):
@@ -109,7 +109,7 @@ class SurveyRuleSkipLogicSyntaxError(SurveyError):
         ```
     """
 
-    relevant_doc = "https://docs.expectedparrot.com/en/latest/surveys.html#rules"
+    relevant_doc = "https://docs.expectedparrot.com/en/latest/surveys#rules"
 
 
 class SurveyRuleReferenceInRuleToUnknownQuestionError(SurveyError):
@@ -151,7 +151,7 @@ class SurveyRuleRefersToFutureStateError(SurveyError):
         ```
     """
 
-    relevant_doc = "https://docs.expectedparrot.com/en/latest/surveys.html#rules"
+    relevant_doc = "https://docs.expectedparrot.com/en/latest/surveys#rules"
 
 
 class SurveyRuleCollectionHasNoRulesAtNodeError(SurveyError):
@@ -175,7 +175,7 @@ class SurveyRuleCollectionHasNoRulesAtNodeError(SurveyError):
     """
 
     relevant_doc = (
-        "https://docs.expectedparrot.com/en/latest/surveys.html#rule-collections"
+        "https://docs.expectedparrot.com/en/latest/surveys#rule-collections"
     )
 
 
@@ -201,7 +201,7 @@ class SurveyRuleCannotEvaluateError(SurveyError):
         ```
     """
 
-    relevant_doc = "https://docs.expectedparrot.com/en/latest/surveys.html#rules"
+    relevant_doc = "https://docs.expectedparrot.com/en/latest/surveys#rules"
 
 
 class SurveyQuestionsToRandomizeError(SurveyCreationError):

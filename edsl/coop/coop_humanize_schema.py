@@ -2,13 +2,27 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Dict, Literal, Optional, Type, Union
+from typing import TYPE_CHECKING, Annotated, Any, Dict, Literal, Optional, Type, Union
+from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    PlainSerializer,
+    StringConstraints,
+    ValidationError,
+    field_validator,
+    model_validator,
+)
 
-from ..questions import QuestionBase
+from ..questions import QuestionBase, QuestionCompute, QuestionImageGeneration
 
 from .exceptions import HumanizeSchemaValidationError
+from .voice_interview_languages import (
+    DEFAULT_VOICE_INTERVIEW_LANGUAGE,
+    normalize_voice_interview_language,
+)
 
 if TYPE_CHECKING:
     from ..surveys import Survey
@@ -21,49 +35,711 @@ class HumanizeSchemaBase(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
+class CalloutSubmittingIndicator(HumanizeSchemaBase):
+    """Submitting indicator rendered as a callout box while the next (thinking)
+    question runs after the respondent clicks Next.
+
+    ``title`` is optional; when None the frontend supplies a sensible default
+    label per ``type`` (so the default can evolve without a data migration).
+    """
+
+    type: Literal["callout"] = "callout"
+    title: Annotated[
+        Optional[str],
+        StringConstraints(strip_whitespace=True, min_length=1, max_length=200),
+    ] = None
+
+
+# Discriminated on ``type`` so other renderings (e.g. "spinner", "overlay",
+# "progress") can join as sibling variants without reshaping stored configs.
+# "callout" is the only variant today, and the discriminator default, so a config
+# that only enables the indicator lands on callout.
+SubmittingIndicator = Annotated[
+    Union[CalloutSubmittingIndicator],
+    Field(discriminator="type"),
+]
+
+
+class FixedDuration(HumanizeSchemaBase):
+    """A literal number of seconds, the same for every respondent."""
+
+    type: Literal["fixed"] = "fixed"
+    # Required, with no default: a limit whose duration was never chosen is not a
+    # limit. The floor is a duration no respondent could beat; past the ceiling a
+    # per-question clock has stopped measuring anything.
+    seconds: int = Field(ge=30, le=7200)
+
+
+# How long the respondent has. Discriminated on ``type``, and the tag is required:
+# pydantic rejects an untagged payload against a discriminated union even while it
+# has a single member.
+Duration = Annotated[
+    Union[FixedDuration],
+    Field(discriminator="type"),
+]
+
+
+class TimeLimit(HumanizeSchemaBase):
+    """A wall-clock budget for answering one question.
+
+    When it runs out the answer locks, and the respondent clicks Next to go on
+    with whatever they had entered. Applies only while the question is alone on
+    its page: under ``presentation: "group"`` the page is the group rather than
+    the question, so every question's limit is ignored.
+    """
+
+    duration: Duration
+
+
 class MCSubclassFormatSchema(HumanizeSchemaBase):
     """Display format for MC-style questions: radio list or dropdown."""
 
     type: Literal["radio", "dropdown"] = "radio"
 
 
+class PercentBarLabel(HumanizeSchemaBase):
+    """The share of the survey completed, e.g. "33%"."""
+
+    type: Literal["percent"] = "percent"
+
+
+# Discriminated on ``type`` so other label kinds (a "3 of 9" fraction, a static
+# caption, a percentage with wording around it) can join as sibling variants
+# without reshaping stored configs. "percent" is the only variant today, and the
+# discriminator default, so a config that only asks for a label lands on percent.
+BarLabel = Annotated[
+    Union[PercentBarLabel],
+    Field(discriminator="type"),
+]
+
+
+class BarProgress(HumanizeSchemaBase):
+    """A filled bar with an optional label beneath it."""
+
+    type: Literal["bar"] = "bar"
+    # None keeps the bar and drops the label; the default is today's "33%".
+    label: Optional[BarLabel] = Field(default_factory=PercentBarLabel)
+
+
+class HiddenProgress(HumanizeSchemaBase):
+    """No progress indicator anywhere in the survey.
+
+    A variant rather than ``progress: None``, because None already means
+    "unconfigured" — and unconfigured has to keep meaning ``bar``, or every
+    survey stored before this field existed would silently lose the bar it
+    renders today.
+    """
+
+    type: Literal["hidden"] = "hidden"
+
+
+class ProgressStep(HumanizeSchemaBase):
+    """One step of a stepped progress indicator.
+
+    A step is a *boundary*, not a bucket: it covers every survey item from the
+    end of the previous step through ``complete_after``, so questions can be
+    added or removed inside a step without touching this config, and the items
+    a respondent skips past inside a step don't move the marker.
+    """
+
+    # The word under the marker. None renders the marker alone.
+    label: Annotated[
+        Optional[str],
+        StringConstraints(strip_whitespace=True, min_length=1, max_length=60),
+    ] = None
+    # The survey item (question or instruction) after which this step is
+    # complete. None means the step runs to the end of the survey, which only
+    # the final step can do. A blank name is rejected rather than read as None:
+    # it would satisfy every check here as a named boundary and then match no
+    # item at all, leaving the marker with nothing to advance on.
+    complete_after: Annotated[
+        Optional[str],
+        StringConstraints(strip_whitespace=True, min_length=1),
+    ] = None
+
+
+class StepsProgress(HumanizeSchemaBase):
+    """Markers joined by a connector, one per step, the current one highlighted."""
+
+    type: Literal["steps"] = "steps"
+    # Whether a marker carries its step number or is a bare dot.
+    marker: Literal["number", "dot"] = "number"
+    steps: Annotated[list[ProgressStep], Field(min_length=2)]
+
+    @model_validator(mode="after")
+    def _boundaries_well_formed(self) -> "StepsProgress":
+        if any(step.complete_after is None for step in self.steps[:-1]):
+            raise ValueError(
+                "Only the final step may omit complete_after; every earlier step "
+                "must name the survey item it ends after."
+            )
+        boundaries = [
+            s.complete_after for s in self.steps if s.complete_after is not None
+        ]
+        if len(boundaries) != len(set(boundaries)):
+            raise ValueError("complete_after must not repeat across steps.")
+        return self
+
+
+# Discriminated on ``type`` so a rendering with its own options (a chevron bar,
+# say) joins as a sibling without reshaping stored configs.
+SurveyProgress = Annotated[
+    Union[BarProgress, HiddenProgress, StepsProgress],
+    Field(discriminator="type"),
+]
+
+
+class AssetImageSource(HumanizeSchemaBase):
+    """An image from the author's asset library, named by uuid.
+
+    Only the shape is checked here. Whether the asset exists and this author may
+    use it is decided when the schema is written: a uuid the caller cannot reach
+    is rejected with "Asset <uuid> not found", and a uuid belonging to someone
+    else's survey is copied into the caller's library and rewritten, with the
+    response's ``asset_substitutions`` reporting the new uuid.
+
+    Upload an image with ``Coop().upload_human_survey_asset`` to get a uuid.
+    """
+
+    type: Literal["asset"] = "asset"
+    # Dumped as a string so a validated schema stays JSON-serializable. Typing it
+    # as a UUID means a malformed uuid is caught here rather than by the server.
+    asset_uuid: Annotated[UUID, PlainSerializer(str, return_type=str)]
+
+
+# Discriminated on ``type`` so other sources (a per-scenario image for branding as
+# a manipulation, an opted-in external URL) can join as siblings without
+# reshaping stored configs. "asset" is the only variant today.
+ImageSource = Annotated[
+    Union[AssetImageSource],
+    Field(discriminator="type"),
+]
+
+
+class SurveyLogo(HumanizeSchemaBase):
+    """A logo in the survey's banner."""
+
+    source: ImageSource
+    # Required so leaving it out is a decision rather than an accident. An empty
+    # string marks the image decorative (rendered with alt="").
+    alt: Annotated[str, StringConstraints(strip_whitespace=True, max_length=200)]
+    position: Literal["left", "center", "right"] = "left"
+    # No size field: the frontend picks a default height, and authors who want
+    # another size style `.edsl-logo` in custom_css.
+
+
+class SurveyBranding(HumanizeSchemaBase):
+    """The author's brand on the respondent page."""
+
+    # None: no logo.
+    logo: Optional[SurveyLogo] = None
+
+
 class SurveyHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the survey (e.g. custom styling)."""
 
     custom_css: Optional[str] = None
+    presentation: Literal["question", "group"] = "question"
+    # How the respondent is shown their position in the survey. Defaults to the
+    # bar that shipped before this field existed, so stored configs render
+    # identically.
+    progress: SurveyProgress = Field(default_factory=BarProgress)
+    # None: no banner, which is how every survey stored before this field existed
+    # renders. Assets it names are checked when the schema is written.
+    branding: Optional[SurveyBranding] = None
 
 
 class CommentConfig(HumanizeSchemaBase):
     """Configuration for the optional comment field on a question."""
 
-    label: str
+    label: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
+
+
+class AllSelector(HumanizeSchemaBase):
+    """Every member of a list.
+
+    The catch-all, and the only selector that reaches a list piped from a prior
+    answer without the author knowing what arrives there.
+    """
+
+    type: Literal["all"] = "all"
+
+
+# Which members of a list something applies to. Discriminated on ``type`` so
+# predicates over the members — an exact text, a prefix, a position — join as
+# siblings without reshaping stored configs. "all" is the only variant today, and
+# the discriminator default.
+#
+# Deliberately separate from ``OptionTarget`` below, and split by *arity* rather
+# than by axis: a selector picks a set (a predicate matching three rows fills
+# three cells), a target picks exactly one (a cell holds one answer, so a target
+# matching two options would be undefined). A matrix's rows take selectors and its
+# column takes a target; a checkbox's options would take selectors, for the same
+# reason its answer is a set.
+Selector = Annotated[
+    Union[AllSelector],
+    Field(discriminator="type"),
+]
+
+
+class TextOptionTarget(HumanizeSchemaBase):
+    """An option named by its exact text, matched against the list as served.
+
+    Compared stringified, because an option list may be numbers carrying
+    ``option_labels`` — the same comparison the grid itself makes when deciding
+    which radio is checked. Not stripped, because the text has to match an entry
+    of ``question_options`` and those are never stripped either.
+    """
+
+    type: Literal["text"] = "text"
+    value: Annotated[str, StringConstraints(min_length=1)]
+
+
+# Which single option something names. Discriminated on ``type`` so a target that
+# names an option by position, by a scale's midpoint, or by a template resolved
+# from a prior answer can join as a sibling without reshaping stored configs.
+# "text" is the only variant today, and the discriminator default.
+OptionTarget = Annotated[
+    Union[TextOptionTarget],
+    Field(discriminator="type"),
+]
 
 
 class FreeTextHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the free text question type."""
 
     optional: bool = False
+    time_limit: Optional[TimeLimit] = None
     comment: Optional[CommentConfig] = None
+    submitting_indicator: Optional[SubmittingIndicator] = None
 
 
 class BudgetHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the budget question type."""
 
     optional: bool = False
+    time_limit: Optional[TimeLimit] = None
     comment: Optional[CommentConfig] = None
+    submitting_indicator: Optional[SubmittingIndicator] = None
+
+
+class UniformInitialDistribution(HumanizeSchemaBase):
+    """Equal probability per outcome or bin, including unequal-width intervals.
+
+    It is the answer's starting value, so a respondent can submit it untouched.
+    """
+
+    type: Literal["uniform"] = "uniform"
+
+
+class EmptyInitialDistribution(HumanizeSchemaBase):
+    """Nothing allocated; the respondent must paint before submitting.
+
+    A variant rather than ``initial_distribution: None``, because None already means
+    "unconfigured", which has to keep meaning uniform.
+    """
+
+    type: Literal["empty"] = "empty"
+
+
+# What the painter shows before the respondent touches it. Discriminated on
+# ``type`` so starting states with parameters of their own (author-set weights, a
+# peak at a chosen bin, the respondent's answer to an earlier question) can join
+# as siblings without reshaping stored configs. A saved answer always takes
+# precedence over it.
+InitialDistribution = Annotated[
+    Union[UniformInitialDistribution, EmptyInitialDistribution],
+    Field(discriminator="type"),
+]
+
+
+class MeanStatistic(HumanizeSchemaBase):
+    """The implied mean: each bin's midpoint weighted by its probability."""
+
+    type: Literal["mean"] = "mean"
+
+
+class VarianceStatistic(HumanizeSchemaBase):
+    """The implied variance, including each bin's own spread (width² / 12)."""
+
+    type: Literal["variance"] = "variance"
+
+
+# One statistic in a distribution's summary. Discriminated on ``type`` because
+# statistics differ in shape — a central interval needs its coverage, a mean
+# needs nothing — so each can carry only the options it acts on.
+SummaryStatistic = Annotated[
+    Union[MeanStatistic, VarianceStatistic],
+    Field(discriminator="type"),
+]
+
+
+class DistributionSummary(HumanizeSchemaBase):
+    """Statistics implied by the painted distribution, shown beneath the chart.
+
+    Computed assuming probability is spread uniformly within each bin, and shown
+    only for finite numeric bins: categories have no values to average, and an
+    open-ended bin has no midpoint.
+    """
+
+    # Rendered in list order.
+    statistics: Annotated[list[SummaryStatistic], Field(min_length=1)] = Field(
+        default_factory=lambda: [MeanStatistic(), VarianceStatistic()]
+    )
+
+    @model_validator(mode="after")
+    def _unique_statistics(self) -> "DistributionSummary":
+        types = [statistic.type for statistic in self.statistics]
+        if len(types) != len(set(types)):
+            raise ValueError("statistics must not repeat a type.")
+        return self
+
+
+class DistributionHumanizeSchema(HumanizeSchemaBase):
+    """Humanize options for the distribution question type."""
+
+    initial_distribution: InitialDistribution = Field(
+        default_factory=UniformInitialDistribution
+    )
+    # None: no summary.
+    distribution_summary: Optional[DistributionSummary] = None
+
+
+class SelectAllControl(HumanizeSchemaBase):
+    """The Select all box beneath a checkbox question's options.
+
+    Ticking it selects every option the respondent could have ticked one at a
+    time, and unticking it clears them again. Exclusive options are left out of
+    "all": checking one clears every other selection, so counting them would
+    leave the box unable to settle.
+
+    ``label`` is optional; when None the frontend supplies its own wording (so it
+    can be reworded, or translated, without a data migration).
+    """
+
+    # Today's wording is the only one accepted. The field exists so other
+    # wordings can join this literal — or it can widen to a free string — without
+    # reshaping stored configs, not because there is a choice to make yet. Naming
+    # it says no more than leaving it None does.
+    label: Optional[Literal["Select all"]] = None
 
 
 class CheckboxHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the checkbox question type."""
 
     optional: bool = False
+    time_limit: Optional[TimeLimit] = None
+    # The Select all box beneath the options; None removes it. Present by
+    # default, because that is what every checkbox question rendered before this
+    # field existed, so stored configs are unaffected. Deliberately not on
+    # ``CheckboxWithOtherHumanizeSchema``: that type has never rendered the box,
+    # and what "all" should mean where the respondent also has write-in entries
+    # is a question of its own.
+    select_all: Optional[SelectAllControl] = Field(default_factory=SelectAllControl)
+    # Options that stand alone: checking one clears every other selection —
+    # including any other exclusive option — and selecting anything else clears
+    # it. Identified by their exact text in ``question_options``, i.e. a "None of
+    # the above" the author already wrote, rather than a label this schema
+    # injects, so the submitted answer stays an ordinary member of the option
+    # list and needs no special encoding. Not stripped, because the text has to
+    # match a ``question_options`` entry byte for byte and those are never
+    # stripped either. Empty means no option is exclusive — today's behavior, and
+    # the default, so stored configs are unaffected.
+    exclusive_options: list[Annotated[str, StringConstraints(min_length=1)]] = []
     comment: Optional[CommentConfig] = None
+    submitting_indicator: Optional[SubmittingIndicator] = None
+
+    @model_validator(mode="after")
+    def _unique_exclusive_options(self) -> "CheckboxHumanizeSchema":
+        if len(self.exclusive_options) != len(set(self.exclusive_options)):
+            raise ValueError("exclusive_options must not contain duplicates.")
+        return self
+
+
+class CheckboxWithOtherHumanizeSchema(HumanizeSchemaBase):
+    """Humanize options for the checkbox with other question type."""
+
+    optional: bool = False
+    time_limit: Optional[TimeLimit] = None
+    # Options that stand alone: checking one clears every other selection —
+    # including the respondent's "other" entries and any other exclusive
+    # option — and selecting anything else clears it. Identified by their exact
+    # text in ``question_options``, i.e. a "None of the above" the author already
+    # wrote, rather than a label this schema injects, so the submitted answer
+    # stays an ordinary member of the option list and needs no special encoding.
+    # Empty means no option is exclusive — today's behavior, and the default, so
+    # stored configs are unaffected.
+    exclusive_options: list[Annotated[str, StringConstraints(min_length=1)]] = []
+    comment: Optional[CommentConfig] = None
+    submitting_indicator: Optional[SubmittingIndicator] = None
+
+    @model_validator(mode="after")
+    def _unique_exclusive_options(self) -> "CheckboxWithOtherHumanizeSchema":
+        if len(self.exclusive_options) != len(set(self.exclusive_options)):
+            raise ValueError("exclusive_options must not contain duplicates.")
+        return self
 
 
 class ComputeHumanizeSchema(HumanizeSchemaBase):
-    """Humanize options for the compute question type (no optionality)."""
+    """Humanize options for the compute question type (no optionality).
+
+    No ``submitting_indicator``: compute questions run locally (no LLM) and are
+    auto-advanced, so they are never the question a respondent submits.
+    """
 
     pass
+
+
+class ImageGenerationHumanizeSchema(HumanizeSchemaBase):
+    """Humanize options for the image generation question type (none).
+
+    Like compute, image generation is a background/auto-advanced question the
+    respondent never submits, so there are no per-question humanize options and
+    no ``submitting_indicator``. Empty schema kept for parity/registration.
+    """
+
+    pass
+
+
+class FileUploadHumanizeSchema(HumanizeSchemaBase):
+    """Humanize options for the file upload question type."""
+
+    optional: bool = False
+    time_limit: Optional[TimeLimit] = None
+    submitting_indicator: Optional[SubmittingIndicator] = None
+
+
+class ChecklistItemSchema(HumanizeSchemaBase):
+    """One checklist item the interviewer can tick off during the interview."""
+
+    # Opaque token (the human-readable text lives in `label`/`instructions`).
+    # Restricted to an identifier charset so it stays safe to interpolate into the
+    # quoted prompt line `- id "{id}": ...` — a stray `"` would malform it.
+    id: Annotated[
+        str,
+        StringConstraints(
+            strip_whitespace=True,
+            min_length=1,
+            max_length=64,
+            pattern=r"^[A-Za-z0-9_\-]+$",
+        ),
+    ]
+    # Participant-facing — shown in the checklist UI.
+    label: Annotated[
+        str, StringConstraints(strip_whitespace=True, min_length=1, max_length=200)
+    ]
+    # Model-facing — the condition under which the model should check this item off.
+    instructions: Annotated[
+        str, StringConstraints(strip_whitespace=True, min_length=1, max_length=2000)
+    ]
+
+
+class ManualChecklistItems(HumanizeSchemaBase):
+    """Checklist items written by the survey author by hand.
+
+    The starting set of a checklist (`ChecklistConfig.initial`),
+    discriminated by ``type`` so a ``generated`` sibling (model-produced items)
+    can join later as a ``Union[Manual, Generated]`` without reshaping stored
+    configs — existing configs already carry ``type: "manual"``. ``manual`` is
+    the only variant today.
+    """
+
+    type: Literal["manual"] = "manual"
+    items: list[ChecklistItemSchema] = []  # may be empty
+
+    @model_validator(mode="after")
+    def _unique_item_ids(self) -> "ManualChecklistItems":
+        ids = [item.id for item in self.items]
+        if len(ids) != len(set(ids)):
+            raise ValueError("Checklist item ids must be unique.")
+        return self
+
+
+class ChecklistConfig(HumanizeSchemaBase):
+    """Checklist for a text interview.
+
+    ``initial`` is the *starting* set — author-written (`manual`) today —
+    kept as a discriminated union so a `generated` source can be added, and named
+    "initial" (not "items") because runtime additions (model-added items) may
+    later extend the list beyond this seed. Either evolution is additive: stored
+    configs already carry the ``type`` discriminator, and the answer records
+    additions as actions, so neither reshapes existing data.
+    """
+
+    initial: ManualChecklistItems = Field(default_factory=ManualChecklistItems)
+    # Whether/when the participant sees the checklist. The model always sees it
+    # (it's in the system prompt) and the author sees the folded final state in
+    # results; this axis is only about the participant.
+    # - "visible": the floating panel is shown during the interview (today's
+    #   behavior, hence the default — keeps the ChecklistConfig wrap
+    #   behavior-preserving).
+    # - "hidden": the participant never sees it; a pure interviewer instrument
+    #   (status is still folded internally, just not shown).
+    participant_visibility: Literal["hidden", "visible"] = "visible"
+
+
+class InterviewMarkedCompleteMessage(HumanizeSchemaBase):
+    """A message to surface on the turn the interviewer first marks the interview
+    complete (the ``interview_complete`` flag's false->true transition).
+
+    When ``end_policy.interview_marked_complete_message`` is None, that turn keeps
+    the model's own generated text. When set, ``method`` decides how this
+    ``message`` relates to that text — today only ``replace`` (show this
+    ``message`` instead of the model's text for that one turn).
+    """
+
+    message: Annotated[
+        str,
+        StringConstraints(strip_whitespace=True, min_length=1, max_length=2500),
+    ]
+    # How `message` relates to the model's text on the marking turn. Only
+    # "replace" today; "prepend"/"append" can join this literal later.
+    method: Literal["replace"] = "replace"
+
+
+class RespondentEndPolicy(HumanizeSchemaBase):
+    """The participant ends the interview themselves; the End Interview button is
+    always available. The default, matching prior behavior."""
+
+    control: Literal["respondent"] = "respondent"
+
+
+class InterviewerGatedEndPolicy(HumanizeSchemaBase):
+    """The participant can only end once the model signals (via the structured
+    ``interview_complete`` flag) that its goals are met — the signal opens the
+    gate to the End Interview button."""
+
+    control: Literal["interviewer_gated"] = "interviewer_gated"
+
+    # Optional message for the turn the interviewer first marks the interview
+    # complete (the flag's false->true transition). None keeps the model's own
+    # text for that turn. Lives only here because it's meaningless without the
+    # gate.
+    interview_marked_complete_message: Optional[InterviewMarkedCompleteMessage] = None
+
+    # Whether the participant may keep sending messages once the interviewer has
+    # marked the interview complete.
+    # - "open": the composer stays live; the mark only unlocks the End Interview
+    #   button (today's behavior, hence the default — keeps stored configs
+    #   behavior-identical).
+    # - "locked": the composer closes too, so the marking turn is the last thing
+    #   the participant reads and ending is their only remaining action.
+    # Named off the same event as `interview_marked_complete_message` because the
+    # two are aspects of one moment: what that turn says, and what it leaves the
+    # participant able to do.
+    participant_chat_after_complete: Literal["open", "locked"] = "open"
+
+
+# How a text interview is allowed to end, discriminated by ``control`` so each
+# mode carries only the fields it can act on. New modes/guards (allow_withdraw /
+# max_turns / min_turns) join as additional variants or additive fields without
+# reshaping existing ones.
+EndPolicy = Annotated[
+    Union[RespondentEndPolicy, InterviewerGatedEndPolicy],
+    Field(discriminator="control"),
+]
+
+
+class StructuredQuestionsConfig(HumanizeSchemaBase):
+    """Lets the interviewer ask multiple-choice and numerical questions mid-interview,
+    rendered as input widgets rather than prose.
+    """
+
+    allowed_types: list[Literal["multiple_choice", "numerical"]] = Field(
+        default_factory=lambda: ["multiple_choice", "numerical"]
+    )
+
+    @model_validator(mode="after")
+    def _allowed_types_nonempty_unique(self) -> "StructuredQuestionsConfig":
+        if not self.allowed_types:
+            raise ValueError(
+                "allowed_types must not be empty; omit structured_questions instead."
+            )
+        if len(self.allowed_types) != len(set(self.allowed_types)):
+            raise ValueError("allowed_types must not contain duplicates.")
+        return self
+
+
+class TextInterviewConfig(HumanizeSchemaBase):
+    """Configuration specific to text-mode interviews."""
+
+    language: str = DEFAULT_VOICE_INTERVIEW_LANGUAGE
+    interviewer_name: Annotated[
+        Optional[str],
+        StringConstraints(strip_whitespace=True, min_length=1, max_length=200),
+    ] = None
+    end_interview_message: Annotated[
+        Optional[str],
+        StringConstraints(strip_whitespace=True, min_length=1, max_length=2500),
+    ] = None
+    checklist: Optional[ChecklistConfig] = None
+    structured_questions: Optional[StructuredQuestionsConfig] = None
+    end_policy: EndPolicy = Field(default_factory=RespondentEndPolicy)
+
+    # Whether the participant may type while the interviewer's reply is still
+    # being generated.
+    # - "open": the composer stays live, so they can compose ahead of a reply
+    #   they have not read yet (today's behavior, hence the default — keeps
+    #   stored configs behavior-identical).
+    # - "locked": the composer closes for the duration of the run, so each reply
+    #   is read before anything is written against it.
+    # Unlike `end_policy.participant_chat_after_complete` this is a per-turn
+    # lock that reopens, so it lives on the config rather than on a policy: it
+    # applies to every turn under either end policy.
+    participant_chat_during_reply: Literal["open", "locked"] = "open"
+
+    @field_validator("language", mode="before")
+    @classmethod
+    def _validate_language(cls, v: object) -> str:
+        return normalize_voice_interview_language(v)
+
+
+# How long the voice interviewer waits after the respondent pauses before it
+# speaks, from "fastest" (jumps in almost at once) to "slowest" (waits a long time).
+VoiceTurnSpeed = Literal["fastest", "faster", "default", "slower", "slowest"]
+
+
+class TurnTakingConfig(HumanizeSchemaBase):
+    """How the voice interviewer decides the respondent has finished speaking."""
+
+    # The speed the call starts at. "initial" because the respondent can still
+    # change it from the interview screen, the same reading as
+    # ``ChecklistConfig.initial``. "default" is the natural pause every voice
+    # interview used before this setting existed.
+    initial_speed: VoiceTurnSpeed = "default"
+
+
+class VoiceInterviewConfig(HumanizeSchemaBase):
+    """Configuration specific to voice-mode interviews."""
+
+    # The spoken language for the voice interview. Stored as a lowercase id
+    # (e.g. "english"); the before-validator normalizes case/whitespace, maps
+    # None/blank to the default, and rejects unsupported languages.
+    language: str = DEFAULT_VOICE_INTERVIEW_LANGUAGE
+    # Always present rather than Optional: every voice call has a starting speed,
+    # so None would only mean "use the default" anyway.
+    turn_taking: TurnTakingConfig = Field(default_factory=TurnTakingConfig)
+
+    @field_validator("language", mode="before")
+    @classmethod
+    def _validate_language(cls, v: object) -> str:
+        return normalize_voice_interview_language(v)
+
+
+class DefaultIntroScreen(HumanizeSchemaBase):
+    """The default intro screen: a single instruction shown before the interview
+    starts.
+
+    Discriminated by ``type`` so alternative intro screens can join later as a
+    ``Union`` without reshaping stored configs. ``default`` is the only variant
+    today.
+    """
+
+    type: Literal["default"] = "default"
+    instruction: Annotated[
+        str,
+        StringConstraints(strip_whitespace=True, min_length=1, max_length=2500),
+    ]
 
 
 class InterviewHumanizeSchema(HumanizeSchemaBase):
@@ -71,36 +747,146 @@ class InterviewHumanizeSchema(HumanizeSchemaBase):
 
     optional: bool = False
     interview_mode: Literal["text", "voice", "both"] = "text"
+    # The intro screen shown before the interview starts. The intro screen is
+    # always shown; None falls back to the default text ("This will be a
+    # conversation with an AI agent."). When set, ``instruction`` supplies the
+    # body text.
+    intro_screen: Optional[DefaultIntroScreen] = None
+    voice_interview_config: Optional[VoiceInterviewConfig] = None
+    text_interview_config: Optional[TextInterviewConfig] = None
 
 
 class LikertHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the likert question type."""
 
     optional: bool = False
+    time_limit: Optional[TimeLimit] = None
     format: MCSubclassFormatSchema = Field(default_factory=MCSubclassFormatSchema)
     comment: Optional[CommentConfig] = None
+    submitting_indicator: Optional[SubmittingIndicator] = None
 
 
 class LinearScaleHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the linear scale question type."""
 
     optional: bool = False
+    time_limit: Optional[TimeLimit] = None
     format: MCSubclassFormatSchema = Field(default_factory=MCSubclassFormatSchema)
     comment: Optional[CommentConfig] = None
+    submitting_indicator: Optional[SubmittingIndicator] = None
 
 
 class ListHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the list question type."""
 
     optional: bool = False
+    time_limit: Optional[TimeLimit] = None
     comment: Optional[CommentConfig] = None
+    submitting_indicator: Optional[SubmittingIndicator] = None
+
+
+class MatrixFormatTableSchema(HumanizeSchemaBase):
+    """The whole grid at once: one row per item, one column per option."""
+
+    type: Literal["table"] = "table"
+
+
+class MatrixFormatCarouselSchema(HumanizeSchemaBase):
+    """One item at a time, its options listed beneath it, the respondent moving
+    between items with the carousel's own controls.
+
+    The grid is the point of a matrix — every item on one screen, the shared
+    option scale obvious at a glance — and that same shape is what breaks it on a
+    narrow screen: five columns of prose headings are either scrolled sideways or
+    squeezed until they cannot be read. The carousel spends the overview to buy
+    the room, which is the trade worth making for long option labels or a survey
+    answered mostly on phones.
+    """
+
+    type: Literal["carousel"] = "carousel"
+    # Whether answering an item moves to the next one on its own. On by default:
+    # the format exists to turn a long matrix into a run of small questions, and
+    # reaching for Next after every answer undoes that. Every answer advances,
+    # corrections included — the rule respondents have already met in Qualtrics,
+    # and one with no exception to notice. Set False when they are expected to
+    # revise as they go, since a correction costs the way back as well.
+    advance_on_select: bool = True
+
+
+# Discriminated on ``type`` so each shape carries only the options it can act on,
+# and so a third rendering can join as a sibling without reshaping stored configs.
+# "table" is the default, which is what every matrix rendered before this field
+# existed, so stored configs are unaffected.
+MatrixFormatSchema = Annotated[
+    Union[MatrixFormatTableSchema, MatrixFormatCarouselSchema],
+    Field(discriminator="type"),
+]
+
+
+class MatrixPreselectionRule(HumanizeSchemaBase):
+    """The column preselected for the rows a selector picks out."""
+
+    # Required, with no default. "Every row" is a claim about the design, not a
+    # fallback: an author who has not said which rows they mean has not finished
+    # writing the rule, and a defaulted catch-all would silently swallow the case
+    # where they meant to name only some. It also keeps stored configs
+    # self-describing under any serializer, rather than relying on defaults being
+    # emitted.
+    match: Selector
+    option: OptionTarget
+
+
+class MatrixPreselection(HumanizeSchemaBase):
+    """Cells checked before the respondent touches the grid.
+
+    Rules are tried in order and the first match wins, so a config reads like a
+    routing table: the specific rows first, the catch-all last. First-match rather
+    than last-match because a row then belongs to exactly one rule, which is what
+    makes a filled grid explainable after the fact — with piped rows, the cells
+    two respondents were shown are not the same cells, and "which rule did this"
+    is the only way to reconstruct either.
+
+    A target naming no option fills nothing rather than raising: a matrix's
+    columns can be piped, so the author cannot always know at authoring time that
+    the text will be there, and a survey must not fail in front of a respondent
+    over it. Where the columns are literal the same mistake is caught at save time
+    instead, while the author can still fix it.
+
+    A rule whose target misses leaves its cells empty rather than falling through
+    to the next rule, or a row's exception would silently inherit the catch-all it
+    was written to override.
+    """
+
+    rules: Annotated[list[MatrixPreselectionRule], Field(min_length=1)]
+
+    @model_validator(mode="after")
+    def _no_rules_after_catch_all(self) -> "MatrixPreselection":
+        # An `all` selector matches every remaining row, so anything behind it can
+        # never be reached — today that means exactly one rule, since `all` is the
+        # only selector there is. Almost always a rule list written in the wrong
+        # order, and silently dropping the author's exceptions is the worst way to
+        # find out.
+        for position, rule in enumerate(self.rules[:-1]):
+            if rule.match.type == "all":
+                raise ValueError(
+                    f"Rule {position + 1} matches every item, leaving the rules "
+                    "after it unreachable; put the catch-all last."
+                )
+        return self
 
 
 class MatrixHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the matrix question type."""
 
     optional: bool = False
+    time_limit: Optional[TimeLimit] = None
+    format: MatrixFormatSchema = Field(default_factory=MatrixFormatTableSchema)
+    # Cells filled in before the respondent arrives. None means an empty grid —
+    # what every matrix rendered before this field existed, so stored configs are
+    # unaffected.
+    preselection: Optional[MatrixPreselection] = None
     comment: Optional[CommentConfig] = None
+    submitting_indicator: Optional[SubmittingIndicator] = None
 
 
 class MultipleChoiceCustomValidation(HumanizeSchemaBase):
@@ -113,16 +899,20 @@ class MultipleChoiceHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the multiple choice question type."""
 
     optional: bool = False
+    time_limit: Optional[TimeLimit] = None
     format: MCSubclassFormatSchema = Field(default_factory=MCSubclassFormatSchema)
     custom_validation: Optional[MultipleChoiceCustomValidation] = None
     comment: Optional[CommentConfig] = None
+    submitting_indicator: Optional[SubmittingIndicator] = None
 
 
 class MultipleChoiceWithOtherHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the multiple choice with other question type."""
 
     optional: bool = False
+    time_limit: Optional[TimeLimit] = None
     comment: Optional[CommentConfig] = None
+    submitting_indicator: Optional[SubmittingIndicator] = None
 
 
 class NumericalFormatInputSchema(HumanizeSchemaBase):
@@ -160,37 +950,57 @@ class NumericalHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the numerical question type."""
 
     optional: bool = False
+    time_limit: Optional[TimeLimit] = None
     format: NumericalFormatSchema = Field(default_factory=NumericalFormatInputSchema)
     comment: Optional[CommentConfig] = None
+    submitting_indicator: Optional[SubmittingIndicator] = None
 
 
 class RankHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the rank question type."""
 
     optional: bool = False
+    time_limit: Optional[TimeLimit] = None
     comment: Optional[CommentConfig] = None
+    submitting_indicator: Optional[SubmittingIndicator] = None
 
 
 class TopKHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the top k question type."""
 
     optional: bool = False
+    time_limit: Optional[TimeLimit] = None
     comment: Optional[CommentConfig] = None
+    submitting_indicator: Optional[SubmittingIndicator] = None
 
 
 class YesNoHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the yes/no question type."""
 
     optional: bool = False
+    time_limit: Optional[TimeLimit] = None
     format: MCSubclassFormatSchema = Field(default_factory=MCSubclassFormatSchema)
     comment: Optional[CommentConfig] = None
+    submitting_indicator: Optional[SubmittingIndicator] = None
+
+
+class SurveyMessageHumanizeSchema(HumanizeSchemaBase):
+    """Humanize marker for a display-only SurveyMessage.
+
+    Messages intentionally expose no input-oriented configuration. The client
+    chooses Continue or Finish from the message's position in the survey.
+    """
 
 
 HumanizeQuestionSchema = Union[
     FreeTextHumanizeSchema,
     BudgetHumanizeSchema,
+    DistributionHumanizeSchema,
     CheckboxHumanizeSchema,
+    CheckboxWithOtherHumanizeSchema,
     ComputeHumanizeSchema,
+    FileUploadHumanizeSchema,
+    ImageGenerationHumanizeSchema,
     InterviewHumanizeSchema,
     LikertHumanizeSchema,
     LinearScaleHumanizeSchema,
@@ -202,6 +1012,7 @@ HumanizeQuestionSchema = Union[
     RankHumanizeSchema,
     TopKHumanizeSchema,
     YesNoHumanizeSchema,
+    SurveyMessageHumanizeSchema,
 ]
 
 
@@ -218,8 +1029,12 @@ class HumanizeSchema(HumanizeSchemaBase):
 QUESTION_TYPE_TO_HUMANIZE_CLASS: Dict[str, Type[BaseModel]] = {
     "free_text": FreeTextHumanizeSchema,
     "budget": BudgetHumanizeSchema,
+    "distribution": DistributionHumanizeSchema,
     "checkbox": CheckboxHumanizeSchema,
+    "checkbox_with_other": CheckboxWithOtherHumanizeSchema,
     "compute": ComputeHumanizeSchema,
+    "file_upload": FileUploadHumanizeSchema,
+    "image_generation": ImageGenerationHumanizeSchema,
     "interview": InterviewHumanizeSchema,
     "likert_five": LikertHumanizeSchema,
     "linear_scale": LinearScaleHumanizeSchema,
@@ -231,7 +1046,182 @@ QUESTION_TYPE_TO_HUMANIZE_CLASS: Dict[str, Type[BaseModel]] = {
     "rank": RankHumanizeSchema,
     "top_k": TopKHumanizeSchema,
     "yes_no": YesNoHumanizeSchema,
+    "survey_message": SurveyMessageHumanizeSchema,
 }
+
+
+def _validate_preselection_targets(
+    question_name: str,
+    question: QuestionBase,
+    question_schema: BaseModel,
+) -> None:
+    """Reject a preselection naming a column the question does not have.
+
+    Only checkable when ``question_options`` is a literal list. A matrix whose
+    columns are a template string has nothing to compare against until a
+    respondent has answered the question they pipe from, so the mismatch is left
+    to the runtime miss policy — which fills nothing and raises nothing, because a
+    survey must not fail in front of a respondent over it.
+
+    That policy is exactly why this check earns its place: where the columns *are*
+    literal, a typo would otherwise be a silent no-op that previews fine and
+    preselects nothing in the field.
+    """
+    preselection = getattr(question_schema, "preselection", None)
+    if preselection is None:
+        return
+    options = getattr(question, "question_options", None)
+    if not isinstance(options, list):
+        return
+    option_texts = {str(option) for option in options}
+    for position, rule in enumerate(preselection.rules):
+        if rule.option.type == "text" and rule.option.value not in option_texts:
+            raise HumanizeSchemaValidationError(
+                f"Preselection rule {position + 1} for question {question_name!r} "
+                f"names option {rule.option.value!r}, which is not one of that "
+                "question's options."
+            )
+
+
+def _is_background_question(question: Any) -> bool:
+    """Whether a question is answered by the server rather than the respondent.
+
+    Thinking, compute and image generation questions all run without the
+    respondent and are never rendered to one, so a group made up entirely of them
+    is never shown as a page.
+    """
+    return isinstance(question, QuestionBase) and (
+        getattr(question, "_is_thinking_question", False)
+        or isinstance(question, (QuestionCompute, QuestionImageGeneration))
+    )
+
+
+def _validate_group_presentation(survey: Survey) -> None:
+    """Check the survey can actually be presented one question group per page.
+
+    Only meaningful under ``presentation: "group"``; by default each question is
+    its own page and ``question_groups`` does not affect what is served.
+
+    Every rule here guards a failure that is otherwise silent in front of a
+    respondent — a question that never appears, an instruction nobody reads, a
+    page that cannot be submitted. They are raised here, while the author is still
+    at their keyboard and the survey has no responses, rather than left for the
+    survey platform to absorb at render time.
+    """
+    groups = survey.question_groups
+    if not groups:
+        raise HumanizeSchemaValidationError(
+            "Humanize schema sets presentation to 'group', but this survey has no "
+            "question groups, so there is nothing to page by. Call "
+            "survey.create_allowable_groups(...) or survey.add_question_group(...) "
+            "first, or drop the presentation setting."
+        )
+
+    ordered = sorted(
+        ((name, start, end) for name, (start, end) in groups.items()),
+        key=lambda group: group[1],
+    )
+    question_count = len(survey.questions)
+
+    def members_of(start: int, end: int) -> list:
+        """The survey questions a group's range covers."""
+        return [
+            survey.questions[index]
+            for index in range(max(start, 0), min(end, question_count - 1) + 1)
+        ]
+
+    # Which group owns each question. A range may deliberately run past the last
+    # question to pull in a trailing instruction (see below), so an index beyond
+    # the survey is not evidence of anything and is simply ignored.
+    owners: Dict[int, list] = {index: [] for index in range(question_count)}
+    for name, start, end in ordered:
+        for index in range(max(start, 0), min(end, question_count - 1) + 1):
+            owners[index].append(name)
+
+    uncovered = [index for index, names in owners.items() if not names]
+    if uncovered:
+        shown = ", ".join(
+            repr(survey.questions[index].question_name) for index in uncovered[:5]
+        )
+        more = "" if len(uncovered) <= 5 else f", and {len(uncovered) - 5} more"
+        raise HumanizeSchemaValidationError(
+            f"Question groups do not cover every question: {shown}{more} "
+            f"belong{'s' if len(uncovered) == 1 else ''} to no group. A question "
+            "outside every group is never served and is recorded as skipped, so it "
+            "would drop out of the survey without anything being raised."
+        )
+
+    # Overlaps do not duplicate a question — a group's start is clamped to wherever
+    # the respondent actually is, so a shared question is served once, with whichever
+    # group starts earlier. What they do instead is repaginate the survey: the other
+    # group can be left with nothing to serve and produce no page at all. Where two
+    # starts tie, the groups are ordered by a stable sort on start index, so the
+    # tie-break is the order they sit in the dict — the same two groups added the
+    # other way round page the survey differently.
+    for index, names in owners.items():
+        if len(names) > 1:
+            raise HumanizeSchemaValidationError(
+                f"Question {survey.questions[index].question_name!r} belongs to more "
+                f"than one question group "
+                f"({', '.join(repr(name) for name in names)}). The question is not "
+                "duplicated — it is served once, with the earlier-starting group — "
+                "but the other group can be left serving nothing at all, so the "
+                "survey is paged differently from the way these groups read. Give "
+                "each question exactly one group."
+            )
+
+    # An interview fills the screen and ends itself, so the shared Next button on a
+    # group page has no conversation to submit.
+    for name, start, end in ordered:
+        members = members_of(start, end)
+        interviews = [
+            question.question_name
+            for question in members
+            if getattr(question, "question_type", None) == "interview"
+        ]
+        if interviews and len(members) > 1:
+            raise HumanizeSchemaValidationError(
+                f"Question group {name!r} puts interview {interviews[0]!r} on a page "
+                "with other questions. An interview needs a page of its own — it "
+                "fills the screen and ends itself, so a shared Next button has no "
+                "conversation to submit. Give it a group holding only that question."
+            )
+
+    # Instructions attach to a group by pseudo-index, so one sitting past the last
+    # group has no page to land on and is never rendered. The same goes for one
+    # attached to a group whose questions are all answered by the server: that group
+    # is run and passed over, and the instruction goes with it.
+    last_group_end = max(end for _, _, end in ordered)
+    background_only_windows = []
+    previous_end = -1
+    for name, start, end in ordered:
+        members = members_of(start, end)
+        if members and all(_is_background_question(question) for question in members):
+            # The window a group draws instructions from: before the first group, or
+            # after the previous one, through to the group's own end.
+            background_only_windows.append((name, previous_end, end))
+        previous_end = end
+
+    for instruction_name in survey._instruction_names_to_instructions:
+        pseudo_index = survey._pseudo_indices.get(instruction_name)
+        if pseudo_index is None:
+            continue
+        if pseudo_index > last_group_end:
+            raise HumanizeSchemaValidationError(
+                f"Instruction {instruction_name!r} falls after the last question "
+                "group, so there is no page for it to appear on and it would never "
+                "be shown. Move it inside a group, or use a SurveyMessage question "
+                "if it should be the last thing the respondent reads."
+            )
+        for group_name, window_start, window_end in background_only_windows:
+            if window_start < pseudo_index <= window_end:
+                raise HumanizeSchemaValidationError(
+                    f"Instruction {instruction_name!r} is attached to question group "
+                    f"{group_name!r}, whose questions are all answered without the "
+                    "respondent. That group is never shown as a page, so the "
+                    "instruction would never be read. Move it to a group the "
+                    "respondent sees."
+                )
 
 
 def validate_humanize_schema(
@@ -280,6 +1270,15 @@ def validate_humanize_schema(
             )
         raw_entry = raw_questions.get(question_name)
         try:
-            model_class.model_validate(raw_entry)
+            validated_entry = model_class.model_validate(raw_entry)
         except ValidationError as e:
             raise HumanizeSchemaValidationError(str(e)) from e
+        # Checked here rather than on the model, which sees the entry alone: whether
+        # an option exists is a fact about the question, and only this function has
+        # both halves.
+        _validate_preselection_targets(question_name, q, validated_entry)
+
+    # Paging by group is a claim about the survey's structure, not about any one
+    # question, so it is checked once at the end with the whole survey in hand.
+    if validated_schema.survey and validated_schema.survey.presentation == "group":
+        _validate_group_presentation(survey)

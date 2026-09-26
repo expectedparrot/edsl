@@ -7,7 +7,7 @@ logger = logging.getLogger(__name__)
 
 from ..inference_service_abc import InferenceServiceABC
 from ..decorators import report_errors_async
-from .service_enums import OPENAI_REASONING_MODELS
+from .service_enums import OPENAI_REASONING_MODELS, openai_requires_temperature_one
 
 # Use TYPE_CHECKING to avoid circular imports at runtime
 if TYPE_CHECKING:
@@ -321,18 +321,24 @@ class OpenAIServiceV2(InferenceServiceABC):
                     "store": False,
                 }
 
-                # Check if this is a reasoning model (o-series models)
+                # Recognition controls defaults, not whether explicit settings survive.
                 is_reasoning_model = any(
                     tag in self.model for tag in OPENAI_REASONING_MODELS
                 )
 
-                # Only add reasoning parameter for reasoning models
-                if is_reasoning_model:
-                    reasoning_params = {"summary": "auto"}
-                    if isinstance(self.reasoning, dict):
+                if self.reasoning is not None and not isinstance(self.reasoning, dict):
+                    raise ValueError("reasoning must be a dictionary or None")
+                effort = getattr(self, "reasoning_effort", None)
+                if (
+                    is_reasoning_model
+                    or self.reasoning is not None
+                    or effort is not None
+                ):
+                    reasoning_params = {"summary": "auto"} if is_reasoning_model else {}
+                    if self.reasoning is not None:
                         reasoning_params.update(self.reasoning)
-                    # Support reasoning_effort shorthand (e.g. "none", "low", "medium", "high")
-                    effort = getattr(self, "reasoning_effort", None)
+                    # A non-None shorthand overrides reasoning["effort"]. Keep
+                    # explicit values unchanged for provider-side validation.
                     if effort is not None:
                         reasoning_params["effort"] = effort
                     params["reasoning"] = reasoning_params
@@ -341,8 +347,8 @@ class OpenAIServiceV2(InferenceServiceABC):
                 # instead of max_tokens (which is for the completions API)
                 params["max_output_tokens"] = self.max_tokens
 
-                # Specifically for o-series, we also set temperature to 1
-                if is_reasoning_model:
+                # GPT-5+ and o-series models only accept temperature=1.
+                if openai_requires_temperature_one(self.model):
                     params["temperature"] = 1
 
                 client = self.async_client()
