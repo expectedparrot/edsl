@@ -8,6 +8,10 @@ from .exceptions import UnsupportedCapabilityError
 from .resources import Budget, ExecutionLimits, _active_budget
 
 EXPRESSION_OPERATORS = {
+    "seeded_integer",
+    "seeded_order",
+    "decimal_units",
+    "round_ratio",
     "let",
     "fold",
     "iterate",

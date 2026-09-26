@@ -14,6 +14,8 @@ Python helpers construct expressions. They are never callbacks during execution.
 | [Continuous double auction](double_auction.py) | Price/time ordering, atomic account and order updates | One-unit orders; assertions report explicit admission rejections |
 | [Binary LMSR](binary_market.py) | Stable numerical expressions, portfolio transformations | Unconstrained purchases; negative cash permitted |
 | [Batch auction](batch_auction.py) | Stop-on-first-failure fold, deterministic ties, uniform clearing price | Clearing only; one unit per trader; no cash settlement or income schedule |
+| [Seeded allocation](seeded_allocation.py) | Stable-ID lottery and independent keyed bonus | Study-assigned IDs; predictable seed |
+| [Monetary settlement](monetary_settlement.py) | Exact decimal text, integer balances, fee rounding | Fixed accounts; no authorization or currency conversion |
 
 Run from the repository root with an installed EDSL development environment:
 
@@ -75,3 +77,13 @@ still match the registered algorithm; invalid admission preserves state while
 returning a rejection instead of the registered implementation's exception.
 See [explicit rejection](https://docs.expectedparrot.com/en/latest/shared-state/machines#explicit-rejection-and-outcomes)
 for disclosure, idempotency, failure, and close semantics.
+
+
+The lottery and settlement examples use `seeded_integer`, `seeded_order`,
+`decimal_units`, and `round_ratio`. Their canonical
+[randomization and money chapter](https://docs.expectedparrot.com/en/latest/shared-state/randomization-and-money)
+defines the versioned byte protocol and signed rounding rules. Tests in
+[`test_machine_portable.py`](../../tests/sharedstate/test_machine_portable.py)
+cover protocol vectors, arrival-order independence, exact conservation,
+SQLite reopen/retry, and fresh-process replay. Existing market callbacks retain
+their original random streams and rounding behavior.

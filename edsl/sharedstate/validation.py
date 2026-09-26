@@ -326,10 +326,34 @@ class _References:
             k: self.expression(v, f"{path}.kwargs[{k!r}]", locals_, inputs)
             for k, v in value.kwargs.items()
         }
+        if op in {"seeded_integer", "seeded_order"}:
+            for option in ("scope", "key"):
+                self.expect(kwargs[option], {"text"}, path, op)
+            if op == "seeded_integer":
+                self.expect(args[0], {"text"}, path, op)
+                for shape in args[1:]:
+                    self.expect(shape, {"integer"}, path, op)
+                return T.integer()
+            self.expect(kwargs["seed"], {"text"}, path, op)
+            self.expect(args[0], {"sequence", "rank"}, path, op)
+            if _kind(args[0]) == "sequence":
+                self.expect(args[0].kwargs["item"], {"text"}, path, op)
+            return T.sequence(T.text())
+        if op == "decimal_units":
+            self.expect(args[0], {"text"}, path, op)
+            return T.integer()
+        if op == "round_ratio":
+            for shape in args:
+                self.expect(shape, {"integer"}, path, op)
+            return T.integer()
         numeric = {"integer", "number"}
         if op in {"subtract", "divide", "absolute", "exp"}:
             for shape in args:
                 self.expect(shape, numeric, path, op)
+            if op in {"subtract", "absolute"} and all(
+                _kind(shape) == "integer" for shape in args
+            ):
+                return T.integer()
             return T.number()
         if op == "add":
             for shape in args:

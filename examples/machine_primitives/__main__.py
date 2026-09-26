@@ -16,6 +16,8 @@ EXAMPLES = (
     "double_auction",
     "binary_market",
     "batch_auction",
+    "seeded_allocation",
+    "monetary_settlement",
 )
 
 

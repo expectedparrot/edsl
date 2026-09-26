@@ -626,3 +626,14 @@ view={
 context. The [language specification](/en/latest/shared-state/semantics) defines
 context typing and permission requirements; the current interpreter does not
 provide a complete static type system or an untrusted-code sandbox.
+
+
+## Randomization and exact monetary arithmetic
+
+Use `seeded_integer` for stateless keyed draws and `seeded_order` for stable-ID
+priority ordering. Use `decimal_units` to convert exact decimal text into integer
+units and `round_ratio` for explicit signed rounding of integer ratios. All four
+are serialized general expressions with individual version-1 capabilities.
+The [randomization and money chapter](/en/latest/shared-state/randomization-and-money)
+specifies their arguments, byte protocol, rounding modes, resource limits,
+replay guarantees, and compatibility with existing market algorithms.

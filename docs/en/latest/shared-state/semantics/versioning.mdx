@@ -88,3 +88,13 @@ envelope and broader compatibility identity above remain specification targets;
 existing definitions require no migration just to use preflight. See
 [Interpreter capabilities](/en/latest/shared-state/machines#interpreter-capabilities)
 for the supported API, legacy algorithm handling, and transport guarantees.
+
+
+The exact capabilities `expression:seeded_integer@1`,
+`expression:seeded_order@1`, `expression:decimal_units@1`, and
+`expression:round_ratio@1` fix the implemented
+[random byte protocol and rounding rules](/en/latest/shared-state/randomization-and-money).
+They add no persisted envelope fields. A future interpreter must not advertise
+these capabilities while substituting another RNG, string encoding, tie rule,
+or rounding policy. Registered legacy market algorithms remain separately
+versioned and retain their existing behavior.

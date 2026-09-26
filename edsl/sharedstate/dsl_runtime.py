@@ -12,6 +12,11 @@ from edsl._data_contracts import validate_data
 
 from .dsl import Command, Effect, Expr, Machine, _validate_type_expression
 from .exceptions import CommandRejected, validate_reason_code
+from .portable import (
+    ARITIES as PORTABLE_ARITIES,
+    evaluate as evaluate_portable,
+    validate_options as validate_portable_options,
+)
 from .resources import (
     ExecutionLimits,
     BoundedCollection,
@@ -325,6 +330,16 @@ class Runtime:
                 return result.value
             return value
 
+        if value.op in PORTABLE_ARITIES:
+            try:
+                validate_portable_options(value.op, value.kwargs)
+                if len(value.args) != PORTABLE_ARITIES[value.op]:
+                    raise ValueError(
+                        f"{value.op} requires {PORTABLE_ARITIES[value.op]} operands"
+                    )
+            except ValueError as exc:
+                raise DSLValidationError(str(exc)) from exc
+
         if value.op == "let":
             bound = self.evaluate(value.args[0], context)
             nested = context | {
@@ -449,6 +464,15 @@ class Runtime:
                     return self.evaluate(value.kwargs.get("default"), context)
                 result = result[part]
             return result
+        if op in PORTABLE_ARITIES:
+            from .resources import ResourceLimitError
+
+            try:
+                return evaluate_portable(op, args, kwargs)
+            except ResourceLimitError:
+                raise
+            except ValueError as exc:
+                raise DSLValidationError(str(exc)) from exc
         if op == "take":
             collection, count = args
             if (

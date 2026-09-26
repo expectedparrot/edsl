@@ -72,6 +72,10 @@ from .dsl import (
     take,
     exp,
     logsumexp,
+    seeded_integer,
+    seeded_order,
+    decimal_units,
+    round_ratio,
     input_,
     local,
     map_items,
@@ -87,6 +91,10 @@ from .dsl import (
 )
 
 __all__ = [
+    "seeded_integer",
+    "seeded_order",
+    "decimal_units",
+    "round_ratio",
     "MachineValidationError",
     "CommandRejected",
     "assert_",

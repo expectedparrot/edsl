@@ -231,6 +231,26 @@ def take(collection: Any, count: Any) -> Expr:
     return expr("take", collection, count)
 
 
+def seeded_integer(seed: Any, low: Any, high: Any, *, scope: Any, key: Any) -> Expr:
+    """Stateless SHA-256 draw on [low, high), keyed by nonempty text components."""
+    return expr("seeded_integer", seed, low, high, scope=scope, key=key)
+
+
+def seeded_order(items: Any, *, seed: Any, scope: Any, key: Any) -> Expr:
+    """Order unique text IDs by versioned hash priority, independent of input order."""
+    return expr("seeded_order", items, seed=seed, scope=scope, key=key)
+
+
+def decimal_units(value: Any, *, places: int, rounding: str) -> Expr:
+    """Convert exact decimal text to integer units with explicit rounding."""
+    return expr("decimal_units", value, places=places, rounding=rounding)
+
+
+def round_ratio(numerator: Any, denominator: Any, *, rounding: str) -> Expr:
+    """Round an exact integer ratio; the denominator must be positive."""
+    return expr("round_ratio", numerator, denominator, rounding=rounding)
+
+
 def exp(value: Any) -> Expr:
     """Finite exponential; overflow is an execution error."""
     return expr("exp", value)
@@ -491,6 +511,7 @@ class Machine:
         validate_data(self.to_dict(), path=self.name)
 
         from .capabilities import EXPRESSION_OPERATORS, REDUCERS
+        from .portable import ARITIES, validate_options
 
         allowed_ops = EXPRESSION_OPERATORS
         reducers = REDUCERS
@@ -605,6 +626,9 @@ class Machine:
                             )
                         )
                     )
+                    if item.op in ARITIES:
+                        arity = ARITIES[item.op]
+                        validate_options(item.op, item.kwargs)
                     if arity is not None:
                         check_arity(item.op, item.args, arity, arity)
                     if item.op == "minimum":
