@@ -22,9 +22,9 @@ numbersections: true
 This is the historical target specification and design record for the initial
 local vertical slice. It includes proposal-era APIs and a version-1 serialized
 shape, so it is not the current usage reference. Start with
-`docs/en/latest/workflows.mdx` and `docs/workflow_manual.md`; the current
+the canonical [workflow manual](https://docs.expectedparrot.com/en/latest/workflows); the current
 recovery, visibility, and migration guarantees are specified in
-`docs/workflow_state_contracts.md`.
+the [execution contracts](https://docs.expectedparrot.com/en/latest/coordinated-research/execution-contracts).
 
 The normative terms **MUST**, **SHOULD**, and **MAY** have their usual RFC-style
 meaning.

@@ -82,8 +82,48 @@
       {
         "group": "Coordinated Research",
         "pages": [
-          "en/latest/shared_state",
-          "en/latest/workflows"
+          {
+            "group": "Shared-state manual",
+            "pages": [
+              "en/latest/shared_state",
+              "en/latest/shared-state/machines",
+              "en/latest/shared-state/testing-and-serialization",
+              "en/latest/shared-state/scopes-and-surveys",
+              "en/latest/shared-state/collections-and-lifecycle",
+              "en/latest/shared-state/patterns",
+              "en/latest/shared-state/algorithms-and-reference"
+            ]
+          },
+          {
+            "group": "Workflow manual",
+            "pages": [
+              "en/latest/workflows",
+              "en/latest/workflows/lifecycle-and-assignment",
+              "en/latest/workflows/references-and-conditions",
+              "en/latest/workflows/derived-values",
+              "en/latest/workflows/response-contracts-and-repetition",
+              "en/latest/workflows/visibility-and-shared-state",
+              "en/latest/workflows/persistence-and-delivery",
+              "en/latest/workflows/recovery-and-portability",
+              "en/latest/workflows/patterns-and-testing",
+              "en/latest/workflows/reference-and-limitations"
+            ]
+          },
+          "en/latest/coordinated-research/execution-contracts",
+          {
+            "group": "Shared-state language specification",
+            "pages": [
+              "en/latest/shared-state/semantics",
+              "en/latest/shared-state/semantics/data-model",
+              "en/latest/shared-state/semantics/expressions-and-types",
+              "en/latest/shared-state/semantics/command-transitions",
+              "en/latest/shared-state/semantics/concurrency-and-reads",
+              "en/latest/shared-state/semantics/views-and-capabilities",
+              "en/latest/shared-state/semantics/lifecycle",
+              "en/latest/shared-state/semantics/remote-and-security",
+              "en/latest/shared-state/semantics/versioning"
+            ]
+          }
         ]
       },
       {

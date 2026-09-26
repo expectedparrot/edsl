@@ -1,171 +1,88 @@
 ---
-title: "Shared state"
-description: "Define typed, serializable state machines that coordinated EDSL interviews can read and update."
+title: "Shared-state manual"
+description: "Build shared state from first principles, from a typed poll to coordinated interviews."
 ---
 
-Shared state is durable data that several EDSL interviews can read and change.
-It supports polls, bargaining, discussion logs, task pools, auctions, and other
-studies in which one participant's action changes the context for another.
+<Note>
+This is the canonical shared-state manual. The API is experimental. Read the [execution contracts](/en/latest/coordinated-research/execution-contracts) for current persistence, visibility, and compatibility guarantees.
+</Note>
 
-Shared state complements rather than replaces `Results`:
+Shared state is data that several EDSL interviews can read and change. It makes
+group voting, bargaining, discussion boards, forecasting, auctions, and common
+task pools possible.
 
-- `Results` preserve answers, prompts, and interview metadata.
-- Shared state preserves coordinated actions and the evolving study state.
+The [execution contracts](/en/latest/coordinated-research/execution-contracts)
+define the current persistence, retry, definition-binding, and workflow
+integration guarantees. The [language specification](/en/latest/shared-state/semantics)
+provides formal semantics and identifies additional conformance requirements.
+Use the execution contracts to resolve ambiguities about current behavior.
 
-## The four layers
+This guide constructs one shared data structure explicitly. Nothing is hidden
+behind a recipe factory. Once every part is understood, we add grouping,
+surveys, storage, and convenience constructors.
 
-| Layer | Purpose |
-| --- | --- |
-| `Machine` | Defines fields, commands, validation, and reader-facing views. |
-| `SharedState` | Groups one or more named machines in a state space. |
-| `SharedStateMap` | Selects independent spaces using scope keys such as a family or treatment group. |
-| State backend | Persists snapshots and an auditable event history. |
+## The mental model
 
-Definitions contain no database connection or executable callback. They are
-plain serializable data.
+A shared-state system has four distinct layers:
 
-## Define a poll
-
-```python
-from edsl.sharedstate import (
-    Command,
-    Machine,
-    SharedState,
-    SharedStateMap,
-    T,
-    field,
-    input_,
-    put,
-    reduce_,
-    state_field,
-)
-
-activities = ["bike ride", "sailing", "hike", "beach day"]
-
-activity_poll = Machine(
-    name="ActivityPoll",
-    constants={"activities": activities},
-    fields={
-        "votes": state_field(
-            T.map(T.text(), T.choice(activities)),
-            initial={},
-        ),
-    },
-    commands={
-        "vote": Command(
-            inputs={
-                "voter": T.text(),
-                "activity": T.choice(activities),
-            },
-            effects=(
-                put(
-                    "votes",
-                    key=input_("voter"),
-                    value=input_("activity"),
-                    once=True,
-                ),
-            ),
-        ),
-    },
-    view={
-        "votes": field("votes"),
-        "counts": reduce_("count_by", field("votes").values()),
-    },
-)
-
-polls = SharedStateMap(
-    SharedState(poll=activity_poll),
-    state_id="activity-study",
-)
+```text
+Machine definition
+    ↓
+SharedState space
+    ↓
+SharedStateMap of spaces
+    ↓
+Execution store
 ```
 
-`once=True` gives each voter a first-write-wins ballot. Commands validate all
-inputs and the complete proposed state before committing atomically.
+A **Machine** defines one kind of data structure: what it stores, which writes
+are legal, and what readers can see.
 
-## Add reads and writes to a survey
+A **SharedState** is one concrete space containing one or more named machines.
+For example, the space for `family-1` might contain a poll and a message board.
 
-A scope separates independent shared worlds. Here every agent carries a
-`family_id` trait, so members of one family share a poll without seeing another
-family's state.
+A **SharedStateMap** maps scope keys such as `family-1` and `family-2` to
+independent `SharedState` spaces.
 
-```python
-from edsl import QuestionMultipleChoice, Survey
-from edsl.sharedstate import current
+A **store** persists spaces while interviews execute. It may be managed locally
+or remotely. Storage is separate from the data definitions.
 
-family_poll = polls.by(current.agent.family_id).poll
+We will build these layers in that order.
 
-activity = QuestionMultipleChoice(
-    question_name="activity",
-    question_text=(
-        "Current votes: {{ shared_state.poll.votes }}. "
-        "What should we do?"
-    ),
-    question_options=activities,
-)
+## Example: choosing an activity
 
-survey = Survey([
-    family_poll.read(),
-    activity,
-    family_poll.vote(
-        voter=current.agent.name,
-        activity=activity.answer,
-    ),
-])
-```
-
-The order is explicit: read a snapshot, ask the question using that snapshot,
-then apply the validated answer as a command. Reads and writes survive survey
-serialization.
-
-When order matters within each group, use a serializable interview schedule:
+Four people will choose among:
 
 ```python
-from edsl import InterviewSchedule
-
-schedule = InterviewSchedule.grouped_round_robin(
-    group_by="family_id",
-    order_by="turn",
-)
-
-results = survey.by(agents).by(model).run(
-    interview_schedule=schedule,
-)
+activities = [
+    "bike ride",
+    "sailing",
+    "hike",
+    "beach day",
+]
 ```
 
-Each agent must have `family_id` and `turn` traits, with unique turn values
-inside a family. Different families may progress independently.
-
-## Serialization and persistence contracts
-
-Machine and state-map formats are versioned and round-trip as JSON:
+We want one vote per person, represented by a dictionary:
 
 ```python
-payload = polls.to_dict()
-restored = SharedStateMap.from_dict(payload)
-assert restored.to_dict() == payload
+{
+    "Amina": "hike",
+    "Boris": "sailing",
+}
 ```
 
-Persisted values obey a strict JSON contract: dictionary keys are strings and
-numbers must be finite. Use `&`, `|`, and `~` for symbolic Boolean expressions;
-Python `and`, `or`, and `not` try to evaluate the expression immediately and
-raise an error.
+Keys are voter names. Values must be one of the four activities. A voter's first
+vote wins; retries or later attempts do not replace it.
 
-A state backend records the definition fingerprint on first use. Reopening the
-database with a behaviorally different definition fails explicitly. A legacy
-database without a fingerprint is not adopted unless the operator opts in with
-`adopt_legacy_definition=True` after verifying its definition.
+That plain-language description is the specification we will encode.
 
-An operation ID identifies one exact write. Retrying the same write is safe;
-reusing its identity with different inputs or runtime context is rejected.
 
-## Shared state and workflows
 
-[Research workflows](/en/latest/workflows) determine who may act and when.
-Shared-state machines determine which transitions are legal. Keep those
-responsibilities separate: workflow dependencies should not be hidden inside a
-machine, and authoritative arithmetic or state transitions should not be
-delegated to an LLM prompt.
+## Manual chapters
 
-The shared-state API is experimental. `Machine` and `SharedStateMap` currently
-serialize as version 1, and incompatible versions fail rather than being
-silently interpreted.
+- [Machines, commands, and views](/en/latest/shared-state/machines) — Define fields, atomic transitions, requirements, and participant-visible views.
+- [Testing and serialization](/en/latest/shared-state/testing-and-serialization) — Test a machine without a survey and preserve its definition as versioned JSON.
+- [Scopes, surveys, and execution](/en/latest/shared-state/scopes-and-surveys) — Bind machines to groups, order interviews, and inspect persistent state provenance.
+- [Collections and lifecycle](/en/latest/shared-state/collections-and-lifecycle) — Build logs, derive collection views, and distinguish completion from closing.
+- [Shared-state pattern cookbook](/en/latest/shared-state/patterns) — Adapt complete patterns for ballots, markets, private signals, task pools, and payoffs.
+- [Algorithms, constructors, and validation](/en/latest/shared-state/algorithms-and-reference) — Use registered algorithms, convenience constructors, and an authoring checklist.

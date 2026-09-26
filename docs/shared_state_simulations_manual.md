@@ -41,9 +41,9 @@ is incomplete or where an apparently simple abstraction conceals an important
 research choice.
 
 Do not use this document as an API reference. The supported foundation is
-documented in `docs/en/latest/shared_state.mdx` and
-`docs/shared_state_dsl_manual.md`; durable workflow orchestration is documented
-in `docs/en/latest/workflows.mdx` and `docs/workflow_manual.md`.
+documented in the canonical [shared-state manual](https://docs.expectedparrot.com/en/latest/shared_state);
+durable workflow orchestration is documented in the canonical
+[workflow manual](https://docs.expectedparrot.com/en/latest/workflows). Both manuals live in Mintlify.
 
 The manual has two goals:
 
@@ -1924,7 +1924,7 @@ is evidence: repeated plumbing is a candidate for a library abstraction, while
 differences that encode a treatment or information structure must remain
 visible to the researcher.
 
-<!-- COMPLETE_SOURCE_LISTINGS_START -->
+{/* COMPLETE_SOURCE_LISTINGS_START */}
 
 ## `economic_game_11_20_money_request.py`
 
@@ -8296,7 +8296,7 @@ if __name__ == "__main__":
         )
 ```
 
-<!-- COMPLETE_SOURCE_LISTINGS_END -->
+{/* COMPLETE_SOURCE_LISTINGS_END */}
 
 # Closing perspective
 

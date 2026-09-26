@@ -30,8 +30,8 @@ header-includes:
 This document records the redesign that led to the current experimental shared
 state API. It is a historical design specification, not current usage
 documentation. For supported syntax, start with
-`docs/en/latest/shared_state.mdx` and `docs/shared_state_dsl_manual.md`; use
-`docs/workflow_state_contracts.md` for the current persistence contract.
+the canonical [shared-state manual](https://docs.expectedparrot.com/en/latest/shared_state); use
+the [execution contracts](https://docs.expectedparrot.com/en/latest/coordinated-research/execution-contracts) for the current persistence contract.
 
 The implemented collection name is `SharedStateMap`. The distinction between
 one state and a keyed collection of states remains part of the current design.

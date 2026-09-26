@@ -1,0 +1,142 @@
+---
+title: "References, conditions, and quorum"
+description: "Pass answers between steps, compose conditions, and set completion policies."
+---
+
+This chapter continues the [workflow manual](/en/latest/workflows).
+
+## Typed references
+
+Typed references reduce fragile, handwritten Jinja paths.
+
+### One answer
+
+Use `answer()` when a source step has one relevant submission:
+
+```python
+draft.answer("copy").template
+```
+
+This renders a path under `workflow.answers`.
+
+### All answers from a fan-out step
+
+Use `outputs()` when every submission matters:
+
+```python
+reviews.outputs("decision").template
+```
+
+This renders a list of values under `workflow.outputs`.
+
+### Identity-preserving submissions
+
+Some mechanisms need both identity and answers:
+
+```python
+reports.submissions.template
+```
+
+The rendered structure is conceptually:
+
+```python
+[
+    {
+        "participant_id": "respondent-1",
+        "answers": {"signal": "Red", "forecast": 60},
+    },
+    # ...
+]
+```
+
+Use this only when identity is genuinely required. Anonymous synthesis should
+usually consume `outputs()` instead.
+
+### Fallback references
+
+A branch may produce either an original or revised artifact:
+
+```python
+latest = revision.answer("copy").template_or(draft.answer("copy"))
+```
+
+The fallback is evaluated during survey rendering. It does not execute Python
+at workflow runtime.
+
+## Conditions and branching
+
+Conditions are serializable predicates. A step runs only when its `when`
+condition evaluates true after all condition dependencies settle.
+
+### Answer equality
+
+```python
+approved = review.answer("approved").equals("Yes")
+
+builder.step("publish", ..., when=approved)
+builder.step("revise", ..., when=not_(approved))
+```
+
+`if_(condition)` returns complementary `then` and `otherwise` conditions:
+
+```python
+branch = if_(approved)
+builder.step("publish", ..., when=branch.then)
+builder.step("revise", ..., when=branch.otherwise)
+```
+
+### Boolean composition
+
+```python
+all_of(legal_ok, technical_ok)
+any_of(editorial_ok, emergency_override)
+not_(rejected)
+join_all(a, b)
+join_any(a, b)
+```
+
+`all_of` and `any_of` require at least one argument.
+
+### Aggregate predicates
+
+```python
+votes.outputs("choice").count("Approve").at_least(2)
+votes.outputs("choice").has_disagreement
+votes.outputs("choice").majority_is("Approve")
+estimates.outputs("value").range_at_most(10)
+```
+
+### Stable chance
+
+```python
+chance(0.70, key="continue-after-round-2")
+```
+
+Chance is deterministic for one `(random_seed, key)` pair. The stored seed
+defaults to the instance ID. Pass `coordinator.launch(..., random_seed="replicate-1")`
+to reproduce randomization across new instances. Reevaluation and process restart
+cannot change the draw. This does not control LLM sampling.
+
+## Completion policies and quorum
+
+The default completion policy is `all_assigned()`.
+
+For early fan-in, use quorum:
+
+```python
+votes = builder.step(
+    "moderator-vote",
+    vote_survey,
+    assigned_to=role("moderator"),
+    completion=quorum(2),
+)
+```
+
+Once two submissions complete, outstanding unaccepted work items become
+`superseded`. Already accepted responses finish their effects before the step
+settles; quorum is a minimum rather than a strict response cap. Ordinary `after`
+dependencies then proceed, and `votes.completed` is true. A quorum larger than
+the number of matching participants is rejected during launch.
+
+Quorum does not presently express weighted votes, role-specific quotas, or
+deadline-based partial completion.

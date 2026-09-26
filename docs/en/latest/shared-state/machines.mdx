@@ -1,0 +1,267 @@
+---
+title: "Machines, commands, and views"
+description: "Define fields, atomic transitions, requirements, and participant-visible views."
+---
+
+This chapter continues the [shared-state manual](/en/latest/shared_state).
+Continue with the `activities` list from the [manual introduction](/en/latest/shared_state).
+The first two blocks define the poll used by later chapters; subsequent fragments
+illustrate alternative fields, commands, and views.
+
+## Constructing the Machine
+
+Import the small shared-state language:
+
+```python
+from edsl.sharedstate.dsl import (
+    Machine,
+    Command,
+    T,
+    state_field,
+    constant,
+    field,
+    input_,
+    put,
+)
+```
+
+Define the complete machine:
+
+```python
+activity_poll = Machine(
+    name="ActivityPoll",
+
+    constants={
+        "activities": activities,
+    },
+
+    fields={
+        "votes": state_field(
+            T.map(
+                T.text(),
+                T.choice(constant("activities")),
+            ),
+            initial={},
+        ),
+    },
+
+    commands={
+        "vote": Command(
+            inputs={
+                "voter": T.text(),
+                "activity": T.choice(constant("activities")),
+            },
+            effects=(
+                put(
+                    "votes",
+                    key=input_("voter"),
+                    value=input_("activity"),
+                    once=True,
+                ),
+            ),
+        ),
+    },
+
+    view={
+        "votes": field("votes"),
+        "vote_count": field("votes").length(),
+    },
+)
+```
+
+This definition contains no model calls, database connection, Python callback,
+or survey. It is serializable data describing a state machine.
+
+## Constants
+
+Constants configure a machine but cannot be changed by commands:
+
+```python
+constants={
+    "activities": activities,
+}
+```
+
+Refer to a constant with:
+
+```python
+constant("activities")
+```
+
+This expression means “use the configured `activities` value when the machine
+executes.” It does not immediately retrieve a Python value. Explicit references
+can be validated and serialized.
+
+Constants commonly contain choices, stakes, capacities, participant counts,
+round counts, payoff tables, and mechanism settings.
+
+## Fields
+
+Fields persist between commands:
+
+```python
+"votes": state_field(
+    T.map(
+        T.text(),
+        T.choice(constant("activities")),
+    ),
+    initial={},
+)
+```
+
+This declaration says that `votes` is a map, every key is text, every value is a
+configured activity, and a new poll begins empty.
+
+The initial state is:
+
+```python
+{"votes": {}}
+```
+
+The main field types are:
+
+```python
+T.boolean()
+T.text()
+T.number(minimum=0, maximum=100)
+T.integer(minimum=1)
+T.choice(options)
+T.rank(options)
+T.optional(T.text())
+T.sequence(T.text())
+T.map(T.text(), T.number())
+```
+
+Types are contracts, not comments. EDSL checks initial values and every proposed
+transition against them.
+
+## Commands
+
+A command defines one legal kind of write:
+
+```python
+"vote": Command(
+    inputs={
+        "voter": T.text(),
+        "activity": T.choice(constant("activities")),
+    },
+    effects=(
+        put(
+            "votes",
+            key=input_("voter"),
+            value=input_("activity"),
+            once=True,
+        ),
+    ),
+)
+```
+
+The caller cannot omit an input, invent an extra one, supply a non-text voter,
+or submit an activity outside the configured choices.
+
+`input_("voter")` and `input_("activity")` refer to validated command inputs.
+They form serializable expressions rather than reading Python variables now.
+
+The `put` effect adds one map entry. `once=True` leaves an existing key
+unchanged, giving the poll first-write-wins behavior.
+
+## Effects and atomicity
+
+The ordinary effects are deliberately few:
+
+```python
+set_("field_name", value)
+set_once("field_name", value)
+put("map_field", key, value, once=False)
+append("sequence_field", value)
+when(condition, effect)
+```
+
+A command may contain several effects:
+
+```python
+effects=(
+    set_once("proposer", input_("player")),
+    set_once("offer", input_("amount")),
+    append(
+        "history",
+        record(player=input_("player"), amount=input_("amount")),
+    ),
+)
+```
+
+Every expression reads the same pre-command snapshot. EDSL constructs the
+proposed state, validates all of it, and commits everything together. If
+validation fails, none of the effects are committed. This is essential when
+interviews execute concurrently.
+
+## Requirements
+
+A command can declare when it applies:
+
+```python
+respond = Command(
+    inputs={
+        "decision": T.choice(["accept", "reject"]),
+    },
+    require=field("offer") != None,
+    effects=(
+        set_once("decision", input_("decision")),
+    ),
+)
+```
+
+The responder cannot act before an offer exists. An unmet requirement produces
+no state change.
+
+Writes are accepted for processing atomically. Any returned command status is
+advisory: it is not a durable receipt or a promise that the caller possesses the
+newest state after other concurrent writes.
+
+## Views
+
+Stored fields and participant-visible data are different concepts. A view
+declares exactly what a reader may observe:
+
+```python
+view={
+    "votes": field("votes"),
+    "vote_count": field("votes").length(),
+}
+```
+
+`field("votes")` refers to persistent state. The count is derived rather than
+stored redundantly.
+
+Views can hide information until close:
+
+```python
+from edsl.sharedstate.dsl import choose, current as current_value
+
+view={
+    "ballot_count": field("ballots").length(),
+    "ballots": choose(
+        current_value("closed"),
+        field("ballots"),
+        {},
+    ),
+}
+```
+
+They can depend on the viewer:
+
+```python
+view={
+    "public_price": field("price"),
+    "your_private_value": choose(
+        current_value("viewer.role") == "buyer",
+        field("buyer_value"),
+        None,
+    ),
+}
+```
+
+`current` is an execution-time reference, not Jinja text. The host supplies its
+context. The [language specification](/en/latest/shared-state/semantics) defines
+context typing and permission requirements; the current interpreter does not
+provide a complete static type system or an untrusted-code sandbox.

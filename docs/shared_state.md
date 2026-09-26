@@ -4,8 +4,9 @@ Shared state lets several interviews read and update the same serializable state
 machine. The authoring objects describe behavior and routing; execution storage is
 chosen by EDSL.
 
-For the published quick start, see `docs/en/latest/shared_state.mdx`. For a
-longer construction tutorial, see `docs/shared_state_dsl_manual.md`.
+This implementation overview accompanies the canonical
+[shared-state manual](https://docs.expectedparrot.com/en/latest/shared_state), maintained in Mintlify.
+Use that manual for the complete tutorial and current reference.
 
 ## The four authoring objects
 
@@ -201,7 +202,7 @@ The SQLite backend pins each state ID to its definition and runtime version.
 Changed definitions require a new state ID or an explicitly audited migration.
 Legacy stores without a definition record require verified, explicit adoption
 using `adopt_legacy_definition=True`; this cannot prove their original definition.
-See [Workflow and shared-state execution contracts](workflow_state_contracts.md)
+See [Workflow and shared-state execution contracts](https://docs.expectedparrot.com/en/latest/coordinated-research/execution-contracts)
 for recovery across separate workflow/state databases and rollout guidance.
 
 ## Results provenance

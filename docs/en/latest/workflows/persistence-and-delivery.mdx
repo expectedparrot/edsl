@@ -1,0 +1,173 @@
+---
+title: "Persistence, delivery, and simulation"
+description: "Persist work in SQLite and deliver it through the outbox, Humanize, or simulated respondents."
+---
+
+This chapter continues the [workflow manual](/en/latest/workflows).
+
+## Persistence with SQLite
+
+Create a local durable store:
+
+```python
+store = SQLiteWorkflowStore("runs/my-workflow/workflow.sqlite")
+```
+
+The store maintains these logical records:
+
+| Record | Purpose |
+|---|---|
+| `workflow_instances` | Definition snapshot and overall status |
+| `workflow_participants` | Serialized EDSL agents |
+| `workflow_items` | Per-participant task lifecycle |
+| `workflow_submissions` | Idempotent answers |
+| `workflow_events` | Ordered audit history |
+| `workflow_outbox` | Durable delivery requests |
+| `workflow_external_tasks` | Humanize/provider identifiers |
+| `workflow_item_renders` | Exact rendered survey and state snapshot |
+| `workflow_attempts` | Attempt number, lease, outcome, and error class |
+| `workflow_submission_intents` / `workflow_effects` | Accepted answers and recoverable state effects |
+| `workflow_instance_contracts` | Definition fingerprints and scientific seeds |
+| `workflow_executor_resolutions` / `workflow_model_resolutions` | Pinned routing and concrete model configurations |
+
+The database is initialized additively. Opening an older workflow database
+creates newly introduced tables without deleting existing execution data.
+Resumption still requires compatible pinned definitions; see the version-2
+migration guidance in [execution contracts](/en/latest/coordinated-research/execution-contracts).
+
+## Opening and submitting work
+
+`coordinator.open(item_id)`:
+
+1. verifies that the item is ready or in progress;
+2. loads participant traits;
+3. reads authorized shared state;
+4. assembles prior visible answers and submissions;
+5. evaluates available derived values;
+6. renders every survey question;
+7. saves the exact render and state versions; and
+8. marks the item in progress.
+
+The returned `OpenedWorkItem` contains the rendered survey and execution
+context. Reopening reuses the first saved render and observations, preserving
+survey rules, memory, instructions, and groups. It does not refresh shared state.
+
+Submit an answer with a stable idempotency key:
+
+```python
+coordinator.submit(
+    item_id,
+    {"approved": "Yes"},
+    idempotency_key="humanize:survey-response-uuid",
+)
+```
+
+Submitting the same key for the same item twice produces one durable submission
+and one completion event. Reusing it with different content or for a different
+item raises an error. Leased workers must pass their current `attempt_id`; stale
+workers cannot accept new responses.
+
+## The durable outbox
+
+When an item becomes ready, the coordinator creates an outbox record in the
+same workflow store. Delivery reads only pending records:
+
+```python
+dispatcher = OutboxDispatcher(store, adapter)
+receipts = dispatcher.dispatch()
+```
+
+Each `DeliveryRequest` contains:
+
+```text
+idempotency_key
+instance_id
+work_item_id
+step_name
+participant_id
+```
+
+An adapter must use the idempotency key when its external system supports one.
+The outbox protects the ready decision from a process failure between graph
+evaluation and delivery.
+
+Dispatchers atomically claim each record before calling the adapter and mark
+delivery using the claim token after the adapter returns. Concurrent dispatchers
+cannot deliver the same claimed record. Claims persist in
+`workflow_outbox_claims` across failures and restarts, and do not expire
+automatically: a slow request or a crash after external delivery must not cause
+another invitation.
+
+After stopping the original dispatcher, reconcile an abandoned claim with the
+external provider. If delivery succeeded, call
+`store.mark_delivered(outbox_id, claim_token=token)`. If retry is safe, call
+`store.release_outbox_claim(outbox_id, claim_token=token)` before dispatching
+again. The table records the outbox ID, ownership token, and claim time.
+Humanize does not provide end-to-end exactly-once delivery here; a failure
+between its remote calls and the local task record requires this reconciliation.
+
+## Humanize and real respondents
+
+`HumanizeDeliveryAdapter` is intentionally thin. For each ready item it:
+
+1. opens and renders the participant-specific survey;
+2. creates a private Humanize survey;
+3. creates a delivery;
+4. records the external survey and delivery identifiers; and
+5. returns a delivery receipt.
+
+```python
+adapter = HumanizeDeliveryAdapter(
+    coordinator,
+    subject_prefix="Weekend activity",
+)
+OutboxDispatcher(store, adapter).dispatch()
+```
+
+Later, polling imports completed responses:
+
+```python
+completed_count = adapter.poll_completed()
+```
+
+For each response, the adapter calls `coordinator.submit()`. That submission may
+make new items ready, after which the outbox dispatcher delivers the next wave.
+
+Humanize owns survey presentation, invitations, and response collection. It
+does not need to understand the dependency graph.
+
+## Simulated respondents
+
+The simulation uses the same coordinator and store with an in-memory inbox:
+
+```python
+from edsl import Model
+from edsl.workflows import EDSLAgentAnswerer, WorkflowSimulation
+
+answerer = EDSLAgentAnswerer(
+    Model("gpt-4o-mini", service_name="openai"),
+    run_options={"disable_remote_inference": False},
+)
+
+simulation = WorkflowSimulation(
+    coordinator,
+    {agent.name: agent for agent in participants},
+    answerer,
+)
+simulation.run(instance_id)
+```
+
+`EDSLAgentAnswerer` runs each rendered survey through the ordinary EDSL
+agent/model pipeline. A scripted object implementing `answer(agent, opened)` is
+often better for deterministic tests.
+
+`response_delay` and the virtual clock can model elapsed time without sleeping:
+
+```python
+simulation = WorkflowSimulation(
+    coordinator,
+    agents,
+    answerer,
+    response_delay=timedelta(hours=2),
+)
+```

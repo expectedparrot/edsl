@@ -1,0 +1,222 @@
+---
+title: "Scopes, surveys, and execution"
+description: "Bind machines to groups, order interviews, and inspect persistent state provenance."
+---
+
+This chapter continues the [shared-state manual](/en/latest/shared_state).
+The poll examples build on the `activity_poll` definition in [Machines, commands, and views](/en/latest/shared-state/machines). Alternative fragments are labeled separately.
+
+## Creating one SharedState space
+
+Place the machine in a state definition:
+
+```python
+from edsl import Agent, AgentList, Model, QuestionMultipleChoice, Survey
+from edsl.sharedstate import SharedState, current
+
+group_state = SharedState(
+    poll=activity_poll,
+)
+```
+
+One space now contains a machine named `poll`. The rest of this walkthrough
+uses this definition. The following alternative illustrates multiple machines;
+it requires a `message_log` defined as in [Collections and lifecycle](/en/latest/shared-state/collections-and-lifecycle):
+
+```python
+group_state = SharedState(
+    poll=activity_poll,
+    comments=message_log,
+)
+```
+
+The poll and message log have separate fields and commands but share one scope
+lifecycle. No file path appears here: this defines state, not storage.
+
+## Creating many scopes with SharedStateMap
+
+Most simulations need one independent space per group:
+
+```python
+from edsl.sharedstate import SharedStateMap
+
+groups = SharedStateMap(group_state)
+```
+
+Conceptually, it is a dictionary:
+
+```python
+{
+    "family-1": SharedState(...),
+    "family-2": SharedState(...),
+    "family-3": SharedState(...),
+}
+```
+
+Spaces need not all be created in advance. Selecting a new key can create its
+initial state:
+
+```python
+family_1 = groups.by("family-1")
+family_2 = groups.by("family-2")
+```
+
+In a survey, selection usually comes from agent traits:
+
+```python
+family = groups.by(current.agent.family_id)
+```
+
+One `SharedStateMap` contains many scopes. One `SharedState` contains the named
+machines within a scope.
+
+## Connecting the poll to a survey
+
+Define the question:
+
+```python
+activity = QuestionMultipleChoice(
+    question_name="activity",
+    question_text="""
+        Current votes:
+        {{ shared_state.poll.votes }}
+
+        Which activity would you most prefer?
+        """,
+    question_options=activities,
+)
+```
+
+Jinja belongs inside the presentation. State commands use typed references.
+
+Put an explicit read before the question and the write after it:
+
+```python
+family = groups.by(current.agent.family_id)
+
+survey = Survey([
+    family.poll.read(),
+    activity,
+    family.poll.vote(
+        voter=current.agent.name,
+        activity=activity.answer,
+    ),
+])
+```
+
+Read the sequence literally:
+
+1. read this family's poll;
+2. ask the question using that snapshot;
+3. submit the answer as a vote.
+
+`activity.answer` means the validated answer to this question. It is not a
+placeholder string.
+
+## Why reads are explicit
+
+A state value rendered when a survey launches can be stale before a participant
+reaches the question. `family.poll.read()` states exactly when freshness
+matters.
+
+Every read is logged at the `Results` level with a read ID, selected scope,
+machine name, snapshot ID, interview ID, and survey position. This supports
+auditing without promising that a snapshot remains newest after it is read.
+
+## Agent grouping and scheduling
+
+Scope and schedule fields are ordinary agent traits:
+
+```python
+people = AgentList([
+    Agent(name="Amina", traits={"family_id": "family-1", "turn": 1}),
+    Agent(name="Boris", traits={"family_id": "family-1", "turn": 2}),
+    Agent(name="Chen", traits={"family_id": "family-2", "turn": 1}),
+    Agent(name="Daria", traits={"family_id": "family-2", "turn": 2}),
+])
+```
+
+The serializable schedule consumes those trait names:
+
+```python
+from edsl import InterviewSchedule
+
+schedule = InterviewSchedule.grouped_round_robin(
+    group_by="family_id",
+    order_by="turn",
+)
+```
+
+Different families may run concurrently. Within a family, the schedule controls
+turn order. The state definition does not schedule interviews.
+
+## Storage and execution
+
+Attach storage when executing, not when defining data:
+
+```python
+model = Model("test", canned_response="hike")
+
+job = (
+    survey
+    .by(people)
+    .by(model)
+)
+
+results = job.run(
+    interview_schedule=schedule,
+    offload_execution=False,
+    disable_remote_inference=True,
+    disable_remote_cache=True,
+)
+```
+
+The test model supplies a deterministic `hike` answer without an API key or model
+call. Replace it with a configured model for real responses.
+
+The survey's explicit state steps carry the serializable definition and state
+ID; no database handle belongs in the job definition. Local execution manages a
+SQLite state service. Remote execution creates or attaches to a remote store and
+sends a durable reference with the job:
+
+```python
+# Use a real, configured model for remote inference.
+# This submits a remote job and may incur model costs.
+results = survey.by(people).by(Model("gpt-4o-mini")).run(
+    interview_schedule=schedule,
+    offload_execution=True,
+)
+```
+
+`Results` contains state provenance for each binding:
+
+```python
+binding = results.shared_state["bindings"][0]
+binding["entry_snapshots"]
+binding["events"]
+binding["exit_snapshots"]
+```
+
+Entry and exit values are snapshots; reads and writes appear in the ordered
+event history. Together they record which state the run inherited, what it did,
+and what state it left behind.
+
+When binding a state map directly to `SQLiteStateBackend`, the backend records
+the serialized definition fingerprint. Reopening the path with a behaviorally
+different definition is an error. Databases created before fingerprints existed
+require an explicit, audited `adopt_legacy_definition=True`; normal execution
+never silently adopts them.
+
+Write retries are content-bound. Reusing the same operation identity with the
+same inputs and runtime context returns the earlier outcome. Reusing it with
+different content is an error, preventing an idempotency retry from becoming a
+different scientific action.
+
+### Fresh state versus resuming state
+
+A new `SharedStateMap(group_state)` generates a new state ID. Reusing a saved map
+preserves its ID and reconnects to its stored state. Use a new map for an
+independent experiment; preserve the serialized map and its definition when
+resuming one. Reusing a poll's ID can retain earlier first-write-wins ballots.
+Scope keys such as `family-1` isolate groups *within* that map; they do not reset
+its data between runs.

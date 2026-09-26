@@ -1,0 +1,137 @@
+---
+title: "Algorithms, constructors, and validation"
+description: "Use registered algorithms, convenience constructors, and an authoring checklist."
+---
+
+This chapter continues the [shared-state manual](/en/latest/shared_state).
+
+## Registered algorithms
+
+Most structures use fields, commands, effects, and pure expressions. A few
+mechanisms require an iterative algorithm:
+
+- LMSR market settlement;
+- serial dictatorship;
+- deferred acceptance;
+- double-auction matching.
+
+They use reviewed, versioned EDSL capabilities:
+
+```python
+from edsl.sharedstate.dsl import algorithm
+
+close_effects=(
+    algorithm(
+        "deferred_acceptance",
+        requests=field("requests"),
+        capacities=constant("capacities"),
+        priorities=constant("priorities"),
+    ),
+)
+```
+
+An algorithm is not an arbitrary callback. It accepts typed data, has no I/O
+authority and produces a state proposal that must pass validation before commit.
+General execution-cost and collection-size limits are conformance targets, not
+guarantees of the current interpreter.
+
+## Convenience constructors—only now
+
+The explicit activity poll is a common pattern. A future convenience layer
+could offer a shorter constructor. **The following `recipes` API is a design
+illustration and is not implemented or importable in this release.** Use the
+explicit `Machine` definitions in this manual today:
+
+```python
+from edsl.sharedstate import recipes
+
+short_poll = recipes.register(
+    key_type=T.text(),
+    value_type=T.choice(activities),
+    write="once",
+)
+```
+
+Such a constructor would be a factory returning an ordinary `Machine`
+equivalent to the `ActivityPoll` definition above, not a new execution system.
+
+Likewise:
+
+```python
+comments = recipes.log(
+    entry={"author": T.text(), "text": T.text()},
+)
+```
+
+would be shorthand for a machine with a sequence field and append command.
+The returned machine would support ordinary serialization:
+
+```python
+print(short_poll.to_json())
+```
+
+If a convenience constructor cannot be explained by showing its expanded
+machine, it is too magical for this API.
+
+## Validation and security
+
+Machine definitions are serialized data. The current implementation checks
+operator and type names, argument counts, finite JSON values, and the complete
+proposed state before committing. Initial values and transitions are validated
+against declared recursive types.
+
+The [language specification](/en/latest/shared-state/semantics) additionally
+requires complete reference/type analysis, context permissions, and limits on
+expression depth, collection size, state size, and execution cost. Those are
+conformance requirements, not a claim that the current interpreter implements
+a complete static type system or a resource sandbox. See the
+[execution contracts](/en/latest/coordinated-research/execution-contracts) before
+using untrusted definitions or relying on a confidentiality boundary.
+
+The DSL has no imports, `eval`, reflection, unrestricted attribute access,
+filesystem access, network access, user callbacks, or general loops.
+
+## Authoring checklist
+
+Before coding, answer:
+
+1. What persistent values exist?
+2. What type does each have?
+3. What is the initial state?
+4. Which commands can change it?
+5. What inputs does each command accept?
+6. When is each command allowed?
+7. Which writes are first-write-wins?
+8. What may each participant see?
+9. When must state be refreshed?
+10. When is the activity complete?
+11. What happens at close?
+12. Is a registered iterative algorithm truly necessary?
+
+Test the machine before connecting it to a survey:
+
+- initial and empty views;
+- valid transitions and invalid inputs;
+- duplicate and retried writes;
+- concurrent conflicts;
+- viewer-specific privacy;
+- completion and repeated close;
+- serialization round trips;
+- state and computational limits.
+
+## Conclusion
+
+Shared state is not a special-purpose game object or a Python callback hidden in
+a survey. It is a typed, serializable state machine:
+
+```text
+constants + fields + commands + views
+```
+
+`SharedState` gives machines one concrete space. `SharedStateMap` supplies as
+many independent scopes as the simulation needs. Explicit survey steps read and
+write the selected scope. Storage and concurrency are attached later without
+changing the logical definition.
+
+Once that foundation is clear, standard recipes are welcome—but only as short,
+inspectable constructors for machines the reader already knows how to build.

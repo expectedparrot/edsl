@@ -1,0 +1,120 @@
+---
+title: "Visibility and shared state"
+description: "Control respondent observations and integrate explicit shared-state reads and effects."
+---
+
+This chapter continues the [workflow manual](/en/latest/workflows).
+
+## Output visibility and confidentiality
+
+By default, a step's outputs are available to downstream assignees. Restrict
+them with `visible_to`:
+
+```python
+sealed = builder.step(
+    "sealed-bid",
+    bid_survey,
+    assigned_to=role("vendor"),
+    visible_to=role("buyer"),
+)
+```
+
+Several roles may be authorized:
+
+```python
+visible_to=(role("expert"), role("facilitator"))
+```
+
+During compilation, EDSL rejects a typed reference when the consumer's selector
+can never satisfy the source visibility policy. Visibility also propagates
+through derived values: computing a mean from sealed bids does not make that
+mean public automatically.
+
+The runtime also excludes unauthorized fields from the rendering context,
+including whole-container or dynamic access. An explicit participant-keyed
+`for_participant()` projection exposes only the recipient's entry, not unrelated
+private fields. Source outputs enter the context only after the source settles.
+
+For fan-out steps that need a participant's own prior submission and the peer
+submissions separately, declare a participant-relative view:
+
+```python
+prior = first.submissions.for_current_participant("prior")
+revision = QuestionFreeText(
+    question_name="revision",
+    question_text=f"Your response: {prior.own}; peers: {prior.others}",
+)
+builder.step(
+    "revise",
+    Survey([revision]),
+    assigned_to=role("respondent"),
+    after=first,
+    participant_views=(prior,),
+)
+```
+
+This projection preserves participant identity without exposing a different
+participant's answer as the current participant's own. It inherits the source
+step's visibility policy and is available only after the source settles.
+
+This is not a complete security system or an untrusted-template sandbox.
+Operational deployments must also secure SQLite files, application
+logs, email content, Humanize access, credentials, and administrator tooling.
+
+An explicit anonymity policy with pseudonyms and identity audit rules remains a
+future extension. Today, anonymous synthesis is expressed by sending answer
+values without `participant_id` and limiting source visibility.
+
+## Shared state inside workflows
+
+Dependencies move information between steps. Shared state provides durable,
+typed resources that several steps may read or update.
+
+Two convenience resources are available:
+
+```python
+from edsl.workflows import Artifact, Collection
+
+submission = Artifact("paper-submission")
+reviews = Collection("paper-reviews")
+```
+
+An artifact is a write-once text value. A collection is an append-only sequence
+of actor/value records. Both are ordinary `SharedStateMap` definitions.
+
+A step declares its accesses:
+
+```python
+paper = submission.by("paper-1").artifact
+review_log = reviews.by("paper-1").collection
+
+builder.step(
+    "submit",
+    submission_survey,
+    assigned_to=role("author"),
+    writes=(paper.submit(value=submission_question.answer),),
+)
+
+builder.step(
+    "review",
+    review_survey,
+    assigned_to=role("reviewer"),
+    after=submit,
+    reads=(paper.read(),),
+    writes=(
+        review_log.add(
+            actor=current.agent.name,
+            value=review_question.answer,
+        ),
+    ),
+)
+```
+
+The coordinator renders reads into `shared_state` and records the observed state
+versions. It accepts an immutable answer and effect intents before applying any
+writes. Pending effects are replayed after failure; an accepted answer is never
+regenerated for recovery. A permanent effect failure leaves the item `committing`
+for operator repair. Separate state databases do not form one atomic transaction.
+
+Continue with the [shared-state manual](/en/latest/shared_state) and
+[language specification](/en/latest/shared-state/semantics).

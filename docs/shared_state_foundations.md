@@ -29,9 +29,8 @@ header-includes:
 
 This is a historical foundation document and uses an earlier prototype API such
 as `SharedRegister`. It is retained as a design record, not as current usage
-documentation. For supported syntax, start with `docs/en/latest/shared_state.mdx`
-and `docs/shared_state_dsl_manual.md`. Persistence and recovery guarantees are
-specified in `docs/workflow_state_contracts.md`.
+documentation. For supported syntax, start with the canonical [shared-state manual](https://docs.expectedparrot.com/en/latest/shared_state). Persistence and recovery guarantees are
+specified in the [execution contracts](https://docs.expectedparrot.com/en/latest/coordinated-research/execution-contracts).
 
 # Why shared state exists
 
