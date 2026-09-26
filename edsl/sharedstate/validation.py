@@ -1,7 +1,7 @@
-"""Scope checking and conservative record-shape analysis for Machine authoring.
+"""Conservative scope, operand, record-shape and loop-contract analysis.
 
-This is not a complete type checker: unknown or dynamic shapes stay unknown.
-Only references and record members that are provably invalid are rejected.
+Unknown shapes and value-dependent constraints remain runtime checked. This
+implements a gradual subset of the formal type rules, not complete inference.
 """
 
 from dataclasses import fields, is_dataclass
@@ -30,10 +30,37 @@ def _kind(shape):
 
 
 def _join(shapes):
+    """Widen compatible branches without inventing guarantees for mixed values."""
     if not shapes:
         return T.any()
-    first = shapes[0]
-    return first if all(s.to_dict() == first.to_dict() for s in shapes[1:]) else T.any()
+    result = shapes[0]
+    for other in shapes[1:]:
+        left, right = _kind(result), _kind(other)
+        if result.to_dict() == other.to_dict():
+            continue
+        if {left, right} <= {"integer", "number"}:
+            result = T.number()
+        elif left == right == "sequence":
+            result = T.sequence(_join([result.kwargs["item"], other.kwargs["item"]]))
+        elif (
+            left == right == "record"
+            and result.kwargs["fields"].keys() == other.kwargs["fields"].keys()
+        ):
+            result = T.record(
+                {
+                    k: _join([v, other.kwargs["fields"][k]])
+                    for k, v in result.kwargs["fields"].items()
+                },
+                allow_extra=result.kwargs["allow_extra"] or other.kwargs["allow_extra"],
+            )
+        elif left == right == "map":
+            result = T.map(
+                _join([result.kwargs["key"], other.kwargs["key"]]),
+                _join([result.kwargs["value"], other.kwargs["value"]]),
+            )
+        else:
+            result = T.any()
+    return result
 
 
 def _literal_shape(value):
@@ -79,6 +106,41 @@ class _References:
         if _kind(shape) == "map":
             return shape.kwargs["value"]
         return T.any()
+
+    def expect(self, shape, kinds, path, operation):
+        # Optional values and choice domains need flow/value analysis. They and
+        # unknown shapes stay runtime-checked rather than rejecting valid guards.
+        kind = _kind(shape)
+        if kind not in kinds | {"any", "optional", "choice"}:
+            self.fail(
+                path, f"{operation} requires {' or '.join(sorted(kinds))}; got {kind}"
+            )
+
+    def compatible(self, actual, expected, path):
+        kind, target = _kind(actual), _kind(expected)
+        if kind in {"any", "choice", "optional"} or target == "any":
+            return
+        if target == "optional":
+            return self.compatible(actual, expected.kwargs["item"], path)
+        if kind == "record" and target == "record":
+            members, required = actual.kwargs["fields"], expected.kwargs["fields"]
+            if required.keys() - members.keys() or (
+                not expected.kwargs["allow_extra"] and members.keys() - required.keys()
+            ):
+                self.fail(
+                    path, "accumulator record fields do not match declared invariant"
+                )
+            for name in required.keys() & members.keys():
+                self.compatible(members[name], required[name], path + f".{name}")
+        elif kind == target == "sequence":
+            self.compatible(actual.kwargs["item"], expected.kwargs["item"], path)
+        elif kind == target == "map":
+            self.compatible(actual.kwargs["key"], expected.kwargs["key"], path)
+            self.compatible(actual.kwargs["value"], expected.kwargs["value"], path)
+        elif kind == "map" and target == "record":
+            return  # Literal dictionaries have open shapes; validate at runtime.
+        elif kind != target and not (kind == "integer" and target == "number"):
+            self.fail(path, f"accumulator invariant requires {target}; got {kind}")
 
     def bind(self, expr, names, path):
         values = [expr.kwargs[key] for key in names]
@@ -167,9 +229,12 @@ class _References:
                     inputs,
                 )
             if op == "fold":
-                # A body may change accumulator shape between visits. Checking
-                # invariants needs fixed-point analysis; do not assume the seed
-                # type holds for every iteration.
+                self.expect(args[0], {"sequence", "rank"}, path, op)
+                invariant = value.kwargs.get("accumulator_type", T.any())
+                self.expression(
+                    invariant, path + ".kwargs['accumulator_type']", locals_, inputs
+                )
+                self.compatible(args[1], invariant, path + ".args[1]")
                 item, accumulator = self.bind(value, ("item", "accumulator"), path)
                 item_shape = (
                     args[0].kwargs["item"] if _kind(args[0]) == "sequence" else T.any()
@@ -177,27 +242,45 @@ class _References:
                 body = self.expression(
                     value.kwargs["body"],
                     path + ".kwargs['body']",
-                    locals_ | {item: item_shape, accumulator: T.any()},
+                    locals_ | {item: item_shape, accumulator: invariant},
                     inputs,
                 )
-                return _join([args[1], body])
+                self.compatible(body, invariant, path + ".kwargs['body']")
+                return (
+                    invariant
+                    if "accumulator_type" in value.kwargs
+                    else _join([args[1], body])
+                )
             if op == "iterate":
                 (name,) = self.bind(value, ("state",), path)
-                self.expression(
+                limit = self.expression(
                     value.kwargs["max_steps"],
                     path + ".kwargs['max_steps']",
                     locals_,
                     inputs,
                 )
-                nested = locals_ | {name: T.any()}
+                self.expect(limit, {"integer"}, path, "iterate max_steps")
+                invariant = value.kwargs.get("state_type", T.any())
                 self.expression(
+                    invariant, path + ".kwargs['state_type']", locals_, inputs
+                )
+                self.compatible(args[0], invariant, path + ".args[0]")
+                nested = locals_ | {name: invariant}
+                condition = self.expression(
                     value.kwargs["until"], path + ".kwargs['until']", nested, inputs
                 )
                 body = self.expression(
                     value.kwargs["step"], path + ".kwargs['step']", nested, inputs
                 )
-                return _join([args[0], body])
+                self.expect(condition, {"boolean"}, path, "iterate until")
+                self.compatible(body, invariant, path + ".kwargs['step']")
+                return (
+                    invariant
+                    if "state_type" in value.kwargs
+                    else _join([args[0], body])
+                )
             if op == "map_items":
+                self.expect(args[0], {"map", "record"}, path, op)
                 key, item = self.bind(value, ("key", "value"), path)
                 shape = args[0]
                 if _kind(shape) == "map":
@@ -222,6 +305,7 @@ class _References:
                     inputs,
                 )
                 return T.map(k if _kind(k) in {"text", "choice"} else T.any(), v)
+            self.expect(args[0], {"sequence", "rank"}, path, op)
             (item,) = self.bind(value, ("item",), path)
             shape = args[0].kwargs["item"] if _kind(args[0]) == "sequence" else T.any()
             body_key = "predicate" if op == "filter_items" else "value_expr"
@@ -237,18 +321,112 @@ class _References:
             k: self.expression(v, f"{path}.kwargs[{k!r}]", locals_, inputs)
             for k, v in value.kwargs.items()
         }
+        numeric = {"integer", "number"}
+        if op in {"subtract", "divide", "absolute", "exp"}:
+            for shape in args:
+                self.expect(shape, numeric, path, op)
+            return T.number()
+        if op == "add":
+            for shape in args:
+                self.expect(shape, numeric | {"text", "sequence"}, path, op)
+            if all(_kind(shape) not in {"any", "optional", "choice"} for shape in args):
+                if (
+                    _kind(args[0]) != _kind(args[1])
+                    and not {_kind(s) for s in args} <= numeric
+                ):
+                    self.fail(
+                        path,
+                        "add requires matching numeric, text, or sequence operands",
+                    )
+            return _join(args)
+        if op == "multiply":
+            for shape in args:
+                self.expect(shape, numeric | {"text", "sequence"}, path, op)
+            known = [_kind(s) for s in args]
+            if all(k not in {"any", "optional", "choice"} for k in known):
+                if not set(known) <= numeric and not (
+                    "integer" in known and ({"text", "sequence"} & set(known))
+                ):
+                    self.fail(
+                        path,
+                        "multiply requires numbers or a sequence/text and an integer",
+                    )
+            return next(
+                (s for s in args if _kind(s) in {"text", "sequence"}), _join(args)
+            )
+        if op in {
+            "equals",
+            "not_equals",
+            "less_than",
+            "at_most",
+            "greater_than",
+            "at_least",
+            "and",
+            "or",
+            "not",
+            "contains",
+        }:
+            # Boolean combinators intentionally use Python truthiness.
+            if op in {"less_than", "at_most", "greater_than", "at_least"}:
+                for shape in args:
+                    self.expect(shape, numeric | {"text", "sequence"}, path, op)
+                kinds = {_kind(s) for s in args}
+                if (
+                    not kinds & {"any", "optional", "choice"}
+                    and len(kinds) > 1
+                    and not kinds <= numeric
+                ):
+                    self.fail(path, f"{op} requires comparable operands")
+            return T.boolean()
+        if op in {"strip", "casefold"}:
+            self.expect(args[0], {"text"}, path, op)
+            return T.text()
+        if op == "concat":
+            return T.text()
+        if op == "length":
+            self.expect(
+                args[0], {"sequence", "rank", "map", "record", "text"}, path, op
+            )
+            return T.integer()
+        if op in {"get", "values", "put_value"}:
+            self.expect(args[0], {"map", "record"}, path, op)
+        if op in {
+            "first",
+            "at",
+            "take",
+            "drop_first",
+            "append_value",
+            "remove_value",
+            "logsumexp",
+        }:
+            self.expect(args[0], {"sequence", "rank"}, path, op)
+        if op == "take":
+            self.expect(args[1], {"integer"}, path, op)
+        if op == "logsumexp":
+            if _kind(args[0]) == "sequence":
+                self.expect(args[0].kwargs["item"], numeric, path, op)
+            return T.number()
         if op == "type":
             return value
         if op == "record":
             return T.record(kwargs)
         if op == "get":
             return (
-                self.member(args[0], value.args[1], path)
+                (
+                    self.member(args[0], value.args[1], path)
+                    if _kind(args[0]) == "record"
+                    else _join([self.member(args[0], value.args[1], path), args[2]])
+                )
                 if isinstance(value.args[1], str)
-                else T.any()
+                else (
+                    _join([args[0].kwargs["value"], args[2]])
+                    if _kind(args[0]) == "map"
+                    else T.any()
+                )
             )
         if op in {"first", "at"}:
-            return args[0].kwargs["item"] if _kind(args[0]) == "sequence" else T.any()
+            item = args[0].kwargs["item"] if _kind(args[0]) == "sequence" else T.any()
+            return _join([item, args[1]]) if op == "first" else item
         if op in {"take", "drop_first", "remove_value"}:
             return args[0]
         if op == "append_value":

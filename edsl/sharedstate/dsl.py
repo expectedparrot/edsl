@@ -181,18 +181,48 @@ def let(name: str, value: Any, body: Any) -> Expr:
 
 
 def fold(
-    collection: Any, initial: Any, *, item: str, accumulator: str, body: Any
+    collection: Any,
+    initial: Any,
+    *,
+    item: str,
+    accumulator: str,
+    body: Any,
+    accumulator_type: Expr | None = None,
 ) -> Expr:
     """Visit a sequence in order, carrying a value between iterations."""
     return expr(
-        "fold", collection, initial, item=item, accumulator=accumulator, body=body
+        "fold",
+        collection,
+        initial,
+        item=item,
+        accumulator=accumulator,
+        body=body,
+        **(
+            {"accumulator_type": accumulator_type}
+            if accumulator_type is not None
+            else {}
+        ),
     )
 
 
-def iterate(initial: Any, *, state: str, until: Any, step: Any, max_steps: Any) -> Expr:
+def iterate(
+    initial: Any,
+    *,
+    state: str,
+    until: Any,
+    step: Any,
+    max_steps: Any,
+    state_type: Expr | None = None,
+) -> Expr:
     """Compute until a Boolean condition holds; exhaustion fails, never truncates."""
     return expr(
-        "iterate", initial, state=state, until=until, step=step, max_steps=max_steps
+        "iterate",
+        initial,
+        state=state,
+        until=until,
+        step=step,
+        max_steps=max_steps,
+        **({"state_type": state_type} if state_type is not None else {}),
     )
 
 
@@ -356,6 +386,9 @@ class Machine:
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "Machine":
+        from .resources import Budget, ExecutionLimits
+
+        Budget(ExecutionLimits()).tree(data, ast=True)
         if data.get("version", 1) != 1:
             raise ValueError("unsupported machine language version")
         constants = decode(data["constants"])
@@ -402,12 +435,26 @@ class Machine:
 
     @classmethod
     def from_json(cls, payload: str) -> "Machine":
-        return cls.from_dict(json.loads(payload))
+        from .resources import Budget, ExecutionLimits, ResourceLimitError
+
+        budget = Budget(ExecutionLimits())
+        budget.check("max_value_bytes", len(payload))
+        budget.check("max_value_bytes", len(payload.encode("utf-8")))
+        try:
+            data = json.loads(payload)
+        except RecursionError as exc:
+            raise ResourceLimitError(
+                "Machine JSON nesting exceeds decoder limits"
+            ) from exc
+        return cls.from_dict(data)
 
     def validate(self) -> None:
         from .exceptions import MachineValidationError
 
+        from .resources import check_machine_tree
+
         try:
+            check_machine_tree(self)
             self._validate()
         except MachineValidationError:
             raise
@@ -613,8 +660,18 @@ class Machine:
                         "iterate": ("state",),
                     }.get(item.op)
                     if binding_options:
-                        if set(item.kwargs) != required:
+                        contract = {
+                            "fold": "accumulator_type",
+                            "iterate": "state_type",
+                        }.get(item.op)
+                        if (
+                            set(item.kwargs)
+                            - required
+                            - ({contract} if contract else set())
+                        ):
                             raise ValueError(f"unknown {item.op} options")
+                        if contract in item.kwargs:
+                            _validate_type_expression(item.kwargs[contract])
                         names = [item.kwargs[key] for key in binding_options]
                         if any(
                             not isinstance(name, str) or not name.isidentifier()

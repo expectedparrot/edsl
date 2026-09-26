@@ -11,6 +11,12 @@ from typing import Any, Callable
 from edsl._data_contracts import validate_data
 
 from .dsl import Command, Effect, Expr, Machine, _validate_type_expression
+from .resources import (
+    ExecutionLimits,
+    BoundedCollection,
+    bounded_operation,
+    _active_budget,
+)
 
 
 class DSLValidationError(ValueError):
@@ -37,7 +43,8 @@ Algorithm = Callable[[dict[str, Any], dict[str, Any], dict[str, Any]], None]
 
 
 class Runtime:
-    def __init__(self):
+    def __init__(self, *, limits: ExecutionLimits | None = None):
+        self.limits = limits or ExecutionLimits()
         self.algorithms: dict[tuple[str, int], Algorithm] = {}
         self.validators: dict[tuple[str, int], Callable] = {}
 
@@ -98,15 +105,18 @@ class Runtime:
             raise DSLValidationError(f"matrix answer is missing rows {missing!r}")
         return decoded
 
+    @bounded_operation
     def initial_state(self, spec: Machine) -> dict[str, Any]:
         context = {"constant": spec.constants, "state": {}, "input": {}, "current": {}}
         result: dict[str, Any] = {}
         context["state"] = result
         for name, definition in spec.fields.items():
             result[name] = deepcopy(self.evaluate(definition.initial, context))
+            _active_budget.get().tree(result)
         validate_data(result, path="initial state")
         return result
 
+    @bounded_operation
     def execute(
         self,
         spec: Machine,
@@ -142,7 +152,10 @@ class Runtime:
             )
 
         before = deepcopy(working)
-        outcomes = [self._apply(effect, working, context) for effect in command.effects]
+        outcomes = []
+        for effect in command.effects:
+            outcomes.append(self._apply(effect, working, context))
+            _active_budget.get().tree(working)
         state_context = context | {"state": working}
         for field_name, definition in spec.fields.items():
             self._validate_type(
@@ -159,6 +172,7 @@ class Runtime:
             },
         )
 
+    @bounded_operation
     def render_view(
         self,
         spec: Machine,
@@ -173,12 +187,13 @@ class Runtime:
             "input": {},
             "current": (current or {}) | {"closed": closed},
         }
-        result = {
-            name: self.evaluate(value, context) for name, value in spec.view.items()
-        }
-        validate_data(result, path="state view")
-        return result
+        result = BoundedCollection(mapping=True)
+        for name, value in spec.view.items():
+            result.put(name, self.evaluate(value, context))
+        validate_data(result.value, path="state view")
+        return result.value
 
+    @bounded_operation
     def close(self, spec: Machine, state: dict[str, Any]) -> dict[str, Any]:
         working = deepcopy(state)
         context = {
@@ -189,6 +204,7 @@ class Runtime:
         }
         for effect in spec.close_effects:
             self._apply(effect, working, context)
+            _active_budget.get().tree(working)
         state_context = context | {"state": working}
         for field_name, definition in spec.fields.items():
             self._validate_type(
@@ -196,6 +212,7 @@ class Runtime:
             )
         return working
 
+    @bounded_operation
     def complete(self, spec: Machine, state: dict[str, Any]) -> bool:
         if spec.complete_when is None:
             return False
@@ -211,14 +228,26 @@ class Runtime:
             )
         )
 
+    @bounded_operation
     def evaluate(self, value: Any, context: dict[str, Any]) -> Any:
+        budget = _active_budget.get()
+        budget.charge()
+        result = self._evaluate(value, context)
+        budget.tree(result)
+        return result
+
+    def _evaluate(self, value: Any, context: dict[str, Any]) -> Any:
         if not isinstance(value, Expr):
             if isinstance(value, dict):
-                return {
-                    key: self.evaluate(item, context) for key, item in value.items()
-                }
+                result = BoundedCollection(mapping=True)
+                for key, item in value.items():
+                    result.put(key, self.evaluate(item, context))
+                return result.value
             if isinstance(value, (tuple, list)):
-                return [self.evaluate(item, context) for item in value]
+                result = BoundedCollection()
+                for item in value:
+                    result.append(self.evaluate(item, context))
+                return result.value
             return value
 
         if value.op == "let":
@@ -233,6 +262,9 @@ class Runtime:
             if not isinstance(collection, (list, tuple)):
                 raise DSLValidationError("fold requires a sequence")
             accumulated = self.evaluate(value.args[1], context)
+            invariant = value.kwargs.get("accumulator_type")
+            if invariant is not None:
+                self._validate_type("fold accumulator", accumulated, invariant, context)
             for item in collection:
                 nested = context | {
                     "local": context.get("local", {})
@@ -242,6 +274,10 @@ class Runtime:
                     }
                 }
                 accumulated = self.evaluate(value.kwargs["body"], nested)
+                if invariant is not None:
+                    self._validate_type(
+                        "fold accumulator", accumulated, invariant, context
+                    )
             return accumulated
 
         if value.op == "iterate":
@@ -255,6 +291,9 @@ class Runtime:
                     "iterate max_steps must be an integer from 0 to 100000"
                 )
             accumulated = self.evaluate(value.args[0], context)
+            invariant = value.kwargs.get("state_type")
+            if invariant is not None:
+                self._validate_type("iterate state", accumulated, invariant, context)
             for index in range(limit + 1):
                 nested = context | {
                     "local": context.get("local", {})
@@ -270,46 +309,37 @@ class Runtime:
                         "iterate exhausted max_steps before reaching its condition"
                     )
                 accumulated = self.evaluate(value.kwargs["step"], nested)
+                if invariant is not None:
+                    self._validate_type(
+                        "iterate state", accumulated, invariant, context
+                    )
 
         if value.op == "map_items":
             collection = self.evaluate(value.args[0], context)
-            result = {}
+            result = BoundedCollection(mapping=True)
             for key, item in collection.items():
                 nested = context | {
                     "local": context.get("local", {})
                     | {value.kwargs["key"]: key, value.kwargs["value"]: item}
                 }
-                result[self.evaluate(value.kwargs["key_expr"], nested)] = self.evaluate(
-                    value.kwargs["value_expr"], nested
+                result.put(
+                    self.evaluate(value.kwargs["key_expr"], nested),
+                    self.evaluate(value.kwargs["value_expr"], nested),
                 )
-            return result
+            return result.value
 
-        if value.op == "filter_items":
+        if value.op in {"filter_items", "map_sequence"}:
             collection = self.evaluate(value.args[0], context)
-            return [
-                item
-                for item in collection
-                if self.evaluate(
-                    value.kwargs["predicate"],
-                    context
-                    | {
-                        "local": context.get("local", {}) | {value.kwargs["item"]: item}
-                    },
-                )
-            ]
-
-        if value.op == "map_sequence":
-            collection = self.evaluate(value.args[0], context)
-            return [
-                self.evaluate(
-                    value.kwargs["value_expr"],
-                    context
-                    | {
-                        "local": context.get("local", {}) | {value.kwargs["item"]: item}
-                    },
-                )
-                for item in collection
-            ]
+            result = BoundedCollection()
+            for item in collection:
+                nested = context | {
+                    "local": context.get("local", {}) | {value.kwargs["item"]: item}
+                }
+                if value.op == "map_sequence":
+                    result.append(self.evaluate(value.kwargs["value_expr"], nested))
+                elif self.evaluate(value.kwargs["predicate"], nested):
+                    result.append(item)
+            return result.value
 
         if value.op == "if":
             condition = self.evaluate(value.args[0], context)
@@ -327,10 +357,13 @@ class Runtime:
                 or self.evaluate(value.args[1], context)
             )
 
-        args = [self.evaluate(item, context) for item in value.args]
-        kwargs = {
-            key: self.evaluate(item, context) for key, item in value.kwargs.items()
-        }
+        arguments = BoundedCollection()
+        for item in value.args:
+            arguments.append(self.evaluate(item, context))
+        options = BoundedCollection(mapping=True)
+        for key, item in value.kwargs.items():
+            options.put(key, self.evaluate(item, context))
+        args, kwargs = arguments.value, options.value
         op = value.op
         if op == "ref":
             namespace = value.kwargs["namespace"]
@@ -384,10 +417,37 @@ class Runtime:
         if op == "map_of":
             return {pair[0]: pair[1] for pair in args}
         if op == "add":
+            if isinstance(args[0], (str, list, tuple)) and isinstance(
+                args[1], type(args[0])
+            ):
+                budget = _active_budget.get()
+                total = len(args[0]) + len(args[1])
+                budget.check(
+                    (
+                        "max_value_bytes"
+                        if isinstance(args[0], str)
+                        else "max_collection_items"
+                    ),
+                    6 * total + 2 if isinstance(args[0], str) else total,
+                )
             return args[0] + args[1]
         if op == "subtract":
             return args[0] - args[1]
         if op == "multiply":
+            budget = _active_budget.get()
+            for sequence, count in (args, args[::-1]):
+                if isinstance(sequence, (str, list, tuple)) and isinstance(count, int):
+                    total = len(sequence) * max(0, count)
+                    budget.check(
+                        (
+                            "max_value_bytes"
+                            if isinstance(sequence, str)
+                            else "max_collection_items"
+                        ),
+                        6 * total + 2 if isinstance(sequence, str) else total,
+                    )
+            if all(isinstance(x, int) for x in args):
+                budget.check("max_integer_bits", sum(x.bit_length() for x in args))
             return args[0] * args[1]
         if op == "divide":
             return args[0] / args[1]
@@ -434,11 +494,34 @@ class Runtime:
         if op == "minimum":
             return min(args)
         if op == "concat":
-            return "".join(str(item) for item in args)
+            parts = []
+            size = 2
+            for item in args:
+                part = str(item)
+                size += 6 * len(part)
+                _active_budget.get().check("max_value_bytes", size)
+                parts.append(part)
+            return "".join(parts)
         if op == "decode_matrix":
+            if all(isinstance(item, (dict, list, tuple)) for item in args):
+                _active_budget.get().charge(
+                    len(args[0]) * (len(args[1]) + len(args[2]))
+                )
             return self._decode_matrix_answer(*args)
         if op == "reduce":
             operation, collection = args[:2]
+            size = len(collection)
+            budget = _active_budget.get()
+            budget.charge(size)
+            if operation in {"sort_records", "median", "group_numeric_summary"}:
+                budget.charge(
+                    size
+                    * max(1, size.bit_length())
+                    * (len(kwargs["fields"]) if operation == "sort_records" else 1)
+                )
+            if operation == "ranked_ballot_results":
+                candidates = len(kwargs["candidates"])
+                budget.charge(size * candidates**3 + candidates**2)
             if operation == "tail":
                 return collection[-int(kwargs["count"]) :]
             if operation == "count_by":
@@ -610,16 +693,16 @@ class Runtime:
                 "target": effect.target,
                 "status": "condition_false",
             }
+        budget = _active_budget.get()
+        if budget is not None:
+            budget.charge()
         if effect.op == "algorithm":
             name = effect.options["name"]
             version = effect.options["version"]
             implementation = self.algorithms.get((name, version))
             if implementation is None:
                 raise DSLValidationError(f"unregistered algorithm {name}@{version}")
-            bindings = {
-                key: self.evaluate(value, context)
-                for key, value in effect.options["bindings"].items()
-            }
+            bindings = self.evaluate(effect.options["bindings"], context)
             implementation(working, bindings, context["constant"])
             return {
                 "effect": "algorithm",
@@ -628,7 +711,7 @@ class Runtime:
                 "status": "applied",
             }
 
-        evaluated = [self.evaluate(value, context) for value in effect.args]
+        evaluated = self.evaluate(effect.args, context)
         if effect.op == "set":
             working[effect.target] = evaluated[0]
             return {"effect": "set", "target": effect.target, "status": "applied"}
@@ -668,6 +751,9 @@ class Runtime:
     def _validate_type(
         self, name: str, value: Any, type_expr: Expr, context: dict[str, Any]
     ) -> None:
+        budget = _active_budget.get()
+        if budget is not None:
+            budget.charge()
         try:
             _validate_type_expression(type_expr)
             validate_data(value, path=name)

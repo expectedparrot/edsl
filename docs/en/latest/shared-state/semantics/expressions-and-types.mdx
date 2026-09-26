@@ -300,7 +300,12 @@ and rejects literal lookups of undeclared members on known closed records,
 including unselected branches. Failures include the machine and expression path.
 
 These checks are a conservative subset of the type judgment described above.
-Operator compatibility, null safety, branch joins, accumulator invariants,
-and dynamically selected fields are not a complete static analysis. See
+The interpreter checks known operand compatibility, preserves compatible numeric
+and nested-container branch shapes, and uses explicitly declared
+`accumulator_type`/`state_type` invariants in loops. Seeds and each carried value
+are also validated at runtime. Undeclared accumulator types remain unknown.
+Unlike the full judgment above, unrelated branches currently widen to `any`;
+null safety, dynamic lookup proofs, and complete reducer inference are not
+implemented. These are implementation boundaries, not full conformance claims. See
 [Records and early validation](/en/latest/shared-state/machines#records-and-early-validation)
 for the current contract.

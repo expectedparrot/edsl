@@ -37,6 +37,12 @@ def build_machine():
                             field("ledger"),
                             item="amount",
                             accumulator="previous",
+                            accumulator_type=T.record(
+                                {
+                                    "balance": T.number(),
+                                    "history": T.sequence(T.number()),
+                                }
+                            ),
                             body=record(
                                 balance=balance,
                                 history=previous.get("history").appended(balance),

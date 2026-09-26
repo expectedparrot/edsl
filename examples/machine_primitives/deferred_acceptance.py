@@ -142,9 +142,17 @@ def build_machine(capacities=None, priorities=None):
         )
         + latest.length()
     )
+    allocation_type = T.record(
+        {
+            "held": T.map(T.text(), T.sequence(T.text())),
+            "queue": T.sequence(T.text()),
+            "next": T.map(T.text(), T.integer(minimum=0)),
+        }
+    )
     matching = iterate(
         initial,
         state="matching",
+        state_type=allocation_type,
         until=state.get("queue").length() == 0,
         step=step,
         max_steps=bound,
@@ -187,13 +195,7 @@ def build_machine(capacities=None, priorities=None):
                 [],
             ),
             "allocation": state_field(
-                T.record(
-                    {
-                        "held": T.map(T.text(), T.sequence(T.text())),
-                        "queue": T.sequence(T.text()),
-                        "next": T.map(T.text(), T.integer(minimum=0)),
-                    }
-                ),
+                allocation_type,
                 {"held": {}, "queue": [], "next": {}},
             ),
         },

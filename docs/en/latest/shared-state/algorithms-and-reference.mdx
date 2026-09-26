@@ -87,7 +87,13 @@ budget outside its state binding. Its condition must evaluate to a Boolean.
 Iteration accepts an integer budget from zero through 100,000 steps. The
 condition is checked even at zero steps and immediately after the last allowed
 step. Exhaustion raises an error; it never returns a partially converged result.
-This is a limit per iteration expression, not a global execution-cost budget.
+This per-expression limit is additional to the shared
+[execution budget](/en/latest/shared-state/machines#execution-limits), which
+covers nested computations and all effects in one runtime operation. Optional
+[loop invariants](/en/latest/shared-state/machines#loop-invariants) use
+`accumulator_type` for `fold` and `state_type` for `iterate`; the ledger sample
+declares its carried record type, and deferred acceptance declares its matching
+state type.
 
 ## Why allocation needs a fold
 
@@ -134,8 +140,8 @@ compare valid execution paths rather than claiming identical error behavior.
 | --- | --- | --- |
 | Allocation needs evolving local state | General `fold` and `iterate` expressions | Improve ergonomics and debugging of nested expressions |
 | Repeated subexpressions inflate definitions and repeat work | Lexical `let` bindings | Measure larger trees and consider reusable serialized functions |
-| Matching must not return a half-finished answer | Explicit iteration bound; exhaustion fails atomically | A shared evaluation budget across nested folds, maps, and iterations |
-| Structured state needs declared members | Serializable records, recursive runtime validation, lexical checks, and errors with expression paths | Complete operator, branch, and accumulator type analysis |
+| Matching must not return a half-finished answer | Per-loop bounds plus shared evaluation, tree, growth, and output limits; exhaustion fails atomically | Portable cost schedules and isolation of trusted Python extensions |
+| Structured state needs declared members | Records, lexical checks, conservative operand/branch analysis, and explicit loop invariants | Complete inference, flow-sensitive null safety, and dynamic lookup proofs |
 | Market formulas need numerical stability | General `exp` and `logsumexp` | Defined decimal rounding and reproducible seeded random primitives for full asset-market parity |
 | Error policy differs across mechanisms | Document requirement no-ops versus execution failures | Structured rejection reasons and assertions |
 | New operations must run on the receiving interpreter | Unknown operators are rejected | Operator capability negotiation; language version 1 alone does not establish support |
@@ -177,8 +183,9 @@ The corpus tests check matching stability, capacity and asset conservation,
 serialization, nested binding scopes, iteration boundaries, numerical behavior,
 and SQLite rollback after exhaustion. They complement the broader
 [execution contracts](/en/latest/coordinated-research/execution-contracts).
-[Record validation and lexical checks](/en/latest/shared-state/machines#records-and-early-validation), structural validation, and finite JSON checks are implemented; complete static
-typing and resource isolation remain conformance targets in the
+[Type checks, loop invariants, and runtime quotas](/en/latest/shared-state/machines#records-and-early-validation)
+are implemented alongside finite JSON checks. Complete static typing and
+isolation of arbitrary Python extensions remain conformance targets in the
 [language specification](/en/latest/shared-state/semantics).
 
 The ordered implementation checklist and progress are tracked in

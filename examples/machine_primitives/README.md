@@ -52,3 +52,10 @@ The running ledger and deferred acceptance examples also demonstrate `T.record`
 for nested state. Omitted required members and unexpected members are distinct
 from nullable values. The remaining language-design checklist is tracked in
 [issue #2665](https://github.com/expectedparrot/edsl/issues/2665).
+
+The ledger declares a `fold(..., accumulator_type=...)` invariant. The runtime
+checks the seed and every carried value. Deferred acceptance declares an
+`iterate(..., state_type=...)` invariant with the same contract. Omit these options when changing accumulator shape is deliberate.
+All examples run under the default shared evaluation and data-size quotas; see
+[execution limits](https://docs.expectedparrot.com/en/latest/shared-state/machines#execution-limits)
+for configuration and the trusted-callback boundary.

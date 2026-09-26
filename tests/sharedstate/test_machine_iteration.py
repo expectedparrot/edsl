@@ -106,7 +106,7 @@ def test_invalid_iteration_budget(limit):
 
 
 def test_iteration_requires_boolean_condition():
-    with pytest.raises((ValueError, DSLValidationError), match="Boolean"):
+    with pytest.raises((ValueError, DSLValidationError), match="[Bb]oolean"):
         evaluate(iterate(0, state="s", until=1, step=local("s"), max_steps=1))
 
 

@@ -169,9 +169,13 @@ cannot hide in a branch that is currently unselected.
 For statically known closed records, a literal lookup of an undeclared member
 is rejected even when a fallback was supplied. Use an open record when probing
 extension fields is intentional. Dynamic keys and runtime-provided context stay
-runtime-checked. Loop accumulator shapes are deliberately treated as unknown
-until invariant analysis is implemented; the seed shape alone is not proof of
-the shape at every iteration.
+runtime-checked. Map lookup results include the default's inferred type; a
+lookup with a null or unrelated default does not promise a non-null map value.
+The checker rejects known incompatible operands for arithmetic, comparison,
+text, numeric, and collection operations. Compatible numeric branches widen to
+`number`; compatible records, maps, and sequences retain their nested shapes.
+Unrelated branches widen to `any` in this implementation. This is a conservative
+subset of the stricter formal type system.
 
 Authoring failures raise `MachineValidationError`, which is also a `ValueError`.
 It exposes `machine`, `path`, and `reason` attributes. For example, looking up
@@ -182,9 +186,96 @@ TypedLedger at $.view['balance']: unknown record field 'balnce'; declared fields
 ```
 
 The [ledger and matching examples](/en/latest/shared-state/algorithms-and-reference)
-use records for structured state. These checks do not yet establish complete
-operator type analysis, null safety, branch joins, or accumulator invariants.
-Those remaining tasks are tracked in [issue #2665](https://github.com/expectedparrot/edsl/issues/2665).
+use records for structured state. Unknown values, dynamic keys, numeric ranges,
+choice membership, and null safety remain runtime responsibilities. Validation
+does not infer that an `if` guard makes a nullable value safe, prove an index is
+in range, or infer every reducer's output type. Boolean combinators and command
+requirements continue to use truthiness; `iterate` conditions require Booleans.
+
+### Loop invariants
+
+Declare an optional `accumulator_type` for `fold` or `state_type` for `iterate`
+when the carried value should satisfy the same contract throughout execution:
+
+```python
+from edsl.sharedstate import T, fold, input_, local
+
+running_total = fold(
+    input_("amounts"),
+    0,
+    item="amount",
+    accumulator="total",
+    accumulator_type=T.number(),
+    body=local("total") + local("amount"),
+)
+```
+
+The command surrounding this expression declares `amounts` as
+`T.sequence(T.number())`. The invariant serializes with the expression. Static
+checks use it to resolve accumulator members and reject known incompatible seed
+or body types. Runtime checks validate the seed, even for an empty fold or a
+zero-step iteration, and every subsequent carried value. Bounds and other
+value-dependent constraints are enforced at runtime. Invariant declarations use
+the outer scope, before the loop bindings exist.
+
+Without a declared invariant, the accumulator remains statically unknown; a
+shape-changing computation is still legal. Declaring an invariant does not
+imply convergence. See [issue #2665](https://github.com/expectedparrot/edsl/issues/2665)
+for the remaining language work.
+
+## Execution limits
+
+Each `Runtime` entry point gets one shared budget: `execute`, `close`,
+`render_view`, `complete`, `initial_state`, or a standalone `evaluate` call.
+Recursive calls, lexical bindings, nested maps/folds/iterations, type checks,
+and multiple effects share that budget. A separate operation starts fresh;
+concurrent calls do not consume each other's allowance.
+
+```python
+from edsl.sharedstate import ExecutionLimits, ResourceLimitError
+from edsl.sharedstate.dsl_runtime import Runtime
+
+runtime = Runtime(limits=ExecutionLimits(max_steps=100_000))
+# Supply runtime=runtime when constructing SQLiteStateBackend.
+```
+
+| Limit | Default | What is bounded |
+| --- | --- | --- |
+| `max_steps` | 1,000,000 | Evaluation visits, tree accounting, and native reducer work charges |
+| `max_ast_nodes` | 100,000 | Nodes in an externally supplied definition/expression tree |
+| `max_depth` | 80 | Definition and value nesting, including container structure |
+| `max_collection_items` | 10,000 | Items in any individual collection |
+| `max_value_nodes` | 100,000 | Nodes in a value tree, counting repeated references again |
+| `max_value_bytes` | 8,000,000 | Conservative encoded-size allowance for values and definitions |
+| `max_integer_bits` | 4,096 | Integer magnitude, including intermediates |
+
+All limits must be positive integers. Step accounting is deterministic for this
+interpreter implementation, not a time measurement or a promise that each DSL
+operator costs one step. Native sorting and ranked-ballot calculations receive
+additional work charges. Byte accounting includes an upper bound for JSON
+escaping and construction overhead; it is not an exact serialized byte count
+or a Python heap measurement. Building a collection can therefore hit a limit
+before its final JSON representation reaches the listed number.
+
+Definitions and external state, inputs, and context are checked before recursive
+execution. Intermediate values, growing collections, proposed state after every
+effect, and combined views are checked as well. Large string/list repetitions
+are rejected before allocation. `machine.validate()` applies the default
+structural limits before serialization; `Machine.from_dict` and `from_json`
+check incoming definitions before recursive expression decoding. Configuring a
+runtime does not relax those authoring and transport checks.
+
+Exhaustion raises `ResourceLimitError` (a `ValueError`) and returns no partial
+result. A failed command or close does not commit state, advance its SQLite
+version, or append an event. Validation wraps authoring-time failures in
+`MachineValidationError`. The existing per-`iterate` bound remains an additional
+limit and is checked independently.
+
+These are host runtime policies, not serialized Machine parameters. Use the same
+policy when reproducing admission/failure behavior. They bound interpreter work
+and data, but do not sandbox registered Python callbacks or interrupt arbitrary
+callback code; those extensions remain trusted. Capability negotiation and a
+portable, versioned cost schedule remain future work.
 
 ## Commands
 
