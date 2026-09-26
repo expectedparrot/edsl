@@ -92,15 +92,6 @@ class SQLiteStateBackend:
         self.path = str(path)
         self.runtime = runtime or default_runtime()
         for machine in self.state_map.definition.machines.values():
-            for capability in machine.algorithms:
-                name, version = capability.rsplit("@", 1)
-                if (
-                    name,
-                    int(version),
-                ) not in self.runtime.algorithms and capability != "lmsr_prices@1":
-                    raise SharedStateRuntimeError(
-                        f"unregistered algorithm capability {capability!r}"
-                    )
             self.runtime.validate_capabilities(machine)
         Path(self.path).parent.mkdir(parents=True, exist_ok=True)
         self._initialize()

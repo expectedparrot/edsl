@@ -102,13 +102,13 @@ def bounded_operation(method):
                 budget.tree(
                     arg,
                     ast=is_dataclass(arg)
-                    or (method.__name__ == "evaluate" and index == 0),
+                    or (method.__name__ == "_evaluate_standalone" and index == 0),
                 )
             for name, arg in kwargs.items():
                 budget.tree(
                     arg,
                     ast=is_dataclass(arg)
-                    or (method.__name__ == "evaluate" and name == "value"),
+                    or (method.__name__ == "_evaluate_standalone" and name == "value"),
                 )
             result = method(self, *args, **kwargs)
             budget.tree(result)

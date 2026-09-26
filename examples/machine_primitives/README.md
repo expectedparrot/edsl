@@ -59,3 +59,11 @@ checks the seed and every carried value. Deferred acceptance declares an
 All examples run under the default shared evaluation and data-size quotas; see
 [execution limits](https://docs.expectedparrot.com/en/latest/shared-state/machines#execution-limits)
 for configuration and the trusted-callback boundary.
+
+Each replay export includes a derived `capabilities` manifest. Inspect it with
+`machine.required_capabilities()` and compare a destination advertisement with
+`machine.check_capabilities(runtime.capability_manifest())`. The runtime checks
+again before execution. The separate `.machine.json` artifact and its fingerprint
+are unchanged by deriving this metadata. See the canonical manual's
+[interpreter capabilities](https://docs.expectedparrot.com/en/latest/shared-state/machines#interpreter-capabilities)
+for exact-version matching and the local/remote deployment boundary.

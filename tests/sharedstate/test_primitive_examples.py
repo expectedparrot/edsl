@@ -35,6 +35,9 @@ def execute(machine, commands):
 def test_corpus_runs_after_json_transport_with_empty_registry(name):
     result = run_example(name)
     assert result["definition"]["algorithms"] == []
+    machine = Machine.from_dict(result["definition"])
+    assert result["capabilities"] == machine.required_capabilities()
+    machine.check_capabilities(Runtime().capability_manifest())
 
 
 @pytest.mark.parametrize("seed", range(20))

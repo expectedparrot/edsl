@@ -95,9 +95,9 @@ def test_live_executor_uses_edsl_and_archives_the_test_model_response(tmp_path):
 
 def test_portable_load_rejects_code_questions_before_instantiation():
     data = small_experiment().to_dict()
-    data["workflow"]["steps"][0]["survey"]["questions"][0]["question_type"] = (
-        "functional"
-    )
+    data["workflow"]["steps"][0]["survey"]["questions"][0][
+        "question_type"
+    ] = "functional"
     with pytest.raises(ValueError, match="functional Python"):
         WorkflowExperiment.from_dict(data)
 
@@ -424,3 +424,32 @@ def test_null_result_never_creates_immutable_submission_intent(tmp_path, monkeyp
     assert store.submission_intent(unfinished[0]["id"]) is None
     assert experiment.run(output, resume=True)["status"] == "completed"
     assert counts == [2, 1]
+
+
+def test_unsupported_builtin_fails_before_portable_execution_creates_artifacts(
+    tmp_path,
+):
+    from edsl.sharedstate import UnsupportedCapabilityError
+    from edsl.sharedstate.dsl_runtime import Runtime
+
+    experiment = small_experiment()
+    supported = set(Runtime().capability_manifest()["supported"]) - {"expression:ref@1"}
+    destination = Runtime(capabilities=supported)
+    for (name, version), implementation in experiment.runtime.algorithms.items():
+        destination.register(
+            name,
+            version,
+            implementation,
+            validate_constants=experiment.runtime.validators.get((name, version)),
+        )
+    with pytest.raises(UnsupportedCapabilityError, match="expression:ref@1"):
+        WorkflowExperiment.from_dict(
+            json.loads(json.dumps(experiment.to_dict())), runtime=destination
+        )
+    # An advertisement/validation earlier in the session cannot replace the
+    # check at the actual launch boundary after the runtime has changed.
+    experiment.runtime = destination
+    output = tmp_path / "unsupported"
+    with pytest.raises(UnsupportedCapabilityError, match="expression:ref@1"):
+        experiment.run(output, responses=[])
+    assert not output.exists()

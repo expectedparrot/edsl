@@ -378,6 +378,18 @@ class Machine:
     close_effects: tuple[Effect, ...] = ()
     algorithms: tuple[str, ...] = ()
 
+    def required_capabilities(self) -> dict[str, Any]:
+        """Return derived requirements without altering the serialized definition."""
+        from .capabilities import requirements
+
+        return {"version": 1, "requires": sorted(requirements(self))}
+
+    def check_capabilities(self, manifest: dict[str, Any]) -> None:
+        """Check a destination advertisement; the destination must check again."""
+        from .capabilities import check_capabilities
+
+        check_capabilities(self, manifest)
+
     def to_dict(self) -> dict[str, Any]:
         return {"version": 1, **encode(asdict(self))}
 
@@ -468,53 +480,10 @@ class Machine:
 
         validate_data(self.to_dict(), path=self.name)
 
-        allowed_ops = {
-            "let",
-            "fold",
-            "iterate",
-            "take",
-            "exp",
-            "logsumexp",
-            "absolute",
-            "add",
-            "algorithm_view",
-            "and",
-            "append_value",
-            "at",
-            "at_least",
-            "at_most",
-            "casefold",
-            "concat",
-            "contains",
-            "decode_matrix",
-            "divide",
-            "drop_first",
-            "equals",
-            "filter_items",
-            "first",
-            "get",
-            "greater_than",
-            "if",
-            "less_than",
-            "length",
-            "map_items",
-            "map_of",
-            "map_sequence",
-            "minimum",
-            "multiply",
-            "not",
-            "not_equals",
-            "or",
-            "put_value",
-            "record",
-            "reduce",
-            "ref",
-            "remove_value",
-            "strip",
-            "subtract",
-            "type",
-            "values",
-        }
+        from .capabilities import EXPRESSION_OPERATORS, REDUCERS
+
+        allowed_ops = EXPRESSION_OPERATORS
+        reducers = REDUCERS
         declared_algorithms = set(self.algorithms)
         for capability in declared_algorithms:
             if not isinstance(capability, str) or "@" not in capability:
@@ -560,24 +529,6 @@ class Machine:
             "reduce",
             "remove_value",
             "subtract",
-        }
-        reducers = {
-            "tail",
-            "count_by",
-            "sum",
-            "mean",
-            "median",
-            "max",
-            "argmax",
-            "sort_records",
-            "latest_by",
-            "count_equal",
-            "increment_keys",
-            "keys_min_distance",
-            "weighted_matrix_tally",
-            "ranked_ballot_results",
-            "group_numeric_summary",
-            "series_converged",
         }
         for path, item in walk_paths(self):
             try:
@@ -705,7 +656,7 @@ class Machine:
         validate_references(self)
         runtime = Runtime()
         try:
-            initial = runtime.initial_state(self)
+            initial = runtime._initial_state(self)
             type_context = {
                 "constant": self.constants,
                 "state": initial,
@@ -721,7 +672,7 @@ class Machine:
                     raise MachineValidationError(
                         self.name, f"$.fields[{name!r}].initial", str(exc)
                     ) from exc
-            runtime.render_view(self, initial)
+            runtime._render_view(self, initial)
         except MachineValidationError:
             raise
         except (DSLValidationError, KeyError, TypeError, ValueError) as exc:

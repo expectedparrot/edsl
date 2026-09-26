@@ -144,7 +144,7 @@ compare valid execution paths rather than claiming identical error behavior.
 | Structured state needs declared members | Records, lexical checks, conservative operand/branch analysis, and explicit loop invariants | Complete inference, flow-sensitive null safety, and dynamic lookup proofs |
 | Market formulas need numerical stability | General `exp` and `logsumexp` | Defined decimal rounding and reproducible seeded random primitives for full asset-market parity |
 | Error policy differs across mechanisms | Document requirement no-ops versus execution failures | Structured rejection reasons and assertions |
-| New operations must run on the receiving interpreter | Unknown operators are rejected | Operator capability negotiation; language version 1 alone does not establish support |
+| New operations must run on the receiving interpreter | Derived exact-version manifests and destination preflight, including loop options | Deployment of capability discovery and checks on hosted services |
 
 The examples do not solve every limitation by adding a special operation. In
 particular, the full asset market's income schedule, stochastic tie-breaking,
@@ -172,7 +172,8 @@ When adapting an example:
 1. Specify persistent fields, input types, views, and allowed transitions.
 2. State tie-breaking rules, completion criteria, and failure behavior.
 3. Build the machine and serialize it through JSON.
-4. Replay it under the empty `Runtime()` registry.
+4. Check its [derived requirements](/en/latest/shared-state/machines#interpreter-capabilities)
+   against the destination, then replay it under the empty `Runtime()` registry.
 5. Check independent invariants and edge cases, including empty inputs,
    duplicate submissions, capacity exhaustion, and retries.
 6. Compare against an independent or existing implementation where available.

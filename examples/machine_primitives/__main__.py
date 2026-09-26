@@ -53,6 +53,7 @@ def run_example(name):
         "operations": sorted(
             {node.op for node in walk(machine) if isinstance(node, (Expr, Effect))}
         ),
+        "capabilities": machine.required_capabilities(),
         "definition_bytes": len(machine.to_json().encode()),
         "definition": payload,
         "commands": module.DEMO,

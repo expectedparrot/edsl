@@ -86,3 +86,17 @@ User-provided Python callbacks MUST NOT execute remotely as algorithms.
 read events, write events, machine versions, and capability versions. Public
 serialization MUST redact private inputs, store credentials, and administrative
 context unless explicitly requested by an authorized reader.
+
+## Current implementation boundary
+
+The local interpreter derives and checks exact capability requirements before
+executing a Machine. SQLite backend admission and portable workflow loading/run
+also preflight their destination runtime. JSON protocol tests cover differing
+support and stale advertisements; receivers re-derive requirements from the
+actual definition. This provides the library mechanism for a service to enforce
+admission, not a deployed Coop discovery API or verification of a hosted server.
+
+See [Interpreter capabilities](/en/latest/shared-state/machines#interpreter-capabilities)
+and [Execution limits](/en/latest/shared-state/machines#execution-limits). Complete
+static typing, context information-flow analysis, callback isolation, and wall-time
+limits described above remain separate conformance targets.

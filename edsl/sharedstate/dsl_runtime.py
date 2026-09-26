@@ -6,7 +6,7 @@ from collections import Counter
 from copy import deepcopy
 from dataclasses import dataclass
 import math
-from typing import Any, Callable
+from typing import Any, Callable, Iterable
 
 from edsl._data_contracts import validate_data
 
@@ -43,7 +43,21 @@ Algorithm = Callable[[dict[str, Any], dict[str, Any], dict[str, Any]], None]
 
 
 class Runtime:
-    def __init__(self, *, limits: ExecutionLimits | None = None):
+    def __init__(
+        self,
+        *,
+        limits: ExecutionLimits | None = None,
+        capabilities: Iterable[str] | None = None,
+    ):
+        from .capabilities import BUILTIN_CAPABILITIES
+
+        self._capabilities = (
+            BUILTIN_CAPABILITIES if capabilities is None else frozenset(capabilities)
+        )
+        if self._capabilities - BUILTIN_CAPABILITIES:
+            raise ValueError(
+                "Runtime capabilities may only restrict implemented built-ins"
+            )
         self.limits = limits or ExecutionLimits()
         self.algorithms: dict[tuple[str, int], Algorithm] = {}
         self.validators: dict[tuple[str, int], Callable] = {}
@@ -56,19 +70,33 @@ class Runtime:
         *,
         validate_constants=None,
     ) -> None:
+        if not isinstance(name, str) or not name or "@" in name:
+            raise ValueError("algorithm name must be nonempty text without @")
+        if type(version) is not int or version < 1:
+            raise ValueError("algorithm version must be a positive integer")
+        if not callable(implementation) or (
+            validate_constants is not None and not callable(validate_constants)
+        ):
+            raise ValueError("algorithm implementation and validator must be callable")
         self.algorithms[(name, version)] = implementation
         if validate_constants is not None:
             self.validators[(name, version)] = validate_constants
 
+    def capability_manifest(self) -> dict[str, Any]:
+        """Advertise exact built-in versions plus actually registered callbacks."""
+        supported = set(self._capabilities)
+        for name, version in self.algorithms:
+            supported.update(
+                {f"dependency:{name}@{version}", f"algorithm:{name}@{version}"}
+            )
+        return {"version": 1, "supported": sorted(supported)}
+
     def validate_capabilities(self, spec: Machine) -> None:
-        """Preflight explicit implementation dependencies and their parameters."""
+        """Reject unsupported requirements before execution or extension validation."""
+        spec.check_capabilities(self.capability_manifest())
         for capability in spec.algorithms:
             name, version = capability.rsplit("@", 1)
             key = (name, int(version))
-            if key not in self.algorithms and capability != "lmsr_prices@1":
-                raise DSLValidationError(
-                    f"unregistered algorithm capability {capability!r}"
-                )
             if key in self.validators:
                 self.validators[key](spec.constants)
 
@@ -107,6 +135,13 @@ class Runtime:
 
     @bounded_operation
     def initial_state(self, spec: Machine) -> dict[str, Any]:
+        self.validate_capabilities(spec)
+        return self._initial_state(spec)
+
+    @bounded_operation
+    def _initial_state(self, spec: Machine) -> dict[str, Any]:
+        # Definition validation checks authoring structure without requiring
+        # command callbacks to be installed on the author's interpreter.
         context = {"constant": spec.constants, "state": {}, "input": {}, "current": {}}
         result: dict[str, Any] = {}
         context["state"] = result
@@ -126,6 +161,7 @@ class Runtime:
         *,
         current: dict[str, Any] | None = None,
     ) -> CommandResult:
+        self.validate_capabilities(spec)
         if command_name not in spec.commands:
             raise DSLValidationError(f"unknown command {command_name!r}")
         command = spec.commands[command_name]
@@ -181,6 +217,18 @@ class Runtime:
         current: dict[str, Any] | None = None,
         closed: bool = False,
     ) -> dict[str, Any]:
+        self.validate_capabilities(spec)
+        return self._render_view(spec, state, current=current, closed=closed)
+
+    @bounded_operation
+    def _render_view(
+        self,
+        spec: Machine,
+        state: dict[str, Any],
+        *,
+        current: dict[str, Any] | None = None,
+        closed: bool = False,
+    ) -> dict[str, Any]:
         context = {
             "constant": spec.constants,
             "state": state,
@@ -195,6 +243,7 @@ class Runtime:
 
     @bounded_operation
     def close(self, spec: Machine, state: dict[str, Any]) -> dict[str, Any]:
+        self.validate_capabilities(spec)
         working = deepcopy(state)
         context = {
             "constant": spec.constants,
@@ -214,6 +263,7 @@ class Runtime:
 
     @bounded_operation
     def complete(self, spec: Machine, state: dict[str, Any]) -> bool:
+        self.validate_capabilities(spec)
         if spec.complete_when is None:
             return False
         return bool(
@@ -229,8 +279,16 @@ class Runtime:
         )
 
     @bounded_operation
+    def _evaluate_standalone(self, value: Any, context: dict[str, Any]) -> Any:
+        from .capabilities import check_capabilities
+
+        check_capabilities(value, self.capability_manifest())
+        return self.evaluate(value, context)
+
     def evaluate(self, value: Any, context: dict[str, Any]) -> Any:
         budget = _active_budget.get()
+        if budget is None:
+            return self._evaluate_standalone(value, context)
         budget.charge()
         result = self._evaluate(value, context)
         budget.tree(result)

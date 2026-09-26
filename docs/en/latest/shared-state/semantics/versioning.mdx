@@ -72,3 +72,19 @@ snapshots SHOULD record this identity.
 Two definitions with different diagnostic names but identical canonical
 semantics MAY share a compatibility identity. Implementations must not depend on
 this optimization.
+
+## Current implementation: derived manifests
+
+The current Python interpreter keeps the existing Machine `version: 1` JSON
+rather than implementing the proposed outer envelope above. It derives exact
+requirements with `machine.required_capabilities()` and advertises support with
+`runtime.capability_manifest()`. These use manifest schema version 1 and cover
+expressions, effects, reducers, types, optional loop contracts, and registered
+implementations. Destination preflight checks every branch before execution.
+
+The derived manifests are not inserted into persisted Machine definitions or
+their fingerprints. Runtime quotas remain host policy. Thus the proposed outer
+envelope and broader compatibility identity above remain specification targets;
+existing definitions require no migration just to use preflight. See
+[Interpreter capabilities](/en/latest/shared-state/machines#interpreter-capabilities)
+for the supported API, legacy algorithm handling, and transport guarantees.

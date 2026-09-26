@@ -274,8 +274,115 @@ limit and is checked independently.
 These are host runtime policies, not serialized Machine parameters. Use the same
 policy when reproducing admission/failure behavior. They bound interpreter work
 and data, but do not sandbox registered Python callbacks or interrupt arbitrary
-callback code; those extensions remain trusted. Capability negotiation and a
-portable, versioned cost schedule remain future work.
+callback code; those extensions remain trusted. [Capability preflight](#interpreter-capabilities) checks interpreter support;
+a portable, versioned cost schedule remains future work.
+
+## Interpreter capabilities
+
+Machine language version 1 describes the serialization format. It does not mean
+that every interpreter implements every expression or option added to that
+format. Check a destination's advertised support before sending it work:
+
+```python
+from edsl.sharedstate.dsl_runtime import Runtime
+
+# machine is an authored Machine or a definition loaded with Machine.from_json.
+destination = Runtime()
+requirements = machine.required_capabilities()
+advertisement = destination.capability_manifest()
+machine.check_capabilities(advertisement)
+
+# The destination also checks its actual registry and registered validators.
+destination.validate_capabilities(machine)
+```
+
+Both returned manifests are JSON data. Requirements look like
+`{"version": 1, "requires": ["expression:fold@1", ...]}`; advertisements use
+`{"version": 1, "supported": [...]}`. The manifest's version identifies this
+manifest format, independently of the Machine serialization version.
+
+Requirements are derived from the entire definition: field types and initial
+values, command input constraints, requirements and effects, views, completion,
+close effects, nested expressions, and unselected branches. They are sorted and
+deduplicated for transport. Missing support reports its source locations.
+
+| Capability category | Example | What it requires |
+| --- | --- | --- |
+| Language | `language:machine@1` | Current Machine format and execution model |
+| Expression | `expression:fold@1` | The named expression's current semantics |
+| Effect | `effect:put@1` | The named state mutation |
+| Reducer | `reducer:sort_records@1` | The exact reducer implementation contract |
+| Type | `type:record@1` | The named schema and validation behavior |
+| Feature | `feature:fold.accumulator_type@1` | Support for an optional semantic extension |
+| Algorithm | `algorithm:call_market_submit@1` | An installed callback at the exact version |
+| Algorithm view | `algorithm_view:lmsr_prices@1` | The built-in view implementation |
+| Dependency | `dependency:lmsr_prices@1` | A legacy entry from `machine.algorithms` |
+
+Current built-in semantics derive version `1`; registered algorithms retain
+explicit versions from their definitions. Versions match exactly: advertising
+`expression:add@2` does not satisfy `expression:add@1`. A future runtime that
+implements both must advertise both. Loop invariants have separate feature
+requirements, so support for `fold` alone cannot silently discard its contract.
+This manifest does not introduce a per-expression version field into existing
+Machine JSON.
+
+`Runtime(capabilities=...)` can restrict the built-in set for a host or test
+interpreter. It cannot advertise unimplemented built-ins. Registered callback
+versions are added from the runtime registry separately. For example:
+
+```python
+supported = set(Runtime().capability_manifest()["supported"])
+restricted = Runtime(capabilities=supported - {"feature:fold.accumulator_type@1"})
+# restricted rejects any Machine using accumulator_type, even in an unused branch.
+```
+
+Requirements describe interpreter features, not permission to disclose state,
+execute remote code, or make network calls. Registered Python algorithms remain
+trusted extensions. A declared algorithm dependency does not supply or download
+its implementation. In particular, a built-in algorithm view does not satisfy
+a request to execute a Python callback of the same name.
+
+### Admission and transport boundaries
+
+All public Machine execution entry points (`initial_state`, `execute`, `close`,
+`render_view`, and `complete`) preflight the complete definition before executing
+expressions or algorithm validators. Standalone `evaluate` checks the entire
+supplied expression tree. `SQLiteStateBackend` checks before creating its
+directory/database or opening an existing database. `WorkflowExperiment` checks
+on load and again before creating run artifacts or launching work.
+
+Missing capabilities raise `UnsupportedCapabilityError`, a `ValueError` and
+`SharedStateRuntimeError`. Its `machine`, `missing`, and `paths` attributes and
+`to_dict()` give callers structured diagnostics. For example:
+
+```text
+RunningLedger: unsupported or unregistered capabilities: feature:fold.accumulator_type@1 at $.commands['post'].effects[0].args[0].kwargs['accumulator_type']
+```
+
+An advertisement is advisory: the destination must derive requirements again
+from the received definition and compare them to its actual support. A sender's
+omitted or forged `requires` metadata cannot bypass this check. Tests exercise
+JSON transport, restricted destinations, changed support between submission and
+execution, and rejection before database or workflow artifacts are created.
+These are protocol-boundary tests; this change does not add a live Coop
+capability-discovery endpoint or establish what a deployed server supports.
+An older server that lacks this protocol cannot be assumed compatible merely
+because it accepts Machine version 1.
+
+### Existing definitions and fingerprints
+
+`machine.required_capabilities()` and `check_capabilities()` do not modify
+`machine.to_dict()` or `to_json()`. Manifests are derived metadata outside the
+persisted definition. Existing version-1 definitions and SQLite definition
+fingerprints keep their representation; preflight alone requires no migration.
+Changing actual fields, constants, expressions, or loop invariants still changes
+the definition and remains subject to the existing migration checks.
+
+`machine.validate()` checks authoring structure and supported built-in syntax.
+It does not require all custom command callbacks to be installed on the author's
+machine. Passing it is therefore not a substitute for destination preflight.
+The corpus exports requirements alongside each replay, while keeping the
+`.machine.json` definition unchanged.
 
 ## Commands
 

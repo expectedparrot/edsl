@@ -1,6 +1,6 @@
 """Declarative, scoped shared state for coordinated surveys."""
 
-from .exceptions import MachineValidationError
+from .exceptions import MachineValidationError, UnsupportedCapabilityError
 from .resources import ExecutionLimits, ResourceLimitError
 from .refs import current
 from .call_market import call_market
@@ -82,6 +82,7 @@ from .dsl import (
 
 __all__ = [
     "MachineValidationError",
+    "UnsupportedCapabilityError",
     "ExecutionLimits",
     "ResourceLimitError",
     "call_market",
