@@ -21,6 +21,7 @@ EXAMPLES = (
     "survey_quota",
     "reason_discovery",
     "question_coverage",
+    "pairwise_comparisons",
 )
 
 

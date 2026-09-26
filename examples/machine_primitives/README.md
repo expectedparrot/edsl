@@ -19,6 +19,7 @@ Python helpers construct expressions. They are never callbacks during execution.
 | [Survey quotas](survey_quota.py) | Atomic per-type admission and personal eligibility | Counts admissions; no abandonment reclamation or authentication |
 | [Reason discovery](reason_discovery.py) | Growing catalog and streak-based stopping across distinct agents | Text normalization only; saturation can miss rare reasons |
 | [Question coverage](question_coverage.py) | Fixed personal assignments and idempotent answer counting | Sequential interviews; assignments do not reserve capacity |
+| [Pairwise comparisons](pairwise_comparisons.py) | Online logistic scores, adaptive pair selection, exploration, and fixed randomized options | No uncertainty estimates or concurrent assignment reservations |
 
 Run from the repository root with an installed EDSL development environment:
 
@@ -123,3 +124,11 @@ local five-agent execution with and without reuse using
 `python -m examples.machine_primitives.profile_survey_runner` and its `--uncached`
 option. This diagnostic makes no model calls and reports decode/validation
 counts alongside elapsed time and the verified coverage result.
+
+The [adaptive pairwise-comparison adapter](../pairwise_comparisons.py) assigns one
+fixed pair per respondent, updates scores after valid choices, and balances
+close-score comparisons with exploration. `python -m examples.pairwise_comparisons`
+collects 40 comparisons from a scripted five-product population. Its
+[canonical chapter](https://docs.expectedparrot.com/en/latest/shared-state/pairwise-comparisons)
+documents the exact policy, scoring, resumption, actual rendered-choice tests,
+and the remaining statistical, provenance, and candidate-scaling boundaries.

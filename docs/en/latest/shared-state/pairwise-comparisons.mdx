@@ -1,0 +1,211 @@
+---
+title: "Adaptive pairwise comparisons"
+description: "Assign a fixed pair to each respondent, update item scores, and use the answers to choose later pairs."
+---
+
+Suppose a study compares five products. Each respondent sees two and chooses
+one. A shared Machine saves the assigned pair, records the preference, updates
+item scores, and uses those scores to choose pairs for later respondents.
+
+This example keeps ordinary Survey navigation: an internal computed gate, one
+multiple-choice question with dynamic options, and a stop rule. The
+[Machine definition](https://github.com/expectedparrot/edsl/blob/feature/shared-state-v0/examples/machine_primitives/pairwise_comparisons.py)
+uses existing general primitives. The
+[survey adapter and simulation](https://github.com/expectedparrot/edsl/blob/feature/shared-state-v0/examples/pairwise_comparisons.py)
+need no navigation redesign or registered algorithm.
+
+## Run the example
+
+```bash
+python -m examples.pairwise_comparisons
+```
+
+The simulation creates 60 scripted respondents. All prefer Atlas over Beacon,
+Beacon over Cedar, Cedar over Dune, and Dune over Ember. This ground truth belongs
+to the agents; the Machine updates scores from each submitted choice. It starts with
+equal scores and stops after **40 valid, distinct-respondent comparisons**.
+The demo makes no model API calls.
+
+The actual run produces:
+
+| Result | Value |
+| --- | --- |
+| Respondents answering a comparison | 40 |
+| Remaining respondents, with no preference question asked | 20 |
+| Exploration comparisons | 16 |
+| Score-driven comparisons | 24 |
+| Final ranking | Atlas, Beacon, Cedar, Dune, Ember |
+| Stop reason | `budget_reached` |
+
+The resulting scores are approximately 1.873, 1.019, -0.014, -0.949, and -1.929.
+The closest neighbors in this ordering receive more comparisons:
+
+| Pair | Comparisons |
+| --- | --- |
+| Atlas / Beacon | 6 |
+| Beacon / Cedar | 8 |
+| Cedar / Dune | 8 |
+| Dune / Ember | 6 |
+| Each of the other six pairs | 2 |
+
+This verifies the mechanism against a deliberately simple population. It does
+not establish ranking accuracy for noisy, heterogeneous, or cyclic preferences.
+If the agent pool runs out first, the report says `population_exhausted`.
+
+## Pair selection
+
+```python
+from examples.machine_primitives.pairwise_comparisons import build_machine
+
+machine = build_machine(
+    items=["Atlas", "Beacon", "Cedar", "Dune", "Ember"],
+    budget=40,
+    explore_every=5,
+    learning_rate=0.5,
+    seed="pairwise-2026",
+)
+machine.validate()
+```
+
+The authoring helper enumerates unordered pairs once and includes them in the
+serialized definition. Runtime selection uses map expressions and a generic
+record sorter, not a Python callback. `assign(respondent_id=...)` follows this
+policy:
+
+1. While any pair has no completed comparison, prioritize the least-compared
+   pairs, breaking ties by smallest absolute score gap and then pair ID.
+2. After this warm-up, prioritize the smallest score gap, breaking ties by
+   completed pair count and then pair ID.
+3. After four consecutive score-driven responses, make the next selection an
+   exploration comparison using the first ordering. Repeat this cycle.
+
+`explore_every=1` makes every selection an exploration selection. The pair ID
+comes from the input item order, so equal-priority ties are deterministic. The
+selection mode is bound with `let` before ranking candidates, avoiding repeated
+coverage scans for every candidate.
+
+The Machine then uses `seeded_order` to choose the pair's display order, keyed by
+the configured seed, trusted study ID, and respondent ID. It stores that order
+with the pair and its selection mode. **A retry retains the entire assignment**,
+even after other respondents change the scores. Randomized positions do not
+guarantee an exactly balanced number of left/right appearances in a finite run.
+
+Assignments consume neither comparison budget nor pair coverage. An abandoned
+pair can therefore be offered to a later respondent. A resumed respondent keeps
+their saved pair; previously recorded respondents are not asked again. A budget
+smaller than the number of pairs can stop the study before warm-up finishes.
+
+## Score updates and atomic accounting
+
+All item scores start at zero. `compare(respondent_id=..., winner=...)` accepts
+one of the two assigned labels. Let `w` and `l` denote the winner's and loser's
+scores immediately before the accepted answer. The update is:
+
+```text
+p = 1 / (1 + exp(l - w))
+delta = learning_rate * (1 - p)
+winner score = w + delta
+loser score  = l - delta
+```
+
+For an equal-score comparison with the default rate, the winner gains 0.25 and
+the loser loses 0.25. An unexpected win produces a larger adjustment than an
+expected win. The implementation computes the probability through `logsumexp`
+and `exp` to avoid overflow at extreme score differences. Floating-point scores
+conserve their total within numerical precision.
+
+The update, pair count, total comparison count, exploration counter, and response
+ledger commit atomically. Scores are updated against the current state at
+acceptance, while pair selection and display order remain fixed from assignment.
+
+The response ledger allows one answer per stable respondent ID. A same-ID,
+same-choice retry is a no-op, including after completion. Changing that choice
+is rejected with `answer_changed`. An unassigned respondent gets
+`pair_not_assigned`; choosing another known item gets `winner_not_in_pair`.
+Unknown labels fail the declared input schema. None of these invalid attempts
+increments the budget or changes scores.
+
+The `budget` counts accepted answers. New comparisons after exhaustion or an
+explicit close are rejected with `comparisons_closed`. An explicit early close
+does not claim that the budget was reached. Item labels must be distinct and
+nonempty, budget and exploration interval positive integers, the seed nonempty
+text, and the learning rate finite and in `(0, 1]`.
+
+## Survey integration and resumption
+
+```python
+from edsl import Model
+from edsl.runner import Runner
+from examples.pairwise_comparisons import build_survey, demo_agents
+
+survey, states, schedule = build_survey()
+results = (
+    Runner(interview_schedule=schedule)
+    .submit(survey.by(demo_agents()).by(Model("test")), cache=False)
+    .results()
+)
+```
+
+Each agent supplies a trusted `study_id`, stable `respondent_id`, and numeric
+`turn`. The returned schedule runs whole interviews sequentially within each
+study and checks the Machine's completion condition before further questions.
+
+Before the gate, the survey requests an assignment and reads its view. The gate
+ends the interview when no new response is accepted. Otherwise the preference
+question receives exactly:
+
+```jinja
+{{ shared_state.comparisons.options }}
+```
+
+The view contains the respondent's ordered pair, acceptance status, comparison
+count, and completion status. It excludes scores, other respondents' assignments,
+and the response ledger. The preference answer triggers the atomic `compare`
+command. No additional respondent question is needed for routing.
+
+Survey and schedule JSON transport preserves state identity, question bindings,
+and ordering. Keep that identity to resume the same SQLite state. Tests cover
+resuming an unanswered assignment with identical options and resuming an already
+answered assignment without presenting the preference question again.
+
+This is a sequential allocation policy. Concurrent answer commits cannot exceed
+the budget, but overlapping interviews can receive stale selections or have an
+answer rejected when another respondent uses the last place. Concurrent adaptive
+selection needs a separate reservation and scheduling policy.
+
+## Tests and design findings
+
+The [focused tests](https://github.com/expectedparrot/edsl/blob/feature/shared-state-v0/tests/sharedstate/test_pairwise_comparisons.py)
+compare mixed-winner streams against an independent selection/scoring reference,
+including abandoned assignments. They check exploration boundaries, conserved
+score totals, extreme score gaps, exact stopping, retries, concurrent budget
+bounds, independent scopes, SQLite restart, and fresh-process replay without the
+authoring module. End-to-end tests reverse the supplied agent list to check
+schedule ordering and inspect the actual choices received by scripted agents.
+
+This application exposes three useful boundaries:
+
+- **Decision policy versus statistical uncertainty.** Similar scores are a
+  selection heuristic. They are not confidence intervals or evidence that a
+  pair is poorly measured. The fixed budget does not claim convergence. Ties,
+  respondent-specific tastes, and preference cycles need explicit models.
+- **Rendered-option provenance.** Results' ordinary question-option metadata
+  does not yet reliably preserve options rendered from shared-state views.
+  This demo checks actual options in the scripted answering function against
+  saved assignments. Shared-state read events retain the viewed options, but a
+  first-class per-question rendered snapshot would make inspection easier.
+- **Candidate-set growth.** The definition enumerates all unordered pairs, so
+  candidate storage grows quadratically with the number of items. A much larger
+  catalog should probe candidate generation, evaluation budgets, and bounded
+  history rather than assuming this five-item construction scales unchanged.
+
+The current definition is **21,952 JSON bytes**, with **294 expression occurrences
+and 112 distinct trees**. Its 12-comparison corpus replay, covering both warm-up
+and adaptive selection, peaks at **18,709 host budget steps per transition**.
+Reproduce these development measurements with
+`python -m examples.machine_primitives.profile_corpus`. They are not portable
+cost guarantees or a claim of bit-identical floating-point scoring across hosts.
+
+The local demonstration establishes neither live-model preference validity nor
+hosted human-survey deployment support. Remaining design work is tracked in
+[issue #2665](https://github.com/expectedparrot/edsl/issues/2665).
