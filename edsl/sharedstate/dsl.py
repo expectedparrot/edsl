@@ -175,6 +175,42 @@ def map_sequence(collection: Any, *, item: str, value_expr: Any) -> Expr:
     return expr("map_sequence", collection, item=item, value_expr=value_expr)
 
 
+def let(name: str, value: Any, body: Any) -> Expr:
+    """Evaluate a value once and bind it lexically within a serialized body."""
+    return expr("let", value, name=name, body=body)
+
+
+def fold(
+    collection: Any, initial: Any, *, item: str, accumulator: str, body: Any
+) -> Expr:
+    """Visit a sequence in order, carrying a value between iterations."""
+    return expr(
+        "fold", collection, initial, item=item, accumulator=accumulator, body=body
+    )
+
+
+def iterate(initial: Any, *, state: str, until: Any, step: Any, max_steps: Any) -> Expr:
+    """Compute until a Boolean condition holds; exhaustion fails, never truncates."""
+    return expr(
+        "iterate", initial, state=state, until=until, step=step, max_steps=max_steps
+    )
+
+
+def take(collection: Any, count: Any) -> Expr:
+    """Return the first count items of a sequence; count must be nonnegative."""
+    return expr("take", collection, count)
+
+
+def exp(value: Any) -> Expr:
+    """Finite exponential; overflow is an execution error."""
+    return expr("exp", value)
+
+
+def logsumexp(values: Any) -> Expr:
+    """Numerically stable log(sum(exp(x))) over a nonempty finite sequence."""
+    return expr("logsumexp", values)
+
+
 def decode_matrix(answer: Any, *, rows: Any, options: Any) -> Expr:
     """Translate a matrix question's positional answer into domain values.
 
@@ -369,6 +405,12 @@ class Machine:
         validate_data(self.to_dict(), path=self.name)
 
         allowed_ops = {
+            "let",
+            "fold",
+            "iterate",
+            "take",
+            "exp",
+            "logsumexp",
             "absolute",
             "add",
             "algorithm_view",
@@ -418,6 +460,10 @@ class Machine:
             if not name or not version.isdigit() or int(version) < 1:
                 raise ValueError("algorithm capabilities require a positive version")
         unary = {
+            "let",
+            "iterate",
+            "exp",
+            "logsumexp",
             "absolute",
             "casefold",
             "drop_first",
@@ -431,6 +477,8 @@ class Machine:
             "type",
         }
         binary = {
+            "fold",
+            "take",
             "add",
             "and",
             "append_value",
@@ -519,6 +567,9 @@ class Machine:
                 if item.op == "reduce" and item.args[0] not in reducers:
                     raise ValueError(f"unknown reducer {item.args[0]!r}")
                 required = {
+                    "let": {"name", "body"},
+                    "fold": {"item", "accumulator", "body"},
+                    "iterate": {"state", "until", "step", "max_steps"},
                     "ref": {"namespace", "name"},
                     "map_items": {"key", "value", "key_expr", "value_expr"},
                     "filter_items": {"item", "predicate"},
@@ -526,6 +577,24 @@ class Machine:
                 }.get(item.op, set())
                 if not required <= item.kwargs.keys():
                     raise ValueError(f"{item.op} requires options {sorted(required)}")
+                binding_options = {
+                    "let": ("name",),
+                    "fold": ("item", "accumulator"),
+                    "iterate": ("state",),
+                }.get(item.op)
+                if binding_options:
+                    if set(item.kwargs) != required:
+                        raise ValueError(f"unknown {item.op} options")
+                    names = [item.kwargs[key] for key in binding_options]
+                    if any(
+                        not isinstance(name, str) or not name.isidentifier()
+                        for name in names
+                    ):
+                        raise ValueError(f"{item.op} requires identifier binding names")
+                    if len(set(names)) != len(names):
+                        raise ValueError(f"{item.op} requires distinct binding names")
+                if item.op in {"take", "exp", "logsumexp"} and item.kwargs:
+                    raise ValueError(f"unknown {item.op} options")
                 if item.op == "type":
                     _validate_type_expression(item)
             if isinstance(item, Expr) and item.op == "algorithm_view":

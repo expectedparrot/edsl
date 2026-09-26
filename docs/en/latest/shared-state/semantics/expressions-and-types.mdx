@@ -278,3 +278,14 @@ version.
 The language MUST NOT provide arbitrary callbacks, imports, evaluation of code,
 reflection, unrestricted object attributes, filesystem or network access,
 general recursion, or user-defined unbounded loops.
+
+## Implemented accumulator expressions
+
+The current interpreter also provides lexical `let`, sequence `fold`, bounded
+`iterate`, `take`, `exp`, and stable `logsumexp` expressions. Their operands and
+bodies are serialized in the existing expression representation. See
+[Primitive examples and validation](/en/latest/shared-state/algorithms-and-reference)
+for their operational contracts, scope rules, budget boundaries, and examples.
+The iteration cap does not establish the specification's global resource-bound
+requirements or a complete static type system. Older interpreters that do not
+recognize these operators must reject the definitions.

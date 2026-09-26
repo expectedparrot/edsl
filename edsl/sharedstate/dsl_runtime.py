@@ -221,6 +221,56 @@ class Runtime:
                 return [self.evaluate(item, context) for item in value]
             return value
 
+        if value.op == "let":
+            bound = self.evaluate(value.args[0], context)
+            nested = context | {
+                "local": context.get("local", {}) | {value.kwargs["name"]: bound}
+            }
+            return self.evaluate(value.kwargs["body"], nested)
+
+        if value.op == "fold":
+            collection = self.evaluate(value.args[0], context)
+            if not isinstance(collection, (list, tuple)):
+                raise DSLValidationError("fold requires a sequence")
+            accumulated = self.evaluate(value.args[1], context)
+            for item in collection:
+                nested = context | {
+                    "local": context.get("local", {})
+                    | {
+                        value.kwargs["item"]: item,
+                        value.kwargs["accumulator"]: accumulated,
+                    }
+                }
+                accumulated = self.evaluate(value.kwargs["body"], nested)
+            return accumulated
+
+        if value.op == "iterate":
+            limit = self.evaluate(value.kwargs["max_steps"], context)
+            if (
+                isinstance(limit, bool)
+                or not isinstance(limit, int)
+                or not 0 <= limit <= 100_000
+            ):
+                raise DSLValidationError(
+                    "iterate max_steps must be an integer from 0 to 100000"
+                )
+            accumulated = self.evaluate(value.args[0], context)
+            for index in range(limit + 1):
+                nested = context | {
+                    "local": context.get("local", {})
+                    | {value.kwargs["state"]: accumulated}
+                }
+                done = self.evaluate(value.kwargs["until"], nested)
+                if not isinstance(done, bool):
+                    raise DSLValidationError("iterate until must evaluate to a Boolean")
+                if done:
+                    return accumulated
+                if index == limit:
+                    raise DSLValidationError(
+                        "iterate exhausted max_steps before reaching its condition"
+                    )
+                accumulated = self.evaluate(value.kwargs["step"], nested)
+
         if value.op == "map_items":
             collection = self.evaluate(value.args[0], context)
             result = {}
@@ -290,6 +340,44 @@ class Runtime:
                 if namespace == "current" and part not in result:
                     return self.evaluate(value.kwargs.get("default"), context)
                 result = result[part]
+            return result
+        if op == "take":
+            collection, count = args
+            if (
+                not isinstance(collection, (list, tuple))
+                or isinstance(count, bool)
+                or not isinstance(count, int)
+                or count < 0
+            ):
+                raise DSLValidationError(
+                    "take requires a sequence and a nonnegative integer count"
+                )
+            return list(collection[:count])
+        if op in {"exp", "logsumexp"}:
+            values = args if op == "exp" else args[0]
+            if not isinstance(values, (list, tuple)) or not values:
+                raise DSLValidationError(f"{op} requires nonempty finite numeric input")
+            try:
+                if any(
+                    isinstance(x, bool)
+                    or not isinstance(x, (int, float))
+                    or not math.isfinite(x)
+                    for x in values
+                ):
+                    raise DSLValidationError(f"{op} requires finite numbers")
+                if op == "exp":
+                    result = math.exp(values[0])
+                else:
+                    maximum = max(values)
+                    result = maximum + math.log(
+                        sum(math.exp(x - maximum) for x in values)
+                    )
+            except (OverflowError, ValueError) as exc:
+                raise DSLValidationError(
+                    f"{op} cannot produce a finite result"
+                ) from exc
+            if not math.isfinite(result):
+                raise DSLValidationError(f"{op} cannot produce a finite result")
             return result
         if op == "record":
             return kwargs
