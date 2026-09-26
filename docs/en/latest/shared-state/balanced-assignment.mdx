@@ -1,0 +1,101 @@
+---
+title: "Balanced experimental assignment"
+description: "Assign one of two conditions while balancing total counts and two categorical characteristics."
+---
+
+This example asks two characteristics and assigns a condition in the same survey
+pass. The policy balances total arm counts, age bands, and prior experience using
+Machine expressions. The behavior is serialized; Python only builds the definition.
+
+## Run it
+
+```bash
+python -m examples.balanced_assignment
+```
+
+The twelve-person scripted population produces six Control and six Treatment
+assignments. Every respondent then answers a question naming their assigned
+condition. The demo makes no model API calls.
+
+See the [Machine builder](https://github.com/expectedparrot/edsl/blob/feature/shared-state-v0/examples/machine_primitives/balanced_assignment.py)
+and [Survey adapter](https://github.com/expectedparrot/edsl/blob/feature/shared-state-v0/examples/balanced_assignment.py).
+
+```python
+from edsl import Model
+from edsl.runner import Runner
+from examples.balanced_assignment import build_survey, demo_agents
+
+survey, states, schedule = build_survey(seed="balanced-2026")
+results = Runner(interview_schedule=schedule).submit(
+    survey.by(demo_agents()).by(Model("test")), cache=False
+).results()
+results.select("answer.age_group", "answer.experience", "answer.assigned_arm")
+```
+
+## Assignment policy
+
+The example has two arms (Control, Treatment), two age bands (Younger, Older),
+and two experience categories (New, Experienced). State contains an immutable
+record per respondent with those two characteristics and the selected arm.
+
+For a new respondent, calculate for each arm:
+
+```text
+score = respondents already in this arm
+      + respondents in this arm with the same age band
+      + respondents in this arm with the same experience category
+```
+
+Choose an arm with the lowest score. With equal weights, this also minimizes the
+increase in the sum of squared counts across these three margins. It is a greedy
+local criterion, not a global optimization over future arrivals. It does not
+balance every joint age-by-experience cell or guarantee exact equality at every
+sample size.
+
+If the scores tie, `seeded_order` orders the tied arm IDs using the configured seed,
+`study_id` from runtime context, and the respondent ID as the draw key. The direct
+runtime example defaults the study key to `study`; the Survey supplies the actual
+study trait. See [portable randomization](/en/latest/shared-state/randomization-and-money)
+for the byte protocol and reproducibility contract.
+
+`assign(respondent_id, age, experience)` checks the current ledger and writes
+atomically. A repeat with the same characteristics preserves its first arm;
+changed characteristics reject explicitly. Closing stops new assignments but
+retains prior ones. Counts are derived from the ledger, avoiding separate mutable
+counters. There is no intrinsic sample-size completion condition.
+
+## Survey integration
+
+The survey asks the two characteristics, calls `assign`, reads the personal view,
+and computes the assigned arm. Its final question uses that computed answer in
+the prompt. If a later interview changes the same respondent's characteristics,
+the command refuses the update and a gate suppresses the final question, rather
+than silently treating the old assignment as based on the new report.
+
+A grouped sequential schedule makes the demo's arrival order reproducible even
+if the supplied AgentList is reversed. Concurrent writers still make atomic
+assignments, but their transaction order can change the result. Reuse the saved
+state map and stable IDs to resume without recounting respondents.
+
+## Tests and design findings
+
+The [application tests](https://github.com/expectedparrot/edsl/blob/feature/shared-state-v0/tests/sharedstate/test_survey_applications.py)
+compute candidate costs independently over mixed-characteristic streams and
+verify that the chosen arm has minimum cost. They also check reproducibility,
+immutable assignments, changed reports, closure, concurrent writers, SQLite
+restart/delivery replay, scope isolation, fresh-process JSON execution, and
+ordinary Survey routing.
+
+This is an allocation example, not a recommendation for a particular experiment.
+Greedy marginal balance is order-dependent and need not achieve every balancing
+goal. Stable public seeds are reproducible, not concealed; IDs, reported
+characteristics, seed policy, and arrival order must be controlled by the host.
+The example does not claim allocation concealment, independent random assignment,
+or statistical validity for a particular estimator.
+
+The current definition is 10,997 JSON bytes. Its twelve-assignment corpus replay
+peaks at 28,432 host budget steps per transition. Recomputing marginal counts from
+the full ledger becomes more expensive as the study grows; larger studies should
+probe incremental count invariants, expression reuse, and interpreter budgets.
+Run `python -m examples.machine_primitives.profile_corpus` to reproduce local
+measurements. No new interpreter or navigation primitives were needed.

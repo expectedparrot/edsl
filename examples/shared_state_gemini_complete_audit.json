@@ -1,0 +1,1586 @@
+{
+  "model": "gemini-2.5-flash",
+  "runs": [
+    {
+      "game": "dictator",
+      "answers": [
+        {
+          "transfer": 25
+        }
+      ],
+      "commands": [
+        "allocate",
+        "$close"
+      ],
+      "final_state": {
+        "game": {
+          "dictator": "Dictator",
+          "recipient": "Recipient",
+          "transfer": 25
+        }
+      },
+      "read_versions": [
+        0
+      ]
+    },
+    {
+      "game": "trust",
+      "answers": [
+        {
+          "send": 100,
+          "returned": null
+        },
+        {
+          "returned": 150,
+          "send": null
+        }
+      ],
+      "commands": [
+        "send",
+        "return_funds",
+        "$close"
+      ],
+      "final_state": {
+        "game": {
+          "receiver": "Receiver",
+          "returned": 150,
+          "sender": "Sender",
+          "sent": 100
+        }
+      },
+      "read_versions": [
+        0,
+        1
+      ]
+    },
+    {
+      "game": "matrix",
+      "answers": [
+        {
+          "action": "defect"
+        },
+        {
+          "action": "defect"
+        }
+      ],
+      "commands": [
+        "submit",
+        "submit",
+        "$close"
+      ],
+      "final_state": {
+        "game": {
+          "choices": {
+            "0": "defect",
+            "1": "defect"
+          },
+          "payoffs": {
+            "Column": 1,
+            "Row": 1
+          },
+          "players": {
+            "0": "Row",
+            "1": "Column"
+          }
+        }
+      },
+      "read_versions": [
+        0,
+        0
+      ]
+    },
+    {
+      "game": "beauty",
+      "answers": [
+        {
+          "choice": 19
+        },
+        {
+          "choice": 14.28
+        },
+        {
+          "choice": 19
+        }
+      ],
+      "commands": [
+        "submit",
+        "submit",
+        "submit",
+        "$close"
+      ],
+      "final_state": {
+        "game": {
+          "choices": {
+            "A": 19,
+            "B": 14.28,
+            "C": 19
+          },
+          "mean": 17.426666666666666,
+          "target": 11.617777777777777,
+          "winners": [
+            "B"
+          ]
+        }
+      },
+      "read_versions": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "game": "market_entry",
+      "answers": [
+        {
+          "action": "stay_out"
+        },
+        {
+          "action": "stay_out"
+        },
+        {
+          "action": "enter"
+        }
+      ],
+      "commands": [
+        "submit",
+        "submit",
+        "submit",
+        "$close"
+      ],
+      "final_state": {
+        "game": {
+          "choices": {
+            "A": "stay_out",
+            "B": "stay_out",
+            "C": "enter"
+          },
+          "entrant_count": 1,
+          "entrant_payoff": 7,
+          "payoffs": {
+            "A": 2,
+            "B": 2,
+            "C": 7
+          }
+        }
+      },
+      "read_versions": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "game": "nash_demand",
+      "answers": [
+        {
+          "amount": 50
+        },
+        {
+          "amount": 50
+        }
+      ],
+      "commands": [
+        "demand",
+        "demand",
+        "$close"
+      ],
+      "final_state": {
+        "game": {
+          "demands": {
+            "0": 50,
+            "1": 50
+          },
+          "feasible": true,
+          "payoffs": {
+            "A": 50,
+            "B": 50
+          },
+          "players": {
+            "0": "A",
+            "1": "B"
+          }
+        }
+      },
+      "read_versions": [
+        0,
+        0
+      ]
+    },
+    {
+      "game": "money_request",
+      "answers": [
+        {
+          "request": 12
+        },
+        {
+          "request": 15
+        }
+      ],
+      "commands": [
+        "submit",
+        "submit",
+        "$close"
+      ],
+      "final_state": {
+        "game": {
+          "choices": {
+            "A": 12,
+            "B": 15
+          },
+          "payoffs": {
+            "A": 12,
+            "B": 15
+          }
+        }
+      },
+      "read_versions": [
+        0,
+        0
+      ]
+    },
+    {
+      "game": "common_pool",
+      "answers": [
+        {
+          "amount": 20
+        },
+        {
+          "amount": 15
+        },
+        {
+          "amount": 15
+        }
+      ],
+      "commands": [
+        "extract",
+        "extract",
+        "extract",
+        "$close"
+      ],
+      "final_state": {
+        "game": {
+          "overdrawn": false,
+          "payoffs": {
+            "A": 23.333333333333332,
+            "B": 18.333333333333332,
+            "C": 18.333333333333332
+          },
+          "requests": {
+            "A": 20,
+            "B": 15,
+            "C": 15
+          },
+          "total_requested": 50
+        }
+      },
+      "read_versions": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "game": "bilateral_trade",
+      "answers": [
+        {
+          "price": 30,
+          "decision": null
+        },
+        {
+          "decision": "reject",
+          "price": null
+        }
+      ],
+      "commands": [
+        "offer",
+        "respond",
+        "$close"
+      ],
+      "final_state": {
+        "game": {
+          "accepted": false,
+          "buyer": "Buyer",
+          "buyer_value": 90,
+          "price": 30,
+          "seller": "Seller",
+          "seller_cost": 30
+        }
+      },
+      "read_versions": [
+        0,
+        1
+      ]
+    },
+    {
+      "game": "centipede",
+      "answers": [
+        {
+          "action": "take"
+        },
+        {
+          "action": null
+        },
+        {
+          "action": null
+        }
+      ],
+      "commands": [
+        "move",
+        "$close"
+      ],
+      "final_state": {
+        "game": {
+          "history": [
+            {
+              "action": "take",
+              "node": 1,
+              "player": "Player A at node 1"
+            }
+          ],
+          "outcome": "take_at_1",
+          "payoffs": [
+            2,
+            0
+          ]
+        }
+      },
+      "read_versions": [
+        0
+      ]
+    },
+    {
+      "game": "cheap_talk",
+      "answers": [
+        {
+          "message": "L",
+          "action": null
+        },
+        {
+          "action": "L",
+          "message": null
+        }
+      ],
+      "commands": [
+        "message",
+        "act",
+        "$close"
+      ],
+      "final_state": {
+        "game": {
+          "action": "L",
+          "message": "L",
+          "preference": "aligned",
+          "private_state": "L",
+          "receiver": "Receiver",
+          "sender": "Sender"
+        }
+      },
+      "read_versions": [
+        0,
+        1
+      ]
+    },
+    {
+      "game": "signaling",
+      "answers": [
+        {
+          "education": 0,
+          "decision": null
+        },
+        {
+          "decision": "do_not_hire",
+          "education": null
+        }
+      ],
+      "commands": [
+        "signal",
+        "decide",
+        "$close"
+      ],
+      "final_state": {
+        "game": {
+          "education": 0,
+          "employer": "Employer",
+          "hired": false,
+          "productivity": 90,
+          "signal_cost": 10,
+          "worker": "Worker"
+        }
+      },
+      "read_versions": [
+        0,
+        1
+      ]
+    },
+    {
+      "game": "principal_agent",
+      "answers": [
+        {
+          "bonus": 34,
+          "effort": null
+        },
+        {
+          "effort": "high",
+          "bonus": null
+        }
+      ],
+      "commands": [
+        "contract",
+        "effort",
+        "$close"
+      ],
+      "final_state": {
+        "game": {
+          "bonus": 34,
+          "effort": "high",
+          "principal": "Firm",
+          "worker": "Worker"
+        }
+      },
+      "read_versions": [
+        0,
+        1
+      ]
+    },
+    {
+      "game": "sealed_auction",
+      "answers": [
+        {
+          "bid": 80
+        },
+        {
+          "bid": 70
+        },
+        {
+          "bid": 40
+        }
+      ],
+      "commands": [
+        "bid",
+        "bid",
+        "bid",
+        "$close"
+      ],
+      "final_state": {
+        "game": {
+          "bids": {
+            "A": {
+              "amount": 80,
+              "bidder": "A",
+              "seat": 0,
+              "value": 80
+            },
+            "B": {
+              "amount": 70,
+              "bidder": "B",
+              "seat": 1,
+              "value": 70
+            },
+            "C": {
+              "amount": 40,
+              "bidder": "C",
+              "seat": 2,
+              "value": 40
+            }
+          },
+          "price": 70,
+          "revenue": 70,
+          "utilities": {
+            "A": 10,
+            "B": 0,
+            "C": 0
+          },
+          "winner": "A",
+          "winning_bid": 80
+        }
+      },
+      "read_versions": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "game": "ultimatum",
+      "answers": [
+        {
+          "offer": 50,
+          "decision": null
+        },
+        {
+          "decision": "accept",
+          "offer": null
+        }
+      ],
+      "commands": [
+        "offer",
+        "respond",
+        "$close"
+      ],
+      "final_state": {
+        "game": {
+          "decision": "accept",
+          "offer": 50,
+          "proposer": "Proposer",
+          "responder": "Responder"
+        }
+      },
+      "read_versions": [
+        0,
+        1
+      ]
+    },
+    {
+      "game": "negotiation",
+      "answers": [
+        {
+          "offer": 40,
+          "response": null
+        },
+        {
+          "response": "accept",
+          "offer": null
+        }
+      ],
+      "commands": [
+        "record",
+        "record",
+        "$close"
+      ],
+      "final_state": {
+        "game": {
+          "agreement": 40,
+          "turns": [
+            {
+              "action": "offer",
+              "amount": 40,
+              "interview": "c3100256-7e9f-42ba-824b-c2243091ac7d",
+              "message": "My opening offer",
+              "role": "buyer",
+              "round": 1,
+              "speaker": "Buyer",
+              "turn": 1
+            },
+            {
+              "action": "accept",
+              "amount": 0,
+              "interview": "a3c0fc2b-0cfd-448d-a9ae-43d0f59e37d7",
+              "message": "My response to the offer",
+              "role": "seller",
+              "round": 1,
+              "speaker": "Seller",
+              "turn": 2
+            }
+          ]
+        }
+      },
+      "read_versions": [
+        0,
+        1
+      ]
+    },
+    {
+      "game": "double_auction",
+      "answers": [
+        {
+          "price": 69
+        },
+        {
+          "price": 31
+        }
+      ],
+      "commands": [
+        "submit",
+        "submit"
+      ],
+      "final_state": {
+        "game": {
+          "accounts": {
+            "Buyer": {
+              "cash": 69.0,
+              "inventory": 1
+            },
+            "Seller": {
+              "cash": 31.0,
+              "inventory": 0
+            }
+          },
+          "orders": [
+            {
+              "id": "O1",
+              "interview": "5fd67ee6-4de4-4213-b370-e703d0611939",
+              "price": 31.0,
+              "round": 1,
+              "side": "sell",
+              "status": "filled",
+              "time": 1,
+              "trader": "Seller"
+            },
+            {
+              "id": "O2",
+              "interview": "4698e766-ae47-4f8b-a75b-bdab3dafa78d",
+              "price": 69.0,
+              "round": 1,
+              "side": "buy",
+              "status": "filled",
+              "time": 2,
+              "trader": "Buyer"
+            }
+          ],
+          "trades": [
+            {
+              "buyer": "Buyer",
+              "maker_order": "O1",
+              "price": 31.0,
+              "round": 1,
+              "seller": "Seller",
+              "taker_order": "O2"
+            }
+          ]
+        }
+      },
+      "read_versions": [
+        0,
+        0
+      ]
+    },
+    {
+      "game": "voting",
+      "answers": [
+        {
+          "ranking": [
+            "A",
+            "B",
+            "C"
+          ]
+        },
+        {
+          "ranking": [
+            "B",
+            "A",
+            "C"
+          ]
+        },
+        {
+          "ranking": [
+            "C",
+            "A",
+            "B"
+          ]
+        }
+      ],
+      "commands": [
+        "vote",
+        "vote",
+        "vote",
+        "$close"
+      ],
+      "final_state": {
+        "game": {
+          "ballots": {
+            "Voter A": [
+              "A",
+              "B",
+              "C"
+            ],
+            "Voter B": [
+              "B",
+              "A",
+              "C"
+            ],
+            "Voter C": [
+              "C",
+              "A",
+              "B"
+            ]
+          },
+          "results": {
+            "borda_scores": {
+              "A": 4,
+              "B": 3,
+              "C": 2
+            },
+            "borda_winner": "A",
+            "condorcet_winner": "A",
+            "plurality_scores": {
+              "A": 1,
+              "B": 1,
+              "C": 1
+            },
+            "plurality_winner": "A"
+          }
+        }
+      },
+      "read_versions": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "game": "deferred_acceptance",
+      "answers": [
+        {
+          "ranking": [
+            "North",
+            "South"
+          ]
+        },
+        {
+          "ranking": [
+            "North",
+            "South"
+          ]
+        }
+      ],
+      "commands": [
+        "collect",
+        "collect",
+        "$close"
+      ],
+      "final_state": {
+        "game": {
+          "institution_matches": {
+            "North": [
+              "A"
+            ],
+            "South": [
+              "B"
+            ]
+          },
+          "matches": {
+            "A": "North",
+            "B": "South"
+          },
+          "requests": [
+            {
+              "interview": "a3384580-566d-42f8-8cbb-0de2398837d5",
+              "ranking": [
+                "North",
+                "South"
+              ],
+              "student": "A"
+            },
+            {
+              "interview": "347871d2-9f01-47e0-8028-da38990a5bb2",
+              "ranking": [
+                "North",
+                "South"
+              ],
+              "student": "B"
+            }
+          ]
+        }
+      },
+      "read_versions": [
+        0,
+        1
+      ]
+    },
+    {
+      "game": "binary_market",
+      "answers": [
+        {
+          "action": "buy_yes",
+          "quantity": 8,
+          "outcome": null
+        },
+        {
+          "action": "buy_no",
+          "quantity": 2,
+          "outcome": null
+        },
+        {
+          "outcome": false,
+          "action": null,
+          "quantity": null
+        }
+      ],
+      "commands": [
+        "trade",
+        "trade",
+        "settle"
+      ],
+      "final_state": {
+        "game": {
+          "outcome": false,
+          "portfolios": {
+            "Optimist": {
+              "cash": 95.84017037596028,
+              "no": 0.0,
+              "settled_wealth": 95.84017037596028,
+              "yes": 8.0
+            },
+            "Pessimist": {
+              "cash": 99.06988357225632,
+              "no": 2.0,
+              "settled_wealth": 101.06988357225632,
+              "yes": 0.0
+            }
+          },
+          "q_no": 2.0,
+          "q_yes": 8.0,
+          "trades": [
+            {
+              "action": "buy_yes",
+              "cost": 4.159829624039716,
+              "quantity": 8,
+              "trader": "Optimist"
+            },
+            {
+              "action": "buy_no",
+              "cost": 0.9301164277436911,
+              "quantity": 2,
+              "trader": "Pessimist"
+            }
+          ]
+        }
+      },
+      "read_versions": [
+        0,
+        1
+      ]
+    },
+    {
+      "game": "resource_allocation",
+      "status": "timeout",
+      "error": "resource_allocation exceeded the 45-second smoke-test limit"
+    },
+    {
+      "game": "delphi",
+      "answers": [
+        {
+          "estimate": 45
+        },
+        {
+          "estimate": 50
+        },
+        {
+          "estimate": 55
+        },
+        {
+          "estimate": 55
+        },
+        {
+          "estimate": 65
+        },
+        {
+          "estimate": 65
+        }
+      ],
+      "commands": [
+        "submit",
+        "submit",
+        "submit",
+        "submit",
+        "submit",
+        "submit",
+        "$close"
+      ],
+      "final_state": {
+        "game": {
+          "responses": [
+            {
+              "confidence": 80,
+              "estimate": 55,
+              "expert": "Expert B",
+              "rationale": "Estimate informed by private view and panel summary",
+              "round": 1
+            },
+            {
+              "confidence": 80,
+              "estimate": 65,
+              "expert": "Expert C",
+              "rationale": "Estimate informed by private view and panel summary",
+              "round": 1
+            },
+            {
+              "confidence": 80,
+              "estimate": 45,
+              "expert": "Expert A",
+              "rationale": "Estimate informed by private view and panel summary",
+              "round": 1
+            },
+            {
+              "confidence": 80,
+              "estimate": 55,
+              "expert": "Expert B",
+              "rationale": "Estimate informed by private view and panel summary",
+              "round": 2
+            },
+            {
+              "confidence": 80,
+              "estimate": 65,
+              "expert": "Expert C",
+              "rationale": "Estimate informed by private view and panel summary",
+              "round": 2
+            },
+            {
+              "confidence": 80,
+              "estimate": 50,
+              "expert": "Expert A",
+              "rationale": "Estimate informed by private view and panel summary",
+              "round": 2
+            }
+          ]
+        }
+      },
+      "read_versions": [
+        0,
+        0,
+        0,
+        3,
+        3,
+        3
+      ]
+    },
+    {
+      "game": "agenda",
+      "answers": [
+        {
+          "title": "**Committee volunteer day at a local community garden.**",
+          "vote_a1": null,
+          "vote_a2": null
+        },
+        {
+          "title": "A casual committee picnic.",
+          "vote_a1": null,
+          "vote_a2": null
+        },
+        {
+          "vote_a1": "up",
+          "vote_a2": "neutral",
+          "title": null
+        },
+        {
+          "vote_a1": "up",
+          "vote_a2": "neutral",
+          "title": null
+        }
+      ],
+      "commands": [
+        "propose",
+        "propose",
+        "vote",
+        "vote"
+      ],
+      "final_state": {
+        "game": {
+          "ballots": [
+            {
+              "voter": "Voter 1",
+              "votes": {
+                "A1": "up",
+                "A2": "neutral"
+              }
+            },
+            {
+              "voter": "Voter 2",
+              "votes": {
+                "A1": "up",
+                "A2": "neutral"
+              }
+            }
+          ],
+          "proposals": [
+            {
+              "id": "A1",
+              "proposer": "Proposer 1",
+              "title": "**Committee volunteer day at a local community garden.**"
+            },
+            {
+              "id": "A2",
+              "proposer": "Proposer 2",
+              "title": "A casual committee picnic."
+            }
+          ]
+        }
+      },
+      "read_versions": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "game": "budget",
+      "status": "timeout",
+      "error": "budget exceeded the 45-second smoke-test limit"
+    },
+    {
+      "game": "coalition",
+      "answers": [
+        {
+          "coalition": "red"
+        },
+        {
+          "coalition": "blue"
+        },
+        {
+          "coalition": "blue"
+        },
+        {
+          "coalition": "red"
+        },
+        {
+          "coalition": "blue"
+        }
+      ],
+      "commands": [
+        "request",
+        "request",
+        "request",
+        "request",
+        "request"
+      ],
+      "final_state": {
+        "game": {
+          "members": {
+            "blue": [
+              "Member 1",
+              "Member 2"
+            ],
+            "red": [
+              "Member 0",
+              "Member 3"
+            ]
+          },
+          "memberships": {
+            "Member 0": "red",
+            "Member 1": "blue",
+            "Member 2": "blue",
+            "Member 3": "red"
+          },
+          "requests": [
+            {
+              "accepted": true,
+              "coalition": "red",
+              "member": "Member 0",
+              "round": 1
+            },
+            {
+              "accepted": true,
+              "coalition": "blue",
+              "member": "Member 1",
+              "round": 1
+            },
+            {
+              "accepted": true,
+              "coalition": "blue",
+              "member": "Member 2",
+              "round": 1
+            },
+            {
+              "accepted": true,
+              "coalition": "red",
+              "member": "Member 3",
+              "round": 1
+            },
+            {
+              "accepted": false,
+              "coalition": "blue",
+              "member": "Member 4",
+              "round": 1
+            }
+          ]
+        }
+      },
+      "read_versions": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ]
+    },
+    {
+      "game": "serial_matching",
+      "answers": [
+        {
+          "ranking": [
+            "hike",
+            "bike ride",
+            "beach day",
+            "sailing"
+          ]
+        },
+        {
+          "ranking": [
+            "hike",
+            "bike ride",
+            "sailing",
+            "beach day"
+          ]
+        },
+        {
+          "ranking": [
+            "sailing",
+            "beach day",
+            "hike",
+            "bike ride"
+          ]
+        }
+      ],
+      "commands": [
+        "collect",
+        "collect",
+        "collect",
+        "$close"
+      ],
+      "final_state": {
+        "game": {
+          "assignments": {
+            "A": "hike",
+            "B": "bike ride",
+            "C": "sailing"
+          },
+          "requests": [
+            {
+              "claimant": "A",
+              "interview": "d0067105-f018-4d76-b68a-9123ff438fd4",
+              "priority": 1,
+              "ranking": [
+                "hike",
+                "bike ride",
+                "beach day",
+                "sailing"
+              ]
+            },
+            {
+              "claimant": "B",
+              "interview": "c1f47baa-1572-4fd8-89e3-db6a70eec4a8",
+              "priority": 2,
+              "ranking": [
+                "hike",
+                "bike ride",
+                "sailing",
+                "beach day"
+              ]
+            },
+            {
+              "claimant": "C",
+              "interview": "5b63fc0c-9c08-442b-8ce5-928b10e246bf",
+              "priority": 3,
+              "ranking": [
+                "sailing",
+                "beach day",
+                "hike",
+                "bike ride"
+              ]
+            }
+          ]
+        }
+      },
+      "read_versions": [
+        0,
+        1,
+        2
+      ]
+    },
+    {
+      "game": "forecast",
+      "status": "timeout",
+      "error": "forecast exceeded the 45-second smoke-test limit"
+    },
+    {
+      "game": "private_signal",
+      "answers": [
+        {
+          "reaction": "Oh, that's wonderful! \"Sunny\" usually means things are looking bright, clear, and positive. It suggests good conditions ahead, perhaps a period of optimism or smooth sailing. Definitely a good sign!"
+        },
+        {
+          "reaction": "Windy. Hmm, that's an interesting one. I'd interpret that as conditions being quite dynamic \u2013 not static at all. There's movement, potential for change, and perhaps even some external forces or turbulence at play. Best to stay agile."
+        },
+        {
+          "reaction": "\"Cloudy\"... that's an interesting one. It immediately suggests a lack of clarity or definition. I'd interpret it as indicating that whatever information or state this signal represents isn't fully transparent or certain right now. It feels like there's some obscurity or a need for things to settle before a clear picture emerges."
+        },
+        {
+          "reaction": "Ah, \"calm.\" That's an interesting one. For me, I interpret \"calm\" as a signal of internal stability and equilibrium. It suggests that my processing is steady, without any undue agitation or disturbance. It's a state of clear, unhurried operation, allowing me to focus and respond thoughtfully."
+        }
+      ],
+      "commands": [
+        "reveal",
+        "reveal",
+        "reveal",
+        "reveal"
+      ],
+      "final_state": {
+        "game": {
+          "events": [
+            {
+              "participant": "Boris",
+              "round": 1
+            },
+            {
+              "participant": "Amina",
+              "round": 1
+            },
+            {
+              "participant": "Boris",
+              "round": 2
+            },
+            {
+              "participant": "Amina",
+              "round": 2
+            }
+          ],
+          "revealed": {
+            "Amina": [
+              {
+                "round": 1,
+                "signal": "sunny"
+              },
+              {
+                "round": 2,
+                "signal": "windy"
+              }
+            ],
+            "Boris": [
+              {
+                "round": 1,
+                "signal": "cloudy"
+              },
+              {
+                "round": 2,
+                "signal": "calm"
+              }
+            ]
+          }
+        }
+      },
+      "read_versions": [
+        1,
+        2,
+        3,
+        4
+      ]
+    },
+    {
+      "game": "ascending_auction",
+      "answers": [
+        {
+          "bid": 1
+        },
+        {
+          "bid": 2
+        },
+        {
+          "bid": 3
+        }
+      ],
+      "commands": [
+        "bid",
+        "bid",
+        "bid",
+        "$close"
+      ],
+      "final_state": {
+        "game": {
+          "bids": [
+            {
+              "amount": 1,
+              "interview": "f6b214cd-1b40-4c1f-8272-f4327f46b67f"
+            },
+            {
+              "amount": 2,
+              "interview": "21189174-d48c-4571-bac9-40254a5d3c2a"
+            },
+            {
+              "amount": 3,
+              "interview": "cd4cec3d-903f-4ad7-a07e-507a701b1730"
+            }
+          ],
+          "winner": "cd4cec3d-903f-4ad7-a07e-507a701b1730",
+          "winning_bid": 3
+        }
+      },
+      "read_versions": [
+        0,
+        1,
+        2
+      ]
+    },
+    {
+      "game": "counter",
+      "answers": [
+        {
+          "activity": "beach day"
+        },
+        {
+          "activity": "beach day"
+        },
+        {
+          "activity": "beach day"
+        },
+        {
+          "activity": "beach day"
+        }
+      ],
+      "commands": [
+        "tally",
+        "tally",
+        "tally",
+        "tally"
+      ],
+      "final_state": {
+        "game": {
+          "counts": {
+            "beach day": 4,
+            "bike ride": 0,
+            "hike": 0,
+            "sailing": 0
+          }
+        }
+      },
+      "read_versions": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "game": "document",
+      "status": "timeout",
+      "error": "document exceeded the 45-second smoke-test limit"
+    },
+    {
+      "game": "log",
+      "answers": [
+        {
+          "note": "Here are a few options, pick the one that best fits the observed scenario:\n\n*   **Positive:** Members actively supported one another.\n*   **Neutral/Mixed:** Cooperation varied significantly between tasks.\n*   **Negative:** Efforts were fragmented, hindering progress."
+        },
+        {
+          "note": "Members actively coordinate tasks and provide mutual support."
+        },
+        {
+          "note": "Members consistently supported each other, streamlining task completion."
+        }
+      ],
+      "commands": [
+        "append",
+        "append",
+        "append"
+      ],
+      "final_state": {
+        "game": {
+          "entries": [
+            {
+              "author": "Observer 2",
+              "note": "Members consistently supported each other, streamlining task completion."
+            },
+            {
+              "author": "Observer 0",
+              "note": "Here are a few options, pick the one that best fits the observed scenario:\n\n*   **Positive:** Members actively supported one another.\n*   **Neutral/Mixed:** Cooperation varied significantly between tasks.\n*   **Negative:** Efforts were fragmented, hindering progress."
+            },
+            {
+              "author": "Observer 1",
+              "note": "Members actively coordinate tasks and provide mutual support."
+            }
+          ]
+        }
+      },
+      "read_versions": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "game": "message_board",
+      "answers": [
+        {
+          "message": "Hey everyone! As we head into the weekend, I wanted to share a little thought about choosing our activities. Sometimes it can feel like there's pressure to do something \"big\" or exciting, but I find the most fulfilling weekends often come from intentionally picking something that truly recharges us.\n\nWhether it's tackling a project you've been putting off, exploring a new park, diving into a good book, or simply enjoying some quiet time with loved ones, take a moment to consider what you genuinely need and want from your two days off. It's not about what you *should* do, but what will leave you feeling refreshed and ready for the week ahead.\n\nWhatever you choose, I hope you all have a wonderful and restorative weekend!"
+        },
+        {
+          "message": "That's a fantastic point, Member 0! I completely agree that the most fulfilling weekends often come from intentionally choosing what truly recharges us, rather than feeling pressured to do something \"big.\"\n\nTo build on that, I've found it can also be really helpful to give ourselves permission to *not* over-schedule. Sometimes, the best way to feel refreshed is to leave a little breathing room in our plans. Even if we have a few key activities we want to do, allowing for some spontaneous moments \u2013 whether it's an extra hour with a book, an unplanned walk, or simply enjoying some quiet reflection \u2013 can make the whole weekend feel more expansive and genuinely restful. It's about finding that sweet spot between intentionality and flexibility.\n\nWhatever your approach, I hope everyone finds their perfect balance for a wonderful and restorative weekend!"
+        },
+        {
+          "message": "These are such insightful points, Member 0 and Member 1! I completely resonate with the idea of intentionality and the freedom of not over-scheduling. It's so easy to fall into a routine or feel obligated, but truly making the weekend *ours* is key.\n\nTo add to this wonderful discussion, I've found it incredibly helpful to do a quick 'pre-weekend check-in' with myself, even if it's just for a minute or two on Friday. Instead of just letting the weekend happen, I try to ask myself: 'What's one feeling or outcome I'd truly love to experience by Sunday evening?'\n\nSometimes it's 'relaxed and well-rested,' other times it's 'accomplished and productive,' or even 'connected with loved ones.' Having that small intention can act as a gentle guide, helping me make choices that align with what I genuinely need, rather than just defaulting to what's easy or expected. It's not about rigid planning, but about setting a compass for genuine rejuvenation.\n\nHope everyone has a fantastic weekend filled with whatever truly nourishes them!"
+        }
+      ],
+      "commands": [
+        "add",
+        "add",
+        "add"
+      ],
+      "final_state": {
+        "game": {
+          "messages": [
+            {
+              "author": "Member 0",
+              "interview": "e9f773e0-bba5-4f44-8bad-6905c20ac467",
+              "message": "Hey everyone! As we head into the weekend, I wanted to share a little thought about choosing our activities. Sometimes it can feel like there's pressure to do something \"big\" or exciting, but I find the most fulfilling weekends often come from intentionally picking something that truly recharges us.\n\nWhether it's tackling a project you've been putting off, exploring a new park, diving into a good book, or simply enjoying some quiet time with loved ones, take a moment to consider what you genuinely need and want from your two days off. It's not about what you *should* do, but what will leave you feeling refreshed and ready for the week ahead.\n\nWhatever you choose, I hope you all have a wonderful and restorative weekend!",
+              "reply_to": null
+            },
+            {
+              "author": "Member 1",
+              "interview": "af5cda9d-828e-4e7b-b672-7f9be8cc85c1",
+              "message": "That's a fantastic point, Member 0! I completely agree that the most fulfilling weekends often come from intentionally choosing what truly recharges us, rather than feeling pressured to do something \"big.\"\n\nTo build on that, I've found it can also be really helpful to give ourselves permission to *not* over-schedule. Sometimes, the best way to feel refreshed is to leave a little breathing room in our plans. Even if we have a few key activities we want to do, allowing for some spontaneous moments \u2013 whether it's an extra hour with a book, an unplanned walk, or simply enjoying some quiet reflection \u2013 can make the whole weekend feel more expansive and genuinely restful. It's about finding that sweet spot between intentionality and flexibility.\n\nWhatever your approach, I hope everyone finds their perfect balance for a wonderful and restorative weekend!",
+              "reply_to": null
+            },
+            {
+              "author": "Member 2",
+              "interview": "30e12ce7-4d62-48c8-a648-c10088f2420d",
+              "message": "These are such insightful points, Member 0 and Member 1! I completely resonate with the idea of intentionality and the freedom of not over-scheduling. It's so easy to fall into a routine or feel obligated, but truly making the weekend *ours* is key.\n\nTo add to this wonderful discussion, I've found it incredibly helpful to do a quick 'pre-weekend check-in' with myself, even if it's just for a minute or two on Friday. Instead of just letting the weekend happen, I try to ask myself: 'What's one feeling or outcome I'd truly love to experience by Sunday evening?'\n\nSometimes it's 'relaxed and well-rested,' other times it's 'accomplished and productive,' or even 'connected with loved ones.' Having that small intention can act as a gentle guide, helping me make choices that align with what I genuinely need, rather than just defaulting to what's easy or expected. It's not about rigid planning, but about setting a compass for genuine rejuvenation.\n\nHope everyone has a fantastic weekend filled with whatever truly nourishes them!",
+              "reply_to": null
+            }
+          ]
+        }
+      },
+      "read_versions": [
+        0,
+        1,
+        2
+      ]
+    },
+    {
+      "game": "register",
+      "answers": [
+        {
+          "preference": "hike"
+        },
+        {
+          "preference": "hike"
+        },
+        {
+          "preference": "hike"
+        }
+      ],
+      "commands": [
+        "set",
+        "set",
+        "set"
+      ],
+      "final_state": {
+        "game": {
+          "values": {
+            "Person 0": "hike",
+            "Person 1": "hike",
+            "Person 2": "hike"
+          }
+        }
+      },
+      "read_versions": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "game": "repeated_matrix",
+      "answers": [
+        {
+          "action": "defect"
+        },
+        {
+          "action": "defect"
+        },
+        {
+          "action": "defect"
+        },
+        {
+          "action": "defect"
+        },
+        {
+          "action": "defect"
+        },
+        {
+          "action": "defect"
+        }
+      ],
+      "commands": [
+        "submit",
+        "submit",
+        "submit",
+        "submit",
+        "submit",
+        "submit",
+        "$close"
+      ],
+      "final_state": {
+        "game": {
+          "players": {
+            "0": "Row",
+            "1": "Column"
+          },
+          "rounds": {
+            "1": {
+              "0": "defect",
+              "1": "defect"
+            },
+            "2": {
+              "0": "defect",
+              "1": "defect"
+            },
+            "3": {
+              "0": "defect",
+              "1": "defect"
+            }
+          }
+        }
+      },
+      "read_versions": [
+        0,
+        0,
+        2,
+        2,
+        4,
+        4
+      ]
+    },
+    {
+      "game": "work_pool",
+      "answers": [
+        {
+          "result": "Work items claimed: Worker A (W2), Worker B (W1)."
+        },
+        {
+          "result": "Work item W1 for Worker B has been completed."
+        }
+      ],
+      "commands": [
+        "claim_before",
+        "claim_before",
+        "complete",
+        "complete"
+      ],
+      "final_state": {
+        "game": {
+          "available": [],
+          "claims": {
+            "Worker A": {
+              "id": "W2"
+            },
+            "Worker B": {
+              "id": "W1"
+            }
+          },
+          "completed": {
+            "Worker A": {
+              "item": {
+                "id": "W2"
+              },
+              "result": {
+                "note": "Work items claimed: Worker A (W2), Worker B (W1)."
+              }
+            },
+            "Worker B": {
+              "item": {
+                "id": "W1"
+              },
+              "result": {
+                "note": "Work item W1 for Worker B has been completed."
+              }
+            }
+          }
+        }
+      },
+      "read_versions": [
+        1,
+        2
+      ]
+    }
+  ]
+}

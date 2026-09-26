@@ -1,0 +1,27 @@
+{
+  "status": "ok",
+  "specification_matches_after_uuid_normalization": true,
+  "all_30_question_templates_match": true,
+  "full_final_market_state_exact_match": true,
+  "completed_items": 390,
+  "decisions": 360,
+  "settlements": 30,
+  "new_model_calls": 0,
+  "replay_output": "/private/tmp/typed-market-replay-20260916",
+  "default_fundamental_value": 14.0,
+  "responses_sha256": "c0db3b8cef496e7f7a96897da81f72b56e154cd41cc2a9fdedec98c41bd6c57c",
+  "archived_market_sha256": "572d6ae660d784df535857908c32d82cd0cf9c7561fc2a8c0a451cbea79a21c7",
+  "sources": {
+    "edsl/sharedstate/market_rules.py": "918eaef152caf67e860c9623aa1482f3a64301b16a6bd4ffa9915bfa0cd3acfc",
+    "edsl/sharedstate/market_records.py": "0e6e85e1c3d38b694dbce91c89fe8269b55200fd613a7aab7d5e874061c83f0d",
+    "edsl/sharedstate/call_market.py": "6c7b847c17d3ba1c2abdd2f5e6ce188bd2287dd714f3fb9b90507a2ca094f4f6",
+    "examples/asset_market/typed_market_experiment.py": "0aa6217c08e1c67de649154a221a274127a8cf39890fcaff6c3a738d96676757"
+  },
+  "validation": {
+    "broader_regression_passed": 221,
+    "final_targeted_passed": 27,
+    "groups_overlap": true,
+    "ruff": "passed",
+    "prepare_only_cli": "passed"
+  }
+}

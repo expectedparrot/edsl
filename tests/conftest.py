@@ -32,6 +32,11 @@ def pytest_sessionstart(session):
     """
     Pytest fixture to start a FastAPI server for token bucket testing.
     """
+    config = session.config
+    if not getattr(config, "token_bucket_enabled", False):
+        print("Session starting")
+        return
+
     # Check if port is already in use
     import os
 
@@ -58,15 +63,6 @@ def pytest_sessionstart(session):
                 "Port 8002 is still in use. Please manually kill the process using it."
             )
     print("Session starting")
-    config = session.config
-
-    if not hasattr(config, "token_bucket_enabled"):
-        print("Token bucket testing is not enabled")
-        return
-
-    if not config.token_bucket_enabled:
-        return
-
     try:
         # Start the FastAPI server in a subprocess
         server_cmd = [sys.executable, "edsl/jobs/buckets/TokenBucketAPI.py"]

@@ -300,9 +300,9 @@ class JobCostEstimator:
 
         rows: list[dict] = []
         warnings: list[str] = []
-        output_estimates: dict[str, int] = (
-            {}
-        )  # question_name -> estimated output tokens
+        output_estimates: dict[
+            str, int
+        ] = {}  # question_name -> estimated output tokens
 
         fetcher = FetchInvigilator(interview)
 
@@ -334,14 +334,20 @@ class JobCostEstimator:
                     rendered_question=rendered_q, transcript=[], turn_index=0
                 )
                 respondent_user = invigilator._build_respondent_user_prompt(
-                    rendered_question=rendered_q, transcript=[], interviewer_utterance=""
+                    rendered_question=rendered_q,
+                    transcript=[],
+                    interviewer_utterance="",
                 )
                 per_turn_base = (
-                    len(interviewer_sys) + len(respondent_sys)
-                    + len(interviewer_user) + len(respondent_user)
+                    len(interviewer_sys)
+                    + len(respondent_sys)
+                    + len(interviewer_user)
+                    + len(respondent_user)
                 ) // c
                 base_estimate = interview_est(
-                    rendered_q, prompts, model,
+                    rendered_q,
+                    prompts,
+                    model,
                     per_turn_base_tokens=per_turn_base,
                 )
                 q_warnings = []

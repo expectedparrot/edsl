@@ -1,0 +1,101 @@
+---
+title: "Adaptive price elicitation"
+description: "Narrow a respondent-specific price interval using integer arithmetic, bounded question slots, and ordinary skip rules."
+---
+
+This example adapts questions **within one interview**. Each Yes/No response
+narrows the next offer; other respondents have independent state. The Machine
+computes the next price and stopping condition. Survey continues to own navigation.
+
+## Run it
+
+```bash
+python -m examples.price_elicitation
+```
+
+Four scripted respondents have integer thresholds 0, 37, 65, and 100. Starting
+from the assumed range 0..100, their final intervals are respectively 0..0,
+37..37, 65..65, and 100..100. The first three need six questions; the last needs
+seven. This makes no live model calls.
+
+See the [Machine builder](https://github.com/expectedparrot/edsl/blob/feature/shared-state-v0/examples/machine_primitives/price_elicitation.py)
+and [Survey adapter](https://github.com/expectedparrot/edsl/blob/feature/shared-state-v0/examples/price_elicitation.py).
+
+```python
+from edsl import Model
+from edsl.runner import Runner
+from examples.price_elicitation import build_survey, demo_agents
+
+survey, states, schedule = build_survey(
+    lower=0, upper=100, max_questions=7, tolerance=0
+)
+results = Runner(interview_schedule=schedule).submit(
+    survey.by(demo_agents()).by(Model("test")), cache=False
+).results()
+results.select("answer.price_interval")
+```
+
+## Integer search policy
+
+The scope key is `[study_id, respondent_id]`. State holds inclusive integer
+`lower` and `upper` bounds and an ordered observation history. At each step:
+
+1. Compute `price = ceiling((lower + upper) / 2)` with `round_ratio`.
+2. If the answer is Yes, set `lower = price`.
+3. If the answer is No, set `upper = price - 1`.
+4. Record the step, quoted price, and answer atomically.
+
+Stop when the interval width is at most `tolerance` or `max_questions` have been
+answered. `precise` distinguishes tolerance completion from budget exhaustion.
+Defaults use exact integer units, no floating point or currency conversion.
+The authoring helper permits at most 32 question slots.
+
+The single command is `observe(step, answer)`, where answer is Yes or No. A fresh
+step must equal the current history length. Earlier identical observations are
+no-ops; changed answers and out-of-order observations reject without changing
+bounds. A completed or explicitly closed search refuses new observations while
+retaining valid historical retries.
+
+## Fixed Survey slots, adaptive content
+
+The adapter constructs a bounded sequence of computed price questions and
+multiple-choice questions. Before each slot it reads the personal Machine view.
+The computed question emits the price only when this slot is the next unfinished
+step; otherwise it emits `skip`. An ordinary Survey skip rule suppresses that
+question and its associated state write. A final read reports the interval.
+
+This also supports partial resumption: a new job with the saved state map skips
+old slots, keeps their original observations, and continues the remaining search.
+The tests interrupt after two responses, restore the Survey, and finish without
+counting either response twice. Fully completed searches ask no further choices.
+
+Model-path tests inspect every quoted price in the actual prompts and saved
+presentation metadata. Scripted respondents use the read view to make their
+choice. The [presentation contract](/en/latest/shared-state/scopes-and-surveys#which-options-did-this-respondent-see)
+distinguishes the direct question object from a rendered model prompt.
+
+## Assumptions and design findings
+
+The threshold must be an integer inside the **assumed** initial range, and the
+respondent must buy at every price at or below it. An endpoint result does not
+prove that the true value lies within the range: all-Yes responses also fit values
+above the upper bound, and all-No responses can reflect values below the lower
+bound. Interpret those cases as potentially censored. Noisy or changing preferences
+need another elicitation policy; this deterministic search provides no confidence
+interval or inconsistency diagnosis.
+
+The [tests](https://github.com/expectedparrot/edsl/blob/feature/shared-state-v0/tests/sharedstate/test_survey_applications.py)
+compare every transition with an independent integer-search reference, check
+boundary values, early precision, limited budgets, stale steps, concurrent duplicate
+observations, restart/replay, isolated scopes, and fresh-process execution.
+
+This construction exposes the cost of fixed Survey slots: the authoring helper
+must allocate a maximum number of slots and generate gates, even when the Machine
+finishes early. It demonstrates current navigation without introducing a new
+Machine-driven survey engine. Stable IDs and one logical search per respondent
+scope remain host responsibilities; do not treat simultaneous differing responses
+from two sessions as independent searches.
+
+The default definition is 9,017 JSON bytes; its six-observation corpus replay
+peaks at 4,642 host budget steps per transition. The corpus profiler reproduces
+these host-specific measurements.

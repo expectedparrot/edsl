@@ -1,0 +1,32 @@
+{
+  "rounds": 30,
+  "decisions": 360,
+  "volume": 114,
+  "trading_rounds": 21,
+  "first_trade_round": 5,
+  "peak_price": 31.0,
+  "peak_round": 26,
+  "last_transaction_price": 31.0,
+  "longest_consecutive_prices_at_least_17_50": 14,
+  "post_peak_drawdown": 0.0,
+  "recorded_model_cost": 1.2611117500000004,
+  "audit": {
+    "passed": true,
+    "orders": {
+      "submit": 360,
+      "settle": 30
+    },
+    "attempts": {
+      "succeeded": 390
+    },
+    "all_private_views_and_prompts_verified": true,
+    "shares_redeemed": 48
+  },
+  "execution": {
+    "initial_serial_decisions": 140,
+    "batched_decisions": 220,
+    "edsl_jobs_completed": 19,
+    "mean_full_round_job_seconds": 30.518688761596827,
+    "pairing": "zip_assign from PR #2622"
+  }
+}

@@ -1,0 +1,1335 @@
+{
+  "model": "gemini-2.5-flash",
+  "rows": [
+    {
+      "agent": "Forecaster A",
+      "round": 1,
+      "user_prompt": "Estimate the probability (0\u2013100) that the event occurs. Your private initial belief is 30. Current consensus: {'latest': [], 'history': [], 'mean_probability': None, 'median_probability': None, 'confidence_weighted_probability': None}.\n\n\n    Maximum answer value: 100\nThis question requires a numerical response in the form of an integer or decimal (e.g., -12, 0, 1, 2, 3.45, ...).\nRespond with just your number on a single line.\nIf your response is equivalent to zero, report '0'\n\n\nAfter the answer, put a comment explaining your choice on the next line.",
+      "system_prompt": "You are answering questions as if you were a human. Do not break character.Your traits: {'panel_id': 'panel', 'initial': 30, 'confidence': 75}",
+      "answer": 30,
+      "comment": "My initial belief is 30, and there is no consensus data to adjust it."
+    },
+    {
+      "agent": "Forecaster A",
+      "round": 2,
+      "user_prompt": "Estimate the probability (0\u2013100) that the event occurs. Your private initial belief is 30. Current consensus: {'latest': [{'forecaster': 'Forecaster A', 'round': 1, 'probability': 30, 'confidence': 75}, {'forecaster': 'Forecaster C', 'round': 1, 'probability': 70, 'confidence': 70}, {'forecaster': 'Forecaster B', 'round': 1, 'probability': 50, 'confidence': 80}], 'history': [{'forecaster': 'Forecaster A', 'round': 1, 'probability': 30, 'confidence': 75}, {'forecaster': 'Forecaster C', 'round': 1, 'probability': 70, 'confidence': 70}, {'forecaster': 'Forecaster B', 'round': 1, 'probability': 50, 'confidence': 80}], 'mean_probability': 50.0, 'median_probability': 50, 'confidence_weighted_probability': 49.55555555555556}.\n\n\n    Maximum answer value: 100\nThis question requires a numerical response in the form of an integer or decimal (e.g., -12, 0, 1, 2, 3.45, ...).\nRespond with just your number on a single line.\nIf your response is equivalent to zero, report '0'\n\n\nAfter the answer, put a comment explaining your choice on the next line.",
+      "system_prompt": "You are answering questions as if you were a human. Do not break character.Your traits: {'panel_id': 'panel', 'initial': 30, 'confidence': 75}",
+      "answer": 45,
+      "comment": "My initial belief is 30 with a confidence of 75. The current consensus provides three forecaster probabilities (30, 50, 70) with confidences (75, 80, 70). The confidence-weighted average of these forecasters is 49.55. To combine my initial belief with the consensus, I"
+    },
+    {
+      "agent": "Forecaster B",
+      "round": 1,
+      "user_prompt": "Estimate the probability (0\u2013100) that the event occurs. Your private initial belief is 50. Current consensus: {'latest': [], 'history': [], 'mean_probability': None, 'median_probability': None, 'confidence_weighted_probability': None}.\n\n\n    Maximum answer value: 100\nThis question requires a numerical response in the form of an integer or decimal (e.g., -12, 0, 1, 2, 3.45, ...).\nRespond with just your number on a single line.\nIf your response is equivalent to zero, report '0'\n\n\nAfter the answer, put a comment explaining your choice on the next line.",
+      "system_prompt": "You are answering questions as if you were a human. Do not break character.Your traits: {'panel_id': 'panel', 'initial': 50, 'confidence': 80}",
+      "answer": 50,
+      "comment": "My initial belief is 50, and there is no new information or consensus data to adjust it."
+    },
+    {
+      "agent": "Forecaster B",
+      "round": 2,
+      "user_prompt": "Estimate the probability (0\u2013100) that the event occurs. Your private initial belief is 50. Current consensus: {'latest': [{'forecaster': 'Forecaster A', 'round': 1, 'probability': 30, 'confidence': 75}, {'forecaster': 'Forecaster C', 'round': 1, 'probability': 70, 'confidence': 70}, {'forecaster': 'Forecaster B', 'round': 1, 'probability': 50, 'confidence': 80}], 'history': [{'forecaster': 'Forecaster A', 'round': 1, 'probability': 30, 'confidence': 75}, {'forecaster': 'Forecaster C', 'round': 1, 'probability': 70, 'confidence': 70}, {'forecaster': 'Forecaster B', 'round': 1, 'probability': 50, 'confidence': 80}], 'mean_probability': 50.0, 'median_probability': 50, 'confidence_weighted_probability': 49.55555555555556}.\n\n\n    Maximum answer value: 100\nThis question requires a numerical response in the form of an integer or decimal (e.g., -12, 0, 1, 2, 3.45, ...).\nRespond with just your number on a single line.\nIf your response is equivalent to zero, report '0'\n\n\nAfter the answer, put a comment explaining your choice on the next line.",
+      "system_prompt": "You are answering questions as if you were a human. Do not break character.Your traits: {'panel_id': 'panel', 'initial': 50, 'confidence': 80}",
+      "answer": 50,
+      "comment": "My initial belief is 50, and the consensus (mean, median, and the highest-confidence forecaster's estimate) is also around 50. I see no strong reason to deviate."
+    },
+    {
+      "agent": "Forecaster C",
+      "round": 1,
+      "user_prompt": "Estimate the probability (0\u2013100) that the event occurs. Your private initial belief is 70. Current consensus: {'latest': [], 'history': [], 'mean_probability': None, 'median_probability': None, 'confidence_weighted_probability': None}.\n\n\n    Maximum answer value: 100\nThis question requires a numerical response in the form of an integer or decimal (e.g., -12, 0, 1, 2, 3.45, ...).\nRespond with just your number on a single line.\nIf your response is equivalent to zero, report '0'\n\n\nAfter the answer, put a comment explaining your choice on the next line.",
+      "system_prompt": "You are answering questions as if you were a human. Do not break character.Your traits: {'panel_id': 'panel', 'initial': 70, 'confidence': 70}",
+      "answer": 70,
+      "comment": "My initial belief is 70, and there is no other consensus information to adjust that belief."
+    },
+    {
+      "agent": "Forecaster C",
+      "round": 2,
+      "user_prompt": "Estimate the probability (0\u2013100) that the event occurs. Your private initial belief is 70. Current consensus: {'latest': [{'forecaster': 'Forecaster A', 'round': 1, 'probability': 30, 'confidence': 75}, {'forecaster': 'Forecaster C', 'round': 1, 'probability': 70, 'confidence': 70}, {'forecaster': 'Forecaster B', 'round': 1, 'probability': 50, 'confidence': 80}], 'history': [{'forecaster': 'Forecaster A', 'round': 1, 'probability': 30, 'confidence': 75}, {'forecaster': 'Forecaster C', 'round': 1, 'probability': 70, 'confidence': 70}, {'forecaster': 'Forecaster B', 'round': 1, 'probability': 50, 'confidence': 80}], 'mean_probability': 50.0, 'median_probability': 50, 'confidence_weighted_probability': 49.55555555555556}.\n\n\n    Maximum answer value: 100\nThis question requires a numerical response in the form of an integer or decimal (e.g., -12, 0, 1, 2, 3.45, ...).\nRespond with just your number on a single line.\nIf your response is equivalent to zero, report '0'\n\n\nAfter the answer, put a comment explaining your choice on the next line.",
+      "system_prompt": "You are answering questions as if you were a human. Do not break character.Your traits: {'panel_id': 'panel', 'initial': 70, 'confidence': 70}",
+      "answer": 54,
+      "comment": "My initial belief was 70. I adjusted this by weighing my belief (70, confidence 70) with the confidence-weighted average of the other forecasters (49.55, with a total confidence of 225). This calculation resulted in approximately 54.4, which I rounded to 54."
+    }
+  ],
+  "shared_state": {
+    "version": 1,
+    "bindings": [
+      {
+        "state_id": "gemini-forecast-61380dad-eb41-4181-8f3e-1e64ebd3dd7c",
+        "definition": {
+          "type": "shared_state_definition",
+          "version": 1,
+          "machines": {
+            "game": {
+              "name": "SharedForecast",
+              "constants": {},
+              "fields": {
+                "forecasts": {
+                  "type": {
+                    "op": "type",
+                    "args": [
+                      "sequence"
+                    ],
+                    "kwargs": {
+                      "item": {
+                        "op": "type",
+                        "args": [
+                          "map"
+                        ],
+                        "kwargs": {
+                          "key": {
+                            "op": "type",
+                            "args": [
+                              "text"
+                            ],
+                            "kwargs": {}
+                          },
+                          "value": {
+                            "op": "type",
+                            "args": [
+                              "any"
+                            ],
+                            "kwargs": {}
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "initial": []
+                }
+              },
+              "commands": {
+                "submit": {
+                  "inputs": {
+                    "forecaster": {
+                      "op": "type",
+                      "args": [
+                        "text"
+                      ],
+                      "kwargs": {}
+                    },
+                    "round": {
+                      "op": "type",
+                      "args": [
+                        "integer"
+                      ],
+                      "kwargs": {
+                        "minimum": 1,
+                        "maximum": null
+                      }
+                    },
+                    "probability": {
+                      "op": "type",
+                      "args": [
+                        "number"
+                      ],
+                      "kwargs": {
+                        "minimum": 0,
+                        "maximum": 100
+                      }
+                    },
+                    "confidence": {
+                      "op": "type",
+                      "args": [
+                        "number"
+                      ],
+                      "kwargs": {
+                        "minimum": 0,
+                        "maximum": 100
+                      }
+                    }
+                  },
+                  "effects": [
+                    {
+                      "op": "append",
+                      "target": "forecasts",
+                      "args": [
+                        {
+                          "op": "record",
+                          "args": [],
+                          "kwargs": {
+                            "forecaster": {
+                              "op": "ref",
+                              "args": [],
+                              "kwargs": {
+                                "namespace": "input",
+                                "name": "forecaster"
+                              }
+                            },
+                            "round": {
+                              "op": "ref",
+                              "args": [],
+                              "kwargs": {
+                                "namespace": "input",
+                                "name": "round"
+                              }
+                            },
+                            "probability": {
+                              "op": "ref",
+                              "args": [],
+                              "kwargs": {
+                                "namespace": "input",
+                                "name": "probability"
+                              }
+                            },
+                            "confidence": {
+                              "op": "ref",
+                              "args": [],
+                              "kwargs": {
+                                "namespace": "input",
+                                "name": "confidence"
+                              }
+                            },
+                            "interview": {
+                              "op": "ref",
+                              "args": [],
+                              "kwargs": {
+                                "namespace": "current",
+                                "name": "interview_id",
+                                "default": null
+                              }
+                            }
+                          }
+                        }
+                      ],
+                      "options": {}
+                    }
+                  ],
+                  "require": null,
+                  "timing": "after_answer"
+                }
+              },
+              "view": {
+                "latest": {
+                  "op": "map_sequence",
+                  "args": [
+                    {
+                      "op": "values",
+                      "args": [
+                        {
+                          "op": "reduce",
+                          "args": [
+                            "latest_by",
+                            {
+                              "op": "ref",
+                              "args": [],
+                              "kwargs": {
+                                "namespace": "state",
+                                "name": "forecasts"
+                              }
+                            }
+                          ],
+                          "kwargs": {
+                            "field": "forecaster"
+                          }
+                        }
+                      ],
+                      "kwargs": {}
+                    }
+                  ],
+                  "kwargs": {
+                    "item": "forecast",
+                    "value_expr": {
+                      "op": "record",
+                      "args": [],
+                      "kwargs": {
+                        "forecaster": {
+                          "op": "get",
+                          "args": [
+                            {
+                              "op": "ref",
+                              "args": [],
+                              "kwargs": {
+                                "namespace": "local",
+                                "name": "forecast"
+                              }
+                            },
+                            "forecaster",
+                            null
+                          ],
+                          "kwargs": {}
+                        },
+                        "round": {
+                          "op": "get",
+                          "args": [
+                            {
+                              "op": "ref",
+                              "args": [],
+                              "kwargs": {
+                                "namespace": "local",
+                                "name": "forecast"
+                              }
+                            },
+                            "round",
+                            null
+                          ],
+                          "kwargs": {}
+                        },
+                        "probability": {
+                          "op": "get",
+                          "args": [
+                            {
+                              "op": "ref",
+                              "args": [],
+                              "kwargs": {
+                                "namespace": "local",
+                                "name": "forecast"
+                              }
+                            },
+                            "probability",
+                            null
+                          ],
+                          "kwargs": {}
+                        },
+                        "confidence": {
+                          "op": "get",
+                          "args": [
+                            {
+                              "op": "ref",
+                              "args": [],
+                              "kwargs": {
+                                "namespace": "local",
+                                "name": "forecast"
+                              }
+                            },
+                            "confidence",
+                            null
+                          ],
+                          "kwargs": {}
+                        }
+                      }
+                    }
+                  }
+                },
+                "history": {
+                  "op": "map_sequence",
+                  "args": [
+                    {
+                      "op": "ref",
+                      "args": [],
+                      "kwargs": {
+                        "namespace": "state",
+                        "name": "forecasts"
+                      }
+                    }
+                  ],
+                  "kwargs": {
+                    "item": "forecast",
+                    "value_expr": {
+                      "op": "record",
+                      "args": [],
+                      "kwargs": {
+                        "forecaster": {
+                          "op": "get",
+                          "args": [
+                            {
+                              "op": "ref",
+                              "args": [],
+                              "kwargs": {
+                                "namespace": "local",
+                                "name": "forecast"
+                              }
+                            },
+                            "forecaster",
+                            null
+                          ],
+                          "kwargs": {}
+                        },
+                        "round": {
+                          "op": "get",
+                          "args": [
+                            {
+                              "op": "ref",
+                              "args": [],
+                              "kwargs": {
+                                "namespace": "local",
+                                "name": "forecast"
+                              }
+                            },
+                            "round",
+                            null
+                          ],
+                          "kwargs": {}
+                        },
+                        "probability": {
+                          "op": "get",
+                          "args": [
+                            {
+                              "op": "ref",
+                              "args": [],
+                              "kwargs": {
+                                "namespace": "local",
+                                "name": "forecast"
+                              }
+                            },
+                            "probability",
+                            null
+                          ],
+                          "kwargs": {}
+                        },
+                        "confidence": {
+                          "op": "get",
+                          "args": [
+                            {
+                              "op": "ref",
+                              "args": [],
+                              "kwargs": {
+                                "namespace": "local",
+                                "name": "forecast"
+                              }
+                            },
+                            "confidence",
+                            null
+                          ],
+                          "kwargs": {}
+                        }
+                      }
+                    }
+                  }
+                },
+                "mean_probability": {
+                  "op": "reduce",
+                  "args": [
+                    "mean",
+                    {
+                      "op": "map_sequence",
+                      "args": [
+                        {
+                          "op": "values",
+                          "args": [
+                            {
+                              "op": "reduce",
+                              "args": [
+                                "latest_by",
+                                {
+                                  "op": "ref",
+                                  "args": [],
+                                  "kwargs": {
+                                    "namespace": "state",
+                                    "name": "forecasts"
+                                  }
+                                }
+                              ],
+                              "kwargs": {
+                                "field": "forecaster"
+                              }
+                            }
+                          ],
+                          "kwargs": {}
+                        }
+                      ],
+                      "kwargs": {
+                        "item": "forecast",
+                        "value_expr": {
+                          "op": "get",
+                          "args": [
+                            {
+                              "op": "ref",
+                              "args": [],
+                              "kwargs": {
+                                "namespace": "local",
+                                "name": "forecast"
+                              }
+                            },
+                            "probability",
+                            null
+                          ],
+                          "kwargs": {}
+                        }
+                      }
+                    }
+                  ],
+                  "kwargs": {}
+                },
+                "median_probability": {
+                  "op": "reduce",
+                  "args": [
+                    "median",
+                    {
+                      "op": "map_sequence",
+                      "args": [
+                        {
+                          "op": "values",
+                          "args": [
+                            {
+                              "op": "reduce",
+                              "args": [
+                                "latest_by",
+                                {
+                                  "op": "ref",
+                                  "args": [],
+                                  "kwargs": {
+                                    "namespace": "state",
+                                    "name": "forecasts"
+                                  }
+                                }
+                              ],
+                              "kwargs": {
+                                "field": "forecaster"
+                              }
+                            }
+                          ],
+                          "kwargs": {}
+                        }
+                      ],
+                      "kwargs": {
+                        "item": "forecast",
+                        "value_expr": {
+                          "op": "get",
+                          "args": [
+                            {
+                              "op": "ref",
+                              "args": [],
+                              "kwargs": {
+                                "namespace": "local",
+                                "name": "forecast"
+                              }
+                            },
+                            "probability",
+                            null
+                          ],
+                          "kwargs": {}
+                        }
+                      }
+                    }
+                  ],
+                  "kwargs": {}
+                },
+                "confidence_weighted_probability": {
+                  "op": "if",
+                  "args": [
+                    {
+                      "op": "greater_than",
+                      "args": [
+                        {
+                          "op": "reduce",
+                          "args": [
+                            "sum",
+                            {
+                              "op": "map_sequence",
+                              "args": [
+                                {
+                                  "op": "values",
+                                  "args": [
+                                    {
+                                      "op": "reduce",
+                                      "args": [
+                                        "latest_by",
+                                        {
+                                          "op": "ref",
+                                          "args": [],
+                                          "kwargs": {
+                                            "namespace": "state",
+                                            "name": "forecasts"
+                                          }
+                                        }
+                                      ],
+                                      "kwargs": {
+                                        "field": "forecaster"
+                                      }
+                                    }
+                                  ],
+                                  "kwargs": {}
+                                }
+                              ],
+                              "kwargs": {
+                                "item": "forecast",
+                                "value_expr": {
+                                  "op": "get",
+                                  "args": [
+                                    {
+                                      "op": "ref",
+                                      "args": [],
+                                      "kwargs": {
+                                        "namespace": "local",
+                                        "name": "forecast"
+                                      }
+                                    },
+                                    "confidence",
+                                    null
+                                  ],
+                                  "kwargs": {}
+                                }
+                              }
+                            }
+                          ],
+                          "kwargs": {}
+                        },
+                        0
+                      ],
+                      "kwargs": {}
+                    },
+                    {
+                      "op": "divide",
+                      "args": [
+                        {
+                          "op": "reduce",
+                          "args": [
+                            "sum",
+                            {
+                              "op": "map_sequence",
+                              "args": [
+                                {
+                                  "op": "values",
+                                  "args": [
+                                    {
+                                      "op": "reduce",
+                                      "args": [
+                                        "latest_by",
+                                        {
+                                          "op": "ref",
+                                          "args": [],
+                                          "kwargs": {
+                                            "namespace": "state",
+                                            "name": "forecasts"
+                                          }
+                                        }
+                                      ],
+                                      "kwargs": {
+                                        "field": "forecaster"
+                                      }
+                                    }
+                                  ],
+                                  "kwargs": {}
+                                }
+                              ],
+                              "kwargs": {
+                                "item": "forecast",
+                                "value_expr": {
+                                  "op": "multiply",
+                                  "args": [
+                                    {
+                                      "op": "get",
+                                      "args": [
+                                        {
+                                          "op": "ref",
+                                          "args": [],
+                                          "kwargs": {
+                                            "namespace": "local",
+                                            "name": "forecast"
+                                          }
+                                        },
+                                        "probability",
+                                        null
+                                      ],
+                                      "kwargs": {}
+                                    },
+                                    {
+                                      "op": "get",
+                                      "args": [
+                                        {
+                                          "op": "ref",
+                                          "args": [],
+                                          "kwargs": {
+                                            "namespace": "local",
+                                            "name": "forecast"
+                                          }
+                                        },
+                                        "confidence",
+                                        null
+                                      ],
+                                      "kwargs": {}
+                                    }
+                                  ],
+                                  "kwargs": {}
+                                }
+                              }
+                            }
+                          ],
+                          "kwargs": {}
+                        },
+                        {
+                          "op": "reduce",
+                          "args": [
+                            "sum",
+                            {
+                              "op": "map_sequence",
+                              "args": [
+                                {
+                                  "op": "values",
+                                  "args": [
+                                    {
+                                      "op": "reduce",
+                                      "args": [
+                                        "latest_by",
+                                        {
+                                          "op": "ref",
+                                          "args": [],
+                                          "kwargs": {
+                                            "namespace": "state",
+                                            "name": "forecasts"
+                                          }
+                                        }
+                                      ],
+                                      "kwargs": {
+                                        "field": "forecaster"
+                                      }
+                                    }
+                                  ],
+                                  "kwargs": {}
+                                }
+                              ],
+                              "kwargs": {
+                                "item": "forecast",
+                                "value_expr": {
+                                  "op": "get",
+                                  "args": [
+                                    {
+                                      "op": "ref",
+                                      "args": [],
+                                      "kwargs": {
+                                        "namespace": "local",
+                                        "name": "forecast"
+                                      }
+                                    },
+                                    "confidence",
+                                    null
+                                  ],
+                                  "kwargs": {}
+                                }
+                              }
+                            }
+                          ],
+                          "kwargs": {}
+                        }
+                      ],
+                      "kwargs": {}
+                    },
+                    null
+                  ],
+                  "kwargs": {}
+                }
+              },
+              "complete_when": null,
+              "close_effects": [],
+              "algorithms": []
+            }
+          }
+        },
+        "entry_snapshots": [
+          {
+            "state_id": "gemini-forecast-61380dad-eb41-4181-8f3e-1e64ebd3dd7c",
+            "scope": "panel",
+            "version": 0,
+            "state": {
+              "game": {
+                "forecasts": []
+              }
+            }
+          }
+        ],
+        "events": [
+          {
+            "event_id": "e1e2952d-6002-42a8-86da-b108c4909d6a",
+            "execution_id": "04e47d90-1ecc-443f-aa48-a490640bfcd0",
+            "format": 1,
+            "kind": "read",
+            "read_id": "e1e2952d-6002-42a8-86da-b108c4909d6a",
+            "scope": "panel",
+            "scope_canonical": "\"panel\"",
+            "state_id": "gemini-forecast-61380dad-eb41-4181-8f3e-1e64ebd3dd7c",
+            "step_id": "f35274eb-16b4-453b-9934-ea39932c722a",
+            "target": "game",
+            "timestamp": "2026-08-30T21:47:28.934424+00:00",
+            "value": {
+              "confidence_weighted_probability": null,
+              "history": [],
+              "latest": [],
+              "mean_probability": null,
+              "median_probability": null
+            },
+            "version": 0
+          },
+          {
+            "event_id": "d43ad3f9-133f-4677-9a95-44a339da702a",
+            "execution_id": "3f58b3dd-b4fc-4d58-a1f9-369f4dd37ca1",
+            "format": 1,
+            "kind": "read",
+            "read_id": "d43ad3f9-133f-4677-9a95-44a339da702a",
+            "scope": "panel",
+            "scope_canonical": "\"panel\"",
+            "state_id": "gemini-forecast-61380dad-eb41-4181-8f3e-1e64ebd3dd7c",
+            "step_id": "f35274eb-16b4-453b-9934-ea39932c722a",
+            "target": "game",
+            "timestamp": "2026-08-30T21:47:28.937398+00:00",
+            "value": {
+              "confidence_weighted_probability": null,
+              "history": [],
+              "latest": [],
+              "mean_probability": null,
+              "median_probability": null
+            },
+            "version": 0
+          },
+          {
+            "event_id": "42a302be-913c-4fa9-b91d-563f57e20d53",
+            "execution_id": "f1997074-7e03-4b8e-aa97-eea568fb9134",
+            "format": 1,
+            "kind": "read",
+            "read_id": "42a302be-913c-4fa9-b91d-563f57e20d53",
+            "scope": "panel",
+            "scope_canonical": "\"panel\"",
+            "state_id": "gemini-forecast-61380dad-eb41-4181-8f3e-1e64ebd3dd7c",
+            "step_id": "f35274eb-16b4-453b-9934-ea39932c722a",
+            "target": "game",
+            "timestamp": "2026-08-30T21:47:28.938216+00:00",
+            "value": {
+              "confidence_weighted_probability": null,
+              "history": [],
+              "latest": [],
+              "mean_probability": null,
+              "median_probability": null
+            },
+            "version": 0
+          },
+          {
+            "changed": true,
+            "command": "submit",
+            "event_id": "gemini-forecast-61380dad-eb41-4181-8f3e-1e64ebd3dd7c:\"panel\":1",
+            "execution_id": "f1997074-7e03-4b8e-aa97-eea568fb9134",
+            "format": 1,
+            "idempotency_key": "59890501cc9f9cd33bcfeca7",
+            "inputs": {
+              "confidence": 75,
+              "forecaster": "Forecaster A",
+              "probability": 30,
+              "round": 1
+            },
+            "kind": "write",
+            "scope": "panel",
+            "scope_canonical": "\"panel\"",
+            "state": {
+              "game": {
+                "forecasts": [
+                  {
+                    "confidence": 75,
+                    "forecaster": "Forecaster A",
+                    "interview": "f1997074-7e03-4b8e-aa97-eea568fb9134",
+                    "probability": 30,
+                    "round": 1
+                  }
+                ]
+              }
+            },
+            "state_id": "gemini-forecast-61380dad-eb41-4181-8f3e-1e64ebd3dd7c",
+            "step_id": "643ce6be-dd01-4027-a21a-48bb3e855d7b",
+            "target": "game",
+            "timestamp": "2026-08-30T21:47:30.077258+00:00",
+            "version": 1
+          },
+          {
+            "changed": true,
+            "command": "submit",
+            "event_id": "gemini-forecast-61380dad-eb41-4181-8f3e-1e64ebd3dd7c:\"panel\":2",
+            "execution_id": "04e47d90-1ecc-443f-aa48-a490640bfcd0",
+            "format": 1,
+            "idempotency_key": "20131c1e2322a8675fa10359",
+            "inputs": {
+              "confidence": 70,
+              "forecaster": "Forecaster C",
+              "probability": 70,
+              "round": 1
+            },
+            "kind": "write",
+            "scope": "panel",
+            "scope_canonical": "\"panel\"",
+            "state": {
+              "game": {
+                "forecasts": [
+                  {
+                    "confidence": 75,
+                    "forecaster": "Forecaster A",
+                    "interview": "f1997074-7e03-4b8e-aa97-eea568fb9134",
+                    "probability": 30,
+                    "round": 1
+                  },
+                  {
+                    "confidence": 70,
+                    "forecaster": "Forecaster C",
+                    "interview": "04e47d90-1ecc-443f-aa48-a490640bfcd0",
+                    "probability": 70,
+                    "round": 1
+                  }
+                ]
+              }
+            },
+            "state_id": "gemini-forecast-61380dad-eb41-4181-8f3e-1e64ebd3dd7c",
+            "step_id": "643ce6be-dd01-4027-a21a-48bb3e855d7b",
+            "target": "game",
+            "timestamp": "2026-08-30T21:47:30.223922+00:00",
+            "version": 2
+          },
+          {
+            "changed": true,
+            "command": "submit",
+            "event_id": "gemini-forecast-61380dad-eb41-4181-8f3e-1e64ebd3dd7c:\"panel\":3",
+            "execution_id": "3f58b3dd-b4fc-4d58-a1f9-369f4dd37ca1",
+            "format": 1,
+            "idempotency_key": "a1e3b4876d05f8c8ddf5f3a9",
+            "inputs": {
+              "confidence": 80,
+              "forecaster": "Forecaster B",
+              "probability": 50,
+              "round": 1
+            },
+            "kind": "write",
+            "scope": "panel",
+            "scope_canonical": "\"panel\"",
+            "state": {
+              "game": {
+                "forecasts": [
+                  {
+                    "confidence": 75,
+                    "forecaster": "Forecaster A",
+                    "interview": "f1997074-7e03-4b8e-aa97-eea568fb9134",
+                    "probability": 30,
+                    "round": 1
+                  },
+                  {
+                    "confidence": 70,
+                    "forecaster": "Forecaster C",
+                    "interview": "04e47d90-1ecc-443f-aa48-a490640bfcd0",
+                    "probability": 70,
+                    "round": 1
+                  },
+                  {
+                    "confidence": 80,
+                    "forecaster": "Forecaster B",
+                    "interview": "3f58b3dd-b4fc-4d58-a1f9-369f4dd37ca1",
+                    "probability": 50,
+                    "round": 1
+                  }
+                ]
+              }
+            },
+            "state_id": "gemini-forecast-61380dad-eb41-4181-8f3e-1e64ebd3dd7c",
+            "step_id": "643ce6be-dd01-4027-a21a-48bb3e855d7b",
+            "target": "game",
+            "timestamp": "2026-08-30T21:47:30.266135+00:00",
+            "version": 3
+          },
+          {
+            "event_id": "d2cc9520-d035-4952-9d01-63e3475cba77",
+            "execution_id": "59612353-b48a-4610-a95b-9d7a20a479bc",
+            "format": 1,
+            "kind": "read",
+            "read_id": "d2cc9520-d035-4952-9d01-63e3475cba77",
+            "scope": "panel",
+            "scope_canonical": "\"panel\"",
+            "state_id": "gemini-forecast-61380dad-eb41-4181-8f3e-1e64ebd3dd7c",
+            "step_id": "f35274eb-16b4-453b-9934-ea39932c722a",
+            "target": "game",
+            "timestamp": "2026-08-30T21:47:30.296366+00:00",
+            "value": {
+              "confidence_weighted_probability": 49.55555555555556,
+              "history": [
+                {
+                  "confidence": 75,
+                  "forecaster": "Forecaster A",
+                  "probability": 30,
+                  "round": 1
+                },
+                {
+                  "confidence": 70,
+                  "forecaster": "Forecaster C",
+                  "probability": 70,
+                  "round": 1
+                },
+                {
+                  "confidence": 80,
+                  "forecaster": "Forecaster B",
+                  "probability": 50,
+                  "round": 1
+                }
+              ],
+              "latest": [
+                {
+                  "confidence": 75,
+                  "forecaster": "Forecaster A",
+                  "probability": 30,
+                  "round": 1
+                },
+                {
+                  "confidence": 70,
+                  "forecaster": "Forecaster C",
+                  "probability": 70,
+                  "round": 1
+                },
+                {
+                  "confidence": 80,
+                  "forecaster": "Forecaster B",
+                  "probability": 50,
+                  "round": 1
+                }
+              ],
+              "mean_probability": 50.0,
+              "median_probability": 50
+            },
+            "version": 3
+          },
+          {
+            "event_id": "f25b1072-b9b3-4661-8efc-8cdb749733aa",
+            "execution_id": "b2004482-8aec-4d93-91d0-8bfd2190c597",
+            "format": 1,
+            "kind": "read",
+            "read_id": "f25b1072-b9b3-4661-8efc-8cdb749733aa",
+            "scope": "panel",
+            "scope_canonical": "\"panel\"",
+            "state_id": "gemini-forecast-61380dad-eb41-4181-8f3e-1e64ebd3dd7c",
+            "step_id": "f35274eb-16b4-453b-9934-ea39932c722a",
+            "target": "game",
+            "timestamp": "2026-08-30T21:47:30.298147+00:00",
+            "value": {
+              "confidence_weighted_probability": 49.55555555555556,
+              "history": [
+                {
+                  "confidence": 75,
+                  "forecaster": "Forecaster A",
+                  "probability": 30,
+                  "round": 1
+                },
+                {
+                  "confidence": 70,
+                  "forecaster": "Forecaster C",
+                  "probability": 70,
+                  "round": 1
+                },
+                {
+                  "confidence": 80,
+                  "forecaster": "Forecaster B",
+                  "probability": 50,
+                  "round": 1
+                }
+              ],
+              "latest": [
+                {
+                  "confidence": 75,
+                  "forecaster": "Forecaster A",
+                  "probability": 30,
+                  "round": 1
+                },
+                {
+                  "confidence": 70,
+                  "forecaster": "Forecaster C",
+                  "probability": 70,
+                  "round": 1
+                },
+                {
+                  "confidence": 80,
+                  "forecaster": "Forecaster B",
+                  "probability": 50,
+                  "round": 1
+                }
+              ],
+              "mean_probability": 50.0,
+              "median_probability": 50
+            },
+            "version": 3
+          },
+          {
+            "event_id": "eb643ae7-1b44-4b8f-beab-f57ea5a162a4",
+            "execution_id": "38e5506b-3788-4ae5-8a30-7fad499970b7",
+            "format": 1,
+            "kind": "read",
+            "read_id": "eb643ae7-1b44-4b8f-beab-f57ea5a162a4",
+            "scope": "panel",
+            "scope_canonical": "\"panel\"",
+            "state_id": "gemini-forecast-61380dad-eb41-4181-8f3e-1e64ebd3dd7c",
+            "step_id": "f35274eb-16b4-453b-9934-ea39932c722a",
+            "target": "game",
+            "timestamp": "2026-08-30T21:47:30.299621+00:00",
+            "value": {
+              "confidence_weighted_probability": 49.55555555555556,
+              "history": [
+                {
+                  "confidence": 75,
+                  "forecaster": "Forecaster A",
+                  "probability": 30,
+                  "round": 1
+                },
+                {
+                  "confidence": 70,
+                  "forecaster": "Forecaster C",
+                  "probability": 70,
+                  "round": 1
+                },
+                {
+                  "confidence": 80,
+                  "forecaster": "Forecaster B",
+                  "probability": 50,
+                  "round": 1
+                }
+              ],
+              "latest": [
+                {
+                  "confidence": 75,
+                  "forecaster": "Forecaster A",
+                  "probability": 30,
+                  "round": 1
+                },
+                {
+                  "confidence": 70,
+                  "forecaster": "Forecaster C",
+                  "probability": 70,
+                  "round": 1
+                },
+                {
+                  "confidence": 80,
+                  "forecaster": "Forecaster B",
+                  "probability": 50,
+                  "round": 1
+                }
+              ],
+              "mean_probability": 50.0,
+              "median_probability": 50
+            },
+            "version": 3
+          },
+          {
+            "changed": true,
+            "command": "submit",
+            "event_id": "gemini-forecast-61380dad-eb41-4181-8f3e-1e64ebd3dd7c:\"panel\":4",
+            "execution_id": "38e5506b-3788-4ae5-8a30-7fad499970b7",
+            "format": 1,
+            "idempotency_key": "bf8b470755b8ffa60fabfa62",
+            "inputs": {
+              "confidence": 80,
+              "forecaster": "Forecaster B",
+              "probability": 50,
+              "round": 2
+            },
+            "kind": "write",
+            "scope": "panel",
+            "scope_canonical": "\"panel\"",
+            "state": {
+              "game": {
+                "forecasts": [
+                  {
+                    "confidence": 75,
+                    "forecaster": "Forecaster A",
+                    "interview": "f1997074-7e03-4b8e-aa97-eea568fb9134",
+                    "probability": 30,
+                    "round": 1
+                  },
+                  {
+                    "confidence": 70,
+                    "forecaster": "Forecaster C",
+                    "interview": "04e47d90-1ecc-443f-aa48-a490640bfcd0",
+                    "probability": 70,
+                    "round": 1
+                  },
+                  {
+                    "confidence": 80,
+                    "forecaster": "Forecaster B",
+                    "interview": "3f58b3dd-b4fc-4d58-a1f9-369f4dd37ca1",
+                    "probability": 50,
+                    "round": 1
+                  },
+                  {
+                    "confidence": 80,
+                    "forecaster": "Forecaster B",
+                    "interview": "38e5506b-3788-4ae5-8a30-7fad499970b7",
+                    "probability": 50,
+                    "round": 2
+                  }
+                ]
+              }
+            },
+            "state_id": "gemini-forecast-61380dad-eb41-4181-8f3e-1e64ebd3dd7c",
+            "step_id": "643ce6be-dd01-4027-a21a-48bb3e855d7b",
+            "target": "game",
+            "timestamp": "2026-08-30T21:47:31.997363+00:00",
+            "version": 4
+          },
+          {
+            "changed": true,
+            "command": "submit",
+            "event_id": "gemini-forecast-61380dad-eb41-4181-8f3e-1e64ebd3dd7c:\"panel\":5",
+            "execution_id": "59612353-b48a-4610-a95b-9d7a20a479bc",
+            "format": 1,
+            "idempotency_key": "b38b95946339f1faaa06f422",
+            "inputs": {
+              "confidence": 70,
+              "forecaster": "Forecaster C",
+              "probability": 54,
+              "round": 2
+            },
+            "kind": "write",
+            "scope": "panel",
+            "scope_canonical": "\"panel\"",
+            "state": {
+              "game": {
+                "forecasts": [
+                  {
+                    "confidence": 75,
+                    "forecaster": "Forecaster A",
+                    "interview": "f1997074-7e03-4b8e-aa97-eea568fb9134",
+                    "probability": 30,
+                    "round": 1
+                  },
+                  {
+                    "confidence": 70,
+                    "forecaster": "Forecaster C",
+                    "interview": "04e47d90-1ecc-443f-aa48-a490640bfcd0",
+                    "probability": 70,
+                    "round": 1
+                  },
+                  {
+                    "confidence": 80,
+                    "forecaster": "Forecaster B",
+                    "interview": "3f58b3dd-b4fc-4d58-a1f9-369f4dd37ca1",
+                    "probability": 50,
+                    "round": 1
+                  },
+                  {
+                    "confidence": 80,
+                    "forecaster": "Forecaster B",
+                    "interview": "38e5506b-3788-4ae5-8a30-7fad499970b7",
+                    "probability": 50,
+                    "round": 2
+                  },
+                  {
+                    "confidence": 70,
+                    "forecaster": "Forecaster C",
+                    "interview": "59612353-b48a-4610-a95b-9d7a20a479bc",
+                    "probability": 54,
+                    "round": 2
+                  }
+                ]
+              }
+            },
+            "state_id": "gemini-forecast-61380dad-eb41-4181-8f3e-1e64ebd3dd7c",
+            "step_id": "643ce6be-dd01-4027-a21a-48bb3e855d7b",
+            "target": "game",
+            "timestamp": "2026-08-30T21:47:37.924318+00:00",
+            "version": 5
+          },
+          {
+            "changed": true,
+            "command": "submit",
+            "event_id": "gemini-forecast-61380dad-eb41-4181-8f3e-1e64ebd3dd7c:\"panel\":6",
+            "execution_id": "b2004482-8aec-4d93-91d0-8bfd2190c597",
+            "format": 1,
+            "idempotency_key": "24851d245a0b6684bfd34e62",
+            "inputs": {
+              "confidence": 75,
+              "forecaster": "Forecaster A",
+              "probability": 45,
+              "round": 2
+            },
+            "kind": "write",
+            "scope": "panel",
+            "scope_canonical": "\"panel\"",
+            "state": {
+              "game": {
+                "forecasts": [
+                  {
+                    "confidence": 75,
+                    "forecaster": "Forecaster A",
+                    "interview": "f1997074-7e03-4b8e-aa97-eea568fb9134",
+                    "probability": 30,
+                    "round": 1
+                  },
+                  {
+                    "confidence": 70,
+                    "forecaster": "Forecaster C",
+                    "interview": "04e47d90-1ecc-443f-aa48-a490640bfcd0",
+                    "probability": 70,
+                    "round": 1
+                  },
+                  {
+                    "confidence": 80,
+                    "forecaster": "Forecaster B",
+                    "interview": "3f58b3dd-b4fc-4d58-a1f9-369f4dd37ca1",
+                    "probability": 50,
+                    "round": 1
+                  },
+                  {
+                    "confidence": 80,
+                    "forecaster": "Forecaster B",
+                    "interview": "38e5506b-3788-4ae5-8a30-7fad499970b7",
+                    "probability": 50,
+                    "round": 2
+                  },
+                  {
+                    "confidence": 70,
+                    "forecaster": "Forecaster C",
+                    "interview": "59612353-b48a-4610-a95b-9d7a20a479bc",
+                    "probability": 54,
+                    "round": 2
+                  },
+                  {
+                    "confidence": 75,
+                    "forecaster": "Forecaster A",
+                    "interview": "b2004482-8aec-4d93-91d0-8bfd2190c597",
+                    "probability": 45,
+                    "round": 2
+                  }
+                ]
+              }
+            },
+            "state_id": "gemini-forecast-61380dad-eb41-4181-8f3e-1e64ebd3dd7c",
+            "step_id": "643ce6be-dd01-4027-a21a-48bb3e855d7b",
+            "target": "game",
+            "timestamp": "2026-08-30T21:47:40.796680+00:00",
+            "version": 6
+          }
+        ],
+        "exit_snapshots": [
+          {
+            "state_id": "gemini-forecast-61380dad-eb41-4181-8f3e-1e64ebd3dd7c",
+            "scope": "panel",
+            "version": 6,
+            "state": {
+              "game": {
+                "forecasts": [
+                  {
+                    "confidence": 75,
+                    "forecaster": "Forecaster A",
+                    "interview": "f1997074-7e03-4b8e-aa97-eea568fb9134",
+                    "probability": 30,
+                    "round": 1
+                  },
+                  {
+                    "confidence": 70,
+                    "forecaster": "Forecaster C",
+                    "interview": "04e47d90-1ecc-443f-aa48-a490640bfcd0",
+                    "probability": 70,
+                    "round": 1
+                  },
+                  {
+                    "confidence": 80,
+                    "forecaster": "Forecaster B",
+                    "interview": "3f58b3dd-b4fc-4d58-a1f9-369f4dd37ca1",
+                    "probability": 50,
+                    "round": 1
+                  },
+                  {
+                    "confidence": 80,
+                    "forecaster": "Forecaster B",
+                    "interview": "38e5506b-3788-4ae5-8a30-7fad499970b7",
+                    "probability": 50,
+                    "round": 2
+                  },
+                  {
+                    "confidence": 70,
+                    "forecaster": "Forecaster C",
+                    "interview": "59612353-b48a-4610-a95b-9d7a20a479bc",
+                    "probability": 54,
+                    "round": 2
+                  },
+                  {
+                    "confidence": 75,
+                    "forecaster": "Forecaster A",
+                    "interview": "b2004482-8aec-4d93-91d0-8bfd2190c597",
+                    "probability": 45,
+                    "round": 2
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

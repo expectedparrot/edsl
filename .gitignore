@@ -13,6 +13,8 @@ _build/*
 *json
 *jsonl
 *log
+*.aux
+*.out
 *svg
 *jpeg
 *png
@@ -26,6 +28,7 @@ _build/*
 .coverage
 .edsl_cache
 .edsl_objects/
+**/_object_store/
 .edsl/
 .claude/
 .tmp/

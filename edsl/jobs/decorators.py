@@ -63,9 +63,7 @@ def with_config(f: Callable[P, T]) -> Callable[P, T]:
         parameters = RunParameters(
             **{k: v for k, v in kwargs.items() if k in parameter_fields}
         )
-        parameters._explicit_parameters = {
-            k for k in kwargs if k in parameter_fields
-        }
+        parameters._explicit_parameters = {k for k in kwargs if k in parameter_fields}
         config = RunConfig(environment=environment, parameters=parameters)
         return f(*args, config=config)
 

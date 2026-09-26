@@ -1,0 +1,803 @@
+"""Serializable definitions for user-authored shared-state machines."""
+
+from __future__ import annotations
+
+from dataclasses import asdict, dataclass, field as dc_field, fields
+import json
+from typing import Any
+
+from edsl._data_contracts import check_arity, symbolic_bool, validate_data
+
+
+def encode(value: Any) -> Any:
+    if hasattr(value, "to_dict"):
+        return value.to_dict()
+    if isinstance(value, dict):
+        return {key: encode(item) for key, item in value.items()}
+    if isinstance(value, (tuple, list)):
+        return [encode(item) for item in value]
+    return value
+
+
+@dataclass(frozen=True)
+class Expr:
+    op: str
+    args: tuple[Any, ...] = ()
+    kwargs: dict[str, Any] = dc_field(default_factory=dict)
+
+    def __bool__(self) -> bool:
+        return symbolic_bool()
+
+    def to_dict(self) -> dict[str, Any]:
+        return {"op": self.op, "args": encode(self.args), "kwargs": encode(self.kwargs)}
+
+    def _binary(self, op: str, other: Any) -> "Expr":
+        return Expr(op, (self, other))
+
+    def __add__(self, other: Any) -> "Expr":
+        return self._binary("add", other)
+
+    def __sub__(self, other: Any) -> "Expr":
+        return self._binary("subtract", other)
+
+    def __mul__(self, other: Any) -> "Expr":
+        return self._binary("multiply", other)
+
+    def __truediv__(self, other: Any) -> "Expr":
+        return self._binary("divide", other)
+
+    def __eq__(self, other: Any) -> "Expr":
+        return self._binary("equals", other)  # type: ignore[override]
+
+    def __ne__(self, other: Any) -> "Expr":
+        return self._binary("not_equals", other)  # type: ignore[override]
+
+    def __lt__(self, other: Any) -> "Expr":
+        return self._binary("less_than", other)
+
+    def __le__(self, other: Any) -> "Expr":
+        return self._binary("at_most", other)
+
+    def __gt__(self, other: Any) -> "Expr":
+        return self._binary("greater_than", other)
+
+    def __ge__(self, other: Any) -> "Expr":
+        return self._binary("at_least", other)
+
+    def __and__(self, other: Any) -> "Expr":
+        return self._binary("and", other)
+
+    def __or__(self, other: Any) -> "Expr":
+        return self._binary("or", other)
+
+    def __invert__(self) -> "Expr":
+        return Expr("not", (self,))
+
+    def get(self, key: Any, default: Any = None) -> "Expr":
+        return Expr("get", (self, key, default))
+
+    def at(self, index: Any) -> "Expr":
+        return Expr("at", (self, index))
+
+    def values(self) -> "Expr":
+        return Expr("values", (self,))
+
+    def length(self) -> "Expr":
+        return Expr("length", (self,))
+
+    def contains(self, item: Any) -> "Expr":
+        return Expr("contains", (self, item))
+
+    def first(self, default: Any = None) -> "Expr":
+        return Expr("first", (self, default))
+
+    def drop_first(self) -> "Expr":
+        return Expr("drop_first", (self,))
+
+    def appended(self, item: Any) -> "Expr":
+        return Expr("append_value", (self, item))
+
+    def removed(self, item: Any) -> "Expr":
+        return Expr("remove_value", (self, item))
+
+    def with_item(self, key: Any, item: Any) -> "Expr":
+        return Expr("put_value", (self, key, item))
+
+    def stripped(self) -> "Expr":
+        return Expr("strip", (self,))
+
+    def casefolded(self) -> "Expr":
+        return Expr("casefold", (self,))
+
+
+def expr(op: str, *args: Any, **kwargs: Any) -> Expr:
+    return Expr(op, args, kwargs)
+
+
+def ref(namespace: str, name: str) -> Expr:
+    return expr("ref", namespace=namespace, name=name)
+
+
+def field(name: str) -> Expr:
+    return ref("state", name)
+
+
+def input_(name: str) -> Expr:
+    return ref("input", name)
+
+
+def constant(name: str) -> Expr:
+    return ref("constant", name)
+
+
+def current(path: str, default: Any = None) -> Expr:
+    return expr("ref", namespace="current", name=path, default=default)
+
+
+def local(name: str) -> Expr:
+    return ref("local", name)
+
+
+def record(**values: Any) -> Expr:
+    return expr("record", **values)
+
+
+def map_of(*pairs: tuple[Any, Any]) -> Expr:
+    return expr("map_of", *pairs)
+
+
+def choose(condition: Any, yes: Any, no: Any) -> Expr:
+    return expr("if", condition, yes, no)
+
+
+def reduce_(operation: str, collection: Any, **kwargs: Any) -> Expr:
+    return expr("reduce", operation, collection, **kwargs)
+
+
+def map_items(
+    collection: Any, *, key: str, value: str, key_expr: Any, value_expr: Any
+) -> Expr:
+    return expr(
+        "map_items",
+        collection,
+        key=key,
+        value=value,
+        key_expr=key_expr,
+        value_expr=value_expr,
+    )
+
+
+def filter_items(collection: Any, *, item: str, predicate: Any) -> Expr:
+    return expr("filter_items", collection, item=item, predicate=predicate)
+
+
+def map_sequence(collection: Any, *, item: str, value_expr: Any) -> Expr:
+    return expr("map_sequence", collection, item=item, value_expr=value_expr)
+
+
+def let(name: str, value: Any, body: Any) -> Expr:
+    """Evaluate a value once and bind it lexically within a serialized body."""
+    return expr("let", value, name=name, body=body)
+
+
+def fold(
+    collection: Any,
+    initial: Any,
+    *,
+    item: str,
+    accumulator: str,
+    body: Any,
+    accumulator_type: Expr | None = None,
+) -> Expr:
+    """Visit a sequence in order, carrying a value between iterations."""
+    return expr(
+        "fold",
+        collection,
+        initial,
+        item=item,
+        accumulator=accumulator,
+        body=body,
+        **(
+            {"accumulator_type": accumulator_type}
+            if accumulator_type is not None
+            else {}
+        ),
+    )
+
+
+def iterate(
+    initial: Any,
+    *,
+    state: str,
+    until: Any,
+    step: Any,
+    max_steps: Any,
+    state_type: Expr | None = None,
+) -> Expr:
+    """Compute until a Boolean condition holds; exhaustion fails, never truncates."""
+    return expr(
+        "iterate",
+        initial,
+        state=state,
+        until=until,
+        step=step,
+        max_steps=max_steps,
+        **({"state_type": state_type} if state_type is not None else {}),
+    )
+
+
+def take(collection: Any, count: Any) -> Expr:
+    """Return the first count items of a sequence; count must be nonnegative."""
+    return expr("take", collection, count)
+
+
+def seeded_integer(seed: Any, low: Any, high: Any, *, scope: Any, key: Any) -> Expr:
+    """Stateless SHA-256 draw on [low, high), keyed by nonempty text components."""
+    return expr("seeded_integer", seed, low, high, scope=scope, key=key)
+
+
+def seeded_order(items: Any, *, seed: Any, scope: Any, key: Any) -> Expr:
+    """Order unique text IDs by versioned hash priority, independent of input order."""
+    return expr("seeded_order", items, seed=seed, scope=scope, key=key)
+
+
+def decimal_units(value: Any, *, places: int, rounding: str) -> Expr:
+    """Convert exact decimal text to integer units with explicit rounding."""
+    return expr("decimal_units", value, places=places, rounding=rounding)
+
+
+def round_ratio(numerator: Any, denominator: Any, *, rounding: str) -> Expr:
+    """Round an exact integer ratio; the denominator must be positive."""
+    return expr("round_ratio", numerator, denominator, rounding=rounding)
+
+
+def exp(value: Any) -> Expr:
+    """Finite exponential; overflow is an execution error."""
+    return expr("exp", value)
+
+
+def logsumexp(values: Any) -> Expr:
+    """Numerically stable log(sum(exp(x))) over a nonempty finite sequence."""
+    return expr("logsumexp", values)
+
+
+def decode_matrix(answer: Any, *, rows: Any, options: Any) -> Expr:
+    """Translate a matrix question's positional answer into domain values.
+
+    ``QuestionMatrix`` answers may use integer (or numeric-string) row and
+    column codes. Shared-state machines should generally store the resolved
+    row and option values instead. Already-decoded values are accepted too.
+    """
+
+    return expr("decode_matrix", answer, rows, options)
+
+
+class T:
+    @staticmethod
+    def any() -> Expr:
+        return expr("type", "any")
+
+    @staticmethod
+    def boolean() -> Expr:
+        return expr("type", "boolean")
+
+    @staticmethod
+    def text() -> Expr:
+        return expr("type", "text")
+
+    @staticmethod
+    def integer(*, minimum: Any = None, maximum: Any = None) -> Expr:
+        return expr("type", "integer", minimum=minimum, maximum=maximum)
+
+    @staticmethod
+    def number(*, minimum: Any = None, maximum: Any = None) -> Expr:
+        return expr("type", "number", minimum=minimum, maximum=maximum)
+
+    @staticmethod
+    def choice(options: Any) -> Expr:
+        return expr("type", "choice", options=options)
+
+    @staticmethod
+    def rank(options: Any) -> Expr:
+        return expr("type", "rank", options=options)
+
+    @staticmethod
+    def optional(item: Expr) -> Expr:
+        return expr("type", "optional", item=item)
+
+    @staticmethod
+    def sequence(item: Expr | None = None) -> Expr:
+        return expr("type", "sequence", item=T.any() if item is None else item)
+
+    @staticmethod
+    def record(fields: dict[str, Expr], *, allow_extra: bool = False) -> Expr:
+        """Required named fields; optional types allow null, not absent fields."""
+        return expr("type", "record", fields=fields, allow_extra=allow_extra)
+
+    @staticmethod
+    def map(key: Expr | None = None, value: Expr | None = None) -> Expr:
+        return expr(
+            "type",
+            "map",
+            key=T.text() if key is None else key,
+            value=T.any() if value is None else value,
+        )
+
+
+@dataclass(frozen=True)
+class StateField:
+    type: Expr
+    initial: Any
+
+    def to_dict(self) -> dict[str, Any]:
+        return encode(asdict(self))
+
+
+def state_field(type_: Expr, initial: Any) -> StateField:
+    return StateField(type_, initial)
+
+
+@dataclass(frozen=True)
+class Effect:
+    op: str
+    target: str
+    args: tuple[Any, ...]
+    options: dict[str, Any] = dc_field(default_factory=dict)
+
+    def to_dict(self) -> dict[str, Any]:
+        return encode(asdict(self))
+
+
+def assert_(condition: Any, *, code: str) -> Effect:
+    """Reject the entire transition with a public literal code unless true."""
+    return Effect("assert", "", (condition,), {"code": code})
+
+
+def reject(code: str) -> Effect:
+    """Reject the entire transition; use when(condition, reject(code)) to branch."""
+    return Effect("reject", "", (), {"code": code})
+
+
+def set_(target: str, value: Any) -> Effect:
+    return Effect("set", target, (value,))
+
+
+def set_once(target: str, value: Any) -> Effect:
+    return Effect("set_once", target, (value,))
+
+
+def put(target: str, key: Any, value: Any, *, once: bool = False) -> Effect:
+    return Effect("put", target, (key, value), {"once": once})
+
+
+def append(target: str, value: Any) -> Effect:
+    return Effect("append", target, (value,))
+
+
+def algorithm(name: str, **bindings: Any) -> Effect:
+    return Effect(
+        "algorithm", "", (), {"name": name, "version": 1, "bindings": bindings}
+    )
+
+
+def when(condition: Expr, effect: Effect) -> Effect:
+    return Effect(
+        effect.op, effect.target, effect.args, effect.options | {"when": condition}
+    )
+
+
+@dataclass(frozen=True)
+class Command:
+    inputs: dict[str, Expr]
+    effects: tuple[Effect, ...]
+    require: Expr | None = None
+    timing: str = "after_answer"
+
+    def to_dict(self) -> dict[str, Any]:
+        return encode(asdict(self))
+
+
+@dataclass(frozen=True)
+class Machine:
+    name: str
+    constants: dict[str, Any]
+    fields: dict[str, StateField]
+    commands: dict[str, Command]
+    view: dict[str, Expr]
+    complete_when: Expr | None = None
+    close_effects: tuple[Effect, ...] = ()
+    algorithms: tuple[str, ...] = ()
+
+    def required_capabilities(self) -> dict[str, Any]:
+        """Return derived requirements without altering the serialized definition."""
+        from .capabilities import requirements
+
+        return {"version": 1, "requires": sorted(requirements(self))}
+
+    def check_capabilities(self, manifest: dict[str, Any]) -> None:
+        """Check a destination advertisement; the destination must check again."""
+        from .capabilities import check_capabilities
+
+        check_capabilities(self, manifest)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {"version": 1, **encode(asdict(self))}
+
+    def to_json(self) -> str:
+        return json.dumps(self.to_dict(), sort_keys=True)
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "Machine":
+        from .resources import Budget, ExecutionLimits
+
+        Budget(ExecutionLimits()).tree(data, ast=True)
+        if data.get("version", 1) != 1:
+            raise ValueError("unsupported machine language version")
+        constants = decode(data["constants"])
+        state_fields = {
+            name: StateField(decode(definition["type"]), decode(definition["initial"]))
+            for name, definition in data["fields"].items()
+        }
+        commands = {}
+        for name, definition in data["commands"].items():
+            commands[name] = Command(
+                inputs={
+                    key: decode(item) for key, item in definition["inputs"].items()
+                },
+                effects=tuple(
+                    Effect(
+                        item["op"],
+                        item["target"],
+                        tuple(decode(item["args"])),
+                        decode(item["options"]),
+                    )
+                    for item in definition["effects"]
+                ),
+                require=decode(definition["require"]),
+                timing=definition["timing"],
+            )
+        return cls(
+            name=data["name"],
+            constants=constants,
+            fields=state_fields,
+            commands=commands,
+            view={name: decode(item) for name, item in data["view"].items()},
+            complete_when=decode(data["complete_when"]),
+            close_effects=tuple(
+                Effect(
+                    item["op"],
+                    item["target"],
+                    tuple(decode(item["args"])),
+                    decode(item["options"]),
+                )
+                for item in data.get("close_effects", [])
+            ),
+            algorithms=tuple(data["algorithms"]),
+        )
+
+    @classmethod
+    def from_json(cls, payload: str) -> "Machine":
+        from .resources import Budget, ExecutionLimits, ResourceLimitError
+
+        budget = Budget(ExecutionLimits())
+        budget.check("max_value_bytes", len(payload))
+        budget.check("max_value_bytes", len(payload.encode("utf-8")))
+        try:
+            data = json.loads(payload)
+        except RecursionError as exc:
+            raise ResourceLimitError(
+                "Machine JSON nesting exceeds decoder limits"
+            ) from exc
+        return cls.from_dict(data)
+
+    def validate(self) -> None:
+        from .exceptions import MachineValidationError
+
+        from .resources import check_machine_tree
+
+        try:
+            check_machine_tree(self)
+            self._validate()
+        except MachineValidationError:
+            raise
+        except (ValueError, TypeError, KeyError) as exc:
+            raise MachineValidationError(self.name, "$", str(exc)) from exc
+
+    def _validate(self) -> None:
+        from .validation import validate_references, walk_paths
+        from .exceptions import MachineValidationError
+        from .dsl_runtime import DSLValidationError, Runtime
+
+        validate_data(self.to_dict(), path=self.name)
+
+        from .capabilities import EXPRESSION_OPERATORS, REDUCERS
+        from .portable import ARITIES, validate_options
+
+        allowed_ops = EXPRESSION_OPERATORS
+        reducers = REDUCERS
+        declared_algorithms = set(self.algorithms)
+        for capability in declared_algorithms:
+            if not isinstance(capability, str) or "@" not in capability:
+                raise ValueError("algorithm capabilities require name@version")
+            name, version = capability.rsplit("@", 1)
+            if not name or not version.isdigit() or int(version) < 1:
+                raise ValueError("algorithm capabilities require a positive version")
+        unary = {
+            "let",
+            "iterate",
+            "exp",
+            "logsumexp",
+            "absolute",
+            "casefold",
+            "drop_first",
+            "length",
+            "not",
+            "strip",
+            "values",
+            "filter_items",
+            "map_items",
+            "map_sequence",
+            "type",
+        }
+        binary = {
+            "fold",
+            "take",
+            "add",
+            "and",
+            "append_value",
+            "at",
+            "at_least",
+            "at_most",
+            "contains",
+            "divide",
+            "equals",
+            "first",
+            "greater_than",
+            "less_than",
+            "multiply",
+            "not_equals",
+            "or",
+            "reduce",
+            "remove_value",
+            "subtract",
+        }
+        for path, item in walk_paths(self):
+            try:
+                if isinstance(item, Effect):
+                    arities = {
+                        "set": 1,
+                        "set_once": 1,
+                        "put": 2,
+                        "append": 1,
+                        "algorithm": 0,
+                        "assert": 1,
+                        "reject": 0,
+                    }
+                    if item.op not in arities:
+                        raise ValueError(f"{self.name} uses unknown effect {item.op!r}")
+                    check_arity(item.op, item.args, arities[item.op], arities[item.op])
+                    if (
+                        item.op not in {"algorithm", "assert", "reject"}
+                        and item.target not in self.fields
+                    ):
+                        raise ValueError(f"unknown target field {item.target!r}")
+                    allowed_options = {"when"} | (
+                        {"once"} if item.op == "put" else set()
+                    )
+                    if item.op in {"assert", "reject"}:
+                        from .exceptions import validate_reason_code
+
+                        if item.target != "":
+                            raise ValueError(
+                                "rejection effects must not name a target field"
+                            )
+                        validate_reason_code(item.options.get("code"))
+                        allowed_options.add("code")
+                    if item.op == "algorithm":
+                        allowed_options |= {"name", "version", "bindings"}
+                        if not {"name", "version", "bindings"} <= item.options.keys():
+                            raise ValueError(
+                                "algorithm effect requires name, version and bindings"
+                            )
+                    if item.op == "algorithm":
+                        capability = f"{item.options['name']}@{item.options['version']}"
+                        if capability not in declared_algorithms:
+                            raise ValueError(
+                                f"uses undeclared algorithm {capability!r}"
+                            )
+                    if set(item.options) - allowed_options:
+                        raise ValueError(
+                            f"unknown {item.op} effect options: {set(item.options) - allowed_options}"
+                        )
+                if isinstance(item, Expr) and item.op not in allowed_ops:
+                    raise ValueError(f"{self.name} uses unknown expression {item.op!r}")
+                if isinstance(item, Expr):
+                    arity = (
+                        1
+                        if item.op in unary
+                        else (
+                            2
+                            if item.op in binary
+                            else (
+                                3
+                                if item.op
+                                in {"get", "if", "put_value", "decode_matrix"}
+                                else 0 if item.op in {"ref", "record"} else None
+                            )
+                        )
+                    )
+                    if item.op in ARITIES:
+                        arity = ARITIES[item.op]
+                        validate_options(item.op, item.kwargs)
+                    if arity is not None:
+                        check_arity(item.op, item.args, arity, arity)
+                    if item.op == "minimum":
+                        check_arity(item.op, item.args, 1)
+                    if item.op == "map_of" and any(
+                        not isinstance(pair, (tuple, list)) or len(pair) != 2
+                        for pair in item.args
+                    ):
+                        raise ValueError("map_of requires key/value pairs")
+                    if item.op == "reduce" and item.args[0] not in reducers:
+                        raise ValueError(f"unknown reducer {item.args[0]!r}")
+                    required = {
+                        "let": {"name", "body"},
+                        "fold": {"item", "accumulator", "body"},
+                        "iterate": {"state", "until", "step", "max_steps"},
+                        "ref": {"namespace", "name"},
+                        "map_items": {"key", "value", "key_expr", "value_expr"},
+                        "filter_items": {"item", "predicate"},
+                        "map_sequence": {"item", "value_expr"},
+                    }.get(item.op, set())
+                    if not required <= item.kwargs.keys():
+                        raise ValueError(
+                            f"{item.op} requires options {sorted(required)}"
+                        )
+                    binding_options = {
+                        "let": ("name",),
+                        "fold": ("item", "accumulator"),
+                        "iterate": ("state",),
+                    }.get(item.op)
+                    if binding_options:
+                        contract = {
+                            "fold": "accumulator_type",
+                            "iterate": "state_type",
+                        }.get(item.op)
+                        if (
+                            set(item.kwargs)
+                            - required
+                            - ({contract} if contract else set())
+                        ):
+                            raise ValueError(f"unknown {item.op} options")
+                        if contract in item.kwargs:
+                            _validate_type_expression(item.kwargs[contract])
+                        names = [item.kwargs[key] for key in binding_options]
+                        if any(
+                            not isinstance(name, str) or not name.isidentifier()
+                            for name in names
+                        ):
+                            raise ValueError(
+                                f"{item.op} requires identifier binding names"
+                            )
+                        if len(set(names)) != len(names):
+                            raise ValueError(
+                                f"{item.op} requires distinct binding names"
+                            )
+                    if item.op in {"take", "exp", "logsumexp"} and item.kwargs:
+                        raise ValueError(f"unknown {item.op} options")
+                    if item.op == "type":
+                        _validate_type_expression(item)
+                if isinstance(item, Expr) and item.op == "algorithm_view":
+                    check_arity(item.op, item.args, 4, 4)
+                    if (
+                        item.args[0] != "lmsr_prices"
+                        or item.kwargs.get("version", 1) != 1
+                    ):
+                        raise ValueError("unsupported algorithm view capability")
+                    capability = f"{item.args[0]}@{item.kwargs.get('version', 1)}"
+                    if capability not in declared_algorithms:
+                        raise ValueError(
+                            f"{self.name} uses undeclared algorithm {capability!r}"
+                        )
+            except (ValueError, TypeError, KeyError) as exc:
+                raise MachineValidationError(self.name, path, str(exc)) from exc
+        validate_references(self)
+        runtime = Runtime()
+        try:
+            initial = runtime._initial_state(self)
+            type_context = {
+                "constant": self.constants,
+                "state": initial,
+                "input": {},
+                "current": {},
+            }
+            for name, definition in self.fields.items():
+                try:
+                    runtime._validate_type(
+                        name, initial[name], definition.type, type_context
+                    )
+                except (ValueError, TypeError, KeyError) as exc:
+                    raise MachineValidationError(
+                        self.name, f"$.fields[{name!r}].initial", str(exc)
+                    ) from exc
+            runtime._render_view(self, initial)
+        except MachineValidationError:
+            raise
+        except (DSLValidationError, KeyError, TypeError, ValueError) as exc:
+            raise ValueError(f"invalid {self.name} definition: {exc}") from exc
+        try:
+            self.to_json()
+        except (TypeError, ValueError) as exc:
+            raise ValueError(f"{self.name} contains a non-serializable value") from exc
+
+
+def _validate_type_expression(type_expr: Expr) -> None:
+    if not isinstance(type_expr, Expr) or type_expr.op != "type":
+        raise ValueError("type declaration must be a T expression")
+    check_arity("type", type_expr.args, 1, 1)
+    kind = type_expr.args[0]
+    options = {
+        "any": set(),
+        "boolean": set(),
+        "text": set(),
+        "integer": {"minimum", "maximum"},
+        "number": {"minimum", "maximum"},
+        "choice": {"options"},
+        "rank": {"options"},
+        "optional": {"item"},
+        "sequence": {"item"},
+        "map": {"key", "value"},
+        "record": {"fields", "allow_extra"},
+    }
+    if kind not in options:
+        raise ValueError(f"unknown type {kind!r}")
+    required = options[kind] if kind not in {"integer", "number"} else set()
+    if not required <= type_expr.kwargs.keys() or set(type_expr.kwargs) - options[kind]:
+        raise ValueError(f"invalid {kind} type options")
+    if kind == "record":
+        members = type_expr.kwargs["fields"]
+        if not isinstance(members, dict) or any(
+            not isinstance(name, str) or not name for name in members
+        ):
+            raise ValueError(
+                "record fields must be a mapping of nonempty text names to types"
+            )
+        if not isinstance(type_expr.kwargs["allow_extra"], bool):
+            raise ValueError("record allow_extra must be Boolean")
+        for member_type in members.values():
+            _validate_type_expression(member_type)
+    for name in {"item", "key", "value"} & options[kind]:
+        _validate_type_expression(type_expr.kwargs[name])
+    if kind == "map" and type_expr.kwargs["key"].args[0] not in {
+        "text",
+        "choice",
+        "any",
+    }:
+        raise ValueError("maps require string map keys for JSON storage; use T.text()")
+
+
+def walk(value: Any):
+    yield value
+    if isinstance(value, dict):
+        for item in value.values():
+            yield from walk(item)
+    elif isinstance(value, (tuple, list)):
+        for item in value:
+            yield from walk(item)
+    elif hasattr(value, "__dataclass_fields__"):
+        for item in fields(value):
+            yield from walk(getattr(value, item.name))
+
+
+def decode(value: Any) -> Any:
+    if isinstance(value, list):
+        return tuple(decode(item) for item in value)
+    if isinstance(value, dict):
+        if set(value) >= {"op", "args", "kwargs"} and "target" not in value:
+            return Expr(
+                value["op"],
+                tuple(decode(value["args"])),
+                {key: decode(item) for key, item in value["kwargs"].items()},
+            )
+        return {key: decode(item) for key, item in value.items()}
+    return value

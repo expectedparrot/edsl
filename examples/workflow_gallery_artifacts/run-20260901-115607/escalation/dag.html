@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Conditional incident escalation · workflow state</title>
+<style>
+:root { --ink:#172033;--muted:#687386;--line:#aeb8c7;--canvas:#f4f6f9;--green:#16835b;--blue:#2563eb;--amber:#c56a09;--gray:#7b8493;--purple:#7c3aed }
+* { box-sizing:border-box } body { margin:0;color:var(--ink);background:var(--canvas);font:14px/1.45 Inter,ui-sans-serif,system-ui,sans-serif }
+header { padding:24px 30px 18px;background:#111827;color:white } header h1 { margin:0 0 5px;font-size:22px } header p { margin:0;color:#cbd5e1 }
+.summary { display:flex;gap:8px;flex-wrap:wrap;padding:13px 30px;background:white;border-bottom:1px solid #dbe1e9 } .pill { border-radius:999px;padding:5px 10px;background:#eef1f5;font-size:12px;font-weight:750 }
+.pill.completed { color:#08734d;background:#dcfce7 } .pill.ready { color:#1d4ed8;background:#dbeafe } .pill.in_progress { color:#9a4b05;background:#ffedd5 } .pill.skipped { color:#5b6471;background:#e5e7eb }
+.layout { display:grid;grid-template-columns:minmax(650px,1fr) 330px;min-height:calc(100vh - 125px) } .dag-shell { overflow:auto;padding:35px 40px;position:relative }
+.dag { display:flex;flex-direction:column;gap:58px;position:relative;z-index:1;min-width:620px } #edges { position:absolute;inset:35px 40px;pointer-events:none;overflow:visible;z-index:0 }
+.step-row { display:grid;grid-template-columns:180px minmax(390px,760px);gap:24px;justify-content:center;align-items:start } .step-heading { padding-top:10px;text-align:right }
+.step-heading h2 { margin:0;font-size:15px } .step-heading p { margin:5px 0 0;color:var(--muted);font-size:11px } .condition { color:var(--purple)!important } .node-lane { display:flex;gap:18px;flex-wrap:wrap }
+details.card { width:360px;border:1px solid #d5dce6;border-top:5px solid var(--gray);border-radius:12px;background:white;box-shadow:0 4px 14px rgba(16,24,40,.08);overflow:hidden }
+details.card.completed { border-top-color:var(--green) } details.card.ready { border-top-color:var(--blue) } details.card.in_progress { border-top-color:var(--amber) } details.card.skipped { background:repeating-linear-gradient(135deg,#fff,#fff 9px,#f4f5f7 9px,#f4f5f7 18px) }
+summary { cursor:pointer;list-style:none;padding:14px 16px } summary::-webkit-details-marker { display:none } summary:after { content:'＋';float:right;color:var(--muted);font-size:17px } details[open] summary:after { content:'−' }
+.status { display:inline-block;padding:3px 7px;margin-bottom:8px;border-radius:5px;background:#eef1f5;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.04em } .completed .status { color:#08734d;background:#dcfce7 } .ready .status { color:#1d4ed8;background:#dbeafe } .in_progress .status { color:#9a4b05;background:#ffedd5 }
+.assignee { font-weight:750;word-break:break-word } .item-id { color:var(--muted);font:10px ui-monospace,monospace;margin-top:3px } .detail { border-top:1px solid #e4e8ef;padding:4px 16px 16px;background:rgba(255,255,255,.92) }
+.section { margin-top:14px } .section h3 { margin:0 0 7px;color:#4b5668;font-size:10px;text-transform:uppercase;letter-spacing:.08em } .question { border-left:3px solid #cbd5e1;padding-left:10px;margin-top:10px }
+.question-type { color:var(--muted);font-size:10px } .question-text { margin:3px 0 6px;font-weight:650 } .options { margin:5px 0 0;padding-left:19px;color:#465166 }
+.response { margin-top:8px;padding:8px 10px;border-radius:7px;background:#ecfdf3;color:#12633f } .response b { display:block;font-size:10px;text-transform:uppercase } pre { margin:0;padding:9px;border-radius:7px;background:#f1f4f8;white-space:pre-wrap;word-break:break-word;font:11px/1.4 ui-monospace,monospace }
+.metadata { display:grid;grid-template-columns:86px 1fr;gap:4px 8px;font-size:11px } .metadata b { color:var(--muted) } aside { background:white;border-left:1px solid #d8dee8;padding:22px;overflow:auto } aside h2 { margin:0 0 15px;font-size:15px }
+.event { display:grid;grid-template-columns:25px 1fr;gap:8px;margin-bottom:13px } .event-seq { display:grid;place-items:center;width:23px;height:23px;border-radius:50%;color:white;background:#64748b;font-size:10px } .event-kind { font-weight:700;font-size:12px } .event-detail { color:var(--muted);font-size:11px;word-break:break-word }
+path.edge { stroke:var(--line);stroke-width:2;fill:none } path.edge.active { stroke:#73a58d } marker path { fill:var(--line);stroke:none } @media(max-width:950px) { .layout { grid-template-columns:1fr } aside { border-left:0;border-top:1px solid #d8dee8 } }
+</style></head><body>
+<header><h1>Conditional incident escalation</h1><p>Instance f609140f-280c-4af0-8668-d40b2d7c933f · Completed</p></header><div class="summary"><span class="pill completed">Completed 2</span><span class="pill">Select a node to expand details</span></div>
+<main class="layout"><section class="dag-shell"><svg id="edges" aria-hidden="true"><defs><marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0 0L10 5L0 10z"/></marker></defs></svg><div class="dag"><section class="step-row"><div class="step-heading"><h2>classify</h2><p>Starts immediately</p><p>Completion: all 1 assigned</p><p>Outputs: visible to all</p></div><div class="node-lane"><details class="card completed" data-node-id="eefcdcc5-8000-4798-bde0-b2bc1da36f67" open><summary><span class="status">Completed</span><div class="assignee">on-call@simulated.email</div><div class="item-id">eefcdcc5</div></summary><div class="detail"><div class="section"><h3>Survey</h3><div class="question"><div class="question-type">multiple_choice · severity</div><div class="question-text">Classify this incident: production login failures affect all users.</div><ul class="options"><li>Low</li><li>Medium</li><li>High</li></ul><div class="response"><b>Response</b>High</div></div></div><div class="section"><h3>State transitions</h3><pre>[
+  {
+    &quot;state_id&quot;: &quot;gallery-incident&quot;,
+    &quot;target&quot;: &quot;artifact&quot;,
+    &quot;command&quot;: &quot;submit&quot;
+  }
+]</pre></div><div class="section"><h3>Lifecycle</h3><div class="metadata"><b>Created</b><span>2026-09-01T11:56:33.842837+00:00</span><b>Opened</b><span>2026-09-01T11:56:33.849518+00:00</span><b>Completed</b><span>2026-09-01T11:56:37.149894+00:00</span></div></div></div></details></div></section><section class="step-row"><div class="step-heading"><h2>escalate</h2><p>After classify</p><p>Completion: all 1 assigned</p><p>Outputs: visible to all</p><p class="condition">Enable if classify.severity = High</p></div><div class="node-lane"><details class="card completed" data-node-id="741c34be-3612-4da9-bdc6-324e10cfc805" open><summary><span class="status">Completed</span><div class="assignee">commander@simulated.email</div><div class="item-id">741c34be</div></summary><div class="detail"><div class="section"><h3>Survey</h3><div class="question"><div class="question-type">free_text · response</div><div class="question-text">Give the immediate response plan for this High-severity incident: High</div><div class="response"><b>Response</b>In the event of a high-severity incident, it is critical to respond swiftly and effectively. Here’s an immediate response plan:
+
+1. **Assessment and Confirmation**:
+   - Quickly assess the situation to confirm the severity and scope of the incident.
+   - Gather initial data and reports from relevant teams or monitoring systems.
+
+2. **Activate Incident Response Team**:
+   - Assemble the incident response team (IRT) immediately, including key stakeholders from IT, security, communications, and management.
+   - Assign roles and responsibilities to ensure a coordinated effort.
+
+3. **Establish Communication**:
+   - Set up a secure communication channel for the IRT to share updates and information.
+   - Designate a spokesperson for external communications to maintain a consistent message.
+
+4. **Containment**:
+   - Implement containment measures to prevent further damage or escalation. This may involve isolating affected systems or networks.
+   - Ensure that any critical operations are maintained as much as possible.
+
+5. **Investigation**:
+   - Begin a thorough investigation to determine the root cause and impact of the incident.
+   - Document all findings and actions taken for future reference and analysis.
+
+6. **Mitigation**:
+   - Develop and execute a plan to mitigate the immediate threat. This could include patching vulnerabilities, removing malicious software, or restoring systems from backups.
+
+7. **Notification**:
+   - Notify affected parties, including internal teams and potentially impacted customers or clients, about the incident and any necessary steps they should take.
+   - Depending on the nature of the incident, consider regulatory or legal obligations for reporting.
+
+8. **Monitoring**:
+   - Increase monitoring of systems and networks to detect any signs of further issues or related incidents.
+   - Keep an eye on communications and social media for public response.
+
+9. **Review and Learn**:
+   - Once the immediate threat is managed, conduct a post-incident review to analyze the response and identify areas for improvement.
+   - Update incident response plans and training based on lessons learned.
+
+10. **Documentation**:
+    - Ensure that all actions taken during the incident are documented comprehensively for compliance and future reference.
+
+This plan should be adapted based on the specific nature of the incident and the organization’s protocols. Swift and decisive action is essential to minimize impact and restore normal operations.</div></div></div><div class="section"><h3>Shared state shown</h3><pre>{
+  &quot;artifact&quot;: {
+    &quot;report&quot;: &quot;High&quot;
+  }
+}</pre></div><div class="section"><h3>Lifecycle</h3><div class="metadata"><b>Created</b><span>2026-09-01T11:56:33.843654+00:00</span><b>Opened</b><span>2026-09-01T11:56:37.164640+00:00</span><b>Completed</b><span>2026-09-01T11:56:39.756840+00:00</span></div></div></div></details></div></section></div></section><aside><h2>Event timeline</h2><div class="event"><span class="event-seq">1</span><div><div class="event-kind">workflow.started</div><div class="event-detail"></div></div></div><div class="event"><span class="event-seq">2</span><div><div class="event-kind">work_item.ready</div><div class="event-detail">instance_id=f609140f-280c-4af0-8668-d40b2d7c933f, step_name=classify, participant_id=on-call@simulated.email</div></div></div><div class="event"><span class="event-seq">3</span><div><div class="event-kind">work_item.completed</div><div class="event-detail">step_name=classify, participant_id=on-call@simulated.email</div></div></div><div class="event"><span class="event-seq">4</span><div><div class="event-kind">work_item.ready</div><div class="event-detail">instance_id=f609140f-280c-4af0-8668-d40b2d7c933f, step_name=escalate, participant_id=commander@simulated.email</div></div></div><div class="event"><span class="event-seq">5</span><div><div class="event-kind">work_item.completed</div><div class="event-detail">step_name=escalate, participant_id=commander@simulated.email</div></div></div><div class="event"><span class="event-seq">6</span><div><div class="event-kind">workflow.completed</div><div class="event-detail"></div></div></div></aside></main>
+<script>const edges=[["eefcdcc5-8000-4798-bde0-b2bc1da36f67", "741c34be-3612-4da9-bdc6-324e10cfc805"]];function drawEdges(){const svg=document.getElementById('edges'),shell=svg.parentElement,base=shell.getBoundingClientRect();svg.querySelectorAll('.edge').forEach(p=>p.remove());svg.setAttribute('width',shell.scrollWidth-80);svg.setAttribute('height',shell.scrollHeight-70);for(const[fromId,toId]of edges){const from=document.querySelector(`[data-node-id="${CSS.escape(fromId)}"]`),to=document.querySelector(`[data-node-id="${CSS.escape(toId)}"]`);if(!from||!to)continue;const a=from.getBoundingClientRect(),b=to.getBoundingClientRect(),x1=a.left+a.width/2-base.left-40+shell.scrollLeft,y1=a.bottom-base.top-35+shell.scrollTop,x2=b.left+b.width/2-base.left-40+shell.scrollLeft,y2=b.top-base.top-35+shell.scrollTop,bend=Math.max(22,(y2-y1)/2),p=document.createElementNS('http://www.w3.org/2000/svg','path');p.setAttribute('class','edge '+(from.classList.contains('completed')?'active':''));p.setAttribute('d',`M ${x1} ${y1} C ${x1} ${y1+bend}, ${x2} ${y2-bend}, ${x2} ${y2}`);p.setAttribute('marker-end','url(#arrow)');svg.appendChild(p);}}addEventListener('load',drawEdges);addEventListener('resize',drawEdges);document.querySelectorAll('details').forEach(d=>d.addEventListener('toggle',()=>requestAnimationFrame(drawEdges)));</script></body></html>

@@ -1,0 +1,1175 @@
+"""Deterministic local interpreter for shared-state machine definitions."""
+
+from __future__ import annotations
+
+from collections import Counter
+from copy import deepcopy
+from dataclasses import dataclass
+import math
+from typing import Any, Callable, Iterable
+
+from edsl._data_contracts import validate_data
+
+from .dsl import Command, Effect, Expr, Machine, _validate_type_expression
+from .exceptions import CommandRejected, validate_reason_code
+from .portable import (
+    ARITIES as PORTABLE_ARITIES,
+    evaluate as evaluate_portable,
+    validate_options as validate_portable_options,
+)
+from .resources import (
+    ExecutionLimits,
+    BoundedCollection,
+    bounded_operation,
+    _active_budget,
+)
+
+
+class DSLValidationError(ValueError):
+    pass
+
+
+@dataclass(frozen=True)
+class CommandResult:
+    state: dict[str, Any]
+    event: dict[str, Any]
+
+    @property
+    def advisory(self) -> dict[str, Any]:
+        """Convenience only; callers must not treat this as a state receipt."""
+
+        return {
+            "processed": True,
+            "changed": self.event["changed"],
+            "outcomes": self.event["outcomes"],
+            "status": self.event["status"],
+            "reason_code": self.event["reason_code"],
+        }
+
+
+Algorithm = Callable[[dict[str, Any], dict[str, Any], dict[str, Any]], None]
+
+
+class Runtime:
+    def __init__(
+        self,
+        *,
+        limits: ExecutionLimits | None = None,
+        capabilities: Iterable[str] | None = None,
+    ):
+        from .capabilities import BUILTIN_CAPABILITIES
+
+        self._capabilities = (
+            BUILTIN_CAPABILITIES if capabilities is None else frozenset(capabilities)
+        )
+        if self._capabilities - BUILTIN_CAPABILITIES:
+            raise ValueError(
+                "Runtime capabilities may only restrict implemented built-ins"
+            )
+        self.limits = limits or ExecutionLimits()
+        self.algorithms: dict[tuple[str, int], Algorithm] = {}
+        self.validators: dict[tuple[str, int], Callable] = {}
+
+    def register(
+        self,
+        name: str,
+        version: int,
+        implementation: Algorithm,
+        *,
+        validate_constants=None,
+    ) -> None:
+        if not isinstance(name, str) or not name or "@" in name:
+            raise ValueError("algorithm name must be nonempty text without @")
+        if type(version) is not int or version < 1:
+            raise ValueError("algorithm version must be a positive integer")
+        if not callable(implementation) or (
+            validate_constants is not None and not callable(validate_constants)
+        ):
+            raise ValueError("algorithm implementation and validator must be callable")
+        self.algorithms[(name, version)] = implementation
+        if validate_constants is not None:
+            self.validators[(name, version)] = validate_constants
+
+    def capability_manifest(self) -> dict[str, Any]:
+        """Advertise exact built-in versions plus actually registered callbacks."""
+        supported = set(self._capabilities)
+        for name, version in self.algorithms:
+            supported.update(
+                {f"dependency:{name}@{version}", f"algorithm:{name}@{version}"}
+            )
+        return {"version": 1, "supported": sorted(supported)}
+
+    def validate_capabilities(self, spec: Machine) -> None:
+        """Reject unsupported requirements before execution or extension validation."""
+        spec.check_capabilities(self.capability_manifest())
+        for capability in spec.algorithms:
+            name, version = capability.rsplit("@", 1)
+            key = (name, int(version))
+            if key in self.validators:
+                self.validators[key](spec.constants)
+
+    @staticmethod
+    def _decode_matrix_answer(answer: Any, rows: Any, options: Any) -> dict[Any, Any]:
+        if not isinstance(answer, dict):
+            raise DSLValidationError("matrix answer must be a map")
+        if not isinstance(rows, list) or not isinstance(options, list):
+            raise DSLValidationError("matrix rows and options must be sequences")
+        if not rows or not options:
+            raise DSLValidationError("matrix rows and options cannot be empty")
+
+        def resolve(value: Any, values: list[Any], kind: str) -> Any:
+            if value in values:
+                return value
+            try:
+                index = int(value)
+            except (TypeError, ValueError) as exc:
+                raise DSLValidationError(f"unknown matrix {kind} {value!r}") from exc
+            if isinstance(value, float) and not value.is_integer():
+                raise DSLValidationError(f"unknown matrix {kind} {value!r}")
+            if not 0 <= index < len(values):
+                raise DSLValidationError(f"unknown matrix {kind} {value!r}")
+            return values[index]
+
+        decoded: dict[Any, Any] = {}
+        for row, option in answer.items():
+            decoded_row = resolve(row, rows, "row")
+            if decoded_row in decoded:
+                raise DSLValidationError(f"duplicate matrix row {decoded_row!r}")
+            decoded[decoded_row] = resolve(option, options, "option")
+        missing = [row for row in rows if row not in decoded]
+        if missing:
+            raise DSLValidationError(f"matrix answer is missing rows {missing!r}")
+        return decoded
+
+    @bounded_operation
+    def initial_state(self, spec: Machine) -> dict[str, Any]:
+        self.validate_capabilities(spec)
+        return self._initial_state(spec)
+
+    @bounded_operation
+    def _initial_state(self, spec: Machine) -> dict[str, Any]:
+        # Definition validation checks authoring structure without requiring
+        # command callbacks to be installed on the author's interpreter.
+        context = {"constant": spec.constants, "state": {}, "input": {}, "current": {}}
+        result: dict[str, Any] = {}
+        context["state"] = result
+        for name, definition in spec.fields.items():
+            result[name] = deepcopy(self.evaluate(definition.initial, context))
+            _active_budget.get().tree(result)
+        validate_data(result, path="initial state")
+        return result
+
+    @bounded_operation
+    def execute(
+        self,
+        spec: Machine,
+        state: dict[str, Any],
+        command_name: str,
+        inputs: dict[str, Any],
+        *,
+        current: dict[str, Any] | None = None,
+    ) -> CommandResult:
+        self.validate_capabilities(spec)
+        if command_name not in spec.commands:
+            raise DSLValidationError(f"unknown command {command_name!r}")
+        command = spec.commands[command_name]
+        self._validate_inputs(command, inputs, spec.constants)
+        context = {
+            "constant": spec.constants,
+            # Every expression in one command observes the same pre-command
+            # snapshot. Effects are committed to ``working`` atomically.
+            "state": deepcopy(state),
+            "input": inputs,
+            "current": current or {},
+        }
+        if command.require is not None and not self.evaluate(command.require, context):
+            return self._result(
+                state, command_name, inputs, False, [{"status": "requirement_not_met"}]
+            )
+        return self._run_effects(
+            spec, state, command.effects, context, command_name, inputs
+        )
+
+    @staticmethod
+    def _result(state, command, inputs, changed, outcomes, reason_code=None):
+        return CommandResult(
+            state=deepcopy(state),
+            event={
+                "command": command,
+                "inputs": deepcopy(inputs),
+                "processed": True,
+                "changed": changed,
+                "status": (
+                    "rejected" if reason_code else "applied" if changed else "noop"
+                ),
+                "reason_code": reason_code,
+                "outcomes": outcomes,
+            },
+        )
+
+    def _run_effects(self, spec, state, effects, context, command, inputs):
+        working = deepcopy(state)
+        outcomes = []
+        try:
+            for effect in effects:
+                outcomes.append(self._apply(effect, working, context))
+                _active_budget.get().tree(working)
+        except CommandRejected as rejection:
+            return self._result(
+                state,
+                command,
+                inputs,
+                False,
+                [{"status": "rejected", "reason_code": rejection.reason_code}],
+                rejection.reason_code,
+            )
+        state_context = context | {"state": working}
+        for field_name, definition in spec.fields.items():
+            self._validate_type(
+                field_name, working[field_name], definition.type, state_context
+            )
+        return self._result(working, command, inputs, working != state, outcomes)
+
+    @bounded_operation
+    def render_view(
+        self,
+        spec: Machine,
+        state: dict[str, Any],
+        *,
+        current: dict[str, Any] | None = None,
+        closed: bool = False,
+    ) -> dict[str, Any]:
+        self.validate_capabilities(spec)
+        return self._render_view(spec, state, current=current, closed=closed)
+
+    @bounded_operation
+    def _render_view(
+        self,
+        spec: Machine,
+        state: dict[str, Any],
+        *,
+        current: dict[str, Any] | None = None,
+        closed: bool = False,
+    ) -> dict[str, Any]:
+        context = {
+            "constant": spec.constants,
+            "state": state,
+            "input": {},
+            "current": (current or {}) | {"closed": closed},
+        }
+        result = BoundedCollection(mapping=True)
+        for name, value in spec.view.items():
+            result.put(name, self.evaluate(value, context))
+        validate_data(result.value, path="state view")
+        return result.value
+
+    @bounded_operation
+    def close(self, spec: Machine, state: dict[str, Any]) -> dict[str, Any]:
+        """Return closed state, or raise CommandRejected for an explicit refusal."""
+        result = self.close_result(spec, state)
+        if result.event["status"] == "rejected":
+            raise CommandRejected(result.event["reason_code"])
+        return result.state
+
+    @bounded_operation
+    def close_result(self, spec: Machine, state: dict[str, Any]) -> CommandResult:
+        """Close with the same structured outcome contract as execute."""
+        self.validate_capabilities(spec)
+        context = {
+            "constant": spec.constants,
+            "state": deepcopy(state),
+            "input": {},
+            "current": {"closed": True},
+        }
+        return self._run_effects(spec, state, spec.close_effects, context, "$close", {})
+
+    @bounded_operation
+    def complete(self, spec: Machine, state: dict[str, Any]) -> bool:
+        self.validate_capabilities(spec)
+        if spec.complete_when is None:
+            return False
+        return bool(
+            self.evaluate(
+                spec.complete_when,
+                {
+                    "constant": spec.constants,
+                    "state": state,
+                    "input": {},
+                    "current": {},
+                },
+            )
+        )
+
+    @bounded_operation
+    def _evaluate_standalone(self, value: Any, context: dict[str, Any]) -> Any:
+        from .capabilities import check_capabilities
+
+        check_capabilities(value, self.capability_manifest())
+        return self.evaluate(value, context)
+
+    def evaluate(self, value: Any, context: dict[str, Any]) -> Any:
+        budget = _active_budget.get()
+        if budget is None:
+            return self._evaluate_standalone(value, context)
+        budget.charge()
+        result = self._evaluate(value, context)
+        budget.tree(result)
+        return result
+
+    def _evaluate(self, value: Any, context: dict[str, Any]) -> Any:
+        if not isinstance(value, Expr):
+            if isinstance(value, dict):
+                result = BoundedCollection(mapping=True)
+                for key, item in value.items():
+                    result.put(key, self.evaluate(item, context))
+                return result.value
+            if isinstance(value, (tuple, list)):
+                result = BoundedCollection()
+                for item in value:
+                    result.append(self.evaluate(item, context))
+                return result.value
+            return value
+
+        if value.op in PORTABLE_ARITIES:
+            try:
+                validate_portable_options(value.op, value.kwargs)
+                if len(value.args) != PORTABLE_ARITIES[value.op]:
+                    raise ValueError(
+                        f"{value.op} requires {PORTABLE_ARITIES[value.op]} operands"
+                    )
+            except ValueError as exc:
+                raise DSLValidationError(str(exc)) from exc
+
+        if value.op == "let":
+            bound = self.evaluate(value.args[0], context)
+            nested = context | {
+                "local": context.get("local", {}) | {value.kwargs["name"]: bound}
+            }
+            return self.evaluate(value.kwargs["body"], nested)
+
+        if value.op == "fold":
+            collection = self.evaluate(value.args[0], context)
+            if not isinstance(collection, (list, tuple)):
+                raise DSLValidationError("fold requires a sequence")
+            accumulated = self.evaluate(value.args[1], context)
+            invariant = value.kwargs.get("accumulator_type")
+            if invariant is not None:
+                self._validate_type("fold accumulator", accumulated, invariant, context)
+            for item in collection:
+                nested = context | {
+                    "local": context.get("local", {})
+                    | {
+                        value.kwargs["item"]: item,
+                        value.kwargs["accumulator"]: accumulated,
+                    }
+                }
+                accumulated = self.evaluate(value.kwargs["body"], nested)
+                if invariant is not None:
+                    self._validate_type(
+                        "fold accumulator", accumulated, invariant, context
+                    )
+            return accumulated
+
+        if value.op == "iterate":
+            limit = self.evaluate(value.kwargs["max_steps"], context)
+            if (
+                isinstance(limit, bool)
+                or not isinstance(limit, int)
+                or not 0 <= limit <= 100_000
+            ):
+                raise DSLValidationError(
+                    "iterate max_steps must be an integer from 0 to 100000"
+                )
+            accumulated = self.evaluate(value.args[0], context)
+            invariant = value.kwargs.get("state_type")
+            if invariant is not None:
+                self._validate_type("iterate state", accumulated, invariant, context)
+            for index in range(limit + 1):
+                nested = context | {
+                    "local": context.get("local", {})
+                    | {value.kwargs["state"]: accumulated}
+                }
+                done = self.evaluate(value.kwargs["until"], nested)
+                if not isinstance(done, bool):
+                    raise DSLValidationError("iterate until must evaluate to a Boolean")
+                if done:
+                    return accumulated
+                if index == limit:
+                    raise DSLValidationError(
+                        "iterate exhausted max_steps before reaching its condition"
+                    )
+                accumulated = self.evaluate(value.kwargs["step"], nested)
+                if invariant is not None:
+                    self._validate_type(
+                        "iterate state", accumulated, invariant, context
+                    )
+
+        if value.op == "map_items":
+            collection = self.evaluate(value.args[0], context)
+            result = BoundedCollection(mapping=True)
+            for key, item in collection.items():
+                nested = context | {
+                    "local": context.get("local", {})
+                    | {value.kwargs["key"]: key, value.kwargs["value"]: item}
+                }
+                result.put(
+                    self.evaluate(value.kwargs["key_expr"], nested),
+                    self.evaluate(value.kwargs["value_expr"], nested),
+                )
+            return result.value
+
+        if value.op in {"filter_items", "map_sequence"}:
+            collection = self.evaluate(value.args[0], context)
+            result = BoundedCollection()
+            for item in collection:
+                nested = context | {
+                    "local": context.get("local", {}) | {value.kwargs["item"]: item}
+                }
+                if value.op == "map_sequence":
+                    result.append(self.evaluate(value.kwargs["value_expr"], nested))
+                elif self.evaluate(value.kwargs["predicate"], nested):
+                    result.append(item)
+            return result.value
+
+        if value.op == "if":
+            condition = self.evaluate(value.args[0], context)
+            return self.evaluate(value.args[1] if condition else value.args[2], context)
+
+        if value.op == "and":
+            return bool(
+                self.evaluate(value.args[0], context)
+                and self.evaluate(value.args[1], context)
+            )
+
+        if value.op == "or":
+            return bool(
+                self.evaluate(value.args[0], context)
+                or self.evaluate(value.args[1], context)
+            )
+
+        arguments = BoundedCollection()
+        for item in value.args:
+            arguments.append(self.evaluate(item, context))
+        options = BoundedCollection(mapping=True)
+        for key, item in value.kwargs.items():
+            options.put(key, self.evaluate(item, context))
+        args, kwargs = arguments.value, options.value
+        op = value.op
+        if op == "ref":
+            namespace = value.kwargs["namespace"]
+            name = value.kwargs["name"]
+            result: Any = context[namespace]
+            for part in name.split("."):
+                if namespace == "current" and part not in result:
+                    return self.evaluate(value.kwargs.get("default"), context)
+                result = result[part]
+            return result
+        if op in PORTABLE_ARITIES:
+            from .resources import ResourceLimitError
+
+            try:
+                return evaluate_portable(op, args, kwargs)
+            except ResourceLimitError:
+                raise
+            except ValueError as exc:
+                raise DSLValidationError(str(exc)) from exc
+        if op == "take":
+            collection, count = args
+            if (
+                not isinstance(collection, (list, tuple))
+                or isinstance(count, bool)
+                or not isinstance(count, int)
+                or count < 0
+            ):
+                raise DSLValidationError(
+                    "take requires a sequence and a nonnegative integer count"
+                )
+            return list(collection[:count])
+        if op in {"exp", "logsumexp"}:
+            values = args if op == "exp" else args[0]
+            if not isinstance(values, (list, tuple)) or not values:
+                raise DSLValidationError(f"{op} requires nonempty finite numeric input")
+            try:
+                if any(
+                    isinstance(x, bool)
+                    or not isinstance(x, (int, float))
+                    or not math.isfinite(x)
+                    for x in values
+                ):
+                    raise DSLValidationError(f"{op} requires finite numbers")
+                if op == "exp":
+                    result = math.exp(values[0])
+                else:
+                    maximum = max(values)
+                    result = maximum + math.log(
+                        sum(math.exp(x - maximum) for x in values)
+                    )
+            except (OverflowError, ValueError) as exc:
+                raise DSLValidationError(
+                    f"{op} cannot produce a finite result"
+                ) from exc
+            if not math.isfinite(result):
+                raise DSLValidationError(f"{op} cannot produce a finite result")
+            return result
+        if op == "record":
+            return kwargs
+        if op == "map_of":
+            return {pair[0]: pair[1] for pair in args}
+        if op == "add":
+            if isinstance(args[0], (str, list, tuple)) and isinstance(
+                args[1], type(args[0])
+            ):
+                budget = _active_budget.get()
+                total = len(args[0]) + len(args[1])
+                budget.check(
+                    (
+                        "max_value_bytes"
+                        if isinstance(args[0], str)
+                        else "max_collection_items"
+                    ),
+                    6 * total + 2 if isinstance(args[0], str) else total,
+                )
+            return args[0] + args[1]
+        if op == "subtract":
+            return args[0] - args[1]
+        if op == "multiply":
+            budget = _active_budget.get()
+            for sequence, count in (args, args[::-1]):
+                if isinstance(sequence, (str, list, tuple)) and isinstance(count, int):
+                    total = len(sequence) * max(0, count)
+                    budget.check(
+                        (
+                            "max_value_bytes"
+                            if isinstance(sequence, str)
+                            else "max_collection_items"
+                        ),
+                        6 * total + 2 if isinstance(sequence, str) else total,
+                    )
+            if all(isinstance(x, int) for x in args):
+                budget.check("max_integer_bits", sum(x.bit_length() for x in args))
+            return args[0] * args[1]
+        if op == "divide":
+            return args[0] / args[1]
+        if op == "absolute":
+            return abs(args[0])
+        if op == "equals":
+            return args[0] == args[1]
+        if op == "not_equals":
+            return args[0] != args[1]
+        if op == "less_than":
+            return args[0] < args[1]
+        if op == "at_most":
+            return args[0] <= args[1]
+        if op == "greater_than":
+            return args[0] > args[1]
+        if op == "at_least":
+            return args[0] >= args[1]
+        if op == "not":
+            return not args[0]
+        if op == "get":
+            return args[0].get(args[1], args[2])
+        if op == "at":
+            return args[0][int(args[1])]
+        if op == "values":
+            return list(args[0].values())
+        if op == "length":
+            return len(args[0])
+        if op == "contains":
+            return args[1] in args[0]
+        if op == "first":
+            return args[0][0] if args[0] else args[1]
+        if op == "drop_first":
+            return args[0][1:]
+        if op == "append_value":
+            return [*args[0], args[1]]
+        if op == "remove_value":
+            return [item for item in args[0] if item != args[1]]
+        if op == "put_value":
+            return dict(args[0]) | {args[1]: args[2]}
+        if op == "strip":
+            return args[0].strip()
+        if op == "casefold":
+            return args[0].casefold()
+        if op == "minimum":
+            return min(args)
+        if op == "concat":
+            parts = []
+            size = 2
+            for item in args:
+                part = str(item)
+                size += 6 * len(part)
+                _active_budget.get().check("max_value_bytes", size)
+                parts.append(part)
+            return "".join(parts)
+        if op == "decode_matrix":
+            if all(isinstance(item, (dict, list, tuple)) for item in args):
+                _active_budget.get().charge(
+                    len(args[0]) * (len(args[1]) + len(args[2]))
+                )
+            return self._decode_matrix_answer(*args)
+        if op == "reduce":
+            operation, collection = args[:2]
+            size = len(collection)
+            budget = _active_budget.get()
+            budget.charge(size)
+            if operation in {"sort_records", "median", "group_numeric_summary"}:
+                budget.charge(
+                    size
+                    * max(1, size.bit_length())
+                    * (len(kwargs["fields"]) if operation == "sort_records" else 1)
+                )
+            if operation == "ranked_ballot_results":
+                candidates = len(kwargs["candidates"])
+                budget.charge(size * candidates**3 + candidates**2)
+            if operation == "tail":
+                return collection[-int(kwargs["count"]) :]
+            if operation == "count_by":
+                return dict(Counter(collection))
+            if operation == "sum":
+                return sum(collection)
+            if operation == "mean":
+                return sum(collection) / len(collection) if collection else None
+            if operation == "median":
+                ordered = sorted(collection)
+                middle = len(ordered) // 2
+                return (
+                    None
+                    if not ordered
+                    else (
+                        ordered[middle]
+                        if len(ordered) % 2
+                        else (ordered[middle - 1] + ordered[middle]) / 2
+                    )
+                )
+            if operation == "max":
+                return max(collection, default=None)
+            if operation == "argmax":
+                return max(
+                    collection, key=lambda item: item[kwargs["field"]], default=None
+                )
+            if operation == "sort_records":
+                result = list(collection)
+                fields = list(kwargs["fields"])
+                descending = list(kwargs.get("descending", [False] * len(fields)))
+                for field_name, reverse in reversed(list(zip(fields, descending))):
+                    result.sort(key=lambda item: item[field_name], reverse=reverse)
+                return result
+            if operation == "latest_by":
+                result = {}
+                for item in collection:
+                    result[item[kwargs["field"]]] = item
+                return result
+            if operation == "count_equal":
+                return sum(item == kwargs["value"] for item in collection)
+            if operation == "increment_keys":
+                result = dict(collection)
+                for key in kwargs["keys"]:
+                    if key not in result:
+                        raise DSLValidationError(f"unknown counter key {key!r}")
+                    result[key] += kwargs.get("amount", 1)
+                return result
+            if operation == "keys_min_distance":
+                target = kwargs["target"]
+                distances = {
+                    key: abs(item - target) for key, item in collection.items()
+                }
+                closest = min(distances.values())
+                return [
+                    key
+                    for key, distance in distances.items()
+                    if abs(distance - closest) < kwargs.get("tolerance", 1e-9)
+                ]
+            if operation == "weighted_matrix_tally":
+                totals: dict[str, float] = {}
+                weights = kwargs["weights"]
+                for ballot in collection:
+                    for key, selection in ballot["votes"].items():
+                        totals[key] = totals.get(key, 0) + weights[selection]
+                return totals
+            if operation == "ranked_ballot_results":
+                ballots, candidates = collection, list(kwargs["candidates"])
+                plurality = Counter(ballot[0] for ballot in ballots.values())
+                borda = Counter()
+                for ballot in ballots.values():
+                    for index, candidate in enumerate(ballot):
+                        borda[candidate] += len(candidates) - index - 1
+                pairwise = {candidate: 0 for candidate in candidates}
+                for left_index, left in enumerate(candidates):
+                    for right in candidates[left_index + 1 :]:
+                        left_votes = sum(
+                            ballot.index(left) < ballot.index(right)
+                            for ballot in ballots.values()
+                        )
+                        right_votes = len(ballots) - left_votes
+                        if left_votes > right_votes:
+                            pairwise[left] += 1
+                        elif right_votes > left_votes:
+                            pairwise[right] += 1
+
+                def winner(scores):
+                    return max(
+                        candidates,
+                        key=lambda candidate: (
+                            scores[candidate],
+                            -candidates.index(candidate),
+                        ),
+                    )
+
+                return {
+                    "plurality_scores": dict(plurality),
+                    "plurality_winner": winner(plurality),
+                    "borda_scores": dict(borda),
+                    "borda_winner": winner(borda),
+                    "condorcet_winner": next(
+                        (
+                            c
+                            for c, wins in pairwise.items()
+                            if wins == len(candidates) - 1
+                        ),
+                        None,
+                    ),
+                }
+            if operation == "group_numeric_summary":
+                groups: dict[Any, list[dict[str, Any]]] = {}
+                for item in collection:
+                    groups.setdefault(item[kwargs["group"]], []).append(item)
+                result = {}
+                for key, items in groups.items():
+                    values = sorted(item[kwargs["value"]] for item in items)
+                    middle = len(values) // 2
+                    median = (
+                        values[middle]
+                        if len(values) % 2
+                        else (values[middle - 1] + values[middle]) / 2
+                    )
+                    result[key] = {
+                        "count": len(items),
+                        "minimum": min(values),
+                        "maximum": max(values),
+                        "range": max(values) - min(values),
+                        "median": median,
+                    }
+                return result
+            if operation == "series_converged":
+                summaries = collection
+                keys = sorted(summaries)
+                if len(keys) < kwargs["min_groups"]:
+                    return False
+                latest, previous = summaries[keys[-1]], summaries[keys[-2]]
+                minimum_size = kwargs.get("min_group_size")
+                if minimum_size is not None and (
+                    latest["count"] < minimum_size or previous["count"] < minimum_size
+                ):
+                    return False
+                return (
+                    latest["range"] <= kwargs["range_threshold"]
+                    and abs(latest["median"] - previous["median"])
+                    <= kwargs["shift_threshold"]
+                )
+            raise DSLValidationError(f"unknown reducer {operation!r}")
+        if op == "algorithm_view":
+            name = args[0]
+            if name == "lmsr_prices":
+                q_yes, q_no, liquidity = args[1:]
+                difference = max(-700, min(700, (q_no - q_yes) / liquidity))
+                yes = 1 / (1 + math.exp(difference))
+                return {"yes": yes, "no": 1 - yes}
+            raise DSLValidationError(f"unknown algorithm view {name!r}")
+        if op == "type":
+            return value
+        raise DSLValidationError(f"unknown expression operation {op!r}")
+
+    def _apply(
+        self,
+        effect: Effect,
+        working: dict[str, Any],
+        context: dict[str, Any],
+    ) -> dict[str, Any]:
+        condition = effect.options.get("when")
+        if condition is not None and not self.evaluate(condition, context):
+            return {
+                "effect": effect.op,
+                "target": effect.target,
+                "status": "condition_false",
+            }
+        budget = _active_budget.get()
+        if budget is not None:
+            budget.charge()
+        if effect.op in {"assert", "reject"}:
+            code = effect.options.get("code")
+            validate_reason_code(code)
+            if effect.op == "reject":
+                raise CommandRejected(code)
+            condition = self.evaluate(effect.args[0], context)
+            if not isinstance(condition, bool):
+                raise DSLValidationError("assert condition must evaluate to a Boolean")
+            if not condition:
+                raise CommandRejected(code)
+            return {"effect": "assert", "status": "passed"}
+        if effect.op == "algorithm":
+            name = effect.options["name"]
+            version = effect.options["version"]
+            implementation = self.algorithms.get((name, version))
+            if implementation is None:
+                raise DSLValidationError(f"unregistered algorithm {name}@{version}")
+            bindings = self.evaluate(effect.options["bindings"], context)
+            implementation(working, bindings, context["constant"])
+            return {
+                "effect": "algorithm",
+                "name": name,
+                "version": version,
+                "status": "applied",
+            }
+
+        evaluated = self.evaluate(effect.args, context)
+        if effect.op == "set":
+            working[effect.target] = evaluated[0]
+            return {"effect": "set", "target": effect.target, "status": "applied"}
+        if effect.op == "set_once":
+            if working[effect.target] is not None:
+                return {
+                    "effect": "set_once",
+                    "target": effect.target,
+                    "status": "unchanged",
+                }
+            working[effect.target] = evaluated[0]
+            return {"effect": "set_once", "target": effect.target, "status": "applied"}
+        if effect.op == "put":
+            key, item = evaluated
+            if effect.options.get("once") and key in working[effect.target]:
+                return {"effect": "put", "target": effect.target, "status": "unchanged"}
+            working[effect.target][key] = item
+            return {"effect": "put", "target": effect.target, "status": "applied"}
+        if effect.op == "append":
+            working[effect.target].append(evaluated[0])
+            return {"effect": "append", "target": effect.target, "status": "applied"}
+        raise DSLValidationError(f"unknown effect {effect.op!r}")
+
+    def _validate_inputs(
+        self, command: Command, inputs: dict[str, Any], constants: dict[str, Any]
+    ) -> None:
+        missing = set(command.inputs) - inputs.keys()
+        extra = inputs.keys() - set(command.inputs)
+        if missing or extra:
+            raise DSLValidationError(
+                f"input mismatch; missing={sorted(missing)}, extra={sorted(extra)}"
+            )
+        context = {"constant": constants, "state": {}, "input": inputs, "current": {}}
+        for name, type_expr in command.inputs.items():
+            self._validate_type(name, inputs[name], type_expr, context)
+
+    def _validate_type(
+        self, name: str, value: Any, type_expr: Expr, context: dict[str, Any]
+    ) -> None:
+        budget = _active_budget.get()
+        if budget is not None:
+            budget.charge()
+        try:
+            _validate_type_expression(type_expr)
+            validate_data(value, path=name)
+        except (TypeError, ValueError) as exc:
+            raise DSLValidationError(str(exc)) from exc
+        kind = type_expr.args[0]
+        constraints = {
+            key: self.evaluate(item, context) for key, item in type_expr.kwargs.items()
+        }
+        if kind == "any":
+            return
+        if kind == "optional" and value is None:
+            return
+        if kind == "optional":
+            return self._validate_type(name, value, constraints["item"], context)
+        if kind == "text" and not isinstance(value, str):
+            raise DSLValidationError(f"{name} must be text")
+        if kind == "boolean" and not isinstance(value, bool):
+            raise DSLValidationError(f"{name} must be boolean")
+        if kind == "number":
+            if isinstance(value, bool) or not isinstance(value, (int, float)):
+                raise DSLValidationError(f"{name} must be numerical")
+            if (
+                constraints.get("minimum") is not None
+                and value < constraints["minimum"]
+            ):
+                raise DSLValidationError(f"{name} is below its minimum")
+            if (
+                constraints.get("maximum") is not None
+                and value > constraints["maximum"]
+            ):
+                raise DSLValidationError(f"{name} is above its maximum")
+        if kind == "integer":
+            if isinstance(value, bool) or not isinstance(value, int):
+                raise DSLValidationError(f"{name} must be an integer")
+            if (
+                constraints.get("minimum") is not None
+                and value < constraints["minimum"]
+            ):
+                raise DSLValidationError(f"{name} is below its minimum")
+            if (
+                constraints.get("maximum") is not None
+                and value > constraints["maximum"]
+            ):
+                raise DSLValidationError(f"{name} is above its maximum")
+        if kind == "choice" and value not in constraints["options"]:
+            raise DSLValidationError(
+                f"{name} must be one of {constraints['options']!r}"
+            )
+        if kind == "rank" and (
+            not isinstance(value, (list, tuple))
+            or len(value) != len(constraints["options"])
+            or set(value) != set(constraints["options"])
+        ):
+            raise DSLValidationError(
+                f"{name} must rank every configured option exactly once"
+            )
+        if kind == "sequence":
+            if not isinstance(value, (list, tuple)):
+                raise DSLValidationError(f"{name} must be a sequence")
+            for index, item in enumerate(value):
+                self._validate_type(
+                    f"{name}[{index}]", item, constraints["item"], context
+                )
+        if kind == "record":
+            if not isinstance(value, dict):
+                raise DSLValidationError(f"{name} must be a record")
+            members = constraints["fields"]
+            missing = members.keys() - value.keys()
+            extra = value.keys() - members.keys()
+            if missing or (extra and not constraints["allow_extra"]):
+                raise DSLValidationError(
+                    f"{name} record fields mismatch; missing={sorted(missing)}, "
+                    f"extra={sorted(extra) if not constraints['allow_extra'] else []}"
+                )
+            for member_name, member_type in members.items():
+                self._validate_type(
+                    f"{name}.{member_name}", value[member_name], member_type, context
+                )
+        if kind == "map":
+            if not isinstance(value, dict):
+                raise DSLValidationError(f"{name} must be a map")
+            for key, item in value.items():
+                self._validate_type(f"{name}.key", key, constraints["key"], context)
+                self._validate_type(
+                    f"{name}[{key!r}]", item, constraints["value"], context
+                )
+
+
+def lmsr_runtime() -> Runtime:
+    runtime = Runtime()
+
+    def cost(q_yes, q_no, liquidity):
+        high = max(q_yes, q_no) / liquidity
+        return liquidity * (
+            high
+            + math.log(
+                math.exp(q_yes / liquidity - high) + math.exp(q_no / liquidity - high)
+            )
+        )
+
+    def trade(state, inputs, constants):
+        action, quantity = inputs["action"], float(inputs["quantity"])
+        if action == "hold":
+            return
+        trader = inputs["trader"]
+        field_name = "q_yes" if action == "buy_yes" else "q_no"
+        before = cost(state["q_yes"], state["q_no"], constants["liquidity"])
+        state[field_name] += quantity
+        after = cost(state["q_yes"], state["q_no"], constants["liquidity"])
+        paid = after - before
+        portfolio = state["portfolios"].setdefault(
+            trader,
+            {"cash": float(constants["initial_cash"]), "yes": 0.0, "no": 0.0},
+        )
+        side = "yes" if action == "buy_yes" else "no"
+        portfolio["cash"] -= paid
+        portfolio[side] += quantity
+        state["trades"].append(dict(inputs) | {"cost": paid})
+
+    def settle(state, inputs, constants):
+        if state["outcome"] is None:
+            state["outcome"] = inputs["outcome"]
+            winning_side = "yes" if inputs["outcome"] else "no"
+            for portfolio in state["portfolios"].values():
+                portfolio["settled_wealth"] = (
+                    portfolio["cash"] + portfolio[winning_side]
+                )
+
+    runtime.register("lmsr_trade", 1, trade)
+    runtime.register("lmsr_settle", 1, settle)
+    return runtime
+
+
+def mechanism_runtime() -> Runtime:
+    """Runtime with reviewed, versioned iterative mechanism implementations."""
+
+    runtime = Runtime()
+
+    def serial_dictatorship(state, inputs, constants):
+        latest = {}
+        for index, request in enumerate(inputs["requests"]):
+            latest[request["claimant"]] = (
+                request.get("priority"),
+                index,
+                request["ranking"],
+            )
+        remaining = {item: inputs["capacity"] for item in inputs["items"]}
+        assignments = {}
+        ordered = sorted(
+            latest.items(),
+            key=lambda pair: (
+                pair[1][0] is None,
+                pair[1][0] if pair[1][0] is not None else pair[1][1],
+                pair[1][1],
+            ),
+        )
+        for claimant, (_, _, ranking) in ordered:
+            for item in ranking:
+                if remaining.get(item, 0) > 0:
+                    assignments[claimant] = item
+                    remaining[item] -= 1
+                    break
+        state["assignments"] = assignments
+
+    runtime.register("serial_dictatorship", 1, serial_dictatorship)
+
+    def deferred_acceptance(state, inputs, constants):
+        latest = {}
+        for request in inputs["requests"]:
+            latest[request["student"]] = list(request["ranking"])
+        rank = {
+            institution: {student: index for index, student in enumerate(order)}
+            for institution, order in inputs["priorities"].items()
+        }
+        held = {institution: [] for institution in inputs["capacities"]}
+        next_choice = {student: 0 for student in latest}
+        unmatched = sorted(latest)
+        while unmatched:
+            student = unmatched.pop(0)
+            choice_index = next_choice[student]
+            if choice_index >= len(latest[student]):
+                continue
+            institution = latest[student][choice_index]
+            next_choice[student] += 1
+            candidates = held[institution] + [student]
+            candidates.sort(
+                key=lambda name: (rank[institution].get(name, math.inf), name)
+            )
+            held[institution] = candidates[: inputs["capacities"][institution]]
+            unmatched.extend(candidates[inputs["capacities"][institution] :])
+        state["matches"] = {
+            student: institution
+            for institution, students in held.items()
+            for student in students
+        }
+        state["institution_matches"] = held
+
+    runtime.register("deferred_acceptance", 1, deferred_acceptance)
+
+    def double_auction_submit(state, inputs, constants):
+        trader, action = str(inputs["trader"]), str(inputs["action"])
+        if trader not in state["accounts"]:
+            raise DSLValidationError(f"unknown trader {trader!r}")
+        open_orders = [
+            o
+            for o in state["orders"]
+            if o["trader"] == trader and o["status"] == "open"
+        ]
+        if action == "cancel":
+            for order in open_orders:
+                order["status"] = "cancelled"
+            return
+        if action == "hold":
+            return
+        if open_orders:
+            raise DSLValidationError(
+                f"trader {trader!r} must cancel an open order before replacing it"
+            )
+        price = inputs["price"]
+        if isinstance(price, bool) or not isinstance(price, (int, float)) or price <= 0:
+            raise DSLValidationError("order price must be positive")
+        account = state["accounts"][trader]
+        if action == "buy" and account["cash"] < price:
+            raise DSLValidationError(f"trader {trader!r} has insufficient cash")
+        if action == "sell" and account["inventory"] < 1:
+            raise DSLValidationError(f"trader {trader!r} has insufficient inventory")
+        order = {
+            "id": f"O{len(state['orders']) + 1}",
+            "trader": trader,
+            "side": action,
+            "price": float(price),
+            "round": int(inputs["round"]),
+            "status": "open",
+            "interview": inputs.get("interview"),
+            "time": len(state["orders"]) + 1,
+        }
+        state["orders"].append(order)
+        opposite = "sell" if action == "buy" else "buy"
+        compatible = [
+            candidate
+            for candidate in state["orders"]
+            if candidate["status"] == "open"
+            and candidate["side"] == opposite
+            and (
+                candidate["price"] <= order["price"]
+                if action == "buy"
+                else candidate["price"] >= order["price"]
+            )
+        ]
+        if not compatible:
+            return
+        resting = sorted(
+            compatible,
+            key=lambda candidate: (
+                candidate["price"] if action == "buy" else -candidate["price"],
+                candidate["time"],
+            ),
+        )[0]
+        buyer_order, seller_order = (
+            (order, resting) if action == "buy" else (resting, order)
+        )
+        trade_price = resting["price"]
+        buyer, seller = (
+            state["accounts"][buyer_order["trader"]],
+            state["accounts"][seller_order["trader"]],
+        )
+        if buyer["cash"] < trade_price or seller["inventory"] < 1:
+            raise DSLValidationError("resting order is no longer collateralized")
+        buyer["cash"] -= trade_price
+        buyer["inventory"] += 1
+        seller["cash"] += trade_price
+        seller["inventory"] -= 1
+        buyer_order["status"] = seller_order["status"] = "filled"
+        state["trades"].append(
+            {
+                "buyer": buyer_order["trader"],
+                "seller": seller_order["trader"],
+                "price": trade_price,
+                "round": int(inputs["round"]),
+                "maker_order": resting["id"],
+                "taker_order": order["id"],
+            }
+        )
+
+    def double_auction_close(state, inputs, constants):
+        for order in state["orders"]:
+            if order["status"] == "open":
+                order["status"] = "expired"
+
+    runtime.register("double_auction_submit", 1, double_auction_submit)
+    runtime.register("double_auction_close", 1, double_auction_close)
+    return runtime
+
+
+def default_runtime() -> Runtime:
+    """Return the reviewed capability set available to standard backends."""
+
+    runtime = mechanism_runtime()
+    runtime.algorithms.update(lmsr_runtime().algorithms)
+    from .call_market import submit_order, settle_market, validate_rules
+
+    runtime.register(
+        "call_market_submit", 1, submit_order, validate_constants=validate_rules
+    )
+    runtime.register(
+        "call_market_settle", 1, settle_market, validate_constants=validate_rules
+    )
+    return runtime

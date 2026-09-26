@@ -1,0 +1,233 @@
+{
+  "model": "gemini-2.5-flash",
+  "runs": [
+    {
+      "game": "resource_allocation",
+      "answers": [
+        {
+          "incident": "fire"
+        },
+        {
+          "incident": "injury"
+        }
+      ],
+      "commands": [
+        "allocate",
+        "allocate"
+      ],
+      "final_state": {
+        "game": {
+          "assignments": {
+            "fire": "E1",
+            "injury": "A1"
+          },
+          "attempts": [
+            {
+              "accepted": true,
+              "incident": "fire",
+              "resource": "E1",
+              "responder": "Engine crew",
+              "round": 1
+            },
+            {
+              "accepted": true,
+              "incident": "injury",
+              "resource": "A1",
+              "responder": "Ambulance crew",
+              "round": 1
+            }
+          ],
+          "resource_use": {
+            "A1": "injury",
+            "E1": "fire"
+          }
+        }
+      },
+      "read_versions": [
+        0,
+        1
+      ]
+    },
+    {
+      "game": "budget",
+      "answers": [
+        {
+          "amount": 50
+        },
+        {
+          "amount": 50
+        },
+        {
+          "amount": null
+        }
+      ],
+      "commands": [
+        "fund",
+        "fund"
+      ],
+      "final_state": {
+        "game": {
+          "allocations": [
+            {
+              "granted": 50,
+              "project": "park",
+              "requested": 50,
+              "sponsor": "Park advocate"
+            },
+            {
+              "granted": 50,
+              "project": "library",
+              "requested": 50,
+              "sponsor": "Library advocate"
+            }
+          ],
+          "funded": {
+            "library": 50,
+            "park": 50
+          },
+          "remaining": 0
+        }
+      },
+      "read_versions": [
+        0,
+        1
+      ]
+    },
+    {
+      "game": "forecast",
+      "answers": [
+        {
+          "probability": 30
+        },
+        {
+          "probability": 44.67
+        },
+        {
+          "probability": 50
+        },
+        {
+          "probability": 50
+        },
+        {
+          "probability": 70
+        },
+        {
+          "probability": 54
+        }
+      ],
+      "commands": [
+        "submit",
+        "submit",
+        "submit",
+        "submit",
+        "submit",
+        "submit"
+      ],
+      "final_state": {
+        "game": {
+          "forecasts": [
+            {
+              "confidence": 80,
+              "forecaster": "Forecaster B",
+              "interview": "94b82440-75b7-4a49-a7e9-502e911e4dbc",
+              "probability": 50,
+              "round": 1
+            },
+            {
+              "confidence": 70,
+              "forecaster": "Forecaster C",
+              "interview": "1f26e405-684c-42f0-a55c-c96ed33676f3",
+              "probability": 70,
+              "round": 1
+            },
+            {
+              "confidence": 75,
+              "forecaster": "Forecaster A",
+              "interview": "c4c42b42-b3e9-4ce1-a987-ff5eec150dff",
+              "probability": 30,
+              "round": 1
+            },
+            {
+              "confidence": 80,
+              "forecaster": "Forecaster B",
+              "interview": "6a79b985-65e6-403e-aed5-c7b728d167eb",
+              "probability": 50,
+              "round": 2
+            },
+            {
+              "confidence": 70,
+              "forecaster": "Forecaster C",
+              "interview": "95f98875-2367-468b-a9ea-8a755196b3cb",
+              "probability": 54,
+              "round": 2
+            },
+            {
+              "confidence": 75,
+              "forecaster": "Forecaster A",
+              "interview": "16d7a17a-2f02-4297-b576-f1a417b50806",
+              "probability": 44.67,
+              "round": 2
+            }
+          ]
+        }
+      },
+      "read_versions": [
+        0,
+        0,
+        0,
+        3,
+        3,
+        3
+      ]
+    },
+    {
+      "game": "document",
+      "answers": [
+        {
+          "text": "Let's decide on an activity."
+        },
+        {
+          "text": "We will decide on an activity."
+        },
+        {
+          "text": "The plan is to decide on an activity."
+        }
+      ],
+      "commands": [
+        "revise",
+        "revise",
+        "revise"
+      ],
+      "final_state": {
+        "game": {
+          "revisions": [
+            {
+              "author": "Editor 1",
+              "changed": true,
+              "rationale": "Improve clarity and make the plan actionable",
+              "round": 1
+            },
+            {
+              "author": "Editor 2",
+              "changed": true,
+              "rationale": "Improve clarity and make the plan actionable",
+              "round": 2
+            },
+            {
+              "author": "Editor 3",
+              "changed": true,
+              "rationale": "Improve clarity and make the plan actionable",
+              "round": 3
+            }
+          ],
+          "text": "The plan is to decide on an activity."
+        }
+      },
+      "read_versions": [
+        0,
+        1,
+        2
+      ]
+    }
+  ]
+}

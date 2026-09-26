@@ -36,7 +36,7 @@ class CheckTemplateSyntax:
             for var_name, field_name in matches:
                 # Check if the variable name is not 'scenario', 'agent', and not a question name
                 if (
-                    var_name not in {"scenario", "agent"}
+                    var_name not in {"scenario", "agent", "run", "shared_state"}
                     and var_name not in question_names
                 ):
                     # Try to find a similar question name (likely misspelled)
@@ -75,7 +75,10 @@ class CheckTemplateSyntax:
 
         # Use difflib to find the closest match
         closest_matches = difflib.get_close_matches(
-            misspelled_name, question_names, n=1, cutoff=0.6  # Similarity threshold
+            misspelled_name,
+            question_names,
+            n=1,
+            cutoff=0.6,  # Similarity threshold
         )
 
         return closest_matches[0] if closest_matches else None

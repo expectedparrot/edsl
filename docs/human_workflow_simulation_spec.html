@@ -1,0 +1,1914 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en-US" xml:lang="en-US">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <meta name="author" content="Expected Parrot" />
+  <title>Dependency-Aware Human Workflows and Agent Simulation</title>
+  <style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+
+ul.task-list[class]{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+font-size: inherit;
+width: 0.8em;
+margin: 0 0.8em 0.2em -1.6em;
+vertical-align: middle;
+}
+.display.math{display: block; text-align: center; margin: 0.5rem auto;}
+
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+{ counter-reset: source-line 0; }
+pre.numberSource code > span
+{ position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+{ content: counter(source-line);
+position: relative; left: -1em; text-align: right; vertical-align: baseline;
+border: none; display: inline-block;
+-webkit-touch-callout: none; -webkit-user-select: none;
+-khtml-user-select: none; -moz-user-select: none;
+-ms-user-select: none; user-select: none;
+padding: 0 4px; width: 4em;
+color: #aaaaaa;
+}
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa; padding-left: 4px; }
+div.sourceCode
+{ background-color: #f8f8f8; }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+code span.al { color: #ef2929; } 
+code span.an { color: #8f5902; font-weight: bold; font-style: italic; } 
+code span.at { color: #204a87; } 
+code span.bn { color: #0000cf; } 
+code span.cf { color: #204a87; font-weight: bold; } 
+code span.ch { color: #4e9a06; } 
+code span.cn { color: #8f5902; } 
+code span.co { color: #8f5902; font-style: italic; } 
+code span.cv { color: #8f5902; font-weight: bold; font-style: italic; } 
+code span.do { color: #8f5902; font-weight: bold; font-style: italic; } 
+code span.dt { color: #204a87; } 
+code span.dv { color: #0000cf; } 
+code span.er { color: #a40000; font-weight: bold; } 
+code span.ex { } 
+code span.fl { color: #0000cf; } 
+code span.fu { color: #204a87; font-weight: bold; } 
+code span.im { } 
+code span.in { color: #8f5902; font-weight: bold; font-style: italic; } 
+code span.kw { color: #204a87; font-weight: bold; } 
+code span.op { color: #ce5c00; font-weight: bold; } 
+code span.ot { color: #8f5902; } 
+code span.pp { color: #8f5902; font-style: italic; } 
+code span.sc { color: #ce5c00; font-weight: bold; } 
+code span.ss { color: #4e9a06; } 
+code span.st { color: #4e9a06; } 
+code span.va { color: #000000; } 
+code span.vs { color: #4e9a06; } 
+code span.wa { color: #8f5902; font-weight: bold; font-style: italic; } 
+</style>
+  <style type="text/css">:root {
+--ink: #18212f;
+--muted: #5d6878;
+--line: #dce2ea;
+--paper: #ffffff;
+--wash: #f5f7fa;
+--navy: #15365f;
+--blue: #2368a2;
+--teal: #087f7a;
+--code: #f3f6f9;
+--shadow: 0 16px 50px rgba(20, 35, 55, 0.09);
+}
+* { box-sizing: border-box; }
+html {
+scroll-behavior: smooth;
+background: #edf1f5;
+}
+body {
+margin: 0;
+color: var(--ink);
+background:
+radial-gradient(circle at 8% 0%, rgba(35, 104, 162, 0.09), transparent 30rem),
+#edf1f5;
+font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+font-size: 16px;
+line-height: 1.68;
+}
+body > header,
+body > nav,
+body > main,
+body > section,
+body > p,
+body > h1,
+body > h2,
+body > h3,
+body > h4,
+body > pre,
+body > table,
+body > ul,
+body > ol,
+body > blockquote,
+body > div.sourceCode {
+max-width: 960px;
+margin-left: auto;
+margin-right: auto;
+}
+body > header,
+header#title-block-header {
+max-width: none;
+margin: 0 0 2rem;
+padding: 4.5rem max(2rem, calc((100vw - 960px) / 2));
+color: white;
+background: linear-gradient(125deg, #102b4c, #194f78 62%, #087f7a);
+box-shadow: var(--shadow);
+}
+header h1,
+header .title {
+max-width: 960px;
+margin: 0 auto 0.7rem;
+color: white;
+font-size: clamp(2.25rem, 5vw, 4.25rem);
+line-height: 1.05;
+letter-spacing: -0.045em;
+}
+header .subtitle,
+header .author,
+header .date {
+max-width: 960px;
+margin: 0.3rem auto;
+color: rgba(255, 255, 255, 0.82);
+}
+header .subtitle {
+font-size: 1.25rem;
+}
+nav#TOC {
+margin: 2rem auto 3rem;
+padding: 1.5rem 1.75rem;
+border: 1px solid var(--line);
+border-radius: 14px;
+background: rgba(255, 255, 255, 0.93);
+box-shadow: var(--shadow);
+columns: 2;
+column-gap: 2.5rem;
+}
+nav#TOC::before {
+content: "Contents";
+display: block;
+column-span: all;
+margin-bottom: 0.8rem;
+color: var(--navy);
+font-size: 1.1rem;
+font-weight: 750;
+}
+nav#TOC ul {
+margin: 0;
+padding-left: 1.1rem;
+}
+nav#TOC > ul { padding-left: 0; }
+nav#TOC li { break-inside: avoid; margin: 0.2rem 0; }
+nav#TOC a { text-decoration: none; }
+h1, h2, h3, h4 {
+color: var(--navy);
+line-height: 1.2;
+letter-spacing: -0.018em;
+}
+body > h1 {
+margin-top: 4rem;
+padding-top: 1rem;
+border-top: 1px solid var(--line);
+font-size: 2.05rem;
+}
+body > h1:first-of-type { border-top: 0; }
+body > h2 { margin-top: 2.6rem; font-size: 1.55rem; }
+body > h3 { margin-top: 2rem; font-size: 1.2rem; }
+a { color: var(--blue); }
+a:hover { color: var(--teal); }
+p, li { color: var(--ink); }
+blockquote {
+margin-top: 1.5rem;
+margin-bottom: 1.5rem;
+padding: 0.8rem 1.25rem;
+border-left: 4px solid var(--teal);
+background: rgba(8, 127, 122, 0.06);
+}
+code {
+padding: 0.12em 0.35em;
+border-radius: 5px;
+color: #9b2d30;
+background: var(--code);
+font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+font-size: 0.9em;
+}
+pre,
+div.sourceCode {
+overflow-x: auto;
+margin-top: 1.35rem;
+margin-bottom: 1.8rem;
+border: 1px solid #d7dee7;
+border-radius: 12px;
+background: #f7f9fb;
+box-shadow: 0 8px 22px rgba(20, 35, 55, 0.05);
+}
+pre { padding: 1.2rem 1.35rem; }
+div.sourceCode pre { margin: 0; border: 0; box-shadow: none; }
+pre code { padding: 0; color: #243549; background: transparent; }
+table {
+width: 100%;
+margin-top: 1.5rem;
+margin-bottom: 2rem;
+border-spacing: 0;
+border: 1px solid var(--line);
+border-radius: 10px;
+overflow: hidden;
+background: var(--paper);
+box-shadow: 0 8px 22px rgba(20, 35, 55, 0.04);
+}
+th, td {
+padding: 0.75rem 0.9rem;
+border-right: 1px solid var(--line);
+border-bottom: 1px solid var(--line);
+text-align: left;
+vertical-align: top;
+}
+th:last-child, td:last-child { border-right: 0; }
+tr:last-child td { border-bottom: 0; }
+th { color: white; background: var(--navy); }
+tbody tr:nth-child(even) { background: var(--wash); }
+hr {
+max-width: 960px;
+margin: 3rem auto;
+border: 0;
+border-top: 1px solid var(--line);
+}
+@media (max-width: 760px) {
+body { font-size: 15px; }
+body > p, body > h1, body > h2, body > h3, body > h4,
+body > pre, body > table, body > ul, body > ol, body > blockquote,
+body > div.sourceCode, body > nav {
+max-width: calc(100% - 2rem);
+}
+nav#TOC { columns: 1; }
+table { display: block; overflow-x: auto; }
+header#title-block-header { padding: 3rem 1.25rem; }
+}
+@media print {
+html, body { background: white; }
+header#title-block-header { padding: 2rem 0; color: var(--ink); background: white; box-shadow: none; }
+header h1, header .title { color: var(--navy); }
+header .subtitle, header .author, header .date { color: var(--muted); }
+nav#TOC, pre, div.sourceCode, table { box-shadow: none; }
+a { color: inherit; text-decoration: none; }
+}
+</style>
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">Dependency-Aware Human Workflows and Agent
+Simulation</h1>
+<p class="subtitle">A shared execution model for real respondents and
+simulated inbox-driven agents</p>
+<p class="author">Expected Parrot</p>
+<p class="date">August 2026</p>
+</header>
+<nav id="TOC" role="doc-toc">
+<ul>
+<li><a href="#status" id="toc-status"><span class="toc-section-number">1</span> Status</a></li>
+<li><a href="#executive-summary" id="toc-executive-summary"><span class="toc-section-number">2</span> Executive summary</a></li>
+<li><a href="#proposed-api-quick-tour" id="toc-proposed-api-quick-tour"><span class="toc-section-number">3</span> Proposed API quick tour</a>
+<ul>
+<li><a href="#api-1-define-legal-state-transitions" id="toc-api-1-define-legal-state-transitions"><span class="toc-section-number">3.1</span> API 1: define legal state
+transitions</a></li>
+<li><a href="#api-2-define-participant-eligibility-and-work" id="toc-api-2-define-participant-eligibility-and-work"><span class="toc-section-number">3.2</span> API 2: define participant
+eligibility and work</a></li>
+<li><a href="#api-3-choose-humans-or-simulated-respondents" id="toc-api-3-choose-humans-or-simulated-respondents"><span class="toc-section-number">3.3</span> API 3: choose humans or simulated
+respondents</a></li>
+<li><a href="#what-exists-today-versus-what-is-proposed" id="toc-what-exists-today-versus-what-is-proposed"><span class="toc-section-number">3.4</span> What exists today versus what is
+proposed</a></li>
+</ul></li>
+<li><a href="#goals" id="toc-goals"><span class="toc-section-number">4</span> Goals</a></li>
+<li><a href="#non-goals" id="toc-non-goals"><span class="toc-section-number">5</span> Non-goals</a></li>
+<li><a href="#design-principles" id="toc-design-principles"><span class="toc-section-number">6</span> Design principles</a>
+<ul>
+<li><a href="#state-facts-and-workflow-control-are-separate" id="toc-state-facts-and-workflow-control-are-separate"><span class="toc-section-number">6.1</span> State facts and workflow control
+are separate</a></li>
+<li><a href="#humans-do-not-wait-inside-a-process" id="toc-humans-do-not-wait-inside-a-process"><span class="toc-section-number">6.2</span> Humans do not wait inside a
+process</a></li>
+<li><a href="#deliveries-announce-work-they-do-not-define-work" id="toc-deliveries-announce-work-they-do-not-define-work"><span class="toc-section-number">6.3</span> Deliveries announce work; they do
+not define work</a></li>
+<li><a href="#simulated-agents-react-to-deliveries" id="toc-simulated-agents-react-to-deliveries"><span class="toc-section-number">6.4</span> Simulated agents react to
+deliveries</a></li>
+<li><a href="#every-decision-is-serializable" id="toc-every-decision-is-serializable"><span class="toc-section-number">6.5</span> Every decision is
+serializable</a></li>
+</ul></li>
+<li><a href="#conceptual-model" id="toc-conceptual-model"><span class="toc-section-number">7</span> Conceptual model</a></li>
+<li><a href="#authoring-api" id="toc-authoring-api"><span class="toc-section-number">8</span> Authoring API</a>
+<ul>
+<li><a href="#minimal-sequential-example" id="toc-minimal-sequential-example"><span class="toc-section-number">8.1</span> Minimal sequential
+example</a></li>
+<li><a href="#humanworkflow" id="toc-humanworkflow"><span class="toc-section-number">8.2</span>
+<code>HumanWorkflow</code></a></li>
+<li><a href="#humanstep" id="toc-humanstep"><span class="toc-section-number">8.3</span> <code>HumanStep</code></a></li>
+<li><a href="#participant-selectors" id="toc-participant-selectors"><span class="toc-section-number">8.4</span> Participant selectors</a></li>
+<li><a href="#conditions" id="toc-conditions"><span class="toc-section-number">8.5</span> Conditions</a></li>
+</ul></li>
+<li><a href="#runtime-state-model" id="toc-runtime-state-model"><span class="toc-section-number">9</span> Runtime state model</a>
+<ul>
+<li><a href="#work-item-statuses" id="toc-work-item-statuses"><span class="toc-section-number">9.1</span> Work-item statuses</a></li>
+<li><a href="#required-persistent-records" id="toc-required-persistent-records"><span class="toc-section-number">9.2</span> Required persistent records</a>
+<ul>
+<li><a href="#workflow-instance" id="toc-workflow-instance"><span class="toc-section-number">9.2.1</span> Workflow instance</a></li>
+<li><a href="#participant-binding" id="toc-participant-binding"><span class="toc-section-number">9.2.2</span> Participant binding</a></li>
+<li><a href="#work-item-instance" id="toc-work-item-instance"><span class="toc-section-number">9.2.3</span> Work-item instance</a></li>
+<li><a href="#submission" id="toc-submission"><span class="toc-section-number">9.2.4</span> Submission</a></li>
+<li><a href="#outbox-record" id="toc-outbox-record"><span class="toc-section-number">9.2.5</span> Outbox record</a></li>
+<li><a href="#audit-event" id="toc-audit-event"><span class="toc-section-number">9.2.6</span> Audit event</a></li>
+</ul></li>
+</ul></li>
+<li><a href="#coordinator-semantics" id="toc-coordinator-semantics"><span class="toc-section-number">10</span> Coordinator semantics</a>
+<ul>
+<li><a href="#launch" id="toc-launch"><span class="toc-section-number">10.1</span> Launch</a></li>
+<li><a href="#eligibility-evaluation" id="toc-eligibility-evaluation"><span class="toc-section-number">10.2</span> Eligibility evaluation</a></li>
+<li><a href="#open-and-render" id="toc-open-and-render"><span class="toc-section-number">10.3</span> Open and render</a></li>
+<li><a href="#drafts" id="toc-drafts"><span class="toc-section-number">10.4</span> Drafts</a></li>
+<li><a href="#submit" id="toc-submit"><span class="toc-section-number">10.5</span> Submit</a></li>
+<li><a href="#completion" id="toc-completion"><span class="toc-section-number">10.6</span> Completion</a></li>
+</ul></li>
+<li><a href="#delivery-system" id="toc-delivery-system"><span class="toc-section-number">11</span> Delivery system</a>
+<ul>
+<li><a href="#adapter-protocol" id="toc-adapter-protocol"><span class="toc-section-number">11.1</span> Adapter protocol</a></li>
+<li><a href="#delivery-message" id="toc-delivery-message"><span class="toc-section-number">11.2</span> Delivery message</a></li>
+<li><a href="#delivery-guarantees" id="toc-delivery-guarantees"><span class="toc-section-number">11.3</span> Delivery guarantees</a></li>
+</ul></li>
+<li><a href="#deadlines-reminders-and-replacement" id="toc-deadlines-reminders-and-replacement"><span class="toc-section-number">12</span> Deadlines, reminders, and
+replacement</a></li>
+<li><a href="#revisions-and-invalidation" id="toc-revisions-and-invalidation"><span class="toc-section-number">13</span> Revisions and invalidation</a></li>
+<li><a href="#humanize-integration" id="toc-humanize-integration"><span class="toc-section-number">14</span> Humanize integration</a>
+<ul>
+<li><a href="#relationship-to-current-humanize-objects" id="toc-relationship-to-current-humanize-objects"><span class="toc-section-number">14.1</span> Relationship to current Humanize
+objects</a></li>
+<li><a href="#browser-behavior" id="toc-browser-behavior"><span class="toc-section-number">14.2</span> Browser behavior</a></li>
+<li><a href="#callbacks" id="toc-callbacks"><span class="toc-section-number">14.3</span> Callbacks</a></li>
+</ul></li>
+<li><a href="#agent-workflow-simulation" id="toc-agent-workflow-simulation"><span class="toc-section-number">15</span> Agent workflow simulation</a>
+<ul>
+<li><a href="#purpose" id="toc-purpose"><span class="toc-section-number">15.1</span> Purpose</a></li>
+<li><a href="#proposed-api" id="toc-proposed-api"><span class="toc-section-number">15.2</span> Proposed API</a></li>
+<li><a href="#simulator-event-loop" id="toc-simulator-event-loop"><span class="toc-section-number">15.3</span> Simulator event loop</a></li>
+<li><a href="#simulated-inbox" id="toc-simulated-inbox"><span class="toc-section-number">15.4</span> Simulated inbox</a></li>
+<li><a href="#agent-answering-semantics" id="toc-agent-answering-semantics"><span class="toc-section-number">15.5</span> Agent answering
+semantics</a></li>
+<li><a href="#behavior-model" id="toc-behavior-model"><span class="toc-section-number">15.6</span> Behavior model</a></li>
+<li><a href="#simulation-result" id="toc-simulation-result"><span class="toc-section-number">15.7</span> Simulation result</a></li>
+</ul></li>
+<li><a href="#concurrency-and-consistency" id="toc-concurrency-and-consistency"><span class="toc-section-number">16</span> Concurrency and consistency</a>
+<ul>
+<li><a href="#atomicity-boundary" id="toc-atomicity-boundary"><span class="toc-section-number">16.1</span> Atomicity boundary</a></li>
+<li><a href="#optimistic-concurrency" id="toc-optimistic-concurrency"><span class="toc-section-number">16.2</span> Optimistic concurrency</a></li>
+<li><a href="#fan-out" id="toc-fan-out"><span class="toc-section-number">16.3</span> Fan-out</a></li>
+<li><a href="#fan-in" id="toc-fan-in"><span class="toc-section-number">16.4</span> Fan-in</a></li>
+</ul></li>
+<li><a href="#failure-handling" id="toc-failure-handling"><span class="toc-section-number">17</span> Failure handling</a>
+<ul>
+<li><a href="#failure-classes" id="toc-failure-classes"><span class="toc-section-number">17.1</span> Failure classes</a></li>
+<li><a href="#deadlock-detection" id="toc-deadlock-detection"><span class="toc-section-number">17.2</span> Deadlock detection</a></li>
+<li><a href="#retries" id="toc-retries"><span class="toc-section-number">17.3</span> Retries</a></li>
+</ul></li>
+<li><a href="#privacy-and-security" id="toc-privacy-and-security"><span class="toc-section-number">18</span> Privacy and security</a></li>
+<li><a href="#observability-and-audit" id="toc-observability-and-audit"><span class="toc-section-number">19</span> Observability and audit</a>
+<ul>
+<li><a href="#event-vocabulary" id="toc-event-vocabulary"><span class="toc-section-number">19.1</span> Event vocabulary</a></li>
+<li><a href="#timeline" id="toc-timeline"><span class="toc-section-number">19.2</span> Timeline</a></li>
+<li><a href="#metrics" id="toc-metrics"><span class="toc-section-number">19.3</span> Metrics</a></li>
+</ul></li>
+<li><a href="#serialization" id="toc-serialization"><span class="toc-section-number">20</span> Serialization</a></li>
+<li><a href="#proposed-cli" id="toc-proposed-cli"><span class="toc-section-number">21</span> Proposed CLI</a></li>
+<li><a href="#python-service-boundaries" id="toc-python-service-boundaries"><span class="toc-section-number">22</span> Python service boundaries</a></li>
+<li><a href="#validation-and-preflight" id="toc-validation-and-preflight"><span class="toc-section-number">23</span> Validation and preflight</a></li>
+<li><a href="#testing-strategy" id="toc-testing-strategy"><span class="toc-section-number">24</span> Testing strategy</a>
+<ul>
+<li><a href="#unit-tests" id="toc-unit-tests"><span class="toc-section-number">24.1</span> Unit tests</a></li>
+<li><a href="#storecoordinator-contract-tests" id="toc-storecoordinator-contract-tests"><span class="toc-section-number">24.2</span> Store/coordinator contract
+tests</a></li>
+<li><a href="#adapter-conformance-tests" id="toc-adapter-conformance-tests"><span class="toc-section-number">24.3</span> Adapter conformance
+tests</a></li>
+<li><a href="#end-to-end-examples" id="toc-end-to-end-examples"><span class="toc-section-number">24.4</span> End-to-end examples</a></li>
+</ul></li>
+<li><a href="#incremental-implementation-plan" id="toc-incremental-implementation-plan"><span class="toc-section-number">25</span> Incremental implementation plan</a>
+<ul>
+<li><a href="#phase-0-freeze-semantics" id="toc-phase-0-freeze-semantics"><span class="toc-section-number">25.1</span> Phase 0: Freeze
+semantics</a></li>
+<li><a href="#phase-1-local-deterministic-core" id="toc-phase-1-local-deterministic-core"><span class="toc-section-number">25.2</span> Phase 1: Local deterministic
+core</a></li>
+<li><a href="#phase-2-agent-simulator" id="toc-phase-2-agent-simulator"><span class="toc-section-number">25.3</span> Phase 2: Agent simulator</a></li>
+<li><a href="#phase-3-humanize-pilot" id="toc-phase-3-humanize-pilot"><span class="toc-section-number">25.4</span> Phase 3: Humanize pilot</a></li>
+<li><a href="#phase-4-operational-policies" id="toc-phase-4-operational-policies"><span class="toc-section-number">25.5</span> Phase 4: Operational
+policies</a></li>
+<li><a href="#phase-5-advanced-workflows" id="toc-phase-5-advanced-workflows"><span class="toc-section-number">25.6</span> Phase 5: Advanced
+workflows</a></li>
+</ul></li>
+<li><a href="#acceptance-criteria-for-version-1" id="toc-acceptance-criteria-for-version-1"><span class="toc-section-number">26</span> Acceptance criteria for version
+1</a></li>
+<li><a href="#open-design-decisions" id="toc-open-design-decisions"><span class="toc-section-number">27</span> Open design decisions</a></li>
+<li><a href="#recommended-first-vertical-slice" id="toc-recommended-first-vertical-slice"><span class="toc-section-number">28</span> Recommended first vertical
+slice</a></li>
+</ul>
+</nav>
+<h1 data-number="1" id="status"><span class="header-section-number">1</span> Status</h1>
+<p>This document is an implementation specification, not documentation
+of current behavior. It extends the shared-state and Humanize designs
+with durable, dependency-aware work items that can be completed either
+by real people or by EDSL agents responding to simulated deliveries.</p>
+<p>The normative terms <strong>MUST</strong>, <strong>SHOULD</strong>,
+and <strong>MAY</strong> have their usual RFC-style meaning.</p>
+<h1 data-number="2" id="executive-summary"><span class="header-section-number">2</span> Executive summary</h1>
+<p>EDSL currently has two useful but separate execution models:</p>
+<ol type="1">
+<li>The local runner executes AI-agent interviews and can impose serial
+or round-based schedules.</li>
+<li>Humanize creates surveys, respondents, deliveries, schedules, and
+callbacks for real people.</li>
+</ol>
+<p>Neither model is sufficient for a long-lived workflow in which one
+participant&#39;s submission enables another participant&#39;s work. A human may
+take hours or days to respond, so the system cannot hold a worker or
+interview open. A command <code>require</code> expression can protect
+state integrity, but it does not suspend and wake a participant. A
+serial interview schedule can enforce fixed ordering for AI runs, but it
+serializes too much work and does not represent durable human
+eligibility.</p>
+<p>This specification introduces <code>HumanWorkflow</code>, a
+serializable workflow graph whose work items become eligible from
+shared-state predicates. The workflow engine persists eligibility,
+renders only authorized state, accepts idempotent submissions, commits
+shared-state transitions, and activates downstream work.</p>
+<p>The same workflow is executed through two adapters:</p>
+<ul>
+<li><code>HumanizeWorkflowAdapter</code> sends real email/SMS/web
+deliveries and accepts browser submissions.</li>
+<li><code>AgentWorkflowSimulator</code> uses a virtual clock, simulated
+inboxes, and EDSL agents while exercising the same open/render/submit
+APIs.</li>
+</ul>
+<p>The simulator is therefore an end-to-end rehearsal of the human
+workflow, not a separate approximation of its control flow.</p>
+<h1 data-number="3" id="proposed-api-quick-tour"><span class="header-section-number">3</span> Proposed API quick tour</h1>
+<p>The proposal has three layers. Each layer answers a different
+question:</p>
+<table>
+<thead>
+<tr>
+<th>Layer</th>
+<th>Proposed API</th>
+<th>Responsibility</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Domain state</td>
+<td><code>Machine</code>, <code>SharedStateMap</code></td>
+<td>What facts exist and which transitions are legal?</td>
+</tr>
+<tr>
+<td>Workflow</td>
+<td><code>HumanWorkflow</code>, <code>HumanStep</code></td>
+<td>Who may do what, and when does their work become ready?</td>
+</tr>
+<tr>
+<td>Execution adapter</td>
+<td><code>HumanizeWorkflowAdapter</code>,
+<code>AgentWorkflowSimulator</code></td>
+<td>Who receives the task and how is the response collected?</td>
+</tr>
+</tbody>
+</table>
+<p>The central execution cycle is:</p>
+<pre class="text"><code>state changes
+    |
+    v
+ready_when predicates are reevaluated
+    |
+    v
+newly eligible work items become ready
+    |
+    v
+an invitation enters the delivery outbox
+    |
+    +-----------------------------+
+    |                             |
+    v                             v
+real email/SMS              simulated inbox
+    |                             |
+    +-------------+---------------+
+                  v
+          participant opens task
+                  |
+                  v
+       authorized state is rendered
+                  |
+                  v
+          participant submits
+                  |
+                  v
+      state command commits atomically
+                  |
+                  +---- turns the crank again</code></pre>
+<h2 data-number="3.1" id="api-1-define-legal-state-transitions"><span class="header-section-number">3.1</span> API 1: define legal state
+transitions</h2>
+<p>The machine is independent of humans, email, and AI models:</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode python"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>sequence_machine <span class="op">=</span> Machine(</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>    name<span class="op">=</span><span class="st">&quot;DependentAnswers&quot;</span>,</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>    fields<span class="op">=</span>{</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;first_answer&quot;</span>: state_field(T.optional(T.text()), <span class="va">None</span>),</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;second_answer&quot;</span>: state_field(T.optional(T.text()), <span class="va">None</span>),</span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>    },</span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>    commands<span class="op">=</span>{</span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;submit_first&quot;</span>: Command(</span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>            inputs<span class="op">=</span>{<span class="st">&quot;answer&quot;</span>: T.text()},</span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>            effects<span class="op">=</span>(set_once(<span class="st">&quot;first_answer&quot;</span>, input_(<span class="st">&quot;answer&quot;</span>)),),</span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a>        ),</span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;submit_second&quot;</span>: Command(</span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a>            inputs<span class="op">=</span>{<span class="st">&quot;answer&quot;</span>: T.text()},</span>
+<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a>            require<span class="op">=</span>field(<span class="st">&quot;first_answer&quot;</span>) <span class="op">!=</span> <span class="va">None</span>,</span>
+<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a>            effects<span class="op">=</span>(set_once(<span class="st">&quot;second_answer&quot;</span>, input_(<span class="st">&quot;answer&quot;</span>)),),</span>
+<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a>        ),</span>
+<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a>    },</span>
+<span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a>    view<span class="op">=</span>{</span>
+<span id="cb2-19"><a href="#cb2-19" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;first_answer&quot;</span>: field(<span class="st">&quot;first_answer&quot;</span>),</span>
+<span id="cb2-20"><a href="#cb2-20" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;second_answer&quot;</span>: field(<span class="st">&quot;second_answer&quot;</span>),</span>
+<span id="cb2-21"><a href="#cb2-21" aria-hidden="true" tabindex="-1"></a>    },</span>
+<span id="cb2-22"><a href="#cb2-22" aria-hidden="true" tabindex="-1"></a>    complete_when<span class="op">=</span>field(<span class="st">&quot;second_answer&quot;</span>) <span class="op">!=</span> <span class="va">None</span>,</span>
+<span id="cb2-23"><a href="#cb2-23" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div>
+<p>The <code>require</code> expression is the final safety check. It
+does not send an invitation or make a participant wait.</p>
+<h2 data-number="3.2" id="api-2-define-participant-eligibility-and-work"><span class="header-section-number">3.2</span> API 2: define participant
+eligibility and work</h2>
+<p><code>HumanStep.ready_when</code> is what turns a state fact into
+durable work eligibility:</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode python"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>workflow <span class="op">=</span> HumanWorkflow(</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>    name<span class="op">=</span><span class="st">&quot;dependent-answer-workflow&quot;</span>,</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>    state<span class="op">=</span>states,</span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>    steps<span class="op">=</span>[</span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>        HumanStep(</span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>            name<span class="op">=</span><span class="st">&quot;first_response&quot;</span>,</span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>            assignee<span class="op">=</span>ParticipantSelector.role(<span class="st">&quot;first&quot;</span>),</span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>            survey<span class="op">=</span>first_survey,</span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>            writes<span class="op">=</span>[sequence.submit_first(answer<span class="op">=</span>first.answer)],</span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>            delivery<span class="op">=</span>DeliveryPolicy.email(on<span class="op">=</span><span class="st">&quot;ready&quot;</span>),</span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a>        ),</span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a>        HumanStep(</span>
+<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a>            name<span class="op">=</span><span class="st">&quot;second_response&quot;</span>,</span>
+<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a>            assignee<span class="op">=</span>ParticipantSelector.role(<span class="st">&quot;second&quot;</span>),</span>
+<span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a>            ready_when<span class="op">=</span>sequence.condition(</span>
+<span id="cb3-16"><a href="#cb3-16" aria-hidden="true" tabindex="-1"></a>                field(<span class="st">&quot;first_answer&quot;</span>) <span class="op">!=</span> <span class="va">None</span></span>
+<span id="cb3-17"><a href="#cb3-17" aria-hidden="true" tabindex="-1"></a>            ),</span>
+<span id="cb3-18"><a href="#cb3-18" aria-hidden="true" tabindex="-1"></a>            reads<span class="op">=</span>[sequence.read()],</span>
+<span id="cb3-19"><a href="#cb3-19" aria-hidden="true" tabindex="-1"></a>            survey<span class="op">=</span>second_survey,</span>
+<span id="cb3-20"><a href="#cb3-20" aria-hidden="true" tabindex="-1"></a>            writes<span class="op">=</span>[sequence.submit_second(answer<span class="op">=</span>second.answer)],</span>
+<span id="cb3-21"><a href="#cb3-21" aria-hidden="true" tabindex="-1"></a>            delivery<span class="op">=</span>DeliveryPolicy.email(on<span class="op">=</span><span class="st">&quot;ready&quot;</span>),</span>
+<span id="cb3-22"><a href="#cb3-22" aria-hidden="true" tabindex="-1"></a>        ),</span>
+<span id="cb3-23"><a href="#cb3-23" aria-hidden="true" tabindex="-1"></a>    ],</span>
+<span id="cb3-24"><a href="#cb3-24" aria-hidden="true" tabindex="-1"></a>    complete_when<span class="op">=</span>sequence.is_complete(),</span>
+<span id="cb3-25"><a href="#cb3-25" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div>
+<p>At launch, <code>first_response</code> is <code>ready</code> and
+<code>second_response</code> is <code>blocked</code>. Completing the
+first item commits <code>first_answer</code>, which makes the second
+item ready and queues its invitation.</p>
+<h2 data-number="3.3" id="api-3-choose-humans-or-simulated-respondents"><span class="header-section-number">3.3</span> API 3: choose humans or
+simulated respondents</h2>
+<p>Production execution binds the workflow to Humanize respondents and
+routes:</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode python"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>run <span class="op">=</span> HumanizeWorkflowAdapter(</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>    workflow<span class="op">=</span>workflow,</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>    participants<span class="op">=</span>human_respondents,</span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>    delivery_routes<span class="op">=</span>[respondent_email_route],</span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>).launch()</span></code></pre></div>
+<p>Simulation binds the same frozen workflow to EDSL agents and a
+virtual inbox:</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode python"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>simulation <span class="op">=</span> AgentWorkflowSimulator(</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>    workflow<span class="op">=</span>workflow,</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>    participants<span class="op">=</span>agent_list,</span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>    model<span class="op">=</span>model,</span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>    inbox<span class="op">=</span>SimulatedInbox(),</span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>    clock<span class="op">=</span>VirtualClock(start<span class="op">=</span><span class="st">&quot;2026-09-01T09:00:00Z&quot;</span>),</span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>    behavior<span class="op">=</span>RespondentBehavior.immediate_and_reliable(),</span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>    seed<span class="op">=</span><span class="dv">1234</span>,</span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>result <span class="op">=</span> simulation.run(</span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a>    until<span class="op">=</span>workflow.is_complete(),</span>
+<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a>    max_events<span class="op">=</span><span class="dv">10_000</span>,</span>
+<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div>
+<p>The simulator does not call machine commands directly. A simulated
+agent must receive a message, open its task, view the rendered survey,
+answer it, and submit through the same coordinator contract used by a
+human browser.</p>
+<h2 data-number="3.4" id="what-exists-today-versus-what-is-proposed"><span class="header-section-number">3.4</span> What exists today versus what
+is proposed</h2>
+<table>
+<thead>
+<tr>
+<th>Capability</th>
+<th style="text-align: right;">Current repository</th>
+<th style="text-align: right;">Proposed here</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Typed shared-state machines and commands</td>
+<td style="text-align: right;">Yes</td>
+<td style="text-align: right;">Reused unchanged</td>
+</tr>
+<tr>
+<td>Explicit state reads and answer-bound writes</td>
+<td style="text-align: right;">Yes</td>
+<td style="text-align: right;">Reused unchanged</td>
+</tr>
+<tr>
+<td>Local serial/concurrent AI interview schedules</td>
+<td style="text-align: right;">Yes</td>
+<td style="text-align: right;">Still supported</td>
+</tr>
+<tr>
+<td>Humanize respondents, links, deliveries, schedules, callbacks</td>
+<td style="text-align: right;">Yes</td>
+<td style="text-align: right;">Used by adapter</td>
+</tr>
+<tr>
+<td>Durable dependency-aware human work items</td>
+<td style="text-align: right;">No</td>
+<td style="text-align: right;"><code>HumanStep</code> instances</td>
+</tr>
+<tr>
+<td>State-based participant readiness</td>
+<td style="text-align: right;">No</td>
+<td style="text-align: right;"><code>ready_when</code></td>
+</tr>
+<tr>
+<td>Waiting pages and revocable task capabilities</td>
+<td style="text-align: right;">No</td>
+<td style="text-align: right;">Coordinator/browser contract</td>
+</tr>
+<tr>
+<td>Virtual inbox and virtual clock</td>
+<td style="text-align: right;">No</td>
+<td style="text-align: right;">Simulation adapter</td>
+</tr>
+<tr>
+<td>One workflow definition for humans and agents</td>
+<td style="text-align: right;">No</td>
+<td style="text-align: right;">Primary acceptance criterion</td>
+</tr>
+</tbody>
+</table>
+<h1 data-number="4" id="goals"><span class="header-section-number">4</span> Goals</h1>
+<p>The design MUST:</p>
+<ol type="1">
+<li>Express dependencies such as “reviewer B becomes eligible after
+reviewer A submits” and “adjudication becomes eligible after two
+conflicting reviews.”</li>
+<li>Preserve valid parallelism: unrelated ready work runs
+concurrently.</li>
+<li>Persist workflow progress across process restarts and arbitrarily
+long human delays.</li>
+<li>Use the same workflow definition for humans and simulated AI
+respondents.</li>
+<li>Keep shared-state machines authoritative for domain state and
+transition invariants.</li>
+<li>Keep workflow scheduling authoritative for eligibility, assignment,
+delivery, deadlines, and failure policy.</li>
+<li>Recheck authorization and readiness when a submission commits.</li>
+<li>Make retries and duplicate delivery/submission requests
+idempotent.</li>
+<li>Expose a complete audit trail sufficient to reproduce why work
+became ready, blocked, expired, or completed.</li>
+<li>Support serialization and remote execution without arbitrary Python
+callbacks.</li>
+<li>Preserve privacy by rendering only the state view authorized for the
+current work item and participant.</li>
+<li>Detect deadlocks and terminally blocked workflows.</li>
+</ol>
+<h1 data-number="5" id="non-goals"><span class="header-section-number">5</span> Non-goals</h1>
+<p>The first implementation does not need to:</p>
+<ul>
+<li>implement a general business-process notation language;</li>
+<li>allow arbitrary Python callbacks in eligibility expressions;</li>
+<li>provide exactly-once email delivery (submission and state effects
+are idempotent; transport delivery is at least once);</li>
+<li>infer a workflow graph from natural-language prompts;</li>
+<li>model a human continuously observing state;</li>
+<li>let AI respondents poll for work;</li>
+<li>support editing an upstream response after dependent work has
+completed unless the workflow explicitly declares a revision
+policy;</li>
+<li>replace existing one-shot Humanize surveys or local
+<code>InterviewSchedule</code> runs.</li>
+</ul>
+<h1 data-number="6" id="design-principles"><span class="header-section-number">6</span> Design principles</h1>
+<h2 data-number="6.1" id="state-facts-and-workflow-control-are-separate"><span class="header-section-number">6.1</span> State facts and workflow
+control are separate</h2>
+<p>A <code>Machine</code> defines domain facts and legal transitions. A
+<code>HumanWorkflow</code> defines who may perform which work, when it
+becomes eligible, and what happens when it is not completed.</p>
+<p>For example, <code>field(&quot;draft&quot;) != None</code> can appear in both
+places for different reasons:</p>
+<ul>
+<li>as a workflow <code>ready_when</code> predicate, it controls whether
+a reviewer receives and can open a task;</li>
+<li>as a command <code>require</code> predicate, it protects the state
+transition against stale pages, races, forged requests, and programming
+errors.</li>
+</ul>
+<p>The two checks are intentionally redundant. Eligibility provides
+orchestration and a good participant experience. Command requirements
+provide transactional safety.</p>
+<h2 data-number="6.2" id="humans-do-not-wait-inside-a-process"><span class="header-section-number">6.2</span> Humans do not wait inside a
+process</h2>
+<p>Blocked work is a durable row with status <code>blocked</code>. No
+worker, request, model call, or browser session remains open. A
+committed event causes the coordinator to reevaluate affected predicates
+and atomically mark newly eligible work <code>ready</code>.</p>
+<h2 data-number="6.3" id="deliveries-announce-work-they-do-not-define-work"><span class="header-section-number">6.3</span> Deliveries announce work; they
+do not define work</h2>
+<p>An email contains a capability URL or task identifier. It is not the
+authoritative survey payload. Opening the URL rechecks eligibility and
+renders a fresh authorized view. Delayed or duplicated email cannot
+bypass workflow state.</p>
+<h2 data-number="6.4" id="simulated-agents-react-to-deliveries"><span class="header-section-number">6.4</span> Simulated agents react to
+deliveries</h2>
+<p>An AI respondent MUST NOT poll shared state or choose when to act. It
+receives a simulated delivery, opens the referenced task through the
+normal workflow API, and submits through the normal submission API. This
+preserves the causal model experienced by humans.</p>
+<h2 data-number="6.5" id="every-decision-is-serializable"><span class="header-section-number">6.5</span> Every decision is
+serializable</h2>
+<p>Selectors, predicates, timing policies, retry policies, and adapter
+configuration compile to versioned data. Runtime services may use code
+internally, but workflow authors do not need arbitrary callbacks for the
+normal path.</p>
+<h1 data-number="7" id="conceptual-model"><span class="header-section-number">7</span> Conceptual model</h1>
+<pre class="text"><code>HumanWorkflow
++-- workflow definition
+|   +-- participant roles and selectors
+|   +-- work-item templates
+|   +-- state bindings
+|   +-- readiness and completion predicates
+|   +-- delivery, deadline, and failure policies
+|
++-- workflow instance (one study/group/case)
+    +-- participant bindings
+    +-- shared-state scope(s)
+    +-- work-item instances
+    +-- submissions
+    +-- delivery outbox
+    +-- event log
+    +-- timers</code></pre>
+<p>The principal terms are:</p>
+<ul>
+<li><strong>Workflow definition</strong>: immutable, serializable
+authoring object.</li>
+<li><strong>Workflow instance</strong>: one durable execution of a
+definition.</li>
+<li><strong>Participant</strong>: a human respondent or simulated EDSL
+agent with a stable ID, traits, roles, and delivery endpoints.</li>
+<li><strong>Work-item template</strong>: declarative definition of a
+step.</li>
+<li><strong>Work-item instance</strong>: a template bound to a workflow
+instance, participant, and optional iteration/key.</li>
+<li><strong>Eligibility</strong>: whether a work item is allowed to
+become <code>ready</code>.</li>
+<li><strong>Capability</strong>: an opaque, revocable credential
+granting access to one work item for one participant.</li>
+<li><strong>Submission</strong>: a versioned attempt to answer a work
+item.</li>
+<li><strong>Outbox event</strong>: a durable request to deliver a
+notification after the transaction that created it commits.</li>
+<li><strong>Adapter</strong>: implementation of delivery and respondent
+behavior.</li>
+</ul>
+<h1 data-number="8" id="authoring-api"><span class="header-section-number">8</span> Authoring API</h1>
+<h2 data-number="8.1" id="minimal-sequential-example"><span class="header-section-number">8.1</span> Minimal sequential example</h2>
+<div class="sourceCode" id="cb7"><pre class="sourceCode python"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> edsl <span class="im">import</span> QuestionFreeText, Survey</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> edsl.sharedstate <span class="im">import</span> (</span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>    Command, Machine, SharedState, SharedStateMap, T,</span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>    field, input_, set_once, state_field,</span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> edsl.workflows <span class="im">import</span> (</span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>    HumanWorkflow, HumanStep, ParticipantSelector,</span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>    DeliveryPolicy, DeadlinePolicy,</span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a>sequence_machine <span class="op">=</span> Machine(</span>
+<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a>    name<span class="op">=</span><span class="st">&quot;DependentAnswers&quot;</span>,</span>
+<span id="cb7-13"><a href="#cb7-13" aria-hidden="true" tabindex="-1"></a>    constants<span class="op">=</span>{},</span>
+<span id="cb7-14"><a href="#cb7-14" aria-hidden="true" tabindex="-1"></a>    fields<span class="op">=</span>{</span>
+<span id="cb7-15"><a href="#cb7-15" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;first_answer&quot;</span>: state_field(T.optional(T.text()), <span class="va">None</span>),</span>
+<span id="cb7-16"><a href="#cb7-16" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;second_answer&quot;</span>: state_field(T.optional(T.text()), <span class="va">None</span>),</span>
+<span id="cb7-17"><a href="#cb7-17" aria-hidden="true" tabindex="-1"></a>    },</span>
+<span id="cb7-18"><a href="#cb7-18" aria-hidden="true" tabindex="-1"></a>    commands<span class="op">=</span>{</span>
+<span id="cb7-19"><a href="#cb7-19" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;submit_first&quot;</span>: Command(</span>
+<span id="cb7-20"><a href="#cb7-20" aria-hidden="true" tabindex="-1"></a>            inputs<span class="op">=</span>{<span class="st">&quot;answer&quot;</span>: T.text()},</span>
+<span id="cb7-21"><a href="#cb7-21" aria-hidden="true" tabindex="-1"></a>            effects<span class="op">=</span>(set_once(<span class="st">&quot;first_answer&quot;</span>, input_(<span class="st">&quot;answer&quot;</span>)),),</span>
+<span id="cb7-22"><a href="#cb7-22" aria-hidden="true" tabindex="-1"></a>        ),</span>
+<span id="cb7-23"><a href="#cb7-23" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;submit_second&quot;</span>: Command(</span>
+<span id="cb7-24"><a href="#cb7-24" aria-hidden="true" tabindex="-1"></a>            inputs<span class="op">=</span>{<span class="st">&quot;answer&quot;</span>: T.text()},</span>
+<span id="cb7-25"><a href="#cb7-25" aria-hidden="true" tabindex="-1"></a>            require<span class="op">=</span>field(<span class="st">&quot;first_answer&quot;</span>) <span class="op">!=</span> <span class="va">None</span>,</span>
+<span id="cb7-26"><a href="#cb7-26" aria-hidden="true" tabindex="-1"></a>            effects<span class="op">=</span>(set_once(<span class="st">&quot;second_answer&quot;</span>, input_(<span class="st">&quot;answer&quot;</span>)),),</span>
+<span id="cb7-27"><a href="#cb7-27" aria-hidden="true" tabindex="-1"></a>        ),</span>
+<span id="cb7-28"><a href="#cb7-28" aria-hidden="true" tabindex="-1"></a>    },</span>
+<span id="cb7-29"><a href="#cb7-29" aria-hidden="true" tabindex="-1"></a>    view<span class="op">=</span>{</span>
+<span id="cb7-30"><a href="#cb7-30" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;first_answer&quot;</span>: field(<span class="st">&quot;first_answer&quot;</span>),</span>
+<span id="cb7-31"><a href="#cb7-31" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;second_answer&quot;</span>: field(<span class="st">&quot;second_answer&quot;</span>),</span>
+<span id="cb7-32"><a href="#cb7-32" aria-hidden="true" tabindex="-1"></a>    },</span>
+<span id="cb7-33"><a href="#cb7-33" aria-hidden="true" tabindex="-1"></a>    complete_when<span class="op">=</span>field(<span class="st">&quot;second_answer&quot;</span>) <span class="op">!=</span> <span class="va">None</span>,</span>
+<span id="cb7-34"><a href="#cb7-34" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb7-35"><a href="#cb7-35" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-36"><a href="#cb7-36" aria-hidden="true" tabindex="-1"></a>states <span class="op">=</span> SharedStateMap(</span>
+<span id="cb7-37"><a href="#cb7-37" aria-hidden="true" tabindex="-1"></a>    SharedState(sequence<span class="op">=</span>sequence_machine),</span>
+<span id="cb7-38"><a href="#cb7-38" aria-hidden="true" tabindex="-1"></a>    state_id<span class="op">=</span><span class="st">&quot;dependent-answer-study&quot;</span>,</span>
+<span id="cb7-39"><a href="#cb7-39" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb7-40"><a href="#cb7-40" aria-hidden="true" tabindex="-1"></a>sequence <span class="op">=</span> states.by_current_instance().sequence</span>
+<span id="cb7-41"><a href="#cb7-41" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-42"><a href="#cb7-42" aria-hidden="true" tabindex="-1"></a>first <span class="op">=</span> QuestionFreeText(</span>
+<span id="cb7-43"><a href="#cb7-43" aria-hidden="true" tabindex="-1"></a>    question_name<span class="op">=</span><span class="st">&quot;answer&quot;</span>,</span>
+<span id="cb7-44"><a href="#cb7-44" aria-hidden="true" tabindex="-1"></a>    question_text<span class="op">=</span><span class="st">&quot;Give the initial answer.&quot;</span>,</span>
+<span id="cb7-45"><a href="#cb7-45" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb7-46"><a href="#cb7-46" aria-hidden="true" tabindex="-1"></a>second <span class="op">=</span> QuestionFreeText(</span>
+<span id="cb7-47"><a href="#cb7-47" aria-hidden="true" tabindex="-1"></a>    question_name<span class="op">=</span><span class="st">&quot;answer&quot;</span>,</span>
+<span id="cb7-48"><a href="#cb7-48" aria-hidden="true" tabindex="-1"></a>    question_text<span class="op">=</span>(</span>
+<span id="cb7-49"><a href="#cb7-49" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;The first participant answered: &quot;</span></span>
+<span id="cb7-50"><a href="#cb7-50" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;</span><span class="sc">{{</span><span class="st"> shared_state.sequence.first_answer </span><span class="sc">}}</span><span class="st">. Give your response.&quot;</span></span>
+<span id="cb7-51"><a href="#cb7-51" aria-hidden="true" tabindex="-1"></a>    ),</span>
+<span id="cb7-52"><a href="#cb7-52" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb7-53"><a href="#cb7-53" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-54"><a href="#cb7-54" aria-hidden="true" tabindex="-1"></a>workflow <span class="op">=</span> HumanWorkflow(</span>
+<span id="cb7-55"><a href="#cb7-55" aria-hidden="true" tabindex="-1"></a>    name<span class="op">=</span><span class="st">&quot;dependent-answer-workflow&quot;</span>,</span>
+<span id="cb7-56"><a href="#cb7-56" aria-hidden="true" tabindex="-1"></a>    state<span class="op">=</span>states,</span>
+<span id="cb7-57"><a href="#cb7-57" aria-hidden="true" tabindex="-1"></a>    steps<span class="op">=</span>[</span>
+<span id="cb7-58"><a href="#cb7-58" aria-hidden="true" tabindex="-1"></a>        HumanStep(</span>
+<span id="cb7-59"><a href="#cb7-59" aria-hidden="true" tabindex="-1"></a>            name<span class="op">=</span><span class="st">&quot;first_response&quot;</span>,</span>
+<span id="cb7-60"><a href="#cb7-60" aria-hidden="true" tabindex="-1"></a>            assignee<span class="op">=</span>ParticipantSelector.role(<span class="st">&quot;first&quot;</span>),</span>
+<span id="cb7-61"><a href="#cb7-61" aria-hidden="true" tabindex="-1"></a>            survey<span class="op">=</span>Survey([first]),</span>
+<span id="cb7-62"><a href="#cb7-62" aria-hidden="true" tabindex="-1"></a>            writes<span class="op">=</span>[sequence.submit_first(answer<span class="op">=</span>first.answer)],</span>
+<span id="cb7-63"><a href="#cb7-63" aria-hidden="true" tabindex="-1"></a>            delivery<span class="op">=</span>DeliveryPolicy.email(on<span class="op">=</span><span class="st">&quot;ready&quot;</span>),</span>
+<span id="cb7-64"><a href="#cb7-64" aria-hidden="true" tabindex="-1"></a>        ),</span>
+<span id="cb7-65"><a href="#cb7-65" aria-hidden="true" tabindex="-1"></a>        HumanStep(</span>
+<span id="cb7-66"><a href="#cb7-66" aria-hidden="true" tabindex="-1"></a>            name<span class="op">=</span><span class="st">&quot;second_response&quot;</span>,</span>
+<span id="cb7-67"><a href="#cb7-67" aria-hidden="true" tabindex="-1"></a>            assignee<span class="op">=</span>ParticipantSelector.role(<span class="st">&quot;second&quot;</span>),</span>
+<span id="cb7-68"><a href="#cb7-68" aria-hidden="true" tabindex="-1"></a>            ready_when<span class="op">=</span>sequence.condition(field(<span class="st">&quot;first_answer&quot;</span>) <span class="op">!=</span> <span class="va">None</span>),</span>
+<span id="cb7-69"><a href="#cb7-69" aria-hidden="true" tabindex="-1"></a>            reads<span class="op">=</span>[sequence.read()],</span>
+<span id="cb7-70"><a href="#cb7-70" aria-hidden="true" tabindex="-1"></a>            survey<span class="op">=</span>Survey([second]),</span>
+<span id="cb7-71"><a href="#cb7-71" aria-hidden="true" tabindex="-1"></a>            writes<span class="op">=</span>[sequence.submit_second(answer<span class="op">=</span>second.answer)],</span>
+<span id="cb7-72"><a href="#cb7-72" aria-hidden="true" tabindex="-1"></a>            delivery<span class="op">=</span>DeliveryPolicy.email(on<span class="op">=</span><span class="st">&quot;ready&quot;</span>),</span>
+<span id="cb7-73"><a href="#cb7-73" aria-hidden="true" tabindex="-1"></a>        ),</span>
+<span id="cb7-74"><a href="#cb7-74" aria-hidden="true" tabindex="-1"></a>    ],</span>
+<span id="cb7-75"><a href="#cb7-75" aria-hidden="true" tabindex="-1"></a>    complete_when<span class="op">=</span>sequence.is_complete(),</span>
+<span id="cb7-76"><a href="#cb7-76" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div>
+<p>Names above are proposed APIs. <code>by_current_instance()</code>
+means that the workflow instance supplies the concrete shared-state
+scope; an explicit serializable scope reference may be used instead.</p>
+<h2 data-number="8.2" id="humanworkflow"><span class="header-section-number">8.2</span> <code>HumanWorkflow</code></h2>
+<p>Proposed constructor:</p>
+<div class="sourceCode" id="cb8"><pre class="sourceCode python"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>HumanWorkflow(</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>    name: <span class="bu">str</span>,</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>    steps: Sequence[HumanStep],</span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>    state: SharedStateMap <span class="op">|</span> Sequence[SharedStateMap],</span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>    complete_when: WorkflowCondition <span class="op">|</span> StateCondition <span class="op">|</span> <span class="va">None</span> <span class="op">=</span> <span class="va">None</span>,</span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>    on_deadlock: DeadlockPolicy <span class="op">=</span> DeadlockPolicy.fail(),</span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a>    metadata: Mapping[<span class="bu">str</span>, JSONValue] <span class="op">|</span> <span class="va">None</span> <span class="op">=</span> <span class="va">None</span>,</span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div>
+<p>Normative behavior:</p>
+<ul>
+<li><code>name</code> MUST be a stable nonempty identifier.</li>
+<li>Step names MUST be unique.</li>
+<li>The workflow MUST be serializable before it is launched.</li>
+<li>All state references MUST resolve to declared state bindings.</li>
+<li>Every answer reference in a write MUST refer to a question in that
+step.</li>
+<li>A workflow MUST reject statically detectable dependency cycles
+unless a cycle contains a timer, retry, or explicit iterative transition
+that can make progress.</li>
+<li><code>complete_when</code> SHOULD be explicit. If omitted,
+completion means every non-optional instantiated work item is terminal
+and no future work can be generated.</li>
+<li>Definition serialization MUST exclude runtime participant records,
+submissions, and state snapshots.</li>
+</ul>
+<h2 data-number="8.3" id="humanstep"><span class="header-section-number">8.3</span> <code>HumanStep</code></h2>
+<div class="sourceCode" id="cb9"><pre class="sourceCode python"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>HumanStep(</span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>    name: <span class="bu">str</span>,</span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>    assignee: ParticipantSelector,</span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>    survey: Survey,</span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>    ready_when: WorkflowCondition <span class="op">|</span> StateCondition <span class="op">|</span> <span class="va">None</span> <span class="op">=</span> <span class="va">None</span>,</span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a>    reads: Sequence[StateRead] <span class="op">=</span> (),</span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>    writes: Sequence[StateWrite] <span class="op">=</span> (),</span>
+<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a>    cardinality: StepCardinality <span class="op">=</span> StepCardinality.one_per_assignee(),</span>
+<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a>    delivery: DeliveryPolicy <span class="op">|</span> <span class="va">None</span> <span class="op">=</span> <span class="va">None</span>,</span>
+<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a>    deadline: DeadlinePolicy <span class="op">|</span> <span class="va">None</span> <span class="op">=</span> <span class="va">None</span>,</span>
+<span id="cb9-11"><a href="#cb9-11" aria-hidden="true" tabindex="-1"></a>    retry: RetryPolicy <span class="op">=</span> RetryPolicy.default(),</span>
+<span id="cb9-12"><a href="#cb9-12" aria-hidden="true" tabindex="-1"></a>    failure: FailurePolicy <span class="op">=</span> FailurePolicy.block_dependents(),</span>
+<span id="cb9-13"><a href="#cb9-13" aria-hidden="true" tabindex="-1"></a>    revision: RevisionPolicy <span class="op">=</span> RevisionPolicy.immutable_after_submit(),</span>
+<span id="cb9-14"><a href="#cb9-14" aria-hidden="true" tabindex="-1"></a>    visibility: VisibilityPolicy <span class="op">=</span> VisibilityPolicy.public_view(),</span>
+<span id="cb9-15"><a href="#cb9-15" aria-hidden="true" tabindex="-1"></a>    optional: <span class="bu">bool</span> <span class="op">=</span> <span class="va">False</span>,</span>
+<span id="cb9-16"><a href="#cb9-16" aria-hidden="true" tabindex="-1"></a>    metadata: Mapping[<span class="bu">str</span>, JSONValue] <span class="op">|</span> <span class="va">None</span> <span class="op">=</span> <span class="va">None</span>,</span>
+<span id="cb9-17"><a href="#cb9-17" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div>
+<p><code>ready_when=None</code> means initially eligible after
+assignment. Readiness is a pure predicate over durable workflow
+metadata, participant bindings, timers, and authoritative shared state.
+It MUST NOT make network calls or mutate state.</p>
+<p><code>reads</code> specify which state snapshots are available while
+rendering. Merely mentioning a field in Jinja does not grant
+visibility.</p>
+<p><code>writes</code> are resolved from validated answers and committed
+only after the submission transaction passes its final eligibility
+check.</p>
+<h2 data-number="8.4" id="participant-selectors"><span class="header-section-number">8.4</span> Participant selectors</h2>
+<p>Selectors bind templates to participants without embedding database
+queries or callbacks:</p>
+<div class="sourceCode" id="cb10"><pre class="sourceCode python"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>ParticipantSelector.role(<span class="st">&quot;reviewer&quot;</span>)</span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>ParticipantSelector.trait(<span class="st">&quot;team_id&quot;</span>, equals<span class="op">=</span>current.instance.team_id)</span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>ParticipantSelector.all_of(</span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>    ParticipantSelector.role(<span class="st">&quot;reviewer&quot;</span>),</span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a>    ParticipantSelector.trait(<span class="st">&quot;seniority&quot;</span>, in_<span class="op">=</span>(<span class="st">&quot;senior&quot;</span>, <span class="st">&quot;lead&quot;</span>)),</span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a>ParticipantSelector.named(<span class="st">&quot;alice&quot;</span>)</span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a>ParticipantSelector.unassigned_pool(<span class="st">&quot;replacement-reviewers&quot;</span>)</span></code></pre></div>
+<p>Initial implementation SHOULD support exact role, stable participant
+ID, and equality filters over declared traits. Richer selection can be
+added without changing work-item semantics.</p>
+<p>Assignment occurs separately from eligibility:</p>
+<ul>
+<li>an assigned blocked item has an owner but cannot yet be opened;</li>
+<li>an unassigned ready item can be claimed from a pool;</li>
+<li>a replacement policy may revoke one assignment and create
+another.</li>
+</ul>
+<h2 data-number="8.5" id="conditions"><span class="header-section-number">8.5</span> Conditions</h2>
+<p>Conditions MUST be typed, serializable expression trees. Required
+operands:</p>
+<ul>
+<li>state field comparisons and collection operations already supported
+by the shared-state DSL;</li>
+<li>work-item status and count operations;</li>
+<li>submission counts and selected answer values where explicitly
+exposed;</li>
+<li>participant and workflow-instance metadata;</li>
+<li>timer/deadline predicates;</li>
+<li>boolean composition.</li>
+</ul>
+<p>Examples:</p>
+<div class="sourceCode" id="cb11"><pre class="sourceCode python"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>step(<span class="st">&quot;review_a&quot;</span>).is_completed()</span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>completed(role<span class="op">=</span><span class="st">&quot;reviewer&quot;</span>, key<span class="op">=</span>current.paper.<span class="bu">id</span>).count() <span class="op">&gt;=</span> <span class="dv">2</span></span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a>state.screening.reviews.length() <span class="op">&gt;=</span> <span class="dv">2</span></span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a>timer(<span class="st">&quot;review_deadline&quot;</span>).is_due()</span></code></pre></div>
+<p>Conditions MUST declare their dependency keys so the coordinator can
+reevaluate only affected work instead of scanning every item after every
+event.</p>
+<h1 data-number="9" id="runtime-state-model"><span class="header-section-number">9</span> Runtime state model</h1>
+<h2 data-number="9.1" id="work-item-statuses"><span class="header-section-number">9.1</span> Work-item statuses</h2>
+<p>Every work-item instance has exactly one status:</p>
+<pre class="text"><code>planned     Template is known but participant/key expansion is incomplete.
+blocked     Assigned or instantiated, but ready_when is false.
+ready       Eligible to open; delivery may be pending.
+notified    At least one delivery was accepted by an adapter.
+in_progress Participant opened the item or saved a draft.
+submitting  A submission transaction is being processed.
+completed   A valid submission and all required writes committed.
+expired     Deadline policy made the item terminal.
+cancelled   Administrator or workflow policy cancelled it.
+failed      Non-retryable processing failure.
+superseded  A replacement or revision policy replaced this instance.</code></pre>
+<p><code>ready</code>, <code>notified</code>, and
+<code>in_progress</code> are all eligible states. A participant opening
+an item may transition <code>ready -&gt; in_progress</code> directly if
+notification tracking is disabled.</p>
+<p>Terminal statuses are <code>completed</code>, <code>expired</code>,
+<code>cancelled</code>, <code>failed</code>, and
+<code>superseded</code>. Whether a terminal non-completion satisfies
+dependents is an explicit failure policy, never an implicit
+assumption.</p>
+<h2 data-number="9.2" id="required-persistent-records"><span class="header-section-number">9.2</span> Required persistent
+records</h2>
+<p>The storage model MUST include logical equivalents of:</p>
+<h3 data-number="9.2.1" id="workflow-instance"><span class="header-section-number">9.2.1</span> Workflow instance</h3>
+<pre class="text"><code>workflow_instance_id
+definition_id and definition_version
+status
+created_at, started_at, completed_at
+instance metadata
+state bindings
+current event sequence</code></pre>
+<h3 data-number="9.2.2" id="participant-binding"><span class="header-section-number">9.2.2</span> Participant binding</h3>
+<pre class="text"><code>workflow_instance_id
+participant_id
+role(s)
+traits or trait reference
+delivery endpoints
+adapter type
+consent/activation status</code></pre>
+<h3 data-number="9.2.3" id="work-item-instance"><span class="header-section-number">9.2.3</span> Work-item instance</h3>
+<pre class="text"><code>work_item_id
+workflow_instance_id
+step_name
+participant_id or pool_id
+logical key / iteration
+status and status reason
+eligibility version
+state read versions
+attempt count
+deadline and reminder metadata
+capability generation
+created_at, ready_at, opened_at, completed_at</code></pre>
+<h3 data-number="9.2.4" id="submission"><span class="header-section-number">9.2.4</span> Submission</h3>
+<pre class="text"><code>submission_id
+work_item_id
+attempt number
+idempotency key
+render version / eligibility version
+raw response
+validated response
+validation status
+state write IDs and resulting authoritative versions
+created_at, committed_at</code></pre>
+<h3 data-number="9.2.5" id="outbox-record"><span class="header-section-number">9.2.5</span> Outbox record</h3>
+<pre class="text"><code>outbox_id
+workflow_instance_id
+work_item_id
+event type
+adapter and route
+payload reference
+deduplication key
+available_at
+attempt count
+status
+last error</code></pre>
+<h3 data-number="9.2.6" id="audit-event"><span class="header-section-number">9.2.6</span> Audit event</h3>
+<pre class="text"><code>sequence
+event_id
+workflow_instance_id
+event type
+actor type and actor ID
+causation_id and correlation_id
+subject IDs
+redacted payload
+timestamp</code></pre>
+<h1 data-number="10" id="coordinator-semantics"><span class="header-section-number">10</span> Coordinator semantics</h1>
+<h2 data-number="10.1" id="launch"><span class="header-section-number">10.1</span> Launch</h2>
+<p>Launching a workflow MUST:</p>
+<ol type="1">
+<li>Validate and freeze the serialized definition.</li>
+<li>Bind participants and shared-state scopes.</li>
+<li>Expand statically known work-item instances.</li>
+<li>Evaluate initial readiness in one transaction.</li>
+<li>Create <code>ready</code> and <code>blocked</code> records.</li>
+<li>Insert delivery outbox records for newly ready work.</li>
+<li>Commit before any adapter sends a message.</li>
+</ol>
+<p>Launch is idempotent under a caller-supplied idempotency key.</p>
+<h2 data-number="10.2" id="eligibility-evaluation"><span class="header-section-number">10.2</span> Eligibility evaluation</h2>
+<p>Eligibility is level-triggered, not edge-triggered. If
+<code>ready_when</code> is true, the item is eligible regardless of
+whether the coordinator observed the exact event that first made it
+true. This makes recovery after downtime straightforward.</p>
+<p>The coordinator MUST reevaluate an item when one of its declared
+dependency keys changes. It SHOULD also provide a repair scan that
+recomputes all nonterminal items and reports drift.</p>
+<p>The transition <code>blocked -&gt; ready</code> and insertion of the
+initial delivery outbox record MUST occur atomically. Repeated
+evaluation MUST NOT create duplicate logical deliveries.</p>
+<p>An item that becomes ineligible after reaching <code>ready</code>
+follows its declared revocation policy. The safe default is to revoke
+the current capability, transition back to <code>blocked</code>, and
+reject stale submissions.</p>
+<h2 data-number="10.3" id="open-and-render"><span class="header-section-number">10.3</span> Open and render</h2>
+<p>Opening a capability MUST:</p>
+<ol type="1">
+<li>Authenticate or validate the opaque capability.</li>
+<li>Confirm that it is bound to the participant and work item.</li>
+<li>Confirm that the capability generation is current and not
+revoked.</li>
+<li>Reevaluate readiness against authoritative state.</li>
+<li>If blocked, return a stable waiting/status page with no protected
+survey content.</li>
+<li>Resolve declared state reads and record their versions.</li>
+<li>Render the survey using only the authorized state view.</li>
+<li>Record a render/eligibility version used for optimistic submission
+checks.</li>
+</ol>
+<p>A blocked response SHOULD distinguish <code>waiting</code>,
+<code>expired</code>, <code>cancelled</code>, and
+<code>already_completed</code>, without disclosing private dependency
+details.</p>
+<h2 data-number="10.4" id="drafts"><span class="header-section-number">10.4</span> Drafts</h2>
+<p>Draft saving MAY be supported. Draft writes:</p>
+<ul>
+<li>do not execute domain state commands;</li>
+<li>are idempotent and versioned;</li>
+<li>do not activate dependent work;</li>
+<li>remain subject to capability and participant authorization;</li>
+<li>may be deleted according to retention policy.</li>
+</ul>
+<h2 data-number="10.5" id="submit"><span class="header-section-number">10.5</span> Submit</h2>
+<p>Submission processing MUST use a transaction with the following
+logical steps:</p>
+<ol type="1">
+<li>Deduplicate by <code>(work_item_id, idempotency_key)</code>.</li>
+<li>Lock or compare-and-swap the work-item eligibility version.</li>
+<li>Reauthenticate the participant/capability.</li>
+<li>Reevaluate <code>ready_when</code> against authoritative state.</li>
+<li>Validate the submitted survey answers against the exact rendered
+question definitions when required.</li>
+<li>Resolve declared state writes from validated answers and runtime
+context.</li>
+<li>Apply writes using stable state idempotency keys.</li>
+<li>Authoritatively reread required state because shared-state write
+outcomes are advisory and a false machine <code>require</code> may
+produce a no-op transition.</li>
+<li>Verify the step&#39;s declared success postcondition, or at minimum that
+all required effects are present.</li>
+<li>Mark the work item <code>completed</code> and store the
+submission.</li>
+<li>Append audit events.</li>
+<li>Reevaluate directly affected work items.</li>
+<li>Insert new delivery/timer outbox records.</li>
+<li>Commit.</li>
+</ol>
+<p>If a machine requirement produces a no-op, the workflow layer MUST
+NOT silently mark the item completed unless the declared postcondition
+is already satisfied. It returns a stable conflict result such as
+<code>STATE_PRECONDITION_CHANGED</code>, then either rerenders, blocks,
+or applies the step&#39;s retry policy.</p>
+<h2 data-number="10.6" id="completion"><span class="header-section-number">10.6</span> Completion</h2>
+<p>After every successful transition the coordinator evaluates workflow
+completion. When complete it MUST:</p>
+<ul>
+<li>atomically mark the workflow instance completed;</li>
+<li>revoke outstanding capabilities that cannot be used after
+completion;</li>
+<li>cancel unnecessary reminders and timers;</li>
+<li>optionally finalize scoped machines using typed
+<code>StateCondition</code> objects;</li>
+<li>enqueue completion callbacks through the outbox;</li>
+<li>retain the audit trail and final state references.</li>
+</ul>
+<h1 data-number="11" id="delivery-system"><span class="header-section-number">11</span> Delivery system</h1>
+<h2 data-number="11.1" id="adapter-protocol"><span class="header-section-number">11.1</span> Adapter protocol</h2>
+<div class="sourceCode" id="cb19"><pre class="sourceCode python"><code class="sourceCode python"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> WorkflowDeliveryAdapter(Protocol):</span>
+<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a>    adapter_name: <span class="bu">str</span></span>
+<span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-4"><a href="#cb19-4" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> deliver(<span class="va">self</span>, message: DeliveryMessage) <span class="op">-&gt;</span> DeliveryReceipt: ...</span>
+<span id="cb19-5"><a href="#cb19-5" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> cancel(<span class="va">self</span>, receipt_id: <span class="bu">str</span>) <span class="op">-&gt;</span> <span class="va">None</span>: ...</span></code></pre></div>
+<p>Adapters are called only by an outbox worker after the creating
+transaction commits. A delivery receipt means the adapter accepted the
+request, not that the human read it.</p>
+<p>Required initial adapters:</p>
+<ul>
+<li>Humanize respondent email;</li>
+<li>Humanize respondent link without proactive email;</li>
+<li>simulated inbox;</li>
+<li>no-op/test capture adapter.</li>
+</ul>
+<p>SMS and external task-market adapters may follow.</p>
+<h2 data-number="11.2" id="delivery-message"><span class="header-section-number">11.2</span> Delivery message</h2>
+<div class="sourceCode" id="cb20"><pre class="sourceCode python"><code class="sourceCode python"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a>DeliveryMessage(</span>
+<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a>    message_id: <span class="bu">str</span>,</span>
+<span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a>    workflow_instance_id: <span class="bu">str</span>,</span>
+<span id="cb20-4"><a href="#cb20-4" aria-hidden="true" tabindex="-1"></a>    work_item_id: <span class="bu">str</span>,</span>
+<span id="cb20-5"><a href="#cb20-5" aria-hidden="true" tabindex="-1"></a>    participant_id: <span class="bu">str</span>,</span>
+<span id="cb20-6"><a href="#cb20-6" aria-hidden="true" tabindex="-1"></a>    kind: Literal[<span class="st">&quot;invitation&quot;</span>, <span class="st">&quot;reminder&quot;</span>, <span class="st">&quot;replacement&quot;</span>, <span class="st">&quot;cancellation&quot;</span>],</span>
+<span id="cb20-7"><a href="#cb20-7" aria-hidden="true" tabindex="-1"></a>    subject: <span class="bu">str</span> <span class="op">|</span> <span class="va">None</span>,</span>
+<span id="cb20-8"><a href="#cb20-8" aria-hidden="true" tabindex="-1"></a>    template_id: <span class="bu">str</span>,</span>
+<span id="cb20-9"><a href="#cb20-9" aria-hidden="true" tabindex="-1"></a>    template_context: Mapping[<span class="bu">str</span>, JSONValue],</span>
+<span id="cb20-10"><a href="#cb20-10" aria-hidden="true" tabindex="-1"></a>    capability_url: <span class="bu">str</span>,</span>
+<span id="cb20-11"><a href="#cb20-11" aria-hidden="true" tabindex="-1"></a>    available_at: datetime,</span>
+<span id="cb20-12"><a href="#cb20-12" aria-hidden="true" tabindex="-1"></a>    expires_at: datetime <span class="op">|</span> <span class="va">None</span>,</span>
+<span id="cb20-13"><a href="#cb20-13" aria-hidden="true" tabindex="-1"></a>    deduplication_key: <span class="bu">str</span>,</span>
+<span id="cb20-14"><a href="#cb20-14" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div>
+<p>Sensitive shared state SHOULD NOT be copied into delivery payloads.
+The normal message points to the task, whose content is rendered at open
+time.</p>
+<h2 data-number="11.3" id="delivery-guarantees"><span class="header-section-number">11.3</span> Delivery guarantees</h2>
+<ul>
+<li>Outbox processing is at least once.</li>
+<li>Logical messages are deduplicated by a stable key.</li>
+<li>Providers may still produce duplicate email; opening either copy
+reaches the same idempotent task.</li>
+<li>Delivery failures do not roll back workflow readiness.</li>
+<li>Retry and terminal-delivery-failure policies are explicit.</li>
+</ul>
+<h1 data-number="12" id="deadlines-reminders-and-replacement"><span class="header-section-number">12</span> Deadlines, reminders, and
+replacement</h1>
+<p>Example policy:</p>
+<div class="sourceCode" id="cb21"><pre class="sourceCode python"><code class="sourceCode python"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a>DeadlinePolicy(</span>
+<span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a>    due_after<span class="op">=</span><span class="st">&quot;72 hours&quot;</span>,</span>
+<span id="cb21-3"><a href="#cb21-3" aria-hidden="true" tabindex="-1"></a>    reminders<span class="op">=</span>[<span class="st">&quot;24 hours&quot;</span>, <span class="st">&quot;48 hours&quot;</span>],</span>
+<span id="cb21-4"><a href="#cb21-4" aria-hidden="true" tabindex="-1"></a>    on_due<span class="op">=</span>FailurePolicy.assign_replacement(pool<span class="op">=</span><span class="st">&quot;backup-reviewers&quot;</span>),</span>
+<span id="cb21-5"><a href="#cb21-5" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div>
+<p>Timers are durable scheduled events interpreted against an injected
+clock. Production uses UTC wall time. Simulation uses a virtual
+clock.</p>
+<p>Supported first-version terminal policies SHOULD include:</p>
+<ul>
+<li><code>block_dependents</code>;</li>
+<li><code>skip_and_satisfy</code> for explicitly optional work;</li>
+<li><code>fail_workflow</code>;</li>
+<li><code>assign_replacement</code>;</li>
+<li><code>route_to(step_name)</code> for adjudication or manual
+intervention;</li>
+<li><code>cancel_scope</code> for one group/case without cancelling the
+full study.</li>
+</ul>
+<p>Policies MUST state whether the original capability remains valid and
+whether a late response can supersede a replacement.</p>
+<h1 data-number="13" id="revisions-and-invalidation"><span class="header-section-number">13</span> Revisions and invalidation</h1>
+<p>The default is immutable completion. Allowing an upstream human to
+revise after downstream activation creates a new causal branch and
+cannot be treated as an ordinary resubmission.</p>
+<p>Supported policies:</p>
+<div class="sourceCode" id="cb22"><pre class="sourceCode python"><code class="sourceCode python"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a>RevisionPolicy.immutable_after_submit()</span>
+<span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a>RevisionPolicy.allow_until_dependents_open()</span>
+<span id="cb22-3"><a href="#cb22-3" aria-hidden="true" tabindex="-1"></a>RevisionPolicy.versioned(</span>
+<span id="cb22-4"><a href="#cb22-4" aria-hidden="true" tabindex="-1"></a>    downstream<span class="op">=</span><span class="st">&quot;invalidate_unstarted&quot;</span>,</span>
+<span id="cb22-5"><a href="#cb22-5" aria-hidden="true" tabindex="-1"></a>    completed_downstream<span class="op">=</span><span class="st">&quot;manual_review&quot;</span>,</span>
+<span id="cb22-6"><a href="#cb22-6" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div>
+<p>A versioned revision MUST:</p>
+<ul>
+<li>preserve the original submission and state history;</li>
+<li>increment the work-item result version;</li>
+<li>identify affected downstream work;</li>
+<li>revoke stale capabilities where policy permits;</li>
+<li>never silently erase completed human work;</li>
+<li>record the invalidation decision in the audit log.</li>
+</ul>
+<h1 data-number="14" id="humanize-integration"><span class="header-section-number">14</span> Humanize integration</h1>
+<h2 data-number="14.1" id="relationship-to-current-humanize-objects"><span class="header-section-number">14.1</span> Relationship to current
+Humanize objects</h2>
+<p>The workflow layer SHOULD reuse existing Humanize capabilities:</p>
+<ul>
+<li>human survey rendering and schemas;</li>
+<li>respondent and agent-list records;</li>
+<li>personal respondent links;</li>
+<li>delivery routes and templates;</li>
+<li>scheduled deliveries;</li>
+<li>callbacks;</li>
+<li>response export.</li>
+</ul>
+<p>It MUST NOT model a multi-step workflow as one ordinary Humanize
+respondent completion flag. A workflow work item needs its own durable
+identity and status.</p>
+<p>Proposed service resources:</p>
+<pre class="text"><code>human_workflow_definition
+human_workflow_instance
+human_workflow_participant
+human_work_item
+human_work_item_submission
+human_workflow_delivery
+human_workflow_event</code></pre>
+<p>A work item may internally create or reference a Humanize survey
+session, but the workflow service remains authoritative about whether
+that session can be opened or submitted.</p>
+<h2 data-number="14.2" id="browser-behavior"><span class="header-section-number">14.2</span> Browser behavior</h2>
+<p>Participant URLs resolve to one of:</p>
+<ul>
+<li>ready survey;</li>
+<li>waiting page;</li>
+<li>completed receipt;</li>
+<li>expired/cancelled page;</li>
+<li>replacement/superseded notice;</li>
+<li>authentication error.</li>
+</ul>
+<p>Waiting pages MAY offer an opt-in notification when work becomes
+ready. They MUST not expose the names, answers, or detailed status of
+prerequisite participants unless the workflow&#39;s visibility policy
+explicitly allows it.</p>
+<h2 data-number="14.3" id="callbacks"><span class="header-section-number">14.3</span> Callbacks</h2>
+<p>Workflow callbacks SHOULD include:</p>
+<pre class="text"><code>human_workflow.instance.started
+human_workflow.work_item.ready
+human_workflow.work_item.opened
+human_workflow.work_item.completed
+human_workflow.work_item.expired
+human_workflow.instance.blocked
+human_workflow.instance.completed</code></pre>
+<p>Callbacks use the same outbox and deduplication rules as
+deliveries.</p>
+<h1 data-number="15" id="agent-workflow-simulation"><span class="header-section-number">15</span> Agent workflow simulation</h1>
+<h2 data-number="15.1" id="purpose"><span class="header-section-number">15.1</span> Purpose</h2>
+<p>The simulator validates orchestration and participant experience
+before a real launch. It can also generate pilot data, estimate
+completion time, test reminder strategies, and reproduce race/failure
+cases.</p>
+<p>It MUST run the same frozen workflow definition and coordinator
+semantics as the human adapter. A simulator that directly calls machine
+commands or skips task open/render/submit is not conforming.</p>
+<h2 data-number="15.2" id="proposed-api"><span class="header-section-number">15.2</span> Proposed API</h2>
+<div class="sourceCode" id="cb25"><pre class="sourceCode python"><code class="sourceCode python"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> edsl.workflows.simulation <span class="im">import</span> (</span>
+<span id="cb25-2"><a href="#cb25-2" aria-hidden="true" tabindex="-1"></a>    AgentWorkflowSimulator,</span>
+<span id="cb25-3"><a href="#cb25-3" aria-hidden="true" tabindex="-1"></a>    SimulatedInbox,</span>
+<span id="cb25-4"><a href="#cb25-4" aria-hidden="true" tabindex="-1"></a>    VirtualClock,</span>
+<span id="cb25-5"><a href="#cb25-5" aria-hidden="true" tabindex="-1"></a>    RespondentBehavior,</span>
+<span id="cb25-6"><a href="#cb25-6" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb25-7"><a href="#cb25-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-8"><a href="#cb25-8" aria-hidden="true" tabindex="-1"></a>simulation <span class="op">=</span> AgentWorkflowSimulator(</span>
+<span id="cb25-9"><a href="#cb25-9" aria-hidden="true" tabindex="-1"></a>    workflow<span class="op">=</span>workflow,</span>
+<span id="cb25-10"><a href="#cb25-10" aria-hidden="true" tabindex="-1"></a>    participants<span class="op">=</span>agent_list,</span>
+<span id="cb25-11"><a href="#cb25-11" aria-hidden="true" tabindex="-1"></a>    model<span class="op">=</span>model,</span>
+<span id="cb25-12"><a href="#cb25-12" aria-hidden="true" tabindex="-1"></a>    inbox<span class="op">=</span>SimulatedInbox(),</span>
+<span id="cb25-13"><a href="#cb25-13" aria-hidden="true" tabindex="-1"></a>    clock<span class="op">=</span>VirtualClock(start<span class="op">=</span><span class="st">&quot;2026-09-01T09:00:00Z&quot;</span>),</span>
+<span id="cb25-14"><a href="#cb25-14" aria-hidden="true" tabindex="-1"></a>    behavior<span class="op">=</span>RespondentBehavior(</span>
+<span id="cb25-15"><a href="#cb25-15" aria-hidden="true" tabindex="-1"></a>        open_delay<span class="op">=</span>{<span class="st">&quot;distribution&quot;</span>: <span class="st">&quot;lognormal&quot;</span>, <span class="st">&quot;median&quot;</span>: <span class="st">&quot;20 minutes&quot;</span>},</span>
+<span id="cb25-16"><a href="#cb25-16" aria-hidden="true" tabindex="-1"></a>        completion_delay<span class="op">=</span>{<span class="st">&quot;distribution&quot;</span>: <span class="st">&quot;lognormal&quot;</span>, <span class="st">&quot;median&quot;</span>: <span class="st">&quot;8 minutes&quot;</span>},</span>
+<span id="cb25-17"><a href="#cb25-17" aria-hidden="true" tabindex="-1"></a>        open_probability<span class="op">=</span><span class="fl">0.95</span>,</span>
+<span id="cb25-18"><a href="#cb25-18" aria-hidden="true" tabindex="-1"></a>        completion_probability<span class="op">=</span><span class="fl">0.90</span>,</span>
+<span id="cb25-19"><a href="#cb25-19" aria-hidden="true" tabindex="-1"></a>        reminder_open_probability<span class="op">=</span><span class="fl">0.35</span>,</span>
+<span id="cb25-20"><a href="#cb25-20" aria-hidden="true" tabindex="-1"></a>    ),</span>
+<span id="cb25-21"><a href="#cb25-21" aria-hidden="true" tabindex="-1"></a>    seed<span class="op">=</span><span class="dv">1234</span>,</span>
+<span id="cb25-22"><a href="#cb25-22" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb25-23"><a href="#cb25-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-24"><a href="#cb25-24" aria-hidden="true" tabindex="-1"></a>result <span class="op">=</span> simulation.run(</span>
+<span id="cb25-25"><a href="#cb25-25" aria-hidden="true" tabindex="-1"></a>    until<span class="op">=</span>workflow.is_complete(),</span>
+<span id="cb25-26"><a href="#cb25-26" aria-hidden="true" tabindex="-1"></a>    max_events<span class="op">=</span><span class="dv">10_000</span>,</span>
+<span id="cb25-27"><a href="#cb25-27" aria-hidden="true" tabindex="-1"></a>    max_virtual_time<span class="op">=</span><span class="st">&quot;30 days&quot;</span>,</span>
+<span id="cb25-28"><a href="#cb25-28" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div>
+<h2 data-number="15.3" id="simulator-event-loop"><span class="header-section-number">15.3</span> Simulator event loop</h2>
+<p>The simulator owns a priority queue ordered by
+<code>(virtual_time, sequence)</code>. The sequence tie-breaker makes
+equal-time behavior deterministic.</p>
+<pre class="text"><code>launch workflow
+enqueue outbox deliveries and timers
+
+while queue is not empty:
+    advance virtual clock to next event
+    dispatch all coordinator timers due at that instant
+    deliver due messages to simulated inboxes
+    schedule opens according to respondent behavior
+    on open, call workflow.open_task(...)
+    schedule completion according to behavior
+    on completion, ask EDSL Agent to answer rendered Survey
+    call workflow.submit(...)
+    enqueue downstream outbox/timer events
+    stop on completion, declared limit, or deadlock</code></pre>
+<p>The simulator MUST NOT sleep in wall-clock time.</p>
+<h2 data-number="15.4" id="simulated-inbox"><span class="header-section-number">15.4</span> Simulated inbox</h2>
+<p>Each participant has a persistent ordered inbox:</p>
+<div class="sourceCode" id="cb27"><pre class="sourceCode python"><code class="sourceCode python"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a>InboxMessage(</span>
+<span id="cb27-2"><a href="#cb27-2" aria-hidden="true" tabindex="-1"></a>    message_id<span class="op">=</span><span class="st">&quot;msg-1&quot;</span>,</span>
+<span id="cb27-3"><a href="#cb27-3" aria-hidden="true" tabindex="-1"></a>    recipient_id<span class="op">=</span><span class="st">&quot;bob&quot;</span>,</span>
+<span id="cb27-4"><a href="#cb27-4" aria-hidden="true" tabindex="-1"></a>    delivered_at<span class="op">=</span>clock.now,</span>
+<span id="cb27-5"><a href="#cb27-5" aria-hidden="true" tabindex="-1"></a>    kind<span class="op">=</span><span class="st">&quot;invitation&quot;</span>,</span>
+<span id="cb27-6"><a href="#cb27-6" aria-hidden="true" tabindex="-1"></a>    work_item_id<span class="op">=</span><span class="st">&quot;item-2&quot;</span>,</span>
+<span id="cb27-7"><a href="#cb27-7" aria-hidden="true" tabindex="-1"></a>    capability<span class="op">=</span><span class="st">&quot;opaque-simulation-capability&quot;</span>,</span>
+<span id="cb27-8"><a href="#cb27-8" aria-hidden="true" tabindex="-1"></a>    read_at<span class="op">=</span><span class="va">None</span>,</span>
+<span id="cb27-9"><a href="#cb27-9" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div>
+<p>The inbox is part of simulation state and audit output. Messages may
+be delayed, duplicated, lost, opened, ignored, or acted on according to
+the configured behavior model.</p>
+<h2 data-number="15.5" id="agent-answering-semantics"><span class="header-section-number">15.5</span> Agent answering semantics</h2>
+<p>When a simulated respondent opens an eligible task:</p>
+<ol type="1">
+<li>The coordinator renders the task through the normal state-read and
+visibility path.</li>
+<li>The adapter constructs a normal EDSL job from the rendered Survey,
+bound participant Agent, scenario, and configured model.</li>
+<li>Only that task&#39;s survey is answered. The agent does not receive
+future steps.</li>
+<li>Stable participant traits and optional prior personal
+transcript/memory are included according to policy.</li>
+<li>The validated result is submitted through the normal workflow
+endpoint.</li>
+</ol>
+<p>The simulation SHOULD support two memory modes:</p>
+<ul>
+<li><code>task_local</code>: only traits and the current task are
+visible;</li>
+<li><code>participant_history</code>: the participant&#39;s own prior
+prompts, answers, and deliveries are available, subject to privacy
+policy.</li>
+</ul>
+<p>Shared state is never added to agent memory unless exposed through
+declared reads and views.</p>
+<h2 data-number="15.6" id="behavior-model"><span class="header-section-number">15.6</span> Behavior model</h2>
+<p>Behavior is separate from respondent substantive traits. Required
+deterministic test behavior:</p>
+<div class="sourceCode" id="cb28"><pre class="sourceCode python"><code class="sourceCode python"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a>RespondentBehavior.immediate_and_reliable()</span></code></pre></div>
+<p>Optional stochastic fields:</p>
+<ul>
+<li>delivery latency;</li>
+<li>open delay;</li>
+<li>completion delay;</li>
+<li>probability of opening initial invitations and reminders;</li>
+<li>abandonment after opening;</li>
+<li>invalid-answer probability;</li>
+<li>duplicate-submit probability;</li>
+<li>stale-page delay;</li>
+<li>late-response probability;</li>
+<li>channel preference;</li>
+<li>availability windows and timezone.</li>
+</ul>
+<p>Every stochastic decision MUST be derived from a recorded seed
+context containing at least workflow instance, work item, participant,
+event kind, and attempt. Adding unrelated participants MUST NOT perturb
+existing participants&#39; random draws.</p>
+<h2 data-number="15.7" id="simulation-result"><span class="header-section-number">15.7</span> Simulation result</h2>
+<div class="sourceCode" id="cb29"><pre class="sourceCode python"><code class="sourceCode python"><span id="cb29-1"><a href="#cb29-1" aria-hidden="true" tabindex="-1"></a>WorkflowSimulationResult(</span>
+<span id="cb29-2"><a href="#cb29-2" aria-hidden="true" tabindex="-1"></a>    workflow_definition,</span>
+<span id="cb29-3"><a href="#cb29-3" aria-hidden="true" tabindex="-1"></a>    final_instance,</span>
+<span id="cb29-4"><a href="#cb29-4" aria-hidden="true" tabindex="-1"></a>    participants,</span>
+<span id="cb29-5"><a href="#cb29-5" aria-hidden="true" tabindex="-1"></a>    work_items,</span>
+<span id="cb29-6"><a href="#cb29-6" aria-hidden="true" tabindex="-1"></a>    submissions,</span>
+<span id="cb29-7"><a href="#cb29-7" aria-hidden="true" tabindex="-1"></a>    shared_state,</span>
+<span id="cb29-8"><a href="#cb29-8" aria-hidden="true" tabindex="-1"></a>    deliveries,</span>
+<span id="cb29-9"><a href="#cb29-9" aria-hidden="true" tabindex="-1"></a>    events,</span>
+<span id="cb29-10"><a href="#cb29-10" aria-hidden="true" tabindex="-1"></a>    metrics,</span>
+<span id="cb29-11"><a href="#cb29-11" aria-hidden="true" tabindex="-1"></a>    termination,</span>
+<span id="cb29-12"><a href="#cb29-12" aria-hidden="true" tabindex="-1"></a>    seed,</span>
+<span id="cb29-13"><a href="#cb29-13" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div>
+<p>Required termination reasons:</p>
+<ul>
+<li><code>completed</code>;</li>
+<li><code>deadlocked</code>;</li>
+<li><code>max_events</code>;</li>
+<li><code>max_virtual_time</code>;</li>
+<li><code>failed</code>;</li>
+<li><code>cancelled</code>.</li>
+</ul>
+<p>The result MUST serialize durably and SHOULD integrate with EDSL
+<code>Results</code> by either embedding workflow provenance or
+providing a lossless conversion of completed survey submissions.</p>
+<h1 data-number="16" id="concurrency-and-consistency"><span class="header-section-number">16</span> Concurrency and consistency</h1>
+<h2 data-number="16.1" id="atomicity-boundary"><span class="header-section-number">16.1</span> Atomicity boundary</h2>
+<p>For one submission, the following are one logical transaction:</p>
+<ul>
+<li>submission deduplication;</li>
+<li>work-item eligibility/version check;</li>
+<li>shared-state transition application or durable linkage to its
+transaction;</li>
+<li>work-item completion;</li>
+<li>downstream eligibility changes;</li>
+<li>outbox insertion;</li>
+<li>audit append.</li>
+</ul>
+<p>If shared state and workflow metadata cannot share one database
+transaction, the implementation MUST use a recoverable saga with stable
+operation IDs and a reconciler. It MUST NOT mark a work item completed
+before the required state effect is durably recoverable.</p>
+<h2 data-number="16.2" id="optimistic-concurrency"><span class="header-section-number">16.2</span> Optimistic concurrency</h2>
+<p>Rendered tasks include an opaque render version. Submission compares
+that version against current work-item eligibility and relevant state
+versions. A mismatch does not always require rejection: the workflow may
+declare that unrelated state changes are harmless. The safe default is
+rerender/reconfirm.</p>
+<h2 data-number="16.3" id="fan-out"><span class="header-section-number">16.3</span> Fan-out</h2>
+<p>One completion may activate many work items. All newly ready rows and
+logical outbox messages are created in one coordinator transaction, then
+delivered in parallel.</p>
+<h2 data-number="16.4" id="fan-in"><span class="header-section-number">16.4</span> Fan-in</h2>
+<p>Readiness predicates can depend on counts or state aggregates.
+Simultaneous final prerequisite submissions may both reevaluate the
+dependent item; compare-and-swap and delivery deduplication guarantee
+one transition to <code>ready</code> and one logical invitation.</p>
+<h1 data-number="17" id="failure-handling"><span class="header-section-number">17</span> Failure handling</h1>
+<h2 data-number="17.1" id="failure-classes"><span class="header-section-number">17.1</span> Failure classes</h2>
+<p>The runtime distinguishes:</p>
+<ul>
+<li>validation failure: participant can usually correct and
+resubmit;</li>
+<li>stale eligibility/state: rerender, block, or conflict;</li>
+<li>transient model/provider failure in simulation: retry according to
+policy;</li>
+<li>transient delivery failure: outbox retry;</li>
+<li>terminal delivery failure: replacement/escalation policy;</li>
+<li>participant timeout: deadline policy;</li>
+<li>machine precondition no-op: workflow conflict unless postcondition
+already holds;</li>
+<li>coordinator failure: transaction rollback and retry;</li>
+<li>definition error: fail before launch;</li>
+<li>deadlock: explicit terminal or intervention state.</li>
+</ul>
+<h2 data-number="17.2" id="deadlock-detection"><span class="header-section-number">17.2</span> Deadlock detection</h2>
+<p>A workflow instance is deadlocked when:</p>
+<ol type="1">
+<li>it is not complete;</li>
+<li>it has no eligible nonterminal work;</li>
+<li>it has no pending timer, retry, delivery capable of changing state,
+or unassigned claimable work;</li>
+<li>no in-flight submission can commit.</li>
+</ol>
+<p>Deadlock output MUST identify blocked work and sanitized predicate
+explanations. Production may route deadlocks to manual intervention.
+Simulation terminates with <code>deadlocked</code> unless configured
+otherwise.</p>
+<h2 data-number="17.3" id="retries"><span class="header-section-number">17.3</span> Retries</h2>
+<p>Retries preserve stable logical operation IDs but increment attempt
+numbers. Model calls may execute more than once; only one validated
+submission is committed for an idempotency key. Retry budgets and
+backoff use the injected clock.</p>
+<h1 data-number="18" id="privacy-and-security"><span class="header-section-number">18</span> Privacy and security</h1>
+<p>The implementation MUST:</p>
+<ul>
+<li>use opaque, high-entropy capabilities or authenticated participant
+sessions;</li>
+<li>bind capabilities to workflow, work item, participant, and
+generation;</li>
+<li>support revocation on cancellation, replacement, invalidation, and
+completion;</li>
+<li>evaluate readiness server-side at both open and submit;</li>
+<li>never trust participant-supplied role, scope, work-item, or state
+version;</li>
+<li>derive state scopes from server-side participant/instance
+bindings;</li>
+<li>render only declared state reads and visibility views;</li>
+<li>keep private machine fields out of prompt, browser, delivery,
+callback, and ordinary audit payloads;</li>
+<li>encrypt or appropriately protect contact endpoints and raw
+responses;</li>
+<li>redact secrets and personal data from logs;</li>
+<li>separate administrator, coordinator, participant, and simulation
+credentials;</li>
+<li>record consent and retention metadata for real-human runs.</li>
+</ul>
+<p>Simulation capabilities are not production credentials. Simulation
+output SHOULD use synthetic contact endpoints by default.</p>
+<h1 data-number="19" id="observability-and-audit"><span class="header-section-number">19</span> Observability and audit</h1>
+<h2 data-number="19.1" id="event-vocabulary"><span class="header-section-number">19.1</span> Event vocabulary</h2>
+<p>Required events include:</p>
+<pre class="text"><code>workflow.created
+workflow.started
+participant.bound
+work_item.created
+work_item.blocked
+work_item.ready
+delivery.queued
+delivery.accepted
+delivery.failed
+work_item.opened
+submission.received
+submission.validation_failed
+submission.conflicted
+state.write_committed
+work_item.completed
+work_item.expired
+work_item.replaced
+workflow.deadlocked
+workflow.completed
+workflow.failed</code></pre>
+<p>Events have monotonic per-instance sequence numbers and causal links.
+Replayed or duplicate operations MAY append a deduplication observation
+but MUST NOT duplicate domain effects.</p>
+<h2 data-number="19.2" id="timeline"><span class="header-section-number">19.2</span> Timeline</h2>
+<p>Both adapters SHOULD expose the same bounded timeline
+representation:</p>
+<pre class="text"><code>09:00  workflow started
+09:00  Alice/first_response became ready
+09:00  invitation queued for Alice
+09:01  invitation delivered
+09:18  Alice opened first_response
+09:25  Alice submitted
+09:25  sequence.first_answer committed at version 1
+09:25  Bob/second_response became ready
+09:26  invitation delivered to Bob
+09:44  Bob submitted
+09:44  workflow completed</code></pre>
+<h2 data-number="19.3" id="metrics"><span class="header-section-number">19.3</span> Metrics</h2>
+<p>Required metrics:</p>
+<ul>
+<li>counts by work-item status;</li>
+<li>readiness-to-delivery, delivery-to-open, open-to-submit, and total
+cycle time;</li>
+<li>reminder and replacement counts;</li>
+<li>validation and conflict rates;</li>
+<li>completion and dropout rates by step and declared cohort;</li>
+<li>deadlock count;</li>
+<li>state transition count;</li>
+<li>simulation model calls, tokens, and cost;</li>
+<li>virtual and wall-clock runtime.</li>
+</ul>
+<h1 data-number="20" id="serialization"><span class="header-section-number">20</span> Serialization</h1>
+<p>Every new authoring object MUST use a versioned tagged
+representation. Example:</p>
+<div class="sourceCode" id="cb32"><pre class="sourceCode json"><code class="sourceCode json"><span id="cb32-1"><a href="#cb32-1" aria-hidden="true" tabindex="-1"></a><span class="fu">{</span></span>
+<span id="cb32-2"><a href="#cb32-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;type&quot;</span><span class="fu">:</span> <span class="st">&quot;human_workflow&quot;</span><span class="fu">,</span></span>
+<span id="cb32-3"><a href="#cb32-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;version&quot;</span><span class="fu">:</span> <span class="dv">1</span><span class="fu">,</span></span>
+<span id="cb32-4"><a href="#cb32-4" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;name&quot;</span><span class="fu">:</span> <span class="st">&quot;dependent-answer-workflow&quot;</span><span class="fu">,</span></span>
+<span id="cb32-5"><a href="#cb32-5" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;state_bindings&quot;</span><span class="fu">:</span> <span class="ot">[]</span><span class="fu">,</span></span>
+<span id="cb32-6"><a href="#cb32-6" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;steps&quot;</span><span class="fu">:</span> <span class="ot">[]</span><span class="fu">,</span></span>
+<span id="cb32-7"><a href="#cb32-7" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;complete_when&quot;</span><span class="fu">:</span> <span class="kw">null</span><span class="fu">,</span></span>
+<span id="cb32-8"><a href="#cb32-8" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;deadlock_policy&quot;</span><span class="fu">:</span> <span class="fu">{</span><span class="dt">&quot;type&quot;</span><span class="fu">:</span> <span class="st">&quot;fail&quot;</span><span class="fu">},</span></span>
+<span id="cb32-9"><a href="#cb32-9" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;metadata&quot;</span><span class="fu">:</span> <span class="fu">{}</span></span>
+<span id="cb32-10"><a href="#cb32-10" aria-hidden="true" tabindex="-1"></a><span class="fu">}</span></span></code></pre></div>
+<p>Runtime snapshots use separate schemas and MUST include definition
+identity. Definition equality must not depend on generated UUIDs,
+timestamps, provider receipts, or current state.</p>
+<p>Round-trip tests are required for:</p>
+<ul>
+<li>workflow definitions;</li>
+<li>all selectors and conditions;</li>
+<li>delivery/deadline/failure/revision policies;</li>
+<li>participant bindings;</li>
+<li>work-item records;</li>
+<li>simulation configuration and results;</li>
+<li>historical version migration.</li>
+</ul>
+<h1 data-number="21" id="proposed-cli"><span class="header-section-number">21</span> Proposed CLI</h1>
+<p>The CLI follows the JSON-envelope conventions used by
+<code>ep</code>.</p>
+<div class="sourceCode" id="cb33"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb33-1"><a href="#cb33-1" aria-hidden="true" tabindex="-1"></a><span class="ex">ep</span> workflow-human validate workflow.json</span>
+<span id="cb33-2"><a href="#cb33-2" aria-hidden="true" tabindex="-1"></a><span class="ex">ep</span> workflow-human inspect workflow.ep</span>
+<span id="cb33-3"><a href="#cb33-3" aria-hidden="true" tabindex="-1"></a><span class="ex">ep</span> workflow-human launch workflow.ep <span class="at">--participants</span> participants.ep</span>
+<span id="cb33-4"><a href="#cb33-4" aria-hidden="true" tabindex="-1"></a><span class="ex">ep</span> workflow-human status <span class="op">&lt;</span>instance_uuid<span class="op">&gt;</span></span>
+<span id="cb33-5"><a href="#cb33-5" aria-hidden="true" tabindex="-1"></a><span class="ex">ep</span> workflow-human items <span class="op">&lt;</span>instance_uuid<span class="op">&gt;</span> --status blocked <span class="at">--page</span> 1 <span class="at">--page_size</span> 50</span>
+<span id="cb33-6"><a href="#cb33-6" aria-hidden="true" tabindex="-1"></a><span class="ex">ep</span> workflow-human events <span class="op">&lt;</span>instance_uuid<span class="op">&gt;</span> --after 0 <span class="at">--page_size</span> 100</span>
+<span id="cb33-7"><a href="#cb33-7" aria-hidden="true" tabindex="-1"></a><span class="ex">ep</span> workflow-human cancel <span class="op">&lt;</span>instance_uuid<span class="op">&gt;</span> --yes</span>
+<span id="cb33-8"><a href="#cb33-8" aria-hidden="true" tabindex="-1"></a><span class="ex">ep</span> workflow-human intervene <span class="op">&lt;</span>instance_uuid<span class="op">&gt;</span> --action assign-replacement <span class="at">--item</span> <span class="op">&lt;</span>id<span class="op">&gt;</span></span>
+<span id="cb33-9"><a href="#cb33-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb33-10"><a href="#cb33-10" aria-hidden="true" tabindex="-1"></a><span class="ex">ep</span> workflow-human simulate workflow.ep <span class="dt">\</span></span>
+<span id="cb33-11"><a href="#cb33-11" aria-hidden="true" tabindex="-1"></a>  <span class="at">--agents</span> agents.ep <span class="dt">\</span></span>
+<span id="cb33-12"><a href="#cb33-12" aria-hidden="true" tabindex="-1"></a>  <span class="at">--model</span> gpt-4o-mini <span class="dt">\</span></span>
+<span id="cb33-13"><a href="#cb33-13" aria-hidden="true" tabindex="-1"></a>  <span class="at">--seed</span> 1234 <span class="dt">\</span></span>
+<span id="cb33-14"><a href="#cb33-14" aria-hidden="true" tabindex="-1"></a>  <span class="at">--max-events</span> 10000 <span class="dt">\</span></span>
+<span id="cb33-15"><a href="#cb33-15" aria-hidden="true" tabindex="-1"></a>  <span class="at">--output</span> simulation-results.ep</span></code></pre></div>
+<p>The final command name may instead be nested under
+<code>ep humanize workflow</code>; the object model and service
+semantics do not depend on that naming choice.</p>
+<p>Blocking simulation runs MUST require <code>--output</code>. Long
+simulations SHOULD support background submission and later result
+retrieval, consistent with <code>ep run</code>.</p>
+<h1 data-number="22" id="python-service-boundaries"><span class="header-section-number">22</span> Python service boundaries</h1>
+<p>Suggested package layout:</p>
+<pre class="text"><code>edsl/workflows/
+    definition.py       HumanWorkflow, HumanStep
+    conditions.py       typed eligibility expressions
+    selectors.py        participant selectors
+    policies.py         delivery/deadline/failure/revision policies
+    serialization.py
+    validation.py
+    coordinator.py      state transitions and readiness
+    stores.py            workflow persistence protocols
+    events.py
+    adapters/
+        base.py
+        humanize.py
+        simulated_inbox.py
+        capture.py
+    simulation/
+        simulator.py
+        clock.py
+        behavior.py
+        inbox.py
+        result.py</code></pre>
+<p>Core protocols:</p>
+<div class="sourceCode" id="cb35"><pre class="sourceCode python"><code class="sourceCode python"><span id="cb35-1"><a href="#cb35-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> WorkflowStore(Protocol):</span>
+<span id="cb35-2"><a href="#cb35-2" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> launch(...) <span class="op">-&gt;</span> WorkflowInstance: ...</span>
+<span id="cb35-3"><a href="#cb35-3" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> transact_submission(...) <span class="op">-&gt;</span> SubmissionOutcome: ...</span>
+<span id="cb35-4"><a href="#cb35-4" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> claim_due_outbox(...) <span class="op">-&gt;</span> <span class="bu">list</span>[OutboxRecord]: ...</span>
+<span id="cb35-5"><a href="#cb35-5" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> append_event(...) <span class="op">-&gt;</span> WorkflowEvent: ...</span>
+<span id="cb35-6"><a href="#cb35-6" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> snapshot(...) <span class="op">-&gt;</span> WorkflowSnapshot: ...</span>
+<span id="cb35-7"><a href="#cb35-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb35-8"><a href="#cb35-8" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> WorkflowClock(Protocol):</span>
+<span id="cb35-9"><a href="#cb35-9" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> now(<span class="va">self</span>) <span class="op">-&gt;</span> datetime: ...</span>
+<span id="cb35-10"><a href="#cb35-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb35-11"><a href="#cb35-11" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> WorkflowRespondentAdapter(Protocol):</span>
+<span id="cb35-12"><a href="#cb35-12" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> on_delivery(<span class="va">self</span>, message: DeliveryMessage) <span class="op">-&gt;</span> <span class="va">None</span>: ...</span></code></pre></div>
+<p>The coordinator depends on protocols, not Humanize HTTP clients or
+model classes. The production service and local simulator can therefore
+share conformance tests.</p>
+<h1 data-number="23" id="validation-and-preflight"><span class="header-section-number">23</span> Validation and preflight</h1>
+<p>Before launch, validation MUST check:</p>
+<ul>
+<li>unique workflow and step identifiers;</li>
+<li>serializability;</li>
+<li>valid participant selectors and required traits;</li>
+<li>every step has a survey;</li>
+<li>answer references belong to the step;</li>
+<li>state references and commands exist;</li>
+<li>condition types are valid;</li>
+<li>reads authorize all shared-state prompt references;</li>
+<li>command requirements have an orchestration guard or an explicit
+declaration that conflict is acceptable;</li>
+<li>delivery routes exist for real-human participants;</li>
+<li>deadline and retry values are bounded and nonnegative;</li>
+<li>replacement pools cannot select the same disallowed
+participant;</li>
+<li>completion and deadlock policies are coherent;</li>
+<li>obvious dependency cycles and unreachable required steps;</li>
+<li>revision policies specify downstream handling;</li>
+<li>simulation agents cover all required participant bindings;</li>
+<li>production runs do not use simulation-only capabilities.</li>
+</ul>
+<p>Warnings SHOULD flag:</p>
+<ul>
+<li>a serial chain that could use fan-out/fan-in parallelism;</li>
+<li>state exposed in a view but unused by the survey;</li>
+<li>steps with no deadline or intervention path;</li>
+<li>completion predicates that can become true while required work
+remains;</li>
+<li>stochastic simulation behavior without an explicit seed.</li>
+</ul>
+<h1 data-number="24" id="testing-strategy"><span class="header-section-number">24</span> Testing strategy</h1>
+<h2 data-number="24.1" id="unit-tests"><span class="header-section-number">24.1</span> Unit tests</h2>
+<ul>
+<li>condition evaluation and dependency-key extraction;</li>
+<li>selector binding;</li>
+<li>status transition table;</li>
+<li>idempotency and optimistic version checks;</li>
+<li>policy serialization;</li>
+<li>virtual-clock ordering;</li>
+<li>per-participant stable random streams;</li>
+<li>capability validation and revocation;</li>
+<li>privacy filtering.</li>
+</ul>
+<h2 data-number="24.2" id="storecoordinator-contract-tests"><span class="header-section-number">24.2</span> Store/coordinator contract
+tests</h2>
+<p>Run the same suite against in-memory, SQLite, and remote
+implementations:</p>
+<ul>
+<li>duplicate launch;</li>
+<li>duplicate submission;</li>
+<li>crash after state write but before completion record;</li>
+<li>crash after readiness but before delivery;</li>
+<li>two prerequisites completing concurrently;</li>
+<li>two replacements racing;</li>
+<li>stale open page submitted after revocation;</li>
+<li>machine <code>require</code> no-op;</li>
+<li>repair scan after missed event;</li>
+<li>deadlock detection.</li>
+</ul>
+<h2 data-number="24.3" id="adapter-conformance-tests"><span class="header-section-number">24.3</span> Adapter conformance tests</h2>
+<p>Each adapter must prove:</p>
+<ul>
+<li>it receives only committed outbox messages;</li>
+<li>retries preserve logical message identity;</li>
+<li>open and submit go through coordinator authorization;</li>
+<li>cancellation/revocation is honored;</li>
+<li>private state is absent from transport payloads.</li>
+</ul>
+<h2 data-number="24.4" id="end-to-end-examples"><span class="header-section-number">24.4</span> End-to-end examples</h2>
+<p>Required acceptance workflows:</p>
+<ol type="1">
+<li>Two-person sequential response.</li>
+<li>Parallel independent respondents followed by one aggregator.</li>
+<li>Two blinded reviewers followed by adjudication only on
+disagreement.</li>
+<li>Timeout and replacement reviewer.</li>
+<li>Reminder-driven completion.</li>
+<li>Late stale submission after replacement.</li>
+<li>Upstream failure that blocks dependents and produces intervention
+output.</li>
+<li>Same frozen definition run once with simulated agents and once
+through a capture Humanize adapter, producing equivalent workflow event
+shapes.</li>
+</ol>
+<h1 data-number="25" id="incremental-implementation-plan"><span class="header-section-number">25</span> Incremental implementation
+plan</h1>
+<h2 data-number="25.1" id="phase-0-freeze-semantics"><span class="header-section-number">25.1</span> Phase 0: Freeze semantics</h2>
+<ul>
+<li>Adopt the status transition table and event vocabulary.</li>
+<li>Decide package and CLI names.</li>
+<li>Define version-1 serialization schemas.</li>
+<li>Add examples for sequential and review/adjudication workflows.</li>
+</ul>
+<h2 data-number="25.2" id="phase-1-local-deterministic-core"><span class="header-section-number">25.2</span> Phase 1: Local deterministic
+core</h2>
+<ul>
+<li>Implement definitions, selectors, conditions, and validation.</li>
+<li>Implement SQLite workflow store and coordinator.</li>
+<li>Implement capture adapter and virtual clock.</li>
+<li>Support fixed participants, one work item per assignee, readiness
+predicates, immutable completion, and no deadlines.</li>
+<li>Prove duplicate submission and fan-in correctness.</li>
+</ul>
+<h2 data-number="25.3" id="phase-2-agent-simulator"><span class="header-section-number">25.3</span> Phase 2: Agent simulator</h2>
+<ul>
+<li>Add simulated inbox adapter.</li>
+<li>Convert opened work items into ordinary EDSL jobs.</li>
+<li>Add immediate deterministic behavior, then stochastic delay/dropout
+behavior.</li>
+<li>Add simulation result packages, timelines, costs, and CLI.</li>
+<li>Run the systematic-review workflow end to end.</li>
+</ul>
+<h2 data-number="25.4" id="phase-3-humanize-pilot"><span class="header-section-number">25.4</span> Phase 3: Humanize pilot</h2>
+<ul>
+<li>Add workflow instance and work-item service resources.</li>
+<li>Bind Humanize respondents and personal links.</li>
+<li>Add waiting/completed/expired browser states.</li>
+<li>Connect delivery outbox to existing Humanize delivery routes.</li>
+<li>Add callbacks and response export.</li>
+<li>Pilot sequential two-person workflows with immutable
+submissions.</li>
+</ul>
+<h2 data-number="25.5" id="phase-4-operational-policies"><span class="header-section-number">25.5</span> Phase 4: Operational
+policies</h2>
+<ul>
+<li>Durable reminders and deadlines.</li>
+<li>Replacement pools and manual intervention.</li>
+<li>Deadlock diagnostics and repair scans.</li>
+<li>Administrator status and audit interfaces.</li>
+</ul>
+<h2 data-number="25.6" id="phase-5-advanced-workflows"><span class="header-section-number">25.6</span> Phase 5: Advanced
+workflows</h2>
+<ul>
+<li>Dynamic cardinality and claimable pools.</li>
+<li>Versioned revisions and downstream invalidation.</li>
+<li>Iterative workflows and bounded loops.</li>
+<li>Remote/background simulation execution.</li>
+<li>Cross-study reusable workflow templates.</li>
+</ul>
+<h1 data-number="26" id="acceptance-criteria-for-version-1"><span class="header-section-number">26</span> Acceptance criteria for version
+1</h1>
+<p>Version 1 is complete when all of the following are true:</p>
+<ol type="1">
+<li>One serialized workflow can run unchanged with a Humanize adapter
+and an EDSL-agent simulator.</li>
+<li>A dependent participant cannot view or submit a task before its
+readiness predicate is true.</li>
+<li>Completing a prerequisite atomically makes downstream work ready and
+queues exactly one logical invitation.</li>
+<li>Duplicate or stale submissions do not duplicate state effects.</li>
+<li>Two concurrent prerequisite completions activate one fan-in
+task.</li>
+<li>The simulator advances entirely through virtual events and performs
+no wall-clock sleeps.</li>
+<li>AI respondents act only after simulated delivery and use the normal
+open/render/submit path.</li>
+<li>A machine requirement no-op cannot silently complete a work
+item.</li>
+<li>Privacy tests prove undeclared state is absent from delivery,
+prompt, page, callback, and ordinary audit output.</li>
+<li>Deadlocked workflows terminate with actionable diagnostics.</li>
+<li>The final result contains lossless workflow, submission, delivery,
+state, and event provenance.</li>
+<li>Serialization compatibility and store/adapter conformance suites
+pass.</li>
+</ol>
+<h1 data-number="27" id="open-design-decisions"><span class="header-section-number">27</span> Open design decisions</h1>
+<p>The following decisions should be resolved during Phase 0:</p>
+<ol type="1">
+<li>Whether the public name is <code>HumanWorkflow</code>,
+<code>ParticipantWorkflow</code>, or <code>SurveyWorkflow</code>. This
+spec uses <code>HumanWorkflow</code> while allowing simulated
+respondents.</li>
+<li>Whether workflow CLI commands live under
+<code>ep humanize workflow</code> or a new top-level namespace.</li>
+<li>Whether workflow metadata and shared state share one database
+transaction in the remote service or use a reconciled saga.</li>
+<li>Whether each work item references a full Survey or a reusable survey
+template plus scenario binding.</li>
+<li>Which condition expressions may inspect prior answer values directly
+versus requiring those values to be projected into shared state.</li>
+<li>The minimum acceptable participant authentication for multi-person
+pilots.</li>
+<li>Whether simulation participant history is represented as EDSL
+targeted memory, a scenario projection, or a dedicated
+respondent-history object.</li>
+<li>How workflow submissions appear in ordinary EDSL
+<code>Results</code> without losing work-item and delivery
+provenance.</li>
+<li>Whether <code>ready_when</code> false after readiness always revokes
+an item or may be declared monotonic at authoring time.</li>
+<li>Whether completion finalization is owned by
+<code>HumanWorkflow</code> or delegated to a generalized state
+coordinator shared with model-run schedules.</li>
+</ol>
+<h1 data-number="28" id="recommended-first-vertical-slice"><span class="header-section-number">28</span> Recommended first vertical
+slice</h1>
+<p>The first implementation should be the systematic-review screening
+example:</p>
+<ol type="1">
+<li>Two reviewer participants are assigned the same paper
+independently.</li>
+<li>Both receive simulated email when their review becomes ready.</li>
+<li>Each EDSL agent opens and completes only its assigned review.</li>
+<li>Reviews commit to the existing shared screening machine.</li>
+<li>Agreement finalizes the paper automatically.</li>
+<li>Disagreement activates an adjudicator work item and simulated
+invitation.</li>
+<li>The adjudicator sees the two reviews through an explicit authorized
+read.</li>
+<li>The workflow completes with a timeline, final state, survey results,
+delivery history, and model cost.</li>
+</ol>
+<p>This slice exercises assignment, parallel readiness, fan-in,
+conditional activation, privacy, delivery, AI answering, state
+transitions, and completion without requiring revisions or replacement
+policies. The same frozen definition can then be connected to Humanize
+respondents for the first real-human pilot.</p>
+</body>
+</html>

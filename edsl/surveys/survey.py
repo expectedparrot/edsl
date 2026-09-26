@@ -637,8 +637,105 @@ class Survey(Base):
 
     def _process_raw_questions(self, questions: Optional[List["QuestionType"]]) -> list:
         """Process the raw questions passed to the survey."""
+        from ..sharedstate.model import StateRead, StateWrite
+        from ..sharedstate.exceptions import SharedStateAuthoringError
+        from ..questions import QuestionBase
+
+        ordinary = []
+        state_reads, state_writes, state_before_writes = {}, {}, {}
+        pending_reads, pending_before_writes = [], []
+        state_definitions = {}
+        step_ids = set()
+        preceding_question = None
+        known_questions = set()
+
+        def register_step(step):
+            previous = state_definitions.setdefault(step.state_id, step.definition)
+            if previous.to_dict() != step.definition.to_dict():
+                raise SharedStateAuthoringError(
+                    f"state_id {step.state_id!r} is used with conflicting definitions"
+                )
+            if step.step_id in step_ids:
+                raise SharedStateAuthoringError(
+                    f"duplicate shared-state step_id {step.step_id!r}"
+                )
+            step_ids.add(step.step_id)
+
+        def answer_refs(value):
+            from ..sharedstate.refs import AnswerRef
+
+            if isinstance(value, AnswerRef):
+                yield value
+            elif isinstance(value, dict):
+                for nested in value.values():
+                    yield from answer_refs(nested)
+            elif isinstance(value, (list, tuple)):
+                for nested in value:
+                    yield from answer_refs(nested)
+
+        for item in questions or []:
+            if isinstance(item, StateRead):
+                register_step(item)
+                pending_reads.append(item)
+                continue
+            if isinstance(item, StateWrite):
+                register_step(item)
+                machine = item.definition.machines[item.target]
+                command = machine.commands.get(item.command)
+                if command is not None and command.timing == "before_question":
+                    unavailable = sorted(
+                        {
+                            ref.question_name
+                            for ref in answer_refs(item.inputs)
+                            if ref.question_name not in known_questions
+                        }
+                    )
+                    if unavailable:
+                        raise SharedStateAuthoringError(
+                            "before-question state write references unavailable "
+                            f"answers {unavailable}"
+                        )
+                    pending_before_writes.append(item)
+                    continue
+                if preceding_question is None:
+                    raise SharedStateAuthoringError(
+                        "a state write must follow a question"
+                    )
+                unavailable = sorted(
+                    {
+                        ref.question_name
+                        for ref in answer_refs(item.inputs)
+                        if ref.question_name not in known_questions
+                    }
+                )
+                if unavailable:
+                    raise SharedStateAuthoringError(
+                        f"state write after {preceding_question!r} references "
+                        f"unavailable answers {unavailable}"
+                    )
+                state_writes.setdefault(preceding_question, []).append(item)
+                continue
+            ordinary.append(item)
+            if isinstance(item, QuestionBase):
+                preceding_question = item.question_name
+                known_questions.add(preceding_question)
+                if pending_before_writes:
+                    state_before_writes.setdefault(preceding_question, []).extend(
+                        pending_before_writes
+                    )
+                    pending_before_writes = []
+                if pending_reads:
+                    state_reads.setdefault(preceding_question, []).extend(pending_reads)
+                    pending_reads = []
+        if pending_reads or pending_before_writes:
+            raise SharedStateAuthoringError(
+                "a before-question state step must be followed by its question"
+            )
+        self._state_reads = state_reads
+        self._state_writes = state_writes
+        self._state_before_writes = state_before_writes
         handler = InstructionHandler(self)
-        result = handler.separate_questions_and_instructions(questions or [])
+        result = handler.separate_questions_and_instructions(ordinary)
 
         # Handle result safely for mypy
         if (
@@ -647,7 +744,9 @@ class Survey(Base):
             and hasattr(result, "pseudo_indices")
         ):
             # It's the SeparatedComponents dataclass
-            self._instruction_names_to_instructions = result.instruction_names_to_instructions  # type: ignore
+            self._instruction_names_to_instructions = (
+                result.instruction_names_to_instructions
+            )  # type: ignore
             self._pseudo_indices = PseudoIndices(result.pseudo_indices)  # type: ignore
             return result.true_questions  # type: ignore
         else:
@@ -872,6 +971,23 @@ class Survey(Base):
             ),
             "question_groups": self.question_groups,
         }
+        if self._state_reads or self._state_writes or self._state_before_writes:
+            from ..sharedstate.model import step_to_dict
+
+            d["state_steps"] = {
+                "reads": {
+                    anchor: [step_to_dict(step) for step in steps]
+                    for anchor, steps in self._state_reads.items()
+                },
+                "before_writes": {
+                    anchor: [step_to_dict(step) for step in steps]
+                    for anchor, steps in self._state_before_writes.items()
+                },
+                "writes": {
+                    anchor: [step_to_dict(step) for step in steps]
+                    for anchor, steps in self._state_writes.items()
+                },
+            }
         if self.name is not None:
             d["name"] = self.name
 
@@ -983,6 +1099,30 @@ class Survey(Base):
             cls_type = get_class(q_dict)
             questions.append(cls_type.from_dict(q_dict))
 
+        state_data = data.get("state_steps")
+        if state_data:
+            from ..sharedstate.model import step_from_dict
+
+            rebuilt = []
+            for question in questions:
+                question_name = getattr(question, "question_name", "")
+                rebuilt.extend(
+                    step_from_dict(item)
+                    for item in state_data.get("before_writes", {}).get(
+                        question_name, []
+                    )
+                )
+                rebuilt.extend(
+                    step_from_dict(item)
+                    for item in state_data.get("reads", {}).get(question_name, [])
+                )
+                rebuilt.append(question)
+                rebuilt.extend(
+                    step_from_dict(item)
+                    for item in state_data.get("writes", {}).get(question_name, [])
+                )
+            questions = rebuilt
+
         # Deserialize the memory plan
         memory_plan = MemoryPlan.from_dict(data["memory_plan"])
 
@@ -1005,7 +1145,9 @@ class Survey(Base):
         rule_collection_data = data["rule_collection"]
         if not rule_collection_data.get("question_name_to_index"):
             rule_collection_data["question_name_to_index"] = {
-                q.question_name: i for i, q in enumerate(questions)
+                q.question_name: i
+                for i, q in enumerate(questions)
+                if hasattr(q, "question_name")
             }
 
         # Create and return the reconstructed survey
@@ -2656,9 +2798,9 @@ class Survey(Base):
             q_and_a_dict: A dictionary of question names and answers.
         """
         try:
-            assert set(q_and_a_dict.keys()) == set(
-                self.question_names
-            ), "q_and_a_dict must have the same keys as the survey"
+            assert set(q_and_a_dict.keys()) == set(self.question_names), (
+                "q_and_a_dict must have the same keys as the survey"
+            )
         except AssertionError:
             raise ValueError(
                 "q_and_a_dict must have the same keys as the survey",

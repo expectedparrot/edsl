@@ -1,0 +1,97 @@
+---
+title: "Shared-state manual"
+description: "Build shared state from first principles, from a typed poll to coordinated interviews."
+---
+
+<Note>
+This is the canonical shared-state manual. The API is experimental. Read the [execution contracts](/en/latest/coordinated-research/execution-contracts) for current persistence, visibility, and compatibility guarantees.
+</Note>
+
+Shared state is data that several EDSL interviews can read and change. It makes
+group voting, bargaining, discussion boards, forecasting, auctions, and common
+task pools possible.
+
+The [execution contracts](/en/latest/coordinated-research/execution-contracts)
+define the current persistence, retry, definition-binding, and workflow
+integration guarantees. The [language specification](/en/latest/shared-state/semantics)
+provides formal semantics and identifies additional conformance requirements.
+Use the execution contracts to resolve ambiguities about current behavior.
+
+This guide constructs one shared data structure explicitly. Nothing is hidden
+behind a recipe factory. Once every part is understood, we add grouping,
+surveys, storage, and convenience constructors.
+
+## The mental model
+
+A shared-state system has four distinct layers:
+
+```text
+Machine definition
+    ↓
+SharedState space
+    ↓
+SharedStateMap of spaces
+    ↓
+Execution store
+```
+
+A **Machine** defines one kind of data structure: what it stores, which writes
+are legal, and what readers can see.
+
+A **SharedState** is one concrete space containing one or more named machines.
+For example, the space for `family-1` might contain a poll and a message board.
+
+A **SharedStateMap** maps scope keys such as `family-1` and `family-2` to
+independent `SharedState` spaces.
+
+A **store** persists spaces while interviews execute. It may be managed locally
+or remotely. Storage is separate from the data definitions.
+
+We will build these layers in that order.
+
+## Example: choosing an activity
+
+Four people will choose among:
+
+```python
+activities = [
+    "bike ride",
+    "sailing",
+    "hike",
+    "beach day",
+]
+```
+
+We want one vote per person, represented by a dictionary:
+
+```python
+{
+    "Amina": "hike",
+    "Boris": "sailing",
+}
+```
+
+Keys are voter names. Values must be one of the four activities. A voter's first
+vote wins; retries or later attempts do not replace it.
+
+That plain-language description is the specification we will encode.
+
+
+
+## Manual chapters
+
+- [Machines, commands, and views](/en/latest/shared-state/machines) — Define fields, atomic transitions, requirements, and participant-visible views.
+- [Testing and serialization](/en/latest/shared-state/testing-and-serialization) — Test a machine without a survey and preserve its definition as versioned JSON.
+- [Scopes, surveys, and execution](/en/latest/shared-state/scopes-and-surveys) — Bind machines to groups, order interviews, and inspect persistent state provenance.
+- [Collections and lifecycle](/en/latest/shared-state/collections-and-lifecycle) — Build logs, derive collection views, and distinguish completion from closing.
+- [Shared-state pattern cookbook](/en/latest/shared-state/patterns) — Adapt complete patterns for ballots, markets, private signals, task pools, and payoffs.
+- [Randomization and exact money](/en/latest/shared-state/randomization-and-money) — Reproduce keyed draws and tie-breaking, and settle integer units with explicit rounding.
+- [Survey quotas and screening](/en/latest/shared-state/survey-quotas) — Ask respondent type, reserve ten A and ten B places, and end screened-out interviews.
+- [Adaptive reason discovery](/en/latest/shared-state/reason-discovery) — Grow a reason list through Other responses and stop after ten quiet agents.
+- [Adaptive question coverage](/en/latest/shared-state/question-coverage) — Assign up to three under-covered questions per agent and stop at ten valid answers per question.
+- [Adaptive pairwise comparisons](/en/latest/shared-state/pairwise-comparisons) — Compare products, update scores, and select later pairs using those scores and exploration.
+- [Appointment booking](/en/latest/shared-state/appointment-booking) — Hold, confirm, and release slots with durable reservation identities.
+- [Adaptive price elicitation](/en/latest/shared-state/price-elicitation) — Narrow a personal integer price interval within one survey pass.
+- [Balanced experimental assignment](/en/latest/shared-state/balanced-assignment) — Balance several characteristics while assigning conditions atomically.
+- [Team formation](/en/latest/shared-state/team-formation) — Let respondents choose teams while enforcing role-specific capacity.
+- [Primitive examples and validation](/en/latest/shared-state/algorithms-and-reference) — Build and replay sixteen mechanisms from general Machine primitives, with a record of design limitations.

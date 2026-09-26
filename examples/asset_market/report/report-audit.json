@@ -1,0 +1,44 @@
+[
+  {
+    "session": "BT-OC-PC-s140926",
+    "checks_passed": true,
+    "periods": 30,
+    "accepted_decisions": 360,
+    "model_calls": 360,
+    "state_commands": {
+      "submit": 360,
+      "settle": 30
+    },
+    "attempt_status": {
+      "succeeded": 390
+    }
+  },
+  {
+    "session": "baseline-s140926",
+    "checks_passed": true,
+    "periods": 30,
+    "accepted_decisions": 360,
+    "model_calls": 360,
+    "state_commands": {
+      "submit": 360,
+      "settle": 30
+    },
+    "attempt_status": {
+      "succeeded": 390
+    }
+  },
+  {
+    "session": "evolved-s140926",
+    "checks_passed": true,
+    "periods": 30,
+    "accepted_decisions": 360,
+    "model_calls": 360,
+    "state_commands": {
+      "submit": 360,
+      "settle": 30
+    },
+    "attempt_status": {
+      "succeeded": 390
+    }
+  }
+]

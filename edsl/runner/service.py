@@ -11,13 +11,14 @@ import logging
 import time
 from datetime import datetime
 from typing import Any, TYPE_CHECKING
-import itertools
 import random
+import threading
 
 logger = logging.getLogger(__name__)
 
 from .storage import StorageProtocol
 from .stores import JobStore, InterviewStore, TaskStore, AnswerStore
+from .survey_cache import SurveyCache
 
 try:
     from .storage_sqlalchemy import reset_db_stats, get_db_stats
@@ -72,6 +73,7 @@ class JobService:
         self._interviews = InterviewStore(storage)
         self._tasks = TaskStore(storage)
         self._answers = AnswerStore(storage)
+        self._survey_cache = SurveyCache()
         self._job_stop_on_exception: dict[str, bool] = {}  # job_id -> stop_on_exception
         self._original_models: dict[str, dict[str, Any]] = (
             {}
@@ -82,6 +84,121 @@ class JobService:
         self._interview_callbacks: dict[str, Any] = (
             {}
         )  # job_id -> callable(job_id, interview_id)
+        self._interview_schedules: dict[str, Any] = {}
+        self._round_snapshot_versions: dict[tuple, int] = {}
+        self._round_snapshot_lock = threading.Lock()
+        self._local_state_bindings: dict[tuple[str, str], Any] = {}
+        self._state_checkpoints: dict[tuple[str, str], int] = {}
+        # The most recent explicit state read remains the interview's local
+        # snapshot until another read refreshes the same target.
+        self._interview_state_snapshots: dict[
+            tuple[str, str], tuple[dict[str, Any], dict[str, tuple[str, int]]]
+        ] = {}
+        self._interview_state_snapshot_lock = threading.Lock()
+
+    def _state_binding(self, job_id: str, step):
+        """Return the local execution binding for a serialized state step."""
+        key = (job_id, step.state_id)
+        if key not in self._local_state_bindings:
+            import tempfile
+            from pathlib import Path
+            from ..sharedstate.backend import SQLiteStateBackend
+            from ..sharedstate.model import SharedStateMap
+
+            state_map = SharedStateMap(step.definition, state_id=step.state_id)
+            path = (
+                Path(tempfile.gettempdir())
+                / "edsl-shared-state"
+                / f"{step.state_id}.sqlite3"
+            )
+            self._local_state_bindings[key] = SQLiteStateBackend(state_map, path)
+            self._state_checkpoints[key] = self._local_state_bindings[key].checkpoint()
+        return self._local_state_bindings[key]
+
+    def read_state_for_question(
+        self, job_id, survey, task_def, interview_id: str, agent_traits: dict
+    ) -> tuple[dict[str, Any], tuple[tuple[str, int], ...]]:
+        """Execute explicit reads immediately before a question is rendered."""
+        before_steps = getattr(survey, "_state_before_writes", {}).get(
+            task_def.question_name, []
+        )
+        steps = getattr(survey, "_state_reads", {}).get(task_def.question_name, [])
+        cache_key = (job_id, interview_id)
+        with self._interview_state_snapshot_lock:
+            cached_view, cached_versions = self._interview_state_snapshots.get(
+                cache_key, ({}, {})
+            )
+            cached_view = dict(cached_view)
+            cached_versions = dict(cached_versions)
+        if not steps and not before_steps:
+            return dict(cached_view), tuple(sorted(cached_versions.values()))
+        from ..sharedstate.model import resolve_read, resolve_write
+        from ..sharedstate.steps import StepContext
+
+        answers = {
+            answer.question_name: answer.answer
+            for answer in self._answers.get_all_for_interview(job_id, interview_id)
+        }
+        context = StepContext(
+            answers=answers,
+            interview_id=interview_id,
+            agent_traits=agent_traits,
+            run_context={"round": task_def.iteration + 1},
+        )
+        for step in before_steps:
+            self._state_binding(job_id, step).apply(resolve_write(step, context))
+        rendered = dict(cached_view)
+        versions = dict(cached_versions)
+        for step in steps:
+            binding = self._state_binding(job_id, step)
+            operation = resolve_read(step, context)
+            at_sequence = None
+            schedule = self._interview_schedules.get(job_id)
+            if (
+                getattr(schedule, "kind", None) == "rounds"
+                and schedule.state_visibility == "snapshot"
+            ):
+                group = (
+                    agent_traits[schedule.group_by] if schedule.group_by else "__all__"
+                )
+                snapshot_key = (
+                    job_id,
+                    step.state_id,
+                    group,
+                    task_def.iteration,
+                    operation.scope.canonical,
+                )
+                with self._round_snapshot_lock:
+                    at_sequence = self._round_snapshot_versions.setdefault(
+                        snapshot_key, binding.checkpoint()
+                    )
+            observed = binding.read(operation, at_sequence=at_sequence)
+            rendered[step.target] = observed.value
+            versions[step.target] = (observed.read_id, observed.version)
+        with self._interview_state_snapshot_lock:
+            self._interview_state_snapshots[cache_key] = (
+                dict(rendered),
+                dict(versions),
+            )
+        return dict(rendered), tuple(sorted(versions.values()))
+
+    def state_for_direct_answer(
+        self, job_id: str, interview_id: str, task_id: str
+    ) -> tuple[dict[str, Any], tuple[tuple[str, int], ...]]:
+        """Perform the same just-in-time reads for a non-LLM question."""
+        task_def = self._tasks.get_definition(job_id, interview_id, task_id)
+        survey_data = self._jobs.get_survey(job_id)
+        if task_def is None or not survey_data:
+            return {}, ()
+        survey = self._survey_cache.get(survey_data)
+        interview_def = self._interviews.get_definition(job_id, interview_id)
+        agent_data = self._jobs.get_agent(job_id, interview_def.agent_id)
+        traits = dict((agent_data or {}).get("traits", {}))
+        if agent_data and agent_data.get("name"):
+            traits.setdefault("name", agent_data["name"])
+        return self.read_state_for_question(
+            job_id, survey, task_def, interview_id, traits
+        )
 
     @property
     def jobs(self) -> JobStore:
@@ -131,6 +248,10 @@ class JobService:
         """Get the original key lookup object for local job execution."""
         return self._original_key_lookups.get(job_id)
 
+    def has_group_stop_condition(self, job_id: str) -> bool:
+        schedule = self._interview_schedules.get(job_id)
+        return getattr(schedule, "stop_when", None) is not None
+
     # =========================================================================
     # Job Submission
     # =========================================================================
@@ -143,6 +264,7 @@ class JobService:
         n: int = 1,  # Number of iterations to run each interview
         job_id: str | None = None,  # Pre-generated job ID (for GCS upload flow)
         stop_on_exception: bool = False,  # Compatibility parameter (not used yet)
+        interview_schedule: str = "concurrent",
     ) -> str:
         """
         Submit an EDSL Job for execution.
@@ -165,6 +287,7 @@ class JobService:
         submit_start = time.time()
         job_id = job_id or getattr(job, "id", None) or generate_id()
         self._job_stop_on_exception[job_id] = stop_on_exception
+        self._interview_schedules[job_id] = interview_schedule
         n_iterations = max(1, n)  # Ensure at least 1 iteration
 
         # Reset DB stats tracking for this submit
@@ -176,8 +299,9 @@ class JobService:
         # Prepare the job - fills in default Agent(), Model(), Scenario() if missing
         t0 = time.time()
         job.replace_missing_objects()
+        assignment_plan = job.assignment_plan
         logger.info(
-            f"[SUBMIT {job_id[:8]}] replace_missing_objects: {(time.time() - t0)*1000:.1f}ms"
+            f"[SUBMIT {job_id[:8]}] replace_missing_objects: {(time.time() - t0) * 1000:.1f}ms"
         )
 
         # Extract components from the EDSL Job
@@ -194,9 +318,12 @@ class JobService:
         questions = self._extract_questions(survey)
 
         # Assign IDs to all resources
-        scenario_map = {self._get_or_create_id(s): s for s in scenarios}
-        agent_map = {self._get_or_create_id(a): a for a in agents}
-        model_map = {self._get_or_create_id(m): m for m in models}
+        scenario_ids = [self._get_or_create_id(s) for s in scenarios]
+        agent_ids = [self._get_or_create_id(a) for a in agents]
+        model_ids = [self._get_or_create_id(m) for m in models]
+        scenario_map = dict(zip(scenario_ids, scenarios))
+        agent_map = dict(zip(agent_ids, agents))
+        model_map = dict(zip(model_ids, models))
         question_map = {self._get_or_create_id(q): q for q in questions}
 
         # Build question_name -> question_id mapping
@@ -237,7 +364,7 @@ class JobService:
                     extra_models_batch[qm_id] = self._to_dict(qm)
 
         logger.info(
-            f"[SUBMIT {job_id[:8]}] extract_components: {(time.time() - t0)*1000:.1f}ms "
+            f"[SUBMIT {job_id[:8]}] extract_components: {(time.time() - t0) * 1000:.1f}ms "
             f"(scenarios={len(scenarios)}, agents={len(agents)}, models={len(models)}, questions={len(questions)})"
         )
 
@@ -258,14 +385,14 @@ class JobService:
             scenarios_batch[s_id] = scenario_dict
         self._jobs.write_scenarios_batch(job_id, scenarios_batch)
         logger.info(
-            f"[SUBMIT {job_id[:8]}] write_scenarios_batch ({len(scenarios_batch)}): {(time.time() - t0)*1000:.1f}ms"
+            f"[SUBMIT {job_id[:8]}] write_scenarios_batch ({len(scenarios_batch)}): {(time.time() - t0) * 1000:.1f}ms"
         )
 
         t0 = time.time()
         agents_batch = {a_id: self._to_dict(a) for a_id, a in agent_map.items()}
         self._jobs.write_agents_batch(job_id, agents_batch)
         logger.info(
-            f"[SUBMIT {job_id[:8]}] write_agents_batch ({len(agents_batch)}): {(time.time() - t0)*1000:.1f}ms"
+            f"[SUBMIT {job_id[:8]}] write_agents_batch ({len(agents_batch)}): {(time.time() - t0) * 1000:.1f}ms"
         )
 
         t0 = time.time()
@@ -281,14 +408,14 @@ class JobService:
         environment = getattr(run_config, "environment", None)
         self._original_key_lookups[job_id] = getattr(environment, "key_lookup", None)
         logger.info(
-            f"[SUBMIT {job_id[:8]}] write_models_batch ({len(models_batch)}): {(time.time() - t0)*1000:.1f}ms"
+            f"[SUBMIT {job_id[:8]}] write_models_batch ({len(models_batch)}): {(time.time() - t0) * 1000:.1f}ms"
         )
 
         t0 = time.time()
         questions_batch = {q_id: self._to_dict(q) for q_id, q in question_map.items()}
         self._jobs.write_questions_batch(job_id, questions_batch)
         logger.info(
-            f"[SUBMIT {job_id[:8]}] write_questions_batch ({len(questions_batch)}): {(time.time() - t0)*1000:.1f}ms"
+            f"[SUBMIT {job_id[:8]}] write_questions_batch ({len(questions_batch)}): {(time.time() - t0) * 1000:.1f}ms"
         )
 
         # Store the survey for skip logic evaluation
@@ -296,14 +423,13 @@ class JobService:
         survey_dict = self._to_dict(survey)
         self._jobs.write_survey(job_id, survey_dict)
         logger.info(
-            f"[SUBMIT {job_id[:8]}] write_survey: {(time.time() - t0)*1000:.1f}ms"
+            f"[SUBMIT {job_id[:8]}] write_survey: {(time.time() - t0) * 1000:.1f}ms"
         )
 
         # Get questions to randomize (if any)
         questions_to_randomize = getattr(survey, "questions_to_randomize", []) or []
 
-        # Generate interviews as cross-product x iterations
-        # For n_iterations > 1, we create n copies of each (scenario, agent, model) combination
+        # Resolve source positions in plan order, including duplicate rows.
         t0 = time.time()
         interview_ids = []
         interview_definitions = []  # Collect for batch creation
@@ -311,12 +437,11 @@ class JobService:
         all_direct_task_info = []  # Collect all direct-answer task info
         total_tasks_created = 0
 
-        for scenario, agent, model in itertools.product(
-            scenario_map.items(), agent_map.items(), model_map.items()
-        ):
-            scenario_id, scenario_obj = scenario
-            agent_id, agent_obj = agent
-            model_id, _ = model
+        for agent_index, scenario_index, model_index in assignment_plan.iter_indices():
+            scenario_id = scenario_ids[scenario_index]
+            scenario_obj = scenarios[scenario_index]
+            agent_id, agent_obj = agent_ids[agent_index], agents[agent_index]
+            model_id = model_ids[model_index]
 
             # Create n_iterations interviews for this combination
             for iteration in range(n_iterations):
@@ -387,10 +512,147 @@ class JobService:
                     iteration=iteration,
                     question_option_permutations=question_option_permutations,
                     question_item_randomization_seeds=question_item_randomization_seeds,
+                    indices={
+                        "agent": agent_index,
+                        "scenario": scenario_index,
+                        "model": model_index,
+                    },
                 )
                 interview_definitions.append(interview_def)
 
         tasks_prep_time = (time.time() - t0) * 1000
+
+        if interview_schedule == "serial":
+            definitions_by_id = {
+                definition.task_id: definition for definition in all_task_definitions
+            }
+            for previous, current in zip(
+                interview_definitions, interview_definitions[1:]
+            ):
+                previous_terminals = [
+                    task_id
+                    for task_id in previous.task_ids
+                    if not definitions_by_id[task_id].dependents
+                ]
+                current_roots = [
+                    task_id
+                    for task_id in current.task_ids
+                    if not definitions_by_id[task_id].depends_on
+                ]
+                for root_id in current_roots:
+                    for terminal_id in previous_terminals:
+                        definitions_by_id[root_id].depends_on.append(terminal_id)
+                        definitions_by_id[terminal_id].dependents.append(root_id)
+        elif getattr(interview_schedule, "kind", None) == "grouped_round_robin":
+            definitions_by_id = {
+                definition.task_id: definition for definition in all_task_definitions
+            }
+            agent_traits = {
+                agent_id: agent.traits for agent_id, agent in agent_map.items()
+            }
+            grouped_interviews = {}
+            for definition in interview_definitions:
+                traits = agent_traits[definition.agent_id]
+                group = traits[interview_schedule.group_by]
+                order = traits[interview_schedule.order_by]
+                grouped_interviews.setdefault(group, []).append((definition, order))
+
+            for members in grouped_interviews.values():
+                ordered = [
+                    definition
+                    for definition, _ in sorted(
+                        members,
+                        key=lambda member: (member[0].iteration, member[1]),
+                    )
+                ]
+                for previous, current in zip(ordered, ordered[1:]):
+                    previous_terminals = [
+                        task_id
+                        for task_id in previous.task_ids
+                        if not definitions_by_id[task_id].dependents
+                    ]
+                    current_roots = [
+                        task_id
+                        for task_id in current.task_ids
+                        if not definitions_by_id[task_id].depends_on
+                    ]
+                    for root_id in current_roots:
+                        for terminal_id in previous_terminals:
+                            definitions_by_id[root_id].depends_on.append(terminal_id)
+                            definitions_by_id[terminal_id].dependents.append(root_id)
+        elif getattr(interview_schedule, "kind", None) == "rounds":
+            definitions_by_id = {
+                definition.task_id: definition for definition in all_task_definitions
+            }
+            original_roots = {
+                definition.interview_id: [
+                    task_id
+                    for task_id in definition.task_ids
+                    if not definitions_by_id[task_id].depends_on
+                ]
+                for definition in interview_definitions
+            }
+            original_terminals = {
+                definition.interview_id: [
+                    task_id
+                    for task_id in definition.task_ids
+                    if not definitions_by_id[task_id].dependents
+                ]
+                for definition in interview_definitions
+            }
+            grouped_rounds = {}
+            for definition in interview_definitions:
+                traits = agent_map[definition.agent_id].traits
+                group = (
+                    traits[interview_schedule.group_by]
+                    if interview_schedule.group_by
+                    else "__all__"
+                )
+                grouped_rounds.setdefault(group, {}).setdefault(
+                    definition.iteration, []
+                ).append(definition)
+
+            for rounds in grouped_rounds.values():
+                for round_number, members in rounds.items():
+                    if interview_schedule.order_by:
+                        members.sort(
+                            key=lambda definition: agent_map[
+                                definition.agent_id
+                            ].traits[interview_schedule.order_by]
+                        )
+                    if interview_schedule.round_order == "rotate" and len(members) > 1:
+                        offset = round_number % len(members)
+                        members[:] = members[offset:] + members[:offset]
+                    if interview_schedule.within_round == "serial":
+                        for previous, current in zip(members, members[1:]):
+                            for root_id in original_roots[current.interview_id]:
+                                for terminal_id in original_terminals[
+                                    previous.interview_id
+                                ]:
+                                    definitions_by_id[root_id].depends_on.append(
+                                        terminal_id
+                                    )
+                                    definitions_by_id[terminal_id].dependents.append(
+                                        root_id
+                                    )
+                for previous_round, current_round in zip(
+                    sorted(rounds), sorted(rounds)[1:]
+                ):
+                    previous_terminals = [
+                        task_id
+                        for definition in rounds[previous_round]
+                        for task_id in original_terminals[definition.interview_id]
+                    ]
+                    current_roots = [
+                        task_id
+                        for definition in rounds[current_round]
+                        for task_id in original_roots[definition.interview_id]
+                    ]
+                    for root_id in current_roots:
+                        for terminal_id in previous_terminals:
+                            definitions_by_id[root_id].depends_on.append(terminal_id)
+                            definitions_by_id[terminal_id].dependents.append(root_id)
+
         logger.info(
             f"[SUBMIT {job_id[:8]}] prepare_tasks_for_interviews: {tasks_prep_time:.1f}ms "
             f"(interviews={len(interview_definitions)}, tasks={total_tasks_created})"
@@ -414,7 +676,7 @@ class JobService:
         t0 = time.time()
         self._interviews.create_batch(interview_definitions)
         logger.info(
-            f"[SUBMIT {job_id[:8]}] interviews.create_batch ({len(interview_definitions)}): {(time.time() - t0)*1000:.1f}ms"
+            f"[SUBMIT {job_id[:8]}] interviews.create_batch ({len(interview_definitions)}): {(time.time() - t0) * 1000:.1f}ms"
         )
 
         # Create job definition
@@ -432,10 +694,11 @@ class JobService:
             model_ids=list(model_map.keys()),
             question_ids=list(question_map.keys()),
             n_iterations=n_iterations,
+            preserve_interview_order=assignment_plan.mode != "cross",
         )
         self._jobs.create(job_def)
         logger.info(
-            f"[SUBMIT {job_id[:8]}] jobs.create: {(time.time() - t0)*1000:.1f}ms"
+            f"[SUBMIT {job_id[:8]}] jobs.create: {(time.time() - t0) * 1000:.1f}ms"
         )
 
         total_submit_time = (time.time() - submit_start) * 1000
@@ -633,7 +896,41 @@ class JobService:
                     print(f"  [skip] No survey data for job {job_id}")
                 return False, None
 
-            survey = Survey.from_dict(survey_data)
+            survey = self._survey_cache.get(survey_data)
+
+        schedule = self._interview_schedules.get(job_id)
+        stop_condition = getattr(schedule, "stop_when", None)
+        if stop_condition is not None:
+            from ..sharedstate.dsl_runtime import Runtime
+            from ..sharedstate.model import resolve, SharedStateMap
+            from ..sharedstate.steps import StepContext
+
+            agent_data = cached_agent_data or self._jobs.get_agent(
+                job_id, task_def.agent_id
+            )
+            traits = dict((agent_data or {}).get("traits", {}))
+            if agent_data and agent_data.get("name"):
+                traits.setdefault("name", agent_data["name"])
+            context = StepContext({}, interview_id, agent_traits=traits)
+            scope = resolve(stop_condition.scope, context)
+            state_map = SharedStateMap(
+                stop_condition.definition, state_id=stop_condition.state_id
+            )
+            binding = self._state_binding(
+                job_id,
+                type(
+                    "ConditionStep",
+                    (),
+                    {
+                        "state_id": stop_condition.state_id,
+                        "definition": stop_condition.definition,
+                    },
+                )(),
+            )
+            snapshot = binding.snapshot(scope)
+            machine = state_map.definition.machines[stop_condition.target]
+            if Runtime().complete(machine, snapshot.state[stop_condition.target]):
+                return True, f"Group '{scope}' reached its stop condition"
 
         # Use cached index map or search
         if cached_question_index_map is not None:
@@ -828,6 +1125,54 @@ class JobService:
     # Task Completion
     # =========================================================================
 
+    def _execute_shared_state_steps(
+        self, job_id, interview_id, question_name, answer_value, validated
+    ) -> None:
+        """Run writes anchored to a successfully committed question answer."""
+        if validated is False:
+            return
+        survey_data = self._jobs.get_survey(job_id)
+        if not survey_data or not survey_data.get("state_steps"):
+            return
+        survey = self._survey_cache.get(survey_data)
+        steps = getattr(survey, "_state_writes", {}).get(question_name, [])
+        if not steps:
+            return
+        from ..sharedstate.model import resolve_write
+        from ..sharedstate.steps import StepContext
+
+        answers = {
+            answer.question_name: answer.answer
+            for answer in self._answers.get_all_for_interview(job_id, interview_id)
+        }
+        answers[question_name] = answer_value
+        interview_def = self._interviews.get_definition(job_id, interview_id)
+        agent_data = self._jobs.get_agent(job_id, interview_def.agent_id)
+        agent_traits = dict((agent_data or {}).get("traits", {}))
+        if agent_data and agent_data.get("name"):
+            agent_traits.setdefault("name", agent_data["name"])
+        context = StepContext(
+            answers=answers,
+            interview_id=interview_id,
+            agent_traits=agent_traits,
+            run_context={"round": interview_def.iteration + 1},
+        )
+        for step in steps:
+            self._state_binding(job_id, step).apply(resolve_write(step, context))
+        schedule = self._interview_schedules.get(job_id)
+        condition = getattr(schedule, "finalize_when", None)
+        if condition is not None:
+            from ..sharedstate.model import resolve
+
+            scope = resolve(condition.scope, context)
+            outcome = self._state_binding(job_id, condition).finalize(
+                condition, scope, execution_id=interview_id
+            )
+            if getattr(outcome, "status", None) == "rejected":
+                from ..sharedstate.exceptions import CommandRejected
+
+                raise CommandRejected(outcome.reason_code)
+
     def on_task_completed(
         self,
         job_id: str,
@@ -852,6 +1197,7 @@ class JobService:
         resolution_draw: Any = None,
         resolution_seed: int | None = None,
         resolution_method: str | None = None,
+        question_presentation: dict[str, Any] | None = None,
     ) -> None:
         """Called when a task finishes successfully with an answer."""
         import time as _time
@@ -891,10 +1237,14 @@ class JobService:
             resolution_draw=resolution_draw,
             resolution_seed=resolution_seed,
             resolution_method=resolution_method,
+            question_presentation=question_presentation,
         )
         _t = _time.monotonic()
         self._answers.store(answer)
         _dt_store = (_time.monotonic() - _t) * 1000
+        self._execute_shared_state_steps(
+            job_id, interview_id, task_def.question_name, answer_value, validated
+        )
 
         # Update task status
         _t = _time.monotonic()
@@ -998,9 +1348,20 @@ class JobService:
                     cache_key=task_info.get("cache_key"),
                     validated=task_info.get("validated"),
                     reasoning_summary=task_info.get("reasoning_summary"),
+                    question_presentation=task_info.get("question_presentation"),
                 )
             )
         self._answers.store_batch(answers)
+        for task_info in tasks:
+            task_def = all_task_defs.get(task_info["task_id"])
+            if task_def is not None:
+                self._execute_shared_state_steps(
+                    job_id,
+                    task_info["interview_id"],
+                    task_def.question_name,
+                    task_info["answer_value"],
+                    task_info.get("validated", True),
+                )
         _t_answers = (_t.time() - _t0) * 1000
 
         # 4. Batch set all task statuses to COMPLETED
@@ -1843,6 +2204,9 @@ class JobService:
         if interview_def is None:
             raise ValueError(f"Interview {interview_id} not found")
 
+        if indices is None:
+            indices = interview_def.indices
+
         # Use pre-fetched object data if available, otherwise fetch
         if all_object_data is not None:
             agent_data = all_object_data.get(
@@ -2059,7 +2423,7 @@ class JobService:
 
             _t = _time.time()
             if survey_data:
-                survey = Survey.from_dict(survey_data)
+                survey = self._survey_cache.get(survey_data)
             if _timing is not None:
                 _timing["deserialize_survey"] = (
                     _timing.get("deserialize_survey", 0) + (_time.time() - _t) * 1000
@@ -2111,6 +2475,23 @@ class JobService:
                             else {}
                         ),
                     }
+        # Prefer answer-associated presentation over a reconstruction from the
+        # final answers/scenario. Shared-state options may have changed since
+        # presentation, and template resolution here has no historical view.
+        from copy import deepcopy
+
+        for answer in answers:
+            captured = answer.question_presentation
+            if captured is not None:
+                attributes = question_to_attributes.setdefault(answer.question_name, {})
+                attributes.update(deepcopy(captured["attributes"]))
+                attributes["presentation"] = deepcopy(
+                    {
+                        key: value
+                        for key, value in captured.items()
+                        if key != "attributes"
+                    }
+                )
         if _timing is not None:
             _timing["build_question_attrs"] = (
                 _timing.get("build_question_attrs", 0)
@@ -2229,7 +2610,7 @@ class JobService:
         # Parse survey from batch1
         _t = _time.time()
         survey_data = batch1_data.get(f"job:{job_id}:survey")
-        survey = Survey.from_dict(survey_data) if survey_data else None
+        survey = self._survey_cache.get(survey_data) if survey_data else None
         if _timing is not None:
             _timing["deserialize_survey"] = (_time.time() - _t) * 1000
 
@@ -2284,8 +2665,8 @@ class JobService:
         # Determine which interviews are completed
         completed_interview_ids = [
             iid
-            for iid, state in interview_states.items()
-            if state
+            for iid in job_def.interview_ids
+            if interview_states.get(iid)
             in (InterviewState.COMPLETED, InterviewState.COMPLETED_WITH_FAILURES)
         ]
 
@@ -2357,7 +2738,7 @@ class JobService:
             # Compute indices for this interview
             indices = None
             if interview_def:
-                indices = {
+                indices = interview_def.indices or {
                     "agent": agent_index_map.get(interview_def.agent_id, 0),
                     "scenario": scenario_index_map.get(interview_def.scenario_id, 0),
                     "model": model_index_map.get(interview_def.model_id, 0),
@@ -2381,14 +2762,15 @@ class JobService:
 
         # Sort results to match the old system's ordering:
         # agent-major, then scenario, then model, then iteration.
-        result_list.sort(
-            key=lambda r: (
-                r.indices.get("agent", 0) if r.indices else 0,
-                r.indices.get("scenario", 0) if r.indices else 0,
-                r.indices.get("model", 0) if r.indices else 0,
-                r.data.get("iteration", 0),
+        if not job_def.preserve_interview_order:
+            result_list.sort(
+                key=lambda r: (
+                    r.indices.get("agent", 0) if r.indices else 0,
+                    r.indices.get("scenario", 0) if r.indices else 0,
+                    r.indices.get("model", 0) if r.indices else 0,
+                    r.data.get("iteration", 0),
+                )
             )
-        )
 
         # Create the Results object
         _t = _time.time()
@@ -2446,7 +2828,38 @@ class JobService:
                 ]
             }
         )
-        results = Results(survey=survey, data=result_list, task_history=task_history)
+        state_bindings = []
+        for (bound_job_id, state_id), binding in self._local_state_bindings.items():
+            if bound_job_id != job_id:
+                continue
+            checkpoint = self._state_checkpoints[(bound_job_id, state_id)]
+            events = binding.history(after_sequence=checkpoint)
+            scopes = []
+            for event in events:
+                if event["scope"] not in scopes:
+                    scopes.append(event["scope"])
+            state_bindings.append(
+                {
+                    "state_id": state_id,
+                    "definition": binding.state_map.definition.to_dict(),
+                    "entry_snapshots": [
+                        binding.snapshot(scope, at_sequence=checkpoint).__dict__
+                        for scope in scopes
+                    ],
+                    "events": events,
+                    "exit_snapshots": [
+                        binding.snapshot(scope).__dict__ for scope in scopes
+                    ],
+                }
+            )
+        results = Results(
+            survey=survey,
+            data=result_list,
+            task_history=task_history,
+            shared_state=(
+                {"version": 1, "bindings": state_bindings} if state_bindings else None
+            ),
+        )
         if _timing is not None:
             _timing["create_results_object"] = (_time.time() - _t) * 1000
 
@@ -2507,6 +2920,54 @@ class JobService:
                             if target_name not in dag:
                                 dag[target_name] = set()
                             dag[target_name].add(source_name)
+
+            # A shared-state write is part of its interview's question sequence.
+            # Later questions must not be rendered until preceding writes from that
+            # same interview have committed. This adds no dependencies between
+            # interviews, so respondents still run concurrently and observe
+            # whichever complete log prefix exists when each question becomes ready.
+            shared_steps = getattr(survey, "_state_writes", {})
+            if shared_steps:
+                preceding_writes = []
+                for question in survey.questions:
+                    question_name = question.question_name
+                    if preceding_writes:
+                        dag.setdefault(question_name, set()).update(preceding_writes)
+                    anchored = shared_steps.get(question_name, [])
+                    for step in anchored:
+                        for ref in getattr(step, "answer_refs", []):
+                            if ref.question_name != question_name:
+                                dag.setdefault(question_name, set()).add(
+                                    ref.question_name
+                                )
+                    if anchored:
+                        preceding_writes.append(question_name)
+
+            # Explicit reads divide an interview into snapshot phases. Every
+            # question in a phase waits for its read anchor, and the next read
+            # waits for the preceding phase to finish. This makes snapshot
+            # identity follow Survey order rather than renderer timing.
+            read_steps = getattr(survey, "_state_reads", {})
+            read_indices = [
+                index
+                for index, question in enumerate(survey.questions)
+                if read_steps.get(question.question_name)
+            ]
+            for position, anchor_index in enumerate(read_indices):
+                anchor_name = index_to_name[anchor_index]
+                next_index = (
+                    read_indices[position + 1]
+                    if position + 1 < len(read_indices)
+                    else len(survey.questions)
+                )
+                for target_index in range(anchor_index + 1, next_index):
+                    dag.setdefault(index_to_name[target_index], set()).add(anchor_name)
+                if next_index < len(survey.questions):
+                    next_name = index_to_name[next_index]
+                    dag.setdefault(next_name, set()).update(
+                        index_to_name[index]
+                        for index in range(anchor_index, next_index)
+                    )
 
             return dag
 

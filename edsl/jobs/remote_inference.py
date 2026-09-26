@@ -530,17 +530,17 @@ class JobsRemoteInferenceHandler:
                 expenses_by_model[model_key]["input_cost_usd"] += expense_usage[
                     "cost_usd"
                 ]
-                expenses_by_model[model_key][
-                    "input_cost_usd_with_cache"
-                ] += expense_usage["cost_usd_with_cache"]
+                expenses_by_model[model_key]["input_cost_usd_with_cache"] += (
+                    expense_usage["cost_usd_with_cache"]
+                )
             elif token_type == "output":
                 expenses_by_model[model_key]["output_tokens"] += expense_usage["tokens"]
                 expenses_by_model[model_key]["output_cost_usd"] += expense_usage[
                     "cost_usd"
                 ]
-                expenses_by_model[model_key][
-                    "output_cost_usd_with_cache"
-                ] += expense_usage["cost_usd_with_cache"]
+                expenses_by_model[model_key]["output_cost_usd_with_cache"] += (
+                    expense_usage["cost_usd_with_cache"]
+                )
 
         from ..coop.utils import CostConverter
 
@@ -567,9 +567,9 @@ class JobsRemoteInferenceHandler:
             model_cost_dict["input_cost_credits_with_cache"] = converter.usd_to_credits(
                 input_cost_with_cache
             )
-            model_cost_dict[
-                "output_cost_credits_with_cache"
-            ] = converter.usd_to_credits(output_cost_with_cache)
+            model_cost_dict["output_cost_credits_with_cache"] = (
+                converter.usd_to_credits(output_cost_with_cache)
+            )
         return list(expenses_by_model.values())
 
     def _normalize_results_url(self, results_url: Optional[str]) -> Optional[str]:

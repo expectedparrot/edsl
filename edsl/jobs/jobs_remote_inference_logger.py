@@ -117,9 +117,11 @@ class HTMLTableJobLogger(JobLogger):
         with contextlib.redirect_stdout(io.StringIO()):
             self.display_handle = display(HTML(""), display_id=True)
         if self.display_handle is None:
+
             class _Stub:
                 def update(self, *a, **kw):
                     pass
+
             self.display_handle = _Stub()
         self.current_message = None
         self.log_id = str(uuid.uuid4())
@@ -132,7 +134,7 @@ class HTMLTableJobLogger(JobLogger):
         return f"""
             <tr>
                 <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">{key}</td>
-                <td style="padding: 8px; border: 1px solid #ddd;">{value if value else 'None'}</td>
+                <td style="padding: 8px; border: 1px solid #ddd;">{value if value else "None"}</td>
             </tr>
         """
 
@@ -188,7 +190,7 @@ class HTMLTableJobLogger(JobLogger):
                 <div onclick="document.getElementById('content-{self.log_id}').style.display = document.getElementById('content-{self.log_id}').style.display === 'none' ? 'block' : 'none';
                              document.getElementById('arrow-{self.log_id}').innerHTML = document.getElementById('content-{self.log_id}').style.display === 'none' ? '▶' : '▼';"
                      style="padding: 10px; background: #f5f5f5; border: 1px solid #ddd; border-radius: 4px; cursor: pointer;">
-                    <span id="arrow-{self.log_id}">{arrow}</span> Job Status ({datetime.now().strftime('%Y-%m-%d %H:%M:%S')})
+                    <span id="arrow-{self.log_id}">{arrow}</span> Job Status ({datetime.now().strftime("%Y-%m-%d %H:%M:%S")})
                 </div>
                 <div id="content-{self.log_id}" style="display: {display_style};">
                     <table style="width: 100%; border-collapse: collapse; background: white; border: 1px solid #ddd;">
@@ -240,9 +242,11 @@ class JupyterJobLogger(JobLogger):
         with contextlib.redirect_stdout(io.StringIO()):
             self.display_handle = display(HTML(""), display_id=True)
         if self.display_handle is None:
+
             class _Stub:
                 def update(self, *a, **kw):
                     pass
+
             self.display_handle = _Stub()
 
     def _linkify(self, text):
@@ -269,7 +273,7 @@ class JupyterJobLogger(JobLogger):
                 <div onclick="document.getElementById('content-{self.log_id}').style.display = document.getElementById('content-{self.log_id}').style.display === 'none' ? 'block' : 'none';
                              document.getElementById('arrow-{self.log_id}').innerHTML = document.getElementById('content-{self.log_id}').style.display === 'none' ? '▶' : '▼';"
                      style="padding: 10px; background: #f5f5f5; cursor: pointer;">
-                    <span id="arrow-{self.log_id}">{arrow}</span> Remote Job Log ({datetime.now().strftime('%Y-%m-%d %H:%M:%S')})
+                    <span id="arrow-{self.log_id}">{arrow}</span> Remote Job Log ({datetime.now().strftime("%Y-%m-%d %H:%M:%S")})
                 </div>
                 <div id="content-{self.log_id}" style="padding: 10px; display: {display_style};">
                     {messages_html}

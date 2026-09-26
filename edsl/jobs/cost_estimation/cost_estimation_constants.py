@@ -7,12 +7,14 @@ EDSL_DEFAULT_CHARS_PER_TOKEN = 4
 @dataclass(frozen=True)
 class TokenAmount:
     """Fixed token count, independent of input length."""
+
     value: int
 
 
 @dataclass(frozen=True)
 class TokenRatio:
     """Token count as a fraction of input tokens."""
+
     value: float
 
 

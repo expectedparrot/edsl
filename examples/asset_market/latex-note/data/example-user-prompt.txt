@@ -1,0 +1,43 @@
+Period 1 of 30; 30 trading periods remain, including this one.
+
+MARKET RULES
+There are 12 traders. Each began with $100 cash and 4 shares. Submit one sealed limit order: buy, sell, or hold. A buy limit is the most you will pay per share; a sell limit is the least you will accept. The exchange matches crossing orders and all filled orders receive one clearing price. Unmatched orders expire. You cannot borrow or short shares. Buy quantities are capped by cash divided by your limit; sells by your inventory. Quotes round to cents. After trading, cash earns 5% interest, then each held share pays the same dividend: $0.40 or $1.00, equally likely. After period 30's income, each remaining share is redeemed for $14; you keep all cash.
+
+YOUR ACCOUNT (all money below is in dollars)
+Cash: 100.0. Shares: 4.
+Your previous decisions and fills:
+No previous decisions.
+
+PUBLIC HISTORY
+The market has not traded yet. There is no opening reference quote.
+A null or None price means there was no transaction that period.
+
+YOUR DECISION
+Forecast transaction prices now and 2, 5, and 10 periods ahead, then choose your order using your trading approach. For forecast horizons beyond the last trading period, use the terminal redemption amount. Return forecast_0, forecast_2, forecast_5, forecast_10, side ('buy', 'sell', or 'hold'), price, integer quantity, and a brief rationale. All forecasts and prices are in dollars. For hold use price=0 and quantity=0. Retain any precommitted schedule or exit plan in your rationale.Please respond with a dictionary using the following keys: forecast_0, forecast_2, forecast_5, forecast_10, side, price, quantity, rationale.
+
+
+
+
+The values should be formatted in the following types:
+
+- "forecast_0": "float"
+
+- "forecast_2": "float"
+
+- "forecast_5": "float"
+
+- "forecast_10": "float"
+
+- "side": "str"
+
+- "price": "float"
+
+- "quantity": "int"
+
+- "rationale": "str"
+
+
+
+If you do not have a value for a given key, use "null".
+
+

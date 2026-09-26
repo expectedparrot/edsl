@@ -172,6 +172,7 @@ class Jobs(Base):
 
         self._where_clauses = []
         self._include_expression = None
+        self._assignment_plan = None
 
         self._post_run_methods = []
         self._depends_on = None
@@ -303,6 +304,7 @@ class Jobs(Base):
     def models(self, value) -> None:
         from ..language_models import ModelList
 
+        self._validate_assignment_component("models", value)
         if value:
             if not isinstance(value, ModelList):
                 self._models = ModelList(value)
@@ -316,6 +318,7 @@ class Jobs(Base):
             self.run_config.environment.bucket_collection = (
                 self.create_bucket_collection()
             )
+        self._invalidate_filtered_assignment_plan()
 
     @property
     def agents(self):
@@ -332,6 +335,7 @@ class Jobs(Base):
     def agents(self, value):
         from ..agents import AgentList
 
+        self._validate_assignment_component("agents", value)
         if value:
             if not isinstance(value, AgentList):
                 self._agents = AgentList(value)
@@ -339,6 +343,7 @@ class Jobs(Base):
                 self._agents = value
         else:
             self._agents = AgentList([])
+        self._invalidate_filtered_assignment_plan()
 
     def where(self, expression: str) -> Jobs:
         """Filter the agents, scenarios, and models based on a condition.
@@ -411,18 +416,17 @@ class Jobs(Base):
         from ..scenarios import ScenarioList
         from ..dataset import Dataset
 
+        if isinstance(value, Dataset):
+            value = value.to_scenario_list()
+        self._validate_assignment_component("scenarios", value)
         if value:
-            if isinstance(
-                value, Dataset
-            ):  # if the user passes in a Dataset, convert it to a ScenarioList
-                value = value.to_scenario_list()
-
             if not isinstance(value, ScenarioList):
                 self._scenarios = ScenarioList(value)
             else:
                 self._scenarios = value
         else:
             self._scenarios = ScenarioList([])
+        self._invalidate_filtered_assignment_plan()
 
         # Validate that scenario fields are used in the survey
         if hasattr(self, "survey") and self.survey is not None:
@@ -432,6 +436,43 @@ class Jobs(Base):
 
             checker = CheckSurveyScenarioCompatibility(self.survey, self._scenarios)
             checker.check()
+
+    def _invalidate_filtered_assignment_plan(self) -> None:
+        # Explicit and zipped rows refer to source positions, so same-length
+        # replacements preserve them. Only expression-derived plans are caches.
+        if self.__dict__.get("_include_expression") is not None:
+            self._assignment_plan = None
+
+    def _validate_assignment_component(self, axis, value) -> None:
+        plan = self.__dict__.get("_assignment_plan")
+        if plan is None or self.__dict__.get("_include_expression") is not None:
+            return
+        if len(value or []) != len(getattr(self, axis)):
+            from .exceptions import JobsValueError
+
+            raise JobsValueError(
+                f"Cannot change the number of {axis} after assign() or zip_assign(). "
+                "Build a new job with the desired collections and assignments."
+            )
+
+    def _assignment_metadata(self) -> dict:
+        """Resolve defaults before any serializer captures source collections."""
+        if self._assignment_plan is None and self._include_expression is None:
+            return {}
+        metadata = self.assignment_plan.to_dict()
+        if self._include_expression is not None:
+            metadata["include_expression"] = self._include_expression
+        return metadata
+
+    def _restore_assignment_metadata(self, data) -> None:
+        if "assignments" in data:
+            from .assignment_plan import AssignmentPlan
+
+            plan = AssignmentPlan.from_dict(data)
+            plan.validate(self.agents, self.scenarios, self.models)
+            self._assignment_plan = plan
+        if "include_expression" in data:
+            self._include_expression = data["include_expression"]
 
     def by(
         self,
@@ -650,7 +691,86 @@ class Jobs(Base):
 
         """
         self._include_expression = expression
+        self._assignment_plan = None
         return self
+
+    def assign(self, assignments) -> "Jobs":
+        """Use explicit non-cartesian interview assignments.
+
+        Each assignment row references indices into this job's agents, scenarios,
+        and models. Rows may be dictionaries such as
+        ``{"agent": 0, "scenario": 1, "model": 0}`` or 3-item sequences ordered
+        as ``(agent_index, scenario_index, model_index)``.
+        """
+        from .assignment_plan import AssignmentPlan
+
+        self.replace_missing_objects()
+        self._ensure_position_indices()
+        self._assignment_plan = AssignmentPlan.from_explicit(
+            assignments,
+            self.agents,
+            self.scenarios,
+            self.models,
+        )
+        self._include_expression = None
+        return self
+
+    def zip_assign(
+        self,
+        over=("agents", "scenarios"),
+        strict: bool = True,
+        cross_remaining: bool = True,
+    ) -> "Jobs":
+        """Pair source collections by index and optionally cross remaining axes.
+
+        By default, ``over=("agents", "scenarios")`` pairs ``agents[i]`` with
+        ``scenarios[i]`` and crosses each pair with every model.
+        """
+        from .assignment_plan import AssignmentPlan
+
+        self.replace_missing_objects()
+        self._ensure_position_indices()
+        self._assignment_plan = AssignmentPlan.from_zip(
+            self.agents,
+            self.scenarios,
+            self.models,
+            over=over,
+            strict=strict,
+            cross_remaining=cross_remaining,
+        )
+        self._include_expression = None
+        return self
+
+    def _ensure_position_indices(self) -> None:
+        for index, agent in enumerate(self.agents):
+            agent._index = index
+            agent._position_index = index
+        for index, model in enumerate(self.models):
+            model._index = index
+            model._position_index = index
+        for index, scenario in enumerate(self.scenarios):
+            scenario._index = index
+            scenario._position_index = index
+
+    @property
+    def assignment_plan(self):
+        """Return the normalized plan of interviews to construct."""
+        from .assignment_plan import AssignmentPlan
+
+        self.replace_missing_objects()
+        self._ensure_position_indices()
+        if self._assignment_plan is not None:
+            self._assignment_plan.validate(self.agents, self.scenarios, self.models)
+            return self._assignment_plan
+        if self._include_expression is not None:
+            self._assignment_plan = AssignmentPlan.from_filter(
+                self.agents,
+                self.scenarios,
+                self.models,
+                self._include_expression,
+            )
+            return self._assignment_plan
+        return AssignmentPlan.from_cross(self.agents, self.scenarios, self.models)
 
     def replace_missing_objects(self) -> None:
         """If the agents, models, or scenarios are not set, replace them with defaults."""
@@ -658,9 +778,12 @@ class Jobs(Base):
         from ..language_models.model import Model
         from ..scenarios import Scenario
 
-        self.agents = self.agents or [Agent()]
-        self.models = self.models or [Model()]
-        self.scenarios = self.scenarios or [Scenario()]
+        if not self.agents:
+            self.agents = [Agent()]
+        if not self.models:
+            self.models = [Model()]
+        if not self.scenarios:
+            self.scenarios = [Scenario()]
 
     def generate_interviews(self) -> Generator:
         """Generate interviews.
@@ -679,7 +802,7 @@ class Jobs(Base):
             self.replace_missing_objects()
             yield from InterviewsConstructor(
                 self, cache=self.run_config.environment.cache
-            ).create_interviews(include_expression=self._include_expression)
+            ).create_interviews()
 
     def show_flow(self, filename: Optional[str] = None) -> None:
         """Visualize either the *Job* dependency/post-processing flow **or** the underlying survey flow.
@@ -949,7 +1072,7 @@ class Jobs(Base):
                 "<tr>"
                 f"<td>{index}</td>"
                 f"<td><code>{html_module.escape(str(question_name))}</code></td>"
-                f"<td><span class=\"pill\">{html_module.escape(str(question_type))}</span></td>"
+                f'<td><span class="pill">{html_module.escape(str(question_type))}</span></td>'
                 f"<td>{html_module.escape(str(question_text))}</td>"
                 f"<td>{self._jobs_pre_html(self._jobs_question_details(question))}</td>"
                 "</tr>"
@@ -959,9 +1082,7 @@ class Jobs(Base):
         return (
             "<table><thead><tr>"
             "<th>#</th><th>Name</th><th>Type</th><th>Text</th><th>Details</th>"
-            "</tr></thead><tbody>"
-            + "".join(rows)
-            + "</tbody></table>"
+            "</tr></thead><tbody>" + "".join(rows) + "</tbody></table>"
         )
 
     @staticmethod
@@ -1190,6 +1311,14 @@ class Jobs(Base):
             else:
                 results, reason = jh.poll_remote_inference_job(job_info)
                 if results is not None:
+                    if self._remote_results_are_invalid(results):
+                        from .exceptions import JobsRunError
+
+                        raise JobsRunError(
+                            "Remote execution returned structurally invalid results. "
+                            "Inspect the remote job before retrying; local execution "
+                            "was not started."
+                        )
                     return results, reason
                 # Remote was used but returned no results — don't fall back to local
                 if reason:
@@ -1217,6 +1346,51 @@ class Jobs(Base):
                 "and the remote inference setting. To run locally, pass "
                 "disable_remote_inference=True or offload_execution=False."
             )
+
+    @staticmethod
+    def _remote_results_are_invalid(results: "Results") -> bool:
+        """Detect remote result payloads that look structurally complete but empty.
+
+        Some remote failures currently materialize as a Results object with the
+        expected interview rows, but with every answer set to ``None``, no raw model
+        responses, and no task-history evidence. Those should not count as a
+        successful remote run because downstream analysis will silently operate on
+        null data.
+        """
+        if len(results) == 0:
+            return False
+
+        task_history = getattr(results, "task_history", None)
+        task_history_dict = (
+            task_history.to_dict()
+            if task_history and hasattr(task_history, "to_dict")
+            else {}
+        )
+        interviews = task_history_dict.get("interviews") or []
+        if interviews:
+            return False
+
+        saw_any_non_null_answer = False
+        saw_any_raw_payload = False
+        for row in results:
+            answer_dict = getattr(row, "answer", None)
+            if isinstance(answer_dict, dict) and any(
+                value is not None for value in answer_dict.values()
+            ):
+                saw_any_non_null_answer = True
+                break
+
+            try:
+                raw_payload = row["raw_model_response"]
+            except Exception:
+                raw_payload = None
+            if isinstance(raw_payload, dict) and any(
+                value not in (None, {}, "") for value in raw_payload.values()
+            ):
+                saw_any_raw_payload = True
+                break
+
+        return not saw_any_non_null_answer and not saw_any_raw_payload
 
     def _prepare_to_run(self) -> None:
         """Prepare the job to run and ensure keys are in place for a remote job."""
@@ -1654,7 +1828,7 @@ class Jobs(Base):
         Only captures specific patterns to avoid masking real AttributeErrors.
         """
         # Safeguard: ensure _post_run_methods exists
-        if not hasattr(self, "_post_run_methods"):
+        if "_post_run_methods" not in self.__dict__:
             raise AttributeError(
                 f"'{self.__class__.__name__}' object has no attribute '{name}'"
             )
@@ -1791,7 +1965,9 @@ class Jobs(Base):
                     found.extend(descendants(child))
                 return found
 
-            service_classes = list(dict.fromkeys(descendants(OpenAIService) + descendants(OpenAIServiceV2)))
+            service_classes = list(
+                dict.fromkeys(descendants(OpenAIService) + descendants(OpenAIServiceV2))
+            )
             for svc_cls in service_classes:
                 for client in list(svc_cls._async_client_instances.values()):
                     try:
@@ -1812,12 +1988,101 @@ class Jobs(Base):
         """Execute job locally using the Runner engine."""
         from ..runner.runner import Runner
 
+        schedule = self.run_config.parameters.interview_schedule
+        from .interview_schedule import InterviewSchedule
+
+        if schedule == "serial":
+            from .exceptions import JobsValueError
+
+            if len(self.scenarios) != 1 or len(self.models) != 1:
+                raise JobsValueError(
+                    "interview_schedule='serial' currently requires exactly one "
+                    "scenario and one model"
+                )
+            if self.run_config.parameters.n != 1:
+                raise JobsValueError(
+                    "interview_schedule='serial' currently requires n=1; run "
+                    "each discussion round as a separate serial job"
+                )
+        elif isinstance(schedule, InterviewSchedule):
+            from .exceptions import JobsValueError
+
+            if schedule.kind not in {"grouped_round_robin", "rounds"}:
+                raise JobsValueError(
+                    f"unknown interview schedule kind '{schedule.kind}'"
+                )
+            if len(self.scenarios) != 1 or len(self.models) != 1:
+                raise JobsValueError(
+                    "grouped_round_robin currently requires exactly one scenario "
+                    "and one model"
+                )
+            for condition in (schedule.stop_when, schedule.finalize_when):
+                if condition is None:
+                    continue
+                from ..sharedstate.model import StateCondition
+
+                if not isinstance(condition, StateCondition):
+                    raise JobsValueError(
+                        "schedule state conditions must come from "
+                        "a scoped machine's is_complete() method"
+                    )
+            if (
+                schedule.kind == "rounds"
+                and schedule.within_round == "concurrent"
+                and schedule.state_visibility == "snapshot"
+                and getattr(self.survey, "_state_before_writes", {})
+            ):
+                raise JobsValueError(
+                    "before-question state writes cannot be combined with "
+                    "concurrent snapshot rounds; use state_visibility='live' "
+                    "until pre-round write barriers are supported"
+                )
+            required_traits = (
+                (schedule.group_by, schedule.order_by)
+                if schedule.kind == "grouped_round_robin"
+                else (schedule.group_by, schedule.order_by)
+            )
+            for agent in self.agents:
+                missing = [
+                    key
+                    for key in required_traits
+                    if key is not None and key not in agent.traits
+                ]
+                if missing:
+                    raise JobsValueError(
+                        f"agent '{agent.name}' is missing schedule traits {missing}"
+                    )
+            if schedule.kind == "grouped_round_robin":
+                seen_positions = set()
+                for agent in self.agents:
+                    position = (
+                        agent.traits[schedule.group_by],
+                        agent.traits[schedule.order_by],
+                    )
+                    if position in seen_positions:
+                        raise JobsValueError(
+                            "grouped_round_robin requires unique order values within "
+                            f"each group; duplicate position {position!r}"
+                        )
+                    seen_positions.add(position)
+        elif schedule != "concurrent":
+            from .exceptions import JobsValueError
+
+            raise JobsValueError(
+                f"unknown interview_schedule {schedule!r}; expected 'concurrent', "
+                "'serial', or an InterviewSchedule"
+            )
         runner = Runner(
-            max_workers=self.run_config.parameters.max_concurrency or 400
+            max_workers=self.run_config.parameters.max_concurrency or 400,
+            interview_schedule=schedule,
         )
         handle = runner.submit(
             self,
-            n=self.run_config.parameters.n,
+            n=(
+                schedule.count
+                if getattr(schedule, "kind", None) == "rounds"
+                else self.run_config.parameters.n
+            ),
             cache=self.run_config.environment.cache,
             stop_on_exception=self.run_config.parameters.stop_on_exception,
             stream_to_cas=True,
@@ -2134,7 +2399,7 @@ class Jobs(Base):
                 continue
 
             self._logger.info(
-                f"Running batch {i+1}/{num_batches} with {len(batch)} interviews"
+                f"Running batch {i + 1}/{num_batches} with {len(batch)} interviews"
             )
 
             # Extract just the interviews (without original indices) for this batch
@@ -2154,15 +2419,15 @@ class Jobs(Base):
                         result.order = original_index
                     else:
                         self._logger.warning(
-                            f"Batch {i+1}: more results ({len(batch_result.data)}) than expected ({len(batch)})"
+                            f"Batch {i + 1}: more results ({len(batch_result.data)}) than expected ({len(batch)})"
                         )
 
                 batch_results.append(batch_result)
                 self._logger.info(
-                    f"Batch {i+1} completed with {len(batch_result)} results"
+                    f"Batch {i + 1} completed with {len(batch_result)} results"
                 )
             else:
-                self._logger.warning(f"Batch {i+1} returned None results")
+                self._logger.warning(f"Batch {i + 1} returned None results")
 
         if not batch_results:
             self._logger.warning("No batch results to merge")
@@ -2487,6 +2752,9 @@ class Jobs(Base):
         if hasattr(self, "_interviews") and self._interviews:
             return len(self._interviews)
 
+        if self._assignment_plan is not None or self._include_expression is not None:
+            return len(self.assignment_plan)
+
         number_of_interviews = (
             len(self.agents or [1])
             * len(self.scenarios or [1])
@@ -2601,6 +2869,7 @@ class Jobs(Base):
             dict: Dictionary representation of this Jobs instance.
 
         """
+        assignment_metadata = self._assignment_metadata()
         d = {
             "survey": self.survey.to_dict(add_edsl_version=add_edsl_version),
             "agents": [
@@ -2617,6 +2886,16 @@ class Jobs(Base):
             ],
         }
 
+        schedule = self.run_config.parameters.interview_schedule
+        if schedule != "concurrent":
+            from .interview_schedule import InterviewSchedule
+
+            d["interview_schedule"] = (
+                schedule.to_dict()
+                if isinstance(schedule, InterviewSchedule)
+                else schedule
+            )
+
         # Add _post_run_methods if not empty
         if self._post_run_methods:
             d["_post_run_methods"] = self._post_run_methods
@@ -2626,6 +2905,8 @@ class Jobs(Base):
             d["_depends_on"] = self._depends_on.to_dict(
                 add_edsl_version=add_edsl_version
             )
+
+        d.update(assignment_metadata)
 
         if add_edsl_version:
             from .. import __version__
@@ -2662,6 +2943,14 @@ class Jobs(Base):
             scenarios=[Scenario.from_dict(scenario) for scenario in data["scenarios"]],
         )
 
+        if "interview_schedule" in data:
+            from .interview_schedule import InterviewSchedule
+
+            schedule = data["interview_schedule"]
+            if isinstance(schedule, dict):
+                schedule = InterviewSchedule.from_dict(schedule)
+            job.run_config.parameters.interview_schedule = schedule
+
         # Restore _post_run_methods if present
         if "_post_run_methods" in data:
             job._post_run_methods = data["_post_run_methods"]
@@ -2669,6 +2958,8 @@ class Jobs(Base):
         # Restore _depends_on if present
         if "_depends_on" in data:
             job._depends_on = cls.from_dict(data["_depends_on"])
+
+        job._restore_assignment_metadata(data)
 
         return job
 

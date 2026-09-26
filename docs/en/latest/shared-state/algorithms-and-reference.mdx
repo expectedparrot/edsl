@@ -1,0 +1,230 @@
+---
+title: "Primitive examples and validation"
+description: "Build mechanisms from general Machine primitives and use executable examples to probe the language's limits."
+---
+
+The goal is to express a mechanism's behavior in its serialized `Machine`
+definition. A helper may construct that definition, but executing it should not
+require a mechanism-specific Python callback.
+
+The [primitive example corpus](https://github.com/expectedparrot/edsl/tree/feature/shared-state-v0/examples/machine_primitives)
+is a set of worked examples for researchers and coding agents. It deliberately
+includes increasingly demanding constructions, so missing abstractions become
+visible. Each example runs after JSON transport under `Runtime()` with an empty
+algorithm registry. The runner also rejects domain-specific reducers; its allowed
+reducers are sorting records, keeping the latest record per key, summing, and
+counting values.
+
+## Choose an example
+
+| Example | Construction to reuse | What it does not cover |
+| --- | --- | --- |
+| [Running ledger](https://github.com/expectedparrot/edsl/blob/feature/shared-state-v0/examples/machine_primitives/running_ledger.py) | Fold a sequence into a balance and history | Account authorization |
+| [Serial dictatorship](https://github.com/expectedparrot/edsl/blob/feature/shared-state-v0/examples/machine_primitives/serial_dictatorship.py) | Priority ordering and allocation with decreasing capacities | Multiple assignments per claimant |
+| [Deferred acceptance](https://github.com/expectedparrot/edsl/blob/feature/shared-state-v0/examples/machine_primitives/deferred_acceptance.py) | Bounded proposal queue and tentative matching | Tied applicant rankings |
+| [Continuous double auction](https://github.com/expectedparrot/edsl/blob/feature/shared-state-v0/examples/machine_primitives/double_auction.py) | Filter/sort orders and update accounts atomically | Multi-unit orders and collateral reservations |
+| [Binary LMSR](https://github.com/expectedparrot/edsl/blob/feature/shared-state-v0/examples/machine_primitives/binary_market.py) | Stable numerical formulas and portfolio transformations | Credit limits, short sales, or general contracts |
+| [Batch auction](https://github.com/expectedparrot/edsl/blob/feature/shared-state-v0/examples/machine_primitives/batch_auction.py) | Uniform-price clearing with deterministic ties | Full asset-market settlement, interest, dividends, or randomized priority |
+| [Seeded allocation](https://github.com/expectedparrot/edsl/blob/feature/shared-state-v0/examples/machine_primitives/seeded_allocation.py) | Stable-ID lottery priority and a separately keyed draw | Secret randomness or participant-chosen IDs |
+| [Monetary settlement](https://github.com/expectedparrot/edsl/blob/feature/shared-state-v0/examples/machine_primitives/monetary_settlement.py) | Exact decimal input, integer balances, explicit fee rounding | Currency conversion or account authorization |
+| [Survey quotas](/en/latest/shared-state/survey-quotas) | Atomic admission, durable personal eligibility, and actual survey stop rules | Completion quotas, abandonment reclamation, or hosted deployment |
+| [Adaptive reason discovery](/en/latest/shared-state/reason-discovery) | Growing choices, conditional Other text, and sequential saturation stopping | Semantic paraphrase merging or proof of complete discovery |
+| [Adaptive question coverage](/en/latest/shared-state/question-coverage) | Fixed question subsets, generated skip rules, and answer-based coverage targets | Concurrent capacity reservations or abandonment leases |
+| [Adaptive pairwise comparisons](/en/latest/shared-state/pairwise-comparisons) | Score-driven pair selection, periodic exploration, and seeded display order | Statistical uncertainty estimates, preference cycles, or concurrent allocation |
+| [Appointment booking](/en/latest/shared-state/appointment-booking) | Reversible holds, atomic capacity, and reservation-token fencing | Automatic expiry, host scheduling, or calendar integration |
+| [Adaptive price elicitation](/en/latest/shared-state/price-elicitation) | Per-respondent integer search, bounded slots, and partial resumption | Noisy answers, continuous values, or confidence intervals |
+| [Balanced assignment](/en/latest/shared-state/balanced-assignment) | Greedy marginal balance with seeded ties and immutable assignment | Global balance guarantees or allocation concealment |
+| [Team formation](/en/latest/shared-state/team-formation) | Role-specific admission and post-admission interview completion | Departures, missing-role relaxation, or compatibility matching |
+
+These are executable reference examples, not claims of a complete production
+market or matching library. The batch auction is intentionally smaller than the
+existing asset-market implementation. Existing algorithm-backed examples remain
+available as comparison implementations.
+
+## Run and export the examples
+
+From the repository root, with the development package installed:
+
+```bash
+python -m examples.machine_primitives
+python -m examples.machine_primitives --output /tmp/machine-primitives
+```
+
+No model or remote calls are made. The runner transports each definition through
+JSON before executing its deterministic command sequence. It prints the final
+views. With `--output`, it also writes each definition and a replay record
+containing the commands, final state, view, operation inventory, and definition
+size. These files describe Machines, not Jobs; they are not inputs to `ep run`.
+
+## General-purpose computation primitives
+
+Most examples combine existing fields, conditions, map/filter expressions, and
+atomic effects with the operations below. Their bodies are serialized expression
+trees, not Python functions or lambdas.
+
+| Operation | Meaning |
+| --- | --- |
+| `let(name, value, body)` | Evaluate `value` once, bind it to `local(name)` while evaluating `body`. |
+| `fold(sequence, initial, item=..., accumulator=..., body=...)` | Visit items in order, passing each result as the next accumulator. An empty sequence returns `initial`. |
+| `iterate(initial, state=..., until=..., step=..., max_steps=...)` | Test `until` before each step and return the first completed state. Fail if the budget is exhausted. |
+| `take(sequence, count)` | Return at most the first `count` items. The count must be a nonnegative integer. |
+| `exp(value)` | Exponential of a finite number; overflow fails explicitly. |
+| `logsumexp(values)` | Stable logarithm of the sum of exponentials for a nonempty sequence of finite numbers. |
+
+For example, a running balance carries an accumulator between entries:
+
+```python
+from edsl.sharedstate import fold, input_, local
+
+balance = fold(
+    input_("amounts"),
+    0,
+    item="amount",
+    accumulator="balance",
+    body=local("balance") + local("amount"),
+)
+```
+
+This is a command expression: the surrounding command must declare `amounts`.
+The complete ledger example shows its field, input type, effect, and view.
+
+Bindings are lexical. Nested computations can shadow outer names without
+modifying their values. A fold's item and accumulator names must be distinct.
+The initial value and collection are evaluated in the outer context; only the
+body sees the new bindings. Iteration likewise evaluates its initial value and
+budget outside its state binding. Its condition must evaluate to a Boolean.
+
+Iteration accepts an integer budget from zero through 100,000 steps. The
+condition is checked even at zero steps and immediately after the last allowed
+step. Exhaustion raises an error; it never returns a partially converged result.
+This per-expression limit is additional to the shared
+[execution budget](/en/latest/shared-state/machines#execution-limits), which
+covers nested computations and all effects in one runtime operation. Optional
+[loop invariants](/en/latest/shared-state/machines#loop-invariants) use
+`accumulator_type` for `fold` and `state_type` for `iterate`; the ledger sample
+declares its carried record type, and deferred acceptance declares its matching
+state type.
+
+## Why allocation needs a fold
+
+A map transforms elements independently. Serial dictatorship must give each
+claimant the first preferred item that remains available *after earlier
+claimants have chosen*. Its accumulator contains both assignments and remaining
+capacities. Sorting establishes priority; folding expresses the sequential
+allocation without adding a `serial_dictatorship` operation to the interpreter.
+
+Deferred acceptance needs a proposal queue, tentative matches, and each
+applicant's next-choice cursor. Those are local accumulator values inside one
+bounded iteration. Its budget is the sum of submitted ranking lengths plus the
+number of applicants: each proposal consumes a ranking entry, and each applicant
+can have at most one final exhausted-queue visit. This bound is checked against
+the interpreter's per-expression cap.
+
+Both examples use latest submitted preferences. The matching example accepts
+strict, possibly incomplete rankings; duplicate entries fail the command's
+requirement without changing state. Institutions order applicants by priority,
+then name; omitted applicants rank after explicitly listed ones.
+
+## Atomicity and numerical behavior
+
+A fold or iteration computes a proposed value inside a single command or close
+transaction. Intermediate assignments are not committed or exposed to readers.
+An error prevents the entire transition from committing, including effects that
+were evaluated earlier. Ordinary effects still observe the same pre-command
+snapshot; sequential computation is explicit inside the accumulator.
+
+LMSR needs stable exponentials, not a market-specific runtime operation.
+`logsumexp` avoids directly exponentiating large quantities. Floating-point
+rounding still applies, so equivalence tests use numerical tolerances. The sample
+permits negative cash, as the comparison implementation does, and explicitly
+prevents further trading after settlement.
+
+The continuous auction admits one open order per trader and executes at the
+resting order's price. Ordered `assert_` effects return `open_order_exists`,
+`invalid_price`, `insufficient_cash`, or `insufficient_inventory` for refused
+orders. `hold` remains a no-op. The older callback raises exceptions for those
+admission failures; tests compare both unchanged state on rejected paths and
+state/conservation on valid paths. This is a deliberate difference in outcome
+reporting. Invalid trader/action types still fail input validation. See
+[explicit rejection semantics](/en/latest/shared-state/machines#explicit-rejection-and-outcomes).
+Replay exports include a `decisions` list aligned with their `commands`.
+
+## Randomization and settlement
+
+The two additional examples use the [portable randomization and exact-money
+primitives](/en/latest/shared-state/randomization-and-money). The lottery's scope
+and draw keys are explicit, and changing arrival order preserves winners. The
+settlement sample rounds a gross payment once, splits out a fee, and conserves
+integer units. Tests cover fixed random vectors, scope/key separation, signed
+rounding boundaries, restart/retry, and execution in a fresh process.
+These general expressions leave the older algorithms' random streams and
+rounding policies unchanged.
+
+## What the examples reveal about the language
+
+| Observation | Current response | Remaining design work |
+| --- | --- | --- |
+| Allocation needs evolving local state | General `fold` and `iterate` expressions | Improve ergonomics and debugging of nested expressions |
+| Repeated subexpressions inflate definitions and repeat work | Lexical `let` bindings | Measure larger trees and consider reusable serialized functions |
+| Matching must not return a half-finished answer | Per-loop bounds plus shared evaluation, tree, growth, and output limits; exhaustion fails atomically | Portable cost schedules and isolation of trusted Python extensions |
+| Structured state needs declared members | Records, lexical checks, conservative operand/branch analysis, and explicit loop invariants | Complete inference, flow-sensitive null safety, and dynamic lookup proofs |
+| Market formulas need numerical stability | General `exp` and `logsumexp`; exact `decimal_units` and `round_ratio` for money | Full asset-market settlement and deliberate rounding-policy migration |
+| Stochastic priority must replay independently of call order | Keyed SHA-256 `seeded_integer` and stable-ID `seeded_order` | Full asset-market comparisons and migration of legacy random streams |
+| Error policy differs across mechanisms | Explicit assertion/rejection effects, literal reason codes, and durable retry decisions | Full information-flow checks and deliberate migration of older callback error policies |
+| Survey admission must control question flow | Atomic quota Machine plus explicit reads and computed gates | Direct typed state-to-survey branches; completion/expiry policies |
+| New operations must run on the receiving interpreter | Derived exact-version manifests and destination preflight, including loop options | Deployment of capability discovery and checks on hosted services |
+
+The examples do not solve every limitation by adding a special operation. In
+particular, the full asset market's income schedule, stochastic tie-breaking,
+multi-unit admission, and monetary rounding remain a useful next stress case.
+The batch example demonstrates clearing only and makes that boundary explicit.
+
+## Constructors and registered algorithms
+
+An authoring helper is appropriate when it expands entirely into ordinary
+Machine expressions. The corpus's `build_machine()` functions and small formula
+helpers do this; their Python source is not needed to execute the exported JSON.
+There is no supported `recipes` module to import.
+
+The current implementation also still supports `algorithm(name, ...)` and
+registered Python implementations for older examples. That is an extension
+boundary, not an expansion into general primitives. It requires a matching
+runtime registry. The new corpus intentionally uses neither algorithm effects
+nor algorithm views. Its role is to demonstrate which mechanisms can be built
+from reusable operations before deciding how to migrate existing consumers.
+
+## Validation and coding-agent workflow
+
+When adapting an example:
+
+1. Specify persistent fields, input types, views, and allowed transitions.
+2. State tie-breaking rules, completion criteria, and failure behavior.
+3. Build the machine and serialize it through JSON.
+4. Check its [derived requirements](/en/latest/shared-state/machines#interpreter-capabilities)
+   against the destination, then replay it under the empty `Runtime()` registry.
+5. Check independent invariants and edge cases, including empty inputs,
+   duplicate submissions, capacity exhaustion, and retries.
+6. Compare against an independent or existing implementation where available.
+7. Record any missing primitive or unclear semantic rule before adding a
+   mechanism-specific workaround.
+
+The corpus tests check matching stability, capacity and asset conservation,
+serialization, nested binding scopes, iteration boundaries, numerical behavior,
+and SQLite rollback after exhaustion. They complement the broader
+[execution contracts](/en/latest/coordinated-research/execution-contracts).
+[Type checks, loop invariants, and runtime quotas](/en/latest/shared-state/machines#records-and-early-validation)
+are implemented alongside finite JSON checks. Complete static typing and
+isolation of arbitrary Python extensions remain conformance targets in the
+[language specification](/en/latest/shared-state/semantics).
+
+The ordered implementation checklist and progress are tracked in
+[Machine design gaps, issue #2665](https://github.com/expectedparrot/edsl/issues/2665).
+
+
+## Measure composition costs
+
+`python -m examples.machine_primitives.profile_corpus` reports serialized size,
+repeated expression trees, and existing host budget charges for each replayed
+transition. See the [survey quota walkthrough](/en/latest/shared-state/survey-quotas#what-this-application-reveals-about-composition)
+for a measured example and the accounting limits. These are development probes,
+not portable performance promises or a new tracing API.
