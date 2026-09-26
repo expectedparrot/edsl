@@ -36,7 +36,8 @@ in the canonical [Mintlify chapter](../../docs/en/latest/shared-state/algorithms
 
 Verification lives in
 [`test_primitive_examples.py`](../../tests/sharedstate/test_primitive_examples.py)
-and [`test_machine_iteration.py`](../../tests/sharedstate/test_machine_iteration.py).
+[`test_machine_iteration.py`](../../tests/sharedstate/test_machine_iteration.py),
+and [`test_machine_records.py`](../../tests/sharedstate/test_machine_records.py).
 It compares supported paths against existing algorithm implementations and also
 checks independent properties: capacity constraints, absence of blocking pairs,
 conservation, lexical scope, iteration exhaustion, and rollback in SQLite.
@@ -46,3 +47,8 @@ input or every feature of the full asset-market implementation.
 The canonical manual documents primitive semantics and the current design gaps.
 Existing algorithm-backed examples remain available for compatibility and as
 comparison implementations; this corpus does not silently replace them.
+
+The running ledger and deferred acceptance examples also demonstrate `T.record`
+for nested state. Omitted required members and unexpected members are distinct
+from nullable values. The remaining language-design checklist is tracked in
+[issue #2665](https://github.com/expectedparrot/edsl/issues/2665).

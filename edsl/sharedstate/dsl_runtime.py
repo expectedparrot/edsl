@@ -732,6 +732,21 @@ class Runtime:
                 self._validate_type(
                     f"{name}[{index}]", item, constraints["item"], context
                 )
+        if kind == "record":
+            if not isinstance(value, dict):
+                raise DSLValidationError(f"{name} must be a record")
+            members = constraints["fields"]
+            missing = members.keys() - value.keys()
+            extra = value.keys() - members.keys()
+            if missing or (extra and not constraints["allow_extra"]):
+                raise DSLValidationError(
+                    f"{name} record fields mismatch; missing={sorted(missing)}, "
+                    f"extra={sorted(extra) if not constraints['allow_extra'] else []}"
+                )
+            for member_name, member_type in members.items():
+                self._validate_type(
+                    f"{name}.{member_name}", value[member_name], member_type, context
+                )
         if kind == "map":
             if not isinstance(value, dict):
                 raise DSLValidationError(f"{name} must be a map")

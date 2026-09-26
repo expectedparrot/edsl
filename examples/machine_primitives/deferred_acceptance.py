@@ -175,8 +175,27 @@ def build_machine(capacities=None, priorities=None):
         name="PrimitiveDeferredAcceptance",
         constants={"capacities": capacities, "priorities": priorities},
         fields={
-            "requests": state_field(T.sequence(T.map()), []),
-            "allocation": state_field(T.map(), {"held": {}, "queue": [], "next": {}}),
+            "requests": state_field(
+                T.sequence(
+                    T.record(
+                        {
+                            "student": T.text(),
+                            "ranking": T.sequence(T.choice(list(capacities))),
+                        }
+                    )
+                ),
+                [],
+            ),
+            "allocation": state_field(
+                T.record(
+                    {
+                        "held": T.map(T.text(), T.sequence(T.text())),
+                        "queue": T.sequence(T.text()),
+                        "next": T.map(T.text(), T.integer(minimum=0)),
+                    }
+                ),
+                {"held": {}, "queue": [], "next": {}},
+            ),
         },
         commands={
             "collect": Command(

@@ -289,3 +289,18 @@ for their operational contracts, scope rules, budget boundaries, and examples.
 The iteration cap does not establish the specification's global resource-bound
 requirements or a complete static type system. Older interpreters that do not
 recognize these operators must reject the definitions.
+
+## Implemented record and scope checks
+
+`T.record(fields, allow_extra=False)` declares required named members. Optional
+member types admit null, not omission; `allow_extra=True` permits additional
+finite JSON values. Initial values, inputs, and proposed state are checked
+recursively. Machine validation checks lexical scope in all expression contexts
+and rejects literal lookups of undeclared members on known closed records,
+including unselected branches. Failures include the machine and expression path.
+
+These checks are a conservative subset of the type judgment described above.
+Operator compatibility, null safety, branch joins, accumulator invariants,
+and dynamically selected fields are not a complete static analysis. See
+[Records and early validation](/en/latest/shared-state/machines#records-and-early-validation)
+for the current contract.

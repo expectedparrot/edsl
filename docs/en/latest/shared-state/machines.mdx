@@ -135,6 +135,57 @@ T.map(T.text(), T.number())
 Types are contracts, not comments. EDSL checks initial values and every proposed
 transition against them.
 
+## Records and early validation
+
+Use `T.record` when a value has named fields with different types:
+
+```python
+account_type = T.record({
+    "balance": T.number(),
+    "label": T.optional(T.text()),
+    "entries": T.sequence(T.record({"amount": T.number()})),
+})
+```
+
+Every declared field is required. `T.optional(T.text())` permits `None`; it does
+not permit omitting `label`. Records reject undeclared fields by default. Use
+`T.record({...}, allow_extra=True)` for an extensible record: declared fields
+remain required and extra values must still be finite JSON data. Use `T.map`
+for a dictionary with dynamic keys such as participant IDs.
+
+These schemas serialize with the Machine. EDSL checks them recursively for
+initial state, command inputs, and proposed state after commands or close
+effects. A bad nested value identifies its member path, such as
+`account.entries[0].amount`. A failed output check prevents the whole transition
+from committing.
+
+`machine.validate()` also checks reference namespaces and lexical bindings in
+commands, views, completion conditions, initial values, and close effects.
+A local introduced by `let`, `fold`, `iterate`, or a collection expression is
+available only in its body. Its initial value, collection, or iteration budget
+uses the outer scope. Validation visits both conditional branches, so a typo
+cannot hide in a branch that is currently unselected.
+
+For statically known closed records, a literal lookup of an undeclared member
+is rejected even when a fallback was supplied. Use an open record when probing
+extension fields is intentional. Dynamic keys and runtime-provided context stay
+runtime-checked. Loop accumulator shapes are deliberately treated as unknown
+until invariant analysis is implemented; the seed shape alone is not proof of
+the shape at every iteration.
+
+Authoring failures raise `MachineValidationError`, which is also a `ValueError`.
+It exposes `machine`, `path`, and `reason` attributes. For example, looking up
+`balnce` on a declared account record reports the containing expression:
+
+```text
+TypedLedger at $.view['balance']: unknown record field 'balnce'; declared fields: ['balance', 'entries', 'label']
+```
+
+The [ledger and matching examples](/en/latest/shared-state/algorithms-and-reference)
+use records for structured state. These checks do not yet establish complete
+operator type analysis, null safety, branch joins, or accumulator invariants.
+Those remaining tasks are tracked in [issue #2665](https://github.com/expectedparrot/edsl/issues/2665).
+
 ## Commands
 
 A command defines one legal kind of write:

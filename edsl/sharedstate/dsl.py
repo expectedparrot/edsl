@@ -260,6 +260,11 @@ class T:
         return expr("type", "sequence", item=T.any() if item is None else item)
 
     @staticmethod
+    def record(fields: dict[str, Expr], *, allow_extra: bool = False) -> Expr:
+        """Required named fields; optional types allow null, not absent fields."""
+        return expr("type", "record", fields=fields, allow_extra=allow_extra)
+
+    @staticmethod
     def map(key: Expr | None = None, value: Expr | None = None) -> Expr:
         return expr(
             "type",
@@ -400,6 +405,18 @@ class Machine:
         return cls.from_dict(json.loads(payload))
 
     def validate(self) -> None:
+        from .exceptions import MachineValidationError
+
+        try:
+            self._validate()
+        except MachineValidationError:
+            raise
+        except (ValueError, TypeError, KeyError) as exc:
+            raise MachineValidationError(self.name, "$", str(exc)) from exc
+
+    def _validate(self) -> None:
+        from .validation import validate_references, walk_paths
+        from .exceptions import MachineValidationError
         from .dsl_runtime import DSLValidationError, Runtime
 
         validate_data(self.to_dict(), path=self.name)
@@ -451,7 +468,6 @@ class Machine:
             "type",
             "values",
         }
-        namespaces = {"state", "input", "constant", "current", "local"}
         declared_algorithms = set(self.algorithms)
         for capability in declared_algorithms:
             if not isinstance(capability, str) or "@" not in capability:
@@ -516,155 +532,120 @@ class Machine:
             "group_numeric_summary",
             "series_converged",
         }
-        for item in walk(self):
-            if isinstance(item, Effect):
-                arities = {
-                    "set": 1,
-                    "set_once": 1,
-                    "put": 2,
-                    "append": 1,
-                    "algorithm": 0,
-                }
-                if item.op not in arities:
-                    raise ValueError(f"{self.name} uses unknown effect {item.op!r}")
-                check_arity(item.op, item.args, arities[item.op], arities[item.op])
-                allowed_options = {"when"} | ({"once"} if item.op == "put" else set())
-                if item.op == "algorithm":
-                    allowed_options |= {"name", "version", "bindings"}
-                    if not {"name", "version", "bindings"} <= item.options.keys():
+        for path, item in walk_paths(self):
+            try:
+                if isinstance(item, Effect):
+                    arities = {
+                        "set": 1,
+                        "set_once": 1,
+                        "put": 2,
+                        "append": 1,
+                        "algorithm": 0,
+                    }
+                    if item.op not in arities:
+                        raise ValueError(f"{self.name} uses unknown effect {item.op!r}")
+                    check_arity(item.op, item.args, arities[item.op], arities[item.op])
+                    if item.op != "algorithm" and item.target not in self.fields:
+                        raise ValueError(f"unknown target field {item.target!r}")
+                    allowed_options = {"when"} | (
+                        {"once"} if item.op == "put" else set()
+                    )
+                    if item.op == "algorithm":
+                        allowed_options |= {"name", "version", "bindings"}
+                        if not {"name", "version", "bindings"} <= item.options.keys():
+                            raise ValueError(
+                                "algorithm effect requires name, version and bindings"
+                            )
+                    if item.op == "algorithm":
+                        capability = f"{item.options['name']}@{item.options['version']}"
+                        if capability not in declared_algorithms:
+                            raise ValueError(
+                                f"uses undeclared algorithm {capability!r}"
+                            )
+                    if set(item.options) - allowed_options:
                         raise ValueError(
-                            "algorithm effect requires name, version and bindings"
+                            f"unknown {item.op} effect options: {set(item.options) - allowed_options}"
                         )
-                if set(item.options) - allowed_options:
-                    raise ValueError(
-                        f"unknown {item.op} effect options: {set(item.options) - allowed_options}"
-                    )
-            if isinstance(item, Expr) and item.op not in allowed_ops:
-                raise ValueError(f"{self.name} uses unknown expression {item.op!r}")
-            if isinstance(item, Expr):
-                arity = (
-                    1
-                    if item.op in unary
-                    else (
-                        2
-                        if item.op in binary
+                if isinstance(item, Expr) and item.op not in allowed_ops:
+                    raise ValueError(f"{self.name} uses unknown expression {item.op!r}")
+                if isinstance(item, Expr):
+                    arity = (
+                        1
+                        if item.op in unary
                         else (
-                            3
-                            if item.op in {"get", "if", "put_value", "decode_matrix"}
-                            else 0 if item.op in {"ref", "record"} else None
+                            2
+                            if item.op in binary
+                            else (
+                                3
+                                if item.op
+                                in {"get", "if", "put_value", "decode_matrix"}
+                                else 0 if item.op in {"ref", "record"} else None
+                            )
                         )
                     )
-                )
-                if arity is not None:
-                    check_arity(item.op, item.args, arity, arity)
-                if item.op == "minimum":
-                    check_arity(item.op, item.args, 1)
-                if item.op == "map_of" and any(
-                    not isinstance(pair, (tuple, list)) or len(pair) != 2
-                    for pair in item.args
-                ):
-                    raise ValueError("map_of requires key/value pairs")
-                if item.op == "reduce" and item.args[0] not in reducers:
-                    raise ValueError(f"unknown reducer {item.args[0]!r}")
-                required = {
-                    "let": {"name", "body"},
-                    "fold": {"item", "accumulator", "body"},
-                    "iterate": {"state", "until", "step", "max_steps"},
-                    "ref": {"namespace", "name"},
-                    "map_items": {"key", "value", "key_expr", "value_expr"},
-                    "filter_items": {"item", "predicate"},
-                    "map_sequence": {"item", "value_expr"},
-                }.get(item.op, set())
-                if not required <= item.kwargs.keys():
-                    raise ValueError(f"{item.op} requires options {sorted(required)}")
-                binding_options = {
-                    "let": ("name",),
-                    "fold": ("item", "accumulator"),
-                    "iterate": ("state",),
-                }.get(item.op)
-                if binding_options:
-                    if set(item.kwargs) != required:
-                        raise ValueError(f"unknown {item.op} options")
-                    names = [item.kwargs[key] for key in binding_options]
-                    if any(
-                        not isinstance(name, str) or not name.isidentifier()
-                        for name in names
+                    if arity is not None:
+                        check_arity(item.op, item.args, arity, arity)
+                    if item.op == "minimum":
+                        check_arity(item.op, item.args, 1)
+                    if item.op == "map_of" and any(
+                        not isinstance(pair, (tuple, list)) or len(pair) != 2
+                        for pair in item.args
                     ):
-                        raise ValueError(f"{item.op} requires identifier binding names")
-                    if len(set(names)) != len(names):
-                        raise ValueError(f"{item.op} requires distinct binding names")
-                if item.op in {"take", "exp", "logsumexp"} and item.kwargs:
-                    raise ValueError(f"unknown {item.op} options")
-                if item.op == "type":
-                    _validate_type_expression(item)
-            if isinstance(item, Expr) and item.op == "algorithm_view":
-                check_arity(item.op, item.args, 4, 4)
-                if item.args[0] != "lmsr_prices" or item.kwargs.get("version", 1) != 1:
-                    raise ValueError("unsupported algorithm view capability")
-                capability = f"{item.args[0]}@{item.kwargs.get('version', 1)}"
-                if capability not in declared_algorithms:
-                    raise ValueError(
-                        f"{self.name} uses undeclared algorithm {capability!r}"
-                    )
-        for command_name, command in self.commands.items():
-            for effect in command.effects:
-                if effect.op != "algorithm" and effect.target not in self.fields:
-                    raise ValueError(
-                        f"{self.name}.{command_name} targets unknown field {effect.target!r}"
-                    )
-                if effect.op == "algorithm":
-                    algorithm_name = effect.options.get("name")
-                    capability = f"{algorithm_name}@{effect.options.get('version', 1)}"
+                        raise ValueError("map_of requires key/value pairs")
+                    if item.op == "reduce" and item.args[0] not in reducers:
+                        raise ValueError(f"unknown reducer {item.args[0]!r}")
+                    required = {
+                        "let": {"name", "body"},
+                        "fold": {"item", "accumulator", "body"},
+                        "iterate": {"state", "until", "step", "max_steps"},
+                        "ref": {"namespace", "name"},
+                        "map_items": {"key", "value", "key_expr", "value_expr"},
+                        "filter_items": {"item", "predicate"},
+                        "map_sequence": {"item", "value_expr"},
+                    }.get(item.op, set())
+                    if not required <= item.kwargs.keys():
+                        raise ValueError(
+                            f"{item.op} requires options {sorted(required)}"
+                        )
+                    binding_options = {
+                        "let": ("name",),
+                        "fold": ("item", "accumulator"),
+                        "iterate": ("state",),
+                    }.get(item.op)
+                    if binding_options:
+                        if set(item.kwargs) != required:
+                            raise ValueError(f"unknown {item.op} options")
+                        names = [item.kwargs[key] for key in binding_options]
+                        if any(
+                            not isinstance(name, str) or not name.isidentifier()
+                            for name in names
+                        ):
+                            raise ValueError(
+                                f"{item.op} requires identifier binding names"
+                            )
+                        if len(set(names)) != len(names):
+                            raise ValueError(
+                                f"{item.op} requires distinct binding names"
+                            )
+                    if item.op in {"take", "exp", "logsumexp"} and item.kwargs:
+                        raise ValueError(f"unknown {item.op} options")
+                    if item.op == "type":
+                        _validate_type_expression(item)
+                if isinstance(item, Expr) and item.op == "algorithm_view":
+                    check_arity(item.op, item.args, 4, 4)
+                    if (
+                        item.args[0] != "lmsr_prices"
+                        or item.kwargs.get("version", 1) != 1
+                    ):
+                        raise ValueError("unsupported algorithm view capability")
+                    capability = f"{item.args[0]}@{item.kwargs.get('version', 1)}"
                     if capability not in declared_algorithms:
                         raise ValueError(
-                            f"{self.name}.{command_name} uses undeclared algorithm "
-                            f"{capability!r}"
+                            f"{self.name} uses undeclared algorithm {capability!r}"
                         )
-            for item in walk(command):
-                if not isinstance(item, Expr):
-                    continue
-                if item.op not in allowed_ops:
-                    raise ValueError(
-                        f"{self.name}.{command_name} uses unknown expression {item.op!r}"
-                    )
-                if item.op == "ref":
-                    namespace, name = item.kwargs.get("namespace"), item.kwargs.get(
-                        "name"
-                    )
-                    if namespace not in namespaces:
-                        raise ValueError(f"unknown reference namespace {namespace!r}")
-                    if namespace == "input" and name not in command.inputs:
-                        raise ValueError(
-                            f"{self.name}.{command_name} references undeclared input {name!r}"
-                        )
-                    if namespace == "state" and name.split(".")[0] not in self.fields:
-                        raise ValueError(
-                            f"{self.name}.{command_name} references unknown field {name!r}"
-                        )
-                    if (
-                        namespace == "constant"
-                        and name.split(".")[0] not in self.constants
-                    ):
-                        raise ValueError(
-                            f"{self.name}.{command_name} references unknown constant {name!r}"
-                        )
-            for type_expression in command.inputs.values():
-                _validate_type_expression(type_expression)
-        for definition in self.fields.values():
-            _validate_type_expression(definition.type)
-        for effect in self.close_effects:
-            if effect.op != "algorithm" and effect.target not in self.fields:
-                raise ValueError(
-                    f"{self.name}.close targets unknown field {effect.target!r}"
-                )
-            if effect.op == "algorithm":
-                capability = (
-                    f"{effect.options.get('name')}@{effect.options.get('version', 1)}"
-                )
-                if capability not in declared_algorithms:
-                    raise ValueError(
-                        f"{self.name}.close uses undeclared algorithm {capability!r}"
-                    )
+            except (ValueError, TypeError, KeyError) as exc:
+                raise MachineValidationError(self.name, path, str(exc)) from exc
+        validate_references(self)
         runtime = Runtime()
         try:
             initial = runtime.initial_state(self)
@@ -675,10 +656,17 @@ class Machine:
                 "current": {},
             }
             for name, definition in self.fields.items():
-                runtime._validate_type(
-                    name, initial[name], definition.type, type_context
-                )
+                try:
+                    runtime._validate_type(
+                        name, initial[name], definition.type, type_context
+                    )
+                except (ValueError, TypeError, KeyError) as exc:
+                    raise MachineValidationError(
+                        self.name, f"$.fields[{name!r}].initial", str(exc)
+                    ) from exc
             runtime.render_view(self, initial)
+        except MachineValidationError:
+            raise
         except (DSLValidationError, KeyError, TypeError, ValueError) as exc:
             raise ValueError(f"invalid {self.name} definition: {exc}") from exc
         try:
@@ -703,12 +691,25 @@ def _validate_type_expression(type_expr: Expr) -> None:
         "optional": {"item"},
         "sequence": {"item"},
         "map": {"key", "value"},
+        "record": {"fields", "allow_extra"},
     }
     if kind not in options:
         raise ValueError(f"unknown type {kind!r}")
     required = options[kind] if kind not in {"integer", "number"} else set()
     if not required <= type_expr.kwargs.keys() or set(type_expr.kwargs) - options[kind]:
         raise ValueError(f"invalid {kind} type options")
+    if kind == "record":
+        members = type_expr.kwargs["fields"]
+        if not isinstance(members, dict) or any(
+            not isinstance(name, str) or not name for name in members
+        ):
+            raise ValueError(
+                "record fields must be a mapping of nonempty text names to types"
+            )
+        if not isinstance(type_expr.kwargs["allow_extra"], bool):
+            raise ValueError("record allow_extra must be Boolean")
+        for member_type in members.values():
+            _validate_type_expression(member_type)
     for name in {"item", "key", "value"} & options[kind]:
         _validate_type_expression(type_expr.kwargs[name])
     if kind == "map" and type_expr.kwargs["key"].args[0] not in {

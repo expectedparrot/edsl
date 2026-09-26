@@ -1,5 +1,6 @@
 """Declarative, scoped shared state for coordinated surveys."""
 
+from .exceptions import MachineValidationError
 from .refs import current
 from .call_market import call_market
 from .market_rules import (
@@ -79,6 +80,7 @@ from .dsl import (
 )
 
 __all__ = [
+    "MachineValidationError",
     "call_market",
     "CallMarketRules",
     "CashInterest",

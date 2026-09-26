@@ -20,7 +20,12 @@ def build_machine():
     return Machine(
         constants={},
         name="RunningLedger",
-        fields={"ledger": state_field(T.map(), {"balance": 0, "history": []})},
+        fields={
+            "ledger": state_field(
+                T.record({"balance": T.number(), "history": T.sequence(T.number())}),
+                {"balance": 0, "history": []},
+            )
+        },
         commands={
             "post": Command(
                 inputs={"amounts": T.sequence(T.number())},
