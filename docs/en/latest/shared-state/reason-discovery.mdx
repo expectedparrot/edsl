@@ -1,0 +1,262 @@
+---
+title: "Adaptive reason discovery"
+description: "Start with two reasons, grow the choices through Other responses, and stop after ten agents add nothing new."
+---
+
+Suppose agents each have one reason for choosing a product. There are five reasons
+in the simulated population, randomly assigned among agents, but the survey
+starts with only two. Agents select a listed reason or choose **Other** and supply
+text. New reasons become choices for subsequent agents. Discovery stops after
+**10 consecutive distinct agents provide valid responses without adding a reason**.
+
+This is an adaptive survey driven by a serialized Machine. The
+[primitive definition](https://github.com/expectedparrot/edsl/blob/feature/shared-state-v0/examples/machine_primitives/reason_discovery.py)
+uses existing fields, maps, conditions, assertions, and effects with an empty
+algorithm registry. The [survey and runnable simulation](https://github.com/expectedparrot/edsl/blob/feature/shared-state-v0/examples/reason_discovery.py)
+provide dynamic multiple-choice options, conditional free text, and a sequential
+interview schedule.
+
+## Run the example
+
+```bash
+python -m examples.reason_discovery
+```
+
+The local simulation creates 100 agents, assigning each one of five reasons
+using the [versioned keyed integer draw](/en/latest/shared-state/randomization-and-money).
+Assignments are uniform over those five labels; each agent receives one draw.
+The initial choices are `Lower price`, `Better quality`, and the routing option
+`Other`. The Machine does not know the other three reasons or the total number
+of possible reasons. Only the simulated population knows the ground truth.
+
+With the default seed `reason-discovery-2026`, the actual survey run produces:
+
+| Agent, in interview order | Observation | Reasons known | Quiet streak |
+| --- | --- | --- | --- |
+| 1 | Selects Better quality | 2 | 1 |
+| 2 | Adds Recommendation through Other | 3 | 0 |
+| 3 | Adds Convenience through Other | 4 | 0 |
+| 4–10 | Select existing reasons | 4 | 1–7 |
+| 11 | Adds Habit through Other | 5 | 0 |
+| 12–21 | Select existing reasons | 5 | 1–10 |
+
+It stops after **21 interviewed agents**, leaving the remaining 79 unasked. All
+five reasons happened to be discovered in this run. The JSON report includes the
+seed, discovered labels, final streak, stop reason, undiscovered ground truth,
+and the sequence of valid observations. Selecting Other does not create an
+observation until its text is submitted.
+
+The demo uses scripted local agents and a test model, with no model API calls.
+Scripts simulate choosing their assigned reason or supplying it through Other;
+the Machine handles catalog growth and stopping. This verifies the mechanism and
+survey plumbing, not an LLM's ability to paraphrase or categorize reasons.
+
+## State and transition rules
+
+Construct the Machine with two seed labels and a patience threshold:
+
+```python
+from examples.machine_primitives.reason_discovery import build_machine
+
+machine = build_machine(
+    seed_reasons=["Lower price", "Better quality"],
+    patience=10,
+)
+machine.validate()
+```
+
+Its fields are:
+
+| Field | Purpose |
+| --- | --- |
+| `reasons` | Ordered display labels, starting with the seed reasons |
+| `responses` | Stable respondent ID to normalized reason, preventing double counting |
+| `quiet_streak` | Consecutive valid observations without a new reason |
+| `closed` | Explicit early closure, separate from saturation |
+
+Reason identity is defined by **trimming surrounding whitespace and applying
+case folding**. The first supplied spelling is kept for display. Thus
+`" Convenience "` and `"CONVENIENCE"` identify the same reason. Internal spacing,
+punctuation, synonyms, and paraphrases are not merged. `Other` is reserved for
+routing and cannot be a seed or a supplied reason. Seed labels must be nonempty
+and distinct under the same normalization; patience must be a positive integer.
+
+Two commands express the survey's two paths:
+
+- `select(respondent_id=..., reason=...)` records a reason already in the catalog.
+  Selecting the literal `Other` is a no-op that routes to the free-text question.
+- `suggest(respondent_id=..., reason=...)` records the free-text answer. If its
+  normalized text is new, it appends the label and resets the streak to zero.
+  If it is already known, it increments the streak.
+
+Both paths record at most one valid observation per stable respondent ID. A
+same-ID/same-reason retry is a no-op. Changing a previously recorded reason is
+rejected with `respondent_reason_changed`. Empty IDs, empty reasons, the reserved
+Other label, and selecting an unknown option are rejected without changing the
+catalog or streak. Such invalid submissions do not count as quiet observations.
+
+Once `quiet_streak >= patience`, new observations are rejected with
+`discovery_closed`. An explicit close also blocks new observations, without
+claiming saturation. Retries of an earlier valid observation remain harmless.
+All changes to labels, streak, and respondent records commit atomically.
+
+The key computation uses ordinary primitives:
+
+```python
+from edsl.sharedstate import field, input_, local, map_sequence
+
+reason = input_("reason").stripped()
+key = reason.casefolded()
+known_keys = map_sequence(
+    field("reasons"),
+    item="label",
+    value_expr=local("label").casefolded(),
+)
+new = ~known_keys.contains(key)
+```
+
+For a new respondent, the complete definition conditionally appends `reason`,
+sets the streak to `choose(new, 0, field("quiet_streak") + 1)`, and records the
+respondent's key. All these expressions see the same pre-command snapshot, so
+appending first does not accidentally make the subsequent streak calculation
+believe the reason was already known.
+
+## Wire the adaptive survey
+
+The complete adapter is available as:
+
+```python
+from examples.reason_discovery import build_survey
+
+survey, states, schedule = build_survey(patience=10)
+```
+
+Each agent carries a trusted stable `respondent_id`, a `study_id`, and an integer
+`turn`. Its simulation-only `true_reason` trait supplies scripted answers; the
+Machine never reads that trait. Studies have separate scopes and separate catalogs.
+
+At the start of each interview, an explicit state read supplies the current
+catalog. A computed gate ends an interview if discovery is closed. The reason
+question gets its actual options from that read:
+
+```python
+from edsl import QuestionMultipleChoice, QuestionFreeText
+
+reason = QuestionMultipleChoice(
+    question_name="reason",
+    question_text=(
+        "Why did you choose this product? "
+        "Choose Other if your reason is not listed."
+    ),
+    question_options="{{ shared_state.discovery.options }}",
+)
+other = QuestionFreeText(
+    question_name="other_reason",
+    question_text="What was your other reason for choosing this product?",
+)
+```
+
+The returned view's `options` is `reasons` followed by `Other`. It excludes the
+respondent ledger. The survey writes a `select` command after the multiple-choice
+answer, asks `other_reason` only when the answer was Other, and writes `suggest`
+after that text answer. Its skip rule is:
+
+```python
+survey.add_skip_rule(other, "{{ reason.answer }} != 'Other'")
+```
+
+This fragment illustrates the rule already installed by `build_survey()`; do not
+add it a second time to the returned survey. A skipped free-text question does
+not execute its attached write. An Other routing no-op does not increment the
+streak or mark the respondent seen before their suggestion arrives.
+
+The schedule runs one whole interview at a time per study:
+
+```python
+from edsl import InterviewSchedule
+from edsl.sharedstate import current
+
+discovery = states.by(current.agent.study_id).discovery
+schedule = InterviewSchedule.grouped_round_robin(
+    "study_id", "turn", stop_when=discovery.is_complete()
+)
+```
+
+Use the schedule returned by `build_survey()` when running its survey. In the
+local Runner:
+
+```python
+from edsl import Model
+from edsl.runner import Runner
+from examples.reason_discovery import demo_agents
+
+results = (
+    Runner(interview_schedule=schedule)
+    .submit(survey.by(demo_agents()).by(Model("test")), cache=False)
+    .results()
+)
+```
+
+Serial execution makes “in a row” mean interview order and ensures a suggestion
+is committed before the next agent sees the choices. Running all agents at once
+would let several see an older catalog and would make the streak depend on commit
+order. Atomicity still prevents duplicate catalog entries or overshooting the
+threshold, but that would be a different study design. Avoid round-frozen reads.
+
+The schedule checks completion before releasing further questions. Remaining
+agents may appear as skipped results with no reason answer; count recorded valid
+observations rather than `len(results)`. The Machine's own closed guard also
+prevents late direct submissions from changing a saturated catalog.
+
+## Replay, completion, and interpretation
+
+Transporting `survey.to_dict()` and `schedule.to_dict()` preserves the dynamic
+options, state identity, command bindings, stop rule, and sequential order. Saving
+and restoring both resumes the same catalog and streak. A fresh state map starts
+a new study. SQLite operation retries replay the original decision, while the
+respondent ledger also prevents recounting when a retry has a new operation ID.
+
+The simulated pool is finite. If it runs out before the streak reaches 10, the
+report says `population_exhausted`, not `saturation`. The random seed is explicit,
+so population assignments and the sequential run can be reproduced.
+
+**Ten quiet agents is a stopping rule, not proof that every reason is known.**
+A test puts ten agents with a seeded reason before an agent with an unseen reason:
+the survey correctly stops after ten and never discovers the later reason. In a
+real study the unknown ground truth cannot be included in the report; it is an
+evaluation aid available only in this simulation.
+
+The [tests](https://github.com/expectedparrot/edsl/blob/feature/shared-state-v0/tests/sharedstate/test_reason_discovery.py)
+check the ninth/tenth-observation boundary, resets on discoveries, duplicate and
+invalid suggestions, same-ID retries, concurrent submissions, SQLite restart,
+and independent reference simulations. End-to-end tests inspect each agent's
+rendered option list, verify that only Other triggers free text, transport the
+survey and schedule through JSON, resume across jobs, and confirm that later
+agents are not asked after saturation. A fresh process replays the exported
+Machine without importing its Python authoring helper.
+
+## Design findings
+
+This application needs no new interpreter primitive. It combines a growing
+choice list, conditional questions, atomic updates, and a shared completion
+condition. Its Machine exports under the corpus's empty algorithm registry and
+generic-reducer policy.
+
+The current primitive definition is **12,924 JSON bytes**, with **184 expression
+occurrences and 41 distinct trees**. Its checked-in Machine demo uses at most
+**4,078 host budget steps per transition**. Reproduce those measurements with
+`python -m examples.machine_primitives.profile_corpus`. The two command bodies
+share a Python authoring helper, but that helper expands into repeated serialized
+expressions. Reusable serialized computation remains a useful design target.
+
+The larger application-specific gap is **semantic deduplication**. An LLM may
+write “it cost less” when “Lower price” is already listed. This example treats
+those as different reasons. Merging them requires an explicit classification or
+review policy, with an auditable decision about whether the streak should reset;
+string normalization does not solve that problem.
+
+The local tests do not establish support in a deployed human-survey service.
+Such a deployment must preserve dynamic option snapshots, trusted IDs, shared
+state, conditional questions, and the intended interview ordering. The running
+[design checklist](https://github.com/expectedparrot/edsl/issues/2665) tracks the
+remaining composition and deployment boundaries.

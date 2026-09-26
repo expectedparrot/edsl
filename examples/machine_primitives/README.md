@@ -17,6 +17,7 @@ Python helpers construct expressions. They are never callbacks during execution.
 | [Seeded allocation](seeded_allocation.py) | Stable-ID lottery and independent keyed bonus | Study-assigned IDs; predictable seed |
 | [Monetary settlement](monetary_settlement.py) | Exact decimal text, integer balances, fee rounding | Fixed accounts; no authorization or currency conversion |
 | [Survey quotas](survey_quota.py) | Atomic per-type admission and personal eligibility | Counts admissions; no abandonment reclamation or authentication |
+| [Reason discovery](reason_discovery.py) | Growing catalog and streak-based stopping across distinct agents | Text normalization only; saturation can miss rare reasons |
 
 Run from the repository root with an installed EDSL development environment:
 
@@ -100,3 +101,11 @@ Run `python -m examples.machine_primitives.profile_corpus` to measure all exampl
 serialized size, expression repetition, and per-transition host budget work.
 This development instrumentation uses internal accounting; its measurements are
 not a stable tracing API or cross-host cost schedule.
+
+
+The [adaptive reason-discovery adapter](../reason_discovery.py) starts with two
+reasons plus Other, asks for text only on Other, and presents additions to later
+agents. `python -m examples.reason_discovery` runs a seeded five-reason population
+sequentially until ten valid observations add nothing new. The canonical
+[walkthrough](https://docs.expectedparrot.com/en/latest/shared-state/reason-discovery)
+documents stopping, normalization, ordering, replay, and semantic-deduplication limits.

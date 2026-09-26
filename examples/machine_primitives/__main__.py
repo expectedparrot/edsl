@@ -19,6 +19,7 @@ EXAMPLES = (
     "seeded_allocation",
     "monetary_settlement",
     "survey_quota",
+    "reason_discovery",
 )
 
 
