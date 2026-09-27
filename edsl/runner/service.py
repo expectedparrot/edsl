@@ -67,8 +67,12 @@ class JobService:
     from submission through completion.
     """
 
-    def __init__(self, storage: StorageProtocol):
+    def __init__(
+        self, storage: StorageProtocol, *, state_backend_factory=None, distributed=False
+    ):
         self._storage = storage
+        self._state_backend_factory = state_backend_factory
+        self._distributed = distributed
         self._jobs = JobStore(storage)
         self._interviews = InterviewStore(storage)
         self._tasks = TaskStore(storage)
@@ -111,9 +115,79 @@ class JobService:
                 / "edsl-shared-state"
                 / f"{step.state_id}.sqlite3"
             )
-            self._local_state_bindings[key] = SQLiteStateBackend(state_map, path)
-            self._state_checkpoints[key] = self._local_state_bindings[key].checkpoint()
+            if self._state_backend_factory is not None:
+                binding = self._state_backend_factory(job_id, state_map)
+            elif self._distributed:
+                raise ValueError(
+                    "shared state requires a configured distributed state backend"
+                )
+            else:
+                binding = SQLiteStateBackend(state_map, path)
+            self._local_state_bindings[key] = binding
+            record = self._storage.read_persistent(f"job:{job_id}:shared_state") or {}
+            saved = record.get(step.state_id)
+            self._state_checkpoints[key] = (
+                saved["checkpoint"] if saved is not None else binding.checkpoint()
+            )
         return self._local_state_bindings[key]
+
+    def _get_interview_schedule(self, job_id):
+        if job_id not in self._interview_schedules:
+            from ..jobs.interview_schedule import InterviewSchedule
+
+            definition = self._jobs.get_definition(job_id)
+            schedule = definition.interview_schedule if definition else "concurrent"
+            self._interview_schedules[job_id] = (
+                InterviewSchedule.from_dict(schedule)
+                if isinstance(schedule, dict)
+                else schedule
+            )
+        return self._interview_schedules[job_id]
+
+    def _prepare_shared_state(self, job_id, survey, schedule):
+        steps = [
+            step
+            for mapping in (
+                getattr(survey, "_state_reads", {}),
+                getattr(survey, "_state_writes", {}),
+                getattr(survey, "_state_before_writes", {}),
+            )
+            for values in mapping.values()
+            for step in values
+        ]
+        steps += [
+            condition
+            for condition in (
+                getattr(schedule, "stop_when", None),
+                getattr(schedule, "finalize_when", None),
+            )
+            if condition is not None
+        ]
+        if not steps:
+            return
+        from .._data_contracts import definition_fingerprint
+        from ..sharedstate.dsl_runtime import default_runtime
+
+        definitions = {}
+        for step in steps:
+            fingerprint = definition_fingerprint(step.definition.to_dict())
+            if (
+                step.state_id in definitions
+                and definitions[step.state_id] != fingerprint
+            ):
+                raise ValueError("conflicting definitions for shared state_id")
+            definitions[step.state_id] = fingerprint
+            for machine in step.definition.machines.values():
+                default_runtime().validate_capabilities(machine)
+        # Persist submission checkpoints before any task becomes visible to workers.
+        record = {}
+        for step in steps:
+            self._state_binding(job_id, step)
+            record[step.state_id] = {
+                "definition": step.definition.to_dict(),
+                "checkpoint": self._state_checkpoints[(job_id, step.state_id)],
+            }
+        self._storage.write_persistent(f"job:{job_id}:shared_state", record)
 
     def read_state_for_question(
         self, job_id, survey, task_def, interview_id: str, agent_traits: dict
@@ -128,10 +202,18 @@ class JobService:
             cached_view, cached_versions = self._interview_state_snapshots.get(
                 cache_key, ({}, {})
             )
+            if self._distributed:
+                saved = self._storage.read_persistent(
+                    f"job:{job_id}:interview:{interview_id}:state_observation"
+                )
+                if saved is not None:
+                    cached_view, cached_versions = saved["view"], saved["versions"]
             cached_view = dict(cached_view)
             cached_versions = dict(cached_versions)
         if not steps and not before_steps:
-            return dict(cached_view), tuple(sorted(cached_versions.values()))
+            return dict(cached_view), tuple(
+                sorted(tuple(v) for v in cached_versions.values())
+            )
         from ..sharedstate.model import resolve_read, resolve_write
         from ..sharedstate.steps import StepContext
 
@@ -153,7 +235,7 @@ class JobService:
             binding = self._state_binding(job_id, step)
             operation = resolve_read(step, context)
             at_sequence = None
-            schedule = self._interview_schedules.get(job_id)
+            schedule = self._get_interview_schedule(job_id)
             if (
                 getattr(schedule, "kind", None) == "rounds"
                 and schedule.state_visibility == "snapshot"
@@ -180,7 +262,12 @@ class JobService:
                 dict(rendered),
                 dict(versions),
             )
-        return dict(rendered), tuple(sorted(versions.values()))
+        if self._distributed:
+            self._storage.write_persistent(
+                f"job:{job_id}:interview:{interview_id}:state_observation",
+                {"view": rendered, "versions": versions},
+            )
+        return dict(rendered), tuple(sorted(tuple(v) for v in versions.values()))
 
     def state_for_direct_answer(
         self, job_id: str, interview_id: str, task_id: str
@@ -249,7 +336,7 @@ class JobService:
         return self._original_key_lookups.get(job_id)
 
     def has_group_stop_condition(self, job_id: str) -> bool:
-        schedule = self._interview_schedules.get(job_id)
+        schedule = self._get_interview_schedule(job_id)
         return getattr(schedule, "stop_when", None) is not None
 
     # =========================================================================
@@ -264,7 +351,7 @@ class JobService:
         n: int = 1,  # Number of iterations to run each interview
         job_id: str | None = None,  # Pre-generated job ID (for GCS upload flow)
         stop_on_exception: bool = False,  # Compatibility parameter (not used yet)
-        interview_schedule: str = "concurrent",
+        interview_schedule=None,
     ) -> str:
         """
         Submit an EDSL Job for execution.
@@ -286,6 +373,20 @@ class JobService:
         """
         submit_start = time.time()
         job_id = job_id or getattr(job, "id", None) or generate_id()
+        from ..jobs.interview_schedule import validate_interview_schedule
+
+        job.replace_missing_objects()
+        if interview_schedule is None:
+            interview_schedule = job.run_config.parameters.interview_schedule
+        validate_interview_schedule(job, interview_schedule, n)
+        if self._distributed and interview_schedule not in ("concurrent", "serial"):
+            raise ValueError(
+                "distributed shared state currently supports concurrent or serial interviews; "
+                "grouped and round schedules require durable barriers and are not supported yet"
+            )
+        if getattr(interview_schedule, "kind", None) == "rounds":
+            n = interview_schedule.count
+        self._prepare_shared_state(job_id, job.survey, interview_schedule)
         self._job_stop_on_exception[job_id] = stop_on_exception
         self._interview_schedules[job_id] = interview_schedule
         n_iterations = max(1, n)  # Ensure at least 1 iteration
@@ -694,7 +795,13 @@ class JobService:
             model_ids=list(model_map.keys()),
             question_ids=list(question_map.keys()),
             n_iterations=n_iterations,
-            preserve_interview_order=assignment_plan.mode != "cross",
+            preserve_interview_order=assignment_plan.mode != "cross"
+            or interview_schedule == "serial",
+            interview_schedule=(
+                interview_schedule.to_dict()
+                if hasattr(interview_schedule, "to_dict")
+                else interview_schedule
+            ),
         )
         self._jobs.create(job_def)
         logger.info(
@@ -898,7 +1005,7 @@ class JobService:
 
             survey = self._survey_cache.get(survey_data)
 
-        schedule = self._interview_schedules.get(job_id)
+        schedule = self._get_interview_schedule(job_id)
         stop_condition = getattr(schedule, "stop_when", None)
         if stop_condition is not None:
             from ..sharedstate.dsl_runtime import Runtime
@@ -1159,7 +1266,7 @@ class JobService:
         )
         for step in steps:
             self._state_binding(job_id, step).apply(resolve_write(step, context))
-        schedule = self._interview_schedules.get(job_id)
+        schedule = self._get_interview_schedule(job_id)
         condition = getattr(schedule, "finalize_when", None)
         if condition is not None:
             from ..sharedstate.model import resolve
@@ -1268,6 +1375,7 @@ class JobService:
         if interview_state != InterviewState.RUNNING:
             had_failures = interview_state == InterviewState.COMPLETED_WITH_FAILURES
             self._jobs.mark_interview_completed(job_id, interview_id, had_failures)
+            self._publish_shared_state_results(job_id)
             # Notify CAS streaming callback (if registered)
             cb = self._interview_callbacks.get(job_id)
             if cb:
@@ -1414,6 +1522,7 @@ class JobService:
             self._jobs.mark_interviews_completed_batch(
                 job_id, completed_iids, had_failures_iids
             )
+            self._publish_shared_state_results(job_id)
         _t_finalize = (_t.time() - _t0) * 1000
 
         _total = (_t.time() - _batch_t0) * 1000
@@ -1455,6 +1564,7 @@ class JobService:
         if interview_state != InterviewState.RUNNING:
             had_failures = interview_state == InterviewState.COMPLETED_WITH_FAILURES
             self._jobs.mark_interview_completed(job_id, interview_id, had_failures)
+            self._publish_shared_state_results(job_id)
             cb = self._interview_callbacks.get(job_id)
             if cb:
                 cb(job_id, interview_id)
@@ -1552,6 +1662,7 @@ class JobService:
         if interview_state != InterviewState.RUNNING:
             had_failures = True  # We just had a failure
             self._jobs.mark_interview_completed(job_id, interview_id, had_failures)
+            self._publish_shared_state_results(job_id)
             cb = self._interview_callbacks.get(job_id)
             if cb:
                 cb(job_id, interview_id)
@@ -2828,6 +2939,43 @@ class JobService:
                 ]
             }
         )
+        shared_state = self.shared_state_results(job_id)
+        results = Results(
+            survey=survey,
+            data=result_list,
+            task_history=task_history,
+            shared_state=shared_state,
+        )
+        if _timing is not None:
+            _timing["create_results_object"] = (_time.time() - _t) * 1000
+
+        return results
+
+    def _publish_shared_state_results(self, job_id):
+        if not self._distributed:
+            return
+        if self._jobs.get_state(job_id) not in (
+            JobState.COMPLETED,
+            JobState.COMPLETED_WITH_FAILURES,
+        ):
+            return
+        if self._storage.read_persistent(f"job:{job_id}:shared_state"):
+            self.shared_state_results(job_id)
+
+    def shared_state_results(self, job_id):
+        """Export state provenance from durable bindings, including in a fresh writer."""
+        from types import SimpleNamespace
+        from ..sharedstate.model import SharedState
+
+        record = self._storage.read_persistent(f"job:{job_id}:shared_state") or {}
+        for state_id, data in record.items():
+            self._state_binding(
+                job_id,
+                SimpleNamespace(
+                    state_id=state_id,
+                    definition=SharedState.from_dict(data["definition"]),
+                ),
+            )
         state_bindings = []
         for (bound_job_id, state_id), binding in self._local_state_bindings.items():
             if bound_job_id != job_id:
@@ -2852,18 +3000,10 @@ class JobService:
                     ],
                 }
             )
-        results = Results(
-            survey=survey,
-            data=result_list,
-            task_history=task_history,
-            shared_state=(
-                {"version": 1, "bindings": state_bindings} if state_bindings else None
-            ),
-        )
-        if _timing is not None:
-            _timing["create_results_object"] = (_time.time() - _t) * 1000
-
-        return results
+        result = {"version": 1, "bindings": state_bindings} if state_bindings else None
+        if result is not None and self._distributed:
+            self._storage.write_persistent(f"job:{job_id}:shared_state_results", result)
+        return result
 
     # =========================================================================
     # Helper Methods

@@ -844,6 +844,7 @@ class JobsRemoteInferenceHandler:
         results = Results(
             survey=self.jobs.survey if self.jobs else None,
             data=result_list,
+            shared_state=manifest.get("shared_state"),
         )
 
         # Runner streaming can finish before Coop assigns results_uuid; poll briefly.

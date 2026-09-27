@@ -1989,89 +1989,9 @@ class Jobs(Base):
         from ..runner.runner import Runner
 
         schedule = self.run_config.parameters.interview_schedule
-        from .interview_schedule import InterviewSchedule
+        from .interview_schedule import validate_interview_schedule
 
-        if schedule == "serial":
-            from .exceptions import JobsValueError
-
-            if len(self.scenarios) != 1 or len(self.models) != 1:
-                raise JobsValueError(
-                    "interview_schedule='serial' currently requires exactly one "
-                    "scenario and one model"
-                )
-            if self.run_config.parameters.n != 1:
-                raise JobsValueError(
-                    "interview_schedule='serial' currently requires n=1; run "
-                    "each discussion round as a separate serial job"
-                )
-        elif isinstance(schedule, InterviewSchedule):
-            from .exceptions import JobsValueError
-
-            if schedule.kind not in {"grouped_round_robin", "rounds"}:
-                raise JobsValueError(
-                    f"unknown interview schedule kind '{schedule.kind}'"
-                )
-            if len(self.scenarios) != 1 or len(self.models) != 1:
-                raise JobsValueError(
-                    "grouped_round_robin currently requires exactly one scenario "
-                    "and one model"
-                )
-            for condition in (schedule.stop_when, schedule.finalize_when):
-                if condition is None:
-                    continue
-                from ..sharedstate.model import StateCondition
-
-                if not isinstance(condition, StateCondition):
-                    raise JobsValueError(
-                        "schedule state conditions must come from "
-                        "a scoped machine's is_complete() method"
-                    )
-            if (
-                schedule.kind == "rounds"
-                and schedule.within_round == "concurrent"
-                and schedule.state_visibility == "snapshot"
-                and getattr(self.survey, "_state_before_writes", {})
-            ):
-                raise JobsValueError(
-                    "before-question state writes cannot be combined with "
-                    "concurrent snapshot rounds; use state_visibility='live' "
-                    "until pre-round write barriers are supported"
-                )
-            required_traits = (
-                (schedule.group_by, schedule.order_by)
-                if schedule.kind == "grouped_round_robin"
-                else (schedule.group_by, schedule.order_by)
-            )
-            for agent in self.agents:
-                missing = [
-                    key
-                    for key in required_traits
-                    if key is not None and key not in agent.traits
-                ]
-                if missing:
-                    raise JobsValueError(
-                        f"agent '{agent.name}' is missing schedule traits {missing}"
-                    )
-            if schedule.kind == "grouped_round_robin":
-                seen_positions = set()
-                for agent in self.agents:
-                    position = (
-                        agent.traits[schedule.group_by],
-                        agent.traits[schedule.order_by],
-                    )
-                    if position in seen_positions:
-                        raise JobsValueError(
-                            "grouped_round_robin requires unique order values within "
-                            f"each group; duplicate position {position!r}"
-                        )
-                    seen_positions.add(position)
-        elif schedule != "concurrent":
-            from .exceptions import JobsValueError
-
-            raise JobsValueError(
-                f"unknown interview_schedule {schedule!r}; expected 'concurrent', "
-                "'serial', or an InterviewSchedule"
-            )
+        validate_interview_schedule(self, schedule, self.run_config.parameters.n)
         runner = Runner(
             max_workers=self.run_config.parameters.max_concurrency or 400,
             interview_schedule=schedule,

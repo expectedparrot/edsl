@@ -163,6 +163,7 @@ class JobDefinition:
     # Iterations - number of times to run each interview
     n_iterations: int = 1
     preserve_interview_order: bool = False
+    interview_schedule: str | dict = "concurrent"
 
     def storage_key(self) -> str:
         return f"job:{self.job_id}:meta"
@@ -181,6 +182,7 @@ class JobDefinition:
             "question_ids": self.question_ids,
             "n_iterations": self.n_iterations,
             "preserve_interview_order": self.preserve_interview_order,
+            "interview_schedule": self.interview_schedule,
         }
 
     @classmethod
@@ -201,6 +203,7 @@ class JobDefinition:
             question_ids=data["question_ids"],
             n_iterations=data.get("n_iterations", 1),
             preserve_interview_order=data.get("preserve_interview_order", False),
+            interview_schedule=data.get("interview_schedule", "concurrent"),
         )
 
 
