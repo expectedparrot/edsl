@@ -256,15 +256,51 @@ def register(humanize: click.Group) -> None:
             error("HUMANIZE_ERROR", str(e), exit_code=EXIT_REMOTE)
 
 
+    @humanize_prolific.command("preflight")
+    @click.argument("human_survey_uuid")
+    @click.argument("study_id")
+    @click.option("--survey", "survey_path", type=click.Path(exists=True), help="Expected saved Survey; compare with the deployed survey.")
+    @click.option("--require-question", multiple=True, help="Required deployed question name; repeat as needed.")
+    @click.option("--required-credits", type=float, help="All-in credits including any AI reserve; defaults to recruitment only.")
+    def humanize_prolific_preflight(human_survey_uuid, study_id, survey_path, require_question, required_credits):
+        """Check a draft's deployed content and balance without publishing."""
+        try:
+            from edsl.coop import Coop
+            from edsl import Survey
+
+            check = Coop().preflight_prolific_study(
+                human_survey_uuid, study_id,
+                expected_survey=Survey.load(survey_path) if survey_path else None,
+                required_questions=list(require_question), required_credits=required_credits,
+            )
+            output(jsonable(check))
+            if not check["ready"]:
+                raise SystemExit(EXIT_VALIDATION)
+        except SystemExit:
+            raise
+        except Exception as e:
+            error("HUMANIZE_ERROR", str(e), exit_code=EXIT_REMOTE)
+
     @humanize_prolific.command("publish")
     @click.argument("human_survey_uuid")
     @click.argument("study_id")
-    def humanize_prolific_publish(human_survey_uuid, study_id):
-        """Publish a Prolific study."""
+    @click.option("--survey", "survey_path", type=click.Path(exists=True), help="Expected saved Survey; compare with the deployed survey.")
+    @click.option("--require-question", multiple=True, help="Required deployed question name; repeat as needed.")
+    @click.option("--required-credits", type=float, help="All-in credits including any AI reserve; defaults to recruitment only.")
+    def humanize_prolific_publish(human_survey_uuid, study_id, survey_path, require_question, required_credits):
+        """Publish an authorized Prolific study after fresh preflight checks."""
         try:
             from edsl.coop import Coop
+            from edsl import Survey
 
-            output(jsonable(Coop().publish_prolific_study(human_survey_uuid, study_id)))
+            options = {}
+            if survey_path:
+                options["expected_survey"] = Survey.load(survey_path)
+            if require_question:
+                options["required_questions"] = list(require_question)
+            if required_credits is not None:
+                options["required_credits"] = required_credits
+            output(jsonable(Coop().publish_prolific_study(human_survey_uuid, study_id, **options)))
         except SystemExit:
             raise
         except Exception as e:
