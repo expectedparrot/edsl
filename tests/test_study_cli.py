@@ -196,3 +196,47 @@ def test_study_scaffold_reports_missing_template_invariants(tmp_path):
     result = CliRunner().invoke(app, ["study", "scaffold", str(tmp_path / "study_a"), "--template", "survey"])
     assert result.exit_code == 2
     assert json.loads(result.output)["error"]["code"] == "STUDY_SCAFFOLD_ERROR"
+
+
+def test_scaffold_builds_and_rebuilds_jobs_from_editable_model_source(tmp_path):
+    import os
+    from edsl import Jobs
+
+    root = tmp_path / "multi model study"
+    args = ["study", "scaffold", str(root), "--template", "survey",
+            "--expected-rows", "2", "--model", "test", "--run-description", "Multi model"]
+    manifest = payload(CliRunner().invoke(app, args))["data"]
+    relative = "edsl_jobs/job_a/study_model_list.py"
+    assert relative in manifest["next_edits"]
+    source = root / relative
+    original = source.read_text()
+    edited = original.replace(
+        "model_list = ModelList([Model('test')])",
+        'model_list = ModelList([Model("test", temperature=0), Model("test", temperature=1)])',
+    )
+    assert edited != original
+    source.write_text(edited)
+    # Simulate the previous generated recipe; re-scaffolding upgrades only it.
+    makefile = root / "Makefile"
+    makefile.write_text(makefile.read_text().replace(
+        '$(MODELS): $(JOB_DIR)/study_model_list.py\n\tcd $(JOB_DIR) && $(STUDY_PYTHON) study_model_list.py',
+        '$(MODELS):\n\t$(EP) models create --model "$(MODEL_NAME)" --output $@',
+    ).replace(' $(MODELS) $(JOB_DIR)/study_model_list.py', ' $(MODELS)'))
+    payload(CliRunner().invoke(app, args))
+    assert source.read_text() == edited  # Re-scaffolding preserves study edits.
+
+    def build():
+        result = subprocess.run([
+            "make", "-C", str(root), "edsl-objects",
+            f"STUDY_PYTHON={shlex.quote(sys.executable)}",
+            f"EP={shlex.quote(sys.executable)} -m edsl",
+        ], capture_output=True, text=True, timeout=30)
+        assert result.returncode == 0, result.stdout + result.stderr
+        return Jobs.load(str(root / "edsl_jobs/job_a/jobs.ep"))
+
+    assert [m.parameters["temperature"] for m in build().models] == [0, 1]
+    source.write_text(original)
+    timestamp = (root / "edsl_jobs/job_a/jobs.ep").stat().st_mtime + 1
+    os.utime(source, (timestamp, timestamp))
+    assert len(build().models) == 1
+    assert not (root / "data/results.ep").exists()
