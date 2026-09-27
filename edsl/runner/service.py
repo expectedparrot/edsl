@@ -182,17 +182,54 @@ class JobService:
         # Persist submission checkpoints before any task becomes visible to workers.
         record = {}
         for step in steps:
-            self._state_binding(job_id, step)
+            binding = self._state_binding(job_id, step)
+            if (
+                self._distributed
+                and getattr(schedule, "state_visibility", None) == "snapshot"
+                and not callable(getattr(binding, "pin_checkpoint", None))
+            ):
+                raise ValueError(
+                    "snapshot rounds require a backend with durable checkpoints"
+                )
             record[step.state_id] = {
                 "definition": step.definition.to_dict(),
                 "checkpoint": self._state_checkpoints[(job_id, step.state_id)],
             }
         self._storage.write_persistent(f"job:{job_id}:shared_state", record)
 
+    def _pin_round_state(self, job_id, iteration, agent_traits):
+        """Pin every map before a renderer in this group/round can mutate state.
+
+        Persisted task dependencies release each group after its preceding
+        round ends. Stable map order prevents a fast renderer from writing a
+        map before a slower renderer has established that map's boundary.
+        """
+        if not self._distributed:
+            return {}
+        schedule = self._get_interview_schedule(job_id)
+        if (
+            getattr(schedule, "kind", None) != "rounds"
+            or schedule.state_visibility != "snapshot"
+        ):
+            return {}
+        from ..sharedstate.model import SharedState, SharedStateMap
+
+        group = agent_traits[schedule.group_by] if schedule.group_by else "__all__"
+        record = self._storage.read_persistent(f"job:{job_id}:shared_state") or {}
+        pinned = {}
+        for state_id, saved in sorted(record.items()):
+            state_map = SharedStateMap(
+                SharedState.from_dict(saved["definition"]), state_id=state_id
+            )
+            binding = self._state_binding(job_id, state_map)
+            pinned[state_id] = binding.pin_checkpoint(["round", group, iteration])
+        return pinned
+
     def read_state_for_question(
         self, job_id, survey, task_def, interview_id: str, agent_traits: dict
     ) -> tuple[dict[str, Any], tuple[tuple[str, int], ...]]:
         """Execute explicit reads immediately before a question is rendered."""
+        round_versions = self._pin_round_state(job_id, task_def.iteration, agent_traits)
         before_steps = getattr(survey, "_state_before_writes", {}).get(
             task_def.question_name, []
         )
@@ -203,11 +240,22 @@ class JobService:
                 cache_key, ({}, {})
             )
             if self._distributed:
-                saved = self._storage.read_persistent(
-                    f"job:{job_id}:interview:{interview_id}:state_observation"
-                )
-                if saved is not None:
-                    cached_view, cached_versions = saved["view"], saved["versions"]
+                # Reconstruct the preceding read phase, never a later phase
+                # left behind by another renderer or a delayed retry.
+                cached_view, cached_versions = {}, {}
+                for question in survey.questions:
+                    if question.question_name == task_def.question_name:
+                        break
+                    if not getattr(survey, "_state_reads", {}).get(
+                        question.question_name
+                    ):
+                        continue
+                    saved = self._storage.read_persistent(
+                        f"job:{job_id}:interview:{interview_id}:"
+                        f"state_observation:{question.question_name}"
+                    )
+                    if saved is not None:
+                        cached_view, cached_versions = saved["view"], saved["versions"]
             cached_view = dict(cached_view)
             cached_versions = dict(cached_versions)
         if not steps and not before_steps:
@@ -231,9 +279,33 @@ class JobService:
             self._state_binding(job_id, step).apply(resolve_write(step, context))
         rendered = dict(cached_view)
         versions = dict(cached_versions)
-        for step in steps:
+        for read_index, step in enumerate(steps):
             binding = self._state_binding(job_id, step)
             operation = resolve_read(step, context)
+            if self._distributed:
+                from dataclasses import replace
+                from uuid import NAMESPACE_URL, uuid5
+                from .._data_contracts import canonical_data
+
+                # Identity belongs to the read anchor, not to a render attempt.
+                # PostgreSQL atomically stores/replays the first observation.
+                operation = replace(
+                    operation,
+                    read_id=str(
+                        uuid5(
+                            NAMESPACE_URL,
+                            canonical_data(
+                                [
+                                    job_id,
+                                    interview_id,
+                                    task_def.question_name,
+                                    read_index,
+                                    step.step_id,
+                                ]
+                            ),
+                        )
+                    ),
+                )
             at_sequence = None
             schedule = self._get_interview_schedule(job_id)
             if (
@@ -250,10 +322,13 @@ class JobService:
                     task_def.iteration,
                     operation.scope.canonical,
                 )
-                with self._round_snapshot_lock:
-                    at_sequence = self._round_snapshot_versions.setdefault(
-                        snapshot_key, binding.checkpoint()
-                    )
+                if self._distributed:
+                    at_sequence = round_versions[step.state_id]
+                else:
+                    with self._round_snapshot_lock:
+                        at_sequence = self._round_snapshot_versions.setdefault(
+                            snapshot_key, binding.checkpoint()
+                        )
             observed = binding.read(operation, at_sequence=at_sequence)
             rendered[step.target] = observed.value
             versions[step.target] = (observed.read_id, observed.version)
@@ -262,9 +337,10 @@ class JobService:
                 dict(rendered),
                 dict(versions),
             )
-        if self._distributed:
+        if self._distributed and steps:
             self._storage.write_persistent(
-                f"job:{job_id}:interview:{interview_id}:state_observation",
+                f"job:{job_id}:interview:{interview_id}:"
+                f"state_observation:{task_def.question_name}",
                 {"view": rendered, "versions": versions},
             )
         return dict(rendered), tuple(sorted(tuple(v) for v in versions.values()))
@@ -373,17 +449,17 @@ class JobService:
         """
         submit_start = time.time()
         job_id = job_id or getattr(job, "id", None) or generate_id()
-        from ..jobs.interview_schedule import validate_interview_schedule
+        from ..jobs.interview_schedule import (
+            validate_interview_schedule,
+            validate_distributed_interview_schedule,
+        )
 
         job.replace_missing_objects()
         if interview_schedule is None:
             interview_schedule = job.run_config.parameters.interview_schedule
         validate_interview_schedule(job, interview_schedule, n)
-        if self._distributed and interview_schedule not in ("concurrent", "serial"):
-            raise ValueError(
-                "distributed shared state currently supports concurrent or serial interviews; "
-                "grouped and round schedules require durable barriers and are not supported yet"
-            )
+        if self._distributed:
+            validate_distributed_interview_schedule(interview_schedule)
         if getattr(interview_schedule, "kind", None) == "rounds":
             n = interview_schedule.count
         self._prepare_shared_state(job_id, job.survey, interview_schedule)

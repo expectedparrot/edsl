@@ -33,6 +33,7 @@ def counter_job():
             )
         },
         view={"count": field("count")},
+        complete_when=field("count") >= 2,
     )
     states = SharedStateMap(SharedState(counter=machine), state_id=str(uuid4()))
     counter = states.by("room").counter
@@ -98,8 +99,16 @@ def test_separate_services_read_writes_and_reconstruct_provenance(tmp_path):
 def test_unsupported_schedule_fails_before_creating_tasks():
     storage = InMemoryStorage()
     job = counter_job()
-    job.run_config.parameters.interview_schedule = InterviewSchedule.rounds(count=2)
-    with pytest.raises(ValueError, match="durable barriers"):
+    step = job.survey._state_reads["answer"][0]
+    condition = (
+        SharedStateMap(step.definition, state_id=step.state_id)
+        .by("room")
+        .counter.is_complete()
+    )
+    job.run_config.parameters.interview_schedule = InterviewSchedule.rounds(
+        count=2, stop_when=condition
+    )
+    with pytest.raises(ValueError, match="durable termination"):
         JobService(storage, distributed=True).submit_job(job)
     assert storage.stats()["persistent_keys"] == 0
 
@@ -108,4 +117,44 @@ def test_distributed_state_cannot_fall_back_to_local_disk():
     storage = InMemoryStorage()
     with pytest.raises(ValueError, match="configured distributed state backend"):
         JobService(storage, distributed=True).submit_job(counter_job())
+    assert storage.stats()["persistent_keys"] == 0
+
+
+@pytest.mark.parametrize(
+    "changes",
+    [
+        {"count": 0},
+        {"count": True},
+        {"count": 1.5},
+        {"within_round": "unordered"},
+        {"state_visibility": "eventual"},
+        {"round_order": "random"},
+        {"reveal": "live"},
+    ],
+)
+def test_invalid_serialized_round_policy_creates_no_tasks(changes):
+    from edsl.jobs.exceptions import JobsValueError
+
+    payload = InterviewSchedule.rounds(count=2).to_dict() | changes
+    job = counter_job()
+    job.run_config.parameters.interview_schedule = InterviewSchedule.from_dict(payload)
+    storage = InMemoryStorage()
+    with pytest.raises(JobsValueError):
+        JobService(storage, distributed=True).submit_job(job)
+    assert storage.stats()["persistent_keys"] == 0
+
+
+def test_snapshot_rounds_require_durable_checkpoint_capability(tmp_path):
+    job = counter_job()
+    job.run_config.parameters.interview_schedule = InterviewSchedule.rounds(count=2)
+    storage = InMemoryStorage()
+    service = JobService(
+        storage,
+        distributed=True,
+        state_backend_factory=lambda _, state_map: SQLiteStateBackend(
+            state_map, tmp_path / "state.sqlite"
+        ),
+    )
+    with pytest.raises(ValueError, match="durable checkpoints"):
+        service.submit_job(job)
     assert storage.stats()["persistent_keys"] == 0

@@ -152,6 +152,25 @@ def validate_interview_schedule(job, schedule, n=1):
 
         if schedule.kind not in {"grouped_round_robin", "rounds"}:
             raise JobsValueError(f"unknown interview schedule kind '{schedule.kind}'")
+        if schedule.kind == "rounds":
+            # Serialized schedules bypass the convenience constructor.
+            if type(schedule.count) is not int or schedule.count < 1:
+                raise JobsValueError("round count must be a positive integer")
+            if schedule.within_round not in {"concurrent", "serial"}:
+                raise JobsValueError("within_round must be 'concurrent' or 'serial'")
+            if schedule.state_visibility not in {"snapshot", "live"}:
+                raise JobsValueError("state_visibility must be 'snapshot' or 'live'")
+            if schedule.round_order not in {"fixed", "rotate"}:
+                raise JobsValueError("round_order must be 'fixed' or 'rotate'")
+            if schedule.reveal not in {None, "live", "after_round"}:
+                raise JobsValueError("invalid round reveal policy")
+            if (schedule.reveal == "live" and schedule.state_visibility != "live") or (
+                schedule.reveal == "after_round"
+                and schedule.state_visibility != "snapshot"
+            ):
+                raise JobsValueError(
+                    "round reveal policy conflicts with state_visibility"
+                )
         if len(job.scenarios) != 1 or len(job.models) != 1:
             raise JobsValueError(
                 "grouped_round_robin currently requires exactly one scenario "
@@ -212,4 +231,20 @@ def validate_interview_schedule(job, schedule, n=1):
         raise JobsValueError(
             f"unknown interview_schedule {schedule!r}; expected 'concurrent', "
             "'serial', or an InterviewSchedule"
+        )
+
+
+def validate_distributed_interview_schedule(schedule):
+    """Admit only schedules whose coordination is implemented remotely."""
+    if schedule in ("concurrent", "serial"):
+        return
+    if not isinstance(schedule, InterviewSchedule) or schedule.kind not in {
+        "rounds",
+        "grouped_round_robin",
+    }:
+        raise ValueError("unsupported distributed interview schedule")
+    if schedule.stop_when is not None or schedule.finalize_when is not None:
+        raise ValueError(
+            "distributed stop/finalize conditions are not supported yet; "
+            "durable termination recovery is required"
         )

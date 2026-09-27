@@ -59,6 +59,16 @@ events = Table(
 )
 
 
+checkpoints = Table(
+    "runner_state_checkpoints",
+    metadata,
+    Column("namespace", Text, primary_key=True),
+    Column("state_id", Text, primary_key=True),
+    Column("checkpoint_key", Text, primary_key=True),
+    Column("sequence", BigInteger, nullable=False),
+)
+
+
 class PostgresStateBackend:
     def __init__(self, state_map, engine, *, namespace, runtime=None):
         if not namespace or not isinstance(namespace, str):
@@ -268,8 +278,39 @@ class PostgresStateBackend:
             return self._ack(event)
 
     def read(self, operation, *, at_sequence=None):
+        """Pin a read ID to its first observation, including across retries."""
         self._check_id(operation.state_id)
+        request = dict(
+            state_id=operation.state_id,
+            scope=operation.scope.value,
+            target=operation.target,
+            step_id=operation.step_id,
+            execution_id=operation.execution_id,
+            runtime_context=dict(operation.runtime_context),
+            at_sequence=at_sequence,
+        )
+        validate_data(request)
         with self._transaction() as (conn, sequence):
+            previous = conn.execute(
+                select(events.c.payload).where(
+                    self._event_key, events.c.event_id == operation.read_id
+                )
+            ).scalar_one_or_none()
+            if previous is not None:
+                if previous["kind"] != "read" or canonical_data(
+                    previous.get("request")
+                ) != canonical_data(request):
+                    raise SharedStateRuntimeError(
+                        "state read ID was reused with different content or runtime context"
+                    )
+                return ObservedState(
+                    operation.read_id,
+                    operation.state_id,
+                    operation.scope.value,
+                    operation.target,
+                    previous["version"],
+                    previous["value"],
+                )
             state, version = self._materialized(
                 conn, operation.scope.canonical, at_sequence
             )
@@ -300,6 +341,7 @@ class PostgresStateBackend:
                 target=operation.target,
                 step_id=operation.step_id,
                 execution_id=operation.execution_id,
+                request=request,
                 value=value,
                 timestamp=datetime.now(timezone.utc).isoformat(),
             )
@@ -363,6 +405,30 @@ class PostgresStateBackend:
 
     def checkpoint(self):
         with self._transaction() as (_, sequence):
+            return sequence
+
+    def pin_checkpoint(self, key):
+        """Atomically pin a named boundary; all processes reuse its first value."""
+        validate_data(key)
+        encoded = canonical_data(key)
+        with self._transaction() as (conn, sequence):
+            previous = conn.execute(
+                select(checkpoints.c.sequence).where(
+                    checkpoints.c.namespace == self.namespace,
+                    checkpoints.c.state_id == self.state_map.state_id,
+                    checkpoints.c.checkpoint_key == encoded,
+                )
+            ).scalar_one_or_none()
+            if previous is not None:
+                return previous
+            conn.execute(
+                insert(checkpoints).values(
+                    namespace=self.namespace,
+                    state_id=self.state_map.state_id,
+                    checkpoint_key=encoded,
+                    sequence=sequence,
+                )
+            )
             return sequence
 
     def history(self, *, after_sequence=0):
