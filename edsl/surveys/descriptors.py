@@ -173,6 +173,15 @@ class QuestionsToRandomizeDescriptor(BaseDescriptor):
         if hasattr(instance, "_questions") and instance._questions:
             question_names_in_survey = {q.question_name for q in instance._questions}
 
+            for question in instance._questions:
+                if (
+                    question.question_name in value
+                    and question.question_type == "distribution"
+                ):
+                    raise SurveyQuestionsToRandomizeError(
+                        "QuestionDistribution does not support option randomization."
+                    )
+
             for question_name in value:
                 if question_name not in question_names_in_survey:
                     raise SurveyQuestionsToRandomizeError(
