@@ -1,0 +1,492 @@
+---
+title: "Uniform-price multi-unit auction"
+description: "A self-contained Machine, single-pass Survey, and local settlement demo."
+---
+
+Three bidders each submit up to two weakly decreasing marginal bids for three
+identical units. The Machine ranks the eligible unit bids, awards the top three,
+and charges every winning unit the highest rejected eligible bid, or the reserve
+when no eligible bid is rejected. It then settles cash and inventory atomically.
+
+This chapter uses the **highest-rejected-bid** convention for uniform pricing.
+The term also covers other conventions; see [Roughgarden's mechanism-design
+notes](https://web.stanford.edu/class/cs206/ch07.pdf). This is not a multi-unit
+Vickrey payment rule. A bidder's own rejected unit can set the price it pays on
+its winning units; the executable variation below demonstrates that distinction.
+
+The demo bids are A: [90, 65], B: [80, 60], and C: [70, 50]. Each wins one unit,
+the rejected bid 65 sets the price, and the seller receives 195.
+
+## Build and run the complete example
+
+Execute the following four Python blocks in order in one session, or concatenate
+them into a script. Use an EDSL build with the Machine and Runner APIs documented
+in this manual. Everything is defined here: only EDSL and the Python standard
+library are required, with no repository example imports and no model API calls.
+
+### 1. Define the Machine
+
+Nested folds flatten bounded marginal bids into unit tickets. A general sorting
+reducer ranks them; `let` binds the ranked list, winning list, and settlement
+price once. All behavior is serialized in the Machine, with no auction callback.
+
+```python
+from edsl.sharedstate import (
+    Command,
+    Machine,
+    T,
+    assert_,
+    choose,
+    constant,
+    current_value,
+    field,
+    filter_items,
+    fold,
+    input_,
+    let,
+    local,
+    map_items,
+    record,
+    reduce_,
+    seeded_integer,
+    set_,
+    state_field,
+    take,
+    when,
+)
+
+def build_machine(
+    units=3, max_demand=2, balances=None, reserve=40, seed="auction-2026"
+):
+    balances = dict({"A": 200, "B": 200, "C": 200} if balances is None else balances)
+    if not balances or any(
+        not isinstance(k, str) or not k.strip() or type(v) is not int or v < 0
+        for k, v in balances.items()
+    ):
+        raise ValueError(
+            "balances require nonempty bidder IDs and nonnegative integer cash"
+        )
+    if type(reserve) is not int or reserve < 1 or not isinstance(seed, str) or not seed:
+        raise ValueError("reserve must be a positive integer and seed nonempty text")
+
+    if (
+        type(units) is not int
+        or units < 1
+        or type(max_demand) is not int
+        or not 1 <= max_demand <= units
+    ):
+        raise ValueError("require positive integer units and 1 <= max_demand <= units")
+    book = field("auction")
+    bidder, bids = input_("bidder_id"), input_("bids")
+    submitted = book.get("bids")
+    known = submitted.contains(bidder)
+    bid_type = T.sequence(T.integer(minimum=0))
+    # Validate weakly decreasing marginal bids without requiring a sorting callback.
+    order_check = fold(
+        bids,
+        record(previous=choose(bids.length() > 0, bids.at(0), 0), valid=True),
+        item="price",
+        accumulator="check",
+        body=record(
+            previous=local("price"),
+            valid=local("check").get("valid")
+            & (local("price") <= local("check").get("previous")),
+        ),
+    )
+    # Flatten each bidder's bounded demand into unit tickets. Every .at access
+    # sits in a lazy branch, so missing bids and abstentions create no tickets.
+    owner, unit, tickets = local("owner"), local("unit"), local("tickets")
+    owner_bids = submitted.get(owner, [])
+    expanded = fold(
+        constant("bidders"),
+        [],
+        item="owner",
+        accumulator="rows",
+        body=fold(
+            constant("unit_indices"),
+            local("rows"),
+            item="unit",
+            accumulator="tickets",
+            body=choose(
+                unit < owner_bids.length(),
+                tickets.appended(
+                    record(
+                        bidder=owner,
+                        unit=unit,
+                        price=owner_bids.at(unit),
+                        priority=seeded_integer(
+                            constant("seed"),
+                            0,
+                            4294967296,
+                            scope="auction",
+                            key=owner,
+                        ),
+                    )
+                ),
+                tickets,
+            ),
+        ),
+    )
+    ranked = reduce_(
+        "sort_records",
+        filter_items(
+            expanded,
+            item="ticket",
+            predicate=local("ticket").get("price") >= constant("reserve"),
+        ),
+        fields=["price", "priority", "bidder", "unit"],
+        descending=[True, False, False, False],
+    )
+    winning = take(local("ranked"), constant("units"))
+    price = choose(
+        local("winners").length() > 0,
+        choose(
+            local("ranked").length() > constant("units"),
+            local("ranked").at(constant("units")).get("price"),
+            constant("reserve"),
+        ),
+        None,
+    )
+    quantity = filter_items(
+        local("winners"),
+        item="ticket",
+        predicate=local("ticket").get("bidder") == local("id"),
+    ).length()
+    payment = quantity * choose(local("price") == None, 0, local("price"))
+
+    def by_bidder(value):
+        return map_items(
+            book.get("cash"),
+            key="id",
+            value="cash",
+            key_expr=local("id"),
+            value_expr=value,
+        )
+
+    settlement = let(
+        "ranked",
+        ranked,
+        let(
+            "winners",
+            winning,
+            let(
+                "price",
+                price,
+                book.with_item("settled", True)
+                .with_item("price", local("price"))
+                .with_item("allocations", by_bidder(quantity))
+                .with_item("payments", by_bidder(payment))
+                .with_item("cash", by_bidder(local("cash") - payment))
+                .with_item(
+                    "seller_cash",
+                    local("winners").length()
+                    * choose(local("price") == None, 0, local("price")),
+                )
+                .with_item("remaining", constant("units") - local("winners").length()),
+            ),
+        ),
+    )
+    finish = when(~book.get("settled"), set_("auction", settlement))
+    you = current_value("bidder_id", "")
+    return Machine(
+        name="UniformPriceAuction",
+        constants={
+            "bidders": sorted(balances),
+            "units": units,
+            "unit_indices": list(range(max_demand)),
+            "max_demand": max_demand,
+            "max_cash": max(balances.values()),
+            "reserve": reserve,
+            "seed": seed,
+        },
+        fields={
+            "auction": state_field(
+                T.record(
+                    {
+                        "bids": T.map(T.text(), bid_type),
+                        "cash": T.map(T.text(), T.integer(minimum=0)),
+                        "allocations": T.map(T.text(), T.integer(minimum=0)),
+                        "payments": T.map(T.text(), T.integer(minimum=0)),
+                        "seller_cash": T.integer(minimum=0),
+                        "remaining": T.integer(minimum=0),
+                        "price": T.optional(T.integer(minimum=1)),
+                        "settled": T.boolean(),
+                    }
+                ),
+                {
+                    "bids": {},
+                    "cash": balances,
+                    "allocations": dict.fromkeys(balances, 0),
+                    "payments": dict.fromkeys(balances, 0),
+                    "seller_cash": 0,
+                    "remaining": units,
+                    "price": None,
+                    "settled": False,
+                },
+            )
+        },
+        commands={
+            "submit": Command(
+                inputs={"bidder_id": T.text(), "bids": bid_type},
+                effects=(
+                    assert_(
+                        constant("bidders").contains(bidder), code="unknown_bidder"
+                    ),
+                    assert_(
+                        ~known | (submitted.get(bidder) == bids), code="bid_changed"
+                    ),
+                    when(~known, assert_(~book.get("settled"), code="auction_settled")),
+                    assert_(
+                        bids.length() <= constant("max_demand"), code="too_many_units"
+                    ),
+                    assert_(order_check.get("valid"), code="bids_not_decreasing"),
+                    # Existing bids replay after funds have been spent at settlement.
+                    when(
+                        ~known,
+                        assert_(
+                            reduce_("sum", bids) <= book.get("cash").get(bidder),
+                            code="insufficient_budget",
+                        ),
+                    ),
+                    when(
+                        ~known,
+                        set_(
+                            "auction",
+                            book.with_item("bids", submitted.with_item(bidder, bids)),
+                        ),
+                    ),
+                ),
+            ),
+            "settle_if_ready": Command(
+                inputs={},
+                require=submitted.length() == constant("bidders").length(),
+                effects=(finish,),
+            ),
+        },
+        # Explicit close also settles an incomplete roster, including an empty auction.
+        close_effects=(finish,),
+        complete_when=book.get("settled"),
+        view={
+            "submitted": submitted.contains(you),
+            "settled": book.get("settled"),
+            "received": submitted.length(),
+            "your_bids": submitted.get(you, []),
+            "cash": book.get("cash").get(you),
+            "allocation": book.get("allocations").get(you, 0),
+            "payment": book.get("payments").get(you, 0),
+            "price": book.get("price"),
+            "allocations": choose(book.get("settled"), book.get("allocations"), {}),
+            "remaining": book.get("remaining"),
+            "seller_cash": book.get("seller_cash"),
+        },
+    )
+```
+
+### 2. Construct the single-pass Survey
+
+Each roster member answers the fixed bid questions once. Integer multiple-choice
+options make the small demo grid explicit; bids must still pass the Machine
+budget and ordering checks. An invalid bid produces a "not accepted" receipt,
+and the example does not ask again. Zero means no demand for a unit.
+
+`settle_if_ready` is a no-op until every roster member has submitted. The last
+submission settles the market. Earlier respondents retain their "pending"
+receipts: a single pass does not revisit them after settlement. The final host
+Results evidence contains the full settlement.
+
+```python
+from edsl import (
+    Agent,
+    AgentList,
+    InterviewSchedule,
+    Model,
+    QuestionCompute,
+    QuestionMultipleChoice,
+    Survey,
+)
+
+from edsl.sharedstate import SharedState, SharedStateMap, current
+
+def build_survey(*, state_id=None, **machine_options):
+    spec = build_machine(**machine_options)
+    states = SharedStateMap(SharedState(auction=spec), state_id=state_id)
+    auction = states.by(current.agent.market_id).auction
+    gate = QuestionCompute(
+        question_name="auction_entry",
+        question_text="{{ 'closed' if shared_state.auction.settled or shared_state.auction.submitted else 'open' }}",
+    )
+    questions = [
+        QuestionMultipleChoice(
+            question_name=f"bid_{i}",
+            question_text=f"What is your bid for marginal unit {i+1}? Use whole money units, weakly decreasing bids, and a total within your dedicated budget. Zero means no bid for this unit.",
+            question_options=list(range(spec.constants["max_cash"] + 1)),
+        )
+        for i in range(spec.constants["max_demand"])
+    ]
+    receipt = QuestionCompute(
+        question_name="auction_receipt",
+        question_text="{{ 'settled' if shared_state.auction.settled else ('pending' if shared_state.auction.submitted else 'not accepted') }}",
+    )
+    survey = Survey(
+        [
+            auction.read(),
+            gate,
+            *questions,
+            auction.submit(
+                bidder_id=current.agent.bidder_id, bids=[q.answer for q in questions]
+            ),
+            auction.settle_if_ready(),
+            auction.read(),
+            receipt,
+        ]
+    )
+    survey.add_stop_rule(gate, "{{ auction_entry.answer }} != 'open'")
+    return survey, states, InterviewSchedule.grouped_round_robin("market_id", "turn")
+```
+
+### 3. Define the scripted respondents
+
+Stable IDs and the `turn` trait establish the demonstration order. These direct
+answers bypass model calls while exercising actual question rendering and rules.
+
+```python
+def demo_answer(self, question, scenario):
+    return self.traits["bids"][int(question.question_name.split("_")[-1])]
+
+def demo_agents():
+    agents = AgentList()
+    for turn, (bidder, bids) in enumerate(
+        zip(["A", "B", "C"], [[90, 65], [80, 60], [70, 50]])
+    ):
+        agent = Agent(
+            traits={
+                "bidder_id": bidder,
+                "bids": bids,
+                "market_id": "market",
+                "turn": turn,
+            }
+        )
+        agent.add_direct_question_answering_method(demo_answer)
+        agents.append(agent)
+    return agents
+```
+
+### 4. Run and inspect settlement
+
+```python
+from edsl.runner import Runner
+
+survey, states, schedule = build_survey()
+results = (
+    Runner(interview_schedule=schedule)
+    .submit(survey.by(demo_agents()).by(Model("test")), cache=False)
+    .results()
+)
+assert not results.has_unfixed_exceptions
+writes = [
+    e for e in results.shared_state["bindings"][0]["events"]
+    if e["kind"] == "write"
+]
+book = writes[-1]["state"]["auction"]["auction"]
+assert book["settled"]
+assert sum(book["cash"].values()) + book["seller_cash"] == 600
+assert sum(book["allocations"].values()) + book["remaining"] == 3
+assert book["price"] == 65
+print(book["allocations"], book["payments"], book["cash"])
+```
+
+Expected final accounts:
+
+| Participant | Units received | Payment | Cash remaining |
+| --- | ---: | ---: | ---: |
+| A | 1 | 65 | 135 |
+| B | 1 | 65 | 135 |
+| C | 1 | 65 | 135 |
+
+## Try the boundary cases
+
+The remaining blocks reuse this page's `build_machine` and run directly under an
+empty `Runtime()` registry after JSON transport.
+
+### A winner's rejected unit can set its price
+
+```python
+from edsl.sharedstate.dsl_runtime import Runtime
+
+machine = Machine.from_json(build_machine(units=2, max_demand=2, balances={"A": 200, "B": 200}).to_json())
+runtime = Runtime()
+state = runtime.initial_state(machine)
+
+for bidder, bids in [("A", [100, 80]), ("B", [90, 50])]:
+    state = runtime.execute(machine, state, "submit", {
+        "bidder_id": bidder, "bids": bids
+    }).state
+state = runtime.execute(machine, state, "settle_if_ready", {}).state
+assert state["auction"]["allocations"] == {"A": 1, "B": 1}
+assert state["auction"]["price"] == 80  # A's own rejected marginal bid.
+
+assert runtime.close(machine, state) == state  # No second charge.
+empty = runtime.close(machine, runtime.initial_state(machine))["auction"]
+assert empty["price"] is None and empty["seller_cash"] == 0
+```
+
+### Bid and settlement conventions
+
+- Money and bids are nonnegative integers; the reserve is a positive integer.
+- Bids below the reserve never win or set the price. With no eligible bids,
+  price is `None`, allocations and payments are zero, and supply stays unsold.
+- Equal bids use a seeded bidder priority, then lexical bidder
+  ID on a hash collision, then marginal unit index. The seed is public and the
+  host must assign trusted stable IDs. Arrival order does not break ties. Use a different Machine seed when markets
+  should have different priorities.
+- A bidder can submit once. Identical retries are no-ops even after settlement;
+  changed bids are rejected. Empty lists are explicit abstentions in the Machine;
+  the Survey uses zero-valued bids.
+- Every roster member must submit before automatic settlement. A host may invoke
+  close to settle a partial roster; there is no wall-clock deadline or automatic
+  dropout handling.
+- The sum of a bidder's marginal bids must fit its dedicated initial balance.
+  These funds cannot be spent by another command before settlement. This is a
+  conservative budget check, not a shared-wallet escrow service.
+
+## What this probes, and what remains
+
+The construction combines sealed respondent views, bounded nested folds,
+seeded ties, an explicit close operation, and atomic settlement. It needs no new
+auction-specific Machine primitive and uses the existing Survey navigation API.
+
+The current view exposes only the caller's own bid list, cash, and payment before
+settlement. This is a presentation boundary, not authentication or cryptographic
+sealing: the host controls bidder identity, and full backend state and Results
+provenance contain **all bids**. Do not distribute those host artifacts as private
+respondent receipts. This example supplies neither commit/reveal nor audit-proof
+randomness.
+
+The Survey's fixed integer choice grid is suitable for a small teaching example;
+large budgets need a different input design. Sorting scales with the roster times
+maximum demand, and the resulting expression runs under the usual Machine work
+and data-size limits. The code does not establish economic incentive properties.
+
+All balances are simulated dedicated accounts; the example does not move real
+money or authenticate account owners. Combining these markets through a common
+wallet would require a deliberate reservation/settlement contract.
+
+## Verification
+
+The executable tests check independent allocation and price references, cash and
+unit conservation, admission rejections without partial mutation, repeated
+settlement, concurrent SQLite commands, reopen/replay, scope isolation, fresh
+interpreter transport, actual Survey choices, and Results serialization.
+The canonical page is also executed in a fresh process with repository example
+imports blocked.
+
+Optional maintainer commands, from a repository checkout:
+
+```bash
+python -m examples.uniform_price_auction
+python -m pytest -q --confcutdir=tests/sharedstate tests/sharedstate/test_auction_markets.py
+```
+
+See the [primitive corpus](/en/latest/shared-state/algorithms-and-reference) for
+related mechanisms and the [Machine manual](/en/latest/shared-state/machines) for
+execution and rejection semantics.

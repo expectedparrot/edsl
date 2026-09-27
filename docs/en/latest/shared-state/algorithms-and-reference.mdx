@@ -35,6 +35,9 @@ counting values.
 | [Adaptive price elicitation](/en/latest/shared-state/price-elicitation) | Per-respondent integer search, bounded slots, and partial resumption | Noisy answers, continuous values, or confidence intervals |
 | [Balanced assignment](/en/latest/shared-state/balanced-assignment) | Greedy marginal balance with seeded ties and immutable assignment | Global balance guarantees or allocation concealment |
 | [Team formation](/en/latest/shared-state/team-formation) | Role-specific admission and post-admission interview completion | Departures, missing-role relaxation, or compatibility matching |
+| [Second-price auction](/en/latest/shared-state/second-price-auction) | Sealed bid views, reserve, and atomic settlement | Cryptographic secrecy, shared wallets, or automatic deadlines |
+| [Uniform-price auction](/en/latest/shared-state/uniform-price-auction) | Marginal demand, seeded ties, and multi-unit settlement | Vickrey pricing or shared collateral |
+| [Posted-price inventory](/en/latest/shared-state/posted-price-market) | Versioned quotes, quantity purchases, and replay-safe payment | Automatic requoting, returns, or replenishment |
 
 These are executable reference examples, not claims of a complete production
 market or matching library. The batch auction is intentionally smaller than the
@@ -172,12 +175,26 @@ rounding policies unchanged.
 | Stochastic priority must replay independently of call order | Keyed SHA-256 `seeded_integer` and stable-ID `seeded_order` | Full asset-market comparisons and migration of legacy random streams |
 | Error policy differs across mechanisms | Explicit assertion/rejection effects, literal reason codes, and durable retry decisions | Full information-flow checks and deliberate migration of older callback error policies |
 | Survey admission must control question flow | Atomic quota Machine plus explicit reads and computed gates | Direct typed state-to-survey branches; completion/expiry policies |
+| Settlement needs a clear wallet boundary | Dedicated balances and atomic payment in three market examples | Shared-wallet reservation, release, and cross-market settlement contracts |
+| A price read can become stale before a purchase | Saved quote versions and explicit `stale_quote` rejection | Host-controlled requoting, quote expiry, and retry UX |
+| Sealed bid views differ from private host storage | Respondent-specific views; full host evidence retains bids | Authenticated identities and deliberate disclosure/export policy |
 | New operations must run on the receiving interpreter | Derived exact-version manifests and destination preflight, including loop options | Deployment of capability discovery and checks on hosted services |
 
 The examples do not solve every limitation by adding a special operation. In
 particular, the full asset market's income schedule, stochastic tie-breaking,
 multi-unit admission, and monetary rounding remain a useful next stress case.
 The batch example demonstrates clearing only and makes that boundary explicit.
+
+The new settlement probes also measure composition costs. With the default demos,
+second-price/uniform-price definitions are 26,346/26,350 JSON bytes and peak at
+12,147/16,427 host budget steps per transition; posted-price inventory is 21,978
+bytes and peaks at 10,061 steps. Auction close and the explicit settlement command
+expand the same settlement expression into two serialized locations. `let` avoids
+repeated evaluation within each expression, but does not provide reusable named
+serialized functions. These local profiler observations strengthen the existing
+composition checklist; they are not portable cost guarantees. Reproduce them with
+the optional repository maintainer command
+`python -m examples.machine_primitives.profile_corpus`.
 
 ## Constructors and registered algorithms
 

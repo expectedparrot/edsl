@@ -24,6 +24,9 @@ Python helpers construct expressions. They are never callbacks during execution.
 | [Price elicitation](price_elicitation.py) | Integer binary search with replayable observations | Assumed in-range monotone threshold; bounded Survey slots |
 | [Balanced assignment](balanced_assignment.py) | Greedy marginal balance and seeded ties | Order-dependent; no concealment or exact-balance guarantee |
 | [Team formation](team_formation.py) | Atomic role seats and persistent personal membership | No departures, waitlists, or role verification |
+| [Second-price auction](second_price_auction.py) | Sealed bid views and atomic payment at settlement | Dedicated funds; no deadline or cryptographic secrecy |
+| [Uniform-price auction](uniform_price_auction.py) | Bounded marginal demand, highest losing price, and settlement | Not multi-unit Vickrey payments; no shared wallet |
+| [Posted-price market](posted_price_market.py) | Versioned quotes, inventory, and idempotent payment | No automatic requoting or expiry |
 
 Run from the repository root with an installed EDSL development environment:
 
@@ -157,5 +160,12 @@ cover independent policy references, concurrent writes, restart/replay, fresh-pr
 transport, actual displayed choices, and resumption. Booking probes reversible
 reservations; price elicitation uses personal scopes; assignment tests competing
 balance margins; team formation distinguishes stopping new enrollment from stopping
-the last admitted interview. All sixteen corpus definitions execute with general
+the last admitted interview. All nineteen corpus definitions execute with general
 primitives and an empty algorithm registry.
+
+Three settlement examples run with `python -m examples.second_price_auction`,
+`python -m examples.uniform_price_auction`, and `python -m examples.posted_price_market`.
+Their canonical Mintlify pages contain complete standalone code.
+[Market tests](../../tests/sharedstate/test_auction_markets.py) cover independent
+clearing references, conservation, privacy of rendered views, concurrent settlement
+and stale quotes, durable replay, and the single-pass Survey adapters.

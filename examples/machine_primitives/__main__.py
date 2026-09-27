@@ -26,6 +26,9 @@ EXAMPLES = (
     "price_elicitation",
     "balanced_assignment",
     "team_formation",
+    "second_price_auction",
+    "uniform_price_auction",
+    "posted_price_market",
 )
 
 
