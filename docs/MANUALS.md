@@ -22,6 +22,14 @@ The obsolete standalone HTML stylesheet is preserved as
 automatically loads CSS files under the documentation root, and those global
 print styles override the site’s light and dark themes.
 
+Application walkthroughs must be self-contained. Define their Machine, survey
+construction, and scripted respondents in the canonical page rather than importing
+helpers from `examples.*`. Python blocks may build on earlier blocks on the same
+page, with execution order stated explicitly. Verify them in a fresh Python
+process outside the repository working directory, with repository example imports
+blocked. Optional repository profiling commands must be labeled as maintainer
+utilities, not required setup for running the walkthrough.
+
 Prospective simulation/design studies are design material,
 not API documentation or promises of supported behavior.
 

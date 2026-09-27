@@ -7,11 +7,14 @@ This application combines personal choice with composition constraints. Each
 team needs one Designer and two Builders. Respondents choose their role, see only
 teams with a seat for it, and join at most one team during a single survey pass.
 
-## Run it
+## Build and run the complete example
 
-```bash
-python -m examples.team_formation
-```
+Everything needed for this example is defined on this page. Use an EDSL build
+that includes the Machine and Runner APIs documented in this manual. Execute the
+following four Python blocks in order in one session, or concatenate them into
+one script. They require EDSL and the Python standard library; no repository
+example modules or external data files are needed. The scripted run makes no
+model API calls.
 
 The default eight-person demo fills Orion and Lyra with one Designer and two
 Builders each. A third Designer cannot join even while Builder seats remain.
@@ -19,13 +22,256 @@ A final excess Builder is screened out before the role question because all
 teams are full. All six admitted respondents receive their introduction question.
 No model API calls are made.
 
-See the [Machine builder](https://github.com/expectedparrot/edsl/blob/feature/shared-state-v0/examples/machine_primitives/team_formation.py)
-and [Survey adapter](https://github.com/expectedparrot/edsl/blob/feature/shared-state-v0/examples/team_formation.py).
+### 1. Define the Machine
+
+The Machine stores each respondent's role and membership. Eligibility is a
+serialized expression over the live role counts, and joining rechecks that capacity.
+
+```python
+from edsl.sharedstate import (
+    Command,
+    Machine,
+    T,
+    assert_,
+    choose,
+    constant,
+    current_value,
+    field,
+    filter_items,
+    input_,
+    local,
+    put,
+    record,
+    set_,
+    state_field,
+    when,
+)
+
+DEFAULT_TEAMS = ("Orion", "Lyra")
+
+DEFAULT_ROLES = {"Designer": 1, "Builder": 2}
+
+def build_machine(teams=DEFAULT_TEAMS, role_seats=None):
+    role_seats = dict(DEFAULT_ROLES if role_seats is None else role_seats)
+    if isinstance(teams, str):
+        raise ValueError("teams must be a sequence")
+    teams = list(teams)
+    if (
+        not teams
+        or any(not isinstance(t, str) or not t.strip() for t in teams)
+        or len(set(teams)) != len(teams)
+    ):
+        raise ValueError("teams must be distinct nonempty labels")
+    if not role_seats or any(
+        not isinstance(k, str) or not k.strip() or type(v) is not int or v < 1
+        for k, v in role_seats.items()
+    ):
+        raise ValueError("roles require nonempty labels and positive integer seats")
+    rid, role, team = input_("respondent_id"), input_("role"), input_("team")
+    profiles, members = field("profiles"), field("members")
+
+    def eligible(for_role):
+        return filter_items(
+            constant("teams"),
+            item="team",
+            predicate=filter_items(
+                members.values(),
+                item="m",
+                predicate=(local("m").get("team") == local("team"))
+                & (local("m").get("role") == for_role),
+            ).length()
+            < constant("role_seats").get(for_role, 0),
+        )
+
+    you = current_value("respondent_id", "")
+    your_team = members.get(you, {}).get("team")
+    return Machine(
+        name="TeamFormation",
+        constants={
+            "teams": teams,
+            "role_seats": role_seats,
+            "total_seats": len(teams) * sum(role_seats.values()),
+        },
+        fields={
+            "profiles": state_field(T.map(T.text(), T.choice(list(role_seats))), {}),
+            "members": state_field(
+                T.map(
+                    T.text(),
+                    T.record(
+                        {"team": T.choice(teams), "role": T.choice(list(role_seats))}
+                    ),
+                ),
+                {},
+            ),
+            "closed": state_field(T.boolean(), False),
+        },
+        commands={
+            "register": Command(
+                inputs={"respondent_id": T.text(), "role": T.choice(list(role_seats))},
+                effects=(
+                    assert_(rid.stripped().length() > 0, code="missing_respondent_id"),
+                    assert_(
+                        ~profiles.contains(rid) | (profiles.get(rid) == role),
+                        code="role_changed",
+                    ),
+                    when(
+                        ~profiles.contains(rid),
+                        assert_(~field("closed"), code="teams_closed"),
+                    ),
+                    put("profiles", rid, role, once=True),
+                ),
+            ),
+            "join": Command(
+                inputs={"respondent_id": T.text(), "team": T.choice(teams)},
+                effects=(
+                    assert_(profiles.contains(rid), code="role_required"),
+                    assert_(
+                        ~members.contains(rid)
+                        | (members.get(rid, {}).get("team") == team),
+                        code="team_changed",
+                    ),
+                    when(
+                        ~members.contains(rid),
+                        assert_(~field("closed"), code="teams_closed"),
+                    ),
+                    when(
+                        ~members.contains(rid),
+                        assert_(
+                            eligible(profiles.get(rid)).contains(team), code="role_full"
+                        ),
+                    ),
+                    put(
+                        "members",
+                        rid,
+                        record(team=team, role=profiles.get(rid)),
+                        once=True,
+                    ),
+                ),
+            ),
+        },
+        complete_when=members.length() == constant("total_seats"),
+        close_effects=(set_("closed", True),),
+        view={
+            "options": choose(
+                your_team != None,
+                [your_team],
+                choose(field("closed"), [], eligible(profiles.get(you))),
+            ),
+            "team": your_team,
+            "role": profiles.get(you),
+            "members": members.length(),
+            "complete": members.length() == constant("total_seats"),
+        },
+    )
+```
+
+### 2. Construct the Survey
+
+These ordinary Survey gates distinguish full enrollment, role-specific
+availability, and successful admission. The final admitted member can still finish.
+
+```python
+from edsl import (
+    Agent,
+    AgentList,
+    InterviewSchedule,
+    Model,
+    QuestionCompute,
+    QuestionFreeText,
+    QuestionMultipleChoice,
+    Survey,
+)
+
+from edsl.sharedstate import SharedState, SharedStateMap, current
+
+def build_survey(*, state_id=None, teams=DEFAULT_TEAMS, role_seats=None):
+    spec = build_machine(teams, role_seats)
+    states = SharedStateMap(SharedState(teams=spec), state_id=state_id)
+    teams = states.by(current.agent.study_id).teams
+    enrollment = QuestionCompute(
+        question_name="team_enrollment",
+        question_text="{{ 'open' if not shared_state.teams.complete or shared_state.teams.team else 'closed' }}",
+    )
+    role = QuestionMultipleChoice(
+        question_name="role",
+        question_text="Which role would you fill?",
+        question_options=list(spec.constants["role_seats"]),
+    )
+    available = QuestionCompute(
+        question_name="team_availability",
+        question_text="{{ 'open' if shared_state.teams.options and shared_state.teams.role == role.answer else 'closed' }}",
+    )
+    team = QuestionMultipleChoice(
+        question_name="team",
+        question_text="Which eligible team would you like to join?",
+        question_options="{{ shared_state.teams.options }}",
+    )
+    joined = QuestionCompute(
+        question_name="joined_team",
+        question_text="{{ shared_state.teams.team or 'unassigned' }}",
+    )
+    introduction = QuestionFreeText(
+        question_name="introduction",
+        question_text="Introduce yourself to team {{ joined_team.answer }}.",
+    )
+    survey = Survey(
+        [
+            teams.read(),
+            enrollment,
+            role,
+            teams.register(respondent_id=current.agent.respondent_id, role=role.answer),
+            teams.read(),
+            available,
+            team,
+            teams.join(respondent_id=current.agent.respondent_id, team=team.answer),
+            teams.read(),
+            joined,
+            introduction,
+        ]
+    )
+    survey.add_stop_rule(enrollment, "{{ team_enrollment.answer }} != 'open'")
+    survey.add_stop_rule(available, "{{ team_availability.answer }} != 'open'")
+    survey.add_stop_rule(joined, "{{ joined_team.answer }} == 'unassigned'")
+    return survey, states, InterviewSchedule.grouped_round_robin("study_id", "turn")
+```
+
+### 3. Define the scripted respondents
+
+The population has three Designers followed by five Builders. Each agent
+chooses the first eligible team and supplies an introduction if admitted.
+
+```python
+def demo_answer(self, question, scenario):
+    if question.question_name == "role":
+        return self.traits["role"]
+    if question.question_name == "team":
+        return question.question_options[0]
+    return "Happy to join."
+
+def demo_agents():
+    agents = AgentList()
+    for i, role in enumerate(["Designer"] * 3 + ["Builder"] * 5):
+        agent = Agent(
+            traits={
+                "respondent_id": f"R{i}",
+                "study_id": "study",
+                "turn": i,
+                "role": role,
+            }
+        )
+        agent.add_direct_question_answering_method(demo_answer)
+        agents.append(agent)
+    return agents
+```
+
+### 4. Run and inspect the answers
+
+`Model("test")` supplies the Jobs model dimension. The agents above answer locally,
+and `QuestionCompute` evaluates the routing gates without a model call.
 
 ```python
 from edsl import Model
 from edsl.runner import Runner
-from examples.team_formation import build_survey, demo_agents
 
 survey, states, schedule = build_survey(
     teams=["Orion", "Lyra"], role_seats={"Designer": 1, "Builder": 2}
@@ -33,13 +279,14 @@ survey, states, schedule = build_survey(
 results = Runner(interview_schedule=schedule).submit(
     survey.by(demo_agents()).by(Model("test")), cache=False
 ).results()
+assert not results.has_unfixed_exceptions
 print(results.select("answer.role", "answer.joined_team", "answer.introduction").to_list())
 ```
 
 ## Watch the roles fill, respondent by respondent
 
-Run the Python blocks on this page in order from a repository checkout. In this
-scripted population, the first three respondents choose Designer and the next
+The follow-up Python blocks use the definitions and Results created above.
+In this scripted population, the first three respondents choose Designer and the next
 five would choose Builder. Everyone selects the first team they are shown.
 
 | Respondent | Role answer | Teams actually shown | Joined | What happened next |

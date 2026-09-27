@@ -7,24 +7,212 @@ This example adapts questions **within one interview**. Each Yes/No response
 narrows the next offer; other respondents have independent state. The Machine
 computes the next price and stopping condition. Survey continues to own navigation.
 
-## Run it
+## Build and run the complete example
 
-```bash
-python -m examples.price_elicitation
-```
+Everything needed for this example is defined on this page. Use an EDSL build
+that includes the Machine and Runner APIs documented in this manual. Execute the
+following four Python blocks in order in one session, or concatenate them into
+one script. They require EDSL and the Python standard library; no repository
+example modules or external data files are needed. The scripted run makes no
+model API calls.
 
 Four scripted respondents have integer thresholds 0, 37, 65, and 100. Starting
 from the assumed range 0..100, their final intervals are respectively 0..0,
 37..37, 65..65, and 100..100. The first three need six questions; the last needs
 seven. This makes no live model calls.
 
-See the [Machine builder](https://github.com/expectedparrot/edsl/blob/feature/shared-state-v0/examples/machine_primitives/price_elicitation.py)
-and [Survey adapter](https://github.com/expectedparrot/edsl/blob/feature/shared-state-v0/examples/price_elicitation.py).
+### 1. Define the Machine
+
+The Machine keeps an inclusive integer interval and an observation history.
+Every accepted response narrows that interval and records the quoted price atomically.
+
+```python
+from edsl.sharedstate import (
+    Command,
+    Machine,
+    T,
+    append,
+    assert_,
+    choose,
+    constant,
+    field,
+    input_,
+    record,
+    round_ratio,
+    set_,
+    state_field,
+    when,
+)
+
+def build_machine(lower=0, upper=100, max_questions=7, tolerance=0):
+    for name, value in (("lower", lower), ("upper", upper), ("tolerance", tolerance)):
+        if type(value) is not int or value < 0:
+            raise ValueError(f"{name} must be a nonnegative integer")
+    if upper < lower or type(max_questions) is not int or not 1 <= max_questions <= 32:
+        raise ValueError("require lower <= upper and 1..32 questions")
+    low, high, history = field("lower"), field("upper"), field("history")
+    step, answer = input_("step"), input_("answer")
+    price = round_ratio(low + high, 2, rounding="ceiling")
+    done = (high - low <= constant("tolerance")) | (
+        history.length() >= constant("max_questions")
+    )
+    replay = step < history.length()
+    previous = choose(replay, history.at(step), {})
+    return Machine(
+        name="PriceElicitation",
+        constants={"max_questions": max_questions, "tolerance": tolerance},
+        fields={
+            "lower": state_field(T.integer(minimum=lower, maximum=upper), lower),
+            "upper": state_field(T.integer(minimum=lower, maximum=upper), upper),
+            "history": state_field(
+                T.sequence(
+                    T.record(
+                        {
+                            "step": T.integer(minimum=0),
+                            "price": T.integer(minimum=lower, maximum=upper),
+                            "answer": T.choice(["Yes", "No"]),
+                        }
+                    )
+                ),
+                [],
+            ),
+            "closed": state_field(T.boolean(), False),
+        },
+        commands={
+            "observe": Command(
+                inputs={
+                    "step": T.integer(minimum=0),
+                    "answer": T.choice(["Yes", "No"]),
+                },
+                effects=(
+                    assert_(
+                        ~replay | (previous.get("answer") == answer),
+                        code="answer_changed",
+                    ),
+                    when(
+                        ~replay,
+                        assert_(~done & ~field("closed"), code="elicitation_finished"),
+                    ),
+                    when(
+                        ~replay,
+                        assert_(step == history.length(), code="unexpected_step"),
+                    ),
+                    when(~replay, set_("lower", choose(answer == "Yes", price, low))),
+                    when(
+                        ~replay, set_("upper", choose(answer == "No", price - 1, high))
+                    ),
+                    when(
+                        ~replay,
+                        append(
+                            "history", record(step=step, price=price, answer=answer)
+                        ),
+                    ),
+                ),
+            )
+        },
+        complete_when=done,
+        close_effects=(set_("closed", True),),
+        view={
+            "lower": low,
+            "upper": high,
+            "price": price,
+            "next_step": history.length(),
+            "done": done | field("closed"),
+            "precise": high - low <= constant("tolerance"),
+        },
+    )
+```
+
+### 2. Construct the Survey
+
+Each respondent gets a separate state scope. The survey declares a bounded
+number of question slots and skips those the Machine no longer needs.
+
+```python
+from edsl import (
+    Agent,
+    AgentList,
+    Model,
+    QuestionCompute,
+    QuestionMultipleChoice,
+    Survey,
+)
+
+from edsl.sharedstate import SharedState, SharedStateMap, current
+
+def build_survey(*, state_id=None, lower=0, upper=100, max_questions=7, tolerance=0):
+    states = SharedStateMap(
+        SharedState(pricing=build_machine(lower, upper, max_questions, tolerance)),
+        state_id=state_id,
+    )
+    pricing = states.by([current.agent.study_id, current.agent.respondent_id]).pricing
+    steps, choices = [], []
+    for i in range(max_questions):
+        quote = QuestionCompute(
+            question_name=f"price_{i}",
+            question_text="{{ shared_state.pricing.price if not shared_state.pricing.done and shared_state.pricing.next_step == "
+            + str(i)
+            + " else 'skip' }}",
+        )
+        answer = QuestionMultipleChoice(
+            question_name=f"buy_{i}",
+            question_text="Would you buy this product for {{ price_"
+            + str(i)
+            + ".answer }} price units?",
+            question_options=["Yes", "No"],
+        )
+        steps.extend(
+            [
+                pricing.read(),
+                quote,
+                answer,
+                pricing.observe(step=i, answer=answer.answer),
+            ]
+        )
+        choices.append(answer)
+    summary = QuestionCompute(
+        question_name="price_interval",
+        question_text="{{ shared_state.pricing.lower }}..{{ shared_state.pricing.upper }}",
+    )
+    survey = Survey([*steps, pricing.read(), summary])
+    for i, question in enumerate(choices):
+        survey.add_skip_rule(question, "{{ price_" + str(i) + ".answer }} == 'skip'")
+    # Independent respondent scopes can proceed concurrently; no shared ranking.
+    return survey, states, "concurrent"
+```
+
+### 3. Define the scripted respondents
+
+These agents have known integer thresholds for checking the result. Only the
+answering function reads that simulation trait; the Machine receives Yes/No responses.
+
+```python
+def demo_answer(self, question, scenario):
+    return (
+        "Yes"
+        if self.traits["value"] >= scenario["shared_state"]["pricing"]["price"]
+        else "No"
+    )
+
+def demo_agents(values=(0, 37, 65, 100)):
+    agents = AgentList()
+    for i, value in enumerate(values):
+        agent = Agent(
+            traits={"respondent_id": f"R{i}", "study_id": "study", "value": value}
+        )
+        agent.add_direct_question_answering_method(demo_answer)
+        agents.append(agent)
+    return agents
+```
+
+### 4. Run and inspect the answers
+
+`Model("test")` supplies the Jobs model dimension. The agents above answer locally,
+and `QuestionCompute` evaluates the routing gates without a model call.
 
 ```python
 from edsl import Model
 from edsl.runner import Runner
-from examples.price_elicitation import build_survey, demo_agents
 
 survey, states, schedule = build_survey(
     lower=0, upper=100, max_questions=7, tolerance=0
@@ -32,12 +220,13 @@ survey, states, schedule = build_survey(
 results = Runner(interview_schedule=schedule).submit(
     survey.by(demo_agents()).by(Model("test")), cache=False
 ).results()
+assert not results.has_unfixed_exceptions
 print(results.select("answer.price_interval").to_list())
 ```
 
 ## Watch one respondent's offers change
 
-Run the Python blocks on this page in order from a repository checkout. The
+The follow-up Python blocks use the definitions and Results created above. The
 `results` variable above contains four independent interviews. R1's scripted
 threshold is 37: they answer Yes exactly when the offer is at most 37. The Machine
 does not read that hidden simulation trait; it only receives the Yes/No answers.
