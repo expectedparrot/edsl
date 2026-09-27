@@ -513,6 +513,30 @@ class JobService:
                     )
 
     @serialized_transition
+    def resume_worker_task(self, job_id, interview_id, task_id):
+        """Repair a redelivered worker task before making another provider call.
+
+        Returns its terminal status when no model call is needed, otherwise None.
+        This is completion recovery, not ownership of an in-flight model call.
+        """
+        if not self._distributed:
+            return None
+        if self._jobs.get_state(job_id) == JobState.CANCELLED:
+            return TaskStatus.SKIPPED
+        task = self._tasks.get_definition(job_id, interview_id, task_id)
+        if task is None:
+            raise ValueError(f"Task {task_id} not found")
+        if self._repair_if_terminal(job_id, task):
+            return self._terminal_status(job_id, task_id)
+        if (
+            self._storage.read_volatile(f"job:{job_id}:task:{task_id}:accepted_answer")
+            is not None
+        ):
+            self._skip_task(job_id, interview_id, task_id)
+            return self._terminal_status(job_id, task_id)
+        return None
+
+    @serialized_transition
     def _recover_task(self, job_id, interview_id, task_id):
         if self._jobs.get_state(job_id) == JobState.CANCELLED:
             return

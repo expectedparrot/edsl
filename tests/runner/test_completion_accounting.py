@@ -139,6 +139,41 @@ def test_retry_repairs_interrupted_completion_accounting(storage, point):
     )
 
 
+@pytest.mark.parametrize("point", ["accepted", "terminal", "complete"])
+def test_worker_redelivery_resumes_without_another_answer(storage, point):
+    from edsl.runner.models import TaskStatus
+
+    job_id, rounds = submit(storage)
+    iid, tid = rounds[0][0]
+    service = JobService(storage, distributed=True)
+    service.tasks.set_status(tid, TaskStatus.QUEUED)
+    assert service.resume_worker_task(job_id, iid, tid) is None
+
+    def crash(*args):
+        raise RuntimeError("worker interrupted")
+
+    if point == "accepted":
+        service._execute_shared_state_steps = crash
+    elif point == "terminal":
+        record = service._record_terminal
+
+        def record_then_crash(*args):
+            record(*args)
+            crash()
+
+        service._record_terminal = record_then_crash
+    if point == "complete":
+        service.on_task_completed(job_id, iid, tid, "original", validated=True)
+    else:
+        with pytest.raises(RuntimeError, match="worker interrupted"):
+            service.on_task_completed(job_id, iid, tid, "original", validated=True)
+    replacement = JobService(storage, distributed=True)
+    for _ in range(2):
+        assert replacement.resume_worker_task(job_id, iid, tid) == TaskStatus.COMPLETED
+        assert replacement.answers.get(job_id, iid, "answer").answer == "original"
+        assert_first_completion_only(storage, job_id, rounds)
+
+
 def test_duplicate_skip_cannot_release_round_early(storage):
     job_id, rounds = submit(storage)
     for _ in range(3):
