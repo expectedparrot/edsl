@@ -19,6 +19,7 @@ logger = logging.getLogger(__name__)
 from .storage import StorageProtocol
 from .stores import JobStore, InterviewStore, TaskStore, AnswerStore
 from .survey_cache import SurveyCache
+from .transition_lock import serialized_transition
 
 try:
     from .storage_sqlalchemy import reset_db_stats, get_db_stats
@@ -68,14 +69,31 @@ class JobService:
     """
 
     def __init__(
-        self, storage: StorageProtocol, *, state_backend_factory=None, distributed=False
+        self,
+        storage: StorageProtocol,
+        *,
+        state_backend_factory=None,
+        distributed=False,
+        transition_lock=None,
     ):
         self._storage = storage
         self._state_backend_factory = state_backend_factory
         self._distributed = distributed
-        self._jobs = JobStore(storage)
-        self._interviews = InterviewStore(storage)
-        self._tasks = TaskStore(storage)
+        self._transition_lock = transition_lock
+        if distributed and not all(
+            callable(getattr(storage, name, None))
+            for name in (
+                "increment_volatile_once",
+                "satisfy_dependency_once",
+                "get_or_set_volatile",
+            )
+        ):
+            raise ValueError(
+                "distributed execution requires atomic completion accounting"
+            )
+        self._jobs = JobStore(storage, idempotent=distributed)
+        self._interviews = InterviewStore(storage, idempotent=distributed)
+        self._tasks = TaskStore(storage, idempotent=distributed)
         self._answers = AnswerStore(storage)
         self._survey_cache = SurveyCache()
         self._job_stop_on_exception: dict[str, bool] = {}  # job_id -> stop_on_exception
@@ -183,6 +201,14 @@ class JobService:
         record = {}
         for step in steps:
             binding = self._state_binding(job_id, step)
+            if (
+                self._distributed
+                and getattr(schedule, "finalize_when", None) is not None
+                and not callable(getattr(binding, "is_finalized", None))
+            ):
+                raise ValueError(
+                    "distributed finalization requires durable close inspection"
+                )
             if (
                 self._distributed
                 and getattr(schedule, "state_visibility", None) == "snapshot"
@@ -413,7 +439,100 @@ class JobService:
 
     def has_group_stop_condition(self, job_id: str) -> bool:
         schedule = self._get_interview_schedule(job_id)
-        return getattr(schedule, "stop_when", None) is not None
+        return getattr(schedule, "stop_when", None) is not None or (
+            self._distributed and getattr(schedule, "finalize_when", None) is not None
+        )
+
+    def restore_direct_task_info(self, job_id):
+        """Reconstruct direct tasks from persisted objects, never client closures.
+
+        Callers must decide which self-answering question types are safe to
+        execute again after interruption (for example, pure compute questions).
+        """
+        from ..questions import QuestionBase
+
+        definition = self._jobs.get_definition(job_id)
+        if definition is None:
+            raise ValueError(f"Job {job_id} not found")
+        entries = []
+        for iid in definition.interview_ids:
+            interview = self._interviews.get_definition(job_id, iid)
+            for tid in interview.task_ids:
+                task = self._tasks.get_definition(job_id, iid, tid)
+                if task.execution_type == "llm":
+                    continue
+                entries.append(
+                    dict(
+                        job_id=job_id,
+                        interview_id=iid,
+                        task_id=tid,
+                        execution_type=task.execution_type,
+                        agent=Agent.from_dict(
+                            self._jobs.get_agent(job_id, task.agent_id)
+                        ),
+                        scenario=Scenario.from_dict(
+                            self._jobs.get_scenario(job_id, task.scenario_id)
+                        ),
+                        question=QuestionBase.from_dict(
+                            self._jobs.get_question(job_id, task.question_id)
+                        ),
+                        item_randomization_seed=interview.question_item_randomization_seeds.get(
+                            task.question_name
+                        ),
+                    )
+                )
+        return entries
+
+    def recover_scheduler(self, job_id):
+        """Repair an interrupted API scheduler while its exclusive owner is held.
+
+        Queued/running tasks belong to workers and are never redispatched here.
+        The caller must publish queue entries and QUEUED status atomically.
+        """
+        if not self._distributed or self._transition_lock is None:
+            raise ValueError("job recovery requires coordinated distributed execution")
+        definition = self._jobs.get_definition(job_id)
+        if definition is None:
+            raise ValueError(f"Job {job_id} not found")
+        from ..sharedstate.exceptions import CommandRejected
+
+        for iid in definition.interview_ids:
+            interview = self._interviews.get_definition(job_id, iid)
+            for tid in interview.task_ids:
+                try:
+                    self._recover_task(job_id, iid, tid)
+                except CommandRejected as exc:
+                    # Run outside _recover_task's transition lock.
+                    self.on_task_failed(
+                        job_id,
+                        iid,
+                        tid,
+                        "CommandRejected",
+                        str(exc),
+                        force_permanent=True,
+                    )
+
+    @serialized_transition
+    def _recover_task(self, job_id, interview_id, task_id):
+        if self._jobs.get_state(job_id) == JobState.CANCELLED:
+            return
+        task = self._tasks.get_definition(job_id, interview_id, task_id)
+        if self._repair_if_terminal(job_id, task):
+            return
+        if (
+            self._storage.read_volatile(f"job:{job_id}:task:{task_id}:accepted_answer")
+            is not None
+        ):
+            self._skip_task(
+                job_id, interview_id, task_id
+            )  # resumes accepted completion
+            return
+        state = self._tasks.get_state(task_id)
+        if state.status in {TaskStatus.READY, TaskStatus.RENDERING} or (
+            state.status == TaskStatus.PENDING and state.unmet_deps == 0
+        ):
+            self._tasks.set_status(task_id, TaskStatus.READY)
+            self._tasks.add_to_ready(job_id, task_id)
 
     # =========================================================================
     # Job Submission
@@ -459,7 +578,14 @@ class JobService:
             interview_schedule = job.run_config.parameters.interview_schedule
         validate_interview_schedule(job, interview_schedule, n)
         if self._distributed:
-            validate_distributed_interview_schedule(interview_schedule)
+            validate_distributed_interview_schedule(
+                interview_schedule, survey=job.survey
+            )
+            if (
+                getattr(interview_schedule, "stop_when", None) is not None
+                or getattr(interview_schedule, "finalize_when", None) is not None
+            ) and self._transition_lock is None:
+                raise ValueError("distributed stop/finalize requires a transition lock")
         if getattr(interview_schedule, "kind", None) == "rounds":
             n = interview_schedule.count
         self._prepare_shared_state(job_id, job.survey, interview_schedule)
@@ -1018,6 +1144,7 @@ class JobService:
     # Skip Logic Evaluation
     # =========================================================================
 
+    @serialized_transition(clear_completion=False)
     def should_skip_task(
         self,
         job_id: str,
@@ -1081,39 +1208,23 @@ class JobService:
 
             survey = self._survey_cache.get(survey_data)
 
-        schedule = self._get_interview_schedule(job_id)
-        stop_condition = getattr(schedule, "stop_when", None)
-        if stop_condition is not None:
-            from ..sharedstate.dsl_runtime import Runtime
-            from ..sharedstate.model import resolve, SharedStateMap
-            from ..sharedstate.steps import StepContext
-
-            agent_data = cached_agent_data or self._jobs.get_agent(
-                job_id, task_def.agent_id
+        # An accepted answer may have committed its effects before a crash.
+        # Let its callback resume even if those effects triggered the stop.
+        if (
+            self._distributed
+            and self._storage.read_volatile(
+                f"job:{job_id}:task:{task_id}:accepted_answer"
             )
-            traits = dict((agent_data or {}).get("traits", {}))
-            if agent_data and agent_data.get("name"):
-                traits.setdefault("name", agent_data["name"])
-            context = StepContext({}, interview_id, agent_traits=traits)
-            scope = resolve(stop_condition.scope, context)
-            state_map = SharedStateMap(
-                stop_condition.definition, state_id=stop_condition.state_id
-            )
-            binding = self._state_binding(
-                job_id,
-                type(
-                    "ConditionStep",
-                    (),
-                    {
-                        "state_id": stop_condition.state_id,
-                        "definition": stop_condition.definition,
-                    },
-                )(),
-            )
-            snapshot = binding.snapshot(scope)
-            machine = state_map.definition.machines[stop_condition.target]
-            if Runtime().complete(machine, snapshot.state[stop_condition.target]):
-                return True, f"Group '{scope}' reached its stop condition"
+            is not None
+        ):
+            return False, None
+        if self.has_group_stop_condition(job_id):
+            context = self._condition_context(job_id, interview_id)
+            if self._task_should_stop(job_id, task_def, context):
+                return (
+                    True,
+                    "Shared state stopped or the task would write finalized state",
+                )
 
         # Use cached index map or search
         if cached_question_index_map is not None:
@@ -1308,6 +1419,138 @@ class JobService:
     # Task Completion
     # =========================================================================
 
+    def _resume_pending_completion(self, job_id, current_task_id):
+        """Finish an interrupted accepted answer before a different transition.
+
+        The transition lock permits one pending completion per job. Its journal
+        entry precedes answer acceptance and all state effects, so another worker
+        cannot finalize the state while those effects still need recovery.
+        """
+        if self._jobs.get_state(job_id) == JobState.CANCELLED:
+            return
+        pending = self._storage.read_volatile(f"job:{job_id}:pending_completion")
+        if not pending or pending["task_id"] == current_task_id:
+            return
+        iid, tid = pending["interview_id"], pending["task_id"]
+        task = self._tasks.get_definition(job_id, iid, tid)
+        if not self._repair_if_terminal(job_id, task):
+            accepted = self._storage.read_volatile(
+                f"job:{job_id}:task:{tid}:accepted_answer"
+            )
+            if accepted is not None:
+                from ..sharedstate.exceptions import CommandRejected
+
+                try:
+                    self._skip_task(job_id, iid, tid)  # replays the accepted answer
+                except CommandRejected as exc:
+                    self._tasks.set_error(tid, "CommandRejected", str(exc))
+                    if self._record_terminal(job_id, task, TaskStatus.FAILED):
+                        self._repair_terminal_task(job_id, task, TaskStatus.FAILED)
+        self._storage.delete_volatile(f"job:{job_id}:pending_completion")
+
+    def _clear_finished_completion(self, job_id):
+        pending = self._storage.read_volatile(f"job:{job_id}:pending_completion")
+        if pending and self._terminal_status(job_id, pending["task_id"]) in {
+            TaskStatus.COMPLETED,
+            TaskStatus.SKIPPED,
+            TaskStatus.FAILED,
+            TaskStatus.BLOCKED,
+        }:
+            self._storage.delete_volatile(f"job:{job_id}:pending_completion")
+
+    def _task_should_stop(self, job_id, task, context):
+        if self._stop_condition_reached(job_id, context):
+            return True
+        condition = getattr(self._get_interview_schedule(job_id), "finalize_when", None)
+        if not self._distributed or condition is None:
+            return False
+        from .._data_contracts import canonical_data
+        from ..sharedstate.model import resolve
+        from ..sharedstate.exceptions import SharedStateResolutionError
+
+        survey = self._survey_cache.get(self._jobs.get_survey(job_id))
+        # Read-only follow-ups can observe settlement; new writes cannot change it.
+        steps = list(getattr(survey, "_state_writes", {}).get(task.question_name, []))
+        steps += getattr(survey, "_state_before_writes", {}).get(task.question_name, [])
+        steps = [
+            step
+            for step in steps
+            if step.state_id == condition.state_id and step.target == condition.target
+        ]
+        if not steps:
+            return False
+        scope = resolve(condition.scope, context)
+        if not self._state_binding(job_id, condition).is_finalized(
+            scope, condition.target
+        ):
+            return False
+        for step in steps:
+            try:
+                write_scope = resolve(step.scope, context)
+            except SharedStateResolutionError:
+                # A scope chosen by this answer is not known at render time.
+                # Check it again with the proposed answer before accepting it.
+                continue
+            if canonical_data(write_scope) == canonical_data(scope):
+                return True
+        return False
+
+    def _condition_context(self, job_id, interview_id, answer_values=None):
+        from ..sharedstate.steps import StepContext
+
+        interview = self._interviews.get_definition(job_id, interview_id)
+        agent = self._jobs.get_agent(job_id, interview.agent_id) or {}
+        traits = dict(agent.get("traits", {}))
+        if agent.get("name"):
+            traits.setdefault("name", agent["name"])
+        return StepContext(
+            answers={
+                answer.question_name: answer.answer
+                for answer in self._answers.get_all_for_interview(job_id, interview_id)
+            }
+            | (answer_values or {}),
+            interview_id=interview_id,
+            agent_traits=traits,
+            run_context={"round": interview.iteration + 1},
+        )
+
+    def _stop_condition_reached(self, job_id, context):
+        """Latch distributed stops before finalization can change the predicate."""
+        from .._data_contracts import canonical_data
+        from ..sharedstate.dsl_runtime import Runtime
+        from ..sharedstate.model import resolve
+
+        condition = getattr(self._get_interview_schedule(job_id), "stop_when", None)
+        if condition is None:
+            return False
+        scope = resolve(condition.scope, context)
+        key = f"job:{job_id}:shared_state_stop:" + canonical_data(
+            [condition.state_id, condition.target, scope]
+        )
+        if self._distributed and self._storage.read_volatile(key) is not None:
+            return True
+        snapshot = self._state_binding(job_id, condition).snapshot(scope)
+        machine = condition.definition.machines[condition.target]
+        reached = Runtime().complete(machine, snapshot.state[condition.target])
+        if reached and self._distributed:
+            self._storage.get_or_set_volatile(key, {"stopped": True})
+        return reached
+
+    def _finalize_shared_state(self, job_id, context):
+        from ..sharedstate.model import resolve
+
+        condition = getattr(self._get_interview_schedule(job_id), "finalize_when", None)
+        if condition is not None:
+            outcome = self._state_binding(job_id, condition).finalize(
+                condition,
+                resolve(condition.scope, context),
+                execution_id=context.interview_id,
+            )
+            if getattr(outcome, "status", None) == "rejected":
+                from ..sharedstate.exceptions import CommandRejected
+
+                raise CommandRejected(outcome.reason_code)
+
     def _execute_shared_state_steps(
         self, job_id, interview_id, question_name, answer_value, validated
     ) -> None:
@@ -1315,11 +1558,15 @@ class JobService:
         if validated is False:
             return
         survey_data = self._jobs.get_survey(job_id)
-        if not survey_data or not survey_data.get("state_steps"):
+        if not survey_data:
             return
         survey = self._survey_cache.get(survey_data)
         steps = getattr(survey, "_state_writes", {}).get(question_name, [])
-        if not steps:
+        schedule = self._get_interview_schedule(job_id)
+        if not steps and not (
+            getattr(schedule, "stop_when", None) is not None
+            or getattr(schedule, "finalize_when", None) is not None
+        ):
             return
         from ..sharedstate.model import resolve_write
         from ..sharedstate.steps import StepContext
@@ -1342,20 +1589,78 @@ class JobService:
         )
         for step in steps:
             self._state_binding(job_id, step).apply(resolve_write(step, context))
-        schedule = self._get_interview_schedule(job_id)
-        condition = getattr(schedule, "finalize_when", None)
-        if condition is not None:
-            from ..sharedstate.model import resolve
+        if self._distributed:
+            self._stop_condition_reached(job_id, context)
+        self._finalize_shared_state(job_id, context)
 
-            scope = resolve(condition.scope, context)
-            outcome = self._state_binding(job_id, condition).finalize(
-                condition, scope, execution_id=interview_id
+    def _repair_terminal_task(self, job_id, task_def, status):
+        """Replay terminal bookkeeping after a callback was interrupted.
+
+        Call under the job transition lock. A terminal status is written only
+        after the answer's state effects, so repairing it must not rerun them.
+        """
+        iid, tid = task_def.interview_id, task_def.task_id
+        self._tasks.set_status(tid, status)
+        self._storage.remove_from_set(f"job:{job_id}:ready_tasks", tid)
+        if status in (TaskStatus.COMPLETED, TaskStatus.SKIPPED):
+            for dependent_id in task_def.dependents:
+                self._tasks.mark_dependency_satisfied(job_id, dependent_id, tid)
+        else:
+            self._propagate_failure(job_id, iid, task_def.dependents)
+        method = {
+            TaskStatus.COMPLETED: self._interviews.mark_task_completed,
+            TaskStatus.SKIPPED: self._interviews.mark_task_skipped,
+            TaskStatus.FAILED: self._interviews.mark_task_failed,
+            TaskStatus.BLOCKED: self._interviews.mark_task_blocked,
+        }[status]
+        method(job_id, iid, tid)
+        self._finish_interview_accounting(job_id, iid)
+
+    def _finish_interview_accounting(self, job_id, interview_id):
+        state = self._interviews.get_state(interview_id)
+        if state != InterviewState.RUNNING:
+            self._jobs.mark_interview_completed(
+                job_id, interview_id, state == InterviewState.COMPLETED_WITH_FAILURES
             )
-            if getattr(outcome, "status", None) == "rejected":
-                from ..sharedstate.exceptions import CommandRejected
+            self._publish_shared_state_results(job_id)
+            callback = self._interview_callbacks.get(job_id)
+            if callback:
+                callback(job_id, interview_id)
 
-                raise CommandRejected(outcome.reason_code)
+    def _repair_if_terminal(self, job_id, task_def):
+        if not self._distributed:
+            return False
+        status = self._terminal_status(job_id, task_def.task_id)
+        if status not in {
+            TaskStatus.COMPLETED,
+            TaskStatus.SKIPPED,
+            TaskStatus.FAILED,
+            TaskStatus.BLOCKED,
+        }:
+            return False
+        self._repair_terminal_task(job_id, task_def, status)
+        return True
 
+    def _terminal_status(self, job_id, task_id):
+        decision = self._storage.read_volatile(f"job:{job_id}:task:{task_id}:terminal")
+        return (
+            TaskStatus(decision["status"])
+            if decision
+            else self._tasks.get_status(task_id)
+        )
+
+    def _record_terminal(self, job_id, task_def, status):
+        if not self._distributed:
+            return True
+        decision = self._storage.get_or_set_volatile(
+            f"job:{job_id}:task:{task_def.task_id}:terminal", {"status": status.value}
+        )
+        if decision["status"] != status.value:
+            self._repair_terminal_task(job_id, task_def, TaskStatus(decision["status"]))
+            return False
+        return True
+
+    @serialized_transition
     def on_task_completed(
         self,
         job_id: str,
@@ -1395,6 +1700,25 @@ class JobService:
             raise ValueError(f"Task {task_id} not found")
 
         # Store answer with all metadata
+        if self._repair_if_terminal(job_id, task_def):
+            return
+        if (
+            self._distributed
+            and self.has_group_stop_condition(job_id)
+            and self._storage.read_volatile(
+                f"job:{job_id}:task:{task_id}:accepted_answer"
+            )
+            is None
+            and self._task_should_stop(
+                job_id,
+                task_def,
+                self._condition_context(
+                    job_id, interview_id, {task_def.question_name: answer_value}
+                ),
+            )
+        ):
+            self._skip_task(job_id, interview_id, task_id)
+            return
         answer = Answer(
             job_id=job_id,
             interview_id=interview_id,
@@ -1423,26 +1747,47 @@ class JobService:
             question_presentation=question_presentation,
         )
         _t = _time.monotonic()
+        if self._distributed:
+            # Accept the complete answer envelope before any answer storage or
+            # state effect. All retries replay that envelope, even if the first
+            # worker crashed before acknowledging its claim.
+            if self._transition_lock is not None:
+                self._storage.write_volatile(
+                    f"job:{job_id}:pending_completion",
+                    {"interview_id": interview_id, "task_id": task_id},
+                )
+            accepted = self._storage.get_or_set_volatile(
+                f"job:{job_id}:task:{task_id}:accepted_answer", answer.to_dict()
+            )
+            answer = Answer.from_dict(
+                job_id, interview_id, task_def.question_name, accepted
+            )
         self._answers.store(answer)
         _dt_store = (_time.monotonic() - _t) * 1000
         self._execute_shared_state_steps(
-            job_id, interview_id, task_def.question_name, answer_value, validated
+            job_id,
+            interview_id,
+            task_def.question_name,
+            answer.answer,
+            answer.validated,
         )
 
         # Update task status
         _t = _time.monotonic()
+        if not self._record_terminal(job_id, task_def, TaskStatus.COMPLETED):
+            return
         self._tasks.set_status(task_id, TaskStatus.COMPLETED)
         _dt_set_status = (_time.monotonic() - _t) * 1000
 
         # Notify dependents
         _t = _time.monotonic()
         for dependent_id in task_def.dependents:
-            self._tasks.mark_dependency_satisfied(job_id, dependent_id)
+            self._tasks.mark_dependency_satisfied(job_id, dependent_id, task_id)
         _dt_deps = (_time.monotonic() - _t) * 1000
 
         # Update interview status
         _t = _time.monotonic()
-        self._interviews.mark_task_completed(job_id, interview_id)
+        self._interviews.mark_task_completed(job_id, interview_id, task_id)
         _dt_mark = (_time.monotonic() - _t) * 1000
 
         # Check if interview is done -> update job
@@ -1481,6 +1826,13 @@ class JobService:
             cache_key, validated, reasoning_summary
         """
         if not tasks:
+            return
+
+        if self._distributed:
+            # Each cached completion uses the same replay-safe accounting path.
+            # Aggregated increments lose the identity needed for deduplication.
+            for task_info in tasks:
+                self.on_task_completed(job_id=job_id, **task_info)
             return
 
         import time as _t
@@ -1613,6 +1965,7 @@ class JobService:
             flush=True,
         )
 
+    @serialized_transition
     def on_task_skipped(
         self,
         job_id: str,
@@ -1621,19 +1974,50 @@ class JobService:
         skip_reason: str | None = None,
     ) -> None:
         """Called when a task is skipped due to skip logic."""
+        self._skip_task(job_id, interview_id, task_id)
+
+    def _skip_task(self, job_id, interview_id, task_id):
+        """Skip bookkeeping; the caller holds the transition lock."""
         task_def = self._tasks.get_definition(job_id, interview_id, task_id)
         if task_def is None:
             raise ValueError(f"Task {task_id} not found")
 
         # Update task status
+        if self._repair_if_terminal(job_id, task_def):
+            return
+        if self._distributed:
+            accepted = self._storage.read_volatile(
+                f"job:{job_id}:task:{task_id}:accepted_answer"
+            )
+            if accepted is not None:
+                answer = Answer.from_dict(
+                    job_id, interview_id, task_def.question_name, accepted
+                )
+                self._answers.store(answer)
+                self._execute_shared_state_steps(
+                    job_id,
+                    interview_id,
+                    task_def.question_name,
+                    answer.answer,
+                    answer.validated,
+                )
+                if self._record_terminal(job_id, task_def, TaskStatus.COMPLETED):
+                    self._repair_terminal_task(job_id, task_def, TaskStatus.COMPLETED)
+                return
+        if self._distributed and self.has_group_stop_condition(job_id):
+            context = self._condition_context(job_id, interview_id)
+            if self._stop_condition_reached(job_id, context):
+                self._finalize_shared_state(job_id, context)
+        if not self._record_terminal(job_id, task_def, TaskStatus.SKIPPED):
+            return
         self._tasks.set_status(task_id, TaskStatus.SKIPPED)
 
         # Notify dependents (skipped tasks still satisfy dependencies)
         for dependent_id in task_def.dependents:
-            self._tasks.mark_dependency_satisfied(job_id, dependent_id)
+            self._tasks.mark_dependency_satisfied(job_id, dependent_id, task_id)
 
         # Update interview status
-        self._interviews.mark_task_skipped(job_id, interview_id)
+        self._interviews.mark_task_skipped(job_id, interview_id, task_id)
 
         # Check if interview is done
         interview_state = self._interviews.get_state(interview_id)
@@ -1645,6 +2029,7 @@ class JobService:
             if cb:
                 cb(job_id, interview_id)
 
+    @serialized_transition
     def on_task_failed(
         self,
         job_id: str,
@@ -1672,6 +2057,23 @@ class JobService:
         task_def = self._tasks.get_definition(job_id, interview_id, task_id)
         if task_def is None:
             raise ValueError(f"Task {task_id} not found")
+
+        if self._repair_if_terminal(job_id, task_def):
+            return
+
+        if (
+            self._distributed
+            and self.has_group_stop_condition(job_id)
+            and self._storage.read_volatile(
+                f"job:{job_id}:task:{task_id}:accepted_answer"
+            )
+            is None
+            and self._task_should_stop(
+                job_id, task_def, self._condition_context(job_id, interview_id)
+            )
+        ):
+            self._skip_task(job_id, interview_id, task_id)
+            return
 
         if (
             validated is False
@@ -1724,14 +2126,18 @@ class JobService:
                         return
 
         # Permanently failed — update task status and error
-        self._tasks.set_status(task_id, TaskStatus.FAILED)
         self._tasks.set_error(task_id, error_type, error_message)
+        if not self._record_terminal(job_id, task_def, TaskStatus.FAILED):
+            return
+        self._tasks.set_status(task_id, TaskStatus.FAILED)
+        if self._distributed:
+            self._storage.remove_from_set(f"job:{job_id}:ready_tasks", task_id)
 
         # Propagate failure to dependents
         self._propagate_failure(job_id, interview_id, task_def.dependents)
 
         # Update interview status
-        self._interviews.mark_task_failed(job_id, interview_id)
+        self._interviews.mark_task_failed(job_id, interview_id, task_id)
 
         # Check if interview is done
         interview_state = self._interviews.get_state(interview_id)
@@ -1753,6 +2159,9 @@ class JobService:
         blocked tasks, and repeatedly finalizes the interview.  Traverse by
         unique task ID and batch state changes instead.
         """
+        if self._distributed:
+            self._propagate_distributed_failure(job_id, dependent_ids)
+            return
         blocked_ids: set[str] = set()
         frontier = list(dependent_ids)
 
@@ -1790,8 +2199,57 @@ class JobService:
             newly_blocked_ids, "upstream_failure", "Blocked by failed dependency"
         )
         self._interviews.mark_tasks_blocked(
-            job_id, interview_id, len(newly_blocked_ids)
+            job_id, interview_id, len(newly_blocked_ids), task_ids=newly_blocked_ids
         )
+
+    def _propagate_distributed_failure(self, job_id, dependent_ids):
+        """Follow cross-interview edges and reconcile previously blocked tasks."""
+        seen = set()
+        frontier = list(dependent_ids)
+        while frontier:
+            current = sorted(set(frontier) - seen)
+            frontier = []
+            if not current:
+                continue
+            seen.update(current)
+            locations = self._tasks.get_locations_batch(current)
+            if any(
+                tid not in locations or locations[tid][0] != job_id for tid in current
+            ):
+                raise ValueError("missing or mismatched location for failed dependency")
+            definitions = self._tasks.get_definitions_flat_batch(
+                job_id, {tid: locations[tid][1] for tid in current}
+            )
+            for tid in current:
+                definition = definitions.get(tid)
+                if definition is None:
+                    raise ValueError(f"Missing dependent task {tid}")
+                status = self._terminal_status(job_id, tid)
+                if status in (TaskStatus.COMPLETED, TaskStatus.SKIPPED):
+                    continue
+                frontier.extend(definition.dependents)
+                if status == TaskStatus.FAILED:
+                    self._tasks.set_status(tid, TaskStatus.FAILED)
+                    self._storage.remove_from_set(f"job:{job_id}:ready_tasks", tid)
+                    self._interviews.mark_task_failed(
+                        job_id, definition.interview_id, tid
+                    )
+                else:
+                    # Revisit BLOCKED nodes too: the prior process may have died
+                    # between status, counters, and job finalization.
+                    self._tasks.set_error(
+                        tid, "upstream_failure", "Blocked by failed dependency"
+                    )
+                    if not self._record_terminal(
+                        job_id, definition, TaskStatus.BLOCKED
+                    ):
+                        continue
+                    self._tasks.set_status(tid, TaskStatus.BLOCKED)
+                    self._storage.remove_from_set(f"job:{job_id}:ready_tasks", tid)
+                    self._interviews.mark_task_blocked(
+                        job_id, definition.interview_id, tid
+                    )
+                self._finish_interview_accounting(job_id, definition.interview_id)
 
     # =========================================================================
     # Job Status & Results

@@ -234,7 +234,7 @@ def validate_interview_schedule(job, schedule, n=1):
         )
 
 
-def validate_distributed_interview_schedule(schedule):
+def validate_distributed_interview_schedule(schedule, *, survey=None):
     """Admit only schedules whose coordination is implemented remotely."""
     if schedule in ("concurrent", "serial"):
         return
@@ -243,8 +243,13 @@ def validate_distributed_interview_schedule(schedule):
         "grouped_round_robin",
     }:
         raise ValueError("unsupported distributed interview schedule")
-    if schedule.stop_when is not None or schedule.finalize_when is not None:
+    if (
+        schedule.kind == "rounds"
+        and schedule.within_round == "concurrent"
+        and (schedule.stop_when is not None or schedule.finalize_when is not None)
+        and getattr(survey, "_state_before_writes", {})
+    ):
         raise ValueError(
-            "distributed stop/finalize conditions are not supported yet; "
-            "durable termination recovery is required"
+            "concurrent stop/finalize requires answer-triggered state writes; "
+            "before-question writes are not supported"
         )

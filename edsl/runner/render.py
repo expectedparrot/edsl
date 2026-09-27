@@ -434,9 +434,7 @@ class RenderService:
         builder = QuestionTemplateReplacementsBuilder.from_prompt_constructor(
             prompt_constructor
         )
-        replacements = builder.build_replacement_dict(
-            prompt_constructor.question.data
-        )
+        replacements = builder.build_replacement_dict(prompt_constructor.question.data)
         return prompt_constructor.question.render(replacements).to_dict()
 
     def _render_with_objects(
@@ -554,6 +552,7 @@ class RenderWorker:
         max_tasks: int = 100,
         debug: bool = False,
         job_data: dict | None = None,
+        defer_queue_status: bool = False,
     ) -> list[RenderedPrompt]:
         """
         Render all ready tasks for a job using batch operations.
@@ -938,14 +937,14 @@ class RenderWorker:
         # Instead of checking ALL interview tasks, only fetch answers for actual dependencies
         # This reduces O(n) to O(d) where d = number of dependencies (usually small)
         _t0 = _time.time()
-        answers_cache: dict[
-            str, dict[str, Any]
-        ] = {}  # interview_id -> {question_name -> answer}
+        answers_cache: dict[str, dict[str, Any]] = (
+            {}
+        )  # interview_id -> {question_name -> answer}
 
         # Collect all dependency task IDs from tasks being rendered
-        dep_task_ids_by_interview: dict[
-            str, set[str]
-        ] = {}  # interview_id -> set of dependency task_ids
+        dep_task_ids_by_interview: dict[str, set[str]] = (
+            {}
+        )  # interview_id -> set of dependency task_ids
         for task_id in tasks_to_render:
             task_def = all_task_defs.get(task_id)
             if task_def and task_def.depends_on:
@@ -1049,9 +1048,9 @@ class RenderWorker:
         # Caches for objects that depend on per-task context
         _permuted_questions: dict[tuple, "QuestionBase"] = {}
         _survey_cache: dict[tuple, tuple] = {}
-        _prompt_cache: dict[
-            tuple, dict
-        ] = {}  # Cache rendered prompts by input combination
+        _prompt_cache: dict[tuple, dict] = (
+            {}
+        )  # Cache rendered prompts by input combination
 
         from ..questions import QuestionFreeText as _QuestionFreeText
 
@@ -1302,7 +1301,10 @@ class RenderWorker:
         # Step 10: Batch set statuses to QUEUED
         _t0 = _time.time()
         task_ids_rendered = [r.task_id for r in rendered]
-        self._tasks.set_statuses_batch(task_ids_rendered, TaskStatus.QUEUED)
+        # A distributed caller can publish the queue entry and QUEUED status
+        # atomically. Until then an interrupted render remains recoverable.
+        if not defer_queue_status:
+            self._tasks.set_statuses_batch(task_ids_rendered, TaskStatus.QUEUED)
         _step_timings["step10_set_queued"] = _time.time() - _t0
 
         # Compute total render time

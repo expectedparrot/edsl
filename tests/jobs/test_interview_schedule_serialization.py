@@ -82,3 +82,18 @@ def test_schedule_compares_symbolic_conditions_by_definition(condition_field):
         assert restored != replace(schedule, **{condition_field: changed})
 
     assert StateCondition.from_dict(condition.to_dict()) == condition
+
+
+@pytest.mark.parametrize("condition_field", ["stop_when", "finalize_when"])
+def test_distributed_conditions_support_serial_and_concurrent_groups(condition_field):
+    from edsl.jobs.interview_schedule import validate_distributed_interview_schedule
+
+    condition = voting_job().run_config.parameters.interview_schedule.finalize_when
+    schedule = InterviewSchedule.rounds(count=2, **{condition_field: condition})
+    validate_distributed_interview_schedule(schedule)
+    validate_distributed_interview_schedule(replace(schedule, within_round="serial"))
+    validate_distributed_interview_schedule(
+        InterviewSchedule.grouped_round_robin(
+            "group", "seat", **{condition_field: condition}
+        )
+    )

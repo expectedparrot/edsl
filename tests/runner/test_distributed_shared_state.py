@@ -96,7 +96,14 @@ def test_separate_services_read_writes_and_reconstruct_provenance(tmp_path):
     ]
 
 
-def test_unsupported_schedule_fails_before_creating_tasks():
+@pytest.mark.parametrize(
+    "within_round,error",
+    [
+        ("concurrent", "requires a transition lock"),
+        ("serial", "requires a transition lock"),
+    ],
+)
+def test_uncoordinated_conditions_fail_before_creating_tasks(within_round, error):
     storage = InMemoryStorage()
     job = counter_job()
     step = job.survey._state_reads["answer"][0]
@@ -106,9 +113,9 @@ def test_unsupported_schedule_fails_before_creating_tasks():
         .counter.is_complete()
     )
     job.run_config.parameters.interview_schedule = InterviewSchedule.rounds(
-        count=2, stop_when=condition
+        count=2, within_round=within_round, stop_when=condition
     )
-    with pytest.raises(ValueError, match="durable termination"):
+    with pytest.raises(ValueError, match=error):
         JobService(storage, distributed=True).submit_job(job)
     assert storage.stats()["persistent_keys"] == 0
 

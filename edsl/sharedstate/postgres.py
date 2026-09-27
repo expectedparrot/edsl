@@ -403,6 +403,16 @@ class PostgresStateBackend:
             )
             return StateSnapshot(self.state_map.state_id, scope, version, state)
 
+    def is_finalized(self, scope, target):
+        """Report a committed close, including one whose acknowledgement was lost."""
+        with self._transaction() as (conn, _):
+            return any(
+                event.get("target") == target
+                and event.get("command") == "$close"
+                and event.get("status") != "rejected"
+                for event in self._history(conn, scope=ScopeKey(scope).canonical)
+            )
+
     def checkpoint(self):
         with self._transaction() as (_, sequence):
             return sequence
