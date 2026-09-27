@@ -1,5 +1,8 @@
+import csv
 import json
 import shlex
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -137,6 +140,47 @@ def test_study_scaffold_wires_scenarios_only_when_requested(tmp_path):
     assert "SCENARIOS := $(JOB_DIR)/scenario_list.ep" in makefile
     assert "--scenarios $(SCENARIOS)" in makefile
     assert "$(JOBS): $(SURVEY) $(AGENTS) $(SCENARIOS) $(MODELS)" in makefile
+
+
+@pytest.mark.parametrize("with_scenarios", [False, True])
+def test_scaffold_exports_preserve_scenario_metadata_when_requested(tmp_path, with_scenarios):
+    from edsl import Agent, Model, QuestionFreeText, Results, Scenario, Survey
+    from edsl.results.result import Result
+
+    root = tmp_path / "study with spaces"
+    args = ["study", "scaffold", str(root), "--template", "survey",
+            "--expected-rows", "1", "--required-answer", "choice", "--model", "test",
+            "--run-description", "Offline export fixture"]
+    if with_scenarios:
+        args.append("--with-scenarios")
+    payload(CliRunner().invoke(app, args))
+    survey = Survey([QuestionFreeText(question_name="choice", question_text="Choose")])
+    results = Results(survey=survey, data=[Result(
+        agent=Agent(name="investor", traits={"segment": "aggressive"}),
+        scenario=Scenario({"direction": "loss", "magnitude": 25}),
+        model=Model("test"), iteration=0, answer={"choice": "buy"}, survey=survey,
+    )])
+    results.git.save(str(root / "data/results.ep"))
+    # Existing Results are the fixture; do not build or execute any Jobs.
+    completed = subprocess.run(
+        ["make", "-C", str(root), "-o", "data/results.ep", "exports",
+         f"EP={shlex.quote(sys.executable)} -m edsl"],
+        capture_output=True, text=True, timeout=30,
+    )
+    assert completed.returncode == 0, completed.stdout + completed.stderr
+    with (root / "writeup/tables/results.csv").open() as stream:
+        csv_rows = list(csv.DictReader(stream))
+    json_rows = json.loads((root / "writeup/tables/results.json").read_text())
+    assert csv_rows[0]["answer.choice"] == "buy"
+    assert json_rows[0]["answer.choice"] == "buy"
+    if with_scenarios:
+        assert csv_rows[0]["scenario.direction"] == "loss"
+        assert csv_rows[0]["scenario.magnitude"] == "25"
+        assert json_rows[0]["scenario.direction"] == "loss"
+        assert json_rows[0]["scenario.magnitude"] == 25
+    else:
+        assert not any(key.startswith("scenario.") for key in csv_rows[0])
+        assert not any(key.startswith("scenario.") for key in json_rows[0])
 
 
 def test_study_scaffold_rejects_scenarios_for_non_survey_template(tmp_path):

@@ -366,6 +366,8 @@ if __name__ == "__main__":
                 f"--column answer.{field}" for field in required_answers
             )
             export_options = "--column 'agent.*' --column 'answer.*'"
+            if with_scenarios:
+                export_options += " --column 'scenario.*'"
             scenario_variables = (
                 "SCENARIOS := $(JOB_DIR)/scenario_list.ep\n" if with_scenarios else ""
             )
