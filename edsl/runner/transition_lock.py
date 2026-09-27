@@ -4,6 +4,8 @@ from contextlib import contextmanager
 from functools import wraps
 from hashlib import sha256
 
+from .task_guard import check_task_transition
+
 
 def serialized_transition(method=None, *, clear_completion=True):
     if method is None:
@@ -13,10 +15,14 @@ def serialized_transition(method=None, *, clear_completion=True):
 
     @wraps(method)
     def wrapped(self, job_id, *args, **kwargs):
+        task_id = kwargs.get("task_id", args[1] if len(args) > 1 else None)
         if self._transition_lock is None:
+            check_task_transition(job_id, task_id)
             return method(self, job_id, *args, **kwargs)
         with self._transition_lock(job_id):
-            task_id = kwargs.get("task_id", args[1] if len(args) > 1 else None)
+            # Ownership acquisition uses this same lock. Check before repairing
+            # journals or writing any state, so stale callbacks cannot mutate.
+            check_task_transition(job_id, task_id)
             self._resume_pending_completion(job_id, task_id)
             result = method(self, job_id, *args, **kwargs)
             if clear_completion:
