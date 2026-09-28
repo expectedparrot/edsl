@@ -241,6 +241,13 @@ class DirectAnswerRegistry:
         # invigilator, so reconstruct the same context here rather than passing
         # only the original job scenario.
         scenario = entry.scenario
+        # Compute questions need agent context on the first question too,
+        # before there are any earlier answers to pipe into the scenario.
+        if entry.agent is not None:
+            context_traits = dict(agent_traits or {})
+            if getattr(entry.agent, "name", None):
+                context_traits.setdefault("name", entry.agent.name)
+            scenario = scenario | {"agent": context_traits}
         if current_answers and self._job_service and entry.job_id:
             survey_data = self._job_service._jobs.get_survey(entry.job_id)
             if survey_data:
@@ -251,8 +258,7 @@ class DirectAnswerRegistry:
                     if question_name in answered_questions:
                         answered_questions[question_name].answer = answer
 
-                agent_context = {"agent": agent_traits} if agent_traits else {}
-                scenario = scenario | answered_questions | agent_context
+                scenario = scenario | answered_questions
 
         kwargs = {"scenario": scenario, "agent_traits": agent_traits}
         signature = inspect.signature(entry.question.answer_question_directly)

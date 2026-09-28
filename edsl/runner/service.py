@@ -828,6 +828,7 @@ class JobService:
                     all_direct_task_info.append(
                         {
                             **info,
+                            "job_id": job_id,
                             "interview_id": interview_id,
                             "agent": agent_obj,
                             "scenario": scenario_obj,
@@ -3653,6 +3654,20 @@ class JobService:
                                 )
                     if anchored:
                         preceding_writes.append(question_name)
+
+            # Before-question operations and read scopes can reference earlier
+            # answers too, without a template mentioning those answers.
+            for mapping in (
+                getattr(survey, "_state_before_writes", {}),
+                getattr(survey, "_state_reads", {}),
+            ):
+                for question_name, steps in mapping.items():
+                    for step in steps:
+                        dag.setdefault(question_name, set()).update(
+                            ref.question_name
+                            for ref in step.answer_refs
+                            if ref.question_name != question_name
+                        )
 
             # Explicit reads divide an interview into snapshot phases. Every
             # question in a phase waits for its read anchor, and the next read

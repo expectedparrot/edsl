@@ -94,6 +94,22 @@ class StateStep:
     target: str
     step_id: str
 
+    @property
+    def answer_refs(self) -> tuple[AnswerRef, ...]:
+        """Answers needed to resolve this step's scope and command inputs."""
+
+        def walk(value):
+            if isinstance(value, AnswerRef):
+                yield value
+            elif isinstance(value, Mapping):
+                for nested in value.values():
+                    yield from walk(nested)
+            elif isinstance(value, (tuple, list)):
+                for nested in value:
+                    yield from walk(nested)
+
+        return tuple(walk([self.scope, getattr(self, "inputs", {})]))
+
 
 @dataclass(frozen=True)
 class StateWrite(StateStep):

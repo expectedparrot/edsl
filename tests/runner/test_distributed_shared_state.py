@@ -165,3 +165,39 @@ def test_snapshot_rounds_require_durable_checkpoint_capability(tmp_path):
     with pytest.raises(ValueError, match="durable checkpoints"):
         service.submit_job(job)
     assert storage.stats()["persistent_keys"] == 0
+
+
+@pytest.mark.parametrize(
+    "module,anchor,dependency",
+    [
+        ("uniform_price_auction", "bid_1", "bid_0"),
+        ("balanced_assignment", "experience", "age_group"),
+    ],
+)
+@pytest.mark.parametrize("roundtrip", [False, True])
+def test_state_command_inputs_create_task_dependencies(
+    module, anchor, dependency, roundtrip, tmp_path
+):
+    from importlib import import_module
+    from edsl.runner.models import TaskStatus
+
+    example = import_module(f"examples.{module}")
+    survey = example.build_survey()[0]
+    if roundtrip:
+        survey = Survey.from_dict(survey.to_dict())
+    service = JobService(
+        InMemoryStorage(),
+        distributed=True,
+        state_backend_factory=lambda jid, state: SQLiteStateBackend(
+            state, tmp_path / f"{jid}.sqlite"
+        ),
+    )
+    jid, _, _ = service.submit_job(survey.by(Model("test")))
+    iid = service.jobs.get_definition(jid).interview_ids[0]
+    definitions = [
+        service.tasks.get_definition(jid, iid, tid)
+        for tid in service.interviews.get_definition(jid, iid).task_ids
+    ]
+    tasks = {task.question_name: task for task in definitions}
+    assert tasks[dependency].task_id in tasks[anchor].depends_on
+    assert service.tasks.get_status(tasks[anchor].task_id) == TaskStatus.PENDING

@@ -17,6 +17,59 @@ from edsl.runner.survey_cache import SurveyCache
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("restored", [False, True])
+async def test_portable_compute_entries_have_first_agent_and_prior_answer_context(
+    restored,
+):
+    from edsl import Model
+    from edsl.runner.service import JobService
+    from edsl.runner.storage import InMemoryStorage
+
+    service = JobService(InMemoryStorage(), distributed=True)
+    survey = Survey(
+        [
+            QuestionCompute(
+                question_name="first",
+                question_text="{{ agent.name }}:{{ agent.value }}",
+            ),
+            QuestionCompute(
+                question_name="second", question_text="{{ first.answer }}!"
+            ),
+        ]
+    )
+    jid, entries, _ = service.submit_job(
+        survey.by(Agent(name="Alice", traits={"value": 42})).by(Model("test"))
+    )
+    if restored:
+        entries = service.restore_direct_task_info(jid)
+    registry = DirectAnswerRegistry(job_service=service)
+    answers = []
+    for info in entries:
+        assert info["job_id"] == jid
+        entry = DirectAnswerEntry(
+            **{
+                k: info[k]
+                for k in (
+                    "task_id",
+                    "execution_type",
+                    "agent",
+                    "question",
+                    "scenario",
+                    "job_id",
+                    "interview_id",
+                )
+            }
+        )
+        registry.register(entry.task_id, entry)
+        result = await registry.execute(entry.task_id)
+        answers.append(result["answer"])
+        service.on_task_completed(
+            jid, entry.interview_id, entry.task_id, result["answer"]
+        )
+    assert answers == ["Alice:42", "Alice:42!"]
+
+
+@pytest.mark.asyncio
 async def test_compute_direct_answer_receives_prior_answer_piping_context():
     prior = QuestionFreeText(question_name="channels", question_text="Channels?")
     compute = QuestionCompute(
