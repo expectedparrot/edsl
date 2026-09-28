@@ -245,17 +245,6 @@ class Rule:
             )
         )
 
-    @staticmethod
-    def _prepare_replacement(current_info_env: dict[int, Any]):
-        d = {}
-        for var, value in current_info_env.items():
-            if isinstance(value, str):
-                replacement = f"'{value}'"
-            else:
-                replacement = str(value)
-            d[var] = replacement
-        return d
-
     def _prior_question_is_in_expression(self) -> set:
         """Find question references, excluding literals and called function names."""
         return set(self._extracted_question_names).intersection(
@@ -368,7 +357,6 @@ class Rule:
                 """Format a value for safe use in Python expressions."""
                 if isinstance(value, str):
                     # Use repr() to properly escape strings for Python
-                    # This maintains consistency with single quotes like _prepare_replacement
                     return repr(value)
                 else:
                     # For non-strings, return as-is (numbers, booleans, etc.)
