@@ -94,12 +94,22 @@ class EDSLSandboxedEnvironment(SandboxedEnvironment):
         from ..agents import Agent
 
         if isinstance(obj, Agent) and isinstance(attribute, str):
+            # Agent reserves "name" for metadata, so it cannot be a trait.
+            # Reading it must not invoke a potentially stateful traits function.
+            if attribute == "name":
+                return _MISSING_TRAIT
             traits = obj.traits
             if attribute in traits:
                 value = traits[attribute]
-                if self.is_safe_attribute(obj, attribute, value):
-                    return value
-                return self.unsafe_undefined(obj, attribute)
+            elif attribute == "traits":
+                # Reuse this lookup's mapping instead of evaluating the property
+                # again through the normal attribute/item fallback.
+                value = traits
+            else:
+                return _MISSING_TRAIT
+            if self.is_safe_attribute(obj, attribute, value):
+                return value
+            return self.unsafe_undefined(obj, attribute)
         return _MISSING_TRAIT
 
     def getattr(self, obj, attribute):

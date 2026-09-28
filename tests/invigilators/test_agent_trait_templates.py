@@ -58,6 +58,46 @@ def test_dynamic_traits_are_resolved_for_current_question():
         assert template.render(agent=agent) == text
 
 
+@pytest.mark.parametrize("notation", ["dot", "bracket"])
+def test_agent_name_does_not_evaluate_dynamic_traits(notation):
+    calls = []
+
+    def traits():
+        calls.append(None)
+        return {"age": len(calls)}
+
+    agent = Agent(name="Ada", dynamic_traits_function=traits)
+    expression = "agent.name" if notation == "dot" else "agent['name']"
+    template = make_environment().from_string("{{ " + expression + " }}")
+    calls.clear()
+
+    assert template.render(agent=agent) == "Ada"
+    assert calls == []
+
+
+@pytest.mark.parametrize("notation", ["dot", "bracket"])
+@pytest.mark.parametrize("colliding_trait", [None, "traits", "prompt"])
+def test_dynamic_traits_are_evaluated_once_per_lookup(notation, colliding_trait):
+    calls = []
+
+    def traits():
+        calls.append(None)
+        return {colliding_trait or "age": len(calls)}
+
+    agent = Agent(dynamic_traits_function=traits)
+    attribute = colliding_trait or "traits"
+    expression = (
+        f"agent.{attribute}" if notation == "dot" else f"agent['{attribute}']"
+    )
+    template = make_native_environment().from_string("{{ " + expression + " }}")
+    calls.clear()
+
+    for count in (1, 2):
+        expected = count if colliding_trait else {"age": count}
+        assert template.render(agent=agent) == expected
+        assert len(calls) == count
+
+
 @pytest.mark.parametrize("expression", ["agent._private", "agent['_private']"])
 def test_trait_lookup_respects_attribute_sandbox(expression):
     template = make_environment(undefined=StrictUndefined).from_string(
