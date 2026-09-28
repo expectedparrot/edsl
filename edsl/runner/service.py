@@ -13,6 +13,7 @@ from datetime import datetime
 from typing import Any, TYPE_CHECKING
 import random
 import threading
+from contextlib import nullcontext
 
 logger = logging.getLogger(__name__)
 
@@ -255,6 +256,18 @@ class JobService:
         self, job_id, survey, task_def, interview_id: str, agent_traits: dict
     ) -> tuple[dict[str, Any], tuple[tuple[str, int], ...]]:
         """Execute explicit reads immediately before a question is rendered."""
+        # Reads can also perform before-question writes and persist observations.
+        # Coordinate them with completion and hosted job retirement, including
+        # renderers that already cached a task definition before cleanup began.
+        lock = self._transition_lock(job_id) if self._transition_lock else nullcontext()
+        with lock:
+            return self._read_state_for_question(
+                job_id, survey, task_def, interview_id, agent_traits
+            )
+
+    def _read_state_for_question(
+        self, job_id, survey, task_def, interview_id: str, agent_traits: dict
+    ) -> tuple[dict[str, Any], tuple[tuple[str, int], ...]]:
         round_versions = self._pin_round_state(job_id, task_def.iteration, agent_traits)
         before_steps = getattr(survey, "_state_before_writes", {}).get(
             task_def.question_name, []
