@@ -52,9 +52,9 @@ def HostedModel(
     ):
         raise ValueError("api_key_env must be a nonempty string when provided")
 
-    connection: dict[str, Any] = {"base_url": base_url.rstrip("/")}
+    connection: dict[str, Any] = {"base_url": base_url.strip().rstrip("/")}
     if api_key_env is not None:
-        connection["api_key_env"] = api_key_env
+        connection["api_key_env"] = api_key_env.strip()
 
     return Model(
         model_name.strip(),

@@ -23,11 +23,12 @@ def test_hosted_model_uses_openai_compatible_service():
     assert model.temperature == 0.2
 
 
-def test_hosted_model_round_trip_uses_standard_serialization():
+@pytest.mark.parametrize("padding", ["", " \t\n"])
+def test_hosted_model_round_trip_uses_standard_serialization(padding):
     model = HostedModel(
         "custom-model",
-        base_url="https://models.example.com/v1",
-        api_key_env="CUSTOM_MODEL_API_KEY",
+        base_url=f"{padding}https://models.example.com/v1/{padding}",
+        api_key_env=f"{padding}CUSTOM_MODEL_API_KEY{padding}",
         max_tokens=123,
     )
 
@@ -45,8 +46,9 @@ def test_hosted_model_round_trip_uses_standard_serialization():
     assert restored.max_tokens == 123
 
 
+@pytest.mark.parametrize("padding", ["", " \t\n"])
 def test_hosted_model_resolves_credential_from_named_environment_variable(
-    monkeypatch,
+    monkeypatch, padding,
 ):
     captured = {}
 
@@ -62,8 +64,8 @@ def test_hosted_model_resolves_credential_from_named_environment_variable(
     )
     model = HostedModel(
         "custom-model",
-        base_url="https://models.example.com/v1",
-        api_key_env="CUSTOM_MODEL_API_KEY",
+        base_url=f"{padding}https://models.example.com/v1/{padding}",
+        api_key_env=f"{padding}CUSTOM_MODEL_API_KEY{padding}",
     )
 
     model.sync_client()
