@@ -40,16 +40,17 @@ The initial live cases are the activity poll and ultimatum game. These retain th
 original multiple-choice/numerical questions, use the actual worker/provider path,
 and check valid decisions against the final shared state. They do not require a
 predetermined model answer. The worker must have credentials for the named provider.
-The local Google credential passed authentication, but Google rejected generation
-with the older Gemini 2.5 Flash model for this account and suggested Gemini 3.8 Flash.
-The replacement returned HTTP 503 (high demand), including on the delayed poll
-retry. The ultimatum retry also encountered HTTP 429 for the account's free-tier
-request quota. The local OpenAI credential returned HTTP 401. Real-model acceptance
-has not yet passed; the successful scripted suite does not establish model behavior.
+Both cases passed with GPT-4o mini on 2026-09-28 after correcting the worker's
+OpenAI credential. EDSL's `.env` had a working key; coopr's configured key returned
+HTTP 401. The worker currently uses the working key through a temporary Compose
+override at `/private/tmp/coopr-shared-state-provider.yml`. The override contains
+only an environment-variable reference, not the key itself. For persistent setup,
+configure `OPENAI_API_KEY` in coopr's `backend/.env` and recreate `runner-worker`.
+Recreating it without the override otherwise restores the old credential.
 
 ```sh
 .venv/bin/python -m examples.shared_state_acceptance \
-  --live --model gemini-3.8-flash --service google \
+  --live --model gpt-4o-mini --service openai \
   --output artifacts/shared-state-acceptance/my-live-run
 ```
 
@@ -77,6 +78,18 @@ legacy sampling controls and `thinking_budget` are omitted. Current provider rat
 are on [Google’s pricing page](https://ai.google.dev/gemini-api/docs/pricing).
 The hosted `ep jobs cost` endpoint returned `JOBS_ERROR` during setup; catalog or
 provider estimates must not be described as confirmed billing.
+
+The successful [live report](../artifacts/shared-state-acceptance/2026-09-28-live-openai/report.md)
+and [walkthrough](../artifacts/shared-state-acceptance/2026-09-28-live-openai/walkthrough.md)
+contain 12 uncached answers. The poll ended with seven beach-day votes and one hike
+vote. The two ultimatum pairs offered $83 (rejected) and $54 (accepted). Inspection
+of every recorded prompt confirmed the prior votes or partner's offer were visible.
+The rejection explanation misinterpreted who received the larger share; the
+walkthrough preserves that model behavior for follow-up prompt experiments.
+
+Earlier Google attempts failed: Gemini 2.5 Flash was unavailable for this account,
+and its suggested replacement, Gemini 3.8 Flash, returned HTTP 503 (high demand)
+and HTTP 429 (free-tier request quota). Those failures remain saved separately.
 
 ## First acceptance pass
 
