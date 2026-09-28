@@ -134,3 +134,45 @@ separate jobs sharing local state. Remote jobs isolate state by job ID, so that
 example needs a single-job phase representation before it can join this suite.
 Humanize execution and full hosted submission/billing/cloud persistence remain
 separate acceptance work.
+
+## Adaptive questions, rounds, and concurrent claims
+
+Six more live cases use a separate small suite:
+
+```sh
+.venv/bin/python -m examples.shared_state_advanced_acceptance \
+  --live --model gpt-4o-mini \
+  --output artifacts/shared-state-acceptance/my-advanced-run
+```
+
+This uses the same local coopr endpoint and OpenAI worker credential. It has 34
+result rows, including repeated participants across rounds, and at most 72 model
+answers before retries. Output is capped at 256 tokens per answer. Repeat `--case`
+to choose a subset; without it, all six run. Outputs include `.ep` jobs/results,
+raw runner responses, a report, and a readable `transcript.md` for each case.
+
+| Case name | Check |
+| --- | --- |
+| `pairwise_comparisons` | Six comparisons across three products; exploration and adaptive selection; two remaining participants stopped; historical options preserved |
+| `price_elicitation` | Four independent price intervals reconstructed from actual answers; early completion skips later questions |
+| `team_formation` | Eligible choices and membership agree; at most one designer and two builders per team |
+| `message_board` | Three participants over two rounds; prompts and snapshots contain exactly the earlier messages |
+| `repeated_matrix` | Two players over three rounds; both see completed prior rounds, with no current-round action leaking |
+| `work_pool` | Concurrent workers claim different items; prompts and completions use the authoritative assignment |
+
+Recheck existing responses without making model calls:
+
+```sh
+.venv/bin/python -m examples.shared_state_advanced_acceptance \
+  --verify --output artifacts/shared-state-acceptance/my-advanced-run
+```
+
+Verification writes `verification.json` and `verification.md`, preserving the
+original run summary. It can regenerate transcripts even when report generation
+failed after the remote job completed. It does not resume a failed remote job.
+
+All six have passed; the [advanced results](../artifacts/shared-state-acceptance/2026-09-28-live-advanced-all.md)
+link to each transcript. The price persona now explicitly defines its `value` as
+maximum willingness to pay. The rerun elicited 0, 37, 65, and 100, matching the four
+personas. The verifier checks state transitions against actual choices; it does
+not force models to make those choices or certify their behavioral realism.

@@ -66,7 +66,13 @@ def demo_agents(values=(0, 37, 65, 100)):
     agents = AgentList()
     for i, value in enumerate(values):
         agent = Agent(
-            traits={"respondent_id": f"R{i}", "study_id": "study", "value": value}
+            traits={"respondent_id": f"R{i}", "study_id": "study", "value": value},
+            traits_presentation_template=(
+                "Your maximum willingness to pay for one unit of this product is "
+                "{{ value }} price units. Answer Yes at a price at or below this "
+                "value and No at a higher price. Keep this value fixed throughout "
+                "the interview; do not infer a different value from the questions."
+            ),
         )
         agent.add_direct_question_answering_method(demo_answer)
         agents.append(agent)
