@@ -198,6 +198,33 @@ def test_study_scaffold_reports_missing_template_invariants(tmp_path):
     assert json.loads(result.output)["error"]["code"] == "STUDY_SCAFFOLD_ERROR"
 
 
+@pytest.mark.parametrize("model_assignment", [
+    "MODEL_NAME := previously-approved-model",
+    "MODEL_NAME ?= $(APPROVED_MODEL)",
+])
+def test_legacy_model_migration_requires_explicit_model_source(tmp_path, model_assignment):
+    root = tmp_path / "legacy study"
+    root.mkdir()
+    original = (
+        "# --- Generated survey validation ---\n"
+        f"{model_assignment}\n"
+        '$(MODELS):\n\t$(EP) models create --model "$(MODEL_NAME)" --output $@\n'
+    )
+    (root / "Makefile").write_text(original)
+    result = CliRunner().invoke(app, [
+        "study", "scaffold", str(root), "--template", "survey",
+        "--expected-rows", "1", "--model", "different-model",
+        "--run-description", "Migration regression",
+    ])
+    assert result.exit_code != 0
+    response = json.loads(result.output)
+    assert response["status"] == "error"
+    assert "study_model_list.py" in response["error"]["message"]
+    assert "MODEL_NAME" in response["error"]["message"]
+    assert (root / "Makefile").read_text() == original
+    assert list(root.iterdir()) == [root / "Makefile"]
+
+
 def test_scaffold_builds_and_rebuilds_jobs_from_editable_model_source(tmp_path):
     import os
     from edsl import Jobs

@@ -110,6 +110,11 @@ if __name__ == "__main__":
 '''
 
 
+LEGACY_MODEL_RECIPE = (
+    '$(MODELS):\n\t$(EP) models create --model "$(MODEL_NAME)" --output $@'
+)
+
+
 def create_project(
     root: str,
     jobs: list[str] | None = None,
@@ -174,6 +179,22 @@ def create_project(
             r"[a-zA-Z0-9.-]+", required_source_domain
         ):
             raise ValueError("invalid required source domain")
+
+    if template == "survey":
+        makefile = Path(root) / "Makefile"
+        model_source = Path(root) / "edsl_jobs" / "job_a" / "study_model_list.py"
+        if (
+            makefile.is_file()
+            and LEGACY_MODEL_RECIPE in makefile.read_text(encoding="utf-8")
+            and not model_source.exists()
+        ):
+            raise ValueError(
+                "This study uses the legacy MODEL_NAME recipe. Before migrating, "
+                "create edsl_jobs/job_a/study_model_list.py with the study's "
+                "approved models and save them to model_list.ep when run. "
+                "Then re-run scaffolding. The --model argument cannot safely "
+                "replace the existing Makefile's model selection."
+            )
 
     os.makedirs(root, exist_ok=True)
 
@@ -466,9 +487,9 @@ if __name__ == "__main__":
                 encoding="utf-8",
             )
 
-        elif '$(MODELS):\n\t$(EP) models create --model "$(MODEL_NAME)" --output $@' in makefile_text:
+        elif LEGACY_MODEL_RECIPE in makefile_text:
             makefile_text = makefile_text.replace(
-                '$(MODELS):\n\t$(EP) models create --model "$(MODEL_NAME)" --output $@',
+                LEGACY_MODEL_RECIPE,
                 '$(MODELS): $(JOB_DIR)/study_model_list.py\n'
                 '\tcd $(JOB_DIR) && $(STUDY_PYTHON) study_model_list.py',
             )
