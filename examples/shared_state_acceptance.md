@@ -36,11 +36,12 @@ A timeout does not cancel the remote job; inspect its saved ID before resubmitti
 
 ## Real model behavior
 
-The initial live cases are the activity poll and ultimatum game. These retain the
-original multiple-choice/numerical questions, use the actual worker/provider path,
-and check valid decisions against the final shared state. They do not require a
-predetermined model answer. The worker must have credentials for the named provider.
-Both cases passed with GPT-4o mini on 2026-09-28 after correcting the worker's
+All eight examples support live mode. They retain the original model questions,
+use the actual worker/provider path, and check decisions against the final shared
+state. They do not require predetermined answers. The default live selection is
+still the small activity poll and ultimatum game. The worker must have credentials
+for the named provider. Both initial cases passed with GPT-4o mini on 2026-09-28
+after correcting the worker's
 OpenAI credential. EDSL's `.env` had a working key; coopr's configured key returned
 HTTP 401. The worker currently uses the working key through a temporary Compose
 override at `/private/tmp/coopr-shared-state-provider.yml`. The override contains
@@ -54,12 +55,26 @@ Recreating it without the override otherwise restores the old credential.
   --output artifacts/shared-state-acceptance/my-live-run
 ```
 
-`--live` makes paid calls: eight poll answers and four ultimatum answers, before
+The default `--live` selection makes paid calls: eight poll answers and four ultimatum answers, before
 retries. Output is limited to 256 tokens per call, or 1,024 tokens including reasoning
 for Gemini 3 models. This is not a dollar spending cap. Use `--case activity_poll`
 or `--case ultimatum` to run one at a time.
 `live.jobs.ep` files from scripted runs contain a placeholder test model; the live
 command replaces it with the explicitly selected model.
+
+Run all eight, or select any of the case names in the table above using `--case`:
+
+```sh
+.venv/bin/python -m examples.shared_state_acceptance \
+  --live --all --model gpt-4o-mini --service openai --timeout 600 \
+  --output artifacts/shared-state-acceptance/my-live-all
+```
+
+The full roster has 66 participants and at most 118 model answers before retries;
+screening and capacity limits can reduce that count. Live checks independently
+reconstruct quota admissions, purchases and cash balances, auction clearing prices
+and allocations, booking availability, and greedy assignment scores. They also
+check the historical purchase/appointment choices stored with each answer.
 
 Inspect a saved result with the CLI:
 
@@ -86,6 +101,19 @@ vote. The two ultimatum pairs offered $83 (rejected) and $54 (accepted). Inspect
 of every recorded prompt confirmed the prior votes or partner's offer were visible.
 The rejection explanation misinterpreted who received the larger share; the
 walkthrough preserves that model behavior for follow-up prompt experiments.
+
+The [complete live acceptance report](../artifacts/shared-state-acceptance/2026-09-28-live-all.md)
+now records successful runs for all eight examples: 66 participants and 113
+uncached model answers. The expanded run exposed a coopr transport defect:
+resolved question definitions and historical choices were dropped between prompt
+rendering and worker validation. After preserving them through dispatch, validation,
+completion, and cache-hit completion, the market and booking examples both passed.
+Six new worker regression cases cover numeric/text choices, answer codes, saved
+presentation, legacy tasks, and rejection of choices that were not shown.
+
+The ultimatum responder question now spells out both acceptance payoffs. A rerun
+produced the same $83 and $54 offers with both accepted. This is a useful prompt
+check, not a controlled estimate of how the wording affects decisions.
 
 Earlier Google attempts failed: Gemini 2.5 Flash was unavailable for this account,
 and its suggested replacement, Gemini 3.8 Flash, returned HTTP 503 (high demand)

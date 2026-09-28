@@ -132,8 +132,12 @@ def build_survey(state_id: str) -> tuple[Survey, object]:
     decision = QuestionMultipleChoice(
         question_name="decision",
         question_text=(
-            "You are the responder. Current game: {{ shared_state.game }}. "
-            "Do you accept or reject the recorded offer?"
+            "You are the responder. {{ shared_state.game.proposer }} offers you "
+            "${{ shared_state.game.offer }} from the $100 stake. "
+            "If you accept, YOU receive ${{ shared_state.game.offer }} and the "
+            "PROPOSER receives ${{ 100 - shared_state.game.offer }}. "
+            "If you reject, you both receive $0. "
+            "Do you accept or reject this offer?"
         ),
         question_options=["accept", "reject"],
     )

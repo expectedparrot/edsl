@@ -3,7 +3,7 @@
 Run from the repository root; see examples/shared_state_acceptance.md.
 Scripted answers replace only model questions. State steps, flow rules, and
 schedules come from the original examples. Default mode makes no model calls;
---live explicitly enables paid calls for the poll and ultimatum examples.
+--live explicitly enables paid calls, with two small cases selected by default.
 """
 
 from __future__ import annotations
@@ -186,6 +186,11 @@ def check_case(name, results):
 def check_live(name, results):
     assert not results.has_unfixed_exceptions
     states = outcomes(results)["states"]
+    if name not in ("activity_poll", "ultimatum"):
+        from examples.shared_state_acceptance_checks import check_application
+
+        assert len(states) == 1, "Expected one shared study/market scope"
+        return check_application(name, results, states[0]["state"])
     if name == "activity_poll":
         from examples.shared_state_activity_poll import ACTIVITIES
 
@@ -272,24 +277,25 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--runner-url", default="http://localhost:8001")
-    parser.add_argument("--case", action="append", choices=CASES)
+    selection = parser.add_mutually_exclusive_group()
+    selection.add_argument("--case", action="append", choices=CASES)
+    selection.add_argument("--all", action="store_true", help="Run all eight examples")
     parser.add_argument("--timeout", type=float, default=180)
     parser.add_argument(
         "--live",
         action="store_true",
-        help="Make paid model calls; currently supports activity_poll and ultimatum",
+        help="Make paid model calls; defaults to activity_poll and ultimatum",
     )
     parser.add_argument("--model", help="Required with --live")
     parser.add_argument("--service", default="openai")
     args = parser.parse_args()
-    cases = args.case or (("activity_poll", "ultimatum") if args.live else CASES)
-    if args.live and (
-        not args.model
-        or any(name not in ("activity_poll", "ultimatum") for name in cases)
-    ):
-        parser.error(
-            "--live requires --model and supports activity_poll/ultimatum only"
-        )
+    cases = (
+        CASES
+        if args.all
+        else args.case or (("activity_poll", "ultimatum") if args.live else CASES)
+    )
+    if args.live and not args.model:
+        parser.error("--live requires --model")
     args.output.mkdir(parents=True, exist_ok=False)
     records = []
     for name in cases:
