@@ -63,6 +63,12 @@ def with_config(f: Callable[P, T]) -> Callable[P, T]:
         parameters = RunParameters(
             **{k: v for k, v in kwargs.items() if k in parameter_fields}
         )
+        # The schedule is part of the serialized job, not just a per-run option.
+        # Preserve it unless the caller explicitly supplies a replacement.
+        if args and "interview_schedule" not in kwargs:
+            parameters.interview_schedule = args[
+                0
+            ].run_config.parameters.interview_schedule
         parameters._explicit_parameters = {k for k in kwargs if k in parameter_fields}
         config = RunConfig(environment=environment, parameters=parameters)
         return f(*args, config=config)

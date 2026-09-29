@@ -53,7 +53,7 @@ def build_survey(*, state_id=None, **machine_options):
 
 
 def demo_answer(self, question, scenario):
-    return self.traits["quantity"]
+    return self.traits["desired_quantity"]
 
 
 def demo_agents():
@@ -63,7 +63,7 @@ def demo_agents():
             traits={
                 "buyer_id": buyer,
                 "order_id": buyer + "-1",
-                "quantity": quantity,
+                "desired_quantity": quantity,
                 "market_id": "market",
                 "turn": turn,
             }

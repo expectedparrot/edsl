@@ -78,7 +78,7 @@ def build_case(name):
                 "respondent_type": "{{ agent.group }}",
                 "experience": "Shorter waiting times.",
             },
-            "posted_price_market": {"quantity": "{{ agent.quantity }}"},
+            "posted_price_market": {"quantity": "{{ agent.desired_quantity }}"},
             "second_price_auction": {"bid_0": "{{ agent.bids[0] }}"},
             "uniform_price_auction": {
                 "bid_0": "{{ agent.bids[0] }}",
