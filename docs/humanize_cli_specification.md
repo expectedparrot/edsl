@@ -45,6 +45,7 @@ Group discovery:
       "deliveries",
       "callbacks",
       "agent-list",
+      "agent-access",
       "schema",
       "css",
       "assets",

@@ -3714,6 +3714,90 @@ class Coop(CoopFunctionsMixin):
             "allow_resubmit": data.get("allow_resubmit"),
         }
 
+    def get_human_survey_agent_access(
+        self,
+        human_survey_uuid: Union[str, UUID],
+    ) -> dict:
+        """
+        Get a human survey's agent-access config: whether AI agents may take it
+        through its agent link, who produces the answers, and the guidance agents
+        are given. Owner only.
+
+        Parameters:
+            human_survey_uuid: UUID of the human survey.
+
+        Returns:
+            dict: ``{"configured", "enabled", "participation_mode",
+            "instructions", "question_settings"}``. ``configured`` is False when
+            agent access has never been set; the other fields are then their
+            defaults (disabled, ``"human_assisted"``, no guidance).
+
+        Example:
+            >>> access = coop.get_human_survey_agent_access("your-human-survey-uuid")  # doctest: +SKIP
+        """
+        response = self._send_server_request(
+            uri=f"api/v0/human-surveys/{human_survey_uuid}/agent-access",
+            method="GET",
+        )
+        self._resolve_server_response(response)
+        return response.json()
+
+    def patch_human_survey_agent_access(
+        self,
+        human_survey_uuid: Union[str, UUID],
+        partial_config: Dict[str, Any],
+        survey: Optional["Survey"] = None,
+    ) -> dict:
+        """
+        Partially update a human survey's agent-access config. Owner only.
+
+        The ``partial_config`` is deep-merged into the stored config (the defaults,
+        if it has never been set): nested dicts merge key-by-key, while scalars and
+        explicit ``None`` replace the existing value, and fields left out are
+        unchanged. A question set to ``None`` in ``question_settings`` has its
+        settings removed. The merged result is validated as a whole, so unknown keys
+        or invalid values are rejected.
+
+        The config's fields: ``enabled`` (whether the agent link accepts new
+        attempts), ``participation_mode`` (``"human_assisted"``,
+        ``"authorized_context"`` or ``"autonomous"``), ``instructions`` (guidance
+        for agents on the whole survey, at most 4,000 characters; in autonomous
+        mode, how the agent should answer), and ``question_settings`` (per-question
+        settings keyed by question name, e.g. ``{"improvements":
+        {"instructions": "Name at least one specific change."}}``).
+
+        The patch is validated before it's sent, and ``AgentAccessValidationError``
+        is raised if a key or value isn't allowed. The server doesn't check question
+        names, so pass ``survey`` to check that every question given settings is in
+        it.
+
+        Parameters:
+            human_survey_uuid: UUID of the human survey.
+            partial_config: Partial agent-access config to deep-merge into the
+                stored one.
+            survey: The survey, to check question names in ``question_settings``
+                against. Optional.
+
+        Returns:
+            dict: The stored config, as ``get_human_survey_agent_access`` returns it.
+
+        Example:
+            >>> coop.patch_human_survey_agent_access(  # doctest: +SKIP
+            ...     "your-human-survey-uuid",
+            ...     {"enabled": True, "participation_mode": "autonomous"},
+            ... )
+        """
+        from .coop_agent_access import validate_agent_access_patch
+
+        validate_agent_access_patch(partial_config, survey)
+        response = self._send_server_request(
+            uri=f"api/v0/human-surveys/{human_survey_uuid}/agent-access",
+            method="PATCH",
+            payload={"patch": partial_config},
+        )
+        self._resolve_server_response(response)
+        return response.json()
+
     def get_human_survey_respondents(
         self,
         human_survey_uuid: Union[str, UUID],

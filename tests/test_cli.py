@@ -3055,6 +3055,7 @@ class TestHumanizeCli:
             "deliveries",
             "callbacks",
             "agent-list",
+            "agent-access",
             "schema",
             "css",
             "assets",
@@ -3979,6 +3980,217 @@ class TestHumanizeCli:
         assert result.exit_code == 0, result.output
         out = json.loads(result.output)
         assert out["data"]["status"] == "active"
+
+    def test_humanize_agent_access_group_lists_commands(self):
+        result = CliRunner().invoke(cli_module.app, ["humanize", "agent-access"])
+
+        assert result.exit_code == 0, result.output
+        out = json.loads(result.output)
+        assert out["data"]["commands"] == ["get", "patch"]
+
+    def test_humanize_agent_access_get(self, monkeypatch):
+        import edsl.coop
+
+        class FakeCoop:
+            def get_human_survey_agent_access(self, human_survey_uuid):
+                assert human_survey_uuid == "human-survey-uuid"
+                return {"configured": True, "enabled": True, "participation_mode": "autonomous"}
+
+        monkeypatch.setattr(edsl.coop, "Coop", FakeCoop)
+
+        result = CliRunner().invoke(
+            cli_module.app, ["humanize", "agent-access", "get", "human-survey-uuid"]
+        )
+
+        assert result.exit_code == 0, result.output
+        assert json.loads(result.output)["data"]["participation_mode"] == "autonomous"
+
+    def test_humanize_agent_access_patch_sends_the_config_file(self, monkeypatch, tmp_path):
+        import edsl.coop
+
+        calls = []
+
+        class FakeCoop:
+            def patch_human_survey_agent_access(self, human_survey_uuid, partial_config):
+                calls.append((human_survey_uuid, partial_config))
+                return {"configured": True, "enabled": True}
+
+        monkeypatch.setattr(edsl.coop, "Coop", FakeCoop)
+        config_path = tmp_path / "access.json"
+        config_path.write_text(json.dumps({"enabled": True, "question_settings": {"improvements": None}}))
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            [
+                "humanize", "agent-access", "patch", "human-survey-uuid",
+                "--config", str(config_path),
+            ],
+        )
+
+        assert result.exit_code == 0, result.output
+        assert calls == [(
+            "human-survey-uuid",
+            {"enabled": True, "question_settings": {"improvements": None}},
+        )]
+
+    def _agent_access_patch(self, monkeypatch, *args):
+        """Run 'agent-access patch' with args; return (result, the patches sent)."""
+        import edsl.coop
+
+        calls = []
+
+        class FakeCoop:
+            def patch_human_survey_agent_access(self, human_survey_uuid, partial_config):
+                calls.append(partial_config)
+                return {"configured": True}
+
+        monkeypatch.setattr(edsl.coop, "Coop", FakeCoop)
+        result = CliRunner().invoke(
+            cli_module.app,
+            ["humanize", "agent-access", "patch", "human-survey-uuid", *args],
+        )
+        return result, calls
+
+    def test_humanize_agent_access_patch_builds_the_patch_from_options(self, monkeypatch):
+        result, calls = self._agent_access_patch(
+            monkeypatch,
+            "--disabled",
+            "--participation_mode", "autonomous",
+            "--instructions", "Keep free-text answers to one or two sentences, and use the comment box to flag any answer that's an estimate.",
+            "--question_instructions", "improvements=Name at least one specific change, not a general comment.",
+            "--question_instructions", "job=Say teacher = always.",
+            "--clear_question", "color",
+        )
+
+        assert result.exit_code == 0, result.output
+        assert calls == [{
+            "enabled": False,
+            "participation_mode": "autonomous",
+            "instructions": "Keep free-text answers to one or two sentences, and use the comment box to flag any answer that's an estimate.",
+            "question_settings": {
+                "improvements": {"instructions": "Name at least one specific change, not a general comment."},
+                "job": {"instructions": "Say teacher = always."},
+                "color": None,
+            },
+        }]
+
+    def test_humanize_agent_access_patch_sends_only_what_was_given(self, monkeypatch):
+        result, calls = self._agent_access_patch(monkeypatch, "--enabled")
+
+        assert result.exit_code == 0, result.output
+        assert calls == [{"enabled": True}]
+
+    def test_humanize_agent_access_patch_clears_instructions(self, monkeypatch):
+        result, calls = self._agent_access_patch(monkeypatch, "--clear_instructions")
+
+        assert result.exit_code == 0, result.output
+        assert calls == [{"instructions": None}]
+
+    def test_humanize_agent_access_patch_options_apply_on_top_of_the_config(self, monkeypatch, tmp_path):
+        config_path = tmp_path / "access.json"
+        config_path.write_text(json.dumps({
+            "enabled": False,
+            "question_settings": {"improvements": {"instructions": "Name the one change you'd make first."}},
+        }))
+
+        result, calls = self._agent_access_patch(
+            monkeypatch,
+            "--config", str(config_path),
+            "--enabled",
+            "--question_instructions", "job=Say teacher.",
+        )
+
+        assert result.exit_code == 0, result.output
+        assert calls == [{
+            "enabled": True,
+            "question_settings": {
+                "improvements": {"instructions": "Name the one change you'd make first."},
+                "job": {"instructions": "Say teacher."},
+            },
+        }]
+
+    @pytest.mark.parametrize(
+        "args",
+        [
+            [],  # nothing to change
+            ["--question_instructions", "improvements"],  # no =TEXT
+            ["--question_instructions", "=text"],  # no question
+            ["--instructions", "x", "--clear_instructions"],  # contradictory
+        ],
+    )
+    def test_humanize_agent_access_patch_usage_errors(self, monkeypatch, args):
+        result, calls = self._agent_access_patch(monkeypatch, *args)
+
+        assert result.exit_code != 0
+        assert calls == []
+
+    def test_humanize_agent_access_patch_rejects_an_invalid_config(self, monkeypatch, tmp_path):
+        config_path = tmp_path / "access.json"
+        config_path.write_text(json.dumps({"participation_mode": "role_play"}))
+
+        result, calls = self._agent_access_patch(monkeypatch, "--config", str(config_path))
+
+        assert result.exit_code != 0
+        assert json.loads(result.output)["error"]["code"] == "VALIDATION_ERROR"
+        assert calls == []
+
+    @pytest.mark.parametrize(
+        "question_settings",
+        ["improvements", 5, [["improvements", {"instructions": "Name at least one specific change, not a general comment."}]]],
+    )
+    @pytest.mark.parametrize(
+        "flags, code",
+        [
+            ([], "VALIDATION_ERROR"),
+            (["--question_instructions", "job=Say teacher."], "USAGE_ERROR"),
+            (["--clear_question", "job"], "USAGE_ERROR"),
+        ],
+    )
+    def test_humanize_agent_access_patch_rejects_non_object_question_settings(
+        self, monkeypatch, tmp_path, question_settings, flags, code
+    ):
+        config_path = tmp_path / "access.json"
+        config_path.write_text(json.dumps({"question_settings": question_settings}))
+
+        result, calls = self._agent_access_patch(
+            monkeypatch, "--config", str(config_path), *flags
+        )
+
+        assert result.exit_code != 0
+        assert json.loads(result.output)["error"]["code"] == code
+        assert calls == []
+
+    def test_humanize_agent_access_patch_checks_names_against_the_survey(self, monkeypatch, tmp_path):
+        from edsl.questions import QuestionFreeText
+        from edsl.surveys import Survey
+
+        survey_path = tmp_path / "survey.json"
+        survey_path.write_text(json.dumps(Survey([
+            QuestionFreeText(question_name="improvements", question_text="What would you improve?"),
+        ]).to_dict()))
+
+        result, calls = self._agent_access_patch(
+            monkeypatch,
+            "--survey", str(survey_path),
+            "--question_instructions", "improvments=Name at least one specific change, not a general comment.",
+        )
+        assert result.exit_code != 0
+        assert json.loads(result.output)["error"]["code"] == "VALIDATION_ERROR"
+        assert calls == []
+
+        result, calls = self._agent_access_patch(
+            monkeypatch,
+            "--survey", str(survey_path),
+            "--question_instructions", "improvements=Name at least one specific change, not a general comment.",
+            "--clear_question", "improvments",
+        )
+        assert result.exit_code == 0, result.output
+        assert calls == [{
+            "question_settings": {
+                "improvements": {"instructions": "Name at least one specific change, not a general comment."},
+                "improvments": None,
+            },
+        }]
 
     def test_humanize_status_backfills_agent_list_uuid(self, monkeypatch):
         import edsl.coop

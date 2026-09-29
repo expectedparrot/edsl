@@ -693,6 +693,10 @@ edsl humanize schema set <human_survey_uuid> --clear-logo
 edsl humanize respondents <human_survey_uuid> --page 1 --page_size 50
 edsl humanize agent-list get <human_survey_uuid>
 edsl humanize agent-list patch <human_survey_uuid> --delivery_map delivery_map.json
+edsl humanize agent-access get <human_survey_uuid>
+edsl humanize agent-access patch <human_survey_uuid> --enabled --participation_mode autonomous --instructions "Keep free-text answers to one or two sentences, and use the comment box to flag any answer that's an estimate."
+edsl humanize agent-access patch <human_survey_uuid> --question_instructions "improvements=Name at least one specific change, not a general comment." --clear_question job
+edsl humanize agent-access patch <human_survey_uuid> --config agent_access.json
 edsl humanize deliveries create <human_survey_uuid> --name "Initial invite"
 edsl humanize deliveries create <human_survey_uuid> --name "Owner notice" --owner-email-template owner_response_received
 edsl humanize deliveries list <human_survey_uuid>
