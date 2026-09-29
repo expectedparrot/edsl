@@ -1,5 +1,15 @@
 # Run shared-state examples through local coopr
 
+The [2026-09-29 hosted smoke report](../artifacts/shared-state-acceptance/2026-09-29-hosted/report.md)
+records a separate test against the actual chick environment using normal CLI
+submission and persisted Results downloads: sequential poll, dynamic-price market,
+and three snapshot rounds all passed (18 final result rows). It found two client
+transport gaps: `.ep` persistence dropped state definitions/schedules, and `run()`
+reset saved schedules. Both now have regression coverage. Rebuild shared-state
+packages saved before these fixes; missing definitions cannot be recovered from
+those packages alone. The report also records restoration of the prior chick
+application and the retained additive migration history.
+
 Start with the scripted suite, then inspect a small real-model run. These commands
 use the runner at `http://localhost:8001`; they do not use the hosted backend selected
 by `ep info` and do not test hosted billing or cloud uploads.
