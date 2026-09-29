@@ -24,6 +24,7 @@ from sqlalchemy import (
     update,
 )
 from sqlalchemy.dialects.postgresql import JSONB, insert as pg_insert
+from sqlalchemy.engine import Connection
 
 from edsl._data_contracts import canonical_data, definition_fingerprint, validate_data
 from .backend import AdvisoryWriteOutcome, ObservedState, StateSnapshot
@@ -70,11 +71,28 @@ checkpoints = Table(
 
 
 class PostgresStateBackend:
+    """Bind state to an engine or an existing application transaction.
+
+    An engine gives each operation its own transaction. A Connection must already
+    have an active transaction: operations use savepoints, and the caller owns the
+    final commit/rollback. This lets an accepted human answer and its state effects
+    commit together. Rebind after the caller's transaction ends.
+    """
+
     def __init__(self, state_map, engine, *, namespace, runtime=None):
         if not namespace or not isinstance(namespace, str):
             raise ValueError("a server-owned state namespace is required")
         self.state_map = SharedStateMap.from_dict(state_map.to_dict())
         self.engine = engine
+        self._bound_transaction = None
+        if isinstance(engine, Connection):
+            self._bound_transaction = (
+                engine.get_nested_transaction() or engine.get_transaction()
+            )
+            if self._bound_transaction is None or not self._bound_transaction.is_active:
+                raise SharedStateRuntimeError(
+                    "a bound connection requires an active caller-owned transaction"
+                )
         self.namespace = namespace
         self.runtime = runtime or default_runtime()
         self.definition_hash = definition_fingerprint(
@@ -90,7 +108,7 @@ class PostgresStateBackend:
             events.c.namespace == namespace,
             events.c.state_id == self.state_map.state_id,
         )
-        with engine.begin() as conn:
+        with self._connection() as conn:
             conn.execute(
                 pg_insert(definitions)
                 .values(
@@ -112,13 +130,31 @@ class PostgresStateBackend:
         metadata.create_all(engine)
 
     @contextmanager
+    def _connection(self):
+        if isinstance(self.engine, Connection):
+            current = (
+                self.engine.get_nested_transaction() or self.engine.get_transaction()
+            )
+            if current is not self._bound_transaction or not current.is_active:
+                raise SharedStateRuntimeError(
+                    "the bound transaction ended or changed; bind a new state backend"
+                )
+            # A failed operation must not leave partial event/sequence writes even
+            # if the application catches its exception and continues the request.
+            with self.engine.begin_nested():
+                yield self.engine
+        else:
+            with self.engine.begin() as conn:
+                yield conn
+
+    @contextmanager
     def _transaction(self):
         if (
             definition_fingerprint(self.state_map.definition.to_dict())
             != self.definition_hash
         ):
             raise SharedStateRuntimeError("state definition was mutated after binding")
-        with self.engine.begin() as conn:
+        with self._connection() as conn:
             row = (
                 conn.execute(
                     select(definitions).where(self._definition_key).with_for_update()

@@ -205,6 +205,33 @@ using `adopt_legacy_definition=True`; this cannot prove their original definitio
 See [Workflow and shared-state execution contracts](https://docs.expectedparrot.com/en/latest/coordinated-research/execution-contracts)
 for recovery across separate workflow/state databases and rollout guidance.
 
+## PostgreSQL application transactions
+
+`PostgresStateBackend(state_map, engine, namespace=...)` commits each operation
+independently. To commit state effects together with an application record, pass
+a SQLAlchemy `Connection` with an active transaction instead:
+
+```python
+with engine.begin() as connection:
+    backend = PostgresStateBackend(state_map, connection, namespace=namespace)
+    backend.apply(resolved_write)
+    connection.execute(answers.insert().values(response_id=response_id, answer=answer))
+```
+
+The caller owns commit and rollback. Each state operation uses a savepoint so
+a caught failure cannot leave partial events behind. Reads, checkpoints, and
+finalization participate in the same transaction. Bind a new backend after the
+transaction ends or when entering a different caller-owned savepoint.
+
+With an `AsyncSession`, construct and use the backend inside `session.run_sync`,
+passing `sync_session.connection()`. Do not retain the synchronous backend for
+use outside that callback. Locks remain held until the caller's transaction ends;
+keep provider calls and other slow external work outside that transaction.
+
+This is a prerequisite for native Humanize support, not an integration with its
+navigation or submission routes. Those routes still need stable presentation/read
+identities and must apply state effects only after validating an accepted answer.
+
 ## Results provenance
 
 `Results.shared_state` contains one binding record per `state_id` touched by the
