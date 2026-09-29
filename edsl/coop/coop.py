@@ -3714,6 +3714,94 @@ class Coop(CoopFunctionsMixin):
             "allow_resubmit": data.get("allow_resubmit"),
         }
 
+    def get_human_survey_agent_access(
+        self,
+        human_survey_uuid: Union[str, UUID],
+    ) -> dict:
+        """
+        Get a human survey's agent-access config: whether AI agents may take it
+        through its agent link, who produces the answers, and the guidance agents
+        are given. Owner only.
+
+        Parameters:
+            human_survey_uuid: UUID of the human survey.
+
+        Returns:
+            dict: ``{"configured", "enabled", "participation_mode",
+            "instructions", "question_settings"}``. ``configured`` is False when
+            agent access has never been set; the other fields are then their
+            defaults (disabled, ``"human_assisted"``, no guidance).
+
+        Example:
+            >>> access = coop.get_human_survey_agent_access("your-human-survey-uuid")  # doctest: +SKIP
+        """
+        response = self._send_server_request(
+            uri=f"api/v0/human-surveys/{human_survey_uuid}/agent-access",
+            method="GET",
+        )
+        self._resolve_server_response(response)
+        return response.json()
+
+    def update_human_survey_agent_access(
+        self,
+        human_survey_uuid: Union[str, UUID],
+        *,
+        enabled: bool = False,
+        participation_mode: Literal[
+            "human_assisted", "authorized_context", "autonomous"
+        ] = "human_assisted",
+        instructions: Optional[str] = None,
+        question_settings: Optional[Dict[str, Dict[str, Any]]] = None,
+    ) -> dict:
+        """
+        Replace a human survey's agent-access config. Owner only.
+
+        The whole config is replaced: any field left out takes its default, so
+        ``update_human_survey_agent_access(uuid, enabled=True)`` enables the agent
+        link in human-assisted mode with no guidance. To change one field, read
+        the config with ``get_human_survey_agent_access`` and send it back with
+        that field changed.
+
+        Parameters:
+            human_survey_uuid: UUID of the human survey.
+            enabled: Whether the agent link accepts new attempts.
+            participation_mode: Who produces the answers: ``"human_assisted"``
+                (the participant; the agent relays), ``"authorized_context"``
+                (the agent, from context the participant authorized), or
+                ``"autonomous"`` (the agent alone; describe any persona it
+                should answer as in ``instructions``).
+            instructions: Guidance for agents on the whole survey (at most 4,000
+                characters). Advisory: nothing enforces it.
+            question_settings: Per-question settings keyed by question name, e.g.
+                ``{"age": {"instructions": "A rough age is fine."}}``. Each
+                question's ``instructions`` is at most 2,000 characters. Names
+                must be questions in the survey.
+
+        Returns:
+            dict: The stored config, as ``get_human_survey_agent_access`` returns it.
+
+        Example:
+            >>> coop.update_human_survey_agent_access(  # doctest: +SKIP
+            ...     "your-human-survey-uuid",
+            ...     enabled=True,
+            ...     participation_mode="autonomous",
+            ...     instructions="Answer as a 42-year-old teacher.",
+            ... )
+        """
+        payload: Dict[str, Any] = {
+            "enabled": enabled,
+            "participation_mode": participation_mode,
+            "instructions": instructions,
+            "question_settings": question_settings or {},
+        }
+        response = self._send_server_request(
+            uri=f"api/v0/human-surveys/{human_survey_uuid}/agent-access",
+            method="PUT",
+            payload=payload,
+        )
+        self._resolve_server_response(response)
+        return response.json()
+
     def get_human_survey_respondents(
         self,
         human_survey_uuid: Union[str, UUID],
