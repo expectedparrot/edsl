@@ -176,3 +176,42 @@ link to each transcript. The price persona now explicitly defines its `value` as
 maximum willingness to pay. The rerun elicited 0, 37, 65, and 100, matching the four
 personas. The verifier checks state transitions against actual choices; it does
 not force models to make those choices or certify their behavioral realism.
+
+## Restart recovery
+
+The opt-in Docker restart tests in coopr's
+`backend/runner_services/tests/test_api_recovery.py` passed for the API, dispatcher,
+and worker. Each abruptly restarts a service during a five-round job, then checks
+both scopes, task accounting, write versions, and round order.
+
+To exercise recovery with real model decisions as well:
+
+```sh
+.venv/bin/python -m examples.shared_state_restart_acceptance \
+  --live --restart runner-api --restart runner-dispatcher --restart runner-worker \
+  --output artifacts/shared-state-acceptance/my-live-restarts
+```
+
+This explicitly restarts the named local Compose services with zero shutdown grace.
+It uses the two-round message board for the API, the snapshot game for the
+dispatcher, and adaptive product comparisons for the worker. A restart is triggered
+only after some tasks complete while another task is running. The suite records
+the trigger, restart exit status, progress history, full results, and transcripts.
+It requires a local runner URL and stops the batch if a case fails. A timeout
+preserves the job ID and does not cancel the job.
+
+The three cases target 18 model decisions and bypass the API inference caches.
+Interrupted provider calls can repeat, so this does not assert exactly-once calls
+or billing. Acceptance requires six committed decisions per case, correct state
+and historical visibility, and complete task accounting without failed or blocked
+tasks. Redis and PostgreSQL remain running throughout these service restarts;
+infrastructure failover and loss of the PostgreSQL transition-lock connection are
+separate failure scenarios.
+
+All three live restart cases passed on 2026-09-28, with 18 uncached recorded model
+answers and no duplicate committed decisions. The worker-interruption case finished
+in about 75 seconds, including the wait for takeover after interruption. The
+[restart report](../artifacts/shared-state-acceptance/2026-09-28-live-restarts/report.md)
+links to per-service progress and transcripts; the
+[Docker regression results](../artifacts/shared-state-acceptance/2026-09-28-restart-tests.xml)
+record the three corresponding mock-model tests.
