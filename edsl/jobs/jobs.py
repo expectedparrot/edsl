@@ -2227,6 +2227,8 @@ class Jobs(Base):
             - Interviews are shuffled before splitting to ensure even distribution across batches
             - The final results maintain the original interview ordering regardless of batch execution order
             - Each batch runs as a completely separate job, allowing for different execution environments
+            - Shared-state or ordered jobs must use run(), or num_batches=1,
+              because splitting them would change state scope and execution order
 
         Example:
             >>> from edsl.jobs import Jobs
@@ -2244,6 +2246,25 @@ class Jobs(Base):
 
         if num_batches <= 0:
             raise ValueError("num_batches must be greater than 0")
+
+        schedule = kwargs.get(
+            "interview_schedule", self.run_config.parameters.interview_schedule
+        )
+        has_state = bool(
+            self.survey._state_reads
+            or self.survey._state_writes
+            or self.survey._state_before_writes
+        )
+        if has_state or schedule != "concurrent":
+            if num_batches == 1:
+                return self.run(**kwargs)
+            from .exceptions import JobsValueError
+
+            raise JobsValueError(
+                "run_batch() cannot split shared-state or ordered jobs into "
+                "independent batches. Use run() or num_batches=1 to preserve "
+                "shared state and the interview schedule."
+            )
 
         # Manually create config from kwargs like @with_config would do
         parameter_fields = {

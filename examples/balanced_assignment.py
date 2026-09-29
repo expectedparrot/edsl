@@ -61,7 +61,7 @@ def build_survey(*, state_id=None, seed="balanced-2026"):
 
 def demo_answer(self, question, scenario):
     if question.question_name in ("age_group", "experience"):
-        return self.traits[question.question_name]
+        return self.traits[f"respondent_{question.question_name}"]
     return "A clear proposal."
 
 
@@ -73,8 +73,8 @@ def demo_agents(count=12):
                 "respondent_id": f"R{i}",
                 "study_id": "study",
                 "turn": i,
-                "age_group": AGES[i % 2],
-                "experience": EXPERIENCE[(i // 2) % 2],
+                "respondent_age_group": AGES[i % 2],
+                "respondent_experience": EXPERIENCE[(i // 2) % 2],
             }
         )
         agent.add_direct_question_answering_method(demo_answer)

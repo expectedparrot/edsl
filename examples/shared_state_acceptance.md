@@ -44,6 +44,26 @@ The output includes `report.md`, `summary.json`, each runner job ID, portable Jo
 packages, and local/coopr Results packages. Failed runs retain diagnostic artifacts.
 A timeout does not cancel the remote job; inspect its saved ID before resubmitting.
 
+You can also rerun a saved scripted package through the normal CLI without coopr
+or model calls:
+
+```sh
+ep run artifacts/shared-state-acceptance/my-scripted-run/activity_poll/scripted.jobs.ep \
+  --model test --local --fresh \
+  --output artifacts/shared-state-acceptance/my-scripted-run/activity_poll/cli.results.ep
+```
+
+All eight scripted examples have regression coverage for this path, including
+package reload, a model override, execution, and saved-result checks. Model, agent,
+and scenario overrides retain the job's schedule and explicit assignment plan.
+Replacing a collection with a different length is rejected when an explicit
+assignment plan depends on its positions.
+
+Use `run()` for shared-state or ordered jobs. `run_batch(num_batches=1)` also
+preserves the complete job. Splitting such a job into multiple batches is rejected:
+batching shuffles interviews and creates independent jobs, which would change the
+state scope and turn order.
+
 ## Real model behavior
 
 All eight examples support live mode. They retain the original model questions,

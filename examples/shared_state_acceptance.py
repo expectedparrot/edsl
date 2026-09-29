@@ -89,8 +89,8 @@ def build_case(name):
                 "confirmation": "{{ agent.decision }}",
             },
             "balanced_assignment": {
-                "age_group": "{{ agent.age_group }}",
-                "experience": "{{ agent.experience }}",
+                "age_group": "{{ agent.respondent_age_group }}",
+                "experience": "{{ agent.respondent_experience }}",
                 "response": "A clear proposal.",
             },
         }[name]

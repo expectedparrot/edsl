@@ -85,3 +85,49 @@ def test_run_preserves_saved_schedule_unless_overridden(
         else:
             job.run(**kwargs)
     assert captured == [expected]
+
+
+@pytest.mark.parametrize("override", [False, True])
+def test_batch_split_rejects_shared_state_before_execution(monkeypatch, override):
+    from edsl.jobs.exceptions import JobsValueError
+
+    job, _, _ = build_case("activity_poll")
+    monkeypatch.setattr(
+        job, "generate_interviews", lambda: pytest.fail("must not split")
+    )
+    monkeypatch.setattr(job, "run", lambda **kwargs: pytest.fail("must not execute"))
+    kwargs = {"interview_schedule": "concurrent"} if override else {}
+    with pytest.raises(
+        JobsValueError, match="cannot split shared-state or ordered jobs"
+    ):
+        job.run_batch(num_batches=2, **kwargs)
+
+
+@pytest.mark.parametrize("explicit", [False, True])
+def test_batch_split_rejects_stateless_ordered_schedule(monkeypatch, explicit):
+    from edsl.jobs.exceptions import JobsValueError
+
+    job = Jobs.example()
+    if not explicit:
+        job.run_config.parameters.interview_schedule = "serial"
+    monkeypatch.setattr(
+        job, "generate_interviews", lambda: pytest.fail("must not split")
+    )
+    kwargs = {"interview_schedule": "serial"} if explicit else {}
+    with pytest.raises(
+        JobsValueError, match="cannot split shared-state or ordered jobs"
+    ):
+        job.run_batch(num_batches=2, **kwargs)
+
+
+def test_single_batch_runs_complete_shared_state_job():
+    _, job, _ = build_case("posted_price_market")
+    results = job.run_batch(
+        num_batches=1,
+        disable_remote_inference=True,
+        disable_remote_cache=True,
+        check_api_keys=False,
+        cache=False,
+        progress_bar=False,
+    )
+    check_case("posted_price_market", results)
