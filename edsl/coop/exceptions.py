@@ -228,6 +228,24 @@ class HumanizeSchemaValidationError(CoopErrors):
     relevant_doc = "https://docs.expectedparrot.com/en/latest/humanize_schema"
 
 
+class AgentAccessValidationError(CoopErrors):
+    """
+    Exception raised when a human survey's agent-access config patch is invalid.
+
+    Raised before the patch is sent if:
+
+    - It has a key the config doesn't define
+    - A value is the wrong type, out of range, or not an allowed mode
+    - It sets settings for a question not in the survey (when a survey is given)
+
+    To fix this error, send only ``enabled``, ``participation_mode``,
+    ``instructions`` and ``question_settings``, with values the config allows, and
+    name only questions in the survey.
+    """
+
+    relevant_doc = "https://docs.expectedparrot.com/en/latest/humanize_schema"
+
+
 class CoopTypeError(CoopErrors):
     """
     Exception raised when a parameter has an incorrect type.

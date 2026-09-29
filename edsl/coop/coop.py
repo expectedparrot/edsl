@@ -3746,6 +3746,7 @@ class Coop(CoopFunctionsMixin):
         self,
         human_survey_uuid: Union[str, UUID],
         partial_config: Dict[str, Any],
+        survey: Optional["Survey"] = None,
     ) -> dict:
         """
         Partially update a human survey's agent-access config. Owner only.
@@ -3765,10 +3766,17 @@ class Coop(CoopFunctionsMixin):
         settings keyed by question name, e.g. ``{"age": {"instructions": "A rough
         age is fine."}}``).
 
+        The patch is validated before it's sent, and ``AgentAccessValidationError``
+        is raised if a key or value isn't allowed. The server doesn't check question
+        names, so pass ``survey`` to check that every question given settings is in
+        it.
+
         Parameters:
             human_survey_uuid: UUID of the human survey.
             partial_config: Partial agent-access config to deep-merge into the
                 stored one.
+            survey: The survey, to check question names in ``question_settings``
+                against. Optional.
 
         Returns:
             dict: The stored config, as ``get_human_survey_agent_access`` returns it.
@@ -3779,6 +3787,9 @@ class Coop(CoopFunctionsMixin):
             ...     {"enabled": True, "participation_mode": "autonomous"},
             ... )
         """
+        from .coop_agent_access import validate_agent_access_patch
+
+        validate_agent_access_patch(partial_config, survey)
         response = self._send_server_request(
             uri=f"api/v0/human-surveys/{human_survey_uuid}/agent-access",
             method="PATCH",

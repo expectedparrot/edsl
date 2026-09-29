@@ -4124,6 +4124,74 @@ class TestHumanizeCli:
         assert result.exit_code != 0
         assert calls == []
 
+    def test_humanize_agent_access_patch_rejects_an_invalid_config(self, monkeypatch, tmp_path):
+        config_path = tmp_path / "access.json"
+        config_path.write_text(json.dumps({"participation_mode": "role_play"}))
+
+        result, calls = self._agent_access_patch(monkeypatch, "--config", str(config_path))
+
+        assert result.exit_code != 0
+        assert json.loads(result.output)["error"]["code"] == "VALIDATION_ERROR"
+        assert calls == []
+
+    @pytest.mark.parametrize(
+        "question_settings",
+        ["age", 5, [["age", {"instructions": "A rough age is fine."}]]],
+    )
+    @pytest.mark.parametrize(
+        "flags, code",
+        [
+            ([], "VALIDATION_ERROR"),
+            (["--question_instructions", "job=Say teacher."], "USAGE_ERROR"),
+            (["--clear_question", "job"], "USAGE_ERROR"),
+        ],
+    )
+    def test_humanize_agent_access_patch_rejects_non_object_question_settings(
+        self, monkeypatch, tmp_path, question_settings, flags, code
+    ):
+        config_path = tmp_path / "access.json"
+        config_path.write_text(json.dumps({"question_settings": question_settings}))
+
+        result, calls = self._agent_access_patch(
+            monkeypatch, "--config", str(config_path), *flags
+        )
+
+        assert result.exit_code != 0
+        assert json.loads(result.output)["error"]["code"] == code
+        assert calls == []
+
+    def test_humanize_agent_access_patch_checks_names_against_the_survey(self, monkeypatch, tmp_path):
+        from edsl.questions import QuestionFreeText
+        from edsl.surveys import Survey
+
+        survey_path = tmp_path / "survey.json"
+        survey_path.write_text(json.dumps(Survey([
+            QuestionFreeText(question_name="age", question_text="How old are you?"),
+        ]).to_dict()))
+
+        result, calls = self._agent_access_patch(
+            monkeypatch,
+            "--survey", str(survey_path),
+            "--question_instructions", "agee=A rough age is fine.",
+        )
+        assert result.exit_code != 0
+        assert json.loads(result.output)["error"]["code"] == "VALIDATION_ERROR"
+        assert calls == []
+
+        result, calls = self._agent_access_patch(
+            monkeypatch,
+            "--survey", str(survey_path),
+            "--question_instructions", "age=A rough age is fine.",
+            "--clear_question", "agee",
+        )
+        assert result.exit_code == 0, result.output
+        assert calls == [{
+            "question_settings": {
+                "age": {"instructions": "A rough age is fine."},
+                "agee": None,
+            },
+        }]
+
     def test_humanize_status_backfills_agent_list_uuid(self, monkeypatch):
         import edsl.coop
 

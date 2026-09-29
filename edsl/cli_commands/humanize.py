@@ -1062,6 +1062,7 @@ def register(humanize: click.Group) -> None:
     @click.option("--clear_instructions", is_flag=True, help="Remove the survey-wide instructions.")
     @click.option("--question_instructions", "question_instruction_specs", multiple=True, help="QUESTION=TEXT instructions for one question. Repeat for more.")
     @click.option("--clear_question", "cleared_questions", multiple=True, help="Remove one question's settings. Repeat for more.")
+    @click.option("--survey", "survey_path", default=None, type=click.Path(exists=True), help="Survey .ep, JSON, or package directory, to check question names against before sending.")
     def humanize_agent_access_patch(
         human_survey_uuid,
         config_path,
@@ -1071,12 +1072,14 @@ def register(humanize: click.Group) -> None:
         clear_instructions,
         question_instruction_specs,
         cleared_questions,
+        survey_path,
     ):
         """Patch a human survey's agent-access config.
 
         The patch is deep-merged into the stored config: fields left out are
         unchanged, and a question set to null in question_settings has its settings
-        removed. Build it from the options, from --config, or both.
+        removed. Build it from the options, from --config, or both. It's validated
+        before it's sent; with --survey, question names are checked too.
         """
         if instructions is not None and clear_instructions:
             error(
@@ -1095,19 +1098,29 @@ def register(humanize: click.Group) -> None:
             patch["instructions"] = instructions
         if clear_instructions:
             patch["instructions"] = None
-        question_settings = dict(patch.get("question_settings") or {})
-        for spec in question_instruction_specs:
-            question_name, separator, text = spec.partition("=")
-            if not separator or not question_name or not text:
+        # Merged into --config's question_settings only when a flag needs it; any
+        # other value is left for validation to reject, not coerced here.
+        if question_instruction_specs or cleared_questions:
+            existing = patch.get("question_settings")
+            if existing is not None and not isinstance(existing, dict):
                 error(
                     "USAGE_ERROR",
-                    f"--question_instructions must look like QUESTION=TEXT, got {spec!r}.",
+                    "question_settings in --config must be a JSON object to combine it "
+                    "with --question_instructions or --clear_question.",
                     exit_code=EXIT_USAGE,
                 )
-            question_settings[question_name] = {"instructions": text}
-        for question_name in cleared_questions:
-            question_settings[question_name] = None
-        if question_settings:
+            question_settings = dict(existing or {})
+            for spec in question_instruction_specs:
+                question_name, separator, text = spec.partition("=")
+                if not separator or not question_name or not text:
+                    error(
+                        "USAGE_ERROR",
+                        f"--question_instructions must look like QUESTION=TEXT, got {spec!r}.",
+                        exit_code=EXIT_USAGE,
+                    )
+                question_settings[question_name] = {"instructions": text}
+            for question_name in cleared_questions:
+                question_settings[question_name] = None
             patch["question_settings"] = question_settings
         if not patch:
             error(
@@ -1116,6 +1129,20 @@ def register(humanize: click.Group) -> None:
                 "--participation_mode, --instructions, --clear_instructions, "
                 "--question_instructions, or --clear_question.",
                 exit_code=EXIT_USAGE,
+            )
+        try:
+            from edsl.coop.coop_agent_access import validate_agent_access_patch
+
+            survey = _load_survey_object(survey_path) if survey_path else None
+            validate_agent_access_patch(patch, survey)
+        except SystemExit:
+            raise
+        except Exception as e:
+            error(
+                "VALIDATION_ERROR",
+                str(e),
+                suggestion="Check the option values, and that each question name is in the survey.",
+                exit_code=EXIT_VALIDATION,
             )
         try:
             from edsl.coop import Coop
