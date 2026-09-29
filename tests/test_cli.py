@@ -3986,7 +3986,7 @@ class TestHumanizeCli:
 
         assert result.exit_code == 0, result.output
         out = json.loads(result.output)
-        assert out["data"]["commands"] == ["get", "update"]
+        assert out["data"]["commands"] == ["get", "patch"]
 
     def test_humanize_agent_access_get(self, monkeypatch):
         import edsl.coop
@@ -4005,67 +4005,124 @@ class TestHumanizeCli:
         assert result.exit_code == 0, result.output
         assert json.loads(result.output)["data"]["participation_mode"] == "autonomous"
 
-    def test_humanize_agent_access_update_sends_every_field(self, monkeypatch, tmp_path):
+    def test_humanize_agent_access_patch_sends_the_config_file(self, monkeypatch, tmp_path):
         import edsl.coop
 
         calls = []
 
         class FakeCoop:
-            def update_human_survey_agent_access(self, human_survey_uuid, **kwargs):
-                calls.append((human_survey_uuid, kwargs))
-                return {"configured": True, **kwargs}
+            def patch_human_survey_agent_access(self, human_survey_uuid, partial_config):
+                calls.append((human_survey_uuid, partial_config))
+                return {"configured": True, "enabled": True}
 
         monkeypatch.setattr(edsl.coop, "Coop", FakeCoop)
-        settings_path = tmp_path / "settings.json"
-        settings_path.write_text(json.dumps({"age": {"instructions": "A rough age is fine."}}))
+        config_path = tmp_path / "access.json"
+        config_path.write_text(json.dumps({"enabled": True, "question_settings": {"age": None}}))
 
         result = CliRunner().invoke(
             cli_module.app,
             [
-                "humanize", "agent-access", "update", "human-survey-uuid",
-                "--enabled",
-                "--participation_mode", "autonomous",
-                "--instructions", "Answer as a 42-year-old teacher.",
-                "--question_settings", str(settings_path),
+                "humanize", "agent-access", "patch", "human-survey-uuid",
+                "--config", str(config_path),
             ],
         )
 
         assert result.exit_code == 0, result.output
         assert calls == [(
             "human-survey-uuid",
-            {
-                "enabled": True,
-                "participation_mode": "autonomous",
-                "instructions": "Answer as a 42-year-old teacher.",
-                "question_settings": {"age": {"instructions": "A rough age is fine."}},
-            },
+            {"enabled": True, "question_settings": {"age": None}},
         )]
 
-    def test_humanize_agent_access_update_defaults_fields_left_out(self, monkeypatch):
-        # The whole config is replaced, so options left out take their defaults.
+    def _agent_access_patch(self, monkeypatch, *args):
+        """Run 'agent-access patch' with args; return (result, the patches sent)."""
         import edsl.coop
 
         calls = []
 
         class FakeCoop:
-            def update_human_survey_agent_access(self, human_survey_uuid, **kwargs):
-                calls.append(kwargs)
-                return {"configured": True, **kwargs}
+            def patch_human_survey_agent_access(self, human_survey_uuid, partial_config):
+                calls.append(partial_config)
+                return {"configured": True}
 
         monkeypatch.setattr(edsl.coop, "Coop", FakeCoop)
-
         result = CliRunner().invoke(
             cli_module.app,
-            ["humanize", "agent-access", "update", "human-survey-uuid", "--enabled"],
+            ["humanize", "agent-access", "patch", "human-survey-uuid", *args],
+        )
+        return result, calls
+
+    def test_humanize_agent_access_patch_builds_the_patch_from_options(self, monkeypatch):
+        result, calls = self._agent_access_patch(
+            monkeypatch,
+            "--disabled",
+            "--participation_mode", "autonomous",
+            "--instructions", "Answer as a 42-year-old teacher.",
+            "--question_instructions", "age=A rough age is fine.",
+            "--question_instructions", "job=Say teacher = always.",
+            "--clear_question", "color",
+        )
+
+        assert result.exit_code == 0, result.output
+        assert calls == [{
+            "enabled": False,
+            "participation_mode": "autonomous",
+            "instructions": "Answer as a 42-year-old teacher.",
+            "question_settings": {
+                "age": {"instructions": "A rough age is fine."},
+                "job": {"instructions": "Say teacher = always."},
+                "color": None,
+            },
+        }]
+
+    def test_humanize_agent_access_patch_sends_only_what_was_given(self, monkeypatch):
+        result, calls = self._agent_access_patch(monkeypatch, "--enabled")
+
+        assert result.exit_code == 0, result.output
+        assert calls == [{"enabled": True}]
+
+    def test_humanize_agent_access_patch_clears_instructions(self, monkeypatch):
+        result, calls = self._agent_access_patch(monkeypatch, "--clear_instructions")
+
+        assert result.exit_code == 0, result.output
+        assert calls == [{"instructions": None}]
+
+    def test_humanize_agent_access_patch_options_apply_on_top_of_the_config(self, monkeypatch, tmp_path):
+        config_path = tmp_path / "access.json"
+        config_path.write_text(json.dumps({
+            "enabled": False,
+            "question_settings": {"age": {"instructions": "Exact age."}},
+        }))
+
+        result, calls = self._agent_access_patch(
+            monkeypatch,
+            "--config", str(config_path),
+            "--enabled",
+            "--question_instructions", "job=Say teacher.",
         )
 
         assert result.exit_code == 0, result.output
         assert calls == [{
             "enabled": True,
-            "participation_mode": "human_assisted",
-            "instructions": None,
-            "question_settings": None,
+            "question_settings": {
+                "age": {"instructions": "Exact age."},
+                "job": {"instructions": "Say teacher."},
+            },
         }]
+
+    @pytest.mark.parametrize(
+        "args",
+        [
+            [],  # nothing to change
+            ["--question_instructions", "age"],  # no =TEXT
+            ["--question_instructions", "=text"],  # no question
+            ["--instructions", "x", "--clear_instructions"],  # contradictory
+        ],
+    )
+    def test_humanize_agent_access_patch_usage_errors(self, monkeypatch, args):
+        result, calls = self._agent_access_patch(monkeypatch, *args)
+
+        assert result.exit_code != 0
+        assert calls == []
 
     def test_humanize_status_backfills_agent_list_uuid(self, monkeypatch):
         import edsl.coop

@@ -3742,62 +3742,47 @@ class Coop(CoopFunctionsMixin):
         self._resolve_server_response(response)
         return response.json()
 
-    def update_human_survey_agent_access(
+    def patch_human_survey_agent_access(
         self,
         human_survey_uuid: Union[str, UUID],
-        *,
-        enabled: bool = False,
-        participation_mode: Literal[
-            "human_assisted", "authorized_context", "autonomous"
-        ] = "human_assisted",
-        instructions: Optional[str] = None,
-        question_settings: Optional[Dict[str, Dict[str, Any]]] = None,
+        partial_config: Dict[str, Any],
     ) -> dict:
         """
-        Replace a human survey's agent-access config. Owner only.
+        Partially update a human survey's agent-access config. Owner only.
 
-        The whole config is replaced: any field left out takes its default, so
-        ``update_human_survey_agent_access(uuid, enabled=True)`` enables the agent
-        link in human-assisted mode with no guidance. To change one field, read
-        the config with ``get_human_survey_agent_access`` and send it back with
-        that field changed.
+        The ``partial_config`` is deep-merged into the stored config (the defaults,
+        if it has never been set): nested dicts merge key-by-key, while scalars and
+        explicit ``None`` replace the existing value, and fields left out are
+        unchanged. A question set to ``None`` in ``question_settings`` has its
+        settings removed. The merged result is validated as a whole, so unknown keys
+        or invalid values are rejected.
+
+        The config's fields: ``enabled`` (whether the agent link accepts new
+        attempts), ``participation_mode`` (``"human_assisted"``,
+        ``"authorized_context"`` or ``"autonomous"``), ``instructions`` (guidance
+        for agents on the whole survey, at most 4,000 characters; in autonomous
+        mode, the persona to answer as), and ``question_settings`` (per-question
+        settings keyed by question name, e.g. ``{"age": {"instructions": "A rough
+        age is fine."}}``).
 
         Parameters:
             human_survey_uuid: UUID of the human survey.
-            enabled: Whether the agent link accepts new attempts.
-            participation_mode: Who produces the answers: ``"human_assisted"``
-                (the participant; the agent relays), ``"authorized_context"``
-                (the agent, from context the participant authorized), or
-                ``"autonomous"`` (the agent alone; describe any persona it
-                should answer as in ``instructions``).
-            instructions: Guidance for agents on the whole survey (at most 4,000
-                characters). Advisory: nothing enforces it.
-            question_settings: Per-question settings keyed by question name, e.g.
-                ``{"age": {"instructions": "A rough age is fine."}}``. Each
-                question's ``instructions`` is at most 2,000 characters. Names
-                must be questions in the survey.
+            partial_config: Partial agent-access config to deep-merge into the
+                stored one.
 
         Returns:
             dict: The stored config, as ``get_human_survey_agent_access`` returns it.
 
         Example:
-            >>> coop.update_human_survey_agent_access(  # doctest: +SKIP
+            >>> coop.patch_human_survey_agent_access(  # doctest: +SKIP
             ...     "your-human-survey-uuid",
-            ...     enabled=True,
-            ...     participation_mode="autonomous",
-            ...     instructions="Answer as a 42-year-old teacher.",
+            ...     {"enabled": True, "participation_mode": "autonomous"},
             ... )
         """
-        payload: Dict[str, Any] = {
-            "enabled": enabled,
-            "participation_mode": participation_mode,
-            "instructions": instructions,
-            "question_settings": question_settings or {},
-        }
         response = self._send_server_request(
             uri=f"api/v0/human-surveys/{human_survey_uuid}/agent-access",
-            method="PUT",
-            payload=payload,
+            method="PATCH",
+            payload={"patch": partial_config},
         )
         self._resolve_server_response(response)
         return response.json()

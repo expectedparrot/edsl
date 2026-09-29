@@ -570,7 +570,9 @@ ep humanize respondents <human_survey_uuid> --page 1 --page_size 50
 ep humanize agent-list get <human_survey_uuid>
 ep humanize agent-list patch <human_survey_uuid> --delivery_map delivery_map.json
 ep humanize agent-access get <human_survey_uuid>
-ep humanize agent-access update <human_survey_uuid> --enabled --participation_mode autonomous --instructions "Answer as a 42-year-old teacher."
+ep humanize agent-access patch <human_survey_uuid> --enabled --participation_mode autonomous --instructions "Answer as a 42-year-old teacher."
+ep humanize agent-access patch <human_survey_uuid> --question_instructions "age=A rough age is fine." --clear_question job
+ep humanize agent-access patch <human_survey_uuid> --config agent_access.json
 ep humanize deliveries create <human_survey_uuid> --name "Initial invite"
 ep humanize deliveries list <human_survey_uuid>
 ep humanize deliveries tasks <human_survey_uuid> <delivery_uuid>

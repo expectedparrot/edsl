@@ -153,7 +153,7 @@ def register(humanize: click.Group) -> None:
         """Manage whether AI agents may take a human survey through its agent link."""
         if ctx.invoked_subcommand is None:
             output({
-                "commands": ["get", "update"],
+                "commands": ["get", "patch"],
                 "help": "Use 'ep humanize agent-access <command> --help' for details.",
             })
 
@@ -1048,36 +1048,79 @@ def register(humanize: click.Group) -> None:
             error("HUMANIZE_ERROR", str(e), exit_code=EXIT_REMOTE)
 
 
-    @humanize_agent_access.command("update")
+    @humanize_agent_access.command("patch")
     @click.argument("human_survey_uuid")
-    @click.option("--enabled/--disabled", default=False, help="Whether the agent link accepts new attempts. Default: disabled.")
+    @click.option("--config", "config_path", default=None, type=click.Path(exists=True), help="Partial agent-access config JSON. The options below are applied on top of it.")
+    @click.option("--enabled/--disabled", default=None, help="Whether the agent link accepts new attempts.")
     @click.option(
         "--participation_mode",
         type=click.Choice(["human_assisted", "authorized_context", "autonomous"]),
-        default="human_assisted",
-        help="Who produces the answers. Default: human_assisted.",
+        default=None,
+        help="Who produces the answers.",
     )
     @click.option("--instructions", default=None, help="Guidance for agents on the whole survey (at most 4,000 characters).")
-    @click.option("--question_settings", "question_settings_path", default=None, type=click.Path(exists=True), help='Per-question settings JSON, e.g. {"age": {"instructions": "A rough age is fine."}}.')
-    def humanize_agent_access_update(human_survey_uuid, enabled, participation_mode, instructions, question_settings_path):
-        """Replace a human survey's agent-access config.
+    @click.option("--clear_instructions", is_flag=True, help="Remove the survey-wide instructions.")
+    @click.option("--question_instructions", "question_instruction_specs", multiple=True, help="QUESTION=TEXT instructions for one question. Repeat for more.")
+    @click.option("--clear_question", "cleared_questions", multiple=True, help="Remove one question's settings. Repeat for more.")
+    def humanize_agent_access_patch(
+        human_survey_uuid,
+        config_path,
+        enabled,
+        participation_mode,
+        instructions,
+        clear_instructions,
+        question_instruction_specs,
+        cleared_questions,
+    ):
+        """Patch a human survey's agent-access config.
 
-        The whole config is replaced: options left out take their defaults. To
-        change one field, run 'agent-access get' and pass every field back.
+        The patch is deep-merged into the stored config: fields left out are
+        unchanged, and a question set to null in question_settings has its settings
+        removed. Build it from the options, from --config, or both.
         """
+        if instructions is not None and clear_instructions:
+            error(
+                "USAGE_ERROR",
+                "Use --instructions or --clear_instructions, not both.",
+                exit_code=EXIT_USAGE,
+            )
+        patch = _read_json_or_gzip(config_path) if config_path else {}
+        if not isinstance(patch, dict):
+            error("USAGE_ERROR", "--config must hold a JSON object.", exit_code=EXIT_USAGE)
+        if enabled is not None:
+            patch["enabled"] = enabled
+        if participation_mode is not None:
+            patch["participation_mode"] = participation_mode
+        if instructions is not None:
+            patch["instructions"] = instructions
+        if clear_instructions:
+            patch["instructions"] = None
+        question_settings = dict(patch.get("question_settings") or {})
+        for spec in question_instruction_specs:
+            question_name, separator, text = spec.partition("=")
+            if not separator or not question_name or not text:
+                error(
+                    "USAGE_ERROR",
+                    f"--question_instructions must look like QUESTION=TEXT, got {spec!r}.",
+                    exit_code=EXIT_USAGE,
+                )
+            question_settings[question_name] = {"instructions": text}
+        for question_name in cleared_questions:
+            question_settings[question_name] = None
+        if question_settings:
+            patch["question_settings"] = question_settings
+        if not patch:
+            error(
+                "USAGE_ERROR",
+                "Provide at least one change: --config, --enabled/--disabled, "
+                "--participation_mode, --instructions, --clear_instructions, "
+                "--question_instructions, or --clear_question.",
+                exit_code=EXIT_USAGE,
+            )
         try:
             from edsl.coop import Coop
 
-            question_settings = (
-                _read_json_or_gzip(question_settings_path) if question_settings_path else None
-            )
-            output(jsonable(Coop().update_human_survey_agent_access(
-                human_survey_uuid,
-                enabled=enabled,
-                participation_mode=participation_mode,
-                instructions=instructions,
-                question_settings=question_settings,
-            )))
+            output(jsonable(Coop().patch_human_survey_agent_access(human_survey_uuid, patch)))
         except SystemExit:
             raise
         except Exception as e:
