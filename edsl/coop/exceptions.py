@@ -243,7 +243,7 @@ class AgentAccessValidationError(CoopErrors):
     name only questions in the survey.
     """
 
-    relevant_doc = "https://docs.expectedparrot.com/en/latest/humanize_schema"
+    relevant_doc = "https://docs.expectedparrot.com/en/latest/humanize_agent_access"
 
 
 class CoopTypeError(CoopErrors):

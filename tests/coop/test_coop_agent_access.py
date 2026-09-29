@@ -19,8 +19,8 @@ STORED = {
     "configured": True,
     "enabled": True,
     "participation_mode": "autonomous",
-    "instructions": "Answer as a 42-year-old teacher.",
-    "question_settings": {"age": {"instructions": "A rough age is fine."}},
+    "instructions": "Keep free-text answers to one or two sentences, and use the comment box to flag any answer that's an estimate.",
+    "question_settings": {"improvements": {"instructions": "Name at least one specific change, not a general comment."}},
 }
 
 
@@ -51,13 +51,13 @@ def test_patch_agent_access_sends_the_partial_config():
         coop, "_send_server_request", return_value=response
     ) as send, patch.object(coop, "_resolve_server_response"):
         access = coop.patch_human_survey_agent_access(
-            "survey-uuid", {"enabled": False, "question_settings": {"age": None}}
+            "survey-uuid", {"enabled": False, "question_settings": {"improvements": None}}
         )
 
     send.assert_called_once_with(
         uri=AGENT_ACCESS_URI,
         method="PATCH",
-        payload={"patch": {"enabled": False, "question_settings": {"age": None}}},
+        payload={"patch": {"enabled": False, "question_settings": {"improvements": None}}},
     )
     assert access["enabled"] is False
 
@@ -80,7 +80,7 @@ def test_patch_agent_access_is_validated_before_it_is_sent():
 
 SURVEY = Survey(
     [
-        QuestionFreeText(question_name="age", question_text="How old are you?"),
+        QuestionFreeText(question_name="improvements", question_text="What would you improve?"),
         QuestionFreeText(question_name="job", question_text="What is your job?"),
     ]
 )
@@ -93,9 +93,9 @@ SURVEY = Survey(
         {"enabled": True},
         {"participation_mode": "autonomous", "instructions": "Answer as a teacher."},
         {"instructions": None},  # clears them
-        {"question_settings": {"age": {"instructions": "A rough age is fine."}}},
-        {"question_settings": {"age": None}},  # removes that question's settings
-        {"question_settings": {"age": {"instructions": None}}},
+        {"question_settings": {"improvements": {"instructions": "Name at least one specific change, not a general comment."}}},
+        {"question_settings": {"improvements": None}},  # removes that question's settings
+        {"question_settings": {"improvements": {"instructions": None}}},
     ],
 )
 def test_a_valid_patch_passes(partial_config):
@@ -113,8 +113,8 @@ def test_a_valid_patch_passes(partial_config):
         {"question_settings": None},  # can't be null
         {"instructions": ""},  # empty
         {"instructions": "x" * 4001},  # too long
-        {"question_settings": {"age": {"instructions": "x" * 2001}}},  # too long
-        {"question_settings": {"age": {"handoff": "required"}}},  # not a setting
+        {"question_settings": {"improvements": {"instructions": "x" * 2001}}},  # too long
+        {"question_settings": {"improvements": {"handoff": "required"}}},  # not a setting
     ],
 )
 def test_an_invalid_patch_is_rejected(partial_config):
@@ -124,16 +124,16 @@ def test_an_invalid_patch_is_rejected(partial_config):
 
 def test_with_a_survey_question_names_must_be_in_it():
     validate_agent_access_patch(
-        {"question_settings": {"age": {"instructions": "A rough age is fine."}}},
+        {"question_settings": {"improvements": {"instructions": "Name at least one specific change, not a general comment."}}},
         SURVEY,
     )
-    with pytest.raises(AgentAccessValidationError, match="agee"):
+    with pytest.raises(AgentAccessValidationError, match="improvments"):
         validate_agent_access_patch(
-            {"question_settings": {"agee": {"instructions": "A rough age is fine."}}},
+            {"question_settings": {"improvments": {"instructions": "Name at least one specific change, not a general comment."}}},
             SURVEY,
         )
 
 
 def test_with_a_survey_any_name_can_still_be_cleared():
     # So a setting stored under a misspelled name can be removed.
-    validate_agent_access_patch({"question_settings": {"agee": None}}, SURVEY)
+    validate_agent_access_patch({"question_settings": {"improvments": None}}, SURVEY)

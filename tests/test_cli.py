@@ -4017,7 +4017,7 @@ class TestHumanizeCli:
 
         monkeypatch.setattr(edsl.coop, "Coop", FakeCoop)
         config_path = tmp_path / "access.json"
-        config_path.write_text(json.dumps({"enabled": True, "question_settings": {"age": None}}))
+        config_path.write_text(json.dumps({"enabled": True, "question_settings": {"improvements": None}}))
 
         result = CliRunner().invoke(
             cli_module.app,
@@ -4030,7 +4030,7 @@ class TestHumanizeCli:
         assert result.exit_code == 0, result.output
         assert calls == [(
             "human-survey-uuid",
-            {"enabled": True, "question_settings": {"age": None}},
+            {"enabled": True, "question_settings": {"improvements": None}},
         )]
 
     def _agent_access_patch(self, monkeypatch, *args):
@@ -4056,8 +4056,8 @@ class TestHumanizeCli:
             monkeypatch,
             "--disabled",
             "--participation_mode", "autonomous",
-            "--instructions", "Answer as a 42-year-old teacher.",
-            "--question_instructions", "age=A rough age is fine.",
+            "--instructions", "Keep free-text answers to one or two sentences, and use the comment box to flag any answer that's an estimate.",
+            "--question_instructions", "improvements=Name at least one specific change, not a general comment.",
             "--question_instructions", "job=Say teacher = always.",
             "--clear_question", "color",
         )
@@ -4066,9 +4066,9 @@ class TestHumanizeCli:
         assert calls == [{
             "enabled": False,
             "participation_mode": "autonomous",
-            "instructions": "Answer as a 42-year-old teacher.",
+            "instructions": "Keep free-text answers to one or two sentences, and use the comment box to flag any answer that's an estimate.",
             "question_settings": {
-                "age": {"instructions": "A rough age is fine."},
+                "improvements": {"instructions": "Name at least one specific change, not a general comment."},
                 "job": {"instructions": "Say teacher = always."},
                 "color": None,
             },
@@ -4090,7 +4090,7 @@ class TestHumanizeCli:
         config_path = tmp_path / "access.json"
         config_path.write_text(json.dumps({
             "enabled": False,
-            "question_settings": {"age": {"instructions": "Exact age."}},
+            "question_settings": {"improvements": {"instructions": "Name the one change you'd make first."}},
         }))
 
         result, calls = self._agent_access_patch(
@@ -4104,7 +4104,7 @@ class TestHumanizeCli:
         assert calls == [{
             "enabled": True,
             "question_settings": {
-                "age": {"instructions": "Exact age."},
+                "improvements": {"instructions": "Name the one change you'd make first."},
                 "job": {"instructions": "Say teacher."},
             },
         }]
@@ -4113,7 +4113,7 @@ class TestHumanizeCli:
         "args",
         [
             [],  # nothing to change
-            ["--question_instructions", "age"],  # no =TEXT
+            ["--question_instructions", "improvements"],  # no =TEXT
             ["--question_instructions", "=text"],  # no question
             ["--instructions", "x", "--clear_instructions"],  # contradictory
         ],
@@ -4136,7 +4136,7 @@ class TestHumanizeCli:
 
     @pytest.mark.parametrize(
         "question_settings",
-        ["age", 5, [["age", {"instructions": "A rough age is fine."}]]],
+        ["improvements", 5, [["improvements", {"instructions": "Name at least one specific change, not a general comment."}]]],
     )
     @pytest.mark.parametrize(
         "flags, code",
@@ -4166,13 +4166,13 @@ class TestHumanizeCli:
 
         survey_path = tmp_path / "survey.json"
         survey_path.write_text(json.dumps(Survey([
-            QuestionFreeText(question_name="age", question_text="How old are you?"),
+            QuestionFreeText(question_name="improvements", question_text="What would you improve?"),
         ]).to_dict()))
 
         result, calls = self._agent_access_patch(
             monkeypatch,
             "--survey", str(survey_path),
-            "--question_instructions", "agee=A rough age is fine.",
+            "--question_instructions", "improvments=Name at least one specific change, not a general comment.",
         )
         assert result.exit_code != 0
         assert json.loads(result.output)["error"]["code"] == "VALIDATION_ERROR"
@@ -4181,14 +4181,14 @@ class TestHumanizeCli:
         result, calls = self._agent_access_patch(
             monkeypatch,
             "--survey", str(survey_path),
-            "--question_instructions", "age=A rough age is fine.",
-            "--clear_question", "agee",
+            "--question_instructions", "improvements=Name at least one specific change, not a general comment.",
+            "--clear_question", "improvments",
         )
         assert result.exit_code == 0, result.output
         assert calls == [{
             "question_settings": {
-                "age": {"instructions": "A rough age is fine."},
-                "agee": None,
+                "improvements": {"instructions": "Name at least one specific change, not a general comment."},
+                "improvments": None,
             },
         }]
 

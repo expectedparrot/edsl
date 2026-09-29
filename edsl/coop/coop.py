@@ -3762,9 +3762,9 @@ class Coop(CoopFunctionsMixin):
         attempts), ``participation_mode`` (``"human_assisted"``,
         ``"authorized_context"`` or ``"autonomous"``), ``instructions`` (guidance
         for agents on the whole survey, at most 4,000 characters; in autonomous
-        mode, the persona to answer as), and ``question_settings`` (per-question
-        settings keyed by question name, e.g. ``{"age": {"instructions": "A rough
-        age is fine."}}``).
+        mode, how the agent should answer), and ``question_settings`` (per-question
+        settings keyed by question name, e.g. ``{"improvements":
+        {"instructions": "Name at least one specific change."}}``).
 
         The patch is validated before it's sent, and ``AgentAccessValidationError``
         is raised if a key or value isn't allowed. The server doesn't check question
