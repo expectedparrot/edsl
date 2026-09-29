@@ -147,6 +147,17 @@ def register(humanize: click.Group) -> None:
             })
 
 
+    @humanize.group("agent-access", invoke_without_command=True)
+    @click.pass_context
+    def humanize_agent_access(ctx):
+        """Manage whether AI agents may take a human survey through its agent link."""
+        if ctx.invoked_subcommand is None:
+            output({
+                "commands": ["get", "update"],
+                "help": "Use 'ep humanize agent-access <command> --help' for details.",
+            })
+
+
     @humanize.group("prolific", invoke_without_command=True)
     @click.pass_context
     def humanize_prolific(ctx):
@@ -1016,6 +1027,56 @@ def register(humanize: click.Group) -> None:
                 delivery_map=delivery_map,
                 anonymous=anonymous,
                 allow_resubmit=allow_resubmit,
+            )))
+        except SystemExit:
+            raise
+        except Exception as e:
+            error("HUMANIZE_ERROR", str(e), exit_code=EXIT_REMOTE)
+
+
+    @humanize_agent_access.command("get")
+    @click.argument("human_survey_uuid")
+    def humanize_agent_access_get(human_survey_uuid):
+        """Get a human survey's agent-access config."""
+        try:
+            from edsl.coop import Coop
+
+            output(jsonable(Coop().get_human_survey_agent_access(human_survey_uuid)))
+        except SystemExit:
+            raise
+        except Exception as e:
+            error("HUMANIZE_ERROR", str(e), exit_code=EXIT_REMOTE)
+
+
+    @humanize_agent_access.command("update")
+    @click.argument("human_survey_uuid")
+    @click.option("--enabled/--disabled", default=False, help="Whether the agent link accepts new attempts. Default: disabled.")
+    @click.option(
+        "--participation_mode",
+        type=click.Choice(["human_assisted", "authorized_context", "autonomous"]),
+        default="human_assisted",
+        help="Who produces the answers. Default: human_assisted.",
+    )
+    @click.option("--instructions", default=None, help="Guidance for agents on the whole survey (at most 4,000 characters).")
+    @click.option("--question_settings", "question_settings_path", default=None, type=click.Path(exists=True), help='Per-question settings JSON, e.g. {"age": {"instructions": "A rough age is fine."}}.')
+    def humanize_agent_access_update(human_survey_uuid, enabled, participation_mode, instructions, question_settings_path):
+        """Replace a human survey's agent-access config.
+
+        The whole config is replaced: options left out take their defaults. To
+        change one field, run 'agent-access get' and pass every field back.
+        """
+        try:
+            from edsl.coop import Coop
+
+            question_settings = (
+                _read_json_or_gzip(question_settings_path) if question_settings_path else None
+            )
+            output(jsonable(Coop().update_human_survey_agent_access(
+                human_survey_uuid,
+                enabled=enabled,
+                participation_mode=participation_mode,
+                instructions=instructions,
+                question_settings=question_settings,
             )))
         except SystemExit:
             raise

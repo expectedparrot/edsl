@@ -3055,6 +3055,7 @@ class TestHumanizeCli:
             "deliveries",
             "callbacks",
             "agent-list",
+            "agent-access",
             "schema",
             "css",
             "assets",
@@ -3979,6 +3980,92 @@ class TestHumanizeCli:
         assert result.exit_code == 0, result.output
         out = json.loads(result.output)
         assert out["data"]["status"] == "active"
+
+    def test_humanize_agent_access_group_lists_commands(self):
+        result = CliRunner().invoke(cli_module.app, ["humanize", "agent-access"])
+
+        assert result.exit_code == 0, result.output
+        out = json.loads(result.output)
+        assert out["data"]["commands"] == ["get", "update"]
+
+    def test_humanize_agent_access_get(self, monkeypatch):
+        import edsl.coop
+
+        class FakeCoop:
+            def get_human_survey_agent_access(self, human_survey_uuid):
+                assert human_survey_uuid == "human-survey-uuid"
+                return {"configured": True, "enabled": True, "participation_mode": "autonomous"}
+
+        monkeypatch.setattr(edsl.coop, "Coop", FakeCoop)
+
+        result = CliRunner().invoke(
+            cli_module.app, ["humanize", "agent-access", "get", "human-survey-uuid"]
+        )
+
+        assert result.exit_code == 0, result.output
+        assert json.loads(result.output)["data"]["participation_mode"] == "autonomous"
+
+    def test_humanize_agent_access_update_sends_every_field(self, monkeypatch, tmp_path):
+        import edsl.coop
+
+        calls = []
+
+        class FakeCoop:
+            def update_human_survey_agent_access(self, human_survey_uuid, **kwargs):
+                calls.append((human_survey_uuid, kwargs))
+                return {"configured": True, **kwargs}
+
+        monkeypatch.setattr(edsl.coop, "Coop", FakeCoop)
+        settings_path = tmp_path / "settings.json"
+        settings_path.write_text(json.dumps({"age": {"instructions": "A rough age is fine."}}))
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            [
+                "humanize", "agent-access", "update", "human-survey-uuid",
+                "--enabled",
+                "--participation_mode", "autonomous",
+                "--instructions", "Answer as a 42-year-old teacher.",
+                "--question_settings", str(settings_path),
+            ],
+        )
+
+        assert result.exit_code == 0, result.output
+        assert calls == [(
+            "human-survey-uuid",
+            {
+                "enabled": True,
+                "participation_mode": "autonomous",
+                "instructions": "Answer as a 42-year-old teacher.",
+                "question_settings": {"age": {"instructions": "A rough age is fine."}},
+            },
+        )]
+
+    def test_humanize_agent_access_update_defaults_fields_left_out(self, monkeypatch):
+        # The whole config is replaced, so options left out take their defaults.
+        import edsl.coop
+
+        calls = []
+
+        class FakeCoop:
+            def update_human_survey_agent_access(self, human_survey_uuid, **kwargs):
+                calls.append(kwargs)
+                return {"configured": True, **kwargs}
+
+        monkeypatch.setattr(edsl.coop, "Coop", FakeCoop)
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            ["humanize", "agent-access", "update", "human-survey-uuid", "--enabled"],
+        )
+
+        assert result.exit_code == 0, result.output
+        assert calls == [{
+            "enabled": True,
+            "participation_mode": "human_assisted",
+            "instructions": None,
+            "question_settings": None,
+        }]
 
     def test_humanize_status_backfills_agent_list_uuid(self, monkeypatch):
         import edsl.coop

@@ -693,6 +693,8 @@ edsl humanize schema set <human_survey_uuid> --clear-logo
 edsl humanize respondents <human_survey_uuid> --page 1 --page_size 50
 edsl humanize agent-list get <human_survey_uuid>
 edsl humanize agent-list patch <human_survey_uuid> --delivery_map delivery_map.json
+edsl humanize agent-access get <human_survey_uuid>
+edsl humanize agent-access update <human_survey_uuid> --enabled --participation_mode autonomous --instructions "Answer as a 42-year-old teacher."
 edsl humanize deliveries create <human_survey_uuid> --name "Initial invite"
 edsl humanize deliveries create <human_survey_uuid> --name "Owner notice" --owner-email-template owner_response_received
 edsl humanize deliveries list <human_survey_uuid>
