@@ -702,6 +702,7 @@ class JobsRemoteInferenceHandler:
         from ..agents import Agent
         from ..scenarios import Scenario
         from ..language_models import LanguageModel
+        from copy import deepcopy
 
         coop = Coop(api_key=self.api_key)
 
@@ -751,9 +752,21 @@ class JobsRemoteInferenceHandler:
                 cache_used_dict = {}
                 cache_keys = {}
                 validated_dict = {}
+                question_to_attributes = deepcopy(
+                    self.jobs.survey.question_to_attributes() if self.jobs else {}
+                )
 
                 for a in answers_raw:
                     qname = a["question_name"]
+                    # Options/text may have changed with shared state since
+                    # this answer was requested. Use the captured presentation.
+                    captured = a.get("question_presentation")
+                    if captured is not None:
+                        attributes = question_to_attributes.setdefault(qname, {})
+                        attributes.update(deepcopy(captured["attributes"]))
+                        attributes["presentation"] = deepcopy(
+                            {k: v for k, v in captured.items() if k != "attributes"}
+                        )
                     # Answers cross the wire as JSON, so EDSL-object answers
                     # (image_generation returns a FileStore) arrive as dicts and
                     # have to be rebuilt into live objects.
@@ -828,6 +841,7 @@ class JobsRemoteInferenceHandler:
                     cache_used_dict=cache_used_dict,
                     cache_keys=cache_keys,
                     validated_dict=validated_dict,
+                    question_to_attributes=question_to_attributes,
                 )
                 result_list.append(result)
                 fetched += 1

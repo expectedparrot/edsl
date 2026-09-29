@@ -215,3 +215,29 @@ in about 75 seconds, including the wait for takeover after interruption. The
 links to per-service progress and transcripts; the
 [Docker regression results](../artifacts/shared-state-acceptance/2026-09-28-restart-tests.xml)
 record the three corresponding mock-model tests.
+
+## Backend submission and streamed results
+
+On 2026-09-29 the local backend acceptance pass exposed and fixed two retrieval
+problems: temporary-token result endpoints referenced the wrong owner field, and
+paginated results discarded the captured question text/options and shared-state
+read versions. The latter required changes in both coopr's Redis reader and EDSL's
+streamed Results construction. Legacy responses without presentation metadata keep
+their survey-derived attributes.
+
+Validation passed 54 checks: 44 hosted-runner/writer regressions, four backend
+submission cases, two completion/billing retry cases, two Docker result-reader
+cases, and two EDSL streaming cases. The backend submission tests use real
+PostgreSQL, Redis, route handlers, and compute execution, with adapters for
+authentication identity, cloud storage, and the backend-to-runner HTTP hop.
+They check serial and snapshot rounds, both credential types, state history,
+pagination, and denial of another account's result reads. They do not validate
+real credentials or signed cloud URLs.
+
+A separate recheck streamed all six saved advanced live jobs through the updated
+backend Redis reader and EDSL client: 34 rows and 64 captured question presentations
+matched the original results, and every example's semantic checks passed. It made
+no new model calls. See the local [backend acceptance report](../artifacts/shared-state-acceptance/2026-09-29-backend-acceptance.md).
+
+Real hosted authentication, GCS permissions, and the complete deployed lifecycle
+remain to be tested together. Native Humanize state execution also remains open.
