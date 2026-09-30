@@ -601,6 +601,20 @@ class ExecutionWorker:
         Handles question_options, min_value, max_value, and any other
         string fields that reference prior answers or scenario variables.
         """
+        # Validate and translate codes against the same order shown in the prompt,
+        # including static options that need no template resolution.
+        interview_def = self._job_service._interviews.get_definition(
+            job_id, interview_id
+        )
+        if interview_def:
+            permutations = interview_def.question_option_permutations
+            question_name = question_data.get("question_name")
+            if question_name in permutations:
+                question_data = {
+                    **question_data,
+                    "question_options": permutations[question_name],
+                }
+
         # Check if any values need resolution
         has_templates = False
         for key, value in question_data.items():
@@ -625,9 +639,6 @@ class ExecutionWorker:
 
         answer_dict = self._get_interview_answers(job_id, interview_id)
         scenario = None
-        interview_def = self._job_service._interviews.get_definition(
-            job_id, interview_id
-        )
         if interview_def:
             scenario = self._job_service._jobs.get_scenario(
                 job_id, interview_def.scenario_id

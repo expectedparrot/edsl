@@ -415,6 +415,45 @@ class RuleCollection(UserList):
         return question_range
 
     @property
+    def rendering_dag(self) -> dict:
+        """Find the DAG of what a question needs in order to be *rendered*.
+
+        Same shape as :attr:`dag`, and identical for every rule except a skip rule.
+        `dag` says a skippable question depends on every question before it, which is
+        true of the order it is reached in but not of what deciding to skip it reads.
+        Here a skip rule contributes only the questions its expression names.
+
+        The distinction matters wherever questions are served together rather than one
+        at a time. A page can hold a question skipped on an answer given pages ago; it
+        cannot hold one skipped on an answer given on that same page, because the page
+        is rendered before any of it is answered. Under `dag` the two are the same
+        thing, so the first is refused along with the second.
+
+        Rules that jump keep their `dag` dependency: the questions a jump passes over
+        depend on the answer that triggers it, and that is a real constraint on
+        rendering them together.
+
+        >>> rule_collection = RuleCollection(num_questions=4)
+        >>> qn2i = {'q0': 0, 'q1': 1, 'q2': 2, 'q3': 3}
+        >>> _ = rule_collection.add_rule(Rule(current_q=3, expression="{{ q0.answer }} == 'yes'", next_q=4, priority=1, question_name_to_index=qn2i, before_rule=True))
+        >>> rule_collection.dag              # every earlier question
+        {3: {0, 1, 2}}
+        >>> rule_collection.rendering_dag    # only the one the expression reads
+        {3: {0}}
+        """
+        children_to_parents = defaultdict(set)
+        for rule in self.non_default_rules:
+            if not rule.before_rule:
+                current_q, next_q = rule.current_q, rule.next_q
+                for q in self.keys_between(current_q, next_q):
+                    children_to_parents[q].add(current_q)
+            else:
+                for q in rule.named_questions_by_index:
+                    children_to_parents[rule.current_q].add(q)
+
+        return DAG(dict(sorted(children_to_parents.items())))
+
+    @property
     def dag(self) -> dict:
         """
         Find the DAG of the survey, based on the skip logic.

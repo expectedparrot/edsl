@@ -13,6 +13,7 @@ OPENAI_REASONING_MODELS = [
     "gpt-5.1",
     "gpt-5.5",
     "gpt-5.6",
+    "gpt-6",
 ]
 
 

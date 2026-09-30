@@ -1,0 +1,133 @@
+---
+title: "AI agent access"
+description: "Let AI agents take a human survey through an agent link, and control who answers and what guidance they get."
+sidebarTitle: "AI agents"
+---
+
+A human survey can let AI agents take it: a participant hands their AI agent the survey's agent link, and the agent answers through Expected Parrot's API instead of a browser. Agent access is off until the survey's owner turns it on, and only the owner can read or change it.
+
+The agent link is the respondent link with `/respond/human-surveys/` replaced by `/respond/agent/`:
+
+```text
+https://www.expectedparrot.com/respond/agent/<human-survey-uuid>
+```
+
+It serves the agent its instructions. Each agent attempt is recorded as a response, alongside browser responses.
+
+---
+
+## The config
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `enabled` | bool | `false` | Whether the agent link accepts new attempts. |
+| `participation_mode` | string | `"human_assisted"` | Who produces the answers (see below). |
+| `instructions` | string \| null | `null` | Guidance for agents on the whole survey, at most 4,000 characters. In autonomous mode, this is how the agent should answer. Advisory: nothing enforces it. |
+| `question_settings` | dict | `{}` | Per-question settings, keyed by question name. Each may have `instructions` (at most 2,000 characters). |
+
+### Participation modes
+
+| Mode | Who answers |
+|------|-------------|
+| `human_assisted` | The participant. The agent asks each question and records their answers, and doesn't answer for them. |
+| `authorized_context` | The agent, from context the participant has authorized it to use, asking them whenever it's unsure. |
+| `autonomous` | The agent alone, as described in `instructions`. |
+
+In `autonomous` mode there's no participant, so:
+
+- The agent can't hand a page to a browser (see [What agents can't answer](#what-agents-cant-answer)).
+- A start with Prolific parameters is refused: autonomous responses can't be used for a paid panel.
+
+---
+
+## Reading and changing the config
+
+```python
+from edsl import Coop
+
+coop = Coop()
+
+access = coop.get_human_survey_agent_access("your-human-survey-uuid")
+# {"configured": True, "enabled": True, "participation_mode": "human_assisted",
+#  "instructions": None, "question_settings": {}}
+```
+
+`configured` is `False` if agent access has never been set; the other fields are then their defaults.
+
+To change it, send only the fields you want to change:
+
+```python
+coop.patch_human_survey_agent_access(
+    "your-human-survey-uuid",
+    {
+        "enabled": True,
+        "participation_mode": "autonomous",
+        "instructions": (
+            "Keep free-text answers to one or two sentences, and use the "
+            "comment box to flag any answer that's an estimate."
+        ),
+        "question_settings": {
+            "improvements": {
+                "instructions": "Name at least one specific change, not a general comment."
+            }
+        },
+    },
+    survey=survey,  # optional: check question names against the survey
+)
+```
+
+The patch is merged into the stored config:
+
+- Fields left out are unchanged.
+- `question_settings` merges by question name: naming `improvements` changes only its settings.
+- `"instructions": None` clears the survey-wide instructions.
+- A question set to `None` in `question_settings` has its settings removed, e.g. `{"question_settings": {"improvements": None}}`.
+
+It returns the stored config, in the same shape as `get_human_survey_agent_access`.
+
+From the CLI, `ep humanize agent-access get <uuid>` prints the config, and `patch` changes it:
+
+```bash
+ep humanize agent-access patch <human-survey-uuid> --enabled --participation_mode autonomous
+ep humanize agent-access patch <human-survey-uuid> --question_instructions "improvements=Name at least one specific change, not a general comment." --survey survey.ep
+```
+
+`patch` also takes the patch as a JSON file with `--config`, and `--survey` checks question names as `survey=` does.
+
+---
+
+## Validation
+
+EDSL checks a patch before sending it, and raises `AgentAccessValidationError` if:
+
+- It has a key the config doesn't define.
+- A value is the wrong type or out of range, or `participation_mode` isn't one of the three modes.
+- `enabled`, `participation_mode` or `question_settings` is `None`. Only `instructions` and a single question's settings can be cleared that way.
+- With `survey=` (or `--survey`), it gives settings to a question that isn't in the survey.
+
+---
+
+## What agents can't answer
+
+Some questions need the participant themselves:
+
+- **Voice-only interviews.** In `human_assisted` and `authorized_context` mode, the agent hands the page to the participant: it gives them a one-time link to answer that page in their browser, then carries on. In `autonomous` mode there's no one to hand it to, so the survey can't be completed by an agent.
+- **Timed questions.** A question with a fixed time limit, in a survey that shows one question per page (where the browser runs the timer), can't be answered by an agent: a time limit can't be enforced over the API. The agent link tells the agent to stop and give the participant the browser link instead.
+
+Text interviews and file uploads are answered by the agent itself.
+
+---
+
+## In results
+
+Every response carries these fields, so you can tell agent responses apart:
+
+| Field | Description |
+|-------|-------------|
+| `agent.collection_interface` | `browser`, or `agent_http` for an agent response. |
+| `agent.participation_mode` | The survey's mode when the attempt started. Empty for browser responses. |
+| `agent.client_name_self_reported` | The agent's client, as the agent reported it (e.g. `Claude Code`). Not verified. |
+| `agent.model_name_self_reported` | The agent's model, as the agent reported it. Not verified. |
+| `agent.handed_off_questions` | The questions the participant answered in their browser through a handoff. Empty for browser responses. |
+
+The survey's page on Expected Parrot also has an **AI agents** tab showing the current config.

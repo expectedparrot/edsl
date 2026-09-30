@@ -771,7 +771,9 @@ if __name__ == "__main__":
             ),
             "next_action": (
                 "Read and edit every next_edits file, then execute phase_commands.after_source_edits exactly."
-                if template == "survey" else None
+                if template == "survey" else
+                "Create plan.md with the Write tool and obtain approval before method-specific scaffolding."
+                if template is None else None
             ),
             "inspect_scaffold": False,
         },

@@ -1,4 +1,4 @@
-import jinja2
+from ..utilities.jinja import safe_template
 import textwrap
 
 
@@ -165,7 +165,7 @@ class Report:
         data_dicts = self._prepare_data()
 
         # Build a single Jinja2 template
-        template_obj = jinja2.Template(self.template)
+        template_obj = safe_template(self.template)
 
         output = []
         for i, row in enumerate(data_dicts, start=1):

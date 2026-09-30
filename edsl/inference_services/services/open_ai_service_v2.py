@@ -321,18 +321,24 @@ class OpenAIServiceV2(InferenceServiceABC):
                     "store": False,
                 }
 
-                # Check if this is a reasoning model (o-series models)
+                # Recognition controls defaults, not whether explicit settings survive.
                 is_reasoning_model = any(
                     tag in self.model for tag in OPENAI_REASONING_MODELS
                 )
 
-                # Only add reasoning parameter for reasoning models
-                if is_reasoning_model:
-                    reasoning_params = {"summary": "auto"}
-                    if isinstance(self.reasoning, dict):
+                if self.reasoning is not None and not isinstance(self.reasoning, dict):
+                    raise ValueError("reasoning must be a dictionary or None")
+                effort = getattr(self, "reasoning_effort", None)
+                if (
+                    is_reasoning_model
+                    or self.reasoning is not None
+                    or effort is not None
+                ):
+                    reasoning_params = {"summary": "auto"} if is_reasoning_model else {}
+                    if self.reasoning is not None:
                         reasoning_params.update(self.reasoning)
-                    # Support reasoning_effort shorthand (e.g. "none", "low", "medium", "high")
-                    effort = getattr(self, "reasoning_effort", None)
+                    # A non-None shorthand overrides reasoning["effort"]. Keep
+                    # explicit values unchanged for provider-side validation.
                     if effort is not None:
                         reasoning_params["effort"] = effort
                     params["reasoning"] = reasoning_params

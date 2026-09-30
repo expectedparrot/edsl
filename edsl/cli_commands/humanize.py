@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import gzip
 import json
+import re
 from pathlib import Path
 from typing import Optional
 
@@ -29,6 +30,23 @@ from edsl.cli_shared import (
 )
 
 
+_ASSET_FORMATS_SUGGESTION = (
+    "Accepted formats: PNG, JPEG, WebP, and static GIF, at most 2 MB and 4096 "
+    "pixels on each side."
+)
+
+_ASSET_NOT_FOUND_PATTERN = re.compile(r"Asset [0-9a-fA-F-]{36} not found")
+_ASSET_NOT_FOUND_SUGGESTION = (
+    "That asset is not in your library, and you cannot see any survey that uses "
+    "it. Ask whoever shared the schema for the image file, then apply the schema "
+    "with --logo-file PATH to upload your own copy."
+)
+
+# Stands in for the uuid of a --logo-file upload while the schema is built and
+# validated, so that nothing is uploaded for a command that fails locally.
+_PENDING_LOGO_ASSET_UUID = "00000000-0000-0000-0000-000000000000"
+
+
 def register(humanize: click.Group) -> None:
     @humanize.group("schema", invoke_without_command=True)
     @click.pass_context
@@ -39,11 +57,12 @@ def register(humanize: click.Group) -> None:
         Examples:
           ep humanize schema create --survey survey.ep --optional feedback --output humanize.json
           ep humanize schema validate --survey survey.ep --schema humanize.json
+          ep humanize schema get <uuid> --out humanize.json
           ep humanize schema set <uuid> --format rating=dropdown --comment rating="Why?"
         """
         if ctx.invoked_subcommand is None:
             output({
-                "commands": ["create", "validate", "patch", "set"],
+                "commands": ["create", "validate", "get", "patch", "set"],
                 "help": "Use 'ep humanize schema <command> --help' for details.",
             })
 
@@ -56,6 +75,24 @@ def register(humanize: click.Group) -> None:
             output({
                 "commands": ["patch"],
                 "help": "Use 'ep humanize css <command> --help' for details.",
+            })
+
+
+    @humanize.group("assets", invoke_without_command=True)
+    @click.pass_context
+    def humanize_assets(ctx):
+        """Manage the image library your surveys' branding draws from.
+
+        \b
+        Examples:
+          ep humanize assets upload lab_logo.png
+          ep humanize assets list
+          ep humanize assets get <asset-uuid> -o logo.png
+        """
+        if ctx.invoked_subcommand is None:
+            output({
+                "commands": ["upload", "list", "get", "delete"],
+                "help": "Use 'ep humanize assets <command> --help' for details.",
             })
 
 
@@ -107,6 +144,17 @@ def register(humanize: click.Group) -> None:
             output({
                 "commands": ["get", "patch"],
                 "help": "Use 'ep humanize agent-list <command> --help' for details.",
+            })
+
+
+    @humanize.group("agent-access", invoke_without_command=True)
+    @click.pass_context
+    def humanize_agent_access(ctx):
+        """Manage whether AI agents may take a human survey through its agent link."""
+        if ctx.invoked_subcommand is None:
+            output({
+                "commands": ["get", "patch"],
+                "help": "Use 'ep humanize agent-access <command> --help' for details.",
             })
 
 
@@ -345,7 +393,7 @@ def register(humanize: click.Group) -> None:
 
     @humanize_schema.command("create")
     @click.option("--survey", "survey_path", required=True, type=click.Path(exists=True), help="Survey .ep, JSON, or package directory.")
-    @click.option("--output", "-o", "output_path", default=None, help="Write schema JSON to this path. Omit to return it in the JSON envelope.")
+    @click.option("--output", "-o", "output_path", default=None, help="Write schema JSON to this path. Use a .json.gz suffix for gzip. Omit to return it in the JSON envelope.")
     @click.option("--optional", "optional_questions", multiple=True, help="Question to mark optional. Repeat or use 'all'.")
     @click.option("--required", "required_questions", multiple=True, help="Question to mark required. Repeat or use 'all'.")
     @click.option("--format", "format_specs", multiple=True, help="QUESTION=radio|dropdown|input. Repeat for multiple questions.")
@@ -362,6 +410,11 @@ def register(humanize: click.Group) -> None:
     @click.option("--checklist-hidden", "hidden_checklist_questions", multiple=True, help="Question whose checklist is hidden from participants.")
     @click.option("--checklist-visible", "visible_checklist_questions", multiple=True, help="Question whose checklist is visible to participants.")
     @click.option("--custom-css", "custom_css_path", default=None, type=click.Path(exists=True), help="CSS file to store in survey.custom_css.")
+    @click.option("--logo-asset", "logo_asset", default=None, help="Asset UUID to show as the survey's logo. Upload one with 'ep humanize assets upload'.")
+    @click.option("--logo-file", "logo_file", default=None, type=click.Path(exists=True), help="Not available here: upload with 'ep humanize assets upload', then pass --logo-asset.")
+    @click.option("--logo-alt", "logo_alt", default=None, help="Alt text naming the organization the logo identifies, e.g. \"Acme Research logo\".")
+    @click.option("--logo-decorative", "logo_decorative", is_flag=True, default=False, help="Mark the logo decorative, rendering it with an empty alt.")
+    @click.option("--logo-position", "logo_position", default=None, type=click.Choice(["left", "center", "right"]), help="Where the logo sits in the banner. Omit to use the default.")
     def humanize_schema_create(
         survey_path,
         output_path,
@@ -381,6 +434,11 @@ def register(humanize: click.Group) -> None:
         hidden_checklist_questions,
         visible_checklist_questions,
         custom_css_path,
+        logo_asset,
+        logo_file,
+        logo_alt,
+        logo_decorative,
+        logo_position,
     ):
         """Create a humanize schema from CLI controls.
 
@@ -390,7 +448,17 @@ def register(humanize: click.Group) -> None:
           ep humanize schema create --survey survey.ep --optional feedback --format rating=dropdown --comment rating="Why?"
           ep humanize schema create --survey survey.ep --slider age:18:99:1 --output humanize.json
           ep humanize schema create --survey survey.ep --interview-mode interview=both --voice-language interview=spanish
+          ep humanize schema create --survey survey.ep --logo-asset <asset-uuid> --logo-alt "Acme Research logo"
         """
+        _validate_logo_flags(
+            allow_logo_file=False,
+            logo_asset=logo_asset,
+            logo_file=logo_file,
+            logo_alt=logo_alt,
+            logo_decorative=logo_decorative,
+            logo_position=logo_position,
+            clear_logo=False,
+        )
         try:
             survey = _load_survey_object(survey_path)
             schema = _build_humanize_schema_from_controls(
@@ -412,6 +480,11 @@ def register(humanize: click.Group) -> None:
                 hidden_checklist_questions=hidden_checklist_questions,
                 visible_checklist_questions=visible_checklist_questions,
                 custom_css_path=custom_css_path,
+                logo_asset=logo_asset,
+                logo_alt=logo_alt,
+                logo_decorative=logo_decorative,
+                logo_position=logo_position,
+                clear_logo=False,
             )
             _validate_humanize_schema(survey, schema)
             data = {"schema": schema, "valid": True}
@@ -587,6 +660,28 @@ def register(humanize: click.Group) -> None:
             )
 
 
+    @humanize_schema.command("get")
+    @click.argument("human_survey_uuid")
+    @click.option("--out", "out_path", default=None, type=click.Path(), help="Write the schema to this file instead of stdout. Use a .json.gz suffix for gzip.")
+    def humanize_schema_get(human_survey_uuid, out_path):
+        """Get a deployed human survey's humanize schema."""
+        try:
+            from edsl.coop import Coop
+
+            schema = Coop().get_human_survey_humanize_schema(human_survey_uuid)
+            if out_path:
+                output({
+                    "human_survey_uuid": human_survey_uuid,
+                    "saved": _write_json_schema(schema, out_path),
+                })
+            else:
+                output(jsonable({"humanize_schema": schema}))
+        except SystemExit:
+            raise
+        except Exception as e:
+            error("HUMANIZE_ERROR", str(e), exit_code=EXIT_REMOTE)
+
+
     @humanize_schema.command("patch")
     @click.argument("human_survey_uuid")
     @click.option("--schema", "schema_path", required=True, type=click.Path(exists=True), help="Partial humanize schema JSON.")
@@ -626,6 +721,12 @@ def register(humanize: click.Group) -> None:
     @click.option("--checklist-hidden", "hidden_checklist_questions", multiple=True, help="Question whose checklist is hidden from participants.")
     @click.option("--checklist-visible", "visible_checklist_questions", multiple=True, help="Question whose checklist is visible to participants.")
     @click.option("--custom-css", "custom_css_path", default=None, type=click.Path(exists=True), help="CSS file to store in survey.custom_css.")
+    @click.option("--logo-asset", "logo_asset", default=None, help="Asset UUID to show as the survey's logo. Upload one with 'ep humanize assets upload'.")
+    @click.option("--logo-file", "logo_file", default=None, type=click.Path(exists=True), help="Image to upload and use as the logo, in one step.")
+    @click.option("--logo-alt", "logo_alt", default=None, help="Alt text naming the organization the logo identifies, e.g. \"Acme Research logo\".")
+    @click.option("--logo-decorative", "logo_decorative", is_flag=True, default=False, help="Mark the logo decorative, rendering it with an empty alt.")
+    @click.option("--logo-position", "logo_position", default=None, type=click.Choice(["left", "center", "right"]), help="Where the logo sits in the banner. Omit to leave it unchanged.")
+    @click.option("--clear-logo", "clear_logo", is_flag=True, default=False, help="Remove the survey's logo.")
     def humanize_schema_set(
         human_survey_uuid,
         schema_path,
@@ -647,6 +748,12 @@ def register(humanize: click.Group) -> None:
         hidden_checklist_questions,
         visible_checklist_questions,
         custom_css_path,
+        logo_asset,
+        logo_file,
+        logo_alt,
+        logo_decorative,
+        logo_position,
+        clear_logo,
     ):
         """Patch a human survey schema from a file or direct CLI controls.
 
@@ -673,14 +780,34 @@ def register(humanize: click.Group) -> None:
             hidden_checklist_questions,
             visible_checklist_questions,
             custom_css_path,
+            logo_asset,
+            logo_file,
+            logo_alt,
+            logo_decorative,
+            logo_position,
+            clear_logo,
         ):
             error(
                 "USAGE_ERROR",
                 "Provide --schema or at least one direct schema control.",
                 exit_code=EXIT_USAGE,
             )
+        _validate_logo_flags(
+            allow_logo_file=True,
+            logo_asset=logo_asset,
+            logo_file=logo_file,
+            logo_alt=logo_alt,
+            logo_decorative=logo_decorative,
+            logo_position=logo_position,
+            clear_logo=clear_logo,
+        )
         try:
             from edsl.coop import Coop
+
+            coop = Coop()
+            if logo_file:
+                _check_asset_file(logo_file)
+                logo_asset = _PENDING_LOGO_ASSET_UUID
 
             survey = _load_survey_object(survey_path) if survey_path else None
             schema = _build_humanize_schema_from_controls(
@@ -702,21 +829,50 @@ def register(humanize: click.Group) -> None:
                 hidden_checklist_questions=hidden_checklist_questions,
                 visible_checklist_questions=visible_checklist_questions,
                 custom_css_path=custom_css_path,
+                logo_asset=logo_asset,
+                logo_alt=logo_alt,
+                logo_decorative=logo_decorative,
+                logo_position=logo_position,
+                clear_logo=clear_logo,
             )
             if survey is not None and validate_schema:
-                _validate_humanize_schema(survey, schema)
-            result = jsonable(Coop().patch_human_survey_humanize_schema(
-                human_survey_uuid,
-                schema,
-            ))
+                _validate_humanize_schema(survey, _schema_for_local_validation(schema))
+
+            uploaded_asset = None
+            if logo_file:
+                uploaded_asset = coop.upload_human_survey_asset(logo_file)
+                schema["survey"]["branding"]["logo"]["source"]["asset_uuid"] = (
+                    uploaded_asset["uuid"]
+                )
+            try:
+                result = jsonable(coop.patch_human_survey_humanize_schema(
+                    human_survey_uuid,
+                    schema,
+                ))
+            except Exception as e:
+                if uploaded_asset is None or uploaded_asset.get("deduplicated"):
+                    raise
+                _report_retained_logo(e, uploaded_asset["uuid"])
             if isinstance(result, dict):
-                result.setdefault("schema", schema)
+                result.setdefault(
+                    "schema",
+                    _apply_asset_substitutions(
+                        schema, result.get("asset_substitutions") or {}
+                    ),
+                )
                 result.setdefault("valid", bool(survey is not None and validate_schema))
-            output(result)
+                if uploaded_asset is not None:
+                    result.setdefault("uploaded_assets", [jsonable(uploaded_asset)])
+            output(result, _asset_substitution_warnings(result))
         except SystemExit:
             raise
         except Exception as e:
-            error("HUMANIZE_ERROR", str(e), exit_code=EXIT_REMOTE)
+            error(
+                "HUMANIZE_ERROR",
+                str(e),
+                suggestion=_asset_error_suggestion(str(e)),
+                exit_code=EXIT_REMOTE,
+            )
 
 
     @humanize_css.command("patch")
@@ -736,6 +892,99 @@ def register(humanize: click.Group) -> None:
 
             css = None if clear else Path(css_path).read_text(encoding="utf-8")
             output(jsonable(Coop().patch_human_survey_css(human_survey_uuid, css)))
+        except SystemExit:
+            raise
+        except Exception as e:
+            error("HUMANIZE_ERROR", str(e), exit_code=EXIT_REMOTE)
+
+
+    @humanize_assets.command("upload")
+    @click.argument("path", type=click.Path(exists=True))
+    def humanize_assets_upload(path):
+        """Upload an image to your asset library.
+
+        The asset is listed under the file's own name.
+
+        \b
+        Examples:
+          ep humanize assets upload lab_logo.png
+        """
+        _check_asset_file(path)
+        try:
+            from edsl.coop import Coop
+
+            output(jsonable(Coop().upload_human_survey_asset(path)))
+        except SystemExit:
+            raise
+        except Exception as e:
+            error(
+                "HUMANIZE_ERROR",
+                str(e),
+                suggestion=_ASSET_FORMATS_SUGGESTION,
+                exit_code=EXIT_REMOTE,
+            )
+
+
+    @humanize_assets.command("list")
+    @click.option("--page", default=1, type=int, help="Page number.")
+    @click.option("--page_size", default=10, type=int, help="Results per page (max 100).")
+    def humanize_assets_list(page, page_size):
+        """List the images in your asset library, newest first."""
+        try:
+            from edsl.coop import Coop
+
+            result = Coop().list_human_survey_assets(page=page, page_size=page_size)
+            assets = result.get("assets", []) if isinstance(result, dict) else []
+            output({**jsonable(result), "returned_count": len(assets)})
+        except SystemExit:
+            raise
+        except Exception as e:
+            error("HUMANIZE_ERROR", str(e), exit_code=EXIT_REMOTE)
+
+
+    @humanize_assets.command("get")
+    @click.argument("asset_uuid")
+    @click.option("--output", "-o", "output_path", default=None, type=click.Path(), help="Save the image to this path.")
+    def humanize_assets_get(asset_uuid, output_path):
+        """Get an asset's metadata and a signed download URL.
+
+        Works for your own assets, and for those used by a survey you can view.
+        """
+        try:
+            from edsl.coop import Coop
+
+            asset = Coop().get_human_survey_asset(asset_uuid)
+            data = jsonable(asset)
+            if output_path:
+                data["saved_to"] = asset.download(output_path)
+            else:
+                data["next_step"] = (
+                    f"Save the image with: ep humanize assets get {asset_uuid} -o logo.png"
+                )
+            output(data)
+        except SystemExit:
+            raise
+        except Exception as e:
+            error(
+                "HUMANIZE_ERROR",
+                str(e),
+                suggestion=_asset_error_suggestion(str(e)),
+                exit_code=EXIT_REMOTE,
+            )
+
+
+    @humanize_assets.command("delete")
+    @click.argument("asset_uuid")
+    def humanize_assets_delete(asset_uuid):
+        """Remove an image from your library.
+
+        Surveys already using it keep showing it; used_by_human_surveys says how
+        many do.
+        """
+        try:
+            from edsl.coop import Coop
+
+            output(jsonable(Coop().delete_human_survey_asset(asset_uuid)))
         except SystemExit:
             raise
         except Exception as e:
@@ -779,6 +1028,126 @@ def register(humanize: click.Group) -> None:
                 anonymous=anonymous,
                 allow_resubmit=allow_resubmit,
             )))
+        except SystemExit:
+            raise
+        except Exception as e:
+            error("HUMANIZE_ERROR", str(e), exit_code=EXIT_REMOTE)
+
+
+    @humanize_agent_access.command("get")
+    @click.argument("human_survey_uuid")
+    def humanize_agent_access_get(human_survey_uuid):
+        """Get a human survey's agent-access config."""
+        try:
+            from edsl.coop import Coop
+
+            output(jsonable(Coop().get_human_survey_agent_access(human_survey_uuid)))
+        except SystemExit:
+            raise
+        except Exception as e:
+            error("HUMANIZE_ERROR", str(e), exit_code=EXIT_REMOTE)
+
+
+    @humanize_agent_access.command("patch")
+    @click.argument("human_survey_uuid")
+    @click.option("--config", "config_path", default=None, type=click.Path(exists=True), help="Partial agent-access config JSON. The options below are applied on top of it.")
+    @click.option("--enabled/--disabled", default=None, help="Whether the agent link accepts new attempts.")
+    @click.option(
+        "--participation_mode",
+        type=click.Choice(["human_assisted", "authorized_context", "autonomous"]),
+        default=None,
+        help="Who produces the answers.",
+    )
+    @click.option("--instructions", default=None, help="Guidance for agents on the whole survey (at most 4,000 characters).")
+    @click.option("--clear_instructions", is_flag=True, help="Remove the survey-wide instructions.")
+    @click.option("--question_instructions", "question_instruction_specs", multiple=True, help="QUESTION=TEXT instructions for one question. Repeat for more.")
+    @click.option("--clear_question", "cleared_questions", multiple=True, help="Remove one question's settings. Repeat for more.")
+    @click.option("--survey", "survey_path", default=None, type=click.Path(exists=True), help="Survey .ep, JSON, or package directory, to check question names against before sending.")
+    def humanize_agent_access_patch(
+        human_survey_uuid,
+        config_path,
+        enabled,
+        participation_mode,
+        instructions,
+        clear_instructions,
+        question_instruction_specs,
+        cleared_questions,
+        survey_path,
+    ):
+        """Patch a human survey's agent-access config.
+
+        The patch is deep-merged into the stored config: fields left out are
+        unchanged, and a question set to null in question_settings has its settings
+        removed. Build it from the options, from --config, or both. It's validated
+        before it's sent; with --survey, question names are checked too.
+        """
+        if instructions is not None and clear_instructions:
+            error(
+                "USAGE_ERROR",
+                "Use --instructions or --clear_instructions, not both.",
+                exit_code=EXIT_USAGE,
+            )
+        patch = _read_json_or_gzip(config_path) if config_path else {}
+        if not isinstance(patch, dict):
+            error("USAGE_ERROR", "--config must hold a JSON object.", exit_code=EXIT_USAGE)
+        if enabled is not None:
+            patch["enabled"] = enabled
+        if participation_mode is not None:
+            patch["participation_mode"] = participation_mode
+        if instructions is not None:
+            patch["instructions"] = instructions
+        if clear_instructions:
+            patch["instructions"] = None
+        # Merged into --config's question_settings only when a flag needs it; any
+        # other value is left for validation to reject, not coerced here.
+        if question_instruction_specs or cleared_questions:
+            existing = patch.get("question_settings")
+            if existing is not None and not isinstance(existing, dict):
+                error(
+                    "USAGE_ERROR",
+                    "question_settings in --config must be a JSON object to combine it "
+                    "with --question_instructions or --clear_question.",
+                    exit_code=EXIT_USAGE,
+                )
+            question_settings = dict(existing or {})
+            for spec in question_instruction_specs:
+                question_name, separator, text = spec.partition("=")
+                if not separator or not question_name or not text:
+                    error(
+                        "USAGE_ERROR",
+                        f"--question_instructions must look like QUESTION=TEXT, got {spec!r}.",
+                        exit_code=EXIT_USAGE,
+                    )
+                question_settings[question_name] = {"instructions": text}
+            for question_name in cleared_questions:
+                question_settings[question_name] = None
+            patch["question_settings"] = question_settings
+        if not patch:
+            error(
+                "USAGE_ERROR",
+                "Provide at least one change: --config, --enabled/--disabled, "
+                "--participation_mode, --instructions, --clear_instructions, "
+                "--question_instructions, or --clear_question.",
+                exit_code=EXIT_USAGE,
+            )
+        try:
+            from edsl.coop.coop_agent_access import validate_agent_access_patch
+
+            survey = _load_survey_object(survey_path) if survey_path else None
+            validate_agent_access_patch(patch, survey)
+        except SystemExit:
+            raise
+        except Exception as e:
+            error(
+                "VALIDATION_ERROR",
+                str(e),
+                suggestion="Check the option values, and that each question name is in the survey.",
+                exit_code=EXIT_VALIDATION,
+            )
+        try:
+            from edsl.coop import Coop
+
+            output(jsonable(Coop().patch_human_survey_agent_access(human_survey_uuid, patch)))
         except SystemExit:
             raise
         except Exception as e:
@@ -1597,7 +1966,8 @@ def register(humanize: click.Group) -> None:
                 humanize_schema=humanize_schema_data,
                 delivery_map=delivery_map_data,
             )
-            output(jsonable(result))
+            data = jsonable(result)
+            output(data, _asset_substitution_warnings(data))
         except SystemExit:
             raise
         except Exception as e:
@@ -1634,6 +2004,11 @@ def register(humanize: click.Group) -> None:
         hidden_checklist_questions,
         visible_checklist_questions,
         custom_css_path,
+        logo_asset=None,
+        logo_alt=None,
+        logo_decorative=False,
+        logo_position=None,
+        clear_logo=False,
     ) -> dict:
         schema = json.loads(json.dumps(base_schema or {}))
         questions = schema.setdefault("questions", {})
@@ -1654,6 +2029,11 @@ def register(humanize: click.Group) -> None:
             hidden_checklist_questions,
             visible_checklist_questions,
             custom_css_path,
+            logo_asset,
+            logo_alt,
+            logo_decorative,
+            logo_position,
+            clear_logo,
         ):
             for question_name in getattr(survey, "question_names", []):
                 questions[question_name] = {}
@@ -1749,6 +2129,15 @@ def register(humanize: click.Group) -> None:
         if custom_css_path:
             schema.setdefault("survey", {})["custom_css"] = Path(custom_css_path).read_text(encoding="utf-8")
 
+        _apply_logo_controls(
+            schema,
+            logo_asset=logo_asset,
+            logo_alt=logo_alt,
+            logo_decorative=logo_decorative,
+            logo_position=logo_position,
+            clear_logo=clear_logo,
+        )
+
         return schema
 
 
@@ -1823,6 +2212,14 @@ def register(humanize: click.Group) -> None:
     def _write_json_schema(schema: dict, output_path: str) -> dict:
         path = Path(output_path)
         path.parent.mkdir(parents=True, exist_ok=True)
+        if path.name.endswith(".json.gz"):
+            with gzip.open(path, "wt", encoding="utf-8") as f:
+                json.dump(schema, f, indent=2, default=str)
+            return {
+                "path": str(path),
+                "format": "json.gz",
+                "object_type": "HumanizeSchema",
+            }
         path.write_text(json.dumps(schema, indent=2, default=str), encoding="utf-8")
         return {"path": str(path), "format": "json", "object_type": "HumanizeSchema"}
 
@@ -1937,6 +2334,189 @@ def register(humanize: click.Group) -> None:
 
     def _humanize_usage_error(message: str) -> None:
         error("USAGE_ERROR", message, exit_code=EXIT_USAGE)
+
+
+    def _check_asset_file(path: str) -> None:
+        """Reject a file the server would reject, before it is uploaded."""
+        from edsl.coop.coop_human_survey_assets import validate_asset_file
+        from edsl.coop.exceptions import CoopValueError
+
+        try:
+            validate_asset_file(Path(path))
+        except CoopValueError as e:
+            error(
+                "USAGE_ERROR",
+                str(e),
+                suggestion=_ASSET_FORMATS_SUGGESTION,
+                exit_code=EXIT_USAGE,
+            )
+
+
+    def _report_retained_logo(exc: Exception, asset_uuid: str) -> None:
+        """Fail a patch whose --logo-file upload was kept, naming the asset.
+
+        The upload is not deleted: a patch that errored on the way back may still
+        have been stored, and the survey would then be showing that logo.
+        """
+        suggestion = (
+            f"The logo was added to your asset library as {asset_uuid}. Retry with "
+            f"--logo-asset {asset_uuid}, or, if no survey uses it, remove it with "
+            f"'ep humanize assets delete {asset_uuid}'."
+        )
+        asset_suggestion = _asset_error_suggestion(str(exc))
+        if asset_suggestion:
+            suggestion = f"{asset_suggestion} {suggestion}"
+        error(
+            "HUMANIZE_ERROR",
+            str(exc),
+            suggestion=suggestion,
+            exit_code=EXIT_REMOTE,
+        )
+
+
+    def _asset_error_suggestion(message: str) -> str:
+        """A suggestion for an unusable asset uuid, or an empty string.
+
+        The server says "not found" both for an asset that does not exist and
+        for one the caller may not use, so the suggestion covers the common
+        case: a schema shared without the image it names.
+        """
+        if _ASSET_NOT_FOUND_PATTERN.search(message):
+            return _ASSET_NOT_FOUND_SUGGESTION
+        return ""
+
+
+    def _asset_substitution_warnings(result) -> list:
+        """Say so when the schema you sent is not the one now stored.
+
+        Naming an asset you do not own copies it into your library under a new
+        uuid, which a key in the response would not make obvious.
+        """
+        substitutions = (result or {}).get("asset_substitutions") or {}
+        if not substitutions:
+            return []
+        moved = ", ".join(f"{old} -> {new}" for old, new in sorted(substitutions.items()))
+        return [
+            "Assets named by the schema were copied into your library under new "
+            f"uuids, so the schema you sent is now out of date: {moved}"
+        ]
+
+
+    def _validate_logo_flags(
+        *,
+        allow_logo_file: bool,
+        logo_asset,
+        logo_file,
+        logo_alt,
+        logo_decorative,
+        logo_position,
+        clear_logo,
+    ) -> None:
+        """Check the logo flags against each other before any work is done."""
+        if clear_logo and any(
+            [logo_asset, logo_file, logo_alt is not None, logo_decorative, logo_position]
+        ):
+            _humanize_usage_error(
+                "--clear-logo removes the logo, so it cannot be combined with the "
+                "other logo flags."
+            )
+        if logo_asset and logo_file:
+            _humanize_usage_error(
+                "Provide either --logo-asset or --logo-file, not both."
+            )
+        if logo_file and not allow_logo_file:
+            error(
+                "USAGE_ERROR",
+                "schema create cannot upload a file, because it makes no server "
+                "calls.",
+                suggestion=(
+                    "Upload the image first with 'ep humanize assets upload "
+                    "PATH', then pass its uuid as --logo-asset."
+                ),
+                exit_code=EXIT_USAGE,
+            )
+        if logo_decorative and logo_alt is not None:
+            _humanize_usage_error(
+                "Provide either --logo-alt or --logo-decorative, not both."
+            )
+
+
+    def _apply_logo_controls(
+        schema: dict,
+        *,
+        logo_asset,
+        logo_alt,
+        logo_decorative,
+        logo_position,
+        clear_logo,
+    ) -> None:
+        """Write the logo flags into the schema's survey.branding.
+
+        Clearing the logo writes an explicit null.
+        """
+        if clear_logo:
+            schema.setdefault("survey", {})["branding"] = {"logo": None}
+            return
+        if not any(
+            [logo_asset, logo_alt is not None, logo_decorative, logo_position]
+        ):
+            return
+
+        survey = schema.setdefault("survey", {})
+        branding = survey.get("branding") or {}
+        logo = branding.get("logo") or {}
+
+        if logo_asset:
+            logo["source"] = {"type": "asset", "asset_uuid": logo_asset}
+        if logo_decorative:
+            logo["alt"] = ""
+        elif logo_alt is not None:
+            logo["alt"] = logo_alt
+        if logo_position:
+            logo["position"] = logo_position
+
+        if "source" in logo and "alt" not in logo:
+            _humanize_usage_error(
+                "A logo needs alt text. Add --logo-alt TEXT, or --logo-decorative "
+                "if the logo carries no information a respondent would miss."
+            )
+
+        branding["logo"] = logo
+        survey["branding"] = branding
+
+
+    def _apply_asset_substitutions(schema: dict, substitutions: dict) -> dict:
+        """Rewrite asset uuids the server replaced with copies in your library."""
+        if not substitutions:
+            return schema
+
+        def rewrite(node):
+            if isinstance(node, dict):
+                if node.get("type") == "asset" and node.get("asset_uuid") in substitutions:
+                    return {**node, "asset_uuid": substitutions[node["asset_uuid"]]}
+                return {key: rewrite(value) for key, value in node.items()}
+            if isinstance(node, list):
+                return [rewrite(item) for item in node]
+            return node
+
+        return rewrite(schema)
+
+
+    def _schema_for_local_validation(schema: dict) -> dict:
+        """A copy of the patch that is safe to validate as a whole schema.
+
+        A logo with no source — what --logo-position alone produces — is a
+        fragment the server merges into the stored logo. Validating it here
+        would reject it for the source and alt that the stored logo already
+        supplies, so it is left out of the copy.
+        """
+        branding = (schema.get("survey") or {}).get("branding") or {}
+        logo = branding.get("logo") or {}
+        if logo and "source" not in logo:
+            partial = json.loads(json.dumps(schema))
+            partial["survey"].pop("branding", None)
+            return partial
+        return schema
 
 
     def _save_edsl_object(obj, output_path: str) -> dict:

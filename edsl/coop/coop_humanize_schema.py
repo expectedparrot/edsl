@@ -3,18 +3,20 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Annotated, Any, Dict, Literal, Optional, Type, Union
+from uuid import UUID
 
 from pydantic import (
     BaseModel,
     ConfigDict,
     Field,
+    PlainSerializer,
     StringConstraints,
     ValidationError,
     field_validator,
     model_validator,
 )
 
-from ..questions import QuestionBase
+from ..questions import QuestionBase, QuestionCompute, QuestionImageGeneration
 
 from .exceptions import HumanizeSchemaValidationError
 from .voice_interview_languages import (
@@ -56,6 +58,37 @@ SubmittingIndicator = Annotated[
     Union[CalloutSubmittingIndicator],
     Field(discriminator="type"),
 ]
+
+
+class FixedDuration(HumanizeSchemaBase):
+    """A literal number of seconds, the same for every respondent."""
+
+    type: Literal["fixed"] = "fixed"
+    # Required, with no default: a limit whose duration was never chosen is not a
+    # limit. The floor is a duration no respondent could beat; past the ceiling a
+    # per-question clock has stopped measuring anything.
+    seconds: int = Field(ge=30, le=7200)
+
+
+# How long the respondent has. Discriminated on ``type``, and the tag is required:
+# pydantic rejects an untagged payload against a discriminated union even while it
+# has a single member.
+Duration = Annotated[
+    Union[FixedDuration],
+    Field(discriminator="type"),
+]
+
+
+class TimeLimit(HumanizeSchemaBase):
+    """A wall-clock budget for answering one question.
+
+    When it runs out the answer locks, and the respondent clicks Next to go on
+    with whatever they had entered. Applies only while the question is alone on
+    its page: under ``presentation: "group"`` the page is the group rather than
+    the question, so every question's limit is ignored.
+    """
+
+    duration: Duration
 
 
 class MCSubclassFormatSchema(HumanizeSchemaBase):
@@ -156,14 +189,64 @@ SurveyProgress = Annotated[
 ]
 
 
+class AssetImageSource(HumanizeSchemaBase):
+    """An image from the author's asset library, named by uuid.
+
+    Only the shape is checked here. Whether the asset exists and this author may
+    use it is decided when the schema is written: a uuid the caller cannot reach
+    is rejected with "Asset <uuid> not found", and a uuid belonging to someone
+    else's survey is copied into the caller's library and rewritten, with the
+    response's ``asset_substitutions`` reporting the new uuid.
+
+    Upload an image with ``Coop().upload_human_survey_asset`` to get a uuid.
+    """
+
+    type: Literal["asset"] = "asset"
+    # Dumped as a string so a validated schema stays JSON-serializable. Typing it
+    # as a UUID means a malformed uuid is caught here rather than by the server.
+    asset_uuid: Annotated[UUID, PlainSerializer(str, return_type=str)]
+
+
+# Discriminated on ``type`` so other sources (a per-scenario image for branding as
+# a manipulation, an opted-in external URL) can join as siblings without
+# reshaping stored configs. "asset" is the only variant today.
+ImageSource = Annotated[
+    Union[AssetImageSource],
+    Field(discriminator="type"),
+]
+
+
+class SurveyLogo(HumanizeSchemaBase):
+    """A logo in the survey's banner."""
+
+    source: ImageSource
+    # Required so leaving it out is a decision rather than an accident. An empty
+    # string marks the image decorative (rendered with alt="").
+    alt: Annotated[str, StringConstraints(strip_whitespace=True, max_length=200)]
+    position: Literal["left", "center", "right"] = "left"
+    # No size field: the frontend picks a default height, and authors who want
+    # another size style `.edsl-logo` in custom_css.
+
+
+class SurveyBranding(HumanizeSchemaBase):
+    """The author's brand on the respondent page."""
+
+    # None: no logo.
+    logo: Optional[SurveyLogo] = None
+
+
 class SurveyHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the survey (e.g. custom styling)."""
 
     custom_css: Optional[str] = None
+    presentation: Literal["question", "group"] = "question"
     # How the respondent is shown their position in the survey. Defaults to the
     # bar that shipped before this field existed, so stored configs render
     # identically.
     progress: SurveyProgress = Field(default_factory=BarProgress)
+    # None: no banner, which is how every survey stored before this field existed
+    # renders. Assets it names are checked when the schema is written.
+    branding: Optional[SurveyBranding] = None
 
 
 class CommentConfig(HumanizeSchemaBase):
@@ -226,6 +309,7 @@ class FreeTextHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the free text question type."""
 
     optional: bool = False
+    time_limit: Optional[TimeLimit] = None
     comment: Optional[CommentConfig] = None
     submitting_indicator: Optional[SubmittingIndicator] = None
 
@@ -234,14 +318,124 @@ class BudgetHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the budget question type."""
 
     optional: bool = False
+    time_limit: Optional[TimeLimit] = None
     comment: Optional[CommentConfig] = None
     submitting_indicator: Optional[SubmittingIndicator] = None
+
+
+class UniformInitialDistribution(HumanizeSchemaBase):
+    """Equal probability per outcome or bin, including unequal-width intervals.
+
+    It is the answer's starting value, so a respondent can submit it untouched.
+    """
+
+    type: Literal["uniform"] = "uniform"
+
+
+class EmptyInitialDistribution(HumanizeSchemaBase):
+    """Nothing allocated; the respondent must paint before submitting.
+
+    A variant rather than ``initial_distribution: None``, because None already means
+    "unconfigured", which has to keep meaning uniform.
+    """
+
+    type: Literal["empty"] = "empty"
+
+
+# What the painter shows before the respondent touches it. Discriminated on
+# ``type`` so starting states with parameters of their own (author-set weights, a
+# peak at a chosen bin, the respondent's answer to an earlier question) can join
+# as siblings without reshaping stored configs. A saved answer always takes
+# precedence over it.
+InitialDistribution = Annotated[
+    Union[UniformInitialDistribution, EmptyInitialDistribution],
+    Field(discriminator="type"),
+]
+
+
+class MeanStatistic(HumanizeSchemaBase):
+    """The implied mean: each bin's midpoint weighted by its probability."""
+
+    type: Literal["mean"] = "mean"
+
+
+class VarianceStatistic(HumanizeSchemaBase):
+    """The implied variance, including each bin's own spread (width² / 12)."""
+
+    type: Literal["variance"] = "variance"
+
+
+# One statistic in a distribution's summary. Discriminated on ``type`` because
+# statistics differ in shape — a central interval needs its coverage, a mean
+# needs nothing — so each can carry only the options it acts on.
+SummaryStatistic = Annotated[
+    Union[MeanStatistic, VarianceStatistic],
+    Field(discriminator="type"),
+]
+
+
+class DistributionSummary(HumanizeSchemaBase):
+    """Statistics implied by the painted distribution, shown beneath the chart.
+
+    Computed assuming probability is spread uniformly within each bin, and shown
+    only for finite numeric bins: categories have no values to average, and an
+    open-ended bin has no midpoint.
+    """
+
+    # Rendered in list order.
+    statistics: Annotated[list[SummaryStatistic], Field(min_length=1)] = Field(
+        default_factory=lambda: [MeanStatistic(), VarianceStatistic()]
+    )
+
+    @model_validator(mode="after")
+    def _unique_statistics(self) -> "DistributionSummary":
+        types = [statistic.type for statistic in self.statistics]
+        if len(types) != len(set(types)):
+            raise ValueError("statistics must not repeat a type.")
+        return self
+
+
+class DistributionHumanizeSchema(HumanizeSchemaBase):
+    """Humanize options for the distribution question type."""
+
+    initial_distribution: InitialDistribution = Field(
+        default_factory=UniformInitialDistribution
+    )
+    # None: no summary.
+    distribution_summary: Optional[DistributionSummary] = None
+
+
+class SelectAllControl(HumanizeSchemaBase):
+    """The Select all box beneath a checkbox question's options.
+
+    Ticking it selects every option the respondent could have ticked one at a
+    time, and unticking it clears them again. Exclusive options are left out of
+    "all": checking one clears every other selection, so counting them would
+    leave the box unable to settle.
+
+    ``label`` is optional; when None the frontend supplies its own wording (so it
+    can be reworded, or translated, without a data migration).
+    """
+
+    # Today's wording is the only one accepted. The field exists so other
+    # wordings can join this literal — or it can widen to a free string — without
+    # reshaping stored configs, not because there is a choice to make yet. Naming
+    # it says no more than leaving it None does.
+    label: Optional[Literal["Select all"]] = None
 
 
 class CheckboxHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the checkbox question type."""
 
     optional: bool = False
+    time_limit: Optional[TimeLimit] = None
+    # The Select all box beneath the options; None removes it. Present by
+    # default, because that is what every checkbox question rendered before this
+    # field existed, so stored configs are unaffected. Deliberately not on
+    # ``CheckboxWithOtherHumanizeSchema``: that type has never rendered the box,
+    # and what "all" should mean where the respondent also has write-in entries
+    # is a question of its own.
+    select_all: Optional[SelectAllControl] = Field(default_factory=SelectAllControl)
     # Options that stand alone: checking one clears every other selection —
     # including any other exclusive option — and selecting anything else clears
     # it. Identified by their exact text in ``question_options``, i.e. a "None of
@@ -266,6 +460,7 @@ class CheckboxWithOtherHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the checkbox with other question type."""
 
     optional: bool = False
+    time_limit: Optional[TimeLimit] = None
     # Options that stand alone: checking one clears every other selection —
     # including the respondent's "other" entries and any other exclusive
     # option — and selecting anything else clears it. Identified by their exact
@@ -310,6 +505,7 @@ class FileUploadHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the file upload question type."""
 
     optional: bool = False
+    time_limit: Optional[TimeLimit] = None
     submitting_indicator: Optional[SubmittingIndicator] = None
 
 
@@ -498,6 +694,21 @@ class TextInterviewConfig(HumanizeSchemaBase):
         return normalize_voice_interview_language(v)
 
 
+# How long the voice interviewer waits after the respondent pauses before it
+# speaks, from "fastest" (jumps in almost at once) to "slowest" (waits a long time).
+VoiceTurnSpeed = Literal["fastest", "faster", "default", "slower", "slowest"]
+
+
+class TurnTakingConfig(HumanizeSchemaBase):
+    """How the voice interviewer decides the respondent has finished speaking."""
+
+    # The speed the call starts at. "initial" because the respondent can still
+    # change it from the interview screen, the same reading as
+    # ``ChecklistConfig.initial``. "default" is the natural pause every voice
+    # interview used before this setting existed.
+    initial_speed: VoiceTurnSpeed = "default"
+
+
 class VoiceInterviewConfig(HumanizeSchemaBase):
     """Configuration specific to voice-mode interviews."""
 
@@ -505,6 +716,9 @@ class VoiceInterviewConfig(HumanizeSchemaBase):
     # (e.g. "english"); the before-validator normalizes case/whitespace, maps
     # None/blank to the default, and rejects unsupported languages.
     language: str = DEFAULT_VOICE_INTERVIEW_LANGUAGE
+    # Always present rather than Optional: every voice call has a starting speed,
+    # so None would only mean "use the default" anyway.
+    turn_taking: TurnTakingConfig = Field(default_factory=TurnTakingConfig)
 
     @field_validator("language", mode="before")
     @classmethod
@@ -546,6 +760,7 @@ class LikertHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the likert question type."""
 
     optional: bool = False
+    time_limit: Optional[TimeLimit] = None
     format: MCSubclassFormatSchema = Field(default_factory=MCSubclassFormatSchema)
     comment: Optional[CommentConfig] = None
     submitting_indicator: Optional[SubmittingIndicator] = None
@@ -555,6 +770,7 @@ class LinearScaleHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the linear scale question type."""
 
     optional: bool = False
+    time_limit: Optional[TimeLimit] = None
     format: MCSubclassFormatSchema = Field(default_factory=MCSubclassFormatSchema)
     comment: Optional[CommentConfig] = None
     submitting_indicator: Optional[SubmittingIndicator] = None
@@ -564,6 +780,7 @@ class ListHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the list question type."""
 
     optional: bool = False
+    time_limit: Optional[TimeLimit] = None
     comment: Optional[CommentConfig] = None
     submitting_indicator: Optional[SubmittingIndicator] = None
 
@@ -662,6 +879,7 @@ class MatrixHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the matrix question type."""
 
     optional: bool = False
+    time_limit: Optional[TimeLimit] = None
     format: MatrixFormatSchema = Field(default_factory=MatrixFormatTableSchema)
     # Cells filled in before the respondent arrives. None means an empty grid —
     # what every matrix rendered before this field existed, so stored configs are
@@ -681,6 +899,7 @@ class MultipleChoiceHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the multiple choice question type."""
 
     optional: bool = False
+    time_limit: Optional[TimeLimit] = None
     format: MCSubclassFormatSchema = Field(default_factory=MCSubclassFormatSchema)
     custom_validation: Optional[MultipleChoiceCustomValidation] = None
     comment: Optional[CommentConfig] = None
@@ -691,6 +910,7 @@ class MultipleChoiceWithOtherHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the multiple choice with other question type."""
 
     optional: bool = False
+    time_limit: Optional[TimeLimit] = None
     comment: Optional[CommentConfig] = None
     submitting_indicator: Optional[SubmittingIndicator] = None
 
@@ -730,6 +950,7 @@ class NumericalHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the numerical question type."""
 
     optional: bool = False
+    time_limit: Optional[TimeLimit] = None
     format: NumericalFormatSchema = Field(default_factory=NumericalFormatInputSchema)
     comment: Optional[CommentConfig] = None
     submitting_indicator: Optional[SubmittingIndicator] = None
@@ -739,6 +960,7 @@ class RankHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the rank question type."""
 
     optional: bool = False
+    time_limit: Optional[TimeLimit] = None
     comment: Optional[CommentConfig] = None
     submitting_indicator: Optional[SubmittingIndicator] = None
 
@@ -747,6 +969,7 @@ class TopKHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the top k question type."""
 
     optional: bool = False
+    time_limit: Optional[TimeLimit] = None
     comment: Optional[CommentConfig] = None
     submitting_indicator: Optional[SubmittingIndicator] = None
 
@@ -755,6 +978,7 @@ class YesNoHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the yes/no question type."""
 
     optional: bool = False
+    time_limit: Optional[TimeLimit] = None
     format: MCSubclassFormatSchema = Field(default_factory=MCSubclassFormatSchema)
     comment: Optional[CommentConfig] = None
     submitting_indicator: Optional[SubmittingIndicator] = None
@@ -771,6 +995,7 @@ class SurveyMessageHumanizeSchema(HumanizeSchemaBase):
 HumanizeQuestionSchema = Union[
     FreeTextHumanizeSchema,
     BudgetHumanizeSchema,
+    DistributionHumanizeSchema,
     CheckboxHumanizeSchema,
     CheckboxWithOtherHumanizeSchema,
     ComputeHumanizeSchema,
@@ -804,6 +1029,7 @@ class HumanizeSchema(HumanizeSchemaBase):
 QUESTION_TYPE_TO_HUMANIZE_CLASS: Dict[str, Type[BaseModel]] = {
     "free_text": FreeTextHumanizeSchema,
     "budget": BudgetHumanizeSchema,
+    "distribution": DistributionHumanizeSchema,
     "checkbox": CheckboxHumanizeSchema,
     "checkbox_with_other": CheckboxWithOtherHumanizeSchema,
     "compute": ComputeHumanizeSchema,
@@ -855,6 +1081,147 @@ def _validate_preselection_targets(
                 f"names option {rule.option.value!r}, which is not one of that "
                 "question's options."
             )
+
+
+def _is_background_question(question: Any) -> bool:
+    """Whether a question is answered by the server rather than the respondent.
+
+    Thinking, compute and image generation questions all run without the
+    respondent and are never rendered to one, so a group made up entirely of them
+    is never shown as a page.
+    """
+    return isinstance(question, QuestionBase) and (
+        getattr(question, "_is_thinking_question", False)
+        or isinstance(question, (QuestionCompute, QuestionImageGeneration))
+    )
+
+
+def _validate_group_presentation(survey: Survey) -> None:
+    """Check the survey can actually be presented one question group per page.
+
+    Only meaningful under ``presentation: "group"``; by default each question is
+    its own page and ``question_groups`` does not affect what is served.
+
+    Every rule here guards a failure that is otherwise silent in front of a
+    respondent — a question that never appears, an instruction nobody reads, a
+    page that cannot be submitted. They are raised here, while the author is still
+    at their keyboard and the survey has no responses, rather than left for the
+    survey platform to absorb at render time.
+    """
+    groups = survey.question_groups
+    if not groups:
+        raise HumanizeSchemaValidationError(
+            "Humanize schema sets presentation to 'group', but this survey has no "
+            "question groups, so there is nothing to page by. Call "
+            "survey.create_allowable_groups(...) or survey.add_question_group(...) "
+            "first, or drop the presentation setting."
+        )
+
+    ordered = sorted(
+        ((name, start, end) for name, (start, end) in groups.items()),
+        key=lambda group: group[1],
+    )
+    question_count = len(survey.questions)
+
+    def members_of(start: int, end: int) -> list:
+        """The survey questions a group's range covers."""
+        return [
+            survey.questions[index]
+            for index in range(max(start, 0), min(end, question_count - 1) + 1)
+        ]
+
+    # Which group owns each question. A range may deliberately run past the last
+    # question to pull in a trailing instruction (see below), so an index beyond
+    # the survey is not evidence of anything and is simply ignored.
+    owners: Dict[int, list] = {index: [] for index in range(question_count)}
+    for name, start, end in ordered:
+        for index in range(max(start, 0), min(end, question_count - 1) + 1):
+            owners[index].append(name)
+
+    uncovered = [index for index, names in owners.items() if not names]
+    if uncovered:
+        shown = ", ".join(
+            repr(survey.questions[index].question_name) for index in uncovered[:5]
+        )
+        more = "" if len(uncovered) <= 5 else f", and {len(uncovered) - 5} more"
+        raise HumanizeSchemaValidationError(
+            f"Question groups do not cover every question: {shown}{more} "
+            f"belong{'s' if len(uncovered) == 1 else ''} to no group. A question "
+            "outside every group is never served and is recorded as skipped, so it "
+            "would drop out of the survey without anything being raised."
+        )
+
+    # Overlaps do not duplicate a question — a group's start is clamped to wherever
+    # the respondent actually is, so a shared question is served once, with whichever
+    # group starts earlier. What they do instead is repaginate the survey: the other
+    # group can be left with nothing to serve and produce no page at all. Where two
+    # starts tie, the groups are ordered by a stable sort on start index, so the
+    # tie-break is the order they sit in the dict — the same two groups added the
+    # other way round page the survey differently.
+    for index, names in owners.items():
+        if len(names) > 1:
+            raise HumanizeSchemaValidationError(
+                f"Question {survey.questions[index].question_name!r} belongs to more "
+                f"than one question group "
+                f"({', '.join(repr(name) for name in names)}). The question is not "
+                "duplicated — it is served once, with the earlier-starting group — "
+                "but the other group can be left serving nothing at all, so the "
+                "survey is paged differently from the way these groups read. Give "
+                "each question exactly one group."
+            )
+
+    # An interview fills the screen and ends itself, so the shared Next button on a
+    # group page has no conversation to submit.
+    for name, start, end in ordered:
+        members = members_of(start, end)
+        interviews = [
+            question.question_name
+            for question in members
+            if getattr(question, "question_type", None) == "interview"
+        ]
+        if interviews and len(members) > 1:
+            raise HumanizeSchemaValidationError(
+                f"Question group {name!r} puts interview {interviews[0]!r} on a page "
+                "with other questions. An interview needs a page of its own — it "
+                "fills the screen and ends itself, so a shared Next button has no "
+                "conversation to submit. Give it a group holding only that question."
+            )
+
+    # Instructions attach to a group by pseudo-index, so one sitting past the last
+    # group has no page to land on and is never rendered. The same goes for one
+    # attached to a group whose questions are all answered by the server: that group
+    # is run and passed over, and the instruction goes with it.
+    last_group_end = max(end for _, _, end in ordered)
+    background_only_windows = []
+    previous_end = -1
+    for name, start, end in ordered:
+        members = members_of(start, end)
+        if members and all(_is_background_question(question) for question in members):
+            # The window a group draws instructions from: before the first group, or
+            # after the previous one, through to the group's own end.
+            background_only_windows.append((name, previous_end, end))
+        previous_end = end
+
+    for instruction_name in survey._instruction_names_to_instructions:
+        pseudo_index = survey._pseudo_indices.get(instruction_name)
+        if pseudo_index is None:
+            continue
+        if pseudo_index > last_group_end:
+            raise HumanizeSchemaValidationError(
+                f"Instruction {instruction_name!r} falls after the last question "
+                "group, so there is no page for it to appear on and it would never "
+                "be shown. Move it inside a group, or use a SurveyMessage question "
+                "if it should be the last thing the respondent reads."
+            )
+        for group_name, window_start, window_end in background_only_windows:
+            if window_start < pseudo_index <= window_end:
+                raise HumanizeSchemaValidationError(
+                    f"Instruction {instruction_name!r} is attached to question group "
+                    f"{group_name!r}, whose questions are all answered without the "
+                    "respondent. That group is never shown as a page, so the "
+                    "instruction would never be read. Move it to a group the "
+                    "respondent sees."
+                )
 
 
 def validate_humanize_schema(
@@ -910,3 +1277,8 @@ def validate_humanize_schema(
         # an option exists is a fact about the question, and only this function has
         # both halves.
         _validate_preselection_targets(question_name, q, validated_entry)
+
+    # Paging by group is a claim about the survey's structure, not about any one
+    # question, so it is checked once at the end with the whole survey in hand.
+    if validated_schema.survey and validated_schema.survey.presentation == "group":
+        _validate_group_presentation(survey)

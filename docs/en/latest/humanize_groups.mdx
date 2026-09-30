@@ -1,0 +1,144 @@
+---
+title: "Grouped surveys"
+description: "Define question groups and request one group per page in a human survey."
+---
+
+Grouped presentation lets you put related questions on the same page. Define the page boundaries on your `Survey`, then pass `{"survey": {"presentation": "group"}}` to `.humanize()`.
+
+<Note>
+This guide describes the API introduced in [PR #2623](https://github.com/expectedparrot/edsl/pull/2623). It requires an EDSL version containing that change and a hosted Humanize implementation that supports grouped presentation. The PR adds the schema option and navigation API; it does not include the hosted UI implementation.
+</Note>
+
+## Create a two-page survey
+
+This example puts two background questions on the first page and two feedback questions on the second.
+
+```python
+from edsl import Survey, QuestionFreeText, QuestionMultipleChoice
+
+survey = Survey([
+    QuestionMultipleChoice(
+        question_name="work_location",
+        question_text="Where do you usually work?",
+        question_options=["At home", "In an office", "A mix of both"],
+    ),
+    QuestionFreeText(
+        question_name="role",
+        question_text="What is your role?",
+    ),
+    QuestionMultipleChoice(
+        question_name="satisfaction",
+        question_text="How satisfied are you with your work arrangement?",
+        question_options=["Satisfied", "Neutral", "Dissatisfied"],
+    ),
+    QuestionFreeText(
+        question_name="improvement",
+        question_text="What would improve your work arrangement?",
+    ),
+])
+
+# First question, last question (inclusive), group name.
+survey.add_question_group("work_location", "role", "background")
+survey.add_question_group("satisfaction", "improvement", "feedback")
+
+humanize_schema = {
+    "survey": {"presentation": "group"},
+    "questions": {"improvement": {"optional": True}},
+}
+```
+
+| Page | Group name | Questions |
+| --- | --- | --- |
+| 1 | `background` | `work_location`, `role` |
+| 2 | `feedback` | `satisfaction`, `improvement` |
+
+Preview with the same schema you intend to use when creating the survey:
+
+```python
+preview_url = survey.preview(humanize_schema=humanize_schema)
+print(preview_url)
+```
+
+When ready, create the human survey:
+
+```python
+info = survey.humanize(
+    human_survey_name="Workplace experience",
+    humanize_schema=humanize_schema,
+)
+print(info["respondent_url"])
+print(info["admin_url"])
+```
+
+The groups live on the survey; the schema selects how to present them. Adding groups alone does not enable grouped presentation. Omit `presentation`, or set it to `"question"`, for the default question-by-question mode.
+
+## Set group boundaries
+
+`survey.add_question_group(start_question, end_question, group_name)` accepts question names or question objects and returns the survey for chaining.
+
+- Each group includes both endpoints and every question between them.
+- Groups must not overlap. A one-question page uses the same question for both endpoints.
+- Names must be unique Python identifiers, such as `background`, and must not match a question name.
+- Pages follow question order in the survey.
+- Assign every question you want displayed to a group. With groups defined, the current grouped navigator skips questions outside those groups.
+
+For example, to make a page containing only `work_location`, define its group with `survey.add_question_group("work_location", "work_location", "location_page")` on a survey where that question is not already grouped.
+
+## Plan branching around pages
+
+The navigator uses the answers supplied when a page is requested to filter skipped questions. After a page is submitted, it applies the normal navigation rules from that group's **last renderable question** to choose the next page. Put page-level jump or stop rules on that question.
+
+If a later question depends on an earlier answer, put the dependent question on a later page so that answer is available when the page is selected. The navigation API does not establish live, within-page updates to conditional questions.
+
+For example, starting with the two-page survey above, omit the improvement question for satisfied respondents:
+
+```python
+# Keep the controlling answer on an earlier page.
+survey.question_groups.clear()
+survey.add_question_group("work_location", "satisfaction", "background")
+survey.add_question_group("improvement", "improvement", "improvements")
+survey.add_skip_rule(
+    "improvement",
+    "{{ satisfaction.answer }} == 'Satisfied'",
+)
+```
+
+Now the first page collects work location, role, and satisfaction. A satisfied respondent skips the improvements page and reaches the end; other respondents continue to it. Add the rule before previewing or creating the human survey.
+
+Additional navigation behavior:
+
+- A group with no remaining questions is skipped.
+- A jump into the middle of a group starts at the target question; earlier questions in that group are omitted.
+- Relevant instructions before or within the selected group are included by default.
+
+## Inspect navigation locally
+
+Survey authors normally define groups and call `.humanize()`. For debugging or implementing a renderer, `survey.next_group()` returns the next page without creating a hosted survey.
+
+Using the original two-page example, before the branching modification:
+
+```python
+first_page = survey.next_group()
+assert first_page["group_name"] == "background"
+assert first_page["question_names"] == ["work_location", "role"]
+
+second_page = survey.next_group(
+    current_group="background",
+    answers={
+        "work_location.answer": "At home",
+        "role.answer": "Researcher",
+    },
+)
+assert second_page["group_name"] == "feedback"
+```
+
+Pass all answers collected so far, including those from the just-submitted group. Use `include_instructions=False` to return questions only.
+
+| Returned field | Meaning |
+| --- | --- |
+| `group_name` | Selected group name, or `None` at the end |
+| `items` | Question and instruction objects; `[EndOfSurvey]` at the end |
+| `question_names` | Names of the questions selected for this page |
+| `is_end` | `True` when the survey has finished |
+
+See [Humanize](/en/latest/humanize) for retrieving responses and [Humanize schema](/en/latest/humanize_schema) for styling and other presentation options.
