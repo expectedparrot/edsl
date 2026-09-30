@@ -182,6 +182,19 @@ def test_generic_pull_uses_the_server_type_when_the_payload_has_no_class():
     assert type(result) is Prompt
 
 
+def test_generic_pull_of_an_unknown_class_raises_instead_of_guessing():
+    # Agent.from_dict accepts any dict, so guessing would return an Agent here.
+    from edsl.coop.exceptions import CoopResponseError
+
+    with pytest.raises(CoopResponseError, match="FutureThing"):
+        pull(
+            PROMPT_UUID,
+            None,
+            {"edsl_class_name": "FutureThing", "foo": 1},
+            report_type=False,
+        )
+
+
 def test_alias_pull_of_another_type_is_rejected():
     with pytest.raises(CoopObjectTypeError):
         pull(

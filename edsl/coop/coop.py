@@ -5674,6 +5674,16 @@ class Coop(CoopFunctionsMixin):
                 )
             if edsl_class is not None:
                 return edsl_class.from_dict(object_dict)
+            if likely_object_type is not None:
+                # The payload names a class this client does not know. Guessing
+                # would hand back the wrong type: Agent.from_dict accepts any dict.
+                from .exceptions import CoopResponseError
+
+                raise CoopResponseError(
+                    f"This object is a {likely_object_type}, which this version of "
+                    f"EDSL cannot load. Upgrade EDSL and try again."
+                )
+            # Only payloads without an edsl_class_name reach here.
             for edsl_class in ObjectRegistry.get_registry().values():
                 try:
                     return edsl_class.from_dict(object_dict)
