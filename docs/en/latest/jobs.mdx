@@ -133,7 +133,8 @@ Replacing a collection with another of the same length preserves assignments by
 position, including a model replacement with `.by(model)`. Changing a collection's
 length raises an error; build a new job with the desired collections and plan.
 `include_when(...)` replaces the current plan with a filtered cross-product, and
-its filter is recomputed after replacing a source collection.
+its filter is recomputed from current source collections and values, including
+in-place edits to agent traits or scenario data.
 
 Assignments survive dictionary, JSONL, and `.ep` serialization and Runner
 transport. Counts, prompts, and execution use the scheduled interviews.

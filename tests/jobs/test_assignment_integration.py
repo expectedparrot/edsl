@@ -118,6 +118,44 @@ def test_filter_is_recomputed_after_component_replacement(assignment_job):
     assert list(job.assignment_plan.iter_indices()) == [(0, 0, 0)]
 
 
+@pytest.mark.parametrize("attribute", ["_index", "_position_index"])
+def test_index_filter_uses_source_positions_with_repeated_objects(
+    assignment_job, attribute
+):
+    job = assignment_job
+    job.agents = [job.agents[0]] * 2
+    job.scenarios = [job.scenarios[0]] * 2
+    job.models = [job.models[0]] * 2
+    job.include_when(
+        "{{ " f"agent.{attribute} == scenario.{attribute} == model.{attribute}" " }}"
+    )
+    expected = [(0, 0, 0), (1, 1, 1)]
+    assert list(job.assignment_plan.iter_indices()) == expected
+    restored = deserialize_job(serialize_job(job))
+    _, _, data = JobService(InMemoryStorage()).submit_job(restored)
+    assert [d["indices"] for d in data["interview_defs"].values()] == row_indices(
+        expected
+    )
+
+
+def test_filter_is_recomputed_after_in_place_edit(assignment_job):
+    job = assignment_job.include_when("{{ agent.person == scenario.topic }}")
+    assert len(job) == 2
+    job.scenarios[1]["topic"] = 0
+    assert list(job.assignment_plan.iter_indices()) == [(0, 0, 0), (0, 1, 0)]
+
+
+@pytest.mark.parametrize(
+    "expression",
+    ["{{ agent.__class__.__name__ }}", "{{ agent.to_dict() }}"],
+)
+def test_index_filter_retains_sandbox_restrictions(assignment_job, expression):
+    from jinja2.exceptions import SecurityError
+
+    with pytest.raises(SecurityError):
+        list(assignment_job.include_when(expression).assignment_plan.iter_indices())
+
+
 def test_cartesian_plan_remains_reusable(assignment_job):
     plan = assignment_job.assignment_plan
     expected = list(plan.iter_indices())

@@ -318,7 +318,6 @@ class Jobs(Base):
             self.run_config.environment.bucket_collection = (
                 self.create_bucket_collection()
             )
-        self._invalidate_filtered_assignment_plan()
 
     @property
     def agents(self):
@@ -343,7 +342,6 @@ class Jobs(Base):
                 self._agents = value
         else:
             self._agents = AgentList([])
-        self._invalidate_filtered_assignment_plan()
 
     def where(self, expression: str) -> Jobs:
         """Filter the agents, scenarios, and models based on a condition.
@@ -426,7 +424,6 @@ class Jobs(Base):
                 self._scenarios = value
         else:
             self._scenarios = ScenarioList([])
-        self._invalidate_filtered_assignment_plan()
 
         # Validate that scenario fields are used in the survey
         if hasattr(self, "survey") and self.survey is not None:
@@ -436,12 +433,6 @@ class Jobs(Base):
 
             checker = CheckSurveyScenarioCompatibility(self.survey, self._scenarios)
             checker.check()
-
-    def _invalidate_filtered_assignment_plan(self) -> None:
-        # Explicit and zipped rows refer to source positions, so same-length
-        # replacements preserve them. Only expression-derived plans are caches.
-        if self.__dict__.get("_include_expression") is not None:
-            self._assignment_plan = None
 
     def _validate_assignment_component(self, axis, value) -> None:
         plan = self.__dict__.get("_assignment_plan")
@@ -759,16 +750,17 @@ class Jobs(Base):
 
         self.replace_missing_objects()
         self._ensure_position_indices()
-        if self._assignment_plan is not None:
-            self._assignment_plan.validate(self.agents, self.scenarios, self.models)
-            return self._assignment_plan
         if self._include_expression is not None:
-            self._assignment_plan = AssignmentPlan.from_filter(
+            # Collections and their contents are mutable, so a cached filter can
+            # become stale even when no component setter was called.
+            return AssignmentPlan.from_filter(
                 self.agents,
                 self.scenarios,
                 self.models,
                 self._include_expression,
             )
+        if self._assignment_plan is not None:
+            self._assignment_plan.validate(self.agents, self.scenarios, self.models)
             return self._assignment_plan
         return AssignmentPlan.from_cross(self.agents, self.scenarios, self.models)
 
