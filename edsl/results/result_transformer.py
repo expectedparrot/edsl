@@ -132,6 +132,13 @@ class PromptDict(ResultComponentPrependedKeys):
     name = "prompt"
     special_keys = ["user_prompt", "system_prompt"]
 
+    @staticmethod
+    def transform_value(value):
+        # Keep per-question prompt data free of version metadata.
+        if hasattr(value, "to_dict"):
+            return value.to_dict(add_edsl_version=False)
+        return value
+
 
 class RawModelResponseDict(ResultComponentPrependedKeys):
     name = "raw_model_response"

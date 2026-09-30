@@ -131,7 +131,7 @@ def load_git_object(path: Path):
     error(
         "UNSUPPORTED_OBJECT",
         f"Object package type does not support push: {class_name or 'unknown'}",
-        suggestion="Currently supported package types: Survey, AgentList, Jobs, Results, ScenarioList, ModelList.",
+        suggestion="Currently supported package types: Survey, AgentList, Jobs, Results, ScenarioList, ModelList. Prompts use JSON files instead.",
         exit_code=EXIT_USAGE,
     )
 
@@ -177,15 +177,36 @@ def load_openable_json(path: Path):
         from edsl.language_models import ModelList
 
         return ModelList.from_dict(data)
+    if is_serialized_prompt(data):
+        from edsl.prompts import Prompt
+
+        return Prompt.from_dict(data)
     error(
         "UNSUPPORTED_OBJECT",
         f"Unsupported or missing edsl_class_name in JSON: {class_name or 'unknown'}",
-        suggestion="Expected a serialized Survey, AgentList, Jobs, Results, ScenarioList, or ModelList.",
+        suggestion="Expected a serialized Survey, AgentList, Jobs, Results, ScenarioList, ModelList, or Prompt.",
         exit_code=EXIT_USAGE,
     )
 
 
+def is_serialized_prompt(data) -> bool:
+    """Whether a dict is a serialized Prompt.
+
+    Standalone prompts carry ``edsl_class_name``. ``Prompt.save()`` writes the
+    older shape, which names the class only in ``class_name``. A dict that just
+    happens to have a ``text`` key is not a Prompt.
+    """
+    if not isinstance(data, dict):
+        return False
+    if "edsl_class_name" in data:
+        return data["edsl_class_name"] == "Prompt"
+    return data.get("class_name") == "Prompt" and isinstance(data.get("text"), str)
+
+
 def jsonable(value):
+    if isinstance(value, str):
+        # str subclasses such as Prompt have a __dict__ that would replace the text.
+        return str.__str__(value)
     if isinstance(value, list):
         return [jsonable(item) for item in value]
     if isinstance(value, tuple):
@@ -242,6 +263,13 @@ def save_edsl_object(obj, output_path: str, object_type: str | None = None) -> d
         }
 
     path = Path(output_path)
+    if path.suffix == ".ep" and not hasattr(obj, "git"):
+        error(
+            "UNSUPPORTED_OBJECT",
+            f"{class_name} cannot be saved as a .ep package.",
+            suggestion=f"Save the {class_name} as .json or .json.gz instead.",
+            exit_code=EXIT_USAGE,
+        )
     path.parent.mkdir(parents=True, exist_ok=True)
     if path.suffix == ".ep":
         info = obj.git.save(path)
@@ -260,7 +288,10 @@ def save_edsl_object(obj, output_path: str, object_type: str | None = None) -> d
             "object_type": class_name,
         }
 
-    path.write_text(json.dumps(obj.to_dict(), indent=2, default=str), encoding="utf-8")
+    path.write_text(
+        json.dumps(obj.to_dict(), indent=2, default=str),
+        encoding="utf-8",
+    )
     return {"path": str(path), "format": "json", "object_type": class_name}
 
 
