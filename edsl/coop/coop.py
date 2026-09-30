@@ -5039,16 +5039,48 @@ class Coop(CoopFunctionsMixin):
             "filters": response_json.get("filters"),
         }
 
+    def preflight_prolific_study(
+        self, human_survey_uuid: str, study_id: str, *,
+        required_questions: Optional[List[str]] = None,
+        expected_survey=None, required_credits: Optional[float] = None,
+    ) -> dict:
+        """Check the current draft, deployed survey and balance without publishing.
+
+        Supply required question names (including any planned participant ID)
+        and the expected Survey to detect missing questions or deployment drift.
+        required_credits includes any AI/interview reserve; when omitted only
+        recruitment is costed. This check neither reserves funds nor proves
+        live routing, identity capture, eligibility, or user authorization.
+        """
+        from .coop_prolific_preflight import preflight
+
+        return preflight(self, human_survey_uuid, study_id,
+                         required_questions=required_questions,
+                         expected_survey=expected_survey, required_credits=required_credits)
+
     def publish_prolific_study(
         self,
         human_survey_uuid: str,
         study_id: str,
+        *,
+        required_questions: Optional[List[str]] = None,
+        expected_survey=None,
+        required_credits: Optional[float] = None,
     ) -> dict:
         """
         Publish a Prolific study.
 
         Once your study is published, Prolific participants can start accepting and completing it.
+        Rechecks the deployed survey and current recruitment balance before the
+        publication POST. Supply an all-in required_credits estimate for AI work.
+        A successful preflight is not spending authorization or a funds reservation.
         """
+        check = self.preflight_prolific_study(
+            human_survey_uuid, study_id, required_questions=required_questions,
+            expected_survey=expected_survey, required_credits=required_credits,
+        )
+        if not check["ready"]:
+            raise CoopValueError("Prolific preflight failed: " + "; ".join(check["blockers"]))
         response = self._send_server_request(
             uri=f"api/v0/human-surveys/{human_survey_uuid}/prolific-studies/{study_id}/status",
             method="POST",
