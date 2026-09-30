@@ -29,6 +29,26 @@ This page covers code methods for launching surveys, gathering human responses, 
 
 ---
 
+## Coordinating dependent human tasks
+
+`survey.humanize()` is the right abstraction for one survey or one independent
+set of respondents. If a participant's response determines which task becomes
+available next—or what a later participant may see—define a [research
+workflow](/en/latest/workflows).
+
+In a workflow, the coordinator owns dependencies, visibility, idempotent
+submission, and recovery. Humanize is the delivery adapter: it creates a private
+survey for a ready work item and imports the completed response. Delivery is
+at-least-once, so adapters and callbacks must preserve the coordinator's stable
+idempotency key. If quorum or branching makes an outstanding task irrelevant,
+EDSL marks its local work item canceled; an already delivered external survey
+may still need provider-side cancellation or access control.
+
+Use [shared state](/en/latest/shared_state) when those tasks also read or update
+typed common data.
+
+---
+
 ## Basic usage
 
 ```python

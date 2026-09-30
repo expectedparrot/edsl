@@ -1,0 +1,413 @@
+---
+title: "Shared-state pattern cookbook"
+description: "Adapt complete patterns for ballots, markets, private signals, task pools, and payoffs."
+---
+
+This chapter continues the [shared-state manual](/en/latest/shared_state).
+
+The snippets below are machine fragments to adapt, with fields and constants
+provided by the surrounding machine. Import `current_value` from
+`edsl.sharedstate` for machine-context expressions. Survey scope selection uses
+the distinct `current` object from the same module.
+
+## Pattern cookbook
+
+The same small set of fields and effects recurs across many simulations. This
+section collects common patterns without hiding them behind new classes.
+
+### Pattern: first-write-wins
+
+Use this when each participant gets one binding submission, such as a vote,
+allocation, or sealed bid:
+
+```python
+fields={
+    "choices": state_field(T.map(T.text(), T.text()), initial={}),
+}
+
+submit = Command(
+    inputs={
+        "participant": T.text(),
+        "choice": T.text(),
+    },
+    effects=(
+        put(
+            "choices",
+            key=input_("participant"),
+            value=input_("choice"),
+            once=True,
+        ),
+    ),
+)
+```
+
+A retry with the same key is harmless. A conflicting later value is ignored.
+
+For a single shared value rather than a map entry, use `set_once`:
+
+```python
+set_once("final_decision", input_("decision"))
+```
+
+### Pattern: latest-write-wins
+
+Use ordinary `put` when participants may revise their current response:
+
+```python
+put(
+    "forecasts",
+    key=input_("forecaster"),
+    value=input_("probability"),
+)
+```
+
+The map always contains the latest value. If the revision history matters, keep
+both a current map and an append-only history in one command:
+
+```python
+effects=(
+    put("latest", input_("forecaster"), input_("probability")),
+    append(
+        "history",
+        record(
+            forecaster=input_("forecaster"),
+            probability=input_("probability"),
+            round=input_("round"),
+        ),
+    ),
+)
+```
+
+Both changes commit atomically.
+
+### Pattern: append-only event history
+
+Use a sequence when every event should remain available:
+
+```python
+fields={
+    "events": state_field(T.sequence(T.map()), initial=[]),
+}
+
+record_event = Command(
+    inputs={
+        "actor": T.text(),
+        "action": T.text(),
+    },
+    effects=(
+        append(
+            "events",
+            record(
+                actor=input_("actor"),
+                action=input_("action"),
+                interview=current_value("interview.id"),
+            ),
+        ),
+    ),
+)
+```
+
+Internal metadata can remain in state while the view projects only public
+fields.
+
+### Pattern: expose only recent history
+
+The full log can persist while readers receive a bounded tail:
+
+```python
+view={
+    "event_count": field("events").length(),
+    "recent_events": reduce_(
+        "tail",
+        field("events"),
+        count=10,
+    ),
+}
+```
+
+This bounds prompt size without discarding the audit history.
+
+### Pattern: an atomic multi-field transition
+
+Use one command when fields must agree with one another:
+
+```python
+make_offer = Command(
+    inputs={
+        "proposer": T.text(),
+        "amount": T.number(minimum=0, maximum=constant("stake")),
+    },
+    require=field("offer") == None,
+    effects=(
+        set_("proposer", input_("proposer")),
+        set_("offer", input_("amount")),
+        append(
+            "history",
+            record(
+                kind="offer",
+                proposer=input_("proposer"),
+                amount=input_("amount"),
+            ),
+        ),
+    ),
+)
+```
+
+Readers never see an amount without its proposer or a current offer without the
+corresponding history entry.
+
+### Pattern: a staged interaction
+
+A later command can require an earlier stage:
+
+```python
+respond = Command(
+    inputs={
+        "responder": T.text(),
+        "decision": T.choice(["accept", "reject"]),
+    },
+    require=(
+        (field("offer") != None)
+        & (field("decision") == None)
+    ),
+    effects=(
+        set_("responder", input_("responder")),
+        set_("decision", input_("decision")),
+    ),
+)
+```
+
+This pattern supports ultimatum games, trust games, signaling, cheap talk,
+principal-agent interactions, and bilateral trade.
+
+### Pattern: terminal actions
+
+Some actions end an interaction immediately:
+
+```python
+terminal_turns = filter_items(
+    field("turns"),
+    item="turn",
+    predicate=(
+        (local("turn").get("action") == "accept")
+        | (local("turn").get("action") == "walk away")
+    ),
+)
+
+complete_when=terminal_turns.length() > 0
+```
+
+The interview schedule can use this completion condition to stop further turns
+for that scope while other groups continue.
+
+### Pattern: sealed collection and reveal
+
+Expose only submission counts until close:
+
+```python
+view={
+    "submission_count": field("ballots").length(),
+    "ballots": choose(
+        current_value("closed"),
+        field("ballots"),
+        {},
+    ),
+    "results": choose(
+        current_value("closed"),
+        field("results"),
+        None,
+    ),
+}
+```
+
+Then compute results atomically at close:
+
+```python
+close_effects=(
+    set_(
+        "results",
+        reduce_(
+            "ranked_ballot_results",
+            field("ballots"),
+            candidates=constant("candidates"),
+        ),
+    ),
+)
+```
+
+Use this for voting, sealed auctions, beauty contests, and simultaneous-move
+games.
+
+### Pattern: viewer-specific private information
+
+Use typed viewer context rather than string interpolation:
+
+```python
+view={
+    "price": field("price"),
+    "your_value": choose(
+        current_value("viewer.role") == "buyer",
+        field("buyer_value"),
+        None,
+    ),
+    "your_cost": choose(
+        current_value("viewer.role") == "seller",
+        field("seller_cost"),
+        None,
+    ),
+}
+```
+
+The validator checks whether a view is permitted to disclose each context path.
+
+### Pattern: private signal history
+
+Store histories by participant and select only the viewer's entry:
+
+```python
+viewer_history = field("revealed").get(
+    current_value("viewer.name"),
+    [],
+)
+
+view={
+    "your_signal_history": viewer_history,
+    "your_signal": choose(
+        viewer_history.length() > 0,
+        viewer_history.at(viewer_history.length() - 1).get("signal"),
+        None,
+    ),
+}
+```
+
+The guard is safe because `choose` evaluates only the selected branch.
+
+### Pattern: counters from checkbox selections
+
+A checkbox answer may increment several configured counters atomically:
+
+```python
+tally = Command(
+    inputs={
+        "selected": T.sequence(T.choice(constant("options"))),
+    },
+    effects=(
+        set_(
+            "counts",
+            reduce_(
+                "increment_keys",
+                field("counts"),
+                keys=input_("selected"),
+            ),
+        ),
+    ),
+)
+```
+
+Unknown keys fail validation rather than creating accidental counters.
+
+### Pattern: keep only the latest submission per participant
+
+An append-only history can still produce a latest-value view:
+
+```python
+latest = reduce_(
+    "latest_by",
+    field("submissions"),
+    field="participant",
+)
+
+view={
+    "latest": latest.values(),
+    "history": field("submissions"),
+}
+```
+
+This is useful for forecasts, revised rankings, and deliberative estimates.
+
+### Pattern: dynamic payoff dictionaries
+
+When participant names become result keys at runtime, use `map_of`:
+
+```python
+payoffs = map_of(
+    (
+        field("proposer"),
+        constant("stake") - field("offer"),
+    ),
+    (
+        field("responder"),
+        field("offer"),
+    ),
+)
+```
+
+This produces, for example:
+
+```python
+{"Amina": 70, "Boris": 30}
+```
+
+No role-specific payoff helper is required.
+
+### Pattern: claim from a capacity-limited pool
+
+The requirement checks current availability, and the effects reserve the item
+and record the claim together:
+
+```python
+claim = Command(
+    inputs={
+        "claimant": T.text(),
+        "item": T.text(),
+    },
+    require=(
+        ~field("claims").contains(input_("claimant"))
+        & (field("remaining").get(input_("item"), 0) > 0)
+    ),
+    effects=(
+        put("claims", input_("claimant"), input_("item"), once=True),
+        set_(
+            "remaining",
+            field("remaining").with_item(
+                input_("item"),
+                field("remaining").get(input_("item")) - 1,
+            ),
+        ),
+    ),
+)
+```
+
+For iterative allocation across complete preference rankings, use a registered
+matching algorithm instead of constructing an unbounded loop in the DSL.
+
+### Pattern: several structures in one scope
+
+Machines remain small and compose at the `SharedState` layer:
+
+```python
+committee_state = SharedState(
+    agenda=agenda_machine,
+    votes=voting_machine,
+    comments=message_log,
+    forecast=forecast_machine,
+)
+
+committees = SharedStateMap(committee_state)
+committee = committees.by(current.agent.committee_id)
+```
+
+Do not combine unrelated fields into one large machine merely because they
+share a scope.
+
+### Pattern: the same structure across many groups
+
+Define the machine once and vary only the scope key:
+
+```python
+family = families.by(current.agent.family_id)
+market = markets.by(current.agent.market_id)
+pair = bargaining_pairs.by(current.agent.pair_id)
+```
+
+The selected space changes; the machine definition and survey remain the same.

@@ -171,6 +171,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         job_uuid: Optional[str] = None,
         total_results: Optional[int] = None,
         task_history: Optional["TaskHistory"] = None,
+        shared_state: Optional[dict[str, Any]] = None,
         sort_by_iteration: bool = False,
     ):
         """Instantiate a Results object with a survey and a list of Result objects.
@@ -223,6 +224,7 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         self.cache = cache or Cache()
 
         self.task_history = task_history or TaskHistory(interviews=[])
+        self.shared_state = shared_state
 
         # Initialize cache manager for expensive operations
         self._cache_manager = DataTypeCacheManager(self)

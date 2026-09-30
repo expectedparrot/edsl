@@ -1,0 +1,639 @@
+---
+title: "Machines, commands, and views"
+description: "Define fields, atomic transitions, requirements, and participant-visible views."
+---
+
+This chapter continues the [shared-state manual](/en/latest/shared_state).
+Continue with the `activities` list from the [manual introduction](/en/latest/shared_state).
+The first two blocks define the poll used by later chapters; subsequent fragments
+illustrate alternative fields, commands, and views.
+
+## Constructing the Machine
+
+Import the small shared-state language:
+
+```python
+from edsl.sharedstate.dsl import (
+    Machine,
+    Command,
+    T,
+    state_field,
+    constant,
+    field,
+    input_,
+    put,
+)
+```
+
+Define the complete machine:
+
+```python
+activity_poll = Machine(
+    name="ActivityPoll",
+
+    constants={
+        "activities": activities,
+    },
+
+    fields={
+        "votes": state_field(
+            T.map(
+                T.text(),
+                T.choice(constant("activities")),
+            ),
+            initial={},
+        ),
+    },
+
+    commands={
+        "vote": Command(
+            inputs={
+                "voter": T.text(),
+                "activity": T.choice(constant("activities")),
+            },
+            effects=(
+                put(
+                    "votes",
+                    key=input_("voter"),
+                    value=input_("activity"),
+                    once=True,
+                ),
+            ),
+        ),
+    },
+
+    view={
+        "votes": field("votes"),
+        "vote_count": field("votes").length(),
+    },
+)
+```
+
+This definition contains no model calls, database connection, Python callback,
+or survey. It is serializable data describing a state machine.
+
+## Constants
+
+Constants configure a machine but cannot be changed by commands:
+
+```python
+constants={
+    "activities": activities,
+}
+```
+
+Refer to a constant with:
+
+```python
+constant("activities")
+```
+
+This expression means “use the configured `activities` value when the machine
+executes.” It does not immediately retrieve a Python value. Explicit references
+can be validated and serialized.
+
+Constants commonly contain choices, stakes, capacities, participant counts,
+round counts, payoff tables, and mechanism settings.
+
+## Fields
+
+Fields persist between commands:
+
+```python
+"votes": state_field(
+    T.map(
+        T.text(),
+        T.choice(constant("activities")),
+    ),
+    initial={},
+)
+```
+
+This declaration says that `votes` is a map, every key is text, every value is a
+configured activity, and a new poll begins empty.
+
+The initial state is:
+
+```python
+{"votes": {}}
+```
+
+The main field types are:
+
+```python
+T.boolean()
+T.text()
+T.number(minimum=0, maximum=100)
+T.integer(minimum=1)
+T.choice(options)
+T.rank(options)
+T.optional(T.text())
+T.sequence(T.text())
+T.map(T.text(), T.number())
+```
+
+Types are contracts, not comments. EDSL checks initial values and every proposed
+transition against them.
+
+## Records and early validation
+
+Use `T.record` when a value has named fields with different types:
+
+```python
+account_type = T.record({
+    "balance": T.number(),
+    "label": T.optional(T.text()),
+    "entries": T.sequence(T.record({"amount": T.number()})),
+})
+```
+
+Every declared field is required. `T.optional(T.text())` permits `None`; it does
+not permit omitting `label`. Records reject undeclared fields by default. Use
+`T.record({...}, allow_extra=True)` for an extensible record: declared fields
+remain required and extra values must still be finite JSON data. Use `T.map`
+for a dictionary with dynamic keys such as participant IDs.
+
+These schemas serialize with the Machine. EDSL checks them recursively for
+initial state, command inputs, and proposed state after commands or close
+effects. A bad nested value identifies its member path, such as
+`account.entries[0].amount`. A failed output check prevents the whole transition
+from committing.
+
+`machine.validate()` also checks reference namespaces and lexical bindings in
+commands, views, completion conditions, initial values, and close effects.
+A local introduced by `let`, `fold`, `iterate`, or a collection expression is
+available only in its body. Its initial value, collection, or iteration budget
+uses the outer scope. Validation visits both conditional branches, so a typo
+cannot hide in a branch that is currently unselected.
+
+For statically known closed records, a literal lookup of an undeclared member
+is rejected even when a fallback was supplied. Use an open record when probing
+extension fields is intentional. Dynamic keys and runtime-provided context stay
+runtime-checked. Map lookup results include the default's inferred type; a
+lookup with a null or unrelated default does not promise a non-null map value.
+The checker rejects known incompatible operands for arithmetic, comparison,
+text, numeric, and collection operations. Compatible numeric branches widen to
+`number`; compatible records, maps, and sequences retain their nested shapes.
+Unrelated branches widen to `any` in this implementation. This is a conservative
+subset of the stricter formal type system.
+
+Authoring failures raise `MachineValidationError`, which is also a `ValueError`.
+It exposes `machine`, `path`, and `reason` attributes. For example, looking up
+`balnce` on a declared account record reports the containing expression:
+
+```text
+TypedLedger at $.view['balance']: unknown record field 'balnce'; declared fields: ['balance', 'entries', 'label']
+```
+
+The [ledger and matching examples](/en/latest/shared-state/algorithms-and-reference)
+use records for structured state. Unknown values, dynamic keys, numeric ranges,
+choice membership, and null safety remain runtime responsibilities. Validation
+does not infer that an `if` guard makes a nullable value safe, prove an index is
+in range, or infer every reducer's output type. Boolean combinators and command
+requirements continue to use truthiness; `iterate` conditions require Booleans.
+
+### Loop invariants
+
+Declare an optional `accumulator_type` for `fold` or `state_type` for `iterate`
+when the carried value should satisfy the same contract throughout execution:
+
+```python
+from edsl.sharedstate import T, fold, input_, local
+
+running_total = fold(
+    input_("amounts"),
+    0,
+    item="amount",
+    accumulator="total",
+    accumulator_type=T.number(),
+    body=local("total") + local("amount"),
+)
+```
+
+The command surrounding this expression declares `amounts` as
+`T.sequence(T.number())`. The invariant serializes with the expression. Static
+checks use it to resolve accumulator members and reject known incompatible seed
+or body types. Runtime checks validate the seed, even for an empty fold or a
+zero-step iteration, and every subsequent carried value. Bounds and other
+value-dependent constraints are enforced at runtime. Invariant declarations use
+the outer scope, before the loop bindings exist.
+
+Without a declared invariant, the accumulator remains statically unknown; a
+shape-changing computation is still legal. Declaring an invariant does not
+imply convergence. See [issue #2665](https://github.com/expectedparrot/edsl/issues/2665)
+for the remaining language work.
+
+## Execution limits
+
+Each `Runtime` entry point gets one shared budget: `execute`, `close`,
+`render_view`, `complete`, `initial_state`, or a standalone `evaluate` call.
+Recursive calls, lexical bindings, nested maps/folds/iterations, type checks,
+and multiple effects share that budget. A separate operation starts fresh;
+concurrent calls do not consume each other's allowance.
+
+```python
+from edsl.sharedstate import ExecutionLimits, ResourceLimitError
+from edsl.sharedstate.dsl_runtime import Runtime
+
+runtime = Runtime(limits=ExecutionLimits(max_steps=100_000))
+# Supply runtime=runtime when constructing SQLiteStateBackend.
+```
+
+| Limit | Default | What is bounded |
+| --- | --- | --- |
+| `max_steps` | 1,000,000 | Evaluation visits, tree accounting, and native reducer work charges |
+| `max_ast_nodes` | 100,000 | Nodes in an externally supplied definition/expression tree |
+| `max_depth` | 80 | Definition and value nesting, including container structure |
+| `max_collection_items` | 10,000 | Items in any individual collection |
+| `max_value_nodes` | 100,000 | Nodes in a value tree, counting repeated references again |
+| `max_value_bytes` | 8,000,000 | Conservative encoded-size allowance for values and definitions |
+| `max_integer_bits` | 4,096 | Integer magnitude, including intermediates |
+
+All limits must be positive integers. Step accounting is deterministic for this
+interpreter implementation, not a time measurement or a promise that each DSL
+operator costs one step. Native sorting and ranked-ballot calculations receive
+additional work charges. Byte accounting includes an upper bound for JSON
+escaping and construction overhead; it is not an exact serialized byte count
+or a Python heap measurement. Building a collection can therefore hit a limit
+before its final JSON representation reaches the listed number.
+
+Definitions and external state, inputs, and context are checked before recursive
+execution. Intermediate values, growing collections, proposed state after every
+effect, and combined views are checked as well. Large string/list repetitions
+are rejected before allocation. `machine.validate()` applies the default
+structural limits before serialization; `Machine.from_dict` and `from_json`
+check incoming definitions before recursive expression decoding. Configuring a
+runtime does not relax those authoring and transport checks.
+
+Exhaustion raises `ResourceLimitError` (a `ValueError`) and returns no partial
+result. A failed command or close does not commit state, advance its SQLite
+version, or append an event. Validation wraps authoring-time failures in
+`MachineValidationError`. The existing per-`iterate` bound remains an additional
+limit and is checked independently.
+
+These are host runtime policies, not serialized Machine parameters. Use the same
+policy when reproducing admission/failure behavior. They bound interpreter work
+and data, but do not sandbox registered Python callbacks or interrupt arbitrary
+callback code; those extensions remain trusted. [Capability preflight](#interpreter-capabilities) checks interpreter support;
+a portable, versioned cost schedule remains future work.
+
+## Interpreter capabilities
+
+Machine language version 1 describes the serialization format. It does not mean
+that every interpreter implements every expression or option added to that
+format. Check a destination's advertised support before sending it work:
+
+```python
+from edsl.sharedstate.dsl_runtime import Runtime
+
+# machine is an authored Machine or a definition loaded with Machine.from_json.
+destination = Runtime()
+requirements = machine.required_capabilities()
+advertisement = destination.capability_manifest()
+machine.check_capabilities(advertisement)
+
+# The destination also checks its actual registry and registered validators.
+destination.validate_capabilities(machine)
+```
+
+Both returned manifests are JSON data. Requirements look like
+`{"version": 1, "requires": ["expression:fold@1", ...]}`; advertisements use
+`{"version": 1, "supported": [...]}`. The manifest's version identifies this
+manifest format, independently of the Machine serialization version.
+
+Requirements are derived from the entire definition: field types and initial
+values, command input constraints, requirements and effects, views, completion,
+close effects, nested expressions, and unselected branches. They are sorted and
+deduplicated for transport. Missing support reports its source locations.
+
+| Capability category | Example | What it requires |
+| --- | --- | --- |
+| Language | `language:machine@1` | Current Machine format and execution model |
+| Expression | `expression:fold@1` | The named expression's current semantics |
+| Effect | `effect:put@1` | The named state mutation |
+| Reducer | `reducer:sort_records@1` | The exact reducer implementation contract |
+| Type | `type:record@1` | The named schema and validation behavior |
+| Feature | `feature:fold.accumulator_type@1` | Support for an optional semantic extension |
+| Algorithm | `algorithm:call_market_submit@1` | An installed callback at the exact version |
+| Algorithm view | `algorithm_view:lmsr_prices@1` | The built-in view implementation |
+| Dependency | `dependency:lmsr_prices@1` | A legacy entry from `machine.algorithms` |
+
+Current built-in semantics derive version `1`; registered algorithms retain
+explicit versions from their definitions. Versions match exactly: advertising
+`expression:add@2` does not satisfy `expression:add@1`. A future runtime that
+implements both must advertise both. Loop invariants have separate feature
+requirements, so support for `fold` alone cannot silently discard its contract.
+This manifest does not introduce a per-expression version field into existing
+Machine JSON.
+
+`Runtime(capabilities=...)` can restrict the built-in set for a host or test
+interpreter. It cannot advertise unimplemented built-ins. Registered callback
+versions are added from the runtime registry separately. For example:
+
+```python
+supported = set(Runtime().capability_manifest()["supported"])
+restricted = Runtime(capabilities=supported - {"feature:fold.accumulator_type@1"})
+# restricted rejects any Machine using accumulator_type, even in an unused branch.
+```
+
+Requirements describe interpreter features, not permission to disclose state,
+execute remote code, or make network calls. Registered Python algorithms remain
+trusted extensions. A declared algorithm dependency does not supply or download
+its implementation. In particular, a built-in algorithm view does not satisfy
+a request to execute a Python callback of the same name.
+
+### Admission and transport boundaries
+
+All public Machine execution entry points (`initial_state`, `execute`, `close`,
+`render_view`, `close_result`, and `complete`) preflight the complete definition before executing
+expressions or algorithm validators. Standalone `evaluate` checks the entire
+supplied expression tree. `SQLiteStateBackend` checks before creating its
+directory/database or opening an existing database. `WorkflowExperiment` checks
+on load and again before creating run artifacts or launching work.
+
+Missing capabilities raise `UnsupportedCapabilityError`, a `ValueError` and
+`SharedStateRuntimeError`. Its `machine`, `missing`, and `paths` attributes and
+`to_dict()` give callers structured diagnostics. For example:
+
+```text
+RunningLedger: unsupported or unregistered capabilities: feature:fold.accumulator_type@1 at $.commands['post'].effects[0].args[0].kwargs['accumulator_type']
+```
+
+An advertisement is advisory: the destination must derive requirements again
+from the received definition and compare them to its actual support. A sender's
+omitted or forged `requires` metadata cannot bypass this check. Tests exercise
+JSON transport, restricted destinations, changed support between submission and
+execution, and rejection before database or workflow artifacts are created.
+These are protocol-boundary tests; this change does not add a live Coop
+capability-discovery endpoint or establish what a deployed server supports.
+An older server that lacks this protocol cannot be assumed compatible merely
+because it accepts Machine version 1.
+
+### Existing definitions and fingerprints
+
+`machine.required_capabilities()` and `check_capabilities()` do not modify
+`machine.to_dict()` or `to_json()`. Manifests are derived metadata outside the
+persisted definition. Existing version-1 definitions and SQLite definition
+fingerprints keep their representation; preflight alone requires no migration.
+Changing actual fields, constants, expressions, or loop invariants still changes
+the definition and remains subject to the existing migration checks.
+
+`machine.validate()` checks authoring structure and supported built-in syntax.
+It does not require all custom command callbacks to be installed on the author's
+machine. Passing it is therefore not a substitute for destination preflight.
+The corpus exports requirements alongside each replay, while keeping the
+`.machine.json` definition unchanged.
+
+## Commands
+
+A command defines one legal kind of write:
+
+```python
+"vote": Command(
+    inputs={
+        "voter": T.text(),
+        "activity": T.choice(constant("activities")),
+    },
+    effects=(
+        put(
+            "votes",
+            key=input_("voter"),
+            value=input_("activity"),
+            once=True,
+        ),
+    ),
+)
+```
+
+The caller cannot omit an input, invent an extra one, supply a non-text voter,
+or submit an activity outside the configured choices.
+
+`input_("voter")` and `input_("activity")` refer to validated command inputs.
+They form serializable expressions rather than reading Python variables now.
+
+The `put` effect adds one map entry. `once=True` leaves an existing key
+unchanged, giving the poll first-write-wins behavior.
+
+## Effects and atomicity
+
+The ordinary effects are deliberately few:
+
+```python
+set_("field_name", value)
+set_once("field_name", value)
+put("map_field", key, value, once=False)
+append("sequence_field", value)
+when(condition, effect)
+```
+
+A command may contain several effects:
+
+```python
+effects=(
+    set_once("proposer", input_("player")),
+    set_once("offer", input_("amount")),
+    append(
+        "history",
+        record(player=input_("player"), amount=input_("amount")),
+    ),
+)
+```
+
+Every expression reads the same pre-command snapshot. EDSL constructs the
+proposed state, validates all of it, and commits everything together. If
+validation fails, none of the effects are committed. This is essential when
+interviews execute concurrently.
+
+## Requirements
+
+A command can declare when it applies:
+
+```python
+respond = Command(
+    inputs={
+        "decision": T.choice(["accept", "reject"]),
+    },
+    require=field("offer") != None,
+    effects=(
+        set_once("decision", input_("decision")),
+    ),
+)
+```
+
+The responder cannot act before an offer exists. An unmet requirement produces
+no state change.
+
+Writes are accepted for processing atomically. Any returned command status is
+advisory: it is not a durable receipt or a promise that the caller possesses the
+newest state after other concurrent writes.
+
+## Explicit rejection and outcomes
+
+Use `require=` for the existing behavior: if its condition is false, the command
+is processed as a no-op. Use `assert_` or `reject` when an attempted action should
+be explicitly refused:
+
+```python
+from edsl.sharedstate import Command, T, assert_, field, input_, reject, set_, when
+
+withdraw = Command(
+    inputs={"amount": T.number()},
+    effects=(
+        assert_(input_("amount") > 0, code="invalid_amount"),
+        assert_(field("balance") >= input_("amount"), code="insufficient_funds"),
+        set_("balance", field("balance") - input_("amount")),
+    ),
+)
+
+# A conditional refusal can also be written as an effect:
+closed_guard = when(field("closed"), reject("account_closed"))
+```
+
+The surrounding Machine declares the referenced `balance` and `closed` fields.
+Both helpers serialize as ordinary effects and require `effect:assert@1` or
+`effect:reject@1` support. An older interpreter cannot silently ignore them.
+`assert_` requires a Boolean result. A malformed predicate, invalid input type,
+output type mismatch, missing capability, arithmetic error, or exhausted quota
+is an **execution failure**, not an explicit rejection.
+
+Effects are visited in order. The first failing assertion or enabled `reject`
+stops the transition, discards **all** proposed changes, and skips later effects.
+Assertions, like other expressions, read the pre-command snapshot. A preceding
+`set_` does not change what an assertion reads. Put admission checks before
+expensive computations and trusted callback effects; the interpreter cannot
+undo external side effects performed by Python extensions.
+
+`Runtime.execute()` returns a `CommandResult`. Its `event` and `advisory` include
+`status` and `reason_code`:
+
+| Outcome | `status` | Persistent fields | SQLite event / version | Retry of the same key |
+| --- | --- | --- | --- | --- |
+| Successful change | `applied` | Commit validated proposed state | Record event; advance version | Replay original decision |
+| Intentional no-op | `noop` | Unchanged | Record event; advance version | Replay original decision |
+| Explicit refusal | `rejected` | Unchanged, including earlier effects | Record rejection; advance version | Replay original reason |
+| Execution failure | No result; raises | Unchanged | No completed event or version advance | Key remains available |
+
+A rejection advances the **event version**, not the field values. Raw in-memory
+Runtime calls have no persistence or idempotency; those guarantees come from the
+backend. `reason_code` is null for applied/no-op decisions. Rejected results omit
+the outcomes of discarded effects, so they do not report rolled-back writes as
+successful. A false `require` remains a `noop` with the existing
+`requirement_not_met` effect outcome, preserving old definitions' behavior.
+
+### Reasons and disclosure
+
+Codes must be literal strings matching `[A-Za-z][A-Za-z0-9_.-]{0,63}`. They cannot
+be expressions, templates, or dynamically generated messages. Return a stable
+identifier such as `insufficient_funds`; do not include balances, bids, participant
+traits, or other private values in it. The engine returns the code without
+attaching failed operand values or proposed state to the advisory response.
+
+Choosing different codes still reveals which condition failed. Machine authors
+must choose codes appropriate for the recipient; these checks are not a complete
+information-flow policy. Internal event history includes inputs and stored state
+and must retain its existing access controls. An advisory decision describes an
+attempt, not the latest state; use an authorized read for current state.
+
+### Retries and workflow recovery
+
+`SQLiteStateBackend.apply()` returns an `AdvisoryWriteOutcome` with `status` and
+`reason_code`. Its existing `accepted=True` means **accepted for durable
+processing**, including a recorded rejection. It does not mean the business
+action was admitted. This preserves workflow acknowledgement semantics. Custom
+backends predating this API may leave the two new fields unset.
+
+A retry returns the original decision and `observed_version`, with `changed=None`
+as before. Correcting state does not turn an old rejected attempt into a success.
+Submit a new operation/idempotency key to make a new attempt. Reusing an existing
+key with changed inputs or context is an error. Historical events without these
+new fields remain replayable: their status is inferred from the stored `changed`
+flag, and they have no explicit reason code.
+
+A workflow can finish acknowledging a rejected write after a lost response
+without executing it twice or becoming stuck retrying the same business refusal.
+The accepted survey response and the outcome of its state action are separate
+facts. A workflow submission containing multiple writes is not one atomic Machine
+command; rejection rolls back only its own command. Design subsequent work from
+explicit state reads or public domain fields when participants need to respond
+to a refusal. There is no automatic participant-facing retry prompt.
+
+### Close and finalization
+
+`Runtime.close_result()` returns the same structured result as `execute`.
+`Runtime.close()` preserves its existing dictionary return on success and raises
+`CommandRejected`, with a `reason_code`, on explicit refusal. Both discard partial
+settlement on rejection. SQLite records a rejected close without marking the
+machine closed. A successful close can report `noop` for unchanged stored fields
+while still recording that the lifecycle has closed.
+
+Explicit close operations use their normal idempotency keys. Automatic
+`finalize()` keeps successful settlement once per scope/target. A rejected
+automatic attempt is keyed by its execution identity: the same execution replays
+its rejection; a later execution can try again after the cause is addressed.
+The Runner surfaces `CommandRejected` if automatic settlement is refused, rather
+than treating the interview as having successfully finalized the scope. A
+completion condition that is still false remains an unrecorded pending check.
+
+The [continuous auction example](/en/latest/shared-state/algorithms-and-reference)
+uses ordered assertions for an existing open order, nonpositive price,
+insufficient cash, and insufficient inventory. Its replay includes successful
+trades, an explicit rejection, and an intentional hold no-op.
+
+## Views
+
+Stored fields and participant-visible data are different concepts. A view
+declares exactly what a reader may observe:
+
+```python
+view={
+    "votes": field("votes"),
+    "vote_count": field("votes").length(),
+}
+```
+
+`field("votes")` refers to persistent state. The count is derived rather than
+stored redundantly.
+
+Views can hide information until close:
+
+```python
+from edsl.sharedstate.dsl import choose, current as current_value
+
+view={
+    "ballot_count": field("ballots").length(),
+    "ballots": choose(
+        current_value("closed"),
+        field("ballots"),
+        {},
+    ),
+}
+```
+
+They can depend on the viewer:
+
+```python
+view={
+    "public_price": field("price"),
+    "your_private_value": choose(
+        current_value("viewer.role") == "buyer",
+        field("buyer_value"),
+        None,
+    ),
+}
+```
+
+`current` is an execution-time reference, not Jinja text. The host supplies its
+context. The [language specification](/en/latest/shared-state/semantics) defines
+context typing and permission requirements; the current interpreter does not
+provide a complete static type system or an untrusted-code sandbox.
+
+
+## Randomization and exact monetary arithmetic
+
+Use `seeded_integer` for stateless keyed draws and `seeded_order` for stable-ID
+priority ordering. Use `decimal_units` to convert exact decimal text into integer
+units and `round_ratio` for explicit signed rounding of integer ratios. All four
+are serialized general expressions with individual version-1 capabilities.
+The [randomization and money chapter](/en/latest/shared-state/randomization-and-money)
+specifies their arguments, byte protocol, rounding modes, resource limits,
+replay guarantees, and compatibility with existing market algorithms.

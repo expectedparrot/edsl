@@ -1,0 +1,183 @@
+---
+title: "Randomization and exact money"
+description: "Reproduce keyed draws and tie-breaking, and settle decimal amounts with explicit integer rounding."
+---
+
+These four general Machine expressions run under an empty `Runtime()` and survive
+JSON transport. They supply reproducible random choices and exact monetary
+arithmetic for the [primitive corpus](/en/latest/shared-state/algorithms-and-reference).
+They do not require a market-specific callback.
+
+## Draws name their source of randomness
+
+```python
+from edsl.sharedstate import seeded_integer, seeded_order
+from edsl.sharedstate.dsl_runtime import Runtime
+
+runtime = Runtime()
+bonus = seeded_integer("study", 100, 201, scope="cohort-1", key="bonus")
+priority = seeded_order(
+    ["A", "B", "C"], seed="study", scope="cohort-1", key="seat-priority"
+)
+print(runtime.evaluate(bonus, {}))
+print(runtime.evaluate(priority, {}))
+```
+
+`seeded_integer(seed, low, high, scope=..., key=...)` returns an integer in
+`[low, high)`. Bounds must be integers, excluding booleans, with positive width
+at most `2**256`. Negative bounds are allowed. Sampling rejects the incomplete
+remainder of the hash range before taking a modulus, avoiding modulo bias.
+
+`seeded_order(ids, seed=..., scope=..., key=...)` returns unique, nonempty text
+IDs ordered by their hash priorities. Arrival order has no effect. Removing an
+ID preserves the relative order of the remaining IDs. Empty input returns an
+empty list; duplicate IDs fail. To break a price tie, apply this expression to
+the IDs in that tie group, then look up each associated record. It does not
+reorder records by price for you.
+
+Seed, scope, key, and IDs are nonempty text. They can be literals or expressions
+resolving to text. Their Unicode content is encoded exactly, without case folding
+or normalization; unpaired surrogates fail. Convert numeric identifiers to a
+stable textual convention before authoring the definition.
+
+Each operator is **stateless**: repeating the same arguments repeats the same
+result. There is no implicit random stream, draw counter, wall clock, or global
+Python RNG. Draw order and unrelated calls cannot perturb a result. Name each
+purpose with a distinct key. Include a period, participant, or attempt identity
+in the scope/key when that identity should receive its own draw. Changing only
+the bounds reuses the same candidate stream; it is not a new independent draw.
+Different keys separate streams but can still return equal values by chance.
+
+The scope argument is explicit; the interpreter does not automatically insert
+the SQLite scope or an execution ID. The lottery example supplies its cohort
+as a Machine constant. A reused definition that needs different draws per host
+scope must bind a stable host context value or supply distinct scope constants.
+An idempotent retry must use the original logical draw identity.
+
+These expressions provide reproducibility, not secret or manipulation-resistant
+randomness. Seeds and IDs in public definitions are predictable; participants who
+can choose their IDs can search for favorable priorities. The example assumes
+study-assigned stable IDs. A commitment/reveal protocol is separate design work.
+
+## Version-1 byte protocol
+
+The capability names `expression:seeded_integer@1` and
+`expression:seeded_order@1` pin the following algorithms. Machine language version
+remains `1`; a receiver must advertise the individual capabilities. There is no
+`version=` expression option. A future algorithm requires a distinct advertised
+capability and matching interpreter support; it must not redefine these results.
+
+Define `L(text)` as its strict UTF-8 bytes, prefixed with their byte count as an
+unsigned four-byte big-endian integer. Each component must contain fewer than
+`2**32` bytes, with smaller host resource quotas still enforced. Concatenate:
+
+```text
+P = ASCII("edsl.machine." + operator_name + "@1") || 0x00
+    || L(seed) || L(scope) || L(key)
+```
+
+For `seeded_integer`, start `counter = 0`. Hash
+`SHA256(P || uint64_big_endian(counter))` and interpret the 32 digest bytes as an
+unsigned big-endian integer `h`. Let `width = high - low` and
+`cutoff = 2**256 - (2**256 % width)`. If `h < cutoff`, return
+`low + (h % width)`; otherwise increment the counter and try again. Exhausting
+the 64-bit counter fails. Hashing and every rejected attempt consume the shared
+execution budget, so pathological work fails atomically rather than hanging.
+
+For `seeded_order`, compute `SHA256(P || L(id))` for each ID. Sort ascending by
+digest bytes, then by the ID's UTF-8 bytes if digests collide. This second rule
+makes even a hash collision deterministic. The operator names separate integer
+draws from ordering priorities.
+
+Known-answer vectors, independently checked in Python and Node:
+
+| Expression arguments | Result |
+| --- | --- |
+| Integer: seed `study`, scope `cohort-1`, key `draw`, bounds `[-10, 11)` | `-3` |
+| Same, scope `cohort-2` | `1` |
+| Same first draw, key `other` | `-6` |
+| Integer: seed `sëed`, scope `实验`, key `🎲`, bounds `[-10, 11)` | `4` |
+| Order: seed `study`, scope `cohort-1`, key `priority`, IDs `A B C D é 😀` | `😀 D B C é A` |
+
+Full 256-bit integer vectors and forced rejection/collision checks are in
+[test_machine_portable.py](https://github.com/expectedparrot/edsl/blob/feature/shared-state-v0/tests/sharedstate/test_machine_portable.py).
+
+## Keep monetary balances in integer units
+
+```python
+from edsl.sharedstate import decimal_units, round_ratio
+
+# Decimal text avoids first converting 1.005 into a binary floating-point value.
+gross = decimal_units("1.005", places=2, rounding="half_up")
+assert runtime.evaluate(gross, {}) == 101
+
+# A 25-basis-point fee on 600 minor units is 1.5 units: half-even gives 2.
+fee = round_ratio(600 * 25, 10000, rounding="half_even")
+assert runtime.evaluate(fee, {}) == 2
+```
+
+`decimal_units(text, places=..., rounding=...)` scales exact decimal text by
+`10**places` and rounds once to an integer. `places` is a literal integer from
+0 through 18; `rounding` is a literal mode from the table below. Both options are
+required and serialized. Input text follows `[+-]?[0-9]+(\.[0-9]+)?`:
+`"+001.005"` is valid; floats, exponents, whitespace, `.5`, `1.`, NaN, and infinity
+are rejected. Write `"0.5"` for one half. Negative zero becomes integer zero.
+
+`round_ratio(numerator, denominator, rounding=...)` rounds an exact ratio of
+integers. The denominator must be positive; booleans and floating-point operands
+fail. Use multiplication and addition on integer units, then `round_ratio` at
+the declared settlement boundary. Ordinary `/` remains floating-point division.
+There is no implicit currency, scale conversion, decimal state type, or default
+rounding policy.
+
+| Mode | Rule | `2.5` | `-2.5` |
+| --- | --- | --- | --- |
+| `half_even` | Nearest; exact ties choose an even integer | 2 | -2 |
+| `half_up` | Nearest; exact ties round away from zero | 3 | -3 |
+| `toward_zero` | Discard the fractional magnitude | 2 | -2 |
+| `floor` | Greatest integer no larger than the value | 2 | -3 |
+| `ceiling` | Smallest integer no smaller than the value | 3 | -2 |
+
+Use `T.integer()` for stored units and annotate the currency/scale in your
+mechanism's constants or documentation. When splitting a payment, round the
+gross amount once, calculate the fee from that integer, and give the recipient
+`gross - fee`. Separately rounding both recipients' shares can create or lose
+units. The settlement example debits exactly the sum it credits.
+
+Integer arithmetic is exact within the host's resource limits. Decimal parsing
+and powers of ten have conservative integer-size checks before allocation;
+very long fractional representations can fail even if their rounded result would
+be small. Hash work, sorting, and decimal input processing share the operation
+budget. Failure leaves committed state and event history unchanged. The random
+sampler's fixed 256-bit hash arithmetic is internal and independent of the
+integer-size limit on user values. See
+[execution limits](/en/latest/shared-state/machines#execution-limits).
+
+JSON receivers must preserve integer values exactly. For example, a JavaScript
+receiver must use an exact-integer parser when values exceed its safe integer
+range; parsing through `Number` first loses information. Decimal text remains
+text on the wire. These guarantees do not make the existing floating-point
+LMSR expressions exact.
+
+## Executable examples and compatibility
+
+The [seeded allocation example](https://github.com/expectedparrot/edsl/blob/feature/shared-state-v0/examples/machine_primitives/seeded_allocation.py)
+collects participant IDs, rejects empty/duplicate IDs, allocates two seats by
+seeded priority, and makes a separately keyed participation-bonus draw. Its tests
+permute arrival order and interleave unrelated draws.
+
+The [monetary settlement example](https://github.com/expectedparrot/edsl/blob/feature/shared-state-v0/examples/machine_primitives/monetary_settlement.py)
+rounds submitted decimal amounts half-up to cents and a 25-basis-point fee
+half-even. It rejects nonpositive rounded payments and insufficient funds;
+malformed decimal text is an execution failure. It uses one fixed payer, payee,
+and fee account, with no account-authorization or currency-conversion policy.
+Tests verify integer conservation after every transition, signed rounding against
+an independent Decimal oracle, SQLite reopen/retry, and fresh-process execution
+of exported definitions without the authoring module.
+
+Existing versioned market callbacks retain their Python random sampling,
+seed conventions, and monetary policy. The new SHA-256 primitives do **not**
+reproduce their draws automatically. Migration requires explicit scientific
+comparison and a deliberate compatibility decision. Full asset-market dividends,
+interest, multi-unit collateral, and redemption remain in
+[the design checklist](https://github.com/expectedparrot/edsl/issues/2665).

@@ -1,0 +1,34 @@
+{
+  "responses": 48,
+  "graded_items": 312,
+  "models": [
+    {
+      "model": "gpt-4o-mini",
+      "correct_items": 128,
+      "total_items": 156,
+      "perfect_probes": 0,
+      "probe_count": 12,
+      "unanchored_valuation_correct": 5,
+      "unanchored_valuation_total": 9,
+      "overselling_replays": 3,
+      "overspending_replays": 0,
+      "replay_count": 12,
+      "recorded_cost": 0.0111864
+    },
+    {
+      "model": "gpt-5-mini",
+      "correct_items": 155,
+      "total_items": 156,
+      "perfect_probes": 11,
+      "probe_count": 12,
+      "unanchored_valuation_correct": 8,
+      "unanchored_valuation_total": 9,
+      "overselling_replays": 0,
+      "overspending_replays": 0,
+      "replay_count": 12,
+      "recorded_cost": 0.131931
+    }
+  ],
+  "all_replay_prompts_match": true,
+  "all_finish_reasons_stop": true
+}

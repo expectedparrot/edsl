@@ -1,0 +1,110 @@
+---
+title: "Collections and lifecycle"
+description: "Build logs, derive collection views, and distinguish completion from closing."
+---
+
+This chapter continues the [shared-state manual](/en/latest/shared_state).
+
+## Building a log from first principles
+
+A message log demonstrates a sequence field and `append`:
+
+```python
+from edsl.sharedstate.dsl import append, record, reduce_
+
+message_log = Machine(
+    name="MessageLog",
+    constants={},
+    fields={
+        "messages": state_field(T.sequence(T.map()), initial=[]),
+    },
+    commands={
+        "post": Command(
+            inputs={
+                "author": T.text(),
+                "text": T.text(),
+            },
+            effects=(
+                append(
+                    "messages",
+                    record(
+                        author=input_("author"),
+                        text=input_("text"),
+                    ),
+                ),
+            ),
+        ),
+    },
+    view={
+        "messages": field("messages"),
+        "message_count": field("messages").length(),
+        "recent_messages": reduce_(
+            "tail", field("messages"), count=10
+        ),
+    },
+)
+```
+
+The poll uses a map and `put`; the log uses a sequence and `append`. A few
+primitives produce substantially different structures.
+
+## Derived collection expressions
+
+Views and transitions derive values without redundant fields:
+
+```python
+values = field("forecasts").values()
+
+mean = reduce_("mean", values)
+median = reduce_("median", values)
+latest = reduce_("latest_by", field("history"), field="forecaster")
+```
+
+Collections can be transformed:
+
+```python
+from edsl.sharedstate.dsl import filter_items, local, map_sequence
+
+active = filter_items(
+    field("orders"),
+    item="order",
+    predicate=local("order").get("status") == "open",
+)
+
+prices = map_sequence(
+    active,
+    item="order",
+    value_expr=local("order").get("price"),
+)
+```
+
+These operations traverse finite collections and are serializable; the current
+interpreter does not impose general collection-size or execution-cost limits. `choose`, `and`, and `or`
+short-circuit so guarded lookups are safe.
+
+## Completion and close
+
+A machine can say when enough information has arrived:
+
+```python
+complete_when=(
+    field("ballots").length()
+    == constant("voter_count")
+)
+```
+
+Some results are computed only at close:
+
+```python
+from edsl.sharedstate.dsl import set_
+
+close_effects=(
+    set_(
+        "mean",
+        reduce_("mean", field("choices").values()),
+    ),
+)
+```
+
+Before close, a view might reveal only a submission count. After close, it can
+reveal choices and results. Closing is an audited atomic transition.

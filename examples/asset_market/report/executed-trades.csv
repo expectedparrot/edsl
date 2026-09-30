@@ -1,0 +1,5 @@
+session,condition,period,unit,buyer,buyer_persona,seller,seller_persona,quantity,price,bid_limit,ask_limit
+BT-OC-PC-s140926,BT+OC+PC,2,1,trader-01,BT,trader-10,PC,1,14.25,14.5,14.0
+BT-OC-PC-s140926,BT+OC+PC,3,1,trader-08,OC,trader-10,PC,1,14.0,14.0,14.0
+BT-OC-PC-s140926,BT+OC+PC,3,2,trader-08,OC,trader-07,PC,1,14.0,14.0,14.0
+BT-OC-PC-s140926,BT+OC+PC,3,3,trader-08,OC,trader-07,PC,1,14.0,14.0,14.0

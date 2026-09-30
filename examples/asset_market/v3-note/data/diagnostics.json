@@ -1,0 +1,202 @@
+{
+  "side_counts": {
+    "buy": 147,
+    "hold": 172,
+    "sell": 41
+  },
+  "passive_cash": 648.69,
+  "wealth": [
+    {
+      "trader": "trader-00",
+      "type": "MC",
+      "cash": 268.66,
+      "difference": -380.03,
+      "redeemed": 17
+    },
+    {
+      "trader": "trader-01",
+      "type": "RA",
+      "cash": 781.99,
+      "difference": 133.3,
+      "redeemed": 0
+    },
+    {
+      "trader": "trader-02",
+      "type": "NT",
+      "cash": 781.18,
+      "difference": 132.49,
+      "redeemed": 0
+    },
+    {
+      "trader": "trader-03",
+      "type": "NT",
+      "cash": 783.71,
+      "difference": 135.02,
+      "redeemed": 0
+    },
+    {
+      "trader": "trader-04",
+      "type": "RA",
+      "cash": 774.27,
+      "difference": 125.58,
+      "redeemed": 0
+    },
+    {
+      "trader": "trader-05",
+      "type": "OC",
+      "cash": 283.49,
+      "difference": -365.2,
+      "redeemed": 16
+    },
+    {
+      "trader": "trader-06",
+      "type": "PC",
+      "cash": 741.72,
+      "difference": 93.03,
+      "redeemed": 0
+    },
+    {
+      "trader": "trader-07",
+      "type": "BT",
+      "cash": 791.25,
+      "difference": 142.56,
+      "redeemed": 0
+    },
+    {
+      "trader": "trader-08",
+      "type": "MC",
+      "cash": 340.06,
+      "difference": -308.63,
+      "redeemed": 15
+    },
+    {
+      "trader": "trader-09",
+      "type": "PC",
+      "cash": 736.9,
+      "difference": 88.21,
+      "redeemed": 0
+    },
+    {
+      "trader": "trader-10",
+      "type": "BT",
+      "cash": 746.21,
+      "difference": 97.52,
+      "redeemed": 0
+    },
+    {
+      "trader": "trader-11",
+      "type": "OC",
+      "cash": 754.91,
+      "difference": 106.22,
+      "redeemed": 0
+    }
+  ],
+  "forecast_opportunities": 204,
+  "violations": [
+    {
+      "trader": "trader-00",
+      "period": 26,
+      "horizon": 5,
+      "forecast": 34.0
+    },
+    {
+      "trader": "trader-01",
+      "period": 26,
+      "horizon": 5,
+      "forecast": 43.0
+    },
+    {
+      "trader": "trader-02",
+      "period": 26,
+      "horizon": 5,
+      "forecast": 15.0
+    },
+    {
+      "trader": "trader-03",
+      "period": 26,
+      "horizon": 5,
+      "forecast": 15.0
+    },
+    {
+      "trader": "trader-08",
+      "period": 26,
+      "horizon": 5,
+      "forecast": 33.5
+    },
+    {
+      "trader": "trader-02",
+      "period": 27,
+      "horizon": 5,
+      "forecast": 15.0
+    },
+    {
+      "trader": "trader-03",
+      "period": 27,
+      "horizon": 5,
+      "forecast": 15.0
+    },
+    {
+      "trader": "trader-08",
+      "period": 27,
+      "horizon": 5,
+      "forecast": 33.5
+    },
+    {
+      "trader": "trader-02",
+      "period": 28,
+      "horizon": 5,
+      "forecast": 15.0
+    },
+    {
+      "trader": "trader-07",
+      "period": 28,
+      "horizon": 5,
+      "forecast": 20.0
+    },
+    {
+      "trader": "trader-08",
+      "period": 28,
+      "horizon": 5,
+      "forecast": 33.5
+    },
+    {
+      "trader": "trader-02",
+      "period": 29,
+      "horizon": 2,
+      "forecast": 19.0
+    },
+    {
+      "trader": "trader-02",
+      "period": 29,
+      "horizon": 5,
+      "forecast": 15.0
+    },
+    {
+      "trader": "trader-07",
+      "period": 29,
+      "horizon": 2,
+      "forecast": 26.0
+    },
+    {
+      "trader": "trader-07",
+      "period": 29,
+      "horizon": 5,
+      "forecast": 20.0
+    },
+    {
+      "trader": "trader-08",
+      "period": 29,
+      "horizon": 2,
+      "forecast": 31.0
+    },
+    {
+      "trader": "trader-08",
+      "period": 29,
+      "horizon": 5,
+      "forecast": 33.5
+    }
+  ],
+  "vwap": 26.21579439252336,
+  "capped_orders": 0,
+  "rejected_orders": 0
+}

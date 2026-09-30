@@ -1,0 +1,102 @@
+---
+title: "Testing and serialization"
+description: "Test a machine without a survey and preserve its definition as versioned JSON."
+---
+
+This chapter continues the [shared-state manual](/en/latest/shared_state).
+The poll examples build on the `activity_poll` definition in [Machines, commands, and views](/en/latest/shared-state/machines). Alternative fragments are labeled separately.
+
+## Testing without a survey
+
+A machine is testable as an ordinary transition system:
+
+```python
+from edsl.sharedstate.dsl_runtime import Runtime
+
+runtime = Runtime()
+state = runtime.initial_state(activity_poll)
+
+state = runtime.execute(
+    activity_poll,
+    state,
+    "vote",
+    {"voter": "Amina", "activity": "hike"},
+).state
+
+state = runtime.execute(
+    activity_poll,
+    state,
+    "vote",
+    {"voter": "Boris", "activity": "sailing"},
+).state
+```
+
+The state is now:
+
+```python
+{
+    "votes": {
+        "Amina": "hike",
+        "Boris": "sailing",
+    }
+}
+```
+
+Trying to change Amina's vote leaves it unchanged because `once=True`.
+
+Render the visible data separately:
+
+```python
+runtime.render_view(activity_poll, state)
+```
+
+```python
+{
+    "votes": {
+        "Amina": "hike",
+        "Boris": "sailing",
+    },
+    "vote_count": 2,
+}
+```
+
+These calls are useful for unit tests. Production execution performs the same
+transition through a transactional store.
+
+## Serialization
+
+Machines and state maps use versioned JSON representations:
+
+```python
+payload = activity_poll.to_dict()
+restored = Machine.from_dict(payload)
+assert restored.to_dict() == payload
+```
+
+An input reference becomes data resembling:
+
+```json
+{
+  "op": "ref",
+  "namespace": "input",
+  "name": "activity"
+}
+```
+
+The payload contains no executable Python. Serialization is why the DSL uses
+`field("votes")` rather than a closure and `input_("activity")` rather than a
+lambda.
+
+Persisted values follow a deliberately narrow JSON contract:
+
+* mapping keys are strings;
+* numbers are finite, so `NaN` and infinity are rejected;
+* expression and effect operators have validated names and arities; and
+* symbolic conditions use `&`, `|`, and `~`, not Python `and`, `or`, and `not`.
+
+Python Boolean operators attempt to ask an expression for its truth value while
+the definition is being built. EDSL raises a `TypeError` instead of accidentally
+collapsing a symbolic condition to `True` or `False`.
+
+`Machine` and `SharedStateMap` currently serialize as version 1. Unsupported
+versions fail explicitly rather than being interpreted as the current language.

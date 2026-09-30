@@ -29,8 +29,9 @@ from .models import (
 class JobStore:
     """Handles reading/writing job data."""
 
-    def __init__(self, storage: StorageProtocol):
+    def __init__(self, storage: StorageProtocol, *, idempotent=False):
         self._storage = storage
+        self._idempotent = idempotent
 
     # Write operations
 
@@ -41,7 +42,9 @@ class JobStore:
 
         # Volatile - initialize counters
         status = JobStatus(job_id=definition.job_id)
-        self._storage.write_volatile(status.state_key, JobState.RUNNING.value)
+        self._storage.write_volatile(
+            status.state_key, status.compute_state(definition.total_interviews).value
+        )
         self._storage.write_volatile(status.completed_interviews_key, 0)
         self._storage.write_volatile(status.failed_interviews_key, 0)
 
@@ -258,6 +261,14 @@ class JobStore:
         # Use set add to atomically check and mark interview as counted
         # Returns True if interview was newly added (not already in set)
         set_key = f"job:{job_id}:counted_interviews"
+        if self._idempotent:
+            counter = "failed_interviews" if had_failures else "completed_interviews"
+            self._storage.increment_volatile_once(
+                f"job:{job_id}:{counter}", set_key, interview_id
+            )
+            # Also reconcile state on retries interrupted after accounting.
+            self._maybe_finalize(job_id)
+            return
         was_new = self._storage.add_to_set(set_key, interview_id)
 
         if not was_new:
@@ -286,6 +297,10 @@ class JobStore:
         if not interview_ids:
             return
         had_failures_ids = had_failures_ids or set()
+        if self._idempotent:
+            for iid in set(interview_ids):
+                self.mark_interview_completed(job_id, iid, iid in had_failures_ids)
+            return
 
         # Atomically add all to counted set — returns count of newly added
         set_key = f"job:{job_id}:counted_interviews"
@@ -323,8 +338,9 @@ class JobStore:
 class InterviewStore:
     """Handles reading/writing interview data."""
 
-    def __init__(self, storage: StorageProtocol):
+    def __init__(self, storage: StorageProtocol, *, idempotent=False):
         self._storage = storage
+        self._idempotent = idempotent
 
     # Write operations
 
@@ -553,32 +569,49 @@ class InterviewStore:
 
     # Composite operations
 
-    def mark_task_completed(self, job_id: str, interview_id: str) -> None:
+    def _count_task(self, interview_id, counter, task_id):
+        if self._idempotent:
+            if task_id is None:
+                raise ValueError("distributed task accounting requires a task_id")
+            self._storage.increment_volatile_once(
+                f"interview:{interview_id}:{counter}",
+                f"interview:{interview_id}:counted_tasks",
+                task_id,
+            )
+        else:
+            self._storage.increment_volatile(f"interview:{interview_id}:{counter}")
+
+    def mark_task_completed(self, job_id: str, interview_id: str, task_id=None) -> None:
         """Increment completed count and update state if done."""
-        self.increment_completed(interview_id)
+        self._count_task(interview_id, "completed", task_id)
         self._maybe_finalize(job_id, interview_id)
 
-    def mark_task_skipped(self, job_id: str, interview_id: str) -> None:
-        self.increment_skipped(interview_id)
+    def mark_task_skipped(self, job_id: str, interview_id: str, task_id=None) -> None:
+        self._count_task(interview_id, "skipped", task_id)
         self._maybe_finalize(job_id, interview_id)
 
-    def mark_task_failed(self, job_id: str, interview_id: str) -> None:
-        self.increment_failed(interview_id)
+    def mark_task_failed(self, job_id: str, interview_id: str, task_id=None) -> None:
+        self._count_task(interview_id, "failed", task_id)
         self._maybe_finalize(job_id, interview_id)
 
-    def mark_task_blocked(self, job_id: str, interview_id: str) -> None:
-        self.increment_blocked(interview_id)
+    def mark_task_blocked(self, job_id: str, interview_id: str, task_id=None) -> None:
+        self._count_task(interview_id, "blocked", task_id)
         self._maybe_finalize(job_id, interview_id)
 
     def mark_tasks_blocked(
-        self, job_id: str, interview_id: str, count: int
+        self, job_id: str, interview_id: str, count: int, task_ids=None
     ) -> None:
         """Record several blocked tasks and finalize the interview once."""
         if count <= 0:
             return
-        self._storage.increment_volatile(
-            f"interview:{interview_id}:blocked", count
-        )
+        if self._idempotent:
+            if task_ids is None or len(task_ids) != count:
+                raise ValueError("distributed blocked accounting requires task IDs")
+            for task_id in task_ids:
+                self._count_task(interview_id, "blocked", task_id)
+            self._maybe_finalize(job_id, interview_id)
+            return
+        self._storage.increment_volatile(f"interview:{interview_id}:blocked", count)
         self._maybe_finalize(job_id, interview_id)
 
     def _maybe_finalize(self, job_id: str, interview_id: str) -> None:
@@ -646,13 +679,16 @@ class TaskStore:
             "calls": cls._batch_call_count,
             "total_time_ms": cls._batch_total_time_ms,
             "total_tasks": cls._batch_total_tasks,
-            "avg_time_per_call_ms": cls._batch_total_time_ms / cls._batch_call_count
-            if cls._batch_call_count > 0
-            else 0,
+            "avg_time_per_call_ms": (
+                cls._batch_total_time_ms / cls._batch_call_count
+                if cls._batch_call_count > 0
+                else 0
+            ),
         }
 
-    def __init__(self, storage: StorageProtocol):
+    def __init__(self, storage: StorageProtocol, *, idempotent=False):
         self._storage = storage
+        self._idempotent = idempotent
 
     # Write operations
 
@@ -700,9 +736,9 @@ class TaskStore:
         # Collect all data for batch writes
         persistent_items = {}  # Task definitions
         volatile_items = {}  # Task states (status, unmet_deps, attempts, location)
-        ready_task_ids_by_job: dict[
-            str, list[str]
-        ] = {}  # job_id -> list of ready task_ids
+        ready_task_ids_by_job: dict[str, list[str]] = (
+            {}
+        )  # job_id -> list of ready task_ids
 
         for defn in definitions:
             # Persistent - task definition
@@ -967,11 +1003,19 @@ class TaskStore:
 
     # Composite operations
 
-    def mark_dependency_satisfied(self, job_id: str, task_id: str) -> bool:
+    def mark_dependency_satisfied(
+        self, job_id: str, task_id: str, parent_id=None
+    ) -> bool:
         """
         Decrement unmet_deps. If now zero, mark ready and add to ready set.
         Returns True if task became ready.
         """
+        if self._idempotent:
+            if parent_id is None:
+                raise ValueError(
+                    "distributed dependency accounting requires a parent_id"
+                )
+            return self._storage.satisfy_dependency_once(job_id, task_id, parent_id)
         new_count = self.decrement_unmet_deps(task_id)
         if new_count == 0:
             self.set_status(task_id, TaskStatus.READY)

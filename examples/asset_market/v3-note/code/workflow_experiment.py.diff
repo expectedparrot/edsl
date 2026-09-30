@@ -1,0 +1,13 @@
+--- previous/workflow_experiment.py
++++ v3/workflow_experiment.py
+@@ -354,7 +354,9 @@
+                     handle.write(json.dumps(record, allow_nan=False) + "\n")
+                 try:
+                     required = {q.question_name for q in item.survey.questions}
+-                    if not required.issubset(result.answer):
++                    if not required.issubset(result.answer) or any(
++                        result.answer[name] is None for name in required
++                    ):
+                         raise ValueError("incomplete model result")
+                     coordinator.submit(
+                         item_id,

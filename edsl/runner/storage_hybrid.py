@@ -29,6 +29,7 @@ from typing import Any
 
 from .storage import InMemoryStorage, StorageProtocol
 from .storage_redis import RedisStorage, REDIS_AVAILABLE
+
 try:
     from .storage_sqlalchemy import SQLAlchemyStorage
 except ImportError:
@@ -271,6 +272,17 @@ class HybridStorage:
     def batch_increment_volatile(self, key_amounts: dict[str, int]) -> dict[str, int]:
         """Atomically increment multiple counters in a single pipeline."""
         return self._volatile.batch_increment_volatile(key_amounts)
+
+    def increment_volatile_once(self, key: str, seen_key: str, token: str) -> bool:
+        return self._volatile.increment_volatile_once(key, seen_key, token)
+
+    def get_or_set_volatile(self, key: str, value: dict) -> dict:
+        return self._volatile.get_or_set_volatile(key, value)
+
+    def satisfy_dependency_once(
+        self, job_id: str, task_id: str, parent_id: str
+    ) -> bool:
+        return self._volatile.satisfy_dependency_once(job_id, task_id, parent_id)
 
     def scan_keys_volatile(self, pattern: str) -> list[str]:
         """Scan volatile storage for keys matching pattern."""

@@ -1,0 +1,39 @@
+{
+  "periods": 30,
+  "endowment": {
+    "cash_cents": 10000,
+    "shares": 4
+  },
+  "initial_reference_price": 14.0,
+  "redemption": {
+    "value_cents": 1400
+  },
+  "pricing": "marginal_midpoint",
+  "maximum_buy_quantity": null,
+  "income": [
+    {
+      "kind": "cash_interest",
+      "rate": 0.05
+    },
+    {
+      "kind": "share_dividend",
+      "distribution": {
+        "values_cents": [
+          40,
+          100
+        ],
+        "probabilities": [
+          0.5,
+          0.5
+        ]
+      },
+      "sampling": "python_random_choice_v1"
+    }
+  ],
+  "forecast_keys": [
+    "forecast_0",
+    "forecast_2",
+    "forecast_5",
+    "forecast_10"
+  ]
+}

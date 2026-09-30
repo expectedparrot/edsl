@@ -92,6 +92,58 @@ from edsl import Jobs
 jobs = Jobs.list(page_size=1).fetch_results()
 ```
 
+## Assigning specific interviews
+
+By default, jobs run every agent/scenario/model combination. Use `assign()` to
+schedule specific combinations by their zero-based positions in the source lists:
+
+```python
+from edsl import Agent, Jobs, Model, Scenario
+
+job = Jobs(
+    survey=survey,
+    agents=[Agent(traits={"person": "Alice"}), Agent(traits={"person": "Bob"})],
+    scenarios=[Scenario(), Scenario()],
+    models=[Model("test", canned_response="blue")],
+).assign([(1, 1, 0), (0, 0, 0), (1, 1, 0)])
+
+assert len(job) == 3
+```
+
+Each tuple is `(agent_index, scenario_index, model_index)`. Dictionaries such as
+`{"agent": 1, "scenario": 1, "model": 0}` are also accepted. Assignment order and
+duplicate rows are preserved. `assign([])` schedules no interviews.
+`run(n=2)` repeats each scheduled row twice, with iterations 0 and 1.
+Repeated rows can share cached answers; use iterations when you need distinct
+cache keys for repeated responses.
+
+For index-matched pairs, use `zip_assign()`:
+
+```python
+job.zip_assign(over=("agents", "scenarios"))
+assert len(job) == 2
+```
+
+This pairs `agents[i]` with `scenarios[i]` and crosses each pair with every model.
+The paired lists must have equal lengths unless `strict=False`, which truncates
+to the shortest paired list. Include `"models"` in `over` to pair all three axes.
+
+Set up source collections before calling `assign()` or `zip_assign()`.
+Replacing a collection with another of the same length preserves assignments by
+position, including a model replacement with `.by(model)`. Changing a collection's
+length raises an error; build a new job with the desired collections and plan.
+`include_when(...)` replaces the current plan with a filtered cross-product, and
+its filter is recomputed after replacing a source collection.
+
+Assignments survive dictionary, JSONL, and `.ep` serialization and Runner
+transport. Counts, prompts, and execution use the scheduled interviews.
+
+```python
+job.save("paired.ep")
+restored = Jobs.load("paired.ep")
+assert len(restored) == 2
+```
+
 ## Prompts
 
 It can also be useful to work with Jobs objects in order to inspect user and system prompts before running the job.

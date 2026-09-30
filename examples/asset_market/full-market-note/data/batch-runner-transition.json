@@ -1,0 +1,30 @@
+{
+  "switched_at": "2026-09-16T10:43:38.292519+00:00",
+  "completed_decisions": 140,
+  "archived_calls": 140,
+  "inflight_calls": 0,
+  "original_spec_sha256": "c483ec30cbddef16a0af3e9a892566a3ae547ffa14f374c5cc997e050b1b123d",
+  "new_runner_sha256": "b6063e85ba8fa1f85baff83d00ffa39f8f59db4d02abdfca31a1846728336fd9",
+  "method": "stop between calls; resume same pinned experiment and durable state",
+  "assignment_pr": {
+    "url": "https://github.com/expectedparrot/edsl/pull/2622",
+    "head": "2077f01334cfc53460b119eb9927c3860c05ac4b",
+    "applied_locally": true,
+    "runner_service_adapted_for_shared_state_branch": true
+  },
+  "validation": {
+    "passed": 78,
+    "failed": 0,
+    "broader_regressions": {
+      "passed": 287,
+      "failed": 0,
+      "command": "python -m pytest --noconftest -q tests/runner tests/sharedstate tests/workflows tests/jobs/cost_estimation/test_job_cost_estimator.py"
+    }
+  },
+  "updated_sources": {
+    "edsl/workflows/experiment.py": "b6063e85ba8fa1f85baff83d00ffa39f8f59db4d02abdfca31a1846728336fd9",
+    "edsl/jobs/assignment_plan.py": "ce428316522187ad28f21364f00f01f24d6c39b495ef783a85f0f7d3ebb7cde7",
+    "edsl/jobs/jobs.py": "619ffdfcd01e65f27d8b3a532dbeeecdd66900ef402679ac7708a74964ee70ec",
+    "edsl/runner/service.py": "f16a0bae07f2b2e805d8ab40d40e392ee93daa26c90d24f124afd56dd5ef0745"
+  }
+}

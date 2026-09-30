@@ -51,6 +51,13 @@ def serialize_job(job: Any) -> dict:
     try:
         # Prepare the job - fills in defaults
         job.replace_missing_objects()
+        assignment_metadata = job._assignment_metadata()
+        schedule = job.run_config.parameters.interview_schedule
+        schedule_metadata = {}
+        if schedule != "concurrent":
+            schedule_metadata["interview_schedule"] = (
+                schedule.to_dict() if hasattr(schedule, "to_dict") else schedule
+            )
 
         # Extract components
         survey = job.survey if hasattr(job, "survey") else job._survey
@@ -65,6 +72,8 @@ def serialize_job(job: Any) -> dict:
             "scenarios": [_to_dict(s) for s in scenarios],
             "agents": [_to_dict(a) for a in agents],
             "models": [_to_dict(m) for m in models],
+            **assignment_metadata,
+            **schedule_metadata,
         }
     except Exception as e:
         raise SerializationError(f"Failed to serialize job: {e}") from e
@@ -138,6 +147,16 @@ def deserialize_job(data: dict) -> Any:
         total_ms = (t9 - t0) * 1000
         logger.info(f"[DESER] TOTAL deserialize_job: {total_ms:.1f}ms")
 
+        job._restore_assignment_metadata(data)
+        if "interview_schedule" in data:
+            from ..jobs.interview_schedule import InterviewSchedule
+
+            schedule = data["interview_schedule"]
+            job.run_config.parameters.interview_schedule = (
+                InterviewSchedule.from_dict(schedule)
+                if isinstance(schedule, dict)
+                else schedule
+            )
         return job
     except SerializationError:
         raise

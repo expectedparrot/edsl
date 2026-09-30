@@ -12,13 +12,17 @@ def _reasoning_model(model: Any) -> dict[str, Any] | None:
     setting = parameters.get("reasoning_effort", parameters.get("reasoning"))
     openai_reasoning_name = name.startswith(("gpt-5", "o1", "o3", "o4"))
     explicit_reasoning = setting is not None
-    if not (explicit_reasoning or (service.startswith("openai") and openai_reasoning_name)):
+    if not (
+        explicit_reasoning or (service.startswith("openai") and openai_reasoning_name)
+    ):
         return None
     return {
         "inference_service": service,
         "model": name,
         "reasoning_setting": setting,
-        "reasoning_setting_source": "explicit" if explicit_reasoning else "model_default",
+        "reasoning_setting_source": "explicit"
+        if explicit_reasoning
+        else "model_default",
     }
 
 

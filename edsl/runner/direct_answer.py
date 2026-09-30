@@ -13,6 +13,8 @@ from dataclasses import dataclass
 from typing import Any
 import inspect
 
+from .presentation import capture_presentation
+
 
 @dataclass
 class DirectAnswerEntry:
@@ -26,6 +28,7 @@ class DirectAnswerEntry:
     job_id: str | None = None
     interview_id: str | None = None
     item_randomization_seed: int | None = None
+    shared_state_reads: tuple[tuple[str, int], ...] = ()
 
 
 class DirectAnswerRegistry:
@@ -141,6 +144,11 @@ class DirectAnswerRegistry:
         optional "comment" keys.
         """
         question = self._question_for_interview(entry)
+        presentation = capture_presentation(
+            question.to_dict(add_edsl_version=False),
+            source="agent_direct",
+            read_versions=entry.shared_state_reads,
+        )
         result = await self._maybe_await(
             entry.agent.answer_question_directly(question, entry.scenario)
         )
@@ -159,10 +167,12 @@ class DirectAnswerRegistry:
                 "cached": False,
                 "input_tokens": 0,
                 "output_tokens": 0,
+                "question_presentation": presentation,
             }
         return {
             "answer": result,
             "comment": "Direct answer from agent method",
+            "question_presentation": presentation,
             "cached": False,
             "input_tokens": 0,
             "output_tokens": 0,
@@ -231,20 +241,24 @@ class DirectAnswerRegistry:
         # invigilator, so reconstruct the same context here rather than passing
         # only the original job scenario.
         scenario = entry.scenario
+        # Compute questions need agent context on the first question too,
+        # before there are any earlier answers to pipe into the scenario.
+        if entry.agent is not None:
+            context_traits = dict(agent_traits or {})
+            if getattr(entry.agent, "name", None):
+                context_traits.setdefault("name", entry.agent.name)
+            scenario = scenario | {"agent": context_traits}
         if current_answers and self._job_service and entry.job_id:
             survey_data = self._job_service._jobs.get_survey(entry.job_id)
             if survey_data:
-                from ..surveys import Survey
-
-                answered_questions = Survey.from_dict(
+                answered_questions = self._job_service._survey_cache.get(
                     survey_data
                 ).question_names_to_questions()
                 for question_name, answer in current_answers.items():
                     if question_name in answered_questions:
                         answered_questions[question_name].answer = answer
 
-                agent_context = {"agent": agent_traits} if agent_traits else {}
-                scenario = scenario | answered_questions | agent_context
+                scenario = scenario | answered_questions
 
         kwargs = {"scenario": scenario, "agent_traits": agent_traits}
         signature = inspect.signature(entry.question.answer_question_directly)
