@@ -77,7 +77,10 @@ def test_prompt_render():
 # Testing to_dict method
 def test_prompt_to_dict():
     p = Prompt("Hello, {{person}}")
-    assert p.to_dict() == {"text": "Hello, {{person}}", "class_name": "Prompt"}
+    assert p.to_dict(add_edsl_version=False) == {
+        "text": "Hello, {{person}}",
+        "class_name": "Prompt",
+    }
 
 
 # Testing from_dict method

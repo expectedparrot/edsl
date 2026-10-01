@@ -102,6 +102,13 @@ edsl delete shared_object.ep --yes
 
 `delete` requires `--yes`.
 
+Objects that have no `.ep` package format, such as prompts, are pushed from a `.json` or `.json.gz` file instead. Each push creates a new object:
+
+```bash
+edsl push prompt.json --alias research-brief --visibility private
+edsl inspect prompt.json
+```
+
 ## Remote Jobs
 
 ```bash

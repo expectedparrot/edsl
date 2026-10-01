@@ -1635,8 +1635,9 @@ class Coop(CoopFunctionsMixin):
 
         obj_uuid, owner_username, obj_alias = self._resolve_uuid_or_alias(url_or_uuid)
 
-        # If we're updating the value, we need to check the storage format
-        if value:
+        # If we're updating the value, we need to check the storage format.
+        # Compare with None: an empty Prompt is a valid value but falsy.
+        if value is not None:
             # If we don't have a UUID but have an alias, get the UUID and format info first
             if not obj_uuid and owner_username and obj_alias:
                 # Get object info including UUID and format
@@ -1688,7 +1689,7 @@ class Coop(CoopFunctionsMixin):
                         default=self._json_handle_none,
                         allow_nan=False,
                     )
-                    if value
+                    if value is not None
                     else None
                 ),
                 "visibility": visibility,
@@ -5621,11 +5622,26 @@ class Coop(CoopFunctionsMixin):
         )
         # Handle any errors in the response
         self._resolve_server_response(response)
-        if "signed_url" not in response.json():
+        pull_data = response.json()
+        if "signed_url" not in pull_data:
             from .exceptions import CoopResponseError
 
             raise CoopResponseError("No signed url was provided.")
-        signed_url = response.json().get("signed_url")
+        signed_url = pull_data.get("signed_url")
+
+        # Servers that report the object's type let a UUID pull be checked the
+        # same way an alias pull is above. Older servers omit it.
+        server_object_type = pull_data.get("object_type")
+        if (
+            expected_object_type
+            and server_object_type
+            and server_object_type != expected_object_type
+        ):
+            from .exceptions import CoopObjectTypeError
+
+            raise CoopObjectTypeError(
+                f"Expected {expected_object_type=} but got {server_object_type=}"
+            )
 
         if signed_url == "":  # it is in old format
             return self.get(url_or_uuid, expected_object_type)
@@ -5647,17 +5663,34 @@ class Coop(CoopFunctionsMixin):
             return edsl_object
         else:
             likely_object_type = object_dict.get("edsl_class_name")
-            if likely_object_type is not None:
-                edsl_class = ObjectRegistry.get_registry().get(likely_object_type, None)
+            edsl_class = (
+                ObjectRegistry.get_registry().get(likely_object_type)
+                if likely_object_type is not None
+                else None
+            )
+            if edsl_class is None and server_object_type:
+                edsl_class = ObjectRegistry.get_edsl_class_by_object_type(
+                    server_object_type
+                )
+            if edsl_class is not None:
                 return edsl_class.from_dict(object_dict)
-            else:
-                for edsl_class in ObjectRegistry.get_registry().values():
-                    try:
-                        edsl_object = edsl_class.from_dict(object_dict)
-                        return edsl_object
-                        break
-                    except Exception:
-                        continue
+            if likely_object_type is not None:
+                # The payload names a class this client does not know. Guessing
+                # would hand back the wrong type: Agent.from_dict accepts any dict.
+                from .exceptions import CoopResponseError
+
+                raise CoopResponseError(
+                    f"This object is a {likely_object_type}, which this version of "
+                    f"EDSL cannot load. Upgrade EDSL and try again."
+                )
+            # Only payloads without an edsl_class_name reach here.
+            for edsl_class in ObjectRegistry.get_registry().values():
+                try:
+                    return edsl_class.from_dict(object_dict)
+                except Exception:
+                    continue
+
+        from .exceptions import CoopResponseError
 
         raise CoopResponseError(f"No EDSL class found for {likely_object_type=}")
 

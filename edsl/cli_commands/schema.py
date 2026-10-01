@@ -21,6 +21,7 @@ def register(schema: click.Group) -> None:
         from edsl.language_models.model_list import ModelList
         from edsl.jobs import Jobs
         from edsl.results import Results
+        from edsl.prompts import Prompt
         from edsl.questions.register_questions_meta import RegisterQuestionsMeta
 
         # Force import of question types
@@ -35,6 +36,7 @@ def register(schema: click.Group) -> None:
             "ModelList": (ModelList, "A list of Model objects. Pass to 'ep run --model_list'."),
             "Jobs": (Jobs, "A complete job spec (survey + agents + models + scenarios). Pass to 'ep run --jobs'."),
             "Results": (Results, "Output from a job run. Pass to 'ep results select --file'."),
+            "Prompt": (Prompt, "Reusable text or Jinja template. Save as .json and share with 'ep push'."),
         }
 
         # Add question types
