@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .language_model import LanguageModel
+    from .hosted_model import HostedModel
     from .model import Model
     from .model_list import ModelList
     from .exceptions import LanguageModelBadResponseError
@@ -10,6 +11,7 @@ if TYPE_CHECKING:
 
 __all__ = [
     "Model",
+    "HostedModel",
     "ModelList",
     "LanguageModelBadResponseError",
     "LanguageModel",
@@ -21,6 +23,7 @@ __all__ = [
 _LAZY_IMPORTS = {
     "LanguageModel": ".language_model",
     "Model": ".model",
+    "HostedModel": ".hosted_model",
     "ModelList": ".model_list",
     "LanguageModelBadResponseError": ".exceptions",
     "ModelListGitError": ".model_list_git",
