@@ -901,6 +901,14 @@ class JobService:
         self._tasks.set_status(task_id, TaskStatus.COMPLETED)
         _dt_set_status = (_time.monotonic() - _t) * 1000
 
+        # Record this completion exactly once. The answer is stored and the status
+        # set above unconditionally (both idempotent), but everything below —
+        # satisfying dependents, incrementing the interview's completed counter and
+        # finalizing the interview — is not, so a redelivered or raced duplicate
+        # execution must stop here. See TaskStore.claim_terminal.
+        if not self._tasks.claim_terminal(task_id):
+            return
+
         # Notify dependents
         _t = _time.monotonic()
         for dependent_id in task_def.dependents:
@@ -1179,6 +1187,12 @@ class JobService:
         # Permanently failed — update task status and error
         self._tasks.set_status(task_id, TaskStatus.FAILED)
         self._tasks.set_error(task_id, error_type, error_message)
+
+        # Record this terminal outcome exactly once. Shares the counter with
+        # on_task_completed, so a task is tallied once as completed XOR failed even
+        # under duplicate delivery. See TaskStore.claim_terminal.
+        if not self._tasks.claim_terminal(task_id):
+            return
 
         # Propagate failure to dependents
         self._propagate_failure(job_id, interview_id, task_def.dependents)
