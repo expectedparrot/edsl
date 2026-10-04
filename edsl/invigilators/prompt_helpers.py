@@ -265,12 +265,11 @@ class PromptPlan:
         )
 
     def get_prompts(self, **kwargs) -> Dict[str, "Prompt"]:
-        """Get both prompts for the LLM call."""
+        """Get both prompts, separating nonempty components with newlines."""
         from ..prompts import Prompt
 
         prompts = self.arrange_components(**kwargs)
-        result = {
-            "user_prompt": Prompt("".join(str(p) for p in prompts["user_prompt"])),
-            "system_prompt": Prompt("".join(str(p) for p in prompts["system_prompt"])),
+        return {
+            name: Prompt("\n".join(text for p in components if (text := str(p))))
+            for name, components in prompts.items()
         }
-        return result

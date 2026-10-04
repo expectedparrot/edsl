@@ -35,21 +35,17 @@ class OpenAIParameterBuilder:
     def build_params(model: str, messages: list, **model_params) -> dict:
         """Build API parameters, adjusting for specific model types."""
 
-        default_max_tokens = model_params.get("max_tokens", 1000)
         default_temperature = model_params.get("temperature", 0.5)
-        default_reasoning_effort = model_params.get("reasoning_effort", "medium")
         # Substring match so suffixed variants (e.g. gpt-5.6-terra) are still
         # recognized as reasoning models, consistent with the other services.
         is_reasoning_model = any(tag in model for tag in OPENAI_REASONING_MODELS)
-        if is_reasoning_model:
-            # For reasoning models, use much higher completion tokens to allow for reasoning + response
-            max_tokens = max(default_max_tokens, 5000)
-            # If no reasoning effort is provided, use "medium" as the default
-            # Some models (e.g. gpt-5) do not support null values for reasoning_effort
-            reasoning_effort = default_reasoning_effort or "medium"
-        else:
-            max_tokens = default_max_tokens
-            reasoning_effort = None
+        # Defaults must not overwrite explicit limits, including small ones.
+        max_tokens = model_params.get(
+            "max_tokens", 5000 if is_reasoning_model else 1000
+        )
+        reasoning_effort = model_params.get("reasoning_effort")
+        if reasoning_effort is None and is_reasoning_model:
+            reasoning_effort = "medium"
 
         # GPT-5+ and o-series models reject any temperature other than 1, even
         # when the exact model id isn't in OPENAI_REASONING_MODELS (e.g. dated
@@ -76,7 +72,9 @@ class OpenAIParameterBuilder:
             ),
         }
 
-        if is_reasoning_model:
+        # Forward explicit values even for unrecognized models so the provider
+        # can validate support instead of silently discarding the user's choice.
+        if reasoning_effort is not None:
             params["reasoning_effort"] = reasoning_effort
 
         return params
@@ -212,7 +210,11 @@ class OpenAIService(InferenceServiceABC):
 
             _parameters_ = {
                 "temperature": 0.5,
-                "max_tokens": 1000,
+                "max_tokens": (
+                    5000
+                    if any(tag in model_name for tag in OPENAI_REASONING_MODELS)
+                    else 1000
+                ),
                 "top_p": 1,
                 "frequency_penalty": 0,
                 "presence_penalty": 0,

@@ -26,6 +26,7 @@ Core Question Types:
 - QuestionDict: Responses with key-value pairs
 - QuestionMatrix: Grid-based responses with rows and columns
 - QuestionBudget: Allocation of a budget across multiple options
+- QuestionDistribution: Probability mass across outcomes or numerical intervals
 - QuestionDemand: Quantities demanded at various price points (demand curve)
 - QuestionRank: Ordering of items by preference or other criteria
 - QuestionExtract: Extraction of specific information from text or data
@@ -117,6 +118,7 @@ from .question_registry import Question
 from .question_check_box import QuestionCheckBox
 from .question_extract import QuestionExtract
 from .question_free_text import QuestionFreeText
+from .question_url import QuestionURL
 from .question_markdown import QuestionMarkdown
 from .question_functional import QuestionFunctional
 from .question_compute import QuestionCompute
@@ -127,6 +129,7 @@ from .question_multiple_choice import QuestionMultipleChoice
 from .probabilistic_response import ProbabilisticResponse
 from .question_numerical import QuestionNumerical
 from .question_budget import QuestionBudget
+from .question_distribution import QuestionDistribution
 from .question_demand import QuestionDemand
 from .question_rank import QuestionRank
 from .question_random import QuestionRandom
@@ -174,6 +177,7 @@ __all__ = [
     "Question",
     # Core question types
     "QuestionFreeText",
+    "QuestionURL",
     "QuestionMarkdown",
     "QuestionMultipleChoice",
     "QuestionCheckBox",

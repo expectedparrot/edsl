@@ -34,6 +34,7 @@ if TYPE_CHECKING:
     from ..surveys import Survey
     from ..results import Results
     from ..tasks import TaskHistory
+    from .coop_human_survey_assets import HumanSurveyAsset
 
 from .exceptions import (
     CoopInvalidURLError,
@@ -1634,8 +1635,9 @@ class Coop(CoopFunctionsMixin):
 
         obj_uuid, owner_username, obj_alias = self._resolve_uuid_or_alias(url_or_uuid)
 
-        # If we're updating the value, we need to check the storage format
-        if value:
+        # If we're updating the value, we need to check the storage format.
+        # Compare with None: an empty Prompt is a valid value but falsy.
+        if value is not None:
             # If we don't have a UUID but have an alias, get the UUID and format info first
             if not obj_uuid and owner_username and obj_alias:
                 # Get object info including UUID and format
@@ -1687,7 +1689,7 @@ class Coop(CoopFunctionsMixin):
                         default=self._json_handle_none,
                         allow_nan=False,
                     )
-                    if value
+                    if value is not None
                     else None
                 ),
                 "visibility": visibility,
@@ -2096,7 +2098,9 @@ class Coop(CoopFunctionsMixin):
             iterations (int): Number of times to run each interview (default: 1)
             fresh (bool): If True, ignore existing cache entries and generate new results
             alert_on_completion_config (dict, optional): Config for job completion alerts
-                (email and/or webhooks). Dict with "email" (bool) and "webhooks" (list of {"url": str}, max 3).
+                (email and/or webhooks). Dict with "email" (bool), "webhooks" (list of {"url": str}, max 3),
+                and optional "filters" ({"status": a terminal status or list of them}) to only alert on
+                certain outcomes, e.g. {"email": True, "filters": {"status": ["failed", "partial_failed"]}}.
             task_timeout (int, optional): Maximum seconds allowed for each interview
 
         Returns:
@@ -3014,6 +3018,9 @@ class Coop(CoopFunctionsMixin):
             "survey_uuid": response_json.get("survey_uuid"),
             "agent_list_uuid": response_json.get("agent_list_uuid"),
             "scenario_list_uuid": response_json.get("scenario_list_uuid"),
+            # Old asset uuid -> new one, when the schema named assets that were
+            # copied into your library. Empty when nothing was copied.
+            "asset_substitutions": response_json.get("asset_substitutions") or {},
         }
 
     def get_human_survey(
@@ -3708,6 +3715,90 @@ class Coop(CoopFunctionsMixin):
             "allow_resubmit": data.get("allow_resubmit"),
         }
 
+    def get_human_survey_agent_access(
+        self,
+        human_survey_uuid: Union[str, UUID],
+    ) -> dict:
+        """
+        Get a human survey's agent-access config: whether AI agents may take it
+        through its agent link, who produces the answers, and the guidance agents
+        are given. Owner only.
+
+        Parameters:
+            human_survey_uuid: UUID of the human survey.
+
+        Returns:
+            dict: ``{"configured", "enabled", "participation_mode",
+            "instructions", "question_settings"}``. ``configured`` is False when
+            agent access has never been set; the other fields are then their
+            defaults (disabled, ``"human_assisted"``, no guidance).
+
+        Example:
+            >>> access = coop.get_human_survey_agent_access("your-human-survey-uuid")  # doctest: +SKIP
+        """
+        response = self._send_server_request(
+            uri=f"api/v0/human-surveys/{human_survey_uuid}/agent-access",
+            method="GET",
+        )
+        self._resolve_server_response(response)
+        return response.json()
+
+    def patch_human_survey_agent_access(
+        self,
+        human_survey_uuid: Union[str, UUID],
+        partial_config: Dict[str, Any],
+        survey: Optional["Survey"] = None,
+    ) -> dict:
+        """
+        Partially update a human survey's agent-access config. Owner only.
+
+        The ``partial_config`` is deep-merged into the stored config (the defaults,
+        if it has never been set): nested dicts merge key-by-key, while scalars and
+        explicit ``None`` replace the existing value, and fields left out are
+        unchanged. A question set to ``None`` in ``question_settings`` has its
+        settings removed. The merged result is validated as a whole, so unknown keys
+        or invalid values are rejected.
+
+        The config's fields: ``enabled`` (whether the agent link accepts new
+        attempts), ``participation_mode`` (``"human_assisted"``,
+        ``"authorized_context"`` or ``"autonomous"``), ``instructions`` (guidance
+        for agents on the whole survey, at most 4,000 characters; in autonomous
+        mode, how the agent should answer), and ``question_settings`` (per-question
+        settings keyed by question name, e.g. ``{"improvements":
+        {"instructions": "Name at least one specific change."}}``).
+
+        The patch is validated before it's sent, and ``AgentAccessValidationError``
+        is raised if a key or value isn't allowed. The server doesn't check question
+        names, so pass ``survey`` to check that every question given settings is in
+        it.
+
+        Parameters:
+            human_survey_uuid: UUID of the human survey.
+            partial_config: Partial agent-access config to deep-merge into the
+                stored one.
+            survey: The survey, to check question names in ``question_settings``
+                against. Optional.
+
+        Returns:
+            dict: The stored config, as ``get_human_survey_agent_access`` returns it.
+
+        Example:
+            >>> coop.patch_human_survey_agent_access(  # doctest: +SKIP
+            ...     "your-human-survey-uuid",
+            ...     {"enabled": True, "participation_mode": "autonomous"},
+            ... )
+        """
+        from .coop_agent_access import validate_agent_access_patch
+
+        validate_agent_access_patch(partial_config, survey)
+        response = self._send_server_request(
+            uri=f"api/v0/human-surveys/{human_survey_uuid}/agent-access",
+            method="PATCH",
+            payload={"patch": partial_config},
+        )
+        self._resolve_server_response(response)
+        return response.json()
+
     def get_human_survey_respondents(
         self,
         human_survey_uuid: Union[str, UUID],
@@ -4327,6 +4418,119 @@ class Coop(CoopFunctionsMixin):
         self._resolve_server_response(response)
         return response.json()
 
+    def upload_human_survey_asset(
+        self,
+        file_path: Union[str, "os.PathLike"],
+    ) -> "HumanSurveyAsset":
+        """
+        Upload an image to your human survey asset library.
+
+        The uuid it returns is what a humanize schema references, e.g.
+        ``{"survey": {"branding": {"logo": {"source": {"type": "asset",
+        "asset_uuid": asset.uuid}, "alt": "Lab name"}}}}``.
+
+        Uploading a file you have already uploaded returns the existing asset
+        rather than a second copy, with ``deduplicated`` set to True, so
+        re-running a script is safe.
+
+        The asset is listed under the file's own name, which is also the default
+        filename when you download it again.
+
+        Parameters:
+            file_path: PNG, JPEG, WebP, or static GIF, at most 2 MB.
+
+        Returns:
+            HumanSurveyAsset: metadata including ``uuid`` and ``deduplicated``.
+
+        Example:
+            >>> asset = coop.upload_human_survey_asset("lab_logo.png")  # doctest: +SKIP
+        """
+        from pathlib import Path
+
+        from .coop_human_survey_assets import HumanSurveyAsset, validate_asset_file
+
+        path = Path(file_path)
+        validate_asset_file(path)
+
+        # Multipart, not the signed-PUT flow FileStores use: logos are small, and
+        # the server validates the image before any row or blob exists, so there
+        # is no pending upload to clean up. _send_server_request sends JSON only.
+        with path.open("rb") as file_object:
+            response = requests.post(
+                f"{self.api_url}/api/v0/human-surveys/assets",
+                files={"file": (path.name, file_object)},
+                headers=self.headers,
+                timeout=120,
+            )
+        self._resolve_server_response(response)
+        return HumanSurveyAsset(response.json())
+
+    def list_human_survey_assets(
+        self,
+        page: int = 1,
+        page_size: int = 10,
+    ) -> dict:
+        """
+        List your human survey asset library, newest first.
+
+        Includes copies made when you reused another author's survey schema,
+        marked ``source: "copy"``. Deleted assets are not listed.
+
+        Returns:
+            dict: ``{"assets": [...], "current_page", "page_size",
+            "total_pages", "total_count"}``
+        """
+        response = self._send_server_request(
+            uri="api/v0/human-surveys/assets",
+            method="GET",
+            params={"page": page, "page_size": page_size},
+        )
+        self._resolve_server_response(response)
+        return response.json()
+
+    def get_human_survey_asset(
+        self,
+        asset_uuid: Union[str, UUID],
+    ) -> "HumanSurveyAsset":
+        """
+        Get an asset's metadata and a signed download URL.
+
+        Allowed for the owner, and for anyone who can view a human survey that
+        uses the asset — which is how you fetch the logo of a survey shared with
+        you. Call ``.download(path)`` on the result to save the image.
+
+        Example:
+            >>> coop.get_human_survey_asset(uuid).download("logo.png")  # doctest: +SKIP
+        """
+        from .coop_human_survey_assets import HumanSurveyAsset
+
+        response = self._send_server_request(
+            uri=f"api/v0/human-surveys/assets/{asset_uuid}",
+            method="GET",
+        )
+        self._resolve_server_response(response)
+        return HumanSurveyAsset(response.json())
+
+    def delete_human_survey_asset(
+        self,
+        asset_uuid: Union[str, UUID],
+    ) -> dict:
+        """
+        Remove an asset from your library.
+
+        Surveys already using it keep showing it; ``used_by_human_surveys`` says
+        how many do.
+
+        Returns:
+            dict: ``{"uuid", "deleted_ts", "used_by_human_surveys"}``
+        """
+        response = self._send_server_request(
+            uri=f"api/v0/human-surveys/assets/{asset_uuid}",
+            method="DELETE",
+        )
+        self._resolve_server_response(response)
+        return response.json()
+
     def _turn_human_responses_into_results(
         self,
         human_responses: List[dict],
@@ -4836,16 +5040,48 @@ class Coop(CoopFunctionsMixin):
             "filters": response_json.get("filters"),
         }
 
+    def preflight_prolific_study(
+        self, human_survey_uuid: str, study_id: str, *,
+        required_questions: Optional[List[str]] = None,
+        expected_survey=None, required_credits: Optional[float] = None,
+    ) -> dict:
+        """Check the current draft, deployed survey and balance without publishing.
+
+        Supply required question names (including any planned participant ID)
+        and the expected Survey to detect missing questions or deployment drift.
+        required_credits includes any AI/interview reserve; when omitted only
+        recruitment is costed. This check neither reserves funds nor proves
+        live routing, identity capture, eligibility, or user authorization.
+        """
+        from .coop_prolific_preflight import preflight
+
+        return preflight(self, human_survey_uuid, study_id,
+                         required_questions=required_questions,
+                         expected_survey=expected_survey, required_credits=required_credits)
+
     def publish_prolific_study(
         self,
         human_survey_uuid: str,
         study_id: str,
+        *,
+        required_questions: Optional[List[str]] = None,
+        expected_survey=None,
+        required_credits: Optional[float] = None,
     ) -> dict:
         """
         Publish a Prolific study.
 
         Once your study is published, Prolific participants can start accepting and completing it.
+        Rechecks the deployed survey and current recruitment balance before the
+        publication POST. Supply an all-in required_credits estimate for AI work.
+        A successful preflight is not spending authorization or a funds reservation.
         """
+        check = self.preflight_prolific_study(
+            human_survey_uuid, study_id, required_questions=required_questions,
+            expected_survey=expected_survey, required_credits=required_credits,
+        )
+        if not check["ready"]:
+            raise CoopValueError("Prolific preflight failed: " + "; ".join(check["blockers"]))
         response = self._send_server_request(
             uri=f"api/v0/human-surveys/{human_survey_uuid}/prolific-studies/{study_id}/status",
             method="POST",
@@ -5386,11 +5622,26 @@ class Coop(CoopFunctionsMixin):
         )
         # Handle any errors in the response
         self._resolve_server_response(response)
-        if "signed_url" not in response.json():
+        pull_data = response.json()
+        if "signed_url" not in pull_data:
             from .exceptions import CoopResponseError
 
             raise CoopResponseError("No signed url was provided.")
-        signed_url = response.json().get("signed_url")
+        signed_url = pull_data.get("signed_url")
+
+        # Servers that report the object's type let a UUID pull be checked the
+        # same way an alias pull is above. Older servers omit it.
+        server_object_type = pull_data.get("object_type")
+        if (
+            expected_object_type
+            and server_object_type
+            and server_object_type != expected_object_type
+        ):
+            from .exceptions import CoopObjectTypeError
+
+            raise CoopObjectTypeError(
+                f"Expected {expected_object_type=} but got {server_object_type=}"
+            )
 
         if signed_url == "":  # it is in old format
             return self.get(url_or_uuid, expected_object_type)
@@ -5412,17 +5663,34 @@ class Coop(CoopFunctionsMixin):
             return edsl_object
         else:
             likely_object_type = object_dict.get("edsl_class_name")
-            if likely_object_type is not None:
-                edsl_class = ObjectRegistry.get_registry().get(likely_object_type, None)
+            edsl_class = (
+                ObjectRegistry.get_registry().get(likely_object_type)
+                if likely_object_type is not None
+                else None
+            )
+            if edsl_class is None and server_object_type:
+                edsl_class = ObjectRegistry.get_edsl_class_by_object_type(
+                    server_object_type
+                )
+            if edsl_class is not None:
                 return edsl_class.from_dict(object_dict)
-            else:
-                for edsl_class in ObjectRegistry.get_registry().values():
-                    try:
-                        edsl_object = edsl_class.from_dict(object_dict)
-                        return edsl_object
-                        break
-                    except Exception:
-                        continue
+            if likely_object_type is not None:
+                # The payload names a class this client does not know. Guessing
+                # would hand back the wrong type: Agent.from_dict accepts any dict.
+                from .exceptions import CoopResponseError
+
+                raise CoopResponseError(
+                    f"This object is a {likely_object_type}, which this version of "
+                    f"EDSL cannot load. Upgrade EDSL and try again."
+                )
+            # Only payloads without an edsl_class_name reach here.
+            for edsl_class in ObjectRegistry.get_registry().values():
+                try:
+                    return edsl_class.from_dict(object_dict)
+                except Exception:
+                    continue
+
+        from .exceptions import CoopResponseError
 
         raise CoopResponseError(f"No EDSL class found for {likely_object_type=}")
 

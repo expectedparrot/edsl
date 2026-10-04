@@ -1891,7 +1891,9 @@ class Jobs(Base):
             Custom EXPECTED_PARROT_API_KEY to use for this job run
         alert_on_completion_config : dict or AlertOnCompletionConfig, optional
             Config for job completion alerts (email and/or webhooks). Pass a dict with
-            "email" (bool) and "webhooks" (list of {"url": str}, max 3 items).
+            "email" (bool), "webhooks" (list of {"url": str}, max 3 items), and optional
+            "filters" ({"status": a terminal status or list of them}) to only alert on
+            certain outcomes, e.g. {"email": True, "filters": {"status": "failed"}}.
         results_description : str, optional
             Description for the initial results object. Only used with remote inference
             (offloaded execution).

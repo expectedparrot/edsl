@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Annotated, Any, Dict, Literal, Optional, Type, Union
+from uuid import UUID
 
 from pydantic import (
     BaseModel,
     ConfigDict,
     Field,
+    PlainSerializer,
     StringConstraints,
     ValidationError,
     field_validator,
@@ -56,6 +58,37 @@ SubmittingIndicator = Annotated[
     Union[CalloutSubmittingIndicator],
     Field(discriminator="type"),
 ]
+
+
+class FixedDuration(HumanizeSchemaBase):
+    """A literal number of seconds, the same for every respondent."""
+
+    type: Literal["fixed"] = "fixed"
+    # Required, with no default: a limit whose duration was never chosen is not a
+    # limit. The floor is a duration no respondent could beat; past the ceiling a
+    # per-question clock has stopped measuring anything.
+    seconds: int = Field(ge=30, le=7200)
+
+
+# How long the respondent has. Discriminated on ``type``, and the tag is required:
+# pydantic rejects an untagged payload against a discriminated union even while it
+# has a single member.
+Duration = Annotated[
+    Union[FixedDuration],
+    Field(discriminator="type"),
+]
+
+
+class TimeLimit(HumanizeSchemaBase):
+    """A wall-clock budget for answering one question.
+
+    When it runs out the answer locks, and the respondent clicks Next to go on
+    with whatever they had entered. Applies only while the question is alone on
+    its page: under ``presentation: "group"`` the page is the group rather than
+    the question, so every question's limit is ignored.
+    """
+
+    duration: Duration
 
 
 class MCSubclassFormatSchema(HumanizeSchemaBase):
@@ -156,6 +189,52 @@ SurveyProgress = Annotated[
 ]
 
 
+class AssetImageSource(HumanizeSchemaBase):
+    """An image from the author's asset library, named by uuid.
+
+    Only the shape is checked here. Whether the asset exists and this author may
+    use it is decided when the schema is written: a uuid the caller cannot reach
+    is rejected with "Asset <uuid> not found", and a uuid belonging to someone
+    else's survey is copied into the caller's library and rewritten, with the
+    response's ``asset_substitutions`` reporting the new uuid.
+
+    Upload an image with ``Coop().upload_human_survey_asset`` to get a uuid.
+    """
+
+    type: Literal["asset"] = "asset"
+    # Dumped as a string so a validated schema stays JSON-serializable. Typing it
+    # as a UUID means a malformed uuid is caught here rather than by the server.
+    asset_uuid: Annotated[UUID, PlainSerializer(str, return_type=str)]
+
+
+# Discriminated on ``type`` so other sources (a per-scenario image for branding as
+# a manipulation, an opted-in external URL) can join as siblings without
+# reshaping stored configs. "asset" is the only variant today.
+ImageSource = Annotated[
+    Union[AssetImageSource],
+    Field(discriminator="type"),
+]
+
+
+class SurveyLogo(HumanizeSchemaBase):
+    """A logo in the survey's banner."""
+
+    source: ImageSource
+    # Required so leaving it out is a decision rather than an accident. An empty
+    # string marks the image decorative (rendered with alt="").
+    alt: Annotated[str, StringConstraints(strip_whitespace=True, max_length=200)]
+    position: Literal["left", "center", "right"] = "left"
+    # No size field: the frontend picks a default height, and authors who want
+    # another size style `.edsl-logo` in custom_css.
+
+
+class SurveyBranding(HumanizeSchemaBase):
+    """The author's brand on the respondent page."""
+
+    # None: no logo.
+    logo: Optional[SurveyLogo] = None
+
+
 class SurveyHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the survey (e.g. custom styling)."""
 
@@ -165,6 +244,9 @@ class SurveyHumanizeSchema(HumanizeSchemaBase):
     # bar that shipped before this field existed, so stored configs render
     # identically.
     progress: SurveyProgress = Field(default_factory=BarProgress)
+    # None: no banner, which is how every survey stored before this field existed
+    # renders. Assets it names are checked when the schema is written.
+    branding: Optional[SurveyBranding] = None
 
 
 class CommentConfig(HumanizeSchemaBase):
@@ -279,6 +361,7 @@ class FreeTextHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the free text question type."""
 
     optional: bool = False
+    time_limit: Optional[TimeLimit] = None
     comment: Optional[CommentConfig] = None
     submitting_indicator: Optional[SubmittingIndicator] = None
     javascript: Optional[QuestionJavaScript] = None
@@ -288,9 +371,92 @@ class BudgetHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the budget question type."""
 
     optional: bool = False
+    time_limit: Optional[TimeLimit] = None
     comment: Optional[CommentConfig] = None
     submitting_indicator: Optional[SubmittingIndicator] = None
     javascript: Optional[QuestionJavaScript] = None
+
+
+class UniformInitialDistribution(HumanizeSchemaBase):
+    """Equal probability per outcome or bin, including unequal-width intervals.
+
+    It is the answer's starting value, so a respondent can submit it untouched.
+    """
+
+    type: Literal["uniform"] = "uniform"
+
+
+class EmptyInitialDistribution(HumanizeSchemaBase):
+    """Nothing allocated; the respondent must paint before submitting.
+
+    A variant rather than ``initial_distribution: None``, because None already means
+    "unconfigured", which has to keep meaning uniform.
+    """
+
+    type: Literal["empty"] = "empty"
+
+
+# What the painter shows before the respondent touches it. Discriminated on
+# ``type`` so starting states with parameters of their own (author-set weights, a
+# peak at a chosen bin, the respondent's answer to an earlier question) can join
+# as siblings without reshaping stored configs. A saved answer always takes
+# precedence over it.
+InitialDistribution = Annotated[
+    Union[UniformInitialDistribution, EmptyInitialDistribution],
+    Field(discriminator="type"),
+]
+
+
+class MeanStatistic(HumanizeSchemaBase):
+    """The implied mean: each bin's midpoint weighted by its probability."""
+
+    type: Literal["mean"] = "mean"
+
+
+class VarianceStatistic(HumanizeSchemaBase):
+    """The implied variance, including each bin's own spread (width² / 12)."""
+
+    type: Literal["variance"] = "variance"
+
+
+# One statistic in a distribution's summary. Discriminated on ``type`` because
+# statistics differ in shape — a central interval needs its coverage, a mean
+# needs nothing — so each can carry only the options it acts on.
+SummaryStatistic = Annotated[
+    Union[MeanStatistic, VarianceStatistic],
+    Field(discriminator="type"),
+]
+
+
+class DistributionSummary(HumanizeSchemaBase):
+    """Statistics implied by the painted distribution, shown beneath the chart.
+
+    Computed assuming probability is spread uniformly within each bin, and shown
+    only for finite numeric bins: categories have no values to average, and an
+    open-ended bin has no midpoint.
+    """
+
+    # Rendered in list order.
+    statistics: Annotated[list[SummaryStatistic], Field(min_length=1)] = Field(
+        default_factory=lambda: [MeanStatistic(), VarianceStatistic()]
+    )
+
+    @model_validator(mode="after")
+    def _unique_statistics(self) -> "DistributionSummary":
+        types = [statistic.type for statistic in self.statistics]
+        if len(types) != len(set(types)):
+            raise ValueError("statistics must not repeat a type.")
+        return self
+
+
+class DistributionHumanizeSchema(HumanizeSchemaBase):
+    """Humanize options for the distribution question type."""
+
+    initial_distribution: InitialDistribution = Field(
+        default_factory=UniformInitialDistribution
+    )
+    # None: no summary.
+    distribution_summary: Optional[DistributionSummary] = None
 
 
 class SelectAllControl(HumanizeSchemaBase):
@@ -316,6 +482,7 @@ class CheckboxHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the checkbox question type."""
 
     optional: bool = False
+    time_limit: Optional[TimeLimit] = None
     # The Select all box beneath the options; None removes it. Present by
     # default, because that is what every checkbox question rendered before this
     # field existed, so stored configs are unaffected. Deliberately not on
@@ -348,6 +515,7 @@ class CheckboxWithOtherHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the checkbox with other question type."""
 
     optional: bool = False
+    time_limit: Optional[TimeLimit] = None
     # Options that stand alone: checking one clears every other selection —
     # including the respondent's "other" entries and any other exclusive
     # option — and selecting anything else clears it. Identified by their exact
@@ -393,6 +561,7 @@ class FileUploadHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the file upload question type."""
 
     optional: bool = False
+    time_limit: Optional[TimeLimit] = None
     submitting_indicator: Optional[SubmittingIndicator] = None
     javascript: Optional[QuestionJavaScript] = None
 
@@ -582,6 +751,21 @@ class TextInterviewConfig(HumanizeSchemaBase):
         return normalize_voice_interview_language(v)
 
 
+# How long the voice interviewer waits after the respondent pauses before it
+# speaks, from "fastest" (jumps in almost at once) to "slowest" (waits a long time).
+VoiceTurnSpeed = Literal["fastest", "faster", "default", "slower", "slowest"]
+
+
+class TurnTakingConfig(HumanizeSchemaBase):
+    """How the voice interviewer decides the respondent has finished speaking."""
+
+    # The speed the call starts at. "initial" because the respondent can still
+    # change it from the interview screen, the same reading as
+    # ``ChecklistConfig.initial``. "default" is the natural pause every voice
+    # interview used before this setting existed.
+    initial_speed: VoiceTurnSpeed = "default"
+
+
 class VoiceInterviewConfig(HumanizeSchemaBase):
     """Configuration specific to voice-mode interviews."""
 
@@ -589,6 +773,9 @@ class VoiceInterviewConfig(HumanizeSchemaBase):
     # (e.g. "english"); the before-validator normalizes case/whitespace, maps
     # None/blank to the default, and rejects unsupported languages.
     language: str = DEFAULT_VOICE_INTERVIEW_LANGUAGE
+    # Always present rather than Optional: every voice call has a starting speed,
+    # so None would only mean "use the default" anyway.
+    turn_taking: TurnTakingConfig = Field(default_factory=TurnTakingConfig)
 
     @field_validator("language", mode="before")
     @classmethod
@@ -631,6 +818,7 @@ class LikertHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the likert question type."""
 
     optional: bool = False
+    time_limit: Optional[TimeLimit] = None
     format: MCSubclassFormatSchema = Field(default_factory=MCSubclassFormatSchema)
     comment: Optional[CommentConfig] = None
     submitting_indicator: Optional[SubmittingIndicator] = None
@@ -641,6 +829,7 @@ class LinearScaleHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the linear scale question type."""
 
     optional: bool = False
+    time_limit: Optional[TimeLimit] = None
     format: MCSubclassFormatSchema = Field(default_factory=MCSubclassFormatSchema)
     comment: Optional[CommentConfig] = None
     submitting_indicator: Optional[SubmittingIndicator] = None
@@ -651,6 +840,7 @@ class ListHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the list question type."""
 
     optional: bool = False
+    time_limit: Optional[TimeLimit] = None
     comment: Optional[CommentConfig] = None
     submitting_indicator: Optional[SubmittingIndicator] = None
     javascript: Optional[QuestionJavaScript] = None
@@ -750,6 +940,7 @@ class MatrixHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the matrix question type."""
 
     optional: bool = False
+    time_limit: Optional[TimeLimit] = None
     format: MatrixFormatSchema = Field(default_factory=MatrixFormatTableSchema)
     # Cells filled in before the respondent arrives. None means an empty grid —
     # what every matrix rendered before this field existed, so stored configs are
@@ -770,6 +961,7 @@ class MultipleChoiceHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the multiple choice question type."""
 
     optional: bool = False
+    time_limit: Optional[TimeLimit] = None
     format: MCSubclassFormatSchema = Field(default_factory=MCSubclassFormatSchema)
     custom_validation: Optional[MultipleChoiceCustomValidation] = None
     comment: Optional[CommentConfig] = None
@@ -781,6 +973,7 @@ class MultipleChoiceWithOtherHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the multiple choice with other question type."""
 
     optional: bool = False
+    time_limit: Optional[TimeLimit] = None
     comment: Optional[CommentConfig] = None
     submitting_indicator: Optional[SubmittingIndicator] = None
     javascript: Optional[QuestionJavaScript] = None
@@ -821,6 +1014,7 @@ class NumericalHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the numerical question type."""
 
     optional: bool = False
+    time_limit: Optional[TimeLimit] = None
     format: NumericalFormatSchema = Field(default_factory=NumericalFormatInputSchema)
     comment: Optional[CommentConfig] = None
     submitting_indicator: Optional[SubmittingIndicator] = None
@@ -831,6 +1025,7 @@ class RankHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the rank question type."""
 
     optional: bool = False
+    time_limit: Optional[TimeLimit] = None
     comment: Optional[CommentConfig] = None
     submitting_indicator: Optional[SubmittingIndicator] = None
     javascript: Optional[QuestionJavaScript] = None
@@ -840,6 +1035,7 @@ class TopKHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the top k question type."""
 
     optional: bool = False
+    time_limit: Optional[TimeLimit] = None
     comment: Optional[CommentConfig] = None
     submitting_indicator: Optional[SubmittingIndicator] = None
     javascript: Optional[QuestionJavaScript] = None
@@ -849,6 +1045,7 @@ class YesNoHumanizeSchema(HumanizeSchemaBase):
     """Humanize options for the yes/no question type."""
 
     optional: bool = False
+    time_limit: Optional[TimeLimit] = None
     format: MCSubclassFormatSchema = Field(default_factory=MCSubclassFormatSchema)
     comment: Optional[CommentConfig] = None
     submitting_indicator: Optional[SubmittingIndicator] = None
@@ -872,6 +1069,7 @@ class SurveyMessageHumanizeSchema(HumanizeSchemaBase):
 HumanizeQuestionSchema = Union[
     FreeTextHumanizeSchema,
     BudgetHumanizeSchema,
+    DistributionHumanizeSchema,
     CheckboxHumanizeSchema,
     CheckboxWithOtherHumanizeSchema,
     ComputeHumanizeSchema,
@@ -905,6 +1103,7 @@ class HumanizeSchema(HumanizeSchemaBase):
 QUESTION_TYPE_TO_HUMANIZE_CLASS: Dict[str, Type[BaseModel]] = {
     "free_text": FreeTextHumanizeSchema,
     "budget": BudgetHumanizeSchema,
+    "distribution": DistributionHumanizeSchema,
     "checkbox": CheckboxHumanizeSchema,
     "checkbox_with_other": CheckboxWithOtherHumanizeSchema,
     "compute": ComputeHumanizeSchema,

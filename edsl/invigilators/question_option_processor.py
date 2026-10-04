@@ -1,3 +1,4 @@
+from jinja2.exceptions import SecurityError
 from ast import literal_eval
 from typing import Union, TYPE_CHECKING
 
@@ -178,6 +179,8 @@ class QuestionOptionProcessor(QuestionAttributeProcessor):
 
             try:
                 rendered_options.append(self._render_template_to_native_value(option))
+            except SecurityError:
+                raise
             except Exception:
                 # Preserve option text that only resembles a template or
                 # contains malformed Jinja syntax.
@@ -213,6 +216,8 @@ class QuestionOptionProcessor(QuestionAttributeProcessor):
                     return parsed_options
                 if isinstance(parsed_options, tuple):
                     return list(parsed_options)
+        except SecurityError:
+            raise
         except Exception:
             # Fall back to the older simple-path logic below.
             pass
