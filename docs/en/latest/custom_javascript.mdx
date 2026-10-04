@@ -142,10 +142,46 @@ Each event includes:
 | Field | Description |
 |---|---|
 | `id` | The event's unique id |
+| `received_at` | When Expected Parrot received it (ISO 8601, UTC) |
+| `client_ts` | When the respondent's browser logged it (ISO 8601, UTC) |
 | `response_uuid` | The response the event belongs to |
 | `is_preview` | Whether the event came from a preview link |
+| `log_session_uuid` | The page load the event was logged in. Each time a respondent opens or reloads the survey starts a new session, so one response can have several. |
+| `session_state` | Whether that session's log is whole. See below. |
+| `client_seq` | The event's position in its session, counting from 0. Sort by it to get the order events were logged in. A gap means an event in between was not recorded. |
 | `question_name` | The question whose script logged it |
+| `event_type` | What kind of event it is. Always `"ep.log"` for now. |
 | `event_name` | The `eventName` passed to `ep.log` |
+| `hook_event` | The hook that was running when the event was logged, for example `"question.ready"` |
+| `source` | What logged the event. Always `"author_script"` for now. |
 | `payload` | The `payload` passed to `ep.log`, or `None` |
-| `client_ts` | When the respondent's browser logged it (ISO 8601, UTC) |
-| `received_at` | When Expected Parrot received it (ISO 8601, UTC) |
+
+`session_state` is one of:
+
+- `"complete"`: the session ended normally and no events are missing.
+- `"truncated"`: some events from this session are known to be missing, for example because they broke the limits above.
+- `"unknown"`: no events are known to be missing, but the session never signalled that it ended, for example because the respondent's browser closed or lost its connection. Its log may or may not be whole.
+
+`session_state` describes the whole session, so every event from one session carries the same value.
+
+## From the command line
+
+The `ep` CLI covers the same steps. `--javascript` takes `QUESTION:HOOK=FILE`, naming the question, the hook, and a file holding the script:
+
+```bash
+# Check access
+ep humanize custom-js-access
+
+# Attach a script while building a schema, or to a survey that already exists
+ep humanize schema create --survey survey.ep --javascript choice:question.ready=choice.js --output humanize.json
+ep humanize schema set <human-survey-uuid> --javascript choice:question.ready=choice.js
+
+# Remove a question's script
+ep humanize schema set <human-survey-uuid> --clear-javascript choice
+
+# Get one page of events, or save every event to a file
+ep humanize events <human-survey-uuid> --page 1 --page_size 100
+ep humanize events <human-survey-uuid> --all --output events.jsonl
+```
+
+`--all` requires `--output`, which can end in `.json` or `.jsonl`.

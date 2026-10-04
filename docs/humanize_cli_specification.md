@@ -41,6 +41,7 @@ Group discovery:
       "preview",
       "respondents",
       "links",
+      "events",
       "schedules",
       "deliveries",
       "callbacks",
@@ -48,6 +49,7 @@ Group discovery:
       "agent-access",
       "schema",
       "css",
+      "custom-js-access",
       "assets",
       "prolific"
     ],
@@ -572,6 +574,84 @@ copied into your library and the uuid rewritten. The response carries
 `asset_substitutions`, and the echoed `schema` shows the new uuid. An asset you cannot
 reach at all fails with a `HUMANIZE_ERROR` whose suggestion is to obtain the image file
 and re-run with `--logo-file`.
+
+### JavaScript flags on `schema create` and `schema set`
+
+| Flag | Effect |
+|------|--------|
+| `--javascript QUESTION:HOOK=FILE` | Run the JavaScript in `FILE` on `QUESTION`'s `HOOK`, e.g. `rating:question.ready=rating.js`. Repeat for more questions or hooks |
+| `--clear-javascript QUESTION` | **`schema set` only.** Remove the question's JavaScript |
+
+`question.ready` is the only hook today. The hook is part of the flag so that it keeps
+its shape when more hooks exist.
+
+Validation:
+
+- `--javascript` without a question or a hook, or naming a missing or empty file, is a
+  `USAGE_ERROR`.
+- An unknown hook, or a script on a `compute` or `image_generation` question, fails
+  local validation (`VALIDATION_ERROR`) on `schema create`, and on `schema set` when
+  `--survey` is given.
+- Naming the same question in `--javascript` and `--clear-javascript` is a
+  `USAGE_ERROR`.
+
+Custom JavaScript is available on approved accounts only. Applying a schema with a
+script from an account that is not approved fails with a `HUMANIZE_ERROR`, and nothing
+in the schema is saved.
+
+### `edsl humanize custom-js-access`
+
+Report whether the authenticated account may use custom JavaScript.
+
+Backs onto:
+
+```python
+Coop().get_custom_js_access()
+```
+
+Output:
+
+```json
+{
+  "status": "ok",
+  "data": {
+    "custom_js_allowed": false,
+    "next_step": "Custom JavaScript is available on approved accounts only. Email info@expectedparrot.com to request access."
+  },
+  "warnings": []
+}
+```
+
+`next_step` is present only when `custom_js_allowed` is `false`.
+
+### `edsl humanize events <human_survey_uuid>`
+
+Get the events a survey's custom JavaScript logged with `ep.log`, newest first. Events
+from preview links are included and marked `is_preview`.
+
+Backs onto:
+
+```python
+Coop().get_human_survey_events(human_survey_uuid, page=page, page_size=page_size)
+Coop().get_all_human_survey_events(human_survey_uuid, page_size=page_size)
+```
+
+Flags:
+
+| Flag | Type | Required | Description |
+|------|------|----------|-------------|
+| `--page` | int | no | Page number, default 1. Ignored with `--all` |
+| `--page_size` | int | no | Events per page, default 100, at most 200 |
+| `--all` | flag | no | Fetch every page. Requires `--output` |
+| `--output`, `-o` | path | no | Save events to `.json` (an array) or `.jsonl` (one event per line) |
+
+Without `--output`, one page is printed in the envelope:
+`{"events", "total", "page", "page_size", "total_pages"}`. With `--output`, the events
+are written to the file and the envelope carries `saved_to`, `format` and `event_count`
+instead.
+
+`--all` requires `--output` because payloads hold whatever an author's script logged,
+which can be sensitive; a whole log is written to a file rather than printed.
 
 ## Deferred Command Groups
 

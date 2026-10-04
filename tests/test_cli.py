@@ -3051,6 +3051,7 @@ class TestHumanizeCli:
             "preview",
             "respondents",
             "links",
+            "events",
             "schedules",
             "deliveries",
             "callbacks",
@@ -3058,6 +3059,7 @@ class TestHumanizeCli:
             "agent-access",
             "schema",
             "css",
+            "custom-js-access",
             "assets",
             "prolific",
         ]
@@ -4588,6 +4590,252 @@ class TestHumanizeCli:
         assert json.loads(schema_result.output)["data"]["humanize_schema"]["questions"]["q0"]["optional"] is True
         assert json.loads(css_result.output)["data"]["message"] == "updated"
         assert json.loads(respondents_result.output)["data"]["respondents"][0]["respondent_uuid"] == "resp-uuid"
+
+    def _js_survey_path(self, tmp_path):
+        from edsl.questions import QuestionCompute, QuestionFreeText
+        from edsl.surveys import Survey
+
+        survey_path = tmp_path / "survey.json"
+        survey = Survey(
+            [
+                QuestionFreeText(question_name="feedback", question_text="Any feedback?"),
+                QuestionCompute(question_name="total", question_text="{{ 1 + 1 }}"),
+            ]
+        )
+        survey_path.write_text(json.dumps(survey.to_dict()), encoding="utf-8")
+        return survey_path
+
+    def test_humanize_schema_create_javascript(self, tmp_path):
+        script_path = tmp_path / "feedback.js"
+        script_path.write_text("ep.log('shown');\n", encoding="utf-8")
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            [
+                "humanize", "schema", "create",
+                "--survey", str(self._js_survey_path(tmp_path)),
+                "--javascript", f"feedback:question.ready={script_path}",
+            ],
+        )
+
+        assert result.exit_code == 0, result.output
+        schema = json.loads(result.output)["data"]["schema"]
+        assert schema["questions"]["feedback"]["javascript"] == {
+            "hooks": {"question.ready": "ep.log('shown');\n"}
+        }
+
+    def test_humanize_schema_create_javascript_on_compute_fails_validation(self, tmp_path):
+        script_path = tmp_path / "total.js"
+        script_path.write_text("ep.log('shown');", encoding="utf-8")
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            [
+                "humanize", "schema", "create",
+                "--survey", str(self._js_survey_path(tmp_path)),
+                "--javascript", f"total:question.ready={script_path}",
+            ],
+        )
+
+        assert result.exit_code == cli_module.EXIT_VALIDATION, result.output
+
+    @pytest.mark.parametrize(
+        "spec, exit_code",
+        [
+            ("feedback={path}", "EXIT_USAGE"),
+            ("feedback:={path}", "EXIT_USAGE"),
+            (":question.ready={path}", "EXIT_USAGE"),
+            ("feedback:question.submit={path}", "EXIT_VALIDATION"),
+        ],
+    )
+    def test_humanize_schema_create_javascript_needs_a_known_hook(
+        self, tmp_path, spec, exit_code
+    ):
+        script_path = tmp_path / "feedback.js"
+        script_path.write_text("ep.log('shown');", encoding="utf-8")
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            [
+                "humanize", "schema", "create",
+                "--survey", str(self._js_survey_path(tmp_path)),
+                "--javascript", spec.format(path=script_path),
+            ],
+        )
+
+        assert result.exit_code == getattr(cli_module, exit_code), result.output
+
+    @pytest.mark.parametrize("contents", [None, "  \n"])
+    def test_humanize_schema_create_javascript_rejects_missing_or_empty_file(
+        self, tmp_path, contents
+    ):
+        script_path = tmp_path / "feedback.js"
+        if contents is not None:
+            script_path.write_text(contents, encoding="utf-8")
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            [
+                "humanize", "schema", "create",
+                "--survey", str(self._js_survey_path(tmp_path)),
+                "--javascript", f"feedback:question.ready={script_path}",
+            ],
+        )
+
+        assert result.exit_code == cli_module.EXIT_USAGE, result.output
+
+    def test_humanize_schema_set_javascript_and_clear(self, tmp_path, monkeypatch):
+        import edsl.coop
+
+        script_path = tmp_path / "feedback.js"
+        script_path.write_text("ep.log('shown');", encoding="utf-8")
+        patches = []
+
+        class FakeCoop:
+            def patch_human_survey_humanize_schema(self, human_survey_uuid, partial_schema):
+                patches.append(partial_schema)
+                return {"message": "updated"}
+
+        monkeypatch.setattr(edsl.coop, "Coop", FakeCoop)
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            [
+                "humanize", "schema", "set", "human-survey-uuid",
+                "--javascript", f"feedback:question.ready={script_path}",
+                "--clear-javascript", "intro",
+            ],
+        )
+
+        assert result.exit_code == 0, result.output
+        assert patches == [
+            {
+                "questions": {
+                    "feedback": {
+                        "javascript": {"hooks": {"question.ready": "ep.log('shown');"}}
+                    },
+                    "intro": {"javascript": None},
+                }
+            }
+        ]
+
+    def test_humanize_schema_set_javascript_and_clear_same_question(self, tmp_path, monkeypatch):
+        import edsl.coop
+
+        script_path = tmp_path / "feedback.js"
+        script_path.write_text("ep.log('shown');", encoding="utf-8")
+
+        class FakeCoop:
+            def patch_human_survey_humanize_schema(self, human_survey_uuid, partial_schema):
+                raise AssertionError("nothing should be sent")
+
+        monkeypatch.setattr(edsl.coop, "Coop", FakeCoop)
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            [
+                "humanize", "schema", "set", "human-survey-uuid",
+                "--javascript", f"feedback:question.ready={script_path}",
+                "--clear-javascript", "feedback",
+            ],
+        )
+
+        assert result.exit_code == cli_module.EXIT_USAGE, result.output
+
+    @pytest.mark.parametrize("allowed", [True, False])
+    def test_humanize_custom_js_access(self, monkeypatch, allowed):
+        import edsl.coop
+
+        class FakeCoop:
+            def get_custom_js_access(self):
+                return allowed
+
+        monkeypatch.setattr(edsl.coop, "Coop", FakeCoop)
+
+        result = CliRunner().invoke(cli_module.app, ["humanize", "custom-js-access"])
+
+        assert result.exit_code == 0, result.output
+        data = json.loads(result.output)["data"]
+        assert data["custom_js_allowed"] is allowed
+        assert ("next_step" in data) is not allowed
+
+    def _events_coop(self, monkeypatch):
+        import edsl.coop
+
+        events = [{"id": "e2", "event_name": "b"}, {"id": "e1", "event_name": "a"}]
+
+        class FakeCoop:
+            def get_human_survey_events(self, human_survey_uuid, page=1, page_size=100):
+                assert human_survey_uuid == "human-survey-uuid"
+                return {
+                    "events": events,
+                    "total": 2,
+                    "page": page,
+                    "page_size": page_size,
+                    "total_pages": 1,
+                }
+
+            def get_all_human_survey_events(self, human_survey_uuid, page_size=200):
+                assert human_survey_uuid == "human-survey-uuid"
+                return events
+
+        monkeypatch.setattr(edsl.coop, "Coop", FakeCoop)
+        return events
+
+    def test_humanize_events_prints_one_page(self, monkeypatch):
+        events = self._events_coop(monkeypatch)
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            ["humanize", "events", "human-survey-uuid", "--page", "2", "--page_size", "5"],
+        )
+
+        assert result.exit_code == 0, result.output
+        data = json.loads(result.output)["data"]
+        assert data["events"] == events
+        assert (data["page"], data["page_size"]) == (2, 5)
+
+    @pytest.mark.parametrize("suffix", [".json", ".jsonl"])
+    def test_humanize_events_all_saves_every_event(self, tmp_path, monkeypatch, suffix):
+        events = self._events_coop(monkeypatch)
+        output_path = tmp_path / f"events{suffix}"
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            ["humanize", "events", "human-survey-uuid", "--all", "--output", str(output_path)],
+        )
+
+        assert result.exit_code == 0, result.output
+        data = json.loads(result.output)["data"]
+        assert data["event_count"] == 2
+        assert "events" not in data
+        text = output_path.read_text(encoding="utf-8")
+        if suffix == ".jsonl":
+            assert [json.loads(line) for line in text.splitlines()] == events
+        else:
+            assert json.loads(text) == events
+
+    def test_humanize_events_all_requires_output(self, monkeypatch):
+        self._events_coop(monkeypatch)
+
+        result = CliRunner().invoke(
+            cli_module.app, ["humanize", "events", "human-survey-uuid", "--all"]
+        )
+
+        assert result.exit_code == cli_module.EXIT_USAGE, result.output
+
+    def test_humanize_events_rejects_other_output_formats(self, tmp_path, monkeypatch):
+        self._events_coop(monkeypatch)
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            [
+                "humanize", "events", "human-survey-uuid",
+                "--output", str(tmp_path / "events.csv"),
+            ],
+        )
+
+        assert result.exit_code == cli_module.EXIT_USAGE, result.output
 
     def test_humanize_links_exports_csv_without_printing_tokens(self, tmp_path, monkeypatch):
         from edsl.dataset import Dataset

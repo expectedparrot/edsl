@@ -446,6 +446,7 @@ def register(humanize: click.Group) -> None:
     @click.option("--checklist-hidden", "hidden_checklist_questions", multiple=True, help="Question whose checklist is hidden from participants.")
     @click.option("--checklist-visible", "visible_checklist_questions", multiple=True, help="Question whose checklist is visible to participants.")
     @click.option("--custom-css", "custom_css_path", default=None, type=click.Path(exists=True), help="CSS file to store in survey.custom_css.")
+    @click.option("--javascript", "javascript_specs", multiple=True, help="QUESTION:HOOK=FILE JavaScript file to run on a question hook, e.g. rating:question.ready=rating.js. Repeat for multiple questions or hooks.")
     @click.option("--logo-asset", "logo_asset", default=None, help="Asset UUID to show as the survey's logo. Upload one with 'ep humanize assets upload'.")
     @click.option("--logo-file", "logo_file", default=None, type=click.Path(exists=True), help="Not available here: upload with 'ep humanize assets upload', then pass --logo-asset.")
     @click.option("--logo-alt", "logo_alt", default=None, help="Alt text naming the organization the logo identifies, e.g. \"Acme Research logo\".")
@@ -470,6 +471,7 @@ def register(humanize: click.Group) -> None:
         hidden_checklist_questions,
         visible_checklist_questions,
         custom_css_path,
+        javascript_specs,
         logo_asset,
         logo_file,
         logo_alt,
@@ -485,6 +487,7 @@ def register(humanize: click.Group) -> None:
           ep humanize schema create --survey survey.ep --slider age:18:99:1 --output humanize.json
           ep humanize schema create --survey survey.ep --interview-mode interview=both --voice-language interview=spanish
           ep humanize schema create --survey survey.ep --logo-asset <asset-uuid> --logo-alt "Acme Research logo"
+          ep humanize schema create --survey survey.ep --javascript rating:question.ready=rating.js --output humanize.json
         """
         _validate_logo_flags(
             allow_logo_file=False,
@@ -516,6 +519,7 @@ def register(humanize: click.Group) -> None:
                 hidden_checklist_questions=hidden_checklist_questions,
                 visible_checklist_questions=visible_checklist_questions,
                 custom_css_path=custom_css_path,
+                javascript_specs=javascript_specs,
                 logo_asset=logo_asset,
                 logo_alt=logo_alt,
                 logo_decorative=logo_decorative,
@@ -696,6 +700,94 @@ def register(humanize: click.Group) -> None:
             )
 
 
+    @humanize.command("events")
+    @click.argument("human_survey_uuid")
+    @click.option("--page", default=1, type=int, help="Page number. Ignored with --all.")
+    @click.option("--page_size", default=100, type=int, help="Events per page, at most 200.")
+    @click.option("--all", "fetch_all", is_flag=True, default=False, help="Fetch every page. Requires --output.")
+    @click.option("--output", "-o", "output_path", default=None, type=click.Path(dir_okay=False), help="Save events to a .json or .jsonl file.")
+    def humanize_events(human_survey_uuid, page, page_size, fetch_all, output_path):
+        """Get the events a human survey's custom JavaScript logged, newest first.
+
+        Events from preview links are included and marked is_preview.
+
+        \b
+        Examples:
+          ep humanize events <uuid>
+          ep humanize events <uuid> --page 2 --page_size 200
+          ep humanize events <uuid> --all --output events.jsonl
+        """
+        # Payloads hold whatever an author's script chose to log, which can be
+        # sensitive, so a whole log goes to a file rather than the terminal.
+        if fetch_all and not output_path:
+            _humanize_usage_error("--all requires --output.")
+        file_format = _events_file_format(output_path) if output_path else None
+        try:
+            from edsl.coop import Coop
+
+            coop = Coop()
+            if fetch_all:
+                events = coop.get_all_human_survey_events(
+                    human_survey_uuid, page_size=page_size
+                )
+                data = {"human_survey_uuid": human_survey_uuid}
+            else:
+                content = coop.get_human_survey_events(
+                    human_survey_uuid, page=page, page_size=page_size
+                )
+                if not output_path:
+                    output(jsonable(content))
+                    return
+                events = content.get("events") or []
+                data = {
+                    "human_survey_uuid": human_survey_uuid,
+                    "page": content.get("page"),
+                    "total_pages": content.get("total_pages"),
+                    "total": content.get("total"),
+                }
+            _write_events(events, output_path, file_format)
+            data.update({
+                "saved_to": output_path,
+                "format": file_format,
+                "event_count": len(events),
+            })
+            output(data)
+        except SystemExit:
+            raise
+        except Exception as e:
+            error(
+                "HUMANIZE_ERROR",
+                str(e),
+                suggestion="Check the human survey UUID, output path, and Expected Parrot API key.",
+                exit_code=EXIT_REMOTE,
+            )
+
+
+    @humanize.command("custom-js-access")
+    def humanize_custom_js_access():
+        """Check whether your account may use custom JavaScript in a humanize schema."""
+        try:
+            from edsl.coop import Coop
+
+            allowed = Coop().get_custom_js_access()
+            data = {"custom_js_allowed": allowed}
+            if not allowed:
+                data["next_step"] = (
+                    "Custom JavaScript is available on approved accounts only. "
+                    "Email info@expectedparrot.com to request access."
+                )
+            output(data)
+        except SystemExit:
+            raise
+        except Exception as e:
+            error(
+                "HUMANIZE_ERROR",
+                str(e),
+                suggestion="Check your Expected Parrot API key with 'ep auth status'.",
+                exit_code=EXIT_REMOTE,
+            )
+
+
     @humanize_schema.command("get")
     @click.argument("human_survey_uuid")
     @click.option("--out", "out_path", default=None, type=click.Path(), help="Write the schema to this file instead of stdout. Use a .json.gz suffix for gzip.")
@@ -757,6 +849,8 @@ def register(humanize: click.Group) -> None:
     @click.option("--checklist-hidden", "hidden_checklist_questions", multiple=True, help="Question whose checklist is hidden from participants.")
     @click.option("--checklist-visible", "visible_checklist_questions", multiple=True, help="Question whose checklist is visible to participants.")
     @click.option("--custom-css", "custom_css_path", default=None, type=click.Path(exists=True), help="CSS file to store in survey.custom_css.")
+    @click.option("--javascript", "javascript_specs", multiple=True, help="QUESTION:HOOK=FILE JavaScript file to run on a question hook, e.g. rating:question.ready=rating.js. Repeat for multiple questions or hooks.")
+    @click.option("--clear-javascript", "clear_javascript_questions", multiple=True, help="Question whose JavaScript to remove. Repeat for multiple questions.")
     @click.option("--logo-asset", "logo_asset", default=None, help="Asset UUID to show as the survey's logo. Upload one with 'ep humanize assets upload'.")
     @click.option("--logo-file", "logo_file", default=None, type=click.Path(exists=True), help="Image to upload and use as the logo, in one step.")
     @click.option("--logo-alt", "logo_alt", default=None, help="Alt text naming the organization the logo identifies, e.g. \"Acme Research logo\".")
@@ -784,6 +878,8 @@ def register(humanize: click.Group) -> None:
         hidden_checklist_questions,
         visible_checklist_questions,
         custom_css_path,
+        javascript_specs,
+        clear_javascript_questions,
         logo_asset,
         logo_file,
         logo_alt,
@@ -798,6 +894,8 @@ def register(humanize: click.Group) -> None:
           ep humanize schema set <uuid> --schema humanize.json
           ep humanize schema set <uuid> --optional feedback --comment rating="Why?"
           ep humanize schema set <uuid> --survey survey.ep --format rating=dropdown
+          ep humanize schema set <uuid> --javascript rating:question.ready=rating.js
+          ep humanize schema set <uuid> --clear-javascript rating
         """
         if schema_path is None and not _has_humanize_schema_controls(
             optional_questions,
@@ -816,6 +914,8 @@ def register(humanize: click.Group) -> None:
             hidden_checklist_questions,
             visible_checklist_questions,
             custom_css_path,
+            javascript_specs,
+            clear_javascript_questions,
             logo_asset,
             logo_file,
             logo_alt,
@@ -865,6 +965,8 @@ def register(humanize: click.Group) -> None:
                 hidden_checklist_questions=hidden_checklist_questions,
                 visible_checklist_questions=visible_checklist_questions,
                 custom_css_path=custom_css_path,
+                javascript_specs=javascript_specs,
+                clear_javascript_questions=clear_javascript_questions,
                 logo_asset=logo_asset,
                 logo_alt=logo_alt,
                 logo_decorative=logo_decorative,
@@ -2040,6 +2142,8 @@ def register(humanize: click.Group) -> None:
         hidden_checklist_questions,
         visible_checklist_questions,
         custom_css_path,
+        javascript_specs=(),
+        clear_javascript_questions=(),
         logo_asset=None,
         logo_alt=None,
         logo_decorative=False,
@@ -2065,6 +2169,8 @@ def register(humanize: click.Group) -> None:
             hidden_checklist_questions,
             visible_checklist_questions,
             custom_css_path,
+            javascript_specs,
+            clear_javascript_questions,
             logo_asset,
             logo_alt,
             logo_decorative,
@@ -2164,6 +2270,25 @@ def register(humanize: click.Group) -> None:
 
         if custom_css_path:
             schema.setdefault("survey", {})["custom_css"] = Path(custom_css_path).read_text(encoding="utf-8")
+
+        scripted = set()
+        for question_name, hook, script_path in _parse_javascript_specs(javascript_specs):
+            # The hook is named even though "question.ready" is the only one today, so
+            # the flag does not change shape when a second one exists. Whether it is a
+            # known hook is left to schema validation, which has the list.
+            entry = _question_entry(questions, question_name)
+            if not isinstance(entry.get("javascript"), dict):
+                entry["javascript"] = {}
+            entry["javascript"].setdefault("hooks", {})[hook] = _read_javascript_file(
+                script_path
+            )
+            scripted.add(question_name)
+        for question_name in clear_javascript_questions:
+            if question_name in scripted:
+                _humanize_usage_error(
+                    f"--javascript and --clear-javascript both name {question_name!r}."
+                )
+            _question_entry(questions, question_name)["javascript"] = None
 
         _apply_logo_controls(
             schema,
@@ -2370,6 +2495,52 @@ def register(humanize: click.Group) -> None:
 
     def _humanize_usage_error(message: str) -> None:
         error("USAGE_ERROR", message, exit_code=EXIT_USAGE)
+
+
+    def _parse_javascript_specs(specs) -> list[tuple[str, str, str]]:
+        parsed = []
+        for key, path in _parse_key_value_specs(specs, "--javascript"):
+            question_name, _, hook = key.partition(":")
+            question_name, hook = question_name.strip(), hook.strip()
+            if not question_name or not hook:
+                _humanize_usage_error(
+                    "--javascript must be formatted as QUESTION:HOOK=FILE, "
+                    "e.g. rating:question.ready=rating.js."
+                )
+            parsed.append((question_name, hook, path))
+        return parsed
+
+
+    def _read_javascript_file(path: str) -> str:
+        script = Path(path)
+        if not script.is_file():
+            _humanize_usage_error(f"--javascript file not found: {path}")
+        source = script.read_text(encoding="utf-8")
+        if not source.strip():
+            _humanize_usage_error(f"--javascript file is empty: {path}")
+        return source
+
+
+    def _events_file_format(path: str) -> str:
+        name = Path(path).name.lower()
+        if name.endswith(".jsonl"):
+            return "jsonl"
+        if name.endswith(".json"):
+            return "json"
+        _humanize_usage_error("--output must end in .json or .jsonl.")
+
+
+    def _write_events(events: list, path: str, file_format: str) -> None:
+        target = Path(path)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        if file_format == "jsonl":
+            text = "".join(
+                json.dumps(event, ensure_ascii=False, default=str) + "\n"
+                for event in events
+            )
+        else:
+            text = json.dumps(events, indent=2, ensure_ascii=False, default=str)
+        target.write_text(text, encoding="utf-8")
 
 
     def _check_asset_file(path: str) -> None:
