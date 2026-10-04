@@ -61,6 +61,7 @@ class ExecutionResult:
     resolution_draw: Any = None
     resolution_seed: int | None = None
     resolution_method: str | None = None
+    response_metadata: dict | None = None
 
 
 class ExecutionWorker:
@@ -188,6 +189,7 @@ class ExecutionWorker:
                         resolution_draw=result.resolution_draw,
                         resolution_seed=result.resolution_seed,
                         resolution_method=result.resolution_method,
+                        response_metadata=result.response_metadata,
                     )
                 else:
                     self._job_service.on_task_failed(
@@ -210,6 +212,7 @@ class ExecutionWorker:
                         cache_key=result.cache_key,
                         validated=result.validated,
                         reasoning_summary=result.reasoning_summary,
+                        response_metadata=result.response_metadata,
                     )
         finally:
             # Unregister on shutdown
@@ -255,6 +258,8 @@ class ExecutionWorker:
         input_tokens = output_tokens = thinking_tokens = None
         raw_response = cache_key = input_price = output_price = None
         cached = False
+        failure_stage = "model_setup"
+        from ..language_models.response_metadata import response_metadata
 
         try:
             # Reconstruct the model object from stored data
@@ -279,6 +284,7 @@ class ExecutionWorker:
 
             # Use model.async_get_response() like InvigilatorAI does
             # Pass iteration for cache key differentiation when n > 1
+            failure_stage = "model_response"
             response = await model.async_get_response(
                 user_prompt=task.user_prompt,
                 system_prompt=task.system_prompt,
@@ -321,6 +327,7 @@ class ExecutionWorker:
                 model_outputs, "output_price_per_million_tokens", None
             )
             thinking_tokens = getattr(model_outputs, "thinking_tokens", None)
+            failure_stage = "validation"
 
             # Validate answer through question's validator (handles repair/fix)
             (
@@ -359,10 +366,56 @@ class ExecutionWorker:
                 resolution_draw=resolution_draw,
                 resolution_seed=resolution_seed,
                 resolution_method=resolution_method,
+                response_metadata={
+                    **response_metadata(raw_response),
+                    "provider_calls_attempted": int(not cached),
+                },
             )
 
         except Exception as e:
+            # Model parsing failed before async_get_response could return its
+            # envelope. Recover the original provider evidence attached there.
+            outputs = getattr(e, "model_outputs", None)
+            if outputs is not None:
+                response_received = True
+                raw_response = outputs.response
+                input_tokens = outputs.input_tokens
+                output_tokens = outputs.output_tokens
+                thinking_tokens = outputs.thinking_tokens
+                cache_key = outputs.cache_key
+                cached = outputs.cache_used
+                input_price = outputs.input_price_per_million_tokens
+                output_price = outputs.output_price_per_million_tokens
+                failure_stage = "model_response"
+                try:
+                    generated_tokens = (
+                        model.response_handler.get_generated_token_string(raw_response)
+                    )
+                except Exception:
+                    pass
+            cache_key = cache_key or getattr(e, "cache_key", None)
+            metadata = response_metadata(raw_response)
             error_type = self._classify_error(e)
+            if metadata.get("truncated"):
+                error_type = "output_token_limit"
+            metadata.update(
+                {
+                    "provider_calls_attempted": (
+                        int(not cached)
+                        if response_received
+                        else (
+                            int(e.provider_call_attempted)
+                            if hasattr(e, "provider_call_attempted")
+                            else 0 if failure_stage == "model_setup" else None
+                        )
+                    ),
+                    "failure": {
+                        "stage": failure_stage,
+                        "code": error_type.upper(),
+                        "message": str(e),
+                    },
+                }
+            )
             logger.error(
                 f"[TASK FAILED] task={task.task_id[:8]}... "
                 f"type={error_type} error={e!r}"
@@ -379,16 +432,17 @@ class ExecutionWorker:
                 raw_model_response=raw_response,
                 generated_tokens=generated_tokens,
                 cached=cached,
-                system_prompt=task.system_prompt if response_received else None,
-                user_prompt=task.user_prompt if response_received else None,
+                system_prompt=task.system_prompt,
+                user_prompt=task.user_prompt,
                 input_price_per_million_tokens=input_price,
                 output_price_per_million_tokens=output_price,
                 thinking_tokens=thinking_tokens,
                 cache_key=cache_key,
-                validated=False if response_received else None,
+                validated=False,
                 reasoning_summary=reasoning_summary,
                 error_type=error_type,
                 error_message=str(e),
+                response_metadata=metadata,
             )
 
     async def _execute_via_invigilator(
@@ -663,6 +717,15 @@ class ExecutionWorker:
 
     def _classify_error(self, error: Exception) -> str:
         """Classify an error into a type."""
+        from ..language_models.exceptions import (
+            OutputTokenLimitError,
+            LanguageModelBadResponseError,
+        )
+
+        if isinstance(error, OutputTokenLimitError):
+            return "output_token_limit"
+        if isinstance(error, LanguageModelBadResponseError):
+            return "parse_error"
         if isinstance(error, QuestionAnswerValidationError):
             return "validation_error"
 

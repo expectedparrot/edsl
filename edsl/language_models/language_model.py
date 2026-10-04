@@ -246,6 +246,18 @@ class LanguageModel(
         # Set up model parameters by combining defaults with provided values
         default_parameters = getattr(self, "_parameters_", None)
         parameters = self._overide_default_parameters(kwargs, default_parameters)
+        from .output_token_policy import (
+            TOKEN_LIMIT_PARAMETERS,
+            resolve_output_token_limit,
+        )
+
+        supplied = kwargs.get("parameters", kwargs)
+        if self._inference_service_ != "test":
+            for name in TOKEN_LIMIT_PARAMETERS:
+                if name in parameters and name not in supplied:
+                    parameters[name] = resolve_output_token_limit(
+                        self.model, parameters=parameters
+                    )
         self.parameters = parameters
 
         # Warn about unknown parameters
@@ -978,7 +990,12 @@ class LanguageModel(
             TIMEOUT = self._compute_timeout(files_list)
 
             # Execute the model call with timeout
-            response = await asyncio.wait_for(f(**params), timeout=TIMEOUT)
+            try:
+                response = await asyncio.wait_for(f(**params), timeout=TIMEOUT)
+            except Exception as exc:
+                exc.provider_call_attempted = True
+                exc.cache_key = cache_key
+                raise
 
             # Store the response in the cache
             new_cache_key = cache.store(
@@ -1100,10 +1117,17 @@ class LanguageModel(
         )
 
         # Parse the response into EDSL's standard format
-        edsl_dict: EDSLOutput = self.parse_response(
-            model_outputs.response,
-            is_free_text=is_free_text,
-        )
+        try:
+            edsl_dict: EDSLOutput = self.parse_response(
+                model_outputs.response,
+                is_free_text=is_free_text,
+            )
+        except Exception as exc:
+            # Parsing can fail after a billable response. Keep evidence for the
+            # runner rather than letting the failed interview become an empty row.
+            exc.model_outputs = model_outputs
+            exc.provider_call_attempted = not model_outputs.cache_used
+            raise
 
         # Combine everything into a complete response object
         agent_response_dict = AgentResponseDict(
