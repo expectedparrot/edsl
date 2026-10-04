@@ -177,7 +177,8 @@ def test_cached_exhaustion_does_not_count_a_new_provider_call(monkeypatch):
     )
 
 
-def test_old_placeholder_is_not_reported_as_success():
+@pytest.mark.parametrize("answer", [None, "", "  "])
+def test_old_placeholder_is_not_reported_as_success(answer):
     from edsl import Agent, Scenario, Survey
     from edsl.results import Result
 
@@ -186,7 +187,7 @@ def test_old_placeholder_is_not_reported_as_success():
         scenario=Scenario(),
         model=Model("test"),
         iteration=0,
-        answer={"q": None},
+        answer={"q": answer},
     )
     results = Results(
         survey=Survey([QuestionFreeText(question_name="q", question_text="Hi")]),
