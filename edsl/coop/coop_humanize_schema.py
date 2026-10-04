@@ -457,6 +457,7 @@ class DistributionHumanizeSchema(HumanizeSchemaBase):
     )
     # None: no summary.
     distribution_summary: Optional[DistributionSummary] = None
+    javascript: Optional[QuestionJavaScript] = None
 
 
 class SelectAllControl(HumanizeSchemaBase):

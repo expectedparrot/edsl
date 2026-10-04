@@ -375,9 +375,9 @@ Each `questions[question_name]` value is a `HumanizeQuestionSchema` object.
 </ParamField>
 
 <ParamField path="javascript" type="dict" required={false}>
-  Optional JavaScript that runs on the respondent's page for this question. Omit or set to `null` to run no script.
+  Optional JavaScript that runs on the respondent's page for this question. Omit or set to `null` to run no script. See [Custom JavaScript](/en/latest/custom_javascript) for how to write a hook, what a script may do, and how to retrieve the events it logs.
 
-  **Supported question types:** `free_text`, `budget`, `checkbox`, `checkbox_with_other`, `file_upload`, `interview`, `likert_five`, `linear_scale`, `list`, `matrix`, `multiple_choice`, `multiple_choice_with_other`, `numerical`, `rank`, `top_k`, `yes_no`, `survey_message`.
+  **Supported question types:** `free_text`, `budget`, `checkbox`, `checkbox_with_other`, `distribution`, `file_upload`, `interview`, `likert_five`, `linear_scale`, `list`, `matrix`, `multiple_choice`, `multiple_choice_with_other`, `numerical`, `rank`, `top_k`, `yes_no`, `survey_message`.
 
   Note: not supported for `compute` or `image_generation`. Both run in the background and are dropped from the page, so there is no rendered question for a script to attach to.
 

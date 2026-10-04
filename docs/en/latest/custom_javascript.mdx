@@ -1,0 +1,151 @@
+---
+title: "Custom JavaScript"
+description: "Run your own JavaScript on a human survey's questions, and record what respondents do."
+sidebarTitle: "Custom JavaScript"
+---
+
+Custom JavaScript lets you attach a script to a question in a human survey. The script runs in the respondent's browser once the question is on the page, so you can build interactive tasks, measure timing and behaviour, and record events with the survey.
+
+<Note>
+Custom JavaScript is available on approved accounts only. Write to [info@expectedparrot.com](mailto:info@expectedparrot.com) to request access. Until your account is approved, a humanize schema that includes a script is rejected when you save it, and no part of that schema is saved.
+</Note>
+
+## Checking access
+
+```python
+from edsl import Coop
+
+coop = Coop()
+coop.get_custom_js_access()  # True once your account is approved
+```
+
+Access is per account: once yours is approved, the human surveys you create can include custom JavaScript.
+
+## Adding a script
+
+Scripts go in the humanize schema, under `questions[question_name].javascript.hooks`. A hook maps an event to the script that runs on it. The only event is `"question.ready"`, which fires once the question has been rendered and its inputs are on the page.
+
+```python
+from edsl import Survey, QuestionMultipleChoice
+
+survey = Survey([
+    QuestionMultipleChoice(
+        question_name="choice",
+        question_text="Which option do you prefer?",
+        question_options=["A", "B", "C"],
+    ),
+])
+
+time_to_first_answer = """
+const container = this.getQuestionContainer();
+const shownAt = performance.now();
+
+container.addEventListener("change", () => {
+    ep.log("first_answer", { ms: Math.round(performance.now() - shownAt) });
+}, { once: true });
+"""
+
+humanize_schema = {
+    "questions": {
+        "choice": {"javascript": {"hooks": {"question.ready": time_to_first_answer}}},
+    },
+}
+
+survey.humanize(humanize_schema=humanize_schema)
+```
+
+To add or change a script on a survey that already exists, use `Coop.patch_human_survey_humanize_schema`:
+
+```python
+coop.patch_human_survey_humanize_schema(
+    "your-human-survey-uuid",
+    {"questions": {"choice": {"javascript": {"hooks": {"question.ready": time_to_first_answer}}}}},
+)
+```
+
+Set `"javascript": None` on a question to remove its script.
+
+Most question types support `javascript`, including survey messages; see [Humanize schema](/en/latest/humanize_schema) for the list. `compute` and `image_generation` questions do not: they run in the background and never appear on the page.
+
+## Writing a hook
+
+A hook is the *body* of a function, not a function. Write the statements you want to run; don't wrap them in `function () { ... }`.
+
+Inside a hook you have:
+
+| Name | What it is |
+|---|---|
+| `this.getQuestionContainer()` | The question's element on the page. Find your question's inputs and add your own elements inside it. |
+| `context.questionName` | The name of the question the hook is running for. |
+| `context.questionType` | The question's type, for example `"multiple_choice"`. |
+| `context.isPreview` | `true` when the survey was opened through a preview link, which does not save a response. |
+| `ep.log(eventName, payload)` | Records an event with the survey. See below. |
+
+`context` carries nothing that identifies the respondent.
+
+Each question's hook runs once when that question appears. If the same script is attached to several questions, it runs once for each, and `context.questionName` tells them apart.
+
+### Recording events with `ep.log`
+
+`ep.log(eventName, payload)` records an event against the respondent's response. Use it for anything you want to analyse later: timings, clicks, which condition a respondent saw.
+
+- `eventName` must be a non-empty string. Names longer than 200 characters are cut to 200.
+- `payload` is optional and must be convertible to JSON: objects, arrays, strings, numbers, booleans and `null`. A payload that isn't (a page element, an object that refers to itself) is not recorded, and a warning appears in the browser console.
+- A payload larger than 4,000 characters, measured as JSON, is not recorded.
+- Each response records at most 10,000 events.
+
+`ep.log` returns nothing. Events are sent in batches in the background, so don't wait on it.
+
+### What a script may do
+
+Scripts can build interface inside the survey, read and write answers, control when respondents can move on, measure behaviour, randomise conditions, read parameters from the page URL, load images, audio, video and other media to show, and use the camera, microphone or location for a task the respondent is told about.
+
+A script can't be saved if it:
+
+- Loads or runs code from outside the script: a `<script>` element, a dynamic `import`, a library from a CDN, or code fetched and then run. Scripts must be self-contained, plain JavaScript that uses only the browser's built-in APIs. Loading media to show is fine.
+- Builds code at runtime, for example by passing a constructed string to `eval`, `new Function`, `setTimeout` or `setInterval`, or by inserting markup that contains a script.
+- Makes any request to Expected Parrot, or sends respondent data anywhere else. `ep.log` is how data leaves a script.
+- Reads cookies, tokens, credentials, or storage it didn't create.
+- Is obfuscated or minified so that what it does can't be read from the source.
+- Asks for passwords or payment details, or imitates a login or other dialog.
+- Collects anything unrelated to taking the survey, or uses the camera, microphone or location covertly.
+- Keeps running after the respondent has finished or left the survey.
+- Misleads or traps the respondent, for example by opening popups, preventing them from leaving, or hiding the survey's own notices.
+- Uses the respondent's device for something other than the survey.
+
+If a script can't be saved, no part of that humanize schema is saved, and the survey keeps what it had. If you think a script was refused by mistake, write to [info@expectedparrot.com](mailto:info@expectedparrot.com).
+
+### Limits
+
+- Each hook can be at most 64,000 characters, and all hooks on one question at most 256,000.
+- One save can add at most 25 different new scripts. A script used unchanged on several questions counts once, and scripts the survey already has don't count. Save larger surveys in smaller batches.
+
+## Retrieving events
+
+Use `Coop.get_all_human_survey_events` to get every event a survey has recorded, newest first:
+
+```python
+from edsl import Coop
+
+coop = Coop()
+
+events = coop.get_all_human_survey_events("your-human-survey-uuid")
+events = [e for e in events if not e["is_preview"]]
+```
+
+Events from preview links are included and marked `is_preview`, so leave them out of an analysis.
+
+To fetch one page at a time, use `Coop.get_human_survey_events`. It takes `page` (from 1) and `page_size` (at most 200), and returns `{"events", "total", "page", "page_size", "total_pages"}`.
+
+Each event includes:
+
+| Field | Description |
+|---|---|
+| `id` | The event's unique id |
+| `response_uuid` | The response the event belongs to |
+| `is_preview` | Whether the event came from a preview link |
+| `question_name` | The question whose script logged it |
+| `event_name` | The `eventName` passed to `ep.log` |
+| `payload` | The `payload` passed to `ep.log`, or `None` |
+| `client_ts` | When the respondent's browser logged it (ISO 8601, UTC) |
+| `received_at` | When Expected Parrot received it (ISO 8601, UTC) |

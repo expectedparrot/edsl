@@ -3851,6 +3851,89 @@ class Coop(CoopFunctionsMixin):
             page += 1
         return respondents
 
+    def get_human_survey_events(
+        self,
+        human_survey_uuid: Union[str, UUID],
+        *,
+        page: int = 1,
+        page_size: int = 100,
+    ) -> dict:
+        """
+        Get one page of the events a human survey's custom JavaScript logged.
+
+        Events are newest first. Events from previews are included, each marked
+        with ``is_preview``, so leave those out of an analysis.
+
+        Parameters:
+            human_survey_uuid: UUID of the human survey.
+            page: Page number, starting at 1.
+            page_size: Events per page, at most 200.
+
+        Returns:
+            dict: ``{"events": [...], "total", "page", "page_size",
+            "total_pages"}``
+
+        Example:
+            >>> coop.get_human_survey_events("your-human-survey-uuid")  # doctest: +SKIP
+        """
+        response = self._send_server_request(
+            uri=f"api/v0/human-surveys/{human_survey_uuid}/events",
+            method="GET",
+            params={"page": page, "page_size": page_size},
+        )
+        self._resolve_server_response(response)
+        data = response.json()
+        return {
+            "events": data.get("events", []),
+            "total": data.get("total"),
+            "page": data.get("page"),
+            "page_size": data.get("page_size"),
+            "total_pages": data.get("total_pages"),
+        }
+
+    def get_all_human_survey_events(
+        self,
+        human_survey_uuid: Union[str, UUID],
+        page_size: int = 200,
+    ) -> List[dict]:
+        """
+        Get every event a human survey's custom JavaScript logged, newest first.
+
+        Follows pagination. While a survey is still collecting, new events push
+        older ones onto later pages, so the same event can come back twice; it is
+        kept once, by its ``id``.
+
+        Parameters:
+            human_survey_uuid: UUID of the human survey.
+            page_size: Events fetched per request, at most 200.
+
+        Returns:
+            list[dict]: One dict per event.
+
+        Example:
+            >>> events = coop.get_all_human_survey_events("your-human-survey-uuid")  # doctest: +SKIP
+        """
+        events: List[dict] = []
+        seen: set = set()
+        page = 1
+        while True:
+            content = self.get_human_survey_events(
+                human_survey_uuid, page=page, page_size=page_size
+            )
+            batch = content.get("events") or []
+            for event in batch:
+                event_id = event.get("id")
+                if event_id is not None:
+                    if event_id in seen:
+                        continue
+                    seen.add(event_id)
+                events.append(event)
+            total_pages = content.get("total_pages") or 1
+            if not batch or page >= total_pages:
+                break
+            page += 1
+        return events
+
     def get_human_survey_respondent_links(
         self,
         human_survey_uuid: Union[str, UUID],
@@ -4339,6 +4422,28 @@ class Coop(CoopFunctionsMixin):
         from .coop_humanize_schema import validate_humanize_schema
 
         validate_humanize_schema(survey, humanize_schema)
+
+    def get_custom_js_access(self) -> bool:
+        """
+        Whether your account may use custom JavaScript in a humanize schema.
+
+        Custom JavaScript is available on approved accounts only. Access is per
+        account: once yours is approved, the human surveys you create can
+        include custom JavaScript.
+
+        Returns:
+            bool: True if your account may save surveys with custom JavaScript.
+
+        Example:
+            >>> coop.get_custom_js_access()  # doctest: +SKIP
+            False
+        """
+        response = self._send_server_request(
+            uri="api/v0/human-surveys/custom-js-access",
+            method="GET",
+        )
+        self._resolve_server_response(response)
+        return bool(response.json().get("custom_js_allowed"))
 
     def patch_human_survey_css(
         self,
