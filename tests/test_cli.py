@@ -5089,6 +5089,58 @@ class TestHumanizeCli:
             assert output_path.stat().st_mode & 0o777 == 0o600
             assert qr_path.stat().st_mode & 0o777 == 0o600
 
+    @pytest.mark.skipif(sys.platform == "win32", reason="symlinks need privileges on Windows")
+    def test_humanize_links_qr_through_a_symlink_keeps_png(self, tmp_path, monkeypatch):
+        """A .png QR path that is a symlink to a file without that extension is still
+        written as a PNG: the format follows the name asked for, not the link's target."""
+        from edsl.dataset import Dataset
+        import edsl.coop
+        import edsl.scenarios.contrib.qr_code
+
+        qr_dir = tmp_path / "qr"
+        qr_dir.mkdir()
+        archived = tmp_path / "archive" / "respondent-respondent-uuid"
+        archived.parent.mkdir()
+        archived.write_bytes(b"old")
+        qr_path = qr_dir / "respondent-respondent-uuid.png"
+        qr_path.symlink_to(archived)
+        saved_to = []
+
+        class FakeCoop:
+            def get_human_survey_respondent_links(self, *args, **kwargs):
+                return Dataset([
+                    {"respondent_uuid": ["respondent-uuid"]},
+                    {"url": ["https://example.test/respond?token=secret-token"]},
+                ])
+
+        class FakeQRCode:
+            """Picks its format from the extension, as the real image library does."""
+
+            def __init__(self, url):
+                pass
+
+            def save(self, path):
+                saved_to.append(path)
+                if not path.endswith(".png"):
+                    raise ValueError(f"unknown file extension: {path}")
+                Path(path).write_bytes(b"png")
+
+        monkeypatch.setattr(edsl.coop, "Coop", FakeCoop)
+        monkeypatch.setattr(edsl.scenarios.contrib.qr_code, "QRCode", FakeQRCode)
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            [
+                "humanize", "links", "human-survey-uuid",
+                "--output", str(tmp_path / "links.csv"), "--qr-dir", str(qr_dir),
+            ],
+        )
+
+        assert result.exit_code == 0, result.output
+        assert saved_to and saved_to[0].endswith(".png")
+        assert qr_path.is_symlink()
+        assert archived.read_bytes() == b"png"
+
     def test_humanize_schema_set_from_direct_controls(self, monkeypatch):
         import edsl.coop
 

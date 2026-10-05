@@ -81,16 +81,18 @@ def private_output(path) -> Iterator[Path]:
     file is deleted and ``path`` is left exactly as it was, so a failed write never
     erases a previous export or leaves a partial one that looks complete.
 
-    The temporary file keeps ``path``'s extension, since some writers choose the
-    format from it.
-
     A symlink is followed first, so the file it points to is replaced and the link
     keeps pointing at it -- what writing through the link would have done. Renaming
     onto the link itself would swap it for a plain file and leave its target stale.
+
+    The temporary file takes the extension of ``path`` as requested, not of the file a
+    link resolves to, since some writers choose the format from it and the requested
+    name is the format the caller asked for.
     """
-    target = Path(path).resolve()
+    requested = Path(path)
+    target = requested.resolve()
     temp = prepare_private_file(
-        target.with_name(f".{target.stem}.{secrets.token_hex(4)}.tmp{target.suffix}")
+        target.with_name(f".{target.stem}.{secrets.token_hex(4)}.tmp{requested.suffix}")
     )
     try:
         yield temp
