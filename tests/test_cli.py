@@ -4759,45 +4759,100 @@ class TestHumanizeCli:
         assert data["custom_js_allowed"] is allowed
         assert ("next_step" in data) is not allowed
 
-    def _events_coop(self, monkeypatch):
+    def _events_coop(self, monkeypatch, fail_after_batches=None):
+        """A Coop serving five events by cursor. It inherits the real cursor-following
+        loop, so --all is exercised against actual batches."""
         import edsl.coop
+        from edsl.coop.coop import Coop as RealCoop
 
-        events = [{"id": "e2", "event_name": "b"}, {"id": "e1", "event_name": "a"}]
+        events = [{"id": f"e{n}", "event_name": f"name{n}"} for n in range(1, 6)]
+        calls = []
 
-        class FakeCoop:
-            def get_human_survey_events(self, human_survey_uuid, page=1, page_size=100):
+        class FakeCoop(RealCoop):
+            def __init__(self):
+                pass
+
+            def get_human_survey_events(self, human_survey_uuid, *, after=None, limit=200):
                 assert human_survey_uuid == "human-survey-uuid"
+                calls.append((after, limit))
+                if fail_after_batches is not None and len(calls) > fail_after_batches:
+                    raise RuntimeError("connection lost")
+                ids = [event["id"] for event in events]
+                start = ids.index(after) + 1 if after else 0
+                batch = events[start : start + limit]
                 return {
-                    "events": events,
-                    "total": 2,
-                    "page": page,
-                    "page_size": page_size,
-                    "total_pages": 1,
+                    "events": batch,
+                    "next_cursor": batch[-1]["id"] if batch else after,
+                    "has_more": start + limit < len(events),
                 }
 
-            def get_all_human_survey_events(self, human_survey_uuid, page_size=200):
+            def count_human_survey_events(self, human_survey_uuid):
                 assert human_survey_uuid == "human-survey-uuid"
-                return events
+                return len(events)
 
         monkeypatch.setattr(edsl.coop, "Coop", FakeCoop)
-        return events
+        return events, calls
 
-    def test_humanize_events_prints_one_page(self, monkeypatch):
-        events = self._events_coop(monkeypatch)
+    def test_humanize_events_prints_one_batch(self, monkeypatch):
+        events, _ = self._events_coop(monkeypatch)
 
         result = CliRunner().invoke(
             cli_module.app,
-            ["humanize", "events", "human-survey-uuid", "--page", "2", "--page_size", "5"],
+            ["humanize", "events", "human-survey-uuid", "--limit", "2"],
         )
 
         assert result.exit_code == 0, result.output
         data = json.loads(result.output)["data"]
-        assert data["events"] == events
-        assert (data["page"], data["page_size"]) == (2, 5)
+        assert data["events"] == events[:2]
+        assert data["next_cursor"] == "e2"
+        assert data["has_more"] is True
 
     @pytest.mark.parametrize("suffix", [".json", ".jsonl"])
-    def test_humanize_events_all_saves_every_event(self, tmp_path, monkeypatch, suffix):
-        events = self._events_coop(monkeypatch)
+    def test_humanize_events_all_follows_the_cursor(self, tmp_path, monkeypatch, suffix):
+        events, calls = self._events_coop(monkeypatch)
+        output_path = tmp_path / f"events{suffix}"
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            [
+                "humanize", "events", "human-survey-uuid",
+                "--all", "--limit", "2", "--output", str(output_path),
+            ],
+        )
+
+        assert result.exit_code == 0, result.output
+        data = json.loads(result.output)["data"]
+        assert data["event_count"] == 5
+        assert (data["next_cursor"], data["has_more"]) == ("e5", False)
+        assert "events" not in data
+        assert [after for after, _ in calls] == [None, "e2", "e4"]
+        text = output_path.read_text(encoding="utf-8")
+        if suffix == ".jsonl":
+            assert [json.loads(line) for line in text.splitlines()] == events
+        else:
+            assert json.loads(text) == events
+        assert list(tmp_path.iterdir()) == [output_path]
+
+    def test_humanize_events_all_after_fetches_only_newer(self, tmp_path, monkeypatch):
+        events, _ = self._events_coop(monkeypatch)
+        output_path = tmp_path / "new.jsonl"
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            [
+                "humanize", "events", "human-survey-uuid",
+                "--all", "--after", "e3", "--output", str(output_path),
+            ],
+        )
+
+        assert result.exit_code == 0, result.output
+        lines = output_path.read_text(encoding="utf-8").splitlines()
+        assert [json.loads(line) for line in lines] == events[3:]
+
+    @pytest.mark.parametrize("suffix", [".json", ".jsonl"])
+    def test_humanize_events_all_with_no_events(self, tmp_path, monkeypatch, suffix):
+        events, _ = self._events_coop(monkeypatch)
+        events.clear()
         output_path = tmp_path / f"events{suffix}"
 
         result = CliRunner().invoke(
@@ -4806,20 +4861,60 @@ class TestHumanizeCli:
         )
 
         assert result.exit_code == 0, result.output
-        data = json.loads(result.output)["data"]
-        assert data["event_count"] == 2
-        assert "events" not in data
+        assert json.loads(result.output)["data"]["event_count"] == 0
         text = output_path.read_text(encoding="utf-8")
-        if suffix == ".jsonl":
-            assert [json.loads(line) for line in text.splitlines()] == events
+        if suffix == ".json":
+            assert json.loads(text) == []
         else:
-            assert json.loads(text) == events
+            assert text == ""
+
+    def test_humanize_events_failed_download_leaves_no_file(self, tmp_path, monkeypatch):
+        """A file that stopped part way would look like the whole log."""
+        self._events_coop(monkeypatch, fail_after_batches=1)
+        output_path = tmp_path / "events.jsonl"
+        output_path.write_text("previous export\n", encoding="utf-8")
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            [
+                "humanize", "events", "human-survey-uuid",
+                "--all", "--limit", "2", "--output", str(output_path),
+            ],
+        )
+
+        assert result.exit_code == cli_module.EXIT_REMOTE, result.output
+        assert output_path.read_text(encoding="utf-8") == "previous export\n"
+        assert list(tmp_path.iterdir()) == [output_path]
 
     def test_humanize_events_all_requires_output(self, monkeypatch):
         self._events_coop(monkeypatch)
 
         result = CliRunner().invoke(
             cli_module.app, ["humanize", "events", "human-survey-uuid", "--all"]
+        )
+
+        assert result.exit_code == cli_module.EXIT_USAGE, result.output
+
+    def test_humanize_events_count(self, monkeypatch):
+        _, calls = self._events_coop(monkeypatch)
+
+        result = CliRunner().invoke(
+            cli_module.app, ["humanize", "events", "human-survey-uuid", "--count"]
+        )
+
+        assert result.exit_code == 0, result.output
+        assert json.loads(result.output)["data"]["total"] == 5
+        assert calls == []
+
+    def test_humanize_events_count_rejects_fetch_options(self, tmp_path, monkeypatch):
+        self._events_coop(monkeypatch)
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            [
+                "humanize", "events", "human-survey-uuid",
+                "--count", "--all", "--output", str(tmp_path / "events.jsonl"),
+            ],
         )
 
         assert result.exit_code == cli_module.EXIT_USAGE, result.output

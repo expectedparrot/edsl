@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import gzip
 import json
+import os
 import re
 from pathlib import Path
 from typing import Optional
@@ -708,21 +709,26 @@ def register(humanize: click.Group) -> None:
 
     @humanize.command("events")
     @click.argument("human_survey_uuid")
-    @click.option("--page", default=1, type=int, help="Page number. Ignored with --all.")
-    @click.option("--page_size", default=100, type=int, help="Events per page, at most 200.")
-    @click.option("--all", "fetch_all", is_flag=True, default=False, help="Fetch every page. Requires --output.")
+    @click.option("--after", default=None, help="Only events after this event id, e.g. the next_cursor from an earlier run.")
+    @click.option("--limit", default=200, type=int, help="Events per request, at most 200.")
+    @click.option("--all", "fetch_all", is_flag=True, default=False, help="Fetch every event, not one batch. Requires --output.")
     @click.option("--output", "-o", "output_path", default=None, type=click.Path(dir_okay=False), help="Save events to a .json or .jsonl file.")
-    def humanize_events(human_survey_uuid, page, page_size, fetch_all, output_path):
-        """Get the events a human survey's custom JavaScript logged, newest first.
+    @click.option("--count", "count_only", is_flag=True, default=False, help="Print how many events the survey has, and fetch none.")
+    def humanize_events(human_survey_uuid, after, limit, fetch_all, output_path, count_only):
+        """Get the events a human survey's custom JavaScript logged, oldest first.
 
-        Events from preview links are included and marked is_preview.
+        Events from preview links are included and marked is_preview. Each result
+        carries next_cursor: pass it back as --after to get only newer events.
 
         \b
         Examples:
           ep humanize events <uuid>
-          ep humanize events <uuid> --page 2 --page_size 200
           ep humanize events <uuid> --all --output events.jsonl
+          ep humanize events <uuid> --all --after <next_cursor> --output new.jsonl
+          ep humanize events <uuid> --count
         """
+        if count_only and (fetch_all or output_path or after):
+            _humanize_usage_error("--count cannot be combined with --all, --after or --output.")
         # Payloads hold whatever an author's script chose to log, which can be
         # sensitive, so a whole log goes to a file rather than the terminal.
         if fetch_all and not output_path:
@@ -732,32 +738,35 @@ def register(humanize: click.Group) -> None:
             from edsl.coop import Coop
 
             coop = Coop()
+            if count_only:
+                output({
+                    "human_survey_uuid": human_survey_uuid,
+                    "total": coop.count_human_survey_events(human_survey_uuid),
+                })
+                return
             if fetch_all:
-                events = coop.get_all_human_survey_events(
-                    human_survey_uuid, page_size=page_size
+                batches = coop._iter_human_survey_event_batches(
+                    human_survey_uuid, after=after, limit=limit
                 )
-                data = {"human_survey_uuid": human_survey_uuid}
             else:
-                content = coop.get_human_survey_events(
-                    human_survey_uuid, page=page, page_size=page_size
+                batch = coop.get_human_survey_events(
+                    human_survey_uuid, after=after, limit=limit
                 )
                 if not output_path:
-                    output(jsonable(content))
+                    output(jsonable(batch))
                     return
-                events = content.get("events") or []
-                data = {
-                    "human_survey_uuid": human_survey_uuid,
-                    "page": content.get("page"),
-                    "total_pages": content.get("total_pages"),
-                    "total": content.get("total"),
-                }
-            _write_events(events, output_path, file_format)
-            data.update({
+                batches = [batch]
+            event_count, last_batch = _stream_events_to_file(
+                batches, output_path, file_format
+            )
+            output({
+                "human_survey_uuid": human_survey_uuid,
                 "saved_to": output_path,
                 "format": file_format,
-                "event_count": len(events),
+                "event_count": event_count,
+                "next_cursor": last_batch["next_cursor"] if last_batch else after,
+                "has_more": bool(last_batch and last_batch["has_more"]),
             })
-            output(data)
         except SystemExit:
             raise
         except Exception as e:
@@ -2536,18 +2545,43 @@ def register(humanize: click.Group) -> None:
         _humanize_usage_error("--output must end in .json or .jsonl.")
 
 
-    def _write_events(events: list, path: str, file_format: str) -> None:
-        # Payloads hold whatever an author's script logged, so the file is private.
-        # Written through the handle rather than built as one string first, which
-        # would hold a second full copy of the log in memory.
-        target = prepare_private_file(path)
-        with target.open("w", encoding="utf-8") as f:
-            if file_format == "jsonl":
-                for event in events:
-                    f.write(json.dumps(event, ensure_ascii=False, default=str))
-                    f.write("\n")
-            else:
-                json.dump(events, f, indent=2, ensure_ascii=False, default=str)
+    def _stream_events_to_file(batches, path: str, file_format: str):
+        """Write event batches to ``path`` as they arrive. Returns the number of
+        events written and the last batch, for its cursor.
+
+        One batch is in memory at a time, however long the log. Written to a
+        private temporary file beside ``path`` and moved into place only once every
+        batch has arrived, so a download that fails part way leaves no file that
+        looks complete -- and payloads, which can be sensitive, are never readable
+        by other users.
+        """
+        target = Path(path)
+        temp = prepare_private_file(
+            target.with_name(f".{target.name}.{os.getpid()}.part")
+        )
+        count = 0
+        last_batch = None
+        try:
+            with temp.open("w", encoding="utf-8") as f:
+                if file_format == "json":
+                    f.write("[")
+                for batch in batches:
+                    last_batch = batch
+                    for event in batch["events"]:
+                        text = json.dumps(event, ensure_ascii=False, default=str)
+                        if file_format == "jsonl":
+                            f.write(text + "\n")
+                        else:
+                            f.write(("," if count else "") + "\n  " + text)
+                        count += 1
+                if file_format == "json":
+                    f.write("\n]\n" if count else "]\n")
+            # Replaces any existing file, taking the temporary file's private mode.
+            os.replace(temp, target)
+        except BaseException:
+            temp.unlink(missing_ok=True)
+            raise
+        return count, last_batch
 
 
     def _check_asset_file(path: str) -> None:

@@ -626,32 +626,40 @@ Output:
 
 ### `edsl humanize events <human_survey_uuid>`
 
-Get the events a survey's custom JavaScript logged with `ep.log`, newest first. Events
+Get the events a survey's custom JavaScript logged with `ep.log`, oldest first. Events
 from preview links are included and marked `is_preview`.
 
 Backs onto:
 
 ```python
-Coop().get_human_survey_events(human_survey_uuid, page=page, page_size=page_size)
-Coop().get_all_human_survey_events(human_survey_uuid, page_size=page_size)
+Coop().get_human_survey_events(human_survey_uuid, after=after, limit=limit)
+Coop()._iter_human_survey_event_batches(human_survey_uuid, after=after, limit=limit)  # --all
+Coop().count_human_survey_events(human_survey_uuid)  # --count
 ```
 
 Flags:
 
 | Flag | Type | Required | Description |
 |------|------|----------|-------------|
-| `--page` | int | no | Page number, default 1. Ignored with `--all` |
-| `--page_size` | int | no | Events per page, default 100, at most 200 |
-| `--all` | flag | no | Fetch every page. Requires `--output` |
+| `--after` | event id | no | Only events after this one, e.g. a `next_cursor` from an earlier run |
+| `--limit` | int | no | Events per request, default 200, at most 200 |
+| `--all` | flag | no | Fetch every batch. Requires `--output` |
 | `--output`, `-o` | path | no | Save events to `.json` (an array) or `.jsonl` (one event per line) |
+| `--count` | flag | no | Print `{"total"}` and fetch no events. Not combinable with `--all`, `--after` or `--output` |
 
-Without `--output`, one page is printed in the envelope:
-`{"events", "total", "page", "page_size", "total_pages"}`. With `--output`, the events
-are written to the file and the envelope carries `saved_to`, `format` and `event_count`
-instead.
+Without `--output`, one batch is printed in the envelope:
+`{"events", "next_cursor", "has_more"}`. With `--output`, the events are written to the
+file and the envelope carries `saved_to`, `format`, `event_count`, `next_cursor` and
+`has_more` instead.
+
+`next_cursor` is the position to continue from, returned even when nothing more is
+waiting, so a later `--all --after <next_cursor>` fetches only events that arrived since.
 
 `--all` requires `--output` because payloads hold whatever an author's script logged,
-which can be sensitive; a whole log is written to a file rather than printed.
+which can be sensitive; a whole log is written to a file rather than printed. Batches
+are written as they arrive, one in memory at a time, to a private temporary file beside
+the output that replaces it only once every batch has arrived. A download that fails
+part way leaves any existing file untouched and no partial one.
 
 ## Deferred Command Groups
 

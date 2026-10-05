@@ -9,6 +9,7 @@ from datetime import datetime
 from typing import (
     Any,
     Dict,
+    Iterator,
     Optional,
     Union,
     Literal,
@@ -3855,57 +3856,85 @@ class Coop(CoopFunctionsMixin):
         self,
         human_survey_uuid: Union[str, UUID],
         *,
-        page: int = 1,
-        page_size: int = 100,
+        after: Optional[str] = None,
+        limit: int = 200,
     ) -> dict:
         """
-        Get one page of the events a human survey's custom JavaScript logged.
+        Get one batch of the events a human survey's custom JavaScript logged.
 
-        Events are newest first. Events from previews are included, each marked
+        Events are oldest first. Events from previews are included, each marked
         with ``is_preview``, so leave those out of an analysis.
+
+        To continue, pass the returned ``next_cursor`` as ``after`` while
+        ``has_more`` is true. ``next_cursor`` is returned even when nothing is
+        left, so you can keep it and come back later for only the events that
+        arrived since.
 
         Parameters:
             human_survey_uuid: UUID of the human survey.
-            page: Page number, starting at 1.
-            page_size: Events per page, at most 200.
+            after: Return only events after this one, given by its ``id``. Omit
+                to start from the first event.
+            limit: Events to return, at most 200.
 
         Returns:
-            dict: ``{"events": [...], "total", "page", "page_size",
-            "total_pages"}``
+            dict: ``{"events": [...], "next_cursor", "has_more"}``
 
         Example:
-            >>> coop.get_human_survey_events("your-human-survey-uuid")  # doctest: +SKIP
+            >>> batch = coop.get_human_survey_events("your-human-survey-uuid")  # doctest: +SKIP
+            >>> later = coop.get_human_survey_events(  # doctest: +SKIP
+            ...     "your-human-survey-uuid", after=batch["next_cursor"]
+            ... )
         """
+        params: Dict[str, Any] = {"limit": limit}
+        if after is not None:
+            params["after"] = str(after)
         response = self._send_server_request(
             uri=f"api/v0/human-surveys/{human_survey_uuid}/events",
             method="GET",
-            params={"page": page, "page_size": page_size},
+            params=params,
         )
         self._resolve_server_response(response)
         data = response.json()
         return {
             "events": data.get("events", []),
-            "total": data.get("total"),
-            "page": data.get("page"),
-            "page_size": data.get("page_size"),
-            "total_pages": data.get("total_pages"),
+            "next_cursor": data.get("next_cursor"),
+            "has_more": bool(data.get("has_more")),
         }
+
+    def _iter_human_survey_event_batches(
+        self,
+        human_survey_uuid: Union[str, UUID],
+        *,
+        after: Optional[str] = None,
+        limit: int = 200,
+    ) -> Iterator[dict]:
+        """Yield batches from ``get_human_survey_events``, following the cursor to
+        the end. Holds one batch at a time, so a caller writing each one out never
+        has the whole log in memory."""
+        while True:
+            batch = self.get_human_survey_events(
+                human_survey_uuid, after=after, limit=limit
+            )
+            yield batch
+            if not batch["has_more"]:
+                return
+            after = batch["next_cursor"]
 
     def get_all_human_survey_events(
         self,
         human_survey_uuid: Union[str, UUID],
-        page_size: int = 200,
+        *,
+        after: Optional[str] = None,
     ) -> List[dict]:
         """
-        Get every event a human survey's custom JavaScript logged, newest first.
+        Get every event a human survey's custom JavaScript logged, oldest first.
 
-        Follows pagination. While a survey is still collecting, new events push
-        older ones onto later pages, so the same event can come back twice; it is
-        kept once, by its ``id``.
+        Events that arrive while this runs are included, and none comes back twice.
 
         Parameters:
             human_survey_uuid: UUID of the human survey.
-            page_size: Events fetched per request, at most 200.
+            after: Return only events after this one, given by its ``id``. Pass
+                the last event you already have to fetch just the new ones.
 
         Returns:
             list[dict]: One dict per event.
@@ -3913,26 +3942,32 @@ class Coop(CoopFunctionsMixin):
         Example:
             >>> events = coop.get_all_human_survey_events("your-human-survey-uuid")  # doctest: +SKIP
         """
-        events: List[dict] = []
-        seen: set = set()
-        page = 1
-        while True:
-            content = self.get_human_survey_events(
-                human_survey_uuid, page=page, page_size=page_size
+        return [
+            event
+            for batch in self._iter_human_survey_event_batches(
+                human_survey_uuid, after=after
             )
-            batch = content.get("events") or []
-            for event in batch:
-                event_id = event.get("id")
-                if event_id is not None:
-                    if event_id in seen:
-                        continue
-                    seen.add(event_id)
-                events.append(event)
-            total_pages = content.get("total_pages") or 1
-            if not batch or page >= total_pages:
-                break
-            page += 1
-        return events
+            for event in batch["events"]
+        ]
+
+    def count_human_survey_events(self, human_survey_uuid: Union[str, UUID]) -> int:
+        """
+        How many events a human survey's custom JavaScript has logged, previews
+        included.
+
+        The count is as of this call. On a survey still collecting, fetching the
+        events afterwards can return more.
+
+        Example:
+            >>> coop.count_human_survey_events("your-human-survey-uuid")  # doctest: +SKIP
+            48210
+        """
+        response = self._send_server_request(
+            uri=f"api/v0/human-surveys/{human_survey_uuid}/events/count",
+            method="GET",
+        )
+        self._resolve_server_response(response)
+        return int(response.json().get("total", 0))
 
     def get_human_survey_respondent_links(
         self,
