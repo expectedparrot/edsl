@@ -681,6 +681,7 @@ class JobsRemoteInferenceHandler:
 
         results.job_uuid = job_info.job_uuid
         results.results_uuid = results_uuid
+        results.reconcile_job_cost(remote_job_data)
         return results
 
     def _fetch_results_streamed(
@@ -911,6 +912,7 @@ class JobsRemoteInferenceHandler:
         results_uuid = getattr(job_info.logger.jobs_info, "results_uuid", None)
         if results_uuid:
             results.results_uuid = results_uuid
+        results.reconcile_job_cost(remote_job_data)
         return results
 
     def _attempt_fetch_job(

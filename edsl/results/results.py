@@ -354,6 +354,16 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         """
         return self._container.extend_sorted(other)
 
+    def reconcile_job_cost(self, remote_status: dict, *, notify: bool = True) -> dict:
+        """Compare these Results with supplied finalized remote job accounting.
+
+        Returns matched, mismatch, or not_comparable without fetching data or
+        retrying inference. Partial/filtered Results require matching scope.
+        """
+        from .cost_reconciliation import reconcile_cost
+
+        return reconcile_cost(self, remote_status, notify=notify)
+
     def compute_job_cost(self, include_cached_responses_in_cost: bool = False) -> float:
         """Compute the cost of a completed job in USD.
 
