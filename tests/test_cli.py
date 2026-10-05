@@ -4987,6 +4987,38 @@ class TestHumanizeCli:
         assert personal_url not in result.output
         assert personal_url in output_path.read_text(encoding="utf-8")
 
+    def test_humanize_links_failed_write_keeps_previous_export(self, tmp_path, monkeypatch):
+        """A CSV that fails part way through must not erase the export it replaces."""
+        from edsl.dataset import Dataset
+        import edsl.coop
+
+        output_path = tmp_path / "respondent-links.csv"
+        output_path.write_text("previous export\n", encoding="utf-8")
+
+        class FakeCoop:
+            def get_human_survey_respondent_links(self, human_survey_uuid, *, include_preview_urls=False, strict=True):
+                return Dataset([
+                    {"respondent_uuid": ["respondent-uuid"]},
+                    {"url": ["https://example.test/respond?token=secret-token"]},
+                ])
+
+        def failing_to_csv(self, filename=None, **kwargs):
+            with open(filename, "w", encoding="utf-8") as f:
+                f.write("respondent_uuid,url\npartial")
+            raise OSError("disk full")
+
+        monkeypatch.setattr(edsl.coop, "Coop", FakeCoop)
+        monkeypatch.setattr(Dataset, "to_csv", failing_to_csv)
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            ["humanize", "links", "human-survey-uuid", "--output", str(output_path)],
+        )
+
+        assert result.exit_code == cli_module.EXIT_REMOTE, result.output
+        assert output_path.read_text(encoding="utf-8") == "previous export\n"
+        assert list(tmp_path.iterdir()) == [output_path]
+
     def test_humanize_links_can_generate_personal_qr_codes(self, tmp_path, monkeypatch):
         from edsl.dataset import Dataset
         import edsl.coop
@@ -5025,6 +5057,8 @@ class TestHumanizeCli:
         assert out["data"]["qr_count"] == 1
         assert qr_path.read_bytes() == b"png"
         assert str(qr_path) in output_path.read_text(encoding="utf-8")
+        # Written through temporary files, none of which are left behind.
+        assert list(qr_dir.iterdir()) == [qr_path]
         # Links and QR codes are credentials: private to their owner.
         if sys.platform != "win32":
             assert output_path.stat().st_mode & 0o777 == 0o600

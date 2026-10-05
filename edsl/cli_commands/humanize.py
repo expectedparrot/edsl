@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import gzip
 import json
-import os
 import re
 from pathlib import Path
 from typing import Optional
@@ -26,7 +25,7 @@ from edsl.cli_shared import (
     jsonable,
     load_git_object,
     load_openable_json,
-    prepare_private_file,
+    private_output,
     output,
     read_serialized_object,
 )
@@ -662,10 +661,10 @@ def register(humanize: click.Group) -> None:
                         row["qr_path"] = None
                         continue
                     qr_path = qr_directory / f"respondent-{respondent_uuid}.png"
-                    # Private before the image is written into it: each code is a
+                    # Private, and replaced only by a complete image: each code is a
                     # respondent's credential.
-                    prepare_private_file(qr_path)
-                    QRCode(url).save(str(qr_path))
+                    with private_output(qr_path) as temp:
+                        QRCode(url).save(str(temp))
                     row["qr_path"] = str(qr_path)
                     qr_paths.append(str(qr_path))
                 column_names = list(rows[0]) if rows else ["qr_path"]
@@ -674,9 +673,10 @@ def register(humanize: click.Group) -> None:
                     for column in column_names
                 ])
 
-            # Private before the CSV is written into it: the links are credentials.
-            prepare_private_file(output_path)
-            links.to_csv(filename=output_path)
+            # Private, since the links are credentials, and swapped in only once
+            # written in full, so a failure never erases the previous export.
+            with private_output(output_path) as temp:
+                links.to_csv(filename=str(temp))
             output({
                 "human_survey_uuid": human_survey_uuid,
                 "saved_to": output_path,
@@ -2549,38 +2549,27 @@ def register(humanize: click.Group) -> None:
         """Write event batches to ``path`` as they arrive. Returns the number of
         events written and the last batch, for its cursor.
 
-        One batch is in memory at a time, however long the log. Written to a
-        private temporary file beside ``path`` and moved into place only once every
-        batch has arrived, so a download that fails part way leaves no file that
-        looks complete -- and payloads, which can be sensitive, are never readable
-        by other users.
+        One batch is in memory at a time, however long the log. Through
+        ``private_output``, so a download that fails part way leaves no file that
+        looks complete, and payloads, which can be sensitive, are never readable by
+        other users.
         """
-        target = Path(path)
-        temp = prepare_private_file(
-            target.with_name(f".{target.name}.{os.getpid()}.part")
-        )
         count = 0
         last_batch = None
-        try:
-            with temp.open("w", encoding="utf-8") as f:
-                if file_format == "json":
-                    f.write("[")
-                for batch in batches:
-                    last_batch = batch
-                    for event in batch["events"]:
-                        text = json.dumps(event, ensure_ascii=False, default=str)
-                        if file_format == "jsonl":
-                            f.write(text + "\n")
-                        else:
-                            f.write(("," if count else "") + "\n  " + text)
-                        count += 1
-                if file_format == "json":
-                    f.write("\n]\n" if count else "]\n")
-            # Replaces any existing file, taking the temporary file's private mode.
-            os.replace(temp, target)
-        except BaseException:
-            temp.unlink(missing_ok=True)
-            raise
+        with private_output(path) as temp, temp.open("w", encoding="utf-8") as f:
+            if file_format == "json":
+                f.write("[")
+            for batch in batches:
+                last_batch = batch
+                for event in batch["events"]:
+                    text = json.dumps(event, ensure_ascii=False, default=str)
+                    if file_format == "jsonl":
+                        f.write(text + "\n")
+                    else:
+                        f.write(("," if count else "") + "\n  " + text)
+                    count += 1
+            if file_format == "json":
+                f.write("\n]\n" if count else "]\n")
         return count, last_batch
 
 

@@ -5,10 +5,12 @@ from __future__ import annotations
 import gzip
 import json
 import os
+import secrets
 import sys
 import zipfile
+from contextlib import contextmanager
 from pathlib import Path
-from typing import Optional
+from typing import Iterator, Optional
 
 
 EXIT_OK = 0
@@ -67,6 +69,31 @@ def prepare_private_file(path) -> Path:
     except OSError:
         pass
     return target
+
+
+@contextmanager
+def private_output(path) -> Iterator[Path]:
+    """Write a sensitive file in full, or not at all.
+
+    Yields the path of a private temporary file beside ``path`` for the caller to
+    write to, however it writes. Once the block finishes, the temporary file replaces
+    ``path``, keeping its owner-only permissions. If the block raises, the temporary
+    file is deleted and ``path`` is left exactly as it was, so a failed write never
+    erases a previous export or leaves a partial one that looks complete.
+
+    The temporary file keeps ``path``'s extension, since some writers choose the
+    format from it.
+    """
+    target = Path(path)
+    temp = prepare_private_file(
+        target.with_name(f".{target.stem}.{secrets.token_hex(4)}.tmp{target.suffix}")
+    )
+    try:
+        yield temp
+        os.replace(temp, target)
+    except BaseException:
+        temp.unlink(missing_ok=True)
+        raise
 
 
 def read_json_file(path: str) -> dict:
