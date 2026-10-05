@@ -100,13 +100,15 @@ Each question's hook runs once when that question appears. If the same script is
 
 Scripts can build interface inside the survey, read and write answers, control when respondents can move on, measure behaviour, randomise conditions, read parameters from the page URL, load images, audio, video and other media to show, and use the camera, microphone or location for a task the respondent is told about.
 
+A script can also load a well-known, widely used library, such as d3, Chart.js or lodash, from a public CDN like cdnjs, jsDelivr or unpkg, at a pinned version (for example `https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js`, not `d3@latest`). Your own code must still be plain JavaScript written in the script itself.
+
 A script can't be saved if it:
 
-- Loads or runs code from outside the script: a `<script>` element, a dynamic `import`, a library from a CDN, or code fetched and then run. Scripts must be self-contained, plain JavaScript that uses only the browser's built-in APIs. Loading media to show is fine.
+- Loads code from anywhere else: an unfamiliar or personal site, a paste site, a little-known or custom package, source hosted somewhere other than a named library, or a URL put together while the script runs.
 - Builds code at runtime, for example by passing a constructed string to `eval`, `new Function`, `setTimeout` or `setInterval`, or by inserting markup that contains a script.
 - Makes any request to Expected Parrot, or sends respondent data anywhere else. `ep.log` is how data leaves a script.
 - Reads cookies, tokens, credentials, or storage it didn't create.
-- Is obfuscated or minified so that what it does can't be read from the source.
+- Is obfuscated or minified so that what it does can't be read from the source. This applies to your script, not to a well-known library it loads.
 - Asks for passwords or payment details, or imitates a login or other dialog.
 - Collects anything unrelated to taking the survey, or uses the camera, microphone or location covertly.
 - Keeps running after the respondent has finished or left the survey.
