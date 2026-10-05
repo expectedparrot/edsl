@@ -3051,6 +3051,7 @@ class TestHumanizeCli:
             "preview",
             "respondents",
             "links",
+            "events",
             "schedules",
             "deliveries",
             "callbacks",
@@ -3058,6 +3059,7 @@ class TestHumanizeCli:
             "agent-access",
             "schema",
             "css",
+            "custom-js-access",
             "assets",
             "prolific",
         ]
@@ -4589,6 +4591,392 @@ class TestHumanizeCli:
         assert json.loads(css_result.output)["data"]["message"] == "updated"
         assert json.loads(respondents_result.output)["data"]["respondents"][0]["respondent_uuid"] == "resp-uuid"
 
+    def _js_survey_path(self, tmp_path):
+        from edsl.questions import QuestionCompute, QuestionFreeText
+        from edsl.surveys import Survey
+
+        survey_path = tmp_path / "survey.json"
+        survey = Survey(
+            [
+                QuestionFreeText(question_name="feedback", question_text="Any feedback?"),
+                QuestionCompute(question_name="total", question_text="{{ 1 + 1 }}"),
+            ]
+        )
+        survey_path.write_text(json.dumps(survey.to_dict()), encoding="utf-8")
+        return survey_path
+
+    def test_humanize_schema_create_javascript(self, tmp_path):
+        script_path = tmp_path / "feedback.js"
+        script_path.write_text("ep.log('shown');\n", encoding="utf-8")
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            [
+                "humanize", "schema", "create",
+                "--survey", str(self._js_survey_path(tmp_path)),
+                "--javascript", f"feedback:question.ready={script_path}",
+            ],
+        )
+
+        assert result.exit_code == 0, result.output
+        schema = json.loads(result.output)["data"]["schema"]
+        assert schema["questions"]["feedback"]["javascript"] == {
+            "hooks": {"question.ready": "ep.log('shown');\n"}
+        }
+
+    def test_humanize_schema_create_javascript_on_compute_fails_validation(self, tmp_path):
+        script_path = tmp_path / "total.js"
+        script_path.write_text("ep.log('shown');", encoding="utf-8")
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            [
+                "humanize", "schema", "create",
+                "--survey", str(self._js_survey_path(tmp_path)),
+                "--javascript", f"total:question.ready={script_path}",
+            ],
+        )
+
+        assert result.exit_code == cli_module.EXIT_VALIDATION, result.output
+
+    @pytest.mark.parametrize(
+        "spec, exit_code",
+        [
+            ("feedback={path}", "EXIT_USAGE"),
+            ("feedback:={path}", "EXIT_USAGE"),
+            (":question.ready={path}", "EXIT_USAGE"),
+            ("feedback:question.submit={path}", "EXIT_VALIDATION"),
+        ],
+    )
+    def test_humanize_schema_create_javascript_needs_a_known_hook(
+        self, tmp_path, spec, exit_code
+    ):
+        script_path = tmp_path / "feedback.js"
+        script_path.write_text("ep.log('shown');", encoding="utf-8")
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            [
+                "humanize", "schema", "create",
+                "--survey", str(self._js_survey_path(tmp_path)),
+                "--javascript", spec.format(path=script_path),
+            ],
+        )
+
+        assert result.exit_code == getattr(cli_module, exit_code), result.output
+
+    @pytest.mark.parametrize("contents", [None, "  \n"])
+    def test_humanize_schema_create_javascript_rejects_missing_or_empty_file(
+        self, tmp_path, contents
+    ):
+        script_path = tmp_path / "feedback.js"
+        if contents is not None:
+            script_path.write_text(contents, encoding="utf-8")
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            [
+                "humanize", "schema", "create",
+                "--survey", str(self._js_survey_path(tmp_path)),
+                "--javascript", f"feedback:question.ready={script_path}",
+            ],
+        )
+
+        assert result.exit_code == cli_module.EXIT_USAGE, result.output
+
+    def test_humanize_schema_set_javascript_and_clear(self, tmp_path, monkeypatch):
+        import edsl.coop
+
+        script_path = tmp_path / "feedback.js"
+        script_path.write_text("ep.log('shown');", encoding="utf-8")
+        patches = []
+
+        class FakeCoop:
+            def patch_human_survey_humanize_schema(self, human_survey_uuid, partial_schema):
+                patches.append(partial_schema)
+                return {"message": "updated"}
+
+        monkeypatch.setattr(edsl.coop, "Coop", FakeCoop)
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            [
+                "humanize", "schema", "set", "human-survey-uuid",
+                "--javascript", f"feedback:question.ready={script_path}",
+                "--clear-javascript", "intro",
+            ],
+        )
+
+        assert result.exit_code == 0, result.output
+        assert patches == [
+            {
+                "questions": {
+                    "feedback": {
+                        "javascript": {"hooks": {"question.ready": "ep.log('shown');"}}
+                    },
+                    "intro": {"javascript": None},
+                }
+            }
+        ]
+
+    def test_humanize_schema_set_javascript_and_clear_same_question(self, tmp_path, monkeypatch):
+        import edsl.coop
+
+        script_path = tmp_path / "feedback.js"
+        script_path.write_text("ep.log('shown');", encoding="utf-8")
+
+        class FakeCoop:
+            def patch_human_survey_humanize_schema(self, human_survey_uuid, partial_schema):
+                raise AssertionError("nothing should be sent")
+
+        monkeypatch.setattr(edsl.coop, "Coop", FakeCoop)
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            [
+                "humanize", "schema", "set", "human-survey-uuid",
+                "--javascript", f"feedback:question.ready={script_path}",
+                "--clear-javascript", "feedback",
+            ],
+        )
+
+        assert result.exit_code == cli_module.EXIT_USAGE, result.output
+
+    @pytest.mark.parametrize("allowed", [True, False])
+    def test_humanize_custom_js_access(self, monkeypatch, allowed):
+        import edsl.coop
+
+        class FakeCoop:
+            def get_custom_js_access(self):
+                return allowed
+
+        monkeypatch.setattr(edsl.coop, "Coop", FakeCoop)
+
+        result = CliRunner().invoke(cli_module.app, ["humanize", "custom-js-access"])
+
+        assert result.exit_code == 0, result.output
+        data = json.loads(result.output)["data"]
+        assert data["custom_js_allowed"] is allowed
+        assert ("next_step" in data) is not allowed
+
+    def _events_coop(self, monkeypatch, fail_after_batches=None):
+        """A Coop serving five events by cursor. It inherits the real cursor-following
+        loop, so --all is exercised against actual batches."""
+        import edsl.coop
+        from edsl.coop.coop import Coop as RealCoop
+
+        events = [{"id": f"e{n}", "event_name": f"name{n}"} for n in range(1, 6)]
+        calls = []
+
+        class FakeCoop(RealCoop):
+            def __init__(self):
+                pass
+
+            def get_human_survey_events(self, human_survey_uuid, *, after=None, limit=200):
+                assert human_survey_uuid == "human-survey-uuid"
+                calls.append((after, limit))
+                if fail_after_batches is not None and len(calls) > fail_after_batches:
+                    raise RuntimeError("connection lost")
+                ids = [event["id"] for event in events]
+                start = ids.index(after) + 1 if after else 0
+                batch = events[start : start + limit]
+                return {
+                    "events": batch,
+                    "next_cursor": batch[-1]["id"] if batch else after,
+                    "has_more": start + limit < len(events),
+                }
+
+            def count_human_survey_events(self, human_survey_uuid):
+                assert human_survey_uuid == "human-survey-uuid"
+                return len(events)
+
+        monkeypatch.setattr(edsl.coop, "Coop", FakeCoop)
+        return events, calls
+
+    def test_humanize_events_prints_one_batch(self, monkeypatch):
+        events, _ = self._events_coop(monkeypatch)
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            ["humanize", "events", "human-survey-uuid", "--limit", "2"],
+        )
+
+        assert result.exit_code == 0, result.output
+        data = json.loads(result.output)["data"]
+        assert data["events"] == events[:2]
+        assert data["next_cursor"] == "e2"
+        assert data["has_more"] is True
+
+    @pytest.mark.parametrize("suffix", [".json", ".jsonl"])
+    def test_humanize_events_all_follows_the_cursor(self, tmp_path, monkeypatch, suffix):
+        events, calls = self._events_coop(monkeypatch)
+        output_path = tmp_path / f"events{suffix}"
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            [
+                "humanize", "events", "human-survey-uuid",
+                "--all", "--limit", "2", "--output", str(output_path),
+            ],
+        )
+
+        assert result.exit_code == 0, result.output
+        data = json.loads(result.output)["data"]
+        assert data["event_count"] == 5
+        assert (data["next_cursor"], data["has_more"]) == ("e5", False)
+        assert "events" not in data
+        assert [after for after, _ in calls] == [None, "e2", "e4"]
+        text = output_path.read_text(encoding="utf-8")
+        if suffix == ".jsonl":
+            assert [json.loads(line) for line in text.splitlines()] == events
+        else:
+            assert json.loads(text) == events
+        assert list(tmp_path.iterdir()) == [output_path]
+
+    def test_humanize_events_all_after_fetches_only_newer(self, tmp_path, monkeypatch):
+        events, _ = self._events_coop(monkeypatch)
+        output_path = tmp_path / "new.jsonl"
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            [
+                "humanize", "events", "human-survey-uuid",
+                "--all", "--after", "e3", "--output", str(output_path),
+            ],
+        )
+
+        assert result.exit_code == 0, result.output
+        lines = output_path.read_text(encoding="utf-8").splitlines()
+        assert [json.loads(line) for line in lines] == events[3:]
+
+    @pytest.mark.parametrize("suffix", [".json", ".jsonl"])
+    def test_humanize_events_all_with_no_events(self, tmp_path, monkeypatch, suffix):
+        events, _ = self._events_coop(monkeypatch)
+        events.clear()
+        output_path = tmp_path / f"events{suffix}"
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            ["humanize", "events", "human-survey-uuid", "--all", "--output", str(output_path)],
+        )
+
+        assert result.exit_code == 0, result.output
+        assert json.loads(result.output)["data"]["event_count"] == 0
+        text = output_path.read_text(encoding="utf-8")
+        if suffix == ".json":
+            assert json.loads(text) == []
+        else:
+            assert text == ""
+
+    def test_humanize_events_failed_download_leaves_no_file(self, tmp_path, monkeypatch):
+        """A file that stopped part way would look like the whole log."""
+        self._events_coop(monkeypatch, fail_after_batches=1)
+        output_path = tmp_path / "events.jsonl"
+        output_path.write_text("previous export\n", encoding="utf-8")
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            [
+                "humanize", "events", "human-survey-uuid",
+                "--all", "--limit", "2", "--output", str(output_path),
+            ],
+        )
+
+        assert result.exit_code == cli_module.EXIT_REMOTE, result.output
+        assert output_path.read_text(encoding="utf-8") == "previous export\n"
+        assert list(tmp_path.iterdir()) == [output_path]
+
+    def test_humanize_events_all_requires_output(self, monkeypatch):
+        self._events_coop(monkeypatch)
+
+        result = CliRunner().invoke(
+            cli_module.app, ["humanize", "events", "human-survey-uuid", "--all"]
+        )
+
+        assert result.exit_code == cli_module.EXIT_USAGE, result.output
+
+    def test_humanize_events_count(self, monkeypatch):
+        _, calls = self._events_coop(monkeypatch)
+
+        result = CliRunner().invoke(
+            cli_module.app, ["humanize", "events", "human-survey-uuid", "--count"]
+        )
+
+        assert result.exit_code == 0, result.output
+        assert json.loads(result.output)["data"]["total"] == 5
+        assert calls == []
+
+    def test_humanize_events_count_rejects_fetch_options(self, tmp_path, monkeypatch):
+        self._events_coop(monkeypatch)
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            [
+                "humanize", "events", "human-survey-uuid",
+                "--count", "--all", "--output", str(tmp_path / "events.jsonl"),
+            ],
+        )
+
+        assert result.exit_code == cli_module.EXIT_USAGE, result.output
+
+    @pytest.mark.skipif(sys.platform == "win32", reason="POSIX file modes")
+    @pytest.mark.parametrize("existing", [False, True])
+    def test_humanize_events_file_is_private(self, tmp_path, monkeypatch, existing):
+        """Payloads can be sensitive, so other users on the machine can't read them,
+        including when an existing, readable file is overwritten."""
+        self._events_coop(monkeypatch)
+        output_path = tmp_path / "events.jsonl"
+        if existing:
+            output_path.write_text("old\n", encoding="utf-8")
+            output_path.chmod(0o644)
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            ["humanize", "events", "human-survey-uuid", "--all", "--output", str(output_path)],
+        )
+
+        assert result.exit_code == 0, result.output
+        assert output_path.stat().st_mode & 0o777 == 0o600
+        assert "old" not in output_path.read_text(encoding="utf-8")
+
+    @pytest.mark.skipif(sys.platform == "win32", reason="symlinks need privileges on Windows")
+    @pytest.mark.parametrize("target_exists", [True, False])
+    def test_humanize_events_writes_through_a_symlink(self, tmp_path, monkeypatch, target_exists):
+        """An output that is a symlink stays one, and the file it points to gets the
+        new export, rather than the link being replaced by a plain file."""
+        events, _ = self._events_coop(monkeypatch)
+        real = tmp_path / "exports" / "2026-10-05.jsonl"
+        real.parent.mkdir()
+        if target_exists:
+            real.write_text("old\n", encoding="utf-8")
+        link = tmp_path / "latest.jsonl"
+        link.symlink_to(real)
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            ["humanize", "events", "human-survey-uuid", "--all", "--output", str(link)],
+        )
+
+        assert result.exit_code == 0, result.output
+        assert link.is_symlink()
+        assert link.resolve() == real.resolve()
+        lines = real.read_text(encoding="utf-8").splitlines()
+        assert [json.loads(line) for line in lines] == events
+        assert list(real.parent.iterdir()) == [real]
+
+    def test_humanize_events_rejects_other_output_formats(self, tmp_path, monkeypatch):
+        self._events_coop(monkeypatch)
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            [
+                "humanize", "events", "human-survey-uuid",
+                "--output", str(tmp_path / "events.csv"),
+            ],
+        )
+
+        assert result.exit_code == cli_module.EXIT_USAGE, result.output
+
     def test_humanize_links_exports_csv_without_printing_tokens(self, tmp_path, monkeypatch):
         from edsl.dataset import Dataset
         import edsl.coop
@@ -4623,6 +5011,38 @@ class TestHumanizeCli:
         assert out["data"]["sensitive"] is True
         assert personal_url not in result.output
         assert personal_url in output_path.read_text(encoding="utf-8")
+
+    def test_humanize_links_failed_write_keeps_previous_export(self, tmp_path, monkeypatch):
+        """A CSV that fails part way through must not erase the export it replaces."""
+        from edsl.dataset import Dataset
+        import edsl.coop
+
+        output_path = tmp_path / "respondent-links.csv"
+        output_path.write_text("previous export\n", encoding="utf-8")
+
+        class FakeCoop:
+            def get_human_survey_respondent_links(self, human_survey_uuid, *, include_preview_urls=False, strict=True):
+                return Dataset([
+                    {"respondent_uuid": ["respondent-uuid"]},
+                    {"url": ["https://example.test/respond?token=secret-token"]},
+                ])
+
+        def failing_to_csv(self, filename=None, **kwargs):
+            with open(filename, "w", encoding="utf-8") as f:
+                f.write("respondent_uuid,url\npartial")
+            raise OSError("disk full")
+
+        monkeypatch.setattr(edsl.coop, "Coop", FakeCoop)
+        monkeypatch.setattr(Dataset, "to_csv", failing_to_csv)
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            ["humanize", "links", "human-survey-uuid", "--output", str(output_path)],
+        )
+
+        assert result.exit_code == cli_module.EXIT_REMOTE, result.output
+        assert output_path.read_text(encoding="utf-8") == "previous export\n"
+        assert list(tmp_path.iterdir()) == [output_path]
 
     def test_humanize_links_can_generate_personal_qr_codes(self, tmp_path, monkeypatch):
         from edsl.dataset import Dataset
@@ -4662,6 +5082,64 @@ class TestHumanizeCli:
         assert out["data"]["qr_count"] == 1
         assert qr_path.read_bytes() == b"png"
         assert str(qr_path) in output_path.read_text(encoding="utf-8")
+        # Written through temporary files, none of which are left behind.
+        assert list(qr_dir.iterdir()) == [qr_path]
+        # Links and QR codes are credentials: private to their owner.
+        if sys.platform != "win32":
+            assert output_path.stat().st_mode & 0o777 == 0o600
+            assert qr_path.stat().st_mode & 0o777 == 0o600
+
+    @pytest.mark.skipif(sys.platform == "win32", reason="symlinks need privileges on Windows")
+    def test_humanize_links_qr_through_a_symlink_keeps_png(self, tmp_path, monkeypatch):
+        """A .png QR path that is a symlink to a file without that extension is still
+        written as a PNG: the format follows the name asked for, not the link's target."""
+        from edsl.dataset import Dataset
+        import edsl.coop
+        import edsl.scenarios.contrib.qr_code
+
+        qr_dir = tmp_path / "qr"
+        qr_dir.mkdir()
+        archived = tmp_path / "archive" / "respondent-respondent-uuid"
+        archived.parent.mkdir()
+        archived.write_bytes(b"old")
+        qr_path = qr_dir / "respondent-respondent-uuid.png"
+        qr_path.symlink_to(archived)
+        saved_to = []
+
+        class FakeCoop:
+            def get_human_survey_respondent_links(self, *args, **kwargs):
+                return Dataset([
+                    {"respondent_uuid": ["respondent-uuid"]},
+                    {"url": ["https://example.test/respond?token=secret-token"]},
+                ])
+
+        class FakeQRCode:
+            """Picks its format from the extension, as the real image library does."""
+
+            def __init__(self, url):
+                pass
+
+            def save(self, path):
+                saved_to.append(path)
+                if not path.endswith(".png"):
+                    raise ValueError(f"unknown file extension: {path}")
+                Path(path).write_bytes(b"png")
+
+        monkeypatch.setattr(edsl.coop, "Coop", FakeCoop)
+        monkeypatch.setattr(edsl.scenarios.contrib.qr_code, "QRCode", FakeQRCode)
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            [
+                "humanize", "links", "human-survey-uuid",
+                "--output", str(tmp_path / "links.csv"), "--qr-dir", str(qr_dir),
+            ],
+        )
+
+        assert result.exit_code == 0, result.output
+        assert saved_to and saved_to[0].endswith(".png")
+        assert qr_path.is_symlink()
+        assert archived.read_bytes() == b"png"
 
     def test_humanize_schema_set_from_direct_controls(self, monkeypatch):
         import edsl.coop

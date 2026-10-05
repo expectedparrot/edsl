@@ -9,6 +9,7 @@ from datetime import datetime
 from typing import (
     Any,
     Dict,
+    Iterator,
     Optional,
     Union,
     Literal,
@@ -3851,6 +3852,123 @@ class Coop(CoopFunctionsMixin):
             page += 1
         return respondents
 
+    def get_human_survey_events(
+        self,
+        human_survey_uuid: Union[str, UUID],
+        *,
+        after: Optional[str] = None,
+        limit: int = 200,
+    ) -> dict:
+        """
+        Get one batch of the events a human survey's custom JavaScript logged.
+
+        Events are oldest first. Events from previews are included, each marked
+        with ``is_preview``, so leave those out of an analysis.
+
+        To continue, pass the returned ``next_cursor`` as ``after`` while
+        ``has_more`` is true. ``next_cursor`` is returned even when nothing is
+        left, so you can keep it and come back later for only the events that
+        arrived since.
+
+        Parameters:
+            human_survey_uuid: UUID of the human survey.
+            after: Return only events after this one, given by its ``id``. Omit
+                to start from the first event.
+            limit: Events to return, at most 200.
+
+        Returns:
+            dict: ``{"events": [...], "next_cursor", "has_more"}``
+
+        Example:
+            >>> batch = coop.get_human_survey_events("your-human-survey-uuid")  # doctest: +SKIP
+            >>> later = coop.get_human_survey_events(  # doctest: +SKIP
+            ...     "your-human-survey-uuid", after=batch["next_cursor"]
+            ... )
+        """
+        params: Dict[str, Any] = {"limit": limit}
+        if after is not None:
+            params["after"] = str(after)
+        response = self._send_server_request(
+            uri=f"api/v0/human-surveys/{human_survey_uuid}/events",
+            method="GET",
+            params=params,
+        )
+        self._resolve_server_response(response)
+        data = response.json()
+        return {
+            "events": data.get("events", []),
+            "next_cursor": data.get("next_cursor"),
+            "has_more": bool(data.get("has_more")),
+        }
+
+    def _iter_human_survey_event_batches(
+        self,
+        human_survey_uuid: Union[str, UUID],
+        *,
+        after: Optional[str] = None,
+        limit: int = 200,
+    ) -> Iterator[dict]:
+        """Yield batches from ``get_human_survey_events``, following the cursor to
+        the end. Holds one batch at a time, so a caller writing each one out never
+        has the whole log in memory."""
+        while True:
+            batch = self.get_human_survey_events(
+                human_survey_uuid, after=after, limit=limit
+            )
+            yield batch
+            if not batch["has_more"]:
+                return
+            after = batch["next_cursor"]
+
+    def get_all_human_survey_events(
+        self,
+        human_survey_uuid: Union[str, UUID],
+        *,
+        after: Optional[str] = None,
+    ) -> List[dict]:
+        """
+        Get every event a human survey's custom JavaScript logged, oldest first.
+
+        Events that arrive while this runs are included, and none comes back twice.
+
+        Parameters:
+            human_survey_uuid: UUID of the human survey.
+            after: Return only events after this one, given by its ``id``. Pass
+                the last event you already have to fetch just the new ones.
+
+        Returns:
+            list[dict]: One dict per event.
+
+        Example:
+            >>> events = coop.get_all_human_survey_events("your-human-survey-uuid")  # doctest: +SKIP
+        """
+        return [
+            event
+            for batch in self._iter_human_survey_event_batches(
+                human_survey_uuid, after=after
+            )
+            for event in batch["events"]
+        ]
+
+    def count_human_survey_events(self, human_survey_uuid: Union[str, UUID]) -> int:
+        """
+        How many events a human survey's custom JavaScript has logged, previews
+        included.
+
+        The count is as of this call. On a survey still collecting, fetching the
+        events afterwards can return more.
+
+        Example:
+            >>> coop.count_human_survey_events("your-human-survey-uuid")  # doctest: +SKIP
+            48210
+        """
+        response = self._send_server_request(
+            uri=f"api/v0/human-surveys/{human_survey_uuid}/events/count",
+            method="GET",
+        )
+        self._resolve_server_response(response)
+        return int(response.json().get("total", 0))
+
     def get_human_survey_respondent_links(
         self,
         human_survey_uuid: Union[str, UUID],
@@ -4339,6 +4457,28 @@ class Coop(CoopFunctionsMixin):
         from .coop_humanize_schema import validate_humanize_schema
 
         validate_humanize_schema(survey, humanize_schema)
+
+    def get_custom_js_access(self) -> bool:
+        """
+        Whether your account may use custom JavaScript in a humanize schema.
+
+        Custom JavaScript is available on approved accounts only. Access is per
+        account: once yours is approved, the human surveys you create can
+        include custom JavaScript.
+
+        Returns:
+            bool: True if your account may save surveys with custom JavaScript.
+
+        Example:
+            >>> coop.get_custom_js_access()  # doctest: +SKIP
+            False
+        """
+        response = self._send_server_request(
+            uri="api/v0/human-surveys/custom-js-access",
+            method="GET",
+        )
+        self._resolve_server_response(response)
+        return bool(response.json().get("custom_js_allowed"))
 
     def patch_human_survey_css(
         self,

@@ -156,7 +156,14 @@ edsl humanize assets delete <asset_uuid>
 edsl humanize schema set <human_survey_uuid> --logo-asset <asset_uuid> --logo-alt "Acme Research logo"
 edsl humanize schema set <human_survey_uuid> --logo-file lab_logo.png --logo-alt "Acme Research logo"
 edsl humanize schema set <human_survey_uuid> --clear-logo
+edsl humanize schema set <human_survey_uuid> --javascript rating:question.ready=rating.js
+edsl humanize schema set <human_survey_uuid> --clear-javascript rating
+edsl humanize custom-js-access
 edsl humanize respondents <human_survey_uuid> --page 1 --page_size 50
+edsl humanize events <human_survey_uuid> --limit 50
+edsl humanize events <human_survey_uuid> --all --output events.jsonl
+edsl humanize events <human_survey_uuid> --all --after <next_cursor> --output new.jsonl
+edsl humanize events <human_survey_uuid> --count
 edsl humanize agent-list get <human_survey_uuid>
 edsl humanize agent-list patch <human_survey_uuid> --delivery_map delivery_map.json
 edsl humanize agent-access get <human_survey_uuid>
@@ -179,6 +186,8 @@ edsl humanize callbacks list <human_survey_uuid>
 `edsl humanize list` is paginated and echoes `page`, `page_size`, and `returned_count`.
 
 `edsl humanize assets` manages the image library a survey's logo is drawn from. Upload once and reference the asset uuid with `--logo-asset`, or pass `--logo-file` to `edsl humanize schema set` to upload and apply in one step. `edsl humanize schema create` accepts `--logo-asset` only, because it makes no server calls. Setting a new logo requires `--logo-alt` or `--logo-decorative`.
+
+`edsl humanize schema create` and `edsl humanize schema set` take `--javascript QUESTION:HOOK=FILE` to attach a JavaScript file to a question's hook, for example `--javascript rating:question.ready=rating.js`; `question.ready` is the only hook today. `edsl humanize schema set` also takes `--clear-javascript QUESTION` to remove a question's JavaScript. Custom JavaScript is available on approved accounts only; check with `edsl humanize custom-js-access`. `edsl humanize events` returns the events a survey's scripts logged, oldest first, one batch at a time (`--limit`, at most 200); `--all` fetches every batch and requires `--output` (`.json` or `.jsonl`), so a whole log is written to a file rather than printed. Every result carries `next_cursor`: pass it as `--after` to get only newer events. Fetching only new events can occasionally miss one that was still being saved, so use it to check a survey while it collects, and download the full log for analysis once fielding has ended, at least an hour after the last response. `--count` returns how many events the survey has without fetching any.
 
 Delivery, schedule, and callback commands accept optional `--routes` JSON files where supported. A route file may be a single route object or a list of route objects. Simple routes can also be created with helper flags such as `--owner-email-template owner_response_received` or `--respondent-email-template respondent_invitation`.
 
