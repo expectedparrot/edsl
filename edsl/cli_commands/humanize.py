@@ -25,6 +25,7 @@ from edsl.cli_shared import (
     jsonable,
     load_git_object,
     load_openable_json,
+    prepare_private_file,
     output,
     read_serialized_object,
 )
@@ -660,6 +661,9 @@ def register(humanize: click.Group) -> None:
                         row["qr_path"] = None
                         continue
                     qr_path = qr_directory / f"respondent-{respondent_uuid}.png"
+                    # Private before the image is written into it: each code is a
+                    # respondent's credential.
+                    prepare_private_file(qr_path)
                     QRCode(url).save(str(qr_path))
                     row["qr_path"] = str(qr_path)
                     qr_paths.append(str(qr_path))
@@ -669,6 +673,8 @@ def register(humanize: click.Group) -> None:
                     for column in column_names
                 ])
 
+            # Private before the CSV is written into it: the links are credentials.
+            prepare_private_file(output_path)
             links.to_csv(filename=output_path)
             output({
                 "human_survey_uuid": human_survey_uuid,
@@ -2531,16 +2537,17 @@ def register(humanize: click.Group) -> None:
 
 
     def _write_events(events: list, path: str, file_format: str) -> None:
-        target = Path(path)
-        target.parent.mkdir(parents=True, exist_ok=True)
-        if file_format == "jsonl":
-            text = "".join(
-                json.dumps(event, ensure_ascii=False, default=str) + "\n"
-                for event in events
-            )
-        else:
-            text = json.dumps(events, indent=2, ensure_ascii=False, default=str)
-        target.write_text(text, encoding="utf-8")
+        # Payloads hold whatever an author's script logged, so the file is private.
+        # Written through the handle rather than built as one string first, which
+        # would hold a second full copy of the log in memory.
+        target = prepare_private_file(path)
+        with target.open("w", encoding="utf-8") as f:
+            if file_format == "jsonl":
+                for event in events:
+                    f.write(json.dumps(event, ensure_ascii=False, default=str))
+                    f.write("\n")
+            else:
+                json.dump(events, f, indent=2, ensure_ascii=False, default=str)
 
 
     def _check_asset_file(path: str) -> None:

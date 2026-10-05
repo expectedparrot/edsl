@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import gzip
 import json
+import os
 import sys
 import zipfile
 from pathlib import Path
@@ -43,6 +44,29 @@ def error(
     json.dump(envelope, sys.stdout, indent=2, default=str)
     sys.stdout.write("\n")
     raise SystemExit(exit_code)
+
+
+def prepare_private_file(path) -> Path:
+    """Create ``path`` empty, readable and writable by its owner only.
+
+    For files holding sensitive data -- respondent links, logged event payloads.
+    Call it before writing: a writer that then opens the file in the usual way
+    truncates it without changing its permissions, so the data is never readable by
+    other users, not even for a moment.
+
+    Created with mode 0o600 from the start, and chmodded as well, because an
+    existing file keeps its old mode when it is opened. On Windows only the
+    read-only flag exists, so this changes nothing there.
+    """
+    target = Path(path)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    fd = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    os.close(fd)
+    try:
+        target.chmod(0o600)
+    except OSError:
+        pass
+    return target
 
 
 def read_json_file(path: str) -> dict:

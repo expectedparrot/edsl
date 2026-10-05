@@ -4824,6 +4824,26 @@ class TestHumanizeCli:
 
         assert result.exit_code == cli_module.EXIT_USAGE, result.output
 
+    @pytest.mark.skipif(sys.platform == "win32", reason="POSIX file modes")
+    @pytest.mark.parametrize("existing", [False, True])
+    def test_humanize_events_file_is_private(self, tmp_path, monkeypatch, existing):
+        """Payloads can be sensitive, so other users on the machine can't read them,
+        including when an existing, readable file is overwritten."""
+        self._events_coop(monkeypatch)
+        output_path = tmp_path / "events.jsonl"
+        if existing:
+            output_path.write_text("old\n", encoding="utf-8")
+            output_path.chmod(0o644)
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            ["humanize", "events", "human-survey-uuid", "--all", "--output", str(output_path)],
+        )
+
+        assert result.exit_code == 0, result.output
+        assert output_path.stat().st_mode & 0o777 == 0o600
+        assert "old" not in output_path.read_text(encoding="utf-8")
+
     def test_humanize_events_rejects_other_output_formats(self, tmp_path, monkeypatch):
         self._events_coop(monkeypatch)
 
@@ -4910,6 +4930,10 @@ class TestHumanizeCli:
         assert out["data"]["qr_count"] == 1
         assert qr_path.read_bytes() == b"png"
         assert str(qr_path) in output_path.read_text(encoding="utf-8")
+        # Links and QR codes are credentials: private to their owner.
+        if sys.platform != "win32":
+            assert output_path.stat().st_mode & 0o777 == 0o600
+            assert qr_path.stat().st_mode & 0o777 == 0o600
 
     def test_humanize_schema_set_from_direct_controls(self, monkeypatch):
         import edsl.coop
