@@ -655,6 +655,10 @@ file and the envelope carries `saved_to`, `format`, `event_count`, `next_cursor`
 `next_cursor` is the position to continue from, returned even when nothing more is
 waiting, so a later `--all --after <next_cursor>` fetches only events that arrived since.
 
+Incremental fetches with `--after` can occasionally miss an event that was still being saved
+when the cursor passed it. They are for checking a survey while it collects; for analysis,
+download the full log once fielding has ended, at least an hour after the last response.
+
 `--all` requires `--output` because payloads hold whatever an author's script logged,
 which can be sensitive; a whole log is written to a file rather than printed. Batches
 are written as they arrive, one in memory at a time, to a private temporary file beside

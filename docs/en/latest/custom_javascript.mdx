@@ -132,18 +132,23 @@ from edsl import Coop
 coop = Coop()
 
 events = coop.get_all_human_survey_events("your-human-survey-uuid")
-events = [e for e in events if not e["is_preview"]]
+respondent_events = [e for e in events if not e["is_preview"]]
 ```
 
 Events from preview links are included and marked `is_preview`, so leave them out of an analysis. Events that arrive while the download runs are included, and no event comes back twice.
 
-To fetch new events later without downloading everything again, pass the `id` of the last event you have as `after`:
+To fetch new events later without downloading everything again, pass the `id` of the last event you downloaded as `after`. Take it from the full download, before filtering out previews:
 
 ```python
+last_id = events[-1]["id"] if events else None
 new_events = coop.get_all_human_survey_events(
-    "your-human-survey-uuid", after=events[-1]["id"]
+    "your-human-survey-uuid", after=last_id
 )
 ```
+
+<Note>
+Fetching only new events is useful for checking your scripts while a survey is collecting, but it can occasionally miss an event that was still being saved when you downloaded. For analysis, download the full log once fielding has ended, at least an hour after the last response.
+</Note>
 
 To fetch one batch at a time, use `Coop.get_human_survey_events`. It takes `after` and `limit` (at most 200, the default), and returns `{"events", "next_cursor", "has_more"}`. Pass `next_cursor` as `after` to get the next batch while `has_more` is `True`. `next_cursor` is returned even when there is nothing more, so you can keep it and use it later.
 
@@ -202,4 +207,4 @@ ep humanize events <human-survey-uuid> --all --after <next_cursor> --output new.
 ep humanize events <human-survey-uuid> --count
 ```
 
-`--all` requires `--output`, which can end in `.json` or `.jsonl`. Every result includes `next_cursor`, the value to pass as `--after` next time. If a download fails part way, no output file is written.
+`--all` requires `--output`, which can end in `.json` or `.jsonl`. Every result includes `next_cursor`, the value to pass as `--after` next time. If a download fails part way, no output file is written. As with the Python methods, use `--after` for checking a survey while it collects, and a full download once fielding has ended for analysis.

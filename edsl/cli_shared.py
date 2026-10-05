@@ -83,8 +83,12 @@ def private_output(path) -> Iterator[Path]:
 
     The temporary file keeps ``path``'s extension, since some writers choose the
     format from it.
+
+    A symlink is followed first, so the file it points to is replaced and the link
+    keeps pointing at it -- what writing through the link would have done. Renaming
+    onto the link itself would swap it for a plain file and leave its target stale.
     """
-    target = Path(path)
+    target = Path(path).resolve()
     temp = prepare_private_file(
         target.with_name(f".{target.stem}.{secrets.token_hex(4)}.tmp{target.suffix}")
     )

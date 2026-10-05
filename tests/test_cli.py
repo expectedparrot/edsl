@@ -4939,6 +4939,31 @@ class TestHumanizeCli:
         assert output_path.stat().st_mode & 0o777 == 0o600
         assert "old" not in output_path.read_text(encoding="utf-8")
 
+    @pytest.mark.skipif(sys.platform == "win32", reason="symlinks need privileges on Windows")
+    @pytest.mark.parametrize("target_exists", [True, False])
+    def test_humanize_events_writes_through_a_symlink(self, tmp_path, monkeypatch, target_exists):
+        """An output that is a symlink stays one, and the file it points to gets the
+        new export, rather than the link being replaced by a plain file."""
+        events, _ = self._events_coop(monkeypatch)
+        real = tmp_path / "exports" / "2026-10-05.jsonl"
+        real.parent.mkdir()
+        if target_exists:
+            real.write_text("old\n", encoding="utf-8")
+        link = tmp_path / "latest.jsonl"
+        link.symlink_to(real)
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            ["humanize", "events", "human-survey-uuid", "--all", "--output", str(link)],
+        )
+
+        assert result.exit_code == 0, result.output
+        assert link.is_symlink()
+        assert link.resolve() == real.resolve()
+        lines = real.read_text(encoding="utf-8").splitlines()
+        assert [json.loads(line) for line in lines] == events
+        assert list(real.parent.iterdir()) == [real]
+
     def test_humanize_events_rejects_other_output_formats(self, tmp_path, monkeypatch):
         self._events_coop(monkeypatch)
 
