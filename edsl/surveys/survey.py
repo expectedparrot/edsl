@@ -2675,6 +2675,16 @@ class Survey(Base):
         gold_agent.add_direct_question_answering_method(f)
         return self.by(gold_agent).run(disable_remote_inference=True)[0]
 
+    def to_evaluation(self):
+        """Create a fluent workload for batched, independent typed judgments.
+
+        Bind scenarios and JudgmentModel objects with ``.by()``. ``compile()``
+        validates support without inference; ``run()`` returns standard Results.
+        """
+        from ..evaluations import Evaluation
+
+        return Evaluation(self)
+
     def to_jobs(self) -> "Jobs":
         """Convert the survey to a Jobs object without adding components.
 
