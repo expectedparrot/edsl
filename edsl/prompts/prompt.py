@@ -453,21 +453,37 @@ class Prompt(str, PersistenceMixin, RepresentationMixin):
             "Too much nesting - you created an infinite loop here, pal"
         )
 
-    def to_dict(self, add_edsl_version=False) -> dict[str, Any]:
+    def to_dict(self, add_edsl_version=True) -> dict[str, Any]:
         """Return the `Prompt` as a dictionary.
+
+        Prompts embedded in Results are serialized with
+        ``add_edsl_version=False``, which leaves out the version metadata.
 
         Example:
 
         >>> p = Prompt("Hello, {{person}}")
-        >>> p.to_dict()
+        >>> p.to_dict(add_edsl_version=False)
         {'text': 'Hello, {{person}}', 'class_name': 'Prompt'}
 
+        >>> d = p.to_dict()
+        >>> d["edsl_class_name"], "edsl_version" in d
+        ('Prompt', True)
         """
-        return {"text": str(self), "class_name": self.__class__.__name__}
+        d = {"text": str(self), "class_name": self.__class__.__name__}
+        if add_edsl_version:
+            from .. import __version__
+
+            d["edsl_version"] = __version__
+            d["edsl_class_name"] = "Prompt"
+        return d
 
     @classmethod
     def from_dict(cls, data) -> "Prompt":
         """Create a `Prompt` from a dictionary.
+
+        Accepts the embedded form, the standalone form with version metadata,
+        and a bare ``{"text": ...}``. The text must be a string; it is never
+        coerced.
 
         Example:
 
@@ -477,8 +493,38 @@ class Prompt(str, PersistenceMixin, RepresentationMixin):
         Prompt(text=\"""Hello, {{person}}\""")
 
         """
-        # class_name = data["class_name"]
-        return Prompt(text=data["text"])
+        if not isinstance(data, dict):
+            raise PromptValueError(
+                f"A Prompt must be built from a dict, got {type(data).__name__}."
+            )
+        edsl_class_name = data.get("edsl_class_name")
+        if edsl_class_name is not None and edsl_class_name != "Prompt":
+            raise PromptValueError(
+                f"This data describes a {edsl_class_name}, not a Prompt."
+            )
+        if "text" not in data:
+            raise PromptValueError("Prompt data has no 'text' field.")
+        text = data["text"]
+        if not isinstance(text, str):
+            raise PromptValueError(
+                f"Prompt 'text' must be a string, got {type(text).__name__}."
+            )
+        return cls(text=text)
+
+    def get_hash(self) -> str:
+        """Return a deterministic hash of the prompt's content.
+
+        Depends only on the text, so it is stable across processes and EDSL
+        versions. ``hash(prompt)`` is still ``str``'s process-salted hash.
+
+        >>> Prompt("Hello").get_hash() == Prompt("Hello").get_hash()
+        True
+        >>> Prompt("Hello").get_hash() == Prompt("Goodbye").get_hash()
+        False
+        """
+        from ..utilities.utilities import dict_hash
+
+        return str(dict_hash({"text": str(self), "class_name": "Prompt"}))
 
     @classmethod
     def example(cls):

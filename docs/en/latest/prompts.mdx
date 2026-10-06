@@ -311,6 +311,70 @@ Output:
 | :--- | :--- | :--- | :--- |
 | You are answering questions as if you were a human. Do not break character. Your traits: `{‘persona’: ‘You are a high school student.’, ‘age’: 15}` | You are answering questions as if you were a human. Do not break character. Your traits: `{‘persona’: ‘You are a high school student.’, ‘age’: 15}` | What is your favorite subject? <br/>  Math <br/> English <br/> Social studies <br/> Science <br/> Other <br/> Only 1 option may be selected. <br/> Respond only with a string corresponding to one of the options. <br/> After the answer, you can put a comment explaining why you chose that option on the next line. | Do you plan to go to college? <br/>  No <br/> Yes <br/> Only 1 option may be selected. <br/> Please respond with just your answer. <br/> After the answer, you can put a comment explaining your response. |
 
+## Saving and sharing prompts
+
+A `Prompt` can be saved to Expected Parrot and reused like any other object: pushed, pulled, shared, copied and deleted. This is useful for research instructions or Jinja templates that you want to reuse across projects or share with collaborators.
+
+Saving and sharing prompts requires EDSL 1.0.8 or later.
+
+### Pushing and pulling
+
+```python
+from edsl import Prompt
+
+prompt = Prompt("Explain {{ topic }} for {{ audience }}.")
+info = prompt.push(alias="explanation-template", visibility="private")
+```
+
+Pull a prompt by its UUID, by its owner and alias, or by its content URL:
+
+```python
+prompt = Prompt.pull(info["uuid"])
+prompt = Prompt.pull("alice/explanation-template")
+prompt = Prompt.pull("https://www.expectedparrot.com/content/alice/explanation-template")
+```
+
+`Prompt.pull` only returns prompts: pulling the UUID or alias of a different kind of object raises an error.
+
+The prompt's text is stored exactly as written, including whitespace and Jinja syntax. Templates are not rendered when they are saved or pulled; call `render` when you want to fill them in:
+
+```python
+prompt.template_variables()
+# ['audience', 'topic']
+
+prompt.render({"topic": "inflation", "audience": "high-school students"})
+# Prompt(text="""Explain inflation for high-school students.""")
+```
+
+To update a prompt you have already pushed, use `patch` with its UUID or content URL:
+
+```python
+Prompt.patch(info["uuid"], value=Prompt("Explain {{ topic }} simply."))
+```
+
+Descriptions, aliases, visibility and sharing work the same way as for other objects. See [Coop](/en/latest/coop) for details.
+
+### Saving prompts locally
+
+Prompts are saved as JSON files:
+
+```python
+prompt.save("explanation-template.json")
+prompt = Prompt.load("explanation-template.json")
+```
+
+The `edsl` command line tool can inspect, validate and push these files:
+
+```bash
+edsl inspect explanation-template.json
+edsl validate --file explanation-template.json
+edsl push explanation-template.json --alias explanation-template --visibility private
+```
+
+<Note>
+*Note: Prompts cannot be saved as `.ep` packages, so `edsl clone`, `edsl pull` and other package commands do not support them yet. Use JSON files, or `Prompt.pull` from Python, instead.*
+</Note>
+
 ## More about question prompts
 
 See the [Questions](/en/latest/questions) section for [more details](/en/latest/questions) on how to create and customize question prompts with question_presentation and answering_instructions parameters in the Question type constructor.

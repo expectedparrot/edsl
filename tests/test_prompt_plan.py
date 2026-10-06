@@ -41,6 +41,39 @@ def test_user_prompt_only_produces_empty_system():
     assert "What color" in result["user_prompt"].text
 
 
+@pytest.mark.parametrize(
+    "plan, expected_user, expected_system",
+    [
+        (PromptPlan.default(), "Question\nMemory", "Instruction\nPersona"),
+        (
+            PromptPlan.user_prompt_only(),
+            "Instruction\nPersona\nQuestion\nMemory",
+            "",
+        ),
+    ],
+)
+def test_prompt_component_separators(plan, expected_user, expected_system):
+    result = plan.get_prompts(
+        agent_instructions="Instruction",
+        agent_persona="Persona",
+        question_instructions="Question",
+        prior_question_memory="Memory",
+    )
+    assert result["user_prompt"].text == expected_user
+    assert result["system_prompt"].text == expected_system
+
+
+def test_prompt_separators_skip_empty_components():
+    result = PromptPlan.user_prompt_only().get_prompts(
+        agent_instructions="Instruction",
+        agent_persona="",
+        question_instructions="Question",
+        prior_question_memory="",
+    )
+    assert result["user_prompt"].text == "Instruction\nQuestion"
+    assert result["system_prompt"].text == ""
+
+
 # 3. Serialization roundtrip
 
 def test_prompt_plan_serialization():

@@ -41,7 +41,9 @@ class JobStore:
 
         # Volatile - initialize counters
         status = JobStatus(job_id=definition.job_id)
-        self._storage.write_volatile(status.state_key, JobState.RUNNING.value)
+        self._storage.write_volatile(
+            status.state_key, status.compute_state(definition.total_interviews).value
+        )
         self._storage.write_volatile(status.completed_interviews_key, 0)
         self._storage.write_volatile(status.failed_interviews_key, 0)
 
@@ -721,6 +723,8 @@ class TaskStore:
             volatile_items[f"task:{defn.task_id}:status"] = initial_status.value
             volatile_items[f"task:{defn.task_id}:unmet_deps"] = len(defn.depends_on)
             volatile_items[f"task:{defn.task_id}:attempts"] = {}
+            # Idempotency guard for terminal accounting (see claim_terminal).
+            volatile_items[f"task:{defn.task_id}:terminal_count"] = 0
 
             # Track ready tasks by job for batch add_to_set
             if initial_status == TaskStatus.READY:
@@ -763,6 +767,24 @@ class TaskStore:
 
     def set_status(self, task_id: str, status: TaskStatus) -> None:
         self._storage.write_volatile(f"task:{task_id}:status", status.value)
+
+    def claim_terminal(self, task_id: str) -> bool:
+        """Record a task's terminal outcome (completed or failed) exactly once.
+
+        Returns True only for the FIRST terminal outcome of ``task_id`` and False
+        for every subsequent one. Task delivery to the worker is at-least-once: a
+        batch can be silently re-POSTed by the dispatcher, reclaimed from the
+        stream, or retried by a client, and two executions can even race in
+        flight. Without an idempotency guard each duplicate calls
+        ``on_task_completed``/``on_task_failed`` again, which satisfies dependents,
+        bumps ``interview:{id}:completed`` (or ``:failed``) and finalizes the
+        interview more than once, so the reported "questions answered" exceeds the
+        number of tasks. A legitimately retried task is reset to READY and never
+        reaches a terminal outcome until it finally succeeds or permanently fails,
+        so this never suppresses a real retry. The counter is reset to 0 whenever
+        the task is (re)created (see create_batch).
+        """
+        return self._storage.increment_volatile(f"task:{task_id}:terminal_count") == 1
 
     def decrement_unmet_deps(self, task_id: str) -> int:
         """Returns new count after decrement."""

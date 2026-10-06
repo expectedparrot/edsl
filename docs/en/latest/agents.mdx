@@ -513,6 +513,13 @@ Output:
 | :--- |
 | What is your last name, John? |
 
+In templates, `agent.<key>` and `agent["<key>"]` look up agent traits before
+Python attributes. For example, `{{ agent.prompt }}` renders the value of a trait
+named `prompt`, even though `Agent` also has a `prompt()` method. If no trait
+matches, existing attribute access such as `{{ agent.name }}` still works.
+This precedence applies only during template rendering; Python calls such as
+`a.prompt()` are unchanged.
+
 Learn more about user and system prompts in the [Prompts](/en/latest/prompts) section.
 
 ## Accessing agent traits

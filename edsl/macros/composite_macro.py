@@ -264,7 +264,7 @@ class CompositeMacro(BaseMacro):
 
     # --- Serialization ----------------------------------------------------
 
-    def to_dict(self, add_edsl_version: bool = False):
+    def to_dict(self, add_edsl_version: bool = True):
         """Serialize this composite macro to a dictionary.
 
         Args:

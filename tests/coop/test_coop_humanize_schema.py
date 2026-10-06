@@ -1182,3 +1182,112 @@ class TestSurveyBranding:
     def test_an_overlong_alt_raises(self):
         with pytest.raises(HumanizeSchemaValidationError):
             validate_humanize_schema(self.survey(), self.schema(alt="x" * 201))
+
+
+class TestQuestionJavaScript:
+    """Author JavaScript under questions[name].javascript.hooks.
+
+    Only the shape is checked here. Whether the account may ship it, and whether the
+    script itself is allowed, is decided by the server when the schema is saved.
+    """
+
+    def survey(self):
+        return Survey(
+            [QuestionFreeText(question_name="q1", question_text="How are you?")]
+        )
+
+    def schema(self, hooks):
+        return {"questions": {"q1": {"javascript": {"hooks": hooks}}}}
+
+    def test_a_question_ready_hook_validates(self):
+        validate_humanize_schema(
+            self.survey(), self.schema({"question.ready": "ep.log('shown');"})
+        )
+
+    @pytest.mark.parametrize("javascript", [None, {}, {"hooks": {}}])
+    def test_no_script_validates(self, javascript):
+        validate_humanize_schema(
+            self.survey(), {"questions": {"q1": {"javascript": javascript}}}
+        )
+
+    def test_an_unknown_event_raises(self):
+        """Stored, it would never run, which looks to the author like a bug of theirs."""
+        with pytest.raises(HumanizeSchemaValidationError, match="Unknown hook"):
+            validate_humanize_schema(
+                self.survey(), self.schema({"question.submit": "ep.log('x');"})
+            )
+
+    def test_an_extra_field_raises(self):
+        with pytest.raises(HumanizeSchemaValidationError):
+            validate_humanize_schema(
+                self.survey(),
+                {"questions": {"q1": {"javascript": {"hooks": {}, "src": "x.js"}}}},
+            )
+
+    def test_a_hook_at_the_size_limit_validates(self):
+        from edsl.coop.coop_humanize_schema import MAX_HOOK_SOURCE_CHARS
+
+        validate_humanize_schema(
+            self.survey(), self.schema({"question.ready": "x" * MAX_HOOK_SOURCE_CHARS})
+        )
+
+    def test_a_hook_over_the_size_limit_raises(self):
+        from edsl.coop.coop_humanize_schema import MAX_HOOK_SOURCE_CHARS
+
+        with pytest.raises(HumanizeSchemaValidationError, match="the limit is"):
+            validate_humanize_schema(
+                self.survey(),
+                self.schema({"question.ready": "x" * (MAX_HOOK_SOURCE_CHARS + 1)}),
+            )
+
+    def test_hooks_over_the_total_limit_raise(self, monkeypatch):
+        """With one event the per-hook cap is reached first, so it is lifted here to
+        reach the total."""
+        from edsl.coop import coop_humanize_schema
+        from edsl.coop.coop_humanize_schema import MAX_TOTAL_HOOK_CHARS
+
+        monkeypatch.setattr(
+            coop_humanize_schema, "MAX_HOOK_SOURCE_CHARS", MAX_TOTAL_HOOK_CHARS + 1
+        )
+        with pytest.raises(HumanizeSchemaValidationError, match="Hooks total"):
+            validate_humanize_schema(
+                self.survey(),
+                self.schema({"question.ready": "x" * (MAX_TOTAL_HOOK_CHARS + 1)}),
+            )
+
+    @pytest.mark.parametrize("question_type", ["compute", "image_generation"])
+    def test_background_question_types_reject_javascript(self, question_type):
+        """They never reach the page, so there is nothing for a hook to run on."""
+        model = QUESTION_TYPE_TO_HUMANIZE_CLASS[question_type]
+        with pytest.raises(ValidationError):
+            model.model_validate({"javascript": {"hooks": {}}})
+
+    def test_a_distribution_question_accepts_javascript(self):
+        question = QuestionDistribution(
+            question_name="forecast",
+            question_text="Predict.",
+            question_options=["a", "b"],
+        )
+        validate_humanize_schema(
+            Survey([question]),
+            {
+                "questions": {
+                    "forecast": {
+                        "javascript": {"hooks": {"question.ready": "ep.log('shown');"}}
+                    }
+                }
+            },
+        )
+
+    def test_a_survey_message_accepts_javascript(self):
+        survey = Survey([SurveyMessage(question_name="intro", question_text="Hello")])
+        validate_humanize_schema(
+            survey,
+            {
+                "questions": {
+                    "intro": {
+                        "javascript": {"hooks": {"question.ready": "ep.log('read');"}}
+                    }
+                }
+            },
+        )

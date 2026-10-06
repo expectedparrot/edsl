@@ -13,6 +13,7 @@ from edsl.cli_shared import (
     error,
     jsonable,
     load_git_object,
+    load_openable_json,
     output,
 )
 
@@ -34,10 +35,11 @@ def register(app: click.Group) -> None:
             coop_info = _plain_dict(coop_info)
 
             if not hasattr(obj, "git"):
+                class_name = type(obj).__name__
                 error(
                     "UNSUPPORTED_OBJECT",
-                    f"Fetched object does not support git-backed packages: {type(obj).__name__}",
-                    suggestion="Use an EDSL object type with .git support.",
+                    f"Fetched object does not support git-backed packages: {class_name}",
+                    suggestion=f"Use {class_name}.pull() from Python, or 'ep inspect' to view it.",
                     exit_code=EXIT_VALIDATION,
                 )
 
@@ -141,14 +143,22 @@ def register(app: click.Group) -> None:
     @click.option("--visibility", default=None, help="private, public, or unlisted.")
     @click.option("--force", is_flag=True, default=False, help="Patch an existing alias conflict when creating.")
     def push_object(object_path, alias, description, visibility, force):
-        """Push or patch an EDSL object on Expected Parrot."""
+        """Push or patch an EDSL object on Expected Parrot.
+
+        OBJECT_PATH is a git-backed .ep package, or a .json/.json.gz file for
+        objects that have no package format, such as prompts.
+        """
         source_path = Path(object_path)
         try:
+            if source_path.is_file() and source_path.name.endswith((".json", ".json.gz")):
+                _push_json_object(source_path, alias, description, visibility, force)
+                return
+
             if not (source_path.is_dir() or source_path.suffix == ".ep"):
                 error(
                     "USAGE_ERROR",
-                    f"Push requires a git-backed .ep package: {object_path}",
-                    suggestion="Save the object as a .ep package first, then run 'ep push <path.ep>'.",
+                    f"Push requires a git-backed .ep package or a .json file: {object_path}",
+                    suggestion="Save the object as a .ep package (or .json for prompts), then run 'ep push <path>'.",
                     exit_code=EXIT_USAGE,
                 )
 
@@ -193,6 +203,36 @@ def register(app: click.Group) -> None:
                 suggestion="Check the object path, alias, visibility, and Expected Parrot API key.",
                 exit_code=EXIT_REMOTE,
             )
+
+
+    def _push_json_object(source_path: Path, alias, description, visibility, force):
+        """Push a JSON-serialized object as a new Expected Parrot object.
+
+        Only for objects with no .ep package format. Package-backed objects must
+        be pushed as packages, which record the Coop object they belong to.
+        """
+        from edsl.coop import Coop
+
+        obj = load_openable_json(source_path)
+        if hasattr(obj, "git"):
+            error(
+                "USAGE_ERROR",
+                f"{type(obj).__name__} must be pushed as a git-backed .ep package: {source_path}",
+                suggestion="Save the object as a .ep package first, then run 'ep push <path.ep>'.",
+                exit_code=EXIT_USAGE,
+            )
+        push_kwargs = {"description": description, "alias": alias, "force": force}
+        if visibility is not None:
+            push_kwargs["visibility"] = visibility
+        info = Coop().push(obj, **push_kwargs)
+        output(
+            {
+                "object_type": type(obj).__name__,
+                "source": str(source_path),
+                "operation": "push",
+                "coop_info": jsonable(info),
+            }
+        )
 
 
     @app.command("pull")

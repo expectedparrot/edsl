@@ -8,7 +8,26 @@ This module provides the InterviewTupleFilter class which generates
 from typing import Generator, Tuple, Optional, Any, Sequence
 from itertools import product
 
-from ..utilities.jinja import make_environment
+from ..utilities.jinja import EDSLSandboxedEnvironment
+
+
+class _InterviewFilterEnvironment(EDSLSandboxedEnvironment):
+    """Expose only the source positions needed by legacy index filters."""
+
+    def __init__(self):
+        super().__init__()
+        self.positions = {}
+
+    def getattr(self, obj, attribute):
+        if attribute in ("_index", "_position_index") and id(obj) in self.positions:
+            # These are enumerated integers, not reads of private object state.
+            return self.positions[id(obj)]
+        return super().getattr(obj, attribute)
+
+    def getitem(self, obj, argument):
+        if isinstance(argument, str) and argument in ("_index", "_position_index"):
+            return self.getattr(obj, argument)
+        return super().getitem(obj, argument)
 
 
 class InterviewTupleFilter:
@@ -42,7 +61,7 @@ class InterviewTupleFilter:
         self.include_expression = include_expression
 
         if include_expression:
-            self._env = make_environment()
+            self._env = _InterviewFilterEnvironment()
             self._template = self._env.from_string(include_expression)
         else:
             self._template = None
@@ -64,9 +83,19 @@ class InterviewTupleFilter:
 
     def __iter__(self) -> Generator[Tuple[Any, Any, Any], None, None]:
         """Iterate over all valid (agent, scenario, model) tuples."""
-        for agent, scenario, model in product(self.agents, self.scenarios, self.models):
+        for a, s, m in self.iter_indices():
+            yield self.agents[a], self.scenarios[s], self.models[m]
+
+    def iter_indices(self) -> Generator[Tuple[int, int, int], None, None]:
+        """Keep source positions even when a collection repeats the same object."""
+        for a, s, m in product(
+            range(len(self.agents)), range(len(self.scenarios)), range(len(self.models))
+        ):
+            agent, scenario, model = self.agents[a], self.scenarios[s], self.models[m]
+            if self._template is not None:
+                self._env.positions = {id(agent): a, id(scenario): s, id(model): m}
             if self._evaluate_expression(agent, scenario, model):
-                yield agent, scenario, model
+                yield a, s, m
 
     def __len__(self) -> int:
         """

@@ -569,6 +569,10 @@ Respondents, deliveries, schedules, and callbacks:
 ep humanize respondents <human_survey_uuid> --page 1 --page_size 50
 ep humanize agent-list get <human_survey_uuid>
 ep humanize agent-list patch <human_survey_uuid> --delivery_map delivery_map.json
+ep humanize agent-access get <human_survey_uuid>
+ep humanize agent-access patch <human_survey_uuid> --enabled --participation_mode autonomous --instructions "Keep free-text answers to one or two sentences, and use the comment box to flag any answer that's an estimate."
+ep humanize agent-access patch <human_survey_uuid> --question_instructions "improvements=Name at least one specific change, not a general comment." --clear_question job
+ep humanize agent-access patch <human_survey_uuid> --config agent_access.json
 ep humanize deliveries create <human_survey_uuid> --name "Initial invite"
 ep humanize deliveries list <human_survey_uuid>
 ep humanize deliveries tasks <human_survey_uuid> <delivery_uuid>
