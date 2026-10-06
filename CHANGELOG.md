@@ -28,6 +28,18 @@
 - **CLI/output**: keep `ep run` output as a JSON envelope (#2527); `Model.available()` improvements (#2486).
 - **Docs**: clean up old Sphinx docs / Mintlify migration (#2530), EP model-pricing clarification (#2591), align study-start guidance with pre-plan scaffolding (#2650).
 
+<details>
+<summary><strong>Fixed</strong> (expand)</summary>
+
+- **Models/temperature**: omit temperature for Anthropic models that reject it (Fable 5, Opus 4.7+, Sonnet 5) (#2508), Anthropic temperature for newer Claude models (#2490), gpt-5.6 temperature (#2523), GPT-6 reasoning-effort forwarding in both OpenAI adapters (#2645), and Bedrock inference profiles (#2487).
+- **Serialization/parsing**: `QuestionDict` thinking-wrapper preservation and parsing (#2524), `QuestionDict` fenced-JSON recovery (#2596), serializable direct-answer objects (#2531), and legacy rule conversion corrupting overlapping question names (#2664).
+- **Agents/templates**: agent instructions dropped when traits are empty (#2661), agent trait names colliding with template attributes (#2663).
+- **Survey/skip logic**: instruction and memory handling (#2480), scenario/agent key prefixing in `should_skip` (#2481), guard `skip_question_before_running` against undefined variables (#2503), and survey HTML rendering for dynamic options (#2557).
+- **Jobs/runner**: job status table always includes Results UUID and URL (#2483), restored rich table / prompt display for remote jobs (#2484), `show_flow()` diagram rendering (#2485), $0 cost for image-generation questions on the direct-answer path (#2538), over-count of completed/failed tasks under duplicate delivery (#2671), and pulling humanize responses no longer reruns image generation (#2547).
+- **Misc fixes**: CLI `-n` collision, stale-archive model lookup, and `.load()` on `.ep` (#2518); scope class-level `store.list()` to the calling class (#2465); pandas exports ignoring `lists_as_strings=False` (#2662); study scaffold exports/model panels and Prolific publication guard (#2667); remote-inference docs frontmatter (#2631).
+
+</details>
+
 ## [1.0.7] - 2026-04-29
 ### Added
 - **EDSL Runner**: New in-process job runner that replaces remote-only execution. Uploads `FileStore` objects to GCS concurrently with a 10-thread executor (~15s → ~2-3s for 100 files), shows live `Uploading files to GCS: x/y` progress, and short-circuits per-task `should_skip_task()` when a survey has no skip rules. (#2396, #2422, #2456)
