@@ -1,5 +1,33 @@
 # Changelog
 
+## [1.0.9] - 2026-10-06
+### Added
+- **Humanize custom JavaScript (v1)**: Attach author-written scripts to human-survey questions via the humanize schema, run them in the respondent's browser on the `question.ready` hook, and retrieve logged behavioral events. Includes new Coop endpoints, CLI (`ep humanize events`, `custom-js-access`, `--javascript`), and docs. Gated per approved account. (#2673)
+- **Agents can take humanize surveys**: New Coop methods and docs for AI agents answering human surveys through an agent link (participation modes, per-question guidance), plus a helper for humanizing with agents. (#2670, #2552)
+- **Humanize schema features**: interview mode (#2469), `QuestionFileUpload` support (#2482), voice languages (#2499), image-generation questions (#2515), interview intro screen (#2523), processing/submitting indicator (#2539), lockable text-interview chat (#2540, #2541), checkbox with custom responses (#2558), progress-bar variants (#2581), matrix row randomization (#2589), routable `SurveyMessage` nodes (#2617), grouped survey navigation (#2623), survey branding (#2649), per-question time limits (#2652), hide the checkbox "Select all" button (#2640), and a humanize preview URL in the API response (#2519). (#2477, #2478, #2513, #2561)
+- **New question types**: `QuestionImageGeneration` (#2515), `QuestionDiagram` (#2516), checkbox-with-custom-responses (#2558), `QuestionURL` for validated absolute URLs (#2632), and `QuestionDistribution` for categorical/binned probability elicitation (#2654).
+- **Git-backed EDSL objects & `.ep` packages**: Store EDSL objects as git-backed packages, preserve survey question IDs with native `.ep` merges, and default git-backed objects to `.ep` persistence. (#2488, #2521, #2553, #2573)
+- **Cost estimation (v1)**: Estimate job costs before running, including reasoning-token uncertainty in the estimate. (#2489, #2610)
+- **Prompts as first-class EDSL objects**: Prompts can now be created, serialized, and managed as standalone objects. (#2672)
+- **Inference services**: Meta provider (#2512) and a generic OpenAI-compatible local inference backend (#2578).
+- **CLI additions**: per-model specifications (#2546), a resumable run-manifest command (#2572), evidence-backed workflow gates (#2576), and an EDSL CLI agent guide (#2528).
+- **Interview execution path**: New interview invigilator execution path for text interviews. (#2472, #2494)
+- **Email system (v1)**: New endpoints and docs for respondent email flows. (#2474)
+- **Respondent transcripts**: Send transcripts to respondents, ping owners on submission, and view respondent transcripts in Results HTML. (#2492, #2493, #2602)
+- **Probabilistic response contracts** for structured question types. (#2550)
+- **Question option enhancements**: lookup-based dynamic options (#2464), an `unselected` field for carry-forward (#2511), and a designated remainder option for `QuestionBudget` (#2611).
+- **Prolific**: endpoint for listing Prolific studies. (#2574)
+- **Coop/humanize retrieval**: retrieve humanize comments when pulling responses (#2462), a method to retrieve the humanize schema (#2639), filter human-survey responses by start timestamp (#2624), allow humanize scenario methods with `Jobs` packages (#2607), and read remote-job error-report task history from EDSL (#2585).
+- **Static loop expansion** for merged/looped surveys. (#2535)
+
+### Improved
+- **Reliability (fail-closed)**: Fail closed on unsuccessful remote inference runs (#2606) and when completed runner tasks have no answer (#2605); preserve validation failures across execution and persistence (#2599); integrate local adaptive-survey reliability fixes (#2568). (#2614)
+- **Piping & dynamic options**: render templates in individual question options (#2559), allow WithOther answers in mixed piped option lists (#2616), and pipe file-upload answers (#2501).
+- **Survey flexibility**: relax the minimum to allow a single question option (#2590), allow same-group questions to use skip rules based on earlier pages (#2638), omit skipped questions from memory context (#2608), and honor/preserve pinned option orders through Runner execution and JSONL round-trips (#2634, #2635).
+- **Security & performance**: bound and secure scenario network requests (#2609), content-stable FileStore cache key (#2543), and media input-token estimation for rate limiting (#2548).
+- **CLI/output**: keep `ep run` output as a JSON envelope (#2527); `Model.available()` improvements (#2486).
+- **Docs**: clean up old Sphinx docs / Mintlify migration (#2530), EP model-pricing clarification (#2591), align study-start guidance with pre-plan scaffolding (#2650).
+
 ## [1.0.7] - 2026-04-29
 ### Added
 - **EDSL Runner**: New in-process job runner that replaces remote-only execution. Uploads `FileStore` objects to GCS concurrently with a 10-thread executor (~15s → ~2-3s for 100 files), shows live `Uploading files to GCS: x/y` progress, and short-circuits per-task `should_skip_task()` when a survey has no skip rules. (#2396, #2422, #2456)
