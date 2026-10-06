@@ -98,6 +98,10 @@ class LanguageModelBadResponseError(LanguageModelExceptions):
         self.response_json = response_json
 
 
+class OutputTokenLimitError(LanguageModelBadResponseError):
+    """The provider exhausted its completion budget before producing text."""
+
+
 class LanguageModelNotFound(LanguageModelExceptions):
     """
     Exception raised when attempting to use a non-existent language model.

@@ -390,9 +390,20 @@ def register(jobs_group: click.Group) -> None:
                         scenarios=obj.scenarios,
                     )
             cost_data = Coop().remote_inference_cost(obj, iterations=iterations)
+            from edsl.language_models.output_token_policy import (
+                model_token_policy,
+                token_limit_warnings,
+            )
+
+            cost_data["output_token_policies"] = [
+                model_token_policy(m) for m in getattr(obj, "models", [])
+            ]
             cost_warnings = [
                 {"code": "COST_ESTIMATE_UNCERTAIN", "message": message}
-                for message in (cost_data.get("warnings") or [])
+                for message in [
+                    *(cost_data.get("warnings") or []),
+                    *token_limit_warnings(getattr(obj, "models", [])),
+                ]
             ]
             output(jsonable(cost_data), warnings=cost_warnings)
         except SystemExit:

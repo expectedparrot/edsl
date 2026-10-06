@@ -260,6 +260,12 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
     def transcripts(self, show_comments: bool = True) -> "Transcripts":
         return self._transcripts_generator.transcripts(show_comments=show_comments)
 
+    def completion_summary(self) -> dict:
+        """Count answered, validated, truncated, failed, and empty rows separately."""
+        from .completion_summary import completion_summary
+
+        return completion_summary(self)
+
     @classmethod
     def from_job_info(cls, job_info: dict) -> "Results":
         """Instantiate a Results object from a job info dictionary.
@@ -624,12 +630,16 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         return self._properties.has_unfixed_exceptions
 
     def __hash__(self) -> int:
+        from .hash_normalizer import normalize_for_hash
+
         return dict_hash(
-            self.to_dict(
-                sort=True,
-                add_edsl_version=False,
-                include_cache=False,
-                include_cache_info=False,
+            normalize_for_hash(
+                self.to_dict(
+                    sort=True,
+                    add_edsl_version=False,
+                    include_cache=False,
+                    include_cache_info=False,
+                )
             )
         )
 

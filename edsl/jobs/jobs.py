@@ -1220,6 +1220,9 @@ class Jobs(Base):
 
     def _prepare_to_run(self) -> None:
         """Prepare the job to run and ensure keys are in place for a remote job."""
+        from ..language_models.output_token_policy import token_limit_warnings
+
+        token_limit_warnings(self.models, emit=True)
         # Check for collisions between agent trait keys and question names
         from .exceptions import JobsValueError
 

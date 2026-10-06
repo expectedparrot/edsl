@@ -304,6 +304,20 @@ class RawResponseHandler:
         """
 
         from edsl.data_transfer_models import EDSLOutput
+        from .response_metadata import response_metadata
+        from .exceptions import OutputTokenLimitError
+
+        metadata = response_metadata(raw_response)
+        if (
+            metadata.get("truncated")
+            and metadata.get("visible_answer_present") is False
+        ):
+            raise OutputTokenLimitError(
+                "Output token limit reached before visible answer text was generated. "
+                "Reasoning may have consumed the shared completion budget. "
+                "Retry with an explicitly increased max_tokens limit.",
+                response_json=raw_response,
+            )
 
         generated_token_string = self.get_generated_token_string(raw_response)
         # Ensure generated_token_string is a string before using string methods

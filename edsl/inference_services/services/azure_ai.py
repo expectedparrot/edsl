@@ -31,7 +31,13 @@ class AzureParameterBuilder:
     def build_params(model: str, messages: list, **model_params) -> dict:
         """Build API parameters, adjusting for specific model types."""
 
-        default_max_tokens = model_params.get("max_tokens", 512)
+        from ...language_models.output_token_policy import resolve_output_token_limit
+
+        default_max_tokens = (
+            model_params["max_tokens"]
+            if "max_tokens" in model_params
+            else resolve_output_token_limit(model)
+        )
         default_temperature = model_params.get("temperature", 0.5)
 
         # Check if this is a reasoning model (o1, o1-mini, etc.)
@@ -42,13 +48,14 @@ class AzureParameterBuilder:
         )
 
         if is_reasoning_model:
-            # For reasoning models, only pass minimal parameters (no max tokens, no top_p)
+            # Preserve the shared output budget while omitting unsupported top_p.
             temperature = 1
 
-            # For o1 models, only pass messages and temperature
+            # Omit sampling controls that these models do not support.
             params = {
                 "messages": messages,
                 "temperature": temperature,
+                "max_tokens": default_max_tokens,
             }
         else:
             # For regular (non-o1) models, always use max_tokens regardless of type
