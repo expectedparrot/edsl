@@ -165,7 +165,14 @@ def test_agent_settings_shared_and_varying(tmp_path):
     assert "| age | Age in years |" in prose
 
 
-def test_subclasses_and_functions(tmp_path, caplog):
+def test_subclasses_and_functions(tmp_path, caplog, monkeypatch):
+    from edsl.base import RegisterSubclassesMeta
+
+    # Defining an Agent subclass registers it globally. Keep this test-only
+    # class out of subsequent serialization-coverage and registry tests.
+    monkeypatch.setattr(
+        RegisterSubclassesMeta, "_registry", RegisterSubclassesMeta._registry.copy()
+    )
     caplog.set_level("WARNING", logger="edsl.hf.io")
 
     class ResearchAgent(Agent):
