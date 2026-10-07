@@ -38,6 +38,25 @@ def _class_name(value):
     return "AgentList" if issubclass(cls, AgentList) else "ScenarioList"
 
 
+def _encode_names(obj, rows, features, hf):
+    features["_edsl_name"] = hf.Value("string")
+    preserve_types = any(
+        item.name is not None and not isinstance(item.name, str) for item in obj
+    )
+    if preserve_types:
+        features["_edsl_name_original"] = hf.Value("string")
+    for row, item in zip(rows, obj):
+        name = item.name
+        row["_edsl_name"] = None if name is None else str(name)
+        if preserve_types:
+            row["_edsl_name_original"] = dumps(name)
+
+
+def _decode_name(row):
+    original = row.get("_edsl_name_original")
+    return loads(original) if original is not None else row.get("_edsl_name")
+
+
 def _build_table(obj, coerce, max_file_bytes):
     hf, pa = require("datasets"), require("pyarrow")
     class_name = _class_name(obj)
@@ -77,13 +96,9 @@ def _build_table(obj, coerce, max_file_bytes):
     )
     metadata["columns"] = columns
     if class_name == "ScenarioList" and any(s.name is not None for s in obj):
-        features["_edsl_name"] = hf.Value("string")
-        for row, scenario in zip(rows, obj):
-            row["_edsl_name"] = scenario.name
+        _encode_names(obj, rows, features, hf)
     if class_name == "AgentList":
-        features["_edsl_name"] = hf.Value("string")
-        for row, agent in zip(rows, agents):
-            row["_edsl_name"] = agent.get("name")
+        _encode_names(obj, rows, features, hf)
         for setting in AGENT_SETTINGS:
             if agents and all(
                 setting in a and a[setting] == agents[0].get(setting) for a in agents
@@ -110,6 +125,42 @@ def _build_table(obj, coerce, max_file_bytes):
     except (pa.ArrowException, OverflowError, TypeError) as exc:
         raise HFSchemaError(f"Cannot encode HF columns: {exc}") from exc
     return table, features, metadata
+
+
+def _install_config(staging, path, config):
+    """Keep the previous shards until the new shards and card are installed."""
+    path.mkdir(parents=True, exist_ok=True)
+    config_path = path / config
+    if config_path.is_symlink():
+        raise HFSchemaError(
+            f"Refusing to overwrite symlink config directory {config_path}"
+        )
+    config_path.mkdir(exist_ok=True)
+    backup = staging / ".previous"
+    backup.mkdir()
+    moved, installed = [], []
+    try:
+        for old in sorted(config_path.glob("train-*-of-*.parquet")):
+            saved = old.replace(backup / old.name)
+            moved.append((saved, old))
+        for shard in sorted((staging / config).iterdir()):
+            installed.append(shard.replace(config_path / shard.name))
+        (staging / "README.md").replace(path / "README.md")
+    except BaseException:
+        try:
+            for shard in installed:
+                shard.unlink()
+            for saved, old in moved:
+                saved.replace(old)
+        except BaseException as rollback_error:
+            # Preserve backups outside TemporaryDirectory's cleanup if the
+            # filesystem also refuses the rollback (e.g. permissions changed).
+            recovery = staging.with_name(staging.name + "-recovery")
+            staging.rename(recovery)
+            raise RuntimeError(
+                f"HF dataset overwrite and rollback failed; recover files from {recovery}"
+            ) from rollback_error
+        raise
 
 
 def save_hf(obj, path, *, config_name=None, coerce="error", max_file_bytes=50_000_000):
@@ -174,18 +225,7 @@ def save_hf(obj, path, *, config_name=None, coerce="error", max_file_bytes=50_00
                 with pq.ParquetWriter(shard_path, table.schema):
                     pass
         write_card(staging / "README.md", card, prose)
-        path.mkdir(parents=True, exist_ok=True)
-        config_path = path / config
-        if config_path.is_symlink():
-            raise HFSchemaError(
-                f"Refusing to overwrite symlink config directory {config_path}"
-            )
-        config_path.mkdir(exist_ok=True)
-        for old in config_path.glob("train-*-of-*.parquet"):
-            old.unlink()
-        for shard in target.iterdir():
-            shard.replace(config_path / shard.name)
-        (staging / "README.md").replace(path / "README.md")
+        _install_config(staging, path, config)
     return path
 
 
@@ -225,7 +265,7 @@ def load_hf(cls, path, *, config_name=None):
             for row in batch.to_pylist():
                 fields = decode_fields(row, metadata["columns"])
                 if metadata["class"] == "AgentList":
-                    agent = {"traits": fields, "name": row.get("_edsl_name")}
+                    agent = {"traits": fields, "name": _decode_name(row)}
                     for setting in AGENT_SETTINGS:
                         if setting in metadata:
                             agent[setting] = metadata[setting]
@@ -236,7 +276,7 @@ def load_hf(cls, path, *, config_name=None):
                             )
                     items.append(Agent.from_dict(agent))
                 else:
-                    items.append(Scenario(fields, name=row.get("_edsl_name")))
+                    items.append(Scenario(fields, name=_decode_name(row)))
     if len(items) != metadata["n"]:
         raise HFSchemaError(
             f"Config {config!r}: card declares {metadata['n']} rows, found {len(items)}"

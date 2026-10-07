@@ -165,6 +165,88 @@ def test_agent_settings_shared_and_varying(tmp_path):
     assert "| age | Age in years |" in prose
 
 
+def test_integer_and_string_agent_names(tmp_path):
+    names = [42, "42", 0, "", None, -(2**80)]
+    agents = AgentList([Agent({"row": i}, name=name) for i, name in enumerate(names)])
+    agents.save_hf(tmp_path)
+    restored = AgentList.load_hf(tmp_path)
+    assert [agent.name for agent in restored] == names
+    assert [type(agent.name) for agent in restored] == [type(name) for name in names]
+    assert restored == agents
+
+
+@pytest.mark.parametrize("failure", ["card", "second_shard"])
+def test_overwrite_io_failure_restores_previous_dataset(tmp_path, monkeypatch, failure):
+    import edsl.hf.io as hf_io
+
+    path = tmp_path / "dataset"
+    original = ScenarioList([Scenario({"x": 1})])
+    original.save_hf(path)
+    AgentList([Agent({"age": 30})]).save_hf(path)
+    before = {
+        p.relative_to(path): p.read_bytes() for p in path.rglob("*") if p.is_file()
+    }
+    monkeypatch.setattr(hf_io, "SHARD_BYTES", 1)
+    replace = Path.replace
+
+    def fail_install(source, destination):
+        destination = Path(destination)
+        if failure == "card" and destination == path / "README.md":
+            raise PermissionError("injected card installation failure")
+        if (
+            failure == "second_shard"
+            and destination == path / "scenarios/train-00001-of-00002.parquet"
+        ):
+            raise PermissionError("injected shard installation failure")
+        return replace(source, destination)
+
+    monkeypatch.setattr(Path, "replace", fail_install)
+    with pytest.raises(PermissionError, match="injected"):
+        ScenarioList([Scenario({"y": "new"}), Scenario({"y": "rows"})]).save_hf(path)
+    assert ScenarioList.load_hf(path) == original
+    assert {
+        p.relative_to(path): p.read_bytes() for p in path.rglob("*") if p.is_file()
+    } == before
+
+
+def test_failed_rollback_keeps_recoverable_backup(tmp_path, monkeypatch):
+    path = tmp_path / "dataset"
+    original = ScenarioList([Scenario({"x": 1})])
+    original.save_hf(path)
+    old_shard = next((path / "scenarios").glob("*.parquet"))
+    old_bytes = old_shard.read_bytes()
+    old_card = (path / "README.md").read_bytes()
+    replace = Path.replace
+
+    def fail_install_and_restore(source, destination):
+        if Path(destination) == path / "README.md" or source.parent.name == ".previous":
+            raise PermissionError("injected filesystem failure")
+        return replace(source, destination)
+
+    monkeypatch.setattr(Path, "replace", fail_install_and_restore)
+    with pytest.raises(RuntimeError, match="recover files from") as error:
+        ScenarioList([Scenario({"y": "new"})]).save_hf(path)
+    recovery = next(tmp_path.glob("edsl-hf-*-recovery"))
+    assert str(recovery) in str(error.value)
+    assert (recovery / ".previous" / old_shard.name).read_bytes() == old_bytes
+    assert (path / "README.md").read_bytes() == old_card
+
+
+@pytest.mark.parametrize("cls", [AgentList, ScenarioList])
+def test_restored_files_use_embedded_bytes_when_original_changes(cls, tmp_path):
+    source = tmp_path / "attachment.txt"
+    source.write_text("original attachment")
+    attachment = FileStore(str(source), extracted_text="original attachment")
+    obj = make_list(cls, [{"file": attachment, "nested": {"file": attachment}}])
+    obj.save_hf(tmp_path / "dataset")
+    source.write_text("changed after export")
+    restored = cls.load_hf(tmp_path / "dataset")[0]
+    fields = restored.traits if cls is AgentList else restored
+    for file in (fields["file"], fields["nested"]["file"]):
+        assert dict(file) == dict(attachment)
+        assert Path(file.path).read_bytes() == b"original attachment"
+
+
 def test_subclasses_and_functions(tmp_path, caplog, monkeypatch):
     from edsl.base import RegisterSubclassesMeta
 

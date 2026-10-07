@@ -281,7 +281,8 @@ float64 cannot represent exactly. Integers outside int64 require a coercion mode
 when a column contains only integers.
 
 Names, instructions, presentation templates, codebooks, and trait categories
-survive. Shared agent settings go in the card, and varying settings go in
+survive, including the distinction between integer and string agent names
+(for example, `42` and `"42"`). Shared agent settings go in the card, and varying settings go in
 per-row columns. Scenario names and the scenario list's codebook also survive.
 Agent subclasses load as plain `Agent`; their class names are recorded for
 reference. Dynamic-trait and direct-answering functions are omitted, with a log
@@ -294,6 +295,8 @@ HF `Image` features; audio uses `Audio(decode=False)`. Other files and columns
 mixing file kinds use a `{bytes, path}` struct. The companion `FIELD__meta` struct
 retains the original path, MIME type, suffix, binary flag, extracted text, and
 external locations. A user field colliding with that companion name raises an error.
+Restored attachments use the embedded bytes even if a file at the original path
+has changed; that path is retained as metadata only.
 
 The default `max_file_bytes=50_000_000` applies to each attachment. Larger files
 fail with the column and row number before upload. Nested attachments stay inline

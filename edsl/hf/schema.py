@@ -30,7 +30,9 @@ def restore_file(fields):
 
     result = FileStore.__new__(FileStore)
     Scenario.__init__(result, dict(fields))
-    result._path = fields.get("path")
+    # The serialized path is provenance only: a local file at that path may
+    # have changed since export. Materialize embedded bytes when path is used.
+    result._path = None
     result._temp_path = None
     for key in (
         "base64_string",
