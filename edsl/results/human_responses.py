@@ -41,8 +41,10 @@ class HumanResponseEntry(BaseModel):
     answered_at: Optional[str] = None
     # False when survey logic skipped the question.
     question_presented: Optional[bool] = None
-    # The options as the respondent saw them, after piping and any reordering.
-    question_options: Optional[list[Union[str, int]]] = None
+    # The options as the respondent saw them, after piping and any reordering. Any JSON
+    # value: question types allow strings, ints, floats and, for multiple choice and
+    # dropdown, lists.
+    question_options: Optional[list[JsonValue]] = None
 
 
 ENTRIES = TypeAdapter(dict[str, HumanResponseEntry])

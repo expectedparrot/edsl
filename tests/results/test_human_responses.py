@@ -217,6 +217,19 @@ def test_unknown_keys_are_ignored():
     assert results[0]["answer"]["name"] == "Ada"
 
 
+@pytest.mark.parametrize(
+    "options",
+    [[0.5, 1.5, 2.5], [1, "2", 3.5], [["a", "b"], ["c"]]],
+    ids=["fractional", "mixed", "nested"],
+)
+def test_any_supported_options_are_kept_as_is(options):
+    # Matrix questions allow fractional options, and multiple choice and dropdown allow
+    # lists; a response that recorded them must still build, unchanged.
+    entries = {**ANSWERED, "color": {**ANSWERED["color"], "question_options": options}}
+    results = Results.from_human_responses(make_survey(), [make_row(entries=entries)])
+    assert results[0]["question_to_attributes"]["color"]["question_options"] == options
+
+
 def test_malformed_entry_is_a_validation_error():
     entries = {**ANSWERED, "color": {**ANSWERED["color"], "question_presented": "maybe"}}
     with pytest.raises(ValidationError, match="question_presented"):
