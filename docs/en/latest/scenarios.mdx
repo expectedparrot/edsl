@@ -533,6 +533,24 @@ The method from_source(“sqlite”) can be used to create a scenario list from 
 
 There are a variety of methods for creating and working with scenarios generated from datasets and different data types.
 
+### Hugging Face datasets
+
+Load the `train` rows of a Hugging Face dataset as scenarios, or publish an
+existing `ScenarioList` with its fields and FileStore attachments:
+
+```python
+from edsl import ScenarioList
+
+scenarios = ScenarioList.from_hf("owner/dataset", config_name="subset")
+url = scenarios.to_hf("YOUR_USERNAME/my-scenarios")  # Private by default
+```
+
+Install `edsl[hf]` first and configure a Hugging Face token for uploads or private
+repos. The equivalent source API is
+`ScenarioList.from_source("huggingface", "owner/dataset", snakify=False)`.
+Local folders use `save_hf()` and `load_hf()`. See
+[Hugging Face datasets](/en/latest/hugging_face) for the full workflow and format.
+
 ### Turning results into scenarios
 
 The method to_scenario_list() can be used to turn the results of a survey into a list of scenarios.

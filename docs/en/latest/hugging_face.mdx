@@ -1,0 +1,342 @@
+---
+title: Hugging Face datasets
+description: Publish and restore AgentList and ScenarioList objects as standard Parquet datasets.
+---
+
+Publish an `AgentList` or `ScenarioList` to Hugging Face as a standard Parquet
+dataset, then rebuild the EDSL object from it. People without EDSL can use the
+same dataset through Hugging Face's dataset viewer, `datasets`, pandas, or DuckDB.
+
+| Method | Purpose | Returns |
+| --- | --- | --- |
+| `agents.to_hf(repo_id)` | Publish to the Hugging Face Hub | Dataset URL |
+| `AgentList.from_hf(repo_id)` | Load from the Hub | `AgentList` |
+| `agents.save_hf(path)` | Write the same format to a local folder | `Path` |
+| `AgentList.load_hf(path)` | Load a local HF folder | `AgentList` |
+
+`ScenarioList` provides the same four methods. Publishing and loading data do not
+run surveys or make model inference calls. You do not need an Expected Parrot key.
+
+## Install
+
+Install the optional dependencies:
+
+```bash
+pip install 'edsl[hf]'
+```
+
+From a source checkout, run `pip install -e '.[hf]'` at the repository root.
+The extra installs `datasets`, `huggingface_hub`, and `pyarrow`. Local export and
+import need no Hugging Face account or token.
+
+## Set up your Hugging Face token
+
+1. Sign in to Hugging Face and open [Access Tokens](https://huggingface.co/settings/tokens).
+2. Create a token named, for example, `edsl-local`.
+3. Choose **Write** to allow creating and uploading dataset repositories. A
+   fine-grained token can instead limit access to the repositories you intend to use.
+4. Add the token to your project's `.env` file under **`HF_TOKEN`**:
+
+```dotenv
+HF_TOKEN=hf_your_token_here
+```
+
+The token's name is just a label in your HF account; `HF_TOKEN` is the environment
+variable the HF libraries read. Load your `.env` before using the integration:
+
+```python
+from dotenv import load_dotenv
+
+load_dotenv(".env")
+```
+
+Alternatively, run `hf auth login` in your terminal and paste your token when
+prompted. The methods also accept `token=` if you manage credentials yourself.
+Keep `.env` out of version control. See Hugging Face's
+[token permissions](https://huggingface.co/docs/hub/security-tokens) and
+[CLI authentication](https://huggingface.co/docs/huggingface_hub/guides/cli) documentation.
+
+## Publish an existing .ep package
+
+Replace `YOUR_USERNAME` with your Hugging Face username, or use an organization
+namespace where you can create datasets. This example creates a **private** repo:
+
+```python
+from dotenv import load_dotenv
+from edsl import AgentList
+
+load_dotenv(".env")
+
+agents = AgentList.load("agent_list.ep")
+repo_id = "YOUR_USERNAME/edsl-demo"
+url = agents.to_hf(repo_id, commit_message="Publish example agents")
+print(url)
+
+restored = AgentList.from_hf(repo_id)
+assert restored == agents
+assert [a.name for a in restored] == [a.name for a in agents]
+restored.save("agent_list_from_hf.ep")
+```
+
+`AgentList.load()` reads the original `.ep` package. `to_hf()` exports its data as
+Parquet and a dataset card; it does not upload the `.ep` archive itself. Use
+`load_hf()` for a local HF-format folder, and `from_hf()` for a Hub repo.
+
+New repos default to `private=True`. Pass `private=False` to create a public repo.
+Publishing to an existing repo preserves its visibility. Private repos require
+authentication to view or download, including when using plain `datasets`.
+
+### Create a sample package
+
+If you do not already have a package, create this small synthetic example and
+then run the publishing example above:
+
+```python
+from edsl import Agent, AgentList
+
+codebook = {"age": "Age in years", "city": "City of residence"}
+agents = AgentList([
+    Agent(traits={"age": 30, "city": "Boston"}, name="Alice", codebook=codebook),
+    Agent(traits={"age": 41, "city": "Seattle"}, name="Bob", codebook=codebook),
+])
+agents.save("agent_list.ep")
+```
+
+### Pin a version
+
+To make a study reproducible, record the dataset's commit SHA and load that
+revision later:
+
+```python
+from huggingface_hub import HfApi
+
+commit = HfApi().repo_info(repo_id, repo_type="dataset").sha
+restored = AgentList.from_hf(repo_id, revision=commit)
+```
+
+## Save and load locally
+
+The local methods write and read the same layout without contacting the Hub:
+
+```python
+from edsl import Agent, AgentList, Scenario, ScenarioList
+
+agents = AgentList([
+    Agent(traits={"age": 30}, name="Alice", codebook={"age": "Age in years"}),
+    Agent(traits={"age": 41}, name="Bob", codebook={"age": "Age in years"}),
+])
+scenarios = ScenarioList([Scenario({"topic": "Public transport"})])
+
+agents.save_hf("study")
+scenarios.save_hf("study")
+assert AgentList.load_hf("study") == agents
+assert ScenarioList.load_hf("study") == scenarios
+```
+
+The folder contains `README.md` and a Parquet directory for each config. The
+card contains schema information and EDSL settings in YAML front matter.
+Updating one config preserves other configs, unrelated card metadata, and
+existing card prose. New cards include a usage example and a shared codebook table.
+
+People without EDSL can read the same data:
+
+```python
+from datasets import load_dataset
+data = load_dataset("study", name="agents", split="train")
+```
+
+Trait and scenario keys are ordinary top-level columns. The Parquet files also
+work with pandas and DuckDB. Internal `_edsl_` columns retain information needed
+for exact reconstruction; consumers can ignore them.
+
+Empty lists round-trip through EDSL and remain valid zero-row Parquet files.
+Current versions of `datasets` reject zero-row splits in the regular loader;
+use `load_dataset("study", name="scenarios", split="train", streaming=True)`
+for an empty split, or read its Parquet file with pandas or PyArrow.
+
+## Share one repo between agents and scenarios
+
+Each list becomes one HF **config** (a named subset), with one `train` split.
+The default config names are `agents` and `scenarios`, so both can share a repo:
+
+```python
+from edsl import Scenario, ScenarioList
+
+scenarios = ScenarioList([Scenario({"topic": "Public transport"})])
+scenarios.to_hf(repo_id)
+
+restored_agents = AgentList.from_hf(repo_id)
+restored_scenarios = ScenarioList.from_hf(repo_id)
+```
+
+Use `config_name="respondents"` on both write and read for a custom config:
+
+```python
+agents.to_hf(repo_id, config_name="respondents")
+restored = AgentList.from_hf(repo_id, config_name="respondents")
+```
+
+Updating one config replaces its old Parquet shards and preserves other configs.
+Updates use the existing commit as a parent, so a concurrent edit causes a Hub
+conflict instead of silently replacing someone else's card changes.
+
+## Read without EDSL
+
+For the published repo, use the same config name with Hugging Face's library:
+
+```python
+from datasets import load_dataset
+
+data = load_dataset(repo_id, name="agents", split="train")
+print(data.column_names)
+print(data[0]["age"])
+```
+
+This reads the uploaded Parquet data using your saved login or `HF_TOKEN` for a
+private repo. No EDSL installation is needed. To read a local file with pandas:
+
+```python
+import pandas as pd
+
+frame = pd.read_parquet("study/agents/train-00000-of-00001.parquet")
+```
+
+The example folder has one shard; larger exports can contain several.
+
+## Import other Hugging Face datasets
+
+For a dataset without EDSL metadata, every `train` row becomes one item, with
+every column retained as a trait or field:
+
+```python
+scenarios = ScenarioList.from_hf("owner/dataset", config_name="subset")
+scenarios = ScenarioList.from_source(
+    "huggingface", "owner/dataset", config_name="subset", snakify=False
+)
+```
+
+`from_source` follows the existing source API's default of converting keys to
+snake case; `snakify=False` preserves column names. `from_hf` always preserves names.
+The fallback reads the `train` split and requires a data-file-based dataset;
+dataset loading scripts are never executed.
+
+## How the format works
+
+A folder or repo containing both lists looks like this:
+
+```text
+study/
+├── README.md
+├── agents/train-00000-of-00001.parquet
+└── scenarios/train-00000-of-00001.parquet
+```
+
+On export, EDSL infers a schema across all rows and writes one top-level column
+per trait or scenario field. It writes HF config and feature metadata in the
+card's YAML front matter, along with an `edsl` section describing how to rebuild
+the objects. Shared settings, such as an agent codebook or instruction, are
+stored once in the card; per-row differences go in reserved `_edsl_` columns.
+
+`to_hf()` first completes this local export in a temporary folder, then creates
+the repo if needed and uploads the selected config and merged card. Existing
+card prose is preserved. `from_hf()` reads the card and Parquet shards from one
+commit and rebuilds the list in its original order.
+
+## Options
+
+| Argument | Applies to | Default and behavior |
+| --- | --- | --- |
+| `config_name` | All four methods | `agents` or `scenarios`; use the same name when loading |
+| `private` | `to_hf` | `True`; controls visibility when creating a repo |
+| `token` | `to_hf`, `from_hf` | Uses `HF_TOKEN` or saved HF credentials when omitted |
+| `commit_message` | `to_hf` | Defaults to `Export EDSL CONFIG_NAME` |
+| `revision` | `from_hf` | Latest main revision; accepts a branch, tag, or commit SHA |
+| `coerce` | `to_hf`, `save_hf` | `"error"`; also accepts `"string"` or `"json"` |
+| `max_file_bytes` | `to_hf`, `save_hf` | `50_000_000` bytes per attachment |
+
+## Types and missing values
+
+The writer infers each column across all rows. Booleans, integers, floats,
+strings, and homogeneous scalar lists use native Arrow types. Dictionaries and
+mixed or nested lists use JSON strings. Original keys, including spaces, dots,
+and Unicode, are retained. Keys starting with `_edsl_` are reserved.
+
+Incompatible scalar types fail by default:
+
+```python
+mixed = ScenarioList([Scenario({"age": 30}), Scenario({"age": "unknown"})])
+mixed.save_hf("mixed", coerce="json")
+```
+
+- `coerce="error"` reports the column and example row indices (zero-based).
+- `coerce="string"` displays incompatible values using `str()` and retains
+  their original JSON values in an internal column for reconstruction.
+- `coerce="json"` stores incompatible values as JSON strings.
+
+Both coercion modes restore integers, floats, booleans, strings, lists, and
+dictionaries; unsupported Python objects become strings. Missing keys remain
+absent after loading, while explicitly supplied `None` values remain present.
+Mixed integer/float columns retain original integers, including values that
+float64 cannot represent exactly. Integers outside int64 require a coercion mode
+when a column contains only integers.
+
+Names, instructions, presentation templates, codebooks, and trait categories
+survive. Shared agent settings go in the card, and varying settings go in
+per-row columns. Scenario names and the scenario list's codebook also survive.
+Agent subclasses load as plain `Agent`; their class names are recorded for
+reference. Dynamic-trait and direct-answering functions are omitted, with a log
+warning. No functions or serialized Python code are loaded or run.
+
+## Attachments
+
+Top-level `FileStore` fields embed bytes directly in Parquet. Image columns use
+HF `Image` features; audio uses `Audio(decode=False)`. Other files and columns
+mixing file kinds use a `{bytes, path}` struct. The companion `FIELD__meta` struct
+retains the original path, MIME type, suffix, binary flag, extracted text, and
+external locations. A user field colliding with that companion name raises an error.
+
+The default `max_file_bytes=50_000_000` applies to each attachment. Larger files
+fail with the column and row number before upload. Nested attachments stay inline
+as base64 in JSON and produce a log warning about size. External Coop/GCS locations
+are retained as text and are never followed during interchange. Offloaded files
+must have their bytes restored before exporting.
+
+Parquet shards target approximately 500 MB of uncompressed Arrow data. A list is
+currently materialized in memory for schema inference and export; shard size is
+not a memory limit. EDSL loading reads stored bytes without invoking media decoders
+or following stored paths. HF image decoding may require its optional Pillow extra.
+
+## Troubleshooting
+
+Import `HFSchemaError`, `HFClassMismatchError`, and `HFFormatVersionError` from
+`edsl.hf`. Readers reject configs for a different EDSL class or a newer format
+version. Missing optional packages raise `ImportError` with an installation hint;
+Hub authentication and lookup errors propagate unchanged.
+
+| Problem | What to check |
+| --- | --- |
+| Missing optional dependency | Install `edsl[hf]` in the Python environment running your code |
+| Missing `to_hf` or `save_hf` method | Install an EDSL version or source checkout containing this integration |
+| Authentication or permission error | Load `.env`, check the variable is named `HF_TOKEN`, and give the token write access to the target repo or namespace |
+| Private dataset not found | Use credentials for an account with access to that repo |
+| `HFSchemaError` for mixed values | Inspect the named column and rows, or choose an explicit coercion mode |
+| `HFClassMismatchError` | Load agents with `AgentList` and scenarios with `ScenarioList`, using the correct config |
+| `HFFormatVersionError` | Upgrade EDSL to a reader supporting that format version |
+| Attachment exceeds the size limit | Increase `max_file_bytes` deliberately or reduce the file size |
+| Empty split rejected by `datasets` | Use `streaming=True` or read the Parquet file directly |
+
+## Testing the integration
+
+The offline test suite includes generated round trips, media fixtures, plain
+`datasets` reads, mocked Hub calls, and a fixed v1 folder:
+
+```bash
+python -m pytest tests/hf
+```
+
+An opt-in live test publishes a uniquely named config to a designated test repo
+and leaves it there for inspection:
+
+```bash
+EDSL_HF_LIVE_TEST=1 EDSL_HF_LIVE_REPO=your-org/test-dataset python -m pytest tests/hf/test_hub.py -k live
+```
