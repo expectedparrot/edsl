@@ -671,9 +671,9 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
         cls,
         survey: "Survey",
         responses: Iterable[Union["HumanResponseRow", Mapping[str, object]]],
-        decode_answers: bool = True,
+        decode_files: bool = True,
     ) -> Results:
-        return HumanResponsesBuilder.build(survey, responses, decode_answers)
+        return HumanResponsesBuilder.build(survey, responses, decode_files)
 
     @property
     @wraps(ResultsProperties.columns.fget)

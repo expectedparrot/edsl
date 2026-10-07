@@ -21,6 +21,7 @@ from .exceptions import ResultsError
 
 if TYPE_CHECKING:
     from ..language_models import LanguageModel
+    from ..scenarios import Scenario
     from ..surveys import Survey
     from .result import AnswerValue
     from .results import Results
@@ -95,7 +96,7 @@ class HumanResponsesBuilder:
     def build(
         survey: "Survey",
         responses: Iterable[Union[HumanResponseRow, Mapping[str, object]]],
-        decode_answers: bool = True,
+        decode_files: bool = True,
     ) -> "Results":
         """Return a Results with one Result per response, in the order given.
 
@@ -105,13 +106,13 @@ class HumanResponsesBuilder:
         Only the survey's questions become columns, so entries for instructions are
         ignored. A question with no entry reads as None throughout.
 
-        decode_answers turns stored file uploads back into FileStore objects. Pass
-        False to keep the stored, JSON-ready dicts.
+        decode_files turns stored files back into objects: file upload answers and
+        scenario files into FileStore (and scenario dimensions into Dimension). Pass
+        False to keep answers and scenario values as the stored, JSON-ready dicts.
         """
         from ..agents import Agent
         from ..language_models import Model
         from ..runner.models import _decode_answer_value
-        from ..scenarios import Scenario
         from .result import Result
         from .results import Results
 
@@ -137,7 +138,7 @@ class HumanResponsesBuilder:
             for qn in question_names:
                 entry = entries.get(qn, no_entry)
                 answers[qn] = (
-                    _decode_answer_value(entry.answer) if decode_answers else entry.answer
+                    _decode_answer_value(entry.answer) if decode_files else entry.answer
                 )
                 comments[f"{qn}_comment"] = entry.comment
                 for field in RAW_MODEL_RESPONSE_FIELDS:
@@ -155,9 +156,7 @@ class HumanResponsesBuilder:
                         instruction="",
                         traits=row.agent_traits(),
                     ),
-                    scenario=(
-                        Scenario.from_dict(scenario) if scenario is not None else Scenario({})
-                    ),
+                    scenario=HumanResponsesBuilder._scenario(scenario, decode_files),
                     model=model,
                     iteration=0,
                     answer=answers,
@@ -172,3 +171,23 @@ class HumanResponsesBuilder:
             )
 
         return Results(survey=survey, data=data)
+
+    @staticmethod
+    def _scenario(
+        scenario: Optional[dict[str, Any]], decode_files: bool
+    ) -> "Scenario":
+        """The row's scenario, with stored files decoded only when asked."""
+        from ..scenarios import Scenario
+
+        if scenario is None:
+            return Scenario({})
+        if decode_files:
+            return Scenario.from_dict(scenario)
+        # What from_dict strips, without turning file or dimension dicts into objects.
+        return Scenario(
+            {
+                key: value
+                for key, value in scenario.items()
+                if key not in ("edsl_version", "edsl_class_name")
+            }
+        )

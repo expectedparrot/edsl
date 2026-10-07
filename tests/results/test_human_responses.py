@@ -161,8 +161,23 @@ def test_file_upload_answers_decode_unless_asked_not_to(tmp_path):
     decoded = Results.from_human_responses(make_survey(), rows)
     assert isinstance(decoded[0]["answer"]["name"], FileStore)
 
-    raw = Results.from_human_responses(make_survey(), rows, decode_answers=False)
+    raw = Results.from_human_responses(make_survey(), rows, decode_files=False)
     assert raw[0]["answer"]["name"] == stored
+
+
+def test_scenario_files_decode_unless_asked_not_to(tmp_path):
+    path = tmp_path / "photo.txt"
+    path.write_text("hello")
+    stored = FileStore(str(path)).to_dict()
+    rows = [make_row(entries=ANSWERED, scenario={"city": "Paris", "photo": stored})]
+
+    decoded = Results.from_human_responses(make_survey(), rows)
+    assert isinstance(decoded[0]["scenario"]["photo"], FileStore)
+
+    raw = Results.from_human_responses(make_survey(), rows, decode_files=False)
+    assert raw[0]["scenario"]["photo"] == stored
+    assert raw[0]["scenario"]["city"] == "Paris"
+    json.dumps(dict(raw[0]["scenario"]))
 
 
 def test_rows_keep_their_order():
