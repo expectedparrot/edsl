@@ -6,7 +6,7 @@ import pytest
 
 pytest.importorskip("datasets")
 pytest.importorskip("hypothesis")
-from hypothesis import given, settings, strategies as st
+from hypothesis import example, given, settings, strategies as st
 
 from edsl import Agent, AgentList, Scenario, ScenarioList
 
@@ -40,17 +40,21 @@ row = st.fixed_dictionaries(
 
 
 @settings(max_examples=40, deadline=None, database=None)
+@example(rows=[{"nested": {"": "{%"}}])
 @given(st.lists(row, max_size=8))
 def test_generated_default_roundtrip(rows):
     for cls, item in [(AgentList, Agent), (ScenarioList, Scenario)]:
         original = cls([item(r) for r in rows])
+        # Agent construction sanitizes Jinja syntax. HF must preserve the
+        # constructed object's fields, which may differ from the raw input.
+        expected = [dict(x.traits) if cls is AgentList else dict(x) for x in original]
         with tempfile.TemporaryDirectory() as tmp:
             original.save_hf(tmp)
             restored = cls.load_hf(tmp)
             assert restored == original
             assert [
                 dict(x.traits) if cls is AgentList else dict(x) for x in restored
-            ] == rows
+            ] == expected
 
 
 @settings(max_examples=30, deadline=None, database=None)
