@@ -10,7 +10,9 @@ from typing import (
     Any,
     Dict,
     Iterator,
+    Mapping,
     Optional,
+    Sequence,
     Union,
     Literal,
     List,
@@ -4673,110 +4675,26 @@ class Coop(CoopFunctionsMixin):
 
     def _turn_human_responses_into_results(
         self,
-        human_responses: List[dict],
+        human_responses: Sequence[Mapping[str, Any]],
         survey_uuid: str,
-        agent_list_uuid: Optional[str] = None,
     ) -> Union["Results", "ScenarioList"]:
         """
         Turn a list of human responses into a Results object.
 
+        human_responses are rows as the server sends them (see HumanResponseRow), with
+        the respondent's agent-list traits already in each row's agent traits. Each is
+        built from what was recorded, without running the survey (see
+        Results.from_human_responses).
+
         If generating the Results object fails, a ScenarioList will be returned instead.
         """
-        from ..agents import Agent, AgentList
-        from ..caching import Cache
-        from ..language_models import Model
-        from ..runner.models import _decode_answer_value
+        from ..results import Results
         from ..scenarios import Scenario, ScenarioList
         from ..surveys import Survey
 
         try:
             survey = Survey.pull(survey_uuid)
-            agent_list = AgentList.pull(agent_list_uuid) if agent_list_uuid else None
-
-            model = Model("test")
-
-            results = None
-
-            for response in human_responses:
-                response_uuid: Optional[str] = response.get("response_uuid")
-                if response_uuid is None:
-                    raise RuntimeError(
-                        "One of your responses is missing a unique identifier."
-                    )
-
-                response_dict: Dict[str, Any] = json.loads(
-                    response.get("response_json_string")
-                )
-                agent_traits_json_string: Optional[str] = response.get(
-                    "agent_traits_json_string"
-                )
-                scenario_json_string: Optional[str] = response.get(
-                    "scenario_json_string"
-                )
-                agent_traits_raw: Dict[str, Any]
-                if agent_traits_json_string is not None:
-                    agent_traits_raw = json.loads(agent_traits_json_string)
-                else:
-                    agent_traits_raw = {}
-
-                agent_traits = agent_traits_raw
-                if "respondent_uuid" in agent_traits_raw and agent_list is not None:
-                    # Look for agent in list (by index)
-                    agent_index: Optional[int] = agent_traits_raw.get("agent_index")
-                    source_agent: Optional["Agent"] = (
-                        agent_list[agent_index]
-                        if agent_index is not None and agent_index < len(agent_list)
-                        else None
-                    )
-                    # Update traits with traits from the agent in the list
-                    if source_agent is not None:
-                        agent_traits = {**agent_traits_raw, **source_agent.traits}
-
-                a = Agent(name=response_uuid, instruction="", traits=agent_traits)
-
-                def create_answer_function(response_data, question_names):
-                    def f(self, question, scenario):
-                        return _decode_answer_value(
-                            response_data.get(question.question_name)
-                        )
-
-                    # Every question in a humanized survey is answered from the
-                    # recorded response, never recomputed. Question types that can
-                    # answer themselves (image generation, compute, diagram, random)
-                    # would otherwise re-execute here and discard what the
-                    # respondent's session actually produced. Names absent from the
-                    # response - e.g. an image whose generation failed at survey
-                    # time - resolve to None rather than triggering a fresh run.
-                    f.stored_answer_question_names = set(question_names) | set(
-                        response_data
-                    )
-                    return f
-
-                scenario = None
-                if scenario_json_string is not None:
-                    scenario = Scenario.from_dict(json.loads(scenario_json_string))
-
-                a.add_direct_question_answering_method(
-                    create_answer_function(response_dict, survey.question_names)
-                )
-
-                job = survey.by(a).by(model)
-
-                if scenario is not None:
-                    job = job.by(scenario)
-
-                question_results = job.run(
-                    cache=Cache(),
-                    disable_remote_cache=True,
-                    disable_remote_inference=True,
-                    print_exceptions=False,
-                )
-
-                if results is None:
-                    results = question_results
-                else:
-                    results = results + question_results
-            return results
+            return Results.from_human_responses(survey, human_responses)
         except Exception:
             human_response_scenarios = []
             for response in human_responses:
@@ -4848,11 +4766,8 @@ class Coop(CoopFunctionsMixin):
         response_json = response.json()
         responses = response_json.get("responses", [])
         survey_uuid = response_json.get("survey_uuid")
-        agent_list_uuid = response_json.get("agent_list_uuid")
 
-        return self._turn_human_responses_into_results(
-            responses, survey_uuid, agent_list_uuid
-        )
+        return self._turn_human_responses_into_results(responses, survey_uuid)
 
     def test_scenario_sampling(self, human_survey_uuid: str) -> List[int]:
         """
@@ -5388,11 +5303,8 @@ class Coop(CoopFunctionsMixin):
         response_json = response.json()
         human_responses = response_json.get("human_responses", [])
         survey_uuid = response_json.get("survey_uuid")
-        agent_list_uuid = response_json.get("agent_list_uuid")
 
-        return self._turn_human_responses_into_results(
-            human_responses, survey_uuid, agent_list_uuid
-        )
+        return self._turn_human_responses_into_results(human_responses, survey_uuid)
 
     def delete_prolific_study(
         self,

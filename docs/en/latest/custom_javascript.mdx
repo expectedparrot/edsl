@@ -78,7 +78,7 @@ Inside a hook you have:
 | `this.getQuestionContainer()` | The question's element on the page. Find your question's inputs and add your own elements inside it. |
 | `context.questionName` | The name of the question the hook is running for. |
 | `context.questionType` | The question's type, for example `"multiple_choice"`. |
-| `context.isPreview` | `true` when the survey was opened through a preview link, which does not save a response. |
+| `context.isPreview` | `true` when the survey was opened through a preview link. A preview's answers don't appear in your results, but its `ep.log` events are kept, marked `is_preview`. |
 | `ep.log(eventName, payload)` | Records an event with the survey. See below. |
 
 `context` carries nothing that identifies the respondent.
