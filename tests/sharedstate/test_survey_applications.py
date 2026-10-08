@@ -490,7 +490,7 @@ def test_price_partial_resume_skips_old_slots_and_keeps_the_original_history():
 @pytest.mark.parametrize(
     "name,trait,replacement,downstream",
     [
-        ("balanced_assignment", "age_group", "Older", "response"),
+        ("balanced_assignment", "respondent_age_group", "Older", "response"),
         ("team_formation", "role", "Builder", "team"),
     ],
 )
