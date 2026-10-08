@@ -301,7 +301,7 @@ class Notebook(Base):
         # Call the parent class push method
         return super().push(description, alias, visibility, expected_parrot_url)
 
-    def to_dict(self, add_edsl_version=False) -> dict:
+    def to_dict(self, add_edsl_version=True) -> dict:
         """
         Serialize to a dictionary.
         """

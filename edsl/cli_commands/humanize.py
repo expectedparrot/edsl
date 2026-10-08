@@ -25,6 +25,7 @@ from edsl.cli_shared import (
     jsonable,
     load_git_object,
     load_openable_json,
+    private_output,
     output,
     read_serialized_object,
 )
@@ -147,6 +148,17 @@ def register(humanize: click.Group) -> None:
             })
 
 
+    @humanize.group("agent-access", invoke_without_command=True)
+    @click.pass_context
+    def humanize_agent_access(ctx):
+        """Manage whether AI agents may take a human survey through its agent link."""
+        if ctx.invoked_subcommand is None:
+            output({
+                "commands": ["get", "patch"],
+                "help": "Use 'ep humanize agent-access <command> --help' for details.",
+            })
+
+
     @humanize.group("prolific", invoke_without_command=True)
     @click.pass_context
     def humanize_prolific(ctx):
@@ -256,15 +268,51 @@ def register(humanize: click.Group) -> None:
             error("HUMANIZE_ERROR", str(e), exit_code=EXIT_REMOTE)
 
 
+    @humanize_prolific.command("preflight")
+    @click.argument("human_survey_uuid")
+    @click.argument("study_id")
+    @click.option("--survey", "survey_path", type=click.Path(exists=True), help="Expected saved Survey; compare with the deployed survey.")
+    @click.option("--require-question", multiple=True, help="Required deployed question name; repeat as needed.")
+    @click.option("--required-credits", type=float, help="All-in credits including any AI reserve; defaults to recruitment only.")
+    def humanize_prolific_preflight(human_survey_uuid, study_id, survey_path, require_question, required_credits):
+        """Check a draft's deployed content and balance without publishing."""
+        try:
+            from edsl.coop import Coop
+            from edsl import Survey
+
+            check = Coop().preflight_prolific_study(
+                human_survey_uuid, study_id,
+                expected_survey=Survey.load(survey_path) if survey_path else None,
+                required_questions=list(require_question), required_credits=required_credits,
+            )
+            output(jsonable(check))
+            if not check["ready"]:
+                raise SystemExit(EXIT_VALIDATION)
+        except SystemExit:
+            raise
+        except Exception as e:
+            error("HUMANIZE_ERROR", str(e), exit_code=EXIT_REMOTE)
+
     @humanize_prolific.command("publish")
     @click.argument("human_survey_uuid")
     @click.argument("study_id")
-    def humanize_prolific_publish(human_survey_uuid, study_id):
-        """Publish a Prolific study."""
+    @click.option("--survey", "survey_path", type=click.Path(exists=True), help="Expected saved Survey; compare with the deployed survey.")
+    @click.option("--require-question", multiple=True, help="Required deployed question name; repeat as needed.")
+    @click.option("--required-credits", type=float, help="All-in credits including any AI reserve; defaults to recruitment only.")
+    def humanize_prolific_publish(human_survey_uuid, study_id, survey_path, require_question, required_credits):
+        """Publish an authorized Prolific study after fresh preflight checks."""
         try:
             from edsl.coop import Coop
+            from edsl import Survey
 
-            output(jsonable(Coop().publish_prolific_study(human_survey_uuid, study_id)))
+            options = {}
+            if survey_path:
+                options["expected_survey"] = Survey.load(survey_path)
+            if require_question:
+                options["required_questions"] = list(require_question)
+            if required_credits is not None:
+                options["required_credits"] = required_credits
+            output(jsonable(Coop().publish_prolific_study(human_survey_uuid, study_id, **options)))
         except SystemExit:
             raise
         except Exception as e:
@@ -399,6 +447,7 @@ def register(humanize: click.Group) -> None:
     @click.option("--checklist-hidden", "hidden_checklist_questions", multiple=True, help="Question whose checklist is hidden from participants.")
     @click.option("--checklist-visible", "visible_checklist_questions", multiple=True, help="Question whose checklist is visible to participants.")
     @click.option("--custom-css", "custom_css_path", default=None, type=click.Path(exists=True), help="CSS file to store in survey.custom_css.")
+    @click.option("--javascript", "javascript_specs", multiple=True, help="QUESTION:HOOK=FILE JavaScript file to run on a question hook, e.g. rating:question.ready=rating.js. Repeat for multiple questions or hooks.")
     @click.option("--logo-asset", "logo_asset", default=None, help="Asset UUID to show as the survey's logo. Upload one with 'ep humanize assets upload'.")
     @click.option("--logo-file", "logo_file", default=None, type=click.Path(exists=True), help="Not available here: upload with 'ep humanize assets upload', then pass --logo-asset.")
     @click.option("--logo-alt", "logo_alt", default=None, help="Alt text naming the organization the logo identifies, e.g. \"Acme Research logo\".")
@@ -423,6 +472,7 @@ def register(humanize: click.Group) -> None:
         hidden_checklist_questions,
         visible_checklist_questions,
         custom_css_path,
+        javascript_specs,
         logo_asset,
         logo_file,
         logo_alt,
@@ -438,6 +488,7 @@ def register(humanize: click.Group) -> None:
           ep humanize schema create --survey survey.ep --slider age:18:99:1 --output humanize.json
           ep humanize schema create --survey survey.ep --interview-mode interview=both --voice-language interview=spanish
           ep humanize schema create --survey survey.ep --logo-asset <asset-uuid> --logo-alt "Acme Research logo"
+          ep humanize schema create --survey survey.ep --javascript rating:question.ready=rating.js --output humanize.json
         """
         _validate_logo_flags(
             allow_logo_file=False,
@@ -469,6 +520,7 @@ def register(humanize: click.Group) -> None:
                 hidden_checklist_questions=hidden_checklist_questions,
                 visible_checklist_questions=visible_checklist_questions,
                 custom_css_path=custom_css_path,
+                javascript_specs=javascript_specs,
                 logo_asset=logo_asset,
                 logo_alt=logo_alt,
                 logo_decorative=logo_decorative,
@@ -609,7 +661,10 @@ def register(humanize: click.Group) -> None:
                         row["qr_path"] = None
                         continue
                     qr_path = qr_directory / f"respondent-{respondent_uuid}.png"
-                    QRCode(url).save(str(qr_path))
+                    # Private, and replaced only by a complete image: each code is a
+                    # respondent's credential.
+                    with private_output(qr_path) as temp:
+                        QRCode(url).save(str(temp))
                     row["qr_path"] = str(qr_path)
                     qr_paths.append(str(qr_path))
                 column_names = list(rows[0]) if rows else ["qr_path"]
@@ -618,7 +673,10 @@ def register(humanize: click.Group) -> None:
                     for column in column_names
                 ])
 
-            links.to_csv(filename=output_path)
+            # Private, since the links are credentials, and swapped in only once
+            # written in full, so a failure never erases the previous export.
+            with private_output(output_path) as temp:
+                links.to_csv(filename=str(temp))
             output({
                 "human_survey_uuid": human_survey_uuid,
                 "saved_to": output_path,
@@ -645,6 +703,102 @@ def register(humanize: click.Group) -> None:
                 "HUMANIZE_ERROR",
                 str(e),
                 suggestion="Check that the survey has an attached agent list and that the output paths are writable.",
+                exit_code=EXIT_REMOTE,
+            )
+
+
+    @humanize.command("events")
+    @click.argument("human_survey_uuid")
+    @click.option("--after", default=None, help="Only events after this event id, e.g. the next_cursor from an earlier run.")
+    @click.option("--limit", default=200, type=int, help="Events per request, at most 200.")
+    @click.option("--all", "fetch_all", is_flag=True, default=False, help="Fetch every event, not one batch. Requires --output.")
+    @click.option("--output", "-o", "output_path", default=None, type=click.Path(dir_okay=False), help="Save events to a .json or .jsonl file.")
+    @click.option("--count", "count_only", is_flag=True, default=False, help="Print how many events the survey has, and fetch none.")
+    def humanize_events(human_survey_uuid, after, limit, fetch_all, output_path, count_only):
+        """Get the events a human survey's custom JavaScript logged, oldest first.
+
+        Events from preview links are included and marked is_preview. Each result
+        carries next_cursor: pass it back as --after to get only newer events.
+
+        \b
+        Examples:
+          ep humanize events <uuid>
+          ep humanize events <uuid> --all --output events.jsonl
+          ep humanize events <uuid> --all --after <next_cursor> --output new.jsonl
+          ep humanize events <uuid> --count
+        """
+        if count_only and (fetch_all or output_path or after):
+            _humanize_usage_error("--count cannot be combined with --all, --after or --output.")
+        # Payloads hold whatever an author's script chose to log, which can be
+        # sensitive, so a whole log goes to a file rather than the terminal.
+        if fetch_all and not output_path:
+            _humanize_usage_error("--all requires --output.")
+        file_format = _events_file_format(output_path) if output_path else None
+        try:
+            from edsl.coop import Coop
+
+            coop = Coop()
+            if count_only:
+                output({
+                    "human_survey_uuid": human_survey_uuid,
+                    "total": coop.count_human_survey_events(human_survey_uuid),
+                })
+                return
+            if fetch_all:
+                batches = coop._iter_human_survey_event_batches(
+                    human_survey_uuid, after=after, limit=limit
+                )
+            else:
+                batch = coop.get_human_survey_events(
+                    human_survey_uuid, after=after, limit=limit
+                )
+                if not output_path:
+                    output(jsonable(batch))
+                    return
+                batches = [batch]
+            event_count, last_batch = _stream_events_to_file(
+                batches, output_path, file_format
+            )
+            output({
+                "human_survey_uuid": human_survey_uuid,
+                "saved_to": output_path,
+                "format": file_format,
+                "event_count": event_count,
+                "next_cursor": last_batch["next_cursor"] if last_batch else after,
+                "has_more": bool(last_batch and last_batch["has_more"]),
+            })
+        except SystemExit:
+            raise
+        except Exception as e:
+            error(
+                "HUMANIZE_ERROR",
+                str(e),
+                suggestion="Check the human survey UUID, output path, and Expected Parrot API key.",
+                exit_code=EXIT_REMOTE,
+            )
+
+
+    @humanize.command("custom-js-access")
+    def humanize_custom_js_access():
+        """Check whether your account may use custom JavaScript in a humanize schema."""
+        try:
+            from edsl.coop import Coop
+
+            allowed = Coop().get_custom_js_access()
+            data = {"custom_js_allowed": allowed}
+            if not allowed:
+                data["next_step"] = (
+                    "Custom JavaScript is available on approved accounts only. "
+                    "Email info@expectedparrot.com to request access."
+                )
+            output(data)
+        except SystemExit:
+            raise
+        except Exception as e:
+            error(
+                "HUMANIZE_ERROR",
+                str(e),
+                suggestion="Check your Expected Parrot API key with 'ep auth status'.",
                 exit_code=EXIT_REMOTE,
             )
 
@@ -710,6 +864,8 @@ def register(humanize: click.Group) -> None:
     @click.option("--checklist-hidden", "hidden_checklist_questions", multiple=True, help="Question whose checklist is hidden from participants.")
     @click.option("--checklist-visible", "visible_checklist_questions", multiple=True, help="Question whose checklist is visible to participants.")
     @click.option("--custom-css", "custom_css_path", default=None, type=click.Path(exists=True), help="CSS file to store in survey.custom_css.")
+    @click.option("--javascript", "javascript_specs", multiple=True, help="QUESTION:HOOK=FILE JavaScript file to run on a question hook, e.g. rating:question.ready=rating.js. Repeat for multiple questions or hooks.")
+    @click.option("--clear-javascript", "clear_javascript_questions", multiple=True, help="Question whose JavaScript to remove. Repeat for multiple questions.")
     @click.option("--logo-asset", "logo_asset", default=None, help="Asset UUID to show as the survey's logo. Upload one with 'ep humanize assets upload'.")
     @click.option("--logo-file", "logo_file", default=None, type=click.Path(exists=True), help="Image to upload and use as the logo, in one step.")
     @click.option("--logo-alt", "logo_alt", default=None, help="Alt text naming the organization the logo identifies, e.g. \"Acme Research logo\".")
@@ -737,6 +893,8 @@ def register(humanize: click.Group) -> None:
         hidden_checklist_questions,
         visible_checklist_questions,
         custom_css_path,
+        javascript_specs,
+        clear_javascript_questions,
         logo_asset,
         logo_file,
         logo_alt,
@@ -751,6 +909,8 @@ def register(humanize: click.Group) -> None:
           ep humanize schema set <uuid> --schema humanize.json
           ep humanize schema set <uuid> --optional feedback --comment rating="Why?"
           ep humanize schema set <uuid> --survey survey.ep --format rating=dropdown
+          ep humanize schema set <uuid> --javascript rating:question.ready=rating.js
+          ep humanize schema set <uuid> --clear-javascript rating
         """
         if schema_path is None and not _has_humanize_schema_controls(
             optional_questions,
@@ -769,6 +929,8 @@ def register(humanize: click.Group) -> None:
             hidden_checklist_questions,
             visible_checklist_questions,
             custom_css_path,
+            javascript_specs,
+            clear_javascript_questions,
             logo_asset,
             logo_file,
             logo_alt,
@@ -818,6 +980,8 @@ def register(humanize: click.Group) -> None:
                 hidden_checklist_questions=hidden_checklist_questions,
                 visible_checklist_questions=visible_checklist_questions,
                 custom_css_path=custom_css_path,
+                javascript_specs=javascript_specs,
+                clear_javascript_questions=clear_javascript_questions,
                 logo_asset=logo_asset,
                 logo_alt=logo_alt,
                 logo_decorative=logo_decorative,
@@ -1017,6 +1181,126 @@ def register(humanize: click.Group) -> None:
                 anonymous=anonymous,
                 allow_resubmit=allow_resubmit,
             )))
+        except SystemExit:
+            raise
+        except Exception as e:
+            error("HUMANIZE_ERROR", str(e), exit_code=EXIT_REMOTE)
+
+
+    @humanize_agent_access.command("get")
+    @click.argument("human_survey_uuid")
+    def humanize_agent_access_get(human_survey_uuid):
+        """Get a human survey's agent-access config."""
+        try:
+            from edsl.coop import Coop
+
+            output(jsonable(Coop().get_human_survey_agent_access(human_survey_uuid)))
+        except SystemExit:
+            raise
+        except Exception as e:
+            error("HUMANIZE_ERROR", str(e), exit_code=EXIT_REMOTE)
+
+
+    @humanize_agent_access.command("patch")
+    @click.argument("human_survey_uuid")
+    @click.option("--config", "config_path", default=None, type=click.Path(exists=True), help="Partial agent-access config JSON. The options below are applied on top of it.")
+    @click.option("--enabled/--disabled", default=None, help="Whether the agent link accepts new attempts.")
+    @click.option(
+        "--participation_mode",
+        type=click.Choice(["human_assisted", "authorized_context", "autonomous"]),
+        default=None,
+        help="Who produces the answers.",
+    )
+    @click.option("--instructions", default=None, help="Guidance for agents on the whole survey (at most 4,000 characters).")
+    @click.option("--clear_instructions", is_flag=True, help="Remove the survey-wide instructions.")
+    @click.option("--question_instructions", "question_instruction_specs", multiple=True, help="QUESTION=TEXT instructions for one question. Repeat for more.")
+    @click.option("--clear_question", "cleared_questions", multiple=True, help="Remove one question's settings. Repeat for more.")
+    @click.option("--survey", "survey_path", default=None, type=click.Path(exists=True), help="Survey .ep, JSON, or package directory, to check question names against before sending.")
+    def humanize_agent_access_patch(
+        human_survey_uuid,
+        config_path,
+        enabled,
+        participation_mode,
+        instructions,
+        clear_instructions,
+        question_instruction_specs,
+        cleared_questions,
+        survey_path,
+    ):
+        """Patch a human survey's agent-access config.
+
+        The patch is deep-merged into the stored config: fields left out are
+        unchanged, and a question set to null in question_settings has its settings
+        removed. Build it from the options, from --config, or both. It's validated
+        before it's sent; with --survey, question names are checked too.
+        """
+        if instructions is not None and clear_instructions:
+            error(
+                "USAGE_ERROR",
+                "Use --instructions or --clear_instructions, not both.",
+                exit_code=EXIT_USAGE,
+            )
+        patch = _read_json_or_gzip(config_path) if config_path else {}
+        if not isinstance(patch, dict):
+            error("USAGE_ERROR", "--config must hold a JSON object.", exit_code=EXIT_USAGE)
+        if enabled is not None:
+            patch["enabled"] = enabled
+        if participation_mode is not None:
+            patch["participation_mode"] = participation_mode
+        if instructions is not None:
+            patch["instructions"] = instructions
+        if clear_instructions:
+            patch["instructions"] = None
+        # Merged into --config's question_settings only when a flag needs it; any
+        # other value is left for validation to reject, not coerced here.
+        if question_instruction_specs or cleared_questions:
+            existing = patch.get("question_settings")
+            if existing is not None and not isinstance(existing, dict):
+                error(
+                    "USAGE_ERROR",
+                    "question_settings in --config must be a JSON object to combine it "
+                    "with --question_instructions or --clear_question.",
+                    exit_code=EXIT_USAGE,
+                )
+            question_settings = dict(existing or {})
+            for spec in question_instruction_specs:
+                question_name, separator, text = spec.partition("=")
+                if not separator or not question_name or not text:
+                    error(
+                        "USAGE_ERROR",
+                        f"--question_instructions must look like QUESTION=TEXT, got {spec!r}.",
+                        exit_code=EXIT_USAGE,
+                    )
+                question_settings[question_name] = {"instructions": text}
+            for question_name in cleared_questions:
+                question_settings[question_name] = None
+            patch["question_settings"] = question_settings
+        if not patch:
+            error(
+                "USAGE_ERROR",
+                "Provide at least one change: --config, --enabled/--disabled, "
+                "--participation_mode, --instructions, --clear_instructions, "
+                "--question_instructions, or --clear_question.",
+                exit_code=EXIT_USAGE,
+            )
+        try:
+            from edsl.coop.coop_agent_access import validate_agent_access_patch
+
+            survey = _load_survey_object(survey_path) if survey_path else None
+            validate_agent_access_patch(patch, survey)
+        except SystemExit:
+            raise
+        except Exception as e:
+            error(
+                "VALIDATION_ERROR",
+                str(e),
+                suggestion="Check the option values, and that each question name is in the survey.",
+                exit_code=EXIT_VALIDATION,
+            )
+        try:
+            from edsl.coop import Coop
+
+            output(jsonable(Coop().patch_human_survey_agent_access(human_survey_uuid, patch)))
         except SystemExit:
             raise
         except Exception as e:
@@ -1873,6 +2157,8 @@ def register(humanize: click.Group) -> None:
         hidden_checklist_questions,
         visible_checklist_questions,
         custom_css_path,
+        javascript_specs=(),
+        clear_javascript_questions=(),
         logo_asset=None,
         logo_alt=None,
         logo_decorative=False,
@@ -1898,6 +2184,8 @@ def register(humanize: click.Group) -> None:
             hidden_checklist_questions,
             visible_checklist_questions,
             custom_css_path,
+            javascript_specs,
+            clear_javascript_questions,
             logo_asset,
             logo_alt,
             logo_decorative,
@@ -1997,6 +2285,25 @@ def register(humanize: click.Group) -> None:
 
         if custom_css_path:
             schema.setdefault("survey", {})["custom_css"] = Path(custom_css_path).read_text(encoding="utf-8")
+
+        scripted = set()
+        for question_name, hook, script_path in _parse_javascript_specs(javascript_specs):
+            # The hook is named even though "question.ready" is the only one today, so
+            # the flag does not change shape when a second one exists. Whether it is a
+            # known hook is left to schema validation, which has the list.
+            entry = _question_entry(questions, question_name)
+            if not isinstance(entry.get("javascript"), dict):
+                entry["javascript"] = {}
+            entry["javascript"].setdefault("hooks", {})[hook] = _read_javascript_file(
+                script_path
+            )
+            scripted.add(question_name)
+        for question_name in clear_javascript_questions:
+            if question_name in scripted:
+                _humanize_usage_error(
+                    f"--javascript and --clear-javascript both name {question_name!r}."
+                )
+            _question_entry(questions, question_name)["javascript"] = None
 
         _apply_logo_controls(
             schema,
@@ -2203,6 +2510,67 @@ def register(humanize: click.Group) -> None:
 
     def _humanize_usage_error(message: str) -> None:
         error("USAGE_ERROR", message, exit_code=EXIT_USAGE)
+
+
+    def _parse_javascript_specs(specs) -> list[tuple[str, str, str]]:
+        parsed = []
+        for key, path in _parse_key_value_specs(specs, "--javascript"):
+            question_name, _, hook = key.partition(":")
+            question_name, hook = question_name.strip(), hook.strip()
+            if not question_name or not hook:
+                _humanize_usage_error(
+                    "--javascript must be formatted as QUESTION:HOOK=FILE, "
+                    "e.g. rating:question.ready=rating.js."
+                )
+            parsed.append((question_name, hook, path))
+        return parsed
+
+
+    def _read_javascript_file(path: str) -> str:
+        script = Path(path)
+        if not script.is_file():
+            _humanize_usage_error(f"--javascript file not found: {path}")
+        source = script.read_text(encoding="utf-8")
+        if not source.strip():
+            _humanize_usage_error(f"--javascript file is empty: {path}")
+        return source
+
+
+    def _events_file_format(path: str) -> str:
+        name = Path(path).name.lower()
+        if name.endswith(".jsonl"):
+            return "jsonl"
+        if name.endswith(".json"):
+            return "json"
+        _humanize_usage_error("--output must end in .json or .jsonl.")
+
+
+    def _stream_events_to_file(batches, path: str, file_format: str):
+        """Write event batches to ``path`` as they arrive. Returns the number of
+        events written and the last batch, for its cursor.
+
+        One batch is in memory at a time, however long the log. Through
+        ``private_output``, so a download that fails part way leaves no file that
+        looks complete, and payloads, which can be sensitive, are never readable by
+        other users.
+        """
+        count = 0
+        last_batch = None
+        with private_output(path) as temp, temp.open("w", encoding="utf-8") as f:
+            if file_format == "json":
+                f.write("[")
+            for batch in batches:
+                last_batch = batch
+                for event in batch["events"]:
+                    text = json.dumps(event, ensure_ascii=False, default=str)
+                    if file_format == "jsonl":
+                        f.write(text + "\n")
+                    else:
+                        f.write(("," if count else "") + "\n  " + text)
+                    count += 1
+            if file_format == "json":
+                f.write("\n]\n" if count else "]\n")
+        return count, last_batch
 
 
     def _check_asset_file(path: str) -> None:

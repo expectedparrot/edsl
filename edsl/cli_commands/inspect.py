@@ -38,6 +38,7 @@ def register(app: click.Group) -> None:
           ep inspect results.ep --sample 10
           ep inspect <uuid> --type Survey
           ep inspect <uuid> --type AgentList --save agents.ep
+          ep inspect prompt.json
         """
         try:
             obj = load_any_object(target, expected_object_type=object_type)
@@ -128,11 +129,33 @@ def _summary(obj, sample: int) -> dict:
                 "model_columns": [c for c in columns if c.startswith("model.")],
             }
         )
+    elif class_name == "Prompt":
+        data.update(_prompt_summary(obj))
     else:
         path = Path(str(obj))
         data["repr"] = str(path) if path.exists() else repr(obj)
 
     return data
+
+
+def _prompt_summary(prompt) -> dict:
+    """Describe a prompt's text and template variables without rendering it."""
+    from jinja2 import TemplateError
+
+    text = str(prompt)
+    try:
+        template_variables = sorted(set(prompt.template_variables()))
+        template_error = None
+    except TemplateError as e:
+        template_variables = []
+        template_error = str(e)
+    return {
+        "character_count": len(text),
+        "line_count": len(text.splitlines()),
+        "template_variables": template_variables,
+        "template_error": template_error,
+        "text": text,
+    }
 
 
 def _safe_len(value) -> int | None:

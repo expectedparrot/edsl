@@ -41,12 +41,15 @@ Group discovery:
       "preview",
       "respondents",
       "links",
+      "events",
       "schedules",
       "deliveries",
       "callbacks",
       "agent-list",
+      "agent-access",
       "schema",
       "css",
+      "custom-js-access",
       "assets",
       "prolific"
     ],
@@ -571,6 +574,96 @@ copied into your library and the uuid rewritten. The response carries
 `asset_substitutions`, and the echoed `schema` shows the new uuid. An asset you cannot
 reach at all fails with a `HUMANIZE_ERROR` whose suggestion is to obtain the image file
 and re-run with `--logo-file`.
+
+### JavaScript flags on `schema create` and `schema set`
+
+| Flag | Effect |
+|------|--------|
+| `--javascript QUESTION:HOOK=FILE` | Run the JavaScript in `FILE` on `QUESTION`'s `HOOK`, e.g. `rating:question.ready=rating.js`. Repeat for more questions or hooks |
+| `--clear-javascript QUESTION` | **`schema set` only.** Remove the question's JavaScript |
+
+`question.ready` is the only hook today. The hook is part of the flag so that it keeps
+its shape when more hooks exist.
+
+Validation:
+
+- `--javascript` without a question or a hook, or naming a missing or empty file, is a
+  `USAGE_ERROR`.
+- An unknown hook, or a script on a `compute` or `image_generation` question, fails
+  local validation (`VALIDATION_ERROR`) on `schema create`, and on `schema set` when
+  `--survey` is given.
+- Naming the same question in `--javascript` and `--clear-javascript` is a
+  `USAGE_ERROR`.
+
+Custom JavaScript is available on approved accounts only. Applying a schema with a
+script from an account that is not approved fails with a `HUMANIZE_ERROR`, and nothing
+in the schema is saved.
+
+### `edsl humanize custom-js-access`
+
+Report whether the authenticated account may use custom JavaScript.
+
+Backs onto:
+
+```python
+Coop().get_custom_js_access()
+```
+
+Output:
+
+```json
+{
+  "status": "ok",
+  "data": {
+    "custom_js_allowed": false,
+    "next_step": "Custom JavaScript is available on approved accounts only. Email info@expectedparrot.com to request access."
+  },
+  "warnings": []
+}
+```
+
+`next_step` is present only when `custom_js_allowed` is `false`.
+
+### `edsl humanize events <human_survey_uuid>`
+
+Get the events a survey's custom JavaScript logged with `ep.log`, oldest first. Events
+from preview links are included and marked `is_preview`.
+
+Backs onto:
+
+```python
+Coop().get_human_survey_events(human_survey_uuid, after=after, limit=limit)
+Coop()._iter_human_survey_event_batches(human_survey_uuid, after=after, limit=limit)  # --all
+Coop().count_human_survey_events(human_survey_uuid)  # --count
+```
+
+Flags:
+
+| Flag | Type | Required | Description |
+|------|------|----------|-------------|
+| `--after` | event id | no | Only events after this one, e.g. a `next_cursor` from an earlier run |
+| `--limit` | int | no | Events per request, default 200, at most 200 |
+| `--all` | flag | no | Fetch every batch. Requires `--output` |
+| `--output`, `-o` | path | no | Save events to `.json` (an array) or `.jsonl` (one event per line) |
+| `--count` | flag | no | Print `{"total"}` and fetch no events. Not combinable with `--all`, `--after` or `--output` |
+
+Without `--output`, one batch is printed in the envelope:
+`{"events", "next_cursor", "has_more"}`. With `--output`, the events are written to the
+file and the envelope carries `saved_to`, `format`, `event_count`, `next_cursor` and
+`has_more` instead.
+
+`next_cursor` is the position to continue from, returned even when nothing more is
+waiting, so a later `--all --after <next_cursor>` fetches only events that arrived since.
+
+Incremental fetches with `--after` can occasionally miss an event that was still being saved
+when the cursor passed it. They are for checking a survey while it collects; for analysis,
+download the full log once fielding has ended, at least an hour after the last response.
+
+`--all` requires `--output` because payloads hold whatever an author's script logged,
+which can be sensitive; a whole log is written to a file rather than printed. Batches
+are written as they arrive, one in memory at a time, to a private temporary file beside
+the output that replaces it only once every batch has arrived. A download that fails
+part way leaves any existing file untouched and no partial one.
 
 ## Deferred Command Groups
 

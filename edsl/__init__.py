@@ -125,6 +125,8 @@ _EXPORT_TO_MODULE = {
     "CacheEntry": "caching",
     # instructions
     "Instruction": "instructions",
+    # prompts
+    "Prompt": "prompts",
     # study
     "Study": "study",
     # notebooks

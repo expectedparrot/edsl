@@ -40,7 +40,7 @@ import json
 import warnings
 from functools import wraps
 from typing import Optional, Any, Union, List, TYPE_CHECKING
-from collections.abc import MutableSequence
+from collections.abc import Iterable, Mapping, MutableSequence
 
 from ..base import Base
 
@@ -64,6 +64,7 @@ from .result import Result
 from .results_filter import ResultsFilter
 from .results_git import ResultsGitDescriptor
 from .results_serializer import ResultsSerializer
+from .human_responses import HumanResponseRow, HumanResponsesBuilder
 from .utilities import ensure_ready
 from .job_cost_calculator import JobCostCalculator
 from .results_sampler import ResultsSampler
@@ -665,6 +666,16 @@ class Results(MutableSequence, ResultsOperationsMixin, Base):
     @wraps(ResultsSerializer.from_dict)
     def from_dict(cls, data: dict[str, Any]) -> Results:
         return ResultsSerializer.from_dict(data)
+
+    @classmethod
+    @wraps(HumanResponsesBuilder.build)
+    def from_human_responses(
+        cls,
+        survey: "Survey",
+        responses: Iterable[Union["HumanResponseRow", Mapping[str, object]]],
+        decode_files: bool = True,
+    ) -> Results:
+        return HumanResponsesBuilder.build(survey, responses, decode_files)
 
     @property
     @wraps(ResultsProperties.columns.fget)

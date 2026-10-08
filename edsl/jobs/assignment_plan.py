@@ -135,14 +135,7 @@ class AssignmentPlan:
             models,
             include_expression,
         )
-        rows = (
-            AssignmentRow(
-                agent._position_index,
-                scenario._position_index,
-                model._position_index,
-            )
-            for agent, scenario, model in tuple_filter
-        )
+        rows = (AssignmentRow(*indices) for indices in tuple_filter.iter_indices())
         return cls(rows, mode="filtered")
 
     @classmethod

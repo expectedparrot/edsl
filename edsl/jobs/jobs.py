@@ -759,16 +759,17 @@ class Jobs(Base):
 
         self.replace_missing_objects()
         self._ensure_position_indices()
-        if self._assignment_plan is not None:
-            self._assignment_plan.validate(self.agents, self.scenarios, self.models)
-            return self._assignment_plan
         if self._include_expression is not None:
-            self._assignment_plan = AssignmentPlan.from_filter(
+            # Collections and their contents are mutable, so a cached filter can
+            # become stale even when no component setter was called.
+            return AssignmentPlan.from_filter(
                 self.agents,
                 self.scenarios,
                 self.models,
                 self._include_expression,
             )
+        if self._assignment_plan is not None:
+            self._assignment_plan.validate(self.agents, self.scenarios, self.models)
             return self._assignment_plan
         return AssignmentPlan.from_cross(self.agents, self.scenarios, self.models)
 

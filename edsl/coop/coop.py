@@ -9,7 +9,10 @@ from datetime import datetime
 from typing import (
     Any,
     Dict,
+    Iterator,
+    Mapping,
     Optional,
+    Sequence,
     Union,
     Literal,
     List,
@@ -1635,8 +1638,9 @@ class Coop(CoopFunctionsMixin):
 
         obj_uuid, owner_username, obj_alias = self._resolve_uuid_or_alias(url_or_uuid)
 
-        # If we're updating the value, we need to check the storage format
-        if value:
+        # If we're updating the value, we need to check the storage format.
+        # Compare with None: an empty Prompt is a valid value but falsy.
+        if value is not None:
             # If we don't have a UUID but have an alias, get the UUID and format info first
             if not obj_uuid and owner_username and obj_alias:
                 # Get object info including UUID and format
@@ -1688,7 +1692,7 @@ class Coop(CoopFunctionsMixin):
                         default=self._json_handle_none,
                         allow_nan=False,
                     )
-                    if value
+                    if value is not None
                     else None
                 ),
                 "visibility": visibility,
@@ -3714,6 +3718,90 @@ class Coop(CoopFunctionsMixin):
             "allow_resubmit": data.get("allow_resubmit"),
         }
 
+    def get_human_survey_agent_access(
+        self,
+        human_survey_uuid: Union[str, UUID],
+    ) -> dict:
+        """
+        Get a human survey's agent-access config: whether AI agents may take it
+        through its agent link, who produces the answers, and the guidance agents
+        are given. Owner only.
+
+        Parameters:
+            human_survey_uuid: UUID of the human survey.
+
+        Returns:
+            dict: ``{"configured", "enabled", "participation_mode",
+            "instructions", "question_settings"}``. ``configured`` is False when
+            agent access has never been set; the other fields are then their
+            defaults (disabled, ``"human_assisted"``, no guidance).
+
+        Example:
+            >>> access = coop.get_human_survey_agent_access("your-human-survey-uuid")  # doctest: +SKIP
+        """
+        response = self._send_server_request(
+            uri=f"api/v0/human-surveys/{human_survey_uuid}/agent-access",
+            method="GET",
+        )
+        self._resolve_server_response(response)
+        return response.json()
+
+    def patch_human_survey_agent_access(
+        self,
+        human_survey_uuid: Union[str, UUID],
+        partial_config: Dict[str, Any],
+        survey: Optional["Survey"] = None,
+    ) -> dict:
+        """
+        Partially update a human survey's agent-access config. Owner only.
+
+        The ``partial_config`` is deep-merged into the stored config (the defaults,
+        if it has never been set): nested dicts merge key-by-key, while scalars and
+        explicit ``None`` replace the existing value, and fields left out are
+        unchanged. A question set to ``None`` in ``question_settings`` has its
+        settings removed. The merged result is validated as a whole, so unknown keys
+        or invalid values are rejected.
+
+        The config's fields: ``enabled`` (whether the agent link accepts new
+        attempts), ``participation_mode`` (``"human_assisted"``,
+        ``"authorized_context"`` or ``"autonomous"``), ``instructions`` (guidance
+        for agents on the whole survey, at most 4,000 characters; in autonomous
+        mode, how the agent should answer), and ``question_settings`` (per-question
+        settings keyed by question name, e.g. ``{"improvements":
+        {"instructions": "Name at least one specific change."}}``).
+
+        The patch is validated before it's sent, and ``AgentAccessValidationError``
+        is raised if a key or value isn't allowed. The server doesn't check question
+        names, so pass ``survey`` to check that every question given settings is in
+        it.
+
+        Parameters:
+            human_survey_uuid: UUID of the human survey.
+            partial_config: Partial agent-access config to deep-merge into the
+                stored one.
+            survey: The survey, to check question names in ``question_settings``
+                against. Optional.
+
+        Returns:
+            dict: The stored config, as ``get_human_survey_agent_access`` returns it.
+
+        Example:
+            >>> coop.patch_human_survey_agent_access(  # doctest: +SKIP
+            ...     "your-human-survey-uuid",
+            ...     {"enabled": True, "participation_mode": "autonomous"},
+            ... )
+        """
+        from .coop_agent_access import validate_agent_access_patch
+
+        validate_agent_access_patch(partial_config, survey)
+        response = self._send_server_request(
+            uri=f"api/v0/human-surveys/{human_survey_uuid}/agent-access",
+            method="PATCH",
+            payload={"patch": partial_config},
+        )
+        self._resolve_server_response(response)
+        return response.json()
+
     def get_human_survey_respondents(
         self,
         human_survey_uuid: Union[str, UUID],
@@ -3765,6 +3853,123 @@ class Coop(CoopFunctionsMixin):
                 break
             page += 1
         return respondents
+
+    def get_human_survey_events(
+        self,
+        human_survey_uuid: Union[str, UUID],
+        *,
+        after: Optional[str] = None,
+        limit: int = 200,
+    ) -> dict:
+        """
+        Get one batch of the events a human survey's custom JavaScript logged.
+
+        Events are oldest first. Events from previews are included, each marked
+        with ``is_preview``, so leave those out of an analysis.
+
+        To continue, pass the returned ``next_cursor`` as ``after`` while
+        ``has_more`` is true. ``next_cursor`` is returned even when nothing is
+        left, so you can keep it and come back later for only the events that
+        arrived since.
+
+        Parameters:
+            human_survey_uuid: UUID of the human survey.
+            after: Return only events after this one, given by its ``id``. Omit
+                to start from the first event.
+            limit: Events to return, at most 200.
+
+        Returns:
+            dict: ``{"events": [...], "next_cursor", "has_more"}``
+
+        Example:
+            >>> batch = coop.get_human_survey_events("your-human-survey-uuid")  # doctest: +SKIP
+            >>> later = coop.get_human_survey_events(  # doctest: +SKIP
+            ...     "your-human-survey-uuid", after=batch["next_cursor"]
+            ... )
+        """
+        params: Dict[str, Any] = {"limit": limit}
+        if after is not None:
+            params["after"] = str(after)
+        response = self._send_server_request(
+            uri=f"api/v0/human-surveys/{human_survey_uuid}/events",
+            method="GET",
+            params=params,
+        )
+        self._resolve_server_response(response)
+        data = response.json()
+        return {
+            "events": data.get("events", []),
+            "next_cursor": data.get("next_cursor"),
+            "has_more": bool(data.get("has_more")),
+        }
+
+    def _iter_human_survey_event_batches(
+        self,
+        human_survey_uuid: Union[str, UUID],
+        *,
+        after: Optional[str] = None,
+        limit: int = 200,
+    ) -> Iterator[dict]:
+        """Yield batches from ``get_human_survey_events``, following the cursor to
+        the end. Holds one batch at a time, so a caller writing each one out never
+        has the whole log in memory."""
+        while True:
+            batch = self.get_human_survey_events(
+                human_survey_uuid, after=after, limit=limit
+            )
+            yield batch
+            if not batch["has_more"]:
+                return
+            after = batch["next_cursor"]
+
+    def get_all_human_survey_events(
+        self,
+        human_survey_uuid: Union[str, UUID],
+        *,
+        after: Optional[str] = None,
+    ) -> List[dict]:
+        """
+        Get every event a human survey's custom JavaScript logged, oldest first.
+
+        Events that arrive while this runs are included, and none comes back twice.
+
+        Parameters:
+            human_survey_uuid: UUID of the human survey.
+            after: Return only events after this one, given by its ``id``. Pass
+                the last event you already have to fetch just the new ones.
+
+        Returns:
+            list[dict]: One dict per event.
+
+        Example:
+            >>> events = coop.get_all_human_survey_events("your-human-survey-uuid")  # doctest: +SKIP
+        """
+        return [
+            event
+            for batch in self._iter_human_survey_event_batches(
+                human_survey_uuid, after=after
+            )
+            for event in batch["events"]
+        ]
+
+    def count_human_survey_events(self, human_survey_uuid: Union[str, UUID]) -> int:
+        """
+        How many events a human survey's custom JavaScript has logged, previews
+        included.
+
+        The count is as of this call. On a survey still collecting, fetching the
+        events afterwards can return more.
+
+        Example:
+            >>> coop.count_human_survey_events("your-human-survey-uuid")  # doctest: +SKIP
+            48210
+        """
+        response = self._send_server_request(
+            uri=f"api/v0/human-surveys/{human_survey_uuid}/events/count",
+            method="GET",
+        )
+        self._resolve_server_response(response)
+        return int(response.json().get("total", 0))
 
     def get_human_survey_respondent_links(
         self,
@@ -4255,6 +4460,28 @@ class Coop(CoopFunctionsMixin):
 
         validate_humanize_schema(survey, humanize_schema)
 
+    def get_custom_js_access(self) -> bool:
+        """
+        Whether your account may use custom JavaScript in a humanize schema.
+
+        Custom JavaScript is available on approved accounts only. Access is per
+        account: once yours is approved, the human surveys you create can
+        include custom JavaScript.
+
+        Returns:
+            bool: True if your account may save surveys with custom JavaScript.
+
+        Example:
+            >>> coop.get_custom_js_access()  # doctest: +SKIP
+            False
+        """
+        response = self._send_server_request(
+            uri="api/v0/human-surveys/custom-js-access",
+            method="GET",
+        )
+        self._resolve_server_response(response)
+        return bool(response.json().get("custom_js_allowed"))
+
     def patch_human_survey_css(
         self,
         human_survey_uuid: Union[str, UUID],
@@ -4448,110 +4675,26 @@ class Coop(CoopFunctionsMixin):
 
     def _turn_human_responses_into_results(
         self,
-        human_responses: List[dict],
+        human_responses: Sequence[Mapping[str, Any]],
         survey_uuid: str,
-        agent_list_uuid: Optional[str] = None,
     ) -> Union["Results", "ScenarioList"]:
         """
         Turn a list of human responses into a Results object.
 
+        human_responses are rows as the server sends them (see HumanResponseRow), with
+        the respondent's agent-list traits already in each row's agent traits. Each is
+        built from what was recorded, without running the survey (see
+        Results.from_human_responses).
+
         If generating the Results object fails, a ScenarioList will be returned instead.
         """
-        from ..agents import Agent, AgentList
-        from ..caching import Cache
-        from ..language_models import Model
-        from ..runner.models import _decode_answer_value
+        from ..results import Results
         from ..scenarios import Scenario, ScenarioList
         from ..surveys import Survey
 
         try:
             survey = Survey.pull(survey_uuid)
-            agent_list = AgentList.pull(agent_list_uuid) if agent_list_uuid else None
-
-            model = Model("test")
-
-            results = None
-
-            for response in human_responses:
-                response_uuid: Optional[str] = response.get("response_uuid")
-                if response_uuid is None:
-                    raise RuntimeError(
-                        "One of your responses is missing a unique identifier."
-                    )
-
-                response_dict: Dict[str, Any] = json.loads(
-                    response.get("response_json_string")
-                )
-                agent_traits_json_string: Optional[str] = response.get(
-                    "agent_traits_json_string"
-                )
-                scenario_json_string: Optional[str] = response.get(
-                    "scenario_json_string"
-                )
-                agent_traits_raw: Dict[str, Any]
-                if agent_traits_json_string is not None:
-                    agent_traits_raw = json.loads(agent_traits_json_string)
-                else:
-                    agent_traits_raw = {}
-
-                agent_traits = agent_traits_raw
-                if "respondent_uuid" in agent_traits_raw and agent_list is not None:
-                    # Look for agent in list (by index)
-                    agent_index: Optional[int] = agent_traits_raw.get("agent_index")
-                    source_agent: Optional["Agent"] = (
-                        agent_list[agent_index]
-                        if agent_index is not None and agent_index < len(agent_list)
-                        else None
-                    )
-                    # Update traits with traits from the agent in the list
-                    if source_agent is not None:
-                        agent_traits = {**agent_traits_raw, **source_agent.traits}
-
-                a = Agent(name=response_uuid, instruction="", traits=agent_traits)
-
-                def create_answer_function(response_data, question_names):
-                    def f(self, question, scenario):
-                        return _decode_answer_value(
-                            response_data.get(question.question_name)
-                        )
-
-                    # Every question in a humanized survey is answered from the
-                    # recorded response, never recomputed. Question types that can
-                    # answer themselves (image generation, compute, diagram, random)
-                    # would otherwise re-execute here and discard what the
-                    # respondent's session actually produced. Names absent from the
-                    # response - e.g. an image whose generation failed at survey
-                    # time - resolve to None rather than triggering a fresh run.
-                    f.stored_answer_question_names = set(question_names) | set(
-                        response_data
-                    )
-                    return f
-
-                scenario = None
-                if scenario_json_string is not None:
-                    scenario = Scenario.from_dict(json.loads(scenario_json_string))
-
-                a.add_direct_question_answering_method(
-                    create_answer_function(response_dict, survey.question_names)
-                )
-
-                job = survey.by(a).by(model)
-
-                if scenario is not None:
-                    job = job.by(scenario)
-
-                question_results = job.run(
-                    cache=Cache(),
-                    disable_remote_cache=True,
-                    disable_remote_inference=True,
-                    print_exceptions=False,
-                )
-
-                if results is None:
-                    results = question_results
-                else:
-                    results = results + question_results
-            return results
+            return Results.from_human_responses(survey, human_responses)
         except Exception:
             human_response_scenarios = []
             for response in human_responses:
@@ -4623,11 +4766,8 @@ class Coop(CoopFunctionsMixin):
         response_json = response.json()
         responses = response_json.get("responses", [])
         survey_uuid = response_json.get("survey_uuid")
-        agent_list_uuid = response_json.get("agent_list_uuid")
 
-        return self._turn_human_responses_into_results(
-            responses, survey_uuid, agent_list_uuid
-        )
+        return self._turn_human_responses_into_results(responses, survey_uuid)
 
     def test_scenario_sampling(self, human_survey_uuid: str) -> List[int]:
         """
@@ -4955,16 +5095,48 @@ class Coop(CoopFunctionsMixin):
             "filters": response_json.get("filters"),
         }
 
+    def preflight_prolific_study(
+        self, human_survey_uuid: str, study_id: str, *,
+        required_questions: Optional[List[str]] = None,
+        expected_survey=None, required_credits: Optional[float] = None,
+    ) -> dict:
+        """Check the current draft, deployed survey and balance without publishing.
+
+        Supply required question names (including any planned participant ID)
+        and the expected Survey to detect missing questions or deployment drift.
+        required_credits includes any AI/interview reserve; when omitted only
+        recruitment is costed. This check neither reserves funds nor proves
+        live routing, identity capture, eligibility, or user authorization.
+        """
+        from .coop_prolific_preflight import preflight
+
+        return preflight(self, human_survey_uuid, study_id,
+                         required_questions=required_questions,
+                         expected_survey=expected_survey, required_credits=required_credits)
+
     def publish_prolific_study(
         self,
         human_survey_uuid: str,
         study_id: str,
+        *,
+        required_questions: Optional[List[str]] = None,
+        expected_survey=None,
+        required_credits: Optional[float] = None,
     ) -> dict:
         """
         Publish a Prolific study.
 
         Once your study is published, Prolific participants can start accepting and completing it.
+        Rechecks the deployed survey and current recruitment balance before the
+        publication POST. Supply an all-in required_credits estimate for AI work.
+        A successful preflight is not spending authorization or a funds reservation.
         """
+        check = self.preflight_prolific_study(
+            human_survey_uuid, study_id, required_questions=required_questions,
+            expected_survey=expected_survey, required_credits=required_credits,
+        )
+        if not check["ready"]:
+            raise CoopValueError("Prolific preflight failed: " + "; ".join(check["blockers"]))
         response = self._send_server_request(
             uri=f"api/v0/human-surveys/{human_survey_uuid}/prolific-studies/{study_id}/status",
             method="POST",
@@ -5131,11 +5303,8 @@ class Coop(CoopFunctionsMixin):
         response_json = response.json()
         human_responses = response_json.get("human_responses", [])
         survey_uuid = response_json.get("survey_uuid")
-        agent_list_uuid = response_json.get("agent_list_uuid")
 
-        return self._turn_human_responses_into_results(
-            human_responses, survey_uuid, agent_list_uuid
-        )
+        return self._turn_human_responses_into_results(human_responses, survey_uuid)
 
     def delete_prolific_study(
         self,
@@ -5505,11 +5674,26 @@ class Coop(CoopFunctionsMixin):
         )
         # Handle any errors in the response
         self._resolve_server_response(response)
-        if "signed_url" not in response.json():
+        pull_data = response.json()
+        if "signed_url" not in pull_data:
             from .exceptions import CoopResponseError
 
             raise CoopResponseError("No signed url was provided.")
-        signed_url = response.json().get("signed_url")
+        signed_url = pull_data.get("signed_url")
+
+        # Servers that report the object's type let a UUID pull be checked the
+        # same way an alias pull is above. Older servers omit it.
+        server_object_type = pull_data.get("object_type")
+        if (
+            expected_object_type
+            and server_object_type
+            and server_object_type != expected_object_type
+        ):
+            from .exceptions import CoopObjectTypeError
+
+            raise CoopObjectTypeError(
+                f"Expected {expected_object_type=} but got {server_object_type=}"
+            )
 
         if signed_url == "":  # it is in old format
             return self.get(url_or_uuid, expected_object_type)
@@ -5531,17 +5715,34 @@ class Coop(CoopFunctionsMixin):
             return edsl_object
         else:
             likely_object_type = object_dict.get("edsl_class_name")
-            if likely_object_type is not None:
-                edsl_class = ObjectRegistry.get_registry().get(likely_object_type, None)
+            edsl_class = (
+                ObjectRegistry.get_registry().get(likely_object_type)
+                if likely_object_type is not None
+                else None
+            )
+            if edsl_class is None and server_object_type:
+                edsl_class = ObjectRegistry.get_edsl_class_by_object_type(
+                    server_object_type
+                )
+            if edsl_class is not None:
                 return edsl_class.from_dict(object_dict)
-            else:
-                for edsl_class in ObjectRegistry.get_registry().values():
-                    try:
-                        edsl_object = edsl_class.from_dict(object_dict)
-                        return edsl_object
-                        break
-                    except Exception:
-                        continue
+            if likely_object_type is not None:
+                # The payload names a class this client does not know. Guessing
+                # would hand back the wrong type: Agent.from_dict accepts any dict.
+                from .exceptions import CoopResponseError
+
+                raise CoopResponseError(
+                    f"This object is a {likely_object_type}, which this version of "
+                    f"EDSL cannot load. Upgrade EDSL and try again."
+                )
+            # Only payloads without an edsl_class_name reach here.
+            for edsl_class in ObjectRegistry.get_registry().values():
+                try:
+                    return edsl_class.from_dict(object_dict)
+                except Exception:
+                    continue
+
+        from .exceptions import CoopResponseError
 
         raise CoopResponseError(f"No EDSL class found for {likely_object_type=}")
 

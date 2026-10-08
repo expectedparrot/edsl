@@ -110,6 +110,11 @@ if __name__ == "__main__":
 '''
 
 
+LEGACY_MODEL_RECIPE = (
+    '$(MODELS):\n\t$(EP) models create --model "$(MODEL_NAME)" --output $@'
+)
+
+
 def create_project(
     root: str,
     jobs: list[str] | None = None,
@@ -175,6 +180,22 @@ def create_project(
         ):
             raise ValueError("invalid required source domain")
 
+    if template == "survey":
+        makefile = Path(root) / "Makefile"
+        model_source = Path(root) / "edsl_jobs" / "job_a" / "study_model_list.py"
+        if (
+            makefile.is_file()
+            and LEGACY_MODEL_RECIPE in makefile.read_text(encoding="utf-8")
+            and not model_source.exists()
+        ):
+            raise ValueError(
+                "This study uses the legacy MODEL_NAME recipe. Before migrating, "
+                "create edsl_jobs/job_a/study_model_list.py with the study's "
+                "approved models and save them to model_list.ep when run. "
+                "Then re-run scaffolding. The --model argument cannot safely "
+                "replace the existing Makefile's model selection."
+            )
+
     os.makedirs(root, exist_ok=True)
 
     # Create common directories
@@ -231,6 +252,14 @@ def create_project(
         source_templates = {
             job_dir / "study_survey.py": SURVEY_SOURCE_TEMPLATE,
             job_dir / "study_agent_list.py": AGENT_SOURCE_TEMPLATE,
+            job_dir / "study_model_list.py": (
+                "from pathlib import Path\nfrom edsl import Model, ModelList\n\n"
+                "# STUDY EDIT: use the approved models, services, and parameters.\n"
+                "# Add Model(...) entries for a multi-model comparison.\n"
+                f"model_list = ModelList([Model({model!r})])\n\n"
+                'if __name__ == "__main__":\n'
+                '    model_list.git.save(str(Path(__file__).with_name("model_list.ep")))\n'
+            ),
         }
         if with_scenarios:
             source_templates[job_dir / "study_scenario_list.py"] = SCENARIO_SOURCE_TEMPLATE
@@ -366,6 +395,8 @@ if __name__ == "__main__":
                 f"--column answer.{field}" for field in required_answers
             )
             export_options = "--column 'agent.*' --column 'answer.*'"
+            if with_scenarios:
+                export_options += " --column 'scenario.*'"
             scenario_variables = (
                 "SCENARIOS := $(JOB_DIR)/scenario_list.ep\n" if with_scenarios else ""
             )
@@ -378,7 +409,6 @@ if __name__ == "__main__":
             scenario_argument = " --scenarios $(SCENARIOS)" if with_scenarios else ""
             makefile.write_text(
                 makefile_text.rstrip() + "\n\n" + marker + "\n"
-                f"MODEL_NAME := {model}\n"
                 f"RUN_DESCRIPTION := {run_description}\n"
                 "REPORT_GROUP_BY ?=\n"
                 "JOB_DIR := edsl_jobs/job_a\n"
@@ -399,9 +429,9 @@ if __name__ == "__main__":
                 "$(AGENTS): $(JOB_DIR)/study_agent_list.py\n"
                 "\tcd $(JOB_DIR) && $(STUDY_PYTHON) study_agent_list.py\n\n"
                 f"{scenario_rule}"
-                "$(MODELS):\n"
-                "\t$(EP) models create --model \"$(MODEL_NAME)\" --output $@\n\n"
-                f"$(JOBS): $(SURVEY) $(AGENTS){scenario_prerequisite} $(MODELS)\n"
+                "$(MODELS): $(JOB_DIR)/study_model_list.py\n"
+                "\tcd $(JOB_DIR) && $(STUDY_PYTHON) study_model_list.py\n\n"
+                f"$(JOBS): $(SURVEY) $(AGENTS){scenario_prerequisite} $(MODELS) $(JOB_DIR)/study_model_list.py\n"
                 f"\t$(EP) jobs build --survey $(SURVEY) --agents $(AGENTS){scenario_argument} --models $(MODELS) --output $@\n\n"
                 "estimate: $(JOBS)\n"
                 "\t$(EP) jobs cost $(JOBS)\n\n"
@@ -456,6 +486,18 @@ if __name__ == "__main__":
                 "complete: workflow-verify present\n",
                 encoding="utf-8",
             )
+
+        elif LEGACY_MODEL_RECIPE in makefile_text:
+            makefile_text = makefile_text.replace(
+                LEGACY_MODEL_RECIPE,
+                '$(MODELS): $(JOB_DIR)/study_model_list.py\n'
+                '\tcd $(JOB_DIR) && $(STUDY_PYTHON) study_model_list.py',
+            )
+            makefile_text = re.sub(
+                r"(?m)^(\$\(JOBS\):[^\n]*)$",
+                r"\1 $(JOB_DIR)/study_model_list.py", makefile_text,
+            )
+            makefile.write_text(makefile_text, encoding="utf-8")
 
     if template == "qualitative-analysis":
         qual_root = Path(root) / "analysis" / "bewley_project"
@@ -732,6 +774,7 @@ if __name__ == "__main__":
                 [
                     "edsl_jobs/job_a/study_survey.py",
                     "edsl_jobs/job_a/study_agent_list.py",
+                    "edsl_jobs/job_a/study_model_list.py",
                 ] + (["edsl_jobs/job_a/study_scenario_list.py"] if with_scenarios else [])
                 if template == "survey" else []
             ),

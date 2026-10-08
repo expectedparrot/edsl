@@ -9,23 +9,26 @@ from typing import Generator, Tuple, Optional, Any, Sequence
 from itertools import product
 
 from jinja2 import StrictUndefined
-
 from ..utilities.jinja import EDSLSandboxedEnvironment
 
 
 class _InterviewFilterEnvironment(EDSLSandboxedEnvironment):
-    """Expose positional indices only on the supplied interview components."""
+    """Expose only source positions needed by index filters."""
 
-    def __init__(self, *components):
+    def __init__(self):
         super().__init__(undefined=StrictUndefined)
-        self._indexed_objects = {
-            id(item) for component in components for item in component
-        }
+        self.positions = {}
 
-    def is_safe_attribute(self, obj, attr, value):
-        if attr == "_index" and id(obj) in self._indexed_objects and type(value) is int:
-            return True
-        return super().is_safe_attribute(obj, attr, value)
+    def getattr(self, obj, attribute):
+        if attribute in ("_index", "_position_index") and id(obj) in self.positions:
+            # These are enumerated integers, not reads of private object state.
+            return self.positions[id(obj)]
+        return super().getattr(obj, attribute)
+
+    def getitem(self, obj, argument):
+        if isinstance(argument, str) and argument in ("_index", "_position_index"):
+            return self.getattr(obj, argument)
+        return super().getitem(obj, argument)
 
 
 class InterviewTupleFilter:
@@ -59,7 +62,7 @@ class InterviewTupleFilter:
         self.include_expression = include_expression
 
         if include_expression:
-            self._env = _InterviewFilterEnvironment(agents, scenarios, models)
+            self._env = _InterviewFilterEnvironment()
             self._template = self._env.from_string(include_expression)
         else:
             self._template = None
@@ -80,9 +83,19 @@ class InterviewTupleFilter:
 
     def __iter__(self) -> Generator[Tuple[Any, Any, Any], None, None]:
         """Iterate over all valid (agent, scenario, model) tuples."""
-        for agent, scenario, model in product(self.agents, self.scenarios, self.models):
+        for a, s, m in self.iter_indices():
+            yield self.agents[a], self.scenarios[s], self.models[m]
+
+    def iter_indices(self) -> Generator[Tuple[int, int, int], None, None]:
+        """Keep source positions even when a collection repeats the same object."""
+        for a, s, m in product(
+            range(len(self.agents)), range(len(self.scenarios)), range(len(self.models))
+        ):
+            agent, scenario, model = self.agents[a], self.scenarios[s], self.models[m]
+            if self._template is not None:
+                self._env.positions = {id(agent): a, id(scenario): s, id(model): m}
             if self._evaluate_expression(agent, scenario, model):
-                yield agent, scenario, model
+                yield a, s, m
 
     def __len__(self) -> int:
         """

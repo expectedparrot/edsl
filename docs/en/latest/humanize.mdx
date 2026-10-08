@@ -4,7 +4,7 @@ description: "EDSL comes with built-in methods for generating web versions of yo
 ---
 
 <Note>
-This page covers code methods for launching surveys, gathering human responses, and analyzing results. For interactive survey building, see [Survey Builder](/en/latest/survey_builder). For Prolific recruitment, see [Prolific studies](/en/latest/prolific). For email notifications and scheduled reminders, see [Survey notifications](/en/latest/humanize_notifications).
+This page covers code methods for launching surveys, gathering human responses, and analyzing results. For interactive survey building, see [Survey Builder](/en/latest/survey_builder). For Prolific recruitment, see [Prolific studies](/en/latest/prolific). For email notifications and scheduled reminders, see [Survey notifications](/en/latest/humanize_notifications). To let AI agents take a survey, see [AI agent access](/en/latest/humanize_agent_access).
 </Note>
 
 ## How it works
@@ -261,6 +261,25 @@ coop = Coop()
 results = coop.get_human_survey_responses("your-human-survey-uuid")
 results.select("answer.frequency", "answer.satisfaction", "answer.improvement").print()
 ```
+
+### What the results contain
+
+Each completed response is one result, oldest first. Every value is what was recorded for that respondent: answers are never recomputed, and survey logic isn't evaluated again, so a skipped question stays skipped. Column names match the responses table on the survey's page.
+
+| Field | Description |
+|-------|-------------|
+| `answer.{question}`, `comment.{question}_comment` | The respondent's answer and comment. Empty for a question they didn't see. |
+| `agent.response_uuid`, `agent.agent_name` | The response's ID. |
+| `agent.respondent_uuid`, `agent.agent_index` | The respondent's ID and position in the attached agent list. Empty without an agent list. |
+| `agent.{trait}` | The traits of the respondent's agent, when an agent list is attached. |
+| `raw_model_response.{question}_started_at`, `_answered_at` | When the respondent reached and answered the question. |
+| `raw_model_response.{question}_question_presented` | `False` if survey logic skipped the question, so a skipped question can be told from one left blank. |
+| `question_options.{question}_question_options` | The options as the respondent saw them, after piping and any randomized order. |
+| `agent.external_platform`, `agent.prolific_*` | The Prolific submission, study and participant IDs, when any response came through Prolific. |
+
+Fields that show how a response was collected, such as `agent.collection_interface`, are listed under [AI agent access](/en/latest/humanize_agent_access#in-results). The `model.*` columns describe a placeholder model: a human response has no model, but every result records one.
+
+To get only some responses, pass `started_after` and/or `started_before` (inclusive; a response is "started" when the respondent opened the survey).
 
 ### Checking response count
 
