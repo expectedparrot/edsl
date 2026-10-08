@@ -240,6 +240,104 @@ def _write_job_metadata(path: Path, job: "Jobs") -> None:
         metadata["interview_schedule"] = (
             schedule.to_dict() if isinstance(schedule, InterviewSchedule) else schedule
         )
+    (path / "job.json").write_text(
+        json.dumps(metadata, indent=2, sort_keys=True) + "\n"
+    )
+
+
+def _write_dependencies(path: Path, job: "Jobs") -> None:
+    dependencies_dir = path / "dependencies"
+    if job._depends_on is None:
+        if dependencies_dir.exists():
+            shutil.rmtree(dependencies_dir)
+        return
+    dependency_path = dependencies_dir / "000001"
+    dependency_path.mkdir(parents=True, exist_ok=True)
+    _write_job_package(dependency_path, job._depends_on)
+    for existing in dependencies_dir.iterdir():
+        if existing.name != "000001":
+            if existing.is_dir():
+                shutil.rmtree(existing)
+            else:
+                existing.unlink()
+
+
+def _write_embedded_survey(path: Path, survey) -> None:
+    from edsl.surveys import survey_git
+
+    path.mkdir(parents=True, exist_ok=True)
+    survey_dict = survey.to_dict(add_edsl_version=False)
+    existing_order, existing_questions = survey_git._load_existing_package_state(path)
+    question_ids = survey_git._question_ids_for_questions(
+        survey_dict["questions"], existing_order, existing_questions
+    )
+    survey_git._write_package(path, survey, survey_dict, question_ids)
+
+
+def _write_embedded_agents(path: Path, agents) -> None:
+    from edsl.agents import agent_list_git
+
+    path.mkdir(parents=True, exist_ok=True)
+    existing_order, existing_agents = agent_list_git._load_existing_package_state(path)
+    agent_ids = agent_list_git._agent_ids_for_agents(
+        agents, existing_order, existing_agents
+    )
+    agent_list_git._write_manifest(path, agents, agent_ids)
+    agent_list_git._write_agents(path, agents, agent_ids)
+
+
+def _write_embedded_scenarios(path: Path, scenarios) -> None:
+    from edsl.scenarios import scenario_list_git
+
+    path.mkdir(parents=True, exist_ok=True)
+    scenario_list_dict = scenarios.to_dict(add_edsl_version=False)
+    existing_order, existing_scenarios = scenario_list_git._load_existing_package_state(
+        path
+    )
+    scenario_ids = scenario_list_git._scenario_ids_for_scenarios(
+        scenario_list_dict["scenarios"], existing_order, existing_scenarios
+    )
+    scenario_list_git._write_package(path, scenario_list_dict, scenario_ids)
+
+
+def _write_embedded_models(path: Path, models) -> None:
+    from edsl.language_models import model_list_git
+
+    path.mkdir(parents=True, exist_ok=True)
+    model_list_dict = models.to_dict(add_edsl_version=False)
+    existing_order, existing_models = model_list_git._load_existing_package_state(path)
+    model_ids = model_list_git._model_ids_for_models(
+        model_list_dict["models"], existing_order, existing_models
+    )
+    model_list_git._write_package(path, model_list_dict, model_ids)
+
+
+def _read_job_from_tree(path: Path) -> "Jobs":
+    _load_manifest(path)
+    job_metadata = _read_json_file(path / "job.json")
+    survey = _read_embedded_survey(path / "survey")
+    agents = _read_embedded_agents(path / "agents")
+    scenarios = _read_embedded_scenarios(path / "scenarios")
+    models = _read_embedded_models(path / "models")
+
+    from .jobs import Jobs
+
+    job = Jobs(survey=survey, agents=agents, models=models, scenarios=scenarios)
+    job._post_run_methods = _restore_post_run_methods(
+        job_metadata.get("_post_run_methods", [])
+    )
+    job._where_clauses = list(job_metadata.get("_where_clauses", []))
+    job._include_expression = job_metadata.get("_include_expression")
+    job._restore_assignment_metadata(job_metadata)
+    if "interview_schedule" in job_metadata:
+        from .interview_schedule import InterviewSchedule
+
+        schedule = job_metadata["interview_schedule"]
+        job.run_config.parameters.interview_schedule = (
+            InterviewSchedule.from_dict(schedule)
+            if isinstance(schedule, dict)
+            else schedule
+        )
     dependencies = job_metadata.get("dependencies") or []
     if dependencies:
         job._depends_on = _read_job_from_tree(path / dependencies[0])
