@@ -372,7 +372,12 @@ def test_runner_surfaces_rejected_automatic_close(tmp_path):
         _interview_schedules={
             "job": SimpleNamespace(finalize_when=bound.is_complete())
         },
+        _get_interview_schedule=lambda job_id: service._interview_schedules[job_id],
+        _distributed=False,
         _state_binding=lambda *_: backend,
+    )
+    service._finalize_shared_state = lambda job_id, context: (
+        JobService._finalize_shared_state(service, job_id, context)
     )
     with pytest.raises(CommandRejected, match="settlement_denied"):
         JobService._execute_shared_state_steps(
