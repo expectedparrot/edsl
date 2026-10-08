@@ -9,6 +9,7 @@ from typing import Generator, Tuple, Optional, Any, Sequence
 from itertools import product
 
 from jinja2 import StrictUndefined
+from jinja2.exceptions import SecurityError
 from ..utilities.jinja import EDSLSandboxedEnvironment
 
 
@@ -20,8 +21,19 @@ class _InterviewFilterEnvironment(EDSLSandboxedEnvironment):
         self.positions = {}
 
     def getattr(self, obj, attribute):
-        if attribute in ("_index", "_position_index") and id(obj) in self.positions:
-            # These are enumerated integers, not reads of private object state.
+        if attribute == "_index" and id(obj) in self.positions:
+            if type(getattr(obj, "_index", None)) is not int:
+                raise SecurityError("Interview indices must be integers")
+            return self.positions[id(obj)]
+        if attribute == "_position_index" and id(obj) in self.positions:
+            # This alias is intended for EDSL components whose position is set by
+            # Jobs._ensure_position_indices, not arbitrary template objects.
+            if not type(obj).__module__.startswith("edsl.") or type(
+                getattr(obj, "_position_index", None)
+            ) is not int:
+                raise SecurityError(
+                    "Position indices are only available on EDSL objects"
+                )
             return self.positions[id(obj)]
         return super().getattr(obj, attribute)
 
