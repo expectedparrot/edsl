@@ -84,6 +84,14 @@ def test_study_without_a_reported_key_is_costed_as_expected_parrots(coop):
     assert not check["ready"]
 
 
+def test_unknown_key_source_is_costed_as_expected_parrots(coop):
+    coop.get_prolific_study.return_value["key_source"] = "some_new_account"
+    coop.get_balance.return_value = {"credits": 2999}
+    check = coop.preflight_prolific_study("human", "study")
+    assert check["recruitment_credits"] == 3000
+    assert not check["ready"]
+
+
 def test_publish_rechecks_after_successful_preflight(coop):
     assert coop.preflight_prolific_study("human", "study")["ready"]
     coop.get_balance.return_value = {"credits": 0}

@@ -46,11 +46,12 @@ def preflight(coop, human_survey_uuid, study_id, *, required_questions=None,
     if expected_survey is not None and survey.to_dict(False) != expected_survey.to_dict(False):
         blockers.append("The deployed survey differs from the expected Survey.")
 
-    # Only a study on Expected Parrot's account has its recruitment charged in
-    # credits; on the researcher's own key, Prolific bills them directly. A draft
-    # keeps the key it was created on. Without one reported, assume Expected Parrot's.
+    # On the researcher's own key, Prolific bills recruitment directly, so it isn't
+    # charged in credits. A draft keeps the key it was created on. Anything else,
+    # including no key reported or a value this version doesn't know, is costed
+    # as Expected Parrot's account.
     key_source = study.get("key_source") or "ep"
-    on_ep_key = key_source == "ep"
+    on_own_key = key_source == "user_key"
 
     cost = coop.calculate_prolific_study_cost(
         participant_payment_cents=study["participant_payment_cents"],
@@ -58,7 +59,7 @@ def preflight(coop, human_survey_uuid, study_id, *, required_questions=None,
         estimated_completion_time_minutes=study["estimated_completion_time_minutes"],
     )
     quote = _credits(cost["cost_credits"], "Recruitment credits")
-    recruitment = quote if on_ep_key else 0
+    recruitment = 0 if on_own_key else quote
     total = recruitment if required_credits is None else required_credits
     if cost["is_underpayment"]:
         blockers.append("Participant payment is below the supported minimum.")
