@@ -35,6 +35,53 @@ def _get_types():
     return _types
 
 
+def _vertex_enabled() -> bool:
+    """Whether Google calls go through Vertex AI instead of the Gemini Developer
+    API. Toggled by the ``GOOGLE_GENAI_USE_VERTEXAI`` environment variable."""
+    return os.environ.get("GOOGLE_GENAI_USE_VERTEXAI", "").strip().lower() in (
+        "1",
+        "true",
+        "yes",
+        "on",
+    )
+
+
+def _build_genai_client(api_token: Optional[str] = None):
+    """Construct a ``google.genai`` client for the configured backend.
+
+    The same Gen AI SDK speaks to two backends:
+
+    * **Gemini Developer API** (default) — authenticated by an API key
+      (``api_token`` if given, else the ``GOOGLE_API_KEY`` environment
+      variable). This is the historical behaviour.
+    * **Vertex AI** (when ``GOOGLE_GENAI_USE_VERTEXAI`` is truthy) —
+      authenticated by Application Default Credentials (e.g. a service account
+      referenced by ``GOOGLE_APPLICATION_CREDENTIALS``, or workload identity);
+      the API key is ignored. Requires ``GOOGLE_CLOUD_PROJECT`` and uses
+      ``GOOGLE_CLOUD_LOCATION`` (default ``us-central1``). Standard (non-express)
+      Vertex does not accept API keys, so none is passed. Vertex is where Google
+      Cloud project credits apply.
+    """
+    genai = _get_genai()
+    if _vertex_enabled():
+        project = os.environ.get("GOOGLE_CLOUD_PROJECT")
+        if not project:
+            raise ValueError(
+                "GOOGLE_GENAI_USE_VERTEXAI is enabled but GOOGLE_CLOUD_PROJECT is "
+                "not set. Vertex AI requires a project id (and a location, "
+                "default 'us-central1')."
+            )
+        location = os.environ.get("GOOGLE_CLOUD_LOCATION", "us-central1")
+        # Credentials come from ADC (GOOGLE_APPLICATION_CREDENTIALS / workload
+        # identity). Standard Vertex rejects API keys, so we pass none.
+        return genai.Client(vertexai=True, project=project, location=location)
+
+    api_key = api_token or os.environ.get("GOOGLE_API_KEY")
+    if not api_key:
+        raise ValueError("GOOGLE_API_KEY environment variable not set.")
+    return genai.Client(api_key=api_key)
+
+
 safety_settings = [
     {
         "category": "HARM_CATEGORY_HARASSMENT",
@@ -70,12 +117,7 @@ class GoogleService(InferenceServiceABC):
     @classmethod
     def get_model_info(cls):
         """Get raw model info without wrapping in ModelInfo."""
-        api_key = os.environ.get("GOOGLE_API_KEY")
-        if not api_key:
-            raise ValueError("GOOGLE_API_KEY environment variable not set.")
-
-        genai = _get_genai()
-        client = genai.Client(api_key=api_key)
+        client = _build_genai_client()
         response = client.models.list()
         model_list = list(response)
         return model_list
@@ -165,8 +207,10 @@ class GoogleService(InferenceServiceABC):
                         # print("Creating new Google client...", flush=True)
                         # creation_start = time.time()
 
-                        genai = _get_genai()
-                        self._cached_client = genai.Client(api_key=self.api_token)
+                        # Developer API (api key) or Vertex AI (ADC/service
+                        # account) depending on GOOGLE_GENAI_USE_VERTEXAI. In
+                        # Vertex mode api_token is ignored.
+                        self._cached_client = _build_genai_client(self.api_token)
                         self._cached_api_token = self.api_token
 
                 client = self._cached_client
