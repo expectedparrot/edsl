@@ -431,7 +431,7 @@ is processed as a no-op. Use `require` or `reject` when an attempted action shou
 be explicitly refused:
 
 ```python
-from edsl.sharedstate import Command, StateType, require, field, arg, reject, , when
+from edsl.sharedstate import Command, StateType, require, field, arg, reject, when
 
 withdraw = Command(
     inputs={"amount": StateType.number()},
@@ -535,6 +535,22 @@ The [continuous auction example](/en/latest/shared-state/algorithms-and-referenc
 uses ordered assertions for an existing open order, nonpositive price,
 insufficient cash, and insufficient inventory. Its replay includes successful
 trades, an explicit rejection, and an intentional hold no-op.
+
+## Visualizing a machine
+
+`Machine.show_diagram()` draws the declared fields, commands, and view. Command
+cards show their inputs, requirements, and effects. Edges distinguish state
+reads from writes and show which fields feed the read-only view.
+
+```python
+machine.show_diagram()
+machine.show_diagram("activity-poll.png", renderer="pydot")
+machine.show_diagram("activity-poll-print.png", renderer="pydot", dpi=300)
+```
+
+The default Mermaid renderer works without optional packages. The `pydot`
+renderer saves a PNG and requires pydot and Graphviz. Its default resolution is
+192 dpi; increase `dpi` for print-sized output.
 
 ## Views
 

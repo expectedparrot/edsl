@@ -408,6 +408,26 @@ class Machine:
     close_effects: tuple[Effect, ...] = ()
     algorithms: tuple[str, ...] = ()
 
+    def show_diagram(
+        self,
+        filename: str | None = None,
+        renderer: str | None = None,
+        dpi: int = 192,
+    ):
+        """Show this machine's state, commands, and read-only view.
+
+        Args:
+            filename: Optional path to save the diagram.
+            renderer: ``"mermaid"`` or ``"pydot"`` (default: Mermaid).
+            dpi: PNG resolution for the ``pydot`` renderer (default: 192).
+
+        In a notebook, the Mermaid diagram renders inline. Use ``renderer="pydot"``
+        to create a PNG when Graphviz and pydot are installed.
+        """
+        from .visualization import machine_graph
+
+        return machine_graph(self, renderer=renderer, dpi=dpi).show(filename=filename)
+
     def required_capabilities(self) -> dict[str, Any]:
         """Return derived requirements without altering the serialized definition."""
         from .capabilities import requirements
