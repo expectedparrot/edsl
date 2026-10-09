@@ -4989,6 +4989,7 @@ class Coop(CoopFunctionsMixin):
             List[Literal["audio", "camera", "download", "microphone"]]
         ] = None,
         filters: Optional[List[Dict]] = None,
+        approval_mode: Optional[Literal["automatic", "manual"]] = None,
     ) -> dict:
         """
         Create a Prolific study for a human survey. Returns a dict with the study details.
@@ -4997,6 +4998,13 @@ class Coop(CoopFunctionsMixin):
         filters using Coop.list_prolific_filters().
         Then, you can use the create_study_filter method of the returned
         CoopProlificFilters object to create a valid filter dict.
+
+        approval_mode sets how submissions are approved:
+        - "automatic" (the default): a submission is approved and the participant
+          is paid as soon as they enter the completion code.
+        - "manual": participants are paid when you approve their submissions, or
+          when Prolific automatically approves them 21 days after completion.
+        It can be changed with update_prolific_study until the study is published.
         """
         is_underpayment, cost_usd_per_hour = self._validate_prolific_study_cost(
             estimated_completion_time_minutes, participant_payment_cents
@@ -5006,25 +5014,29 @@ class Coop(CoopFunctionsMixin):
                 f"The current participant payment of ${cost_usd_per_hour:.2f} USD per hour is below the minimum payment for using Prolific ($8.00 USD per hour)."
             )
 
+        payload = {
+            "name": name,
+            "description": description,
+            "total_available_places": num_participants,
+            "estimated_completion_time": estimated_completion_time_minutes,
+            "reward": participant_payment_cents,
+            "device_compatibility": (
+                ["desktop", "tablet", "mobile"]
+                if device_compatibility is None
+                else device_compatibility
+            ),
+            "peripheral_requirements": (
+                [] if peripheral_requirements is None else peripheral_requirements
+            ),
+            "filters": [] if filters is None else filters,
+        }
+        if approval_mode is not None:
+            payload["approval_mode"] = approval_mode
+
         response = self._send_server_request(
             uri=f"api/v0/human-surveys/{human_survey_uuid}/prolific-studies",
             method="POST",
-            payload={
-                "name": name,
-                "description": description,
-                "total_available_places": num_participants,
-                "estimated_completion_time": estimated_completion_time_minutes,
-                "reward": participant_payment_cents,
-                "device_compatibility": (
-                    ["desktop", "tablet", "mobile"]
-                    if device_compatibility is None
-                    else device_compatibility
-                ),
-                "peripheral_requirements": (
-                    [] if peripheral_requirements is None else peripheral_requirements
-                ),
-                "filters": [] if filters is None else filters,
-            },
+            payload=payload,
         )
         self._resolve_server_response(response)
         response_json = response.json()
@@ -5045,6 +5057,8 @@ class Coop(CoopFunctionsMixin):
             "device_compatibility": response_json.get("device_compatibility"),
             "peripheral_requirements": response_json.get("peripheral_requirements"),
             "filters": response_json.get("filters"),
+            # "automatic" or "manual"
+            "approval_mode": response_json.get("approval_mode"),
         }
 
     def update_prolific_study(
@@ -5063,9 +5077,14 @@ class Coop(CoopFunctionsMixin):
             List[Literal["audio", "camera", "download", "microphone"]]
         ] = None,
         filters: Optional[List[Dict]] = None,
+        approval_mode: Optional[Literal["automatic", "manual"]] = None,
     ) -> dict:
         """
         Update a Prolific study. Returns a dict with the study details.
+
+        approval_mode ("automatic" or "manual", see create_prolific_study) can only
+        be changed while the study is an unpublished draft. Leave it out to keep the
+        study's current approval mode.
         """
         study = self.get_prolific_study(human_survey_uuid, study_id)
 
@@ -5102,6 +5121,8 @@ class Coop(CoopFunctionsMixin):
             payload["peripheral_requirements"] = peripheral_requirements
         if filters is not None:
             payload["filters"] = filters
+        if approval_mode is not None:
+            payload["approval_mode"] = approval_mode
 
         response = self._send_server_request(
             uri=f"api/v0/human-surveys/{human_survey_uuid}/prolific-studies/{study_id}",
@@ -5127,6 +5148,8 @@ class Coop(CoopFunctionsMixin):
             "device_compatibility": response_json.get("device_compatibility"),
             "peripheral_requirements": response_json.get("peripheral_requirements"),
             "filters": response_json.get("filters"),
+            # "automatic" or "manual"
+            "approval_mode": response_json.get("approval_mode"),
         }
 
     def preflight_prolific_study(
@@ -5323,6 +5346,8 @@ class Coop(CoopFunctionsMixin):
             "filters": response_json.get("filters"),
             # "ep" (Expected Parrot's account) or "user_key" (your own key).
             "key_source": response_json.get("key_source"),
+            # "automatic" or "manual"
+            "approval_mode": response_json.get("approval_mode"),
         }
 
     def get_prolific_study_responses(

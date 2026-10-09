@@ -35,15 +35,15 @@ Use the humanize method to generate a Project for your survey and a shareable we
 Create a `Coop` client object to access your account. Then use `Coop` methods to create a Prolific study for your survey and gather human responses:
 
 - get_prolific_study_settings: Check which account your new studies will run on, whether they are paid in credits, and your participant limit.
-- create_prolific_study: Create a new study for the project_uuid and specify the study details (name, description, num_participant, estimated_completion_time (minutes), participant_payment_cents), and optional filters for targeting specific demographics and Prolific participants (IDs list).
+- create_prolific_study: Create a new study for the project_uuid and specify the study details (name, description, num_participant, estimated_completion_time (minutes), participant_payment_cents), optional filters for targeting specific demographics and Prolific participants (IDs list), and an optional approval_mode (see [Submission approval](#submission-approval)).
 - get_prolific_study: Retrieve the study details for the project_uuid and study_id.
 - list_prolific_filters: Show all the available filters for targeting specific demographics and characteristics of participants. Then use the find method to inspect the available filters by filter_id and the create_study_filter method to create a filter for your study with the desired parameters.
-- update_prolific_study: Update the study with the filters.
+- update_prolific_study: Update a draft study's details, filters or approval mode.
 - preflight_prolific_study: Check a draft study before publishing it, without publishing or spending anything.
 - publish_prolific_study: Publish the study and make it available for participants.
 - get_prolific_study_responses: Retrieve the responses from the study.
-- approve_prolific_study_submission: Approve the responses from the study.
-- reject_prolific_study_submission: Reject the responses from the study.
+- approve_prolific_study_submission: Approve the responses from a study that uses manual review.
+- reject_prolific_study_submission: Reject the responses from a study that uses manual review.
 
 </Step>
 </Steps>
@@ -195,6 +195,7 @@ study = coop.create_prolific_study(
     num_participants=1,
     estimated_completion_time_minutes=1,  # in minutes
     participant_payment_cents=50,  # payment amount in cents
+    # approval_mode="manual",  # optional; submissions are approved automatically by default
 )
 
 # Inspect the study details
@@ -216,7 +217,17 @@ Example output:
 'total_cost_cents': 71,
 'device_compatibility': ['desktop', 'mobile', 'tablet'],
 'peripheral_requirements': [],
-'filters': []}
+'filters': [],
+'approval_mode': 'automatic'}
+```
+
+<a id="submission-approval"></a>
+**Submission approval:** By default, a submission is approved and the participant is paid as soon as they enter the completion code. To review submissions yourself, pass `approval_mode="manual"` when you create the study. With manual review, participants are paid when you approve their submissions, or when Prolific automatically approves them 21 days after completion.
+
+You can change the approval mode while the study is still a draft. It can't be changed after the study is published:
+
+```python
+coop.update_prolific_study(project_uuid, study["study_id"], approval_mode="manual")
 ```
 
 Inspect the study details:
@@ -358,7 +369,7 @@ Example output:
 coop.publish_prolific_study(project_uuid, study_id)
 ```
 
-**Retrieve the study responses:** After the study is published and participants have completed it, you can retrieve the responses, together with the submission ID for each response, which you can use to approve or reject submissions:
+**Retrieve the study responses:** After the study is published and participants have completed it, you can retrieve the responses, together with the submission ID for each response. For a study that uses manual review, you can use the submission IDs to approve or reject submissions:
 
 ```python
 # Get the responses from the study
