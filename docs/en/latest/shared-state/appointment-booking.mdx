@@ -407,7 +407,7 @@ application tests.
 
 ```python
 from edsl.sharedstate import Machine
-from edsl.sharedstate.dsl_runtime import Runtime
+from edsl.sharedstate import Runtime
 
 machine = Machine.from_json(build_machine(slots=["09:00"]).to_json())
 runtime = Runtime()

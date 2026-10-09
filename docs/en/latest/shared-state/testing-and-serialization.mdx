@@ -11,7 +11,7 @@ The poll examples build on the `activity_poll` definition in [Machines, commands
 A machine is testable as an ordinary transition system:
 
 ```python
-from edsl.sharedstate.dsl_runtime import Runtime
+from edsl.sharedstate import Runtime
 
 runtime = Runtime()
 state = runtime.initial_state(activity_poll)

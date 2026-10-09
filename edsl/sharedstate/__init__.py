@@ -90,6 +90,8 @@ from .dsl import (
     when,
 )
 
+from .dsl_runtime import Runtime
+
 __all__ = [
     "seeded_integer",
     "seeded_order",
@@ -137,6 +139,7 @@ __all__ = [
     "AdvisoryWriteOutcome",
     "ObservedState",
     "Machine",
+    "Runtime",
     "Command",
     "Effect",
     "Expr",

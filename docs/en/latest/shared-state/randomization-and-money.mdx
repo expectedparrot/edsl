@@ -12,7 +12,7 @@ They do not require a market-specific callback.
 
 ```python
 from edsl.sharedstate import seeded_integer, seeded_order
-from edsl.sharedstate.dsl_runtime import Runtime
+from edsl.sharedstate import Runtime
 
 runtime = Runtime()
 bonus = seeded_integer("study", 100, 201, scope="cohort-1", key="bonus")

@@ -411,7 +411,7 @@ empty `Runtime()` registry after JSON transport.
 ### A winner's rejected unit can set its price
 
 ```python
-from edsl.sharedstate.dsl_runtime import Runtime
+from edsl.sharedstate import Runtime
 
 machine = Machine.from_json(build_machine(units=2, max_demand=2, balances={"A": 200, "B": 200}).to_json())
 runtime = Runtime()

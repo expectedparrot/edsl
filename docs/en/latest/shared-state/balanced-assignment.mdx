@@ -383,7 +383,7 @@ partially changing the state:
 
 ```python
 from edsl.sharedstate import Machine
-from edsl.sharedstate.dsl_runtime import Runtime
+from edsl.sharedstate import Runtime
 
 machine = Machine.from_json(build_machine().to_json())
 runtime = Runtime()

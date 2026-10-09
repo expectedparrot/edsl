@@ -401,7 +401,7 @@ empty `Runtime()` registry after JSON transport.
 ### Close an incomplete roster at the reserve
 
 ```python
-from edsl.sharedstate.dsl_runtime import Runtime
+from edsl.sharedstate import Runtime
 
 machine = Machine.from_json(build_machine().to_json())
 runtime = Runtime()
