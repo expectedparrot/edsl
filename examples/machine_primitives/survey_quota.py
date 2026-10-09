@@ -8,15 +8,15 @@ from edsl.sharedstate import (
     Command,
     Machine,
     StateType,
-    assert_,
+    require,
     constant,
     current_value,
     field,
     arg,
     put,
     record,
-    reduce_,
-    set_,
+    reduce,
+    assign,
     state_field,
     when,
 )
@@ -29,7 +29,7 @@ def build_machine(quota_a=10, quota_b=10):
     admissions = field("admissions")
     respondent, group = arg("respondent_id"), arg("group")
     existing = admissions.contains(respondent)
-    counts = reduce_("count_by", admissions.values())
+    counts = reduce("count_by", admissions.values())
     limits = constant("limits")
     full = (counts.get("A", 0) >= limits.get("A")) & (
         counts.get("B", 0) >= limits.get("B")
@@ -46,25 +46,25 @@ def build_machine(quota_a=10, quota_b=10):
             "screen": Command(
                 inputs={"respondent_id": StateType.text(), "group": StateType.text()},
                 effects=(
-                    assert_(
+                    require(
                         respondent.stripped().length() > 0, code="missing_respondent_id"
                     ),
-                    assert_(
+                    require(
                         ~existing | (admissions.get(respondent) == group),
                         code="respondent_type_changed",
                     ),
                     when(
                         ~existing,
-                        assert_(~field("enrollment_closed"), code="enrollment_closed"),
+                        require(~field("enrollment_closed"), code="enrollment_closed"),
                     ),
                     when(
                         ~existing,
-                        assert_(limits.contains(group), code="ineligible_type"),
+                        require(limits.contains(group), code="ineligible_type"),
                     ),
-                    when(~existing, assert_(~full, code="quotas_full")),
+                    when(~existing, require(~full, code="quotas_full")),
                     when(
                         ~existing,
-                        assert_(
+                        require(
                             counts.get(group, 0) < limits.get(group),
                             code="type_quota_full",
                         ),
@@ -74,7 +74,7 @@ def build_machine(quota_a=10, quota_b=10):
             )
         },
         complete_when=full,
-        close_effects=(set_("enrollment_closed", True),),
+        close_effects=(assign("enrollment_closed", True),),
         view={
             "counts": record(A=counts.get("A", 0), B=counts.get("B", 0)),
             "quotas_full": full,

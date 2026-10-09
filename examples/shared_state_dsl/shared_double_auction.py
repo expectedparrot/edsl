@@ -13,7 +13,7 @@ from edsl.sharedstate import (
     local,
     map_sequence,
     record,
-    reduce_,
+    reduce,
     state_field,
 )
 
@@ -24,7 +24,7 @@ PARTICIPANTS = {
 open_orders = filter_items(
     field("orders"), item="order", predicate=local("order").get("status") == "open"
 )
-bids = reduce_(
+bids = reduce(
     "sort_records",
     filter_items(
         open_orders, item="order", predicate=local("order").get("side") == "buy"
@@ -32,7 +32,7 @@ bids = reduce_(
     fields=("price", "time"),
     descending=(True, False),
 )
-asks = reduce_(
+asks = reduce(
     "sort_records",
     filter_items(
         open_orders, item="order", predicate=local("order").get("side") == "sell"

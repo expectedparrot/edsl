@@ -15,7 +15,7 @@ from edsl.sharedstate import (
     SQLiteStateBackend,
     StateType,
     field,
-    set_,
+    assign,
     state_field,
     resolve_read,
     resolve_write,
@@ -58,7 +58,7 @@ def counter():
         fields={"count": state_field(StateType.integer(), 0)},
         commands={
             "increment": Command(
-                inputs={}, effects=(set_("count", field("count") + 1),)
+                inputs={}, effects=(assign("count", field("count") + 1),)
             )
         },
         view={"count": field("count")},
@@ -367,7 +367,7 @@ def test_answer_pin_survives_crash_after_postgres_effect(database):
         commands={
             "add": Command(
                 inputs={"amount": StateType.integer()},
-                effects=(set_("total", field("total") + arg("amount")),),
+                effects=(assign("total", field("total") + arg("amount")),),
             )
         },
         view={"total": field("total")},
@@ -434,7 +434,7 @@ def test_stop_and_finalize_recover_per_group(database, policy, crash_at):
     lock = PostgresJobTransitionLock(lock_engine)
     # Closing deliberately clears the predicate. Recovery must retain the stop.
     machine = replace(
-        counter().definition.machines["counter"], close_effects=(set_("count", 0),)
+        counter().definition.machines["counter"], close_effects=(assign("count", 0),)
     )
     state = SharedStateMap(SharedState(counter=machine), state_id="stop-test")
     target = state.by(current.agent.group).counter
@@ -583,7 +583,7 @@ def test_initial_stop_finalizes_without_answer_writes(database):
     machine = replace(
         counter().definition.machines["counter"],
         complete_when=field("count") == 0,
-        close_effects=(set_("count", 1),),
+        close_effects=(assign("count", 1),),
     )
     state = SharedStateMap(SharedState(counter=machine), state_id="initial-stop")
     condition = state.by("room").counter.is_complete()
@@ -648,7 +648,7 @@ def test_concurrent_termination_handles_late_success_and_failure(
         SharedState(
             counter=replace(
                 counter().definition.machines["counter"],
-                close_effects=(set_("count", 0),),
+                close_effects=(assign("count", 0),),
             )
         ),
         state_id="concurrent-stop",
@@ -774,7 +774,7 @@ def test_other_callback_resumes_incomplete_answer_before_termination(
     machine = replace(
         counter().definition.machines["counter"],
         complete_when=field("count") >= 1,
-        close_effects=(set_("count", 0),),
+        close_effects=(assign("count", 0),),
     )
     state = SharedStateMap(
         SharedState(counter=machine), state_id="interrupted-concurrent"
@@ -950,7 +950,7 @@ def test_render_stop_check_cannot_observe_partial_answer_effects(database):
         original,
         commands={
             **original.commands,
-            "reset": Command(inputs={}, effects=(set_("count", 0),)),
+            "reset": Command(inputs={}, effects=(assign("count", 0),)),
         },
         complete_when=field("count") == 1,
     )

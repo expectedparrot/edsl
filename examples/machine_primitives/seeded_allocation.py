@@ -5,13 +5,13 @@ from edsl.sharedstate import (
     Machine,
     StateType,
     append,
-    assert_,
+    require,
     constant,
     field,
     arg,
     seeded_integer,
     seeded_order,
-    set_,
+    assign,
     state_field,
     take,
 )
@@ -32,8 +32,8 @@ def build_machine(seed="study-2026", scope="cohort-1", seats=2):
                 inputs={"participant": StateType.text()},
                 require=~field("settled"),
                 effects=(
-                    assert_(arg("participant").length() > 0, code="empty_id"),
-                    assert_(
+                    require(arg("participant").length() > 0, code="empty_id"),
+                    require(
                         ~field("entrants").contains(arg("participant")),
                         code="duplicate_id",
                     ),
@@ -42,7 +42,7 @@ def build_machine(seed="study-2026", scope="cohort-1", seats=2):
             )
         },
         close_effects=(
-            set_(
+            assign(
                 "winners",
                 take(
                     seeded_order(
@@ -54,7 +54,7 @@ def build_machine(seed="study-2026", scope="cohort-1", seats=2):
                     constant("seats"),
                 ),
             ),
-            set_(
+            assign(
                 "bonus_units",
                 seeded_integer(
                     constant("seed"),
@@ -64,7 +64,7 @@ def build_machine(seed="study-2026", scope="cohort-1", seats=2):
                     key="participation-bonus",
                 ),
             ),
-            set_("settled", True),
+            assign("settled", True),
         ),
         view={"winners": field("winners"), "bonus_units": field("bonus_units")},
     )

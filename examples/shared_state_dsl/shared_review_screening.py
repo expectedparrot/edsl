@@ -13,7 +13,7 @@ from edsl.sharedstate import (
     local,
     put,
     record,
-    set_,
+    assign,
     state_field,
 )
 
@@ -75,7 +75,7 @@ SPEC = Machine(
                 put("claims", arg("reviewer"), field("available").first()),
                 # The claim and queue removal are committed as one transition.
                 # A later read, not this command's outcome, is authoritative.
-                set_("available", field("available").drop_first()),
+                assign("available", field("available").drop_first()),
             ),
             timing="before_question",
         ),

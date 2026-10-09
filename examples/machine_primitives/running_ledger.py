@@ -9,7 +9,7 @@ from edsl.sharedstate import (
     arg,
     local,
     record,
-    set_,
+    assign,
     state_field,
 )
 
@@ -30,7 +30,7 @@ def build_machine():
             "post": Command(
                 inputs={"amounts": StateType.sequence(StateType.number())},
                 effects=(
-                    set_(
+                    assign(
                         "ledger",
                         fold(
                             arg("amounts"),

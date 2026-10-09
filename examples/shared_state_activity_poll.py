@@ -23,7 +23,7 @@ from edsl.sharedstate import (
     field,
     arg,
     put,
-    reduce_,
+    reduce,
     state_field,
 )
 
@@ -56,7 +56,7 @@ def activity_poll() -> Machine:
         },
         view={
             "votes": field("votes"),
-            "counts": reduce_("count_by", field("votes").values()),
+            "counts": reduce("count_by", field("votes").values()),
         },
     )
 

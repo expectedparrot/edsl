@@ -17,7 +17,7 @@ from edsl.sharedstate import (
     map_sequence,
     put,
     record,
-    reduce_,
+    reduce,
     state_field,
     when,
 )
@@ -76,7 +76,7 @@ SPEC = Machine(
         "your_signal_history": viewer_history,
         "release_count": field("events").length(),
         "released_by_round": map_items(
-            reduce_("count_by", rounds),
+            reduce("count_by", rounds),
             key="round",
             value="count",
             key_expr=expr("concat", "", local("round")),

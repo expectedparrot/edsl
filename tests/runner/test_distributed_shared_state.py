@@ -17,7 +17,7 @@ from edsl.sharedstate import (
     SQLiteStateBackend,
     StateType,
     field,
-    set_,
+    assign,
     state_field,
 )
 
@@ -29,7 +29,7 @@ def counter_job():
         fields={"count": state_field(StateType.integer(), 0)},
         commands={
             "increment": Command(
-                inputs={}, effects=(set_("count", field("count") + 1),)
+                inputs={}, effects=(assign("count", field("count") + 1),)
             )
         },
         view={"count": field("count")},

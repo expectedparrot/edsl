@@ -6,7 +6,7 @@ priority. Invalid admission conditions return explicit, public rejection codes.
 
 from edsl.sharedstate import (
     Command,
-    assert_,
+    require,
     when,
     Machine,
     StateType,
@@ -20,8 +20,8 @@ from edsl.sharedstate import (
     map_items,
     map_sequence,
     record,
-    reduce_,
-    set_,
+    reduce,
+    assign,
     state_field,
 )
 
@@ -43,15 +43,15 @@ def build_machine(accounts=None):
     account = book.get("accounts").get(trader)
     trading = (action == "buy") | (action == "sell")
     admission = (
-        when(trading, assert_(open_owned.length() == 0, code="open_order_exists")),
-        when(trading, assert_(price > 0, code="invalid_price")),
+        when(trading, require(open_owned.length() == 0, code="open_order_exists")),
+        when(trading, require(price > 0, code="invalid_price")),
         when(
             action == "buy",
-            assert_(account.get("cash") >= price, code="insufficient_cash"),
+            require(account.get("cash") >= price, code="insufficient_cash"),
         ),
         when(
             action == "sell",
-            assert_(account.get("inventory") >= 1, code="insufficient_inventory"),
+            require(account.get("inventory") >= 1, code="insufficient_inventory"),
         ),
     )
     order = record(
@@ -75,13 +75,13 @@ def build_machine(accounts=None):
     # runtime Python lambda. Both alternatives serialize with the definition.
     best = choose(
         action == "buy",
-        reduce_(
+        reduce(
             "sort_records",
             compatible,
             fields=["price", "time"],
             descending=[False, False],
         ),
-        reduce_(
+        reduce(
             "sort_records",
             compatible,
             fields=["price", "time"],
@@ -186,7 +186,7 @@ def build_machine(accounts=None):
                 },
                 effects=(
                     *admission,
-                    set_(
+                    assign(
                         "market",
                         choose(
                             action == "hold",
@@ -197,7 +197,7 @@ def build_machine(accounts=None):
                 ),
             )
         },
-        close_effects=(set_("market", closed),),
+        close_effects=(assign("market", closed),),
         view={"market": book},
     )
 

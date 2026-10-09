@@ -10,7 +10,7 @@ This chapter continues the [shared-state manual](/en/latest/shared_state).
 A message log demonstrates a sequence field and `append`:
 
 ```python
-from edsl.sharedstate import append, record, reduce_
+from edsl.sharedstate import append, record, reduce
 
 message_log = Machine(
     name="MessageLog",
@@ -38,7 +38,7 @@ message_log = Machine(
     view={
         "messages": field("messages"),
         "message_count": field("messages").length(),
-        "recent_messages": reduce_(
+        "recent_messages": reduce(
             "tail", field("messages"), count=10
         ),
     },
@@ -55,9 +55,9 @@ Views and transitions derive values without redundant fields:
 ```python
 values = field("forecasts").values()
 
-mean = reduce_("mean", values)
-median = reduce_("median", values)
-latest = reduce_("latest_by", field("history"), field="forecaster")
+mean = reduce("mean", values)
+median = reduce("median", values)
+latest = reduce("latest_by", field("history"), field="forecaster")
 ```
 
 Collections can be transformed:
@@ -96,12 +96,12 @@ complete_when=(
 Some results are computed only at close:
 
 ```python
-from edsl.sharedstate import set_
+from edsl.sharedstate import assign
 
 close_effects=(
-    set_(
+    assign(
         "mean",
-        reduce_("mean", field("choices").values()),
+        reduce("mean", field("choices").values()),
     ),
 )
 ```

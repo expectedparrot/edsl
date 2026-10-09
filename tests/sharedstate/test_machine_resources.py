@@ -23,7 +23,7 @@ from edsl.sharedstate import (
     local,
     map_sequence,
     resolve_write,
-    set_,
+    assign,
     state_field,
 )
 from edsl.sharedstate.dsl_runtime import Runtime
@@ -35,7 +35,7 @@ def machine(expression, *, effects=None, view=None):
         name="Budget",
         constants={},
         fields={"answer": state_field(StateType.any(), 0)},
-        commands={"run": Command({}, effects or (set_("answer", expression),))},
+        commands={"run": Command({}, effects or (assign("answer", expression),))},
         view=view or {"answer": field("answer")},
     )
 
@@ -55,7 +55,7 @@ def test_nested_folds_share_budget_and_reset_after_failure():
 def test_effects_share_one_budget():
     work = fold(list(range(50)), 0, item="i", accumulator="a", body=local("a") + 1)
     single = machine(work)
-    combined = machine(work, effects=(set_("answer", work), set_("answer", work)))
+    combined = machine(work, effects=(assign("answer", work), assign("answer", work)))
     runtime = Runtime(limits=ExecutionLimits(max_steps=2000))
     assert runtime.execute(single, {"answer": 0}, "run", {}).state == {"answer": 50}
     with pytest.raises(ResourceLimitError, match="max_steps"):
@@ -70,7 +70,7 @@ def test_all_entry_points_are_bounded(operation):
     spec = machine(nested_work())
     runtime = Runtime(limits=ExecutionLimits(max_steps=2000))
     if operation in {"close", "close_result"}:
-        spec = replace(spec, close_effects=(set_("answer", nested_work()),))
+        spec = replace(spec, close_effects=(assign("answer", nested_work()),))
     elif operation == "render_view":
         spec = replace(spec, view={"answer": nested_work()})
     elif operation == "complete":
@@ -162,7 +162,7 @@ def test_input_and_combined_view_sizes_are_bounded():
 def test_failed_command_preserves_sqlite_state_version_and_history(
     tmp_path, expression, limits, close
 ):
-    spec = machine(expression, effects=(set_("answer", 99), set_("answer", expression)))
+    spec = machine(expression, effects=(assign("answer", 99), assign("answer", expression)))
     if close:
         spec = replace(spec, close_effects=spec.commands["run"].effects)
     spaces = SharedStateMap(SharedState(data=spec))
@@ -250,7 +250,7 @@ def test_accumulator_invariant_failure_rolls_back_sqlite(tmp_path):
         machine(0),
         commands={
             "run": Command(
-                {"value": StateType.any()}, (set_("answer", 99), set_("answer", expression))
+                {"value": StateType.any()}, (assign("answer", 99), assign("answer", expression))
             )
         },
     )

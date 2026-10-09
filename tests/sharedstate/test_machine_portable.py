@@ -29,7 +29,7 @@ from edsl.sharedstate import (
     round_ratio,
     seeded_integer,
     seeded_order,
-    set_,
+    assign,
     state_field,
 )
 from edsl.sharedstate.dsl_runtime import DSLValidationError, Runtime
@@ -47,7 +47,7 @@ def machine(expression):
         name="PortableProbe",
         constants={},
         fields={"answer": state_field(StateType.any(), 0)},
-        commands={"run": Command({}, (set_("answer", expression),))},
+        commands={"run": Command({}, (assign("answer", expression),))},
         view={"answer": field("answer")},
     )
 
@@ -419,7 +419,7 @@ def test_failed_money_operation_rolls_back_state_history_and_key(
         machine(0),
         commands={
             "run": Command(
-                {"value": StateType.text()}, (set_("answer", 9), set_("answer", expression))
+                {"value": StateType.text()}, (assign("answer", 9), assign("answer", expression))
             )
         },
     )

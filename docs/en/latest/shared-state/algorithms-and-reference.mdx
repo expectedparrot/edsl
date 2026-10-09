@@ -143,7 +143,7 @@ permits negative cash, as the comparison implementation does, and explicitly
 prevents further trading after settlement.
 
 The continuous auction admits one open order per trader and executes at the
-resting order's price. Ordered `assert_` effects return `open_order_exists`,
+resting order's price. Ordered `require` effects return `open_order_exists`,
 `invalid_price`, `insufficient_cash`, or `insufficient_inventory` for refused
 orders. `hold` remains a no-op. The older callback raises exceptions for those
 admission failures; tests compare both unchanged state on rejected paths and

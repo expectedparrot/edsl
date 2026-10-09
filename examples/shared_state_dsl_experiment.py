@@ -121,7 +121,7 @@ class Machine:
 
 # The generic effect vocabulary.  An executor applies a command's effects
 # atomically against one state version.
-def set_(target: str, expression: Any) -> Node:
+def set(target: str, expression: Any) -> Node:
     return node("set", target, expression)
 
 
@@ -276,7 +276,7 @@ def recipes() -> dict[str, Machine]:
                     "round": NUMBER,
                 },
                 effects=[
-                    set_("text", value("text")),
+                    set("text", value("text")),
                     append(
                         "revisions",
                         record(
@@ -481,7 +481,7 @@ def recipes() -> dict[str, Machine]:
         },
         commands={"bid": command(inputs={"amount": NUMBER}, effects=[append("bids", value("amount"))])},
         view=basic_view("bids", high_bid=call("max", state("bids"))),
-        close_effects=(set_("winner", call("argmax", state("bids"))),),
+        close_effects=(set("winner", call("argmax", state("bids"))),),
     )
 
     r["SharedSealedAuction"] = Machine(

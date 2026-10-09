@@ -15,7 +15,7 @@ from edsl.sharedstate import (
     iterate,
     local,
     record,
-    set_,
+    assign,
     state_field,
 )
 from edsl.sharedstate.dsl_runtime import DSLValidationError, Runtime
@@ -26,7 +26,7 @@ def machine(expression, inputs=None):
         name="Types",
         constants={},
         fields={"answer": state_field(StateType.any(), 0)},
-        commands={"run": Command(inputs or {}, (set_("answer", expression),))},
+        commands={"run": Command(inputs or {}, (assign("answer", expression),))},
         view={"answer": field("answer")},
     )
 

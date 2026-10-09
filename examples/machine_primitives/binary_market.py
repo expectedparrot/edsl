@@ -20,7 +20,7 @@ from edsl.sharedstate import (
     logsumexp,
     map_items,
     record,
-    set_,
+    assign,
     state_field,
 )
 
@@ -124,13 +124,13 @@ def build_machine(liquidity=50, initial_cash=100):
                     "quantity": StateType.number(minimum=0),
                 },
                 require=book.get("outcome") == None,
-                effects=(set_("market", trade),),
+                effects=(assign("market", trade),),
             ),
             "settle": Command(
                 inputs={"outcome": StateType.boolean()},
                 require=book.get("outcome") == None,
                 effects=(
-                    set_(
+                    assign(
                         "market",
                         book.with_item("outcome", arg("outcome")).with_item(
                             "portfolios", settled

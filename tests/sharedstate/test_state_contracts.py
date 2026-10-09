@@ -14,10 +14,10 @@ from edsl.sharedstate import (
     field,
     arg,
     resolve_write,
-    set_,
+    assign,
     state_field,
 )
-from edsl.sharedstate.dsl import Effect, Expr, choose, reduce_
+from edsl.sharedstate.dsl import Effect, Expr, choose, reduce
 from edsl.sharedstate.dsl_runtime import DSLValidationError, Runtime
 from edsl.sharedstate.exceptions import (
     SharedStateAuthoringError,
@@ -34,7 +34,7 @@ def machine(input_type=None):
         commands={
             "save": Command(
                 {"value": StateType.number() if input_type is None else input_type},
-                (set_("value", arg("value")),),
+                (assign("value", arg("value")),),
             )
         },
         view={"value": field("value")},
@@ -55,7 +55,7 @@ def test_symbolic_boolean_operators_fail_loudly():
 
 
 @pytest.mark.parametrize(
-    "bad", [Expr("add", (1,)), Expr("type", ("numbr",)), reduce_("summ", [])]
+    "bad", [Expr("add", (1,)), Expr("type", ("numbr",)), reduce("summ", [])]
 )
 def test_invalid_expressions_are_rejected_even_in_dead_branches(bad):
     spec = replace(machine(), view={"test": choose(True, 1, bad)})

@@ -4,7 +4,7 @@ from edsl.sharedstate import (
     Command,
     Machine,
     StateType,
-    assert_,
+    require,
     choose,
     constant,
     current_value,
@@ -16,9 +16,9 @@ from edsl.sharedstate import (
     local,
     map_items,
     record,
-    reduce_,
+    reduce,
     seeded_integer,
-    set_,
+    assign,
     state_field,
     take,
     when,
@@ -95,7 +95,7 @@ def build_machine(balances=None, reserve=40, seed="auction-2026"):
             ),
         ),
     )
-    ranked = reduce_(
+    ranked = reduce(
         "sort_records",
         filter_items(
             expanded,
@@ -154,7 +154,7 @@ def build_machine(balances=None, reserve=40, seed="auction-2026"):
             ),
         ),
     )
-    finish = when(~book.get("settled"), set_("auction", settlement))
+    finish = when(~book.get("settled"), assign("auction", settlement))
     you = current_value("bidder_id", "")
     return Machine(
         name="SecondPriceAuction",
@@ -197,28 +197,28 @@ def build_machine(balances=None, reserve=40, seed="auction-2026"):
             "submit": Command(
                 inputs={"bidder_id": StateType.text(), "bids": bid_type},
                 effects=(
-                    assert_(
+                    require(
                         constant("bidders").contains(bidder), code="unknown_bidder"
                     ),
-                    assert_(
+                    require(
                         ~known | (submitted.get(bidder) == bids), code="bid_changed"
                     ),
-                    when(~known, assert_(~book.get("settled"), code="auction_settled")),
-                    assert_(
+                    when(~known, require(~book.get("settled"), code="auction_settled")),
+                    require(
                         bids.length() <= constant("max_demand"), code="too_many_units"
                     ),
-                    assert_(order_check.get("valid"), code="bids_not_decreasing"),
+                    require(order_check.get("valid"), code="bids_not_decreasing"),
                     # Existing bids replay after funds have been spent at settlement.
                     when(
                         ~known,
-                        assert_(
-                            reduce_("sum", bids) <= book.get("cash").get(bidder),
+                        require(
+                            reduce("sum", bids) <= book.get("cash").get(bidder),
                             code="insufficient_budget",
                         ),
                     ),
                     when(
                         ~known,
-                        set_(
+                        assign(
                             "auction",
                             book.with_item("bids", submitted.with_item(bidder, bids)),
                         ),

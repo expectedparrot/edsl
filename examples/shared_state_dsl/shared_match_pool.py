@@ -1,14 +1,14 @@
 """Preference collection plus registered serial-dictatorship settlement."""
 
-from edsl.sharedstate import Command, Machine, StateType, algorithm, append, choose, constant, current, field, arg, local, map_items, map_sequence, record, reduce_, state_field
+from edsl.sharedstate import Command, Machine, StateType, algorithm, append, choose, constant, current, field, arg, local, map_items, map_sequence, record, reduce, state_field
 
 ITEMS = ("bike ride", "sailing", "hike", "beach day")
 claimant = choose(arg("claimant") != None, arg("claimant"), current("interview_id"))  # noqa: E711
-latest = reduce_("latest_by", field("requests"), field="claimant")
+latest = reduce("latest_by", field("requests"), field="claimant")
 first_choices = map_sequence(latest.values(), item="request", value_expr=local("request").get("ranking").at(0))
 request_counts = map_items(
     constant("zero_counts"), key="item", value="unused", key_expr=local("item"),
-    value_expr=reduce_("count_equal", first_choices, value=local("item")),
+    value_expr=reduce("count_equal", first_choices, value=local("item")),
 )
 SPEC = Machine(
     name="SharedMatchPool",

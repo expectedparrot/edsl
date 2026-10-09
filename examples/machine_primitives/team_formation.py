@@ -4,7 +4,7 @@ from edsl.sharedstate import (
     Command,
     Machine,
     StateType,
-    assert_,
+    require,
     choose,
     constant,
     current_value,
@@ -14,7 +14,7 @@ from edsl.sharedstate import (
     local,
     put,
     record,
-    set_,
+    assign,
     state_field,
     when,
 )
@@ -81,14 +81,14 @@ def build_machine(teams=DEFAULT_TEAMS, role_seats=None):
             "register": Command(
                 inputs={"respondent_id": StateType.text(), "role": StateType.choice(list(role_seats))},
                 effects=(
-                    assert_(rid.stripped().length() > 0, code="missing_respondent_id"),
-                    assert_(
+                    require(rid.stripped().length() > 0, code="missing_respondent_id"),
+                    require(
                         ~profiles.contains(rid) | (profiles.get(rid) == role),
                         code="role_changed",
                     ),
                     when(
                         ~profiles.contains(rid),
-                        assert_(~field("closed"), code="teams_closed"),
+                        require(~field("closed"), code="teams_closed"),
                     ),
                     put("profiles", rid, role, once=True),
                 ),
@@ -96,19 +96,19 @@ def build_machine(teams=DEFAULT_TEAMS, role_seats=None):
             "join": Command(
                 inputs={"respondent_id": StateType.text(), "team": StateType.choice(teams)},
                 effects=(
-                    assert_(profiles.contains(rid), code="role_required"),
-                    assert_(
+                    require(profiles.contains(rid), code="role_required"),
+                    require(
                         ~members.contains(rid)
                         | (members.get(rid, {}).get("team") == team),
                         code="team_changed",
                     ),
                     when(
                         ~members.contains(rid),
-                        assert_(~field("closed"), code="teams_closed"),
+                        require(~field("closed"), code="teams_closed"),
                     ),
                     when(
                         ~members.contains(rid),
-                        assert_(
+                        require(
                             eligible(profiles.get(rid)).contains(team), code="role_full"
                         ),
                     ),
@@ -122,7 +122,7 @@ def build_machine(teams=DEFAULT_TEAMS, role_seats=None):
             ),
         },
         complete_when=members.length() == constant("total_seats"),
-        close_effects=(set_("closed", True),),
+        close_effects=(assign("closed", True),),
         view={
             "options": choose(
                 your_team != None,

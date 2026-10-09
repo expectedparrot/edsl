@@ -5,7 +5,7 @@ from edsl.sharedstate import (
     Machine,
     StateType,
     append,
-    assert_,
+    require,
     choose,
     constant,
     field,
@@ -13,7 +13,7 @@ from edsl.sharedstate import (
     local,
     map_sequence,
     put,
-    set_,
+    assign,
     state_field,
     when,
 )
@@ -45,20 +45,20 @@ def build_machine(seed_reasons=DEFAULT_SEEDS, patience=10):
     def response_effects(allow_new):
         # Authoring helper only: these ordinary effects are expanded into JSON.
         return (
-            assert_(respondent.stripped().length() > 0, code="missing_respondent_id"),
-            assert_(reason.length() > 0, code="empty_reason"),
-            assert_(key != "other", code="reserved_reason"),
-            assert_(
+            require(respondent.stripped().length() > 0, code="missing_respondent_id"),
+            require(reason.length() > 0, code="empty_reason"),
+            require(key != "other", code="reserved_reason"),
+            require(
                 ~seen | (field("responses").get(respondent) == key),
                 code="respondent_reason_changed",
             ),
             when(
-                ~seen, assert_(~field("closed") & ~saturated, code="discovery_closed")
+                ~seen, require(~field("closed") & ~saturated, code="discovery_closed")
             ),
-            *(() if allow_new else (assert_(~new, code="unknown_choice"),)),
+            *(() if allow_new else (require(~new, code="unknown_choice"),)),
             when(~seen & new, append("reasons", reason)),
             when(
-                ~seen, set_("quiet_streak", choose(new, 0, field("quiet_streak") + 1))
+                ~seen, assign("quiet_streak", choose(new, 0, field("quiet_streak") + 1))
             ),
             put("responses", respondent, key, once=True),
         )
@@ -85,7 +85,7 @@ def build_machine(seed_reasons=DEFAULT_SEEDS, patience=10):
             ),
         },
         complete_when=saturated,
-        close_effects=(set_("closed", True),),
+        close_effects=(assign("closed", True),),
         view={
             "reasons": field("reasons"),
             "options": field("reasons").appended("Other"),

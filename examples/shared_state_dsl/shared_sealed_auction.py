@@ -1,8 +1,8 @@
 """First-price, second-price, or all-pay settlement as pure expressions."""
 
-from edsl.sharedstate import Command, Machine, StateType, choose, constant, current, field, arg, local, map_items, put, record, reduce_, set_, state_field
+from edsl.sharedstate import Command, Machine, StateType, choose, constant, current, field, arg, local, map_items, put, record, reduce, , state_field
 
-ranked = reduce_("sort_records", field("bids").values(), fields=("amount", "seat"), descending=(True, False))
+ranked = reduce("sort_records", field("bids").values(), fields=("amount", "seat"), descending=(True, False))
 winning = ranked.first()
 winner = winning.get("bidder")
 second_bid = choose(ranked.length() > 1, ranked.at(1).get("amount"), 0)
@@ -44,7 +44,7 @@ SPEC = Machine(
     },
     complete_when=field("bids").length() == constant("bidder_count"),
     close_effects=(
-        set_("winner", winner), set_("winning_bid", winning.get("amount")), set_("price", price),
-        set_("revenue", reduce_("sum", payments.values())), set_("utilities", utilities),
+        assign("winner", winner), assign("winning_bid", winning.get("amount")), assign("price", price),
+        assign("revenue", reduce("sum", payments.values())), assign("utilities", utilities),
     ),
 )

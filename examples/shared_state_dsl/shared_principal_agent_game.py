@@ -1,6 +1,6 @@
 """Success-bonus contract followed by a private effort choice."""
 
-from edsl.sharedstate import Command, Machine, StateType, choose, constant, current, field, arg, map_of, set_, state_field
+from edsl.sharedstate import Command, Machine, StateType, choose, constant, current, field, arg, map_of, , state_field
 
 probability = choose(field("effort") == "high", constant("high_probability"), constant("low_probability"))
 cost = choose(field("effort") == "high", constant("high_cost"), 0)
@@ -15,8 +15,8 @@ SPEC = Machine(
         "principal": StateType.text(), "worker": StateType.text(), "bonus": StateType.number(), "effort": StateType.text(),
     }.items()},
     commands={
-        "contract": Command(inputs={"principal": StateType.text(), "bonus": StateType.number(minimum=0, maximum=constant("output_value"))}, effects=(set_("principal", arg("principal")), set_("bonus", arg("bonus")))),
-        "effort": Command(inputs={"worker": StateType.text(), "effort": StateType.choice(("high", "low"))}, require=field("bonus") != None, effects=(set_("worker", arg("worker")), set_("effort", arg("effort")))),  # noqa: E711
+        "contract": Command(inputs={"principal": StateType.text(), "bonus": StateType.number(minimum=0, maximum=constant("output_value"))}, effects=(assign("principal", arg("principal")), assign("bonus", arg("bonus")))),
+        "effort": Command(inputs={"worker": StateType.text(), "effort": StateType.choice(("high", "low"))}, require=field("bonus") != None, effects=(assign("worker", arg("worker")), assign("effort", arg("effort")))),  # noqa: E711
     },
     view={
         "principal": field("principal"), "worker": field("worker"), "bonus": field("bonus"),

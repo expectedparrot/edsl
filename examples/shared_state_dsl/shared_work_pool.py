@@ -1,6 +1,6 @@
 """Atomic work claiming using general sequence and map expressions."""
 
-from edsl.sharedstate import Command, Machine, StateType, constant, current, field, arg, put, record, set_, state_field
+from edsl.sharedstate import Command, Machine, StateType, constant, current, field, arg, put, record, , state_field
 
 unclaimed = ~field("claims").contains(arg("claimant"))
 
@@ -18,7 +18,7 @@ SPEC = Machine(
             require=unclaimed,
             effects=(
                 put("claims", arg("claimant"), field("available").first()),
-                set_("available", field("available").drop_first()),
+                assign("available", field("available").drop_first()),
             ),
             timing="before_question",
         ),

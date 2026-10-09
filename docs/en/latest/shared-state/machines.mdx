@@ -376,7 +376,7 @@ unchanged, giving the poll first-write-wins behavior.
 The ordinary effects are deliberately few:
 
 ```python
-set_("field_name", value)
+assign("field_name", value)
 set_once("field_name", value)
 put("map_field", key, value, once=False)
 append("sequence_field", value)
@@ -427,18 +427,18 @@ newest state after other concurrent writes.
 ## Explicit rejection and outcomes
 
 Use `require=` for the existing behavior: if its condition is false, the command
-is processed as a no-op. Use `assert_` or `reject` when an attempted action should
+is processed as a no-op. Use `require` or `reject` when an attempted action should
 be explicitly refused:
 
 ```python
-from edsl.sharedstate import Command, StateType, assert_, field, arg, reject, set_, when
+from edsl.sharedstate import Command, StateType, require, field, arg, reject, , when
 
 withdraw = Command(
     inputs={"amount": StateType.number()},
     effects=(
-        assert_(arg("amount") > 0, code="invalid_amount"),
-        assert_(field("balance") >= arg("amount"), code="insufficient_funds"),
-        set_("balance", field("balance") - arg("amount")),
+        require(arg("amount") > 0, code="invalid_amount"),
+        require(field("balance") >= arg("amount"), code="insufficient_funds"),
+        assign("balance", field("balance") - arg("amount")),
     ),
 )
 
@@ -449,14 +449,14 @@ closed_guard = when(field("closed"), reject("account_closed"))
 The surrounding Machine declares the referenced `balance` and `closed` fields.
 Both helpers serialize as ordinary effects. A runtime that does not support
 them rejects the Machine before execution.
-`assert_` requires a Boolean result. A malformed predicate, invalid input type,
+`require` requires a Boolean result. A malformed predicate, invalid input type,
 output type mismatch, missing capability, arithmetic error, or exhausted quota
 is an **execution failure**, not an explicit rejection.
 
 Effects are visited in order. The first failing assertion or enabled `reject`
 stops the transition, discards **all** proposed changes, and skips later effects.
 Assertions, like other expressions, read the pre-command snapshot. A preceding
-`set_` does not change what an assertion reads. Put admission checks before
+`assign` does not change what an assertion reads. Put admission checks before
 expensive computations and trusted callback effects; the interpreter cannot
 undo external side effects performed by Python extensions.
 

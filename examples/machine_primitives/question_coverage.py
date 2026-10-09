@@ -7,7 +7,7 @@ from edsl.sharedstate import (
     Command,
     Machine,
     StateType,
-    assert_,
+    require,
     constant,
     current_value,
     field,
@@ -17,8 +17,8 @@ from edsl.sharedstate import (
     map_sequence,
     put,
     record,
-    reduce_,
-    set_,
+    reduce,
+    assign,
     state_field,
     take,
     when,
@@ -52,7 +52,7 @@ def build_machine(question_ids=DEFAULT_QUESTIONS, target=10, per_agent=3):
         item="q",
         predicate=counts.get(local("q")) < constant("target"),
     )
-    ranked = reduce_(
+    ranked = reduce(
         "sort_records",
         map_sequence(
             available,
@@ -68,7 +68,7 @@ def build_machine(question_ids=DEFAULT_QUESTIONS, target=10, per_agent=3):
     )
     previous = field("answers").get(respondent, {})
     answered = previous.contains(question)
-    total = reduce_("sum", counts.values())
+    total = reduce("sum", counts.values())
     complete = total == constant("required_answers")
     you = current_value("respondent_id", "")
     your_assignment = field("assignments").get(you, [])
@@ -110,12 +110,12 @@ def build_machine(question_ids=DEFAULT_QUESTIONS, target=10, per_agent=3):
                 inputs={"respondent_id": StateType.text()},
                 timing="before_question",
                 effects=(
-                    assert_(
+                    require(
                         respondent.stripped().length() > 0, code="missing_respondent_id"
                     ),
                     when(
                         ~field("assignments").contains(respondent),
-                        assert_(~field("closed"), code="coverage_closed"),
+                        require(~field("closed"), code="coverage_closed"),
                     ),
                     put("assignments", respondent, assigned, once=True),
                 ),
@@ -127,25 +127,25 @@ def build_machine(question_ids=DEFAULT_QUESTIONS, target=10, per_agent=3):
                     "answer": StateType.integer(minimum=1, maximum=5),
                 },
                 effects=(
-                    assert_(
+                    require(
                         field("assignments").get(respondent, []).contains(question),
                         code="question_not_assigned",
                     ),
-                    assert_(
+                    require(
                         ~answered | (previous.get(question) == arg("answer")),
                         code="answer_changed",
                     ),
-                    when(~answered, assert_(~field("closed"), code="coverage_closed")),
+                    when(~answered, require(~field("closed"), code="coverage_closed")),
                     when(
                         ~answered,
-                        assert_(
+                        require(
                             counts.get(question) < constant("target"),
                             code="question_full",
                         ),
                     ),
                     when(
                         ~answered,
-                        set_(
+                        assign(
                             "counts",
                             counts.with_item(question, counts.get(question) + 1),
                         ),
@@ -159,7 +159,7 @@ def build_machine(question_ids=DEFAULT_QUESTIONS, target=10, per_agent=3):
             ),
         },
         complete_when=complete,
-        close_effects=(set_("closed", True),),
+        close_effects=(assign("closed", True),),
         view={
             "counts": counts,
             "assigned": your_assignment,

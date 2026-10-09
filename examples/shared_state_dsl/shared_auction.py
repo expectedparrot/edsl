@@ -1,22 +1,22 @@
 """Append-only ascending bids resolved deterministically at close."""
 
-from edsl.sharedstate import Command, Machine, StateType, append, choose, constant, current, field, filter_items, arg, local, map_sequence, record, reduce_, set_, state_field
+from edsl.sharedstate import Command, Machine, StateType, append, choose, constant, current, field, filter_items, arg, local, map_sequence, record, reduce, , state_field
 
 positive = filter_items(field("bids"), item="bid", predicate=local("bid").get("amount") > 0)
 amounts = map_sequence(positive, item="bid", value_expr=local("bid").get("amount"))
-winning = reduce_("argmax", positive, field="amount")
+winning = reduce("argmax", positive, field="amount")
 SPEC = Machine(
     name="SharedAuction", constants={"item": "Sailboat lesson", "increment": 1, "bidder_count": 3},
     fields={"bids": state_field(StateType.sequence(StateType.map()), []), "winner": state_field(StateType.optional(StateType.text()), None), "winning_bid": state_field(StateType.optional(StateType.number()), None)},
     commands={"bid": Command(inputs={"amount": StateType.number(minimum=0)}, effects=(append("bids", record(interview=current("interview_id"), amount=arg("amount"))),))},
     view={
-        "item": constant("item"), "highest_bid": choose(positive.length() > 0, reduce_("max", amounts), 0),
+        "item": constant("item"), "highest_bid": choose(positive.length() > 0, reduce("max", amounts), 0),
         "bid_count": positive.length(), "increment": constant("increment"),
         "winner": choose(current("closed"), field("winner"), None), "winning_bid": choose(current("closed"), field("winning_bid"), None),
     },
     complete_when=field("bids").length() == constant("bidder_count"),
     close_effects=(
-        set_("winner", choose(positive.length() > 0, winning.get("interview"), None)),
-        set_("winning_bid", choose(positive.length() > 0, winning.get("amount"), None)),
+        assign("winner", choose(positive.length() > 0, winning.get("interview"), None)),
+        assign("winning_bid", choose(positive.length() > 0, winning.get("amount"), None)),
     ),
 )

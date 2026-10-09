@@ -11,7 +11,7 @@ from edsl.sharedstate import (
     Command,
     Machine,
     StateType,
-    assert_,
+    require,
     choose,
     constant,
     current_value,
@@ -25,9 +25,9 @@ from edsl.sharedstate import (
     map_sequence,
     put,
     record,
-    reduce_,
+    reduce,
     seeded_order,
-    set_,
+    assign,
     state_field,
     when,
 )
@@ -88,7 +88,7 @@ def build_machine(
             secondary=choose(local("exploring"), gap, counts.get(pair.get("pair_id"))),
         ),
     )
-    selected = reduce_(
+    selected = reduce(
         "sort_records", candidates, fields=["priority", "secondary", "pair_id"]
     ).first()
     respondent = arg("respondent_id")
@@ -170,12 +170,12 @@ def build_machine(
                 inputs={"respondent_id": StateType.text()},
                 timing="before_question",
                 effects=(
-                    assert_(
+                    require(
                         respondent.stripped().length() > 0, code="missing_respondent_id"
                     ),
                     when(
                         ~field("assignments").contains(respondent),
-                        assert_(
+                        require(
                             ~field("closed") & ~complete, code="comparisons_closed"
                         ),
                     ),
@@ -185,25 +185,25 @@ def build_machine(
             "compare": Command(
                 inputs={"respondent_id": StateType.text(), "winner": StateType.choice(items)},
                 effects=(
-                    assert_(
+                    require(
                         field("assignments").contains(respondent),
                         code="pair_not_assigned",
                     ),
-                    assert_(options.contains(winner), code="winner_not_in_pair"),
-                    assert_(
+                    require(options.contains(winner), code="winner_not_in_pair"),
+                    require(
                         fresh | (field("responses").get(respondent) == winner),
                         code="answer_changed",
                     ),
                     when(
                         fresh,
-                        assert_(
+                        require(
                             ~field("closed") & ~complete, code="comparisons_closed"
                         ),
                     ),
-                    when(fresh, set_("ratings", updated_ratings)),
+                    when(fresh, assign("ratings", updated_ratings)),
                     when(
                         fresh,
-                        set_(
+                        assign(
                             "pair_counts",
                             counts.with_item(
                                 assigned.get("pair_id"),
@@ -211,10 +211,10 @@ def build_machine(
                             ),
                         ),
                     ),
-                    when(fresh, set_("comparisons", total + 1)),
+                    when(fresh, assign("comparisons", total + 1)),
                     when(
                         fresh,
-                        set_(
+                        assign(
                             "adaptive_streak",
                             choose(
                                 assigned.get("mode") == "explore",
@@ -228,7 +228,7 @@ def build_machine(
             ),
         },
         complete_when=complete,
-        close_effects=(set_("closed", True),),
+        close_effects=(assign("closed", True),),
         view={
             "options": yours.get("options", items[:2]),
             "accepting": field("assignments").contains(you)

@@ -18,7 +18,7 @@ from edsl.sharedstate import (
     SQLiteStateBackend,
     StateType,
     UnsupportedCapabilityError,
-    assert_,
+    require,
     current_value,
     expr,
     field,
@@ -26,7 +26,7 @@ from edsl.sharedstate import (
     reject,
     resolve_read,
     resolve_write,
-    set_,
+    assign,
     state_field,
     when,
 )
@@ -46,9 +46,9 @@ def spec(effects=None):
             "act": Command(
                 {},
                 effects
-                or (assert_(field("count") > 0, code="not_ready"), set_("count", 9)),
+                or (require(field("count") > 0, code="not_ready"), assign("count", 9)),
             ),
-            "prepare": Command({}, (set_("count", 1),)),
+            "prepare": Command({}, (assign("count", 1),)),
         },
         view={"count": field("count"), "closed": current_value("closed", False)},
     )
@@ -74,7 +74,7 @@ def test_roundtrip_outcomes_distinguish_applied_noop_rejected_and_error():
     noop = runtime.execute(machine, applied.state, "prepare", {})
     assert noop.event["status"] == "noop"
     assert noop.event["reason_code"] is None
-    broken = spec((set_("count", expr("divide", 1, 0)),))
+    broken = spec((assign("count", expr("divide", 1, 0)),))
     with pytest.raises(ZeroDivisionError):
         runtime.execute(broken, state, "act", {})
     assert state == {"count": 0}
@@ -83,9 +83,9 @@ def test_roundtrip_outcomes_distinguish_applied_noop_rejected_and_error():
 def test_rejection_rolls_back_earlier_effects_and_skips_later_errors():
     machine = spec(
         (
-            set_("count", 5),
-            assert_(field("count") > 0, code="not_ready"),
-            set_("count", expr("divide", 1, 0)),
+            assign("count", 5),
+            require(field("count") > 0, code="not_ready"),
+            assign("count", expr("divide", 1, 0)),
         )
     )
     original = {"count": 0}
@@ -103,7 +103,7 @@ def test_rejection_rolls_back_earlier_effects_and_skips_later_errors():
         ((reject("closed"),), False, "noop"),
         ((when(False, reject("closed")),), None, "noop"),
         ((when(True, reject("closed")),), None, "rejected"),
-        ((assert_(True, code="closed"),), None, "noop"),
+        ((require(True, code="closed"),), None, "noop"),
     ],
 )
 def test_existing_require_and_conditional_effect_semantics(effects, require, status):
@@ -121,7 +121,7 @@ def test_reason_codes_are_bounded_literals_checked_in_dead_code(code):
 
 
 def test_reason_does_not_expand_private_values_or_report_rolled_back_effects():
-    machine = spec((set_("count", 918273645), reject("not_allowed")))
+    machine = spec((assign("count", 918273645), reject("not_allowed")))
     result = Runtime().execute(machine, {"count": 918273644}, "act", {})
     assert "918273" not in json.dumps(result.advisory)
     assert "count" not in json.dumps(result.advisory)
@@ -133,7 +133,7 @@ def test_non_boolean_assertion_is_failure_not_rejection(condition):
         spec(),
         commands={
             "act": Command(
-                {"condition": StateType.any()}, (assert_(arg("condition"), code="no"),)
+                {"condition": StateType.any()}, (require(arg("condition"), code="no"),)
             )
         },
     )
@@ -144,7 +144,7 @@ def test_non_boolean_assertion_is_failure_not_rejection(condition):
 
 def test_malformed_assertion_and_missing_capability_fail_before_execution():
     with pytest.raises(MachineValidationError, match="Boolean|boolean"):
-        spec((assert_(1, code="no"),)).validate()
+        spec((require(1, code="no"),)).validate()
     with pytest.raises(MachineValidationError, match="target"):
         spec((Effect("reject", "count", (), {"code": "no"}),)).validate()
     machine = spec()
@@ -193,7 +193,7 @@ def test_rejected_idempotency_key_remains_terminal_after_state_changes_and_resta
 
 def test_execution_failure_does_not_consume_key_or_create_event(tmp_path):
     machine = spec(
-        (set_("count", 10), set_("count", expr("divide", 1, field("count"))))
+        (assign("count", 10), assign("count", expr("divide", 1, field("count"))))
     )
     spaces = SharedStateMap(SharedState(data=machine))
     backend = SQLiteStateBackend(spaces, tmp_path / "state.sqlite")
@@ -212,7 +212,7 @@ def test_execution_failure_does_not_consume_key_or_create_event(tmp_path):
 
 def test_failed_key_can_be_retried_after_cause_is_fixed(tmp_path):
     machine = spec(
-        (set_("count", expr("at", [10], expr("subtract", 1, field("count")))),)
+        (assign("count", expr("at", [10], expr("subtract", 1, field("count")))),)
     )
     spaces = SharedStateMap(SharedState(data=machine))
     backend = SQLiteStateBackend(spaces, tmp_path / "state.sqlite")
@@ -267,8 +267,8 @@ def test_rejected_close_is_logged_but_does_not_close_or_partially_settle(
         spec(),
         complete_when=True,
         close_effects=(
-            set_("count", 99),
-            assert_(field("count") > 0, code="settlement_not_ready"),
+            assign("count", 99),
+            require(field("count") > 0, code="settlement_not_ready"),
         ),
     )
     runtime = Runtime()

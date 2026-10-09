@@ -153,7 +153,7 @@ machine execution, serialization round-trip, and runner integration suites.
 
 ## Explicit Machine rejections
 
-Machine `assert_`/`reject` effects abort all proposed field changes and return a
+Machine `require`/`reject` effects abort all proposed field changes and return a
 literal public reason code. SQLite records this as a completed `rejected` attempt
 with unchanged field values and an advanced event version. Applied, no-op, and
 rejected attempts replay the original decision on retries; execution failures

@@ -81,7 +81,7 @@ are unchanged by deriving this metadata. See the canonical manual's
 [interpreter capabilities](https://docs.expectedparrot.com/en/latest/shared-state/machines#interpreter-capabilities)
 for exact-version matching and the local/remote deployment boundary.
 
-The continuous auction now uses `assert_(condition, code="...")` for admission.
+The continuous auction now uses `require(condition, code="...")` for admission.
 Its demo includes a refused order and a hold no-op; exported replays include a
 `decisions` list with status and reason code for every command. Successful paths
 still match the registered algorithm; invalid admission preserves state while

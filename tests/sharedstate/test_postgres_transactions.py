@@ -28,7 +28,7 @@ from edsl.sharedstate import (
     field,
     resolve_read,
     resolve_write,
-    set_,
+    assign,
     state_field,
 )
 from edsl.sharedstate.exceptions import SharedStateRuntimeError
@@ -75,7 +75,7 @@ def state():
         fields={"count": state_field(StateType.integer(), 0)},
         commands={
             "increment": Command(
-                inputs={}, effects=(set_("count", field("count") + 1),)
+                inputs={}, effects=(assign("count", field("count") + 1),)
             )
         },
         view={"count": field("count")},

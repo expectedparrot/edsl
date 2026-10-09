@@ -12,7 +12,7 @@ from edsl.sharedstate import (
     local,
     map_sequence,
     record,
-    reduce_,
+    reduce,
     state_field,
 )
 
@@ -53,6 +53,6 @@ SPEC = Machine(
     view={
         "proposals": field("proposals"),
         "ballots": field("ballots"),
-        "scores": reduce_("weighted_matrix_tally", field("ballots"), weights={"up": 1, "neutral": 0, "down": -1}),
+        "scores": reduce("weighted_matrix_tally", field("ballots"), weights={"up": 1, "neutral": 0, "down": -1}),
     },
 )

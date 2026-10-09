@@ -4,7 +4,7 @@ from edsl.sharedstate import (
     Command,
     Machine,
     StateType,
-    assert_,
+    require,
     constant,
     current_value,
     field,
@@ -14,9 +14,9 @@ from edsl.sharedstate import (
     map_sequence,
     put,
     record,
-    reduce_,
+    reduce,
     seeded_order,
-    set_,
+    assign,
     state_field,
     when,
 )
@@ -47,7 +47,7 @@ def build_machine(seed="balanced-2026"):
             in_arm, item="r", predicate=local("r").get("experience") == experience
         ).length()
     )
-    ranked = reduce_(
+    ranked = reduce(
         "sort_records",
         map_sequence(
             constant("arms"), item="arm", value_expr=record(arm=arm, score=score)
@@ -93,8 +93,8 @@ def build_machine(seed="balanced-2026"):
                     "experience": StateType.choice(EXPERIENCE),
                 },
                 effects=(
-                    assert_(rid.stripped().length() > 0, code="missing_respondent_id"),
-                    assert_(
+                    require(rid.stripped().length() > 0, code="missing_respondent_id"),
+                    require(
                         ~seen
                         | (
                             (old.get("age") == age)
@@ -102,7 +102,7 @@ def build_machine(seed="balanced-2026"):
                         ),
                         code="characteristics_changed",
                     ),
-                    when(~seen, assert_(~field("closed"), code="assignment_closed")),
+                    when(~seen, require(~field("closed"), code="assignment_closed")),
                     put(
                         "assignments",
                         rid,
@@ -112,14 +112,14 @@ def build_machine(seed="balanced-2026"):
                 ),
             )
         },
-        close_effects=(set_("closed", True),),
+        close_effects=(assign("closed", True),),
         view={
             "age": assignments.get(current_value("respondent_id", ""), {}).get("age"),
             "experience": assignments.get(current_value("respondent_id", ""), {}).get(
                 "experience"
             ),
             "arm": assignments.get(current_value("respondent_id", ""), {}).get("arm"),
-            "counts": reduce_(
+            "counts": reduce(
                 "count_by",
                 map_sequence(rows, item="r", value_expr=local("r").get("arm")),
             ),

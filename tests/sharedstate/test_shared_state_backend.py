@@ -16,10 +16,10 @@ from edsl.sharedstate import (
     field,
     arg,
     put,
-    reduce_,
+    reduce,
     resolve_read,
     resolve_write,
-    set_,
+    assign,
     state_field,
 )
 from edsl.sharedstate.steps import StepContext
@@ -41,7 +41,7 @@ def activity_poll() -> Machine:
         },
         view={
             "votes": field("votes"),
-            "counts": reduce_("count_by", field("votes").values()),
+            "counts": reduce("count_by", field("votes").values()),
         },
         complete_when=field("votes").length() >= 8,
     )
@@ -229,7 +229,7 @@ def test_invalid_transition_rolls_back_without_an_event(tmp_path):
         fields={"count": state_field(StateType.integer(), 0)},
         commands={
             "set": Command(
-                inputs={"value": StateType.any()}, effects=(set_("count", arg("value")),)
+                inputs={"value": StateType.any()}, effects=(assign("count", arg("value")),)
             )
         },
         view={"count": field("count")},

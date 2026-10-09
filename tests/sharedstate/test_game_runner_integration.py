@@ -244,7 +244,7 @@ def test_before_question_write_is_visible_to_live_private_read():
 
 def test_state_read_persists_and_supports_dynamic_jinja_lookup():
     from edsl import QuestionFreeText
-    from edsl.sharedstate import Command, Machine, StateType, field, set_, state_field
+    from edsl.sharedstate import Command, Machine, StateType, field, assign, state_field
 
     spec = Machine(
         name="PersistentRead",
@@ -257,7 +257,7 @@ def test_state_read_persists_and_supports_dynamic_jinja_lookup():
         commands={
             "replace": Command(
                 inputs={},
-                effects=(set_("claims", {"Alice": {"id": "P2"}}),),
+                effects=(assign("claims", {"Alice": {"id": "P2"}}),),
             )
         },
         view={"claims": field("claims")},

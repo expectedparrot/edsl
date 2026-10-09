@@ -18,8 +18,8 @@ from edsl.sharedstate import (
     map_sequence,
     put,
     record,
-    reduce_,
-    set_,
+    reduce,
+    assign,
     state_field,
     take,
 )
@@ -27,7 +27,7 @@ from edsl.sharedstate import (
 
 def build_machine():
     orders = field("orders").values()
-    bids = reduce_(
+    bids = reduce(
         "sort_records",
         filter_items(
             orders, item="order", predicate=local("order").get("side") == "buy"
@@ -35,7 +35,7 @@ def build_machine():
         fields=["price", "trader"],
         descending=[True, False],
     )
-    asks = reduce_(
+    asks = reduce(
         "sort_records",
         filter_items(
             orders, item="order", predicate=local("order").get("side") == "sell"
@@ -102,7 +102,7 @@ def build_machine():
             )
         },
         close_effects=(
-            set_(
+            assign(
                 "clearing",
                 let(
                     "cleared",

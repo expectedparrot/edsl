@@ -1,6 +1,6 @@
 """Configured counters updated from a sequence of selected keys."""
 
-from edsl.sharedstate import Command, Machine, StateType, field, arg, reduce_, set_, state_field
+from edsl.sharedstate import Command, Machine, StateType, field, arg, reduce, , state_field
 
 KEYS = ("bike ride", "sailing", "hike", "beach day")
 SPEC = Machine(
@@ -10,7 +10,7 @@ SPEC = Machine(
     commands={
         "tally": Command(
             inputs={"values": StateType.sequence(StateType.choice(KEYS))},
-            effects=(set_("counts", reduce_("increment_keys", field("counts"), keys=arg("values"))),),
+            effects=(assign("counts", reduce("increment_keys", field("counts"), keys=arg("values"))),),
         )
     },
     view={"counts": field("counts")},

@@ -5,14 +5,14 @@ from edsl.sharedstate import (
     Machine,
     StateType,
     append,
-    assert_,
+    require,
     choose,
     constant,
     field,
     arg,
     record,
     round_ratio,
-    set_,
+    assign,
     state_field,
     when,
 )
@@ -59,21 +59,21 @@ def build_machine(lower=0, upper=100, max_questions=7, tolerance=0):
                     "answer": StateType.choice(["Yes", "No"]),
                 },
                 effects=(
-                    assert_(
+                    require(
                         ~replay | (previous.get("answer") == answer),
                         code="answer_changed",
                     ),
                     when(
                         ~replay,
-                        assert_(~done & ~field("closed"), code="elicitation_finished"),
+                        require(~done & ~field("closed"), code="elicitation_finished"),
                     ),
                     when(
                         ~replay,
-                        assert_(step == history.length(), code="unexpected_step"),
+                        require(step == history.length(), code="unexpected_step"),
                     ),
-                    when(~replay, set_("lower", choose(answer == "Yes", price, low))),
+                    when(~replay, assign("lower", choose(answer == "Yes", price, low))),
                     when(
-                        ~replay, set_("upper", choose(answer == "No", price - 1, high))
+                        ~replay, assign("upper", choose(answer == "No", price - 1, high))
                     ),
                     when(
                         ~replay,
@@ -85,7 +85,7 @@ def build_machine(lower=0, upper=100, max_questions=7, tolerance=0):
             )
         },
         complete_when=done,
-        close_effects=(set_("closed", True),),
+        close_effects=(assign("closed", True),),
         view={
             "lower": low,
             "upper": high,

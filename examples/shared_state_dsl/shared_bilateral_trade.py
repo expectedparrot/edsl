@@ -1,6 +1,6 @@
 """Buyer offer followed by a privately informed seller response."""
 
-from edsl.sharedstate import Command, Machine, StateType, choose, current, field, arg, map_of, set_, state_field
+from edsl.sharedstate import Command, Machine, StateType, choose, current, field, arg, map_of, , state_field
 
 payoffs = map_of(
     (field("buyer"), choose(field("accepted"), field("buyer_value") - field("price"), 0)),
@@ -16,12 +16,12 @@ SPEC = Machine(
         "offer": Command(
             inputs={"buyer": StateType.text(), "buyer_value": StateType.number(minimum=0), "price": StateType.number(minimum=0)},
             require=arg("price") <= arg("buyer_value"),
-            effects=(set_("buyer", arg("buyer")), set_("buyer_value", arg("buyer_value")), set_("price", arg("price"))),
+            effects=(assign("buyer", arg("buyer")), assign("buyer_value", arg("buyer_value")), assign("price", arg("price"))),
         ),
         "respond": Command(
             inputs={"seller": StateType.text(), "seller_cost": StateType.number(minimum=0), "decision": StateType.choice(("accept", "reject"))},
             require=field("price") != None,  # noqa: E711
-            effects=(set_("seller", arg("seller")), set_("seller_cost", arg("seller_cost")), set_("accepted", arg("decision") == "accept")),
+            effects=(assign("seller", arg("seller")), assign("seller_cost", arg("seller_cost")), assign("accepted", arg("decision") == "accept")),
         ),
     },
     view={

@@ -18,8 +18,8 @@ from edsl.sharedstate import (
     let,
     local,
     record,
-    reduce_,
-    set_,
+    reduce,
+    assign,
     state_field,
 )
 
@@ -28,8 +28,8 @@ def build_machine(items=("North", "South"), capacity=1):
     if isinstance(capacity, bool) or not isinstance(capacity, int) or capacity < 0:
         raise ValueError("capacity must be a nonnegative integer")
     items = list(items)
-    latest = reduce_("latest_by", field("requests"), field="claimant")
-    ordered = reduce_(
+    latest = reduce("latest_by", field("requests"), field="claimant")
+    ordered = reduce(
         "sort_records", latest.values(), fields=["unprioritized", "priority", "index"]
     )
     request, allocation = local("request"), local("allocation")
@@ -89,7 +89,7 @@ def build_machine(items=("North", "South"), capacity=1):
             )
         },
         close_effects=(
-            set_(
+            assign(
                 "allocation",
                 fold(
                     ordered,

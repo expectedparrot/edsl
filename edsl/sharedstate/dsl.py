@@ -150,7 +150,7 @@ def choose(condition: Any, yes: Any, no: Any) -> Expr:
     return expr("if", condition, yes, no)
 
 
-def reduce_(operation: str, collection: Any, **kwargs: Any) -> Expr:
+def reduce(operation: str, collection: Any, **kwargs: Any) -> Expr:
     return expr("reduce", operation, collection, **kwargs)
 
 
@@ -348,7 +348,7 @@ class Effect:
         return encode(asdict(self))
 
 
-def assert_(condition: Any, *, code: str) -> Effect:
+def require(condition: Any, *, code: str) -> Effect:
     """Reject the entire transition with a public literal code unless true."""
     return Effect("assert", "", (condition,), {"code": code})
 
@@ -358,7 +358,7 @@ def reject(code: str) -> Effect:
     return Effect("reject", "", (), {"code": code})
 
 
-def set_(target: str, value: Any) -> Effect:
+def assign(target: str, value: Any) -> Effect:
     return Effect("set", target, (value,))
 
 

@@ -1,6 +1,6 @@
 """Privately informed message followed by a receiver action."""
 
-from edsl.sharedstate import Command, Machine, StateType, choose, field, arg, map_of, set_, state_field
+from edsl.sharedstate import Command, Machine, StateType, choose, field, arg, map_of, , state_field
 
 sender_target = choose(field("preference") == "aligned", field("private_state"), "R")
 payoffs = map_of(
@@ -13,12 +13,12 @@ SPEC = Machine(
     commands={
         "message": Command(
             inputs={"sender": StateType.text(), "state": StateType.choice(("L", "R")), "preference": StateType.text(), "message": StateType.choice(("L", "R"))},
-            effects=(set_("sender", arg("sender")), set_("private_state", arg("state")), set_("preference", arg("preference")), set_("message", arg("message"))),
+            effects=(assign("sender", arg("sender")), assign("private_state", arg("state")), assign("preference", arg("preference")), assign("message", arg("message"))),
         ),
         "act": Command(
             inputs={"receiver": StateType.text(), "action": StateType.choice(("L", "R"))},
             require=field("message") != None,  # noqa: E711
-            effects=(set_("receiver", arg("receiver")), set_("action", arg("action"))),
+            effects=(assign("receiver", arg("receiver")), assign("action", arg("action"))),
         ),
     },
     view={

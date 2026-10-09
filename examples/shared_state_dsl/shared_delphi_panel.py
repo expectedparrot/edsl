@@ -12,11 +12,11 @@ from edsl.sharedstate import (
     local,
     map_items,
     record,
-    reduce_,
+    reduce,
     state_field,
 )
 
-summaries = reduce_("group_numeric_summary", field("responses"), group="round", value="estimate")
+summaries = reduce("group_numeric_summary", field("responses"), group="round", value="estimate")
 # Keep numeric ordering inside the convergence calculation; explicitly encode
 # round keys as text at the public JSON observation boundary.
 summary_view = map_items(
@@ -60,7 +60,7 @@ SPEC = Machine(
         )
     },
     view={"responses": field("responses"), "summaries": summary_view},
-    complete_when=reduce_(
+    complete_when=reduce(
         "series_converged",
         summaries,
         min_groups=constant("min_rounds"),

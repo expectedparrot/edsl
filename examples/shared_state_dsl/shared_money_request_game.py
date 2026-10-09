@@ -1,8 +1,8 @@
 """Sealed two-player request game expressed with ordinary collection operations."""
 
-from edsl.sharedstate import Command, Machine, StateType, choose, constant, current, field, arg, local, map_items, put, reduce_, set_, state_field
+from edsl.sharedstate import Command, Machine, StateType, choose, constant, current, field, arg, local, map_items, put, reduce, , state_field
 
-largest = reduce_("max", field("choices").values())
+largest = reduce("max", field("choices").values())
 payoffs = map_items(
     field("choices"), key="player", value="request", key_expr=local("player"),
     value_expr=local("request") + choose(largest - local("request") == 1, constant("bonus"), 0),
@@ -29,5 +29,5 @@ SPEC = Machine(
         "payoffs": choose(current("closed"), field("payoffs"), {}),
     },
     complete_when=field("choices").length() == 2,
-    close_effects=(set_("payoffs", payoffs),),
+    close_effects=(assign("payoffs", payoffs),),
 )

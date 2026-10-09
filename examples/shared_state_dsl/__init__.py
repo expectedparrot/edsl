@@ -9,11 +9,11 @@ from edsl.sharedstate import (
     arg,
     put,
     record,
-    set_,
+    assign,
     set_once,
 )
 
 __all__ = [
     "Command", "Machine", "StateType", "append", "field", "arg", "put",
-    "record", "set_", "set_once",
+    "record", "assign", "set_once",
 ]

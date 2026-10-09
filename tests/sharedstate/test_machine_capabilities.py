@@ -23,7 +23,7 @@ from edsl.sharedstate import (
     local,
     record,
     resolve_write,
-    set_,
+    assign,
     state_field,
 )
 from edsl.sharedstate.dsl_runtime import Runtime
@@ -35,7 +35,7 @@ def machine(expression=1):
         name="Portable",
         constants={},
         fields={"value": state_field(StateType.any(), 0)},
-        commands={"save": Command({}, (set_("value", expression),))},
+        commands={"save": Command({}, (assign("value", expression),))},
         view={"value": field("value")},
     )
 
@@ -98,7 +98,7 @@ def test_all_definition_contexts_are_checked(location):
     elif location == "complete":
         spec = replace(spec, complete_when=choose(True, True, unsupported))
     elif location == "close":
-        spec = replace(spec, close_effects=(set_("value", unsupported),))
+        spec = replace(spec, close_effects=(assign("value", unsupported),))
     else:
         spec = replace(spec, constants={"unused": unsupported})
     with pytest.raises(UnsupportedCapabilityError) as caught:
@@ -128,7 +128,7 @@ def test_every_machine_entry_point_preflights_before_callbacks(entry):
         machine(),
         algorithms=("touch@1",),
         commands={
-            "save": Command({}, (algorithm("touch"), set_("value", expr("exp", 0))))
+            "save": Command({}, (algorithm("touch"), assign("value", expr("exp", 0))))
         },
     )
     original = {"value": 0}

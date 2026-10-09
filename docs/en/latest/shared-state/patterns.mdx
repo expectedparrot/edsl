@@ -117,7 +117,7 @@ The full log can persist while readers receive a bounded tail:
 ```python
 view={
     "event_count": field("events").length(),
-    "recent_events": reduce_(
+    "recent_events": reduce(
         "tail",
         field("events"),
         count=10,
@@ -139,8 +139,8 @@ make_offer = Command(
     },
     require=field("offer") == None,
     effects=(
-        set_("proposer", arg("proposer")),
-        set_("offer", arg("amount")),
+        assign("proposer", arg("proposer")),
+        assign("offer", arg("amount")),
         append(
             "history",
             record(
@@ -171,8 +171,8 @@ respond = Command(
         & (field("decision") == None)
     ),
     effects=(
-        set_("responder", arg("responder")),
-        set_("decision", arg("decision")),
+        assign("responder", arg("responder")),
+        assign("decision", arg("decision")),
     ),
 )
 ```
@@ -224,9 +224,9 @@ Then compute results atomically at close:
 
 ```python
 close_effects=(
-    set_(
+    assign(
         "results",
-        reduce_(
+        reduce(
             "ranked_ballot_results",
             field("ballots"),
             candidates=constant("candidates"),
@@ -292,9 +292,9 @@ tally = Command(
         "selected": StateType.sequence(StateType.choice(constant("options"))),
     },
     effects=(
-        set_(
+        assign(
             "counts",
-            reduce_(
+            reduce(
                 "increment_keys",
                 field("counts"),
                 keys=arg("selected"),
@@ -311,7 +311,7 @@ Unknown keys fail validation rather than creating accidental counters.
 An append-only history can still produce a latest-value view:
 
 ```python
-latest = reduce_(
+latest = reduce(
     "latest_by",
     field("submissions"),
     field="participant",
@@ -367,7 +367,7 @@ claim = Command(
     ),
     effects=(
         put("claims", arg("claimant"), arg("item"), once=True),
-        set_(
+        assign(
             "remaining",
             field("remaining").with_item(
                 arg("item"),

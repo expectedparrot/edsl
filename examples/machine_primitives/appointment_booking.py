@@ -4,7 +4,7 @@ from edsl.sharedstate import (
     Command,
     Machine,
     StateType,
-    assert_,
+    require,
     choose,
     constant,
     current_value,
@@ -14,7 +14,7 @@ from edsl.sharedstate import (
     local,
     put,
     record,
-    set_,
+    assign,
     state_field,
     when,
 )
@@ -51,8 +51,8 @@ def build_machine(slots=DEFAULT_SLOTS):
     yours = your.get("respondent_id") == current_value("respondent_id", "")
     status = choose(yours, your.get("status", "missing"), "missing")
     identity = (
-        assert_(rid.stripped().length() > 0, code="missing_respondent_id"),
-        assert_(token.stripped().length() > 0, code="missing_reservation_id"),
+        require(rid.stripped().length() > 0, code="missing_respondent_id"),
+        require(token.stripped().length() > 0, code="missing_reservation_id"),
     )
     return Machine(
         name="AppointmentBooking",
@@ -82,7 +82,7 @@ def build_machine(slots=DEFAULT_SLOTS):
                 },
                 effects=(
                     *identity,
-                    assert_(
+                    require(
                         ~seen
                         | (
                             (old.get("respondent_id") == rid)
@@ -90,10 +90,10 @@ def build_machine(slots=DEFAULT_SLOTS):
                         ),
                         code="reservation_changed",
                     ),
-                    when(~seen, assert_(~field("closed"), code="booking_closed")),
+                    when(~seen, require(~field("closed"), code="booking_closed")),
                     when(
                         ~seen,
-                        assert_(
+                        require(
                             filter_items(
                                 active,
                                 item="b",
@@ -103,7 +103,7 @@ def build_machine(slots=DEFAULT_SLOTS):
                             code="already_booked",
                         ),
                     ),
-                    when(~seen, assert_(free.contains(slot), code="slot_unavailable")),
+                    when(~seen, require(free.contains(slot), code="slot_unavailable")),
                     put(
                         "bookings",
                         token,
@@ -120,11 +120,11 @@ def build_machine(slots=DEFAULT_SLOTS):
                 },
                 effects=(
                     *identity,
-                    assert_(
+                    require(
                         seen & (old.get("respondent_id") == rid),
                         code="reservation_not_owned",
                     ),
-                    assert_(
+                    require(
                         (arg("decision") == "Release")
                         | (old.get("status") != "released"),
                         code="reservation_released",
@@ -144,7 +144,7 @@ def build_machine(slots=DEFAULT_SLOTS):
         },
         # Full now does not mean finished: a release can reopen availability.
         complete_when=False,
-        close_effects=(set_("closed", True),),
+        close_effects=(assign("closed", True),),
         view={
             "options": choose(
                 (status == "held") | (status == "confirmed"),

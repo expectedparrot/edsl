@@ -23,7 +23,7 @@ from edsl.sharedstate import (
     map_sequence,
     record,
     resolve_write,
-    set_,
+    assign,
     state_field,
 )
 from edsl.sharedstate.dsl import Expr, ref
@@ -48,7 +48,7 @@ def spec():
             )
         },
         commands={
-            "save": Command({"account": account}, (set_("account", arg("account")),))
+            "save": Command({"account": account}, (assign("account", arg("account")),))
         },
         view={"account": field("account")},
     )
@@ -149,7 +149,7 @@ def test_unbound_locals_checked_in_every_context(where):
     elif where == "complete":
         machine = replace(machine, complete_when=bad)
     elif where == "close":
-        machine = replace(machine, close_effects=(set_("account", bad),))
+        machine = replace(machine, close_effects=(assign("account", bad),))
     else:
         machine = replace(machine, fields={"account": state_field(StateType.any(), bad)})
     with pytest.raises(
@@ -205,7 +205,7 @@ def test_shadowing_outer_value_and_dynamic_open_fields_stay_valid():
 
 def test_structural_errors_identify_the_expression_path():
     machine = replace(
-        spec(), commands={"bad": Command({}, (set_("account", Expr("add", (1,))),))}
+        spec(), commands={"bad": Command({}, (assign("account", Expr("add", (1,))),))}
     )
     with pytest.raises(MachineValidationError) as error:
         machine.validate()
@@ -219,8 +219,8 @@ def test_record_output_failure_rolls_back_sqlite_and_prior_effects(tmp_path):
             "bad": Command(
                 {},
                 (
-                    set_("account", {"balance": 5, "label": None, "entries": []}),
-                    set_("account", {"balance": "bad", "label": None, "entries": []}),
+                    assign("account", {"balance": 5, "label": None, "entries": []}),
+                    assign("account", {"balance": "bad", "label": None, "entries": []}),
                 ),
             )
         },
@@ -247,7 +247,7 @@ def test_record_initial_and_close_values_are_validated():
     )
     with pytest.raises(MachineValidationError, match="account.balance"):
         bad_initial.validate()
-    machine = replace(spec(), close_effects=(set_("account", {"balance": 1}),))
+    machine = replace(spec(), close_effects=(assign("account", {"balance": 1}),))
     machine.validate()
     state = Runtime().initial_state(machine)
     with pytest.raises(DSLValidationError, match="missing"):
@@ -262,7 +262,7 @@ def test_nested_input_record_reference_is_checked_and_executes():
             "save": Command(
                 spec().commands["save"].inputs,
                 (
-                    set_(
+                    assign(
                         "account",
                         field("account").with_item(
                             "balance", arg("account.balance")

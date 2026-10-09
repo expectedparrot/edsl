@@ -85,12 +85,12 @@ is `StateType.choice(["A", "B"])`. Screened-out respondents do not add entries t
 map. Counts are derived, so there is no separately incremented counter to drift:
 
 ```python
-from edsl.sharedstate import constant, field, arg, reduce_
+from edsl.sharedstate import constant, field, arg, reduce
 
 admissions = field("admissions")
 respondent = arg("respondent_id")
 group = arg("group")
-counts = reduce_("count_by", admissions.values())
+counts = reduce("count_by", admissions.values())
 limits = constant("limits")  # {"A": 10, "B": 10}
 existing = admissions.contains(respondent)
 full = (counts.get("A", 0) >= limits.get("A")) & (
@@ -112,12 +112,12 @@ requires text inputs `respondent_id` and `group` and applies these guards in ord
 For example, the per-type check and insertion are general effects:
 
 ```python
-from edsl.sharedstate import assert_, put, when
+from edsl.sharedstate import require, put, when
 
 admission_effects = (
     when(
         ~existing,
-        assert_(counts.get(group, 0) < limits.get(group), code="type_quota_full"),
+        require(counts.get(group, 0) < limits.get(group), code="type_quota_full"),
     ),
     put("admissions", respondent, group, once=True),
 )

@@ -21,8 +21,8 @@ from edsl.sharedstate import (
     map_items,
     map_sequence,
     record,
-    reduce_,
-    set_,
+    reduce,
+    assign,
     state_field,
     take,
 )
@@ -51,9 +51,9 @@ def build_machine(capacities=None, priorities=None):
         raise ValueError(
             "institution priorities must be lists of distinct student names"
         )
-    latest = reduce_("latest_by", field("requests"), field="student")
+    latest = reduce("latest_by", field("requests"), field="student")
     queue = map_sequence(
-        reduce_("sort_records", latest.values(), fields=["student"]),
+        reduce("sort_records", latest.values(), fields=["student"]),
         item="request",
         value_expr=local("request").get("student"),
     )
@@ -100,7 +100,7 @@ def build_machine(capacities=None, priorities=None):
         ),
     )
     ordered = map_sequence(
-        reduce_("sort_records", candidates, fields=["priority", "student"]),
+        reduce("sort_records", candidates, fields=["priority", "student"]),
         item="candidate",
         value_expr=local("candidate").get("student"),
     )
@@ -132,7 +132,7 @@ def build_machine(capacities=None, priorities=None):
     # Each proposal consumes one ranking entry. At most one final exhausted-queue
     # visit per applicant is needed, hence sum(lengths) + number of applicants.
     bound = (
-        reduce_(
+        reduce(
             "sum",
             map_sequence(
                 latest.values(),
@@ -205,7 +205,7 @@ def build_machine(capacities=None, priorities=None):
                     "student": StateType.text(),
                     "ranking": StateType.sequence(StateType.choice(list(capacities))),
                 },
-                require=reduce_("count_by", arg("ranking")).length()
+                require=reduce("count_by", arg("ranking")).length()
                 == arg("ranking").length(),
                 effects=(
                     append(
@@ -215,7 +215,7 @@ def build_machine(capacities=None, priorities=None):
                 ),
             )
         },
-        close_effects=(set_("allocation", matching),),
+        close_effects=(assign("allocation", matching),),
         view={
             "matches": matches,
             "institution_matches": field("allocation").get("held"),

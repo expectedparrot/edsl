@@ -138,7 +138,7 @@ $$
 
 ## Effects
 
-`set(f,v)` replaces field `f` with `v`.
+`assign(f,v)` replaces field `f` with `v`.
 
 $$
 \operatorname{apply}(\operatorname{set}(f,v),P) = P[f \mapsto v]
@@ -260,7 +260,7 @@ nothing.
 
 ## Implemented explicit rejection extension
 
-The current interpreter additionally supports ordered `assert_(condition,
+The current interpreter additionally supports ordered `require(condition,
 code=...)` and `reject(code)` effects. An assertion must evaluate to a Boolean.
 An explicit rejection discards all proposed effects, stops evaluation, and returns
 a fixed public reason code. It is distinct from the legacy unmet-requirement

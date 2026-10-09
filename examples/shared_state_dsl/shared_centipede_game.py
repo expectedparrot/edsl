@@ -1,6 +1,6 @@
 """Ordered take-or-pass moves with early terminal settlement."""
 
-from edsl.sharedstate import Command, Machine, StateType, append, constant, expr, field, arg, record, set_, state_field, when
+from edsl.sharedstate import Command, Machine, StateType, append, constant, expr, field, arg, record, , state_field, when
 
 is_take = arg("action") == "take"
 is_final_pass = (arg("action") == "pass") & (arg("node") == constant("node_count"))
@@ -14,10 +14,10 @@ SPEC = Machine(
             require=(field("outcome") == None) & (arg("node") == field("history").length() + 1),  # noqa: E711
             effects=(
                 append("history", record(node=arg("node"), player=arg("player"), action=arg("action"))),
-                when(is_take, set_("outcome", expr("concat", "take_at_", arg("node")))),
-                when(is_take, set_("payoffs", constant("take_payoffs").at(arg("node") - 1))),
-                when(is_final_pass, set_("outcome", "pass_to_end")),
-                when(is_final_pass, set_("payoffs", constant("final_pass_payoffs"))),
+                when(is_take, assign("outcome", expr("concat", "take_at_", arg("node")))),
+                when(is_take, assign("payoffs", constant("take_payoffs").at(arg("node") - 1))),
+                when(is_final_pass, assign("outcome", "pass_to_end")),
+                when(is_final_pass, assign("payoffs", constant("final_pass_payoffs"))),
             ),
         )
     },

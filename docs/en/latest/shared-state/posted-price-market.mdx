@@ -31,7 +31,7 @@ from edsl.sharedstate import (
     Command,
     Machine,
     StateType,
-    assert_,
+    require,
     choose,
     constant,
     current_value,
@@ -41,7 +41,7 @@ from edsl.sharedstate import (
     local,
     put,
     record,
-    set_,
+    assign,
     state_field,
     when,
 )
@@ -117,14 +117,14 @@ def build_machine(stock=5, base_price=20, increment=5, balances=None):
                 inputs={"buyer_id": StateType.text(), "order_id": StateType.text()},
                 timing="before_question",
                 effects=(
-                    assert_(field("cash").contains(buyer), code="unknown_buyer"),
-                    assert_(token.stripped().length() > 0, code="missing_order_id"),
-                    assert_(
+                    require(field("cash").contains(buyer), code="unknown_buyer"),
+                    require(token.stripped().length() > 0, code="missing_order_id"),
+                    require(
                         ~seen | (old.get("buyer_id") == buyer), code="order_not_owned"
                     ),
                     when(
                         ~seen,
-                        assert_(
+                        require(
                             ~field("closed") & (field("stock") > 0),
                             code="market_closed",
                         ),
@@ -150,29 +150,29 @@ def build_machine(stock=5, base_price=20, increment=5, balances=None):
                     "quantity": StateType.integer(minimum=0),
                 },
                 effects=(
-                    assert_(
+                    require(
                         seen & (old.get("buyer_id") == buyer), code="order_not_owned"
                     ),
-                    assert_(
+                    require(
                         fresh | (old.get("quantity") == quantity), code="order_changed"
                     ),
                     when(
                         fresh & (quantity > 0),
-                        assert_(~field("closed"), code="market_closed"),
+                        require(~field("closed"), code="market_closed"),
                     ),
                     when(
                         fresh & (quantity > 0),
-                        assert_(
+                        require(
                             old.get("version") == field("version"), code="stale_quote"
                         ),
                     ),
                     when(
                         fresh & (quantity > 0),
-                        assert_(quantity <= field("stock"), code="insufficient_stock"),
+                        require(quantity <= field("stock"), code="insufficient_stock"),
                     ),
                     when(
                         fresh & (quantity > 0),
-                        assert_(
+                        require(
                             charge <= field("cash").get(buyer),
                             code="insufficient_funds",
                         ),
@@ -188,7 +188,7 @@ def build_machine(stock=5, base_price=20, increment=5, balances=None):
                         ),
                     ),
                     when(
-                        fresh & (quantity > 0), set_("stock", field("stock") - quantity)
+                        fresh & (quantity > 0), assign("stock", field("stock") - quantity)
                     ),
                     when(
                         fresh & (quantity > 0),
@@ -202,14 +202,14 @@ def build_machine(stock=5, base_price=20, increment=5, balances=None):
                     ),
                     when(
                         fresh & (quantity > 0),
-                        set_("seller_cash", field("seller_cash") + charge),
+                        assign("seller_cash", field("seller_cash") + charge),
                     ),
-                    when(fresh & (quantity > 0), set_("version", field("version") + 1)),
+                    when(fresh & (quantity > 0), assign("version", field("version") + 1)),
                 ),
             ),
         },
         complete_when=field("stock") == 0,
-        close_effects=(set_("closed", True),),
+        close_effects=(assign("closed", True),),
         view={
             "status": status,
             "quoted_price": choose(owned, your.get("price"), None),

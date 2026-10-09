@@ -1,6 +1,6 @@
 """Finite funding expressed with arithmetic and collection expressions."""
 
-from edsl.sharedstate import Command, Machine, StateType, append, constant, expr, field, arg, put, record, set_, state_field
+from edsl.sharedstate import Command, Machine, StateType, append, constant, expr, field, arg, put, record, , state_field
 
 granted = expr("minimum", arg("amount"), field("remaining"))
 
@@ -20,7 +20,7 @@ SPEC = Machine(
                 "amount": StateType.number(minimum=0),
             },
             effects=(
-                set_("remaining", field("remaining") - granted),
+                assign("remaining", field("remaining") - granted),
                 put("funded", arg("project"), field("funded").get(arg("project"), 0) + granted),
                 append("allocations", record(sponsor=arg("sponsor"), project=arg("project"), requested=arg("amount"), granted=granted)),
             ),

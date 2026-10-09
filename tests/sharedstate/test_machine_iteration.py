@@ -20,7 +20,7 @@ from edsl.sharedstate import (
     local,
     logsumexp,
     resolve_write,
-    set_,
+    assign,
     state_field,
     take,
 )
@@ -164,7 +164,7 @@ def test_exhaustion_rolls_back_all_effects_and_does_not_commit_sqlite(tmp_path):
         name="AtomicIteration",
         constants={},
         fields={"marker": state_field(StateType.integer(), 0)},
-        commands={"fail": Command({}, (set_("marker", 99), set_("marker", bad)))},
+        commands={"fail": Command({}, (assign("marker", 99), assign("marker", bad)))},
         view={"marker": field("marker")},
     )
     runtime = Runtime()

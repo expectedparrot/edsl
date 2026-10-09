@@ -4,7 +4,7 @@ from edsl.sharedstate import (
     Command,
     Machine,
     StateType,
-    assert_,
+    require,
     decimal_units,
     field,
     arg,
@@ -12,7 +12,7 @@ from edsl.sharedstate import (
     local,
     record,
     round_ratio,
-    set_,
+    assign,
     state_field,
 )
 
@@ -48,9 +48,9 @@ def build_machine():
             "pay": Command(
                 inputs={"amount": StateType.text()},
                 effects=(
-                    assert_(gross > 0, code="nonpositive_payment"),
-                    assert_(gross <= accounts.get("payer"), code="insufficient_funds"),
-                    set_("accounts", settlement),
+                    require(gross > 0, code="nonpositive_payment"),
+                    require(gross <= accounts.get("payer"), code="insufficient_funds"),
+                    assign("accounts", settlement),
                 ),
             )
         },

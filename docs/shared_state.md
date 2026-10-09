@@ -15,7 +15,7 @@ and a public view.
 
 ```python
 from edsl.sharedstate import (
-    Command, Machine, StateType, field, arg, put, reduce_, state_field,
+    Command, Machine, StateType, field, arg, put, reduce, state_field,
 )
 
 activities = ("bike ride", "sailing", "hike", "beach day")
@@ -34,7 +34,7 @@ activity_poll = Machine(
     },
     view={
         "votes": field("votes"),
-        "counts": reduce_("count_by", field("votes").values()),
+        "counts": reduce("count_by", field("votes").values()),
     },
 )
 ```
