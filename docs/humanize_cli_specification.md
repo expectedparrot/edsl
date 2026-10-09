@@ -720,6 +720,7 @@ Should be a separate top-level group, not nested under `humanize`, because it ha
 ```text
 edsl prolific filters
 edsl prolific cost
+edsl prolific settings
 edsl prolific create
 edsl prolific update
 edsl prolific publish

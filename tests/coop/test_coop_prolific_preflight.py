@@ -17,6 +17,7 @@ def coop():
     client.get_prolific_study = Mock(return_value={
         "study_id": "study", "status": "UNPUBLISHED", "num_participants": 10,
         "participant_payment_cents": 200, "estimated_completion_time_minutes": 10,
+        "key_source": "ep",
     })
     client.get_human_survey = Mock(return_value={"survey_uuid": "deployed-survey"})
     client.get = Mock(return_value=survey)
@@ -59,6 +60,28 @@ def test_failed_publication_never_sends_publish(coop, problem):
         coop.publish_prolific_study("human", "study", expected_survey=expected,
                                    required_questions=["prolific_id"], required_credits=4000)
     coop._send_server_request.assert_not_called()
+
+
+def test_own_key_study_is_not_charged_for_recruitment(coop):
+    coop.get_prolific_study.return_value["key_source"] = "user_key"
+    coop.get_balance.return_value = {"credits": 0}
+    check = coop.preflight_prolific_study("human", "study")
+    assert check["ready"], check["blockers"]
+    assert check["recruitment_credits"] == 0
+    assert check["key_source"] == "user_key"
+
+    # AI work is still paid in credits on an own-key study.
+    check = coop.preflight_prolific_study("human", "study", required_credits=10)
+    assert not check["ready"]
+    assert any("Insufficient credits" in blocker for blocker in check["blockers"])
+
+
+def test_study_without_a_reported_key_is_costed_as_expected_parrots(coop):
+    del coop.get_prolific_study.return_value["key_source"]
+    coop.get_balance.return_value = {"credits": 2999}
+    check = coop.preflight_prolific_study("human", "study")
+    assert check["key_source"] == "ep" and check["recruitment_credits"] == 3000
+    assert not check["ready"]
 
 
 def test_publish_rechecks_after_successful_preflight(coop):

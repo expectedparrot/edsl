@@ -4919,6 +4919,40 @@ class Coop(CoopFunctionsMixin):
             ),
         }
 
+    def get_prolific_study_settings(self) -> dict:
+        """
+        Get the settings a new Prolific study of yours would run under.
+
+        A study runs on your own Prolific key if you have one enabled, and otherwise on
+        Expected Parrot's Prolific account. Studies on Expected Parrot's account are
+        paid for in credits and limited to a number of participants each; on your own
+        key, Prolific bills you directly and there is no participant limit.
+
+        Returns:
+            dict: A dict with:
+                - key_source: "ep" for Expected Parrot's account, "user_key" for your own key.
+                - charged_in_credits: True if recruitment is paid for in credits.
+                - participant_limit: The most participants a study on Expected Parrot's
+                  account may recruit.
+                - participant_limit_applies: True if participant_limit applies to your
+                  new studies.
+
+        Raises:
+            CoopServerResponseError: If the server returns an error.
+        """
+        response = self._send_server_request(
+            uri="api/v0/prolific-studies/settings",
+            method="GET",
+        )
+        self._resolve_server_response(response)
+        data = response.json()
+        return {
+            "key_source": data["key_source"],
+            "charged_in_credits": data["charged_in_credits"],
+            "participant_limit": data["participant_limit"],
+            "participant_limit_applies": data["participant_limit_applies"],
+        }
+
     @staticmethod
     def _validate_prolific_study_cost(
         estimated_completion_time_minutes: int, participant_payment_cents: int
@@ -5105,8 +5139,10 @@ class Coop(CoopFunctionsMixin):
         Supply required question names (including any planned participant ID)
         and the expected Survey to detect missing questions or deployment drift.
         required_credits includes any AI/interview reserve; when omitted only
-        recruitment is costed. This check neither reserves funds nor proves
-        live routing, identity capture, eligibility, or user authorization.
+        recruitment is costed. On your own Prolific key, Prolific bills
+        recruitment directly, so it isn't costed in credits. This check neither
+        reserves funds nor proves live routing, identity capture, eligibility, or
+        user authorization.
         """
         from .coop_prolific_preflight import preflight
 
@@ -5258,7 +5294,9 @@ class Coop(CoopFunctionsMixin):
 
     def get_prolific_study(self, human_survey_uuid: str, study_id: str) -> dict:
         """
-        Get a Prolific study. Returns a dict with the study details.
+        Get a Prolific study. Returns a dict with the study details, including
+        key_source: whether the study runs on Expected Parrot's Prolific account
+        ("ep") or your own key ("user_key").
         """
         response = self._send_server_request(
             uri=f"api/v0/human-surveys/{human_survey_uuid}/prolific-studies/{study_id}",
@@ -5283,6 +5321,8 @@ class Coop(CoopFunctionsMixin):
             "device_compatibility": response_json.get("device_compatibility"),
             "peripheral_requirements": response_json.get("peripheral_requirements"),
             "filters": response_json.get("filters"),
+            # "ep" (Expected Parrot's account) or "user_key" (your own key).
+            "key_source": response_json.get("key_source"),
         }
 
     def get_prolific_study_responses(
