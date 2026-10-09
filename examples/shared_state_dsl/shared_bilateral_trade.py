@@ -1,6 +1,6 @@
 """Buyer offer followed by a privately informed seller response."""
 
-from edsl.sharedstate import Command, Machine, StateType, choose, current, field, arg, map_of, , state_field
+from edsl.sharedstate import Command, Machine, StateType, choose, current, field, arg, map_of, assign, state_field
 
 payoffs = map_of(
     (field("buyer"), choose(field("accepted"), field("buyer_value") - field("price"), 0)),

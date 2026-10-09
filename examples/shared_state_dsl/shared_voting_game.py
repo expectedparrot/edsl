@@ -1,6 +1,6 @@
 """Sealed ranked ballots with close-time plurality, Borda, and Condorcet results."""
 
-from edsl.sharedstate import Command, Machine, StateType, choose, constant, current, field, arg, put, reduce, , state_field
+from edsl.sharedstate import Command, Machine, StateType, choose, constant, current, field, arg, put, reduce, assign, state_field
 
 SPEC = Machine(
     name="SharedVotingGame",

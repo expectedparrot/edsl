@@ -1,6 +1,6 @@
 """Whole-document revisions with a serializable revision history."""
 
-from edsl.sharedstate import Command, Machine, StateType, append, constant, field, arg, record, reduce, , state_field
+from edsl.sharedstate import Command, Machine, StateType, append, constant, field, arg, record, reduce, assign, state_field
 
 SPEC = Machine(
     name="SharedDocument",

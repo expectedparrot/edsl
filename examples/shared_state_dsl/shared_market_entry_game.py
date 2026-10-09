@@ -1,6 +1,6 @@
 """Entry choices and congestion payoffs as collection expressions."""
 
-from edsl.sharedstate import Command, Machine, StateType, choose, constant, current, field, arg, local, map_items, put, reduce, , state_field
+from edsl.sharedstate import Command, Machine, StateType, choose, constant, current, field, arg, local, map_items, put, reduce, assign, state_field
 
 entrants = reduce("count_equal", field("choices").values(), value="enter")
 entrant_payoff = constant("entry_value") - constant("congestion_cost") * entrants

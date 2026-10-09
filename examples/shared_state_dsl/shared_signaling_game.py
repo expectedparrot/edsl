@@ -1,6 +1,6 @@
 """Worker signal followed by an employer decision."""
 
-from edsl.sharedstate import Command, Machine, StateType, choose, constant, field, arg, map_of, , state_field
+from edsl.sharedstate import Command, Machine, StateType, choose, constant, field, arg, map_of, assign, state_field
 
 cost = field("education") * field("signal_cost")
 payoffs = map_of(

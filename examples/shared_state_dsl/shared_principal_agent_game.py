@@ -1,6 +1,6 @@
 """Success-bonus contract followed by a private effort choice."""
 
-from edsl.sharedstate import Command, Machine, StateType, choose, constant, current, field, arg, map_of, , state_field
+from edsl.sharedstate import Command, Machine, StateType, choose, constant, current, field, arg, map_of, assign, state_field
 
 probability = choose(field("effort") == "high", constant("high_probability"), constant("low_probability"))
 cost = choose(field("effort") == "high", constant("high_cost"), 0)

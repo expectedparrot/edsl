@@ -1,6 +1,6 @@
 """A typed poll that records each participant's available meeting times."""
 
-from edsl.sharedstate import Command, Machine, StateType, constant, field, arg, put, reduce, , state_field, when
+from edsl.sharedstate import Command, Machine, StateType, constant, field, arg, put, reduce, assign, state_field, when
 
 
 SLOTS = (

@@ -1,6 +1,6 @@
 """Sealed two-player request game expressed with ordinary collection operations."""
 
-from edsl.sharedstate import Command, Machine, StateType, choose, constant, current, field, arg, local, map_items, put, reduce, , state_field
+from edsl.sharedstate import Command, Machine, StateType, choose, constant, current, field, arg, local, map_items, put, reduce, assign, state_field
 
 largest = reduce("max", field("choices").values())
 payoffs = map_items(

@@ -1,6 +1,6 @@
 """Configured counters updated from a sequence of selected keys."""
 
-from edsl.sharedstate import Command, Machine, StateType, field, arg, reduce, , state_field
+from edsl.sharedstate import Command, Machine, StateType, field, arg, reduce, assign, state_field
 
 KEYS = ("bike ride", "sailing", "hike", "beach day")
 SPEC = Machine(

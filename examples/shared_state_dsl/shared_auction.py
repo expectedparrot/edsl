@@ -1,6 +1,6 @@
 """Append-only ascending bids resolved deterministically at close."""
 
-from edsl.sharedstate import Command, Machine, StateType, append, choose, constant, current, field, filter_items, arg, local, map_sequence, record, reduce, , state_field
+from edsl.sharedstate import Command, Machine, StateType, append, choose, constant, current, field, filter_items, arg, local, map_sequence, record, reduce, assign, state_field
 
 positive = filter_items(field("bids"), item="bid", predicate=local("bid").get("amount") > 0)
 amounts = map_sequence(positive, item="bid", value_expr=local("bid").get("amount"))

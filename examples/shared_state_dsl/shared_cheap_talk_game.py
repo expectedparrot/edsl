@@ -1,6 +1,6 @@
 """Privately informed message followed by a receiver action."""
 
-from edsl.sharedstate import Command, Machine, StateType, choose, field, arg, map_of, , state_field
+from edsl.sharedstate import Command, Machine, StateType, choose, field, arg, map_of, assign, state_field
 
 sender_target = choose(field("preference") == "aligned", field("private_state"), "R")
 payoffs = map_of(

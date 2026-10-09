@@ -1,6 +1,6 @@
 """Ordered take-or-pass moves with early terminal settlement."""
 
-from edsl.sharedstate import Command, Machine, StateType, append, constant, expr, field, arg, record, , state_field, when
+from edsl.sharedstate import Command, Machine, StateType, append, constant, expr, field, arg, record, assign, state_field, when
 
 is_take = arg("action") == "take"
 is_final_pass = (arg("action") == "pass") & (arg("node") == constant("node_count"))

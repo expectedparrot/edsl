@@ -1,6 +1,6 @@
 """Append-only bilateral negotiation with terminal actions and agreement tracking."""
 
-from edsl.sharedstate import Command, Machine, StateType, append, constant, current, field, filter_items, arg, local, map_sequence, record, , state_field, when
+from edsl.sharedstate import Command, Machine, StateType, append, constant, current, field, filter_items, arg, local, map_sequence, record, assign, state_field, when
 
 same_role = filter_items(field("turns"), item="turn", predicate=local("turn").get("role") == arg("role"))
 prior_offers = filter_items(field("turns"), item="turn", predicate=local("turn").get("action") == "offer")

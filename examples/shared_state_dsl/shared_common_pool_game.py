@@ -1,6 +1,6 @@
 """Common-pool requests with generic map transformation at close."""
 
-from edsl.sharedstate import Command, Machine, StateType, choose, constant, current, field, arg, local, map_items, put, reduce, , state_field
+from edsl.sharedstate import Command, Machine, StateType, choose, constant, current, field, arg, local, map_items, put, reduce, assign, state_field
 
 total = reduce("sum", field("requests").values())
 overdrawn = total > constant("stock")

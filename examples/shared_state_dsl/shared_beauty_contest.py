@@ -1,6 +1,6 @@
 """Numeric submissions with generic close-time aggregates."""
 
-from edsl.sharedstate import Command, Machine, StateType, choose, constant, current, field, arg, put, reduce, , state_field
+from edsl.sharedstate import Command, Machine, StateType, choose, constant, current, field, arg, put, reduce, assign, state_field
 
 mean = reduce("mean", field("choices").values())
 target = constant("factor") * mean

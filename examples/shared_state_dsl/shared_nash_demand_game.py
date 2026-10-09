@@ -1,6 +1,6 @@
 """Two bounded demands and a feasibility-conditioned payoff map."""
 
-from edsl.sharedstate import Command, Machine, StateType, choose, constant, current, field, arg, local, map_items, put, reduce, , state_field
+from edsl.sharedstate import Command, Machine, StateType, choose, constant, current, field, arg, local, map_items, put, reduce, assign, state_field
 
 feasible = reduce("sum", field("demands").values()) <= constant("pie")
 named_demands = map_items(field("demands"), key="seat", value="amount", key_expr=field("players").get(local("seat")), value_expr=local("amount"))

@@ -413,6 +413,7 @@ class Machine:
         filename: str | None = None,
         renderer: str | None = None,
         dpi: int = 192,
+        detail: bool = False,
     ):
         """Show this machine's state, commands, and read-only view.
 
@@ -420,13 +421,16 @@ class Machine:
             filename: Optional path to save the diagram.
             renderer: ``"mermaid"`` or ``"pydot"`` (default: Mermaid).
             dpi: PNG resolution for the ``pydot`` renderer (default: 192).
+            detail: Include longer expressions in command, view, and lifecycle cards.
 
         In a notebook, the Mermaid diagram renders inline. Use ``renderer="pydot"``
         to create a PNG when Graphviz and pydot are installed.
         """
         from .visualization import machine_graph
 
-        return machine_graph(self, renderer=renderer, dpi=dpi).show(filename=filename)
+        return machine_graph(
+            self, renderer=renderer, dpi=dpi, detail=detail
+        ).show(filename=filename)
 
     def required_capabilities(self) -> dict[str, Any]:
         """Return derived requirements without altering the serialized definition."""

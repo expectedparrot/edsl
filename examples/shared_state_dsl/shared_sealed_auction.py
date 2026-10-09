@@ -1,6 +1,6 @@
 """First-price, second-price, or all-pay settlement as pure expressions."""
 
-from edsl.sharedstate import Command, Machine, StateType, choose, constant, current, field, arg, local, map_items, put, record, reduce, , state_field
+from edsl.sharedstate import Command, Machine, StateType, choose, constant, current, field, arg, local, map_items, put, record, reduce, assign, state_field
 
 ranked = reduce("sort_records", field("bids").values(), fields=("amount", "seat"), descending=(True, False))
 winning = ranked.first()

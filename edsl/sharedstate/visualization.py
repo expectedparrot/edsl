@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import re
+import textwrap
 from typing import Any
 
 from edsl.utilities.graph_renderer import DiGraph, PydotRenderer
@@ -25,16 +26,32 @@ _BINARY = {
 }
 
 
-def _value(value: Any, limit: int = 54) -> str:
+def _value(value: Any, limit: int = 72) -> str:
     if hasattr(value, "op") and hasattr(value, "args"):
-        return _expression(value)
-    try:
-        rendered = json.dumps(value, ensure_ascii=False, separators=(",", ":"))
-    except (TypeError, ValueError):
-        rendered = repr(value)
+        rendered = _expression(value)
+    else:
+        try:
+            rendered = json.dumps(value, ensure_ascii=False, separators=(",", ":"))
+        except (TypeError, ValueError):
+            rendered = repr(value)
     if len(rendered) > limit:
         rendered = rendered[: limit - 1] + "…"
     return rendered
+
+
+def _wrap_label(label: str, width: int = 42) -> str:
+    """Keep Graphviz labels from forcing a very wide canvas."""
+    lines = []
+    for line in label.splitlines():
+        wrapped = textwrap.wrap(
+            line,
+            width=width,
+            break_long_words=True,
+            break_on_hyphens=False,
+            replace_whitespace=False,
+        )
+        lines.extend(wrapped or [""])
+    return "\n".join(lines)
 
 
 def _expression(expression: Any) -> str:
@@ -119,19 +136,25 @@ def _references(value: Any, namespace: str) -> set[str]:
     return found
 
 
-def _effect_label(effect: Any) -> str:
+def _effect_label(effect: Any, *, detail: bool = False, summary: bool = False) -> str:
     op = effect.op
     args = effect.args
+    if summary and not detail and op in {"set", "set_once", "put", "append"}:
+        if op == "put":
+            return f"{effect.target}[{_value(args[0])}] ← …"
+        suffix = " (once)" if op == "set_once" else ""
+        return f"{effect.target} ← …{suffix}"
+    limit = 220 if detail else 72
     if op == "set":
-        action = f"{effect.target} ← {_value(args[0])}"
+        action = f"{effect.target} ← {_value(args[0], limit)}"
     elif op == "set_once":
-        action = f"{effect.target} ← {_value(args[0])} (once)"
+        action = f"{effect.target} ← {_value(args[0], limit)} (once)"
     elif op == "put":
-        action = f"{effect.target}[{_value(args[0])}] ← {_value(args[1])}"
+        action = f"{effect.target}[{_value(args[0], limit)}] ← {_value(args[1], limit)}"
         if effect.options.get("once"):
             action += " (once)"
     elif op == "append":
-        action = f"append {_value(args[0])} to {effect.target}"
+        action = f"append {_value(args[0], limit)} to {effect.target}"
     elif op == "assert":
         action = f"require {_value(args[0])} [{effect.options.get('code', '')}]"
     elif op == "reject":
@@ -149,7 +172,12 @@ def _node_id(prefix: str, name: str) -> str:
     return f"{prefix}_{safe}"
 
 
-def machine_graph(machine: Any, renderer: str | None = None, dpi: int = 192):
+def machine_graph(
+    machine: Any,
+    renderer: str | None = None,
+    dpi: int = 192,
+    detail: bool = False,
+):
     """Build a rendered machine diagram; command cards describe transitions."""
     graph_renderer = PydotRenderer(dpi=dpi) if renderer == "pydot" else renderer
     graph = DiGraph(renderer=graph_renderer, direction="LR")
@@ -177,7 +205,13 @@ def machine_graph(machine: Any, renderer: str | None = None, dpi: int = 192):
         constants_text = "\n".join(
             f"{name} = {_value(value)}" for name, value in used_constants.items()
         )
-        graph.add_node(constants_id, label=constants_text, fill_color="lightyellow", subgraph="constants")
+        graph.add_node(
+            constants_id,
+            label=_wrap_label(constants_text),
+            fill_color="lightyellow",
+            font_size="12",
+            subgraph="constants",
+        )
     else:
         constants_id = None
 
@@ -191,8 +225,11 @@ def machine_graph(machine: Any, renderer: str | None = None, dpi: int = 192):
             field_ids[name] = node_id
             graph.add_node(
                 node_id,
-                label=f"{name}\n{_type(definition.type)}\ninitial: {_value(definition.initial)}",
+                label=_wrap_label(
+                    f"{name}\n{_type(definition.type)}\ninitial: {_value(definition.initial)}"
+                ),
                 fill_color="white",
+                font_size="12",
                 subgraph="state",
             )
             if constants_id and _references(definition.type, "constant") & used_constants.keys():
@@ -215,11 +252,19 @@ def machine_graph(machine: Any, renderer: str | None = None, dpi: int = 192):
             lines.extend(("GUARD", f"  {_value(command.require)}"))
         lines.append("EFFECTS")
         if command.effects:
-            lines.extend(f"  {_effect_label(effect)}" for effect in command.effects)
+            lines.extend(
+                f"  {_effect_label(effect, detail=detail)}" for effect in command.effects
+            )
         else:
             lines.append("  none")
         node_id = _node_id("command", name)
-        graph.add_node(node_id, label="\n".join(lines), fill_color="white", subgraph="commands")
+        graph.add_node(
+            node_id,
+            label=_wrap_label("\n".join(lines)),
+            fill_color="white",
+            font_size="12",
+            subgraph="commands",
+        )
         read_fields = set()
         if command.require is not None:
             read_fields.update(_references(command.require, "state"))
@@ -249,12 +294,19 @@ def machine_graph(machine: Any, renderer: str | None = None, dpi: int = 192):
                 and expression.kwargs.get("name") == name
             ):
                 expression_label = "(state field)"
+            elif (
+                getattr(expression, "op", None) == "ref"
+                and expression.kwargs.get("namespace") == "constant"
+                and expression.kwargs.get("name") == name
+            ):
+                expression_label = "(constant)"
             else:
-                expression_label = _value(expression)
+                expression_label = _value(expression, 220 if detail else 72)
             graph.add_node(
                 node_id,
-                label=f"{name}\n{expression_label}",
+                label=_wrap_label(f"{name}\n{expression_label}"),
                 fill_color="white",
+                font_size="12",
                 subgraph="view",
             )
             if constants_id and _references(expression, "constant") & used_constants.keys():
@@ -271,10 +323,27 @@ def machine_graph(machine: Any, renderer: str | None = None, dpi: int = 192):
         lifecycle.append(f"complete when: {_value(machine.complete_when)}")
     if machine.close_effects:
         lifecycle.append("on close:")
-        lifecycle.extend(f"  {_effect_label(effect)}" for effect in machine.close_effects)
+        lifecycle.extend(
+            f"  {_effect_label(effect, detail=detail, summary=True)}"
+            for effect in machine.close_effects
+        )
+    lifecycle_constants = _references(
+        (machine.complete_when, machine.close_effects), "constant"
+    )
+    lifecycle_constant_names = sorted(lifecycle_constants & used_constants.keys())
+    if lifecycle_constant_names:
+        lifecycle.append(
+            "uses constants: " + ", ".join(lifecycle_constant_names)
+        )
     if lifecycle:
         graph.add_subgraph("lifecycle", label="Lifecycle", fill_color="khaki")
-        graph.add_node("lifecycle_rules", label="\n".join(lifecycle), fill_color="white", subgraph="lifecycle")
+        graph.add_node(
+            "lifecycle_rules",
+            label=_wrap_label("\n".join(lifecycle)),
+            fill_color="white",
+            font_size="12",
+            subgraph="lifecycle",
+        )
         close_reads = _references((machine.complete_when, machine.close_effects), "state")
         for field_name in sorted(close_reads & field_ids.keys()):
             graph.add_edge(field_ids[field_name], "lifecycle_rules", label="reads", style="dashed", color="slategray")

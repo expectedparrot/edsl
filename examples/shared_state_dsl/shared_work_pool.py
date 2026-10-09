@@ -1,6 +1,6 @@
 """Atomic work claiming using general sequence and map expressions."""
 
-from edsl.sharedstate import Command, Machine, StateType, constant, current, field, arg, put, record, , state_field
+from edsl.sharedstate import Command, Machine, StateType, constant, current, field, arg, put, record, assign, state_field
 
 unclaimed = ~field("claims").contains(arg("claimant"))
 

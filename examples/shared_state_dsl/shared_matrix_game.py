@@ -1,6 +1,6 @@
 """A sealed two-player normal-form game with data-defined payoffs."""
 
-from edsl.sharedstate import Command, Machine, StateType, choose, constant, current, expr, field, arg, map_of, put, , state_field
+from edsl.sharedstate import Command, Machine, StateType, choose, constant, current, expr, field, arg, map_of, put, assign, state_field
 
 ACTIONS = ["cooperate", "defect"]
 PAYOFFS = {"cooperate|cooperate": [3, 3], "cooperate|defect": [0, 5], "defect|cooperate": [5, 0], "defect|defect": [1, 1]}

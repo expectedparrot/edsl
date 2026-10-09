@@ -1,6 +1,6 @@
 """Finite funding expressed with arithmetic and collection expressions."""
 
-from edsl.sharedstate import Command, Machine, StateType, append, constant, expr, field, arg, put, record, , state_field
+from edsl.sharedstate import Command, Machine, StateType, append, constant, expr, field, arg, put, record, assign, state_field
 
 granted = expr("minimum", arg("amount"), field("remaining"))
 
