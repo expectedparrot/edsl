@@ -1,0 +1,1665 @@
+{
+  "experiment": "conformist shared-state activity poll",
+  "repetitions": 10,
+  "participants_per_run": 16,
+  "base_seed": 731,
+  "model": "gemini-2.5-flash",
+  "winner_frequency": {
+    "bike ride": 3,
+    "sailing": 3,
+    "hike": 3,
+    "beach day": 1
+  },
+  "runs": [
+    {
+      "run": 1,
+      "seed": 731,
+      "counts": {
+        "bike ride": 1,
+        "sailing": 9,
+        "hike": 3,
+        "beach day": 3
+      },
+      "winners": [
+        "sailing"
+      ],
+      "winning_count": 9,
+      "first_three_votes": [
+        "beach day",
+        "hike",
+        "sailing"
+      ],
+      "vote_sequence": [
+        {
+          "version": 1,
+          "voter": "participant-001",
+          "preferred_activity": "beach day",
+          "preference_strength": 0.79,
+          "conformity": 0.69,
+          "choice": "beach day",
+          "followed_preference": true
+        },
+        {
+          "version": 2,
+          "voter": "participant-002",
+          "preferred_activity": "hike",
+          "preference_strength": 0.88,
+          "conformity": 0.84,
+          "choice": "hike",
+          "followed_preference": true
+        },
+        {
+          "version": 3,
+          "voter": "participant-003",
+          "preferred_activity": "sailing",
+          "preference_strength": 0.86,
+          "conformity": 0.64,
+          "choice": "sailing",
+          "followed_preference": true
+        },
+        {
+          "version": 4,
+          "voter": "participant-004",
+          "preferred_activity": "sailing",
+          "preference_strength": 0.7,
+          "conformity": 0.85,
+          "choice": "sailing",
+          "followed_preference": true
+        },
+        {
+          "version": 5,
+          "voter": "participant-005",
+          "preferred_activity": "sailing",
+          "preference_strength": 0.83,
+          "conformity": 0.7,
+          "choice": "sailing",
+          "followed_preference": true
+        },
+        {
+          "version": 6,
+          "voter": "participant-006",
+          "preferred_activity": "beach day",
+          "preference_strength": 0.84,
+          "conformity": 0.75,
+          "choice": "beach day",
+          "followed_preference": true
+        },
+        {
+          "version": 7,
+          "voter": "participant-007",
+          "preferred_activity": "bike ride",
+          "preference_strength": 0.86,
+          "conformity": 0.66,
+          "choice": "bike ride",
+          "followed_preference": true
+        },
+        {
+          "version": 8,
+          "voter": "participant-008",
+          "preferred_activity": "hike",
+          "preference_strength": 0.68,
+          "conformity": 0.71,
+          "choice": "sailing",
+          "followed_preference": false
+        },
+        {
+          "version": 9,
+          "voter": "participant-009",
+          "preferred_activity": "bike ride",
+          "preference_strength": 0.62,
+          "conformity": 0.67,
+          "choice": "sailing",
+          "followed_preference": false
+        },
+        {
+          "version": 10,
+          "voter": "participant-010",
+          "preferred_activity": "beach day",
+          "preference_strength": 0.63,
+          "conformity": 0.63,
+          "choice": "beach day",
+          "followed_preference": true
+        },
+        {
+          "version": 11,
+          "voter": "participant-011",
+          "preferred_activity": "hike",
+          "preference_strength": 0.75,
+          "conformity": 0.57,
+          "choice": "hike",
+          "followed_preference": true
+        },
+        {
+          "version": 12,
+          "voter": "participant-012",
+          "preferred_activity": "bike ride",
+          "preference_strength": 0.69,
+          "conformity": 0.78,
+          "choice": "sailing",
+          "followed_preference": false
+        },
+        {
+          "version": 13,
+          "voter": "participant-013",
+          "preferred_activity": "sailing",
+          "preference_strength": 0.81,
+          "conformity": 0.82,
+          "choice": "sailing",
+          "followed_preference": true
+        },
+        {
+          "version": 14,
+          "voter": "participant-014",
+          "preferred_activity": "bike ride",
+          "preference_strength": 0.69,
+          "conformity": 0.87,
+          "choice": "sailing",
+          "followed_preference": false
+        },
+        {
+          "version": 15,
+          "voter": "participant-015",
+          "preferred_activity": "beach day",
+          "preference_strength": 0.68,
+          "conformity": 0.76,
+          "choice": "sailing",
+          "followed_preference": false
+        },
+        {
+          "version": 16,
+          "voter": "participant-016",
+          "preferred_activity": "hike",
+          "preference_strength": 0.83,
+          "conformity": 0.71,
+          "choice": "hike",
+          "followed_preference": true
+        }
+      ]
+    },
+    {
+      "run": 2,
+      "seed": 732,
+      "counts": {
+        "bike ride": 3,
+        "sailing": 4,
+        "hike": 5,
+        "beach day": 4
+      },
+      "winners": [
+        "hike"
+      ],
+      "winning_count": 5,
+      "first_three_votes": [
+        "hike",
+        "hike",
+        "sailing"
+      ],
+      "vote_sequence": [
+        {
+          "version": 1,
+          "voter": "participant-001",
+          "preferred_activity": "hike",
+          "preference_strength": 0.8,
+          "conformity": 0.62,
+          "choice": "hike",
+          "followed_preference": true
+        },
+        {
+          "version": 2,
+          "voter": "participant-002",
+          "preferred_activity": "hike",
+          "preference_strength": 0.74,
+          "conformity": 0.55,
+          "choice": "hike",
+          "followed_preference": true
+        },
+        {
+          "version": 3,
+          "voter": "participant-003",
+          "preferred_activity": "sailing",
+          "preference_strength": 0.88,
+          "conformity": 0.56,
+          "choice": "sailing",
+          "followed_preference": true
+        },
+        {
+          "version": 4,
+          "voter": "participant-004",
+          "preferred_activity": "bike ride",
+          "preference_strength": 0.81,
+          "conformity": 0.83,
+          "choice": "hike",
+          "followed_preference": false
+        },
+        {
+          "version": 5,
+          "voter": "participant-005",
+          "preferred_activity": "beach day",
+          "preference_strength": 0.85,
+          "conformity": 0.68,
+          "choice": "beach day",
+          "followed_preference": true
+        },
+        {
+          "version": 6,
+          "voter": "participant-006",
+          "preferred_activity": "sailing",
+          "preference_strength": 0.7,
+          "conformity": 0.69,
+          "choice": "sailing",
+          "followed_preference": true
+        },
+        {
+          "version": 7,
+          "voter": "participant-007",
+          "preferred_activity": "bike ride",
+          "preference_strength": 0.74,
+          "conformity": 0.77,
+          "choice": "bike ride",
+          "followed_preference": true
+        },
+        {
+          "version": 8,
+          "voter": "participant-008",
+          "preferred_activity": "bike ride",
+          "preference_strength": 0.8,
+          "conformity": 0.72,
+          "choice": "bike ride",
+          "followed_preference": true
+        },
+        {
+          "version": 9,
+          "voter": "participant-009",
+          "preferred_activity": "sailing",
+          "preference_strength": 0.87,
+          "conformity": 0.72,
+          "choice": "sailing",
+          "followed_preference": true
+        },
+        {
+          "version": 10,
+          "voter": "participant-010",
+          "preferred_activity": "beach day",
+          "preference_strength": 0.72,
+          "conformity": 0.71,
+          "choice": "beach day",
+          "followed_preference": true
+        },
+        {
+          "version": 11,
+          "voter": "participant-011",
+          "preferred_activity": "beach day",
+          "preference_strength": 0.69,
+          "conformity": 0.72,
+          "choice": "beach day",
+          "followed_preference": true
+        },
+        {
+          "version": 12,
+          "voter": "participant-012",
+          "preferred_activity": "bike ride",
+          "preference_strength": 0.63,
+          "conformity": 0.81,
+          "choice": "bike ride",
+          "followed_preference": true
+        },
+        {
+          "version": 13,
+          "voter": "participant-013",
+          "preferred_activity": "hike",
+          "preference_strength": 0.7,
+          "conformity": 0.7,
+          "choice": "hike",
+          "followed_preference": true
+        },
+        {
+          "version": 14,
+          "voter": "participant-014",
+          "preferred_activity": "hike",
+          "preference_strength": 0.68,
+          "conformity": 0.86,
+          "choice": "hike",
+          "followed_preference": true
+        },
+        {
+          "version": 15,
+          "voter": "participant-015",
+          "preferred_activity": "sailing",
+          "preference_strength": 0.67,
+          "conformity": 0.6,
+          "choice": "sailing",
+          "followed_preference": true
+        },
+        {
+          "version": 16,
+          "voter": "participant-016",
+          "preferred_activity": "beach day",
+          "preference_strength": 0.75,
+          "conformity": 0.66,
+          "choice": "beach day",
+          "followed_preference": true
+        }
+      ]
+    },
+    {
+      "run": 3,
+      "seed": 733,
+      "counts": {
+        "bike ride": 16,
+        "sailing": 0,
+        "hike": 0,
+        "beach day": 0
+      },
+      "winners": [
+        "bike ride"
+      ],
+      "winning_count": 16,
+      "first_three_votes": [
+        "bike ride",
+        "bike ride",
+        "bike ride"
+      ],
+      "vote_sequence": [
+        {
+          "version": 1,
+          "voter": "participant-001",
+          "preferred_activity": "bike ride",
+          "preference_strength": 0.83,
+          "conformity": 0.81,
+          "choice": "bike ride",
+          "followed_preference": true
+        },
+        {
+          "version": 2,
+          "voter": "participant-002",
+          "preferred_activity": "beach day",
+          "preference_strength": 0.77,
+          "conformity": 0.86,
+          "choice": "bike ride",
+          "followed_preference": false
+        },
+        {
+          "version": 3,
+          "voter": "participant-003",
+          "preferred_activity": "bike ride",
+          "preference_strength": 0.74,
+          "conformity": 0.63,
+          "choice": "bike ride",
+          "followed_preference": true
+        },
+        {
+          "version": 4,
+          "voter": "participant-004",
+          "preferred_activity": "hike",
+          "preference_strength": 0.87,
+          "conformity": 0.79,
+          "choice": "bike ride",
+          "followed_preference": false
+        },
+        {
+          "version": 5,
+          "voter": "participant-005",
+          "preferred_activity": "sailing",
+          "preference_strength": 0.6,
+          "conformity": 0.86,
+          "choice": "bike ride",
+          "followed_preference": false
+        },
+        {
+          "version": 6,
+          "voter": "participant-006",
+          "preferred_activity": "beach day",
+          "preference_strength": 0.82,
+          "conformity": 0.64,
+          "choice": "bike ride",
+          "followed_preference": false
+        },
+        {
+          "version": 7,
+          "voter": "participant-007",
+          "preferred_activity": "sailing",
+          "preference_strength": 0.67,
+          "conformity": 0.55,
+          "choice": "bike ride",
+          "followed_preference": false
+        },
+        {
+          "version": 8,
+          "voter": "participant-008",
+          "preferred_activity": "sailing",
+          "preference_strength": 0.89,
+          "conformity": 0.86,
+          "choice": "bike ride",
+          "followed_preference": false
+        },
+        {
+          "version": 9,
+          "voter": "participant-009",
+          "preferred_activity": "bike ride",
+          "preference_strength": 0.72,
+          "conformity": 0.9,
+          "choice": "bike ride",
+          "followed_preference": true
+        },
+        {
+          "version": 10,
+          "voter": "participant-010",
+          "preferred_activity": "beach day",
+          "preference_strength": 0.87,
+          "conformity": 0.68,
+          "choice": "bike ride",
+          "followed_preference": false
+        },
+        {
+          "version": 11,
+          "voter": "participant-011",
+          "preferred_activity": "bike ride",
+          "preference_strength": 0.71,
+          "conformity": 0.85,
+          "choice": "bike ride",
+          "followed_preference": true
+        },
+        {
+          "version": 12,
+          "voter": "participant-012",
+          "preferred_activity": "hike",
+          "preference_strength": 0.89,
+          "conformity": 0.77,
+          "choice": "bike ride",
+          "followed_preference": false
+        },
+        {
+          "version": 13,
+          "voter": "participant-013",
+          "preferred_activity": "beach day",
+          "preference_strength": 0.83,
+          "conformity": 0.72,
+          "choice": "bike ride",
+          "followed_preference": false
+        },
+        {
+          "version": 14,
+          "voter": "participant-014",
+          "preferred_activity": "hike",
+          "preference_strength": 0.87,
+          "conformity": 0.63,
+          "choice": "bike ride",
+          "followed_preference": false
+        },
+        {
+          "version": 15,
+          "voter": "participant-015",
+          "preferred_activity": "hike",
+          "preference_strength": 0.77,
+          "conformity": 0.78,
+          "choice": "bike ride",
+          "followed_preference": false
+        },
+        {
+          "version": 16,
+          "voter": "participant-016",
+          "preferred_activity": "sailing",
+          "preference_strength": 0.8,
+          "conformity": 0.76,
+          "choice": "bike ride",
+          "followed_preference": false
+        }
+      ]
+    },
+    {
+      "run": 4,
+      "seed": 734,
+      "counts": {
+        "bike ride": 0,
+        "sailing": 15,
+        "hike": 0,
+        "beach day": 1
+      },
+      "winners": [
+        "sailing"
+      ],
+      "winning_count": 15,
+      "first_three_votes": [
+        "sailing",
+        "beach day",
+        "sailing"
+      ],
+      "vote_sequence": [
+        {
+          "version": 1,
+          "voter": "participant-001",
+          "preferred_activity": "sailing",
+          "preference_strength": 0.82,
+          "conformity": 0.71,
+          "choice": "sailing",
+          "followed_preference": true
+        },
+        {
+          "version": 2,
+          "voter": "participant-002",
+          "preferred_activity": "beach day",
+          "preference_strength": 0.7,
+          "conformity": 0.67,
+          "choice": "beach day",
+          "followed_preference": true
+        },
+        {
+          "version": 3,
+          "voter": "participant-003",
+          "preferred_activity": "sailing",
+          "preference_strength": 0.63,
+          "conformity": 0.67,
+          "choice": "sailing",
+          "followed_preference": true
+        },
+        {
+          "version": 4,
+          "voter": "participant-004",
+          "preferred_activity": "sailing",
+          "preference_strength": 0.69,
+          "conformity": 0.64,
+          "choice": "sailing",
+          "followed_preference": true
+        },
+        {
+          "version": 5,
+          "voter": "participant-005",
+          "preferred_activity": "hike",
+          "preference_strength": 0.72,
+          "conformity": 0.67,
+          "choice": "sailing",
+          "followed_preference": false
+        },
+        {
+          "version": 6,
+          "voter": "participant-006",
+          "preferred_activity": "hike",
+          "preference_strength": 0.71,
+          "conformity": 0.74,
+          "choice": "sailing",
+          "followed_preference": false
+        },
+        {
+          "version": 7,
+          "voter": "participant-007",
+          "preferred_activity": "beach day",
+          "preference_strength": 0.88,
+          "conformity": 0.7,
+          "choice": "sailing",
+          "followed_preference": false
+        },
+        {
+          "version": 8,
+          "voter": "participant-008",
+          "preferred_activity": "beach day",
+          "preference_strength": 0.6,
+          "conformity": 0.85,
+          "choice": "sailing",
+          "followed_preference": false
+        },
+        {
+          "version": 9,
+          "voter": "participant-009",
+          "preferred_activity": "bike ride",
+          "preference_strength": 0.76,
+          "conformity": 0.59,
+          "choice": "sailing",
+          "followed_preference": false
+        },
+        {
+          "version": 10,
+          "voter": "participant-010",
+          "preferred_activity": "hike",
+          "preference_strength": 0.85,
+          "conformity": 0.88,
+          "choice": "sailing",
+          "followed_preference": false
+        },
+        {
+          "version": 11,
+          "voter": "participant-011",
+          "preferred_activity": "bike ride",
+          "preference_strength": 0.89,
+          "conformity": 0.86,
+          "choice": "sailing",
+          "followed_preference": false
+        },
+        {
+          "version": 12,
+          "voter": "participant-012",
+          "preferred_activity": "sailing",
+          "preference_strength": 0.64,
+          "conformity": 0.88,
+          "choice": "sailing",
+          "followed_preference": true
+        },
+        {
+          "version": 13,
+          "voter": "participant-013",
+          "preferred_activity": "beach day",
+          "preference_strength": 0.77,
+          "conformity": 0.74,
+          "choice": "sailing",
+          "followed_preference": false
+        },
+        {
+          "version": 14,
+          "voter": "participant-014",
+          "preferred_activity": "bike ride",
+          "preference_strength": 0.72,
+          "conformity": 0.77,
+          "choice": "sailing",
+          "followed_preference": false
+        },
+        {
+          "version": 15,
+          "voter": "participant-015",
+          "preferred_activity": "bike ride",
+          "preference_strength": 0.74,
+          "conformity": 0.88,
+          "choice": "sailing",
+          "followed_preference": false
+        },
+        {
+          "version": 16,
+          "voter": "participant-016",
+          "preferred_activity": "hike",
+          "preference_strength": 0.6,
+          "conformity": 0.86,
+          "choice": "sailing",
+          "followed_preference": false
+        }
+      ]
+    },
+    {
+      "run": 5,
+      "seed": 735,
+      "counts": {
+        "bike ride": 1,
+        "sailing": 14,
+        "hike": 1,
+        "beach day": 0
+      },
+      "winners": [
+        "sailing"
+      ],
+      "winning_count": 14,
+      "first_three_votes": [
+        "sailing",
+        "sailing",
+        "sailing"
+      ],
+      "vote_sequence": [
+        {
+          "version": 1,
+          "voter": "participant-001",
+          "preferred_activity": "sailing",
+          "preference_strength": 0.72,
+          "conformity": 0.75,
+          "choice": "sailing",
+          "followed_preference": true
+        },
+        {
+          "version": 2,
+          "voter": "participant-002",
+          "preferred_activity": "beach day",
+          "preference_strength": 0.72,
+          "conformity": 0.71,
+          "choice": "sailing",
+          "followed_preference": false
+        },
+        {
+          "version": 3,
+          "voter": "participant-003",
+          "preferred_activity": "hike",
+          "preference_strength": 0.78,
+          "conformity": 0.82,
+          "choice": "sailing",
+          "followed_preference": false
+        },
+        {
+          "version": 4,
+          "voter": "participant-004",
+          "preferred_activity": "sailing",
+          "preference_strength": 0.82,
+          "conformity": 0.64,
+          "choice": "sailing",
+          "followed_preference": true
+        },
+        {
+          "version": 5,
+          "voter": "participant-005",
+          "preferred_activity": "hike",
+          "preference_strength": 0.69,
+          "conformity": 0.56,
+          "choice": "hike",
+          "followed_preference": true
+        },
+        {
+          "version": 6,
+          "voter": "participant-006",
+          "preferred_activity": "bike ride",
+          "preference_strength": 0.77,
+          "conformity": 0.79,
+          "choice": "sailing",
+          "followed_preference": false
+        },
+        {
+          "version": 7,
+          "voter": "participant-007",
+          "preferred_activity": "beach day",
+          "preference_strength": 0.71,
+          "conformity": 0.67,
+          "choice": "sailing",
+          "followed_preference": false
+        },
+        {
+          "version": 8,
+          "voter": "participant-008",
+          "preferred_activity": "hike",
+          "preference_strength": 0.82,
+          "conformity": 0.71,
+          "choice": "sailing",
+          "followed_preference": false
+        },
+        {
+          "version": 9,
+          "voter": "participant-009",
+          "preferred_activity": "beach day",
+          "preference_strength": 0.68,
+          "conformity": 0.74,
+          "choice": "sailing",
+          "followed_preference": false
+        },
+        {
+          "version": 10,
+          "voter": "participant-010",
+          "preferred_activity": "sailing",
+          "preference_strength": 0.87,
+          "conformity": 0.83,
+          "choice": "sailing",
+          "followed_preference": true
+        },
+        {
+          "version": 11,
+          "voter": "participant-011",
+          "preferred_activity": "beach day",
+          "preference_strength": 0.88,
+          "conformity": 0.57,
+          "choice": "sailing",
+          "followed_preference": false
+        },
+        {
+          "version": 12,
+          "voter": "participant-012",
+          "preferred_activity": "bike ride",
+          "preference_strength": 0.83,
+          "conformity": 0.69,
+          "choice": "sailing",
+          "followed_preference": false
+        },
+        {
+          "version": 13,
+          "voter": "participant-013",
+          "preferred_activity": "bike ride",
+          "preference_strength": 0.77,
+          "conformity": 0.75,
+          "choice": "bike ride",
+          "followed_preference": true
+        },
+        {
+          "version": 14,
+          "voter": "participant-014",
+          "preferred_activity": "hike",
+          "preference_strength": 0.71,
+          "conformity": 0.74,
+          "choice": "sailing",
+          "followed_preference": false
+        },
+        {
+          "version": 15,
+          "voter": "participant-015",
+          "preferred_activity": "bike ride",
+          "preference_strength": 0.79,
+          "conformity": 0.82,
+          "choice": "sailing",
+          "followed_preference": false
+        },
+        {
+          "version": 16,
+          "voter": "participant-016",
+          "preferred_activity": "sailing",
+          "preference_strength": 0.87,
+          "conformity": 0.56,
+          "choice": "sailing",
+          "followed_preference": true
+        }
+      ]
+    },
+    {
+      "run": 6,
+      "seed": 736,
+      "counts": {
+        "bike ride": 2,
+        "sailing": 2,
+        "hike": 3,
+        "beach day": 9
+      },
+      "winners": [
+        "beach day"
+      ],
+      "winning_count": 9,
+      "first_three_votes": [
+        "bike ride",
+        "sailing",
+        "beach day"
+      ],
+      "vote_sequence": [
+        {
+          "version": 1,
+          "voter": "participant-001",
+          "preferred_activity": "bike ride",
+          "preference_strength": 0.82,
+          "conformity": 0.79,
+          "choice": "bike ride",
+          "followed_preference": true
+        },
+        {
+          "version": 2,
+          "voter": "participant-002",
+          "preferred_activity": "sailing",
+          "preference_strength": 0.73,
+          "conformity": 0.86,
+          "choice": "sailing",
+          "followed_preference": true
+        },
+        {
+          "version": 3,
+          "voter": "participant-003",
+          "preferred_activity": "beach day",
+          "preference_strength": 0.63,
+          "conformity": 0.64,
+          "choice": "beach day",
+          "followed_preference": true
+        },
+        {
+          "version": 4,
+          "voter": "participant-004",
+          "preferred_activity": "beach day",
+          "preference_strength": 0.9,
+          "conformity": 0.83,
+          "choice": "beach day",
+          "followed_preference": true
+        },
+        {
+          "version": 5,
+          "voter": "participant-005",
+          "preferred_activity": "hike",
+          "preference_strength": 0.75,
+          "conformity": 0.79,
+          "choice": "beach day",
+          "followed_preference": false
+        },
+        {
+          "version": 6,
+          "voter": "participant-006",
+          "preferred_activity": "bike ride",
+          "preference_strength": 0.67,
+          "conformity": 0.75,
+          "choice": "beach day",
+          "followed_preference": false
+        },
+        {
+          "version": 7,
+          "voter": "participant-007",
+          "preferred_activity": "sailing",
+          "preference_strength": 0.75,
+          "conformity": 0.79,
+          "choice": "sailing",
+          "followed_preference": true
+        },
+        {
+          "version": 8,
+          "voter": "participant-008",
+          "preferred_activity": "hike",
+          "preference_strength": 0.88,
+          "conformity": 0.68,
+          "choice": "hike",
+          "followed_preference": true
+        },
+        {
+          "version": 9,
+          "voter": "participant-009",
+          "preferred_activity": "beach day",
+          "preference_strength": 0.74,
+          "conformity": 0.87,
+          "choice": "beach day",
+          "followed_preference": true
+        },
+        {
+          "version": 10,
+          "voter": "participant-010",
+          "preferred_activity": "hike",
+          "preference_strength": 0.86,
+          "conformity": 0.55,
+          "choice": "hike",
+          "followed_preference": true
+        },
+        {
+          "version": 11,
+          "voter": "participant-011",
+          "preferred_activity": "sailing",
+          "preference_strength": 0.65,
+          "conformity": 0.88,
+          "choice": "beach day",
+          "followed_preference": false
+        },
+        {
+          "version": 12,
+          "voter": "participant-012",
+          "preferred_activity": "beach day",
+          "preference_strength": 0.67,
+          "conformity": 0.75,
+          "choice": "beach day",
+          "followed_preference": true
+        },
+        {
+          "version": 13,
+          "voter": "participant-013",
+          "preferred_activity": "bike ride",
+          "preference_strength": 0.65,
+          "conformity": 0.9,
+          "choice": "beach day",
+          "followed_preference": false
+        },
+        {
+          "version": 14,
+          "voter": "participant-014",
+          "preferred_activity": "hike",
+          "preference_strength": 0.65,
+          "conformity": 0.83,
+          "choice": "hike",
+          "followed_preference": true
+        },
+        {
+          "version": 15,
+          "voter": "participant-015",
+          "preferred_activity": "sailing",
+          "preference_strength": 0.62,
+          "conformity": 0.86,
+          "choice": "beach day",
+          "followed_preference": false
+        },
+        {
+          "version": 16,
+          "voter": "participant-016",
+          "preferred_activity": "bike ride",
+          "preference_strength": 0.85,
+          "conformity": 0.61,
+          "choice": "bike ride",
+          "followed_preference": true
+        }
+      ]
+    },
+    {
+      "run": 7,
+      "seed": 737,
+      "counts": {
+        "bike ride": 0,
+        "sailing": 1,
+        "hike": 15,
+        "beach day": 0
+      },
+      "winners": [
+        "hike"
+      ],
+      "winning_count": 15,
+      "first_three_votes": [
+        "hike",
+        "hike",
+        "hike"
+      ],
+      "vote_sequence": [
+        {
+          "version": 1,
+          "voter": "participant-001",
+          "preferred_activity": "hike",
+          "preference_strength": 0.88,
+          "conformity": 0.76,
+          "choice": "hike",
+          "followed_preference": true
+        },
+        {
+          "version": 2,
+          "voter": "participant-002",
+          "preferred_activity": "hike",
+          "preference_strength": 0.66,
+          "conformity": 0.75,
+          "choice": "hike",
+          "followed_preference": true
+        },
+        {
+          "version": 3,
+          "voter": "participant-003",
+          "preferred_activity": "sailing",
+          "preference_strength": 0.64,
+          "conformity": 0.82,
+          "choice": "hike",
+          "followed_preference": false
+        },
+        {
+          "version": 4,
+          "voter": "participant-004",
+          "preferred_activity": "hike",
+          "preference_strength": 0.86,
+          "conformity": 0.68,
+          "choice": "hike",
+          "followed_preference": true
+        },
+        {
+          "version": 5,
+          "voter": "participant-005",
+          "preferred_activity": "bike ride",
+          "preference_strength": 0.89,
+          "conformity": 0.88,
+          "choice": "hike",
+          "followed_preference": false
+        },
+        {
+          "version": 6,
+          "voter": "participant-006",
+          "preferred_activity": "bike ride",
+          "preference_strength": 0.79,
+          "conformity": 0.68,
+          "choice": "hike",
+          "followed_preference": false
+        },
+        {
+          "version": 7,
+          "voter": "participant-007",
+          "preferred_activity": "hike",
+          "preference_strength": 0.79,
+          "conformity": 0.81,
+          "choice": "hike",
+          "followed_preference": true
+        },
+        {
+          "version": 8,
+          "voter": "participant-008",
+          "preferred_activity": "beach day",
+          "preference_strength": 0.73,
+          "conformity": 0.63,
+          "choice": "hike",
+          "followed_preference": false
+        },
+        {
+          "version": 9,
+          "voter": "participant-009",
+          "preferred_activity": "bike ride",
+          "preference_strength": 0.6,
+          "conformity": 0.8,
+          "choice": "hike",
+          "followed_preference": false
+        },
+        {
+          "version": 10,
+          "voter": "participant-010",
+          "preferred_activity": "sailing",
+          "preference_strength": 0.7,
+          "conformity": 0.79,
+          "choice": "hike",
+          "followed_preference": false
+        },
+        {
+          "version": 11,
+          "voter": "participant-011",
+          "preferred_activity": "beach day",
+          "preference_strength": 0.86,
+          "conformity": 0.62,
+          "choice": "hike",
+          "followed_preference": false
+        },
+        {
+          "version": 12,
+          "voter": "participant-012",
+          "preferred_activity": "sailing",
+          "preference_strength": 0.71,
+          "conformity": 0.78,
+          "choice": "hike",
+          "followed_preference": false
+        },
+        {
+          "version": 13,
+          "voter": "participant-013",
+          "preferred_activity": "beach day",
+          "preference_strength": 0.68,
+          "conformity": 0.72,
+          "choice": "hike",
+          "followed_preference": false
+        },
+        {
+          "version": 14,
+          "voter": "participant-014",
+          "preferred_activity": "beach day",
+          "preference_strength": 0.89,
+          "conformity": 0.7,
+          "choice": "hike",
+          "followed_preference": false
+        },
+        {
+          "version": 15,
+          "voter": "participant-015",
+          "preferred_activity": "sailing",
+          "preference_strength": 0.84,
+          "conformity": 0.7,
+          "choice": "sailing",
+          "followed_preference": true
+        },
+        {
+          "version": 16,
+          "voter": "participant-016",
+          "preferred_activity": "bike ride",
+          "preference_strength": 0.7,
+          "conformity": 0.78,
+          "choice": "hike",
+          "followed_preference": false
+        }
+      ]
+    },
+    {
+      "run": 8,
+      "seed": 738,
+      "counts": {
+        "bike ride": 0,
+        "sailing": 1,
+        "hike": 15,
+        "beach day": 0
+      },
+      "winners": [
+        "hike"
+      ],
+      "winning_count": 15,
+      "first_three_votes": [
+        "hike",
+        "sailing",
+        "hike"
+      ],
+      "vote_sequence": [
+        {
+          "version": 1,
+          "voter": "participant-001",
+          "preferred_activity": "hike",
+          "preference_strength": 0.86,
+          "conformity": 0.65,
+          "choice": "hike",
+          "followed_preference": true
+        },
+        {
+          "version": 2,
+          "voter": "participant-002",
+          "preferred_activity": "sailing",
+          "preference_strength": 0.84,
+          "conformity": 0.59,
+          "choice": "sailing",
+          "followed_preference": true
+        },
+        {
+          "version": 3,
+          "voter": "participant-003",
+          "preferred_activity": "hike",
+          "preference_strength": 0.64,
+          "conformity": 0.9,
+          "choice": "hike",
+          "followed_preference": true
+        },
+        {
+          "version": 4,
+          "voter": "participant-004",
+          "preferred_activity": "bike ride",
+          "preference_strength": 0.8,
+          "conformity": 0.85,
+          "choice": "hike",
+          "followed_preference": false
+        },
+        {
+          "version": 5,
+          "voter": "participant-005",
+          "preferred_activity": "bike ride",
+          "preference_strength": 0.87,
+          "conformity": 0.83,
+          "choice": "hike",
+          "followed_preference": false
+        },
+        {
+          "version": 6,
+          "voter": "participant-006",
+          "preferred_activity": "beach day",
+          "preference_strength": 0.79,
+          "conformity": 0.79,
+          "choice": "hike",
+          "followed_preference": false
+        },
+        {
+          "version": 7,
+          "voter": "participant-007",
+          "preferred_activity": "beach day",
+          "preference_strength": 0.81,
+          "conformity": 0.87,
+          "choice": "hike",
+          "followed_preference": false
+        },
+        {
+          "version": 8,
+          "voter": "participant-008",
+          "preferred_activity": "hike",
+          "preference_strength": 0.74,
+          "conformity": 0.71,
+          "choice": "hike",
+          "followed_preference": true
+        },
+        {
+          "version": 9,
+          "voter": "participant-009",
+          "preferred_activity": "beach day",
+          "preference_strength": 0.66,
+          "conformity": 0.84,
+          "choice": "hike",
+          "followed_preference": false
+        },
+        {
+          "version": 10,
+          "voter": "participant-010",
+          "preferred_activity": "sailing",
+          "preference_strength": 0.86,
+          "conformity": 0.86,
+          "choice": "hike",
+          "followed_preference": false
+        },
+        {
+          "version": 11,
+          "voter": "participant-011",
+          "preferred_activity": "bike ride",
+          "preference_strength": 0.8,
+          "conformity": 0.63,
+          "choice": "hike",
+          "followed_preference": false
+        },
+        {
+          "version": 12,
+          "voter": "participant-012",
+          "preferred_activity": "hike",
+          "preference_strength": 0.77,
+          "conformity": 0.69,
+          "choice": "hike",
+          "followed_preference": true
+        },
+        {
+          "version": 13,
+          "voter": "participant-013",
+          "preferred_activity": "beach day",
+          "preference_strength": 0.84,
+          "conformity": 0.68,
+          "choice": "hike",
+          "followed_preference": false
+        },
+        {
+          "version": 14,
+          "voter": "participant-014",
+          "preferred_activity": "bike ride",
+          "preference_strength": 0.72,
+          "conformity": 0.79,
+          "choice": "hike",
+          "followed_preference": false
+        },
+        {
+          "version": 15,
+          "voter": "participant-015",
+          "preferred_activity": "sailing",
+          "preference_strength": 0.84,
+          "conformity": 0.83,
+          "choice": "hike",
+          "followed_preference": false
+        },
+        {
+          "version": 16,
+          "voter": "participant-016",
+          "preferred_activity": "sailing",
+          "preference_strength": 0.89,
+          "conformity": 0.89,
+          "choice": "hike",
+          "followed_preference": false
+        }
+      ]
+    },
+    {
+      "run": 9,
+      "seed": 739,
+      "counts": {
+        "bike ride": 16,
+        "sailing": 0,
+        "hike": 0,
+        "beach day": 0
+      },
+      "winners": [
+        "bike ride"
+      ],
+      "winning_count": 16,
+      "first_three_votes": [
+        "bike ride",
+        "bike ride",
+        "bike ride"
+      ],
+      "vote_sequence": [
+        {
+          "version": 1,
+          "voter": "participant-001",
+          "preferred_activity": "bike ride",
+          "preference_strength": 0.88,
+          "conformity": 0.81,
+          "choice": "bike ride",
+          "followed_preference": true
+        },
+        {
+          "version": 2,
+          "voter": "participant-002",
+          "preferred_activity": "bike ride",
+          "preference_strength": 0.76,
+          "conformity": 0.66,
+          "choice": "bike ride",
+          "followed_preference": true
+        },
+        {
+          "version": 3,
+          "voter": "participant-003",
+          "preferred_activity": "sailing",
+          "preference_strength": 0.69,
+          "conformity": 0.58,
+          "choice": "bike ride",
+          "followed_preference": false
+        },
+        {
+          "version": 4,
+          "voter": "participant-004",
+          "preferred_activity": "bike ride",
+          "preference_strength": 0.81,
+          "conformity": 0.83,
+          "choice": "bike ride",
+          "followed_preference": true
+        },
+        {
+          "version": 5,
+          "voter": "participant-005",
+          "preferred_activity": "sailing",
+          "preference_strength": 0.86,
+          "conformity": 0.75,
+          "choice": "bike ride",
+          "followed_preference": false
+        },
+        {
+          "version": 6,
+          "voter": "participant-006",
+          "preferred_activity": "beach day",
+          "preference_strength": 0.8,
+          "conformity": 0.84,
+          "choice": "bike ride",
+          "followed_preference": false
+        },
+        {
+          "version": 7,
+          "voter": "participant-007",
+          "preferred_activity": "beach day",
+          "preference_strength": 0.6,
+          "conformity": 0.69,
+          "choice": "bike ride",
+          "followed_preference": false
+        },
+        {
+          "version": 8,
+          "voter": "participant-008",
+          "preferred_activity": "sailing",
+          "preference_strength": 0.7,
+          "conformity": 0.56,
+          "choice": "bike ride",
+          "followed_preference": false
+        },
+        {
+          "version": 9,
+          "voter": "participant-009",
+          "preferred_activity": "bike ride",
+          "preference_strength": 0.76,
+          "conformity": 0.55,
+          "choice": "bike ride",
+          "followed_preference": true
+        },
+        {
+          "version": 10,
+          "voter": "participant-010",
+          "preferred_activity": "hike",
+          "preference_strength": 0.67,
+          "conformity": 0.8,
+          "choice": "bike ride",
+          "followed_preference": false
+        },
+        {
+          "version": 11,
+          "voter": "participant-011",
+          "preferred_activity": "hike",
+          "preference_strength": 0.65,
+          "conformity": 0.79,
+          "choice": "bike ride",
+          "followed_preference": false
+        },
+        {
+          "version": 12,
+          "voter": "participant-012",
+          "preferred_activity": "beach day",
+          "preference_strength": 0.8,
+          "conformity": 0.6,
+          "choice": "bike ride",
+          "followed_preference": false
+        },
+        {
+          "version": 13,
+          "voter": "participant-013",
+          "preferred_activity": "sailing",
+          "preference_strength": 0.68,
+          "conformity": 0.75,
+          "choice": "bike ride",
+          "followed_preference": false
+        },
+        {
+          "version": 14,
+          "voter": "participant-014",
+          "preferred_activity": "hike",
+          "preference_strength": 0.75,
+          "conformity": 0.78,
+          "choice": "bike ride",
+          "followed_preference": false
+        },
+        {
+          "version": 15,
+          "voter": "participant-015",
+          "preferred_activity": "beach day",
+          "preference_strength": 0.67,
+          "conformity": 0.9,
+          "choice": "bike ride",
+          "followed_preference": false
+        },
+        {
+          "version": 16,
+          "voter": "participant-016",
+          "preferred_activity": "hike",
+          "preference_strength": 0.78,
+          "conformity": 0.65,
+          "choice": "bike ride",
+          "followed_preference": false
+        }
+      ]
+    },
+    {
+      "run": 10,
+      "seed": 740,
+      "counts": {
+        "bike ride": 15,
+        "sailing": 0,
+        "hike": 0,
+        "beach day": 1
+      },
+      "winners": [
+        "bike ride"
+      ],
+      "winning_count": 15,
+      "first_three_votes": [
+        "bike ride",
+        "bike ride",
+        "bike ride"
+      ],
+      "vote_sequence": [
+        {
+          "version": 1,
+          "voter": "participant-001",
+          "preferred_activity": "bike ride",
+          "preference_strength": 0.65,
+          "conformity": 0.85,
+          "choice": "bike ride",
+          "followed_preference": true
+        },
+        {
+          "version": 2,
+          "voter": "participant-002",
+          "preferred_activity": "bike ride",
+          "preference_strength": 0.81,
+          "conformity": 0.86,
+          "choice": "bike ride",
+          "followed_preference": true
+        },
+        {
+          "version": 3,
+          "voter": "participant-003",
+          "preferred_activity": "beach day",
+          "preference_strength": 0.81,
+          "conformity": 0.66,
+          "choice": "bike ride",
+          "followed_preference": false
+        },
+        {
+          "version": 4,
+          "voter": "participant-004",
+          "preferred_activity": "sailing",
+          "preference_strength": 0.76,
+          "conformity": 0.73,
+          "choice": "bike ride",
+          "followed_preference": false
+        },
+        {
+          "version": 5,
+          "voter": "participant-005",
+          "preferred_activity": "hike",
+          "preference_strength": 0.61,
+          "conformity": 0.63,
+          "choice": "bike ride",
+          "followed_preference": false
+        },
+        {
+          "version": 6,
+          "voter": "participant-006",
+          "preferred_activity": "hike",
+          "preference_strength": 0.64,
+          "conformity": 0.71,
+          "choice": "bike ride",
+          "followed_preference": false
+        },
+        {
+          "version": 7,
+          "voter": "participant-007",
+          "preferred_activity": "bike ride",
+          "preference_strength": 0.81,
+          "conformity": 0.81,
+          "choice": "bike ride",
+          "followed_preference": true
+        },
+        {
+          "version": 8,
+          "voter": "participant-008",
+          "preferred_activity": "beach day",
+          "preference_strength": 0.74,
+          "conformity": 0.84,
+          "choice": "bike ride",
+          "followed_preference": false
+        },
+        {
+          "version": 9,
+          "voter": "participant-009",
+          "preferred_activity": "sailing",
+          "preference_strength": 0.75,
+          "conformity": 0.65,
+          "choice": "bike ride",
+          "followed_preference": false
+        },
+        {
+          "version": 10,
+          "voter": "participant-010",
+          "preferred_activity": "beach day",
+          "preference_strength": 0.85,
+          "conformity": 0.67,
+          "choice": "beach day",
+          "followed_preference": true
+        },
+        {
+          "version": 11,
+          "voter": "participant-011",
+          "preferred_activity": "hike",
+          "preference_strength": 0.76,
+          "conformity": 0.55,
+          "choice": "bike ride",
+          "followed_preference": false
+        },
+        {
+          "version": 12,
+          "voter": "participant-012",
+          "preferred_activity": "beach day",
+          "preference_strength": 0.64,
+          "conformity": 0.81,
+          "choice": "bike ride",
+          "followed_preference": false
+        },
+        {
+          "version": 13,
+          "voter": "participant-013",
+          "preferred_activity": "bike ride",
+          "preference_strength": 0.71,
+          "conformity": 0.76,
+          "choice": "bike ride",
+          "followed_preference": true
+        },
+        {
+          "version": 14,
+          "voter": "participant-014",
+          "preferred_activity": "hike",
+          "preference_strength": 0.79,
+          "conformity": 0.8,
+          "choice": "bike ride",
+          "followed_preference": false
+        },
+        {
+          "version": 15,
+          "voter": "participant-015",
+          "preferred_activity": "sailing",
+          "preference_strength": 0.83,
+          "conformity": 0.64,
+          "choice": "bike ride",
+          "followed_preference": false
+        },
+        {
+          "version": 16,
+          "voter": "participant-016",
+          "preferred_activity": "sailing",
+          "preference_strength": 0.69,
+          "conformity": 0.79,
+          "choice": "bike ride",
+          "followed_preference": false
+        }
+      ]
+    }
+  ]
+}

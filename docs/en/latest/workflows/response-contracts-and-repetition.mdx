@@ -1,0 +1,132 @@
+---
+title: "Response contracts and repetition"
+description: "Validate structured answers and build bounded revision or repeated-game loops."
+---
+
+This chapter continues the [workflow manual](/en/latest/workflows).
+
+## Structured response contracts
+
+Structured contracts compile into standard EDSL questions and a data-only
+validation contract in step metadata. The coordinator revalidates submissions,
+so correctness does not depend on a particular Humanize form or model adapter.
+
+```python
+risk = ChoiceTable(
+    "choices",
+    "Choose A or B in every row.",
+    rows=[str(i) for i in range(1, 11)],
+    options=["A", "B"],
+    require_monotone=True,
+)
+choice = builder.structured_step("risk-list", risk, assigned_to=role("player"))
+```
+
+`ChoiceTable` requires every declared row, validates cell values against the
+shared option set, and can enforce monotone movement through the ordered
+options. `StrategyTable` has the same tabular representation without implying
+monotonicity and is intended for complete contingent plans.
+
+```python
+sanctions = AllocationVector(
+    "points",
+    "Allocate at most five points.",
+    targets=["p2", "p3", "p4"],
+    budget=5,
+    exact=False,
+)
+builder.structured_step("sanction", sanctions, assigned_to=role("player"))
+```
+
+`AllocationVector` requires exactly the declared targets, nonnegative numeric
+allocations, and either equality with or an upper bound on the budget. All
+three contract definitions have `to_dict()` and `from_dict()` representations;
+compiled workflows retain the dictionaries under `response_contracts`.
+
+A table answer is an ordinary mapping-valued workflow expression. Dynamic row
+selection therefore uses the general `get_item` operator:
+
+```python
+paid_row = seeded_integer(1, 10, key="paid-row")
+implemented_choice = choice.answer("choices").value.item(paid_row)
+```
+
+Experiments that require a random value can use a stable, instance-scoped draw:
+
+```python
+offer = seeded_uniform(0, 20, key="bdm-offer")
+event = seeded_uniform(key="forecast-event").compare_at_most(0.6)
+paid_row = seeded_integer(1, 10, key="paid-choice-row")
+```
+
+The coordinator hashes the workflow instance ID and explicit key. Consequently,
+retries and resumed execution see the same draw, while another instance receives
+a different draw. The expression is fully serialized; the value is not sampled
+while the workflow is authored. Use distinct semantic keys for independent draws.
+`seeded_integer()` samples both endpoints inclusively and is useful for selecting
+rows, rounds, and treatment cells.
+
+Dynamic answer bounds are enforced when an answer is submitted:
+
+```python
+builder.step(
+    "return",
+    return_survey,
+    after=sent,
+    answer_bounds={returned_question: (0, sent.answer("sent").value * 3)},
+)
+```
+
+Static survey bounds remain useful for presentation; dynamic bounds are the
+coordinator's authoritative validation rule.
+
+## Bounded repetition
+
+Many workflows are conceptually loops: Delphi rounds, revision cycles,
+negotiations, repeated games, and retry-until-accepted tasks.
+
+Use a repeat block to avoid manually defining every round:
+
+```python
+def build_round(iteration):
+    estimate = QuestionNumerical(
+        question_name="estimate",
+        question_text=f"Round {iteration.number}: give your estimate.",
+        min_value=0,
+        max_value=100,
+    )
+    forecast = iteration.step(
+        "round",
+        Survey([estimate]),
+        assigned_to=role("expert"),
+    )
+    iteration.stop_when(
+        forecast.outputs("estimate").range().at_most(10)
+    )
+
+rounds = builder.repeat(
+    "delphi-rounds",
+    min_iterations=2,
+    max_iterations=3,
+    build=build_round,
+)
+```
+
+The `build` callable is authoring sugar. It runs while constructing the
+definition and is not serialized. The compiled `HumanWorkflow` contains a
+`RepeatBlock` with bounds, iteration numbers, materialized step names, typed
+stop conditions, and repeat metadata on each step.
+
+This distinction is important:
+
+* bounded iterations are materialized during authoring;
+* the persisted definition contains only data;
+* execution after deserialization does not need `build_round`; and
+* future iterations are skipped when the prior stop condition succeeds.
+
+`min_iterations` forces early rounds to run even if their stop conditions are
+already true. `max_iterations` is a hard safety bound.
+
+The current implementation is not an unbounded runtime loop. Large or
+data-dependent iteration counts will eventually require runtime materialization
+of a serializable subworkflow template.

@@ -2,6 +2,12 @@
 
 The EDSL documentation site, built with [Mintlify](https://mintlify.com/docs). Configuration lives in [`docs.json`](./docs.json); content is under `en/latest/` as `.mdx` files.
 
+## Canonical manuals
+
+The complete shared-state and workflow manuals are maintained as Mintlify MDX
+chapters. See [Canonical manuals](MANUALS.md) for their sources, navigation,
+validation commands, and the status of older print snapshots.
+
 ## Local preview
 
 Install the Mintlify CLI:

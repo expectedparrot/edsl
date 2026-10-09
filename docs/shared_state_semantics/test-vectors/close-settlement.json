@@ -1,0 +1,30 @@
+{
+  "name": "close effects settle from the committed open snapshot",
+  "envelope": {
+    "dsl_version": "0.1",
+    "requires": {"operators": {"ref": 1, "set": 1}, "reducers": {"sum": 1}, "algorithms": {}},
+    "limits": {"max_state_bytes": 10000, "max_collection_items": 100},
+    "machine": {
+      "name": "CloseSettlement",
+      "constants": {},
+      "fields": {
+        "values": {"type": {"op": "type", "args": ["sequence"], "kwargs": {"item": {"op": "type", "args": ["number"], "kwargs": {"minimum": null, "maximum": null}}}}, "initial": [10, 20]},
+        "total": {"type": {"op": "type", "args": ["optional"], "kwargs": {"item": {"op": "type", "args": ["number"], "kwargs": {"minimum": null, "maximum": null}}}}, "initial": null}
+      },
+      "commands": {},
+      "view": {
+        "values": {"op": "ref", "args": [], "kwargs": {"namespace": "state", "name": "values"}},
+        "total": {"op": "ref", "args": [], "kwargs": {"namespace": "state", "name": "total"}}
+      },
+      "complete_when": null,
+      "close_effects": [
+        {"op": "set", "target": "total", "args": [{"op": "reduce", "args": ["sum", {"op": "ref", "args": [], "kwargs": {"namespace": "state", "name": "values"}}], "kwargs": {}}], "options": {}}
+      ],
+      "algorithms": []
+    }
+  },
+  "steps": [],
+  "close": true,
+  "expected_state": {"values": [10, 20], "total": 30},
+  "expected_view": {"values": [10, 20], "total": 30}
+}

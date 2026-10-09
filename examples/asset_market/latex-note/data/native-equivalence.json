@@ -1,0 +1,9 @@
+{
+  "equivalent": true,
+  "archived_specification_matches": true,
+  "all_trader_instructions_and_questions_match": true,
+  "decisions_replayed": 204,
+  "settlements_replayed": 17,
+  "saved_accounts_tape_and_orders_match": true,
+  "model_calls": 0
+}

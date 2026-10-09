@@ -1,0 +1,13 @@
+trader,persona,terminal_cash,passive_cash,difference_from_passive,redeemed_shares,gross_traded_quantity
+trader-00,MC,281.09,648.69,-367.6,18,70
+trader-01,RA,742.05,648.69,93.36,0,4
+trader-02,NT,777.05,648.69,128.36,0,44
+trader-03,NT,828.0,648.69,179.31,0,4
+trader-04,RA,742.05,648.69,93.36,0,4
+trader-05,OC,817.14,648.69,168.45,0,4
+trader-06,PC,648.69,648.69,0.0,4,0
+trader-07,BT,631.12,648.69,-17.57,4,32
+trader-08,MC,462.07,648.69,-186.62,7,47
+trader-09,PC,788.07,648.69,139.38,0,4
+trader-10,BT,811.86,648.69,163.17,0,4
+trader-11,OC,255.15,648.69,-393.54,15,11

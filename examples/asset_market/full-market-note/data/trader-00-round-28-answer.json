@@ -1,0 +1,12 @@
+{
+  "decision": {
+    "forecast_0": 31.25,
+    "forecast_2": 33.0,
+    "forecast_5": 35.0,
+    "forecast_10": 14.0,
+    "side": "buy",
+    "price": 31.0,
+    "quantity": 14,
+    "rationale": "Momentum chaser: last transaction is $31.00 and I extrapolate the near-term uptick, so I expect prices to drift modestly higher now and over the next few periods (now ~31.25, 2p ~33.0, 5p ~35.0). I strongly dislike missing rallies, have $439.52 cash, and will use most of it to add exposure by bidding $31.00 for 14 shares (max affordable) to participate if the run continues. I retain my precommitted mental stop-loss near $13.50 (will sell rather than wait on steep dips) and plan to trim/take profits if prices move into the mid-30s or higher. The 10-period-ahead forecast uses the terminal redemption amount ($14) as required."
+  }
+}

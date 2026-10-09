@@ -1,0 +1,18 @@
+{
+  "treatment": "RA+MC+BT+PC+NT+OC",
+  "prompt_variant": "speculative-v1",
+  "seed": 140926,
+  "periods": 30,
+  "backend": "llm",
+  "model": "gpt-5-mini",
+  "service": "openai",
+  "temperature": 1,
+  "reasoning_effort": "medium",
+  "max_tokens": 8000,
+  "source_sha256": {
+    "experiment.py": "b2833819d1604fc731863b892221f821fe917aecb6253f114e0eae19a7ea3770",
+    "run.py": "d3fd349b76f1f403d77fb63213374bc0d1b0e9beb2c4d97e5233138bffad9f7a",
+    "speculative_prompts.py": "f9a5fdd18239a000f0ee96a14ee798d8ca4cc03f0edd006081d755f7cc82155a",
+    "run_gpt5_pilot.py": "e2934cfca9a65982fb2f057c8c6b57a194c5bc72ef4e45e4ef167e20054b6892"
+  }
+}

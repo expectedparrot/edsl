@@ -318,6 +318,7 @@ class Jobs(Base):
             self.run_config.environment.bucket_collection = (
                 self.create_bucket_collection()
             )
+        self._invalidate_filtered_assignment_plan()
 
     @property
     def agents(self):
@@ -342,6 +343,7 @@ class Jobs(Base):
                 self._agents = value
         else:
             self._agents = AgentList([])
+        self._invalidate_filtered_assignment_plan()
 
     def where(self, expression: str) -> Jobs:
         """Filter the agents, scenarios, and models based on a condition.
@@ -424,6 +426,7 @@ class Jobs(Base):
                 self._scenarios = value
         else:
             self._scenarios = ScenarioList([])
+        self._invalidate_filtered_assignment_plan()
 
         # Validate that scenario fields are used in the survey
         if hasattr(self, "survey") and self.survey is not None:
@@ -433,6 +436,12 @@ class Jobs(Base):
 
             checker = CheckSurveyScenarioCompatibility(self.survey, self._scenarios)
             checker.check()
+
+    def _invalidate_filtered_assignment_plan(self) -> None:
+        # Explicit and zipped rows refer to source positions, so same-length
+        # replacements preserve them. Only expression-derived plans are caches.
+        if self.__dict__.get("_include_expression") is not None:
+            self._assignment_plan = None
 
     def _validate_assignment_component(self, axis, value) -> None:
         plan = self.__dict__.get("_assignment_plan")
@@ -1064,7 +1073,7 @@ class Jobs(Base):
                 "<tr>"
                 f"<td>{index}</td>"
                 f"<td><code>{html_module.escape(str(question_name))}</code></td>"
-                f"<td><span class=\"pill\">{html_module.escape(str(question_type))}</span></td>"
+                f'<td><span class="pill">{html_module.escape(str(question_type))}</span></td>'
                 f"<td>{html_module.escape(str(question_text))}</td>"
                 f"<td>{self._jobs_pre_html(self._jobs_question_details(question))}</td>"
                 "</tr>"
@@ -1074,9 +1083,7 @@ class Jobs(Base):
         return (
             "<table><thead><tr>"
             "<th>#</th><th>Name</th><th>Type</th><th>Text</th><th>Details</th>"
-            "</tr></thead><tbody>"
-            + "".join(rows)
-            + "</tbody></table>"
+            "</tr></thead><tbody>" + "".join(rows) + "</tbody></table>"
         )
 
     @staticmethod
@@ -1356,7 +1363,9 @@ class Jobs(Base):
 
         task_history = getattr(results, "task_history", None)
         task_history_dict = (
-            task_history.to_dict() if task_history and hasattr(task_history, "to_dict") else {}
+            task_history.to_dict()
+            if task_history and hasattr(task_history, "to_dict")
+            else {}
         )
         interviews = task_history_dict.get("interviews") or []
         if interviews:
@@ -1366,7 +1375,9 @@ class Jobs(Base):
         saw_any_raw_payload = False
         for row in results:
             answer_dict = getattr(row, "answer", None)
-            if isinstance(answer_dict, dict) and any(value is not None for value in answer_dict.values()):
+            if isinstance(answer_dict, dict) and any(
+                value is not None for value in answer_dict.values()
+            ):
                 saw_any_non_null_answer = True
                 break
 
@@ -1374,7 +1385,9 @@ class Jobs(Base):
                 raw_payload = row["raw_model_response"]
             except Exception:
                 raw_payload = None
-            if isinstance(raw_payload, dict) and any(value not in (None, {}, "") for value in raw_payload.values()):
+            if isinstance(raw_payload, dict) and any(
+                value not in (None, {}, "") for value in raw_payload.values()
+            ):
                 saw_any_raw_payload = True
                 break
 
@@ -1953,7 +1966,9 @@ class Jobs(Base):
                     found.extend(descendants(child))
                 return found
 
-            service_classes = list(dict.fromkeys(descendants(OpenAIService) + descendants(OpenAIServiceV2)))
+            service_classes = list(
+                dict.fromkeys(descendants(OpenAIService) + descendants(OpenAIServiceV2))
+            )
             for svc_cls in service_classes:
                 for client in list(svc_cls._async_client_instances.values()):
                     try:
@@ -1974,12 +1989,21 @@ class Jobs(Base):
         """Execute job locally using the Runner engine."""
         from ..runner.runner import Runner
 
+        schedule = self.run_config.parameters.interview_schedule
+        from .interview_schedule import validate_interview_schedule
+
+        validate_interview_schedule(self, schedule, self.run_config.parameters.n)
         runner = Runner(
-            max_workers=self.run_config.parameters.max_concurrency or 400
+            max_workers=self.run_config.parameters.max_concurrency or 400,
+            interview_schedule=schedule,
         )
         handle = runner.submit(
             self,
-            n=self.run_config.parameters.n,
+            n=(
+                schedule.count
+                if getattr(schedule, "kind", None) == "rounds"
+                else self.run_config.parameters.n
+            ),
             cache=self.run_config.environment.cache,
             stop_on_exception=self.run_config.parameters.stop_on_exception,
             stream_to_cas=True,
@@ -2204,6 +2228,8 @@ class Jobs(Base):
             - Interviews are shuffled before splitting to ensure even distribution across batches
             - The final results maintain the original interview ordering regardless of batch execution order
             - Each batch runs as a completely separate job, allowing for different execution environments
+            - Shared-state or ordered jobs must use run(), or num_batches=1,
+              because splitting them would change state scope and execution order
 
         Example:
             >>> from edsl.jobs import Jobs
@@ -2221,6 +2247,25 @@ class Jobs(Base):
 
         if num_batches <= 0:
             raise ValueError("num_batches must be greater than 0")
+
+        schedule = kwargs.get(
+            "interview_schedule", self.run_config.parameters.interview_schedule
+        )
+        has_state = bool(
+            self.survey._state_reads
+            or self.survey._state_writes
+            or self.survey._state_before_writes
+        )
+        if has_state or schedule != "concurrent":
+            if num_batches == 1:
+                return self.run(**kwargs)
+            from .exceptions import JobsValueError
+
+            raise JobsValueError(
+                "run_batch() cannot split shared-state or ordered jobs into "
+                "independent batches. Use run() or num_batches=1 to preserve "
+                "shared state and the interview schedule."
+            )
 
         # Manually create config from kwargs like @with_config would do
         parameter_fields = {
@@ -2296,7 +2341,7 @@ class Jobs(Base):
                 continue
 
             self._logger.info(
-                f"Running batch {i+1}/{num_batches} with {len(batch)} interviews"
+                f"Running batch {i + 1}/{num_batches} with {len(batch)} interviews"
             )
 
             # Extract just the interviews (without original indices) for this batch
@@ -2316,15 +2361,15 @@ class Jobs(Base):
                         result.order = original_index
                     else:
                         self._logger.warning(
-                            f"Batch {i+1}: more results ({len(batch_result.data)}) than expected ({len(batch)})"
+                            f"Batch {i + 1}: more results ({len(batch_result.data)}) than expected ({len(batch)})"
                         )
 
                 batch_results.append(batch_result)
                 self._logger.info(
-                    f"Batch {i+1} completed with {len(batch_result)} results"
+                    f"Batch {i + 1} completed with {len(batch_result)} results"
                 )
             else:
-                self._logger.warning(f"Batch {i+1} returned None results")
+                self._logger.warning(f"Batch {i + 1} returned None results")
 
         if not batch_results:
             self._logger.warning("No batch results to merge")
@@ -2783,6 +2828,16 @@ class Jobs(Base):
             ],
         }
 
+        schedule = self.run_config.parameters.interview_schedule
+        if schedule != "concurrent":
+            from .interview_schedule import InterviewSchedule
+
+            d["interview_schedule"] = (
+                schedule.to_dict()
+                if isinstance(schedule, InterviewSchedule)
+                else schedule
+            )
+
         # Add _post_run_methods if not empty
         if self._post_run_methods:
             d["_post_run_methods"] = self._post_run_methods
@@ -2829,6 +2884,14 @@ class Jobs(Base):
             models=[LanguageModel.from_dict(model) for model in data["models"]],
             scenarios=[Scenario.from_dict(scenario) for scenario in data["scenarios"]],
         )
+
+        if "interview_schedule" in data:
+            from .interview_schedule import InterviewSchedule
+
+            schedule = data["interview_schedule"]
+            if isinstance(schedule, dict):
+                schedule = InterviewSchedule.from_dict(schedule)
+            job.run_config.parameters.interview_schedule = schedule
 
         # Restore _post_run_methods if present
         if "_post_run_methods" in data:

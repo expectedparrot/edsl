@@ -1,0 +1,72 @@
+{
+  "status": "ok",
+  "summary": {
+    "rounds": 30,
+    "decisions": 360,
+    "volume": 107,
+    "trading_rounds": 17,
+    "first_trade_round": 5,
+    "peak_price": 29.5,
+    "peak_round": 25,
+    "last_transaction_price": 23.75,
+    "longest_consecutive_prices_at_least_17_50": 8,
+    "post_peak_drawdown": 0.19491525423728814,
+    "recorded_model_cost": 1.2877415,
+    "incomplete_result_records": 1,
+    "audit": {
+      "passed": true,
+      "orders": {
+        "submit": 360,
+        "settle": 30
+      },
+      "attempts": {
+        "failed": 1,
+        "succeeded": 390
+      },
+      "all_private_views_and_prompts_verified": true,
+      "shares_redeemed": 48
+    },
+    "execution": {
+      "initial_serial_decisions": 0,
+      "batched_decisions": 360,
+      "edsl_jobs_completed": 30,
+      "edsl_jobs_started": 31,
+      "batches_without_completion_record": 1,
+      "mean_full_round_job_seconds": 35.05532533044582,
+      "pairing": "zip_assign from PR #2622"
+    }
+  },
+  "preserved_359_decisions_and_29_settlements": true,
+  "specification_unchanged": true,
+  "wall_seconds_including_failure_and_recovery": 1905.312221,
+  "original_execution_sources": {
+    "examples/asset_market/typed_market_experiment.py": "0aa6217c08e1c67de649154a221a274127a8cf39890fcaff6c3a738d96676757",
+    "edsl/sharedstate/call_market.py": "6c7b847c17d3ba1c2abdd2f5e6ce188bd2287dd714f3fb9b90507a2ca094f4f6",
+    "edsl/sharedstate/market_rules.py": "918eaef152caf67e860c9623aa1482f3a64301b16a6bd4ffa9915bfa0cd3acfc",
+    "edsl/sharedstate/market_records.py": "0e6e85e1c3d38b694dbce91c89fe8269b55200fd613a7aab7d5e874061c83f0d",
+    "edsl/workflows/experiment.py": "b6063e85ba8fa1f85baff83d00ffa39f8f59db4d02abdfca31a1846728336fd9",
+    "edsl/workflows/coordinator.py": "168a8c0ada07bb09ba283e9f7c36cd553f37913e1121b6b9822534ca27c674d0",
+    "edsl/jobs/assignment_plan.py": "ce428316522187ad28f21364f00f01f24d6c39b495ef783a85f0f7d3ebb7cde7",
+    "edsl/jobs/jobs.py": "619ffdfcd01e65f27d8b3a532dbeeecdd66900ef402679ac7708a74964ee70ec",
+    "edsl/runner/service.py": "f16a0bae07f2b2e805d8ab40d40e392ee93daa26c90d24f124afd56dd5ef0745"
+  },
+  "recovery_source_change": {
+    "edsl/workflows/experiment.py": {
+      "before": "b6063e85ba8fa1f85baff83d00ffa39f8f59db4d02abdfca31a1846728336fd9",
+      "after": "3b9f5607c2b5fb8b5b83b2deda85342616f4ac7fcc2b3a143ba2192c936eede0"
+    }
+  },
+  "new_test_result": "2 passed: null response and partial batch recovery",
+  "failed_result_usage_unavailable": true,
+  "report_sources": {
+    "examples/asset_market/compare_full_markets.py": "a4962f8da6e10c3c4c0aac50c9587927fd76b7528135ad0efe87e8f3b2e89be8",
+    "examples/asset_market/report_full_market.py": "331699c99a21f55654ff879beb4f69bc430a6bc8322a8505ec5fc01c3d9a3064"
+  },
+  "artifact_sha256": {
+    "market.json": "d55d5d475306ea58fc7382028af6b671ff24bc644585dde19cf04b8ea4628a5d",
+    "responses.json": "f8be6641640497476b63a16b0667af5354dc692c78d1cff21d5b716321205a44",
+    "model-calls.jsonl": "237b20fc50b7717e4c8ef7f7bc82fc834938ab1bf68364c9e508d658b6283adc",
+    "recovery.json": "a92f90a6c23f2f49a9b5801890d30847a6c49c92b9592be2eab7ac0388219265",
+    "report/summary.json": "0048e3cd0a87f64a01448336d87cef70bdc227c29810f1664c51135869a84922"
+  }
+}

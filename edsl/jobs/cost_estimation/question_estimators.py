@@ -157,8 +157,12 @@ class InterviewEstimator:
             fixed_per_turn = per_turn_base_tokens + self.avg_utterance_tokens
         else:
             # Standalone fallback: estimate from stored defaults.
-            Q = max(1, len(getattr(question, "question_text", "")) // self.chars_per_token)
-            G = max(1, len(getattr(question, "interview_guide", "")) // self.chars_per_token)
+            Q = max(
+                1, len(getattr(question, "question_text", "")) // self.chars_per_token
+            )
+            G = max(
+                1, len(getattr(question, "interview_guide", "")) // self.chars_per_token
+            )
             fixed_per_turn = (
                 2 * (Q + G)
                 + self.interviewer_overhead_tokens
