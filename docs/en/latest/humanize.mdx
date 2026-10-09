@@ -337,7 +337,7 @@ respondent. The CLI returns only file metadata on stdout, never the links.
 
 ## Prolific integration
 
-For paid recruitment via Prolific, see the [Prolific studies](/en/latest/prolific) page. The short version:
+For paid recruitment via Prolific, see the [Prolific studies](/en/latest/prolific) page. Studies on Expected Parrot's key are limited to your [participant limit](/en/latest/prolific#participant-limit). The short version:
 
 ```python
 from edsl import Coop
@@ -350,11 +350,11 @@ study = coop.create_prolific_study(
     human_survey_uuid=info["uuid"],
     name="Workplace Experience Study",
     description="A short survey about remote and in-office work preferences. Takes about 3 minutes.",
-    num_participants=200,
+    num_participants=100,
     estimated_completion_time_minutes=3,
     participant_payment_cents=75,
 )
 
 # create_prolific_study leaves the study in DRAFT mode — publish to make it live
-coop.publish_prolific_study(human_survey_uuid=info["uuid"])
+coop.publish_prolific_study(info["uuid"], study["study_id"])
 ```

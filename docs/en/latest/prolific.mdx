@@ -11,6 +11,9 @@ More information about the humanize method for generating a shareable web versio
 
 You can create a Prolific study for your EDSL survey from your workspace (in code) or from your account dashboard (interactively). You can also choose whether to use your own Prolific account key or your Expected Parrot key (by default).
 
+- **Expected Parrot's key (default):** the study's cost is paid from your credits balance, and each study can recruit up to your [participant limit](#participant-limit).
+- **Your own Prolific key:** Prolific bills your Prolific account directly, no credits are used for recruitment, and no participant limit applies.
+
 ### Code-based workflow
 
 <Steps>
@@ -31,14 +34,16 @@ Use the humanize method to generate a Project for your survey and a shareable we
 
 Create a `Coop` client object to access your account. Then use `Coop` methods to create a Prolific study for your survey and gather human responses:
 
-- create_prolific_study: Create a new study for the project_uuid and specify the study details (name, description, num_participant, estimated_completion_time (minutes), participant_payment_cents), and optional filters for targeting specific demographics and Prolific participants (IDs list).
+- get_prolific_study_settings: Check which account your new studies will run on, whether they are paid in credits, and your participant limit.
+- create_prolific_study: Create a new study for the project_uuid and specify the study details (name, description, num_participant, estimated_completion_time (minutes), participant_payment_cents), optional filters for targeting specific demographics and Prolific participants (IDs list), and an optional approval_mode (see [Submission approval](#submission-approval)).
 - get_prolific_study: Retrieve the study details for the project_uuid and study_id.
 - list_prolific_filters: Show all the available filters for targeting specific demographics and characteristics of participants. Then use the find method to inspect the available filters by filter_id and the create_study_filter method to create a filter for your study with the desired parameters.
-- update_prolific_study: Update the study with the filters.
+- update_prolific_study: Update a draft study's details, filters or approval mode.
+- preflight_prolific_study: Check a draft study before publishing it, without publishing or spending anything.
 - publish_prolific_study: Publish the study and make it available for participants.
 - get_prolific_study_responses: Retrieve the responses from the study.
-- approve_prolific_study_submission: Approve the responses from the study.
-- reject_prolific_study_submission: Reject the responses from the study.
+- approve_prolific_study_submission: Approve the responses from a study that uses manual review.
+- reject_prolific_study_submission: Reject the responses from a study that uses manual review.
 
 </Step>
 </Steps>
@@ -59,7 +64,7 @@ Select the **Run with humans** option and fill in the study details:
 
 - **Study name** *(Shown to participants)*
 - **Description** *(Shown to participants)*
-- **Required number of participants:** Specify how many participants you want to recruit.
+- **Required number of participants:** Specify how many participants you want to recruit. On Expected Parrot's key, this can't exceed your [participant limit](#participant-limit).
 - **Estimated completion time:** Provide an estimate of how long it will take participants to complete the survey.
 - **Participant payment amount:** Set the payment amount for participants.
 - **Participant allowlist:** Optionally, you can specify a list of Prolific IDs of participants who are allowed to take part in the study.
@@ -190,6 +195,7 @@ study = coop.create_prolific_study(
     num_participants=1,
     estimated_completion_time_minutes=1,  # in minutes
     participant_payment_cents=50,  # payment amount in cents
+    # approval_mode="manual",  # optional; submissions are approved automatically by default
 )
 
 # Inspect the study details
@@ -211,7 +217,17 @@ Example output:
 'total_cost_cents': 71,
 'device_compatibility': ['desktop', 'mobile', 'tablet'],
 'peripheral_requirements': [],
-'filters': []}
+'filters': [],
+'approval_mode': 'automatic'}
+```
+
+<a id="submission-approval"></a>
+**Submission approval:** By default, a submission is approved and the participant is paid as soon as they enter the completion code. To review submissions yourself, pass `approval_mode="manual"` when you create the study. With manual review, participants are paid when you approve their submissions, or when Prolific automatically approves them 21 days after completion.
+
+You can change the approval mode while the study is still a draft. It can't be changed after the study is published:
+
+```python
+coop.update_prolific_study(project_uuid, study["study_id"], approval_mode="manual")
 ```
 
 Inspect the study details:
@@ -346,14 +362,14 @@ Example output:
 'values': ['United States', 'Canada']}]}
 ```
 
-**Publish the study:** The above steps have created a draft study. To make it available for participants (*note*: this consumes credits):
+**Publish the study:** The above steps have created a draft study. To make it available for participants (*note*: on Expected Parrot's key, this consumes credits):
 
 ```python
 # Publish the study
 coop.publish_prolific_study(project_uuid, study_id)
 ```
 
-**Retrieve the study responses:** After the study is published and participants have completed it, you can retrieve the responses, together with the submission ID for each response, which you can use to approve or reject submissions:
+**Retrieve the study responses:** After the study is published and participants have completed it, you can retrieve the responses, together with the submission ID for each response. For a study that uses manual review, you can use the submission IDs to approve or reject submissions:
 
 ```python
 # Get the responses from the study
@@ -408,7 +424,31 @@ combined_results.select("persona", "location", "drive", "count", "enjoy")
 
 ## Costs
 
-Credits for launching Prolific studies are deducted from your credits balance. The total cost of a Prolific study is calculated based on the number of participants, the payment amount you set for each participant, and the Prolific platform fee for each response. These costs are displayed at the project page when you create the study, which include the Prolific platform fee and the payment to participants.
+Credits for launching Prolific studies on Expected Parrot's key are deducted from your credits balance. The total cost of a Prolific study is calculated based on the number of participants, the payment amount you set for each participant, and the Prolific platform fee for each response. These costs are displayed at the project page when you create the study, which include the Prolific platform fee and the payment to participants.
+
+Studies on your own Prolific key are billed by Prolific to your Prolific account, and no credits are used for recruitment.
+
+### Participant limit
+
+Each study on Expected Parrot's key can recruit up to a set number of participants. Creating a study, raising its number of participants, or publishing it beyond your limit is refused. To check your limit:
+
+```python
+from edsl import Coop
+
+coop = Coop()
+coop.get_prolific_study_settings()
+```
+
+Example output:
+
+```python
+{'key_source': 'ep',
+'charged_in_credits': True,
+'participant_limit': 100,
+'participant_limit_applies': True}
+```
+
+`participant_limit` applies only when `participant_limit_applies` is `True`, i.e. when your new studies run on Expected Parrot's key. To request a higher limit, email [info@expectedparrot.com](mailto:info@expectedparrot.com).
 
 You can view your credits balance at your [Credits](https://www.expectedparrot.com/credits) of your account individual transactions at your [Transactions](https://www.expectedparrot.com/transactions) page.
 

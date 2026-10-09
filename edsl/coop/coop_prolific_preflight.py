@@ -46,12 +46,20 @@ def preflight(coop, human_survey_uuid, study_id, *, required_questions=None,
     if expected_survey is not None and survey.to_dict(False) != expected_survey.to_dict(False):
         blockers.append("The deployed survey differs from the expected Survey.")
 
+    # On the researcher's own key, Prolific bills recruitment directly, so it isn't
+    # charged in credits. A draft keeps the key it was created on. Anything else,
+    # including no key reported or a value this version doesn't know, is costed
+    # as Expected Parrot's account.
+    key_source = study.get("key_source") or "ep"
+    on_own_key = key_source == "user_key"
+
     cost = coop.calculate_prolific_study_cost(
         participant_payment_cents=study["participant_payment_cents"],
         num_participants=study["num_participants"],
         estimated_completion_time_minutes=study["estimated_completion_time_minutes"],
     )
-    recruitment = _credits(cost["cost_credits"], "Recruitment credits")
+    quote = _credits(cost["cost_credits"], "Recruitment credits")
+    recruitment = 0 if on_own_key else quote
     total = recruitment if required_credits is None else required_credits
     if cost["is_underpayment"]:
         blockers.append("Participant payment is below the supported minimum.")
@@ -65,6 +73,6 @@ def preflight(coop, human_survey_uuid, study_id, *, required_questions=None,
         "human_survey_uuid": human_survey_uuid, "survey_uuid": survey_uuid,
         "question_names": names, "missing_questions": missing,
         "recruitment_credits": recruitment, "required_credits": total,
-        "balance_credits": balance,
+        "balance_credits": balance, "key_source": key_source,
         "cost_scope": "recruitment_only" if required_credits is None else "caller_supplied_total",
     }
