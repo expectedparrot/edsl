@@ -1,23 +1,23 @@
 """LMSR is retained as a versioned scientific algorithm boundary."""
 
-from edsl.sharedstate import Command, Machine, T, algorithm, constant, expr, field, input_, state_field
+from edsl.sharedstate import Command, Machine, StateType, algorithm, constant, expr, field, arg, state_field
 
 SPEC = Machine(
     name="SharedBinaryMarket",
     constants={"contract": "Event occurs", "liquidity": 50, "initial_cash": 100},
     fields={
-        "q_yes": state_field(T.number(), 0),
-        "q_no": state_field(T.number(), 0),
-        "portfolios": state_field(T.map(), {}),
-        "trades": state_field(T.sequence(), []),
-        "outcome": state_field(T.optional(T.boolean()), None),
+        "q_yes": state_field(StateType.number(), 0),
+        "q_no": state_field(StateType.number(), 0),
+        "portfolios": state_field(StateType.map(), {}),
+        "trades": state_field(StateType.sequence(), []),
+        "outcome": state_field(StateType.optional(StateType.boolean()), None),
     },
     commands={
         "trade": Command(
-            inputs={"trader": T.text(), "action": T.choice(("buy_yes", "buy_no", "hold")), "quantity": T.number(minimum=0)},
-            effects=(algorithm("lmsr_trade", trader=input_("trader"), action=input_("action"), quantity=input_("quantity")),),
+            inputs={"trader": StateType.text(), "action": StateType.choice(("buy_yes", "buy_no", "hold")), "quantity": StateType.number(minimum=0)},
+            effects=(algorithm("lmsr_trade", trader=arg("trader"), action=arg("action"), quantity=arg("quantity")),),
         ),
-        "settle": Command(inputs={"outcome": T.boolean()}, effects=(algorithm("lmsr_settle", outcome=input_("outcome")),)),
+        "settle": Command(inputs={"outcome": StateType.boolean()}, effects=(algorithm("lmsr_settle", outcome=arg("outcome")),)),
     },
     view={
         "portfolios": field("portfolios"),

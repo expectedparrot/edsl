@@ -13,14 +13,14 @@ illustrate alternative fields, commands, and views.
 Import the small shared-state language:
 
 ```python
-from edsl.sharedstate.dsl import (
+from edsl.sharedstate import (
     Machine,
     Command,
-    T,
+    StateType,
     state_field,
     constant,
     field,
-    input_,
+    arg,
     put,
 )
 ```
@@ -37,9 +37,9 @@ activity_poll = Machine(
 
     fields={
         "votes": state_field(
-            T.map(
-                T.text(),
-                T.choice(constant("activities")),
+            StateType.map(
+                StateType.text(),
+                StateType.choice(constant("activities")),
             ),
             initial={},
         ),
@@ -48,14 +48,14 @@ activity_poll = Machine(
     commands={
         "vote": Command(
             inputs={
-                "voter": T.text(),
-                "activity": T.choice(constant("activities")),
+                "voter": StateType.text(),
+                "activity": StateType.choice(constant("activities")),
             },
             effects=(
                 put(
                     "votes",
-                    key=input_("voter"),
-                    value=input_("activity"),
+                    key=arg("voter"),
+                    value=arg("activity"),
                     once=True,
                 ),
             ),
@@ -101,9 +101,9 @@ Fields persist between commands:
 
 ```python
 "votes": state_field(
-    T.map(
-        T.text(),
-        T.choice(constant("activities")),
+    StateType.map(
+        StateType.text(),
+        StateType.choice(constant("activities")),
     ),
     initial={},
 )
@@ -118,18 +118,20 @@ The initial state is:
 {"votes": {}}
 ```
 
+`StateType` is the namespace for shared-state type constructors such as `StateType.text()` and `StateType.integer()`.
+
 The main field types are:
 
 ```python
-T.boolean()
-T.text()
-T.number(minimum=0, maximum=100)
-T.integer(minimum=1)
-T.choice(options)
-T.rank(options)
-T.optional(T.text())
-T.sequence(T.text())
-T.map(T.text(), T.number())
+StateType.boolean()
+StateType.text()
+StateType.number(minimum=0, maximum=100)
+StateType.integer(minimum=1)
+StateType.choice(options)
+StateType.rank(options)
+StateType.optional(StateType.text())
+StateType.sequence(StateType.text())
+StateType.map(StateType.text(), StateType.number())
 ```
 
 Types are contracts, not comments. EDSL checks initial values and every proposed
@@ -137,20 +139,20 @@ transition against them.
 
 ## Records and early validation
 
-Use `T.record` when a value has named fields with different types:
+Use `StateType.record` when a value has named fields with different types:
 
 ```python
-account_type = T.record({
-    "balance": T.number(),
-    "label": T.optional(T.text()),
-    "entries": T.sequence(T.record({"amount": T.number()})),
+account_type = StateType.record({
+    "balance": StateType.number(),
+    "label": StateType.optional(StateType.text()),
+    "entries": StateType.sequence(StateType.record({"amount": StateType.number()})),
 })
 ```
 
-Every declared field is required. `T.optional(T.text())` permits `None`; it does
+Every declared field is required. `StateType.optional(StateType.text())` permits `None`; it does
 not permit omitting `label`. Records reject undeclared fields by default. Use
-`T.record({...}, allow_extra=True)` for an extensible record: declared fields
-remain required and extra values must still be finite JSON data. Use `T.map`
+`StateType.record({...}, allow_extra=True)` for an extensible record: declared fields
+remain required and extra values must still be finite JSON data. Use `StateType.map`
 for a dictionary with dynamic keys such as participant IDs.
 
 These schemas serialize with the Machine. EDSL checks them recursively for
@@ -198,20 +200,20 @@ Declare an optional `accumulator_type` for `fold` or `state_type` for `iterate`
 when the carried value should satisfy the same contract throughout execution:
 
 ```python
-from edsl.sharedstate import T, fold, input_, local
+from edsl.sharedstate import StateType, fold, arg, local
 
 running_total = fold(
-    input_("amounts"),
+    arg("amounts"),
     0,
     item="amount",
     accumulator="total",
-    accumulator_type=T.number(),
+    accumulator_type=StateType.number(),
     body=local("total") + local("amount"),
 )
 ```
 
 The command surrounding this expression declares `amounts` as
-`T.sequence(T.number())`. The invariant serializes with the expression. Static
+`StateType.sequence(StateType.number())`. The invariant serializes with the expression. Static
 checks use it to resolve accumulator members and reject known incompatible seed
 or body types. Runtime checks validate the seed, even for an empty fold or a
 zero-step iteration, and every subsequent carried value. Bounds and other
@@ -391,14 +393,14 @@ A command defines one legal kind of write:
 ```python
 "vote": Command(
     inputs={
-        "voter": T.text(),
-        "activity": T.choice(constant("activities")),
+        "voter": StateType.text(),
+        "activity": StateType.choice(constant("activities")),
     },
     effects=(
         put(
             "votes",
-            key=input_("voter"),
-            value=input_("activity"),
+            key=arg("voter"),
+            value=arg("activity"),
             once=True,
         ),
     ),
@@ -408,7 +410,7 @@ A command defines one legal kind of write:
 The caller cannot omit an input, invent an extra one, supply a non-text voter,
 or submit an activity outside the configured choices.
 
-`input_("voter")` and `input_("activity")` refer to validated command inputs.
+`arg("voter")` and `arg("activity")` refer to validated command inputs.
 They form serializable expressions rather than reading Python variables now.
 
 The `put` effect adds one map entry. `once=True` leaves an existing key
@@ -430,11 +432,11 @@ A command may contain several effects:
 
 ```python
 effects=(
-    set_once("proposer", input_("player")),
-    set_once("offer", input_("amount")),
+    set_once("proposer", arg("player")),
+    set_once("offer", arg("amount")),
     append(
         "history",
-        record(player=input_("player"), amount=input_("amount")),
+        record(player=arg("player"), amount=arg("amount")),
     ),
 )
 ```
@@ -451,11 +453,11 @@ A command can declare when it applies:
 ```python
 respond = Command(
     inputs={
-        "decision": T.choice(["accept", "reject"]),
+        "decision": StateType.choice(["accept", "reject"]),
     },
     require=field("offer") != None,
     effects=(
-        set_once("decision", input_("decision")),
+        set_once("decision", arg("decision")),
     ),
 )
 ```
@@ -474,14 +476,14 @@ is processed as a no-op. Use `assert_` or `reject` when an attempted action shou
 be explicitly refused:
 
 ```python
-from edsl.sharedstate import Command, T, assert_, field, input_, reject, set_, when
+from edsl.sharedstate import Command, StateType, assert_, field, arg, reject, set_, when
 
 withdraw = Command(
-    inputs={"amount": T.number()},
+    inputs={"amount": StateType.number()},
     effects=(
-        assert_(input_("amount") > 0, code="invalid_amount"),
-        assert_(field("balance") >= input_("amount"), code="insufficient_funds"),
-        set_("balance", field("balance") - input_("amount")),
+        assert_(arg("amount") > 0, code="invalid_amount"),
+        assert_(field("balance") >= arg("amount"), code="insufficient_funds"),
+        set_("balance", field("balance") - arg("amount")),
     ),
 )
 
@@ -597,7 +599,7 @@ stored redundantly.
 Views can hide information until close:
 
 ```python
-from edsl.sharedstate.dsl import choose, current as current_value
+from edsl.sharedstate import choose, current_value
 
 view={
     "ballot_count": field("ballots").length(),

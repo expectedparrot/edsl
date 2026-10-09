@@ -12,8 +12,8 @@ import random
 
 from edsl import Agent, QuestionDict, QuestionFreeText, Survey
 from edsl.sharedstate import (
-    Command, Machine, SharedState, SharedStateMap, T, algorithm,
-    current, field, input_, state_field,
+    Command, Machine, SharedState, SharedStateMap, StateType, algorithm,
+    current, field, arg, state_field,
 )
 from edsl.sharedstate.dsl_runtime import default_runtime
 from edsl.workflows import Workflow, role
@@ -285,22 +285,22 @@ def build_experiment(*, periods=30, seed=140926, state_id="asset-market"):
     machine = Machine(
         name="AssetCallMarket", constants={"periods": periods, "seed": seed},
         fields={
-            "accounts": state_field(T.map(), accounts),
-            "orders": state_field(T.map(), {}),
-            "order_log": state_field(T.sequence(), []),
-            "tape": state_field(T.sequence(), []),
-            "period": state_field(T.integer(), 1),
-            "last_price": state_field(T.number(), 14.0),
-            "finished": state_field(T.boolean(), False),
+            "accounts": state_field(StateType.map(), accounts),
+            "orders": state_field(StateType.map(), {}),
+            "order_log": state_field(StateType.sequence(), []),
+            "tape": state_field(StateType.sequence(), []),
+            "period": state_field(StateType.integer(), 1),
+            "last_price": state_field(StateType.number(), 14.0),
+            "finished": state_field(StateType.boolean(), False),
         },
         commands={
             "submit": Command(
-                inputs={"trader": T.text(), "period": T.integer(), "decision": T.map()},
-                effects=(algorithm("asset_market_submit", trader=input_("trader"), period=input_("period"), decision=input_("decision")),),
+                inputs={"trader": StateType.text(), "period": StateType.integer(), "decision": StateType.map()},
+                effects=(algorithm("asset_market_submit", trader=arg("trader"), period=arg("period"), decision=arg("decision")),),
             ),
             "settle": Command(
-                inputs={"period": T.integer()},
-                effects=(algorithm("asset_market_settle", period=input_("period")),),
+                inputs={"period": StateType.integer()},
+                effects=(algorithm("asset_market_settle", period=arg("period")),),
             ),
         },
         view={

@@ -12,14 +12,13 @@ from edsl.sharedstate import (
     SharedState,
     SharedStateMap,
     SQLiteStateBackend,
-    T,
+    StateType,
     UnsupportedCapabilityError,
     algorithm,
     choose,
     expr,
     field,
     fold,
-    input_,
     iterate,
     local,
     record,
@@ -35,7 +34,7 @@ def machine(expression=1):
     return Machine(
         name="Portable",
         constants={},
-        fields={"value": state_field(T.any(), 0)},
+        fields={"value": state_field(StateType.any(), 0)},
         commands={"save": Command({}, (set_("value", expression),))},
         view={"value": field("value")},
     )
@@ -52,7 +51,7 @@ def test_requirements_are_derived_sorted_unique_and_roundtrip_stable():
         record(n=0),
         item="i",
         accumulator="a",
-        accumulator_type=T.record({"n": T.integer()}),
+        accumulator_type=StateType.record({"n": StateType.integer()}),
         body=record(n=local("a").get("n") + local("i")),
     )
     spec = machine(expression)
@@ -81,11 +80,11 @@ def test_all_definition_contexts_are_checked(location):
     spec = machine()
     unsupported = expr("exp", 0)
     if location == "initial":
-        spec = replace(spec, fields={"value": state_field(T.number(), unsupported)})
+        spec = replace(spec, fields={"value": state_field(StateType.number(), unsupported)})
     elif location == "input":
         spec = replace(
             spec,
-            commands={"save": Command({"amount": T.number(maximum=unsupported)}, ())},
+            commands={"save": Command({"amount": StateType.number(maximum=unsupported)}, ())},
         )
     elif location == "require":
         spec = replace(
@@ -149,13 +148,13 @@ def test_every_machine_entry_point_preflights_before_callbacks(entry):
     [
         (
             fold(
-                [], 0, item="i", accumulator="a", body=0, accumulator_type=T.integer()
+                [], 0, item="i", accumulator="a", body=0, accumulator_type=StateType.integer()
             ),
             "feature:fold.accumulator_type@1",
         ),
         (
             iterate(
-                0, state="s", until=True, step=0, max_steps=0, state_type=T.integer()
+                0, state="s", until=True, step=0, max_steps=0, state_type=StateType.integer()
             ),
             "feature:iterate.state_type@1",
         ),

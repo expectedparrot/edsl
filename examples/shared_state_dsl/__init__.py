@@ -3,10 +3,10 @@
 from edsl.sharedstate import (
     Command,
     Machine,
-    T,
+    StateType,
     append,
     field,
-    input_,
+    arg,
     put,
     record,
     set_,
@@ -14,6 +14,6 @@ from edsl.sharedstate import (
 )
 
 __all__ = [
-    "Command", "Machine", "T", "append", "field", "input_", "put",
+    "Command", "Machine", "StateType", "append", "field", "arg", "put",
     "record", "set_", "set_once",
 ]

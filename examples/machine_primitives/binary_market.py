@@ -8,13 +8,13 @@ an example choice, not a new primitive in the interpreter.
 from edsl.sharedstate import (
     Command,
     Machine,
-    T,
+    StateType,
     choose,
     constant,
     exp,
     expr,
     field,
-    input_,
+    arg,
     let,
     local,
     logsumexp,
@@ -40,14 +40,14 @@ def build_machine(liquidity=50, initial_cash=100):
             ]
         )
 
-    side = choose(input_("action") == "buy_yes", "yes", "no")
-    quantity = input_("quantity")
+    side = choose(arg("action") == "buy_yes", "yes", "no")
+    quantity = arg("quantity")
     quantities = book.get("quantities")
     new_quantities = quantities.with_item(
         local("side"), quantities.get(local("side")) + quantity
     )
     portfolio = book.get("portfolios").get(
-        input_("trader"), record(cash=constant("initial_cash"), yes=0, no=0)
+        arg("trader"), record(cash=constant("initial_cash"), yes=0, no=0)
     )
     updated = (
         local("portfolio")
@@ -57,14 +57,14 @@ def build_machine(liquidity=50, initial_cash=100):
     traded = (
         book.with_item("quantities", local("quantities"))
         .with_item(
-            "portfolios", book.get("portfolios").with_item(input_("trader"), updated)
+            "portfolios", book.get("portfolios").with_item(arg("trader"), updated)
         )
         .with_item(
             "trades",
             book.get("trades").appended(
                 record(
-                    trader=input_("trader"),
-                    action=input_("action"),
+                    trader=arg("trader"),
+                    action=arg("action"),
                     quantity=quantity,
                     cost=local("paid"),
                 )
@@ -72,7 +72,7 @@ def build_machine(liquidity=50, initial_cash=100):
         )
     )
     trade = choose(
-        input_("action") == "hold",
+        arg("action") == "hold",
         book,
         let(
             "side",
@@ -96,7 +96,7 @@ def build_machine(liquidity=50, initial_cash=100):
         value_expr=local("portfolio").with_item(
             "settled_wealth",
             local("portfolio").get("cash")
-            + local("portfolio").get(choose(input_("outcome"), "yes", "no")),
+            + local("portfolio").get(choose(arg("outcome"), "yes", "no")),
         ),
     )
     # A log-domain logistic form avoids overflow at extreme quantities.
@@ -107,7 +107,7 @@ def build_machine(liquidity=50, initial_cash=100):
         constants={"liquidity": liquidity, "initial_cash": initial_cash},
         fields={
             "market": state_field(
-                T.map(),
+                StateType.map(),
                 {
                     "quantities": {"yes": 0, "no": 0},
                     "portfolios": {},
@@ -119,20 +119,20 @@ def build_machine(liquidity=50, initial_cash=100):
         commands={
             "trade": Command(
                 inputs={
-                    "trader": T.text(),
-                    "action": T.choice(["buy_yes", "buy_no", "hold"]),
-                    "quantity": T.number(minimum=0),
+                    "trader": StateType.text(),
+                    "action": StateType.choice(["buy_yes", "buy_no", "hold"]),
+                    "quantity": StateType.number(minimum=0),
                 },
                 require=book.get("outcome") == None,
                 effects=(set_("market", trade),),
             ),
             "settle": Command(
-                inputs={"outcome": T.boolean()},
+                inputs={"outcome": StateType.boolean()},
                 require=book.get("outcome") == None,
                 effects=(
                     set_(
                         "market",
-                        book.with_item("outcome", input_("outcome")).with_item(
+                        book.with_item("outcome", arg("outcome")).with_item(
                             "portfolios", settled
                         ),
                     ),

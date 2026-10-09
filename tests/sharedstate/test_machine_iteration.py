@@ -10,7 +10,7 @@ from edsl.sharedstate import (
     SharedState,
     SharedStateMap,
     SQLiteStateBackend,
-    T,
+    StateType,
     choose,
     exp,
     field,
@@ -33,7 +33,7 @@ def evaluate(expression):
     machine = Machine(
         name="Expression",
         constants={},
-        fields={"answer": state_field(T.any(), None)},
+        fields={"answer": state_field(StateType.any(), None)},
         commands={},
         view={"answer": expression},
     )
@@ -163,7 +163,7 @@ def test_exhaustion_rolls_back_all_effects_and_does_not_commit_sqlite(tmp_path):
     machine = Machine(
         name="AtomicIteration",
         constants={},
-        fields={"marker": state_field(T.integer(), 0)},
+        fields={"marker": state_field(StateType.integer(), 0)},
         commands={"fail": Command({}, (set_("marker", 99), set_("marker", bad)))},
         view={"marker": field("marker")},
     )

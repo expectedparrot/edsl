@@ -7,7 +7,7 @@ implements a gradual subset of the formal type rules, not complete inference.
 from dataclasses import fields, is_dataclass
 from typing import Any
 
-from .dsl import Effect, Expr, Machine, T
+from .dsl import Effect, Expr, Machine, StateType
 from .exceptions import MachineValidationError
 
 
@@ -32,21 +32,21 @@ def _kind(shape):
 def _join(shapes):
     """Widen compatible branches without inventing guarantees for mixed values."""
     if not shapes:
-        return T.any()
+        return StateType.any()
     result = shapes[0]
     for other in shapes[1:]:
         left, right = _kind(result), _kind(other)
         if result.to_dict() == other.to_dict():
             continue
         if {left, right} <= {"integer", "number"}:
-            result = T.number()
+            result = StateType.number()
         elif left == right == "sequence":
-            result = T.sequence(_join([result.kwargs["item"], other.kwargs["item"]]))
+            result = StateType.sequence(_join([result.kwargs["item"], other.kwargs["item"]]))
         elif (
             left == right == "record"
             and result.kwargs["fields"].keys() == other.kwargs["fields"].keys()
         ):
-            result = T.record(
+            result = StateType.record(
                 {
                     k: _join([v, other.kwargs["fields"][k]])
                     for k, v in result.kwargs["fields"].items()
@@ -54,30 +54,30 @@ def _join(shapes):
                 allow_extra=result.kwargs["allow_extra"] or other.kwargs["allow_extra"],
             )
         elif left == right == "map":
-            result = T.map(
+            result = StateType.map(
                 _join([result.kwargs["key"], other.kwargs["key"]]),
                 _join([result.kwargs["value"], other.kwargs["value"]]),
             )
         else:
-            result = T.any()
+            result = StateType.any()
     return result
 
 
 def _literal_shape(value):
     if isinstance(value, bool):
-        return T.boolean()
+        return StateType.boolean()
     if isinstance(value, str):
-        return T.text()
+        return StateType.text()
     if isinstance(value, int):
-        return T.integer()
+        return StateType.integer()
     if isinstance(value, float):
-        return T.number()
+        return StateType.number()
     if isinstance(value, dict):
         # A literal dictionary does not declare that its keys are closed.
-        return T.map(T.text(), _join([_literal_shape(v) for v in value.values()]))
+        return StateType.map(StateType.text(), _join([_literal_shape(v) for v in value.values()]))
     if isinstance(value, (list, tuple)):
-        return T.sequence(_join([_literal_shape(v) for v in value]))
-    return T.any()
+        return StateType.sequence(_join([_literal_shape(v) for v in value]))
+    return StateType.any()
 
 
 class _References:
@@ -105,7 +105,7 @@ class _References:
                 )
         if _kind(shape) == "map":
             return shape.kwargs["value"]
-        return T.any()
+        return StateType.any()
 
     def expect(self, shape, kinds, path, operation):
         # Optional values and choice domains need flow/value analysis. They and
@@ -156,9 +156,9 @@ class _References:
                 self.expression(v, f"{path}[{k!r}]", locals_, inputs)
                 for k, v in value.items()
             ]
-            return T.map(T.text(), _join(shapes))
+            return StateType.map(StateType.text(), _join(shapes))
         if isinstance(value, (tuple, list)):
-            return T.sequence(
+            return StateType.sequence(
                 _join(
                     [
                         self.expression(v, f"{path}[{i}]", locals_, inputs)
@@ -174,7 +174,7 @@ class _References:
                 self.expect(condition, {"boolean"}, path + ".args[0]", "assert")
             self.expression(value.args, path + ".args", locals_, inputs)
             self.expression(value.options, path + ".options", locals_, inputs)
-            return T.any()
+            return StateType.any()
         if not isinstance(value, Expr):
             return _literal_shape(value)
 
@@ -195,7 +195,7 @@ class _References:
                 "local": locals_,
             }
             if namespace == "current":
-                shape = T.any()  # The host supplies this schema.
+                shape = StateType.any()  # The host supplies this schema.
             elif namespace not in spaces:
                 self.fail(path, f"unknown reference namespace {namespace!r}")
             elif root not in spaces[namespace]:
@@ -235,14 +235,14 @@ class _References:
                 )
             if op == "fold":
                 self.expect(args[0], {"sequence", "rank"}, path, op)
-                invariant = value.kwargs.get("accumulator_type", T.any())
+                invariant = value.kwargs.get("accumulator_type", StateType.any())
                 self.expression(
                     invariant, path + ".kwargs['accumulator_type']", locals_, inputs
                 )
                 self.compatible(args[1], invariant, path + ".args[1]")
                 item, accumulator = self.bind(value, ("item", "accumulator"), path)
                 item_shape = (
-                    args[0].kwargs["item"] if _kind(args[0]) == "sequence" else T.any()
+                    args[0].kwargs["item"] if _kind(args[0]) == "sequence" else StateType.any()
                 )
                 body = self.expression(
                     value.kwargs["body"],
@@ -265,7 +265,7 @@ class _References:
                     inputs,
                 )
                 self.expect(limit, {"integer"}, path, "iterate max_steps")
-                invariant = value.kwargs.get("state_type", T.any())
+                invariant = value.kwargs.get("state_type", StateType.any())
                 self.expression(
                     invariant, path + ".kwargs['state_type']", locals_, inputs
                 )
@@ -291,11 +291,11 @@ class _References:
                 if _kind(shape) == "map":
                     key_shape, item_shape = shape.kwargs["key"], shape.kwargs["value"]
                 elif _kind(shape) == "record":
-                    key_shape, item_shape = T.text(), _join(
+                    key_shape, item_shape = StateType.text(), _join(
                         list(shape.kwargs["fields"].values())
                     )
                 else:
-                    key_shape, item_shape = T.any(), T.any()
+                    key_shape, item_shape = StateType.any(), StateType.any()
                 nested = locals_ | {key: key_shape, item: item_shape}
                 k = self.expression(
                     value.kwargs["key_expr"],
@@ -309,10 +309,10 @@ class _References:
                     nested,
                     inputs,
                 )
-                return T.map(k if _kind(k) in {"text", "choice"} else T.any(), v)
+                return StateType.map(k if _kind(k) in {"text", "choice"} else StateType.any(), v)
             self.expect(args[0], {"sequence", "rank"}, path, op)
             (item,) = self.bind(value, ("item",), path)
-            shape = args[0].kwargs["item"] if _kind(args[0]) == "sequence" else T.any()
+            shape = args[0].kwargs["item"] if _kind(args[0]) == "sequence" else StateType.any()
             body_key = "predicate" if op == "filter_items" else "value_expr"
             body = self.expression(
                 value.kwargs[body_key],
@@ -320,7 +320,7 @@ class _References:
                 locals_ | {item: shape},
                 inputs,
             )
-            return args[0] if op == "filter_items" else T.sequence(body)
+            return args[0] if op == "filter_items" else StateType.sequence(body)
 
         kwargs = {
             k: self.expression(v, f"{path}.kwargs[{k!r}]", locals_, inputs)
@@ -333,19 +333,19 @@ class _References:
                 self.expect(args[0], {"text"}, path, op)
                 for shape in args[1:]:
                     self.expect(shape, {"integer"}, path, op)
-                return T.integer()
+                return StateType.integer()
             self.expect(kwargs["seed"], {"text"}, path, op)
             self.expect(args[0], {"sequence", "rank"}, path, op)
             if _kind(args[0]) == "sequence":
                 self.expect(args[0].kwargs["item"], {"text"}, path, op)
-            return T.sequence(T.text())
+            return StateType.sequence(StateType.text())
         if op == "decimal_units":
             self.expect(args[0], {"text"}, path, op)
-            return T.integer()
+            return StateType.integer()
         if op == "round_ratio":
             for shape in args:
                 self.expect(shape, {"integer"}, path, op)
-            return T.integer()
+            return StateType.integer()
         numeric = {"integer", "number"}
         if op in {"subtract", "divide", "absolute", "exp"}:
             for shape in args:
@@ -353,8 +353,8 @@ class _References:
             if op in {"subtract", "absolute"} and all(
                 _kind(shape) == "integer" for shape in args
             ):
-                return T.integer()
-            return T.number()
+                return StateType.integer()
+            return StateType.number()
         if op == "add":
             for shape in args:
                 self.expect(shape, numeric | {"text", "sequence"}, path, op)
@@ -406,17 +406,17 @@ class _References:
                     and not kinds <= numeric
                 ):
                     self.fail(path, f"{op} requires comparable operands")
-            return T.boolean()
+            return StateType.boolean()
         if op in {"strip", "casefold"}:
             self.expect(args[0], {"text"}, path, op)
-            return T.text()
+            return StateType.text()
         if op == "concat":
-            return T.text()
+            return StateType.text()
         if op == "length":
             self.expect(
                 args[0], {"sequence", "rank", "map", "record", "text"}, path, op
             )
-            return T.integer()
+            return StateType.integer()
         if op in {"get", "values", "put_value"}:
             self.expect(args[0], {"map", "record"}, path, op)
         if op in {
@@ -434,11 +434,11 @@ class _References:
         if op == "logsumexp":
             if _kind(args[0]) == "sequence":
                 self.expect(args[0].kwargs["item"], numeric, path, op)
-            return T.number()
+            return StateType.number()
         if op == "type":
             return value
         if op == "record":
-            return T.record(kwargs)
+            return StateType.record(kwargs)
         if op == "get":
             return (
                 (
@@ -450,38 +450,38 @@ class _References:
                 else (
                     _join([args[0].kwargs["value"], args[2]])
                     if _kind(args[0]) == "map"
-                    else T.any()
+                    else StateType.any()
                 )
             )
         if op in {"first", "at"}:
-            item = args[0].kwargs["item"] if _kind(args[0]) == "sequence" else T.any()
+            item = args[0].kwargs["item"] if _kind(args[0]) == "sequence" else StateType.any()
             return _join([item, args[1]]) if op == "first" else item
         if op in {"take", "drop_first", "remove_value"}:
             return args[0]
         if op == "append_value":
             return (
-                T.sequence(_join([args[0].kwargs["item"], args[1]]))
+                StateType.sequence(_join([args[0].kwargs["item"], args[1]]))
                 if _kind(args[0]) == "sequence"
-                else T.any()
+                else StateType.any()
             )
         if op == "put_value":
             if _kind(args[0]) == "record" and isinstance(value.args[1], str):
-                return T.record(
+                return StateType.record(
                     args[0].kwargs["fields"] | {value.args[1]: args[2]},
                     allow_extra=args[0].kwargs["allow_extra"],
                 )
-            return T.map()
+            return StateType.map()
         if op == "values":
             if _kind(args[0]) == "record":
-                return T.sequence(_join(list(args[0].kwargs["fields"].values())))
+                return StateType.sequence(_join(list(args[0].kwargs["fields"].values())))
             return (
-                T.sequence(args[0].kwargs["value"])
+                StateType.sequence(args[0].kwargs["value"])
                 if _kind(args[0]) == "map"
-                else T.any()
+                else StateType.any()
             )
         if op == "if":
             return _join(args[1:])
-        return T.any()
+        return StateType.any()
 
 
 def validate_references(machine: Machine) -> None:

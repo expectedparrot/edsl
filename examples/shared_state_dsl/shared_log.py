@@ -1,15 +1,15 @@
 """An append-only sequence of typed records."""
 
-from edsl.sharedstate import Command, Machine, T, append, field, input_, reduce_, state_field
+from edsl.sharedstate import Command, Machine, StateType, append, field, arg, reduce_, state_field
 
 SPEC = Machine(
     name="SharedLog",
     constants={},
-    fields={"entries": state_field(T.sequence(), [])},
+    fields={"entries": state_field(StateType.sequence(), [])},
     commands={
         "append": Command(
-            inputs={"entry": T.any()},
-            effects=(append("entries", input_("entry")),),
+            inputs={"entry": StateType.any()},
+            effects=(append("entries", arg("entry")),),
         )
     },
     view={

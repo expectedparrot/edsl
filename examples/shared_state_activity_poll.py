@@ -18,10 +18,10 @@ from edsl.sharedstate import (
     Machine,
     SharedState,
     SharedStateMap,
-    T,
+    StateType,
     current,
     field,
-    input_,
+    arg,
     put,
     reduce_,
     state_field,
@@ -44,14 +44,14 @@ def activity_poll() -> Machine:
     return Machine(
         name="ActivityPoll",
         constants={"activities": ACTIVITIES},
-        fields={"votes": state_field(T.map(T.text(), T.choice(ACTIVITIES)), {})},
+        fields={"votes": state_field(StateType.map(StateType.text(), StateType.choice(ACTIVITIES)), {})},
         commands={
             "vote": Command(
                 inputs={
-                    "voter": T.text(),
-                    "activity": T.choice(ACTIVITIES),
+                    "voter": StateType.text(),
+                    "activity": StateType.choice(ACTIVITIES),
                 },
-                effects=(put("votes", input_("voter"), input_("activity")),),
+                effects=(put("votes", arg("voter"), arg("activity")),),
             )
         },
         view={

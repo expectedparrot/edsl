@@ -3,14 +3,14 @@
 from edsl.sharedstate import (
     Command,
     Machine,
-    T,
+    StateType,
     assert_,
     choose,
     constant,
     current_value,
     field,
     filter_items,
-    input_,
+    arg,
     local,
     put,
     record,
@@ -39,7 +39,7 @@ def build_machine(teams=DEFAULT_TEAMS, role_seats=None):
         for k, v in role_seats.items()
     ):
         raise ValueError("roles require nonempty labels and positive integer seats")
-    rid, role, team = input_("respondent_id"), input_("role"), input_("team")
+    rid, role, team = arg("respondent_id"), arg("role"), arg("team")
     profiles, members = field("profiles"), field("members")
 
     def eligible(for_role):
@@ -65,21 +65,21 @@ def build_machine(teams=DEFAULT_TEAMS, role_seats=None):
             "total_seats": len(teams) * sum(role_seats.values()),
         },
         fields={
-            "profiles": state_field(T.map(T.text(), T.choice(list(role_seats))), {}),
+            "profiles": state_field(StateType.map(StateType.text(), StateType.choice(list(role_seats))), {}),
             "members": state_field(
-                T.map(
-                    T.text(),
-                    T.record(
-                        {"team": T.choice(teams), "role": T.choice(list(role_seats))}
+                StateType.map(
+                    StateType.text(),
+                    StateType.record(
+                        {"team": StateType.choice(teams), "role": StateType.choice(list(role_seats))}
                     ),
                 ),
                 {},
             ),
-            "closed": state_field(T.boolean(), False),
+            "closed": state_field(StateType.boolean(), False),
         },
         commands={
             "register": Command(
-                inputs={"respondent_id": T.text(), "role": T.choice(list(role_seats))},
+                inputs={"respondent_id": StateType.text(), "role": StateType.choice(list(role_seats))},
                 effects=(
                     assert_(rid.stripped().length() > 0, code="missing_respondent_id"),
                     assert_(
@@ -94,7 +94,7 @@ def build_machine(teams=DEFAULT_TEAMS, role_seats=None):
                 ),
             ),
             "join": Command(
-                inputs={"respondent_id": T.text(), "team": T.choice(teams)},
+                inputs={"respondent_id": StateType.text(), "team": StateType.choice(teams)},
                 effects=(
                     assert_(profiles.contains(rid), code="role_required"),
                     assert_(

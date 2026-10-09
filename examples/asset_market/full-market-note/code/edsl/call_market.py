@@ -12,7 +12,7 @@ from decimal import Decimal, ROUND_HALF_UP
 import math
 import random
 
-from .dsl import Command, Machine, T, algorithm, current, field, input_, state_field
+from .dsl import Command, Machine, StateType, algorithm, current, field, arg, state_field
 
 
 def validate_rules(constants):
@@ -172,7 +172,7 @@ def call_market(
         constants=constants,
         fields={
             "accounts": state_field(
-                T.map(),
+                StateType.map(),
                 {
                     t: {
                         "cash_cents": initial_cash_cents,
@@ -182,28 +182,28 @@ def call_market(
                     for t in traders
                 },
             ),
-            "orders": state_field(T.map(), {}),
-            "order_log": state_field(T.sequence(), []),
-            "tape": state_field(T.sequence(), []),
-            "period": state_field(T.integer(), 1),
-            "last_price": state_field(T.optional(T.number()), initial_reference_price),
-            "finished": state_field(T.boolean(), False),
+            "orders": state_field(StateType.map(), {}),
+            "order_log": state_field(StateType.sequence(), []),
+            "tape": state_field(StateType.sequence(), []),
+            "period": state_field(StateType.integer(), 1),
+            "last_price": state_field(StateType.optional(StateType.number()), initial_reference_price),
+            "finished": state_field(StateType.boolean(), False),
         },
         commands={
             "submit": Command(
-                inputs={"trader": T.text(), "period": T.integer(), "decision": T.map()},
+                inputs={"trader": StateType.text(), "period": StateType.integer(), "decision": StateType.map()},
                 effects=(
                     algorithm(
                         "call_market_submit",
-                        trader=input_("trader"),
-                        period=input_("period"),
-                        decision=input_("decision"),
+                        trader=arg("trader"),
+                        period=arg("period"),
+                        decision=arg("decision"),
                     ),
                 ),
             ),
             "settle": Command(
-                inputs={"period": T.integer()},
-                effects=(algorithm("call_market_settle", period=input_("period")),),
+                inputs={"period": StateType.integer()},
+                effects=(algorithm("call_market_settle", period=arg("period")),),
             ),
         },
         view={

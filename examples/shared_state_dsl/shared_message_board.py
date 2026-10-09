@@ -1,10 +1,10 @@
 """Append-only messages with normalized optional reply targets."""
 
-from edsl.sharedstate import Command, Machine, T, append, choose, current, expr, field, input_, local, map_sequence, record, state_field
+from edsl.sharedstate import Command, Machine, StateType, append, choose, current, expr, field, arg, local, map_sequence, record, state_field
 
-author = input_("author").stripped()
-message = input_("message").stripped()
-raw_reply = choose(input_("reply_to") == None, "", input_("reply_to").stripped())  # noqa: E711
+author = arg("author").stripped()
+message = arg("message").stripped()
+raw_reply = choose(arg("reply_to") == None, "", arg("reply_to").stripped())  # noqa: E711
 reply = choose(
     (raw_reply == "") | expr("contains", ("none", "new", "new message", "n/a"), raw_reply.casefolded()),
     None,
@@ -20,10 +20,10 @@ public_messages = map_sequence(
 )
 SPEC = Machine(
     name="SharedMessageBoard", constants={},
-    fields={"messages": state_field(T.sequence(T.map()), [])},
+    fields={"messages": state_field(StateType.sequence(StateType.map()), [])},
     commands={
         "add": Command(
-            inputs={"author": T.text(), "message": T.text(), "reply_to": T.optional(T.text())},
+            inputs={"author": StateType.text(), "message": StateType.text(), "reply_to": StateType.optional(StateType.text())},
             require=(author.length() > 0) & (message.length() > 0),
             effects=(append("messages", record(author=author, message=message, reply_to=reply, interview=current("interview_id"))),),
         )

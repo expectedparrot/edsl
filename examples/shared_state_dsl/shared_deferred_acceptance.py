@@ -1,6 +1,6 @@
 """Preference collection plus registered student-proposing deferred acceptance."""
 
-from edsl.sharedstate import Command, Machine, T, algorithm, append, choose, constant, current, field, input_, local, map_items, map_sequence, record, reduce_, state_field
+from edsl.sharedstate import Command, Machine, StateType, algorithm, append, choose, constant, current, field, arg, local, map_items, map_sequence, record, reduce_, state_field
 
 INSTITUTIONS = ("North", "South")
 CAPACITIES = {"North": 1, "South": 1}
@@ -14,11 +14,11 @@ demand = map_items(
 SPEC = Machine(
     name="SharedDeferredAcceptance",
     constants={"capacities": CAPACITIES, "student_count": 2, "priorities": PRIORITIES, "institutions": INSTITUTIONS},
-    fields={"requests": state_field(T.sequence(T.map()), []), "matches": state_field(T.map(), {}), "institution_matches": state_field(T.map(), {})},
+    fields={"requests": state_field(StateType.sequence(StateType.map()), []), "matches": state_field(StateType.map(), {}), "institution_matches": state_field(StateType.map(), {})},
     commands={
         "collect": Command(
-            inputs={"student": T.text(), "ranking": T.rank(INSTITUTIONS)},
-            effects=(append("requests", record(interview=current("interview_id"), student=input_("student"), ranking=input_("ranking"))),),
+            inputs={"student": StateType.text(), "ranking": StateType.rank(INSTITUTIONS)},
+            effects=(append("requests", record(interview=current("interview_id"), student=arg("student"), ranking=arg("ranking"))),),
         )
     },
     view={

@@ -3,14 +3,14 @@
 from edsl.sharedstate import (
     Command,
     Machine,
-    T,
+    StateType,
     assert_,
     choose,
     constant,
     current_value,
     field,
     filter_items,
-    input_,
+    arg,
     local,
     put,
     record,
@@ -33,7 +33,7 @@ def build_machine(slots=DEFAULT_SLOTS):
     ):
         raise ValueError("slots must be unique nonempty labels")
     bookings = field("bookings")
-    token, rid, slot = input_("reservation_id"), input_("respondent_id"), input_("slot")
+    token, rid, slot = arg("reservation_id"), arg("respondent_id"), arg("slot")
     seen = bookings.contains(token)
     old = bookings.get(token, {})
     active = filter_items(
@@ -59,26 +59,26 @@ def build_machine(slots=DEFAULT_SLOTS):
         constants={"slots": slots},
         fields={
             "bookings": state_field(
-                T.map(
-                    T.text(),
-                    T.record(
+                StateType.map(
+                    StateType.text(),
+                    StateType.record(
                         {
-                            "respondent_id": T.text(),
-                            "slot": T.choice(slots),
-                            "status": T.choice(["held", "confirmed", "released"]),
+                            "respondent_id": StateType.text(),
+                            "slot": StateType.choice(slots),
+                            "status": StateType.choice(["held", "confirmed", "released"]),
                         }
                     ),
                 ),
                 {},
             ),
-            "closed": state_field(T.boolean(), False),
+            "closed": state_field(StateType.boolean(), False),
         },
         commands={
             "hold": Command(
                 inputs={
-                    "respondent_id": T.text(),
-                    "reservation_id": T.text(),
-                    "slot": T.choice(slots),
+                    "respondent_id": StateType.text(),
+                    "reservation_id": StateType.text(),
+                    "slot": StateType.choice(slots),
                 },
                 effects=(
                     *identity,
@@ -114,9 +114,9 @@ def build_machine(slots=DEFAULT_SLOTS):
             ),
             "decide": Command(
                 inputs={
-                    "respondent_id": T.text(),
-                    "reservation_id": T.text(),
-                    "decision": T.choice(["Confirm", "Release"]),
+                    "respondent_id": StateType.text(),
+                    "reservation_id": StateType.text(),
+                    "decision": StateType.choice(["Confirm", "Release"]),
                 },
                 effects=(
                     *identity,
@@ -125,7 +125,7 @@ def build_machine(slots=DEFAULT_SLOTS):
                         code="reservation_not_owned",
                     ),
                     assert_(
-                        (input_("decision") == "Release")
+                        (arg("decision") == "Release")
                         | (old.get("status") != "released"),
                         code="reservation_released",
                     ),
@@ -135,7 +135,7 @@ def build_machine(slots=DEFAULT_SLOTS):
                         old.with_item(
                             "status",
                             choose(
-                                input_("decision") == "Confirm", "confirmed", "released"
+                                arg("decision") == "Confirm", "confirmed", "released"
                             ),
                         ),
                     ),

@@ -1,6 +1,6 @@
 """Whole-document revisions with a serializable revision history."""
 
-from edsl.sharedstate import Command, Machine, T, append, constant, field, input_, record, reduce_, set_, state_field
+from edsl.sharedstate import Command, Machine, StateType, append, constant, field, arg, record, reduce_, set_, state_field
 
 SPEC = Machine(
     name="SharedDocument",
@@ -18,15 +18,15 @@ SPEC = Machine(
         ),
     },
     fields={
-        "text": state_field(T.text(), constant("initial_text")),
-        "revisions": state_field(T.sequence(T.map()), []),
+        "text": state_field(StateType.text(), constant("initial_text")),
+        "revisions": state_field(StateType.sequence(StateType.map()), []),
     },
     commands={
         "revise": Command(
-            inputs={"author": T.text(), "round": T.integer(minimum=1), "text": T.text(), "rationale": T.text()},
+            inputs={"author": StateType.text(), "round": StateType.integer(minimum=1), "text": StateType.text(), "rationale": StateType.text()},
             effects=(
-                set_("text", input_("text")),
-                append("revisions", record(author=input_("author"), round=input_("round"), rationale=input_("rationale"), changed=input_("text") != field("text"))),
+                set_("text", arg("text")),
+                append("revisions", record(author=arg("author"), round=arg("round"), rationale=arg("rationale"), changed=arg("text") != field("text"))),
             ),
         )
     },

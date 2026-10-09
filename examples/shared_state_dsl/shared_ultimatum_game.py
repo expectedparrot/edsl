@@ -1,25 +1,25 @@
 """Ultimatum game expressed without a target-specific runtime function."""
 
-from edsl.sharedstate import Command, Machine, T, choose, constant, field, input_, record, set_once, state_field
+from edsl.sharedstate import Command, Machine, StateType, choose, constant, field, arg, record, set_once, state_field
 
 SPEC = Machine(
     name="SharedUltimatumGame",
     constants={"stake": 100},
     fields={
-        "offer": state_field(T.optional(T.number()), None),
-        "proposer": state_field(T.optional(T.text()), None),
-        "responder": state_field(T.optional(T.text()), None),
-        "decision": state_field(T.optional(T.choice(("accept", "reject"))), None),
+        "offer": state_field(StateType.optional(StateType.number()), None),
+        "proposer": state_field(StateType.optional(StateType.text()), None),
+        "responder": state_field(StateType.optional(StateType.text()), None),
+        "decision": state_field(StateType.optional(StateType.choice(("accept", "reject"))), None),
     },
     commands={
         "offer": Command(
-            inputs={"player": T.text(), "amount": T.number(minimum=0, maximum=constant("stake"))},
-            effects=(set_once("proposer", input_("player")), set_once("offer", input_("amount"))),
+            inputs={"player": StateType.text(), "amount": StateType.number(minimum=0, maximum=constant("stake"))},
+            effects=(set_once("proposer", arg("player")), set_once("offer", arg("amount"))),
         ),
         "respond": Command(
-            inputs={"player": T.text(), "decision": T.choice(("accept", "reject"))},
+            inputs={"player": StateType.text(), "decision": StateType.choice(("accept", "reject"))},
             require=field("offer") != None,  # noqa: E711
-            effects=(set_once("responder", input_("player")), set_once("decision", input_("decision"))),
+            effects=(set_once("responder", arg("player")), set_once("decision", arg("decision"))),
         ),
     },
     view={

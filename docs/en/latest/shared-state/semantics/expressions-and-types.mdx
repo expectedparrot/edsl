@@ -55,7 +55,7 @@ $$
 }{
   \Gamma \vdash \operatorname{field}(f) : \tau
 }
-\;\mathrm{T-Field}
+\;\mathrm{StateType-Field}
 $$
 
 Map lookup without a default returns an optional value:
@@ -68,7 +68,7 @@ $$
 }{
   \Gamma \vdash \operatorname{get}(m,k) : \operatorname{Optional}[V]
 }
-\;\mathrm{T-Get-Optional}
+\;\mathrm{StateType-Get-Optional}
 $$
 
 Map lookup with a default of the map's value type returns a non-optional value:
@@ -83,7 +83,7 @@ $$
 }{
   \Gamma \vdash \operatorname{get}(m,k,d) : V
 }
-\;\mathrm{T-Get-Default}
+\;\mathrm{StateType-Get-Default}
 $$
 
 Conditional branches are combined with the least defined type join:
@@ -100,7 +100,7 @@ $$
 }{
   \Gamma \vdash \operatorname{choose}(p,e_1,e_2) : \tau
 }
-\;\mathrm{T-Choose}
+\;\mathrm{StateType-Choose}
 $$
 
 The required joins are:
@@ -153,7 +153,7 @@ map, filter, or similar binding expression.
 The expression:
 
 ```python
-field("votes").get(input_("voter"))
+field("votes").get(arg("voter"))
 ```
 
 is typed in three steps:
@@ -184,7 +184,7 @@ The optional result reflects that this voter may not have voted yet.
 By contrast:
 
 ```python
-field("votes").get(input_("voter"), "hike")
+field("votes").get(arg("voter"), "hike")
 ```
 
 has type `Activity`, because its default is also an `Activity`.
@@ -292,7 +292,7 @@ recognize these operators must reject the definitions.
 
 ## Implemented record and scope checks
 
-`T.record(fields, allow_extra=False)` declares required named members. Optional
+`StateType.record(fields, allow_extra=False)` declares required named members. Optional
 member types admit null, not omission; `allow_extra=True` permits additional
 finite JSON values. Initial values, inputs, and proposed state are checked
 recursively. Machine validation checks lexical scope in all expression contexts

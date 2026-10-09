@@ -29,13 +29,13 @@ a minimum-cost arm, breaks ties with seeded ordering, and preserves prior assign
 from edsl.sharedstate import (
     Command,
     Machine,
-    T,
+    StateType,
     assert_,
     constant,
     current_value,
     field,
     filter_items,
-    input_,
+    arg,
     local,
     map_sequence,
     put,
@@ -56,7 +56,7 @@ EXPERIENCE = ("New", "Experienced")
 def build_machine(seed="balanced-2026"):
     if not isinstance(seed, str) or not seed:
         raise ValueError("seed must be nonempty text")
-    rid, age, experience = input_("respondent_id"), input_("age"), input_("experience")
+    rid, age, experience = arg("respondent_id"), arg("age"), arg("experience")
     assignments = field("assignments")
     rows = assignments.values()
     old = assignments.get(rid, {})
@@ -98,26 +98,26 @@ def build_machine(seed="balanced-2026"):
         constants={"arms": list(ARMS), "seed": seed},
         fields={
             "assignments": state_field(
-                T.map(
-                    T.text(),
-                    T.record(
+                StateType.map(
+                    StateType.text(),
+                    StateType.record(
                         {
-                            "arm": T.choice(ARMS),
-                            "age": T.choice(AGES),
-                            "experience": T.choice(EXPERIENCE),
+                            "arm": StateType.choice(ARMS),
+                            "age": StateType.choice(AGES),
+                            "experience": StateType.choice(EXPERIENCE),
                         }
                     ),
                 ),
                 {},
             ),
-            "closed": state_field(T.boolean(), False),
+            "closed": state_field(StateType.boolean(), False),
         },
         commands={
             "assign": Command(
                 inputs={
-                    "respondent_id": T.text(),
-                    "age": T.choice(AGES),
-                    "experience": T.choice(EXPERIENCE),
+                    "respondent_id": StateType.text(),
+                    "age": StateType.choice(AGES),
+                    "experience": StateType.choice(EXPERIENCE),
                 },
                 effects=(
                     assert_(rid.stripped().length() > 0, code="missing_respondent_id"),

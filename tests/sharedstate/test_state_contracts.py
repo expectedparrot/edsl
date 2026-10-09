@@ -10,9 +10,9 @@ from edsl.sharedstate import (
     SharedState,
     SharedStateMap,
     SQLiteStateBackend,
-    T,
+    StateType,
     field,
-    input_,
+    arg,
     resolve_write,
     set_,
     state_field,
@@ -30,11 +30,11 @@ def machine(input_type=None):
     return Machine(
         name="Contract",
         constants={"label": "original"},
-        fields={"value": state_field(T.any(), None)},
+        fields={"value": state_field(StateType.any(), None)},
         commands={
             "save": Command(
-                {"value": T.number() if input_type is None else input_type},
-                (set_("value", input_("value")),),
+                {"value": StateType.number() if input_type is None else input_type},
+                (set_("value", arg("value")),),
             )
         },
         view={"value": field("value")},
@@ -49,8 +49,8 @@ def state_map(spec=None):
 
 def test_symbolic_boolean_operators_fail_loudly():
     with pytest.raises(TypeError, match="truth value"):
-        (input_("x") > 0) and (input_("x") < 10)
-    condition = (input_("x") > 0) & (input_("x") < 10)
+        (arg("x") > 0) and (arg("x") < 10)
+    condition = (arg("x") > 0) & (arg("x") < 10)
     assert Runtime().evaluate(condition, {"input": {"x": -1}}) is False
 
 
@@ -78,7 +78,7 @@ def test_invalid_effects_fail_before_execution(effect):
 
 
 @pytest.mark.parametrize("value", [float("nan"), float("inf"), float("-inf")])
-@pytest.mark.parametrize("type_expr", [T.number(), T.any()])
+@pytest.mark.parametrize("type_expr", [StateType.number(), StateType.any()])
 def test_nonfinite_values_cannot_enter_state(value, type_expr):
     spec = machine(type_expr)
     with pytest.raises(DSLValidationError, match="finite"):
@@ -87,8 +87,8 @@ def test_nonfinite_values_cannot_enter_state(value, type_expr):
 
 def test_persisted_maps_require_string_keys(tmp_path):
     with pytest.raises(ValueError, match="string map keys"):
-        state_map(machine(T.map(T.integer(), T.text())))
-    spaces = state_map(machine(T.any()))
+        state_map(machine(StateType.map(StateType.integer(), StateType.text())))
+    spaces = state_map(machine(StateType.any()))
     backend = SQLiteStateBackend(spaces, tmp_path / "state.sqlite")
     operation = resolve_write(
         spaces.by("scope").data.save(value={1: "value"}), StepContext({}, "interview")
@@ -99,7 +99,7 @@ def test_persisted_maps_require_string_keys(tmp_path):
 
 
 def test_string_maps_round_trip_without_changing_key_types(tmp_path):
-    spaces = state_map(machine(T.any()))
+    spaces = state_map(machine(StateType.any()))
     backend = SQLiteStateBackend(spaces, tmp_path / "state.sqlite")
     value = {"1": [2, None, {"three": True}]}
     backend.apply(

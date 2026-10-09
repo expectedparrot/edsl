@@ -7,14 +7,14 @@ inside one close effect. No intermediate matching is committed or observable.
 from edsl.sharedstate import (
     Command,
     Machine,
-    T,
+    StateType,
     append,
     choose,
     constant,
     field,
     filter_items,
     fold,
-    input_,
+    arg,
     iterate,
     let,
     local,
@@ -142,11 +142,11 @@ def build_machine(capacities=None, priorities=None):
         )
         + latest.length()
     )
-    allocation_type = T.record(
+    allocation_type = StateType.record(
         {
-            "held": T.map(T.text(), T.sequence(T.text())),
-            "queue": T.sequence(T.text()),
-            "next": T.map(T.text(), T.integer(minimum=0)),
+            "held": StateType.map(StateType.text(), StateType.sequence(StateType.text())),
+            "queue": StateType.sequence(StateType.text()),
+            "next": StateType.map(StateType.text(), StateType.integer(minimum=0)),
         }
     )
     matching = iterate(
@@ -184,11 +184,11 @@ def build_machine(capacities=None, priorities=None):
         constants={"capacities": capacities, "priorities": priorities},
         fields={
             "requests": state_field(
-                T.sequence(
-                    T.record(
+                StateType.sequence(
+                    StateType.record(
                         {
-                            "student": T.text(),
-                            "ranking": T.sequence(T.choice(list(capacities))),
+                            "student": StateType.text(),
+                            "ranking": StateType.sequence(StateType.choice(list(capacities))),
                         }
                     )
                 ),
@@ -202,15 +202,15 @@ def build_machine(capacities=None, priorities=None):
         commands={
             "collect": Command(
                 inputs={
-                    "student": T.text(),
-                    "ranking": T.sequence(T.choice(list(capacities))),
+                    "student": StateType.text(),
+                    "ranking": StateType.sequence(StateType.choice(list(capacities))),
                 },
-                require=reduce_("count_by", input_("ranking")).length()
-                == input_("ranking").length(),
+                require=reduce_("count_by", arg("ranking")).length()
+                == arg("ranking").length(),
                 effects=(
                     append(
                         "requests",
-                        record(student=input_("student"), ranking=input_("ranking")),
+                        record(student=arg("student"), ranking=arg("ranking")),
                     ),
                 ),
             )

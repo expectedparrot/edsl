@@ -30,14 +30,14 @@ filled order with the same quantity is a no-op.
 from edsl.sharedstate import (
     Command,
     Machine,
-    T,
+    StateType,
     assert_,
     choose,
     constant,
     current_value,
     field,
     filter_items,
-    input_,
+    arg,
     local,
     put,
     record,
@@ -68,7 +68,7 @@ def build_machine(stock=5, base_price=20, increment=5, balances=None):
         raise ValueError(
             "stock and price must be positive integers; increment nonnegative"
         )
-    buyer, token, quantity = input_("buyer_id"), input_("order_id"), input_("quantity")
+    buyer, token, quantity = arg("buyer_id"), arg("order_id"), arg("quantity")
     orders = field("orders")
     seen, old = orders.contains(token), orders.get(token, {})
     fresh = old.get("status") == "quoted"
@@ -88,24 +88,24 @@ def build_machine(stock=5, base_price=20, increment=5, balances=None):
             "quantities": list(range(stock + 1)),
         },
         fields={
-            "stock": state_field(T.integer(minimum=0, maximum=stock), stock),
-            "cash": state_field(T.map(T.text(), T.integer(minimum=0)), balances),
+            "stock": state_field(StateType.integer(minimum=0, maximum=stock), stock),
+            "cash": state_field(StateType.map(StateType.text(), StateType.integer(minimum=0)), balances),
             "inventory": state_field(
-                T.map(T.text(), T.integer(minimum=0)), dict.fromkeys(balances, 0)
+                StateType.map(StateType.text(), StateType.integer(minimum=0)), dict.fromkeys(balances, 0)
             ),
-            "seller_cash": state_field(T.integer(minimum=0), 0),
-            "version": state_field(T.integer(minimum=0), 0),
-            "closed": state_field(T.boolean(), False),
+            "seller_cash": state_field(StateType.integer(minimum=0), 0),
+            "version": state_field(StateType.integer(minimum=0), 0),
+            "closed": state_field(StateType.boolean(), False),
             "orders": state_field(
-                T.map(
-                    T.text(),
-                    T.record(
+                StateType.map(
+                    StateType.text(),
+                    StateType.record(
                         {
-                            "buyer_id": T.text(),
-                            "price": T.integer(minimum=1),
-                            "version": T.integer(minimum=0),
-                            "quantity": T.integer(minimum=0),
-                            "status": T.choice(["quoted", "filled", "passed"]),
+                            "buyer_id": StateType.text(),
+                            "price": StateType.integer(minimum=1),
+                            "version": StateType.integer(minimum=0),
+                            "quantity": StateType.integer(minimum=0),
+                            "status": StateType.choice(["quoted", "filled", "passed"]),
                         }
                     ),
                 ),
@@ -114,7 +114,7 @@ def build_machine(stock=5, base_price=20, increment=5, balances=None):
         },
         commands={
             "quote": Command(
-                inputs={"buyer_id": T.text(), "order_id": T.text()},
+                inputs={"buyer_id": StateType.text(), "order_id": StateType.text()},
                 timing="before_question",
                 effects=(
                     assert_(field("cash").contains(buyer), code="unknown_buyer"),
@@ -145,9 +145,9 @@ def build_machine(stock=5, base_price=20, increment=5, balances=None):
             ),
             "buy": Command(
                 inputs={
-                    "buyer_id": T.text(),
-                    "order_id": T.text(),
-                    "quantity": T.integer(minimum=0),
+                    "buyer_id": StateType.text(),
+                    "order_id": StateType.text(),
+                    "quantity": StateType.integer(minimum=0),
                 },
                 effects=(
                     assert_(

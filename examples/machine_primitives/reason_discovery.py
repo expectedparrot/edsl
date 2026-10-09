@@ -3,13 +3,13 @@
 from edsl.sharedstate import (
     Command,
     Machine,
-    T,
+    StateType,
     append,
     assert_,
     choose,
     constant,
     field,
-    input_,
+    arg,
     local,
     map_sequence,
     put,
@@ -33,7 +33,7 @@ def build_machine(seed_reasons=DEFAULT_SEEDS, patience=10):
     keys = [s.casefold() for s in seeds]
     if len(set(keys)) != len(keys) or "other" in keys:
         raise ValueError("seed reasons must be distinct and cannot be Other")
-    respondent, reason = input_("respondent_id"), input_("reason").stripped()
+    respondent, reason = arg("respondent_id"), arg("reason").stripped()
     key = reason.casefolded()
     keys = map_sequence(
         field("reasons"), item="label", value_expr=local("label").casefolded()
@@ -67,20 +67,20 @@ def build_machine(seed_reasons=DEFAULT_SEEDS, patience=10):
         name="ReasonDiscovery",
         constants={"patience": patience},
         fields={
-            "reasons": state_field(T.sequence(T.text()), seeds),
-            "responses": state_field(T.map(T.text(), T.text()), {}),
-            "quiet_streak": state_field(T.integer(minimum=0, maximum=patience), 0),
-            "closed": state_field(T.boolean(), False),
+            "reasons": state_field(StateType.sequence(StateType.text()), seeds),
+            "responses": state_field(StateType.map(StateType.text(), StateType.text()), {}),
+            "quiet_streak": state_field(StateType.integer(minimum=0, maximum=patience), 0),
+            "closed": state_field(StateType.boolean(), False),
         },
         commands={
             "select": Command(
-                inputs={"respondent_id": T.text(), "reason": T.text()},
+                inputs={"respondent_id": StateType.text(), "reason": StateType.text()},
                 # Other is a routing choice, not a completed observation.
-                require=input_("reason") != "Other",
+                require=arg("reason") != "Other",
                 effects=response_effects(False),
             ),
             "suggest": Command(
-                inputs={"respondent_id": T.text(), "reason": T.text()},
+                inputs={"respondent_id": StateType.text(), "reason": StateType.text()},
                 effects=response_effects(True),
             ),
         },

@@ -1,18 +1,18 @@
 """Sealed ranked ballots with close-time plurality, Borda, and Condorcet results."""
 
-from edsl.sharedstate import Command, Machine, T, choose, constant, current, field, input_, put, reduce_, set_, state_field
+from edsl.sharedstate import Command, Machine, StateType, choose, constant, current, field, arg, put, reduce_, set_, state_field
 
 SPEC = Machine(
     name="SharedVotingGame",
     constants={"candidates": ("A", "B", "C"), "voter_count": 3},
     fields={
-        "ballots": state_field(T.map(T.text(), T.rank(constant("candidates"))), {}),
-        "results": state_field(T.optional(T.map()), None),
+        "ballots": state_field(StateType.map(StateType.text(), StateType.rank(constant("candidates"))), {}),
+        "results": state_field(StateType.optional(StateType.map()), None),
     },
     commands={
         "vote": Command(
-            inputs={"voter": T.text(), "ranking": T.rank(constant("candidates"))},
-            effects=(put("ballots", input_("voter"), input_("ranking")),),
+            inputs={"voter": StateType.text(), "ranking": StateType.rank(constant("candidates"))},
+            effects=(put("ballots", arg("voter"), arg("ranking")),),
         )
     },
     view={

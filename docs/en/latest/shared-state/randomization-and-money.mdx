@@ -138,7 +138,7 @@ rounding policy.
 | `floor` | Greatest integer no larger than the value | 2 | -3 |
 | `ceiling` | Smallest integer no smaller than the value | 3 | -2 |
 
-Use `T.integer()` for stored units and annotate the currency/scale in your
+Use `StateType.integer()` for stored units and annotate the currency/scale in your
 mechanism's constants or documentation. When splitting a payment, round the
 gross amount once, calculate the fee from that integer, and give the recipient
 `gross - fee`. Separately rounding both recipients' shares can create or lose

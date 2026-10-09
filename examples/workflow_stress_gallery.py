@@ -30,11 +30,11 @@ from edsl.sharedstate import (
     SQLiteStateBackend,
     SharedState,
     SharedStateMap,
-    T,
+    StateType,
     append,
     current,
     field,
-    input_,
+    arg,
     record,
     set_once,
     state_field,
@@ -305,11 +305,11 @@ def artifact_map(state_id: str, field_name: str = "value") -> SharedStateMap:
     machine = Machine(
         name="Artifact",
         constants={},
-        fields={field_name: state_field(T.optional(T.text()), None)},
+        fields={field_name: state_field(StateType.optional(StateType.text()), None)},
         commands={
             "submit": Command(
-                inputs={"value": T.text()},
-                effects=(set_once(field_name, input_("value")),),
+                inputs={"value": StateType.text()},
+                effects=(set_once(field_name, arg("value")),),
             )
         },
         view={field_name: field(field_name)},
@@ -321,13 +321,13 @@ def log_map(state_id: str, field_name: str = "entries") -> SharedStateMap:
     machine = Machine(
         name="AppendLog",
         constants={},
-        fields={field_name: state_field(T.sequence(), [])},
+        fields={field_name: state_field(StateType.sequence(), [])},
         commands={
             "add": Command(
-                inputs={"actor": T.text(), "value": T.text()},
+                inputs={"actor": StateType.text(), "value": StateType.text()},
                 effects=(
                     append(
-                        field_name, record(actor=input_("actor"), value=input_("value"))
+                        field_name, record(actor=arg("actor"), value=arg("value"))
                     ),
                 ),
             )
@@ -1424,7 +1424,7 @@ def chicken_case() -> GalleryCase:
     builder = Workflow("Chicken", metadata={"source": "Handbook chapters 2-3"})
     choice_q = QuestionMultipleChoice(question_name="action", question_text="Choose independently: Swerve or Straight. Mutual Straight is disastrous; Straight against Swerve pays best.", question_options=["Swerve", "Straight"])
     choices = builder.step("choose", Survey([choice_q]), assigned_to=role("player"), visible_to=role("settler"))
-    payoffs = builder.derive("payoffs", by_participant=choices.submissions.payoff_matrix("action", {"WW": (2, 2), "WT": (1, 3), "TW": (3, 1), "TT": (0, 0)}, action_codes={"Swerve": "W", "Straight": "T"}))
+    payoffs = builder.derive("payoffs", by_participant=choices.submissions.payoff_matrix("action", {"WW": (2, 2), "WT": (1, 3), "TW": (3, 1), "TT": (0, 0)}, action_codes={"Swerve": "W", "Straight": "StateType"}))
     settle_q = QuestionFreeText(question_name="result", question_text=f"Record the authoritative participant payoffs {payoffs.field('by_participant').template}.")
     settled = builder.step("settle", Survey([settle_q]), assigned_to=role("settler"), after=choices)
     notice_q = QuestionFreeText(question_name="payoff", question_text=f"Your private payoff is {payoffs.field('by_participant').for_participant()} tokens. Acknowledge it.")

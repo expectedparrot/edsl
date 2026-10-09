@@ -19,12 +19,12 @@ from edsl.sharedstate import (
     SharedState,
     SharedStateMap,
     SQLiteStateBackend,
-    T,
+    StateType,
     UnsupportedCapabilityError,
     decimal_units,
     expr,
     field,
-    input_,
+    arg,
     resolve_write,
     round_ratio,
     seeded_integer,
@@ -46,7 +46,7 @@ def machine(expression):
     return Machine(
         name="PortableProbe",
         constants={},
-        fields={"answer": state_field(T.any(), 0)},
+        fields={"answer": state_field(StateType.any(), 0)},
         commands={"run": Command({}, (set_("answer", expression),))},
         view={"answer": field("answer")},
     )
@@ -401,7 +401,7 @@ def test_settlement_conserves_minor_units_at_every_transition():
     "expression,limits,error",
     [
         (
-            decimal_units(input_("value"), places=2, rounding="half_up"),
+            decimal_units(arg("value"), places=2, rounding="half_up"),
             ExecutionLimits(),
             DSLValidationError,
         ),
@@ -419,7 +419,7 @@ def test_failed_money_operation_rolls_back_state_history_and_key(
         machine(0),
         commands={
             "run": Command(
-                {"value": T.text()}, (set_("answer", 9), set_("answer", expression))
+                {"value": StateType.text()}, (set_("answer", 9), set_("answer", expression))
             )
         },
     )

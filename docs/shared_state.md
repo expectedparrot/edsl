@@ -15,7 +15,7 @@ and a public view.
 
 ```python
 from edsl.sharedstate import (
-    Command, Machine, T, field, input_, put, reduce_, state_field,
+    Command, Machine, StateType, field, arg, put, reduce_, state_field,
 )
 
 activities = ("bike ride", "sailing", "hike", "beach day")
@@ -24,12 +24,12 @@ activity_poll = Machine(
     name="ActivityPoll",
     constants={"activities": activities},
     fields={
-        "votes": state_field(T.map(T.text(), T.choice(activities)), {}),
+        "votes": state_field(StateType.map(StateType.text(), StateType.choice(activities)), {}),
     },
     commands={
         "vote": Command(
-            inputs={"voter": T.text(), "activity": T.choice(activities)},
-            effects=(put("votes", input_("voter"), input_("activity")),),
+            inputs={"voter": StateType.text(), "activity": StateType.choice(activities)},
+            effects=(put("votes", arg("voter"), arg("activity")),),
         ),
     },
     view={
@@ -262,7 +262,7 @@ Creating `SharedState(...)` validates every machine recursively. Validation cove
 - complete JSON serialization.
 
 Persisted inputs, states, and public views require finite numbers and string map
-keys, including under `T.any()`. Encode numeric grouping keys explicitly in JSON
+keys, including under `StateType.any()`. Encode numeric grouping keys explicitly in JSON
 views. Symbolic expressions reject Python truth-value coercion; use DSL `&`, `|`,
 `~`, and `choose()` instead of Python `and`, `or`, `not`, and `if`.
 

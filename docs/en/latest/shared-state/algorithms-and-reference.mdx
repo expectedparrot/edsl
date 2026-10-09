@@ -77,10 +77,10 @@ trees, not Python functions or lambdas.
 For example, a running balance carries an accumulator between entries:
 
 ```python
-from edsl.sharedstate import fold, input_, local
+from edsl.sharedstate import fold, arg, local
 
 balance = fold(
-    input_("amounts"),
+    arg("amounts"),
     0,
     item="amount",
     accumulator="balance",

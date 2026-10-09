@@ -20,11 +20,11 @@ from edsl.sharedstate import (
     Machine,
     SharedState,
     SharedStateMap,
-    T,
+    StateType,
     append,
     current,
     field,
-    input_,
+    arg,
     record,
     state_field,
 )
@@ -50,16 +50,16 @@ def test_shared_state_matrix_rows_use_rendered_schema_for_validation():
         name="Poll",
         constants={},
         fields={
-            "activities": state_field(T.sequence(T.text()), activities),
-            "ballots": state_field(T.sequence(), []),
+            "activities": state_field(StateType.sequence(StateType.text()), activities),
+            "ballots": state_field(StateType.sequence(), []),
         },
         commands={
             "vote": Command(
-                inputs={"voter": T.text(), "votes": T.map()},
+                inputs={"voter": StateType.text(), "votes": StateType.map()},
                 effects=(
                     append(
                         "ballots",
-                        record(voter=input_("voter"), votes=input_("votes")),
+                        record(voter=arg("voter"), votes=arg("votes")),
                     ),
                 ),
             )
@@ -244,14 +244,14 @@ def test_before_question_write_is_visible_to_live_private_read():
 
 def test_state_read_persists_and_supports_dynamic_jinja_lookup():
     from edsl import QuestionFreeText
-    from edsl.sharedstate import Command, Machine, T, field, set_, state_field
+    from edsl.sharedstate import Command, Machine, StateType, field, set_, state_field
 
     spec = Machine(
         name="PersistentRead",
         constants={},
         fields={
             "claims": state_field(
-                T.map(T.text(), T.map()), {"Alice": {"id": "P1"}}
+                StateType.map(StateType.text(), StateType.map()), {"Alice": {"id": "P1"}}
             )
         },
         commands={

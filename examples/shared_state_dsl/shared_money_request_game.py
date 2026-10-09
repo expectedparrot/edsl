@@ -1,6 +1,6 @@
 """Sealed two-player request game expressed with ordinary collection operations."""
 
-from edsl.sharedstate import Command, Machine, T, choose, constant, current, field, input_, local, map_items, put, reduce_, set_, state_field
+from edsl.sharedstate import Command, Machine, StateType, choose, constant, current, field, arg, local, map_items, put, reduce_, set_, state_field
 
 largest = reduce_("max", field("choices").values())
 payoffs = map_items(
@@ -11,13 +11,13 @@ SPEC = Machine(
     name="SharedMoneyRequestGame",
     constants={"minimum": 11, "maximum": 20, "bonus": 20},
     fields={
-        "choices": state_field(T.map(T.text(), T.integer()), {}),
-        "payoffs": state_field(T.map(T.text(), T.number()), {}),
+        "choices": state_field(StateType.map(StateType.text(), StateType.integer()), {}),
+        "payoffs": state_field(StateType.map(StateType.text(), StateType.number()), {}),
     },
     commands={
         "submit": Command(
-            inputs={"player": T.text(), "request": T.integer(minimum=constant("minimum"), maximum=constant("maximum"))},
-            effects=(put("choices", input_("player"), input_("request")),),
+            inputs={"player": StateType.text(), "request": StateType.integer(minimum=constant("minimum"), maximum=constant("maximum"))},
+            effects=(put("choices", arg("player"), arg("request")),),
         )
     },
     view={

@@ -11,11 +11,11 @@ from edsl.sharedstate import (
     SQLiteStateBackend,
     SharedState,
     SharedStateMap,
-    T,
+    StateType,
     append,
     current,
     field,
-    input_,
+    arg,
     record,
     state_field,
 )
@@ -81,16 +81,16 @@ def test_two_reviews_fan_in_before_adjudication_and_write_shared_state(tmp_path)
     definition = Machine(
         name="ReviewLog",
         constants={},
-        fields={"reviews": state_field(T.sequence(), [])},
+        fields={"reviews": state_field(StateType.sequence(), [])},
         commands={
             "record": Command(
-                inputs={"reviewer": T.text(), "decision": T.text()},
+                inputs={"reviewer": StateType.text(), "decision": StateType.text()},
                 effects=(
                     append(
                         "reviews",
                         record(
-                            reviewer=input_("reviewer"),
-                            decision=input_("decision"),
+                            reviewer=arg("reviewer"),
+                            decision=arg("decision"),
                         ),
                     ),
                 ),

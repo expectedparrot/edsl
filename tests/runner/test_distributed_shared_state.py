@@ -15,7 +15,7 @@ from edsl.sharedstate import (
     SharedState,
     SharedStateMap,
     SQLiteStateBackend,
-    T,
+    StateType,
     field,
     set_,
     state_field,
@@ -26,7 +26,7 @@ def counter_job():
     machine = Machine(
         name="Counter",
         constants={},
-        fields={"count": state_field(T.integer(), 0)},
+        fields={"count": state_field(StateType.integer(), 0)},
         commands={
             "increment": Command(
                 inputs={}, effects=(set_("count", field("count") + 1),)

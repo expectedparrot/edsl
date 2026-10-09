@@ -13,7 +13,7 @@ from edsl.sharedstate import (
     SharedState,
     SharedStateMap,
     SQLiteStateBackend,
-    T,
+    StateType,
     field,
     set_,
     state_field,
@@ -55,7 +55,7 @@ def counter():
     machine = Machine(
         name="Counter",
         constants={},
-        fields={"count": state_field(T.integer(), 0)},
+        fields={"count": state_field(StateType.integer(), 0)},
         commands={
             "increment": Command(
                 inputs={}, effects=(set_("count", field("count") + 1),)
@@ -356,18 +356,18 @@ def test_answer_pin_survives_crash_after_postgres_effect(database):
     from edsl import Agent, Model, QuestionNumerical, Survey
     from edsl.runner.service import JobService
     from edsl.runner.storage import InMemoryStorage
-    from edsl.sharedstate import input_
+    from edsl.sharedstate import arg
     from edsl.sharedstate.postgres import PostgresStateBackend
 
     engine, namespace = database
     machine = Machine(
         name="Total",
         constants={},
-        fields={"total": state_field(T.integer(), 0)},
+        fields={"total": state_field(StateType.integer(), 0)},
         commands={
             "add": Command(
-                inputs={"amount": T.integer()},
-                effects=(set_("total", field("total") + input_("amount")),),
+                inputs={"amount": StateType.integer()},
+                effects=(set_("total", field("total") + arg("amount")),),
             )
         },
         view={"total": field("total")},

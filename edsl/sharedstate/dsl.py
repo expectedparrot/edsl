@@ -122,7 +122,7 @@ def field(name: str) -> Expr:
     return ref("state", name)
 
 
-def input_(name: str) -> Expr:
+def arg(name: str) -> Expr:
     return ref("input", name)
 
 
@@ -272,7 +272,7 @@ def decode_matrix(answer: Any, *, rows: Any, options: Any) -> Expr:
     return expr("decode_matrix", answer, rows, options)
 
 
-class T:
+class StateType:
     @staticmethod
     def any() -> Expr:
         return expr("type", "any")
@@ -307,7 +307,7 @@ class T:
 
     @staticmethod
     def sequence(item: Expr | None = None) -> Expr:
-        return expr("type", "sequence", item=T.any() if item is None else item)
+        return expr("type", "sequence", item=StateType.any() if item is None else item)
 
     @staticmethod
     def record(fields: dict[str, Expr], *, allow_extra: bool = False) -> Expr:
@@ -319,8 +319,8 @@ class T:
         return expr(
             "type",
             "map",
-            key=T.text() if key is None else key,
-            value=T.any() if value is None else value,
+            key=StateType.text() if key is None else key,
+            value=StateType.any() if value is None else value,
         )
 
 
@@ -773,7 +773,7 @@ def _validate_type_expression(type_expr: Expr) -> None:
         "choice",
         "any",
     }:
-        raise ValueError("maps require string map keys for JSON storage; use T.text()")
+        raise ValueError("maps require string map keys for JSON storage; use StateType.text()")
 
 
 def walk(value: Any):

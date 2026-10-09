@@ -1,6 +1,6 @@
 """Worker signal followed by an employer decision."""
 
-from edsl.sharedstate import Command, Machine, T, choose, constant, field, input_, map_of, set_, state_field
+from edsl.sharedstate import Command, Machine, StateType, choose, constant, field, arg, map_of, set_, state_field
 
 cost = field("education") * field("signal_cost")
 payoffs = map_of(
@@ -11,19 +11,19 @@ SPEC = Machine(
     name="SharedSignalingGame",
     constants={"wage": 60},
     fields={name: state_field(type_, None) for name, type_ in {
-        "worker": T.optional(T.text()), "employer": T.optional(T.text()),
-        "education": T.optional(T.number()), "productivity": T.optional(T.number()),
-        "signal_cost": T.optional(T.number()), "hired": T.optional(T.boolean()),
+        "worker": StateType.optional(StateType.text()), "employer": StateType.optional(StateType.text()),
+        "education": StateType.optional(StateType.number()), "productivity": StateType.optional(StateType.number()),
+        "signal_cost": StateType.optional(StateType.number()), "hired": StateType.optional(StateType.boolean()),
     }.items()},
     commands={
         "signal": Command(
-            inputs={"worker": T.text(), "productivity": T.number(), "signal_cost": T.number(), "education": T.number(minimum=0, maximum=3)},
-            effects=(set_("worker", input_("worker")), set_("education", input_("education")), set_("productivity", input_("productivity")), set_("signal_cost", input_("signal_cost"))),
+            inputs={"worker": StateType.text(), "productivity": StateType.number(), "signal_cost": StateType.number(), "education": StateType.number(minimum=0, maximum=3)},
+            effects=(set_("worker", arg("worker")), set_("education", arg("education")), set_("productivity", arg("productivity")), set_("signal_cost", arg("signal_cost"))),
         ),
         "decide": Command(
-            inputs={"employer": T.text(), "decision": T.choice(("hire", "do_not_hire"))},
+            inputs={"employer": StateType.text(), "decision": StateType.choice(("hire", "do_not_hire"))},
             require=field("education") != None,  # noqa: E711
-            effects=(set_("employer", input_("employer")), set_("hired", input_("decision") == "hire")),
+            effects=(set_("employer", arg("employer")), set_("hired", arg("decision") == "hire")),
         ),
     },
     view={"worker": field("worker"), "employer": field("employer"), "education": field("education"), "wage": constant("wage"), "hired": field("hired"), "payoffs": choose(field("hired") != None, payoffs, None)},  # noqa: E711

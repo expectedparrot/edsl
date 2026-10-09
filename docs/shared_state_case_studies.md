@@ -370,7 +370,7 @@ cooperation.
 **Result.** Three entries committed atomically; one response ignored the requested
 format and supplied several alternatives.
 
-**What it showed.** `T.any()` is convenient but too weak for research data. A typed
+**What it showed.** `StateType.any()` is convenient but too weak for research data. A typed
 record schema would catch malformed or overly broad observations at creation.
 
 ### 35. Family message board
@@ -422,7 +422,7 @@ The examples point to five priorities:
 2. Add first-class round setup and finalization barriers.
 3. Support serializable machine parameter binding for participant counts and rules.
 4. Preserve question/provider/attempt details for bounded inference failures.
-5. Encourage typed record schemas instead of unconstrained `T.any()` in research
+5. Encourage typed record schemas instead of unconstrained `StateType.any()` in research
    workflows.
 
 They also suggest a documentation principle: every shared-state primitive should

@@ -11,10 +11,10 @@ from edsl.sharedstate import (
     SharedState,
     SharedStateMap,
     SQLiteStateBackend,
-    T,
+    StateType,
     current,
     field,
-    input_,
+    arg,
     put,
     reduce_,
     resolve_read,
@@ -32,11 +32,11 @@ def activity_poll() -> Machine:
     return Machine(
         name="ActivityPoll",
         constants={"activities": ACTIVITIES},
-        fields={"votes": state_field(T.map(T.text(), T.choice(ACTIVITIES)), {})},
+        fields={"votes": state_field(StateType.map(StateType.text(), StateType.choice(ACTIVITIES)), {})},
         commands={
             "vote": Command(
-                inputs={"voter": T.text(), "activity": T.choice(ACTIVITIES)},
-                effects=(put("votes", input_("voter"), input_("activity")),),
+                inputs={"voter": StateType.text(), "activity": StateType.choice(ACTIVITIES)},
+                effects=(put("votes", arg("voter"), arg("activity")),),
             )
         },
         view={
@@ -101,7 +101,7 @@ def test_runtime_receives_interview_agent_and_round_capabilities(tmp_path):
     machine = Machine(
         name="ContextAudit",
         constants={},
-        fields={"seen": state_field(T.sequence(T.map()), [])},
+        fields={"seen": state_field(StateType.sequence(StateType.map()), [])},
         commands={
             "record": Command(
                 inputs={},
@@ -185,7 +185,7 @@ def test_definition_rejects_invalid_nested_initial_values():
     invalid = Machine(
         name="Invalid",
         constants={},
-        fields={"values": state_field(T.sequence(T.integer()), [1, "two"])},
+        fields={"values": state_field(StateType.sequence(StateType.integer()), [1, "two"])},
         commands={},
         view={"values": field("values")},
     )
@@ -199,7 +199,7 @@ def test_definition_rejects_unknown_expression_even_in_unselected_branch():
     invalid = Machine(
         name="Invalid",
         constants={},
-        fields={"value": state_field(T.integer(), 1)},
+        fields={"value": state_field(StateType.integer(), 1)},
         commands={},
         view={"value": choose(True, field("value"), Expr("execute_python"))},
     )
@@ -226,10 +226,10 @@ def test_invalid_transition_rolls_back_without_an_event(tmp_path):
     machine = Machine(
         name="TypedCounter",
         constants={},
-        fields={"count": state_field(T.integer(), 0)},
+        fields={"count": state_field(StateType.integer(), 0)},
         commands={
             "set": Command(
-                inputs={"value": T.any()}, effects=(set_("count", input_("value")),)
+                inputs={"value": StateType.any()}, effects=(set_("count", arg("value")),)
             )
         },
         view={"count": field("count")},

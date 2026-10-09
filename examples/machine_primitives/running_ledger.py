@@ -3,10 +3,10 @@
 from edsl.sharedstate import (
     Command,
     Machine,
-    T,
+    StateType,
     field,
     fold,
-    input_,
+    arg,
     local,
     record,
     set_,
@@ -22,25 +22,25 @@ def build_machine():
         name="RunningLedger",
         fields={
             "ledger": state_field(
-                T.record({"balance": T.number(), "history": T.sequence(T.number())}),
+                StateType.record({"balance": StateType.number(), "history": StateType.sequence(StateType.number())}),
                 {"balance": 0, "history": []},
             )
         },
         commands={
             "post": Command(
-                inputs={"amounts": T.sequence(T.number())},
+                inputs={"amounts": StateType.sequence(StateType.number())},
                 effects=(
                     set_(
                         "ledger",
                         fold(
-                            input_("amounts"),
+                            arg("amounts"),
                             field("ledger"),
                             item="amount",
                             accumulator="previous",
-                            accumulator_type=T.record(
+                            accumulator_type=StateType.record(
                                 {
-                                    "balance": T.number(),
-                                    "history": T.sequence(T.number()),
+                                    "balance": StateType.number(),
+                                    "history": StateType.sequence(StateType.number()),
                                 }
                             ),
                             body=record(

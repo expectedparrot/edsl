@@ -7,12 +7,12 @@ market's dividends, interest, randomized priority, and multi-unit orders.
 from edsl.sharedstate import (
     Command,
     Machine,
-    T,
+    StateType,
     choose,
     field,
     filter_items,
     fold,
-    input_,
+    arg,
     let,
     local,
     map_sequence,
@@ -76,26 +76,26 @@ def build_machine():
         constants={},
         name="PrimitiveBatchAuction",
         fields={
-            "orders": state_field(T.map(), {}),
+            "orders": state_field(StateType.map(), {}),
             "clearing": state_field(
-                T.map(), {"volume": 0, "price": None, "buyers": [], "sellers": []}
+                StateType.map(), {"volume": 0, "price": None, "buyers": [], "sellers": []}
             ),
         },
         commands={
             "submit": Command(
                 inputs={
-                    "trader": T.text(),
-                    "side": T.choice(["buy", "sell"]),
-                    "price": T.number(minimum=0),
+                    "trader": StateType.text(),
+                    "side": StateType.choice(["buy", "sell"]),
+                    "price": StateType.number(minimum=0),
                 },
                 effects=(
                     put(
                         "orders",
-                        input_("trader"),
+                        arg("trader"),
                         record(
-                            trader=input_("trader"),
-                            side=input_("side"),
-                            price=input_("price"),
+                            trader=arg("trader"),
+                            side=arg("side"),
+                            price=arg("price"),
                         ),
                     ),
                 ),

@@ -99,18 +99,18 @@
         constants={"activities": ACTIVITIES},
         fields={
             "votes": state_field(
-                T.map(T.text(), T.choice(ACTIVITIES)),
+                StateType.map(StateType.text(), StateType.choice(ACTIVITIES)),
                 {},
             )
         },
         commands={
             "vote": Command(
                 inputs={
-                    "voter": T.text(),
-                    "activity": T.choice(ACTIVITIES),
+                    "voter": StateType.text(),
+                    "activity": StateType.choice(ACTIVITIES),
                 },
                 effects=(
-                    put("votes", input_("voter"), input_("activity")),
+                    put("votes", arg("voter"), arg("activity")),
                 ),
             )
         },
@@ -122,8 +122,8 @@
     <table>
       <tr><th>Syntax</th><th>Meaning</th></tr>
       <tr><td><code>state_field(type, initial)</code></td><td>Declare durable machine data and its initial value.</td></tr>
-      <tr><td><code>T.map(...)</code>, <code>T.text()</code>, <code>T.choice(...)</code></td><td>Serializable runtime types. Invalid command inputs are rejected.</td></tr>
-      <tr><td><code>input_("voter")</code></td><td>A symbolic reference to a command argument—not its value yet.</td></tr>
+      <tr><td><code>StateType.map(...)</code>, <code>StateType.text()</code>, <code>StateType.choice(...)</code></td><td>Serializable runtime types. Invalid command inputs are rejected.</td></tr>
+      <tr><td><code>arg("voter")</code></td><td>A symbolic reference to a command argument—not its value yet.</td></tr>
       <tr><td><code>field("votes")</code></td><td>A symbolic reference to the current machine field.</td></tr>
       <tr><td><code>put(...)</code></td><td>An atomic dictionary update performed by the execution host.</td></tr>
       <tr><td><code>view={...}</code></td><td>The public snapshot exposed by <code>poll.read()</code>. Derived counts need not be stored.</td></tr>
@@ -134,7 +134,7 @@
 <pre><code>import json
 
 print(json.dumps(activity_poll().to_dict(), indent=2))</code></pre>
-    <p>For this poll, that produces the following JSON. Notice that symbolic references such as <code>input_("voter")</code> become explicit <code>ref</code> nodes; no Python function or file location is hidden in the payload.</p>
+    <p>For this poll, that produces the following JSON. Notice that symbolic references such as <code>arg("voter")</code> become explicit <code>ref</code> nodes; no Python function or file location is hidden in the payload.</p>
 <pre><code>{
   "name": "ActivityPoll",
   "constants": {
@@ -444,10 +444,10 @@ from edsl.sharedstate import (
     Machine,
     SharedState,
     SharedStateMap,
-    T,
+    StateType,
     current,
     field,
-    input_,
+    arg,
     put,
     reduce_,
     state_field,
@@ -470,14 +470,14 @@ def activity_poll() -&gt; Machine:
     return Machine(
         name="ActivityPoll",
         constants={"activities": ACTIVITIES},
-        fields={"votes": state_field(T.map(T.text(), T.choice(ACTIVITIES)), {})},
+        fields={"votes": state_field(StateType.map(StateType.text(), StateType.choice(ACTIVITIES)), {})},
         commands={
             "vote": Command(
                 inputs={
-                    "voter": T.text(),
-                    "activity": T.choice(ACTIVITIES),
+                    "voter": StateType.text(),
+                    "activity": StateType.choice(ACTIVITIES),
                 },
-                effects=(put("votes", input_("voter"), input_("activity")),),
+                effects=(put("votes", arg("voter"), arg("activity")),),
             )
         },
         view={

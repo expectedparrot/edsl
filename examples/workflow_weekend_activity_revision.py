@@ -12,10 +12,10 @@ from edsl.sharedstate import (
     SQLiteStateBackend,
     SharedState,
     SharedStateMap,
-    T,
+    StateType,
     append,
     field,
-    input_,
+    arg,
     state_field,
 )
 from edsl.workflows import (
@@ -36,11 +36,11 @@ def build_revision_workflow():
     activity_state = Machine(
         name="ActivitySuggestions",
         constants={},
-        fields={"suggestions": state_field(T.sequence(T.text()), [])},
+        fields={"suggestions": state_field(StateType.sequence(StateType.text()), [])},
         commands={
             "suggest": Command(
-                inputs={"activity": T.text()},
-                effects=(append("suggestions", input_("activity")),),
+                inputs={"activity": StateType.text()},
+                effects=(append("suggestions", arg("activity")),),
             )
         },
         view={"suggestions": field("suggestions")},

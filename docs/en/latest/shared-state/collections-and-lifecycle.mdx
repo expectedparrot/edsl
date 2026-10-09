@@ -10,26 +10,26 @@ This chapter continues the [shared-state manual](/en/latest/shared_state).
 A message log demonstrates a sequence field and `append`:
 
 ```python
-from edsl.sharedstate.dsl import append, record, reduce_
+from edsl.sharedstate import append, record, reduce_
 
 message_log = Machine(
     name="MessageLog",
     constants={},
     fields={
-        "messages": state_field(T.sequence(T.map()), initial=[]),
+        "messages": state_field(StateType.sequence(StateType.map()), initial=[]),
     },
     commands={
         "post": Command(
             inputs={
-                "author": T.text(),
-                "text": T.text(),
+                "author": StateType.text(),
+                "text": StateType.text(),
             },
             effects=(
                 append(
                     "messages",
                     record(
-                        author=input_("author"),
-                        text=input_("text"),
+                        author=arg("author"),
+                        text=arg("text"),
                     ),
                 ),
             ),
@@ -63,7 +63,7 @@ latest = reduce_("latest_by", field("history"), field="forecaster")
 Collections can be transformed:
 
 ```python
-from edsl.sharedstate.dsl import filter_items, local, map_sequence
+from edsl.sharedstate import filter_items, local, map_sequence
 
 active = filter_items(
     field("orders"),
@@ -96,7 +96,7 @@ complete_when=(
 Some results are computed only at close:
 
 ```python
-from edsl.sharedstate.dsl import set_
+from edsl.sharedstate import set_
 
 close_effects=(
     set_(

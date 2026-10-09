@@ -14,11 +14,11 @@ from edsl.sharedstate import (
     SharedState,
     SharedStateMap,
     SQLiteStateBackend,
-    T,
+    StateType,
     expr,
     field,
     fold,
-    input_,
+    arg,
     iterate,
     local,
     map_sequence,
@@ -34,7 +34,7 @@ def machine(expression, *, effects=None, view=None):
     return Machine(
         name="Budget",
         constants={},
-        fields={"answer": state_field(T.any(), 0)},
+        fields={"answer": state_field(StateType.any(), 0)},
         commands={"run": Command({}, effects or (set_("answer", expression),))},
         view=view or {"answer": field("answer")},
     )
@@ -76,7 +76,7 @@ def test_all_entry_points_are_bounded(operation):
     elif operation == "complete":
         spec = replace(spec, complete_when=nested_work())
     elif operation == "initial_state":
-        spec = replace(spec, fields={"answer": state_field(T.any(), nested_work())})
+        spec = replace(spec, fields={"answer": state_field(StateType.any(), nested_work())})
     with pytest.raises(ResourceLimitError, match="max_steps"):
         if operation == "execute":
             runtime.execute(spec, {"answer": 0}, "run", {})
@@ -143,7 +143,7 @@ def test_input_and_combined_view_sizes_are_bounded():
     runtime = Runtime(
         limits=ExecutionLimits(max_collection_items=10, max_value_bytes=2000)
     )
-    spec = replace(machine(0), commands={"run": Command({"v": T.any()}, ())})
+    spec = replace(machine(0), commands={"run": Command({"v": StateType.any()}, ())})
     with pytest.raises(ResourceLimitError, match="max_collection_items"):
         runtime.execute(spec, {"answer": 0}, "run", {"v": list(range(11))})
     spec = machine(0, view={"left": field("answer"), "right": field("answer")})
@@ -243,14 +243,14 @@ def test_accumulator_invariant_failure_rolls_back_sqlite(tmp_path):
         0,
         item="i",
         accumulator="a",
-        body=input_("value"),
-        accumulator_type=T.integer(),
+        body=arg("value"),
+        accumulator_type=StateType.integer(),
     )
     spec = replace(
         machine(0),
         commands={
             "run": Command(
-                {"value": T.any()}, (set_("answer", 99), set_("answer", expression))
+                {"value": StateType.any()}, (set_("answer", 99), set_("answer", expression))
             )
         },
     )

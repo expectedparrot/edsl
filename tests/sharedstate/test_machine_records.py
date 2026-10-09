@@ -11,11 +11,11 @@ from edsl.sharedstate import (
     SharedState,
     SharedStateMap,
     SQLiteStateBackend,
-    T,
+    StateType,
     choose,
     field,
     fold,
-    input_,
+    arg,
     iterate,
     let,
     local,
@@ -32,11 +32,11 @@ from edsl.sharedstate.steps import StepContext
 
 
 def spec():
-    account = T.record(
+    account = StateType.record(
         {
-            "balance": T.number(),
-            "label": T.optional(T.text()),
-            "entries": T.sequence(T.record({"amount": T.number()})),
+            "balance": StateType.number(),
+            "label": StateType.optional(StateType.text()),
+            "entries": StateType.sequence(StateType.record({"amount": StateType.number()})),
         }
     )
     return Machine(
@@ -48,7 +48,7 @@ def spec():
             )
         },
         commands={
-            "save": Command({"account": account}, (set_("account", input_("account")),))
+            "save": Command({"account": account}, (set_("account", arg("account")),))
         },
         view={"account": field("account")},
     )
@@ -90,7 +90,7 @@ def test_bad_inputs_fail_before_any_effect(account, message):
 
 def test_open_records_accept_extra_json_but_require_declared_fields():
     runtime = Runtime()
-    schema = T.record({"count": T.integer()}, allow_extra=True)
+    schema = StateType.record({"count": StateType.integer()}, allow_extra=True)
     runtime._validate_type("value", {"count": 1, "metadata": ["ok"]}, schema, {})
     with pytest.raises(DSLValidationError, match="missing"):
         runtime._validate_type("value", {"metadata": []}, schema, {})
@@ -103,10 +103,10 @@ def test_open_records_accept_extra_json_but_require_declared_fields():
 @pytest.mark.parametrize(
     "schema",
     [
-        T.record({"": T.text()}),
-        T.record({"x": "text"}),
-        T.record({}, allow_extra="yes"),
-        T.record([]),
+        StateType.record({"": StateType.text()}),
+        StateType.record({"x": "text"}),
+        StateType.record({}, allow_extra="yes"),
+        StateType.record([]),
     ],
 )
 def test_invalid_record_definitions_have_machine_and_path(schema):
@@ -151,7 +151,7 @@ def test_unbound_locals_checked_in_every_context(where):
     elif where == "close":
         machine = replace(machine, close_effects=(set_("account", bad),))
     else:
-        machine = replace(machine, fields={"account": state_field(T.any(), bad)})
+        machine = replace(machine, fields={"account": state_field(StateType.any(), bad)})
     with pytest.raises(
         MachineValidationError, match="unbound local reference"
     ) as error:
@@ -162,7 +162,7 @@ def test_unbound_locals_checked_in_every_context(where):
 @pytest.mark.parametrize(
     "expression",
     [
-        choose(False, input_("absent"), 0),
+        choose(False, arg("absent"), 0),
         choose(False, field("absent"), 0),
         choose(False, ref("mystery", "x"), 0),
         let("x", local("x"), 1),
@@ -194,7 +194,7 @@ def test_shadowing_outer_value_and_dynamic_open_fields_stay_valid():
         spec(),
         fields={
             "account": state_field(
-                T.record({"balance": T.number()}, allow_extra=True), {"balance": 0}
+                StateType.record({"balance": StateType.number()}, allow_extra=True), {"balance": 0}
             )
         },
         commands={},
@@ -241,7 +241,7 @@ def test_record_initial_and_close_values_are_validated():
         spec(),
         fields={
             "account": state_field(
-                T.record({"balance": T.number()}), {"balance": "bad"}
+                StateType.record({"balance": StateType.number()}), {"balance": "bad"}
             )
         },
     )
@@ -265,7 +265,7 @@ def test_nested_input_record_reference_is_checked_and_executes():
                     set_(
                         "account",
                         field("account").with_item(
-                            "balance", input_("account.balance")
+                            "balance", arg("account.balance")
                         ),
                     ),
                 ),

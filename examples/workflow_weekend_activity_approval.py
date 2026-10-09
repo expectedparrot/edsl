@@ -21,9 +21,9 @@ from edsl.sharedstate import (
     SQLiteStateBackend,
     SharedState,
     SharedStateMap,
-    T,
+    StateType,
     field,
-    input_,
+    arg,
     set_once,
     state_field,
 )
@@ -47,11 +47,11 @@ def build_workflow():
     activity_state = Machine(
         name="WeekendActivity",
         constants={},
-        fields={"suggestion": state_field(T.optional(T.text()), None)},
+        fields={"suggestion": state_field(StateType.optional(StateType.text()), None)},
         commands={
             "suggest": Command(
-                inputs={"activity": T.text()},
-                effects=(set_once("suggestion", input_("activity")),),
+                inputs={"activity": StateType.text()},
+                effects=(set_once("suggestion", arg("activity")),),
             )
         },
         view={"suggestion": field("suggestion")},

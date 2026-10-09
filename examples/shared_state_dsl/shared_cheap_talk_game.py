@@ -1,6 +1,6 @@
 """Privately informed message followed by a receiver action."""
 
-from edsl.sharedstate import Command, Machine, T, choose, field, input_, map_of, set_, state_field
+from edsl.sharedstate import Command, Machine, StateType, choose, field, arg, map_of, set_, state_field
 
 sender_target = choose(field("preference") == "aligned", field("private_state"), "R")
 payoffs = map_of(
@@ -9,16 +9,16 @@ payoffs = map_of(
 )
 SPEC = Machine(
     name="SharedCheapTalkGame", constants={},
-    fields={name: state_field(T.optional(T.text()), None) for name in ("sender", "receiver", "private_state", "preference", "message", "action")},
+    fields={name: state_field(StateType.optional(StateType.text()), None) for name in ("sender", "receiver", "private_state", "preference", "message", "action")},
     commands={
         "message": Command(
-            inputs={"sender": T.text(), "state": T.choice(("L", "R")), "preference": T.text(), "message": T.choice(("L", "R"))},
-            effects=(set_("sender", input_("sender")), set_("private_state", input_("state")), set_("preference", input_("preference")), set_("message", input_("message"))),
+            inputs={"sender": StateType.text(), "state": StateType.choice(("L", "R")), "preference": StateType.text(), "message": StateType.choice(("L", "R"))},
+            effects=(set_("sender", arg("sender")), set_("private_state", arg("state")), set_("preference", arg("preference")), set_("message", arg("message"))),
         ),
         "act": Command(
-            inputs={"receiver": T.text(), "action": T.choice(("L", "R"))},
+            inputs={"receiver": StateType.text(), "action": StateType.choice(("L", "R"))},
             require=field("message") != None,  # noqa: E711
-            effects=(set_("receiver", input_("receiver")), set_("action", input_("action"))),
+            effects=(set_("receiver", arg("receiver")), set_("action", arg("action"))),
         ),
     },
     view={

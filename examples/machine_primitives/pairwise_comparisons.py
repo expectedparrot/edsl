@@ -10,7 +10,7 @@ import math
 from edsl.sharedstate import (
     Command,
     Machine,
-    T,
+    StateType,
     assert_,
     choose,
     constant,
@@ -18,7 +18,7 @@ from edsl.sharedstate import (
     exp,
     expr,
     field,
-    input_,
+    arg,
     let,
     local,
     logsumexp,
@@ -91,7 +91,7 @@ def build_machine(
     selected = reduce_(
         "sort_records", candidates, fields=["priority", "secondary", "pair_id"]
     ).first()
-    respondent = input_("respondent_id")
+    respondent = arg("respondent_id")
     assignment = let(
         "exploring",
         exploring,
@@ -112,7 +112,7 @@ def build_machine(
     )
     assigned = field("assignments").get(respondent, {})
     options = assigned.get("options", [])
-    winner = input_("winner")
+    winner = arg("winner")
     loser = choose(winner == options.at(0), options.at(1), options.at(0))
     # Probability of the selected winner under the pre-answer scores. The
     # log-domain form stays finite even for very separated scores.
@@ -140,34 +140,34 @@ def build_machine(
         ),
         fields={
             "ratings": state_field(
-                T.record({x: T.number(minimum=-budget, maximum=budget) for x in items}),
+                StateType.record({x: StateType.number(minimum=-budget, maximum=budget) for x in items}),
                 dict.fromkeys(items, 0.0),
             ),
             "pair_counts": state_field(
-                T.record({p: T.integer(minimum=0, maximum=budget) for p in pair_ids}),
+                StateType.record({p: StateType.integer(minimum=0, maximum=budget) for p in pair_ids}),
                 dict.fromkeys(pair_ids, 0),
             ),
-            "comparisons": state_field(T.integer(minimum=0, maximum=budget), 0),
-            "adaptive_streak": state_field(T.integer(minimum=0, maximum=budget), 0),
+            "comparisons": state_field(StateType.integer(minimum=0, maximum=budget), 0),
+            "adaptive_streak": state_field(StateType.integer(minimum=0, maximum=budget), 0),
             "assignments": state_field(
-                T.map(
-                    T.text(),
-                    T.record(
+                StateType.map(
+                    StateType.text(),
+                    StateType.record(
                         {
-                            "pair_id": T.choice(pair_ids),
-                            "options": T.sequence(T.choice(items)),
-                            "mode": T.choice(["explore", "adaptive"]),
+                            "pair_id": StateType.choice(pair_ids),
+                            "options": StateType.sequence(StateType.choice(items)),
+                            "mode": StateType.choice(["explore", "adaptive"]),
                         }
                     ),
                 ),
                 {},
             ),
-            "responses": state_field(T.map(T.text(), T.choice(items)), {}),
-            "closed": state_field(T.boolean(), False),
+            "responses": state_field(StateType.map(StateType.text(), StateType.choice(items)), {}),
+            "closed": state_field(StateType.boolean(), False),
         },
         commands={
             "assign": Command(
-                inputs={"respondent_id": T.text()},
+                inputs={"respondent_id": StateType.text()},
                 timing="before_question",
                 effects=(
                     assert_(
@@ -183,7 +183,7 @@ def build_machine(
                 ),
             ),
             "compare": Command(
-                inputs={"respondent_id": T.text(), "winner": T.choice(items)},
+                inputs={"respondent_id": StateType.text(), "winner": StateType.choice(items)},
                 effects=(
                     assert_(
                         field("assignments").contains(respondent),

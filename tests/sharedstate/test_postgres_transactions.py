@@ -24,7 +24,7 @@ from edsl.sharedstate import (
     Machine,
     SharedState,
     SharedStateMap,
-    T,
+    StateType,
     field,
     resolve_read,
     resolve_write,
@@ -72,7 +72,7 @@ def state():
     machine = Machine(
         name="Counter",
         constants={},
-        fields={"count": state_field(T.integer(), 0)},
+        fields={"count": state_field(StateType.integer(), 0)},
         commands={
             "increment": Command(
                 inputs={}, effects=(set_("count", field("count") + 1),)

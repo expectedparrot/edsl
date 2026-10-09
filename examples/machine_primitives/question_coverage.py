@@ -6,13 +6,13 @@ Run whole interviews sequentially. Assignments are not capacity reservations.
 from edsl.sharedstate import (
     Command,
     Machine,
-    T,
+    StateType,
     assert_,
     constant,
     current_value,
     field,
     filter_items,
-    input_,
+    arg,
     local,
     map_sequence,
     put,
@@ -46,7 +46,7 @@ def build_machine(question_ids=DEFAULT_QUESTIONS, target=10, per_agent=3):
         if type(value) is not int or value < 1:
             raise ValueError("target and per_agent must be positive integers")
     counts = field("counts")
-    respondent, question = input_("respondent_id"), input_("question")
+    respondent, question = arg("respondent_id"), arg("question")
     available = filter_items(
         constant("questions"),
         item="q",
@@ -90,24 +90,24 @@ def build_machine(question_ids=DEFAULT_QUESTIONS, target=10, per_agent=3):
         },
         fields={
             "counts": state_field(
-                T.record({q: T.integer(minimum=0, maximum=target) for q in questions}),
+                StateType.record({q: StateType.integer(minimum=0, maximum=target) for q in questions}),
                 {q: 0 for q in questions},
             ),
             "assignments": state_field(
-                T.map(T.text(), T.sequence(T.choice(questions))), {}
+                StateType.map(StateType.text(), StateType.sequence(StateType.choice(questions))), {}
             ),
             "answers": state_field(
-                T.map(
-                    T.text(),
-                    T.map(T.choice(questions), T.integer(minimum=1, maximum=5)),
+                StateType.map(
+                    StateType.text(),
+                    StateType.map(StateType.choice(questions), StateType.integer(minimum=1, maximum=5)),
                 ),
                 {},
             ),
-            "closed": state_field(T.boolean(), False),
+            "closed": state_field(StateType.boolean(), False),
         },
         commands={
             "assign": Command(
-                inputs={"respondent_id": T.text()},
+                inputs={"respondent_id": StateType.text()},
                 timing="before_question",
                 effects=(
                     assert_(
@@ -122,9 +122,9 @@ def build_machine(question_ids=DEFAULT_QUESTIONS, target=10, per_agent=3):
             ),
             "record_answer": Command(
                 inputs={
-                    "respondent_id": T.text(),
-                    "question": T.choice(questions),
-                    "answer": T.integer(minimum=1, maximum=5),
+                    "respondent_id": StateType.text(),
+                    "question": StateType.choice(questions),
+                    "answer": StateType.integer(minimum=1, maximum=5),
                 },
                 effects=(
                     assert_(
@@ -132,7 +132,7 @@ def build_machine(question_ids=DEFAULT_QUESTIONS, target=10, per_agent=3):
                         code="question_not_assigned",
                     ),
                     assert_(
-                        ~answered | (previous.get(question) == input_("answer")),
+                        ~answered | (previous.get(question) == arg("answer")),
                         code="answer_changed",
                     ),
                     when(~answered, assert_(~field("closed"), code="coverage_closed")),
@@ -153,7 +153,7 @@ def build_machine(question_ids=DEFAULT_QUESTIONS, target=10, per_agent=3):
                     put(
                         "answers",
                         respondent,
-                        previous.with_item(question, input_("answer")),
+                        previous.with_item(question, arg("answer")),
                     ),
                 ),
             ),

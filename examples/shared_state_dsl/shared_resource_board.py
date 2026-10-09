@@ -1,11 +1,11 @@
 """Capability-constrained assignment using predicates and conditional effects."""
 
-from edsl.sharedstate import Command, Machine, T, append, constant, field, input_, put, record, state_field, when
+from edsl.sharedstate import Command, Machine, StateType, append, constant, field, arg, put, record, state_field, when
 
-required = constant("incident_requirements").get(input_("incident"))
-capability = constant("resource_capabilities").get(input_("resource"))
-available = ~field("resource_use").contains(input_("resource"))
-unassigned = ~field("assignments").contains(input_("incident"))
+required = constant("incident_requirements").get(arg("incident"))
+capability = constant("resource_capabilities").get(arg("resource"))
+available = ~field("resource_use").contains(arg("resource"))
+unassigned = ~field("assignments").contains(arg("incident"))
 accepted = available & unassigned & (required == capability)
 
 SPEC = Machine(
@@ -15,17 +15,17 @@ SPEC = Machine(
         "resource_capabilities": {"E1": "engine", "A1": "ambulance"},
     },
     fields={
-        "assignments": state_field(T.map(), {}),
-        "resource_use": state_field(T.map(), {}),
-        "attempts": state_field(T.sequence(), []),
+        "assignments": state_field(StateType.map(), {}),
+        "resource_use": state_field(StateType.map(), {}),
+        "attempts": state_field(StateType.sequence(), []),
     },
     commands={
         "allocate": Command(
-            inputs={"responder": T.text(), "round": T.number(), "incident": T.choice(("fire", "injury")), "resource": T.choice(("E1", "A1"))},
+            inputs={"responder": StateType.text(), "round": StateType.number(), "incident": StateType.choice(("fire", "injury")), "resource": StateType.choice(("E1", "A1"))},
             effects=(
-                when(accepted, put("assignments", input_("incident"), input_("resource"))),
-                when(accepted, put("resource_use", input_("resource"), input_("incident"))),
-                append("attempts", record(responder=input_("responder"), incident=input_("incident"), resource=input_("resource"), round=input_("round"), accepted=accepted)),
+                when(accepted, put("assignments", arg("incident"), arg("resource"))),
+                when(accepted, put("resource_use", arg("resource"), arg("incident"))),
+                append("attempts", record(responder=arg("responder"), incident=arg("incident"), resource=arg("resource"), round=arg("round"), accepted=accepted)),
             ),
         )
     },

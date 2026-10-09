@@ -9,12 +9,12 @@ from edsl.sharedstate import (
     assert_,
     when,
     Machine,
-    T,
+    StateType,
     choose,
     expr,
     field,
     filter_items,
-    input_,
+    arg,
     let,
     local,
     map_items,
@@ -33,7 +33,7 @@ def build_machine(accounts=None):
         else accounts
     )
     book = field("market")
-    action, trader, price = input_("action"), input_("trader"), input_("price")
+    action, trader, price = arg("action"), arg("trader"), arg("price")
     row = local("row")
     open_owned = filter_items(
         book.get("orders"),
@@ -59,7 +59,7 @@ def build_machine(accounts=None):
         trader=trader,
         side=action,
         price=price,
-        round=input_("round"),
+        round=arg("round"),
         status="open",
         interview=None,
         time=book.get("orders").length() + 1,
@@ -131,7 +131,7 @@ def build_machine(accounts=None):
                 buyer=buyer,
                 seller=seller,
                 price=p,
-                round=input_("round"),
+                round=arg("round"),
                 maker_order=resting.get("id"),
                 taker_order=incoming.get("id"),
             )
@@ -173,16 +173,16 @@ def build_machine(accounts=None):
         name="PrimitiveDoubleAuction",
         fields={
             "market": state_field(
-                T.map(), {"accounts": accounts, "orders": [], "trades": []}
+                StateType.map(), {"accounts": accounts, "orders": [], "trades": []}
             )
         },
         commands={
             "submit": Command(
                 inputs={
-                    "trader": T.choice(list(accounts)),
-                    "action": T.choice(["buy", "sell", "cancel", "hold"]),
-                    "price": T.number(),
-                    "round": T.integer(minimum=1),
+                    "trader": StateType.choice(list(accounts)),
+                    "action": StateType.choice(["buy", "sell", "cancel", "hold"]),
+                    "price": StateType.number(),
+                    "round": StateType.integer(minimum=1),
                 },
                 effects=(
                     *admission,

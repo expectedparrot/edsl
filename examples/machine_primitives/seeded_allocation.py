@@ -3,12 +3,12 @@
 from edsl.sharedstate import (
     Command,
     Machine,
-    T,
+    StateType,
     append,
     assert_,
     constant,
     field,
-    input_,
+    arg,
     seeded_integer,
     seeded_order,
     set_,
@@ -22,22 +22,22 @@ def build_machine(seed="study-2026", scope="cohort-1", seats=2):
         name="SeededAllocation",
         constants={"seed": seed, "scope": scope, "seats": seats},
         fields={
-            "entrants": state_field(T.sequence(T.text()), []),
-            "winners": state_field(T.sequence(T.text()), []),
-            "bonus_units": state_field(T.integer(), 0),
-            "settled": state_field(T.boolean(), False),
+            "entrants": state_field(StateType.sequence(StateType.text()), []),
+            "winners": state_field(StateType.sequence(StateType.text()), []),
+            "bonus_units": state_field(StateType.integer(), 0),
+            "settled": state_field(StateType.boolean(), False),
         },
         commands={
             "enter": Command(
-                inputs={"participant": T.text()},
+                inputs={"participant": StateType.text()},
                 require=~field("settled"),
                 effects=(
-                    assert_(input_("participant").length() > 0, code="empty_id"),
+                    assert_(arg("participant").length() > 0, code="empty_id"),
                     assert_(
-                        ~field("entrants").contains(input_("participant")),
+                        ~field("entrants").contains(arg("participant")),
                         code="duplicate_id",
                     ),
-                    append("entrants", input_("participant")),
+                    append("entrants", arg("participant")),
                 ),
             )
         },

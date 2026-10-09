@@ -142,7 +142,7 @@ details{margin:18px 0}summary{cursor:pointer;color:var(--green);font-weight:750}
 <span class="kn">from</span><span class="w"> </span><span class="nn">edsl.sharedstate</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
     <span class="n">Command</span><span class="p">,</span>
     <span class="n">Machine</span><span class="p">,</span>
-    <span class="n">T</span><span class="p">,</span>
+    <span class="n">StateType</span><span class="p">,</span>
     <span class="n">append</span><span class="p">,</span>
     <span class="n">field</span><span class="p">,</span>
     <span class="n">input_</span><span class="p">,</span>
@@ -156,10 +156,10 @@ details{margin:18px 0}summary{cursor:pointer;color:var(--green);font-weight:750}
 <span class="n">log_machine</span> <span class="o">=</span> <span class="n">Machine</span><span class="p">(</span>
     <span class="n">name</span><span class="o">=</span><span class="s2">&quot;SharedLog&quot;</span><span class="p">,</span>
     <span class="n">constants</span><span class="o">=</span><span class="p">{},</span>
-    <span class="n">fields</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;entries&quot;</span><span class="p">:</span> <span class="n">state_field</span><span class="p">(</span><span class="n">T</span><span class="o">.</span><span class="n">sequence</span><span class="p">(),</span> <span class="p">[])},</span>
+    <span class="n">fields</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;entries&quot;</span><span class="p">:</span> <span class="n">state_field</span><span class="p">(</span><span class="n">StateType</span><span class="o">.</span><span class="n">sequence</span><span class="p">(),</span> <span class="p">[])},</span>
     <span class="n">commands</span><span class="o">=</span><span class="p">{</span>
         <span class="s2">&quot;append&quot;</span><span class="p">:</span> <span class="n">Command</span><span class="p">(</span>
-            <span class="n">inputs</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;entry&quot;</span><span class="p">:</span> <span class="n">T</span><span class="o">.</span><span class="n">any</span><span class="p">()},</span> <span class="n">effects</span><span class="o">=</span><span class="p">(</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;entries&quot;</span><span class="p">,</span> <span class="n">input_</span><span class="p">(</span><span class="s2">&quot;entry&quot;</span><span class="p">)),)</span>
+            <span class="n">inputs</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;entry&quot;</span><span class="p">:</span> <span class="n">StateType</span><span class="o">.</span><span class="n">any</span><span class="p">()},</span> <span class="n">effects</span><span class="o">=</span><span class="p">(</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;entries&quot;</span><span class="p">,</span> <span class="n">input_</span><span class="p">(</span><span class="s2">&quot;entry&quot;</span><span class="p">)),)</span>
         <span class="p">)</span>
     <span class="p">},</span>
     <span class="n">view</span><span class="o">=</span><span class="p">{</span>
@@ -272,5 +272,5 @@ details{margin:18px 0}summary{cursor:pointer;color:var(--green);font-weight:750}
     <span class="num">0</span>
   ]
 }</pre></details></section>
-<section><h2>6. What this example teaches us</h2><p class="lede">`T.any()` is convenient but too weak for research data. A typed record schema would catch malformed or overly broad observations at creation.</p><p>This is one behavioral realization, not an estimate of Gemini's average behavior. Its main purpose is to test whether the machine, survey, visibility, and schedule jointly express the intended experiment.</p></section>
+<section><h2>6. What this example teaches us</h2><p class="lede">`StateType.any()` is convenient but too weak for research data. A typed record schema would catch malformed or overly broad observations at creation.</p><p>This is one behavioral realization, not an estimate of Gemini's average behavior. Its main purpose is to test whether the machine, survey, visibility, and schedule jointly express the intended experiment.</p></section>
 <div class="navlinks"><a href="document.html">← Collaborative document</a><a href="index.html">Index</a><a href="message_board.html">Family message board →</a></div><footer>Generated from the runnable Survey, serialized Machine, Gemini audit, and case-study report. No result was invented for this page.</footer></main></body></html>

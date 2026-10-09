@@ -3,11 +3,11 @@
 from edsl.sharedstate import (
     Command,
     Machine,
-    T,
+    StateType,
     assert_,
     decimal_units,
     field,
-    input_,
+    arg,
     let,
     local,
     record,
@@ -18,7 +18,7 @@ from edsl.sharedstate import (
 
 
 def build_machine():
-    gross = decimal_units(input_("amount"), places=2, rounding="half_up")
+    gross = decimal_units(arg("amount"), places=2, rounding="half_up")
     accounts = field("accounts")
     settlement = let(
         "gross",
@@ -38,15 +38,15 @@ def build_machine():
         constants={},
         fields={
             "accounts": state_field(
-                T.record(
-                    {name: T.integer(minimum=0) for name in ("payer", "payee", "fees")}
+                StateType.record(
+                    {name: StateType.integer(minimum=0) for name in ("payer", "payee", "fees")}
                 ),
                 {"payer": 100000, "payee": 0, "fees": 0},
             )
         },
         commands={
             "pay": Command(
-                inputs={"amount": T.text()},
+                inputs={"amount": StateType.text()},
                 effects=(
                     assert_(gross > 0, code="nonpositive_payment"),
                     assert_(gross <= accounts.get("payer"), code="insufficient_funds"),

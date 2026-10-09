@@ -17,11 +17,11 @@ from edsl.sharedstate import (
     Machine,
     SharedState,
     SharedStateMap,
-    T,
+    StateType,
     append,
     current,
     field,
-    input_,
+    arg,
     record,
     state_field,
 )
@@ -102,21 +102,21 @@ class DebateItem:
 DEBATE_LEDGER = Machine(
     name="DebateLedger",
     constants={},
-    fields={"responses": state_field(T.sequence(), [])},
+    fields={"responses": state_field(StateType.sequence(), [])},
     commands={
         "submit": Command(
             inputs={
-                "participant": T.text(),
-                "round": T.integer(minimum=0, maximum=2),
-                "response": T.map(),
+                "participant": StateType.text(),
+                "round": StateType.integer(minimum=0, maximum=2),
+                "response": StateType.map(),
             },
             effects=(
                 append(
                     "responses",
                     record(
-                        participant=input_("participant"),
-                        round=input_("round"),
-                        response=input_("response"),
+                        participant=arg("participant"),
+                        round=arg("round"),
+                        response=arg("response"),
                     ),
                 ),
             ),

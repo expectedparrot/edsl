@@ -3,12 +3,12 @@
 from edsl.sharedstate import (
     Command,
     Machine,
-    T,
+    StateType,
     append,
     decode_matrix,
     expr,
     field,
-    input_,
+    arg,
     local,
     map_sequence,
     record,
@@ -27,21 +27,21 @@ vote_options = ["up", "neutral", "down"]
 SPEC = Machine(
     name="SharedAgenda",
     constants={"vote_weights": {"up": 1, "neutral": 0, "down": -1}},
-    fields={"proposals": state_field(T.sequence(), []), "ballots": state_field(T.sequence(), [])},
+    fields={"proposals": state_field(StateType.sequence(), []), "ballots": state_field(StateType.sequence(), [])},
     commands={
         "propose": Command(
-            inputs={"proposer": T.text(), "title": T.text()},
-            effects=(append("proposals", record(id=proposal_id, proposer=input_("proposer"), title=input_("title"))),),
+            inputs={"proposer": StateType.text(), "title": StateType.text()},
+            effects=(append("proposals", record(id=proposal_id, proposer=arg("proposer"), title=arg("title"))),),
         ),
         "vote": Command(
-            inputs={"voter": T.text(), "votes": T.map()},
+            inputs={"voter": StateType.text(), "votes": StateType.map()},
             effects=(
                 append(
                     "ballots",
                     record(
-                        voter=input_("voter"),
+                        voter=arg("voter"),
                         votes=decode_matrix(
-                            input_("votes"),
+                            arg("votes"),
                             rows=proposal_titles,
                             options=vote_options,
                         ),

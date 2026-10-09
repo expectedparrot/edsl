@@ -19,12 +19,12 @@ from edsl.sharedstate import (
     Machine,
     SharedState,
     SharedStateMap,
-    T,
+    StateType,
     choose,
     constant,
     current,
     field,
-    input_,
+    arg,
     record,
     set_once,
     state_field,
@@ -45,33 +45,33 @@ def ultimatum_game(stake: float = 100) -> Machine:
         name="UltimatumGame",
         constants={"stake": stake},
         fields={
-            "offer": state_field(T.optional(T.number()), None),
-            "proposer": state_field(T.optional(T.text()), None),
-            "responder": state_field(T.optional(T.text()), None),
+            "offer": state_field(StateType.optional(StateType.number()), None),
+            "proposer": state_field(StateType.optional(StateType.text()), None),
+            "responder": state_field(StateType.optional(StateType.text()), None),
             "decision": state_field(
-                T.optional(T.choice(("accept", "reject"))), None
+                StateType.optional(StateType.choice(("accept", "reject"))), None
             ),
         },
         commands={
             "offer": Command(
                 inputs={
-                    "player": T.text(),
-                    "amount": T.number(minimum=0, maximum=constant("stake")),
+                    "player": StateType.text(),
+                    "amount": StateType.number(minimum=0, maximum=constant("stake")),
                 },
                 effects=(
-                    set_once("proposer", input_("player")),
-                    set_once("offer", input_("amount")),
+                    set_once("proposer", arg("player")),
+                    set_once("offer", arg("amount")),
                 ),
             ),
             "respond": Command(
                 inputs={
-                    "player": T.text(),
-                    "decision": T.choice(("accept", "reject")),
+                    "player": StateType.text(),
+                    "decision": StateType.choice(("accept", "reject")),
                 },
                 require=field("offer") != None,  # noqa: E711
                 effects=(
-                    set_once("responder", input_("player")),
-                    set_once("decision", input_("decision")),
+                    set_once("responder", arg("player")),
+                    set_once("decision", arg("decision")),
                 ),
             ),
         },

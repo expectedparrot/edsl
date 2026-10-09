@@ -30,13 +30,13 @@ Every accepted response narrows that interval and records the quoted price atomi
 from edsl.sharedstate import (
     Command,
     Machine,
-    T,
+    StateType,
     append,
     assert_,
     choose,
     constant,
     field,
-    input_,
+    arg,
     record,
     round_ratio,
     set_,
@@ -51,7 +51,7 @@ def build_machine(lower=0, upper=100, max_questions=7, tolerance=0):
     if upper < lower or type(max_questions) is not int or not 1 <= max_questions <= 32:
         raise ValueError("require lower <= upper and 1..32 questions")
     low, high, history = field("lower"), field("upper"), field("history")
-    step, answer = input_("step"), input_("answer")
+    step, answer = arg("step"), arg("answer")
     price = round_ratio(low + high, 2, rounding="ceiling")
     done = (high - low <= constant("tolerance")) | (
         history.length() >= constant("max_questions")
@@ -62,27 +62,27 @@ def build_machine(lower=0, upper=100, max_questions=7, tolerance=0):
         name="PriceElicitation",
         constants={"max_questions": max_questions, "tolerance": tolerance},
         fields={
-            "lower": state_field(T.integer(minimum=lower, maximum=upper), lower),
-            "upper": state_field(T.integer(minimum=lower, maximum=upper), upper),
+            "lower": state_field(StateType.integer(minimum=lower, maximum=upper), lower),
+            "upper": state_field(StateType.integer(minimum=lower, maximum=upper), upper),
             "history": state_field(
-                T.sequence(
-                    T.record(
+                StateType.sequence(
+                    StateType.record(
                         {
-                            "step": T.integer(minimum=0),
-                            "price": T.integer(minimum=lower, maximum=upper),
-                            "answer": T.choice(["Yes", "No"]),
+                            "step": StateType.integer(minimum=0),
+                            "price": StateType.integer(minimum=lower, maximum=upper),
+                            "answer": StateType.choice(["Yes", "No"]),
                         }
                     )
                 ),
                 [],
             ),
-            "closed": state_field(T.boolean(), False),
+            "closed": state_field(StateType.boolean(), False),
         },
         commands={
             "observe": Command(
                 inputs={
-                    "step": T.integer(minimum=0),
-                    "answer": T.choice(["Yes", "No"]),
+                    "step": StateType.integer(minimum=0),
+                    "answer": StateType.choice(["Yes", "No"]),
                 },
                 effects=(
                     assert_(

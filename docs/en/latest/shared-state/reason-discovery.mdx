@@ -103,9 +103,9 @@ All changes to labels, streak, and respondent records commit atomically.
 The key computation uses ordinary primitives:
 
 ```python
-from edsl.sharedstate import field, input_, local, map_sequence
+from edsl.sharedstate import field, arg, local, map_sequence
 
-reason = input_("reason").stripped()
+reason = arg("reason").stripped()
 key = reason.casefolded()
 known_keys = map_sequence(
     field("reasons"),

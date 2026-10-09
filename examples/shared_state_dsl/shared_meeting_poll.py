@@ -1,6 +1,6 @@
 """A typed poll that records each participant's available meeting times."""
 
-from edsl.sharedstate import Command, Machine, T, constant, field, input_, put, reduce_, set_, state_field, when
+from edsl.sharedstate import Command, Machine, StateType, constant, field, arg, put, reduce_, set_, state_field, when
 
 
 SLOTS = (
@@ -11,32 +11,32 @@ SLOTS = (
     "Thursday 10:00 AM",
 )
 
-new_participant = ~field("availability").contains(input_("participant"))
+new_participant = ~field("availability").contains(arg("participant"))
 
 SPEC = Machine(
     name="MeetingAvailabilityPoll",
     constants={"slots": SLOTS},
     fields={
         "availability": state_field(
-            T.map(T.text(), T.sequence(T.choice(SLOTS))), {}
+            StateType.map(StateType.text(), StateType.sequence(StateType.choice(SLOTS))), {}
         ),
         "counts": state_field(
-            T.map(T.text(), T.integer(minimum=0)), {slot: 0 for slot in SLOTS}
+            StateType.map(StateType.text(), StateType.integer(minimum=0)), {slot: 0 for slot in SLOTS}
         ),
     },
     commands={
         "respond": Command(
             inputs={
-                "participant": T.text(),
-                "available_slots": T.sequence(T.choice(SLOTS)),
+                "participant": StateType.text(),
+                "available_slots": StateType.sequence(StateType.choice(SLOTS)),
             },
             effects=(
                 when(
                     new_participant,
                     put(
                         "availability",
-                        input_("participant"),
-                        input_("available_slots"),
+                        arg("participant"),
+                        arg("available_slots"),
                     ),
                 ),
                 when(
@@ -46,7 +46,7 @@ SPEC = Machine(
                         reduce_(
                             "increment_keys",
                             field("counts"),
-                            keys=input_("available_slots"),
+                            keys=arg("available_slots"),
                         ),
                     ),
                 ),

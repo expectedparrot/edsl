@@ -1,31 +1,31 @@
 """Atomic work claiming using general sequence and map expressions."""
 
-from edsl.sharedstate import Command, Machine, T, constant, current, field, input_, put, record, set_, state_field
+from edsl.sharedstate import Command, Machine, StateType, constant, current, field, arg, put, record, set_, state_field
 
-unclaimed = ~field("claims").contains(input_("claimant"))
+unclaimed = ~field("claims").contains(arg("claimant"))
 
 SPEC = Machine(
     name="SharedWorkPool",
     constants={"items": ({"id": "W1"}, {"id": "W2"})},
     fields={
-        "available": state_field(T.sequence(), constant("items")),
-        "claims": state_field(T.map(), {}),
-        "completed": state_field(T.map(), {}),
+        "available": state_field(StateType.sequence(), constant("items")),
+        "claims": state_field(StateType.map(), {}),
+        "completed": state_field(StateType.map(), {}),
     },
     commands={
         "claim_before": Command(
-            inputs={"claimant": T.text()},
+            inputs={"claimant": StateType.text()},
             require=unclaimed,
             effects=(
-                put("claims", input_("claimant"), field("available").first()),
+                put("claims", arg("claimant"), field("available").first()),
                 set_("available", field("available").drop_first()),
             ),
             timing="before_question",
         ),
         "complete": Command(
-            inputs={"claimant": T.text(), "result": T.any()},
-            require=field("claims").contains(input_("claimant")),
-            effects=(put("completed", input_("claimant"), record(item=field("claims").get(input_("claimant")), result=input_("result"))),),
+            inputs={"claimant": StateType.text(), "result": StateType.any()},
+            require=field("claims").contains(arg("claimant")),
+            effects=(put("completed", arg("claimant"), record(item=field("claims").get(arg("claimant")), result=arg("result"))),),
         ),
     },
     view={

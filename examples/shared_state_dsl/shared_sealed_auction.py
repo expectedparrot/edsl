@@ -1,6 +1,6 @@
 """First-price, second-price, or all-pay settlement as pure expressions."""
 
-from edsl.sharedstate import Command, Machine, T, choose, constant, current, field, input_, local, map_items, put, record, reduce_, set_, state_field
+from edsl.sharedstate import Command, Machine, StateType, choose, constant, current, field, arg, local, map_items, put, record, reduce_, set_, state_field
 
 ranked = reduce_("sort_records", field("bids").values(), fields=("amount", "seat"), descending=(True, False))
 winning = ranked.first()
@@ -25,14 +25,14 @@ SPEC = Machine(
     name="SharedSealedAuction",
     constants={"mechanism": "second_price", "bidder_count": 3},
     fields={
-        "bids": state_field(T.map(), {}), "winner": state_field(T.optional(T.text()), None),
-        "winning_bid": state_field(T.optional(T.number()), None), "price": state_field(T.optional(T.number()), None),
-        "revenue": state_field(T.optional(T.number()), None), "utilities": state_field(T.map(), {}),
+        "bids": state_field(StateType.map(), {}), "winner": state_field(StateType.optional(StateType.text()), None),
+        "winning_bid": state_field(StateType.optional(StateType.number()), None), "price": state_field(StateType.optional(StateType.number()), None),
+        "revenue": state_field(StateType.optional(StateType.number()), None), "utilities": state_field(StateType.map(), {}),
     },
     commands={
         "bid": Command(
-            inputs={"bidder": T.text(), "seat": T.integer(minimum=0), "private_value": T.number(minimum=0), "amount": T.number(minimum=0)},
-            effects=(put("bids", input_("bidder"), record(bidder=input_("bidder"), amount=input_("amount"), value=input_("private_value"), seat=input_("seat"))),),
+            inputs={"bidder": StateType.text(), "seat": StateType.integer(minimum=0), "private_value": StateType.number(minimum=0), "amount": StateType.number(minimum=0)},
+            effects=(put("bids", arg("bidder"), record(bidder=arg("bidder"), amount=arg("amount"), value=arg("private_value"), seat=arg("seat"))),),
         )
     },
     view={

@@ -22,19 +22,19 @@ allocation, or sealed bid:
 
 ```python
 fields={
-    "choices": state_field(T.map(T.text(), T.text()), initial={}),
+    "choices": state_field(StateType.map(StateType.text(), StateType.text()), initial={}),
 }
 
 submit = Command(
     inputs={
-        "participant": T.text(),
-        "choice": T.text(),
+        "participant": StateType.text(),
+        "choice": StateType.text(),
     },
     effects=(
         put(
             "choices",
-            key=input_("participant"),
-            value=input_("choice"),
+            key=arg("participant"),
+            value=arg("choice"),
             once=True,
         ),
     ),
@@ -46,7 +46,7 @@ A retry with the same key is harmless. A conflicting later value is ignored.
 For a single shared value rather than a map entry, use `set_once`:
 
 ```python
-set_once("final_decision", input_("decision"))
+set_once("final_decision", arg("decision"))
 ```
 
 ### Pattern: latest-write-wins
@@ -56,8 +56,8 @@ Use ordinary `put` when participants may revise their current response:
 ```python
 put(
     "forecasts",
-    key=input_("forecaster"),
-    value=input_("probability"),
+    key=arg("forecaster"),
+    value=arg("probability"),
 )
 ```
 
@@ -66,13 +66,13 @@ both a current map and an append-only history in one command:
 
 ```python
 effects=(
-    put("latest", input_("forecaster"), input_("probability")),
+    put("latest", arg("forecaster"), arg("probability")),
     append(
         "history",
         record(
-            forecaster=input_("forecaster"),
-            probability=input_("probability"),
-            round=input_("round"),
+            forecaster=arg("forecaster"),
+            probability=arg("probability"),
+            round=arg("round"),
         ),
     ),
 )
@@ -86,20 +86,20 @@ Use a sequence when every event should remain available:
 
 ```python
 fields={
-    "events": state_field(T.sequence(T.map()), initial=[]),
+    "events": state_field(StateType.sequence(StateType.map()), initial=[]),
 }
 
 record_event = Command(
     inputs={
-        "actor": T.text(),
-        "action": T.text(),
+        "actor": StateType.text(),
+        "action": StateType.text(),
     },
     effects=(
         append(
             "events",
             record(
-                actor=input_("actor"),
-                action=input_("action"),
+                actor=arg("actor"),
+                action=arg("action"),
                 interview=current_value("interview.id"),
             ),
         ),
@@ -134,19 +134,19 @@ Use one command when fields must agree with one another:
 ```python
 make_offer = Command(
     inputs={
-        "proposer": T.text(),
-        "amount": T.number(minimum=0, maximum=constant("stake")),
+        "proposer": StateType.text(),
+        "amount": StateType.number(minimum=0, maximum=constant("stake")),
     },
     require=field("offer") == None,
     effects=(
-        set_("proposer", input_("proposer")),
-        set_("offer", input_("amount")),
+        set_("proposer", arg("proposer")),
+        set_("offer", arg("amount")),
         append(
             "history",
             record(
                 kind="offer",
-                proposer=input_("proposer"),
-                amount=input_("amount"),
+                proposer=arg("proposer"),
+                amount=arg("amount"),
             ),
         ),
     ),
@@ -163,16 +163,16 @@ A later command can require an earlier stage:
 ```python
 respond = Command(
     inputs={
-        "responder": T.text(),
-        "decision": T.choice(["accept", "reject"]),
+        "responder": StateType.text(),
+        "decision": StateType.choice(["accept", "reject"]),
     },
     require=(
         (field("offer") != None)
         & (field("decision") == None)
     ),
     effects=(
-        set_("responder", input_("responder")),
-        set_("decision", input_("decision")),
+        set_("responder", arg("responder")),
+        set_("decision", arg("decision")),
     ),
 )
 ```
@@ -289,7 +289,7 @@ A checkbox answer may increment several configured counters atomically:
 ```python
 tally = Command(
     inputs={
-        "selected": T.sequence(T.choice(constant("options"))),
+        "selected": StateType.sequence(StateType.choice(constant("options"))),
     },
     effects=(
         set_(
@@ -297,7 +297,7 @@ tally = Command(
             reduce_(
                 "increment_keys",
                 field("counts"),
-                keys=input_("selected"),
+                keys=arg("selected"),
             ),
         ),
     ),
@@ -358,20 +358,20 @@ and record the claim together:
 ```python
 claim = Command(
     inputs={
-        "claimant": T.text(),
-        "item": T.text(),
+        "claimant": StateType.text(),
+        "item": StateType.text(),
     },
     require=(
-        ~field("claims").contains(input_("claimant"))
-        & (field("remaining").get(input_("item"), 0) > 0)
+        ~field("claims").contains(arg("claimant"))
+        & (field("remaining").get(arg("item"), 0) > 0)
     ),
     effects=(
-        put("claims", input_("claimant"), input_("item"), once=True),
+        put("claims", arg("claimant"), arg("item"), once=True),
         set_(
             "remaining",
             field("remaining").with_item(
-                input_("item"),
-                field("remaining").get(input_("item")) - 1,
+                arg("item"),
+                field("remaining").get(arg("item")) - 1,
             ),
         ),
     ),

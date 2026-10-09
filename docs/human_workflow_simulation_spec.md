@@ -114,18 +114,18 @@ The machine is independent of humans, email, and AI models:
 sequence_machine = Machine(
     name="DependentAnswers",
     fields={
-        "first_answer": state_field(T.optional(T.text()), None),
-        "second_answer": state_field(T.optional(T.text()), None),
+        "first_answer": state_field(StateType.optional(StateType.text()), None),
+        "second_answer": state_field(StateType.optional(StateType.text()), None),
     },
     commands={
         "submit_first": Command(
-            inputs={"answer": T.text()},
-            effects=(set_once("first_answer", input_("answer")),),
+            inputs={"answer": StateType.text()},
+            effects=(set_once("first_answer", arg("answer")),),
         ),
         "submit_second": Command(
-            inputs={"answer": T.text()},
+            inputs={"answer": StateType.text()},
             require=field("first_answer") != None,
-            effects=(set_once("second_answer", input_("answer")),),
+            effects=(set_once("second_answer", arg("answer")),),
         ),
     },
     view={
@@ -353,8 +353,8 @@ The principal terms are:
 ```python
 from edsl import QuestionFreeText, Survey
 from edsl.sharedstate import (
-    Command, Machine, SharedState, SharedStateMap, T,
-    field, input_, set_once, state_field,
+    Command, Machine, SharedState, SharedStateMap, StateType,
+    field, arg, set_once, state_field,
 )
 from edsl.workflows import (
     HumanWorkflow, HumanStep, ParticipantSelector,
@@ -365,18 +365,18 @@ sequence_machine = Machine(
     name="DependentAnswers",
     constants={},
     fields={
-        "first_answer": state_field(T.optional(T.text()), None),
-        "second_answer": state_field(T.optional(T.text()), None),
+        "first_answer": state_field(StateType.optional(StateType.text()), None),
+        "second_answer": state_field(StateType.optional(StateType.text()), None),
     },
     commands={
         "submit_first": Command(
-            inputs={"answer": T.text()},
-            effects=(set_once("first_answer", input_("answer")),),
+            inputs={"answer": StateType.text()},
+            effects=(set_once("first_answer", arg("answer")),),
         ),
         "submit_second": Command(
-            inputs={"answer": T.text()},
+            inputs={"answer": StateType.text()},
             require=field("first_answer") != None,
-            effects=(set_once("second_answer", input_("answer")),),
+            effects=(set_once("second_answer", arg("answer")),),
         ),
     },
     view={

@@ -16,13 +16,13 @@ from edsl.sharedstate import (
     SharedState,
     SharedStateMap,
     SQLiteStateBackend,
-    T,
+    StateType,
     UnsupportedCapabilityError,
     assert_,
     current_value,
     expr,
     field,
-    input_,
+    arg,
     reject,
     resolve_read,
     resolve_write,
@@ -41,7 +41,7 @@ def spec(effects=None):
     return Machine(
         name="Decision",
         constants={},
-        fields={"count": state_field(T.integer(), 0)},
+        fields={"count": state_field(StateType.integer(), 0)},
         commands={
             "act": Command(
                 {},
@@ -133,7 +133,7 @@ def test_non_boolean_assertion_is_failure_not_rejection(condition):
         spec(),
         commands={
             "act": Command(
-                {"condition": T.any()}, (assert_(input_("condition"), code="no"),)
+                {"condition": StateType.any()}, (assert_(arg("condition"), code="no"),)
             )
         },
     )

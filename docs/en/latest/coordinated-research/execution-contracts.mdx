@@ -111,7 +111,7 @@ checks, not a complete static type system or a resource-bounded interpreter.
 
 Persisted inputs, states, and public views require finite JSON data and string
 map keys. `NaN`, infinities, and integer-keyed persisted maps are rejected, including
-under `T.any()`. Algorithms may use numeric keys internally, but must explicitly
+under `StateType.any()`. Algorithms may use numeric keys internally, but must explicitly
 encode them as text in a JSON view. The Delphi and signal-schedule examples show
 this conversion without changing numeric ordering inside their calculations.
 

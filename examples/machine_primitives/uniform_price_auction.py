@@ -3,7 +3,7 @@
 from edsl.sharedstate import (
     Command,
     Machine,
-    T,
+    StateType,
     assert_,
     choose,
     constant,
@@ -11,7 +11,7 @@ from edsl.sharedstate import (
     field,
     filter_items,
     fold,
-    input_,
+    arg,
     let,
     local,
     map_items,
@@ -47,10 +47,10 @@ def build_machine(
     ):
         raise ValueError("require positive integer units and 1 <= max_demand <= units")
     book = field("auction")
-    bidder, bids = input_("bidder_id"), input_("bids")
+    bidder, bids = arg("bidder_id"), arg("bids")
     submitted = book.get("bids")
     known = submitted.contains(bidder)
-    bid_type = T.sequence(T.integer(minimum=0))
+    bid_type = StateType.sequence(StateType.integer(minimum=0))
     # Validate weakly decreasing marginal bids without requiring a sorting callback.
     order_check = fold(
         bids,
@@ -171,16 +171,16 @@ def build_machine(
         },
         fields={
             "auction": state_field(
-                T.record(
+                StateType.record(
                     {
-                        "bids": T.map(T.text(), bid_type),
-                        "cash": T.map(T.text(), T.integer(minimum=0)),
-                        "allocations": T.map(T.text(), T.integer(minimum=0)),
-                        "payments": T.map(T.text(), T.integer(minimum=0)),
-                        "seller_cash": T.integer(minimum=0),
-                        "remaining": T.integer(minimum=0),
-                        "price": T.optional(T.integer(minimum=1)),
-                        "settled": T.boolean(),
+                        "bids": StateType.map(StateType.text(), bid_type),
+                        "cash": StateType.map(StateType.text(), StateType.integer(minimum=0)),
+                        "allocations": StateType.map(StateType.text(), StateType.integer(minimum=0)),
+                        "payments": StateType.map(StateType.text(), StateType.integer(minimum=0)),
+                        "seller_cash": StateType.integer(minimum=0),
+                        "remaining": StateType.integer(minimum=0),
+                        "price": StateType.optional(StateType.integer(minimum=1)),
+                        "settled": StateType.boolean(),
                     }
                 ),
                 {
@@ -197,7 +197,7 @@ def build_machine(
         },
         commands={
             "submit": Command(
-                inputs={"bidder_id": T.text(), "bids": bid_type},
+                inputs={"bidder_id": StateType.text(), "bids": bid_type},
                 effects=(
                     assert_(
                         constant("bidders").contains(bidder), code="unknown_bidder"

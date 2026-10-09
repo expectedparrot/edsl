@@ -3,7 +3,7 @@
 from edsl.sharedstate import (
     Command,
     Machine,
-    T,
+    StateType,
     append,
     choose,
     constant,
@@ -11,7 +11,7 @@ from edsl.sharedstate import (
     expr,
     field,
     filter_items,
-    input_,
+    arg,
     local,
     map_items,
     map_sequence,
@@ -22,11 +22,11 @@ from edsl.sharedstate import (
     when,
 )
 
-participant_history = field("revealed").get(input_("participant"), [])
-same_round = filter_items(participant_history, item="release", predicate=local("release").get("round") == input_("round"))
+participant_history = field("revealed").get(arg("participant"), [])
+same_round = filter_items(participant_history, item="release", predicate=local("release").get("round") == arg("round"))
 is_new = same_round.length() == 0
-signal = constant("signals").get(input_("participant")).at(input_("round") - 1)
-new_release = record(round=input_("round"), signal=signal)
+signal = constant("signals").get(arg("participant")).at(arg("round") - 1)
+new_release = record(round=arg("round"), signal=signal)
 
 viewer_history = field("revealed").get(current("name"), [])
 rounds = map_sequence(field("events"), item="event", value_expr=local("event").get("round"))
@@ -34,23 +34,23 @@ SPEC = Machine(
     name="SharedSignalSchedule",
     constants={"signals": {"Amina": ["sunny", "windy"], "Boris": ["cloudy", "calm"]}},
     fields={
-        "revealed": state_field(T.map(), {}),
-        "events": state_field(T.sequence(T.map()), []),
+        "revealed": state_field(StateType.map(), {}),
+        "events": state_field(StateType.sequence(StateType.map()), []),
     },
     commands={
         "reveal": Command(
-            inputs={"participant": T.text(), "round": T.integer(minimum=1)},
-            require=constant("signals").contains(input_("participant"))
+            inputs={"participant": StateType.text(), "round": StateType.integer(minimum=1)},
+            require=constant("signals").contains(arg("participant"))
             & (
-                input_("round")
-                <= constant("signals").get(input_("participant")).length()
+                arg("round")
+                <= constant("signals").get(arg("participant")).length()
             ),
             effects=(
                 when(
                     is_new,
                     put(
                         "revealed",
-                        input_("participant"),
+                        arg("participant"),
                         participant_history.appended(new_release),
                     ),
                 ),
@@ -59,7 +59,7 @@ SPEC = Machine(
                     append(
                         "events",
                         record(
-                            participant=input_("participant"), round=input_("round")
+                            participant=arg("participant"), round=arg("round")
                         ),
                     ),
                 ),

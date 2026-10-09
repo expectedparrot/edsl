@@ -7,12 +7,12 @@ IDs; the Machine does not authenticate them or reclaim abandoned reservations.
 from edsl.sharedstate import (
     Command,
     Machine,
-    T,
+    StateType,
     assert_,
     constant,
     current_value,
     field,
-    input_,
+    arg,
     put,
     record,
     reduce_,
@@ -27,7 +27,7 @@ def build_machine(quota_a=10, quota_b=10):
         if type(quota) is not int or quota < 0:
             raise ValueError("quotas must be nonnegative integers")
     admissions = field("admissions")
-    respondent, group = input_("respondent_id"), input_("group")
+    respondent, group = arg("respondent_id"), arg("group")
     existing = admissions.contains(respondent)
     counts = reduce_("count_by", admissions.values())
     limits = constant("limits")
@@ -39,12 +39,12 @@ def build_machine(quota_a=10, quota_b=10):
         name="SurveyQuota",
         constants={"limits": {"A": quota_a, "B": quota_b}},
         fields={
-            "admissions": state_field(T.map(T.text(), T.choice(["A", "B"])), {}),
-            "enrollment_closed": state_field(T.boolean(), False),
+            "admissions": state_field(StateType.map(StateType.text(), StateType.choice(["A", "B"])), {}),
+            "enrollment_closed": state_field(StateType.boolean(), False),
         },
         commands={
             "screen": Command(
-                inputs={"respondent_id": T.text(), "group": T.text()},
+                inputs={"respondent_id": StateType.text(), "group": StateType.text()},
                 effects=(
                     assert_(
                         respondent.stripped().length() > 0, code="missing_respondent_id"

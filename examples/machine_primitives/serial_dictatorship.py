@@ -7,14 +7,14 @@ priority ties. Each claimant receives the first ranked item with remaining space
 from edsl.sharedstate import (
     Command,
     Machine,
-    T,
+    StateType,
     append,
     choose,
     constant,
     field,
     filter_items,
     fold,
-    input_,
+    arg,
     let,
     local,
     record,
@@ -60,27 +60,27 @@ def build_machine(items=("North", "South"), capacity=1):
         name="PrimitiveSerialDictatorship",
         constants={"initial": initial},
         fields={
-            "requests": state_field(T.sequence(T.map()), []),
-            "allocation": state_field(T.map(), initial),
+            "requests": state_field(StateType.sequence(StateType.map()), []),
+            "allocation": state_field(StateType.map(), initial),
         },
         commands={
             "collect": Command(
                 inputs={
-                    "claimant": T.text(),
-                    "priority": T.optional(T.number()),
-                    "ranking": T.sequence(T.choice(items)),
+                    "claimant": StateType.text(),
+                    "priority": StateType.optional(StateType.number()),
+                    "ranking": StateType.sequence(StateType.choice(items)),
                 },
                 effects=(
                     append(
                         "requests",
                         record(
-                            claimant=input_("claimant"),
-                            ranking=input_("ranking"),
-                            unprioritized=input_("priority") == None,
+                            claimant=arg("claimant"),
+                            ranking=arg("ranking"),
+                            unprioritized=arg("priority") == None,
                             priority=choose(
-                                input_("priority") == None,
+                                arg("priority") == None,
                                 field("requests").length(),
-                                input_("priority"),
+                                arg("priority"),
                             ),
                             index=field("requests").length(),
                         ),

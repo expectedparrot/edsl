@@ -616,7 +616,7 @@ def test_rejected_machine_action_is_terminal_during_outbox_recovery(
         Machine,
         SharedState,
         SharedStateMap,
-        T,
+        StateType,
         reject,
         state_field,
     )
@@ -624,7 +624,7 @@ def test_rejected_machine_action_is_terminal_during_outbox_recovery(
     machine = Machine(
         name="Decline",
         constants={},
-        fields={"count": state_field(T.integer(), 0)},
+        fields={"count": state_field(StateType.integer(), 0)},
         commands={"act": Command({}, (reject("not_allowed"),))},
         view={},
     )

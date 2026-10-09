@@ -84,7 +84,7 @@ An input reference becomes data resembling:
 ```
 
 The payload contains no executable Python. Serialization is why the DSL uses
-`field("votes")` rather than a closure and `input_("activity")` rather than a
+`field("votes")` rather than a closure and `arg("activity")` rather than a
 lambda.
 
 Persisted values follow a deliberately narrow JSON contract:

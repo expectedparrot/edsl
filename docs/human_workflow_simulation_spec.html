@@ -537,18 +537,18 @@ transitions</h2>
 <div class="sourceCode" id="cb2"><pre class="sourceCode python"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>sequence_machine <span class="op">=</span> Machine(</span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>    name<span class="op">=</span><span class="st">&quot;DependentAnswers&quot;</span>,</span>
 <span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>    fields<span class="op">=</span>{</span>
-<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;first_answer&quot;</span>: state_field(T.optional(T.text()), <span class="va">None</span>),</span>
-<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;second_answer&quot;</span>: state_field(T.optional(T.text()), <span class="va">None</span>),</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;first_answer&quot;</span>: state_field(StateType.optional(StateType.text()), <span class="va">None</span>),</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;second_answer&quot;</span>: state_field(StateType.optional(StateType.text()), <span class="va">None</span>),</span>
 <span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>    },</span>
 <span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>    commands<span class="op">=</span>{</span>
 <span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;submit_first&quot;</span>: Command(</span>
-<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>            inputs<span class="op">=</span>{<span class="st">&quot;answer&quot;</span>: T.text()},</span>
-<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>            effects<span class="op">=</span>(set_once(<span class="st">&quot;first_answer&quot;</span>, input_(<span class="st">&quot;answer&quot;</span>)),),</span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>            inputs<span class="op">=</span>{<span class="st">&quot;answer&quot;</span>: StateType.text()},</span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>            effects<span class="op">=</span>(set_once(<span class="st">&quot;first_answer&quot;</span>, arg(<span class="st">&quot;answer&quot;</span>)),),</span>
 <span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a>        ),</span>
 <span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;submit_second&quot;</span>: Command(</span>
-<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a>            inputs<span class="op">=</span>{<span class="st">&quot;answer&quot;</span>: T.text()},</span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a>            inputs<span class="op">=</span>{<span class="st">&quot;answer&quot;</span>: StateType.text()},</span>
 <span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a>            require<span class="op">=</span>field(<span class="st">&quot;first_answer&quot;</span>) <span class="op">!=</span> <span class="va">None</span>,</span>
-<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a>            effects<span class="op">=</span>(set_once(<span class="st">&quot;second_answer&quot;</span>, input_(<span class="st">&quot;answer&quot;</span>)),),</span>
+<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a>            effects<span class="op">=</span>(set_once(<span class="st">&quot;second_answer&quot;</span>, arg(<span class="st">&quot;answer&quot;</span>)),),</span>
 <span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a>        ),</span>
 <span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a>    },</span>
 <span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a>    view<span class="op">=</span>{</span>
@@ -808,8 +808,8 @@ behavior.</li>
 <h2 data-number="8.1" id="minimal-sequential-example"><span class="header-section-number">8.1</span> Minimal sequential example</h2>
 <div class="sourceCode" id="cb7"><pre class="sourceCode python"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> edsl <span class="im">import</span> QuestionFreeText, Survey</span>
 <span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> edsl.sharedstate <span class="im">import</span> (</span>
-<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>    Command, Machine, SharedState, SharedStateMap, T,</span>
-<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>    field, input_, set_once, state_field,</span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>    Command, Machine, SharedState, SharedStateMap, StateType,</span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>    field, arg, set_once, state_field,</span>
 <span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>)</span>
 <span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> edsl.workflows <span class="im">import</span> (</span>
 <span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>    HumanWorkflow, HumanStep, ParticipantSelector,</span>
@@ -820,18 +820,18 @@ behavior.</li>
 <span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a>    name<span class="op">=</span><span class="st">&quot;DependentAnswers&quot;</span>,</span>
 <span id="cb7-13"><a href="#cb7-13" aria-hidden="true" tabindex="-1"></a>    constants<span class="op">=</span>{},</span>
 <span id="cb7-14"><a href="#cb7-14" aria-hidden="true" tabindex="-1"></a>    fields<span class="op">=</span>{</span>
-<span id="cb7-15"><a href="#cb7-15" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;first_answer&quot;</span>: state_field(T.optional(T.text()), <span class="va">None</span>),</span>
-<span id="cb7-16"><a href="#cb7-16" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;second_answer&quot;</span>: state_field(T.optional(T.text()), <span class="va">None</span>),</span>
+<span id="cb7-15"><a href="#cb7-15" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;first_answer&quot;</span>: state_field(StateType.optional(StateType.text()), <span class="va">None</span>),</span>
+<span id="cb7-16"><a href="#cb7-16" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;second_answer&quot;</span>: state_field(StateType.optional(StateType.text()), <span class="va">None</span>),</span>
 <span id="cb7-17"><a href="#cb7-17" aria-hidden="true" tabindex="-1"></a>    },</span>
 <span id="cb7-18"><a href="#cb7-18" aria-hidden="true" tabindex="-1"></a>    commands<span class="op">=</span>{</span>
 <span id="cb7-19"><a href="#cb7-19" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;submit_first&quot;</span>: Command(</span>
-<span id="cb7-20"><a href="#cb7-20" aria-hidden="true" tabindex="-1"></a>            inputs<span class="op">=</span>{<span class="st">&quot;answer&quot;</span>: T.text()},</span>
-<span id="cb7-21"><a href="#cb7-21" aria-hidden="true" tabindex="-1"></a>            effects<span class="op">=</span>(set_once(<span class="st">&quot;first_answer&quot;</span>, input_(<span class="st">&quot;answer&quot;</span>)),),</span>
+<span id="cb7-20"><a href="#cb7-20" aria-hidden="true" tabindex="-1"></a>            inputs<span class="op">=</span>{<span class="st">&quot;answer&quot;</span>: StateType.text()},</span>
+<span id="cb7-21"><a href="#cb7-21" aria-hidden="true" tabindex="-1"></a>            effects<span class="op">=</span>(set_once(<span class="st">&quot;first_answer&quot;</span>, arg(<span class="st">&quot;answer&quot;</span>)),),</span>
 <span id="cb7-22"><a href="#cb7-22" aria-hidden="true" tabindex="-1"></a>        ),</span>
 <span id="cb7-23"><a href="#cb7-23" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;submit_second&quot;</span>: Command(</span>
-<span id="cb7-24"><a href="#cb7-24" aria-hidden="true" tabindex="-1"></a>            inputs<span class="op">=</span>{<span class="st">&quot;answer&quot;</span>: T.text()},</span>
+<span id="cb7-24"><a href="#cb7-24" aria-hidden="true" tabindex="-1"></a>            inputs<span class="op">=</span>{<span class="st">&quot;answer&quot;</span>: StateType.text()},</span>
 <span id="cb7-25"><a href="#cb7-25" aria-hidden="true" tabindex="-1"></a>            require<span class="op">=</span>field(<span class="st">&quot;first_answer&quot;</span>) <span class="op">!=</span> <span class="va">None</span>,</span>
-<span id="cb7-26"><a href="#cb7-26" aria-hidden="true" tabindex="-1"></a>            effects<span class="op">=</span>(set_once(<span class="st">&quot;second_answer&quot;</span>, input_(<span class="st">&quot;answer&quot;</span>)),),</span>
+<span id="cb7-26"><a href="#cb7-26" aria-hidden="true" tabindex="-1"></a>            effects<span class="op">=</span>(set_once(<span class="st">&quot;second_answer&quot;</span>, arg(<span class="st">&quot;answer&quot;</span>)),),</span>
 <span id="cb7-27"><a href="#cb7-27" aria-hidden="true" tabindex="-1"></a>        ),</span>
 <span id="cb7-28"><a href="#cb7-28" aria-hidden="true" tabindex="-1"></a>    },</span>
 <span id="cb7-29"><a href="#cb7-29" aria-hidden="true" tabindex="-1"></a>    view<span class="op">=</span>{</span>

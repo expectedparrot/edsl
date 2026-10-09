@@ -81,15 +81,15 @@ on an existing database is a definition mismatch, not a quota-reset mechanism.
 
 The state stores one `admissions` map, from stable respondent ID to admitted type,
 and an `enrollment_closed` flag for explicit early closure. The map's value type
-is `T.choice(["A", "B"])`. Screened-out respondents do not add entries to this
+is `StateType.choice(["A", "B"])`. Screened-out respondents do not add entries to this
 map. Counts are derived, so there is no separately incremented counter to drift:
 
 ```python
-from edsl.sharedstate import constant, field, input_, reduce_
+from edsl.sharedstate import constant, field, arg, reduce_
 
 admissions = field("admissions")
-respondent = input_("respondent_id")
-group = input_("group")
+respondent = arg("respondent_id")
+group = arg("group")
 counts = reduce_("count_by", admissions.values())
 limits = constant("limits")  # {"A": 10, "B": 10}
 existing = admissions.contains(respondent)
