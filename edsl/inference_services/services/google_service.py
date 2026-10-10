@@ -46,32 +46,44 @@ def _vertex_enabled() -> bool:
     )
 
 
-def _build_genai_client(api_token: Optional[str] = None):
+def _build_genai_client(
+    api_token: Optional[str] = None,
+    *,
+    use_vertex: Optional[bool] = None,
+    vertex_project: Optional[str] = None,
+    vertex_location: Optional[str] = None,
+):
     """Construct a ``google.genai`` client for the configured backend.
 
-    The same Gen AI SDK speaks to two backends:
+    Backend selection is per call. An explicit ``use_vertex`` wins; it is
+    normally carried as a *model parameter* (see ``create_model``), so the choice
+    serializes with the model and reaches coopr's remote-inference worker when it
+    rebuilds the model from its dict. When ``use_vertex`` is ``None`` the
+    ``GOOGLE_GENAI_USE_VERTEXAI`` environment variable is the default.
 
     * **Gemini Developer API** (default) — authenticated by an API key
-      (``api_token`` if given, else the ``GOOGLE_API_KEY`` environment
-      variable). This is the historical behaviour.
-    * **Vertex AI** (when ``GOOGLE_GENAI_USE_VERTEXAI`` is truthy) —
-      authenticated by Application Default Credentials (e.g. a service account
-      referenced by ``GOOGLE_APPLICATION_CREDENTIALS``, or workload identity);
-      the API key is ignored. Requires ``GOOGLE_CLOUD_PROJECT`` and uses
-      ``GOOGLE_CLOUD_LOCATION`` (default ``us-central1``). Standard (non-express)
-      Vertex does not accept API keys, so none is passed. Vertex is where Google
-      Cloud project credits apply.
+      (``api_token`` if given, else ``GOOGLE_API_KEY``). Historical behaviour.
+    * **Vertex AI** — ``genai.Client(vertexai=True, project=..., location=...)``,
+      authenticated by Application Default Credentials (a service account via
+      ``GOOGLE_APPLICATION_CREDENTIALS``, or workload identity); the API key is
+      ignored, since standard (non-express) Vertex rejects keys. ``vertex_project``
+      falls back to ``GOOGLE_CLOUD_PROJECT``; ``vertex_location`` to
+      ``GOOGLE_CLOUD_LOCATION`` then ``us-central1``. Vertex is where Google Cloud
+      project credits apply.
     """
     genai = _get_genai()
-    if _vertex_enabled():
-        project = os.environ.get("GOOGLE_CLOUD_PROJECT")
+    vertex = use_vertex if use_vertex is not None else _vertex_enabled()
+    if vertex:
+        project = vertex_project or os.environ.get("GOOGLE_CLOUD_PROJECT")
         if not project:
             raise ValueError(
-                "GOOGLE_GENAI_USE_VERTEXAI is enabled but GOOGLE_CLOUD_PROJECT is "
-                "not set. Vertex AI requires a project id (and a location, "
-                "default 'us-central1')."
+                "Vertex AI is enabled (use_vertex model parameter or "
+                "GOOGLE_GENAI_USE_VERTEXAI) but no project is set. Pass the "
+                "vertex_project model parameter or set GOOGLE_CLOUD_PROJECT."
             )
-        location = os.environ.get("GOOGLE_CLOUD_LOCATION", "us-central1")
+        location = (
+            vertex_location or os.environ.get("GOOGLE_CLOUD_LOCATION") or "us-central1"
+        )
         # Credentials come from ADC (GOOGLE_APPLICATION_CREDENTIALS / workload
         # identity). Standard Vertex rejects API keys, so we pass none.
         return genai.Client(vertexai=True, project=project, location=location)
@@ -148,6 +160,14 @@ class GoogleService(InferenceServiceABC):
                 "maxOutputTokens": 2048,
                 "stopSequences": [],
                 "thinking_budget": None,
+                # Backend selection (Vertex AI vs Gemini Developer API). These
+                # are model parameters so they travel with the serialized model:
+                # a job built with use_vertex=True runs on Vertex through coopr's
+                # remote-inference worker as well. They are NOT sent to the API.
+                # None => fall back to GOOGLE_GENAI_USE_VERTEXAI / GOOGLE_CLOUD_*.
+                "use_vertex": None,
+                "vertex_project": None,
+                "vertex_location": None,
             }
 
             model = None
@@ -208,9 +228,16 @@ class GoogleService(InferenceServiceABC):
                         # creation_start = time.time()
 
                         # Developer API (api key) or Vertex AI (ADC/service
-                        # account) depending on GOOGLE_GENAI_USE_VERTEXAI. In
-                        # Vertex mode api_token is ignored.
-                        self._cached_client = _build_genai_client(self.api_token)
+                        # account). The per-model use_vertex / vertex_project /
+                        # vertex_location parameters win; otherwise the
+                        # GOOGLE_GENAI_USE_VERTEXAI / GOOGLE_CLOUD_* env vars are
+                        # the default. In Vertex mode api_token is ignored.
+                        self._cached_client = _build_genai_client(
+                            self.api_token,
+                            use_vertex=getattr(self, "use_vertex", None),
+                            vertex_project=getattr(self, "vertex_project", None),
+                            vertex_location=getattr(self, "vertex_location", None),
+                        )
                         self._cached_api_token = self.api_token
 
                 client = self._cached_client
