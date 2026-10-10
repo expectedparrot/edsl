@@ -5316,6 +5316,14 @@ class TestHumanizeCli:
                 assert estimated_completion_time_minutes == 5
                 return {"cost_cents": 240, "cost_credits": 2.4}
 
+            def get_prolific_study_settings(self):
+                return {
+                    "key_source": "ep",
+                    "charged_in_credits": True,
+                    "participant_limit": 100,
+                    "participant_limit_applies": True,
+                }
+
             def create_prolific_study(self, human_survey_uuid, **config):
                 assert human_survey_uuid == "human-survey-uuid"
                 assert config["name"] == "Demo"
@@ -5357,6 +5365,7 @@ class TestHumanizeCli:
                 "--output",
                 str(output_path),
             ],
+            ["humanize", "prolific", "settings"],
         ]
 
         outputs = []
@@ -5365,6 +5374,8 @@ class TestHumanizeCli:
             assert result.exit_code == 0, result.output
             outputs.append(json.loads(result.output)["data"])
 
+        assert outputs[5]["participant_limit"] == 100
+        assert outputs[5]["key_source"] == "ep"
         assert outputs[0]["filter_count"] == 1
         assert outputs[1]["cost_cents"] == 240
         assert outputs[2]["study_id"] == "study-id"

@@ -165,7 +165,7 @@ def register(humanize: click.Group) -> None:
         """Manage Prolific studies for human surveys."""
         if ctx.invoked_subcommand is None:
             output({
-                "commands": ["filters", "cost", "create", "publish", "responses"],
+                "commands": ["filters", "cost", "settings", "create", "publish", "responses"],
                 "help": "Use 'ep humanize prolific <command> --help' for details.",
             })
 
@@ -244,6 +244,19 @@ def register(humanize: click.Group) -> None:
                 num_participants=num_participants,
                 estimated_completion_time_minutes=estimated_completion_time_minutes,
             )))
+        except SystemExit:
+            raise
+        except Exception as e:
+            error("HUMANIZE_ERROR", str(e), exit_code=EXIT_REMOTE)
+
+
+    @humanize_prolific.command("settings")
+    def humanize_prolific_settings():
+        """Show whose Prolific account new studies run on, and the participant limit."""
+        try:
+            from edsl.coop import Coop
+
+            output(jsonable(Coop().get_prolific_study_settings()))
         except SystemExit:
             raise
         except Exception as e:
