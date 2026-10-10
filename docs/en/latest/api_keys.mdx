@@ -132,6 +132,22 @@ os.environ['AZURE_ENDPOINT_URL_AND_KEY'] = https://model_1_link:api_key_1,https:
 Note that your keys will not persist across sessions and you will need to provide your keys each time you start a new session.
 </Note>
 
+## Hugging Face dataset access
+
+Publishing agent or scenario lists to Hugging Face uses a Hugging Face User
+Access Token. Add it to `.env` as:
+
+```dotenv
+HF_TOKEN=hf_your_token_here
+```
+
+Create the token in [Hugging Face Access Tokens](https://huggingface.co/settings/tokens)
+with write permission for uploads. Load the file with `load_dotenv(".env")` before
+publishing, or authenticate using `hf auth login`. This integration does not
+require an Expected Parrot or model-provider key. See
+[Hugging Face datasets](/en/latest/hugging_face#set-up-your-hugging-face-token)
+for setup and examples.
+
 ## Credits
 
 When you use your Expected Parrot key to access models your account is charged for the costs of API calls to models. (When you use your own keys, service providers will bill you directly.) Please see the [model pricing page](http://www.expectedparrot.com/getting-started/coop-pricing) for information on available models and prices and the credits section for information on purchasing credits and calculating costs.
