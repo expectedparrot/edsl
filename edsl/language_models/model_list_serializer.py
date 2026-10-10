@@ -101,14 +101,13 @@ class ModelListSerializer:
             >>> ml == ml2
             True
         """
-        from ..language_models import LanguageModel
         from .model_list import ModelList
 
         lines = ModelListSerializer._open_lines(source)
         line_iter = iter(lines)
         next(line_iter)  # skip header
         models = [
-            LanguageModel.from_dict(json.loads(line))
+            model_from_dict(json.loads(line))
             for line in line_iter
             if line.strip()
         ]
@@ -119,14 +118,23 @@ class ModelListSerializer:
         source: Union[str, Path, Iterable[str]],
     ) -> Generator["LanguageModel", None, None]:
         """Lazily yield Model objects from a JSONL source."""
-        from ..language_models import LanguageModel
-
         lines = ModelListSerializer._open_lines(source)
         line_iter = iter(lines)
         next(line_iter)  # skip header
         for line in line_iter:
             if line.strip():
-                yield LanguageModel.from_dict(json.loads(line))
+                yield model_from_dict(json.loads(line))
+
+
+def model_from_dict(data):
+    """Restore either a language model or a typed judgment model."""
+    if data.get("model_kind") == "judgment":
+        from ..evaluations import JudgmentModel
+
+        return JudgmentModel.from_dict(data)
+    from .language_model import LanguageModel
+
+    return LanguageModel.from_dict(data)
 
 
 if __name__ == "__main__":

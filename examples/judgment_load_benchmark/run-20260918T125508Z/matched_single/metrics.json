@@ -1,0 +1,82 @@
+{
+  "phase": "matched_single",
+  "inputs": 100,
+  "questions_per_input": 5,
+  "concurrency": 8,
+  "request_rate_cap": 18.0,
+  "planned_requests": 500,
+  "logical_calls": 500,
+  "http_attempts": 500,
+  "retries": 0,
+  "http_statuses": {
+    "200": 500
+  },
+  "completed_rows": 98,
+  "completed_judgments": 490,
+  "failed_batches": [
+    "batch 38: Probabilities must sum to 1 within tolerance 1e-06; got 0.9900000000000001.",
+    "batch 488: Probabilities must sum to 1 within tolerance 1e-06; got 0.9900000000000001."
+  ],
+  "build_seconds": 0.0001866249367594719,
+  "compile_seconds": 0.3056441660737619,
+  "execute_seconds": 28.538590624928474,
+  "end_to_end_seconds": 28.844421415938996,
+  "inputs_per_second": 3.4339467315669383,
+  "judgments_per_second": 17.16973365783469,
+  "http_latency_seconds": {
+    "n": 500,
+    "mean": 0.22117721684998834,
+    "p50": 0.1988457499537617,
+    "p95": 0.3862229909806038,
+    "p99": 0.5888360173662657,
+    "max": 0.7748152500716969
+  },
+  "logical_latency_including_pacing_and_retries_seconds": {
+    "n": 500,
+    "mean": 0.45176686876337047,
+    "p50": 0.43801506247837096,
+    "p95": 0.6288321417348924,
+    "p99": 0.823456006792839,
+    "max": 1.060231624986045
+  },
+  "pacing_wait_seconds": {
+    "n": 500,
+    "mean": 0.2303237525052391,
+    "p50": 0.23813214601250365,
+    "p95": 0.2881703190738335,
+    "p99": 0.3017186896433122,
+    "max": 0.3954144170274958
+  },
+  "usage": {
+    "input_tokens": 204490,
+    "output_tokens": 14000
+  },
+  "estimated_usd": 0.00858858,
+  "actual_models": [
+    "jev-1.13.0"
+  ],
+  "accuracy": {
+    "n": 98,
+    "accuracy": 0.9897959183673469,
+    "majority_baseline": 0.8775510204081632,
+    "spam_precision": 1.0,
+    "spam_recall": 0.9166666666666666,
+    "brier_score": 0.010487755102040816,
+    "confusion": {
+      "true_spam": 11,
+      "true_ham": 86,
+      "false_spam": 0,
+      "missed_spam": 1
+    },
+    "errors": [
+      {
+        "source_id": 4394,
+        "gold": "spam",
+        "predicted": "ham",
+        "p_spam": 0.09
+      }
+    ]
+  },
+  "cache_entries": 498,
+  "save_packages_seconds": 0.20111779205035418
+}
