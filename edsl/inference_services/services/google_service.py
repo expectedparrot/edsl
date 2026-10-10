@@ -46,6 +46,60 @@ def _vertex_enabled() -> bool:
     )
 
 
+# Env vars that may hold a service-account key for Vertex. The first two carry
+# the key's JSON *contents* inline (how containers usually inject a secret); the
+# standard GOOGLE_APPLICATION_CREDENTIALS holds a filesystem *path* (and is also
+# what Application Default Credentials reads on its own).
+_VERTEX_SA_JSON_ENV_VARS = (
+    "GOOGLE_VERTEX_CREDENTIALS",
+    "GOOGLE_SERVICE_ACCOUNT_JSON",
+)
+_VERTEX_SCOPES = ["https://www.googleapis.com/auth/cloud-platform"]
+
+
+def _vertex_credentials_and_project():
+    """Resolve Vertex credentials and project from a service-account key in the
+    environment.
+
+    Returns ``(credentials, project_id)``. The project is read from the key's
+    ``project_id`` field, so a project need not be configured separately. Returns
+    ``(None, None)`` when no explicit key is found, in which case the Gen AI SDK
+    falls back to Application Default Credentials (e.g. workload identity).
+    """
+    import json
+
+    blob = None
+    for name in _VERTEX_SA_JSON_ENV_VARS:
+        value = os.environ.get(name)
+        if value and value.strip().startswith("{"):
+            blob = value
+            break
+    path = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
+
+    try:
+        from google.oauth2 import service_account
+
+        if blob:
+            info = json.loads(blob)
+            creds = service_account.Credentials.from_service_account_info(
+                info, scopes=_VERTEX_SCOPES
+            )
+            return creds, info.get("project_id")
+        if path and os.path.exists(path):
+            with open(path) as handle:
+                info = json.load(handle)
+            creds = service_account.Credentials.from_service_account_file(
+                path, scopes=_VERTEX_SCOPES
+            )
+            return creds, info.get("project_id")
+    except Exception:
+        # Malformed key or google-auth unavailable: let the SDK try ADC and let
+        # any real failure surface on the actual call.
+        return None, None
+
+    return None, None
+
+
 def _build_genai_client(
     api_token: Optional[str] = None,
     *,
@@ -63,30 +117,37 @@ def _build_genai_client(
 
     * **Gemini Developer API** (default) — authenticated by an API key
       (``api_token`` if given, else ``GOOGLE_API_KEY``). Historical behaviour.
-    * **Vertex AI** — ``genai.Client(vertexai=True, project=..., location=...)``,
-      authenticated by Application Default Credentials (a service account via
-      ``GOOGLE_APPLICATION_CREDENTIALS``, or workload identity); the API key is
-      ignored, since standard (non-express) Vertex rejects keys. ``vertex_project``
-      falls back to ``GOOGLE_CLOUD_PROJECT``; ``vertex_location`` to
-      ``GOOGLE_CLOUD_LOCATION`` then ``us-central1``. Vertex is where Google Cloud
-      project credits apply.
+    * **Vertex AI** — ``genai.Client(vertexai=True, project=..., location=...,
+      credentials=...)``. Credentials come from a **service-account key** in the
+      environment: its JSON contents inline in ``GOOGLE_VERTEX_CREDENTIALS`` /
+      ``GOOGLE_SERVICE_ACCOUNT_JSON``, or a file path in
+      ``GOOGLE_APPLICATION_CREDENTIALS`` (also plain ADC / workload identity).
+      The **project is read from the key** (its ``project_id``), so it need not be
+      configured; ``vertex_project`` / ``GOOGLE_CLOUD_PROJECT`` only override it.
+      ``location`` is not part of a key, so it comes from ``vertex_location`` /
+      ``GOOGLE_CLOUD_LOCATION`` / ``us-central1``. The API key is ignored
+      (standard Vertex rejects keys). Vertex is where Google Cloud credits apply.
     """
     genai = _get_genai()
     vertex = use_vertex if use_vertex is not None else _vertex_enabled()
     if vertex:
-        project = vertex_project or os.environ.get("GOOGLE_CLOUD_PROJECT")
+        credentials, sa_project = _vertex_credentials_and_project()
+        project = vertex_project or os.environ.get("GOOGLE_CLOUD_PROJECT") or sa_project
         if not project:
             raise ValueError(
-                "Vertex AI is enabled (use_vertex model parameter or "
-                "GOOGLE_GENAI_USE_VERTEXAI) but no project is set. Pass the "
-                "vertex_project model parameter or set GOOGLE_CLOUD_PROJECT."
+                "Vertex AI is enabled but no project could be determined. Provide "
+                "a service-account key (the project is read from it) via "
+                "GOOGLE_VERTEX_CREDENTIALS / GOOGLE_APPLICATION_CREDENTIALS, or set "
+                "GOOGLE_CLOUD_PROJECT."
             )
         location = (
             vertex_location or os.environ.get("GOOGLE_CLOUD_LOCATION") or "us-central1"
         )
-        # Credentials come from ADC (GOOGLE_APPLICATION_CREDENTIALS / workload
-        # identity). Standard Vertex rejects API keys, so we pass none.
-        return genai.Client(vertexai=True, project=project, location=location)
+        client_kwargs = {"vertexai": True, "project": project, "location": location}
+        # When no explicit key is found, credentials is None and the SDK uses ADC.
+        if credentials is not None:
+            client_kwargs["credentials"] = credentials
+        return genai.Client(**client_kwargs)
 
     api_key = api_token or os.environ.get("GOOGLE_API_KEY")
     if not api_key:
