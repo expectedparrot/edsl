@@ -57,23 +57,28 @@ _VERTEX_SA_JSON_ENV_VARS = (
 _VERTEX_SCOPES = ["https://www.googleapis.com/auth/cloud-platform"]
 
 
-def _vertex_credentials_and_project():
-    """Resolve Vertex credentials and project from a service-account key in the
-    environment.
+def _vertex_credentials_and_project(explicit_json: Optional[str] = None):
+    """Resolve Vertex credentials and project from a service-account key.
 
-    Returns ``(credentials, project_id)``. The project is read from the key's
-    ``project_id`` field, so a project need not be configured separately. Returns
-    ``(None, None)`` when no explicit key is found, in which case the Gen AI SDK
-    falls back to Application Default Credentials (e.g. workload identity).
+    The key may be supplied explicitly as a JSON string (``explicit_json`` — this
+    is how a per-user *custodial* Vertex key is passed, carried on the model so it
+    reaches coopr's worker), otherwise it is read from the environment. The
+    project is read from the key's ``project_id`` field, so a project need not be
+    configured separately. Returns ``(credentials, project_id)``, or
+    ``(None, None)`` when no key is found (the Gen AI SDK then falls back to
+    Application Default Credentials, e.g. workload identity).
     """
     import json
 
     blob = None
-    for name in _VERTEX_SA_JSON_ENV_VARS:
-        value = os.environ.get(name)
-        if value and value.strip().startswith("{"):
-            blob = value
-            break
+    if explicit_json and explicit_json.strip().startswith("{"):
+        blob = explicit_json
+    else:
+        for name in _VERTEX_SA_JSON_ENV_VARS:
+            value = os.environ.get(name)
+            if value and value.strip().startswith("{"):
+                blob = value
+                break
     path = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
 
     try:
@@ -106,6 +111,7 @@ def _build_genai_client(
     use_vertex: Optional[bool] = None,
     vertex_project: Optional[str] = None,
     vertex_location: Optional[str] = None,
+    vertex_credentials: Optional[str] = None,
 ):
     """Construct a ``google.genai`` client for the configured backend.
 
@@ -131,7 +137,7 @@ def _build_genai_client(
     genai = _get_genai()
     vertex = use_vertex if use_vertex is not None else _vertex_enabled()
     if vertex:
-        credentials, sa_project = _vertex_credentials_and_project()
+        credentials, sa_project = _vertex_credentials_and_project(vertex_credentials)
         project = vertex_project or os.environ.get("GOOGLE_CLOUD_PROJECT") or sa_project
         if not project:
             raise ValueError(
@@ -229,6 +235,10 @@ class GoogleService(InferenceServiceABC):
                 "use_vertex": None,
                 "vertex_project": None,
                 "vertex_location": None,
+                # A service-account key (JSON string) for a per-user "custodial"
+                # Vertex project. When set it supplies the credentials and the
+                # project; None falls back to the worker env credentials.
+                "vertex_credentials": None,
             }
 
             model = None
@@ -298,6 +308,9 @@ class GoogleService(InferenceServiceABC):
                             use_vertex=getattr(self, "use_vertex", None),
                             vertex_project=getattr(self, "vertex_project", None),
                             vertex_location=getattr(self, "vertex_location", None),
+                            vertex_credentials=getattr(
+                                self, "vertex_credentials", None
+                            ),
                         )
                         self._cached_api_token = self.api_token
 
