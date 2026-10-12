@@ -12,12 +12,24 @@ from uuid import uuid4
 
 from edsl._data_contracts import definition_fingerprint, validate_data
 from edsl.agents import Agent
-from edsl.sharedstate import StateBackend, WriteOperation, resolve_read, resolve_write
+from edsl.sharedstate import (
+    StateBackend,
+    StateCondition,
+    WriteOperation,
+    resolve_read,
+    resolve_write,
+)
 from edsl.sharedstate.steps import StepContext
 from edsl.sharedstate.dsl_runtime import Runtime
 from edsl.surveys import Survey
 
-from .definition import HumanWorkflow
+from .definition import (
+    AllCondition,
+    AnyCondition,
+    HumanWorkflow,
+    MachineCompleteCondition,
+    NotCondition,
+)
 from .store import SQLiteWorkflowStore
 
 
@@ -64,6 +76,35 @@ class WorkflowCoordinator:
                 raise ValueError(
                     "pause rule and state backend use different definitions"
                 )
+        for block in self.workflow.repeat_blocks:
+            for iteration in block.iterations:
+                for condition in self._condition_nodes(iteration.until):
+                    if isinstance(condition, MachineCompleteCondition):
+                        self._validate_machine_condition(condition.state_condition)
+
+    @staticmethod
+    def _condition_nodes(condition):
+        if condition is None:
+            return
+        yield condition
+        if isinstance(condition, (AllCondition, AnyCondition)):
+            for child in condition.conditions:
+                yield from WorkflowCoordinator._condition_nodes(child)
+        elif isinstance(condition, NotCondition):
+            yield from WorkflowCoordinator._condition_nodes(condition.condition)
+
+    def _validate_machine_condition(self, condition: StateCondition) -> None:
+        backend = self._backend(condition.state_id)
+        if (
+            backend.state_map.state_id != condition.state_id
+            or definition_fingerprint(backend.state_map.definition.to_dict())
+            != definition_fingerprint(condition.definition.to_dict())
+        ):
+            raise ValueError(
+                "repeat condition and state backend use different definitions"
+            )
+        if condition.target not in condition.definition.machines:
+            raise ValueError("repeat condition references an unknown Machine")
 
     def resume(self, instance_id: str) -> None:
         """Acknowledge a declared observation pause without terminating the market."""
@@ -294,6 +335,7 @@ class WorkflowCoordinator:
             OutputMajorityCondition,
             OutputRangeCondition,
             StepCompletedCondition,
+            MachineCompleteCondition,
         )
 
         if condition is None:
@@ -306,6 +348,13 @@ class WorkflowCoordinator:
             )
         if isinstance(condition, StepCompletedCondition):
             return self._step_succeeded(instance_id, condition.step_name)
+        if isinstance(condition, MachineCompleteCondition):
+            state_condition = condition.state_condition
+            backend = self._backend(state_condition.state_id)
+            snapshot = backend.snapshot(state_condition.scope)
+            machine = state_condition.definition.machines[state_condition.target]
+            runtime = getattr(backend, "runtime", None) or Runtime()
+            return runtime.complete(machine, snapshot.state[state_condition.target])
         if isinstance(condition, AllCondition):
             return all(
                 self._enabled(instance_id, item) for item in condition.conditions

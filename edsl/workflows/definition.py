@@ -7,7 +7,13 @@ from dataclasses import dataclass, field
 from typing import Any, Mapping, Sequence
 
 from edsl._data_contracts import check_arity, symbolic_bool, validate_data
-from edsl.sharedstate import StateRead, StateWrite, step_from_dict, step_to_dict
+from edsl.sharedstate import (
+    StateCondition,
+    StateRead,
+    StateWrite,
+    step_from_dict,
+    step_to_dict,
+)
 from edsl.surveys import Survey
 
 
@@ -331,6 +337,25 @@ class StepCompletedCondition(WorkflowCondition):
 
 
 @dataclass(frozen=True)
+class MachineCompleteCondition(WorkflowCondition):
+    state_condition: StateCondition
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.state_condition, StateCondition):
+            raise TypeError("machine completion condition requires StateCondition")
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "type": "machine_complete",
+            "state_condition": self.state_condition.to_dict(),
+        }
+
+    @property
+    def dependencies(self) -> frozenset[str]:
+        return frozenset()
+
+
+@dataclass(frozen=True)
 class AllCondition(WorkflowCondition):
     conditions: tuple[WorkflowCondition, ...]
 
@@ -477,6 +502,10 @@ class OutputRangeCondition(WorkflowCondition):
 
 def condition_from_dict(data: Mapping[str, Any]) -> WorkflowCondition:
     kind = data.get("type")
+    if kind == "machine_complete":
+        return MachineCompleteCondition(
+            StateCondition.from_dict(data["state_condition"])
+        )
     if kind == "answer_equals":
         return AnswerCondition.from_dict(data)
     if kind == "step_completed":

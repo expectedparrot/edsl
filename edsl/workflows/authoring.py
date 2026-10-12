@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Callable, Iterable, Mapping, Sequence
 
-from edsl.sharedstate import StateRead, StateWrite
+from edsl.sharedstate import StateCondition, StateRead, StateWrite
 from edsl.surveys import Survey
 
 from .definition import (
@@ -18,6 +18,7 @@ from .definition import (
     ExpressionCondition,
     HumanStep,
     HumanWorkflow,
+    MachineCompleteCondition,
     NotCondition,
     OutputCountCondition,
     OutputDisagreementCondition,
@@ -589,6 +590,13 @@ class RepeatIterationBuilder:
         return handle
 
     def stop_when(self, condition: WorkflowCondition) -> None:
+        if isinstance(condition, StateCondition):
+            condition = MachineCompleteCondition(condition)
+        if not isinstance(condition, WorkflowCondition):
+            raise TypeError(
+                "repeat stop condition must be a WorkflowCondition or a scoped "
+                "Machine.is_complete() condition"
+            )
         self.until = condition
 
 
