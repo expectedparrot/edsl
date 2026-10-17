@@ -1,0 +1,9 @@
+/* Follow Mintlify's prose caption color in each theme. */
+.paper-date {
+  color: var(--tw-prose-captions, #6b7280);
+  font-size: 0.875em;
+}
+
+.dark .paper-date {
+  color: var(--tw-prose-captions, #9ca3af);
+}
