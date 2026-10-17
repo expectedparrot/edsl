@@ -7,3 +7,13 @@
 .dark .paper-date {
   color: var(--tw-prose-captions, #9ca3af);
 }
+
+/* Keep author links subordinate to the paper titles. */
+.paper-authors a {
+  color: inherit;
+  font-weight: 400;
+}
+
+.paper-scholar {
+  font-size: 0.875em;
+}
