@@ -18,6 +18,7 @@ from typing import (
     Iterable,
     List,
     Optional,
+    Literal,
     Union,
     TYPE_CHECKING,
 )
@@ -647,6 +648,87 @@ class AgentList(UserList, Base, AgentListOperationsMixin):
     def to_dict(self, sorted=False, add_edsl_version=True, full_dict=False):
         return self._agent_list_serializer.to_dict(
             sorted=sorted, add_edsl_version=add_edsl_version, full_dict=full_dict
+        )
+
+    def save_hf(
+        self,
+        path: str | Path,
+        *,
+        config_name: str | None = None,
+        coerce: Literal["error", "string", "json"] = "error",
+        max_file_bytes: int = 50_000_000,
+    ) -> Path:
+        """Save a Hugging Face Parquet config locally. Requires edsl[hf].
+
+        Preserves existing configs and card prose. Mixed scalar types raise
+        HFSchemaError unless coerce is 'string' or 'json'. FileStore bytes
+        are embedded, with a per-attachment size limit.
+        """
+        from edsl.hf.io import save_hf
+
+        return save_hf(
+            self,
+            path,
+            config_name=config_name,
+            coerce=coerce,
+            max_file_bytes=max_file_bytes,
+        )
+
+    @classmethod
+    def load_hf(cls, path: str | Path, *, config_name: str | None = None) -> AgentList:
+        """Rebuild this list from a local HF folder without executing stored code."""
+        from edsl.hf.io import load_hf
+
+        return load_hf(cls, path, config_name=config_name)
+
+    def to_hf(
+        self,
+        repo_id: str,
+        *,
+        config_name: str | None = None,
+        private: bool = True,
+        token: str | None = None,
+        commit_message: str | None = None,
+        coerce: Literal["error", "string", "json"] = "error",
+        max_file_bytes: int = 50_000_000,
+    ) -> str:
+        """Publish a Parquet config to the HF Hub and return its dataset URL.
+
+        Repositories are created private by default. Updating a config preserves
+        other configs and existing dataset-card prose. An existing repository's
+        visibility is unchanged.
+        """
+        from edsl.hf.io import to_hf
+
+        return to_hf(
+            self,
+            repo_id,
+            config_name=config_name,
+            private=private,
+            token=token,
+            commit_message=commit_message,
+            coerce=coerce,
+            max_file_bytes=max_file_bytes,
+        )
+
+    @classmethod
+    def from_hf(
+        cls,
+        repo_id: str,
+        *,
+        config_name: str | None = None,
+        revision: str | None = None,
+        token: str | None = None,
+    ) -> AgentList:
+        """Load a Hub config, optionally pinned to a revision.
+
+        For datasets without EDSL metadata, every train row becomes an item
+        and every column becomes a trait or scenario field.
+        """
+        from edsl.hf.io import from_hf
+
+        return from_hf(
+            cls, repo_id, config_name=config_name, revision=revision, token=token
         )
 
     @wraps(AgentListSerializer.to_jsonl)

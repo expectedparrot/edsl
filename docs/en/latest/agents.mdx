@@ -136,6 +136,23 @@ results = survey.by(agents).run()
 
 This will generate a Results object that contains a Result for each agent’s responses to the survey question. Learn more about working with results in the [Results](/en/latest/results#results) section.
 
+## Sharing agent lists on Hugging Face
+
+An `AgentList` can be published as a standard Parquet dataset and loaded back
+with its traits, names, instructions, and codebooks. Install `edsl[hf]` and
+configure your Hugging Face token, then:
+
+```python
+url = agents.to_hf("YOUR_USERNAME/my-agents")  # Creates a private repo by default
+restored = AgentList.from_hf("YOUR_USERNAME/my-agents")
+assert restored == agents
+```
+
+Use `agents.save_hf("agents_dataset")` and `AgentList.load_hf("agents_dataset")`
+for a local folder. See [Hugging Face datasets](/en/latest/hugging_face) for token
+setup, publishing an existing `.ep` package, supported fields, and examples for
+people using the dataset without EDSL.
+
 ## Generating agents from data
 
 An AgentList can be automatically generated from data stored in many source types, including a list, a dictionary, a CSV, TSV or Excel file, a Pandas dataframe, etc.

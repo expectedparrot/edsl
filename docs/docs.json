@@ -54,6 +54,7 @@
       {
         "group": "Getting Data",
         "pages": [
+          "en/latest/hugging_face",
           "en/latest/firecrawl"
         ]
       },

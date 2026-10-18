@@ -59,11 +59,26 @@ def truncate_base64_in_place(obj):
                 truncate_base64_in_place(v)
 
 
+def _hash_json_default(value):
+    """Allow FileStore attachments wherever they occur in traits or fields."""
+    from edsl.scenarios.file_store import FileStore
+
+    if isinstance(value, FileStore):
+        # Read stored data without touching FileStore.path (which can do I/O).
+        return dict(value)
+    raise TypeError(f"Object of type {type(value).__name__} is not JSON serializable")
+
+
 def dict_hash(data: dict):
     truncate_base64_in_place(data)
 
     return hash(
-        int(hashlib.md5(json.dumps(data, sort_keys=True).encode()).hexdigest(), 16)
+        int(
+            hashlib.md5(
+                json.dumps(data, sort_keys=True, default=_hash_json_default).encode()
+            ).hexdigest(),
+            16,
+        )
     )
 
 
