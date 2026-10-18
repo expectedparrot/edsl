@@ -334,63 +334,94 @@ class InvigilatorGroupDiscussion(InvigilatorBase):
         await self._run_discussion(conv, rq, participants)
         return await self._run_moderator(stage, rq)
 
-    async def _collect_ballots(self, stage, rq, voters) -> List[Ballot]:
-        ballots: List[Ballot] = []
-        self._round += 1
+    def _ballot_ask(self, stage, rq) -> str:
         options = stage["options"]
-        for v in self._order(voters, salt=self._round):
-            if not v.get("can_vote", True):
-                continue
-            if stage["method"] == "numeric":
-                ask = (
-                    f"Give your best single numeric estimate for:\n"
-                    f"{stage['prompt'] or rq.question_text}\n"
-                    "Reply with the number on the first line, then one sentence why."
-                )
-            elif options:
-                opt_txt = "\n".join(f"- {o}" for o in options)
-                if stage["method"] == "approval":
-                    ask = (
-                        f"Approve ALL options you find acceptable from:\n{opt_txt}\n"
-                        "List each acceptable option on its own line."
-                    )
-                elif stage["method"] == "ranked_choice":
-                    ask = (
-                        f"Rank ALL options best-to-worst from:\n{opt_txt}\n"
-                        "List them in order, best first, one per line."
-                    )
-                elif stage["method"] == "quadratic":
-                    ask = (
-                        f"You have 16 vote-credits; buying v votes for an option "
-                        f"costs v*v credits. Distribute across:\n{opt_txt}\n"
-                        "Write 'option: votes' lines."
-                    )
-                else:
-                    ask = (
-                        f"Choose exactly ONE option from:\n{opt_txt}\n"
-                        "Put the chosen option on the first line, then one sentence why."
-                    )
-            else:
-                ask = (
-                    "State your final position in one or two sentences, making "
-                    "clear the concrete outcome you support."
-                )
-            usr = (
-                f"Premise:\n{rq.question_text}\n\n"
-                + (f"{self._decisions_summary()}\n\n" if self._decisions else "")
-                + f"Decision to vote on:\n{stage['prompt'] or rq.question_text}\n\n"
+        if stage["method"] == "numeric":
+            return (
+                f"Give your best single numeric estimate for:\n"
+                f"{stage['prompt'] or rq.question_text}\n"
+                "Reply with the number on the first line, then one sentence why."
+            )
+        if not options:
+            return (
+                "State your final position in one or two sentences, making "
+                "clear the concrete outcome you support."
+            )
+        opt_txt = "\n".join(f"- {o}" for o in options)
+        if stage["method"] == "approval":
+            return (
+                f"Approve ALL options you find acceptable from:\n{opt_txt}\n"
+                "List each acceptable option on its own line."
+            )
+        if stage["method"] == "ranked_choice":
+            return (
+                f"Rank ALL options best-to-worst from:\n{opt_txt}\n"
+                "List them in order, best first, one per line."
+            )
+        if stage["method"] == "quadratic":
+            return (
+                f"You have 16 vote-credits; buying v votes for an option costs "
+                f"v*v credits. Distribute across:\n{opt_txt}\n"
+                "Write 'option: votes' lines."
+            )
+        return (
+            f"Choose exactly ONE option from:\n{opt_txt}\n"
+            "Put the chosen option on the first line, then one sentence why."
+        )
+
+    def _ballot_prompt(self, stage, rq, v) -> str:
+        ask = self._ballot_ask(stage, rq)
+        # Independent/secret ballot: don't show the running tally of other
+        # members' votes (keeps large bodies O(n), models a recorded vote).
+        if stage.get("independent"):
+            discussion_block = ""
+        else:
+            discussion_block = (
                 f"Discussion:\n{self._visible(v['name'], stage['anonymous'])}\n\n"
-                f"You are {v['name']}. {ask}"
             )
+        return (
+            f"Premise:\n{rq.question_text}\n\n"
+            + (f"{self._decisions_summary()}\n\n" if self._decisions else "")
+            + f"Decision to vote on:\n{stage['prompt'] or rq.question_text}\n\n"
+            + discussion_block
+            + f"You are {v['name']}. {ask}"
+        )
+
+    async def _collect_ballots(self, stage, rq, voters) -> List[Ballot]:
+        self._round += 1
+        eligible = [
+            v for v in self._order(voters, salt=self._round) if v.get("can_vote", True)
+        ]
+
+        async def one(v):
             text, resp = await self._call_model(
-                user_prompt=usr, system_prompt=self._system_prompt(v)
+                user_prompt=self._ballot_prompt(stage, rq, v),
+                system_prompt=self._system_prompt(v),
             )
+            return v, text, resp
+
+        if stage.get("independent"):
+            # Independent ballots have no ordering dependency — run them with
+            # bounded concurrency so a 400-member vote finishes in parallel.
+            import asyncio
+
+            sem = asyncio.Semaphore(int(stage.get("concurrency", 24) or 24))
+
+            async def guarded(v):
+                async with sem:
+                    return await one(v)
+
+            results = await asyncio.gather(*(guarded(v) for v in eligible))
+        else:
+            results = [await one(v) for v in eligible]
+
+        ballots: List[Ballot] = []
+        for v, text, resp in results:
             self._record(v["name"], self._round, "vote", stage["name"], text, resp)
-            choice = self._parse_ballot(text, stage)
             ballots.append(
                 Ballot(
                     voter=v["name"],
-                    choice=choice,
+                    choice=self._parse_ballot(text, stage),
                     weight=float(v.get("vote_weight", 1.0)),
                     holds_veto=bool(v.get("veto", False)),
                 )
@@ -410,12 +441,30 @@ class InvigilatorGroupDiscussion(InvigilatorBase):
                 electorate=len([v for v in voters if v.get("can_vote", True)]),
                 decider=stage["decider"],
                 tie_breaker=stage["tie_breaker"],
+                basis=stage.get("basis", "cast"),
             )
-        # Moderator announces (and resolves ties / free-form ballots).
-        extra = ""
-        if result is not None:
-            extra = f"Vote result: {json.dumps(result.to_dict())}"
-        outcome = await self._run_moderator(stage, rq, extra=extra)
+        # Independent/large votes: synthesize the result from the tally (no
+        # moderator call over hundreds of ballots). Otherwise the moderator
+        # announces and can resolve ties / free-form ballots.
+        if stage.get("independent") and result is not None:
+            verb = "passed" if result.decided else "did not pass"
+            self._round += 1
+            summary = f"The vote {verb}. {result.reason}"
+            self._transcript.append(
+                {
+                    "speaker": rq.moderator["name"],
+                    "round": self._round,
+                    "kind": "decision",
+                    "stage": stage["name"],
+                    "content": [{"type": "text", "text": summary}],
+                }
+            )
+            outcome = {"summary": summary}
+        else:
+            extra = ""
+            if result is not None:
+                extra = f"Vote result: {json.dumps(result.to_dict())}"
+            outcome = await self._run_moderator(stage, rq, extra=extra)
         if result is not None:
             outcome.update(
                 {

@@ -276,7 +276,9 @@ def _normalize_stage(stage: Dict[str, Any], idx: int) -> Dict[str, Any]:
         "options": (
             [str(o) for o in stage["options"]] if stage.get("options") else None
         ),
-        "threshold": float(stage.get("threshold", 0.5) or 0.5),
+        "threshold": (
+            float(stage["threshold"]) if stage.get("threshold") is not None else None
+        ),
         "quorum": float(stage.get("quorum", 0) or 0),
         "decider": stage.get("decider"),
         "tie_breaker": stage.get("tie_breaker"),
@@ -293,6 +295,16 @@ def _normalize_stage(stage: Dict[str, Any], idx: int) -> Dict[str, Any]:
         "patience": int(stage.get("patience", 2) or 2),
         # negotiation: deal closes when the offer spread is within this fraction
         "tolerance": float(stage.get("tolerance", 0.05) or 0.05),
+        # vote: "cast" (threshold vs ballots cast) or "electorate" (vs full
+        # membership weight — abstentions/absences count against the bar).
+        "basis": stage.get("basis", "cast"),
+        # vote: independent/secret ballot — each voter decides from its own
+        # persona + prior decisions only, NOT the running tally of other ballots.
+        # Essential for large bodies (hundreds of members) to avoid an O(n^2)
+        # transcript and to model a recorded vote rather than a live debate.
+        "independent": bool(stage.get("independent", False)),
+        # vote: max concurrent model calls for an independent ballot.
+        "concurrency": int(stage.get("concurrency", 24) or 24),
     }
     return norm
 

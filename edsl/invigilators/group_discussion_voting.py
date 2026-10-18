@@ -103,11 +103,12 @@ def tally(
     ballots: List[Ballot],
     options: Optional[List[str]] = None,
     *,
-    threshold: float = 0.5,
+    threshold: Optional[float] = None,
     quorum: float = 0,
     electorate: Optional[int] = None,
     decider: Optional[str] = None,
     tie_breaker: Optional[str] = None,
+    basis: str = "cast",
 ) -> VoteResult:
     """Resolve ``ballots`` under ``method`` into a :class:`VoteResult`.
 
@@ -123,6 +124,10 @@ def tally(
             the ballot count.
         decider: for ``authority`` — whose ballot is binding.
         tie_breaker: voter whose choice breaks an exact tie, if any.
+        basis: ``"cast"`` (default) counts the threshold against ballots cast;
+            ``"electorate"`` counts it against the full membership weight, so
+            abstentions and absences count against the bar (parliamentary
+            investiture: an absolute majority of all members).
     """
     electorate = electorate if electorate is not None else len(ballots)
     quorum_ok = _quorum_met(ballots, quorum, electorate)
@@ -134,6 +139,9 @@ def tally(
             reason=f"Quorum not met ({len(_cast_ballots(ballots))} present).",
         )
 
+    # Full-membership weight: every ballot's weight (incl. abstentions/absences).
+    electorate_weight = sum(b.weight for b in ballots)
+
     fn = _METHODS.get(method)
     if fn is None:
         raise ValueError(f"Unknown vote method: {method!r}")
@@ -143,6 +151,8 @@ def tally(
         threshold=threshold,
         decider=decider,
         tie_breaker=tie_breaker,
+        basis=basis,
+        electorate_weight=electorate_weight,
     )
 
     # Veto applies to any method that produced a single-option winner.
@@ -234,7 +244,8 @@ def _m_majority(ballots, options, *, tie_breaker=None, **_):
     )
 
 
-def _m_supermajority(ballots, options, *, threshold=0.667, tie_breaker=None, **_):
+def _m_supermajority(ballots, options, *, threshold=None, tie_breaker=None, **_):
+    threshold = threshold if threshold is not None else 0.667
     counts = _count_first(ballots)
     total = sum(counts.values())
     if not total:
@@ -290,27 +301,75 @@ def _m_unanimous(ballots, options, **_):
     )
 
 
-def _m_weighted(ballots, options, *, threshold=0.5, tie_breaker=None, **_):
+def _m_weighted(
+    ballots,
+    options,
+    *,
+    threshold=None,
+    tie_breaker=None,
+    basis="cast",
+    electorate_weight=0,
+    **_,
+):
     counts = _weighted_first(ballots)
-    total = sum(counts.values())
+    cast_total = sum(counts.values())
     winner, winners = _winner_from_counts(
         counts, _tie_breaker_choice(ballots, tie_breaker)
     )
-    if winner is not None:
+    if winner is None:
+        return VoteResult(
+            "weighted",
+            False,
+            None,
+            counts,
+            reason=f"Weighted tie among {winners}.",
+            detail={"tie": winners},
+        )
+
+    # Base the threshold on the full membership (abstentions count against it)
+    # when basis == "electorate"; otherwise on the weight actually cast.
+    base_total = electorate_weight if basis == "electorate" else cast_total
+
+    if threshold is None:
         return VoteResult(
             "weighted",
             True,
             winner,
             counts,
-            reason=f"{winner} has the most weight " f"({counts[winner]}/{total}).",
+            reason=f"{winner} has the most weight ({counts[winner]}/{base_total}).",
+            detail={"basis": basis, "base_total": base_total},
         )
+
+    # With an explicit threshold: a simple majority needs a strict half; any
+    # higher bar (e.g. 2/3) uses exact-fraction comparison.
+    if abs(threshold - 0.5) < 1e-9:
+        meets = counts[winner] > base_total / 2
+        label = "absolute majority"
+    else:
+        frac = Fraction(threshold).limit_denominator(100)
+        meets = counts[winner] * frac.denominator >= frac.numerator * base_total
+        label = f"{threshold:.0%}"
+    need = (
+        int(base_total // 2) + 1
+        if abs(threshold - 0.5) < 1e-9
+        else math.ceil(threshold * base_total)
+    )
     return VoteResult(
         "weighted",
-        False,
-        None,
+        bool(meets),
+        winner if meets else None,
         counts,
-        reason=f"Weighted tie among {winners}.",
-        detail={"tie": winners},
+        reason=(
+            f"{winner} {counts[winner]:.0f} vs {label} bar {need} "
+            f"of {base_total:.0f} ({basis}) — "
+            f"{'reached' if meets else 'not reached'}."
+        ),
+        detail={
+            "basis": basis,
+            "base_total": base_total,
+            "needed": need,
+            "winner_weight": counts[winner],
+        },
     )
 
 
