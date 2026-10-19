@@ -42,6 +42,11 @@ class TurnTrace:
     model_outputs: "ModelResponse"
 
 
+# Quadratic-voting credit budget: the cost of casting v votes for an option is
+# v**2 credits, and a ballot may spend at most this many (see _parse_ballot).
+QUADRATIC_BUDGET = 16
+
+
 class InvigilatorGroupDiscussion(InvigilatorBase):
     """Runs a staged deliberation as a single question task."""
 
@@ -66,6 +71,20 @@ class InvigilatorGroupDiscussion(InvigilatorBase):
             | self.prompt_constructor.prior_answers_dict()
             | {"agent": self.agent.traits}
         )
+
+    def _render_str(self, s):
+        """Render ``{{ scenario }}`` / prior-answer placeholders in a single
+        string. Stage prompts, participant personas and events are rendered this
+        way, since the base question renderer only touches ``question_text`` and
+        does not descend into the stages/participants structures."""
+        if not s or "{{" not in str(s):
+            return s
+        try:
+            from jinja2 import Template
+
+            return Template(str(s)).render(**self._replacement_dict())
+        except Exception:
+            return s
 
     def _rendered_question(self):
         if "{{" in (self.question.question_text or ""):
@@ -161,14 +180,35 @@ class InvigilatorGroupDiscussion(InvigilatorBase):
             "Speak only as yourself, stay in character, and do not narrate others.",
         ]
         if p.get("persona"):
-            pieces.append(f"About you: {p['persona']}")
+            pieces.append(f"About you: {self._render_str(p['persona'])}")
         if p.get("goal"):
-            pieces.append(f"Your goal: {p['goal']}")
+            pieces.append(f"Your goal: {self._render_str(p['goal'])}")
         if p.get("private_info"):
             pieces.append(
-                f"PRIVATE (only you know this; reveal strategically): {p['private_info']}"
+                "PRIVATE (only you know this; reveal strategically): "
+                f"{self._render_str(p['private_info'])}"
             )
         return "\n\n".join(pieces)
+
+    @staticmethod
+    def _power_quota(method, threshold, total):
+        """Minimal winning weight and comparison for the power-index analysis,
+        matching the rule the tally actually used (not always simple majority).
+        Returns ``(quota, strict)`` where a coalition wins if its weight is
+        ``> quota`` (strict) or ``>= quota``. Resolves a ``None`` threshold to
+        the method's default so it never multiplies ``None``."""
+        if method == "supermajority":
+            thr = threshold if threshold is not None else 0.667
+            return thr * total, False
+        if (
+            method == "weighted"
+            and threshold is not None
+            and abs(threshold - 0.5) >= 1e-9
+        ):
+            # weighted vote with an explicit (non-majority) bar, e.g. 2/3
+            return threshold * total, False
+        # plurality / majority / weighted-majority: a strict half
+        return total / 2, True
 
     def _participants_for(self, stage, rq) -> List[dict]:
         if not stage["participants"]:
@@ -219,21 +259,37 @@ class InvigilatorGroupDiscussion(InvigilatorBase):
         if method == "ranked_choice":
             low = text.lower()
             found = [(low.index(o.lower()), o) for o in options if o.lower() in low]
+            if not found:
+                return None  # abstention / unrecognized — don't invent a ranking
             ranked = [o for _i, o in sorted(found)]
-            # append any options not mentioned, preserving given order
+            # complete a partial ranking with any unmentioned options, in order
             ranked += [o for o in options if o not in ranked]
             return ranked
         if method == "quadratic":
+            import math
+            import re
+
             alloc = {}
             for o in options:
                 for line in text.splitlines():
-                    if o.lower() in line.lower():
-                        num = "".join(ch for ch in line if ch.isdigit() or ch == ".")
-                        if num:
-                            try:
-                                alloc[o] = float(num)
-                            except ValueError:
-                                pass
+                    idx = line.lower().find(o.lower())
+                    if idx == -1:
+                        continue
+                    # Take the number AFTER the option label, so digits inside the
+                    # label (e.g. "Project 2: 4") don't get merged into the amount.
+                    after = line[idx + len(o) :]
+                    m = re.search(r"\d+(?:\.\d+)?", after)
+                    if m:
+                        try:
+                            alloc[o] = float(m.group())
+                        except ValueError:
+                            pass
+                    break
+            # Enforce the quadratic budget: sum of squared votes <= QUADRATIC_BUDGET.
+            cost = sum(v * v for v in alloc.values())
+            if cost > QUADRATIC_BUDGET and cost > 0:
+                factor = math.sqrt(QUADRATIC_BUDGET / cost)
+                alloc = {o: round(v * factor, 4) for o, v in alloc.items()}
             return alloc
         # single choice
         return self._match_option(text, options) if options else text.strip()
@@ -304,7 +360,9 @@ class InvigilatorGroupDiscussion(InvigilatorBase):
             f"Premise:\n{rq.question_text}\n\n"
             + (f"{self._decisions_summary()}\n\n" if self._decisions else "")
             + f"Question to resolve:\n{stage['prompt'] or rq.question_text}\n\n"
-            f"Discussion so far:\n{self._visible(None)}\n\n"
+            # View as the moderator, so a private caucus it is not party to is
+            # hidden and cannot be echoed into the public decision.
+            f"Discussion so far:\n{self._visible(mod['name'])}\n\n"
             + (extra + "\n\n" if extra else "")
             + "Announce the decision in two to four sentences: state the concrete "
             "outcome plainly first, then one line of rationale. Do not introduce "
@@ -485,10 +543,9 @@ class InvigilatorGroupDiscussion(InvigilatorBase):
                 len(set(weights.values())) > 1 or stage["method"] == "weighted"
             ):
                 total = sum(weights.values())
-                if stage["method"] == "supermajority":
-                    quota, strict = stage["threshold"] * total, False
-                else:
-                    quota, strict = total / 2, True
+                quota, strict = self._power_quota(
+                    stage["method"], stage["threshold"], total
+                )
                 pi = power_indices(weights, quota, strict=strict)
                 if pi:
                     outcome["power"] = pi
@@ -574,6 +631,20 @@ class InvigilatorGroupDiscussion(InvigilatorBase):
                 expanded.append(_normalize_stage(tmpl, i))
         return outcome, expanded
 
+    @staticmethod
+    def _motion_action(result):
+        """Flow change a *carried* motion triggers. A motion that did not carry
+        (tie, below threshold, vetoed) changes nothing, even though ``result``
+        may still carry a ``winner``."""
+        if result is None or not result.decided:
+            return None
+        winner = (result.winner or "").lower()
+        if any(k in winner for k in ("table", "postpone", "skip")):
+            return "skip_next"
+        if "extend" in winner:
+            return "extend_next"
+        return None
+
     async def _run_motion(self, stage, rq, voters):
         """A procedural vote that changes flow (table/extend/amend), not the
         substantive outcome. Returns (outcome, flow_action)."""
@@ -586,12 +657,7 @@ class InvigilatorGroupDiscussion(InvigilatorBase):
             quorum=stage["quorum"],
             tie_breaker=stage["tie_breaker"],
         )
-        winner = (result.winner or "").lower() if result else ""
-        action = None
-        if any(k in winner for k in ("table", "postpone", "skip")):
-            action = "skip_next"
-        elif "extend" in winner:
-            action = "extend_next"
+        action = self._motion_action(result)
         outcome = {
             "motion": stage["name"],
             "carried": result.decided if result else False,
@@ -760,11 +826,17 @@ class InvigilatorGroupDiscussion(InvigilatorBase):
         validated = False
 
         try:
-            queue = list(rq.resolved_stages())
+            # Deep-copy so a motion that mutates a stage (e.g. extend_next bumps
+            # 'rounds') never touches the question's own stage dicts — otherwise
+            # the change would leak across scenarios/iterations/concurrent runs.
+            queue = copy.deepcopy(list(rq.resolved_stages()))
             idx = 0
             while idx < len(queue):
                 stage = queue[idx]
                 idx += 1
+                # Render scenario / prior-answer placeholders in this stage.
+                stage["prompt"] = self._render_str(stage.get("prompt"))
+                stage["event"] = self._render_str(stage.get("event"))
                 participants = self._participants_for(stage, rq)
 
                 # Injected event announced before the stage runs.
