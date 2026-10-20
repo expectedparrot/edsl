@@ -76,13 +76,23 @@ class InvigilatorGroupDiscussion(InvigilatorBase):
         """Render ``{{ scenario }}`` / prior-answer placeholders in a single
         string. Stage prompts, participant personas and events are rendered this
         way, since the base question renderer only touches ``question_text`` and
-        does not descend into the stages/participants structures."""
+        does not descend into the stages/participants structures.
+
+        Renders through EDSL's **sandboxed** prompt environment (blocks access to
+        ``__class__``/``__globals__`` etc.), so authored text from a shared or
+        imported question cannot execute arbitrary code. A ``SecurityError`` from
+        an unsafe template is allowed to propagate and stop the run rather than
+        being swallowed; only a benign template/syntax error falls back to raw."""
         if not s or "{{" not in str(s):
             return s
-        try:
-            from jinja2 import Template
+        from jinja2.exceptions import SecurityError
 
-            return Template(str(s)).render(**self._replacement_dict())
+        from ..prompts import Prompt
+
+        try:
+            return str(Prompt(str(s)).render(self._replacement_dict()))
+        except SecurityError:
+            raise
         except Exception:
             return s
 
@@ -284,7 +294,9 @@ class InvigilatorGroupDiscussion(InvigilatorBase):
                             alloc[o] = float(m.group())
                         except ValueError:
                             pass
-                    break
+                        break  # amount found for this option — stop scanning
+                    # no amount on this line (e.g. an explanation line that just
+                    # mentions the option) — keep scanning for an "option: amount"
             # Enforce the quadratic budget: sum of squared votes <= QUADRATIC_BUDGET.
             cost = sum(v * v for v in alloc.values())
             if cost > QUADRATIC_BUDGET and cost > 0:

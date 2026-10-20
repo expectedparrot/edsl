@@ -211,3 +211,34 @@ def test_render_str_substitutes_scenario():
     inv._replacement_dict = lambda: {"city": "Paris"}
     assert inv._render_str("Discuss {{ city }}") == "Discuss Paris"
     assert inv._render_str("no placeholder") == "no placeholder"
+
+
+def test_render_str_neutralizes_ssti():
+    # An authored/imported template that tries to reach __class__ must NOT execute
+    # — the sandbox blocks the unsafe attribute access (here EDSL preserves the
+    # expression inert). The raw jinja2.Template this replaced would have leaked
+    # the subclass list.
+    inv = _bare()
+    inv._replacement_dict = lambda: {}
+    out = inv._render_str("{{ ''.__class__.__mro__[1].__subclasses__() }}")
+    assert "<class" not in out and "<built-in" not in out  # not executed
+    out2 = inv._render_str("{{ cycler.__init__.__globals__ }}")
+    assert "os" not in out2 and "<class" not in out2
+
+
+def test_render_str_falls_back_on_benign_syntax_error():
+    # A malformed (but non-malicious) template falls back to the raw string
+    # rather than crashing the run.
+    inv = _bare()
+    inv._replacement_dict = lambda: {}
+    assert inv._render_str("literal {{ unclosed") == "literal {{ unclosed"
+
+
+def test_quadratic_explanation_line_does_not_drop_vote():
+    # Greptile: an explanation line that mentions an option without an amount must
+    # not stop the scan — the real "option: amount" line a few lines down counts.
+    alloc = _bare()._parse_ballot(
+        "Project A is best.\nProject A: 3\nProject B: 2",
+        {"method": "quadratic", "options": ["Project A", "Project B"]},
+    )
+    assert alloc.get("Project A") == 3.0 and alloc.get("Project B") == 2.0
