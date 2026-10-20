@@ -1,3 +1,4 @@
+import hashlib
 import os
 from typing import Any, Dict, Optional, TYPE_CHECKING
 
@@ -60,47 +61,66 @@ _VERTEX_SCOPES = ["https://www.googleapis.com/auth/cloud-platform"]
 def _vertex_credentials_and_project(explicit_json: Optional[str] = None):
     """Resolve Vertex credentials and project from a service-account key.
 
-    The key may be supplied explicitly as a JSON string (``explicit_json`` — this
-    is how a per-user *custodial* Vertex key is passed, carried on the model so it
-    reaches coopr's worker), otherwise it is read from the environment. The
-    project is read from the key's ``project_id`` field, so a project need not be
-    configured separately. Returns ``(credentials, project_id)``, or
-    ``(None, None)`` when no key is found (the Gen AI SDK then falls back to
-    Application Default Credentials, e.g. workload identity).
+    The key may be supplied explicitly as a JSON string (``explicit_json`` — how a
+    per-user *custodial* Vertex key reaches the client, set server-side by coopr's
+    worker), otherwise it is read from the environment. The project is read from
+    the key's ``project_id`` field, so a project need not be configured
+    separately. Returns ``(credentials, project_id)``, or ``(None, None)`` when no
+    key is supplied (the Gen AI SDK then falls back to Application Default
+    Credentials, e.g. workload identity).
+
+    A key that IS supplied (explicitly, or as a service-account JSON env var) but
+    is invalid raises ``ValueError``. It never silently falls back to ADC, which
+    would run the job on a different account than the one the caller chose.
     """
     import json
 
-    blob = None
-    if explicit_json and explicit_json.strip().startswith("{"):
-        blob = explicit_json
+    blob, source = None, None
+    if explicit_json is not None and str(explicit_json).strip():
+        blob, source = str(explicit_json).strip(), "vertex_credentials"
+        if not blob.startswith("{"):
+            raise ValueError(
+                "vertex_credentials must be a service-account key JSON object"
+            )
     else:
         for name in _VERTEX_SA_JSON_ENV_VARS:
             value = os.environ.get(name)
             if value and value.strip().startswith("{"):
-                blob = value
+                blob, source = value, name
                 break
-    path = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
 
-    try:
-        from google.oauth2 import service_account
+    if blob:
+        try:
+            from google.oauth2 import service_account
 
-        if blob:
             info = json.loads(blob)
             creds = service_account.Credentials.from_service_account_info(
                 info, scopes=_VERTEX_SCOPES
             )
-            return creds, info.get("project_id")
-        if path and os.path.exists(path):
+        except Exception as exc:
+            # Don't echo the key itself — only where it came from and why.
+            raise ValueError(
+                f"Invalid Vertex service-account key in {source}: "
+                f"{type(exc).__name__}"
+            ) from None
+        return creds, info.get("project_id")
+
+    # GOOGLE_APPLICATION_CREDENTIALS is what ADC itself reads, so if it isn't a
+    # parseable service-account file (e.g. a gcloud user credential) letting the
+    # SDK use ADC uses the SAME account — not a substitute.
+    path = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
+    if path and os.path.exists(path):
+        try:
+            from google.oauth2 import service_account
+
             with open(path) as handle:
                 info = json.load(handle)
             creds = service_account.Credentials.from_service_account_file(
                 path, scopes=_VERTEX_SCOPES
             )
             return creds, info.get("project_id")
-    except Exception:
-        # Malformed key or google-auth unavailable: let the SDK try ADC and let
-        # any real failure surface on the actual call.
-        return None, None
+        except Exception:
+            return None, None
 
     return None, None
 
@@ -235,15 +255,18 @@ class GoogleService(InferenceServiceABC):
                 "use_vertex": None,
                 "vertex_project": None,
                 "vertex_location": None,
-                # A service-account key (JSON string) for a per-user "custodial"
-                # Vertex project. When set it supplies the credentials and the
-                # project; None falls back to the worker env credentials.
-                "vertex_credentials": None,
+                # NOTE: the service-account key for a per-user "custodial" Vertex
+                # project is deliberately NOT a parameter. Parameters are copied
+                # into to_dict(), cache keys, displays and saved Results, so a
+                # private key here would leak wherever a result is shared. It is
+                # read from the ``vertex_credentials`` *attribute* instead (set
+                # server-side by the coopr worker from the key registry, or passed
+                # as a kwarg, which LanguageModel stores as an attribute only).
             }
 
             model = None
             _cached_client = None
-            _cached_api_token = None
+            _cached_client_key = None
             _client_lock = None
 
             # Map common/generic parameter names to Google-specific names
@@ -261,6 +284,12 @@ class GoogleService(InferenceServiceABC):
                     if generic in kwargs and google_name not in kwargs:
                         kwargs[google_name] = kwargs.pop(generic)
                 super().__init__(*args, **kwargs)
+                # Defense in depth: never let the custodial key live in the
+                # serialized parameters, even if something injected it there.
+                if "vertex_credentials" in self.parameters:
+                    secret = self.parameters.pop("vertex_credentials")
+                    if secret is not None:
+                        self.vertex_credentials = secret
                 if self._client_lock is None:
                     import asyncio
 
@@ -291,9 +320,24 @@ class GoogleService(InferenceServiceABC):
                 # Get or create cached client (thread-safe)
                 # client_start = time.time()
                 async with self._client_lock:
+                    # The client depends on the token AND the backend settings,
+                    # so key the cache on all of them. The credentials go in as a
+                    # one-way fingerprint so the key itself is never stored here.
+                    vertex_credentials = getattr(self, "vertex_credentials", None)
+                    client_key = (
+                        self.api_token,
+                        getattr(self, "use_vertex", None),
+                        getattr(self, "vertex_project", None),
+                        getattr(self, "vertex_location", None),
+                        (
+                            hashlib.sha256(str(vertex_credentials).encode()).hexdigest()
+                            if vertex_credentials
+                            else None
+                        ),
+                    )
                     if (
                         self._cached_client is None
-                        or self._cached_api_token != self.api_token
+                        or self._cached_client_key != client_key
                     ):
                         # print("Creating new Google client...", flush=True)
                         # creation_start = time.time()
@@ -308,11 +352,9 @@ class GoogleService(InferenceServiceABC):
                             use_vertex=getattr(self, "use_vertex", None),
                             vertex_project=getattr(self, "vertex_project", None),
                             vertex_location=getattr(self, "vertex_location", None),
-                            vertex_credentials=getattr(
-                                self, "vertex_credentials", None
-                            ),
+                            vertex_credentials=vertex_credentials,
                         )
-                        self._cached_api_token = self.api_token
+                        self._cached_client_key = client_key
 
                 client = self._cached_client
 
