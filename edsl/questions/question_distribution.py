@@ -27,17 +27,53 @@ def _unique_object(pairs):
     return result
 
 
-def _decode_generated(text):
-    """Read the original JSON before generic response repair can change values."""
-    candidate = re.sub(r"^```(?:json)?\s*", "", text.strip(), count=1, flags=re.I)
-    answer, end = json.JSONDecoder(object_pairs_hook=_unique_object).raw_decode(
-        candidate
-    )
-    trailing = candidate[end:].strip()
-    if trailing.startswith("```"):
-        trailing = trailing[3:].strip()
-    comment = re.sub(r"^COMMENT:\s*", "", trailing, count=1, flags=re.I) or None
-    return answer, comment
+_FENCE_OPEN = re.compile(r"```(?:json)?\s*$", re.I)
+_FENCE_CLOSE = re.compile(r"^```\s*", re.I)
+_COMMENT_PREFIX = re.compile(r"^COMMENT:\s*", re.I)
+_ERROR_MARKER = "[ERROR:"
+
+
+def _strip_surroundings(preamble, trailing):
+    """Drop code fences and the COMMENT: label around the JSON object."""
+    preamble = _FENCE_OPEN.sub("", preamble.strip(), count=1).strip()
+    trailing = _FENCE_CLOSE.sub("", trailing.strip(), count=1).strip()
+    trailing = _COMMENT_PREFIX.sub("", trailing, count=1).strip()
+    return "\n".join(part for part in (preamble, trailing) if part) or None
+
+
+def _decode_generated(text, keys=None):
+    """Read the original JSON before generic response repair can change values.
+
+    Models often wrap the object in a code fence, reason in prose before
+    emitting it, or restate the example object from the instructions. The
+    last object whose keys match ``keys`` is taken as the answer, since a
+    model's final answer follows its reasoning; anything around it becomes
+    the comment. Duplicate keys inside the chosen object are
+    still rejected so that nothing is silently repaired.
+    """
+    decoder = json.JSONDecoder(object_pairs_hook=_unique_object)
+    stripped = text.strip()
+    chosen = fallback = None
+    for match in re.finditer(r"\{", stripped):
+        start = match.start()
+        try:
+            answer, end = decoder.raw_decode(stripped, start)
+        except json.JSONDecodeError:
+            continue
+        found = (answer, _strip_surroundings(stripped[:start], stripped[end:]))
+        if keys is None or (isinstance(answer, dict) and set(answer) == set(keys)):
+            chosen = found
+        elif fallback is None:
+            fallback = found
+    if chosen is not None or fallback is not None:
+        return chosen or fallback
+    if stripped.count("{") > stripped.count("}"):
+        raise ValueError(
+            "The response ended before the JSON object was closed; the model "
+            "likely ran out of output tokens. Raise max_tokens or ask for the "
+            "JSON before any reasoning."
+        )
+    raise ValueError("No JSON object was found in the response.")
 
 
 class DistributionResponseValidator(ResponseValidatorABC):
@@ -242,10 +278,20 @@ class QuestionDistribution(QuestionBase):
                 data = data.copy()
                 raw = data.get("generated_tokens")
                 if isinstance(raw, str) and raw.strip():
-                    answer, comment = _decode_generated(raw)
+                    if raw.lstrip().startswith(_ERROR_MARKER):
+                        raise ValueError(
+                            "The model response contained no usable text: "
+                            + raw.strip()[:200]
+                        )
+                    # Generic parsers may split pretty-printed JSON at a
+                    # newline or stop at a preamble, so re-read the original.
+                    answer, comment = _decode_generated(raw, keys)
                     data["answer"] = answer
-                    # Generic parsers may split pretty-printed JSON at a newline.
                     data["comment"] = comment
+                elif isinstance(raw, str) and not isinstance(
+                    data.get("answer"), dict
+                ):
+                    raise ValueError("The model returned an empty response.")
                 answer = data.get("answer")
                 if not isinstance(answer, dict) or set(answer) != set(keys):
                     raise ValueError(
