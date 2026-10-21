@@ -1,69 +1,42 @@
 ---
 title: "EDSL Documentation"
 sidebarTitle: "Home"
-description: "Design, run, and analyze research with Expected Parrot Domain-Specific Language (EDSL), an open-source Python package."
+description: "Get started with Expected Parrot Domain-Specific Language (EDSL), an open-source Python package for research with AI and human participants."
 ---
 
-**Expected Parrot Domain-Specific Language (EDSL)** is an open-source Python package for designing, running, and analyzing research with humans and AI.
+Expected Parrot Domain-Specific Language (EDSL) is an open-source Python package for conducting research with AI agents, language models, and human participants.
 
-Define questions and surveys in code, collect responses from human participants, and analyze the data. You can also run experiments with language models, simulate survey responses, label data, and compare model outputs.
+Use EDSL to run surveys and experiments, simulate responses, label data, and compare model outputs. You can then field surveys with human participants to validate findings and compare human and simulated responses.
 
-EDSL integrates with Expected Parrot to run studies remotely, cache model responses, and store and share research materials. Expected Parrot's [Research Agent](/en/latest/research_agent) uses EDSL to create and run studies, with code available for you to inspect and modify.
+Expected Parrot is a platform that lets you access language models, run studies remotely, reuse cached responses, and store and share research materials.
 
-## Getting started
+## Getting started with EDSL
 
-Install EDSL:
+To use EDSL in Python, install the package:
 
 ```bash
 pip install edsl
 ```
 
-Follow [EDSL Getting Started](/en/latest/getting_started) to configure model access, using an Expected Parrot account or your own model provider credentials. Then work through the [Starter Tutorial](/en/latest/starter_tutorial) to create a survey, run it, and inspect the results.
+Follow [Getting Started](/en/latest/getting_started) to configure EDSL, then work through the [Starter Tutorial](/en/latest/starter_tutorial) to construct a survey, run it, and analyze responses.
 
-<CardGroup cols={2}>
-<Card title="EDSL Overview" icon="book-open" href="/en/latest/overview">
-Learn how EDSL's core objects fit together and how they support reproducible research.
-</Card>
-<Card title="Starter Tutorial" icon="play" href="/en/latest/starter_tutorial">
-Construct questions and surveys, add agents and scenarios, select models, and analyze responses.
-</Card>
-</CardGroup>
+- [EDSL Overview](/en/latest/overview) — Understand the main components and workflow.
+- [Human surveys](/en/latest/humanize) — Publish a survey and collect responses from participants.
+- [Language models](/en/latest/language_models) — Find and configure models for your study.
+- [Results](/en/latest/results) — Analyze and export your data.
 
 For command-line workflows and coding-agent automation, see the [EDSL CLI Guide](/en/latest/cli).
 
-## Research with humans and AI
+For help designing, running, and analyzing studies through conversation, use the [Research Agent](https://www.expectedparrot.com/research-agent). Start with a research question, existing survey, or dataset and describe what you want to accomplish. The Research Agent uses EDSL to carry out research tasks and provides code you can inspect and modify.
 
-Collect survey responses from human participants, run simulations with AI respondents, or design studies that compare both. Human research can be the starting point and purpose of a study.
+## Research and teaching
 
-Use simulations to explore hypotheses, pretest instruments, and examine model behavior. AI-generated responses do not automatically represent real populations; compare them with human evidence when evaluating what they can tell you.
+We support academic researchers, instructors, and students using Expected Parrot for research and coursework. Sign up with your academic email and contact [info@expectedparrot.com](mailto:info@expectedparrot.com) for academic access and support.
 
-<CardGroup cols={2}>
-<Card title="Human surveys" icon="user-group" href="/en/latest/humanize">
-Launch web surveys and collect human responses with EDSL.
-</Card>
-<Card title="Prolific studies" icon="vial" href="/en/latest/prolific">
-Recruit human participants for your studies through Prolific.
-</Card>
-<Card title="Working with results" icon="chart-line" href="/en/latest/results">
-Filter, compare, analyze, and export study results.
-</Card>
-<Card title="Models and costs" icon="credit-card" href="/en/latest/costs">
-Estimate and track model usage costs when planning a study.
-</Card>
-</CardGroup>
+Explore [Research with Expected Parrot](/en/latest/papers), the [Teaching guide](/en/latest/teaching), and [citation instructions](/en/latest/citation).
 
-## Academic research and teaching
+## Source code and support
 
-We support academic researchers, instructors, and students using Expected Parrot for research and coursework. Academic users can access the platform and receive an initial allocation of usage credits. Sign up with your academic email and [contact us](mailto:info@expectedparrot.com) for support.
+EDSL is available under the MIT License. Find the package on [PyPI](https://pypi.org/project/edsl/) and the source code on [GitHub](https://github.com/expectedparrot/edsl).
 
-See [Research with Expected Parrot](/en/latest/papers), the [Teaching guide](/en/latest/teaching), and [how to cite EDSL](/en/latest/citation).
-
-## Explore the documentation
-
-- **Understand EDSL:** [EDSL Overview](/en/latest/overview), [Questions](/en/latest/questions), [Surveys](/en/latest/surveys), [Agents](/en/latest/agents), [Scenarios](/en/latest/scenarios), and [Models](/en/latest/language_models).
-- **Run and share studies:** [Remote Inference](/en/latest/remote_inference), [Remote Caching](/en/latest/remote_caching), [File Store](/en/latest/filestore), and [Notebooks](/en/latest/notebooks).
-- **Find examples and troubleshoot:** [Starter Tutorial](/en/latest/starter_tutorial), [Survey logic checklist](/en/latest/checklist), and [Exceptions & Debugging](/en/latest/exceptions).
-
-For questions and feedback, join our [Discord](https://discord.com/invite/mxAYkjfy9m) or email [info@expectedparrot.com](mailto:info@expectedparrot.com).
-
-EDSL is available on [PyPI](https://pypi.org/project/edsl/) and [GitHub](https://github.com/expectedparrot/edsl). Follow the [Expected Parrot blog](https://blog.expectedparrot.com/) for updates.
+For questions and feedback, email [info@expectedparrot.com](mailto:info@expectedparrot.com).

@@ -1,65 +1,51 @@
 ---
 title: "EDSL Overview"
-description: "An introduction to designing surveys, collecting human and AI responses, and analyzing data with EDSL."
+description: "Understand how to structure a study, run it with AI or human participants, and work with the resulting data."
 ---
 
-**Expected Parrot Domain-Specific Language (EDSL)** is an open-source Python package for designing, running, and analyzing research with humans and AI.
+EDSL lets you describe a study in Python: what to ask, what information to provide, who or what should respond, and how to organize the responses. You can change individual parts of the design—such as question wording, respondent profiles, or model selections—and examine how those changes affect the findings.
 
-Use EDSL to define questions and surveys in code, publish web surveys, collect responses from human participants, and analyze the data. You can also run experiments across language models and conditions, simulate survey responses, and perform content analysis.
+## The main components
 
-EDSL is developed by [Expected Parrot](https://www.expectedparrot.com/) and available under the [MIT License](https://github.com/expectedparrot/edsl/blob/main/LICENSE).
-
-## How EDSL works with Expected Parrot
-
-EDSL is also the foundation of the Expected Parrot platform. The [Research Agent](/en/latest/research_agent) uses EDSL to construct and execute studies and makes the generated code available for inspection and reuse. The [Builder](/en/latest/survey_builder) provides a visual interface for creating and editing studies using the same underlying structures.
-
-You can work directly with EDSL in Python, including modifying studies created through the Research Agent or Builder. This lets you move between conversational, visual, and programmatic workflows without starting over.
-
-EDSL can also be used independently with your own model access. See [Managing Keys](/en/latest/api_keys) for provider credentials and [local OpenAI-compatible models](/en/latest/local_openai_compatible) for local model setup.
-
-## Why EDSL?
-
-Researchers need to know how results were produced, especially when working with language models. EDSL makes it possible to explicitly specify and inspect questions, prompts, model selections, agent traits, scenarios, and other elements of a study. You can vary these systematically, compare outputs, and investigate sensitivity to your assumptions and methods.
-
-EDSL handles model API calls, parallel execution, survey logic, and result organization. You can work with multiple models without building separate integrations for each provider. Its open-source implementation lets you inspect, modify, and extend the code that runs your study.
-
-Expected Parrot provides additional infrastructure for [remote execution](/en/latest/remote_inference), [caching](/en/latest/remote_caching), [storage and sharing](/en/latest/coop). With remote caching enabled, matching model calls can reuse stored responses instead of generating new ones. Access requires an Expected Parrot account; see the caching guide for settings and details.
-
-## Core concepts
-
-| Object | Purpose |
+| Component | What it does |
 | --- | --- |
-| [Questions](/en/latest/questions) | Define what is asked and the response format, including free text, multiple choice, numerical, and matrix questions. |
-| [Surveys](/en/latest/surveys) | Combine questions and define their order, conditional logic, and dependencies. |
-| [Agents](/en/latest/agents) | Specify AI respondents with relevant traits, backgrounds, or instructions. |
-| [Scenarios](/en/latest/scenarios) | Supply contexts, treatments, or data to parameterized questions. |
-| [Models](/en/latest/language_models) | Choose the language models used to generate responses, including models from different providers. |
-| [Results](/en/latest/results) | Store responses with associated questions, models, agents, scenarios, and information for analysis. |
+| [Questions](/en/latest/questions) | Specify question text and the response format, such as free text, multiple choice, numerical, or matrix. |
+| [Surveys](/en/latest/surveys) | Combine questions with ordering, branching, and dependencies between answers. |
+| [Scenarios](/en/latest/scenarios) | Supply data or experimental conditions to questions, allowing the same question to be used with different inputs. |
+| [Agents](/en/latest/agents) | Specify traits and instructions for simulated respondents. |
+| [Models](/en/latest/language_models) | Select and configure the language models that generate responses. |
+| [Results](/en/latest/results) | Organize responses and associated study information for analysis. |
 
-An EDSL `Agent` specifies a simulated respondent's traits and instructions. It is distinct from a coding agent or Expected Parrot's Research Agent.
+An EDSL `Agent` describes a simulated respondent. A coding agent or Expected Parrot's Research Agent can use EDSL to construct and run a study.
 
-Combine these objects to administer the same survey across agent profiles, models, experimental conditions, and datasets. For example, you can vary the wording of a message with scenarios, specify respondent profiles with agents, and compare responses across models. The [Starter Tutorial](/en/latest/starter_tutorial) shows how to construct and run these objects.
+For example, a message-testing study might use a survey to ask about clarity and persuasiveness, scenarios to supply different messages, agents to describe audience profiles, and several models to generate responses.
 
-## Research with humans and AI
+## Running studies with AI
 
-Use EDSL's [Humanize](/en/latest/humanize) methods to publish a survey on Expected Parrot, share its respondent link with participants, and retrieve their responses for analysis. You can analyze human responses on their own or compare them with AI-generated responses to the same questions. Simulations can help investigate hypotheses, pretest instruments, explore experimental conditions, and evaluate model behavior.
+Combine a survey with the agents, scenarios, and models you want to use. EDSL handles model calls, parallel execution, survey logic, and response collection.
 
-Human research can stand on its own. When comparing human and simulated responses, examine where model-generated results are useful and where they diverge from human evidence. AI simulations do not automatically represent the attitudes or behaviors of real populations and should not be treated as missing human observations.
+This makes it possible to repeat a study across experimental conditions without writing separate loops or provider integrations. For data labeling, each scenario can contain a text passage or other input, while the survey defines the labels or information to extract.
 
-## Working with results
+You can run model calls from your own environment or use Expected Parrot's remote execution. See [Managing Keys](/en/latest/api_keys), [Remote Inference](/en/latest/remote_inference), and [Costs](/en/latest/costs) for configuration and usage details.
 
-EDSL provides methods for filtering, transforming, comparing, and analyzing [Results](/en/latest/results). Export data for use with other Python libraries and analysis tools, while retaining the study settings needed to interpret the responses.
+## Collecting human responses
 
-Expected Parrot can also store study objects and results, cache model calls, and make research materials available to collaborators. See [File Store](/en/latest/filestore) and [Notebooks](/en/latest/notebooks) for sharing supporting materials.
+You can also publish an EDSL survey for human participants. Calling `survey.humanize()` creates a hosted web survey and returns a respondent link. After participants complete it, you can retrieve their responses for analysis in Python.
 
-## Getting started
+Use this workflow to evaluate simulated findings against human evidence or to conduct a human survey directly. When comparing human and AI responses, retain their source so that the analysis clearly distinguishes observed responses from simulations.
 
-To work with EDSL directly, install the package:
+The [Humanize guide](/en/latest/humanize) covers publishing surveys and retrieving data. See [Prolific studies](/en/latest/prolific) for participant recruitment.
 
-```bash
-pip install edsl
-```
+## Working with data
 
-Follow [EDSL Getting Started](/en/latest/getting_started) to configure model access, then use the [Starter Tutorial](/en/latest/starter_tutorial) to construct surveys, run them with models and agents, and analyze results.
+EDSL provides methods for selecting columns, filtering responses, sorting observations, and comparing groups. You can export data to CSV or a pandas DataFrame for further analysis.
 
-You can also create and run studies through the [Research Agent](/en/latest/research_agent) or [Builder](/en/latest/survey_builder) without writing Python code.
+Responses remain associated with study information such as agent traits, scenarios, and model settings. This lets you compare conditions and trace observations back to the inputs used to generate them.
+
+## Inspecting and reproducing a study
+
+A study defined in code makes its questions, logic, inputs, and model choices available for inspection. EDSL's open-source implementation also lets you examine and extend the underlying functionality.
+
+Saving study materials and outputs preserves the record of a run. Caching allows matching model calls to retrieve stored responses rather than generate new ones. See [Remote Caching](/en/latest/remote_caching) for how this works on Expected Parrot.
+
+For a complete example, follow the [Starter Tutorial](/en/latest/starter_tutorial).
