@@ -1,11 +1,11 @@
 ---
 title: "EDSL Overview"
-description: "The open-source Python foundation for programmatic research and the Expected Parrot Research Agent and Builder."
+description: "An introduction to designing surveys, collecting human and AI responses, and analyzing data with EDSL."
 ---
 
-**Expected Parrot Domain-Specific Language (EDSL)** is an open-source Python package for designing and running research with language models and AI agents.
+**Expected Parrot Domain-Specific Language (EDSL)** is an open-source Python package for designing, running, and analyzing research with humans and AI.
 
-EDSL provides structured objects for questions, surveys, agents, scenarios, models, and results. Researchers can use these to run experiments across multiple models and conditions, simulate survey responses, perform content analysis, and conduct other computational research tasks.
+Use EDSL to define questions and surveys in code, publish web surveys, collect responses from human participants, and analyze the data. You can also run experiments across language models and conditions, simulate survey responses, and perform content analysis.
 
 EDSL is developed by [Expected Parrot](https://www.expectedparrot.com/) and available under the [MIT License](https://github.com/expectedparrot/edsl/blob/main/LICENSE).
 
@@ -36,11 +36,13 @@ Expected Parrot provides additional infrastructure for [remote execution](/en/la
 | [Models](/en/latest/language_models) | Choose the language models used to generate responses, including models from different providers. |
 | [Results](/en/latest/results) | Store responses with associated questions, models, agents, scenarios, and information for analysis. |
 
+An EDSL `Agent` specifies a simulated respondent's traits and instructions. It is distinct from a coding agent or Expected Parrot's Research Agent.
+
 Combine these objects to administer the same survey across agent profiles, models, experimental conditions, and datasets. For example, you can vary the wording of a message with scenarios, specify respondent profiles with agents, and compare responses across models. The [Starter Tutorial](/en/latest/starter_tutorial) shows how to construct and run these objects.
 
 ## Research with humans and AI
 
-EDSL supports research using AI-generated responses as well as studies involving human respondents through Expected Parrot. Use simulations to investigate hypotheses, pretest instruments, explore experimental conditions, and evaluate model behavior. Use [Humanize](/en/latest/humanize) to field surveys with human participants, or the [Research Agent and Builder](/en/latest/research_agent) to design human surveys and AI-led interviews.
+Use EDSL's [Humanize](/en/latest/humanize) methods to publish a survey on Expected Parrot, share its respondent link with participants, and retrieve their responses for analysis. You can analyze human responses on their own or compare them with AI-generated responses to the same questions. Simulations can help investigate hypotheses, pretest instruments, explore experimental conditions, and evaluate model behavior.
 
 Human research can stand on its own. When comparing human and simulated responses, examine where model-generated results are useful and where they diverge from human evidence. AI simulations do not automatically represent the attitudes or behaviors of real populations and should not be treated as missing human observations.
 

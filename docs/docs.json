@@ -39,6 +39,7 @@
         "group": "EDSL Getting Started",
         "pages": [
           "en/latest/getting_started",
+          "en/latest/cli",
           "en/latest/installation",
           "en/latest/api_keys",
           "en/latest/remote_inference",
