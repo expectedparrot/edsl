@@ -1,0 +1,278 @@
+---
+title: "EDSL CLI Guide"
+sidebarTitle: "CLI Guide"
+description: "Create surveys, run jobs, collect human responses, and inspect saved data from the command line, scripts, or coding agents."
+---
+
+The EDSL command-line interface lets you create and validate study objects, run surveys with language models, publish surveys for human participants, and inspect or export responses. Use it from a terminal, a script, or a coding agent.
+
+This guide uses `ep`. The commands `edsl` and `python -m edsl` are equivalent entry points. An EDSL `Agent` describes a survey respondent; a coding agent is software that can use the CLI to build and run a study.
+
+## Install and discover commands
+
+Install EDSL in your Python environment:
+
+```bash
+pip install edsl
+```
+
+Check the installed version and available commands:
+
+```bash
+ep --help
+ep info
+ep run --help
+ep jobs --help
+ep results --help
+ep schema list
+```
+
+Use the installed CLI's help to check flags before constructing a command. `ep info` reports configuration diagnostics and redacts credentials. See [Installation](/en/latest/installation) for environment setup.
+
+## Try a local example
+
+Run these commands in a working directory where you want to save the example files. They create a survey and execute it with EDSL's test model, which returns a fixed answer. This example requires no model credentials and makes no paid model calls; its output is test data.
+
+Create a question and save it as a survey:
+
+```bash
+ep surveys create \
+  --question-type free_text \
+  --question-name feedback \
+  --question-text "What would improve this service?" \
+  --output survey.ep
+```
+
+Create the test model configuration and combine it with the survey in a saved job:
+
+```bash
+ep models create \
+  --model test \
+  --canned-response "A test response." \
+  --output test-models.ep
+
+ep jobs build \
+  --survey survey.ep \
+  --models test-models.ep \
+  --output test-job.ep
+```
+
+Validate the job, run it locally, and inspect the answer:
+
+```bash
+ep validate --file test-job.ep
+ep run test-job.ep --local --output test-results.ep
+ep results select --file test-results.ep --column answer.feedback --limit 5
+```
+
+The selected answer is `A test response.` The completed responses are saved in `test-results.ep`; the `run` command returns execution metadata rather than response rows.
+
+Read each command's JSON response and check `status` before proceeding to the next command.
+
+## Read command responses
+
+By default, operational commands write one JSON document to stdout. Diagnostics go to stderr, and output captured from lower-level operations may appear in `warnings`. Help output from `--help` is plain text. Options that explicitly request raw output, such as `--output -` on object-creation commands, bypass the usual response envelope.
+
+A successful response has this structure:
+
+```json
+{
+  "status": "ok",
+  "data": {},
+  "warnings": []
+}
+```
+
+`data` contains command-specific information. When a command saves a file, inspect the returned save metadata for its path and format.
+
+An error response has this structure; `suggestion` is included when available:
+
+```json
+{
+  "status": "error",
+  "error": {
+    "code": "USAGE_ERROR",
+    "message": "Completed run results must be written to a file.",
+    "suggestion": "Use --output results.ep or --output results.json."
+  }
+}
+```
+
+For automation, parse stdout as JSON, inspect `status`, read warnings, and check the process exit code. Do not extract identifiers or URLs from progress messages. For example:
+
+```python
+import json
+import subprocess
+import sys
+
+process = subprocess.run(
+    ["ep", "info"],
+    capture_output=True,
+    text=True,
+)
+response = json.loads(process.stdout)
+
+for warning in response.get("warnings", []):
+    print(warning, file=sys.stderr)
+
+if response["status"] == "error":
+    error = response["error"]
+    raise RuntimeError(
+        f"{error['code']}: {error['message']} "
+        f"{error.get('suggestion', '')}"
+    )
+
+process.check_returncode()
+data = response["data"]
+```
+
+If stdout cannot be parsed as JSON, treat it as a command failure and inspect stderr. Do not continue with missing or guessed output values.
+
+## Create and validate study objects
+
+Prefer `.ep` packages for objects you want to save, inspect, reuse, or share. The CLI also accepts serialized JSON for many commands. A `Jobs` object combines the survey with its agents, scenarios, and models.
+
+Inspect schemas before constructing serialized objects by hand:
+
+```bash
+ep schema show --class Survey
+ep schema show --class Jobs
+ep schema show --question_type multiple_choice
+```
+
+You can also use object-creation commands directly. For example, add a question to the survey from the local example:
+
+```bash
+ep surveys add-question survey.ep \
+  --question-type multiple_choice \
+  --question-name recommend \
+  --question-text "Would you recommend this service?" \
+  --option Yes \
+  --option No
+
+ep validate --file survey.ep
+ep inspect survey.ep
+```
+
+`add-question` updates the survey package in place. A job built earlier retains its saved survey, so rebuild the job to include the new question. Use `ep agents create --help` and `ep scenarios create --help` for creating respondent profiles and scenario data from files.
+
+If validation fails, correct the reported problem before running the object.
+
+## Run with language models
+
+For hosted execution, configure an Expected Parrot account and API key as described in [Managing Keys](/en/latest/api_keys). Check authentication and connectivity:
+
+```bash
+ep auth status
+ep check
+```
+
+Discover available models:
+
+```bash
+ep models --text
+```
+
+Replace `MODEL_NAME` below with a model returned by the catalog. These commands build and estimate a job; the final command runs it and may incur model usage costs:
+
+```bash
+ep models create --model MODEL_NAME --output models.ep
+ep jobs build --survey survey.ep --models models.ep --output jobs.ep
+ep validate --file jobs.ep
+ep jobs cost jobs.ep
+ep run jobs.ep --output results.ep
+```
+
+Blocking runs require an output file. Use `.ep` for a Results package or `.json` for serialized data.
+
+To disable remote inference, add `--local`. This runs execution on your machine but can still call a model provider over the network and incur charges. Provider credentials or a configured local model server are required for real model calls. See [Local OpenAI-compatible models](/en/latest/local_openai_compatible) for local-server setup.
+
+When overriding a saved job, `--agent_list`, `--scenario_list`, and `--model_list` replace the corresponding component. `--model` replaces the model list with one model; it cannot be combined with `--model_list`.
+
+## Submit a background job
+
+Use background execution for long remote jobs:
+
+```bash
+ep run jobs.ep --background
+```
+
+The response includes job metadata under `data.meta.remote_job` when available. Read its `job_uuid` and use that value in follow-up commands. Replace `JOB_UUID` below with the returned identifier:
+
+```bash
+ep jobs status JOB_UUID
+ep jobs results JOB_UUID --output results.ep
+ep jobs errors JOB_UUID --output error.md
+```
+
+Fetch results after the job completes; fetch the error report when investigating failures. To submit, wait, and save in one command:
+
+```bash
+ep run jobs.ep --background --wait \
+  --poll_interval 10 --timeout 3600 --output results.ep
+```
+
+`--background` alone returns before responses are ready. Do not combine `--background` with `--output` unless you also use `--wait`.
+
+## Collect human responses
+
+After configuring Expected Parrot authentication, you can publish the saved survey for human participants:
+
+```bash
+ep validate --file survey.ep
+ep humanize create --survey survey.ep --name "Service feedback"
+```
+
+`humanize create` creates a hosted survey. Read the returned survey identifier and respondent URL from the JSON response. Share the respondent URL with participants when you are ready to collect responses.
+
+Replace `HUMAN_SURVEY_UUID` with the returned identifier to inspect the survey and save responses:
+
+```bash
+ep humanize status HUMAN_SURVEY_UUID
+ep humanize responses HUMAN_SURVEY_UUID --output human-results.ep
+ep results columns --file human-results.ep
+ep results select --file human-results.ep --column "answer.*" --limit 5
+```
+
+You can also publish from a Jobs package with `--jobs`. Jobs used for human surveys must not include models. If they contain scenarios, supply `--scenario_method`; use `ep humanize create --help` to see the available assignment methods.
+
+See [Humanize](/en/latest/humanize) for survey configuration and [Prolific studies](/en/latest/prolific) for participant recruitment.
+
+## Inspect and export saved responses
+
+Use results commands on saved files:
+
+```bash
+ep results columns --file results.ep
+ep results select --file results.ep \
+  --column answer.feedback --column model.model --limit 5
+
+ep results export results.ep \
+  --column answer.feedback --output answers.csv
+```
+
+Repeat `--column` for multiple columns; do not pass a comma-separated list. Inspect available columns before selecting them. Use a bounded `select` to review responses and `export` to save larger datasets. Results queries support `.ep`, `.json`, and `.json.gz` files.
+
+## Automation conventions
+
+- Discover commands and schemas from the installed version before generating inputs.
+- Validate inputs, check every response's `status`, and read `warnings` before continuing.
+- Keep credentials out of logs and shared files. Use the configuration described in [Managing Keys](/en/latest/api_keys).
+- Use saved objects and returned identifiers to continue work. A background submission is not a completed run.
+- Pass explicit pagination, for example `ep jobs list --page 1 --page_size 20`, and inspect returned pagination metadata.
+- Retry remote operations only when doing so will not duplicate work. Check job status before submitting another run.
+- Obtain explicit user direction before destructive actions such as `ep delete` or `ep jobs cancel`; both require `--yes`.
+
+### Exit codes
+
+| Exit code | Meaning |
+| --- | --- |
+| `0` | Success |
+| `1` | General error |
+| `2` | Usage error |
+| `3` | Resource not found |
+| `4` | Authentication error |
+| `5` | Validation error |
+| `6` | Remote service error |
+
+Use the JSON error's `code`, `message`, and optional `suggestion` to decide the next step. For example, correct flags after `USAGE_ERROR`, inspect schemas after `VALIDATION_ERROR`, and check credentials after `AUTH_ERROR`.
