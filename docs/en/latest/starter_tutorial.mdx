@@ -27,7 +27,7 @@ You can also view and download the contents of this tutorial in a [notebook at E
 
 **Further reading**
 
-In addition to this tutorial, please also see an [Overview](/en/latest/overview#overview) of features and common use cases for EDSL and a [Survey logic checklist](/en/latest/checklist#checklist) of tips for using EDSL effectively in the [EDSL documentation page](/en/latest/index). To see recent research using or citing EDSL, see [Papers & Citations](/en/latest/papers#papers) in the documentation.
+In addition to this tutorial, please also see an [EDSL Overview](/en/latest/overview) of features and common use cases for EDSL and a [Survey logic checklist](/en/latest/checklist#checklist) of tips for using EDSL effectively in the [EDSL documentation page](/en/latest/index). To see recent research using or citing EDSL, see [EDSL in Research](/en/latest/papers) in the documentation.
 
 **Questions**
 
@@ -446,6 +446,72 @@ Example output:
 | :--- | :--- | :--- |
 | 0 | answer.random_number | 487 |
 | 0 | prompt.prime_user_prompt | Is the number you picked a prime number?  No  Yes |
+
+## Example: Survey logic and experimental conditions
+
+This example develops the survey logic previously introduced in the EDSL Overview. It combines conditional questions, targeted memory, AI respondent profiles, and scenario-based treatments in one study. The rest of this tutorial explains agents, models, scenarios, and results in more detail.
+
+```python
+from edsl import (
+    Agent, AgentList, Model, QuestionMultipleChoice, QuestionYesNo,
+    QuestionFreeText, QuestionCheckBox, Scenario, ScenarioList, Survey,
+)
+
+registered = QuestionMultipleChoice(
+    question_name="registered",
+    question_text="Are you currently registered to vote?",
+    question_options=["Yes", "No", "I don't know"],
+)
+eligible = QuestionYesNo(
+    question_name="eligible",
+    question_text="Are you eligible to vote?",
+)
+factors = QuestionFreeText(
+    question_name="factors",
+    question_text=(
+        "Consider this message: {{ scenario.message }}. "
+        "What factors would influence your decision to vote?"
+    ),
+)
+issues = QuestionCheckBox(
+    question_name="issues",
+    question_text="Which issues are most important to you?",
+    question_options=["Economy", "Healthcare", "Education", "Climate change", "Other"],
+)
+
+voting_survey = (
+    Survey([registered, eligible, factors, issues])
+    .add_skip_rule(eligible, "{{ registered.answer }} == 'Yes'")
+    .add_targeted_memory(issues, factors)
+)
+
+voting_agents = AgentList(
+    Agent(traits={"age": age, "voting_experience": experience})
+    for age, experience in [(25, "first-time voter"), (60, "regular voter")]
+)
+voting_scenarios = ScenarioList([
+    Scenario({"condition": "community", "message": "Help shape your community's future."}),
+    Scenario({"condition": "voice", "message": "Make your voice heard."}),
+])
+
+# Inspect the configured default model before running.
+# Use Model.available() to find alternatives and record your selection.
+voting_model = Model()
+voting_job = voting_survey.by(voting_agents).by(voting_scenarios).by(voting_model)
+```
+
+The skip rule omits the eligibility question when the respondent reports being registered. Targeted memory includes the earlier explanation when asking about important issues. Two profiles and two message conditions produce four interviews for the selected model.
+
+After configuring model access and reviewing the study, run it and inspect the results:
+
+```python
+voting_results = voting_job.run()
+voting_results.select(
+    "model.model", "agent.age", "scenario.condition", "answer.factors", "answer.issues"
+)
+```
+
+These are simulated responses for exploring a study design, not estimates of voter behavior. To compare models, pass a [ModelList](/en/latest/language_models) containing your selected models to `by()` instead of `voting_model`. Use the [Humanize guide](/en/latest/humanize) to design a corresponding human survey.
 
 ## Scenarios
 

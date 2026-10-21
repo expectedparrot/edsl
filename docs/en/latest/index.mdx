@@ -1,141 +1,72 @@
 ---
-title: "Expected Parrot: Tools for AI-Powered Research"
+title: "Expected Parrot Documentation"
 sidebarTitle: "Home"
-description: "Expected Parrot delivers powerful tools for conducting research with human and artificial intelligences."
+description: "Design, run, and analyze research with humans and AI using the Research Agent, Builder, and open-source EDSL package."
 ---
 
-**Expected Parrot Domain-Specific Language (EDSL)** is an open-source Python package for conducting research with AI agents and language models.
+Expected Parrot provides tools for designing, running, and analyzing research with humans and AI. Conduct surveys, interviews, experiments, simulations, and other research using the Research Agent, visual Builder, or open-source Python package, EDSL.
 
-EDSL is designed for researchers who want to run surveys at scale: simulate hundreds of demographically diverse respondents, test question variations, compare responses across language models, label large text datasets, and combine AI results with real human data. It handles the complexity of managing agents, models, and parallel execution so you can focus on the research.
+All three approaches use EDSL, so studies can be inspected, shared, reproduced, and extended in code.
 
-- Install from [PyPI](https://pypi.org/project/edsl/): `pip install edsl`. Source code at [GitHub](https://github.com/expectedparrot/edsl).
-- [Create a free account](https://www.expectedparrot.com/login) to run surveys remotely and store results. Results are automatically cached: share your code and anyone can retrieve your exact outputs at no cost, with no setup or API keys required.
+## Ways to work with Expected Parrot
+
+<CardGroup cols={3}>
+<Card title="Research Agent" icon="comments" href="/en/latest/research_agent">
+Start with a research question, project description, existing survey, or dataset. Get help designing and executing studies, running AI simulations, launching surveys and AI-led interviews with human participants, and analyzing results.
+</Card>
+<Card title="Builder" icon="screwdriver-wrench" href="/en/latest/survey_builder">
+Create and edit studies in a visual interface. Import questionnaires, configure questions and logic, and review studies created by the Research Agent.
+</Card>
+<Card title="EDSL" icon="code" href="/en/latest/overview">
+Design and run studies programmatically with the open-source Python package. Define questions, agents, scenarios, and models, run experiments at scale, and analyze the resulting data.
+</Card>
+</CardGroup>
+
+With the Research Agent, you can review and refine a study as it develops, inspect the underlying EDSL code, and share the session with collaborators. Use the Builder for direct editing, or work independently in Python notebooks with EDSL. Expected Parrot also provides hosted execution, caching, storage, and collaboration tools.
 
 ## Getting started
 
-<Steps>
-<Step title="Install EDSL">
-	```bash
-	pip install edsl
-	```
-	See [Installation](/en/latest/installation) for details.
-</Step>
-<Step title="Create an account">
-	[Sign up](https://www.expectedparrot.com/login) to access the Expected Parrot server, free storage, and collaboration tools. You can also log in directly from your workspace:
-	```python
-	from edsl import Login
-	login()
-	```
-</Step>
-<Step title="Manage API keys">
-	Your account comes with a key that lets you run surveys with all [available models](https://www.expectedparrot.com/models). You can also provide your own keys from service providers. See [Managing Keys](/en/latest/api_keys).
-</Step>
-<Step title="Run a survey">
-	Read the [Starter Tutorial](/en/latest/starter_tutorial) and browse the [how-to guides and notebooks](/en/latest/notebooks) for examples. See [tips](/en/latest/checklist) on using EDSL effectively.
-</Step>
-<Step title="Validate with real respondents">
-	Add a human-in-the-loop by launching a web-based survey to share with real respondents. Learn more in the [Survey Builder](/en/latest/survey_builder) and [Humanize](/en/latest/humanize) sections.
-</Step>
-</Steps>
+[Create an Expected Parrot account](https://www.expectedparrot.com/login) and choose how you would like to work:
 
-Are you using EDSL for a research project? Email *info@expectedparrot.com* and we'll give you [credits](/en/latest/credits) to run your project.
+- **Start with the Research Agent:** [Open a session](https://www.expectedparrot.com/research-agent), describe what you want to research, or use a [playbook](/en/latest/research_agent#using-playbooks) for a particular project or method.
+- **Build a study manually:** [Open the Builder](https://www.expectedparrot.com/polly) to create or import a survey or interview. See the [Builder guide](/en/latest/survey_builder).
+- **Work in Python:** Install EDSL with `pip install edsl` and follow [EDSL Getting Started](/en/latest/getting_started) and the [Starter Tutorial](/en/latest/starter_tutorial).
 
-## Introduction
+You can move between these approaches as your research develops.
 
-<CardGroup>
-<Card title="Overview" icon="book-open" horizontal href="/en/latest/overview">
-Purpose, concepts and goals of the EDSL package.
+## Research with humans and AI
+
+Collect responses from human participants through surveys and AI-led interviews, run simulations with AI respondents, or design studies that compare both. Human research can be the starting point and purpose of a study.
+
+Use simulations to explore hypotheses, pretest instruments, and examine model behavior. AI-generated responses do not automatically represent real populations; compare them with human evidence when evaluating what they can tell you.
+
+<CardGroup cols={2}>
+<Card title="Human surveys" icon="user-group" href="/en/latest/humanize">
+Launch web surveys and collect human responses with EDSL.
 </Card>
-<Card title="Starter Tutorial" icon="play" horizontal href="/en/latest/starter_tutorial">
-A step-by-step tutorial for getting started with EDSL.
+<Card title="Prolific studies" icon="vial" href="/en/latest/prolific">
+Recruit human participants for your studies through Prolific.
 </Card>
-<Card title="Whitepaper" icon="file-lines" horizontal href="/en/latest/whitepaper">
-A whitepaper about the EDSL package (*in progress*).
+<Card title="Working with results" icon="chart-line" href="/en/latest/results">
+Filter, compare, analyze, and export study results.
 </Card>
-<Card title="Citation" icon="box" horizontal href="/en/latest/citation">
-How to cite the package in your work.
-</Card>
-<Card title="Papers & Citations" icon="book" horizontal href="/en/latest/papers">
-Research papers and articles that use or cite EDSL.
-</Card>
-<Card title="Teaching guide" icon="school" horizontal href="/en/latest/teaching">
-A guide for teaching EDSL in the classroom.
+<Card title="Models and costs" icon="credit-card" href="/en/latest/costs">
+Estimate and track model usage costs when planning a study.
 </Card>
 </CardGroup>
 
-## Core Concepts
+## Academic research and teaching
 
-<CardGroup>
-<Card title="Questions" icon="question" horizontal href="/en/latest/questions">
-Different question types and applications.
-</Card>
-<Card title="Scenarios" icon="timeline" horizontal href="/en/latest/scenarios">
-Dynamically parameterize questions for tasks like data labeling.
-</Card>
-<Card title="Surveys" icon="clipboard-list" horizontal href="/en/latest/surveys">
-Construct surveys with rules and conditional logic.
-</Card>
-<Card title="Agents" icon="user-astronaut" horizontal href="/en/latest/agents">
-Design AI agents with traits to respond to surveys.
-</Card>
-<Card title="Language Models" icon="brain" horizontal href="/en/latest/language_models">
-Select language models to generate results.
-</Card>
-<Card title="Results" icon="chart-line" horizontal href="/en/latest/results">
-Built-in methods for analyzing survey results.
-</Card>
-</CardGroup>
+We support academic researchers, instructors, and students using Expected Parrot for research and coursework. Academic users can access the platform and receive an initial allocation of usage credits. Sign up with your academic email and [contact us](mailto:info@expectedparrot.com) for support. Playbooks provide reusable instructions for research methods, projects, and course assignments.
 
-## Expected Parrot Platform
+See [EDSL in Research](/en/latest/papers), the [Teaching guide](/en/latest/teaching), and [how to cite EDSL](/en/latest/citation).
 
-<CardGroup>
-<Card title="Remote Inference" icon="server" horizontal href="/en/latest/remote_inference">
-Run surveys at the Expected Parrot server using any available model.
-</Card>
-<Card title="Remote Caching" icon="clock" horizontal href="/en/latest/remote_caching">
-Automatically store and share results and API calls.
-</Card>
-<Card title="Notebooks" icon="notebook" horizontal href="/en/latest/notebooks">
-Post and share .ipynb and .py files.
-</Card>
-<Card title="File Store" icon="folder" horizontal href="/en/latest/filestore">
-Store and share data files for use in EDSL projects.
-</Card>
-<Card title="Survey Builder" icon="screwdriver-wrench" horizontal href="/en/latest/survey_builder">
-A no-code interface for creating surveys and collecting responses.
-</Card>
-</CardGroup>
+## Explore the documentation
 
-## Validating with Humans
+- **Understand EDSL:** [EDSL Overview](/en/latest/overview), [Questions](/en/latest/questions), [Surveys](/en/latest/surveys), [Agents](/en/latest/agents), [Scenarios](/en/latest/scenarios), and [Models](/en/latest/language_models).
+- **Run and share studies:** [Remote Inference](/en/latest/remote_inference), [Remote Caching](/en/latest/remote_caching), [File Store](/en/latest/filestore), and [Notebooks](/en/latest/notebooks).
+- **Find examples and troubleshoot:** [Starter Tutorial](/en/latest/starter_tutorial), [Survey logic checklist](/en/latest/checklist), and [Exceptions & Debugging](/en/latest/exceptions).
 
-<CardGroup>
-<Card title="Humanize" icon="user-group" horizontal href="/en/latest/humanize">
-Generate web-based surveys and collect responses from human respondents.
-</Card>
-<Card title="Prolific studies" icon="vial" horizontal href="/en/latest/prolific">
-Launch surveys as studies on Prolific.
-</Card>
-</CardGroup>
+For questions and feedback, join our [Discord](https://discord.com/invite/mxAYkjfy9m) or email [info@expectedparrot.com](mailto:info@expectedparrot.com).
 
-## Working with Results
-
-<CardGroup>
-<Card title="Dataset" icon="database" horizontal href="/en/latest/dataset">
-Work with tabular data using the Dataset class.
-</Card>
-<Card title="Estimating & Tracking Costs" icon="credit-card" horizontal href="/en/latest/costs">
-Estimate and track costs for running surveys.
-</Card>
-<Card title="Exceptions & Debugging" icon="bug" horizontal href="/en/latest/exceptions">
-Identify and handle exceptions.
-</Card>
-<Card title="Token usage" icon="key" horizontal href="/en/latest/token_usage">
-Monitor token limits and usage.
-</Card>
-</CardGroup>
-
-## Links
-
-- [PyPI](https://pypi.org/project/edsl) · [GitHub](https://github.com/expectedparrot/edsl)
-- [Twitter/X](https://twitter.com/expectedparrot) · [LinkedIn](https://www.linkedin.com/company/expectedparrot) · [Blog](https://blog.expectedparrot.com/)
-- Email: *info@expectedparrot.com*
+EDSL is available on [PyPI](https://pypi.org/project/edsl/) and [GitHub](https://github.com/expectedparrot/edsl). Follow the [Expected Parrot blog](https://blog.expectedparrot.com/) for updates.

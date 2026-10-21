@@ -1,7 +1,7 @@
 {
   "$schema": "https://mintlify.com/docs.json",
   "theme": "mint",
-  "name": "EDSL Documentation",
+  "name": "Expected Parrot Documentation",
   "logo": {
     "light": "/logo.png",
     "dark": "/logo.png"
@@ -19,13 +19,24 @@
         "pages": [
           "en/latest/index",
           "en/latest/overview",
-          "en/latest/whitepaper",
           "en/latest/papers",
           "en/latest/citation"
         ]
       },
       {
-        "group": "Getting Started",
+        "group": "Research Agent",
+        "pages": [
+          "en/latest/research_agent"
+        ]
+      },
+      {
+        "group": "Builder",
+        "pages": [
+          "en/latest/survey_builder"
+        ]
+      },
+      {
+        "group": "EDSL Getting Started",
         "pages": [
           "en/latest/getting_started",
           "en/latest/installation",
@@ -69,7 +80,7 @@
         ]
       },
       {
-        "group": "Validating with Humans",
+        "group": "Human Research",
         "pages": [
           "en/latest/humanize",
           "en/latest/humanize_groups",
@@ -79,12 +90,6 @@
           "en/latest/custom_css",
           "en/latest/custom_javascript",
           "en/latest/prolific"
-        ]
-      },
-      {
-        "group": "No-code Apps",
-        "pages": [
-          "en/latest/survey_builder"
         ]
       },
       {
@@ -167,6 +172,12 @@
           "en/latest/enums",
           "en/latest/base"
         ]
+      },
+      {
+        "group": "Additional Resources",
+        "pages": [
+          "en/latest/whitepaper"
+        ]
       }
     ],
     "global": {
@@ -193,7 +204,7 @@
     ],
     "primary": {
       "type": "button",
-      "label": "Dashboard",
+      "label": "Platform",
       "href": "https://www.expectedparrot.com"
     }
   },

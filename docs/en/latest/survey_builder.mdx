@@ -1,59 +1,48 @@
 ---
-title: "Survey Builder"
+title: "Builder"
+description: "Create, import, and edit surveys and interview guides visually, using the same research objects as the Research Agent and EDSL."
 ---
 
-## Overview
+The Builder is Expected Parrot's visual interface for creating and editing studies. Use it to build a survey or interview guide, import an existing questionnaire, or review and refine studies created by the [Research Agent](/en/latest/research_agent).
 
-Survey Builder is a user-friendly, no-code application for launching surveys and gathering responses from AI agents and human respondents. It is fully integrated with EDSL and available at your account, allowing you to seamlessly design questions and agents, and analyze, visualize and share your results.
+[Open the Builder](https://www.expectedparrot.com/polly) after signing in to your Expected Parrot account.
 
-Tutorials and examples are available [here](https://www.expectedparrot.com/products/polly/use-cases).
+## Create or import a study
 
-*If you are looking for information about EDSL code methods for launching surveys with human respondents, please see the* [Humanize](/en/latest/humanize#humanize) *and* [Prolific studies](/en/latest/prolific#prolific) *pages.*
+Start with a new study, import an existing questionnaire, or open a saved study. When importing, review the resulting questions, response options, and logic against the original questionnaire before collecting responses.
 
-## Features
+You can also ask the Research Agent to draft a study, then use the Builder to edit its structured objects directly. Both use [EDSL](/en/latest/overview), so you can export the study to code for further customization.
 
-- **Survey creation**: Build customized surveys using a wide range of question types, including multiple choice, free text, linear scale, matrix, numerical and more.
-- **AI agent design**: Create and configure AI agent personas to respond to your questions.
-- **Dynamic data integration**: Import data to dynamically parameterize your surveys.
-- **Seamless deployment**: Easily launch surveys with both human and AI respondents.
-- **Results analysis**: Leverage built-in tools to visualize and analyze responses, combining human and AI data for greater insights.
-- **Team collaboration**: Share surveys, agents, results and projects with your team with tools for streamlined sharing and collaboration.
+## Edit and preview
 
-## Getting started
+Review question wording, response types, answer options, order, and conditional logic. Configure the respondent settings for your study and preview the participant experience. Test any branching or follow-up behavior before launch.
 
-<Steps>
-<Step title="Log into your account">
-	Sign in or [create an account](https://www.expectedparrot.com/login).
-</Step>
-<Step title="Create a survey">
-	Choose whether to edit or import an existing survey, auto-generate a survey,or build a new survey.
-</Step>
-<Step title="Design AI agents">
-	Choose whether to edit saved agents, import data to create new agents, auto-generate agents for a survey, or build new agents.
-</Step>
-<Step title="Run the survey">
-	Select models to run your survey and view responses at your dashboard.
-</Step>
-<Step title="Gather human responses">
-	Generate a web-based version of your survey and share it with human respondents, or launch a study with Prolific participants.
-</Step>
-<Step title="Analyze results">
-	View and analyze survey responses at your account, and export data for further analysis.
-</Step>
-</Steps>
+Use the Builder to make targeted changes, such as revising a scale, changing answer options, or adjusting a question in a study drafted by the Research Agent.
 
-### Create a survey
+## Choose your research workflow
 
-[Log in](https://www.expectedparrot.com/login) to your account and select options to create a [survey](https://www.expectedparrot.com/create/survey) and [agents](https://www.expectedparrot.com/create/agent-list). Choose whether to build a survey and agents from scratch, import data, or select and edit saved content.
+### Human surveys
 
-### Launch a survey
+Create a web survey for people to complete and share its respondent link with your participants. You can conduct a human study without first running a simulation. For code-based workflows and recruitment options, see [Humanize](/en/latest/humanize) and [Prolific studies](/en/latest/prolific).
 
-Selecting the option to *Run survey* creates a new project at your account dashboard, where you can run the survey with AI agents and human respondents. You can also create a new project by selecting *Create project* at your dashboard and choosing a saved survey and agents to use with the project.
+### AI-led interviews
 
-Your new project page has options for generating a shareable web version of the survey, running the survey with AI agents, and launching Prolific studies with human participants. AI and human responses will automatically appear at your dashboard where you can compare and export them.
+Create or edit an interview guide that specifies topics, prompts, and follow-up instructions. The AI interviewer follows the guide and can ask relevant follow-up questions based on a participant's answers. Preview the interview and review the response modes supported by your study settings before sharing it with participants.
 
-### Analyze results
+The [Research Agent](/en/latest/research_agent) can help draft the interview guide and analyze the resulting material.
 
-Once you have collected responses from AI agents and human respondents, you can analyze the results at your account dashboard or in EDSL code at your workspace. See the [Humanize](/en/latest/humanize#humanize) and [Prolific studies](/en/latest/prolific#prolific) sections for more details about working with human responses in EDSL code. You can also export results in CSV format for further analysis in your preferred tools.
+### AI simulations
 
-*Please let us know if you have any questions or suggestions for improving the survey builder!*
+Define AI respondent profiles, select language models, and run your study with simulated respondents. Review [estimated costs](/en/latest/costs) and pilot the study before scaling it up. Keep simulated responses distinguishable from human observations when analyzing or reporting results.
+
+## Analyze and share
+
+Review collected responses, export data for further analysis, or ask the Research Agent to help compare results and prepare a report. Use EDSL's [Results](/en/latest/results) methods when you want to work programmatically.
+
+Share study materials with collaborators so they can inspect the design. Use the respondent link to invite participants to complete the study.
+
+## Continue in EDSL
+
+Export studies to EDSL code when you need custom analyses, automation, or integration with other tools. Follow [EDSL Getting Started](/en/latest/getting_started) to set up Python and the [Starter Tutorial](/en/latest/starter_tutorial) to learn how questions, surveys, agents, scenarios, and models fit together.
+
+For questions or feedback about the Builder, email [info@expectedparrot.com](mailto:info@expectedparrot.com).
