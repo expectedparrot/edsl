@@ -1,0 +1,14 @@
+\Needspace{16\baselineskip}
+\section{Native market integration}
+Green lines show changes from the earlier dictionary-based implementation. Clearing economics remain version 1; records and rules now pass through typed validation.
+\par\textit{Source:} \path{code/call_market.py}.
+\def\activefile{market}
+\Needspace{6\baselineskip}
+\subsection{Factory and serialized machine}
+\lstinputlisting[firstline=1,lastline=119,firstnumber=1]{code/call_market.py}
+\Needspace{6\baselineskip}
+\subsection{Order admission}
+\lstinputlisting[firstline=120,lastline=156,firstnumber=120]{code/call_market.py}
+\Needspace{6\baselineskip}
+\subsection{Settlement}
+\lstinputlisting[firstline=157,lastline=273,firstnumber=157]{code/call_market.py}

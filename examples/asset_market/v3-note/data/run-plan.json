@@ -1,0 +1,14 @@
+{
+  "label": "v3",
+  "prepared_at": "2026-09-16T12:42:40.165871+00:00",
+  "periods": 30,
+  "traders": 12,
+  "decisions_planned": 360,
+  "model": "gpt-5-mini",
+  "market_seed": 140926,
+  "assignment_seed": 140926,
+  "comparison": "Same rules, personas, seats, model settings, and dividend/tie seeds as v2; fresh responses.",
+  "execution": "One paired 12-interview EDSL job per round from round 1; all response caches disabled.",
+  "prior_run_recorded_cost_usd": 1.19659225,
+  "specification_sha256": "d7acfa94fe478d3aef37de8159dfcb3984432e9ab8c0c9a1096933cbb5d2ef5a"
+}

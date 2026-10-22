@@ -1,0 +1,29 @@
+{
+  "title": "Building Traders: Persona Construction for LLM Agents in Experimental Asset Markets",
+  "authors": [
+    "Cady Ngo",
+    "Yi-Jhe Chen",
+    "Benjamin Manning",
+    "Christopher Avery",
+    "Colin Camerer"
+  ],
+  "presentation_date": "2026-09-18",
+  "source_filename": "140926.pdf",
+  "sha256": "8224452c32a634216bb6e189d4c98f4ffe72fadefbc6c89f17330c6f420b03a6",
+  "pages": 40,
+  "design_pages": [
+    6,
+    10,
+    11,
+    14,
+    19,
+    25,
+    32,
+    35
+  ],
+  "verbatim_persona_pages": {
+    "trend_reader": 36,
+    "noise": 37,
+    "reversion_rider": 38
+  }
+}

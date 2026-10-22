@@ -1,0 +1,38 @@
+{
+  "name": "an unselected unsafe branch is not evaluated",
+  "envelope": {
+    "dsl_version": "0.1",
+    "requires": {
+      "operators": {"ref": 1, "if": 1, "at": 1},
+      "reducers": {},
+      "algorithms": {}
+    },
+    "limits": {"max_state_bytes": 10000, "max_collection_items": 10},
+    "machine": {
+      "name": "LazyChoose",
+      "constants": {},
+      "fields": {
+        "ready": {"type": {"op": "type", "args": ["boolean"], "kwargs": {}}, "initial": false},
+        "items": {"type": {"op": "type", "args": ["sequence"], "kwargs": {"item": {"op": "type", "args": ["text"], "kwargs": {}}}}, "initial": []}
+      },
+      "commands": {},
+      "view": {
+        "selected": {
+          "op": "if",
+          "args": [
+            {"op": "ref", "args": [], "kwargs": {"namespace": "state", "name": "ready"}},
+            {"op": "at", "args": [{"op": "ref", "args": [], "kwargs": {"namespace": "state", "name": "items"}}, 0], "kwargs": {}},
+            "none"
+          ],
+          "kwargs": {}
+        }
+      },
+      "complete_when": null,
+      "close_effects": [],
+      "algorithms": []
+    }
+  },
+  "steps": [],
+  "expected_state": {"ready": false, "items": []},
+  "expected_view": {"selected": "none"}
+}

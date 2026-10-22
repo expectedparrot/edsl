@@ -1,0 +1,91 @@
+{
+  "sessions": 3,
+  "complete": 3,
+  "model_cost": 0.8728605000000006,
+  "forecast_accuracy": [
+    {
+      "treatment": "baseline",
+      "seed": 140926,
+      "horizon": 0,
+      "valid_forecasts": 0,
+      "MAE": null
+    },
+    {
+      "treatment": "baseline",
+      "seed": 140926,
+      "horizon": 2,
+      "valid_forecasts": 0,
+      "MAE": null
+    },
+    {
+      "treatment": "baseline",
+      "seed": 140926,
+      "horizon": 5,
+      "valid_forecasts": 0,
+      "MAE": null
+    },
+    {
+      "treatment": "baseline",
+      "seed": 140926,
+      "horizon": 10,
+      "valid_forecasts": 0,
+      "MAE": null
+    },
+    {
+      "treatment": "BT+OC+PC",
+      "seed": 140926,
+      "horizon": 0,
+      "valid_forecasts": 24,
+      "MAE": 0.25
+    },
+    {
+      "treatment": "BT+OC+PC",
+      "seed": 140926,
+      "horizon": 2,
+      "valid_forecasts": 12,
+      "MAE": 0.16666666666666666
+    },
+    {
+      "treatment": "BT+OC+PC",
+      "seed": 140926,
+      "horizon": 5,
+      "valid_forecasts": 0,
+      "MAE": null
+    },
+    {
+      "treatment": "BT+OC+PC",
+      "seed": 140926,
+      "horizon": 10,
+      "valid_forecasts": 0,
+      "MAE": null
+    },
+    {
+      "treatment": "evolved",
+      "seed": 140926,
+      "horizon": 0,
+      "valid_forecasts": 0,
+      "MAE": null
+    },
+    {
+      "treatment": "evolved",
+      "seed": 140926,
+      "horizon": 2,
+      "valid_forecasts": 0,
+      "MAE": null
+    },
+    {
+      "treatment": "evolved",
+      "seed": 140926,
+      "horizon": 5,
+      "valid_forecasts": 0,
+      "MAE": null
+    },
+    {
+      "treatment": "evolved",
+      "seed": 140926,
+      "horizon": 10,
+      "valid_forecasts": 0,
+      "MAE": null
+    }
+  ]
+}

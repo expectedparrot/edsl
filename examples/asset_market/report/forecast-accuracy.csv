@@ -1,0 +1,13 @@
+treatment,seed,horizon,valid_forecasts,MAE
+baseline,140926,0,0,
+baseline,140926,2,0,
+baseline,140926,5,0,
+baseline,140926,10,0,
+BT+OC+PC,140926,0,24,0.25
+BT+OC+PC,140926,2,12,0.16666666666666666
+BT+OC+PC,140926,5,0,
+BT+OC+PC,140926,10,0,
+evolved,140926,0,0,
+evolved,140926,2,0,
+evolved,140926,5,0,
+evolved,140926,10,0,

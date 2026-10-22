@@ -1,0 +1,15 @@
+{
+  "status": "ok",
+  "pdf_pages": 33,
+  "main_text_pages": 6,
+  "printed_source_lines": 1698,
+  "saved_answer_replay": {
+    "completed_items": 390,
+    "exact_market_state_match": true,
+    "model_calls": 0
+  },
+  "standalone_bundle_compilation": "passed",
+  "latex_warnings": [],
+  "code_lint": "passed",
+  "pdf_sha256": "56610901efd8de8ff9bc9f66af892069025e759b51295467895e563b674a2272"
+}
