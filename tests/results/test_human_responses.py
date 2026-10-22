@@ -5,7 +5,13 @@ import json
 import pytest
 from pydantic import ValidationError
 
-from edsl import Instruction, QuestionFreeText, QuestionMultipleChoice, Survey
+from edsl import (
+    Instruction,
+    QuestionFreeText,
+    QuestionInterview,
+    QuestionMultipleChoice,
+    Survey,
+)
 from edsl.results import Results
 from edsl.results.exceptions import ResultsError
 from edsl.results.human_responses import HumanResponseEntry, HumanResponseRow
@@ -87,6 +93,62 @@ def test_per_question_fields_land_in_raw_model_response():
     assert rmr["name_answered_at"] == "t2"
     assert rmr["name_question_presented"] is True
     assert rmr["color_answered_at"] == "t4"
+
+
+RECORDINGS = [
+    {
+        "role": "respondent",
+        "file_store_uuid": "fs1",
+        "file_uuid": "f1",
+        "mime_type": "audio/wav",
+    },
+    {
+        "role": "interviewer",
+        "file_store_uuid": "fs2",
+        "file_uuid": "f2",
+        "mime_type": "audio/wav",
+    },
+]
+
+
+def make_interview_survey():
+    return Survey(
+        [
+            QuestionFreeText(question_name="name", question_text="Your name?"),
+            QuestionInterview(
+                question_name="chat",
+                question_text="Tell us about your work.",
+                interview_guide="Ask about their role.",
+            ),
+        ]
+    )
+
+
+def test_interview_recordings_land_in_raw_model_response():
+    entries = {
+        "name": ANSWERED["name"],
+        "chat": {"answer": "transcript", "voice_recordings": RECORDINGS},
+    }
+    results = Results.from_human_responses(
+        make_interview_survey(), [make_row(entries=entries)]
+    )
+    assert results[0]["raw_model_response"]["chat_voice_recordings"] == RECORDINGS
+    assert "raw_model_response.chat_voice_recordings" in results.columns
+
+
+def test_interview_without_recordings_reads_none():
+    entries = {"chat": {"answer": "transcript"}}
+    results = Results.from_human_responses(
+        make_interview_survey(), [make_row(entries=entries)]
+    )
+    assert results[0]["raw_model_response"]["chat_voice_recordings"] is None
+
+
+def test_only_interviews_get_a_recordings_column():
+    results = Results.from_human_responses(
+        make_interview_survey(), [make_row(entries={"name": ANSWERED["name"]})]
+    )
+    assert "name_voice_recordings" not in results[0]["raw_model_response"]
 
 
 def test_instructions_get_no_columns():
