@@ -167,6 +167,20 @@ def test_by_question_data_keeps_human_fields():
     assert question_data["chat"]["voice_recordings"] == RECORDINGS
 
 
+def test_by_question_data_question_named_after_a_field():
+    survey = Survey(
+        [QuestionFreeText(question_name="answered_at", question_text="When?")]
+    )
+    entries = {
+        "answered_at": {"answer": "today", "started_at": "t1", "answered_at": "t2"}
+    }
+    results = Results.from_human_responses(survey, [make_row(entries=entries)])
+    question_data = results[0].by_question_data()["question_data"]
+    assert set(question_data) == {"answered_at"}
+    assert question_data["answered_at"]["started_at"] == "t1"
+    assert question_data["answered_at"]["answered_at"] == "t2"
+
+
 def test_instructions_get_no_columns():
     results = Results.from_human_responses(make_survey(), [make_row(entries=ANSWERED)])
     assert not any("intro" in column for column in results.columns)

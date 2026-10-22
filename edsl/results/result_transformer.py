@@ -102,7 +102,9 @@ class ResultComponentPrependedKeys(ResultComponentDict):
         d = defaultdict(dict)
         for key, value in self.data.items():
             for special_key in self.special_keys:
-                if special_key in key:
+                # Suffix, not substring: a question named after a field (say
+                # "answered_at") must not match that field too.
+                if key.endswith(f"_{special_key}"):
                     question_name = key.removesuffix(f"_{special_key}")
                     d[question_name][special_key] = self.transform_value(value)
         return d
