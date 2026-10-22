@@ -151,6 +151,22 @@ def test_only_interviews_get_a_recordings_column():
     assert "name_voice_recordings" not in results[0]["raw_model_response"]
 
 
+def test_by_question_data_keeps_human_fields():
+    entries = {
+        "name": ANSWERED["name"],
+        "chat": {"answer": "transcript", "voice_recordings": RECORDINGS},
+    }
+    results = Results.from_human_responses(
+        make_interview_survey(), [make_row(entries=entries)]
+    )
+    question_data = results[0].by_question_data()["question_data"]
+    assert question_data["name"]["started_at"] == "t1"
+    assert question_data["name"]["answered_at"] == "t2"
+    assert question_data["name"]["question_presented"] is True
+    assert "voice_recordings" not in question_data["name"]
+    assert question_data["chat"]["voice_recordings"] == RECORDINGS
+
+
 def test_instructions_get_no_columns():
     results = Results.from_human_responses(make_survey(), [make_row(entries=ANSWERED)])
     assert not any("intro" in column for column in results.columns)
