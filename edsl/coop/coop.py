@@ -6691,7 +6691,12 @@ class Coop(CoopFunctionsMixin):
         """
         if not self.has_api_key:
             raise ValueError("An Expected Parrot API key is required.")
-        url = f"{self.api_url}/api/macaw/{endpoint.lstrip('/')}"
+        api_origin = self.api_url
+        if "localhost:1234" in self.url:
+            # Local Macaw routes are served through the nginx ingress, while
+            # ordinary EDSL API calls go directly to the backend on :8000.
+            api_origin = "http://localhost:1234"
+        url = f"{api_origin}/api/macaw/{endpoint.lstrip('/')}"
         timeout = (10, 120) if stream else 60
         return requests.get(
             url, params=params, headers=self.headers, timeout=timeout, stream=stream
