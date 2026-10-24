@@ -6677,6 +6677,26 @@ class Coop(CoopFunctionsMixin):
         self._resolve_server_response(response)
         return response.json()
 
+    def research_agent_get(
+        self,
+        endpoint: str,
+        params: Optional[dict[str, Any]] = None,
+        *,
+        stream: bool = False,
+    ) -> requests.Response:
+        """GET a read-only Research Agent API resource using this Coop account.
+
+        endpoint is relative to /api/macaw (for example,
+        sessions or sessions/<uuid>/metadata).
+        """
+        if not self.has_api_key:
+            raise ValueError("An Expected Parrot API key is required.")
+        url = f"{self.api_url}/api/macaw/{endpoint.lstrip('/')}"
+        timeout = (10, 120) if stream else 60
+        return requests.get(
+            url, params=params, headers=self.headers, timeout=timeout, stream=stream
+        )
+
     def get_balance(self) -> dict:
         """
         Get the current credit balance for the authenticated user.

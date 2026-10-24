@@ -55,7 +55,7 @@ edsl schema
 edsl info
 ```
 
-There is no user-facing `edsl coop` command. Expected Parrot-backed operations are exposed directly through task-oriented commands such as `search`, `push`, `pull`, `jobs`, `humanize`, and `metadata`.
+There is no user-facing `edsl coop` command. Expected Parrot-backed operations are exposed directly through task-oriented commands such as `search`, `push`, `pull`, `jobs`, `humanize`, `research-agent`, and `metadata`.
 
 `edsl info` includes configuration diagnostics but redacts credential values such as API keys.
 
@@ -190,6 +190,22 @@ edsl humanize callbacks list <human_survey_uuid>
 `edsl humanize schema create` and `edsl humanize schema set` take `--javascript QUESTION:HOOK=FILE` to attach a JavaScript file to a question's hook, for example `--javascript rating:question.ready=rating.js`; `question.ready` is the only hook today. `edsl humanize schema set` also takes `--clear-javascript QUESTION` to remove a question's JavaScript. Custom JavaScript is available on approved accounts only; check with `edsl humanize custom-js-access`. `edsl humanize events` returns the events a survey's scripts logged, oldest first, one batch at a time (`--limit`, at most 200); `--all` fetches every batch and requires `--output` (`.json` or `.jsonl`), so a whole log is written to a file rather than printed. Every result carries `next_cursor`: pass it as `--after` to get only newer events. Fetching only new events can occasionally miss one that was still being saved, so use it to check a survey while it collects, and download the full log for analysis once fielding has ended, at least an hour after the last response. `--count` returns how many events the survey has without fetching any.
 
 Delivery, schedule, and callback commands accept optional `--routes` JSON files where supported. A route file may be a single route object or a list of route objects. Simple routes can also be created with helper flags such as `--owner-email-template owner_response_received` or `--respondent-email-template respondent_invitation`.
+
+## Research Agent sessions
+
+`research-agent` commands use the configured Expected Parrot API key and operate on sessions the authenticated account can read. They require API-key authentication for the corresponding Coopr session routes.
+
+```bash
+edsl research-agent sessions --filter all
+edsl research-agent session <session-uuid>
+edsl research-agent session <session-uuid> --section metadata
+edsl research-agent session <session-uuid> --section shares
+edsl research-agent session <session-uuid> --section files
+edsl research-agent download <session-uuid> --file reports/summary.md --output summary.md
+edsl research-agent download <session-uuid> --zip --output session.zip
+```
+
+The combined session view includes session metadata, conversation history, shared-link URLs, and a file listing. Individual downloads are written with owner-only permissions.
 
 ## Results
 
