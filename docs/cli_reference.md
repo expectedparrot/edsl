@@ -202,11 +202,13 @@ edsl research-agent session <session-uuid>
 edsl research-agent session <session-uuid> --section metadata
 edsl research-agent session <session-uuid> --section shares
 edsl research-agent session <session-uuid> --section files
+edsl research-agent files <session-uuid>
 edsl research-agent download <session-uuid> --file reports/summary.md --output summary.md
 edsl research-agent download <session-uuid> --zip --output session.zip
+edsl research-agent pull <session-uuid> --output ./session-copy
 ```
 
-Session listing returns one page at a time (50 by default, up to 200). Its response includes has_next and next_page so callers can request another page. The combined session view includes session metadata, conversation history, shared-link URLs, and a file listing. Individual downloads are written with owner-only permissions.
+Session listing returns one page at a time (50 by default, up to 200). Its response includes has_next and next_page so callers can request another page. Use files to list a session's files, download to save one file or a ZIP, and pull to extract the complete session (including chat_history.md) into a new local directory. Pull destinations must not already exist; extracted files and directories are private to your user.
 
 ## Results
 

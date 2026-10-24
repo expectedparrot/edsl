@@ -2,8 +2,13 @@
 
 from __future__ import annotations
 
+import os
 import re
-from pathlib import Path
+import shutil
+import stat
+import tempfile
+import zipfile
+from pathlib import Path, PurePosixPath, PureWindowsPath
 from urllib.parse import quote
 
 import click
@@ -103,6 +108,65 @@ def _validate_session_id(session_id: str) -> None:
         )
 
 
+def _extract_session_archive(archive_path: Path, output_dir: Path) -> int:
+    """Safely extract a session ZIP into a new owner-only directory."""
+    if os.path.lexists(output_dir):
+        error(
+            "USAGE_ERROR",
+            f"Output directory already exists: {output_dir}",
+            suggestion="Choose a new directory so existing files are never overwritten.",
+            exit_code=EXIT_USAGE,
+        )
+
+    output_dir.parent.mkdir(parents=True, exist_ok=True)
+    output_dir.mkdir(mode=0o700)
+    root = output_dir.resolve()
+    extracted_files = 0
+    try:
+        with zipfile.ZipFile(archive_path) as archive:
+            for info in archive.infolist():
+                name = info.filename
+                posix_path = PurePosixPath(name)
+                windows_path = PureWindowsPath(name)
+                if (
+                    not name
+                    or chr(92) in name
+                    or posix_path.is_absolute()
+                    or windows_path.is_absolute()
+                    or windows_path.drive
+                    or ".." in posix_path.parts
+                ):
+                    raise ValueError("Archive contains an unsafe file path.")
+
+                target = root.joinpath(*posix_path.parts)
+                if not target.resolve().is_relative_to(root):
+                    raise ValueError("Archive path escapes the output directory.")
+
+                mode = info.external_attr >> 16
+                if stat.S_ISLNK(mode):
+                    raise ValueError("Archive contains a symbolic link.")
+                if info.is_dir():
+                    target.mkdir(mode=0o700, parents=True, exist_ok=True)
+                    continue
+                if stat.S_IFMT(mode) not in (0, stat.S_IFREG):
+                    raise ValueError("Archive contains a non-regular file.")
+
+                target.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+                file_descriptor = os.open(
+                    target,
+                    os.O_WRONLY | os.O_CREAT | os.O_EXCL,
+                    0o600,
+                )
+                with os.fdopen(file_descriptor, "wb") as destination:
+                    with archive.open(info) as source:
+                        shutil.copyfileobj(source, destination, length=1024 * 64)
+                extracted_files += 1
+    except Exception:
+        shutil.rmtree(output_dir, ignore_errors=True)
+        raise
+    return extracted_files
+
+
 def register(research_agent: click.Group) -> None:
     @research_agent.command("sessions")
     @click.option(
@@ -135,6 +199,14 @@ def register(research_agent: click.Group) -> None:
                 },
             )
         )
+
+    @research_agent.command("files")
+    @click.argument("session_id")
+    def files(session_id: str) -> None:
+        """List files available in a Research Agent session."""
+        _validate_session_id(session_id)
+        client = _coop_client()
+        output(_get_json(client, f"sessions/{session_id}/files"))
 
     @research_agent.command("session")
     @click.argument("session_id")
@@ -229,6 +301,78 @@ def register(research_agent: click.Group) -> None:
                 "file": file_path,
                 "bytes": total_bytes,
                 "output": str(Path(output_path)),
+            }
+        )
+
+
+    @research_agent.command("pull")
+    @click.argument("session_id")
+    @click.option(
+        "--output",
+        "output_dir",
+        required=True,
+        type=click.Path(path_type=Path),
+        help="New directory where the session files and chat history will be extracted.",
+    )
+    def pull(session_id: str, output_dir: Path) -> None:
+        """Pull a complete session, including files and chat_history.md, locally."""
+        _validate_session_id(session_id)
+        client = _coop_client()
+        try:
+            response = client.research_agent_get(
+                f"sessions/{session_id}/download-zip",
+                stream=True,
+            )
+        except requests.RequestException as exc:
+            error(
+                "REMOTE_ERROR",
+                f"Could not reach the Research Agent service: {exc}",
+                suggestion="Check your network connection and Expected Parrot URL.",
+                exit_code=EXIT_REMOTE,
+            )
+
+        archive_bytes = 0
+        with response:
+            _check_response(response)
+            with tempfile.TemporaryDirectory(prefix="ep-session-pull-") as temp_dir:
+                archive_path = Path(temp_dir) / "session.zip"
+                archive_descriptor = os.open(
+                    archive_path,
+                    os.O_WRONLY | os.O_CREAT | os.O_EXCL,
+                    0o600,
+                )
+                with os.fdopen(archive_descriptor, "wb") as archive_file:
+                    try:
+                        for chunk in response.iter_content(chunk_size=1024 * 64):
+                            if chunk:
+                                archive_file.write(chunk)
+                                archive_bytes += len(chunk)
+                    except requests.RequestException as exc:
+                        error(
+                            "REMOTE_ERROR",
+                            f"Research Agent download interrupted: {exc}",
+                            suggestion="Retry the pull.",
+                            exit_code=EXIT_REMOTE,
+                        )
+                try:
+                    extracted_files = _extract_session_archive(
+                        archive_path, output_dir.expanduser()
+                    )
+                except (OSError, ValueError, zipfile.BadZipFile) as exc:
+                    error(
+                        "REMOTE_ERROR",
+                        f"Could not safely extract the Research Agent session: {exc}",
+                        suggestion="Retry the pull or contact Expected Parrot support.",
+                        exit_code=EXIT_REMOTE,
+                    )
+
+        output(
+            {
+                "session_id": session_id,
+                "kind": "full_session",
+                "files_extracted": extracted_files,
+                "archive_bytes": archive_bytes,
+                "output": str(output_dir.expanduser()),
             }
         )
 

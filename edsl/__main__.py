@@ -357,7 +357,7 @@ def research_agent(ctx):
     """Inspect and download Research Agent sessions."""
     if ctx.invoked_subcommand is None:
         _output({
-            "commands": ["sessions", "session", "download"],
+            "commands": ["sessions", "session", "files", "download", "pull"],
             "help": "Use 'ep research-agent <command> --help' for details.",
         })
 
