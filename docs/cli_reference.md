@@ -196,7 +196,8 @@ Delivery, schedule, and callback commands accept optional `--routes` JSON files 
 `research-agent` commands use the configured Expected Parrot API key and operate on sessions the authenticated account can read. They require API-key authentication for the corresponding Coopr session routes.
 
 ```bash
-edsl research-agent sessions --filter all
+edsl research-agent sessions --filter all --page 1 --page-size 50
+edsl research-agent sessions --filter all --page 2 --page-size 50
 edsl research-agent session <session-uuid>
 edsl research-agent session <session-uuid> --section metadata
 edsl research-agent session <session-uuid> --section shares
@@ -205,7 +206,7 @@ edsl research-agent download <session-uuid> --file reports/summary.md --output s
 edsl research-agent download <session-uuid> --zip --output session.zip
 ```
 
-The combined session view includes session metadata, conversation history, shared-link URLs, and a file listing. Individual downloads are written with owner-only permissions.
+Session listing returns one page at a time (50 by default, up to 200). Its response includes has_next and next_page so callers can request another page. The combined session view includes session metadata, conversation history, shared-link URLs, and a file listing. Individual downloads are written with owner-only permissions.
 
 ## Results
 

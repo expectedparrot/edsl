@@ -113,10 +113,28 @@ def register(research_agent: click.Group) -> None:
         show_default=True,
         help="Which sessions to list.",
     )
-    def sessions(session_filter: str) -> None:
-        """List your Research Agent sessions."""
+    @click.option("--page", type=click.IntRange(min=1), default=1, show_default=True)
+    @click.option(
+        "--page-size",
+        type=click.IntRange(min=1, max=200),
+        default=50,
+        show_default=True,
+        help="Maximum number of sessions to return.",
+    )
+    def sessions(session_filter: str, page: int, page_size: int) -> None:
+        """List one page of your Research Agent sessions."""
         client = _coop_client()
-        output(_get_json(client, "sessions", {"filter": session_filter}))
+        output(
+            _get_json(
+                client,
+                "sessions",
+                {
+                    "filter": session_filter,
+                    "page": page,
+                    "page_size": page_size,
+                },
+            )
+        )
 
     @research_agent.command("session")
     @click.argument("session_id")
