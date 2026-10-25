@@ -1,0 +1,216 @@
+---
+title: "Survey assistant"
+description: "Add an AI chat assistant to a human survey that explains questions and fills in answers from what respondents tell it."
+sidebarTitle: "Survey assistant"
+---
+
+The survey assistant is an AI chat shown beside your human survey. Respondents can ask it what a question means, or tell it their answer in their own words and have it fill in the form. Every change it makes is shown in the chat with an **Undo** button, and the respondent still presses **Next** themselves: the assistant can't submit a page.
+
+You configure it in the humanize schema, under `survey.assistant`.
+
+## Add an assistant
+
+```python
+from edsl import Survey, QuestionFreeText, QuestionMultipleChoice, QuestionRank
+
+survey = Survey([
+    QuestionMultipleChoice(
+        question_name="consent",
+        question_text="Do you agree to take part in this study?",
+        question_options=["Yes", "No"],
+    ),
+    QuestionRank(
+        question_name="priorities",
+        question_text="Rank these by how much they matter when you buy a car.",
+        question_options=["Price", "Reliability", "Fuel economy", "Safety"],
+    ),
+    QuestionFreeText(
+        question_name="reason",
+        question_text="Why is your top choice the most important to you?",
+    ),
+])
+
+humanize_schema = {
+    "survey": {
+        "assistant": {
+            "enabled": True,
+            "presentation": {"type": "sidebar"},
+            "system_prompt": "Respondents are adults shopping for a used car.",
+            "question_overrides": {
+                "consent": {"chat": False},
+                "priorities": {
+                    "instructions": "If asked, Fuel economy means the cost of fuel, not emissions.",
+                },
+            },
+        }
+    }
+}
+
+preview_url = survey.preview(humanize_schema=humanize_schema)
+print(preview_url)
+```
+
+When the preview looks right, create the survey with the same schema:
+
+```python
+info = survey.humanize(
+    human_survey_name="Car buying priorities",
+    humanize_schema=humanize_schema,
+)
+print(info["respondent_url"])
+```
+
+In this example the chat is hidden on the consent page, the assistant can fill in the ranking and the free-text reason, and it is told what "Fuel economy" means if a respondent asks.
+
+## What respondents see
+
+- **Sidebar or chat window.** With `"sidebar"`, the chat sits beside the form. With `"modal"`, a button opens it in a window over the form. On phones, both open as a drawer.
+- **Filled answers.** When a respondent says what they want ("reliability first, then safety"), the assistant fills in the question and adds a line to the chat naming it, with an **Undo** button. Respondents can also change any filled answer by hand.
+- **Submitting.** The respondent always presses **Next**. Required questions, validation and skip logic work as they do without the assistant.
+- **One conversation.** The chat carries over from page to page, so the assistant remembers what was said earlier and can see the respondent's earlier answers, except for pages you leave out with `context: false`.
+
+The chat is not shown on interview pages.
+
+## Roles
+
+`role` decides how far the assistant goes when a respondent asks for its opinion.
+
+- **`express_intent`** (default): the assistant helps respondents say what *they* think. It explains questions neutrally and fills in answers from what the respondent says, but it doesn't recommend answers. Asked "what should I pick?", it asks what matters to them instead.
+- **`advise`**: the assistant may recommend answers, with its reasons, when asked. Answers it helped with may then reflect its advice. Use this when the effect of AI advice is what you are studying.
+
+Your `system_prompt` adds to the role's built-in rules but doesn't replace them. The roles are carried out by the model and are not guaranteed: a respondent who insists may still get an opinion under `express_intent`, which you can see in the conversation.
+
+## Which questions it can fill
+
+With `can_fill_answers` on (the default), the assistant can fill these question types:
+
+`multiple_choice`, `likert_five`, `yes_no`, `linear_scale`, `multiple_choice_with_other`, `checkbox`, `checkbox_with_other`, `top_k`, `rank`, `numerical`, `free_text`, `list`, `budget`, `matrix`, `distribution`.
+
+It explains, but never fills:
+
+- file uploads and interviews;
+- questions the server answers itself, such as compute and image generation questions;
+- questions with two options (or matrix rows, or distribution outcomes) that read the same, since a filled answer couldn't say which one it meant;
+- any question you set to `fillable: false`.
+
+Set `can_fill_answers` to `False` for an assistant that only explains.
+
+## Attention checks and sensitive pages
+
+The assistant sees the questions on the page it is shown on, so it can name the right answer to an attention check.
+
+For attention checks, knowledge tests and pages that differ between experimental conditions, set both:
+
+- `chat: False`, so the chat is hidden on that page;
+- `context: False`, so the assistant knows nothing about that page on later pages: its questions, answers and any conversation on it are left out.
+
+`context: False` doesn't keep the information secret, since a respondent can still type it into the chat. It stops the assistant knowing it and bringing it up.
+
+In `"group"` presentation, `chat` and `context` apply to the whole page holding the question: one question with `chat: False` hides the chat for every question on its page.
+
+## Cost
+
+Each assistant reply is charged to the survey owner's account in credits, based on the model's usage. If your balance runs out, the assistant becomes unavailable to respondents, and they can carry on answering the survey without it.
+
+## Reading conversations
+
+Conversations are on the survey's **Events** page, under the **Assistant** tab. For each respondent you can read the full conversation, see which answers the assistant filled, and download it as JSON.
+
+## Fields
+
+<ParamField path="survey.assistant" type="dict" required={false}>
+  The survey assistant's configuration. Omit for no assistant.
+
+  `system_prompt` and every question's `instructions` are private: respondents never receive them. The other fields are sent to the respondent's browser.
+  <Expandable title="properties">
+    <ParamField path="enabled" type="boolean" default={false}>
+      Whether the assistant is shown. Set to `False` to switch it off while keeping the rest of its configuration.
+    </ParamField>
+    <ParamField path="name" type="string" required={false}>
+      The name shown on the chat, up to 60 characters. Defaults to `"Assistant"`.
+    </ParamField>
+    <ParamField path="role" type="string" default="express_intent">
+      `"express_intent"` or `"advise"`. See [Roles](#roles).
+    </ParamField>
+    <ParamField path="presentation" type="dict" required={true}>
+      How the chat is shown. Required, even with `enabled: False`.
+
+      <Expandable title="properties">
+        <ParamField path="type" type="string" required={true}>
+          `"sidebar"` for a chat beside the form, or `"modal"` for a button that opens a chat window. Both open as a drawer on phones.
+        </ParamField>
+        <ParamField path="empty_state" type="dict" required={false}>
+          What the chat shows before the respondent's first message.
+
+          <Expandable title="properties">
+            <ParamField path="heading" type="string" required={false}>
+              The heading, up to 120 characters. Defaults to `"Need help answering?"` for `express_intent` and `"Need help deciding?"` for `advise`.
+            </ParamField>
+            <ParamField path="placeholder" type="string" required={false}>
+              The message box's placeholder, up to 120 characters. Defaults to `"Ask about a question, or tell me your answer"` for `express_intent` and `"Ask about a question, or what you might choose"` for `advise`.
+            </ParamField>
+          </Expandable>
+        </ParamField>
+        <ParamField path="reply_placeholder" type="string" required={false}>
+          The message box's placeholder once the conversation has started, up to 120 characters. Defaults to `"Reply"`.
+        </ParamField>
+      </Expandable>
+    </ParamField>
+    <ParamField path="system_prompt" type="string" required={false}>
+      **Private.** Your instructions to the assistant, up to 20,000 characters: who the respondents are, the study's terms, what to avoid. Added to the role's built-in rules.
+    </ParamField>
+    <ParamField path="can_fill_answers" type="boolean" default={true}>
+      Whether the assistant may fill in answers. Set to `False` for an assistant that only explains. See [Which questions it can fill](#which-questions-it-can-fill).
+    </ParamField>
+    <ParamField path="model" type="dict" default={{"service": "openai", "name": "gpt-5.5"}}>
+      The model that writes the replies. Only `{"service": "openai", "name": "gpt-5.5"}` is available for now; any other value is refused.
+    </ParamField>
+    <ParamField path="question_overrides" type="dict" required={false}>
+      Map of question name to its exceptions to the survey-level settings. Every field defaults to on, so you only write the ones you turn off. A survey message (instruction) accepts only `chat`. An entry for a name that isn't in the survey has no effect.
+
+      <Expandable title="properties">
+        <ParamField path="fillable" type="boolean" default={true}>
+          Set to `False` so the assistant can't fill this question. The chat stays and can still explain it.
+        </ParamField>
+        <ParamField path="chat" type="boolean" default={true}>
+          Set to `False` to hide the chat on the page holding this question.
+        </ParamField>
+        <ParamField path="context" type="boolean" default={true}>
+          Set to `False` to leave the page holding this question out of what the assistant knows on later pages.
+        </ParamField>
+        <ParamField path="instructions" type="string" required={false}>
+          **Private.** Extra instructions for this question, up to 4,000 characters, given to the assistant while the question is on screen.
+        </ParamField>
+      </Expandable>
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+Respondents' messages are limited to 16,000 characters.
+
+## Change the assistant on a live survey
+
+Read the stored schema, then patch only what you want to change:
+
+```python
+from edsl import Coop
+
+coop = Coop()
+schema = coop.get_human_survey_humanize_schema("your-human-survey-uuid")
+
+coop.patch_human_survey_humanize_schema(
+    "your-human-survey-uuid",
+    {"survey": {"assistant": {"role": "advise"}}},
+)
+```
+
+Or from the command line, with the partial schema in a JSON file:
+
+```bash
+ep humanize schema get your-human-survey-uuid --out schema.json
+ep humanize schema patch your-human-survey-uuid --schema assistant_patch.json
+```
+
+A patch merges into the stored schema key by key, so patching one question's override leaves the other overrides in place. A patch can't remove a key: to remove an override, patch `survey.assistant` to `None` and then write back the whole block without it.
+
+Respondents already partway through the survey get the assistant's new instructions, role and model from their next message.
