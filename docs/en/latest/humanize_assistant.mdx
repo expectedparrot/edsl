@@ -213,4 +213,4 @@ ep humanize schema patch your-human-survey-uuid --schema assistant_patch.json
 
 A patch merges into the stored schema key by key, so patching one question's override leaves the other overrides in place. A patch can't remove a key: to remove an override, patch `survey.assistant` to `None` and then write back the whole block without it.
 
-Respondents already partway through the survey get the assistant's new instructions, role and model from their next message.
+Changes take effect from the next page each respondent is shown. A page already on screen keeps the settings it was shown with, so a conversation never switches settings partway through a page. Setting `enabled` to `False` is the exception: it stops the assistant replying straight away.

@@ -727,11 +727,13 @@ def register(humanize: click.Group) -> None:
     @click.option("--all", "fetch_all", is_flag=True, default=False, help="Fetch every event, not one batch. Requires --output.")
     @click.option("--output", "-o", "output_path", default=None, type=click.Path(dir_okay=False), help="Save events to a .json or .jsonl file.")
     @click.option("--count", "count_only", is_flag=True, default=False, help="Print how many events the survey has, and fetch none.")
-    def humanize_events(human_survey_uuid, after, limit, fetch_all, output_path, count_only):
+    @click.option("--include-previews", is_flag=True, default=False, help="Also include events from preview links, each marked is_preview.")
+    def humanize_events(human_survey_uuid, after, limit, fetch_all, output_path, count_only, include_previews):
         """Get the events a human survey's custom JavaScript logged, oldest first.
 
-        Events from preview links are included and marked is_preview. Each result
-        carries next_cursor: pass it back as --after to get only newer events.
+        Events from preview links are left out unless --include-previews. Each result
+        carries next_cursor: pass it back as --after, with the same --include-previews,
+        to get only newer events.
 
         \b
         Examples:
@@ -754,16 +756,24 @@ def register(humanize: click.Group) -> None:
             if count_only:
                 output({
                     "human_survey_uuid": human_survey_uuid,
-                    "total": coop.count_human_survey_events(human_survey_uuid),
+                    "total": coop.count_human_survey_events(
+                        human_survey_uuid, include_previews=include_previews
+                    ),
                 })
                 return
             if fetch_all:
                 batches = coop._iter_human_survey_event_batches(
-                    human_survey_uuid, after=after, limit=limit
+                    human_survey_uuid,
+                    after=after,
+                    limit=limit,
+                    include_previews=include_previews,
                 )
             else:
                 batch = coop.get_human_survey_events(
-                    human_survey_uuid, after=after, limit=limit
+                    human_survey_uuid,
+                    after=after,
+                    limit=limit,
+                    include_previews=include_previews,
                 )
                 if not output_path:
                     output(jsonable(batch))

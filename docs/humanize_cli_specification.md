@@ -627,14 +627,15 @@ Output:
 ### `edsl humanize events <human_survey_uuid>`
 
 Get the events a survey's custom JavaScript logged with `ep.log`, oldest first. Events
-from preview links are included and marked `is_preview`.
+from preview links are left out unless `--include-previews`, and then marked
+`is_preview`.
 
 Backs onto:
 
 ```python
-Coop().get_human_survey_events(human_survey_uuid, after=after, limit=limit)
-Coop()._iter_human_survey_event_batches(human_survey_uuid, after=after, limit=limit)  # --all
-Coop().count_human_survey_events(human_survey_uuid)  # --count
+Coop().get_human_survey_events(human_survey_uuid, after=after, limit=limit, include_previews=include_previews)
+Coop()._iter_human_survey_event_batches(human_survey_uuid, after=after, limit=limit, include_previews=include_previews)  # --all
+Coop().count_human_survey_events(human_survey_uuid, include_previews=include_previews)  # --count
 ```
 
 Flags:
@@ -646,6 +647,7 @@ Flags:
 | `--all` | flag | no | Fetch every batch. Requires `--output` |
 | `--output`, `-o` | path | no | Save events to `.json` (an array) or `.jsonl` (one event per line) |
 | `--count` | flag | no | Print `{"total"}` and fetch no events. Not combinable with `--all`, `--after` or `--output` |
+| `--include-previews` | flag | no | Also include events from preview links, each marked `is_preview`. Pass it with every `--after` of the same walk |
 
 Without `--output`, one batch is printed in the envelope:
 `{"events", "next_cursor", "has_more"}`. With `--output`, the events are written to the

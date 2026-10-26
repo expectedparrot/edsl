@@ -4769,12 +4769,18 @@ class TestHumanizeCli:
         calls = []
 
         class FakeCoop(RealCoop):
+            # include_previews from every request, batch and count alike.
+            previews_asked = []
+
             def __init__(self):
                 pass
 
-            def get_human_survey_events(self, human_survey_uuid, *, after=None, limit=200):
+            def get_human_survey_events(
+                self, human_survey_uuid, *, after=None, limit=200, include_previews=False
+            ):
                 assert human_survey_uuid == "human-survey-uuid"
                 calls.append((after, limit))
+                FakeCoop.previews_asked.append(include_previews)
                 if fail_after_batches is not None and len(calls) > fail_after_batches:
                     raise RuntimeError("connection lost")
                 ids = [event["id"] for event in events]
@@ -4786,8 +4792,9 @@ class TestHumanizeCli:
                     "has_more": start + limit < len(events),
                 }
 
-            def count_human_survey_events(self, human_survey_uuid):
+            def count_human_survey_events(self, human_survey_uuid, *, include_previews=False):
                 assert human_survey_uuid == "human-survey-uuid"
+                FakeCoop.previews_asked.append(include_previews)
                 return len(events)
 
         monkeypatch.setattr(edsl.coop, "Coop", FakeCoop)
@@ -4905,6 +4912,26 @@ class TestHumanizeCli:
         assert result.exit_code == 0, result.output
         assert json.loads(result.output)["data"]["total"] == 5
         assert calls == []
+
+    @pytest.mark.parametrize(
+        "args",
+        [["--limit", "2"], ["--all", "--limit", "2", "--output", "events.jsonl"], ["--count"]],
+    )
+    def test_humanize_events_leaves_previews_out_unless_asked(
+        self, tmp_path, monkeypatch, args
+    ):
+        import edsl.coop
+
+        self._events_coop(monkeypatch)
+        monkeypatch.chdir(tmp_path)
+        base = ["humanize", "events", "human-survey-uuid", *args]
+
+        assert CliRunner().invoke(cli_module.app, base).exit_code == 0
+        assert set(edsl.coop.Coop.previews_asked) == {False}
+        edsl.coop.Coop.previews_asked.clear()
+        result = CliRunner().invoke(cli_module.app, [*base, "--include-previews"])
+        assert result.exit_code == 0, result.output
+        assert set(edsl.coop.Coop.previews_asked) == {True}
 
     def test_humanize_events_count_rejects_fetch_options(self, tmp_path, monkeypatch):
         self._events_coop(monkeypatch)

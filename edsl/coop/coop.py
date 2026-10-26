@@ -3860,23 +3860,27 @@ class Coop(CoopFunctionsMixin):
         *,
         after: Optional[str] = None,
         limit: int = 200,
+        include_previews: bool = False,
     ) -> dict:
         """
         Get one batch of the events a human survey's custom JavaScript logged.
 
-        Events are oldest first. Events from previews are included, each marked
-        with ``is_preview``, so leave those out of an analysis.
+        Events are oldest first. Events from preview links are left out unless
+        ``include_previews`` is true; each event says whether it came from one
+        (``is_preview``).
 
         To continue, pass the returned ``next_cursor`` as ``after`` while
-        ``has_more`` is true. ``next_cursor`` is returned even when nothing is
-        left, so you can keep it and come back later for only the events that
-        arrived since.
+        ``has_more`` is true, with the same ``include_previews``. ``next_cursor``
+        is returned even when nothing is left, so you can keep it and come back
+        later for only the events that arrived since.
 
         Parameters:
             human_survey_uuid: UUID of the human survey.
             after: Return only events after this one, given by its ``id``. Omit
                 to start from the first event.
             limit: Events to return, at most 200.
+            include_previews: Also return events from preview links, for checking
+                a script while you build it.
 
         Returns:
             dict: ``{"events": [...], "next_cursor", "has_more"}``
@@ -3887,7 +3891,10 @@ class Coop(CoopFunctionsMixin):
             ...     "your-human-survey-uuid", after=batch["next_cursor"]
             ... )
         """
-        params: Dict[str, Any] = {"limit": limit}
+        params: Dict[str, Any] = {
+            "limit": limit,
+            "include_previews": str(include_previews).lower(),
+        }
         if after is not None:
             params["after"] = str(after)
         response = self._send_server_request(
@@ -3909,13 +3916,17 @@ class Coop(CoopFunctionsMixin):
         *,
         after: Optional[str] = None,
         limit: int = 200,
+        include_previews: bool = False,
     ) -> Iterator[dict]:
         """Yield batches from ``get_human_survey_events``, following the cursor to
         the end. Holds one batch at a time, so a caller writing each one out never
         has the whole log in memory."""
         while True:
             batch = self.get_human_survey_events(
-                human_survey_uuid, after=after, limit=limit
+                human_survey_uuid,
+                after=after,
+                limit=limit,
+                include_previews=include_previews,
             )
             yield batch
             if not batch["has_more"]:
@@ -3927,16 +3938,20 @@ class Coop(CoopFunctionsMixin):
         human_survey_uuid: Union[str, UUID],
         *,
         after: Optional[str] = None,
+        include_previews: bool = False,
     ) -> List[dict]:
         """
         Get every event a human survey's custom JavaScript logged, oldest first.
 
         Events that arrive while this runs are included, and none comes back twice.
+        Events from preview links are left out unless ``include_previews`` is true.
 
         Parameters:
             human_survey_uuid: UUID of the human survey.
             after: Return only events after this one, given by its ``id``. Pass
                 the last event you already have to fetch just the new ones.
+            include_previews: Also return events from preview links, each marked
+                ``is_preview``.
 
         Returns:
             list[dict]: One dict per event.
@@ -3947,15 +3962,20 @@ class Coop(CoopFunctionsMixin):
         return [
             event
             for batch in self._iter_human_survey_event_batches(
-                human_survey_uuid, after=after
+                human_survey_uuid, after=after, include_previews=include_previews
             )
             for event in batch["events"]
         ]
 
-    def count_human_survey_events(self, human_survey_uuid: Union[str, UUID]) -> int:
+    def count_human_survey_events(
+        self,
+        human_survey_uuid: Union[str, UUID],
+        *,
+        include_previews: bool = False,
+    ) -> int:
         """
-        How many events a human survey's custom JavaScript has logged, previews
-        included.
+        How many events a human survey's custom JavaScript has logged. Events from
+        preview links are counted only if ``include_previews`` is true.
 
         The count is as of this call. On a survey still collecting, fetching the
         events afterwards can return more.
@@ -3967,6 +3987,7 @@ class Coop(CoopFunctionsMixin):
         response = self._send_server_request(
             uri=f"api/v0/human-surveys/{human_survey_uuid}/events/count",
             method="GET",
+            params={"include_previews": str(include_previews).lower()},
         )
         self._resolve_server_response(response)
         return int(response.json().get("total", 0))
