@@ -3992,6 +3992,159 @@ class Coop(CoopFunctionsMixin):
         self._resolve_server_response(response)
         return int(response.json().get("total", 0))
 
+    def get_human_survey_interactions(
+        self,
+        human_survey_uuid: Union[str, UUID],
+        *,
+        after: Optional[str] = None,
+        limit: int = 100,
+        response_uuid: Optional[Union[str, UUID]] = None,
+        include_previews: bool = False,
+    ) -> dict:
+        """
+        Get one batch of a human survey's interaction trace: what each respondent
+        did on a survey with the AI assistant on.
+
+        One row per recorded interaction, oldest first: pages shown and submitted,
+        answers edited, messages sent to the assistant and how their replies ended,
+        what became of the assistant's edits, and events that could not be
+        recorded, with why. Each row's ``type`` says which, and decides its other
+        fields. Rows from preview links are left out unless ``include_previews`` is
+        true; each row says whether it came from one (``is_preview``).
+
+        To continue, pass the returned ``next_cursor`` as ``after`` while
+        ``has_more`` is true, with the same filters. ``next_cursor`` is returned
+        even when nothing is left, so you can keep it and come back later for only
+        the rows that arrived since.
+
+        Parameters:
+            human_survey_uuid: UUID of the human survey.
+            after: Return only rows after this one, given by its ``id``. Omit to
+                start from the first.
+            limit: Rows to return, at most 100.
+            response_uuid: Return only this response's rows.
+            include_previews: Also return rows from preview links.
+
+        Returns:
+            dict: ``{"interactions": [...], "next_cursor", "has_more"}``
+
+        Example:
+            >>> batch = coop.get_human_survey_interactions("your-human-survey-uuid")  # doctest: +SKIP
+        """
+        params: Dict[str, Any] = {
+            "limit": limit,
+            "include_previews": str(include_previews).lower(),
+        }
+        if after is not None:
+            params["after"] = str(after)
+        if response_uuid is not None:
+            params["response_uuid"] = str(response_uuid)
+        response = self._send_server_request(
+            uri=f"api/v0/human-surveys/{human_survey_uuid}/interactions",
+            method="GET",
+            params=params,
+        )
+        self._resolve_server_response(response)
+        data = response.json()
+        return {
+            "interactions": data.get("interactions", []),
+            "next_cursor": data.get("next_cursor"),
+            "has_more": bool(data.get("has_more")),
+        }
+
+    def _iter_human_survey_interaction_batches(
+        self,
+        human_survey_uuid: Union[str, UUID],
+        *,
+        after: Optional[str] = None,
+        limit: int = 100,
+        response_uuid: Optional[Union[str, UUID]] = None,
+        include_previews: bool = False,
+    ) -> Iterator[dict]:
+        """Yield batches from ``get_human_survey_interactions``, following the cursor
+        to the end. Holds one batch at a time, so a caller writing each one out never
+        has the whole trace in memory."""
+        while True:
+            batch = self.get_human_survey_interactions(
+                human_survey_uuid,
+                after=after,
+                limit=limit,
+                response_uuid=response_uuid,
+                include_previews=include_previews,
+            )
+            yield batch
+            if not batch["has_more"]:
+                return
+            after = batch["next_cursor"]
+
+    def get_all_human_survey_interactions(
+        self,
+        human_survey_uuid: Union[str, UUID],
+        *,
+        after: Optional[str] = None,
+        response_uuid: Optional[Union[str, UUID]] = None,
+        include_previews: bool = False,
+    ) -> List[dict]:
+        """
+        Get a human survey's whole interaction trace, oldest first.
+
+        Rows that arrive while this runs are included, and none comes back twice.
+        Rows from preview links are left out unless ``include_previews`` is true.
+
+        Parameters:
+            human_survey_uuid: UUID of the human survey.
+            after: Return only rows after this one, given by its ``id``. Pass the
+                last row you already have to fetch just the new ones.
+            response_uuid: Return only this response's rows.
+            include_previews: Also return rows from preview links, each marked
+                ``is_preview``.
+
+        Returns:
+            list[dict]: One dict per interaction.
+
+        Example:
+            >>> rows = coop.get_all_human_survey_interactions("your-human-survey-uuid")  # doctest: +SKIP
+        """
+        return [
+            row
+            for batch in self._iter_human_survey_interaction_batches(
+                human_survey_uuid,
+                after=after,
+                response_uuid=response_uuid,
+                include_previews=include_previews,
+            )
+            for row in batch["interactions"]
+        ]
+
+    def count_human_survey_interactions(
+        self,
+        human_survey_uuid: Union[str, UUID],
+        *,
+        response_uuid: Optional[Union[str, UUID]] = None,
+        include_previews: bool = False,
+    ) -> int:
+        """
+        How many interactions a human survey has recorded. Rows from preview links
+        are counted only if ``include_previews`` is true.
+
+        The count is as of this call. On a survey still collecting, fetching the
+        rows afterwards can return more.
+
+        Example:
+            >>> coop.count_human_survey_interactions("your-human-survey-uuid")  # doctest: +SKIP
+            1830
+        """
+        params: Dict[str, Any] = {"include_previews": str(include_previews).lower()}
+        if response_uuid is not None:
+            params["response_uuid"] = str(response_uuid)
+        response = self._send_server_request(
+            uri=f"api/v0/human-surveys/{human_survey_uuid}/interactions/count",
+            method="GET",
+            params=params,
+        )
+        self._resolve_server_response(response)
+        return int(response.json().get("total", 0))
+
     def get_human_survey_respondent_links(
         self,
         human_survey_uuid: Union[str, UUID],

@@ -116,6 +116,65 @@ Each assistant reply is charged to the survey owner's account in credits, based 
 
 Conversations are on the survey's **Events** page, under the **Assistant** tab. For each respondent you can read the full conversation, see which answers the assistant filled, and download it as JSON.
 
+## Downloading what respondents did
+
+On a survey with the assistant on, every step a respondent takes is recorded: each page shown and submitted, each change to an answer, each message to the assistant and how its reply ended, and what became of each answer the assistant filled. This is the interaction trace. It doesn't include message text, which is in the conversation.
+
+Use `Coop.get_all_human_survey_interactions` to get it, oldest first:
+
+```python
+from edsl import Coop
+
+coop = Coop()
+
+rows = coop.get_all_human_survey_interactions("your-human-survey-uuid")
+```
+
+Rows from preview links are left out. To check your setup while you build it, pass `include_previews=True` to get them too, each marked `is_preview`. Pass `response_uuid` for one response's rows only. Rows that arrive while the download runs are included, and no row comes back twice.
+
+To fetch new rows later, pass the `id` of the last row you downloaded as `after`, with the same filters. To fetch one batch at a time, use `Coop.get_human_survey_interactions`, which takes `after`, `limit` (at most 100, the default), `response_uuid` and `include_previews`, and returns `{"interactions", "next_cursor", "has_more"}`. Pass `next_cursor` as `after` while `has_more` is `True`. `Coop.count_human_survey_interactions` returns how many rows there are, with the same filters.
+
+From the command line:
+
+```bash
+ep humanize interactions your-human-survey-uuid --all --output interactions.jsonl
+ep humanize interactions your-human-survey-uuid --count
+```
+
+### Every row
+
+| Field | Description |
+|---|---|
+| `id` | The row's unique id |
+| `response_uuid` | The response the row belongs to |
+| `is_preview` | Whether the row came from a preview link |
+| `session` | The page load the row was recorded in. Each time a respondent opens or reloads the survey starts a new session, so one response can have several. |
+| `seq` | The row's position in its session. Sort by it to get the order things happened in. |
+| `session_state` | `complete` when every row of the session was recorded, `truncated` when some were lost (a closed tab, a dropped connection), `unknown` when it can't be told |
+| `at` | When it happened, by the respondent's clock (ISO 8601, UTC). Useful for gaps within a session, not for ordering across respondents. |
+| `received_at` | When Expected Parrot received it (ISO 8601, UTC) |
+| `type` | What happened: one of the types below |
+| `actor` | Who did it: `respondent`, `assistant` or `platform` |
+| `page_id` | The page it happened on. A page is identified by `response_uuid` and `page_id` together. |
+
+### Each type's fields
+
+| `type` | Fields |
+|---|---|
+| `page.shown` | `page_key`: the question group's name, or the first question's name when the survey shows one question per page |
+| `page.submitted` | `page_key` |
+| `form.edited` | The respondent changed an answer. `question`, `value`, `draft_type`, `draft_version`, `change_count` (typing is recorded in pauses, so one row can stand for several changes), `first_change_at`, `closed_by` (what ended the pause, such as `left_field` or `message_sent`), `outcome`, `value_omitted`, `chars` |
+| `chat.message_sent` | `turn`, the id of the assistant's reply; or `refused`, why the message was refused; or neither, if the message never arrived |
+| `chat.reply_ended` | `message_seq` (the message's `seq`), `turn`, `status` (`complete`, `interrupted`, `failed`, `stopped`, `refused` or `dropped`), `connection` (for a dropped reply: `failed` or `lost`), `first_text_at`, `error_kind` |
+| `assistant.edit_applied` | The assistant filled an answer. `question`, `edit` (the edit's id), `value`, `draft_type`, `draft_version`, `outcome`, `value_omitted`, `chars` |
+| `assistant.edit_undone` | The respondent pressed **Undo**. The same fields; `value` is what the answer went back to |
+| `assistant.edit_skipped` | An answer the assistant filled that couldn't be put in the form. `question`, `edit`, `reason`: `field_changed` (the respondent changed the answer first), `page_changed`, `time_up` or `invalid` |
+| `runtime.event_rejected` | Something that couldn't be recorded, so a gap has a reason. `question`, `rejected_type`, `reason`, `chars` |
+
+- `value` is the answer in the form at that moment, in the shape `draft_type` and `draft_version` name.
+- `outcome` is `applied`, `superseded` (a later change from the same tab had already arrived) or `late` (the page had already been submitted).
+- `value_omitted` is `True` for a value too long to keep, about 16,000 characters. The change is still recorded, and `chars` gives its length.
+
 ## Fields
 
 <ParamField path="survey.assistant" type="dict" required={false}>

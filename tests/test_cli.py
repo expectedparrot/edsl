@@ -4946,6 +4946,110 @@ class TestHumanizeCli:
 
         assert result.exit_code == cli_module.EXIT_USAGE, result.output
 
+    def _interactions_coop(self, monkeypatch):
+        """A Coop serving five interaction rows by cursor, with the real
+        cursor-following loop. Records every request's filters."""
+        import edsl.coop
+        from edsl.coop.coop import Coop as RealCoop
+
+        rows = [{"id": f"i{n}", "type": "page.shown"} for n in range(1, 6)]
+        calls = []
+
+        class FakeCoop(RealCoop):
+            def __init__(self):
+                pass
+
+            def get_human_survey_interactions(
+                self, human_survey_uuid, *, after=None, limit=100,
+                response_uuid=None, include_previews=False,
+            ):
+                assert human_survey_uuid == "human-survey-uuid"
+                calls.append((after, limit, response_uuid, include_previews))
+                ids = [row["id"] for row in rows]
+                start = ids.index(after) + 1 if after else 0
+                batch = rows[start : start + limit]
+                return {
+                    "interactions": batch,
+                    "next_cursor": batch[-1]["id"] if batch else after,
+                    "has_more": start + limit < len(rows),
+                }
+
+            def count_human_survey_interactions(
+                self, human_survey_uuid, *, response_uuid=None, include_previews=False
+            ):
+                calls.append(("count", response_uuid, include_previews))
+                return len(rows)
+
+        monkeypatch.setattr(edsl.coop, "Coop", FakeCoop)
+        return rows, calls
+
+    def test_humanize_interactions_prints_one_batch(self, monkeypatch):
+        rows, calls = self._interactions_coop(monkeypatch)
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            ["humanize", "interactions", "human-survey-uuid", "--limit", "2"],
+        )
+
+        assert result.exit_code == 0, result.output
+        data = json.loads(result.output)["data"]
+        assert data["interactions"] == rows[:2]
+        assert (data["next_cursor"], data["has_more"]) == ("i2", True)
+        assert calls == [(None, 2, None, False)]
+
+    @pytest.mark.parametrize("suffix", [".json", ".jsonl"])
+    def test_humanize_interactions_all_follows_the_cursor_with_its_filters(
+        self, tmp_path, monkeypatch, suffix
+    ):
+        rows, calls = self._interactions_coop(monkeypatch)
+        output_path = tmp_path / f"interactions{suffix}"
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            [
+                "humanize", "interactions", "human-survey-uuid",
+                "--all", "--limit", "2", "--output", str(output_path),
+                "--response", "response-uuid", "--include-previews",
+            ],
+        )
+
+        assert result.exit_code == 0, result.output
+        data = json.loads(result.output)["data"]
+        assert data["interaction_count"] == 5
+        assert (data["next_cursor"], data["has_more"]) == ("i5", False)
+        assert calls == [
+            (after, 2, "response-uuid", True) for after in (None, "i2", "i4")
+        ]
+        text = output_path.read_text(encoding="utf-8")
+        if suffix == ".jsonl":
+            assert [json.loads(line) for line in text.splitlines()] == rows
+        else:
+            assert json.loads(text) == rows
+
+    def test_humanize_interactions_count(self, monkeypatch):
+        _, calls = self._interactions_coop(monkeypatch)
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            ["humanize", "interactions", "human-survey-uuid", "--count", "--include-previews"],
+        )
+
+        assert result.exit_code == 0, result.output
+        assert json.loads(result.output)["data"]["total"] == 5
+        assert calls == [("count", None, True)]
+
+    @pytest.mark.parametrize(
+        "args", [["--all"], ["--count", "--after", "i1"]]
+    )
+    def test_humanize_interactions_usage_errors(self, monkeypatch, args):
+        self._interactions_coop(monkeypatch)
+
+        result = CliRunner().invoke(
+            cli_module.app, ["humanize", "interactions", "human-survey-uuid", *args]
+        )
+
+        assert result.exit_code == cli_module.EXIT_USAGE, result.output
+
     @pytest.mark.skipif(sys.platform == "win32", reason="POSIX file modes")
     @pytest.mark.parametrize("existing", [False, True])
     def test_humanize_events_file_is_private(self, tmp_path, monkeypatch, existing):

@@ -667,6 +667,43 @@ are written as they arrive, one in memory at a time, to a private temporary file
 the output that replaces it only once every batch has arrived. A download that fails
 part way leaves any existing file untouched and no partial one.
 
+### `edsl humanize interactions <human_survey_uuid>`
+
+Get a survey's interaction trace, oldest first: one row per page shown or submitted,
+answer edited, message sent to the assistant, reply ended, assistant edit applied,
+undone or skipped, and event that could not be recorded. Recorded on surveys with the
+assistant on. Rows from preview links are left out unless `--include-previews`, and
+then marked `is_preview`.
+
+Backs onto:
+
+```python
+Coop().get_human_survey_interactions(human_survey_uuid, after=after, limit=limit, response_uuid=response_uuid, include_previews=include_previews)
+Coop()._iter_human_survey_interaction_batches(human_survey_uuid, after=after, limit=limit, response_uuid=response_uuid, include_previews=include_previews)  # --all
+Coop().count_human_survey_interactions(human_survey_uuid, response_uuid=response_uuid, include_previews=include_previews)  # --count
+```
+
+Flags:
+
+| Flag | Type | Required | Description |
+|------|------|----------|-------------|
+| `--after` | row id | no | Only rows after this one, e.g. a `next_cursor` from an earlier run |
+| `--limit` | int | no | Rows per request, default 100, at most 100 |
+| `--response` | response uuid | no | Only this response's rows |
+| `--all` | flag | no | Fetch every batch. Requires `--output` |
+| `--output`, `-o` | path | no | Save rows to `.json` (an array) or `.jsonl` (one row per line) |
+| `--count` | flag | no | Print `{"total"}` and fetch no rows. Not combinable with `--all`, `--after` or `--output` |
+| `--include-previews` | flag | no | Also include rows from preview links. Pass it, and `--response`, with every `--after` of the same walk |
+
+Without `--output`, one batch is printed in the envelope:
+`{"interactions", "next_cursor", "has_more"}`. With `--output`, the rows are written to
+the file and the envelope carries `saved_to`, `format`, `interaction_count`,
+`next_cursor` and `has_more` instead.
+
+`--all` requires `--output` because rows hold respondents' answers as they typed them.
+The file is written as `edsl humanize events` writes its file: a batch at a time, to a
+private temporary file that replaces the output only once every batch has arrived.
+
 ## Deferred Command Groups
 
 These should not be part of the first implementation unless explicitly prioritized.

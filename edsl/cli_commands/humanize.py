@@ -801,6 +801,82 @@ def register(humanize: click.Group) -> None:
             )
 
 
+    @humanize.command("interactions")
+    @click.argument("human_survey_uuid")
+    @click.option("--after", default=None, help="Only rows after this one's id, e.g. the next_cursor from an earlier run.")
+    @click.option("--limit", default=100, type=int, help="Rows per request, at most 100.")
+    @click.option("--response", "response_uuid", default=None, help="Only this response's rows.")
+    @click.option("--all", "fetch_all", is_flag=True, default=False, help="Fetch every row, not one batch. Requires --output.")
+    @click.option("--output", "-o", "output_path", default=None, type=click.Path(dir_okay=False), help="Save rows to a .json or .jsonl file.")
+    @click.option("--count", "count_only", is_flag=True, default=False, help="Print how many rows there are, and fetch none.")
+    @click.option("--include-previews", is_flag=True, default=False, help="Also include rows from preview links, each marked is_preview.")
+    def humanize_interactions(human_survey_uuid, after, limit, response_uuid, fetch_all, output_path, count_only, include_previews):
+        """Get a survey's interaction trace, oldest first: what respondents did on a
+        survey with the AI assistant on.
+
+        Rows from preview links are left out unless --include-previews. Each result
+        carries next_cursor: pass it back as --after, with the same filters, to get
+        only newer rows.
+
+        \b
+        Examples:
+          ep humanize interactions <uuid>
+          ep humanize interactions <uuid> --all --output interactions.jsonl
+          ep humanize interactions <uuid> --response <response-uuid> --all -o one.json
+          ep humanize interactions <uuid> --count
+        """
+        if count_only and (fetch_all or output_path or after):
+            _humanize_usage_error("--count cannot be combined with --all, --after or --output.")
+        # Rows hold respondents' answers as they typed them, so a whole trace goes to
+        # a file rather than the terminal.
+        if fetch_all and not output_path:
+            _humanize_usage_error("--all requires --output.")
+        file_format = _events_file_format(output_path) if output_path else None
+        filters = {"response_uuid": response_uuid, "include_previews": include_previews}
+        try:
+            from edsl.coop import Coop
+
+            coop = Coop()
+            if count_only:
+                output({
+                    "human_survey_uuid": human_survey_uuid,
+                    "total": coop.count_human_survey_interactions(human_survey_uuid, **filters),
+                })
+                return
+            if fetch_all:
+                batches = coop._iter_human_survey_interaction_batches(
+                    human_survey_uuid, after=after, limit=limit, **filters
+                )
+            else:
+                batch = coop.get_human_survey_interactions(
+                    human_survey_uuid, after=after, limit=limit, **filters
+                )
+                if not output_path:
+                    output(jsonable(batch))
+                    return
+                batches = [batch]
+            row_count, last_batch = _stream_events_to_file(
+                batches, output_path, file_format, key="interactions"
+            )
+            output({
+                "human_survey_uuid": human_survey_uuid,
+                "saved_to": output_path,
+                "format": file_format,
+                "interaction_count": row_count,
+                "next_cursor": last_batch["next_cursor"] if last_batch else after,
+                "has_more": bool(last_batch and last_batch["has_more"]),
+            })
+        except SystemExit:
+            raise
+        except Exception as e:
+            error(
+                "HUMANIZE_ERROR",
+                str(e),
+                suggestion="Check the human survey UUID, output path, and Expected Parrot API key.",
+                exit_code=EXIT_REMOTE,
+            )
+
+
     @humanize.command("custom-js-access")
     def humanize_custom_js_access():
         """Check whether your account may use custom JavaScript in a humanize schema."""
@@ -2568,9 +2644,10 @@ def register(humanize: click.Group) -> None:
         _humanize_usage_error("--output must end in .json or .jsonl.")
 
 
-    def _stream_events_to_file(batches, path: str, file_format: str):
-        """Write event batches to ``path`` as they arrive. Returns the number of
-        events written and the last batch, for its cursor.
+    def _stream_events_to_file(batches, path: str, file_format: str, key: str = "events"):
+        """Write event batches to ``path`` as they arrive, each batch's rows under
+        ``key``. Returns the number of rows written and the last batch, for its
+        cursor.
 
         One batch is in memory at a time, however long the log. Through
         ``private_output``, so a download that fails part way leaves no file that
@@ -2584,7 +2661,7 @@ def register(humanize: click.Group) -> None:
                 f.write("[")
             for batch in batches:
                 last_batch = batch
-                for event in batch["events"]:
+                for event in batch[key]:
                     text = json.dumps(event, ensure_ascii=False, default=str)
                     if file_format == "jsonl":
                         f.write(text + "\n")
