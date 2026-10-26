@@ -1,13 +1,15 @@
 ---
 title: "Teaching guide"
-description: "Use the Research Agent, Builder, playbooks, and EDSL for research methods and course assignments."
+description: "Teach study design, simulations, human research, and reproducible analysis with EDSL."
 ---
 
-Students can use Expected Parrot to design studies, collect human responses, explore AI simulations, and analyze evidence. Choose the [Research Agent](/en/latest/research_agent) for a conversational workflow, the [Builder](/en/latest/survey_builder) for visual editing, or [EDSL](/en/latest/overview) for assignments involving Python.
+EDSL assignments let students make study design choices explicit in code, run AI simulations, and compare findings with human evidence. Students can also collect human responses as the primary source of data.
+
+Start with [first steps](/en/latest/index#start-here) and the [Run your first survey](/en/latest/starter_tutorial) tutorial. The tutorial covers a first survey and test responses; the object and task guides extend it to agents, experimental conditions, survey logic, and model comparisons. [Colab setup](/en/latest/colab_setup) provides a notebook environment without a local installation.
 
 ## Set up your course
 
-Ask students to [create an account](https://www.expectedparrot.com/login) using their academic email. We support academic researchers, instructors, and students with platform access and an initial allocation of usage credits. Contact [info@expectedparrot.com](mailto:info@expectedparrot.com) for academic support.
+Local construction and test-model exercises require no account. For hosted model execution or human data collection, students need Expected Parrot access. Contact [info@expectedparrot.com](mailto:info@expectedparrot.com) about academic support and usage credits for your class.
 
 Define the learning objectives, required deliverables, and limits on model usage or study size. Have students estimate [costs](/en/latest/costs) and run a small pilot before scaling up a simulation.
 
@@ -21,25 +23,13 @@ For example, provide the following instructions for a message-comparison assignm
 
 Require students to review and revise the design, explain their choices, and evaluate the evidence behind the final report. For a human research assignment, have students design a survey or interview guide and collect human responses as the primary data source.
 
-## Work with the Research Agent and Builder
+## Use the Research Agent alongside EDSL
 
 1. Start a [Research Agent session](https://www.expectedparrot.com/research-agent) with the assignment or playbook and project-specific inputs.
 2. Review the research plan and draft instrument. Use the [Builder](/en/latest/survey_builder) to inspect wording, response options, and logic.
 3. Run the planned study and inspect the resulting data. Distinguish human responses from simulated responses in every comparison.
 4. Ask for the EDSL code and check that the analysis matches the research question.
 5. Share the session and required study materials with the instructor using the session's **Share** control.
-
-## Work in Python
-
-For coding assignments, follow [EDSL Getting Started](/en/latest/getting_started) and [Installation](/en/latest/installation):
-
-```bash
-pip install edsl
-```
-
-Students can use a notebook or their preferred Python environment. See [Colab Setup](/en/latest/colab_setup) for Google Colab.
-
-The [Starter Tutorial](/en/latest/starter_tutorial) covers questions, survey logic, agents, models, scenarios, and results. Students can construct a study directly or extend code produced by the Research Agent or Builder. For human data collection and retrieval in code, follow [Humanize](/en/latest/humanize).
 
 ## Suggested deliverables
 
@@ -56,4 +46,4 @@ AI simulations can help students explore hypotheses, test instruments, and exami
 
 Human surveys and interviews are also complete research projects in their own right. Choose the method based on the course's learning objectives and research question.
 
-For examples, see [EDSL in Research](/en/latest/papers), the [Starter Tutorial](/en/latest/starter_tutorial), and [Research Agent resources](https://www.expectedparrot.com/products/research-agent/use-cases). See [Citation](/en/latest/citation) for acknowledging EDSL in student work.
+For examples, see [Research with Expected Parrot](/en/latest/papers), the [Run your first survey](/en/latest/starter_tutorial) tutorial, and [Research Agent resources](https://www.expectedparrot.com/products/research-agent/use-cases). See [Citation](/en/latest/citation) for acknowledging EDSL in student work.

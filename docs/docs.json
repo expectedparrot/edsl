@@ -1,7 +1,7 @@
 {
   "$schema": "https://mintlify.com/docs.json",
   "theme": "mint",
-  "name": "Expected Parrot Documentation",
+  "name": "EDSL Documentation",
   "logo": {
     "light": "/logo.png",
     "dark": "/logo.png"
@@ -18,166 +18,114 @@
         "group": "Introduction",
         "pages": [
           "en/latest/index",
-          "en/latest/overview",
-          "en/latest/papers",
-          "en/latest/citation"
+          "en/latest/overview"
         ]
       },
       {
-        "group": "Research Agent",
+        "group": "Setup and tutorials",
         "pages": [
-          "en/latest/research_agent"
-        ]
-      },
-      {
-        "group": "Builder",
-        "pages": [
-          "en/latest/survey_builder"
-        ]
-      },
-      {
-        "group": "EDSL Getting Started",
-        "pages": [
-          "en/latest/getting_started",
-          "en/latest/cli",
           "en/latest/installation",
-          "en/latest/api_keys",
-          "en/latest/remote_inference",
-          "en/latest/remote_caching",
           "en/latest/starter_tutorial",
-          "en/latest/teaching",
+          "en/latest/api_keys",
+          "en/latest/cli",
           "en/latest/colab_setup"
         ]
       },
       {
-        "group": "Core Concepts",
+        "group": "EDSL objects",
         "pages": [
           "en/latest/questions",
-          "en/latest/scenarios",
           "en/latest/surveys",
-          "en/latest/survey_messages",
-          "en/latest/survey_ep_format",
+          "en/latest/scenarios",
           "en/latest/agents",
-          "en/latest/prompts",
           "en/latest/language_models",
-          "en/latest/local_openai_compatible"
-        ]
-      },
-      {
-        "group": "Getting Data",
-        "pages": [
-          "en/latest/firecrawl"
-        ]
-      },
-      {
-        "group": "Working with Results",
-        "pages": [
+          "en/latest/jobs",
+          "en/latest/prompts",
           "en/latest/results",
           "en/latest/dataset",
-          "en/latest/data",
-          "en/latest/exceptions",
-          "en/latest/token_usage",
-          "en/latest/checklist"
+          "en/latest/filestore",
+          "en/latest/survey_messages",
+          "en/latest/enums"
         ]
       },
       {
-        "group": "Human Research",
+        "group": "How-to guides",
         "pages": [
+          "en/latest/guides/survey_logic",
+          "en/latest/guides/importing_data",
+          "en/latest/guides/experimental_conditions",
+          "en/latest/guides/model_comparisons",
+          "en/latest/guides/data_labeling"
+        ]
+      },
+      {
+        "group": "Research examples",
+        "pages": [
+          "en/latest/research/pretesting",
+          "en/latest/research/prompt_sensitivity",
+          "en/latest/research/model_behavior",
+          "en/latest/research/qualitative",
+          "en/latest/research/human_validation"
+        ]
+      },
+      {
+        "group": "Human research",
+        "pages": [
+          "en/latest/guides/human_studies",
           "en/latest/humanize",
+          "en/latest/guides/human_interviews",
+          "en/latest/prolific",
           "en/latest/humanize_groups",
           "en/latest/humanize_schema",
           "en/latest/humanize_notifications",
           "en/latest/humanize_agent_access",
           "en/latest/custom_css",
-          "en/latest/custom_javascript",
-          "en/latest/prolific"
+          "en/latest/custom_javascript"
         ]
       },
       {
-        "group": "Platform",
+        "group": "Execution and costs",
         "pages": [
-          "en/latest/coop",
+          "en/latest/guides/providers",
+          "en/latest/remote_inference",
+          "en/latest/guides/background_jobs",
+          "en/latest/cache",
+          "en/latest/remote_caching",
           "en/latest/costs",
           "en/latest/credits",
-          "en/latest/filestore",
+          "en/latest/token_usage"
+        ]
+      },
+      {
+        "group": "Saving and sharing",
+        "pages": [
+          "en/latest/guides/saving_objects",
+          "en/latest/coop",
+          "en/latest/survey_ep_format",
           "en/latest/notebooks",
-          "en/latest/colab_notebooks"
-        ]
-      },
-      {
-        "group": "How-to Guides",
-        "pages": [
-          "en/latest/notebooks/starter_tutorial",
-          "en/latest/notebooks/estimating_costs",
-          "en/latest/notebooks/piping_comments",
-          "en/latest/notebooks/looping_and_piping",
-          "en/latest/notebooks/question_loop_scenarios",
-          "en/latest/notebooks/answering_instructions_example",
-          "en/latest/notebooks/video_scenario_example",
-          "en/latest/notebooks/image_scenario_example",
-          "en/latest/notebooks/updating_agents",
-          "en/latest/notebooks/save_load_objects_locally",
-          "en/latest/notebooks/scenario_from_pdf",
-          "en/latest/notebooks/scenario_list_wikipedia",
-          "en/latest/notebooks/scenariolist_unpivot",
-          "en/latest/notebooks/filestore_examples_new",
-          "en/latest/notebooks/scenarios_filestore_example",
-          "en/latest/notebooks/adding_metadata",
-          "en/latest/notebooks/skip_logic_scenarios",
-          "en/latest/notebooks/example_agent_dynamic_traits",
-          "en/latest/notebooks/import_agents",
-          "en/latest/notebooks/batching_results",
-          "en/latest/notebooks/concept_induction",
-          "en/latest/notebooks/run_background",
-          "en/latest/notebooks/edsl_with_cloud_providers"
-        ]
-      },
-      {
-        "group": "Notebook Examples",
-        "pages": [
-          "en/latest/notebooks/data_labeling_validation_example",
-          "en/latest/notebooks/data_labeling_agent",
-          "en/latest/notebooks/data_labeling_example",
-          "en/latest/notebooks/edsl_with_offline_inference_services",
-          "en/latest/notebooks/data_cleaning",
-          "en/latest/notebooks/yoga_studio_name_survey",
-          "en/latest/notebooks/summarizing_transcripts",
-          "en/latest/notebooks/reasoning_model_example",
-          "en/latest/notebooks/analyze_customer_call",
-          "en/latest/notebooks/analyze_evaluations",
-          "en/latest/notebooks/models_scoring_models",
-          "en/latest/notebooks/conduct_interview",
-          "en/latest/notebooks/nps_survey",
-          "en/latest/notebooks/qualitative_research",
-          "en/latest/notebooks/research_methods",
-          "en/latest/notebooks/random_numbers",
-          "en/latest/notebooks/testing_training_data",
-          "en/latest/notebooks/evaluating_job_posts",
-          "en/latest/notebooks/explore_llm_biases",
-          "en/latest/notebooks/agent_fatigue",
-          "en/latest/notebooks/explore_survey_contexts",
-          "en/latest/notebooks/free_responses",
-          "en/latest/notebooks/digital_twin",
-          "en/latest/notebooks/writing_style",
-          "en/latest/notebooks/google_form_to_edsl",
-          "en/latest/notebooks/edsl_polling",
-          "en/latest/notebooks/ces_data_edsl"
-        ]
-      },
-      {
-        "group": "Developers",
-        "pages": [
-          "en/latest/contributing",
-          "en/latest/logging",
-          "en/latest/jobs",
-          "en/latest/enums",
+          "en/latest/colab_notebooks",
           "en/latest/base"
         ]
       },
       {
-        "group": "Additional Resources",
+        "group": "Research and teaching",
         "pages": [
-          "en/latest/whitepaper"
+          "en/latest/papers",
+          "en/latest/citation",
+          "en/latest/teaching"
+        ]
+      },
+      {
+        "group": "Expected Parrot platform",
+        "pages": [
+          "en/latest/research_agent",
+          "en/latest/survey_builder"
+        ]
+      },
+      {
+        "group": "Contributing",
+        "pages": [
+          "en/latest/contributing"
         ]
       }
     ],
@@ -218,5 +166,151 @@
   },
   "search": {
     "prompt": "Search EDSL documentation..."
-  }
+  },
+  "redirects": [
+    {
+      "source": "/en/latest/notebooks/image_scenario_example",
+      "destination": "/en/latest/scenarios#images"
+    },
+    {
+      "source": "/en/latest/notebooks/video_scenario_example",
+      "destination": "/en/latest/scenarios#video"
+    },
+    {
+      "source": "/en/latest/notebooks/scenario_from_pdf",
+      "destination": "/en/latest/scenarios#pdf-text"
+    },
+    {
+      "source": "/en/latest/notebooks/filestore_examples_new",
+      "destination": "/en/latest/filestore"
+    },
+    {
+      "source": "/en/latest/notebooks/scenarios_filestore_example",
+      "destination": "/en/latest/scenarios#data-and-files"
+    },
+    {
+      "source": "/en/latest/notebooks/estimating_costs",
+      "destination": "/en/latest/costs"
+    },
+    {
+      "source": "/en/latest/getting_started",
+      "destination": "/en/latest/index"
+    },
+    {
+      "source": "/en/latest/data",
+      "destination": "/en/latest/cache"
+    },
+    {
+      "source": "/en/latest/firecrawl",
+      "destination": "/en/latest/guides/importing_data"
+    },
+    {
+      "source": "/en/latest/polly",
+      "destination": "/en/latest/survey_builder"
+    },
+    {
+      "source": "/en/latest/interviews",
+      "destination": "/en/latest/guides/human_interviews"
+    },
+    {
+      "source": "/en/latest/answers",
+      "destination": "/en/latest/results"
+    },
+    {
+      "source": "/en/latest/guides/agents",
+      "destination": "/en/latest/agents"
+    },
+    {
+      "source": "/en/latest/guides/files",
+      "destination": "/en/latest/filestore"
+    },
+    {
+      "source": "/en/latest/guides/prompts",
+      "destination": "/en/latest/prompts"
+    },
+    {
+      "source": "/en/latest/guides/analyzing_results",
+      "destination": "/en/latest/results"
+    },
+    {
+      "source": "/en/latest/guides/results_metadata",
+      "destination": "/en/latest/results"
+    },
+    {
+      "source": "/en/latest/reference/agents",
+      "destination": "/en/latest/agents#common-methods"
+    },
+    {
+      "source": "/en/latest/reference/scenarios",
+      "destination": "/en/latest/scenarios#common-methods"
+    },
+    {
+      "source": "/en/latest/reference/surveys",
+      "destination": "/en/latest/surveys#common-methods"
+    },
+    {
+      "source": "/en/latest/reference/language_models",
+      "destination": "/en/latest/language_models#common-methods"
+    },
+    {
+      "source": "/en/latest/reference/jobs",
+      "destination": "/en/latest/jobs#common-methods"
+    },
+    {
+      "source": "/en/latest/reference/results",
+      "destination": "/en/latest/results#common-methods"
+    },
+    {
+      "source": "/en/latest/reference/dataset",
+      "destination": "/en/latest/dataset#common-methods"
+    },
+    {
+      "source": "/en/latest/reference/prompts",
+      "destination": "/en/latest/prompts#common-methods"
+    },
+    {
+      "source": "/en/latest/reference/filestore",
+      "destination": "/en/latest/filestore#common-methods"
+    },
+    {
+      "source": "/en/latest/reference/cache",
+      "destination": "/en/latest/cache#common-methods"
+    },
+    {
+      "source": "/en/latest/reference/coop",
+      "destination": "/en/latest/coop#common-methods"
+    },
+    {
+      "source": "/en/latest/reference/questions",
+      "destination": "/en/latest/questions#common-methods"
+    },
+    {
+      "source": "/en/latest/reference/question_types",
+      "destination": "/en/latest/questions#question-type-details"
+    },
+    {
+      "source": "/en/latest/reference/index",
+      "destination": "/en/latest/overview"
+    },
+    {
+      "source": "/en/latest/example_standards",
+      "destination": "/en/latest/contributing"
+    },
+    {
+      "source": "/en/latest/exceptions",
+      "destination": "/en/latest/contributing#report-a-problem"
+    },
+    {
+      "source": "/en/latest/logging",
+      "destination": "/en/latest/contributing#report-a-problem"
+    },
+    {
+      "source": "/en/latest/checklist",
+      "destination": "/en/latest/overview"
+    },
+    {
+      "source": "/en/latest/local_openai_compatible",
+      "destination": "/en/latest/language_models#connect-to-your-own-model-server"
+    }
+  ]
 }

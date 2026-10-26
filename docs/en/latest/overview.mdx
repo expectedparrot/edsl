@@ -3,7 +3,7 @@ title: "EDSL Overview"
 description: "Understand how to structure a study, run it with AI or human participants, and work with the resulting data."
 ---
 
-EDSL lets you describe a study in Python: what to ask, what information to provide, who or what should respond, and how to organize the responses. You can change individual parts of the design—such as question wording, respondent profiles, or model selections—and examine how those changes affect the findings.
+EDSL lets you design and run studies in Python, specifying what to ask, what information to provide, who or what should respond, and how to organize the results. You can vary individual elements of a study, such as question wording, respondent profiles, or language models, and examine how those changes affect the findings.
 
 ## The main components
 
@@ -14,17 +14,20 @@ EDSL lets you describe a study in Python: what to ask, what information to provi
 | [Scenarios](/en/latest/scenarios) | Supply data or experimental conditions to questions, allowing the same question to be used with different inputs. |
 | [Agents](/en/latest/agents) | Specify traits and instructions for simulated respondents. |
 | [Models](/en/latest/language_models) | Select and configure the language models that generate responses. |
+| [Jobs](/en/latest/jobs) | Combine the survey and inputs into a study ready to run. |
 | [Results](/en/latest/results) | Organize responses and associated study information for analysis. |
 
-An EDSL `Agent` describes a simulated respondent. A coding agent or Expected Parrot's Research Agent can use EDSL to construct and run a study.
-
 For example, a message-testing study might use a survey to ask about clarity and persuasiveness, scenarios to supply different messages, agents to describe audience profiles, and several models to generate responses.
+
+(*Note: In EDSL, an `Agent` represents a simulated respondent, not an AI assistant that performs tasks. Coding agents and Expected Parrot’s Research Agent can use EDSL to design and run studies.*)
 
 ## Running studies with AI
 
 Combine a survey with the agents, scenarios, and models you want to use. EDSL handles model calls, parallel execution, survey logic, and response collection.
 
-This makes it possible to repeat a study across experimental conditions without writing separate loops or provider integrations. For data labeling, each scenario can contain a text passage or other input, while the survey defines the labels or information to extract.
+EDSL calls one pass through a survey an **interview**. In a model run, each interview uses one agent, one scenario, and one model. Its result contains the answers to all questions reached on that pass. A job can contain many interviews, such as one for every message and audience combination in a message test.
+
+This makes it possible to repeat a study across experimental conditions without writing separate loops or provider integrations. For [data labeling](/en/latest/guides/data_labeling), ask survey questions about each input and use the answers as its labels. You can translate an existing codebook into structured questions, or first use exploratory questions to develop the categories those questions will offer. Scenarios supply the items being labeled.
 
 You can run model calls from your own environment or use Expected Parrot's remote execution. See [Managing Keys](/en/latest/api_keys), [Remote Inference](/en/latest/remote_inference), and [Costs](/en/latest/costs) for configuration and usage details.
 
@@ -46,6 +49,6 @@ Responses remain associated with study information such as agent traits, scenari
 
 A study defined in code makes its questions, logic, inputs, and model choices available for inspection. EDSL's open-source implementation also lets you examine and extend the underlying functionality.
 
-Saving study materials and outputs preserves the record of a run. Caching allows matching model calls to retrieve stored responses rather than generate new ones. See [Remote Caching](/en/latest/remote_caching) for how this works on Expected Parrot.
+EDSL jobs can be saved, shared, and rerun. Caching lets a rerun reuse the same model responses when the inputs match. See [Saving objects](/en/latest/guides/saving_objects) and [Remote caching](/en/latest/remote_caching).
 
-For a complete example, follow the [Starter Tutorial](/en/latest/starter_tutorial).
+For a complete example, follow the [Run your first survey](/en/latest/starter_tutorial) tutorial.

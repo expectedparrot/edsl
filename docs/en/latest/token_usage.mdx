@@ -1,332 +1,54 @@
 ---
-title: "Token Usage"
-description: "EDSL comes with a variety of features for monitoring token usage."
+title: "Token limits and rate limits"
+description: "Separate request size, throughput, and usage costs when configuring model runs."
 ---
 
-These include:
+A token is a unit a language model uses to process text, often a word or part of a word. A request includes the question, supplied material, instructions, and any earlier answers used as memory. Models also limit how much they can generate and how many requests an account can make over time.
 
-- Options for setting requests per minute (RPM) and tokens per minute (TPM) for models at your account.
-- Methods for setting RPM and TPM from your workspace.
-- Methods for turning off default prompt features to reduce token usage.
-- Methods for calculating next token probabilities.
+These limits affect different research choices: a long transcript can exceed a single request's capacity, while many short interviews can exceed an account's processing rate. Use the table to distinguish them before changing your design or execution settings.
 
-## Token limits
+| Limit | What it constrains | What to check |
+| --- | --- | --- |
+| Context window | Tokens in a single request and response, according to the model's rules | Prompt length, attached content, prior-answer memory, and reserved output budget. |
+| Output limit | Tokens the model may generate for a response | Selected model's output parameter and any reasoning-token budget. |
+| Requests per minute (RPM) | Request throughput | Account/provider quota and concurrent workload. |
+| Tokens per minute (TPM) | Token throughput across requests | Account/provider quota and aggregate request sizes. |
 
-Token limits refer to the maximum number of tokens that a language model can process in a single input prompt or output generation. A token limit affects how much text you can send to a model in one go. A language model provider should provide information about the token limits for each model that is associated with your account and API key. When running a big job in EDSL, you may encounter token limits, which can be managed by adjusting the token limits for a model.
+TPM is a rate limit, not a price. Billing depends on the provider's usage accounting and [pricing](/en/latest/costs).
 
-### RPM: Requests Per Minute
+## Inspect the configured model
 
-RPM stands for Requests Per Minute, which measures the number of API requests that a user can make to a language model within a minute. This is a metric for managing the load and traffic that a model can handle.
-
-### TPM: Tokens Per Minute
-
-TPM stands for Tokens Per Minute, which is a metric for tracking the volume of tokens processed by a language model within a minute. This metric typically tracks usage for billing purposes.
-
-## Default token limits
-
-You can inspect and modify token limits for a model at the [Keys](https://www.expectedparrot.com/home/keys) page of your account:
-
-<Frame>
-![Key page view for setting model token rates](/images/en/latest/token_usage.png)
-</Frame>
-
-Here we use methods for inspecting the default language model and its parameters from your workspace, including the token limits:
+After selecting a model through [Provider configuration](/en/latest/guides/providers), inspect its parameters and EDSL's scheduling limits:
 
 ```python
 from edsl import Model
 
 model = Model()
-model
+{"model": model.model, "parameters": model.parameters,
+ "rpm": model.rpm, "tpm": model.tpm}
 ```
 
-This will show the following information:
+This may retrieve model metadata. Values depend on the model and account; no universal default RPM, TPM, or output limit applies.
 
-| key | value |
-| :--- | :--- |
-| model | gpt-4o |
-| parameters:temperature | 0.5 |
-| parameters:max_tokens | 1000 |
-| parameters:top_p | 1 |
-| parameters:frequency_penalty | 0 |
-| parameters:presence_penalty | 0 |
-| parameters:logprobs | False |
-| parameters:top_logprobs | 3 |
-
-We can also inspect the RPM and TPM for the model:
+You can set `model.rpm` and `model.tpm` to tell EDSL about your applicable limits. These settings do not raise the provider's quota. For a prepared job, bound local concurrency in Python:
 
 ```python
-[model.rpm, model.tpm]
+results = job.run(disable_remote_inference=True, max_concurrency=10)
+# Choose a limit appropriate to your provider quota and workload.
 ```
 
-This will show the following information:
+The CLI alternative is `ep run jobs.ep --local --max-concurrency 10 --output results.ep`. Concurrency controls how many interviews can run at once; it is separate from the model's RPM and TPM limits.
 
-```python
-[100, 2000000]
-```
+## Reduce the request deliberately
 
-## Modifying token limits
+Inspect [rendered prompts](/en/latest/prompts) before reducing their size. Remove irrelevant scenario fields from the question text and avoid unnecessary prior-answer memory. Preserve information required by the research design.
 
-We can reset the default RPM and TPM and then check the new values:
+When a task can be answered passage by passage, use [scenario chunking](/en/latest/scenarios#join-reshape-and-summarize) or [PDF pages](/en/latest/scenarios#pdf-text) to create smaller inputs. Each then receives its own answer; that changes the unit of analysis from a whole document to a passage or page.
 
-```python
-model = Model()
+For question types that support it, `include_comment=False` omits the request for an explanatory comment. `use_code=True` requests coded choices rather than their full text. These settings change the response instructions, so check the rendered prompt and test the resulting format.
 
-model.rpm=10
-model.tpm=10
+An explanatory comment is model-generated text, not a guaranteed account of the model's internal reasoning. Token log-probabilities, where a provider exposes them, describe token predictions under that request; they are not probabilities of a human respondent selecting an answer.
 
-[model.rpm, model.tpm]
-```
+## Diagnose a failed request
 
-This will show the following information:
-
-```python
-[10, 10]
-```
-
-Here we change it again:
-
-```python
-model = Model()
-
-model.rpm=100
-model.tpm=1000
-
-[model.rpm, model.tpm]
-```
-
-Output:
-
-```python
-[100, 1000]
-```
-
-Please note that the token limits are subject to the constraints of the model and the API key associated with the model. Let us know if you have any questions or need further assistance with token limits.
-
-## Methods for reducing token usage
-
-There are several ways to reduce the tokens required to run a question or survey.
-
-### Turning off question commments
-
-Each question type (other than free_text) automatically includes a comment field that gives the answering model a place to put additional information about its response to a question. This serves as an outlet for a chatty model to return context about an answer without violating formatting instructions (e.g., a model may want to provide an explanation for a mutiple choice response but the answer to the question must only be one of the answer options). Question comments can also be useful when used with survey “memory” rules, giving a model an opportunity to simulate a “chain of thought” across multiple survey questions. (By default, questions are administered asynchronously; a model does not have context of other questions and answers in a survey unless memory rules are applied.) Comments can also provide insight into non-responsive (None) answers: a model may use the comments field to describe a point of confusion about a question.
-
-Because the question comment field requires additional tokens, it can sometimes be cost-effective to exclude the field from question prompts, especially when the comment is unlikely to be useful. This is done by passing a boolean parameter include_comment = False when constructing a question. For example, here we compare a question with comments left on and turned off:
-
-```python
-from edsl import QuestionNumerical, Survey, ScenarioList
-
-q1 = QuestionNumerical(
-  question_name = "sum",
-  question_text = "What is the sum of {{ number_1 }} and {{ number_2 }}?"
-)
-
-q2 = QuestionNumerical(
-  question_name = "sum_silent",
-  question_text = "What is the sum of {{ number_1 }} and {{ number_2 }}?",
-  include_comment = False
-)
-
-survey = Survey([q1, q2])
-
-some_numbers = {
-  "number_1": [0,1,2,3,4],
-  "number_2": [5,4,3,2,1]
-}
-
-s = ScenarioList.from_nested_dict(some_numbers)
-
-results = survey.by(s).run()
-```
-
-We can check the responses and confirm that the comment field for the sum_silent question is None:
-
-```python
-results.select("number_1", "number_2", "sum", "sum_comment", "sum_silent", "sum_silent_comment")
-```
-
-Output:
-
-| scenario.number_1 | scenario.number_2 | answer.sum | comment.sum_comment | answer.sum_silent | comment.sum_silent_comment |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| 0 | 5 | 5 | The sum of 0 and 5 is 5. | 5 | None |
-| 1 | 4 | 5 | The sum of 1 and 4 is 5. | 5 | None |
-| 2 | 3 | 5 | The sum of 2 and 3 is 5. | 5 | None |
-| 3 | 2 | 5 | The sum of 3 and 2 is 5. | 5 | None |
-| 4 | 1 | 5 | The sum of 4 and 1 is 5. | 5 | None |
-
-### Coding question options
-
-Question instructions can be modified to prompt a model to use codes (integers) in lieu of text responses for answer options, reducing generated tokens.
-
-This is done by passing a boolean parameter use_code = True to a Question when it is constructed. For example:
-
-```python
-from edsl import QuestionMultipleChoice
-
-q = QuestionMultipleChoice(
-  question_name = "income_pref_coded",
-  question_text = "Which of the following is more important to you: ",
-  question_options = ["Financial stability", "Moving up the income ladder"],
-  use_code = True
-)
-
-```
-
-We can inspect the difference in the question prompt that is created by creating an identical question without the parameter and comparing the job prompts. Here we also pass the parameter include_comment = False:
-
-```python expandable
-from edsl import QuestionMultipleChoice, Survey, Agent, Model
-
-q1 = QuestionMultipleChoice(
-  question_name = "income_pref",
-  question_text = "Which of the following is more important to you: ",
-  question_options = ["Financial stability", "Moving up the income ladder"]
-)
-
-q2 = QuestionMultipleChoice(
-  question_name = "income_pref_coded",
-  question_text = "Which of the following is more important to you: ",
-  question_options = ["Financial stability", "Moving up the income ladder"],
-  use_code = True,
-  include_comment = False
-)
-
-survey = Survey([q1, q2])
-
-# Construct a job with the survey and the default model
-job = survey.by(Model())
-
-# Inspect the question prompts
-job.prompts().select("question_index", "user_prompt")
-```
-
-Output:
-
-| question_index | user_prompt |
-| :--- | :--- |
-| income_pref | Which of the following is more important to you:  Financial stability  Moving up the income ladder  Only 1 option may be selected.  Respond only with a string corresponding to one of the options.  After the answer, you can put a comment explaining why you chose that option on the next line. |
-| income_pref_coded | Which of the following is more important to you:  0: Financial stability  1: Moving up the income ladder  Only 1 option may be selected.  Respond only with the code corresponding to one of the options. |
-
-The prompts can also be inspected after the survey is run:
-
-```python
-results = survey.by(Model()).run()
-
-(
-  results
-  .select(
-    "income_pref_user_prompt", "income_pref_generated_tokens",
-    "income_pref_coded_user_prompt", "income_pref_coded_generated_tokens"
-  )
-)
-```
-
-Output:
-
-| prompt.income_pref_user_prompt | generated_tokens.income_pref_generated_tokens | prompt.income_pref_coded_user_prompt | generated_tokens.income_pref_coded_generated_tokens |
-| :--- | :--- | :--- | :--- |
-| Which of the following is more important to you:  Financial stability  Moving up the income ladder  Only 1 option may be selected.  Respond only with a string corresponding to one of the options.  After the answer, you can put a comment explaining why you chose that option on the next line. | Financial stability provides a secure foundation and peace of mind, allowing for better long-term planning and resilience against unexpected challenges. | Which of the following is more important to you:  0: Financial stability  1: Moving up the income ladder  Only 1 option may be selected.  Respond only with the code corresponding to one of the options. | 0 |
-
-### No agent instructions
-
-If no agents are used with the survey, the base agent instructions are not sent to the model, reducing overall tokens. (This is a change from prior versions of EDSL.)
-
-## Calculating next token probabilities
-
-We can monitor tokens by calculating next token probabilities. This is done by setting model logprobs = True and then accessing the raw_model_response information in the results that are generated. For example:
-
-```python expandable
-from edsl import QuestionMultipleChoice, Agent, Model
-
-m = Model("gpt-4o", temperature = 1, logprobs = True)
-
-a = Agent(traits = {"persona":"financial advisor"})
-
-q = QuestionMultipleChoice(
-  question_name = "income_pref_coded",
-  question_text = "Which of the following is more important to you: ",
-  question_options = ["Financial stability", "Moving up the income ladder"],
-  use_code = True,
-  include_comment = False
-)
-
-results = q.by(a).by(m).run()
-
-example = results.select("raw_model_response.income_pref_coded_raw_model_response").to_list()[0]
-
-example
-
-Output:
-
-{'id': 'chatcmpl-AcgR7Wy6MMDqoorytBlzS2lzpwQAA',
-'choices': [{'finish_reason': 'stop',
-'index': 0,
-'logprobs': {'content': [{'token': '0',
-    'bytes': [48],
-    'logprob': -0.00019960667,
-    'top_logprobs': [{'token': '0',
-        'bytes': [48],
-        'logprob': -0.00019960667},
-    {'token': '1', 'bytes': [49], 'logprob': -9.000199},
-    {'token': 'As', 'bytes': [65, 115], 'logprob': -10.875199}]}],
-    'refusal': None},
-'message': {'content': '0',
-    'refusal': None,
-    'role': 'assistant',
-    'audio': None,
-    'function_call': None,
-    'tool_calls': None}}],
-'created': 1733782953,
-'model': 'gpt-4o-2024-08-06',
-'object': 'chat.completion',
-'service_tier': None,
-'system_fingerprint': 'fp_9d50cd990b',
-'usage': {'completion_tokens': 1,
-'prompt_tokens': 82,
-'total_tokens': 83,
-'completion_tokens_details': {'accepted_prediction_tokens': 0,
-'audio_tokens': 0,
-'reasoning_tokens': 0,
-'rejected_prediction_tokens': 0},
-'prompt_tokens_details': {'audio_tokens': 0, 'cached_tokens': 0}}}
-```
-
-We can use the information to calculate next token probabilities:
-
-```python
-next_token_probs = example['choices'][0]['logprobs']['content'][0]['top_logprobs']
-next_token_probs
-```
-
-Output:
-
-```python
-[{'token': '0', 'bytes': [48], 'logprob': -0.00019960667},
-{'token': '1', 'bytes': [49], 'logprob': -9.000199},
-{'token': 'As', 'bytes': [65, 115], 'logprob': -10.875199}]
-```
-
-Translating the information:
-
-```python
-import math
-
-# Specifying the codes for the answer options and non-responses:
-options = {'0': "Financial stability", '1':"Moving up the income ladder"}
-
-for token_info in next_token_probs:
-  option = options.get(token_info['token'], None)
-  if option:
-    p = math.exp(token_info['logprob'])
-
-    print(f"Probability of selecting '{option}' was {p:.3f}")
-```
-
-Output:
-
-```python
-Probability of selecting 'Financial stability' was 0.992
-Probability of selecting 'Moving up the income ladder' was 0.008
-```
-
-
+For context or output-limit errors, check the selected model's limits and adapter parameter names. For rate-limit errors, check the account quota and reduce the throughput. Provider parameters and reasoning budgets differ across models.

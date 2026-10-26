@@ -4,11 +4,15 @@ description: "Send emails, schedule deliveries, and react to respondent events f
 sidebarTitle: "Notifications"
 ---
 
-Human surveys support email delivery to respondents, scheduled send campaigns, and event-triggered callbacks. All of these are managed through `HumanSurveyNotificationHandler`, a convenience wrapper that binds to a specific human survey so you don't have to pass the UUID on every call.
+Use survey notifications to invite a known respondent list, remind people who have not started, or send a transcript after completion. An immediate **delivery** sends messages now, a **schedule** sends them at a chosen time, and a **callback** sends them in response to an event such as survey completion.
+
+`HumanSurveyNotificationHandler` keeps these operations associated with one hosted survey. Creating the handler does not send a message; the send, schedule, and callback methods below perform the corresponding action.
 
 <Note>
-The survey must have an agent list with an email delivery channel configured before any notifications can be sent. Set this up when calling `survey.humanize()` by passing `agent_list` and `delivery_map` arguments.
+The survey must have an agent list with an email delivery channel configured before any notifications can be sent. Build a job with `survey.by(agents)` and pass `delivery_map` to its `.humanize()` method. See [Respondent lists](/en/latest/humanize#with-agent-lists-for-email-notifications) for the construction workflow.
 </Note>
+
+The examples below operate on an existing hosted survey. Send and schedule calls contact the service and can deliver real messages to its respondents. Replace placeholder identifiers with values returned by your own survey workflow.
 
 ## Getting a handler
 
@@ -32,7 +36,7 @@ handler = HumanSurveyNotificationHandler("your-human-survey-uuid", coop=coop)
 
 ## Statuses
 
-Every delivery task moves through two independent status tracks.
+A delivery can contain one email task per selected respondent. Its dispatch and delivery statuses describe the message; the respondent's response status describes participation. A delivered invitation therefore does not mean a completed survey.
 
 ### Dispatch status
 
@@ -75,6 +79,8 @@ Trigger an immediate delivery to all respondents.
 
 ```python
 result = handler.send_respondent_email(name="Initial outreach")
+# print() also shows output in scripts. In a notebook, you can instead
+# put the value you want to inspect on the last line of a cell.
 print(result)
 # {"delivery_uuid": "...", "routes": [...]}
 ```
@@ -97,7 +103,7 @@ respondent_filter = HumanizeRespondentFilter(conditions=[condition])
 result = handler.send_respondent_email(
     name="Reminder to non-starters",
     subject="Don't forget to complete our survey",
-    delivery_template="<p>Hi! Just a reminder to complete our survey.</p>",
+    delivery_template='<p>Please <a href="{{ url }}">complete our survey</a>.</p>',
     respondent_filter=respondent_filter,
 )
 ```
@@ -109,12 +115,12 @@ result = handler.send_respondent_email(
 Schedule a single delivery at a specific time. `run_at` must be a timezone-aware datetime or an ISO 8601 string.
 
 ```python
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
-run_at = datetime(2026, 6, 1, 9, 0, tzinfo=timezone.utc)
+run_at = datetime.now(timezone.utc) + timedelta(days=1)
 
 schedule = handler.create_one_time_schedule(
-    name="June 1st reminder",
+    name="Reminder tomorrow",
     run_at=run_at,
 )
 print(schedule["schedule_uuid"])
@@ -125,7 +131,7 @@ Update the time before it fires:
 ```python
 handler.update_one_time_schedule(
     schedule_uuid=schedule["schedule_uuid"],
-    run_at="2026-06-02T09:00:00+00:00",
+    run_at=run_at + timedelta(days=1),
 )
 ```
 
@@ -136,7 +142,7 @@ handler.update_one_time_schedule(
 Send emails on a repeating schedule using standard cron syntax. Provide either `max_jobs` (fire at most N times) or `deadline` (stop firing after this datetime) as the termination condition. Use `start_at` to delay when the schedule begins firing; omit it to start immediately.
 
 ```python
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 # Every Monday at 9 AM Eastern, up to 4 times
 schedule = handler.create_cron_schedule(
@@ -151,10 +157,10 @@ With a deadline instead:
 
 ```python
 schedule = handler.create_cron_schedule(
-    name="Daily reminders through end of month",
+    name="Daily reminders for one week",
     cron_expression="0 8 * * *",
     timezone="America/Chicago",
-    deadline=datetime(2026, 6, 30, 23, 59, tzinfo=timezone.utc),
+    deadline=datetime.now(timezone.utc) + timedelta(days=7),
 )
 ```
 
@@ -162,11 +168,11 @@ With a delayed start:
 
 ```python
 schedule = handler.create_cron_schedule(
-    name="Weekly reminders starting next month",
+    name="Weekly reminders starting next week",
     cron_expression="0 9 * * MON",
     timezone="America/New_York",
     max_jobs=4,
-    start_at=datetime(2026, 6, 1, tzinfo=timezone.utc),
+    start_at=datetime.now(timezone.utc) + timedelta(days=7),
 )
 ```
 
@@ -392,7 +398,7 @@ handler.patch_schedule_respondent_email_route(
     schedule_uuid="...",
     route_uuid="...",
     subject="A quick reminder about our survey",
-    delivery_template="<p>Hi! Please take a moment to complete our survey.</p>",
+    delivery_template='<p>Please <a href="{{ url }}">complete our survey</a>.</p>',
 )
 ```
 
@@ -408,6 +414,22 @@ handler.patch_callback_respondent_email_route(
 ```
 
 ---
+
+## Find and revise schedules and callbacks
+
+The handler keeps the human survey UUID, so these methods only need the identifier of the schedule, callback, or route:
+
+| Task | Method |
+| --- | --- |
+| List schedules or callbacks | `handler.list_schedules(page=1, page_size=50)` / `handler.list_callbacks(page=1, page_size=50)` |
+| Inspect one | `handler.get_schedule(schedule_uuid)` / `handler.get_callback(callback_uuid)` |
+| Reschedule | `handler.update_one_time_schedule(schedule_uuid, run_at=timestamp)`; for recurring schedules, `handler.update_cron_schedule(schedule_uuid, cron_expression=expression, timezone=timezone)` |
+| Rename a callback | `handler.patch_callback(callback_uuid, name="New name")` |
+| Add a route | `handler.add_schedule_route(schedule_uuid, route_config)` / `handler.add_callback_route(callback_uuid, route_config)` |
+| Remove a route | `handler.delete_schedule_route(schedule_uuid, route_uuid)` / `handler.delete_callback_route(callback_uuid, route_uuid)` |
+| Remove a schedule or callback | `handler.delete_schedule(schedule_uuid)` / `handler.delete_callback(callback_uuid)` |
+
+Deactivating a schedule or callback pauses future triggers without deleting its configuration. Deletion removes it. Adding or changing active routes affects future deliveries, so review recipients and templates first. Listing methods return one page; use their pagination metadata to request subsequent pages. `list_deliveries()`, `list_delivery_tasks()`, and `get_respondents()` also accept `page` and `page_size`.
 
 ## Managing respondents
 

@@ -1,33 +1,36 @@
 ---
 title: "EDSL Documentation"
 sidebarTitle: "Home"
-description: "Get started with Expected Parrot Domain-Specific Language (EDSL), an open-source Python package for research with AI and human participants."
+description: "The open-source Python package for research with AI and human participants."
 ---
 
-Expected Parrot Domain-Specific Language (EDSL) is an open-source Python package for conducting research with AI agents, language models, and human participants.
+EDSL (Expected Parrot Domain-Specific Language) lets you design and run surveys, experiments, and other research workflows in Python. Define questions, AI agents, and scenarios; run simulations across language models; label and analyze data; and compare simulated and human responses.
 
-Use EDSL to run surveys and experiments, simulate responses, label data, and compare model outputs. You can then field surveys with human participants to validate findings and compare human and simulated responses.
+EDSL can be used independently as an open-source Python package or with the hosted services provided by the [Expected Parrot](https://www.expectedparrot.com) platform. These services include access to language models, remote execution, web surveys, AI-led interviews, and tools for storing and sharing research materials. The platform also includes a Research Agent that lets you design, run, and analyze studies through natural-language instructions, with access to the underlying EDSL code.
 
-Expected Parrot is a platform that lets you access language models, run studies remotely, reuse cached responses, and store and share research materials.
+This documentation covers working directly with the EDSL Python package.
 
-## Getting started with EDSL
+## Start here
 
-To use EDSL in Python, install the package:
+1. [Install EDSL](/en/latest/installation) in a Python environment, or use [Google Colab](/en/latest/colab_setup).
+2. [Run your first survey](/en/latest/starter_tutorial). Build a survey, vary its inputs, and inspect local test responses without an account or model credentials.
+3. [Connect a language model](/en/latest/api_keys) when you are ready to generate real responses. Check the selected model and estimated [cost](/en/latest/costs) before running.
 
-```bash
-pip install edsl
-```
+The tutorial's fixed test responses verify that the code works; they are not research findings.
 
-Follow [Getting Started](/en/latest/getting_started) to configure EDSL, then work through the [Starter Tutorial](/en/latest/starter_tutorial) to construct a survey, run it, and analyze responses.
+For command line workflows and coding agent automation, see the [CLI guide](/en/latest/cli).
 
-- [EDSL Overview](/en/latest/overview) — Understand the main components and workflow.
-- [Human surveys](/en/latest/humanize) — Publish a survey and collect responses from participants.
+## Explore the docs
+
+- [EDSL Overview](/en/latest/overview) — Understand the main components and workflows.
+- [Label data with survey questions](/en/latest/guides/data_labeling) — Turn an existing codebook into labeling questions, or use exploratory questions to develop the labels first.
+- [Human surveys](/en/latest/humanize) — Publish a web survey and collect responses from participants.
 - [Language models](/en/latest/language_models) — Find and configure models for your study.
 - [Results](/en/latest/results) — Analyze and export your data.
 
-For command-line workflows and coding-agent automation, see the [EDSL CLI Guide](/en/latest/cli).
+## Research Agent
 
-For help designing, running, and analyzing studies through conversation, use the [Research Agent](https://www.expectedparrot.com/research-agent). Start with a research question, existing survey, or dataset and describe what you want to accomplish. The Research Agent uses EDSL to carry out research tasks and provides code you can inspect and modify.
+For help designing, running, and analyzing studies through conversation, use the [Research Agent](https://www.expectedparrot.com/research-agent). Start with a research question, existing survey, or dataset and describe what you want to accomplish. The Research Agent uses EDSL to carry out research tasks and provides code you can inspect, modify, reuse, and share.
 
 ## Research and teaching
 

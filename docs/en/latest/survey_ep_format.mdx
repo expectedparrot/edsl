@@ -8,8 +8,15 @@ package. JSON is useful for a quick interchange. An `.ep` package is intended
 for work that will evolve: it keeps the survey's current state and its Git
 history together in one portable file.
 
-This tutorial creates a package from `Survey.example()`, opens it up, changes
-one question, and follows that change through Git.
+Use version history when you want to compare pilot and final wording, recover
+an earlier instrument, or combine collaborators' edits. A **commit** is a saved
+version, a **diff** shows what changed, a **tag** names a milestone, and a
+**branch** keeps an alternative version alongside the main one.
+
+This tutorial saves an example survey, revises a question, and retrieves an
+earlier version. The package internals and Git collaboration sections are
+optional detail; [Saving objects](/en/latest/guides/saving_objects) covers
+ordinary saving and loading without version-management commands.
 
 ## The format in one picture
 
@@ -268,6 +275,8 @@ Again, hashes and timestamps will differ.
 Now ask Git what changed:
 
 ```python
+# print() also shows output in scripts. In a notebook, you can instead
+# put the value you want to inspect on the last line of a cell.
 print(survey.git.diff("HEAD~1", "HEAD"))
 ```
 
@@ -693,24 +702,11 @@ collaboration artifact.
 
 ## Working inside another Git repository
 
-An `.ep` package contains its own Git repository. If it is placed inside a
-different Git repository, the outer Git repository sees an embedded
-repository. EDSL warns about this because the relationship should be
-intentional.
+An `.ep` archive is a single file, so an outer Git repository sees it as a binary file. It does not treat the archive itself as an embedded repository. Tracking that file preserves snapshots but does not expose its internal question-level diffs in the outer repository.
 
-Usually, choose one of these approaches:
+The unpacked working tree contains a `.git` directory. If that working tree is inside another repository, decide deliberately whether to ignore it or manage it as a submodule. Do not mistake edits in a temporary unpacked copy for saved changes to the original package.
 
-- Ignore the `.ep` package in the outer repository and let its own Git history
-  and remote manage it.
-- Intentionally manage it as a Git submodule.
-- Store an exported JSON snapshot in the outer repository when independent
-  `.ep` history is unnecessary.
-
-For the first option, a loaded package can update the outer `.gitignore`:
-
-```python
-survey.git.ignore_in_parent()
-```
+Use exported JSON when ordinary text review in an outer repository is the goal. Use the package's own Git history when you need versioned EDSL objects and their internal diffs.
 
 ## Why this design is useful
 
@@ -755,7 +751,7 @@ older = Survey.git.load("example-survey.ep", ref=info["commit"])
 # Inspect history and changes
 latest.git.status()
 latest.git.log()
-latest.git.diff("HEAD~1", "HEAD")
+latest.git.diff()  # Working changes; use two commit IDs for a historical comparison.
 
 # Mark and navigate versions
 latest.git.tag("pilot-v1", message="Pilot instrument")
