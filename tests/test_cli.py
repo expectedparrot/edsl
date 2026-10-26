@@ -5051,13 +5051,17 @@ class TestHumanizeCli:
         assert result.exit_code == cli_module.EXIT_USAGE, result.output
 
     def _assistant_coop(self, monkeypatch):
-        """A Coop serving five turns and five edits by cursor, with the real
-        cursor-following loops. Records every request's filters."""
+        """A Coop serving five turns, five edits and three turns' messages by
+        cursor, with the real cursor-following loops. Records every request's
+        filters."""
         import edsl.coop
         from edsl.coop.coop import Coop as RealCoop
 
         turns = [{"turn": f"t{n}"} for n in range(1, 6)]
         edits = [{"edit": f"e{n}", "turn": f"t{n}"} for n in range(1, 6)]
+        messages = [
+            {"turn": f"t{n}", "seq": seq} for n in range(1, 4) for seq in range(2)
+        ]
         calls = []
 
         def serve(rows, key, id_key, after, limit):
@@ -5091,11 +5095,26 @@ class TestHumanizeCli:
                 rows = [row for row in edits if turn is None or row["turn"] == turn]
                 return serve(rows, "edits", "edit", after, limit)
 
+            def get_human_survey_assistant_messages(
+                self, human_survey_uuid, *, after=None, limit=100,
+                response_uuid=None, turn=None, include_previews=False,
+            ):
+                """Pages by whole turns, as the server does."""
+                calls.append(("messages", after, limit, response_uuid, turn, include_previews))
+                order = [f"t{n}" for n in range(1, 4) if turn in (None, f"t{n}")]
+                start = order.index(after) + 1 if after else 0
+                page = order[start : start + limit]
+                return {
+                    "messages": [row for row in messages if row["turn"] in page],
+                    "next_cursor": page[-1] if page else after,
+                    "has_more": start + limit < len(order),
+                }
+
         monkeypatch.setattr(edsl.coop, "Coop", FakeCoop)
-        return turns, edits, calls
+        return turns, edits, messages, calls
 
     def test_humanize_assistant_turns_prints_one_batch(self, monkeypatch):
-        turns, _, calls = self._assistant_coop(monkeypatch)
+        turns, _, _, calls = self._assistant_coop(monkeypatch)
 
         result = CliRunner().invoke(
             cli_module.app,
@@ -5109,7 +5128,7 @@ class TestHumanizeCli:
         assert calls == [("turns", None, 2, None, False)]
 
     def test_humanize_assistant_turns_all_follows_the_cursor(self, tmp_path, monkeypatch):
-        turns, _, calls = self._assistant_coop(monkeypatch)
+        turns, _, _, calls = self._assistant_coop(monkeypatch)
         output_path = tmp_path / "turns.jsonl"
 
         result = CliRunner().invoke(
@@ -5132,7 +5151,7 @@ class TestHumanizeCli:
         assert [json.loads(line) for line in lines] == turns
 
     def test_humanize_assistant_edits_narrows_to_one_turn(self, tmp_path, monkeypatch):
-        _, edits, calls = self._assistant_coop(monkeypatch)
+        _, edits, _, calls = self._assistant_coop(monkeypatch)
         output_path = tmp_path / "edits.json"
 
         result = CliRunner().invoke(
@@ -5148,7 +5167,30 @@ class TestHumanizeCli:
         assert json.loads(output_path.read_text(encoding="utf-8")) == [edits[2]]
         assert calls == [("edits", None, 100, None, "t3", False)]
 
-    @pytest.mark.parametrize("command", ["turns", "edits"])
+    def test_humanize_assistant_messages_all_follows_turns(self, tmp_path, monkeypatch):
+        _, _, messages, calls = self._assistant_coop(monkeypatch)
+        output_path = tmp_path / "messages.jsonl"
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            [
+                "humanize", "assistant", "messages", "human-survey-uuid",
+                "--all", "--limit", "2", "--output", str(output_path),
+            ],
+        )
+
+        assert result.exit_code == 0, result.output
+        data = json.loads(result.output)["data"]
+        assert data["message_count"] == 6
+        assert (data["next_cursor"], data["has_more"]) == ("t3", False)
+        assert calls == [
+            ("messages", None, 2, None, None, False),
+            ("messages", "t2", 2, None, None, False),
+        ]
+        lines = output_path.read_text(encoding="utf-8").splitlines()
+        assert [json.loads(line) for line in lines] == messages
+
+    @pytest.mark.parametrize("command", ["messages", "turns", "edits"])
     def test_humanize_assistant_all_requires_output(self, monkeypatch, command):
         self._assistant_coop(monkeypatch)
 

@@ -109,13 +109,13 @@ Each assistant reply is charged to the survey owner's account in credits, based 
 
 ## Reading conversations
 
-Conversations are on the survey's **Events** page, under the **Assistant** tab. For each respondent you can read the full conversation, see which answers the assistant filled, and download it as JSON.
+Conversations are on the survey's **Events** page, under the **Assistant** tab. For each respondent you can read the full conversation, see which answers the assistant filled, and download it as JSON. To download every conversation at once, see [Downloading what the assistant did](#downloading-what-the-assistant-did).
 
 ## Downloading what respondents did
 
 On a survey with the assistant on, every step a respondent takes is recorded: each page shown and submitted, each change to an answer, each message to the assistant and how its reply ended, and what became of each answer the assistant filled. This is the interaction trace. It doesn't include message text, which is in the conversation.
 
-Use `Coop.get_all_human_survey_interactions` to get it, oldest first:
+Use `Coop.get_all_human_survey_interactions` to get it. Rows come in the order they were received; sort each response's rows by `session`, then `seq`, for the order they happened (see [Putting rows in order](#putting-rows-in-order)):
 
 ```python
 from edsl import Coop
@@ -172,8 +172,9 @@ ep humanize interactions your-human-survey-uuid --count
 
 ## Downloading what the assistant did
 
-Two more downloads describe the assistant's side. Each row names its turn by `turn` and its edit by `edit`, the same ids as in the interaction trace, so the three join on them.
+Three more downloads describe the assistant's side. Each row names its turn (one message and the reply to it) by `turn` and an edit by `edit`, the same ids as in the interaction trace, so they all join on them.
 
+- **Messages:** the conversations, one row per thing the chat showed: the respondent's message, the reply's text, a receipt for each answer it filled, and what the respondent was told if a reply failed.
 - **Turns:** one row per message the assistant answered, with how the reply ended, its timing, tokens and cost. No message text.
 - **Edits:** one row per answer the assistant asked to fill in, including those that were rejected, with what became of each in the form.
 
@@ -182,23 +183,48 @@ from edsl import Coop
 
 coop = Coop()
 
+messages = coop.get_all_human_survey_assistant_messages("your-human-survey-uuid")
 turns = coop.get_all_human_survey_assistant_turns("your-human-survey-uuid")
 edits = coop.get_all_human_survey_assistant_edits("your-human-survey-uuid")
 
-# One turn's edits
-one_turn = coop.get_all_human_survey_assistant_edits(
-    "your-human-survey-uuid", turn=turns[0]["turn"]
-)
+# One turn's conversation and edits
+turn = turns[0]["turn"]
+said = coop.get_all_human_survey_assistant_messages("your-human-survey-uuid", turn=turn)
+filled = coop.get_all_human_survey_assistant_edits("your-human-survey-uuid", turn=turn)
 ```
 
-Both take `response_uuid` and `include_previews` as the interaction trace does, and list rows in the order their turns ended. A turn and its edits appear a few seconds after the turn ends, never while the assistant is still replying. To fetch new rows later, pass the last row's `turn` or `edit` as `after`. `Coop.get_human_survey_assistant_turns` and `Coop.get_human_survey_assistant_edits` return one batch at a time, as `{"turns" or "edits", "next_cursor", "has_more"}`.
+All three take `response_uuid` and `include_previews` as the interaction trace does; messages and edits also take `turn`. A turn appears a few seconds after it ends, never while the assistant is still replying. To fetch new rows later, pass the last row's `turn` (messages and turns) or `edit` (edits) as `after`. `Coop.get_human_survey_assistant_messages`, `Coop.get_human_survey_assistant_turns` and `Coop.get_human_survey_assistant_edits` return one batch at a time, as `{"messages", "turns" or "edits", "next_cursor", "has_more"}`. A batch of messages never splits a turn, and its `limit` counts turns.
 
 From the command line:
 
 ```bash
+ep humanize assistant messages your-human-survey-uuid --all --output messages.jsonl
 ep humanize assistant turns your-human-survey-uuid --all --output turns.jsonl
 ep humanize assistant edits your-human-survey-uuid --turn your-turn-uuid
 ```
+
+### Putting rows in order
+
+Each download lists rows in the order they became available, so new ones can be fetched later without missing any. That isn't always the order things happened:
+
+| Download | Comes in | To get the order things happened |
+|---|---|---|
+| Interaction trace | The order rows were received. A batch the respondent's browser sent late arrives late. | Sort each response's rows by `session`, then `seq`. |
+| Messages | The order turns ended, each turn's rows together | One response's rows are already in order: by turn, then `seq`. |
+| Turns, edits | The order turns ended | One response's rows are already in order. |
+
+Across respondents, rows from different responses are interleaved. To line the conversation up with the trace, join on `turn`: the trace's `chat.message_sent` row for a turn says where in the respondent's steps the message was sent.
+
+### Message fields
+
+Every row has `kind`, `turn`, `thread` (the conversation), `response_uuid`, `is_preview`, `page_id`, `seq` (its place in the turn, from 0) and `at` (when it was recorded, ISO 8601, UTC). Then, by `kind`:
+
+| `kind` | Fields |
+|---|---|
+| `respondent_message` | `text`: the message as the respondent sent it |
+| `assistant_text` | `text`: the reply as the respondent read it. `status`: `complete`, or `interrupted` when the reply was stopped and this is what had arrived by then |
+| `edit_receipt` | An answer the assistant filled, where it showed in the chat: `edit` and `question`. Its value and what became of it are in the edits download. |
+| `notice` | What the respondent was told when the reply failed: `text` and `error_kind`. The turn's `error` has the details. |
 
 ### Turn fields
 

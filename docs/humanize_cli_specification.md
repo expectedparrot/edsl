@@ -669,11 +669,12 @@ part way leaves any existing file untouched and no partial one.
 
 ### `edsl humanize interactions <human_survey_uuid>`
 
-Get a survey's interaction trace, oldest first: one row per page shown or submitted,
-answer edited, message sent to the assistant, reply ended, assistant edit applied,
-undone or skipped, and event that could not be recorded. Recorded on surveys with the
-assistant on. Rows from preview links are left out unless `--include-previews`, and
-then marked `is_preview`.
+Get a survey's interaction trace: one row per page shown or submitted, answer edited,
+message sent to the assistant, reply ended, assistant edit applied, undone or skipped,
+and event that could not be recorded. Recorded on surveys with the assistant on. Rows
+come in the order they were received; sort a response's rows by `session`, then `seq`,
+for the order they happened. Rows from preview links are left out unless
+`--include-previews`, and then marked `is_preview`.
 
 Backs onto:
 
@@ -703,6 +704,28 @@ the file and the envelope carries `saved_to`, `format`, `interaction_count`,
 `--all` requires `--output` because rows hold respondents' answers as they typed them.
 The file is written as `edsl humanize events` writes its file: a batch at a time, to a
 private temporary file that replaces the output only once every batch has arrived.
+
+### `edsl humanize assistant messages <human_survey_uuid>`
+
+Get a survey's assistant conversations: one row per thing the chat showed, each turn's
+rows together and in order (`seq`). `kind` is `respondent_message`, `assistant_text`,
+`edit_receipt` or `notice` (a failed reply). Turns come in the order they ended, a few
+seconds after they end; one response's turns are in the order they were sent. Rows
+from preview links are left out unless `--include-previews`.
+
+Backs onto:
+
+```python
+Coop().get_human_survey_assistant_messages(human_survey_uuid, after=after, limit=limit, response_uuid=response_uuid, turn=turn, include_previews=include_previews)
+Coop()._iter_human_survey_assistant_message_batches(human_survey_uuid, after=after, limit=limit, response_uuid=response_uuid, turn=turn, include_previews=include_previews)  # --all
+```
+
+Flags: as `edsl humanize assistant edits`, with `--after` taking a turn id and `--limit`
+counting turns (default 100, at most 100): a batch never splits a turn.
+
+The envelope is `{"messages", "next_cursor", "has_more"}`, or with `--output`,
+`saved_to`, `format`, `message_count`, `next_cursor` and `has_more`. `--all` requires
+`--output`, as rows hold what respondents wrote.
 
 ### `edsl humanize assistant turns <human_survey_uuid>`
 

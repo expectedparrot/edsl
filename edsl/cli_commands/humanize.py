@@ -811,8 +811,9 @@ def register(humanize: click.Group) -> None:
     @click.option("--count", "count_only", is_flag=True, default=False, help="Print how many rows there are, and fetch none.")
     @click.option("--include-previews", is_flag=True, default=False, help="Also include rows from preview links, each marked is_preview.")
     def humanize_interactions(human_survey_uuid, after, limit, response_uuid, fetch_all, output_path, count_only, include_previews):
-        """Get a survey's interaction trace, oldest first: what respondents did on a
-        survey with the AI assistant on.
+        """Get a survey's interaction trace, in the order rows were received: what
+        respondents did on a survey with the AI assistant on. Sort a response's rows
+        by session, then seq, for the order they happened.
 
         Rows from preview links are left out unless --include-previews. Each result
         carries next_cursor: pass it back as --after, with the same filters, to get
@@ -880,16 +881,18 @@ def register(humanize: click.Group) -> None:
     @humanize.group("assistant", invoke_without_command=True)
     @click.pass_context
     def humanize_assistant(ctx):
-        """Get what a survey's AI assistant did: its turns and the answers it filled.
+        """Get what a survey's AI assistant did: its conversations, turns and the
+        answers it filled.
 
         \b
         Examples:
+          ep humanize assistant messages <uuid> --all --output messages.jsonl
           ep humanize assistant turns <uuid> --all --output turns.jsonl
           ep humanize assistant edits <uuid> --turn <turn-uuid>
         """
         if ctx.invoked_subcommand is None:
             output({
-                "commands": ["turns", "edits"],
+                "commands": ["messages", "turns", "edits"],
                 "help": "Use 'ep humanize assistant <command> --help' for details.",
             })
 
@@ -957,6 +960,45 @@ def register(humanize: click.Group) -> None:
             key="edits",
             fetch_name="get_human_survey_assistant_edits",
             iterate_name="_iter_human_survey_assistant_edit_batches",
+            after=after,
+            limit=limit,
+            fetch_all=fetch_all,
+            output_path=output_path,
+            filters={
+                "response_uuid": response_uuid,
+                "turn": turn,
+                "include_previews": include_previews,
+            },
+        )
+
+    @humanize_assistant.command("messages")
+    @click.argument("human_survey_uuid")
+    @click.option("--after", default=None, help="Only turns after this one, e.g. the next_cursor from an earlier run.")
+    @click.option("--limit", default=100, type=int, help="Turns per request, at most 100.")
+    @click.option("--response", "response_uuid", default=None, help="Only this response's conversation.")
+    @click.option("--turn", "turn", default=None, help="Only this turn's rows.")
+    @click.option("--all", "fetch_all", is_flag=True, default=False, help="Fetch every row, not one batch. Requires --output.")
+    @click.option("--output", "-o", "output_path", default=None, type=click.Path(dir_okay=False), help="Save rows to a .json or .jsonl file.")
+    @click.option("--include-previews", is_flag=True, default=False, help="Also include rows from preview links, each marked is_preview.")
+    def humanize_assistant_messages(human_survey_uuid, after, limit, response_uuid, turn, fetch_all, output_path, include_previews):
+        """Get a survey's AI assistant conversations: one row per thing the chat
+        showed, each turn's rows together and in order.
+
+        Rows from preview links are left out unless --include-previews. Each result
+        carries next_cursor: pass it back as --after, with the same filters, to get
+        only newer turns.
+
+        \b
+        Examples:
+          ep humanize assistant messages <uuid> --all --output messages.jsonl
+          ep humanize assistant messages <uuid> --response <response-uuid>
+          ep humanize assistant messages <uuid> --turn <turn-uuid>
+        """
+        _humanize_rows(
+            human_survey_uuid,
+            key="messages",
+            fetch_name="get_human_survey_assistant_messages",
+            iterate_name="_iter_human_survey_assistant_message_batches",
             after=after,
             limit=limit,
             fetch_all=fetch_all,
