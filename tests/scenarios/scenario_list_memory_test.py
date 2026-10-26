@@ -10,7 +10,15 @@ from typing import Dict, List
 import pytest
 
 psutil = pytest.importorskip("psutil")
-plt = pytest.importorskip("matplotlib.pyplot")
+
+# matplotlib is an optional dependency used only by the standalone benchmark's
+# plotting step. Some broken/incompatible installations raise exceptions other
+# than ImportError during import, which would otherwise prevent pytest from
+# collecting this test module. Keep the memory test runnable without plotting.
+try:
+    import matplotlib.pyplot as plt
+except Exception:
+    plt = None
 
 
 def get_memory_usage() -> float:
@@ -127,6 +135,10 @@ def plot_results(
         results: Dictionary with memory usage metrics
         output_path: Path to save the plot
     """
+    if plt is None:
+        print("Skipping plot: matplotlib is unavailable or could not be imported")
+        return
+
     sizes = sorted(results["creation"].keys())
 
     # Extract data for plotting
