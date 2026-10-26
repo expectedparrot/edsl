@@ -96,7 +96,17 @@ These methods also apply to Results, ScenarioList, and AgentList. Select the fie
 | Word table | `table.to_docx("scores.docx")` |
 | EDSL inputs | `table.to_scenario_list()` / `table.to_agent_list()`; these remove column prefixes by default. |
 
-File exports return FileStore objects. `dataset.write("scores.csv")` selects an exporter from the filename extension. `dataset.to_json()` returns JSON text; it is distinct from the EDSL object serialization used by `to_dict()` and `from_dict()`.
+The CSV, Excel, and Word export methods above return `FileStore` objects. `table.write("scores.csv")` writes a file directly, choosing its format from the filename extension.
+
+`table.to_json()` returns a Python list of column dictionaries. Use `json.dumps()` when you need JSON text:
+
+```python
+import json
+
+json.dumps(table.to_json())
+```
+
+This differs from `table.to_dict()`, which returns the EDSL object structure that `Dataset.from_dict()` can reconstruct.
 
 Install the corresponding optional library for conversions such as `to_polars()` or Excel output. For database exports, convert to a pandas DataFrame and use its database-writing methods with your chosen connection and replacement policy.
 
