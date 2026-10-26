@@ -1,0 +1,39 @@
+---
+title: "Model behavior across contexts"
+description: "Vary context while holding the decision and response format constant."
+---
+
+import Example from '/snippets/examples/model_behavior.mdx';
+
+A model's answer can depend on the situation described around a question. The same action may appear different when it affects one person or a team, when a resource is scarce, or when additional consequences are explained. EDSL lets you represent these situations as scenarios and ask the same question in each one.
+
+This example investigates a small context change: **does a model choose differently when the last available export belongs to an individual or a team?** It holds the decision text and answer options constant, changes the contextual sentence, and retains the context with the answer. The pattern is useful for exploring how models respond to framing, roles, and constraints in a decision task.
+
+## Separate the context from the decision
+
+The ScenarioList below contains two cases. `context` describes who has one export left; `message` describes the consequence of exporting now. The question combines those fields and asks the model to choose Export now, Wait, or Need more information:
+
+<Example />
+
+The two scenarios produce separate interviews. The model answering the team case does not receive the individual case as an earlier exchange. The option “Need more information” allows it to express that the description does not supply enough information to choose between exporting and waiting.
+
+## Examine choices alongside the contexts
+
+With [model access configured](/en/latest/api_keys), run both cases and select the fields needed to interpret the choices:
+
+```python
+results = job.run()
+results.select("scenario.case_id", "scenario.context", "scenario.message", "answer.choice")
+```
+
+For one model and iteration, the result has two rows. If the choices differ, you have an example of a model responding differently to the two contextual sentences. If they match, that tells you how it answered these two cases; it does not establish that the distinction never matters. Additional cases let you explore when the difference appears—for example, by varying whether another export will become available soon.
+
+The current survey collects a choice, not an explanation. To ask why the model chose that option, add a free-text question and give it targeted memory of `choice`, as shown in [Survey logic and piping](/en/latest/guides/survey_logic). That follow-up produces a model-generated explanation you can read alongside the choice.
+
+## Extend the design
+
+Add scenarios to vary the situation while keeping the decision question fixed. Preserve separate fields for each factor, such as who controls the resource and whether it can be replenished, so results can be grouped by those factors. [Experimental conditions](/en/latest/guides/experimental_conditions) explains how to cross scenarios with agent profiles.
+
+Use scenarios for what is happening in the described situation. Use agents when you also want to specify who the model should answer as, such as a team lead with a particular responsibility. Use [Prompt sensitivity](/en/latest/research/prompt_sensitivity) when your main interest is the effect of instructions rather than facts about the situation.
+
+Attach a ModelList to [compare models](/en/latest/guides/model_comparisons), or use `job.run(n=3)` for repeated responses to each case. Keep those model and iteration identifiers when comparing the outputs. These designs characterize the configured models' responses to your descriptions. If your question concerns how people make the same decision, collect corresponding responses through [Human studies](/en/latest/guides/human_studies).

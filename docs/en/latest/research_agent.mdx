@@ -1,0 +1,78 @@
+---
+title: "Research Agent"
+description: "Design, run, analyze, and share research through conversation, with access to study files and deliverables."
+---
+
+The Research Agent helps you develop a study from a research question, project brief, existing questionnaire, or dataset. It can create surveys and interview guides, run AI simulations, help field studies with human participants, analyze results, and prepare reports.
+
+[Open the Research Agent](https://www.expectedparrot.com/research-agent) after signing in to your Expected Parrot account. You do not need to install Python to get started.
+
+## Start a session
+
+Describe your research goal, the population or material you want to study, and the outputs you need. Include relevant source material and constraints such as sample size, model choices, and budget. State whether you want human responses, AI simulations, or both.
+
+For example:
+
+> Help me design a study of how students choose courses. Draft a short survey and an interview guide for human participants. Explain what each question measures and let me review the instruments before launching the study.
+
+For a simulation:
+
+> Compare reactions to these three messages across two audience profiles. Propose the questions, models, and analysis plan, estimate the model costs, and start with a small pilot. Label all simulated responses clearly in the report.
+
+For [data labeling](/en/latest/guides/data_labeling), provide your codebook or ask the Research Agent to help develop one:
+
+> Use exploratory questions to identify themes in these open-ended responses. Consolidate the suggestions into a codebook, then create structured EDSL questions whose answers will label each response. Produce a CSV with the original responses and labels, and include the codebook and labeling survey in the files.
+
+## Design and run a study
+
+<Steps>
+<Step title="Develop the research plan">
+Explain the question, inputs, and desired outputs. Review the proposed method, respondent definitions, questions, and analysis before running the study.
+</Step>
+<Step title="Review the study objects">
+Open the survey, scenarios, agent profiles, or interview guide from the files pane on the right. Request revisions in the conversation or open the study in the [Builder](/en/latest/survey_builder) for direct editing.
+</Step>
+<Step title="Choose how to collect responses">
+For AI simulations, specify models and respondent profiles and review estimated [costs](/en/latest/costs). For human research, review the participant-facing survey or interview and decide how participants will access it. AI-led interviews follow an interview guide and can ask follow-up questions based on participants' answers.
+</Step>
+<Step title="Inspect and analyze the results">
+Inspect the response data alongside charts and conclusions in the files pane. Specify the comparisons and exports you want, and request a report that identifies the study settings, limitations, and whether each result came from humans or AI.
+</Step>
+</Steps>
+
+See [Humanize](/en/latest/humanize) for human survey workflows in code and [Prolific studies](/en/latest/prolific) for participant recruitment.
+
+## Access files and deliverables
+
+The files pane on the right automatically provides access to your uploads, underlying data files, study materials, and deliverables created during the session. Open it to browse and inspect the files at any time. Certain files, such as the research plan or a final report, also open automatically when they are created.
+
+Tell the Research Agent what deliverables or other files you want it to create. You can specify these at the start or as the study develops. For example:
+
+> Create a CSV of the responses, a chart comparing the groups, and a report explaining the findings. Include the questionnaire as a separate file.
+
+You can ask the agent to explain any file, result, or decision, or request changes in the conversation.
+
+## Review and reuse EDSL code
+
+The underlying EDSL code and study objects let you inspect the questions, model choices, agent traits, and scenarios alongside the output. You can reuse or extend the code in a Python notebook. The [EDSL Overview](/en/latest/overview) explains the objects, and [first steps](/en/latest/index#start-here) covers installation and model access. Use the [Builder](/en/latest/survey_builder) when you want to edit study objects visually.
+
+## Share a session
+
+Use the session's **Share** control to create a link for collaborators. Review the visibility and selected files before sharing. Include the research plan, study materials, results, and analysis needed for someone else to understand the work.
+
+A session link shares the research workflow; use the study's respondent link when inviting people to complete a survey or interview.
+
+## Using playbooks
+
+Playbooks are reusable instructions for a particular research method, project, or assignment. They help specify the inputs to collect, steps to follow, and outputs to produce. You can start from a playbook supplied by an instructor or collaborator, or ask the Research Agent to help write reusable instructions for your workflow.
+
+When using a playbook, provide the project-specific inputs and review its assumptions. For example, a message-testing playbook might ask for the messages, audience definitions, models, and comparison criteria. An instructor can use the same playbook across a class while students supply different research questions or data.
+
+See the [Teaching guide](/en/latest/teaching) for an assignment example and [Research Agent resources](https://www.expectedparrot.com/products/research-agent/use-cases) for example workflows.
+
+## Next steps
+
+- [Builder](/en/latest/survey_builder): edit surveys and interview guides directly.
+- [Results](/en/latest/results): explore analysis and export methods in EDSL.
+- [Research with Expected Parrot](/en/latest/papers): see research using or citing Expected Parrot and EDSL.
+

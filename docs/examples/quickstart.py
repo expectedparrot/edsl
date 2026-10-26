@@ -1,0 +1,19 @@
+from edsl import Cache, Model, QuestionFreeText, Survey
+
+question = QuestionFreeText(
+    question_name="feedback",
+    question_text="What would improve this service?",
+)
+survey = Survey([question])
+model = Model("test", canned_response="Make the export button easier to find.")
+job = survey.by(model)
+results = job.run(
+    cache=Cache(),
+    disable_remote_inference=True,
+    disable_remote_cache=True,
+    progress_bar=False,
+)
+# In a notebook, leave this as the last expression to display the table.
+# In a script: results.select("answer.feedback").print()
+# For a Python list: results.select("answer.feedback").to_list()
+results.select("answer.feedback")

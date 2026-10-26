@@ -36,7 +36,7 @@ class TemplateRenderError(PromptError):
     """
 
     relevant_doc = (
-        "https://docs.expectedparrot.com/en/latest/prompts#template-variables"
+        "https://docs.expectedparrot.com/en/latest/prompts#common-methods"
     )
 
 

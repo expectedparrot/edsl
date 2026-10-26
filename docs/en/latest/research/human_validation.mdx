@@ -1,0 +1,91 @@
+---
+title: "Validating classifications with humans"
+description: "Collect independent labels and compare them with model predictions."
+---
+
+import Example from '/snippets/examples/labeling.mdx';
+
+Human validation compares model-generated labels with labels people assign using the same definitions. It helps answer a practical question: does the model classify your records in the way your task requires? Disagreements can reveal a model error, an unclear category boundary, or a record that people also interpret differently.
+
+This page takes the service-request task from [Data labeling](/en/latest/guides/data_labeling) through three stages: generate model predictions, collect independent human classifications, and match both by record identifier. You can use EDSL to collect the human responses, or bring in labels you already have.
+
+## Start with the same records and codebook
+
+The example below defines four sample requests, a codebook, a category question, and a supporting-evidence question. The requests have no preassigned labels. Both models and human reviewers will answer the same questions using the same category definitions.
+
+<Example />
+
+## Generate model predictions
+
+With [model access configured](/en/latest/api_keys), run the survey on the records:
+
+```python
+predictions = job.run()
+predictions.select("scenario.record_id", "scenario.text", "answer.category", "answer.evidence")
+```
+
+For one model and iteration, this gives one row per request. `record_id` is the link between a prediction and a later human judgment. Keeping that identifier avoids relying on row order, which may change when responses arrive or data is filtered.
+
+## Collect human labels
+
+EDSL can present the same questions to people through a hosted survey. The code below attaches the source records to the survey and publishes it with random scenario assignment. Each participant receives a request and answers the category and evidence questions:
+
+```python
+info = survey.by(records).humanize(
+    human_survey_name="Service request coding",
+    scenario_list_method="randomize",
+)
+respondent_url = info["respondent_url"]
+human_survey_uuid = info["uuid"]
+```
+
+Calling `humanize()` creates the hosted survey using your Expected Parrot account. Give `respondent_url` to the people who will label the requests. They receive the source text and codebook, without the model's chosen categories or evidence. This lets the comparison reflect independent judgments.
+
+Random assignment can give some records more responses than others, so inspect which records have been labeled. [Human studies](/en/latest/guides/human_studies) and [Humanize](/en/latest/humanize) cover collection and other scenario assignment options.
+
+## Retrieve and review the human responses
+
+After participants have responded, retrieve the completed responses with the survey UUID:
+
+```python
+from edsl import Coop
+
+human_results = Coop().get_human_survey_responses(human_survey_uuid)
+human_results
+```
+
+The method normally returns a Results object, so you can use `human_results.select("scenario.record_id", "answer.category", "answer.evidence")` to inspect the annotations. If responses cannot be converted to Results, it returns a ScenarioList of response data instead; inspect those fields before selecting columns.
+
+When several people label one request, first decide how their judgments will become a reference label. For example, reviewers can discuss disagreements and agree on a final category, a process called **adjudication**. Keep the individual judgments if you also want to examine how often the human reviewers agree with one another. A disagreement between reviewers may point to a codebook definition that needs clarification.
+
+## Match predictions to reviewed labels
+
+For the comparison below, prepare `human_labels.csv` with two columns: `record_id` and `human_label`. Include one reviewed label for each record that has a completed review. You can prepare this file from the collected responses, or start here with labels from an existing annotation project.
+
+```python
+from edsl import ScenarioList
+
+labels = ScenarioList.from_source("csv", "human_labels.csv").to_pandas()
+predicted = predictions.select("scenario.record_id", "answer.category").to_pandas()
+comparison = predicted.merge(
+    labels,
+    left_on="scenario.record_id",
+    right_on="record_id",
+    how="left",
+    validate="many_to_one",
+)
+reviewed = comparison.dropna(subset=["human_label"]).copy()
+reviewed["matches_human"] = reviewed["answer.category"] == reviewed["human_label"]
+agreement = reviewed["matches_human"].mean()
+reviewed
+```
+
+The left join keeps every model prediction, including records that have no human label yet. `validate="many_to_one"` checks that the reference file contains at most one label for each record. `reviewed` includes only the records with a reference label, and `agreement` is the fraction of those records with an exact match. If no records have been reviewed, there is no agreement estimate yet.
+
+Inspect unmatched records in `comparison` to see what still needs human review. Inspect disagreements in `reviewed` alongside the original text and evidence to understand their cause. Looking separately at Billing, Access, and Feature request can show a category-specific problem hidden by the overall agreement.
+
+## Adapt the validation to your task
+
+For multiple-choice classifications, exact agreement is a simple starting point. For checkbox themes, compare the selected sets or each theme separately; for numerical ratings, compare the size and direction of the differences. For free-text outputs, create evaluation questions that capture what you want people to judge, such as factual correctness or usefulness.
+
+You can also [compare several models](/en/latest/guides/model_comparisons) against the same reviewed labels. If the disagreements lead you to revise the prompt or codebook, use additional independently labeled records to assess the revised version. This separates the examples that helped you improve the task from the ones you use to evaluate it.

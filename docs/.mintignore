@@ -1,0 +1,14 @@
+# Historical notebook sources and generated pages are not maintained documentation.
+/_build/
+/notebooks/
+/en/latest/notebooks/
+*.ipynb
+
+# Do not publish a historical-example index if one is regenerated.
+/en/latest/example_archive.mdx
+
+# Development notes and source fixtures are not additional documentation pages.
+/examples/
+/README.md
+/cli_reference.md
+/*_spec*.md
