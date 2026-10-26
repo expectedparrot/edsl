@@ -33,6 +33,7 @@ Error:
 edsl run
 edsl validate
 edsl models
+edsl docs
 edsl search
 edsl clone
 edsl push
@@ -58,6 +59,27 @@ edsl info
 There is no user-facing `edsl coop` command. Expected Parrot-backed operations are exposed directly through task-oriented commands such as `search`, `push`, `pull`, `jobs`, `humanize`, and `metadata`.
 
 `edsl info` includes configuration diagnostics but redacts credential values such as API keys.
+
+## Documentation Search
+
+`ep docs` reads the currently published EDSL documentation from Mintlify. Public
+search and Markdown retrieval do not require Mintlify credentials. The default
+output is a JSON envelope; use `--human` to print Markdown or readable search
+results directly to the terminal. Search returns a compact list of pages with
+short excerpts; use `ep docs page` when you need the full content.
+
+```bash
+ep docs search "scenario list"
+ep docs search "scenario list" --limit 3 --human
+ep docs search "scenario list" --human
+ep docs index --human
+ep docs page scenarios --human
+```
+
+Use `ep docs index` to find page paths. For `ep docs page`, omit the `en/latest/`
+prefix from the index path; the `.md` suffix is optional. Documentation is
+fetched from the published site, so its content may be newer than the installed
+EDSL version.
 
 ## Local OpenAI-compatible Models
 
