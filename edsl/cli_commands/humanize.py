@@ -886,13 +886,14 @@ def register(humanize: click.Group) -> None:
 
         \b
         Examples:
+          ep humanize assistant transcripts <uuid> --output transcripts.jsonl
           ep humanize assistant messages <uuid> --all --output messages.jsonl
           ep humanize assistant turns <uuid> --all --output turns.jsonl
           ep humanize assistant edits <uuid> --turn <turn-uuid>
         """
         if ctx.invoked_subcommand is None:
             output({
-                "commands": ["messages", "turns", "edits"],
+                "commands": ["transcripts", "messages", "turns", "edits"],
                 "help": "Use 'ep humanize assistant <command> --help' for details.",
             })
 
@@ -1009,6 +1010,63 @@ def register(humanize: click.Group) -> None:
                 "include_previews": include_previews,
             },
         )
+
+    @humanize_assistant.command("transcripts")
+    @click.argument("human_survey_uuid")
+    @click.option("--response", "response_uuid", default=None, help="Only this response's transcript.")
+    @click.option("--no-edits", "no_edits", is_flag=True, default=False, help="Leave the assistant's edits out: receipts name the question only, and rejected edits aren't listed.")
+    @click.option("--output", "-o", "output_path", default=None, type=click.Path(dir_okay=False), help="Save rows to a .json or .jsonl file. Required unless --response.")
+    @click.option("--include-previews", is_flag=True, default=False, help="Also include rows from preview links, each marked is_preview.")
+    def humanize_assistant_transcripts(human_survey_uuid, response_uuid, no_edits, output_path, include_previews):
+        """Get a survey's AI assistant conversations as transcripts: each
+        response's messages together and in order, with what each of the
+        assistant's edits filled and what became of it.
+
+        Rejected edits come at the end of their turn, with no seq: they never
+        showed in the chat. Respondents' own edits aren't included: they're in
+        the interaction trace. Rows from preview links are left out unless
+        --include-previews.
+
+        \b
+        Examples:
+          ep humanize assistant transcripts <uuid> --output transcripts.jsonl
+          ep humanize assistant transcripts <uuid> --response <response-uuid>
+        """
+        # Rows hold what respondents wrote, so a whole survey goes to a file rather
+        # than the terminal.
+        if not response_uuid and not output_path:
+            _humanize_usage_error("--output is required unless --response is given.")
+        file_format = _events_file_format(output_path) if output_path else None
+        try:
+            from edsl.coop import Coop
+
+            rows = Coop().get_all_human_survey_assistant_transcripts(
+                human_survey_uuid,
+                response_uuid=response_uuid,
+                include_previews=include_previews,
+                include_edits=not no_edits,
+            )
+            if not output_path:
+                output(jsonable({"transcripts": rows}))
+                return
+            row_count, _ = _stream_events_to_file(
+                [{"transcripts": rows}], output_path, file_format, key="transcripts"
+            )
+            output({
+                "human_survey_uuid": human_survey_uuid,
+                "saved_to": output_path,
+                "format": file_format,
+                "row_count": row_count,
+            })
+        except SystemExit:
+            raise
+        except Exception as e:
+            error(
+                "HUMANIZE_ERROR",
+                str(e),
+                suggestion="Check the human survey UUID, output path, and Expected Parrot API key.",
+                exit_code=EXIT_REMOTE,
+            )
 
     def _humanize_rows(
         human_survey_uuid, *, key, fetch_name, iterate_name, after, limit,

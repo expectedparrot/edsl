@@ -4534,6 +4534,133 @@ class Coop(CoopFunctionsMixin):
             for row in batch["messages"]
         ]
 
+    def get_all_human_survey_assistant_transcripts(
+        self,
+        human_survey_uuid: Union[str, UUID],
+        *,
+        response_uuid: Optional[Union[str, UUID]] = None,
+        include_previews: bool = False,
+        include_edits: bool = True,
+    ) -> List[dict]:
+        """
+        Get every AI assistant conversation of a human survey as transcripts: the
+        rows of ``get_all_human_survey_assistant_messages``, grouped by response,
+        with the assistant's edits joined in. Respondents' own edits aren't
+        included: they're in the interaction trace.
+
+        Responses come in the order their first turn ended; each response's rows
+        come in the order they happened, by turn, then ``seq``. With
+        ``include_edits``, each ``edit_receipt`` also carries its edit's ``value``,
+        ``draft_type``, ``draft_version``, ``outcome`` and ``reason``, and each edit
+        the server refused is a ``rejected_edit`` row, with its ``rejection``, at
+        the end of its turn. A rejected edit never showed in the chat, so its
+        ``seq`` is null. Rows from preview links are left out unless
+        ``include_previews`` is true.
+
+        Parameters:
+            human_survey_uuid: UUID of the human survey.
+            response_uuid: Return only this response's transcript.
+            include_previews: Also return rows from preview links, each marked
+                ``is_preview``.
+            include_edits: Join the assistant's edits from each turn into its rows.
+
+        Returns:
+            list[dict]: One dict per row.
+
+        Example:
+            >>> rows = coop.get_all_human_survey_assistant_transcripts("your-human-survey-uuid")  # doctest: +SKIP
+        """
+        messages = self.get_all_human_survey_assistant_messages(
+            human_survey_uuid,
+            response_uuid=response_uuid,
+            include_previews=include_previews,
+        )
+        # Fetched second, so every turn in the conversation has its edits listed.
+        edits = (
+            self.get_all_human_survey_assistant_edits(
+                human_survey_uuid,
+                response_uuid=response_uuid,
+                include_previews=include_previews,
+            )
+            if include_edits
+            else None
+        )
+        return self._join_human_survey_assistant_transcripts(messages, edits)
+
+    @staticmethod
+    def _join_human_survey_assistant_transcripts(
+        messages: List[dict], edits: Optional[List[dict]]
+    ) -> List[dict]:
+        """Group message rows by response, keeping each turn's rows together and in
+        order, and with ``edits``, join each receipt to its edit and end each turn
+        with its rejected edits."""
+        by_edit = {edit["edit"]: edit for edit in edits or []}
+        rejected: Dict[str, List[dict]] = {}
+        for edit in edits or []:
+            if edit["server_outcome"] == "rejected":
+                rejected.setdefault(edit["turn"], []).append(edit)
+        turns: Dict[str, List[dict]] = {}
+        for row in messages:
+            if row["kind"] == "edit_receipt" and row["edit"] in by_edit:
+                edit = by_edit[row["edit"]]
+                row = {
+                    **row,
+                    **{
+                        key: edit[key]
+                        for key in (
+                            "value",
+                            "draft_type",
+                            "draft_version",
+                            "outcome",
+                            "reason",
+                        )
+                    },
+                }
+            turns.setdefault(row["turn"], []).append(row)
+        responses: Dict[str, List[dict]] = {}
+        for turn, rows in turns.items():
+            first = rows[0]
+            for edit in rejected.get(turn, []):
+                rows.append(
+                    {
+                        "kind": "rejected_edit",
+                        "turn": turn,
+                        "thread": first["thread"],
+                        "response_uuid": first["response_uuid"],
+                        "is_preview": first["is_preview"],
+                        "page_id": first["page_id"],
+                        "seq": None,
+                        "at": edit["at"],
+                        "edit": edit["edit"],
+                        "question": edit["question"],
+                        "value": edit["value"],
+                        "draft_type": edit["draft_type"],
+                        "draft_version": edit["draft_version"],
+                        "rejection": edit["rejection"],
+                    }
+                )
+            responses.setdefault(first["response_uuid"], []).extend(rows)
+        return [row for rows in responses.values() for row in rows]
+
+    def get_human_survey_assistant_url(
+        self, human_survey_uuid: Union[str, UUID]
+    ) -> str:
+        """
+        Get the page where a human survey's AI assistant conversations can be read
+        in the browser: one per respondent offered the assistant, each with the
+        answers it filled and how each ended, and a download as JSON.
+
+        Parameters:
+            human_survey_uuid: UUID of the human survey.
+
+        Returns:
+            str: The page's URL.
+
+        Example:
+            >>> url = coop.get_human_survey_assistant_url("your-human-survey-uuid")  # doctest: +SKIP
+        """
+        return f"{self.url}/home/human-surveys/{human_survey_uuid}/events/assistant"
+
     def get_human_survey_respondent_links(
         self,
         human_survey_uuid: Union[str, UUID],

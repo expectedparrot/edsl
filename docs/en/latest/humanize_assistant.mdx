@@ -109,7 +109,15 @@ Each assistant reply is charged to the survey owner's account in credits, based 
 
 ## Reading conversations
 
-Conversations are on the survey's **Events** page, under the **Assistant** tab. For each respondent you can read the full conversation, see which answers the assistant filled, and download it as JSON. To download every conversation at once, see [Downloading what the assistant did](#downloading-what-the-assistant-did).
+Conversations are on the survey's **Events** page, under the **Assistant** tab. For each respondent you can read the full conversation, see which answers the assistant filled, and download it as JSON. To get the page's address:
+
+```python
+from edsl import Coop
+
+Coop().get_human_survey_assistant_url("your-human-survey-uuid")
+```
+
+To download every conversation at once, see [Transcripts](#transcripts).
 
 ## Downloading what respondents did
 
@@ -172,7 +180,33 @@ ep humanize interactions your-human-survey-uuid --count
 
 ## Downloading what the assistant did
 
-Three more downloads describe the assistant's side. Each row names its turn (one message and the reply to it) by `turn` and an edit by `edit`, the same ids as in the interaction trace, so they all join on them.
+### Transcripts
+
+The quickest way to read what happened is the transcripts: each respondent's conversation, together and in order, with the value each of the assistant's edits filled in and what became of it.
+
+```python
+from edsl import Coop
+
+coop = Coop()
+
+rows = coop.get_all_human_survey_assistant_transcripts("your-human-survey-uuid")
+one = coop.get_all_human_survey_assistant_transcripts(
+    "your-human-survey-uuid", response_uuid="your-response-uuid"
+)
+```
+
+```bash
+ep humanize assistant transcripts your-human-survey-uuid --output transcripts.jsonl
+ep humanize assistant transcripts your-human-survey-uuid --response your-response-uuid
+```
+
+Each row is a [message](#message-fields), and responses come in the order their first turn ended; within a response, rows are in order, by turn and then `seq`. Each `edit_receipt` also has its edit's `value`, `draft_type`, `draft_version`, `outcome` and `reason`, as in the [edit fields](#edit-fields). Each answer the assistant asked for that was rejected comes as a `rejected_edit` row at the end of its turn, with `edit`, `question`, `value`, `draft_type`, `draft_version`, `rejection` and `at`; it never showed in the chat, so its `seq` is `None`. Pass `include_edits=False` (`--no-edits`) to leave the assistant's edits out. Answers respondents changed themselves aren't in transcripts: they're `form.edited` rows in the [interaction trace](#downloading-what-respondents-did).
+
+Transcripts take `response_uuid` and `include_previews`, and cover the whole survey each time: fetch them again for turns that have ended since. From the command line, `--output` is required unless `--response` is given.
+
+### Messages, turns and edits
+
+Three more downloads describe the assistant's side, one row at a time. Each row names its turn (one message and the reply to it) by `turn` and an edit by `edit`, the same ids as in the interaction trace, so they all join on them.
 
 - **Messages:** the conversations, one row per thing the chat showed: the respondent's message, the reply's text, a receipt for each answer it filled, and what the respondent was told if a reply failed.
 - **Turns:** one row per message the assistant answered, with how the reply ended, its timing, tokens and cost. No message text.
@@ -210,6 +244,7 @@ Each download lists rows in the order they became available, so new ones can be 
 | Download | Comes in | To get the order things happened |
 |---|---|---|
 | Interaction trace | The order rows were received. A batch the respondent's browser sent late arrives late. | Sort each response's rows by `session`, then `seq`. |
+| Transcripts | Grouped by response, in order | Already in order. |
 | Messages | The order turns ended, each turn's rows together | One response's rows are already in order: by turn, then `seq`. |
 | Turns, edits | The order turns ended | One response's rows are already in order. |
 
@@ -255,6 +290,7 @@ Every row has `kind`, `turn`, `thread` (the conversation), `response_uuid`, `is_
 | `rejection` | Why it was rejected: `reason`, `message`, and `violations` when the answer broke the question's rules |
 | `outcome` | For a sent edit, its latest outcome in the form: `applied`, `skipped`, `undone`, or `sent` when the respondent's browser hasn't reported one. `None` for a rejected edit. It can still change until the respondent submits the page. |
 | `reason` | Why a skipped edit was skipped, as in `assistant.edit_skipped` |
+| `at` | When it was checked (ISO 8601, UTC): when a sent edit went to the form, or a rejected one was rejected |
 
 ## Fields
 

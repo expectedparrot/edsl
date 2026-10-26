@@ -5113,6 +5113,119 @@ class TestHumanizeCli:
         monkeypatch.setattr(edsl.coop, "Coop", FakeCoop)
         return turns, edits, messages, calls
 
+    def _transcript_coop(self, monkeypatch):
+        """A Coop holding two responses' conversations: the first's two turns
+        ended either side of the second's one, and its first turn has a receipt
+        and a rejected edit."""
+        import edsl.coop
+        from edsl.coop.coop import Coop as RealCoop
+
+        def row(turn, response, seq, kind, **fields):
+            return {
+                "kind": kind, "turn": turn, "thread": f"th-{response}",
+                "response_uuid": response, "is_preview": False, "page_id": "p1",
+                "seq": seq, "at": "2026-10-26T14:00:00Z", **fields,
+            }
+
+        messages = [
+            row("t1", "r1", 0, "respondent_message", text="fill it"),
+            row("t1", "r1", 1, "edit_receipt", edit="e1", question="age"),
+            row("t1", "r1", 2, "assistant_text", text="Done.", status="complete"),
+            row("t2", "r2", 0, "respondent_message", text="hi"),
+            row("t3", "r1", 0, "respondent_message", text="thanks"),
+        ]
+        edits = [
+            {"edit": "e1", "turn": "t1", "question": "age", "value": 34,
+             "draft_type": "number", "draft_version": 1, "server_outcome": "sent",
+             "rejection": None, "outcome": "undone", "reason": None,
+             "at": "2026-10-26T14:00:01Z"},
+            {"edit": "e2", "turn": "t1", "question": "employer", "value": "X",
+             "draft_type": None, "draft_version": None, "server_outcome": "rejected",
+             "rejection": {"reason": "unknown_question", "message": "No."},
+             "outcome": None, "reason": None, "at": "2026-10-26T14:00:01Z"},
+        ]
+        calls = []
+
+        class FakeCoop(RealCoop):
+            def __init__(self):
+                self.url = "https://example.test"
+
+            def get_all_human_survey_assistant_messages(
+                self, human_survey_uuid, *, response_uuid=None, include_previews=False,
+            ):
+                calls.append(("messages", response_uuid, include_previews))
+                return [dict(m) for m in messages]
+
+            def get_all_human_survey_assistant_edits(
+                self, human_survey_uuid, *, response_uuid=None, include_previews=False,
+            ):
+                calls.append(("edits", response_uuid, include_previews))
+                return edits
+
+        monkeypatch.setattr(edsl.coop, "Coop", FakeCoop)
+        return FakeCoop, calls
+
+    def test_humanize_assistant_transcripts_group_by_response_and_join_edits(
+        self, tmp_path, monkeypatch
+    ):
+        _, calls = self._transcript_coop(monkeypatch)
+        output_path = tmp_path / "transcripts.jsonl"
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            ["humanize", "assistant", "transcripts", "human-survey-uuid", "--output", str(output_path)],
+        )
+
+        assert result.exit_code == 0, result.output
+        assert json.loads(result.output)["data"]["row_count"] == 6
+        rows = [json.loads(line) for line in output_path.read_text(encoding="utf-8").splitlines()]
+        # The first response's turns together, though the second's ended between.
+        assert [(r["turn"], r["kind"], r["seq"]) for r in rows] == [
+            ("t1", "respondent_message", 0),
+            ("t1", "edit_receipt", 1),
+            ("t1", "assistant_text", 2),
+            ("t1", "rejected_edit", None),
+            ("t3", "respondent_message", 0),
+            ("t2", "respondent_message", 0),
+        ]
+        assert (rows[1]["value"], rows[1]["outcome"]) == (34, "undone")
+        assert (rows[3]["question"], rows[3]["rejection"]["reason"], rows[3]["thread"]) == (
+            "employer", "unknown_question", "th-r1",
+        )
+        assert calls == [("messages", None, False), ("edits", None, False)]
+
+    def test_humanize_assistant_transcripts_without_edits(self, monkeypatch):
+        _, calls = self._transcript_coop(monkeypatch)
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            ["humanize", "assistant", "transcripts", "human-survey-uuid", "--response", "r1", "--no-edits"],
+        )
+
+        assert result.exit_code == 0, result.output
+        rows = json.loads(result.output)["data"]["transcripts"]
+        assert "rejected_edit" not in [r["kind"] for r in rows]
+        assert "value" not in rows[1]
+        assert calls == [("messages", "r1", False)]
+
+    def test_humanize_assistant_transcripts_requires_output_for_a_whole_survey(self, monkeypatch):
+        _, calls = self._transcript_coop(monkeypatch)
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            ["humanize", "assistant", "transcripts", "human-survey-uuid"],
+        )
+
+        assert result.exit_code != 0
+        assert calls == []
+
+    def test_human_survey_assistant_url(self, monkeypatch):
+        FakeCoop, _ = self._transcript_coop(monkeypatch)
+
+        assert FakeCoop().get_human_survey_assistant_url("hs-1") == (
+            "https://example.test/home/human-surveys/hs-1/events/assistant"
+        )
+
     def test_humanize_assistant_turns_prints_one_batch(self, monkeypatch):
         turns, _, _, calls = self._assistant_coop(monkeypatch)
 

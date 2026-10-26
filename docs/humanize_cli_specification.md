@@ -705,6 +705,34 @@ the file and the envelope carries `saved_to`, `format`, `interaction_count`,
 The file is written as `edsl humanize events` writes its file: a batch at a time, to a
 private temporary file that replaces the output only once every batch has arrived.
 
+### `edsl humanize assistant transcripts <human_survey_uuid>`
+
+Get a survey's assistant conversations as transcripts: the rows of `edsl humanize
+assistant messages`, grouped by response (responses in the order their first turn
+ended, each one's rows by turn, then `seq`). Each `edit_receipt` also carries its
+edit's `value`, `draft_type`, `draft_version`, `outcome` and `reason`, and each
+rejected edit is a `rejected_edit` row at the end of its turn, with `seq` null. Only
+the assistant's edits are joined; respondents' own edits are in `edsl humanize
+interactions`. Rows from preview links are left out unless `--include-previews`.
+
+Backs onto:
+
+```python
+Coop().get_all_human_survey_assistant_transcripts(human_survey_uuid, response_uuid=response_uuid, include_previews=include_previews, include_edits=not no_edits)
+```
+
+Flags:
+
+- `--response <response_uuid>`: only this response's transcript.
+- `--no-edits`: leave the assistant's edits out; receipts keep only `edit` and
+  `question`.
+- `--output`, `-o <path>`: write rows to a `.json` or `.jsonl` file. Required unless
+  `--response`, as rows hold what respondents wrote.
+- `--include-previews`: also include rows from preview links.
+
+No cursor: each run covers the whole survey, or the one response. The envelope is
+`{"transcripts"}`, or with `--output`, `saved_to`, `format` and `row_count`.
+
 ### `edsl humanize assistant messages <human_survey_uuid>`
 
 Get a survey's assistant conversations: one row per thing the chat showed, each turn's
