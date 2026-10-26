@@ -46,19 +46,14 @@ humanize_schema = {
     }
 }
 
-preview_url = survey.preview(humanize_schema=humanize_schema)
-print(preview_url)
-```
-
-When the preview looks right, create the survey with the same schema:
-
-```python
 info = survey.humanize(
     human_survey_name="Car buying priorities",
     humanize_schema=humanize_schema,
 )
-print(info["respondent_url"])
+print(info["preview_url"])
 ```
+
+Open `preview_url` to try the assistant before sharing `respondent_url`: it is the live survey, chat included, and nothing you answer there is added to your results. Each reply in a preview is charged like a respondent's. `survey.preview()` shows the form's layout only, without the chat.
 
 In this example the chat is hidden on the consent page, the assistant can fill in the ranking and the free-text reason, and it is told what "Fuel economy" means if a respondent asks.
 
@@ -163,17 +158,77 @@ ep humanize interactions your-human-survey-uuid --count
 |---|---|
 | `page.shown` | `page_key`: the question group's name, or the first question's name when the survey shows one question per page |
 | `page.submitted` | `page_key` |
-| `form.edited` | The respondent changed an answer. `question`, `value`, `draft_type`, `draft_version`, `change_count` (typing is recorded in pauses, so one row can stand for several changes), `first_change_at`, `closed_by` (what ended the pause, such as `left_field` or `message_sent`), `outcome`, `value_omitted`, `chars` |
+| `form.edited` | The respondent changed an answer. `question`, `value`, `draft_type`, `draft_version`, `change_count` (typing is recorded in pauses, so one row can stand for several changes), `first_change_at`, `closed_by` (what ended the pause, such as `left_field` or `message_sent`), `draft_write`, `value_omitted`, `chars` |
 | `chat.message_sent` | `turn`, the id of the assistant's reply; or `refused`, why the message was refused; or neither, if the message never arrived |
 | `chat.reply_ended` | `message_seq` (the message's `seq`), `turn`, `status` (`complete`, `interrupted`, `failed`, `stopped`, `refused` or `dropped`), `connection` (for a dropped reply: `failed` or `lost`), `first_text_at`, `error_kind` |
-| `assistant.edit_applied` | The assistant filled an answer. `question`, `edit` (the edit's id), `value`, `draft_type`, `draft_version`, `outcome`, `value_omitted`, `chars` |
+| `assistant.edit_applied` | The assistant filled an answer. `question`, `edit` (the edit's id), `value`, `draft_type`, `draft_version`, `draft_write`, `value_omitted`, `chars` |
 | `assistant.edit_undone` | The respondent pressed **Undo**. The same fields; `value` is what the answer went back to |
 | `assistant.edit_skipped` | An answer the assistant filled that couldn't be put in the form. `question`, `edit`, `reason`: `field_changed` (the respondent changed the answer first), `page_changed`, `time_up` or `invalid` |
 | `runtime.event_rejected` | Something that couldn't be recorded, so a gap has a reason. `question`, `rejected_type`, `reason`, `chars` |
 
 - `value` is the answer in the form at that moment, in the shape `draft_type` and `draft_version` name.
-- `outcome` is `applied`, `superseded` (a later change from the same tab had already arrived) or `late` (the page had already been submitted).
+- `draft_write` says whether this row's value became the saved in-progress answer when it arrived: `applied`, `superseded` (a later change from the same tab had already arrived) or `late` (the page had already been submitted). It's about when the row arrived, not about the form: a `late` row can still be a change the respondent submitted. For what became of an assistant's edit in the form, use the row's `type`, or `outcome` in the edits download below.
 - `value_omitted` is `True` for a value too long to keep, about 16,000 characters. The change is still recorded, and `chars` gives its length.
+
+## Downloading what the assistant did
+
+Two more downloads describe the assistant's side. Each row names its turn by `turn` and its edit by `edit`, the same ids as in the interaction trace, so the three join on them.
+
+- **Turns:** one row per message the assistant answered, with how the reply ended, its timing, tokens and cost. No message text.
+- **Edits:** one row per answer the assistant asked to fill in, including those that were rejected, with what became of each in the form.
+
+```python
+from edsl import Coop
+
+coop = Coop()
+
+turns = coop.get_all_human_survey_assistant_turns("your-human-survey-uuid")
+edits = coop.get_all_human_survey_assistant_edits("your-human-survey-uuid")
+
+# One turn's edits
+one_turn = coop.get_all_human_survey_assistant_edits(
+    "your-human-survey-uuid", turn=turns[0]["turn"]
+)
+```
+
+Both take `response_uuid` and `include_previews` as the interaction trace does, and list rows in the order their turns ended. A turn and its edits appear a few seconds after the turn ends, never while the assistant is still replying. To fetch new rows later, pass the last row's `turn` or `edit` as `after`. `Coop.get_human_survey_assistant_turns` and `Coop.get_human_survey_assistant_edits` return one batch at a time, as `{"turns" or "edits", "next_cursor", "has_more"}`.
+
+From the command line:
+
+```bash
+ep humanize assistant turns your-human-survey-uuid --all --output turns.jsonl
+ep humanize assistant edits your-human-survey-uuid --turn your-turn-uuid
+```
+
+### Turn fields
+
+| Field | Description |
+|---|---|
+| `turn` | The turn's id |
+| `response_uuid`, `thread`, `is_preview`, `page_id` | The response, its conversation, whether it came from a preview link, and the page the message was sent from |
+| `status` | How the reply finished: `complete`, `interrupted` (stopped or cut off) or `failed` |
+| `ended` | How the respondent saw it end, as in `chat.reply_ended`; `None` if their browser never said |
+| `sent_at`, `finished_at` | When the message arrived and when the reply finished (ISO 8601, UTC) |
+| `first_text_at`, `ended_at` | When the reply's first words and its end reached the respondent, by their clock (ISO 8601, UTC); `None` if their browser never said |
+| `model` | The model that replied |
+| `calls`, `retries` | How many model calls the reply took, and how many of those were retries |
+| `input_tokens`, `cached_input_tokens`, `output_tokens`, `reasoning_tokens` | Tokens across the turn's calls. `cached_input_tokens` is part of `input_tokens`. |
+| `usage_estimated` | `True` when a call was stopped before its usage was reported, so its tokens are estimated |
+| `edits`, `rejected_edits` | How many answers the turn put in the form, and how many it asked for but were rejected |
+| `error` | Why a failed turn failed: `kind`, `stage`, `message`, `retryable`, `at`, and for some kinds `http_status`, `input_tokens` and `limit`, `reason` or `error_code`. `None` otherwise. |
+| `credits` | What the turn cost. Only for the survey's owner. |
+
+### Edit fields
+
+| Field | Description |
+|---|---|
+| `edit` | The edit's id |
+| `turn`, `response_uuid`, `is_preview`, `page_id` | The turn that asked for it, its response, whether it came from a preview link, and the page |
+| `question`, `value`, `draft_type`, `draft_version` | The question and the answer the assistant asked for, in the shape `draft_type` and `draft_version` name. A rejected answer is as the assistant gave it, and may have no shape. |
+| `server_outcome` | `sent` (put in the form) or `rejected` |
+| `rejection` | Why it was rejected: `reason`, `message`, and `violations` when the answer broke the question's rules |
+| `outcome` | For a sent edit, its latest outcome in the form: `applied`, `skipped`, `undone`, or `sent` when the respondent's browser hasn't reported one. `None` for a rejected edit. It can still change until the respondent submits the page. |
+| `reason` | Why a skipped edit was skipped, as in `assistant.edit_skipped` |
 
 ## Fields
 

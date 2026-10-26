@@ -877,6 +877,145 @@ def register(humanize: click.Group) -> None:
             )
 
 
+    @humanize.group("assistant", invoke_without_command=True)
+    @click.pass_context
+    def humanize_assistant(ctx):
+        """Get what a survey's AI assistant did: its turns and the answers it filled.
+
+        \b
+        Examples:
+          ep humanize assistant turns <uuid> --all --output turns.jsonl
+          ep humanize assistant edits <uuid> --turn <turn-uuid>
+        """
+        if ctx.invoked_subcommand is None:
+            output({
+                "commands": ["turns", "edits"],
+                "help": "Use 'ep humanize assistant <command> --help' for details.",
+            })
+
+    @humanize_assistant.command("turns")
+    @click.argument("human_survey_uuid")
+    @click.option("--after", default=None, help="Only turns after this one, e.g. the next_cursor from an earlier run.")
+    @click.option("--limit", default=100, type=int, help="Rows per request, at most 100.")
+    @click.option("--response", "response_uuid", default=None, help="Only this response's turns.")
+    @click.option("--all", "fetch_all", is_flag=True, default=False, help="Fetch every row, not one batch. Requires --output.")
+    @click.option("--output", "-o", "output_path", default=None, type=click.Path(dir_okay=False), help="Save rows to a .json or .jsonl file.")
+    @click.option("--include-previews", is_flag=True, default=False, help="Also include turns from preview links, each marked is_preview.")
+    def humanize_assistant_turns(human_survey_uuid, after, limit, response_uuid, fetch_all, output_path, include_previews):
+        """Get a survey's AI assistant turns, in the order they ended: one per
+        respondent message it answered, with how it ended, timing, tokens, edit
+        counts, errors and, for the survey's owner, credits. No message text.
+
+        Rows from preview links are left out unless --include-previews. Each result
+        carries next_cursor: pass it back as --after, with the same filters, to get
+        only newer turns.
+
+        \b
+        Examples:
+          ep humanize assistant turns <uuid>
+          ep humanize assistant turns <uuid> --all --output turns.jsonl
+          ep humanize assistant turns <uuid> --response <response-uuid>
+        """
+        _humanize_rows(
+            human_survey_uuid,
+            key="turns",
+            fetch_name="get_human_survey_assistant_turns",
+            iterate_name="_iter_human_survey_assistant_turn_batches",
+            after=after,
+            limit=limit,
+            fetch_all=fetch_all,
+            output_path=output_path,
+            filters={"response_uuid": response_uuid, "include_previews": include_previews},
+        )
+
+    @humanize_assistant.command("edits")
+    @click.argument("human_survey_uuid")
+    @click.option("--after", default=None, help="Only edits after this one, e.g. the next_cursor from an earlier run.")
+    @click.option("--limit", default=100, type=int, help="Rows per request, at most 100.")
+    @click.option("--response", "response_uuid", default=None, help="Only this response's edits.")
+    @click.option("--turn", "turn", default=None, help="Only this turn's edits.")
+    @click.option("--all", "fetch_all", is_flag=True, default=False, help="Fetch every row, not one batch. Requires --output.")
+    @click.option("--output", "-o", "output_path", default=None, type=click.Path(dir_okay=False), help="Save rows to a .json or .jsonl file.")
+    @click.option("--include-previews", is_flag=True, default=False, help="Also include edits from preview links, each marked is_preview.")
+    def humanize_assistant_edits(human_survey_uuid, after, limit, response_uuid, turn, fetch_all, output_path, include_previews):
+        """Get the answers a survey's AI assistant asked to fill in, rejected ones
+        included, in the order their turns ended, with each one's latest outcome in
+        the form.
+
+        Rows from preview links are left out unless --include-previews. Each result
+        carries next_cursor: pass it back as --after, with the same filters, to get
+        only newer edits.
+
+        \b
+        Examples:
+          ep humanize assistant edits <uuid>
+          ep humanize assistant edits <uuid> --turn <turn-uuid>
+          ep humanize assistant edits <uuid> --all --output edits.jsonl
+        """
+        _humanize_rows(
+            human_survey_uuid,
+            key="edits",
+            fetch_name="get_human_survey_assistant_edits",
+            iterate_name="_iter_human_survey_assistant_edit_batches",
+            after=after,
+            limit=limit,
+            fetch_all=fetch_all,
+            output_path=output_path,
+            filters={
+                "response_uuid": response_uuid,
+                "turn": turn,
+                "include_previews": include_previews,
+            },
+        )
+
+    def _humanize_rows(
+        human_survey_uuid, *, key, fetch_name, iterate_name, after, limit,
+        fetch_all, output_path, filters,
+    ):
+        """Print one batch of a collection, or save one batch or every batch to a
+        file: what each assistant data command does with its own Coop methods."""
+        # Rows can hold respondents' answers, so a whole collection goes to a file
+        # rather than the terminal.
+        if fetch_all and not output_path:
+            _humanize_usage_error("--all requires --output.")
+        file_format = _events_file_format(output_path) if output_path else None
+        try:
+            from edsl.coop import Coop
+
+            coop = Coop()
+            if fetch_all:
+                batches = getattr(coop, iterate_name)(
+                    human_survey_uuid, after=after, limit=limit, **filters
+                )
+            else:
+                batch = getattr(coop, fetch_name)(
+                    human_survey_uuid, after=after, limit=limit, **filters
+                )
+                if not output_path:
+                    output(jsonable(batch))
+                    return
+                batches = [batch]
+            row_count, last_batch = _stream_events_to_file(
+                batches, output_path, file_format, key=key
+            )
+            output({
+                "human_survey_uuid": human_survey_uuid,
+                "saved_to": output_path,
+                "format": file_format,
+                f"{key[:-1]}_count": row_count,
+                "next_cursor": last_batch["next_cursor"] if last_batch else after,
+                "has_more": bool(last_batch and last_batch["has_more"]),
+            })
+        except SystemExit:
+            raise
+        except Exception as e:
+            error(
+                "HUMANIZE_ERROR",
+                str(e),
+                suggestion="Check the human survey UUID, output path, and Expected Parrot API key.",
+                exit_code=EXIT_REMOTE,
+            )
+
     @humanize.command("custom-js-access")
     def humanize_custom_js_access():
         """Check whether your account may use custom JavaScript in a humanize schema."""

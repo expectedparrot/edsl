@@ -5050,6 +5050,115 @@ class TestHumanizeCli:
 
         assert result.exit_code == cli_module.EXIT_USAGE, result.output
 
+    def _assistant_coop(self, monkeypatch):
+        """A Coop serving five turns and five edits by cursor, with the real
+        cursor-following loops. Records every request's filters."""
+        import edsl.coop
+        from edsl.coop.coop import Coop as RealCoop
+
+        turns = [{"turn": f"t{n}"} for n in range(1, 6)]
+        edits = [{"edit": f"e{n}", "turn": f"t{n}"} for n in range(1, 6)]
+        calls = []
+
+        def serve(rows, key, id_key, after, limit):
+            ids = [row[id_key] for row in rows]
+            start = ids.index(after) + 1 if after else 0
+            batch = rows[start : start + limit]
+            return {
+                key: batch,
+                "next_cursor": batch[-1][id_key] if batch else after,
+                "has_more": start + limit < len(rows),
+            }
+
+        class FakeCoop(RealCoop):
+            def __init__(self):
+                pass
+
+            def get_human_survey_assistant_turns(
+                self, human_survey_uuid, *, after=None, limit=100,
+                response_uuid=None, include_previews=False,
+            ):
+                assert human_survey_uuid == "human-survey-uuid"
+                calls.append(("turns", after, limit, response_uuid, include_previews))
+                return serve(turns, "turns", "turn", after, limit)
+
+            def get_human_survey_assistant_edits(
+                self, human_survey_uuid, *, after=None, limit=100,
+                response_uuid=None, turn=None, include_previews=False,
+            ):
+                assert human_survey_uuid == "human-survey-uuid"
+                calls.append(("edits", after, limit, response_uuid, turn, include_previews))
+                rows = [row for row in edits if turn is None or row["turn"] == turn]
+                return serve(rows, "edits", "edit", after, limit)
+
+        monkeypatch.setattr(edsl.coop, "Coop", FakeCoop)
+        return turns, edits, calls
+
+    def test_humanize_assistant_turns_prints_one_batch(self, monkeypatch):
+        turns, _, calls = self._assistant_coop(monkeypatch)
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            ["humanize", "assistant", "turns", "human-survey-uuid", "--limit", "2"],
+        )
+
+        assert result.exit_code == 0, result.output
+        data = json.loads(result.output)["data"]
+        assert data["turns"] == turns[:2]
+        assert (data["next_cursor"], data["has_more"]) == ("t2", True)
+        assert calls == [("turns", None, 2, None, False)]
+
+    def test_humanize_assistant_turns_all_follows_the_cursor(self, tmp_path, monkeypatch):
+        turns, _, calls = self._assistant_coop(monkeypatch)
+        output_path = tmp_path / "turns.jsonl"
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            [
+                "humanize", "assistant", "turns", "human-survey-uuid",
+                "--all", "--limit", "2", "--output", str(output_path),
+                "--response", "response-uuid", "--include-previews",
+            ],
+        )
+
+        assert result.exit_code == 0, result.output
+        data = json.loads(result.output)["data"]
+        assert data["turn_count"] == 5
+        assert (data["next_cursor"], data["has_more"]) == ("t5", False)
+        assert calls == [
+            ("turns", after, 2, "response-uuid", True) for after in (None, "t2", "t4")
+        ]
+        lines = output_path.read_text(encoding="utf-8").splitlines()
+        assert [json.loads(line) for line in lines] == turns
+
+    def test_humanize_assistant_edits_narrows_to_one_turn(self, tmp_path, monkeypatch):
+        _, edits, calls = self._assistant_coop(monkeypatch)
+        output_path = tmp_path / "edits.json"
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            [
+                "humanize", "assistant", "edits", "human-survey-uuid",
+                "--turn", "t3", "--output", str(output_path),
+            ],
+        )
+
+        assert result.exit_code == 0, result.output
+        assert json.loads(result.output)["data"]["edit_count"] == 1
+        assert json.loads(output_path.read_text(encoding="utf-8")) == [edits[2]]
+        assert calls == [("edits", None, 100, None, "t3", False)]
+
+    @pytest.mark.parametrize("command", ["turns", "edits"])
+    def test_humanize_assistant_all_requires_output(self, monkeypatch, command):
+        self._assistant_coop(monkeypatch)
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            ["humanize", "assistant", command, "human-survey-uuid", "--all"],
+        )
+
+        assert result.exit_code == cli_module.EXIT_USAGE, result.output
+
     @pytest.mark.skipif(sys.platform == "win32", reason="POSIX file modes")
     @pytest.mark.parametrize("existing", [False, True])
     def test_humanize_events_file_is_private(self, tmp_path, monkeypatch, existing):

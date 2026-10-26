@@ -4145,6 +4145,258 @@ class Coop(CoopFunctionsMixin):
         self._resolve_server_response(response)
         return int(response.json().get("total", 0))
 
+    def get_human_survey_assistant_turns(
+        self,
+        human_survey_uuid: Union[str, UUID],
+        *,
+        after: Optional[str] = None,
+        limit: int = 100,
+        response_uuid: Optional[Union[str, UUID]] = None,
+        include_previews: bool = False,
+    ) -> dict:
+        """
+        Get one batch of a human survey's AI assistant turns, in the order they
+        ended.
+
+        One row per respondent message the assistant answered: how it ended
+        (``status``, and ``ended`` as the respondent saw it), when it was sent,
+        started replying and ended, its model, calls and tokens, how many edits it
+        sent and how many were rejected, the error of a failed turn, and, for the
+        survey's owner, ``credits``. No message text. A turn appears a few seconds
+        after it ends. Rows from preview links are left out unless
+        ``include_previews`` is true.
+
+        To continue, pass the returned ``next_cursor`` as ``after`` while
+        ``has_more`` is true, with the same filters.
+
+        Parameters:
+            human_survey_uuid: UUID of the human survey.
+            after: Return only turns after this one, given by its ``turn``. Omit to
+                start from the first.
+            limit: Rows to return, at most 100.
+            response_uuid: Return only this response's turns.
+            include_previews: Also return turns from preview links.
+
+        Returns:
+            dict: ``{"turns": [...], "next_cursor", "has_more"}``
+
+        Example:
+            >>> batch = coop.get_human_survey_assistant_turns("your-human-survey-uuid")  # doctest: +SKIP
+        """
+        params: Dict[str, Any] = {
+            "limit": limit,
+            "include_previews": str(include_previews).lower(),
+        }
+        if after is not None:
+            params["after"] = str(after)
+        if response_uuid is not None:
+            params["response_uuid"] = str(response_uuid)
+        response = self._send_server_request(
+            uri=f"api/v0/human-surveys/{human_survey_uuid}/assistant/turns",
+            method="GET",
+            params=params,
+        )
+        self._resolve_server_response(response)
+        data = response.json()
+        return {
+            "turns": data.get("turns", []),
+            "next_cursor": data.get("next_cursor"),
+            "has_more": bool(data.get("has_more")),
+        }
+
+    def _iter_human_survey_assistant_turn_batches(
+        self,
+        human_survey_uuid: Union[str, UUID],
+        *,
+        after: Optional[str] = None,
+        limit: int = 100,
+        response_uuid: Optional[Union[str, UUID]] = None,
+        include_previews: bool = False,
+    ) -> Iterator[dict]:
+        """Yield batches from ``get_human_survey_assistant_turns``, following the
+        cursor to the end."""
+        while True:
+            batch = self.get_human_survey_assistant_turns(
+                human_survey_uuid,
+                after=after,
+                limit=limit,
+                response_uuid=response_uuid,
+                include_previews=include_previews,
+            )
+            yield batch
+            if not batch["has_more"]:
+                return
+            after = batch["next_cursor"]
+
+    def get_all_human_survey_assistant_turns(
+        self,
+        human_survey_uuid: Union[str, UUID],
+        *,
+        after: Optional[str] = None,
+        response_uuid: Optional[Union[str, UUID]] = None,
+        include_previews: bool = False,
+    ) -> List[dict]:
+        """
+        Get every ended AI assistant turn of a human survey, in the order they
+        ended. Turns from preview links are left out unless ``include_previews`` is
+        true.
+
+        Parameters:
+            human_survey_uuid: UUID of the human survey.
+            after: Return only turns after this one, given by its ``turn``. Pass the
+                last turn you already have to fetch just the new ones.
+            response_uuid: Return only this response's turns.
+            include_previews: Also return turns from preview links, each marked
+                ``is_preview``.
+
+        Returns:
+            list[dict]: One dict per turn.
+
+        Example:
+            >>> turns = coop.get_all_human_survey_assistant_turns("your-human-survey-uuid")  # doctest: +SKIP
+        """
+        return [
+            row
+            for batch in self._iter_human_survey_assistant_turn_batches(
+                human_survey_uuid,
+                after=after,
+                response_uuid=response_uuid,
+                include_previews=include_previews,
+            )
+            for row in batch["turns"]
+        ]
+
+    def get_human_survey_assistant_edits(
+        self,
+        human_survey_uuid: Union[str, UUID],
+        *,
+        after: Optional[str] = None,
+        limit: int = 100,
+        response_uuid: Optional[Union[str, UUID]] = None,
+        turn: Optional[Union[str, UUID]] = None,
+        include_previews: bool = False,
+    ) -> dict:
+        """
+        Get one batch of the answers a human survey's AI assistant asked to fill
+        in, in the order their turns ended.
+
+        One row per edit, including those that were rejected: the question and
+        value, whether it was sent to the form (``server_outcome``) or rejected and
+        why (``rejection``), and, for a sent edit, its latest ``outcome`` in the
+        form: ``applied``, ``skipped`` (with ``reason``), ``undone``, or ``sent``
+        while the respondent's browser hasn't reported one. An outcome can still
+        change until the page is submitted. Edits appear a few seconds after their
+        turn ends. Rows from preview links are left out unless ``include_previews``
+        is true.
+
+        To continue, pass the returned ``next_cursor`` as ``after`` while
+        ``has_more`` is true, with the same filters.
+
+        Parameters:
+            human_survey_uuid: UUID of the human survey.
+            after: Return only edits after this one, given by its ``edit``. Omit to
+                start from the first.
+            limit: Rows to return, at most 100.
+            response_uuid: Return only this response's edits.
+            turn: Return only this turn's edits.
+            include_previews: Also return edits from preview links.
+
+        Returns:
+            dict: ``{"edits": [...], "next_cursor", "has_more"}``
+
+        Example:
+            >>> batch = coop.get_human_survey_assistant_edits("your-human-survey-uuid")  # doctest: +SKIP
+        """
+        params: Dict[str, Any] = {
+            "limit": limit,
+            "include_previews": str(include_previews).lower(),
+        }
+        if after is not None:
+            params["after"] = str(after)
+        if response_uuid is not None:
+            params["response_uuid"] = str(response_uuid)
+        if turn is not None:
+            params["turn"] = str(turn)
+        response = self._send_server_request(
+            uri=f"api/v0/human-surveys/{human_survey_uuid}/assistant/edits",
+            method="GET",
+            params=params,
+        )
+        self._resolve_server_response(response)
+        data = response.json()
+        return {
+            "edits": data.get("edits", []),
+            "next_cursor": data.get("next_cursor"),
+            "has_more": bool(data.get("has_more")),
+        }
+
+    def _iter_human_survey_assistant_edit_batches(
+        self,
+        human_survey_uuid: Union[str, UUID],
+        *,
+        after: Optional[str] = None,
+        limit: int = 100,
+        response_uuid: Optional[Union[str, UUID]] = None,
+        turn: Optional[Union[str, UUID]] = None,
+        include_previews: bool = False,
+    ) -> Iterator[dict]:
+        """Yield batches from ``get_human_survey_assistant_edits``, following the
+        cursor to the end."""
+        while True:
+            batch = self.get_human_survey_assistant_edits(
+                human_survey_uuid,
+                after=after,
+                limit=limit,
+                response_uuid=response_uuid,
+                turn=turn,
+                include_previews=include_previews,
+            )
+            yield batch
+            if not batch["has_more"]:
+                return
+            after = batch["next_cursor"]
+
+    def get_all_human_survey_assistant_edits(
+        self,
+        human_survey_uuid: Union[str, UUID],
+        *,
+        after: Optional[str] = None,
+        response_uuid: Optional[Union[str, UUID]] = None,
+        turn: Optional[Union[str, UUID]] = None,
+        include_previews: bool = False,
+    ) -> List[dict]:
+        """
+        Get every answer a human survey's AI assistant asked to fill in, rejected
+        ones included, in the order their turns ended. Edits from preview links
+        are left out unless ``include_previews`` is true.
+
+        Parameters:
+            human_survey_uuid: UUID of the human survey.
+            after: Return only edits after this one, given by its ``edit``. Pass the
+                last edit you already have to fetch just the new ones.
+            response_uuid: Return only this response's edits.
+            turn: Return only this turn's edits.
+            include_previews: Also return edits from preview links, each marked
+                ``is_preview``.
+
+        Returns:
+            list[dict]: One dict per edit.
+
+        Example:
+            >>> edits = coop.get_all_human_survey_assistant_edits("your-human-survey-uuid")  # doctest: +SKIP
+        """
+        return [
+            row
+            for batch in self._iter_human_survey_assistant_edit_batches(
+                human_survey_uuid,
+                after=after,
+                response_uuid=response_uuid,
+                turn=turn,
+                include_previews=include_previews,
+            )
+            for row in batch["edits"]
+        ]
+
     def get_human_survey_respondent_links(
         self,
         human_survey_uuid: Union[str, UUID],

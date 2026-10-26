@@ -704,6 +704,60 @@ the file and the envelope carries `saved_to`, `format`, `interaction_count`,
 The file is written as `edsl humanize events` writes its file: a batch at a time, to a
 private temporary file that replaces the output only once every batch has arrived.
 
+### `edsl humanize assistant turns <human_survey_uuid>`
+
+Get a survey's assistant turns, in the order they ended: one row per respondent
+message the assistant answered, with how it ended, timing, tokens, edit counts, the
+error of a failed turn and, for the survey's owner, credits. No message text. A turn
+is listed a few seconds after it ends. Rows from preview links are left out unless
+`--include-previews`, and then marked `is_preview`.
+
+Backs onto:
+
+```python
+Coop().get_human_survey_assistant_turns(human_survey_uuid, after=after, limit=limit, response_uuid=response_uuid, include_previews=include_previews)
+Coop()._iter_human_survey_assistant_turn_batches(human_survey_uuid, after=after, limit=limit, response_uuid=response_uuid, include_previews=include_previews)  # --all
+```
+
+Flags:
+
+| Flag | Type | Required | Description |
+|------|------|----------|-------------|
+| `--after` | turn id | no | Only turns after this one, e.g. a `next_cursor` from an earlier run |
+| `--limit` | int | no | Rows per request, default 100, at most 100 |
+| `--response` | response uuid | no | Only this response's turns |
+| `--all` | flag | no | Fetch every batch. Requires `--output` |
+| `--output`, `-o` | path | no | Save rows to `.json` (an array) or `.jsonl` (one row per line) |
+| `--include-previews` | flag | no | Also include turns from preview links |
+
+Without `--output`, one batch is printed in the envelope:
+`{"turns", "next_cursor", "has_more"}`. With `--output`, the envelope carries
+`saved_to`, `format`, `turn_count`, `next_cursor` and `has_more` instead.
+
+### `edsl humanize assistant edits <human_survey_uuid>`
+
+Get the answers a survey's assistant asked to fill in, rejected ones included, in the
+order their turns ended, each with whether it was sent or rejected and its latest
+outcome in the form. Listed a few seconds after their turn ends. Rows from preview
+links are left out unless `--include-previews`.
+
+Backs onto:
+
+```python
+Coop().get_human_survey_assistant_edits(human_survey_uuid, after=after, limit=limit, response_uuid=response_uuid, turn=turn, include_previews=include_previews)
+Coop()._iter_human_survey_assistant_edit_batches(human_survey_uuid, after=after, limit=limit, response_uuid=response_uuid, turn=turn, include_previews=include_previews)  # --all
+```
+
+Flags: as `edsl humanize assistant turns`, with `--after` taking an edit id, plus:
+
+| Flag | Type | Required | Description |
+|------|------|----------|-------------|
+| `--turn` | turn id | no | Only this turn's edits |
+
+The envelope is `{"edits", "next_cursor", "has_more"}`, or with `--output`, `saved_to`,
+`format`, `edit_count`, `next_cursor` and `has_more`. `--all` requires `--output`, as
+edits hold the answers the assistant wrote.
+
 ## Deferred Command Groups
 
 These should not be part of the first implementation unless explicitly prioritized.
