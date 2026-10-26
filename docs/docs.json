@@ -169,6 +169,14 @@
   },
   "redirects": [
     {
+      "source": "/en/latest/notebooks/example_agent_dynamic_traits",
+      "destination": "/en/latest/agents#dynamic-traits-function"
+    },
+    {
+      "source": "/en/latest/exceptions.html",
+      "destination": "/en/latest/contributing#report-a-problem"
+    },
+    {
       "source": "/en/latest/notebooks/image_scenario_example",
       "destination": "/en/latest/scenarios#images"
     },

@@ -61,7 +61,7 @@ class ScenarioError(BaseException):
         message: A description of the error that occurred.
     """
 
-    documentation = "https://docs.expectedparrot.com/en/latest/scenarios#module-edsl.scenarios.Scenario"
+    documentation = "https://docs.expectedparrot.com/en/latest/scenarios#clean-and-transform-rows"
 
     def __init__(self, message: str):
         """
