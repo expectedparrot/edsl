@@ -20,6 +20,39 @@ EDSL makes it easy to conduct computational social science and market research w
 
 6. Join our <a href="https://discord.com/invite/mxAYkjfy9m" target="_blank" rel="noopener noreferrer">Discord</a> for updates and discussions! 
 
+## Getting started with a coding agent
+
+EDSL includes the `ep` command-line interface, which is designed for agent workflows: commands return a JSON status envelope, and completed runs can be saved as `.ep` packages.
+
+### Copyable setup
+
+Copy and run these commands in the environment the agent will use. `ep auth login` opens the browser-based sign-in flow; `ep auth status` checks the result.
+
+```bash
+pip install edsl
+ep --help
+ep info
+ep auth login
+ep auth status
+```
+
+For language model access, configure either an Expected Parrot key or provider keys as described in the [API keys guide](https://docs.expectedparrot.com/en/latest/api_keys.html). Do not paste secrets into prompts, source files, or command history.
+
+### Find guidance and build
+
+Find guidance in the [EDSL documentation](https://docs.expectedparrot.com) using its search box. For exact CLI flags, ask the installed CLI with `ep <command> --help`. To inspect object and question formats, use `ep schema list` and `ep schema show --class Survey` or `ep schema show --question_type free_text`.
+
+Have the agent validate inputs before running them, save completed runs to a file, and inspect the saved results. For example:
+
+```bash
+ep validate --file jobs.ep
+ep run jobs.ep --output results.ep
+ep results columns --file results.ep
+ep results select --file results.ep --column "answer.*" --limit 5
+```
+
+Remote runs use Expected Parrot / Coop credentials; local runs can use `ep run jobs.ep --local --output results.ep` with the required provider credentials configured. Check each command's JSON `status` and `warnings` before proceeding.
+
 ## Code & Docs
 - <a href="https://github.com/expectedparrot/edsl" target="_blank" rel="noopener noreferrer">GitHub</a>
 - <a href="https://pypi.org/project/edsl/" target="_blank" rel="noopener noreferrer">PyPI</a>
