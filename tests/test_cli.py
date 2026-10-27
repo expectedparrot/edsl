@@ -5301,6 +5301,37 @@ class TestHumanizeCli:
         assert (rows[4]["text"], rows[5]["status"], rows[5]["ended"]) == ("two", "interrupted", "stopped")
         assert [r["position"] for r in rows] == list(range(6))
 
+    def test_conversations_put_an_edit_whose_fill_was_lost_before_its_undo(self):
+        from edsl.coop.human_survey_conversations import AssistantConversations
+
+        trace = self._trace
+        started = "2026-10-26T14:00:00Z"
+        rows = AssistantConversations.build(
+            [
+                trace("chat.message_sent", "r1", "s1", started, 0, turn="t1"),
+                # The batch with e1's assistant.edit_applied was lost; its Undo arrived.
+                trace("assistant.edit_undone", "r1", "s1", started, 2, edit="e1"),
+                trace("chat.reply_ended", "r1", "s1", started, 3, turn="t1"),
+            ],
+            [
+                self._message("t1", "r1", "respondent_message", text="fill it"),
+                self._message("t1", "r1", "assistant_text", text="Done.", status="complete"),
+            ],
+            [
+                self._edit("e1", "t1", "r1", "sent", outcome="undone"),
+                self._edit("e2", "t1", "r1", "sent", outcome="sent"),
+            ],
+        )
+
+        assert [(r["kind"], r.get("edit"), r.get("outcome"), r["placed"]) for r in rows] == [
+            ("message", None, None, "trace"),
+            ("assistant_edit", "e1", "applied", "after_message"),
+            ("edit_undone", "e1", None, "trace"),
+            # Never reported at all: after the edits that followed the message.
+            ("assistant_edit", "e2", "sent", "after_message"),
+            ("reply", None, None, "trace"),
+        ]
+
     def test_humanize_assistant_conversations_for_one_response(self, monkeypatch):
         _, calls = self._conversation_coop(monkeypatch)
 

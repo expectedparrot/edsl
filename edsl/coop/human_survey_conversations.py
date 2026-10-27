@@ -290,7 +290,9 @@ class AssistantConversations:
           has that (``before_reply``), else at the end (``end``);
         - edits the browser never reported, and its reply if the trace has no ending,
           after the message and the edits that followed it (``after_message``, or
-          ``end`` when the message was placed there too);
+          ``end`` when the message was placed there too). An edit whose Undo is in
+          the trace goes just before its Undo, as ``applied``: the fill was lost,
+          but the form took it;
         - its rejected edits just before its reply (``before_reply``).
         """
         source = turn.message or turn.last or (turn.sent + turn.rejected)[0]
@@ -340,8 +342,17 @@ class AssistantConversations:
         for edit in turn.sent:
             if edit["edit"] in reported:
                 continue
+            undone_at = next(
+                (
+                    i
+                    for i, row in enumerate(rows)
+                    if row["kind"] == "edit_undone" and row["edit"] == edit["edit"]
+                ),
+                None,
+            )
+            at = insert if undone_at is None else min(insert, undone_at)
             rows.insert(
-                insert,
+                at,
                 {
                     **base,
                     "kind": "assistant_edit",
@@ -353,13 +364,14 @@ class AssistantConversations:
                     "value": edit["value"],
                     "draft_type": edit["draft_type"],
                     "draft_version": edit["draft_version"],
-                    # The browser never said what the form did with it.
-                    "outcome": "sent",
+                    # Undone, so the form took it; otherwise the browser never
+                    # said what the form did with it.
+                    "outcome": "sent" if undone_at is None else "applied",
                     "reason": None,
                     "draft_write": None,
                 },
             )
-            if reply_at is not None and reply_at >= insert:
+            if reply_at is not None and reply_at >= at:
                 reply_at += 1
             insert += 1
 

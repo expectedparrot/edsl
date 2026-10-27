@@ -256,7 +256,7 @@ Each kind adds:
 | `answer` | A save of an answer the respondent typed: `question`, `value`, `draft_type`, `draft_version`, `saved` (what closed it, the trace's `closed_by`: such as `left_field`, `message_sent` or `interval`, a pause in typing), `changes`, `draft_write`, `value_omitted`, `chars`, as on the trace's `form.edited` |
 | `message` | `text`, what the respondent sent; `None` until its turn is listed |
 | `message_refused` | `refused`: why a message was turned away |
-| `assistant_edit` | An answer the assistant filled: `edit`, `question`, `value`, `draft_type`, `draft_version`, `outcome` (`applied`, `skipped` with a `reason`, or `sent` when the respondent's browser never said), `draft_write` |
+| `assistant_edit` | An answer the assistant filled: `edit`, `question`, `value`, `draft_type`, `draft_version`, `outcome` (`applied`, `skipped` with a `reason`, or `sent` when the respondent's browser never said), `draft_write`. One placed by its turn just before its own `edit_undone` is `applied`: the record of the fill was lost, but the Undo shows the form took it. |
 | `edit_undone` | The respondent pressed Undo: `edit`, `question`, and the `value` the answer went back to |
 | `edit_rejected` | An answer the assistant asked to fill that was refused: `edit`, `question`, `value`, `draft_type`, `draft_version`, `rejection`. It never showed in the chat. |
 | `reply` | `text`; `status`: `complete`, `interrupted` (stopped, the text what had arrived) or `failed`; `ended`, how the respondent saw it end (`complete`, `stopped`, `dropped`, `refused` and so on), or `None` if their browser never said; `error_kind`; `notice`, what a failed reply told them |
