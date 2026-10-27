@@ -49,7 +49,7 @@ class QuestionAnswerValidationError(QuestionErrors):
     """
 
     documentation = (
-        "https://docs.expectedparrot.com/en/latest/questions#validation"
+        "https://docs.expectedparrot.com/en/latest/questions#construct-questions"
     )
 
     explanation = """
@@ -204,7 +204,7 @@ class QuestionInitializationError(QuestionErrors):
     """
 
     documentation = (
-        "https://docs.expectedparrot.com/en/latest/questions#initialization"
+        "https://docs.expectedparrot.com/en/latest/questions#names-inputs-and-instructions"
     )
 
     def __init__(

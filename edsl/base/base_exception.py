@@ -36,7 +36,7 @@ class BaseException(Exception):
         base_url = "https://docs.expectedparrot.com/en/latest/"
 
         if cls.doc_page:
-            url = f"{base_url}{cls.doc_page}.html"
+            url = f"{base_url}{cls.doc_page}"
             if cls.doc_anchor:
                 url = f"{url}#{cls.doc_anchor}"
             return url

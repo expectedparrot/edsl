@@ -43,7 +43,7 @@ class InferenceServiceIntendedError(InferenceServiceError):
 
     """
 
-    relevant_doc = "https://docs.expectedparrot.com/en/latest/language_models#model-parameters"
+    relevant_doc = "https://docs.expectedparrot.com/en/latest/guides/providers"
 
 
 class InferenceServiceValueError(InferenceServiceError):
@@ -67,7 +67,7 @@ class InferenceServiceValueError(InferenceServiceError):
         ```
     """
 
-    relevant_doc = "https://docs.expectedparrot.com/en/latest/language_models#model-parameters"
+    relevant_doc = "https://docs.expectedparrot.com/en/latest/guides/providers"
 
 
 class InferenceServiceIndexError(InferenceServiceError):
@@ -86,7 +86,7 @@ class InferenceServiceIndexError(InferenceServiceError):
         ```
     """
 
-    relevant_doc = "https://docs.expectedparrot.com/en/latest/language_models#available-models"
+    relevant_doc = "https://docs.expectedparrot.com/en/latest/language_models#discover-and-select-models"
 
 
 class InferenceServiceNotImplementedError(InferenceServiceError):
@@ -107,7 +107,7 @@ class InferenceServiceNotImplementedError(InferenceServiceError):
         ```
     """
 
-    relevant_doc = "https://docs.expectedparrot.com/en/latest/language_models#available-models"
+    relevant_doc = "https://docs.expectedparrot.com/en/latest/language_models#discover-and-select-models"
 
 
 class InferenceServiceRuntimeError(InferenceServiceError):
