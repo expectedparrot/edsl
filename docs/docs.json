@@ -77,6 +77,7 @@
           "en/latest/prolific",
           "en/latest/humanize_groups",
           "en/latest/humanize_schema",
+          "en/latest/humanize_assistant",
           "en/latest/humanize_notifications",
           "en/latest/humanize_agent_access",
           "en/latest/custom_css",

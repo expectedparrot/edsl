@@ -134,10 +134,9 @@ from edsl import Coop
 coop = Coop()
 
 events = coop.get_all_human_survey_events("your-human-survey-uuid")
-respondent_events = [e for e in events if not e["is_preview"]]
 ```
 
-Events from preview links are included and marked `is_preview`, so leave them out of an analysis. Events that arrive while the download runs are included, and no event comes back twice.
+Events from preview links are left out. To check a script while you build it, pass `include_previews=True` to get them too, each marked `is_preview`. Events that arrive while the download runs are included, and no event comes back twice.
 
 For the timing example above, turn the matching events into a table:
 
@@ -148,7 +147,7 @@ timings = ScenarioList.from_list_of_dicts([
     {"response_uuid": event["response_uuid"],
      "session_uuid": event["log_session_uuid"],
      "first_answer_ms": event["payload"]["ms"]}
-    for event in respondent_events
+    for event in events
     if event["event_name"] == "first_answer" and event["question_name"] == "choice"
 ])
 timings
@@ -156,7 +155,7 @@ timings
 
 Match `response_uuid` to `agent.response_uuid` in the [human response data](/en/latest/humanize#retrieving-responses) to examine timing alongside choices. A participant can reopen the survey and create another session, so inspect repeated response identifiers before treating the timing table as one row per participant.
 
-To fetch new events later without downloading everything again, pass the `id` of the last event you downloaded as `after`. Take it from the full download, before filtering out previews:
+To fetch new events later without downloading everything again, pass the `id` of the last event you downloaded as `after`, with the same `include_previews`:
 
 ```python
 last_id = events[-1]["id"] if events else None
@@ -169,9 +168,9 @@ new_events = coop.get_all_human_survey_events(
 Fetching only new events is useful for checking your scripts while a survey is collecting, but it can occasionally miss an event that was still being saved when you downloaded. For analysis, download the full log once fielding has ended, at least an hour after the last response.
 </Note>
 
-To fetch one batch at a time, use `Coop.get_human_survey_events`. It takes `after` and `limit` (at most 200, the default), and returns `{"events", "next_cursor", "has_more"}`. Pass `next_cursor` as `after` to get the next batch while `has_more` is `True`. `next_cursor` is returned even when there is nothing more, so you can keep it and use it later.
+To fetch one batch at a time, use `Coop.get_human_survey_events`. It takes `after`, `limit` (at most 200, the default) and `include_previews`, and returns `{"events", "next_cursor", "has_more"}`. Pass `next_cursor` as `after` to get the next batch while `has_more` is `True`. `next_cursor` is returned even when there is nothing more, so you can keep it and use it later.
 
-To see how many events a survey has without downloading them, use `Coop.count_human_survey_events`. The count is as of the call; on a survey still collecting, a download started afterwards can return more.
+To see how many events a survey has without downloading them, use `Coop.count_human_survey_events`. It takes `include_previews` too. The count is as of the call; on a survey still collecting, a download started afterwards can return more.
 
 Each event includes:
 
