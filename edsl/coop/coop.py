@@ -4010,7 +4010,7 @@ class Coop(CoopFunctionsMixin):
         whether the form took the assistant's edits, and events that could not be
         recorded, with why. Each row's ``type`` says which, and decides its other fields. Rows
         come in the order they were received, not the order they happened: sort a
-        response's rows by ``session``, then ``seq``, for that. Rows from preview
+        response's rows by ``session_started_at``, then ``seq``, for that. Rows from preview
         links are left out unless ``include_previews`` is
         true; each row says whether it came from one (``is_preview``).
 
@@ -4089,7 +4089,7 @@ class Coop(CoopFunctionsMixin):
     ) -> List[dict]:
         """
         Get a human survey's whole interaction trace, in the order the rows were
-        received. Sort a response's rows by ``session``, then ``seq``, for the order
+        received. Sort a response's rows by ``session_started_at``, then ``seq``, for the order
         they happened.
 
         Rows that arrive while this runs are included, and none comes back twice.
@@ -4938,113 +4938,71 @@ class Coop(CoopFunctionsMixin):
             for row in batch["messages"]
         ]
 
-    def get_all_human_survey_assistant_transcripts(
+    def get_all_human_survey_assistant_conversations(
         self,
         human_survey_uuid: Union[str, UUID],
         *,
         response_uuid: Optional[Union[str, UUID]] = None,
         include_previews: bool = False,
-        include_edits: bool = True,
     ) -> List[dict]:
         """
-        Get every AI assistant conversation of a human survey as transcripts: the
-        rows of ``get_all_human_survey_assistant_messages``, grouped by response,
-        with the assistant's edits joined in. Respondents' own edits aren't
-        included: they're in the interaction trace.
+        Get each respondent's survey with the AI assistant as the owner's page
+        shows it: the chat, the assistant's edits and everything the respondent did,
+        in one order, one row per thing that happened.
 
-        Responses come in the order their first turn ended; each response's rows
-        come in the order they happened, by turn, then ``seq``. With
-        ``include_edits``, each ``edit_receipt`` also carries its edit's ``value``,
-        ``draft_type``, ``draft_version``, ``outcome`` and ``reason``, and each edit
-        the server refused is a ``rejected_edit`` row, with its ``rejection``, at
-        the end of its turn. A rejected edit never showed in the chat, so its
-        ``seq`` is null. Rows from preview links are left out unless
-        ``include_previews`` is true.
+        Every row has ``response_uuid``, ``is_preview``, ``position`` (its place in
+        the response's rows, from 0), ``kind``, ``at``, ``page_id``, ``turn``,
+        ``session`` and ``seq`` (the trace row it came from) and ``placed``. Each
+        ``kind`` adds its own fields:
+
+        - ``page_shown``, ``page_submitted``: ``page_key``.
+        - ``answer``: the respondent's own edit, each save of it: ``question``,
+          ``value``, ``draft_type``, ``draft_version``, ``saved`` (what closed it),
+          ``changes``, ``draft_write``, ``value_omitted``, ``chars``.
+        - ``message``: ``text``. ``message_refused``: ``refused``.
+        - ``assistant_edit``: an answer the assistant filled: ``edit``,
+          ``question``, ``value``, ``draft_type``, ``draft_version``, ``outcome``
+          (``applied``, ``skipped``, or ``sent`` when the browser never reported),
+          ``reason``, ``draft_write``. ``edit_undone``: ``edit``, ``question``,
+          ``value``.
+        - ``edit_rejected``: one the server refused: ``edit``, ``question``,
+          ``value``, ``draft_type``, ``draft_version``, ``rejection``.
+        - ``reply``: ``text``, ``status`` (``complete``, ``interrupted``,
+          ``failed``), ``ended`` (how the respondent saw it end), ``error_kind``,
+          ``notice`` (what a failed reply told them).
+        - ``not_recorded``: an event that couldn't be recorded: ``question``,
+          ``rejected_type``, ``reason``, ``chars``.
+
+        The interaction trace gives the order, by when each session began, then
+        ``seq``. What it lacks is placed by its turn: ``placed`` is ``trace``, or
+        ``after_message``, ``before_reply`` or ``end``. ``at`` is the respondent's
+        clock on rows from the trace and Expected Parrot's on the rest. While a
+        response is live, placed rows can move once the trace arrives.
+
+        Responses come in the order their first session began. Rows from preview
+        links are left out unless ``include_previews`` is true.
 
         Parameters:
             human_survey_uuid: UUID of the human survey.
-            response_uuid: Return only this response's transcript.
+            response_uuid: Return only this response's rows.
             include_previews: Also return rows from preview links, each marked
                 ``is_preview``.
-            include_edits: Join the assistant's edits from each turn into its rows.
 
         Returns:
             list[dict]: One dict per row.
 
         Example:
-            >>> rows = coop.get_all_human_survey_assistant_transcripts("your-human-survey-uuid")  # doctest: +SKIP
+            >>> rows = coop.get_all_human_survey_assistant_conversations("your-human-survey-uuid")  # doctest: +SKIP
         """
-        messages = self.get_all_human_survey_assistant_messages(
-            human_survey_uuid,
-            response_uuid=response_uuid,
-            include_previews=include_previews,
-        )
-        # Fetched second, so every turn in the conversation has its edits listed.
-        edits = (
-            self.get_all_human_survey_assistant_edits(
-                human_survey_uuid,
-                response_uuid=response_uuid,
-                include_previews=include_previews,
-            )
-            if include_edits
-            else None
-        )
-        return self._join_human_survey_assistant_transcripts(messages, edits)
+        from .human_survey_conversations import AssistantConversations
 
-    @staticmethod
-    def _join_human_survey_assistant_transcripts(
-        messages: List[dict], edits: Optional[List[dict]]
-    ) -> List[dict]:
-        """Group message rows by response, keeping each turn's rows together and in
-        order, and with ``edits``, join each receipt to its edit and end each turn
-        with its rejected edits."""
-        by_edit = {edit["edit"]: edit for edit in edits or []}
-        rejected: Dict[str, List[dict]] = {}
-        for edit in edits or []:
-            if edit["server_outcome"] == "rejected":
-                rejected.setdefault(edit["turn"], []).append(edit)
-        turns: Dict[str, List[dict]] = {}
-        for row in messages:
-            if row["kind"] == "edit_receipt" and row["edit"] in by_edit:
-                edit = by_edit[row["edit"]]
-                row = {
-                    **row,
-                    **{
-                        key: edit[key]
-                        for key in (
-                            "value",
-                            "draft_type",
-                            "draft_version",
-                            "outcome",
-                            "reason",
-                        )
-                    },
-                }
-            turns.setdefault(row["turn"], []).append(row)
-        responses: Dict[str, List[dict]] = {}
-        for turn, rows in turns.items():
-            first = rows[0]
-            for edit in rejected.get(turn, []):
-                rows.append(
-                    {
-                        "kind": "rejected_edit",
-                        "turn": turn,
-                        "thread": first["thread"],
-                        "response_uuid": first["response_uuid"],
-                        "is_preview": first["is_preview"],
-                        "page_id": first["page_id"],
-                        "seq": None,
-                        "at": edit["at"],
-                        "edit": edit["edit"],
-                        "question": edit["question"],
-                        "value": edit["value"],
-                        "draft_type": edit["draft_type"],
-                        "draft_version": edit["draft_version"],
-                        "rejection": edit["rejection"],
-                    }
-                )
-            responses.setdefault(first["response_uuid"], []).extend(rows)
-        return [row for rows in responses.values() for row in rows]
+        filters = {"response_uuid": response_uuid, "include_previews": include_previews}
+        # The trace first, so every turn it names is listed in the others, or soon
+        # will be.
+        interactions = self.get_all_human_survey_interactions(human_survey_uuid, **filters)
+        messages = self.get_all_human_survey_assistant_messages(human_survey_uuid, **filters)
+        edits = self.get_all_human_survey_assistant_edits(human_survey_uuid, **filters)
+        return AssistantConversations.build(interactions, messages, edits)
 
     def get_human_survey_assistant_url(
         self, human_survey_uuid: Union[str, UUID]

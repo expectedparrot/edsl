@@ -813,7 +813,7 @@ def register(humanize: click.Group) -> None:
     def humanize_interactions(human_survey_uuid, after, limit, response_uuid, fetch_all, output_path, count_only, include_previews):
         """Get a survey's interaction trace, in the order rows were received: what
         respondents did on a survey with the AI assistant on. Sort a response's rows
-        by session, then seq, for the order they happened.
+        by session_started_at, then seq, for the order they happened.
 
         Rows from preview links are left out unless --include-previews. Each result
         carries next_cursor: pass it back as --after, with the same filters, to get
@@ -886,14 +886,14 @@ def register(humanize: click.Group) -> None:
 
         \b
         Examples:
-          ep humanize assistant transcripts <uuid> --output transcripts.jsonl
+          ep humanize assistant conversations <uuid> --output conversations.jsonl
           ep humanize assistant messages <uuid> --all --output messages.jsonl
           ep humanize assistant turns <uuid> --all --output turns.jsonl
           ep humanize assistant edits <uuid> --turn <turn-uuid>
         """
         if ctx.invoked_subcommand is None:
             output({
-                "commands": ["summary", "transcripts", "threads", "messages", "turns", "edits", "pages", "configs"],
+                "commands": ["summary", "conversations", "threads", "messages", "turns", "edits", "pages", "configs"],
                 "help": "Use 'ep humanize assistant <command> --help' for details.",
             })
 
@@ -1143,26 +1143,24 @@ def register(humanize: click.Group) -> None:
                 exit_code=EXIT_REMOTE,
             )
 
-    @humanize_assistant.command("transcripts")
+    @humanize_assistant.command("conversations")
     @click.argument("human_survey_uuid")
-    @click.option("--response", "response_uuid", default=None, help="Only this response's transcript.")
-    @click.option("--no-edits", "no_edits", is_flag=True, default=False, help="Leave the assistant's edits out: receipts name the question only, and rejected edits aren't listed.")
+    @click.option("--response", "response_uuid", default=None, help="Only this response's rows.")
     @click.option("--output", "-o", "output_path", default=None, type=click.Path(dir_okay=False), help="Save rows to a .json or .jsonl file. Required unless --response.")
     @click.option("--include-previews", is_flag=True, default=False, help="Also include rows from preview links, each marked is_preview.")
-    def humanize_assistant_transcripts(human_survey_uuid, response_uuid, no_edits, output_path, include_previews):
-        """Get a survey's AI assistant conversations as transcripts: each
-        response's messages together and in order, with what each of the
-        assistant's edits filled and whether the form took it.
+    def humanize_assistant_conversations(human_survey_uuid, response_uuid, output_path, include_previews):
+        """Get each respondent's survey with the AI assistant as the owner's page
+        shows it: the chat, the assistant's edits and everything the respondent
+        did, in one order, one row per thing that happened.
 
-        Rejected edits come at the end of their turn, with no seq: they never
-        showed in the chat. Respondents' own edits aren't included: they're in
-        the interaction trace. Rows from preview links are left out unless
+        Rows are grouped by response, in position order; each row's kind decides
+        its fields. Rows from preview links are left out unless
         --include-previews.
 
         \b
         Examples:
-          ep humanize assistant transcripts <uuid> --output transcripts.jsonl
-          ep humanize assistant transcripts <uuid> --response <response-uuid>
+          ep humanize assistant conversations <uuid> --output conversations.jsonl
+          ep humanize assistant conversations <uuid> --response <response-uuid>
         """
         # Rows hold what respondents wrote, so a whole survey goes to a file rather
         # than the terminal.
@@ -1172,17 +1170,16 @@ def register(humanize: click.Group) -> None:
         try:
             from edsl.coop import Coop
 
-            rows = Coop().get_all_human_survey_assistant_transcripts(
+            rows = Coop().get_all_human_survey_assistant_conversations(
                 human_survey_uuid,
                 response_uuid=response_uuid,
                 include_previews=include_previews,
-                include_edits=not no_edits,
             )
             if not output_path:
-                output(jsonable({"transcripts": rows}))
+                output(jsonable({"conversations": rows}))
                 return
             row_count, _ = _stream_events_to_file(
-                [{"transcripts": rows}], output_path, file_format, key="transcripts"
+                [{"conversations": rows}], output_path, file_format, key="conversations"
             )
             output({
                 "human_survey_uuid": human_survey_uuid,

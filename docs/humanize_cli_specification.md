@@ -672,8 +672,8 @@ part way leaves any existing file untouched and no partial one.
 Get a survey's interaction trace: one row per page shown or submitted, answer edited,
 message sent to the assistant, reply ended, assistant edit applied, undone or skipped,
 and event that could not be recorded. Recorded on surveys with the assistant on. Rows
-come in the order they were received; sort a response's rows by `session`, then `seq`,
-for the order they happened. Rows from preview links are left out unless
+come in the order they were received; sort a response's rows by `session_started_at`,
+then `seq`, for the order they happened. Rows from preview links are left out unless
 `--include-previews`, and then marked `is_preview`.
 
 Backs onto:
@@ -768,33 +768,32 @@ Flags: as `edsl humanize assistant turns`, with `--after` taking a config id and
 envelope is `{"configs", "next_cursor", "has_more"}`, or with `--output`, `saved_to`,
 `format`, `config_count`, `next_cursor` and `has_more`.
 
-### `edsl humanize assistant transcripts <human_survey_uuid>`
+### `edsl humanize assistant conversations <human_survey_uuid>`
 
-Get a survey's assistant conversations as transcripts: the rows of `edsl humanize
-assistant messages`, grouped by response (responses in the order their first turn
-ended, each one's rows by turn, then `seq`). Each `edit_receipt` also carries its
-edit's `value`, `draft_type`, `draft_version`, `outcome` and `reason`, and each
-rejected edit is a `rejected_edit` row at the end of its turn, with `seq` null. Only
-the assistant's edits are joined; respondents' own edits are in `edsl humanize
-interactions`. Rows from preview links are left out unless `--include-previews`.
+Get each respondent's survey with the assistant as the owner's Assistant tab shows
+it: one row per thing that happened, the chat, the assistant's edits and the
+respondent's own steps together. Built from `edsl humanize interactions`, which gives
+the order (by `session_started_at`, then `seq`), with the text from `edsl humanize
+assistant messages` and the rejected and unreported edits from `edsl humanize
+assistant edits`; what the trace lacks is placed by its turn (`placed`). Responses
+come in the order their first session began, each one's rows by `position`. Rows from
+preview links are left out unless `--include-previews`.
 
 Backs onto:
 
 ```python
-Coop().get_all_human_survey_assistant_transcripts(human_survey_uuid, response_uuid=response_uuid, include_previews=include_previews, include_edits=not no_edits)
+Coop().get_all_human_survey_assistant_conversations(human_survey_uuid, response_uuid=response_uuid, include_previews=include_previews)
 ```
 
 Flags:
 
-- `--response <response_uuid>`: only this response's transcript.
-- `--no-edits`: leave the assistant's edits out; receipts keep only `edit` and
-  `question`.
+- `--response <response_uuid>`: only this response's rows.
 - `--output`, `-o <path>`: write rows to a `.json` or `.jsonl` file. Required unless
   `--response`, as rows hold what respondents wrote.
 - `--include-previews`: also include rows from preview links.
 
 No cursor: each run covers the whole survey, or the one response. The envelope is
-`{"transcripts"}`, or with `--output`, `saved_to`, `format` and `row_count`.
+`{"conversations"}`, or with `--output`, `saved_to`, `format` and `row_count`.
 
 ### `edsl humanize assistant messages <human_survey_uuid>`
 

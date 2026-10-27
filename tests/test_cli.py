@@ -5113,36 +5113,83 @@ class TestHumanizeCli:
         monkeypatch.setattr(edsl.coop, "Coop", FakeCoop)
         return turns, edits, messages, calls
 
-    def _transcript_coop(self, monkeypatch):
-        """A Coop holding two responses' conversations: the first's two turns
-        ended either side of the second's one, and its first turn has a receipt
-        and a rejected edit."""
+    @staticmethod
+    def _trace(type, response, session, started, seq, **fields):
+        """An interaction row, with every field its type has."""
+        own = {
+            "page.shown": {"page_key": "p"},
+            "page.submitted": {"page_key": "p"},
+            "form.edited": {
+                "question": "q", "value": "v", "draft_type": "free_text",
+                "draft_version": 1, "closed_by": "blur", "change_count": 1,
+                "draft_write": "applied", "value_omitted": False, "chars": None,
+            },
+            "chat.message_sent": {"turn": None, "refused": None},
+            "chat.reply_ended": {"turn": None, "status": "complete", "error_kind": None},
+            "assistant.edit_applied": {
+                "edit": None, "question": "q", "value": "v", "draft_type": "free_text",
+                "draft_version": 1, "draft_write": "applied",
+            },
+            "assistant.edit_undone": {"edit": None, "question": "q", "value": "v"},
+        }[type]
+        return {
+            "type": type, "response_uuid": response, "is_preview": False,
+            "page_id": "p1", "session": session, "session_started_at": started,
+            "seq": seq, "at": f"2026-10-26T14:00:{seq:02d}Z", **own, **fields,
+        }
+
+    @staticmethod
+    def _message(turn, response, kind, **fields):
+        return {
+            "kind": kind, "turn": turn, "thread": f"th-{response}",
+            "response_uuid": response, "is_preview": False, "page_id": "p1",
+            "seq": 0, "at": "2026-10-26T14:01:00Z", **fields,
+        }
+
+    @staticmethod
+    def _edit(edit, turn, response, server_outcome, **fields):
+        return {
+            "edit": edit, "turn": turn, "response_uuid": response, "is_preview": False,
+            "page_id": "p1", "question": "q", "value": "v", "draft_type": "free_text",
+            "draft_version": 1, "server_outcome": server_outcome, "rejection": None,
+            "outcome": "applied" if server_outcome == "sent" else None, "reason": None,
+            "at": "2026-10-26T14:01:00Z", **fields,
+        }
+
+    def _conversation_coop(self, monkeypatch):
+        """A Coop holding two responses. The first was opened twice, its second
+        visit's rows received first; its one turn filled one answer and was refused
+        another. The second has no trace: its turn's message, an edit its browser
+        never reported, and its reply."""
         import edsl.coop
         from edsl.coop.coop import Coop as RealCoop
 
-        def row(turn, response, seq, kind, **fields):
-            return {
-                "kind": kind, "turn": turn, "thread": f"th-{response}",
-                "response_uuid": response, "is_preview": False, "page_id": "p1",
-                "seq": seq, "at": "2026-10-26T14:00:00Z", **fields,
-            }
-
+        trace, msg, edit = self._trace, self._message, self._edit
+        first, second = "2026-10-26T14:00:00Z", "2026-10-26T14:05:00Z"
+        interactions = [
+            trace("page.shown", "r1", "s2", second, 0),
+            trace("page.submitted", "r1", "s2", second, 1),
+            trace("page.shown", "r1", "s1", first, 0),
+            trace("form.edited", "r1", "s1", first, 1, question="job", value="Mana",
+                  closed_by="interval"),
+            trace("chat.message_sent", "r1", "s1", first, 2, turn="t1"),
+            trace("assistant.edit_applied", "r1", "s1", first, 3, edit="e1",
+                  question="job", value="Manager"),
+            trace("chat.reply_ended", "r1", "s1", first, 4, turn="t1"),
+            trace("form.edited", "r1", "s1", first, 5, question="job", value="Lead"),
+        ]
         messages = [
-            row("t1", "r1", 0, "respondent_message", text="fill it"),
-            row("t1", "r1", 1, "edit_receipt", edit="e1", question="age"),
-            row("t1", "r1", 2, "assistant_text", text="Done.", status="complete"),
-            row("t2", "r2", 0, "respondent_message", text="hi"),
-            row("t3", "r1", 0, "respondent_message", text="thanks"),
+            msg("t2", "r2", "respondent_message", text="hi"),
+            msg("t2", "r2", "assistant_text", text="Hello.", status="complete"),
+            msg("t1", "r1", "respondent_message", text="I'm a manager"),
+            msg("t1", "r1", "edit_receipt", edit="e1", question="job"),
+            msg("t1", "r1", "assistant_text", text="Done.", status="complete"),
         ]
         edits = [
-            {"edit": "e1", "turn": "t1", "question": "age", "value": 34,
-             "draft_type": "number", "draft_version": 1, "server_outcome": "sent",
-             "rejection": None, "outcome": "undone", "reason": None,
-             "at": "2026-10-26T14:00:01Z"},
-            {"edit": "e2", "turn": "t1", "question": "employer", "value": "X",
-             "draft_type": None, "draft_version": None, "server_outcome": "rejected",
-             "rejection": {"reason": "unknown_question", "message": "No."},
-             "outcome": None, "reason": None, "at": "2026-10-26T14:00:01Z"},
+            edit("e1", "t1", "r1", "sent", question="job", value="Manager"),
+            edit("e2", "t1", "r1", "rejected", question="age",
+                 rejection={"reason": "not_fillable", "message": "No."}),
+            edit("e3", "t2", "r2", "sent", outcome="sent"),
         ]
         calls = []
 
@@ -5150,77 +5197,135 @@ class TestHumanizeCli:
             def __init__(self):
                 self.url = "https://example.test"
 
+            def get_all_human_survey_interactions(
+                self, human_survey_uuid, *, response_uuid=None, include_previews=False,
+            ):
+                calls.append(("interactions", response_uuid, include_previews))
+                return [dict(row) for row in interactions]
+
             def get_all_human_survey_assistant_messages(
                 self, human_survey_uuid, *, response_uuid=None, include_previews=False,
             ):
                 calls.append(("messages", response_uuid, include_previews))
-                return [dict(m) for m in messages]
+                return [dict(row) for row in messages]
 
             def get_all_human_survey_assistant_edits(
                 self, human_survey_uuid, *, response_uuid=None, include_previews=False,
             ):
                 calls.append(("edits", response_uuid, include_previews))
-                return edits
+                return [dict(row) for row in edits]
 
         monkeypatch.setattr(edsl.coop, "Coop", FakeCoop)
         return FakeCoop, calls
 
-    def test_humanize_assistant_transcripts_group_by_response_and_join_edits(
+    def test_humanize_assistant_conversations_put_the_trace_in_order_and_place_the_rest(
         self, tmp_path, monkeypatch
     ):
-        _, calls = self._transcript_coop(monkeypatch)
-        output_path = tmp_path / "transcripts.jsonl"
+        _, calls = self._conversation_coop(monkeypatch)
+        output_path = tmp_path / "conversations.jsonl"
 
         result = CliRunner().invoke(
             cli_module.app,
-            ["humanize", "assistant", "transcripts", "human-survey-uuid", "--output", str(output_path)],
+            ["humanize", "assistant", "conversations", "human-survey-uuid", "--output", str(output_path)],
         )
 
         assert result.exit_code == 0, result.output
-        assert json.loads(result.output)["data"]["row_count"] == 6
         rows = [json.loads(line) for line in output_path.read_text(encoding="utf-8").splitlines()]
-        # The first response's turns together, though the second's ended between.
-        assert [(r["turn"], r["kind"], r["seq"]) for r in rows] == [
-            ("t1", "respondent_message", 0),
-            ("t1", "edit_receipt", 1),
-            ("t1", "assistant_text", 2),
-            ("t1", "rejected_edit", None),
-            ("t3", "respondent_message", 0),
-            ("t2", "respondent_message", 0),
+        assert json.loads(result.output)["data"]["row_count"] == len(rows) == 12
+        assert [(r["response_uuid"], r["position"], r["kind"], r["placed"]) for r in rows] == [
+            # The first visit, then the second, though the second's rows came first.
+            ("r1", 0, "page_shown", "trace"),
+            ("r1", 1, "answer", "trace"),
+            ("r1", 2, "message", "trace"),
+            ("r1", 3, "assistant_edit", "trace"),
+            ("r1", 4, "edit_rejected", "before_reply"),
+            ("r1", 5, "reply", "trace"),
+            ("r1", 6, "answer", "trace"),
+            ("r1", 7, "page_shown", "trace"),
+            ("r1", 8, "page_submitted", "trace"),
+            # No trace: placed by its turn, after the response that has one.
+            ("r2", 0, "message", "end"),
+            ("r2", 1, "assistant_edit", "end"),
+            ("r2", 2, "reply", "end"),
         ]
-        assert (rows[1]["value"], rows[1]["outcome"]) == (34, "undone")
-        assert (rows[3]["question"], rows[3]["rejection"]["reason"], rows[3]["thread"]) == (
-            "employer", "unknown_question", "th-r1",
-        )
-        assert calls == [("messages", None, False), ("edits", None, False)]
+        answer, message, filled, rejected, reply, typed = rows[1:7]
+        assert (answer["value"], answer["saved"], answer["turn"]) == ("Mana", "interval", None)
+        assert (message["text"], message["turn"], message["seq"]) == ("I'm a manager", "t1", 2)
+        assert (filled["value"], filled["outcome"], filled["turn"]) == ("Manager", "applied", "t1")
+        assert (rejected["question"], rejected["rejection"]["reason"]) == ("age", "not_fillable")
+        assert (reply["text"], reply["status"], reply["ended"]) == ("Done.", "complete", "complete")
+        assert typed["value"] == "Lead"
+        assert (rows[10]["outcome"], rows[10]["session"], rows[11]["text"]) == ("sent", None, "Hello.")
+        # Every row of a kind has the same fields, filled or not.
+        assert set(rows[1]) == set(rows[6])
+        assert calls == [
+            ("interactions", None, False),
+            ("messages", None, False),
+            ("edits", None, False),
+        ]
 
-    def test_humanize_assistant_transcripts_without_edits(self, monkeypatch):
-        _, calls = self._transcript_coop(monkeypatch)
+    def test_conversations_place_what_a_closed_tab_or_lost_batch_left_out(self):
+        from edsl.coop.human_survey_conversations import AssistantConversations
+
+        trace, msg = self._trace, self._message
+        started = "2026-10-26T14:00:00Z"
+        rows = AssistantConversations.build(
+            [
+                # t1's tab closed before its reply ended.
+                trace("chat.message_sent", "r1", "s1", started, 0, turn="t1"),
+                trace("assistant.edit_applied", "r1", "s1", started, 1, edit="e1"),
+                trace("form.edited", "r1", "s1", started, 2),
+                # t2's message was in a batch that never arrived.
+                trace("chat.reply_ended", "r1", "s1", started, 3, turn="t2",
+                      status="stopped"),
+            ],
+            [
+                msg("t1", "r1", "respondent_message", text="one"),
+                msg("t1", "r1", "assistant_text", text="First.", status="complete"),
+                msg("t2", "r1", "respondent_message", text="two"),
+                msg("t2", "r1", "assistant_text", text="Sec", status="interrupted"),
+            ],
+            [self._edit("e1", "t1", "r1", "sent")],
+        )
+
+        assert [(r["kind"], r["turn"], r["placed"]) for r in rows] == [
+            ("message", "t1", "trace"),
+            ("assistant_edit", "t1", "trace"),
+            # After the message and the edits that followed it.
+            ("reply", "t1", "after_message"),
+            ("answer", None, "trace"),
+            ("message", "t2", "before_reply"),
+            ("reply", "t2", "trace"),
+        ]
+        assert (rows[2]["text"], rows[2]["ended"]) == ("First.", None)
+        assert (rows[4]["text"], rows[5]["status"], rows[5]["ended"]) == ("two", "interrupted", "stopped")
+        assert [r["position"] for r in rows] == list(range(6))
+
+    def test_humanize_assistant_conversations_for_one_response(self, monkeypatch):
+        _, calls = self._conversation_coop(monkeypatch)
 
         result = CliRunner().invoke(
             cli_module.app,
-            ["humanize", "assistant", "transcripts", "human-survey-uuid", "--response", "r1", "--no-edits"],
+            ["humanize", "assistant", "conversations", "human-survey-uuid", "--response", "r1"],
         )
 
         assert result.exit_code == 0, result.output
-        rows = json.loads(result.output)["data"]["transcripts"]
-        assert "rejected_edit" not in [r["kind"] for r in rows]
-        assert "value" not in rows[1]
-        assert calls == [("messages", "r1", False)]
+        assert json.loads(result.output)["data"]["conversations"][0]["kind"] == "page_shown"
+        assert calls[0] == ("interactions", "r1", False)
 
-    def test_humanize_assistant_transcripts_requires_output_for_a_whole_survey(self, monkeypatch):
-        _, calls = self._transcript_coop(monkeypatch)
+    def test_humanize_assistant_conversations_requires_output_for_a_whole_survey(self, monkeypatch):
+        _, calls = self._conversation_coop(monkeypatch)
 
         result = CliRunner().invoke(
             cli_module.app,
-            ["humanize", "assistant", "transcripts", "human-survey-uuid"],
+            ["humanize", "assistant", "conversations", "human-survey-uuid"],
         )
 
         assert result.exit_code != 0
         assert calls == []
 
     def test_human_survey_assistant_url(self, monkeypatch):
-        FakeCoop, _ = self._transcript_coop(monkeypatch)
+        FakeCoop, _ = self._conversation_coop(monkeypatch)
 
         assert FakeCoop().get_human_survey_assistant_url("hs-1") == (
             "https://example.test/home/human-surveys/hs-1/events/assistant"
