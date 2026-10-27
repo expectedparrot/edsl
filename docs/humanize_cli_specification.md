@@ -799,7 +799,8 @@ No cursor: each run covers the whole survey, or the one response. The envelope i
 
 Get a survey's assistant conversations: one row per thing the chat showed, each turn's
 rows together and in order (`seq`). `kind` is `respondent_message`, `assistant_text`,
-`edit_receipt` or `notice` (a failed reply). Turns come in the order they ended, a few
+`edit_receipt` or `notice` (a failed reply); every row has `turn_status`, how the turn
+ended. Turns come in the order they ended, a few
 seconds after they end; one response's turns are in the order they were sent. Rows
 from preview links are left out unless `--include-previews`.
 

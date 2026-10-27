@@ -259,7 +259,7 @@ Each kind adds:
 | `assistant_edit` | An answer the assistant filled: `edit`, `question`, `value`, `draft_type`, `draft_version`, `outcome` (`applied`, `skipped` with a `reason`, or `sent` when the respondent's browser never said), `draft_write`. One placed by its turn just before its own `edit_undone` is `applied`: the record of the fill was lost, but the Undo shows the form took it. |
 | `edit_undone` | The respondent pressed Undo: `edit`, `question`, and the `value` the answer went back to |
 | `edit_rejected` | An answer the assistant asked to fill that was refused: `edit`, `question`, `value`, `draft_type`, `draft_version`, `rejection`. It never showed in the chat. |
-| `reply` | `text`; `status`: `complete`, `interrupted` (stopped, the text what had arrived) or `failed`; `ended`, how the respondent saw it end (`complete`, `stopped`, `dropped`, `refused` and so on), or `None` if their browser never said; `error_kind`; `notice`, what a failed reply told them |
+| `reply` | `text`; `status`, how the turn ended: `complete`, `interrupted` (stopped, or cut off before it finished, the text what had arrived) or `failed`; `ended`, how the respondent saw it end (`complete`, `stopped`, `dropped`, `refused` and so on), or `None` if their browser never said; `error_kind`; `notice`, what a failed reply told them |
 | `not_recorded` | An event that couldn't be recorded: `question`, `rejected_type`, `reason`, `chars` |
 
 Rows are things that happened, not answers' final states: an edit can be an `assistant_edit` row and later an `edit_undone` one. For each edit's final outcome, use the [edits download](#messages-turns-and-edits).
@@ -335,12 +335,12 @@ Across respondents, rows from different responses are interleaved. To line the c
 
 ### Message fields
 
-Every row has `kind`, `turn`, `thread` (the conversation), `response_uuid`, `is_preview`, `page_id`, `seq` (its place in the turn, from 0) and `at` (when it was recorded, ISO 8601, UTC). Then, by `kind`:
+Every row has `kind`, `turn`, `turn_status` (how the turn ended, as in the [turn fields](#turn-fields)), `thread` (the conversation), `response_uuid`, `is_preview`, `page_id`, `seq` (its place in the turn, from 0) and `at` (when it was recorded, ISO 8601, UTC). Then, by `kind`:
 
 | `kind` | Fields |
 |---|---|
 | `respondent_message` | `text`: the message as the respondent sent it |
-| `assistant_text` | `text`: the reply as the respondent read it. `status`: `complete`, or `interrupted` when the reply was stopped and this is what had arrived by then |
+| `assistant_text` | `text`: the reply as the respondent read it. `status`: `complete`, or `interrupted` when the reply was stopped and this is what had arrived by then. This is about the text only: a turn can be `interrupted` after all its text arrived, for instance when the page was submitted while the assistant was waiting to hear whether the form took its answers. `turn_status` says how the turn ended. |
 | `edit_receipt` | An answer the assistant filled, where it showed in the chat: `edit` and `question`. Its value and whether the form took it are in the edits download. |
 | `notice` | What the respondent was told when the reply failed: `text` and `error_kind`. The turn's `error` has the details. |
 

@@ -5139,10 +5139,11 @@ class TestHumanizeCli:
         }
 
     @staticmethod
-    def _message(turn, response, kind, **fields):
+    def _message(turn, response, kind, turn_status="complete", **fields):
         return {
             "kind": kind, "turn": turn, "thread": f"th-{response}",
-            "response_uuid": response, "is_preview": False, "page_id": "p1",
+            "turn_status": turn_status, "response_uuid": response,
+            "is_preview": False, "page_id": "p1",
             "seq": 0, "at": "2026-10-26T14:01:00Z", **fields,
         }
 
@@ -5282,8 +5283,10 @@ class TestHumanizeCli:
             [
                 msg("t1", "r1", "respondent_message", text="one"),
                 msg("t1", "r1", "assistant_text", text="First.", status="complete"),
-                msg("t2", "r1", "respondent_message", text="two"),
-                msg("t2", "r1", "assistant_text", text="Sec", status="interrupted"),
+                msg("t2", "r1", "respondent_message", text="two",
+                    turn_status="interrupted"),
+                msg("t2", "r1", "assistant_text", text="Sec", status="interrupted",
+                    turn_status="interrupted"),
             ],
             [self._edit("e1", "t1", "r1", "sent")],
         )
@@ -5314,8 +5317,11 @@ class TestHumanizeCli:
                 trace("chat.reply_ended", "r1", "s1", started, 3, turn="t1"),
             ],
             [
-                self._message("t1", "r1", "respondent_message", text="fill it"),
-                self._message("t1", "r1", "assistant_text", text="Done.", status="complete"),
+                # Closed while it waited on the browser: its text was all written.
+                self._message("t1", "r1", "respondent_message", text="fill it",
+                              turn_status="interrupted"),
+                self._message("t1", "r1", "assistant_text", text="Done.", status="complete",
+                              turn_status="interrupted"),
             ],
             [
                 self._edit("e1", "t1", "r1", "sent", outcome="undone"),
@@ -5331,6 +5337,8 @@ class TestHumanizeCli:
             ("assistant_edit", "e2", "sent", "after_message"),
             ("reply", None, None, "trace"),
         ]
+        # The turn's status, though its text was complete.
+        assert (rows[-1]["text"], rows[-1]["status"]) == ("Done.", "interrupted")
 
     def test_humanize_assistant_conversations_for_one_response(self, monkeypatch):
         _, calls = self._conversation_coop(monkeypatch)

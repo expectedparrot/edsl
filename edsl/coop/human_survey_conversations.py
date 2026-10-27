@@ -79,21 +79,16 @@ class _Turn:
         self.rejected: List[dict] = []
 
     def reply_fields(self) -> Dict[str, Any]:
-        """The reply's text and how the server finished it; nulls for a turn not
-        listed yet."""
+        """The reply's text and how the server finished the turn; nulls for a turn
+        not listed yet. The turn's status, not its text's: a turn closed while it
+        waited on the browser is ``interrupted`` though all its text was written."""
         if self.last is None:
             return {"text": None, "status": None, "notice": None, "error_kind": None}
-        if self.notice is not None:
-            status = "failed"
-        elif any(part["status"] == "interrupted" for part in self.texts):
-            status = "interrupted"
-        else:
-            status = "complete"
         return {
             "text": (
                 "".join(part["text"] for part in self.texts) if self.texts else None
             ),
-            "status": status,
+            "status": self.last["turn_status"],
             "notice": self.notice["text"] if self.notice else None,
             "error_kind": self.notice["error_kind"] if self.notice else None,
         }
