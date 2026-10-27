@@ -22,36 +22,29 @@ EDSL makes it easy to conduct computational social science and market research w
 
 ## Getting started with a coding agent
 
-EDSL includes the `ep` command-line interface, which is designed for agent workflows: commands return a JSON status envelope, and completed runs can be saved as `.ep` packages.
+EDSL includes the `ep` command-line interface for creating surveys, validating jobs, running them locally or through Expected Parrot / Coop, and inspecting saved results. Copy the instructions below into your coding agent. The fenced block is copyable in GitHub.
 
-### Copyable setup
+```text
+You are working in a project that uses EDSL (Expected Parrot's Python library) and its `ep` command-line interface. Help me create, validate, and, when requested, run EDSL surveys in this workspace.
 
-Copy and run these commands in the environment the agent will use. `ep auth login` opens the browser-based sign-in flow; `ep auth status` checks the result.
+SETUP
+- Check whether `ep` is installed with `ep --help` and `ep info`. If it is missing, install EDSL in the active Python environment with `pip install edsl`, then check again.
+- Read the command list in `ep --help`. Before using a command or guessing flags, read `ep <command> --help`.
+- For Expected Parrot / Coop remote services, check `ep auth status`. If login is needed, run `ep auth login`; it opens a browser-based sign-in flow and stores the key. If this environment cannot open a browser, tell me to complete login in an environment that can. Do not ask me to paste a secret into chat, put keys in source files, or expose keys in shell history.
+- EDSL model calls need model credentials. Use the Expected Parrot key for remote inference or configure a provider key for local inference. Follow https://docs.expectedparrot.com/en/latest/api_keys.html and keep credentials private.
 
-```bash
-pip install edsl
-ep --help
-ep info
-ep auth login
-ep auth status
+FIND DOCUMENTATION
+- Search https://docs.expectedparrot.com using its search box for concepts and examples relevant to the task.
+- Use `ep schema list` and `ep schema show --class Survey` or `ep schema show --question_type <type>` to inspect supported serialized formats. Use `ep validate --help` and other command help for current CLI behavior.
+- In this repository, search source and examples with `rg` when the docs do not answer a question.
+
+CREATE AND RUN A SURVEY
+- Prefer durable `.ep` packages for EDSL objects. Create or edit the survey and any agents, scenarios, and model choices needed for the task. Do not launch inference just because you created a survey.
+- Validate the survey or job before running it. For a Jobs file, use `ep validate --file jobs.ep`; fix validation errors before continuing.
+- When I ask you to run the job, estimate scope/cost when useful with `ep jobs cost jobs.ep`, then run it and save the results: `ep run jobs.ep --output results.ep`. Use `--local` when I request local inference and provider credentials are configured. Remote runs use Expected Parrot / Coop credentials.
+- Check each command's JSON `status` and `warnings`. Do not treat a command as successful based only on its exit code or diagnostic text.
+- Inspect saved results with `ep results columns --file results.ep` and a bounded sample such as `ep results select --file results.ep --column "answer.*" --limit 5`. Summarize what was created, how it ran, and where results were saved.
 ```
-
-For language model access, configure either an Expected Parrot key or provider keys as described in the [API keys guide](https://docs.expectedparrot.com/en/latest/api_keys.html). Do not paste secrets into prompts, source files, or command history.
-
-### Find guidance and build
-
-Find guidance in the [EDSL documentation](https://docs.expectedparrot.com) using its search box. For exact CLI flags, ask the installed CLI with `ep <command> --help`. To inspect object and question formats, use `ep schema list` and `ep schema show --class Survey` or `ep schema show --question_type free_text`.
-
-Have the agent validate inputs before running them, save completed runs to a file, and inspect the saved results. For example:
-
-```bash
-ep validate --file jobs.ep
-ep run jobs.ep --output results.ep
-ep results columns --file results.ep
-ep results select --file results.ep --column "answer.*" --limit 5
-```
-
-Remote runs use Expected Parrot / Coop credentials; local runs can use `ep run jobs.ep --local --output results.ep` with the required provider credentials configured. Check each command's JSON `status` and `warnings` before proceeding.
 
 ## Code & Docs
 - <a href="https://github.com/expectedparrot/edsl" target="_blank" rel="noopener noreferrer">GitHub</a>
