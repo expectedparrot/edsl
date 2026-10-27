@@ -705,6 +705,69 @@ the file and the envelope carries `saved_to`, `format`, `interaction_count`,
 The file is written as `edsl humanize events` writes its file: a batch at a time, to a
 private temporary file that replaces the output only once every batch has arrived.
 
+### `edsl humanize assistant summary <human_survey_uuid>`
+
+Get a survey's assistant data in numbers: respondents (responses, offered the
+assistant, chatted), turns (listed, pending, by status, replies the respondent saw
+stopped, dropped or refused, respondents with a failed reply), the assistant's edits
+(sent, by outcome, rejected), the interaction trace's size (rows, sessions, truncated
+sessions), `settings_versions` (question overrides aside) and, for the survey's
+owner, `credits`; with `as_of` and `last_activity_at`. Previews are left out unless
+`--include-previews`.
+
+Backs onto:
+
+```python
+Coop().get_human_survey_assistant_summary(human_survey_uuid, include_previews=include_previews)
+```
+
+The summary is printed as the envelope's `data`.
+
+### `edsl humanize assistant threads <human_survey_uuid>`
+
+Get a survey's assistant threads, in the order they began: one per response the
+assistant was offered to, whether or not the respondent chatted, with
+`response_status`, `offered_at`, `last_activity_at`, `turns`, `trace_state` and, for
+the survey's owner, `credits`. Rows are as of the read.
+
+Backs onto `Coop().get_human_survey_assistant_threads(...)`, and
+`Coop()._iter_human_survey_assistant_thread_batches(...)` with `--all`.
+
+Flags: as `edsl humanize assistant turns`, with `--after` taking a thread id. The
+envelope is `{"threads", "next_cursor", "has_more"}`, or with `--output`, `saved_to`,
+`format`, `thread_count`, `next_cursor` and `has_more`.
+
+### `edsl humanize assistant pages <human_survey_uuid>`
+
+Get the pages a survey served with the assistant on, in the order they were served:
+`response_uuid` and `page_id` (together naming the page), `page_key`, `questions`,
+`status`, `served_at`, `closed_at`, `config`, `chat_shown`, `hidden_by`,
+`fillable_questions` and `not_fillable`. Rows are as of the read.
+
+Backs onto `Coop().get_human_survey_assistant_pages(...)`, and
+`Coop()._iter_human_survey_assistant_page_batches(...)` with `--all`.
+
+Flags: as `edsl humanize assistant turns`, with `--after` taking the last page's
+`response_uuid` and `page_id` joined by `:`, as `next_cursor` gives it. The envelope is
+`{"pages", "next_cursor", "has_more"}`, or with `--output`, `saved_to`, `format`,
+`page_count`, `next_cursor` and `has_more`.
+
+### `edsl humanize assistant configs <human_survey_uuid>`
+
+Get the assistant configs a survey's pages were served with, in the order first
+served: `config`, `first_served_at`, `pages` and `settings` (the survey's settings
+with one page's question overrides, defaults filled in). Question overrides make
+several configs even when nothing changed during fielding. Only configs with a page
+within the filters are listed.
+
+Backs onto `Coop().get_human_survey_assistant_configs(...)`, and
+`Coop()._iter_human_survey_assistant_config_batches(...)` with `--all`.
+
+Flags: as `edsl humanize assistant turns`, with `--after` taking a config id and
+`--limit` at most 20 (the default), as each config holds the whole system prompt. The
+envelope is `{"configs", "next_cursor", "has_more"}`, or with `--output`, `saved_to`,
+`format`, `config_count`, `next_cursor` and `has_more`.
+
 ### `edsl humanize assistant transcripts <human_survey_uuid>`
 
 Get a survey's assistant conversations as transcripts: the rows of `edsl humanize

@@ -4006,9 +4006,9 @@ class Coop(CoopFunctionsMixin):
         did on a survey with the AI assistant on.
 
         One row per recorded interaction: pages shown and submitted, answers
-        edited, messages sent to the assistant and how their replies ended, what
-        became of the assistant's edits, and events that could not be recorded,
-        with why. Each row's ``type`` says which, and decides its other fields. Rows
+        edited, messages sent to the assistant and how their replies ended,
+        whether the form took the assistant's edits, and events that could not be
+        recorded, with why. Each row's ``type`` says which, and decides its other fields. Rows
         come in the order they were received, not the order they happened: sort a
         response's rows by ``session``, then ``seq``, for that. Rows from preview
         links are left out unless ``include_previews`` is
@@ -4148,6 +4148,410 @@ class Coop(CoopFunctionsMixin):
         )
         self._resolve_server_response(response)
         return int(response.json().get("total", 0))
+
+    def get_human_survey_assistant_summary(
+        self,
+        human_survey_uuid: Union[str, UUID],
+        *,
+        include_previews: bool = False,
+    ) -> dict:
+        """
+        Get a human survey's AI assistant data in numbers: enough for a first look,
+        and to decide what else to fetch.
+
+        - ``respondents``: ``responses``, those ``offered`` the assistant, and those
+          who ``chatted``.
+        - ``turns``: ``listed`` (as the turns download lists them), ``pending``
+          (still replying, or ended in the last few seconds), by ``status``, replies
+          the respondent saw ``ended`` as ``stopped``, ``dropped`` or ``refused``,
+          and ``respondents_with_failed``.
+        - ``edits``: the assistant's edits ``sent`` to the form, by ``outcome``, and
+          ``rejected``.
+        - ``trace``: the interaction trace's ``rows``, ``sessions`` and
+          ``truncated_sessions``.
+        - ``settings_versions``: how many versions of the assistant's settings
+          pages were served with, question overrides aside. More than one means the
+          settings changed during fielding.
+        - ``credits``: what the turns cost, for the survey's owner only.
+
+        Also ``as_of`` and ``last_activity_at``. Previews are left out unless
+        ``include_previews`` is true.
+
+        Parameters:
+            human_survey_uuid: UUID of the human survey.
+            include_previews: Also count preview links.
+
+        Returns:
+            dict: The summary.
+
+        Example:
+            >>> summary = coop.get_human_survey_assistant_summary("your-human-survey-uuid")  # doctest: +SKIP
+        """
+        response = self._send_server_request(
+            uri=f"api/v0/human-surveys/{human_survey_uuid}/assistant/summary",
+            method="GET",
+            params={"include_previews": str(include_previews).lower()},
+        )
+        self._resolve_server_response(response)
+        return response.json()
+
+    def get_human_survey_assistant_threads(
+        self,
+        human_survey_uuid: Union[str, UUID],
+        *,
+        after: Optional[str] = None,
+        limit: int = 100,
+        response_uuid: Optional[Union[str, UUID]] = None,
+        include_previews: bool = False,
+    ) -> dict:
+        """
+        Get one batch of a human survey's AI assistant threads, in the order they
+        began.
+
+        One row per response the assistant was offered to, whether or not the
+        respondent chatted: the response's status (``response_status``), when the
+        assistant was first offered (``offered_at``), the response's last activity,
+        how many turns are listed for it (``turns``; 0 if they never chatted), its
+        trace state, and, for the survey's owner, ``credits``. Rows from preview
+        links are left out unless ``include_previews`` is true.
+
+        To continue, pass the returned ``next_cursor`` as ``after`` while
+        ``has_more`` is true, with the same filters.
+
+        Parameters:
+            human_survey_uuid: UUID of the human survey.
+            after: Return only threads after this one, given by its ``thread``. Omit
+                to start from the first.
+            limit: Rows to return, at most 100.
+            response_uuid: Return only this response's thread.
+            include_previews: Also return threads from preview links.
+
+        Returns:
+            dict: ``{"threads": [...], "next_cursor", "has_more"}``
+
+        Example:
+            >>> batch = coop.get_human_survey_assistant_threads("your-human-survey-uuid")  # doctest: +SKIP
+        """
+        params: Dict[str, Any] = {
+            "limit": limit,
+            "include_previews": str(include_previews).lower(),
+        }
+        if after is not None:
+            params["after"] = str(after)
+        if response_uuid is not None:
+            params["response_uuid"] = str(response_uuid)
+        response = self._send_server_request(
+            uri=f"api/v0/human-surveys/{human_survey_uuid}/assistant/threads",
+            method="GET",
+            params=params,
+        )
+        self._resolve_server_response(response)
+        data = response.json()
+        return {
+            "threads": data.get("threads", []),
+            "next_cursor": data.get("next_cursor"),
+            "has_more": bool(data.get("has_more")),
+        }
+
+    def _iter_human_survey_assistant_thread_batches(
+        self,
+        human_survey_uuid: Union[str, UUID],
+        *,
+        after: Optional[str] = None,
+        limit: int = 100,
+        response_uuid: Optional[Union[str, UUID]] = None,
+        include_previews: bool = False,
+    ) -> Iterator[dict]:
+        """Yield batches from ``get_human_survey_assistant_threads``, following the
+        cursor to the end."""
+        while True:
+            batch = self.get_human_survey_assistant_threads(
+                human_survey_uuid,
+                after=after,
+                limit=limit,
+                response_uuid=response_uuid,
+                include_previews=include_previews,
+            )
+            yield batch
+            if not batch["has_more"]:
+                return
+            after = batch["next_cursor"]
+
+    def get_all_human_survey_assistant_threads(
+        self,
+        human_survey_uuid: Union[str, UUID],
+        *,
+        after: Optional[str] = None,
+        response_uuid: Optional[Union[str, UUID]] = None,
+        include_previews: bool = False,
+    ) -> List[dict]:
+        """
+        Get every AI assistant thread of a human survey, in the order they began:
+        one per response the assistant was offered to, whether or not the
+        respondent chatted. Threads from preview links are left out unless
+        ``include_previews`` is true.
+
+        Parameters:
+            human_survey_uuid: UUID of the human survey.
+            after: Return only threads after this one, given by its ``thread``.
+            response_uuid: Return only this response's thread.
+            include_previews: Also return threads from preview links, each marked
+                ``is_preview``.
+
+        Returns:
+            list[dict]: One dict per thread.
+
+        Example:
+            >>> threads = coop.get_all_human_survey_assistant_threads("your-human-survey-uuid")  # doctest: +SKIP
+        """
+        return [
+            row
+            for batch in self._iter_human_survey_assistant_thread_batches(
+                human_survey_uuid,
+                after=after,
+                response_uuid=response_uuid,
+                include_previews=include_previews,
+            )
+            for row in batch["threads"]
+        ]
+
+    def get_human_survey_assistant_pages(
+        self,
+        human_survey_uuid: Union[str, UUID],
+        *,
+        after: Optional[str] = None,
+        limit: int = 100,
+        response_uuid: Optional[Union[str, UUID]] = None,
+        include_previews: bool = False,
+    ) -> dict:
+        """
+        Get one batch of the pages a human survey served with the AI assistant on,
+        in the order they were served.
+
+        One row per page: its questions, status, when it was served and closed,
+        the ``config`` its turns ran on, whether the chat was shown
+        (``chat_shown``, and ``hidden_by`` when it wasn't), and which questions the
+        assistant could fill (``fillable_questions``, and ``not_fillable`` with why
+        not the rest). A page is named by ``response_uuid`` and ``page_id``
+        together. Rows from preview links are left out unless
+        ``include_previews`` is true.
+
+        To continue, pass the returned ``next_cursor`` as ``after`` while
+        ``has_more`` is true, with the same filters.
+
+        Parameters:
+            human_survey_uuid: UUID of the human survey.
+            after: Return only pages after this one, given as the last page's
+                ``next_cursor``. Omit to start from the first.
+            limit: Rows to return, at most 100.
+            response_uuid: Return only this response's pages.
+            include_previews: Also include preview links.
+
+        Returns:
+            dict: ``{"pages": [...], "next_cursor", "has_more"}``
+
+        Example:
+            >>> batch = coop.get_human_survey_assistant_pages("your-human-survey-uuid")  # doctest: +SKIP
+        """
+        params: Dict[str, Any] = {
+            "limit": limit,
+            "include_previews": str(include_previews).lower(),
+        }
+        if after is not None:
+            params["after"] = str(after)
+        if response_uuid is not None:
+            params["response_uuid"] = str(response_uuid)
+        response = self._send_server_request(
+            uri=f"api/v0/human-surveys/{human_survey_uuid}/assistant/pages",
+            method="GET",
+            params=params,
+        )
+        self._resolve_server_response(response)
+        data = response.json()
+        return {
+            "pages": data.get("pages", []),
+            "next_cursor": data.get("next_cursor"),
+            "has_more": bool(data.get("has_more")),
+        }
+
+    def _iter_human_survey_assistant_page_batches(
+        self,
+        human_survey_uuid: Union[str, UUID],
+        *,
+        after: Optional[str] = None,
+        limit: int = 100,
+        response_uuid: Optional[Union[str, UUID]] = None,
+        include_previews: bool = False,
+    ) -> Iterator[dict]:
+        """Yield batches from ``get_human_survey_assistant_pages``, following the
+        cursor to the end."""
+        while True:
+            batch = self.get_human_survey_assistant_pages(
+                human_survey_uuid,
+                after=after,
+                limit=limit,
+                response_uuid=response_uuid,
+                include_previews=include_previews,
+            )
+            yield batch
+            if not batch["has_more"]:
+                return
+            after = batch["next_cursor"]
+
+    def get_all_human_survey_assistant_pages(
+        self,
+        human_survey_uuid: Union[str, UUID],
+        *,
+        after: Optional[str] = None,
+        response_uuid: Optional[Union[str, UUID]] = None,
+        include_previews: bool = False,
+    ) -> List[dict]:
+        """
+        Get every page a human survey served with the AI assistant on, in
+        the order they were served. Pages from preview links are left out unless
+        ``include_previews`` is true.
+
+        Parameters:
+            human_survey_uuid: UUID of the human survey.
+            after: Return only pages after this one, given as the last page's
+                ``next_cursor``.
+            response_uuid: Return only this response's pages.
+            include_previews: Also include preview links; pages are marked
+                ``is_preview``.
+
+        Returns:
+            list[dict]: One dict per page.
+
+        Example:
+            >>> pages = coop.get_all_human_survey_assistant_pages("your-human-survey-uuid")  # doctest: +SKIP
+        """
+        return [
+            row
+            for batch in self._iter_human_survey_assistant_page_batches(
+                human_survey_uuid,
+                after=after,
+                response_uuid=response_uuid,
+                include_previews=include_previews,
+            )
+            for row in batch["pages"]
+        ]
+
+    def get_human_survey_assistant_configs(
+        self,
+        human_survey_uuid: Union[str, UUID],
+        *,
+        after: Optional[str] = None,
+        limit: int = 20,
+        response_uuid: Optional[Union[str, UUID]] = None,
+        include_previews: bool = False,
+    ) -> dict:
+        """
+        Get one batch of the AI assistant configs a human survey's pages were
+        served with, in the order each was first served.
+
+        One row per config: the survey's assistant settings with one page's
+        question overrides, defaults filled in, as served (``settings``), when it
+        was first served, and how many pages ran on it. Pages with the same
+        settings and overrides share a config, so a survey with question
+        overrides has several even when nothing changed during fielding. Only
+        configs with a page within the filters are listed.
+
+        To continue, pass the returned ``next_cursor`` as ``after`` while
+        ``has_more`` is true, with the same filters.
+
+        Parameters:
+            human_survey_uuid: UUID of the human survey.
+            after: Return only configs after this one, given by its ``config``. Omit to start from the first.
+            limit: Rows to return, at most 20.
+            response_uuid: Return only the configs this response's pages ran on.
+            include_previews: Also include preview links.
+
+        Returns:
+            dict: ``{"configs": [...], "next_cursor", "has_more"}``
+
+        Example:
+            >>> batch = coop.get_human_survey_assistant_configs("your-human-survey-uuid")  # doctest: +SKIP
+        """
+        params: Dict[str, Any] = {
+            "limit": limit,
+            "include_previews": str(include_previews).lower(),
+        }
+        if after is not None:
+            params["after"] = str(after)
+        if response_uuid is not None:
+            params["response_uuid"] = str(response_uuid)
+        response = self._send_server_request(
+            uri=f"api/v0/human-surveys/{human_survey_uuid}/assistant/configs",
+            method="GET",
+            params=params,
+        )
+        self._resolve_server_response(response)
+        data = response.json()
+        return {
+            "configs": data.get("configs", []),
+            "next_cursor": data.get("next_cursor"),
+            "has_more": bool(data.get("has_more")),
+        }
+
+    def _iter_human_survey_assistant_config_batches(
+        self,
+        human_survey_uuid: Union[str, UUID],
+        *,
+        after: Optional[str] = None,
+        limit: int = 20,
+        response_uuid: Optional[Union[str, UUID]] = None,
+        include_previews: bool = False,
+    ) -> Iterator[dict]:
+        """Yield batches from ``get_human_survey_assistant_configs``, following the
+        cursor to the end."""
+        while True:
+            batch = self.get_human_survey_assistant_configs(
+                human_survey_uuid,
+                after=after,
+                limit=limit,
+                response_uuid=response_uuid,
+                include_previews=include_previews,
+            )
+            yield batch
+            if not batch["has_more"]:
+                return
+            after = batch["next_cursor"]
+
+    def get_all_human_survey_assistant_configs(
+        self,
+        human_survey_uuid: Union[str, UUID],
+        *,
+        after: Optional[str] = None,
+        response_uuid: Optional[Union[str, UUID]] = None,
+        include_previews: bool = False,
+    ) -> List[dict]:
+        """
+        Get every AI assistant config a human survey's pages were served
+        with, in the order each was first served.
+
+        Parameters:
+            human_survey_uuid: UUID of the human survey.
+            after: Return only configs after this one, given by its ``config``.
+            response_uuid: Return only the configs this response's pages ran on.
+            include_previews: Also include preview links; pages are marked
+                ``is_preview``.
+
+        Returns:
+            list[dict]: One dict per config.
+
+        Example:
+            >>> configs = coop.get_all_human_survey_assistant_configs("your-human-survey-uuid")  # doctest: +SKIP
+        """
+        return [
+            row
+            for batch in self._iter_human_survey_assistant_config_batches(
+                human_survey_uuid,
+                after=after,
+                response_uuid=response_uuid,
+                include_previews=include_previews,
+            )
+            for row in batch["configs"]
+        ]
 
     def get_human_survey_assistant_turns(
         self,

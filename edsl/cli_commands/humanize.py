@@ -893,9 +893,113 @@ def register(humanize: click.Group) -> None:
         """
         if ctx.invoked_subcommand is None:
             output({
-                "commands": ["transcripts", "messages", "turns", "edits"],
+                "commands": ["summary", "transcripts", "threads", "messages", "turns", "edits", "pages", "configs"],
                 "help": "Use 'ep humanize assistant <command> --help' for details.",
             })
+
+    @humanize_assistant.command("threads")
+    @click.argument("human_survey_uuid")
+    @click.option("--after", default=None, help="Only threads after this one, e.g. the next_cursor from an earlier run.")
+    @click.option("--limit", default=100, type=int, help="Rows per request, at most 100.")
+    @click.option("--response", "response_uuid", default=None, help="Only this response's thread.")
+    @click.option("--all", "fetch_all", is_flag=True, default=False, help="Fetch every row, not one batch. Requires --output.")
+    @click.option("--output", "-o", "output_path", default=None, type=click.Path(dir_okay=False), help="Save rows to a .json or .jsonl file.")
+    @click.option("--include-previews", is_flag=True, default=False, help="Also include threads from preview links, each marked is_preview.")
+    def humanize_assistant_threads(human_survey_uuid, after, limit, response_uuid, fetch_all, output_path, include_previews):
+        """Get a survey's AI assistant threads, in the order they began: one per
+        response the assistant was offered to, whether or not the respondent
+        chatted, with its status, turn count, trace state and, for the survey's
+        owner, credits.
+
+        Rows from preview links are left out unless --include-previews. Each result
+        carries next_cursor: pass it back as --after, with the same filters, to get
+        only newer threads.
+
+        \b
+        Examples:
+          ep humanize assistant threads <uuid>
+          ep humanize assistant threads <uuid> --all --output threads.jsonl
+        """
+        _humanize_rows(
+            human_survey_uuid,
+            key="threads",
+            fetch_name="get_human_survey_assistant_threads",
+            iterate_name="_iter_human_survey_assistant_thread_batches",
+            after=after,
+            limit=limit,
+            fetch_all=fetch_all,
+            output_path=output_path,
+            filters={"response_uuid": response_uuid, "include_previews": include_previews},
+        )
+
+    @humanize_assistant.command("pages")
+    @click.argument("human_survey_uuid")
+    @click.option("--after", default=None, help="Only pages after this one, e.g. the next_cursor from an earlier run.")
+    @click.option("--limit", default=100, type=int, help="Rows per request, at most 100.")
+    @click.option("--response", "response_uuid", default=None, help="Only this response's pages.")
+    @click.option("--all", "fetch_all", is_flag=True, default=False, help="Fetch every row, not one batch. Requires --output.")
+    @click.option("--output", "-o", "output_path", default=None, type=click.Path(dir_okay=False), help="Save rows to a .json or .jsonl file.")
+    @click.option("--include-previews", is_flag=True, default=False, help="Also include preview links.")
+    def humanize_assistant_pages(human_survey_uuid, after, limit, response_uuid, fetch_all, output_path, include_previews):
+        """Get the pages a survey served with the AI assistant on, in the order
+        they were served: what each offered (whether the chat was shown, which
+        questions it could fill) and the config its turns ran on.
+
+        Rows from preview links are left out unless --include-previews. Each result
+        carries next_cursor: pass it back as --after, with the same filters, to get
+        only newer rows.
+
+        \b
+        Examples:
+          ep humanize assistant pages <uuid>
+          ep humanize assistant pages <uuid> --all --output pages.jsonl
+        """
+        _humanize_rows(
+            human_survey_uuid,
+            key="pages",
+            fetch_name="get_human_survey_assistant_pages",
+            iterate_name="_iter_human_survey_assistant_page_batches",
+            after=after,
+            limit=limit,
+            fetch_all=fetch_all,
+            output_path=output_path,
+            filters={"response_uuid": response_uuid, "include_previews": include_previews},
+        )
+
+    @humanize_assistant.command("configs")
+    @click.argument("human_survey_uuid")
+    @click.option("--after", default=None, help="Only configs after this one, e.g. the next_cursor from an earlier run.")
+    @click.option("--limit", default=20, type=int, help="Rows per request, at most 20.")
+    @click.option("--response", "response_uuid", default=None, help="Only the configs this response's pages ran on.")
+    @click.option("--all", "fetch_all", is_flag=True, default=False, help="Fetch every row, not one batch. Requires --output.")
+    @click.option("--output", "-o", "output_path", default=None, type=click.Path(dir_okay=False), help="Save rows to a .json or .jsonl file.")
+    @click.option("--include-previews", is_flag=True, default=False, help="Also include preview links.")
+    def humanize_assistant_configs(human_survey_uuid, after, limit, response_uuid, fetch_all, output_path, include_previews):
+        """Get the AI assistant configs a survey's pages were served with: the
+        settings with one page's question overrides, as served, and how many
+        pages ran on each. Question overrides make several configs even when
+        nothing changed during fielding.
+
+        Rows from preview links are left out unless --include-previews. Each result
+        carries next_cursor: pass it back as --after, with the same filters, to get
+        only newer rows.
+
+        \b
+        Examples:
+          ep humanize assistant configs <uuid>
+          ep humanize assistant configs <uuid> --all --output configs.jsonl
+        """
+        _humanize_rows(
+            human_survey_uuid,
+            key="configs",
+            fetch_name="get_human_survey_assistant_configs",
+            iterate_name="_iter_human_survey_assistant_config_batches",
+            after=after,
+            limit=limit,
+            fetch_all=fetch_all,
+            output_path=output_path,
+            filters={"response_uuid": response_uuid, "include_previews": include_previews},
+        )
 
     @humanize_assistant.command("turns")
     @click.argument("human_survey_uuid")
@@ -1011,6 +1115,34 @@ def register(humanize: click.Group) -> None:
             },
         )
 
+    @humanize_assistant.command("summary")
+    @click.argument("human_survey_uuid")
+    @click.option("--include-previews", is_flag=True, default=False, help="Also count preview links.")
+    def humanize_assistant_summary(human_survey_uuid, include_previews):
+        """Get a survey's AI assistant data in numbers: respondents offered and who
+        chatted, turns by status, the assistant's edits by outcome, the interaction
+        trace's size, settings versions and, for the survey's owner, credits.
+
+        Start here to decide what else to fetch.
+        """
+        try:
+            from edsl.coop import Coop
+
+            output(
+                Coop().get_human_survey_assistant_summary(
+                    human_survey_uuid, include_previews=include_previews
+                )
+            )
+        except SystemExit:
+            raise
+        except Exception as e:
+            error(
+                "HUMANIZE_ERROR",
+                str(e),
+                suggestion="Check the human survey UUID and Expected Parrot API key.",
+                exit_code=EXIT_REMOTE,
+            )
+
     @humanize_assistant.command("transcripts")
     @click.argument("human_survey_uuid")
     @click.option("--response", "response_uuid", default=None, help="Only this response's transcript.")
@@ -1020,7 +1152,7 @@ def register(humanize: click.Group) -> None:
     def humanize_assistant_transcripts(human_survey_uuid, response_uuid, no_edits, output_path, include_previews):
         """Get a survey's AI assistant conversations as transcripts: each
         response's messages together and in order, with what each of the
-        assistant's edits filled and what became of it.
+        assistant's edits filled and whether the form took it.
 
         Rejected edits come at the end of their turn, with no seq: they never
         showed in the chat. Respondents' own edits aren't included: they're in

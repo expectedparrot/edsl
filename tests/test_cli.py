@@ -5226,6 +5226,123 @@ class TestHumanizeCli:
             "https://example.test/home/human-surveys/hs-1/events/assistant"
         )
 
+    def test_humanize_assistant_threads_all_follows_the_cursor(self, tmp_path, monkeypatch):
+        import edsl.coop
+        from edsl.coop.coop import Coop as RealCoop
+
+        threads = [{"thread": f"th{n}"} for n in range(1, 4)]
+        calls = []
+
+        class FakeCoop(RealCoop):
+            def __init__(self):
+                pass
+
+            def get_human_survey_assistant_threads(
+                self, human_survey_uuid, *, after=None, limit=100,
+                response_uuid=None, include_previews=False,
+            ):
+                calls.append((after, limit, response_uuid, include_previews))
+                ids = [row["thread"] for row in threads]
+                start = ids.index(after) + 1 if after else 0
+                batch = threads[start : start + limit]
+                return {
+                    "threads": batch,
+                    "next_cursor": batch[-1]["thread"] if batch else after,
+                    "has_more": start + limit < len(threads),
+                }
+
+        monkeypatch.setattr(edsl.coop, "Coop", FakeCoop)
+        output_path = tmp_path / "threads.jsonl"
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            [
+                "humanize", "assistant", "threads", "human-survey-uuid",
+                "--all", "--limit", "2", "--output", str(output_path),
+            ],
+        )
+
+        assert result.exit_code == 0, result.output
+        data = json.loads(result.output)["data"]
+        assert (data["thread_count"], data["next_cursor"], data["has_more"]) == (3, "th3", False)
+        assert calls == [(None, 2, None, False), ("th2", 2, None, False)]
+        lines = output_path.read_text(encoding="utf-8").splitlines()
+        assert [json.loads(line) for line in lines] == threads
+
+    @pytest.mark.parametrize("command,cursor", [("pages", "r1:p2"), ("configs", "c2")])
+    def test_humanize_assistant_pages_and_configs_follow_the_cursor(
+        self, tmp_path, monkeypatch, command, cursor
+    ):
+        import edsl.coop
+        from edsl.coop.coop import Coop as RealCoop
+
+        key = {"pages": "page", "configs": "config"}[command]
+        rows = (
+            [{"response_uuid": "r1", "page_id": f"p{n}"} for n in range(1, 4)]
+            if command == "pages"
+            else [{"config": f"c{n}"} for n in range(1, 4)]
+        )
+        ids = [f"r1:{r['page_id']}" if command == "pages" else r["config"] for r in rows]
+        calls = []
+
+        def fetch(self, human_survey_uuid, *, after=None, limit=100,
+                  response_uuid=None, include_previews=False):
+            calls.append((after, limit))
+            start = ids.index(after) + 1 if after else 0
+            return {
+                command: rows[start : start + limit],
+                "next_cursor": ids[min(start + limit, len(ids)) - 1],
+                "has_more": start + limit < len(rows),
+            }
+
+        class FakeCoop(RealCoop):
+            def __init__(self):
+                pass
+
+        setattr(FakeCoop, f"get_human_survey_assistant_{command}", fetch)
+        monkeypatch.setattr(edsl.coop, "Coop", FakeCoop)
+        output_path = tmp_path / f"{command}.jsonl"
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            [
+                "humanize", "assistant", command, "human-survey-uuid",
+                "--all", "--limit", "2", "--output", str(output_path),
+            ],
+        )
+
+        assert result.exit_code == 0, result.output
+        data = json.loads(result.output)["data"]
+        assert data[f"{key}_count"] == 3
+        assert calls == [(None, 2), (cursor, 2)]
+        lines = output_path.read_text(encoding="utf-8").splitlines()
+        assert [json.loads(line) for line in lines] == rows
+
+    def test_humanize_assistant_summary_prints_it(self, monkeypatch):
+        import edsl.coop
+        from edsl.coop.coop import Coop as RealCoop
+
+        calls = []
+
+        class FakeCoop(RealCoop):
+            def __init__(self):
+                pass
+
+            def get_human_survey_assistant_summary(self, human_survey_uuid, *, include_previews=False):
+                calls.append((human_survey_uuid, include_previews))
+                return {"respondents": {"responses": 3, "offered": 2, "chatted": 1}}
+
+        monkeypatch.setattr(edsl.coop, "Coop", FakeCoop)
+
+        result = CliRunner().invoke(
+            cli_module.app,
+            ["humanize", "assistant", "summary", "human-survey-uuid", "--include-previews"],
+        )
+
+        assert result.exit_code == 0, result.output
+        assert json.loads(result.output)["data"]["respondents"]["chatted"] == 1
+        assert calls == [("human-survey-uuid", True)]
+
     def test_humanize_assistant_turns_prints_one_batch(self, monkeypatch):
         turns, _, _, calls = self._assistant_coop(monkeypatch)
 
