@@ -255,7 +255,7 @@ class Survey(Base):
         Examples:
             >>> from edsl import Survey
             >>> source = Survey.example()
-            >>> # review, scenario = source.create_review_survey()  # doctest: +SKIP
+            >>> review, scenario = source.create_review_survey()  # doctest: +SKIP
         """
         from .survey_review import create_review_survey
 
