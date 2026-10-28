@@ -47,7 +47,7 @@ class FileStoreList(ScenarioList):
     """
 
     __documentation__ = (
-        "https://docs.expectedparrot.com/en/latest/scenarios#filestorelist"
+        "https://docs.expectedparrot.com/en/latest/scenarios#a-collection-of-files"
     )
 
     def __init__(

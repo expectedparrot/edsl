@@ -1,0 +1,44 @@
+---
+title: "Human studies"
+description: "Publish a survey, collect responses, and retrieve data for analysis."
+---
+
+import Example from '/snippets/examples/survey_logic.mdx';
+
+Use EDSL to collect responses from people by turning a Survey into a hosted web questionnaire. Participants answer through a link; you retrieve their responses as data in Python. You can conduct a human study on its own or use the same instrument to compare human and model responses.
+
+This example asks about an export feature. Participants who have not used it finish after the first question; those who have used it describe a problem and what would resolve it. The code first defines that questionnaire:
+
+<Example />
+
+## Publish and collect
+
+With [Expected Parrot login configured](/en/latest/api_keys#log-in-from-a-notebook), publish it and retain the two identifiers used in the collection workflow:
+
+```python
+info = survey.humanize(human_survey_name="Export feature feedback")
+respondent_url = info["respondent_url"]
+human_survey_uuid = info["uuid"]
+```
+
+`respondent_url` is the link participants open. `human_survey_uuid` identifies this hosted collection when you retrieve responses later. Calling `humanize()` creates the survey; it does not recruit participants or generate their answers. Use `survey.preview()` to inspect the questionnaire before sharing its respondent link. See [Humanize](/en/latest/humanize) for presentation settings and [Prolific](/en/latest/prolific) for recruitment.
+
+## Retrieve responses
+
+After responses have been collected:
+
+```python
+from edsl import Coop, Results
+
+human_results = Coop().get_human_survey_responses(human_survey_uuid)
+if not isinstance(human_results, Results):
+    raise TypeError("Inspect returned response data before applying Results methods.")
+table = human_results.select("answer.*")
+table
+```
+
+Each completed response is a row, with columns such as `answer.used`, `answer.problem`, and `answer.followup`. Participants routed past a question have no answer to it. Use `table.to_csv("human-responses.csv")` to export the selected answers, or `table.to_pandas()` for analysis in a notebook. The type check handles the service's fallback to raw response data when conversion to Results is unavailable.
+
+To show different material to participants, attach scenarios with `survey.by(scenarios).humanize(...)` and choose an [assignment method](/en/latest/humanize#scenario-list-methods). To invite a known panel, attach [respondent profiles and email addresses](/en/latest/humanize#with-agent-lists-for-email-notifications). The [Human validation example](/en/latest/research/human_validation) demonstrates matching human classifications with model predictions.
+
+For adaptive interviews with human participants, use [Human interviews](/en/latest/guides/human_interviews).

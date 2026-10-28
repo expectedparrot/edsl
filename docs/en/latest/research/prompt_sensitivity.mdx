@@ -1,0 +1,45 @@
+---
+title: "Prompt sensitivity"
+description: "Measure how instruction choices change responses to matched inputs."
+---
+
+import Example from '/snippets/examples/prompt_sensitivity.mdx';
+
+Prompt sensitivity is the extent to which answers change when you change how you ask for them. A classification may depend on whether the model is told to read words literally, infer the writer's intent, follow a supplied definition, or consider earlier answers. Testing those choices helps you make your task instructions more precise and understand which records are sensitive to interpretation.
+
+This example compares two approaches to sentiment classification: **classify only explicit statements** and **classify the writer's likely intent**. Both approaches see the same feedback and choose from Positive, Neutral, and Negative. You will use agents to hold the two instruction configurations, then align their answers by record.
+
+## Represent instructions as agents
+
+An Agent can specify instructions without representing a demographic persona. Here each agent supplies one instruction and an `instruction_id` trait identifying the condition. The first feedback message, “Great, another unexpected charge,” allows a literal or sarcastic reading; the second, “The receipt arrived today,” offers a simpler comparison.
+
+<Example />
+
+Chaining `.by(agents).by(records)` gives each instruction configuration both records. The question and response options stay the same, so the four interviews compare the two ways of instructing the model on matched inputs. Agent traits also appear in the prompt, so these configurations include their identifying traits as well as the instruction text.
+
+## Put the answers side by side
+
+With [model access configured](/en/latest/api_keys), run the job and arrange its answers into one row per record:
+
+```python
+results = job.run()
+frame = results.select("scenario.record_id", "agent.instruction_id", "answer.sentiment").to_pandas()
+comparison = frame.pivot(index="scenario.record_id", columns="agent.instruction_id", values="answer.sentiment")
+comparison
+```
+
+For one model and iteration, the table has two rows and columns named `literal` and `inference`. A difference within a row means the two configurations produced different labels for the same text. The example does not assume which labels the model will choose: agreement on both records is also a possible result.
+
+To see the actual instructions and question sent for each interview, select the recorded prompts:
+
+```python
+results.select("scenario.record_id", "agent.instruction_id", "prompt.*")
+```
+
+This connects an observed difference to the full prompt the model received. Add more records to find out whether differences recur on a particular kind of input, such as sarcasm, short messages, or mixed positive and negative statements. This comparison measures changes in labels; deciding which instruction better fits your task requires a clear labeling rule or [human reference labels](/en/latest/research/human_validation).
+
+## Vary a different part of the prompt
+
+Use agent instructions when a general way of answering should apply across a survey. For question-specific wording, put the alternatives in scenarios and substitute them into a question template; [Experimental conditions](/en/latest/guides/experimental_conditions) shows that pattern. A question's `answering_instructions` can change the guidance for producing its answer, while [survey memory](/en/latest/guides/survey_logic#choose-which-prior-answers-a-model-sees) changes which earlier exchanges are supplied as context.
+
+To examine whether the same instruction difference appears across models, attach a ModelList. To examine repeated responses, use `job.run(n=3)`. In either case, keep the model or iteration fields with the answers: the simple pivot above assumes exactly one answer for each record and instruction condition.

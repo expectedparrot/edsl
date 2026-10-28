@@ -1,0 +1,69 @@
+---
+title: "AI-led interviews with people"
+description: "Personalize AI interview guides and combine conversations with structured survey questions."
+---
+
+import Example from '/snippets/examples/human_interview.mdx';
+
+An AI-led interview uses a guide to ask a human participant questions and relevant follow-ups. The participant supplies the responses; the AI acts as interviewer. In EDSL, this is a `QuestionInterview`: a question type that contains a conversation and returns its transcript.
+
+Use it when you want participants to describe experiences in their own words and clarify details as the conversation develops. An interview can be the whole survey or sit alongside [multiple-choice questions, ratings, and other question types](/en/latest/questions). This lets you collect comparable measures and explore the experiences behind them in the same study.
+
+## Combine an interview with structured questions
+
+This survey first asks how often the participant exports reports, then explores their most recent experience in an interview, and finishes with an ease rating. The interview guide uses the first answer to put the conversation in context:
+
+<Example />
+
+The interview occupies one position in the survey, but can contain multiple conversational turns. `question_text` introduces the topic and `interview_guide` directs the interviewer. `max_turns=8` limits interviewer turns; it does not define eight fixed questions. After the conversation, the participant proceeds to the rating question.
+
+The schema selects text participation. See [Humanize schema](/en/latest/humanize_schema) for voice and other interview options.
+
+## Personalize the interview guide
+
+Piping works inside `interview_guide` as well as `question_text`. In this example, `{{ export_frequency.answer }}` inserts the participant's answer to the earlier question. Someone who selects “Weekly” gives the interviewer the context “The participant exports reports Weekly.” The guide then directs the interviewer to explore how the experience fits that person's routine.
+
+You can use the same approach with an earlier free-text answer, such as a task the participant wants to discuss. Place questions whose answers you pipe before the interview. [Survey logic and piping](/en/latest/guides/survey_logic) explains how to combine this with branching, for example to ask an interview question only of participants with relevant experience.
+
+Guides can also use information supplied by your study through [Scenarios](/en/latest/scenarios). For example, `"Ask about exporting reports in {{ scenario.product }}."` makes the product a variable in the guide. Attach the scenarios with `survey.by(scenarios)` and choose how participants receive them when publishing; see [Human surveys with scenarios](/en/latest/humanize#with-scenarios). This lets you reuse a guide across products, settings, or experimental conditions.
+
+## Preview and publish
+
+The following calls use Expected Parrot and require authentication. AI interviewing can incur usage costs. First obtain a preview and pilot the conversation with people:
+
+```python
+preview_url = survey.preview(humanize_schema=humanize_schema)
+```
+
+Check that the guide uses the earlier answer, follow-ups stay on topic, and participants reach the final rating. When the instrument is ready, create the hosted survey:
+
+```python
+info = survey.humanize(
+    human_survey_name="Report export interviews",
+    humanize_schema=humanize_schema,
+)
+respondent_url = info["respondent_url"]
+human_survey_uuid = info["uuid"]
+```
+
+Preserve the UUID and distribute the respondent URL through the planned recruitment workflow. See [Human surveys](/en/latest/humanize#retrieving-responses) for response retrieval and [Prolific](/en/latest/prolific) for recruitment.
+
+## Analyze the responses
+
+After participants have responded, retrieve the structured answers and interview transcript together:
+
+```python
+from edsl import Coop
+
+results = Coop().get_human_survey_responses(human_survey_uuid)
+results.select(
+    "agent.response_uuid",
+    "answer.export_frequency",
+    "answer.export_experience",
+    "answer.export_ease",
+)
+```
+
+Each participant's transcript sits alongside their frequency and rating answers, so you can compare themes across frequent and occasional users or relate interview accounts to ease ratings. The interview answer contains messages with interviewer and respondent roles. Keep those roles when extracting passages so interviewer questions are not counted as participant statements. The [Qualitative coding example](/en/latest/research/qualitative) shows how to analyze excerpts with themes and supporting quotations; use the response identifier to connect excerpts back to their interview.
+
+For help developing the interview guide from a brief or source material, use the [Research Agent](/en/latest/research_agent), then inspect and refine the EDSL study it produces.
