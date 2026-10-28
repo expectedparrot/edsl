@@ -1,7 +1,9 @@
 ---
-title: "Humanize"
+title: "Human surveys"
 description: "EDSL comes with built-in methods for generating web versions of your surveys and collecting and analyzing responses from humans."
 ---
+
+`humanize()` turns an EDSL Survey into a web questionnaire that people can complete. It preserves the questions and survey logic while adding a respondent interface, an administration page, and response collection. Start with [Human studies](/en/latest/guides/human_studies) for a short end-to-end example; use this page to configure scenarios, respondent lists, and data retrieval.
 
 <Note>
 This page covers code methods for launching surveys, gathering human responses, and analyzing results. For interactive survey building, see [Survey Builder](/en/latest/survey_builder). For Prolific recruitment, see [Prolific studies](/en/latest/prolific). For email notifications and scheduled reminders, see [Survey notifications](/en/latest/humanize_notifications). To let AI agents take a survey, see [AI agent access](/en/latest/humanize_agent_access).
@@ -31,6 +33,8 @@ This page covers code methods for launching surveys, gathering human responses, 
 
 ## Basic usage
 
+The example collects three measures of workplace experience: work-from-home frequency, satisfaction, and a suggested improvement. After defining the questions, `.humanize()` publishes them using your [Expected Parrot account](/en/latest/api_keys#log-in-from-a-notebook).
+
 ```python
 from edsl import Survey, QuestionMultipleChoice, QuestionFreeText, QuestionLinearScale
 
@@ -58,21 +62,18 @@ info = survey.humanize(
     survey_visibility="unlisted",
 )
 
-print(info["respondent_url"])  # share with respondents
-print(info["admin_url"])       # monitor responses
-print(info["uuid"])            # save this to retrieve results later
+info  # Contains the respondent link, admin link, and collection UUID.
 ```
 
 ### `.humanize()` parameters
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `human_survey_name` | str | `"New survey"` | Display name on Coop |
+| `human_survey_name` | str | `"New survey"` | Display name on Expected Parrot |
 | `survey_description` | str \| None | None | Optional description |
 | `survey_alias` | str \| None | None | URL-friendly alias |
 | `survey_visibility` | str | `"private"` | `"private"`, `"public"`, or `"unlisted"` |
 | `humanize_schema` | dict \| None | None | Controls question styling and optionality — see [Humanize schema](/en/latest/humanize_schema) |
-| `delivery_map` | DeliveryMap \| None | None | Maps delivery channels to agent trait columns; required for email notifications |
 
 ### Return value
 
@@ -99,9 +100,12 @@ Use `.preview()` to get a preview URL without creating a live survey:
 
 ```python
 preview_url = survey.preview()
+# print() also shows output in scripts. In a notebook, you can instead
+# put the value you want to inspect on the last line of a cell.
 print(preview_url)
 
 # With schema customization
+schema = {"questions": {"improvement": {"optional": True}}}
 preview_url = survey.preview(humanize_schema=schema)
 ```
 
@@ -139,6 +143,8 @@ survey.humanize(
 
 Uploading the same file again returns the asset you already have, so re-running a script does not fill your library with copies.
 
+`Coop().list_human_survey_assets(page=1, page_size=20)` lists a page of image-library metadata. `Coop().get_human_survey_asset(asset_uuid)` returns a `HumanSurveyAsset`; its `download("logo.png")` method saves the image locally. `Coop().delete_human_survey_asset(asset_uuid)` removes an asset when you intend to delete it.
+
 From the CLI, upload once and apply it to a survey that already exists:
 
 ```bash
@@ -160,7 +166,7 @@ See [Humanize schema](/en/latest/humanize_schema) for the `branding` fields, and
 
 When using scenarios, call `.humanize()` on a `Jobs` object (not directly on the survey). You must specify a `scenario_list_method`.
 
-This example shows each respondent a different policy description and asks for their reaction:
+Use scenarios for stimulus material or treatment conditions. This example assigns each respondent one of three policy descriptions and asks for a support rating and its reason. Random assignment can select the same policy for several respondents:
 
 ```python
 from edsl import Survey, QuestionFreeText, QuestionLinearScale, Scenario, ScenarioList
@@ -202,7 +208,7 @@ info = survey.by(scenarios).humanize(
 **Rules:**
 - If you attach scenarios, you **must** specify `scenario_list_method`.
 - If you specify a method, you **must** attach scenarios.
-- Agents and models are **not supported** with humanize — the survey goes to real humans.
+- Do not attach language models to a human-survey job. An AgentList can supply participant metadata and delivery addresses, as described below; it does not generate simulated responses.
 
 ---
 
@@ -239,12 +245,14 @@ from edsl import Coop
 coop = Coop()
 
 results = coop.get_human_survey_responses("your-human-survey-uuid")
-results.select("answer.frequency", "answer.satisfaction", "answer.improvement").print()
+# In a notebook, the last expression displays the selected table.
+# In a script, append .print() to display it.
+results.select("answer.frequency", "answer.satisfaction", "answer.improvement")
 ```
 
 ### What the results contain
 
-Each completed response is one result, oldest first. Every value is what was recorded for that respondent: answers are never recomputed, and survey logic isn't evaluated again, so a skipped question stays skipped. Column names match the responses table on the survey's page.
+Each completed response is one result, oldest first. Retrieving data reads the recorded answers; it does not rerun the questionnaire. Skipped questions stay skipped. Column names match the responses table on the survey's page. Select `scenario.*` alongside answers when you need to compare the material or condition each respondent received.
 
 | Field | Description |
 |-------|-------------|
@@ -267,6 +275,22 @@ To get only some responses, pass `started_after` and/or `started_before` (inclus
 status = coop.get_human_survey("your-human-survey-uuid")
 print(f"Responses received: {status['n_responses']}")
 ```
+
+### Find surveys and inspect respondent progress
+
+Use Python pagination when retrieving account records:
+
+```python
+surveys = coop.list_human_surveys(search_query="Workplace", page=1, page_size=20)
+respondents = coop.get_human_survey_respondents(
+    "your-human-survey-uuid", page=1, page_size=50,
+)
+respondents
+```
+
+These calls return response dictionaries with records and pagination information; inspect the returned metadata before requesting another page. `coop.get_human_survey_agent_list(uuid)` retrieves the attached respondent list configuration. To change its delivery mapping or participation settings, use `coop.patch_human_survey_agent_list(...)`; see [notifications](/en/latest/humanize_notifications) and [AI agent access](/en/latest/humanize_agent_access).
+
+For events logged by a survey's [custom JavaScript](/en/latest/custom_javascript), `coop.get_human_survey_events(uuid, limit=200)` retrieves a batch. While `has_more` is true, pass the returned `next_cursor` as `after` to continue, or use `coop.get_all_human_survey_events(uuid)` to collect all batches. `coop.count_human_survey_events(uuid)` counts those events. Preview events are included and marked `is_preview`; exclude them from participant analyses. Use `get_human_survey_responses()` for answer data.
 
 ### Working with file upload responses
 
@@ -316,6 +340,15 @@ ep humanize qr <human-survey-uuid> --output survey-qr.png
 When the human survey has an attached agent list, export the roster together
 with each respondent's personal link:
 
+```python
+links = coop.get_human_survey_respondent_links(
+    "your-human-survey-uuid", save_path="respondent-links.csv",
+)
+# links is a Dataset; the CSV contains the personal respondent URLs.
+```
+
+The CLI alternative is:
+
 ```bash
 ep humanize links <human-survey-uuid> --output respondent-links.csv
 ```
@@ -337,24 +370,4 @@ respondent. The CLI returns only file metadata on stdout, never the links.
 
 ## Prolific integration
 
-For paid recruitment via Prolific, see the [Prolific studies](/en/latest/prolific) page. Studies on Expected Parrot's key are limited to your [participant limit](/en/latest/prolific#participant-limit). The short version:
-
-```python
-from edsl import Coop
-
-coop = Coop()
-
-info = survey.humanize(human_survey_name="Workplace Experience Survey")
-
-study = coop.create_prolific_study(
-    human_survey_uuid=info["uuid"],
-    name="Workplace Experience Study",
-    description="A short survey about remote and in-office work preferences. Takes about 3 minutes.",
-    num_participants=100,
-    estimated_completion_time_minutes=3,
-    participant_payment_cents=75,
-)
-
-# create_prolific_study leaves the study in DRAFT mode — publish to make it live
-coop.publish_prolific_study(info["uuid"], study["study_id"])
-```
+For paid recruitment, see [Prolific recruitment](/en/latest/prolific). That guide covers account limits, cost estimation, draft creation, preflight checks, publication, and response retrieval.

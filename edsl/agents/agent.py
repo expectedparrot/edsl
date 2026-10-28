@@ -813,7 +813,7 @@ class Agent(Base):
     ) -> None:
         """Add a method to the agent that can answer a particular question type.
 
-        See: https://docs.expectedparrot.com/en/latest/agents#agent-direct-answering-methods
+        See: https://docs.expectedparrot.com/en/latest/agents#supply-deterministic-answers
 
         Args:
             method: A method that can answer a question directly
