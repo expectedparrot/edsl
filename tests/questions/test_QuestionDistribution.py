@@ -274,6 +274,14 @@ def test_public_repr_and_randomization_rejection():
             'Unlike the example {"a":1,"b":0,"c":0}, I spread the probability.',
         ),
         ('{"a":0.2,"b":0.2,"c":0.6}\nCOMMENT: I {think so', "I {think so"),
+        (
+            'Avoid {"x":1,"x":2}. My answer: {"a":0.2,"b":0.2,"c":0.6}',
+            'Avoid {"x":1,"x":2}. My answer:',
+        ),
+        (
+            'Here it is: {"a":0.2,"b":0.2,"c":0.6}\nCOMMENT: Avoid {"x":1,"x":2}.',
+            'Here it is:\nAvoid {"x":1,"x":2}.',
+        ),
     ],
 )
 def test_json_is_located_inside_surrounding_prose(raw, expected_comment):

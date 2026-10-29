@@ -56,7 +56,8 @@ def _decode_generated(text, keys=None):
     the comment. An object left open after the last complete one is a
     truncated final answer, so it is rejected rather than falling back to
     an earlier object. Duplicate keys inside the chosen object are still
-    rejected so that nothing is silently repaired.
+    rejected so that nothing is silently repaired; duplicate keys in other
+    objects, such as one quoted in a comment, are ignored.
     """
     decoder = json.JSONDecoder(object_pairs_hook=_unique_object)
     stripped = text.strip()
@@ -65,21 +66,31 @@ def _decode_generated(text, keys=None):
     if stripped.startswith("{", start):
         try:
             answer, end = decoder.raw_decode(stripped, start)
-        except json.JSONDecodeError:
+        except ValueError:
             pass
         else:
             if keys is None or (isinstance(answer, dict) and set(answer) == set(keys)):
                 return answer, _strip_surroundings(stripped[:start], stripped[end:])
+    lenient = json.JSONDecoder()
     chosen = fallback = None
     parsed_end = 0
     for match in re.finditer(r"\{", stripped):
         start = match.start()
+        duplicate = None
         try:
             answer, end = decoder.raw_decode(stripped, start)
         except json.JSONDecodeError:
             continue
+        except ValueError as error:
+            # Duplicate keys only matter if this object ends up as the answer.
+            duplicate = error
+            answer, end = lenient.raw_decode(stripped, start)
         parsed_end = max(parsed_end, end)
-        found = (answer, _strip_surroundings(stripped[:start], stripped[end:]))
+        found = (
+            answer,
+            _strip_surroundings(stripped[:start], stripped[end:]),
+            duplicate,
+        )
         if keys is None or (isinstance(answer, dict) and set(answer) == set(keys)):
             chosen = found
         elif fallback is None:
@@ -92,7 +103,10 @@ def _decode_generated(text, keys=None):
             "JSON before any reasoning."
         )
     if chosen is not None or fallback is not None:
-        return chosen or fallback
+        answer, comment, duplicate = chosen or fallback
+        if duplicate is not None:
+            raise duplicate
+        return answer, comment
     raise ValueError("No JSON object was found in the response.")
 
 
