@@ -29,7 +29,7 @@ def _unique_object(pairs):
 
 _FENCE_OPEN = re.compile(r"```(?:json)?\s*$", re.I)
 _LEADING_FENCE = re.compile(r"```(?:json)?\s*", re.I)
-_OBJECT_OPENING = re.compile(r'\{\s*(?:"|$)')
+_OBJECT_OPENING = re.compile(r"""\{\s*(?:["']|$)""")
 _FENCE_CLOSE = re.compile(r"^```\s*", re.I)
 _COMMENT_PREFIX = re.compile(r"^COMMENT:\s*", re.I)
 _ERROR_MARKER = "[ERROR:"
@@ -107,15 +107,22 @@ def _decode_generated(text, keys=None):
             chosen = found
         elif fallback is None:
             fallback = found
-    # Only a brace that opens like a JSON object signals a truncated answer;
-    # a stray brace in prose (e.g. "I {think so") does not.
+    # A brace that opens like an object after the last complete one is a
+    # final answer that failed to parse, so it is rejected rather than
+    # letting an earlier object stand in for it. A stray brace in prose
+    # (e.g. "I {think so") is not an object opening and is ignored.
     opening = _OBJECT_OPENING.search(stripped, parsed_end)
-    tail = stripped[opening.start():] if opening else ""
-    if tail.count("{") > tail.count("}"):
+    if opening:
+        tail = stripped[opening.start():]
+        if tail.count("{") > tail.count("}"):
+            raise ValueError(
+                "The response ended before the JSON object was closed; the model "
+                "likely ran out of output tokens. Raise max_tokens or ask for the "
+                "JSON before any reasoning."
+            )
         raise ValueError(
-            "The response ended before the JSON object was closed; the model "
-            "likely ran out of output tokens. Raise max_tokens or ask for the "
-            "JSON before any reasoning."
+            "The final JSON object in the response could not be parsed; it "
+            "must be strict JSON with double-quoted keys."
         )
     if chosen is not None or fallback is not None:
         answer, comment, duplicate = chosen or fallback

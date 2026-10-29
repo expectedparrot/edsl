@@ -302,6 +302,16 @@ def test_json_is_located_inside_surrounding_prose(raw, expected_comment):
             {},
             "out of output tokens",
         ),
+        (
+            """Example {"a":1,"b":0,"c":0}. Final: {'a':0.2,'b':0.2,'c':""",
+            {},
+            "out of output tokens",
+        ),
+        (
+            """Example {"a":1,"b":0,"c":0}. Final: {'a':0.2,'b':0.2,'c':0.6}""",
+            {},
+            "could not be parsed",
+        ),
         ("", "", "empty response"),
         ("   ", "   ", "empty response"),
         (
