@@ -274,6 +274,7 @@ def test_public_repr_and_randomization_rejection():
             'Unlike the example {"a":1,"b":0,"c":0}, I spread the probability.',
         ),
         ('{"a":0.2,"b":0.2,"c":0.6}\nCOMMENT: I {think so', "I {think so"),
+        ('Here it is: {"a":0.2,"b":0.2,"c":0.6}\nCOMMENT: I {think so', "Here it is:\nI {think so"),
         (
             'Avoid {"x":1,"x":2}. My answer: {"a":0.2,"b":0.2,"c":0.6}',
             'Avoid {"x":1,"x":2}. My answer:',

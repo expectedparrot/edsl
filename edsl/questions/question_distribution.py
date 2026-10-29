@@ -29,6 +29,7 @@ def _unique_object(pairs):
 
 _FENCE_OPEN = re.compile(r"```(?:json)?\s*$", re.I)
 _LEADING_FENCE = re.compile(r"```(?:json)?\s*", re.I)
+_OBJECT_OPENING = re.compile(r'\{\s*(?:"|$)')
 _FENCE_CLOSE = re.compile(r"^```\s*", re.I)
 _COMMENT_PREFIX = re.compile(r"^COMMENT:\s*", re.I)
 _ERROR_MARKER = "[ERROR:"
@@ -106,7 +107,10 @@ def _decode_generated(text, keys=None):
             chosen = found
         elif fallback is None:
             fallback = found
-    tail = stripped[parsed_end:]
+    # Only a brace that opens like a JSON object signals a truncated answer;
+    # a stray brace in prose (e.g. "I {think so") does not.
+    opening = _OBJECT_OPENING.search(stripped, parsed_end)
+    tail = stripped[opening.start():] if opening else ""
     if tail.count("{") > tail.count("}"):
         raise ValueError(
             "The response ended before the JSON object was closed; the model "
